@@ -4106,10 +4106,10 @@
                 if (data.tableRevenue && data.tableRevenue.length > 0) {
                     html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🏪 各桌台收入</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;">`;
                     for (const t of data.tableRevenue) {
-                        html += `<div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px;text-align:center;">
-                            <div style="font-weight:600;">${esc(t.table_name)}</div>
-                            <div style="color:#2ecc71;font-size:18px;font-weight:700;margin-top:4px;">$${Number(t.revenue).toFixed(2)}</div>
-                            <div style="color:#c8c8d0;font-size:12px;">${t.orders} 单</div>
+                        html += `<div style="background:linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;text-align:center;transition:.2s ease;">
+                            <div style="font-weight:700;color:#fff;font-size:15px;">${esc(t.table_name)}</div>
+                            <div style="color:#2ecc71;font-size:20px;font-weight:700;margin-top:6px;text-shadow:0 0 10px rgba(46,204,113,.3);">$${Number(t.revenue).toFixed(2)}</div>
+                            <div style="color:#c8c8d0;font-size:12px;margin-top:2px;">${t.orders} 单</div>
                         </div>`;
                     }
                     html += `</div>`;
@@ -4120,9 +4120,9 @@
                     html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🔥 菜品销量 TOP 10</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:20px;">`;
                     data.dishRanking.forEach((d, i) => {
                         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-                        html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);">
-                            <span>${medal} ${d.emoji || ''} ${esc(d.name)}</span>
-                            <span style="font-weight:600;">${d.quantity || 0} 份</span>
+                        html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);align-items:center;">
+                            <span style="color:#fff;font-weight:600;font-size:14px;">${medal} ${d.emoji || ''} ${esc(d.name)}</span>
+                            <span style="font-weight:700;color:#ffd93d;font-size:14px;">${d.quantity || 0} 份</span>
                         </div>`;
                     });
                     html += `</div>`;
@@ -4139,7 +4139,7 @@
                             <div style="flex:1;background:rgba(255,255,255,.1);border-radius:6px;height:20px;overflow:hidden;">
                                 <div style="width:${pct}%;background:linear-gradient(90deg,#e85d3a,#f39c12);height:100%;border-radius:6px;"></div>
                             </div>
-                            <span style="width:60px;text-align:right;font-size:13px;">${h.orders}单 $${Number(h.revenue).toFixed(0)}</span>
+                            <span style="width:70px;text-align:right;font-size:13px;color:#fff;font-weight:600;">${h.orders}单 $${Number(h.revenue).toFixed(0)}</span>
                         </div>`;
                     }
                     html += `</div>`;
