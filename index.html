@@ -3133,6 +3133,11 @@
                 tableDisplay.textContent = t('notScanned');
                 tableInfo.title = t('scanToBind');
             }
+            // 切换语言后重置当前分类为新语言的"全部"，避免过滤条件不匹配导致菜单为空
+            const allTranslations = Object.values(LANGUAGES).map(l => l.all).filter(Boolean);
+            if (!state.currentCategory || allTranslations.includes(state.currentCategory)) {
+                state.currentCategory = t('all');
+            }
             renderCategories();
             renderMenu();
             updateUI();

@@ -1007,7 +1007,7 @@
       const prices=getMenuPrices(m);
       let priceDisplay=prices.primary;
       if(prices.secondary) priceDisplay += ` <span class="price-secondary">(${prices.secondary})</span>`;
-      return `<div class="dish-item"><div class="dish-thumb">${m.image?`<img src="/uploads/${m.image}" alt="${m.name}">`:m.emoji||'🍽️'}</div><div class="info"><div class="name">${m.name}</div><div class="price">${priceDisplay}/${wt('unit')}</div></div><div class="qty">${locked?`<span>${q} · ${wt('completed')}</span>`:`<button onclick="changeQty(${m.id},-1)">−</button><span>${q}</span><button onclick="changeQty(${m.id},1)">+</button>`}</div></div>`;
+      return `<div class="dish-item"><div class="dish-thumb">${m.image?`<img src="/uploads/${m.image}" alt="${m.name}">`:m.emoji||'🍽️'}</div><div class="info"><div class="name">${m.name}</div><div class="price">${priceDisplay}/${m.unit||wt('unit')}</div></div><div class="qty">${locked?`<span>${q} · ${wt('completed')}</span>`:`<button onclick="changeQty(${m.id},-1)">−</button><span>${q}</span><button onclick="changeQty(${m.id},1)">+</button>`}</div></div>`;
     }).join('');
     renderSelected();
     updateTotal();
