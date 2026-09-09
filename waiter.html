@@ -666,41 +666,6 @@
 <!-- ===== Toast ===== -->
 <div class="toast" id="toast"></div>
 
-<!-- ===== 登录模态框（含语言选择） ===== -->
-<div class="modal login-modal open" id="loginModal">
-  <div class="modal-card">
-    <!-- 语言选择器（右上角） -->
-    <div class="login-lang-select">
-      <select id="loginLangSelect">
-        <option value="zh">中文</option>
-        <option value="en">English</option>
-        <option value="vi">Tiếng Việt</option>
-        <option value="th">ภาษาไทย</option>
-        <option value="km">ភាសាខ្មែរ</option>
-      </select>
-    </div>
-    <div class="modal-head">
-      <h2><span class="brand-icon">🍖</span> <span id="waiterLoginTitle">服务员登录</span></h2>
-    </div>
-    <div class="form-group">
-      <input id="waiterUsername" placeholder="账号" autocomplete="username">
-    </div>
-    <div class="form-group">
-      <input id="waiterPassword" type="password" placeholder="密码" autocomplete="current-password">
-    </div>
-    <div class="history-users" id="historyUsers" style="display:none;">
-      <div class="label">📋 最近登录</div>
-      <div id="userBadgeContainer"></div>
-    </div>
-    <div class="form-group">
-      <label><input type="checkbox" id="waiterRemember"> <span id="waiterRememberLabel">保持登录</span></label>
-    </div>
-    <button id="waiterLoginBtn" class="login-btn">登录</button>
-    <div id="waiterLoginError" class="login-error"></div>
-    <div class="login-sub" id="waiterSubText">烧腊坊 · 服务员终端</div>
-  </div>
-</div>
-
 <!-- ===== 主界面头部 ===== -->
 <header id="mainHeader" style="display:none;">
   <h1 id="waiterTitle">🛎️ 服务员点餐终端</h1>
@@ -797,41 +762,18 @@
   const wt=k=>(WAITER_TEXT[waiterLang]&&WAITER_TEXT[waiterLang][k])||WAITER_TEXT.zh[k]||(LANGUAGES[waiterLang]&&LANGUAGES[waiterLang][k])||(LANGUAGES.zh&&LANGUAGES.zh[k])||k;
   // 简单 HTML 转义，避免顾客备注中的特殊字符破坏页面结构
   function escNote(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function applyWaiterLanguage(){$('#waiterTitle').textContent=wt('title');$('#waiterLoginTitle').textContent=wt('loginTitle');$('#waiterUsername').placeholder=wt('username');$('#waiterPassword').placeholder=wt('password');$('#waiterLoginBtn').textContent=wt('login');$('#waiterRememberLabel').textContent=wt('rememberLogin');$('#logoutBtn').textContent=wt('logout');$('#autoRefreshText').textContent=wt('autoRefresh');$('#waiterLang').value=waiterLang;renderTables();renderHistoryUsers();}
-  // 专门更新登录界面文本（不含主界面和表格）
-  function applyLoginLanguage() {
-    const t = wt;
-    document.querySelector('#waiterLoginTitle').textContent = t('loginTitle');
-    document.querySelector('#waiterUsername').placeholder = t('username');
-    document.querySelector('#waiterPassword').placeholder = t('password');
-    document.querySelector('#waiterRememberLabel').textContent = t('rememberLogin');
-    document.querySelector('#waiterLoginBtn').textContent = t('login');
-    document.querySelector('#waiterSubText').textContent = '烧腊坊 · ' + t('loginTitle');
-    // 错误信息保持原样，由逻辑更新
-  }
+  function applyWaiterLanguage(){$('#waiterTitle').textContent=wt('title');$('#logoutBtn').textContent=wt('logout');$('#autoRefreshText').textContent=wt('autoRefresh');$('#waiterLang').value=waiterLang;renderTables();}
   async function api(path,opt={}){const headers=new Headers(opt.headers||{});if(state.token)headers.set('X-Waiter-Token',state.token);const r=await fetch(API+path,{...opt,headers});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'请求失败');return d}
-
-  // ----- 历史用户 -----
-  function getHistoryUsers(){try{const raw=localStorage.getItem('waiterUsers');return raw?JSON.parse(raw):[]}catch{return[]}}
-  function addHistoryUser(username){if(!username)return;let users=getHistoryUsers();users=users.filter(u=>u!==username);users.unshift(username);if(users.length>5)users.pop();localStorage.setItem('waiterUsers',JSON.stringify(users));}
-  function renderHistoryUsers(){const users=getHistoryUsers();const container=$('#userBadgeContainer');const wrapper=$('#historyUsers');if(users.length){wrapper.style.display='block';container.innerHTML=users.map(u=>`<span class="user-badge" onclick="fillUser('${u}')">${u}</span>`).join('');}else{wrapper.style.display='none';}}
-  window.fillUser=function(username){$('#waiterUsername').value=username;$('#waiterPassword').value='';$('#waiterPassword').focus();};
 
   // ----- 退出登录 -----
   function logoutWaiter(){
     state.token='';sessionStorage.removeItem('waiterToken');
+    sessionStorage.removeItem('waiterStoreId');
     document.documentElement.removeAttribute('data-waiter-session');
     knownWaiterOrderIds=null;
     stopWaiterAutoRefresh();
-    $('#loginModal').classList.add('open');
-    $('#mainHeader').style.display='none';
-    $('#mainContent').style.display='none';
-    $('#waiterLoginError').textContent='';
-    renderHistoryUsers();
-    // 同步登录窗口的语言选择器
-    document.getElementById('loginLangSelect').value = waiterLang;
-    applyLoginLanguage();
     if(waiterIdleTimer){clearTimeout(waiterIdleTimer);waiterIdleTimer=null;}
+    window.location.href = '/login?type=waiter';
   }
 
   // ----- 空闲超时 -----
@@ -839,29 +781,7 @@
   function resetWaiterIdle(){clearTimeout(waiterIdleTimer);if(localStorage.getItem('waiterRemember')!=='1' && state.token){waiterIdleTimer=setTimeout(logoutWaiter,20*60*1000);}}
   ['click','keydown','mousemove','scroll','touchstart'].forEach(evt=>document.addEventListener(evt,resetWaiterIdle,{passive:true}));
 
-  // ----- 登录 -----
-  $('#waiterLoginBtn').onclick=async()=>{
-    const username=$('#waiterUsername').value.trim();
-    const password=$('#waiterPassword').value;
-    if(!username||!password){$('#waiterLoginError').textContent=wt('pleaseLogin');return;}
-    try{
-      const r=await fetch('/api/waiter/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
-      const d=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(d.error||wt('loginFailed'));
-      state.token=d.token;sessionStorage.setItem('waiterToken',state.token);
-      document.documentElement.setAttribute('data-waiter-session','1');
-      const remember=$('#waiterRemember').checked;localStorage.setItem('waiterRemember',remember?'1':'0');
-      addHistoryUser(username);
-      $('#loginModal').classList.remove('open');
-      $('#mainHeader').style.display='flex';
-      $('#mainContent').style.display='block';
-      if(d.waiter && d.waiter.display_name) $('#waiterNameDisplay').textContent='👤 '+d.waiter.display_name;
-      resetWaiterIdle();
-      await load();
-      applyAutoRefreshSetting();
-    }catch(e){$('#waiterLoginError').textContent=e.message;}
-  };
-  ['waiterUsername','waiterPassword'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('#waiterLoginBtn').click()}));
+
 
   // ----- 退出按钮 -----
   $('#logoutBtn').onclick=function(){if(confirm('确认退出登录吗？')) logoutWaiter();};
@@ -948,7 +868,7 @@
         const defaultSec=state.currencies.find(c=>c.code==='USD')||state.currencies[0];
         if(defaultSec) state.dualCurrency.currency=defaultSec;
       }
-      $('#loginModal').classList.remove('open');
+      
       $('#mainHeader').style.display='flex';
       $('#mainContent').style.display='block';
       if(state.waiter && state.waiter.display_name) $('#waiterNameDisplay').textContent='👤 '+state.waiter.display_name;
@@ -1129,77 +1049,30 @@
   };
 
   // ----- 语言切换 -----
-  // 同步登录窗口和主界面的语言选择器
   function setLanguage(lang) {
     waiterLang = lang;
     localStorage.setItem('waiterLang', lang);
-    // 更新两处下拉框
     document.getElementById('waiterLang').value = lang;
-    document.getElementById('loginLangSelect').value = lang;
-    // 应用登录界面文本
-    applyLoginLanguage();
-    // 如果已登录，更新主界面和其他内容
     if (state.token) {
-      applyWaiterLanguage(); // 会重新渲染表格等
-    } else {
-      // 仅更新登录界面的历史用户标签（文字不变）和错误信息（已由applyLoginLanguage处理）
-      // 但历史用户标签中的“最近登录”需要翻译
-      document.querySelector('#historyUsers .label').textContent = '📋 ' + wt('recentUsers');
+      applyWaiterLanguage();
     }
   }
-
-  // 监听登录窗口语言变化
-  document.getElementById('loginLangSelect').addEventListener('change', function() {
-    setLanguage(this.value);
-  });
-  // 监听主界面语言变化
   document.getElementById('waiterLang').addEventListener('change', function() {
     setLanguage(this.value);
   });
-
   // ----- 初始化语言 -----
   // 从 localStorage 读取，如果无则默认 zh
   const savedLang = localStorage.getItem('waiterLang') || 'zh';
   waiterLang = savedLang;
 
-  // 初始化时应用语言（登录界面）
-  function initLanguage() {
-    document.getElementById('loginLangSelect').value = waiterLang;
-    document.getElementById('waiterLang').value = waiterLang;
-    applyLoginLanguage();
-    // 如果未登录，历史用户的标签也需要翻译
-    if (!state.token) {
-      const label = document.querySelector('#historyUsers .label');
-      if (label) label.textContent = '📋 ' + wt('recentUsers');
-    }
-  }
-
-  // 启动
+  // 启动：检查登录状态，未登录跳转到统一登录页
   if(state.token){
-    $('#loginModal').classList.remove('open');
     $('#mainHeader').style.display='flex';
     $('#mainContent').style.display='block';
-    const remember=localStorage.getItem('waiterRemember')==='1';
-    $('#waiterRemember').checked=remember;
-    // 应用语言（主界面）
     applyWaiterLanguage();
     load().then(applyAutoRefreshSetting).catch(()=>logoutWaiter());
   }else{
-    $('#loginModal').classList.add('open');
-    $('#mainHeader').style.display='none';
-    $('#mainContent').style.display='none';
-    const remember=localStorage.getItem('waiterRemember')==='1';
-    $('#waiterRemember').checked=remember;
-    // 显示历史用户
-    renderHistoryUsers();
-    // 初始化登录界面语言
-    initLanguage();
-    // 如果有一个历史用户，自动填入
-    const users=getHistoryUsers();
-    if(users.length===1){
-      $('#waiterUsername').value=users[0];
-      $('#waiterPassword').focus();
-    }
+    window.location.href = '/login?type=waiter';
   }
 </script>
 </body>

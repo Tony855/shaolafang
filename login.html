@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>管理员登录</title>
+  <title>登录 - 烧腊坊</title>
   <link rel="stylesheet" href="assets/common.css">
   <style>
     body {
@@ -44,6 +44,22 @@
     }
     h1 { margin: 0 0 10px; color: #fff; font-size: 22px; }
     .desc { color: #9b9bb2; margin: 0 0 20px; font-size: 14px; line-height: 1.6; }
+
+    /* 登录类型切换 */
+    .login-tabs {
+      display: flex; gap: 8px; margin-bottom: 20px;
+      background: rgba(255,255,255,.06); padding: 4px; border-radius: 12px;
+    }
+    .login-tab {
+      flex: 1; padding: 10px; border: 0; border-radius: 8px;
+      background: transparent; color: #9b9bb2; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+    }
+    .login-tab.active {
+      background: linear-gradient(135deg, #f76b46, #df4d32);
+      color: #fff; box-shadow: 0 4px 12px rgba(232,93,58,.3);
+    }
+
     .login-box input {
       width: 100%; height: 48px; margin-bottom: 14px; padding: 0 14px;
       border-radius: 12px; border: 1px solid rgba(255,255,255,.14);
@@ -54,6 +70,7 @@
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(232,93,58,.15);
     }
+    .login-box input.hidden { display: none; }
     .login-box button {
       width: 100%; height: 48px; border: 0; border-radius: 12px;
       background: linear-gradient(135deg, #f76b46, #df4d32);
@@ -78,11 +95,20 @@
       </select>
     </div>
     <div class="login-box">
-      <div class="brand"><span>🍖</span><strong id="brandTitle"></strong></div>
-      <h1 id="loginTitle"></h1>
-      <p class="desc" id="loginDesc"></p>
-      <input id="password" type="password" autocomplete="current-password">
-      <button id="loginBtn"></button>
+      <div class="brand"><span>🍖</span><strong id="brandTitle">烧腊坊</strong></div>
+      <h1 id="loginTitle">登录</h1>
+      <p class="desc" id="loginDesc">请选择登录类型</p>
+
+      <!-- 登录类型切换 -->
+      <div class="login-tabs">
+        <button class="login-tab active" data-type="admin" id="tabAdmin">管理员</button>
+        <button class="login-tab" data-type="waiter" id="tabWaiter">服务员</button>
+      </div>
+
+      <!-- 服务员用户名（管理员模式隐藏） -->
+      <input id="username" type="text" placeholder="用户名" autocomplete="username" class="hidden">
+      <input id="password" type="password" placeholder="密码" autocomplete="current-password">
+      <button id="loginBtn">登录</button>
       <div class="error" id="loginError"></div>
     </div>
   </div>
@@ -91,44 +117,104 @@
   <script src="assets/common.js"></script>
   <script>
     const $ = s => document.querySelector(s);
-    let lang = localStorage.getItem('adminLang') || 'zh';
+    let lang = localStorage.getItem('lang') || 'zh';
+    let loginType = 'admin'; // admin 或 waiter
 
     SLF.i18n.init(lang);
 
-    function apply() {
-      document.title = SLF.i18n.t('adminLogin');
-      $('#brandTitle').textContent = SLF.i18n.t('adminBrand');
-      $('#loginTitle').textContent = SLF.i18n.t('adminLogin');
-      $('#loginDesc').textContent = SLF.i18n.t('adminLoginDesc');
-      $('#password').placeholder = SLF.i18n.t('adminPassword');
-      $('#loginBtn').textContent = SLF.i18n.t('login');
-      $('#langSelect').value = lang;
+    // 从 URL 参数获取登录类型
+    const urlParams = new URLSearchParams(window.location.search);
+    const typeParam = urlParams.get('type');
+    if (typeParam === 'waiter') {
+      loginType = 'waiter';
     }
 
+    function apply() {
+      document.title = '登录 - 烧腊坊';
+      $('#brandTitle').textContent = '烧腊坊';
+      $('#langSelect').value = lang;
+
+      // 更新登录类型按钮状态
+      $('#tabAdmin').classList.toggle('active', loginType === 'admin');
+      $('#tabWaiter').classList.toggle('active', loginType === 'waiter');
+
+      // 显示/隐藏用户名输入框
+      $('#username').classList.toggle('hidden', loginType === 'admin');
+
+      // 更新标题和描述
+      if (loginType === 'admin') {
+        $('#loginTitle').textContent = '管理员登录';
+        $('#loginDesc').textContent = '请输入管理员密码';
+        $('#password').placeholder = '管理员密码';
+      } else {
+        $('#loginTitle').textContent = '服务员登录';
+        $('#loginDesc').textContent = '请输入服务员账号和密码';
+        $('#password').placeholder = '密码';
+      }
+      $('#loginBtn').textContent = '登录';
+    }
+
+    // 语言切换
     $('#langSelect').value = lang;
     $('#langSelect').addEventListener('change', () => {
       lang = $('#langSelect').value;
-      localStorage.setItem('adminLang', lang);
+      localStorage.setItem('lang', lang);
       SLF.i18n.setLang(lang);
       apply();
     });
 
+    // 登录类型切换
+    $('#tabAdmin').addEventListener('click', () => {
+      loginType = 'admin';
+      $('#loginError').textContent = '';
+      apply();
+    });
+    $('#tabWaiter').addEventListener('click', () => {
+      loginType = 'waiter';
+      $('#loginError').textContent = '';
+      apply();
+    });
+
+    // 登录
     $('#loginBtn').addEventListener('click', async () => {
       const password = $('#password').value.trim();
       if (!password) {
-        $('#loginError').textContent = SLF.i18n.t('adminPassword');
+        $('#loginError').textContent = loginType === 'admin' ? '请输入管理员密码' : '请输入密码';
         return;
       }
-      try {
-        const data = await SLF.api.post('/admin/login', { password });
-        SLF.auth.setAdminKey(data.adminKey);
-        window.location.href = '/admin';
-      } catch (e) {
-        $('#loginError').textContent = e.message || SLF.i18n.t('loginError');
+
+      if (loginType === 'admin') {
+        // 管理员登录
+        try {
+          const data = await SLF.api.post('/admin/login', { password });
+          sessionStorage.setItem('adminKey', data.adminKey);
+          window.location.href = '/admin';
+        } catch (e) {
+          $('#loginError').textContent = e.message || '登录失败';
+        }
+      } else {
+        // 服务员登录
+        const username = $('#username').value.trim();
+        if (!username) {
+          $('#loginError').textContent = '请输入用户名';
+          return;
+        }
+        try {
+          const data = await SLF.api.post('/waiter/login', { username, password });
+          sessionStorage.setItem('waiterToken', data.token);
+          sessionStorage.setItem('waiterStoreId', data.storeId || 1);
+          window.location.href = '/waiter';
+        } catch (e) {
+          $('#loginError').textContent = e.message || '登录失败';
+        }
       }
     });
 
+    // 回车键登录
     $('#password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') $('#loginBtn').click();
+    });
+    $('#username').addEventListener('keydown', e => {
       if (e.key === 'Enter') $('#loginBtn').click();
     });
 
