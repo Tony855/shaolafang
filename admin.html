@@ -1977,19 +1977,19 @@
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
                         <div class="form-group">
-                            <label>账号</label>
+                            <label id="waiterUsernameLabel">账号</label>
                             <input id="waiterUsernameInput" placeholder="请输入账号">
                         </div>
                         <div class="form-group">
-                            <label>密码</label>
+                            <label id="waiterPasswordLabel">密码</label>
                             <input id="waiterPasswordInput" type="password" placeholder="请输入密码">
                         </div>
                         <div class="form-group">
-                            <label>姓名</label>
+                            <label id="waiterNameLabel">姓名</label>
                             <input id="waiterNameInput" placeholder="请输入姓名">
                         </div>
                         <div class="form-group">
-                            <label>所属店铺</label>
+                            <label id="waiterStoreLabel">所属店铺</label>
                             <select id="waiterStoreSelect"></select>
                         </div>
                         <div class="form-group" style="display:flex;align-items:flex-end;">
@@ -2006,15 +2006,15 @@
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
                         <div class="form-group">
-                            <label>店铺名称</label>
+                            <label id="storeNameLabel">店铺名称</label>
                             <input id="storeNameInput" placeholder="请输入店铺名称">
                         </div>
                         <div class="form-group">
-                            <label>店铺编码</label>
+                            <label id="storeCodeLabel">店铺编码</label>
                             <input id="storeCodeInput" placeholder="请输入店铺编码">
                         </div>
                         <div class="form-group">
-                            <label>地址</label>
+                            <label id="storeAddressLabel">地址</label>
                             <input id="storeAddressInput" placeholder="请输入地址">
                         </div>
                         <div class="form-group" style="display:flex;align-items:flex-end;">
@@ -2031,14 +2031,14 @@
 
                 <!-- 修改密码卡片 -->
                 <div class="settings-card">
-                    <h3 class="settings-card-title">🔐 修改密码</h3>
+                    <h3 id="changePasswordCardTitle" class="settings-card-title">🔐 修改密码</h3>
                     <form id="passwordForm" class="settings-form-grid">
                         <div class="form-group">
-                            <label>旧密码</label>
+                            <label id="oldPasswordLabel">旧密码</label>
                             <input id="oldPassword" type="password" placeholder="请输入旧密码" required>
                         </div>
                         <div class="form-group">
-                            <label>新密码</label>
+                            <label id="newPasswordLabel">新密码</label>
                             <input id="newPassword" type="password" placeholder="至少 6 位" required>
                         </div>
                         <div class="form-group" style="display:flex;align-items:flex-end;">
@@ -2214,7 +2214,7 @@
                 <input id="editWaiterDisplayName" placeholder="姓名">
             </div>
             <div class="order-field">
-                <label>所属店铺</label>
+                <label id="waiterStoreLabel">所属店铺</label>
                 <select id="editWaiterStore"></select>
             </div>
             <div class="order-field">
@@ -2247,7 +2247,7 @@
                 <input id="editStoreCode" placeholder="编码">
             </div>
             <div class="order-field">
-                <label>地址</label>
+                <label id="storeAddressLabel">地址</label>
                 <input id="editStoreAddress" placeholder="地址">
             </div>
             <div class="order-field">
@@ -2279,6 +2279,8 @@
                 listed: '已上架', unlisted: '已下架', unit: '单位', dualCurrency: '双币显示', secondaryCurrency: '第二货币',
                 storesManage: '店铺管理', storeName: '店铺名称', storeCode: '店铺编码', storeAddress: '地址', addStore: '添加店铺',
                 waitersManage: '服务员管理', waiterUsername: '账号', waiterPassword: '密码', waiterDisplayName: '姓名',
+                waiterStore: '所属店铺',
+                newPasswordShort: '新密码',
                 addWaiter: '添加服务员', dishName: '菜品名称', nameEn: '英文名称', descEn: '英文描述',
                 price: '价格', icon: '图标（例如 🍖）', desc: '菜品描述', addDish: '新增菜品', cancelEdit: '取消编辑',
                 dishCategoryManage: '菜品分类管理', newCategory: '新分类名称', addCategory: '添加分类',
@@ -2431,6 +2433,7 @@
                 storeCode: 'Store Code', storeAddress: 'Address', addStore: 'Add Store',
                 waitersManage: 'Waiter Management', waiterUsername: 'Username', waiterPassword: 'Password',
                 waiterDisplayName: 'Display Name', addWaiter: 'Add Waiter',
+                waiterStore: 'Store', newPasswordShort: 'New Password',
                 dishName: 'Dish Name', nameEn: 'English Name', descEn: 'English Description', price: 'Price',
                 icon: 'Icon (e.g. 🍖)', desc: 'Description', addDish: 'Add Dish', cancelEdit: 'Cancel Edit',
                 dishCategoryManage: 'Dish Categories', newCategory: 'New category name', addCategory: 'Add Category',
@@ -4402,11 +4405,21 @@
             $('#storeCodeInput').placeholder = tAdmin('storeCode');
             $('#storeAddressInput').placeholder = tAdmin('storeAddress');
             $('#addStoreBtn').textContent = tAdmin('addStore');
+            $('#storeNameLabel').textContent = tAdmin('storeName');
+            $('#storeCodeLabel').textContent = tAdmin('storeCode');
+            $('#storeAddressLabel').textContent = tAdmin('storeAddress');
             $('#waiterUsernameInput').placeholder = tAdmin('waiterUsername');
             $('#waiterPasswordInput').placeholder = tAdmin('waiterPassword');
             $('#waiterNameInput').placeholder = tAdmin('waiterDisplayName');
             $('#addWaiterBtn').textContent = tAdmin('addWaiter');
+            $('#waiterUsernameLabel').textContent = tAdmin('waiterUsername');
+            $('#waiterPasswordLabel').textContent = tAdmin('waiterPassword');
+            $('#waiterNameLabel').textContent = tAdmin('waiterDisplayName');
+            $('#waiterStoreLabel').textContent = tAdmin('waiterStore');
             $('#passwordPanelTitle').textContent = tAdmin('passwordTitle');
+            $('#changePasswordCardTitle').textContent = '🔐 ' + tAdmin('changePassword');
+            $('#oldPasswordLabel').textContent = tAdmin('oldPassword');
+            $('#newPasswordLabel').textContent = tAdmin('newPasswordShort');
             $('#oldPassword').placeholder = tAdmin('oldPassword');
             $('#newPassword').placeholder = tAdmin('newPassword');
             $('#changePasswordBtn').textContent = tAdmin('changePassword');
