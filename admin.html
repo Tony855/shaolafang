@@ -2141,7 +2141,7 @@
                 <label id="orderNoteFieldLabel">备注</label>
                 <input type="text" id="orderNoteField" maxlength="200" placeholder="顾客备注（选填）" style="width:100%;box-sizing:border-box;">
             </div>
-            <div class="order-modal-actions"><button id="orderCancelBtn" onclick="closeOrderForm()">取消</button><button class="primary" id="orderSaveBtn">保存订单</button></div>
+            <div class="order-modal-actions"><button id="orderCancelBtn" onclick="closeOrderForm()">${tAdmin('cancel')}</button><button class="primary" id="orderSaveBtn">保存订单</button></div>
         </div>
     </div>
 
@@ -2152,7 +2152,7 @@
             <h2 id="tableModalTitle">编辑桌号</h2>
             <div class="order-field"><label id="tableNameLabel">桌号名称</label><input id="editTableName" maxlength="20"></div>
             <div class="order-field"><label id="tableStatusLabel">状态</label><select id="editTableStatus"><option value="available">空闲</option><option value="occupied">已占</option><option value="reserved">已预订</option></select></div>
-            <div class="order-modal-actions"><button id="tableCancelBtn" onclick="closeTableForm()">取消</button><button class="primary" id="tableSaveBtn">保存</button></div>
+            <div class="order-modal-actions"><button id="tableCancelBtn" onclick="closeTableForm()">${tAdmin('cancel')}</button><button class="primary" id="tableSaveBtn">保存</button></div>
         </div>
     </div>
 
@@ -2162,7 +2162,7 @@
             <button class="modal-close" onclick="closeCategoryEditModal()">✕</button>
             <h2 id="categoryEditModalTitle">编辑菜品分类</h2>
             <div class="order-field"><label id="categoryEditNameLabel">分类名称</label><input id="editCategoryName" maxlength="20" placeholder="请输入分类名称"></div>
-            <div class="order-modal-actions"><button onclick="closeCategoryEditModal()">取消</button><button class="primary" onclick="saveCategoryEdit()">保存</button></div>
+            <div class="order-modal-actions"><button onclick="closeCategoryEditModal()">${tAdmin('cancel')}</button><button class="primary" onclick="saveCategoryEdit()">保存</button></div>
         </div>
     </div>
 
@@ -2197,7 +2197,7 @@
                 </div>
             </div>
             <div class="order-modal-actions">
-                <button onclick="closeWaiterEdit()">取消</button>
+                <button onclick="closeWaiterEdit()">${tAdmin('cancel')}</button>
                 <button class="primary" id="saveWaiterEditBtn">保存</button>
             </div>
         </div>
@@ -2227,7 +2227,7 @@
                 </label>
             </div>
             <div class="order-modal-actions">
-                <button onclick="closeStoreEdit()">取消</button>
+                <button onclick="closeStoreEdit()">${tAdmin('cancel')}</button>
                 <button class="primary" id="saveStoreEditBtn">保存</button>
             </div>
         </div>
@@ -2304,6 +2304,46 @@
                 qrCode: '二维码',
                 serveDish: '上菜',
                 placeOrder: '下单',
+                noReservations: '暂无预约',
+                reservationPending: '待确认',
+                reservationConfirmed: '已确认',
+                reservationCanceled: '已取消',
+                reservationCompleted: '已完成',
+                noPhone: '未留电话',
+                loadReservationsFailed: '加载预约失败',
+                reservationUpdated: '预约状态已更新',
+                handled: '已处理',
+                handleFailed: '处理失败',
+                table: '桌号',
+                noPrinterHint: '暂无打印机，添加一台网络打印机开始打印',
+                networkPrinter: '网络',
+                bluetoothPrinter: '蓝牙',
+                defaultPrinter: '默认',
+                setDefaultPrinter: '设为默认',
+                printerNameRequired: '请输入打印机名称',
+                printerAdded: '打印机已添加',
+                addFailed: '添加失败',
+                testPrintSent: '测试打印已发送',
+                operationFailed: '操作失败',
+                setAsDefaultPrinter: '已设为默认打印机',
+                confirmDeletePrinter: '确认删除此打印机？',
+                orderPrinted: '订单已打印',
+                openingBrowserPrint: '正在调起浏览器打印...',
+                allowPopupToPrint: '请允许弹出窗口以打印',
+                order: '订单',
+                print: '打印',
+                brandName: '烧腊坊',
+                printerConnectHint: '请在连接打印机后使用网络打印功能获得最佳效果。',
+                totalOrders: '总订单数',
+                completed: '已完成',
+                canceled: '已取消',
+                totalRevenue: '总营收',
+                avgOrderValue: '客单价',
+                revenueByTable: '各桌台收入',
+                topDishes: '菜品销量 TOP 10',
+                hourlyDistribution: '时段分布',
+                exportFailed: '导出失败',
+                exportSuccess: '导出成功',
             },
             en: { headerTitle: '🍖 Roast House · Admin', accessKey: 'Admin Key', connect: 'Connect',
                 customerPage: 'Customer Page', connectTitle: 'Admin Login', connectDesc: 'Enter the admin password to access the dashboard.',
@@ -2375,6 +2415,46 @@
                 qrCode: 'QR Code',
                 serveDish: 'Serve',
                 placeOrder: 'Place Order',
+                noReservations: 'No reservations',
+                reservationPending: 'Pending',
+                reservationConfirmed: 'Confirmed',
+                reservationCanceled: 'Canceled',
+                reservationCompleted: 'Completed',
+                noPhone: 'No phone',
+                loadReservationsFailed: 'Failed to load reservations',
+                reservationUpdated: 'Reservation updated',
+                handled: 'Handled',
+                handleFailed: 'Handle failed',
+                table: 'Table',
+                noPrinterHint: 'No printers yet. Add a network printer to start printing.',
+                networkPrinter: 'Network',
+                bluetoothPrinter: 'Bluetooth',
+                defaultPrinter: 'Default',
+                setDefaultPrinter: 'Set Default',
+                printerNameRequired: 'Please enter printer name',
+                printerAdded: 'Printer added',
+                addFailed: 'Add failed',
+                testPrintSent: 'Test print sent',
+                operationFailed: 'Operation failed',
+                setAsDefaultPrinter: 'Set as default printer',
+                confirmDeletePrinter: 'Delete this printer?',
+                orderPrinted: 'Order printed',
+                openingBrowserPrint: 'Opening browser print...',
+                allowPopupToPrint: 'Please allow popup to print',
+                order: 'Order',
+                print: 'Print',
+                brandName: 'Roast House',
+                printerConnectHint: 'For best results, connect a printer and use network printing.',
+                totalOrders: 'Total Orders',
+                completed: 'Completed',
+                canceled: 'Canceled',
+                totalRevenue: 'Total Revenue',
+                avgOrderValue: 'Avg. Order Value',
+                revenueByTable: 'Revenue by Table',
+                topDishes: 'Top 10 Dishes',
+                hourlyDistribution: 'Hourly Distribution',
+                exportFailed: 'Export failed',
+                exportSuccess: 'Export successful',
             }
         };
         ADMIN_LABELS.vi = { ...ADMIN_LABELS.en, headerTitle: '🍖 Quản trị Quán Thịt Quay', customerPage: 'Trang khách',
@@ -4249,33 +4329,33 @@
                 const data = await api('/admin/reservations');
                 const container = $('#reservationsList');
                 if (!data || data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#c8c8d0;">暂无预约</div>';
+                    container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noReservations')}</div>`;
                     return;
                 }
-                const statusMap = { pending: '待确认', confirmed: '已确认', canceled: '已取消', completed: '已完成' };
+                const statusMap = { pending: tAdmin('reservationPending'), confirmed: tAdmin('reservationConfirmed'), canceled: tAdmin('reservationCanceled'), completed: tAdmin('reservationCompleted') };
                 const statusColor = { pending: '#ffb020', confirmed: '#2ecc71', canceled: '#999', completed: '#3498db' };
                 container.innerHTML = data.map(r => `
                     <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                         <div>
                             <div style="font-weight:700;font-size:16px;">🪑 ${esc(r.table_name)} · ${esc(r.customer_name)}</div>
                             <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">
-                                📅 ${esc(r.reservation_time)} · 👥 ${r.guests}人 · 📞 ${esc(r.phone || '未留电话')}
+                                📅 ${esc(r.reservation_time)} · 👥 ${r.guests}人 · 📞 ${esc(r.phone || tAdmin('noPhone'))}
                             </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:8px;">
                             <span style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${statusColor[r.status] || '#999'}22;color:${statusColor[r.status] || '#999'};">${statusMap[r.status] || r.status}</span>
                             ${r.status === 'pending' ? `
-                                <button onclick="updateReservation(${r.id}, 'confirmed')" style="background:#2ecc71;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">确认</button>
-                                <button onclick="updateReservation(${r.id}, 'canceled')" style="background:#e74c3c;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">取消</button>
+                                <button onclick="updateReservation(${r.id}, 'confirmed')" style="background:#2ecc71;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('confirm')}</button>
+                                <button onclick="updateReservation(${r.id}, 'canceled')" style="background:#e74c3c;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('cancel')}</button>
                             ` : ''}
                             ${r.status === 'confirmed' ? `
-                                <button onclick="updateReservation(${r.id}, 'completed')" style="background:#3498db;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">完成</button>
+                                <button onclick="updateReservation(${r.id}, 'completed')" style="background:#3498db;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('complete')}</button>
                             ` : ''}
                         </div>
                     </div>
                 `).join('');
             } catch (err) {
-                toast('加载预约失败: ' + err.message);
+                toast(tAdmin('loadReservationsFailed') + ': ' + err.message);
             }
         }
 
@@ -4286,10 +4366,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status })
                 });
-                toast('预约状态已更新');
+                toast(tAdmin('reservationUpdated'));
                 loadReservations();
             } catch (err) {
-                toast('更新失败: ' + err.message);
+                toast(tAdmin('updateFailed') + ': ' + err.message);
             }
         }
 
@@ -4301,16 +4381,16 @@
                 const data = await api('/waiter-calls');
                 const container = $('#waiterCallsList');
                 if (!data || data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#c8c8d0;">暂无呼叫</div>';
+                    container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noCalls')}</div>`;
                     return;
                 }
                 container.innerHTML = data.map(c => `
                     <div style="background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.3);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div style="font-weight:700;font-size:16px;">🔔 桌号 ${esc(c.table_name)} 呼叫服务员</div>
+                            <div style="font-weight:700;font-size:16px;">🔔 ${tAdmin('table')} ${esc(c.table_name)} ${tAdmin('callWaiter')}</div>
                             <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${esc(c.created_at)}</div>
                         </div>
-                        <button onclick="handleWaiterCall('${c.id}')" style="background:#ff7a45;color:#fff;border:0;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;">已处理</button>
+                        <button onclick="handleWaiterCall('${c.id}')" style="background:#ff7a45;color:#fff;border:0;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;">${tAdmin('handled')}</button>
                     </div>
                 `).join('');
             } catch (err) {
@@ -4321,10 +4401,10 @@
         async function handleWaiterCall(id) {
             try {
                 await api('/waiter-calls/' + id + '/handle', { method: 'PUT' });
-                toast('已处理');
+                toast(tAdmin('handled'));
                 loadWaiterCalls();
             } catch (err) {
-                toast('处理失败: ' + err.message);
+                toast(tAdmin('handleFailed') + ': ' + err.message);
             }
         }
 
@@ -4336,25 +4416,25 @@
                 const data = await api('/admin/printers');
                 const container = $('#printersList');
                 if (!data || data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#c8c8d0;">暂无打印机，添加一台网络打印机开始打印</div>';
+                    container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noPrinterHint')}</div>`;
                     return;
                 }
-                const typeMap = { network: '网络', usb: 'USB', bluetooth: '蓝牙' };
+                const typeMap = { network: tAdmin('networkPrinter'), usb: 'USB', bluetooth: tAdmin('bluetoothPrinter') };
                 container.innerHTML = data.map(p => `
                     <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                         <div>
-                            <div style="font-weight:700;font-size:17px;color:#fff;margin-bottom:6px;">🖨️ ${esc(p.name)} ${p.is_default ? '<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">默认</span>' : ''}</div>
+                            <div style="font-weight:700;font-size:17px;color:#fff;margin-bottom:6px;">🖨️ ${esc(p.name)} ${p.is_default ? '<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>' : ''}</div>
                             <div style="color:#c8c8d0;font-size:13px;line-height:1.6;">
                                 ${typeMap[p.type] || p.type} · ${p.brand} · ${p.paper_width}mm
                                 ${p.ip_address ? ` · ${p.ip_address}:${p.port}` : ''}
-                                · ${p.active ? '<span style="color:#2ecc71;font-weight:600;">已启用</span>' : '<span style="color:#e74c3c;">已停用</span>'}
+                                · ${p.active ? '<span style="color:#2ecc71;font-weight:600;">${tAdmin('enabled')}</span>' : '<span style="color:#e74c3c;">${tAdmin('disabled')}</span>'}
                             </div>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <button onclick="testPrinter(${p.id})" style="background:#3498db;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">测试打印</button>
+                            <button onclick="testPrinter(${p.id})" style="background:#3498db;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('testPrint')}</button>
                             <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})" style="background:${p.active ? '#f39c12' : '#2ecc71'};color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${p.active ? tAdmin('disabled') : tAdmin('enabled')}</button>
-                            ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})" style="background:#9b59b6;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">设为默认</button>` : ''}
-                            <button onclick="deletePrinter(${p.id})" style="background:#e74c3c;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">删除</button>
+                            ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})" style="background:#9b59b6;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('setDefaultPrinter')}</button>` : ''}
+                            <button onclick="deletePrinter(${p.id})" style="background:#e74c3c;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('delete')}</button>
                         </div>
                     </div>
                 `).join('');
@@ -4365,7 +4445,7 @@
 
         async function addPrinter() {
             const name = $('#printerName').value.trim();
-            if (!name) { toast('请输入打印机名称'); return; }
+            if (!name) { toast(tAdmin('printerNameRequired')); return; }
             try {
                 await api('/admin/printers', {
                     method: 'POST',
@@ -4380,13 +4460,13 @@
                         is_default: $('#printerDefault').checked
                     })
                 });
-                toast('打印机已添加');
+                toast(tAdmin('printerAdded'));
                 $('#printerName').value = '';
                 $('#printerIp').value = '';
                 $('#printerDefault').checked = false;
                 loadPrinters();
             } catch (err) {
-                toast('添加失败: ' + err.message);
+                toast(tAdmin('addFailed') + ': ' + err.message);
             }
         }
 
@@ -4397,9 +4477,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ printer_id: id })
                 });
-                toast('测试打印已发送');
+                toast(tAdmin('testPrintSent'));
             } catch (err) {
-                toast('打印失败: ' + err.message);
+                toast(tAdmin('printFailed') + ': ' + err.message);
             }
         }
 
@@ -4412,7 +4492,7 @@
                 });
                 loadPrinters();
             } catch (err) {
-                toast('操作失败: ' + err.message);
+                toast(tAdmin('operationFailed') + ': ' + err.message);
             }
         }
 
@@ -4423,15 +4503,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ is_default: true })
                 });
-                toast('已设为默认打印机');
+                toast(tAdmin('setAsDefaultPrinter'));
                 loadPrinters();
             } catch (err) {
-                toast('操作失败: ' + err.message);
+                toast(tAdmin('operationFailed') + ': ' + err.message);
             }
         }
 
         async function deletePrinter(id) {
-            if (!confirm('确认删除此打印机？')) return;
+            if (!confirm(tAdmin('confirmDeletePrinter'))) return;
             try {
                 await api('/admin/printers/' + id, { method: 'DELETE' });
                 toast('打印机已删除');
@@ -4450,14 +4530,14 @@
                     body: JSON.stringify({})
                 });
                 if (data.printed) {
-                    toast('订单已打印');
+                    toast(tAdmin('orderPrinted'));
                 } else if (data.printData) {
                     // 浏览器端打印：创建隐藏 iframe 打印
-                    toast('正在调起浏览器打印...');
+                    toast(tAdmin('openingBrowserPrint'));
                     printViaBrowser(data.printData, orderId);
                 }
             } catch (err) {
-                toast('打印失败: ' + err.message);
+                toast(tAdmin('printFailed') + ': ' + err.message);
             }
         }
 
@@ -4465,11 +4545,11 @@
         function printViaBrowser(base64Data, orderId) {
             const printWindow = window.open('', '_blank', 'width=300,height=600');
             if (!printWindow) {
-                toast('请允许弹出窗口以打印');
+                toast(tAdmin('allowPopupToPrint'));
                 return;
             }
             printWindow.document.write(`
-                <html><head><title>订单 #${orderId} 打印</title>
+                <html><head><title>${tAdmin('order')} #${orderId} ${tAdmin('print')}</title>
                 <style>
                     body { font-family: monospace; font-size: 12px; padding: 10px; width: 280px; }
                     .center { text-align: center; }
@@ -4479,10 +4559,10 @@
                     .row { display: flex; justify-content: space-between; }
                 </style></head>
                 <body onload="window.print();setTimeout(()=>window.close(),500);">
-                <div class="center big">烧腊坊</div>
-                <div class="center">订单 #${orderId}</div>
+                <div class="center big">${tAdmin('brandName')}</div>
+                <div class="center">${tAdmin('order')} #${orderId}</div>
                 <div class="separator"></div>
-                <p>请在连接打印机后使用网络打印功能获得最佳效果。</p>
+                <p>${tAdmin('printerConnectHint')}</p>
                 </body></html>
             `);
             printWindow.document.close();
@@ -4502,35 +4582,35 @@
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#e85d3a;">${s.totalOrders}</div>
-                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">总订单数</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('totalOrders')}</div>
                         </div>
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#2ecc71;">${s.completedOrders}</div>
-                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">已完成</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('completed')}</div>
                         </div>
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#e74c3c;">${s.canceledOrders}</div>
-                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">已取消</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('canceled')}</div>
                         </div>
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#f1c40f;">$${Number(s.totalRevenue).toFixed(2)}</div>
-                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">总营收</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('totalRevenue')}</div>
                         </div>
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#3498db;">$${Number(s.avgOrderValue).toFixed(2)}</div>
-                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">客单价</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('avgOrderValue')}</div>
                         </div>
                     </div>
                 `;
 
                 // 桌台收入
                 if (data.tableRevenue && data.tableRevenue.length > 0) {
-                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🏪 各桌台收入</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;">`;
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🏪 ${tAdmin('revenueByTable')}</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;">`;
                     for (const t of data.tableRevenue) {
                         html += `<div style="background:linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;text-align:center;transition:.2s ease;">
                             <div style="font-weight:700;color:#fff;font-size:15px;">${esc(t.table_name)}</div>
                             <div style="color:#2ecc71;font-size:20px;font-weight:700;margin-top:6px;text-shadow:0 0 10px rgba(46,204,113,.3);">$${Number(t.revenue).toFixed(2)}</div>
-                            <div style="color:#c8c8d0;font-size:12px;margin-top:2px;">${t.orders} 单</div>
+                            <div style="color:#c8c8d0;font-size:12px;margin-top:2px;">${t.orders} ${tAdmin('orderUnit')}</div>
                         </div>`;
                     }
                     html += `</div>`;
@@ -4538,12 +4618,12 @@
 
                 // 菜品销量排行
                 if (data.dishRanking && data.dishRanking.length > 0) {
-                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🔥 菜品销量 TOP 10</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:20px;">`;
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🔥 ${tAdmin('topDishes')}</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:20px;">`;
                     data.dishRanking.forEach((d, i) => {
                         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
                         html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);align-items:center;">
                             <span style="color:#fff;font-weight:600;font-size:14px;">${medal} ${d.emoji || ''} ${esc(d.name)}</span>
-                            <span style="font-weight:700;color:#ffd93d;font-size:14px;">${d.quantity || 0} 份</span>
+                            <span style="font-weight:700;color:#ffd93d;font-size:14px;">${d.quantity || 0} ${tAdmin('portion')}</span>
                         </div>`;
                     });
                     html += `</div>`;
@@ -4551,7 +4631,7 @@
 
                 // 小时分布
                 if (data.hourlyStats && data.hourlyStats.length > 0) {
-                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">⏰ 时段分布</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">⏰ ${tAdmin('hourlyDistribution')}</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
                     const maxOrders = Math.max(...data.hourlyStats.map(h => h.orders), 1);
                     for (const h of data.hourlyStats) {
                         const pct = (h.orders / maxOrders * 100).toFixed(0);
@@ -4560,7 +4640,7 @@
                             <div style="flex:1;background:rgba(255,255,255,.1);border-radius:6px;height:20px;overflow:hidden;">
                                 <div style="width:${pct}%;background:linear-gradient(90deg,#e85d3a,#f39c12);height:100%;border-radius:6px;"></div>
                             </div>
-                            <span style="width:70px;text-align:right;font-size:13px;color:#fff;font-weight:600;">${h.orders}单 $${Number(h.revenue).toFixed(0)}</span>
+                            <span style="width:70px;text-align:right;font-size:13px;color:#fff;font-weight:600;">${h.orders}${tAdmin('orderUnit')} $${Number(h.revenue).toFixed(0)}</span>
                         </div>`;
                     }
                     html += `</div>`;
@@ -4578,7 +4658,7 @@
             // 使用 fetch 下载，带上 admin key
             fetch(url, { headers: { 'X-Admin-Key': adminKey } })
                 .then(res => {
-                    if (!res.ok) throw new Error('导出失败');
+                    if (!res.ok) throw new Error(tAdmin('exportFailed'));
                     return res.blob();
                 })
                 .then(blob => {
@@ -4587,9 +4667,9 @@
                     a.download = type + '_' + new Date().toISOString().slice(0, 10) + '.csv';
                     a.click();
                     URL.revokeObjectURL(a.href);
-                    toast('导出成功');
+                    toast(tAdmin('exportSuccess'));
                 })
-                .catch(err => toast('导出失败: ' + err.message));
+                .catch(err => toast(tAdmin('exportFailed') + ': ' + err.message));
         }
     </script>
 </body>
