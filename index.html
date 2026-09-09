@@ -2421,17 +2421,13 @@
                     const tokenRes = await fetch(`${API_BASE}/public/table-token/${encodeURIComponent(token)}`);
                     if (!tokenRes.ok) throw new Error('无效桌码');
                     const session = await tokenRes.json();
-                    const savedKey = 'scanSession_' + (session.storeId || 1) + '_' + session.table;
-                    let saved = null;
-                    try { saved = JSON.parse(localStorage.getItem(savedKey) || 'null'); } catch (_) {}
-                    const reuse = saved && saved.expiresAt && new Date(saved.expiresAt).getTime() > Date.now() ? saved : null;
                     state.table = session.table;
                     state.storeId = session.storeId || 1;
                     state.scanToken = token;
-                    state.scanSessionToken = reuse ? reuse.token : session.sessionToken;
-                    state.scanExpiresAt = reuse ? reuse.expiresAt : session.expiresAt;
-                    localStorage.setItem(savedKey, JSON.stringify({ token: state.scanSessionToken, expiresAt: state
-                            .scanExpiresAt }));
+                    // 每次扫码生成新的 session_token，确保同一桌不同顾客能被区分
+                    // 同一顾客如需继续之前的订单，可通过 ?session=xxx 参数访问
+                    state.scanSessionToken = session.sessionToken;
+                    state.scanExpiresAt = session.expiresAt;
                     try {
                         const url = new URL(window.location.href);
                         url.searchParams.delete('token');
