@@ -2166,6 +2166,35 @@
         </div>
     </div>
 
+    <!-- 货币编辑模态框 -->
+    <div class="order-modal edit-modal" id="currencyEditModal">
+        <div class="order-modal-card">
+            <button class="modal-close" onclick="closeCurrencyEdit()">✕</button>
+            <h2 id="currencyEditTitle">编辑货币</h2>
+            <input type="hidden" id="editCurrencyId">
+            <div class="order-field">
+                <label id="currencyEditCodeLabel">货币代码</label>
+                <input id="editCurrencyCode" disabled style="background:rgba(255,255,255,.05);color:#999;">
+            </div>
+            <div class="order-field">
+                <label id="currencyEditNameLabel">货币名称</label>
+                <input id="editCurrencyName" placeholder="货币名称">
+            </div>
+            <div class="order-field">
+                <label id="currencyEditSymbolLabel">货币符号</label>
+                <input id="editCurrencySymbol" placeholder="符号">
+            </div>
+            <div class="order-field">
+                <label id="currencyEditRateLabel">汇率（相对美元）</label>
+                <input id="editCurrencyRate" type="number" step="0.0001" placeholder="汇率">
+            </div>
+            <div class="order-modal-actions">
+                <button onclick="closeCurrencyEdit()" id="currencyCancelBtn">取消</button>
+                <button class="primary" onclick="saveCurrencyEdit()" id="currencySaveBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 服务员编辑模态框 -->
     <div class="order-modal edit-modal" id="waiterEditModal">
         <div class="order-modal-card">
@@ -2358,6 +2387,7 @@
                 scanToOrder: '扫码点餐',
                 download: '下载',
                 thankYou: '感谢您的光临',
+                editCurrency: '编辑货币',
             },
             en: { headerTitle: '🍖 Roast House · Admin', accessKey: 'Admin Key', connect: 'Connect',
                 customerPage: 'Customer Page', connectTitle: 'Admin Login', connectDesc: 'Enter the admin password to access the dashboard.',
@@ -2483,6 +2513,7 @@
                 scanToOrder: 'Scan to Order',
                 download: 'Download',
                 thankYou: 'Thank You',
+                editCurrency: 'Edit Currency',
             }
         };
         ADMIN_LABELS.vi = { ...ADMIN_LABELS.en, headerTitle: '🍖 Quản trị Quán Thịt Quay', customerPage: 'Trang khách',
@@ -3312,11 +3343,31 @@
         window.editCurrency = async function(id) {
             const data = await api('/currencies');
             const c = data.find(x => x.id === id);
-            const rate = prompt(tAdmin('currencyRate'), c.rate);
-            if (rate === null) return;
+            if (!c) return;
+            editingCurrencyId = id;
+            $('#editCurrencyId').value = id;
+            $('#editCurrencyCode').value = c.code || '';
+            $('#editCurrencyName').value = c.name || '';
+            $('#editCurrencySymbol').value = c.symbol || '';
+            $('#editCurrencyRate').value = c.rate || 1;
+            $('#currencyEditTitle').textContent = tAdmin('editCurrency') + ' - ' + (c.code || '');
+            $('#currencyEditModal').classList.add('open');
+        };
+        let editingCurrencyId = null;
+        window.closeCurrencyEdit = function() {
+            $('#currencyEditModal').classList.remove('open');
+            editingCurrencyId = null;
+        };
+        window.saveCurrencyEdit = async function() {
+            const id = editingCurrencyId;
+            if (!id) return;
+            const name = $('#editCurrencyName').value.trim();
+            const symbol = $('#editCurrencySymbol').value.trim();
+            const rate = parseFloat($('#editCurrencyRate').value) || 1;
             try {
                 await api('/currencies/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...c, rate: +rate }) });
+                    body: JSON.stringify({ name, symbol, rate }) });
+                closeCurrencyEdit();
                 await loadCurrencies();
                 toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('updated'));
             } catch (e) { toast('❌ ' + e.message); }
@@ -4233,6 +4284,14 @@
             tableStatusOptions[0].text = L('available');
             tableStatusOptions[1].text = L('occupied');
             tableStatusOptions[2].text = L('reserved');
+            // 货币编辑模态框
+            $('#currencyEditTitle').textContent = tAdmin('editCurrency');
+            $('#currencyEditCodeLabel').textContent = tAdmin('currencyCode');
+            $('#currencyEditNameLabel').textContent = tAdmin('currencyName');
+            $('#currencyEditSymbolLabel').textContent = tAdmin('currencySymbol');
+            $('#currencyEditRateLabel').textContent = tAdmin('currencyRate');
+            $('#currencyCancelBtn').textContent = L('cancel');
+            $('#currencySaveBtn').textContent = L('save');
             if (!$('#dashboard').hidden) {
                 loadMenuCategories();
                 loadMenus();
