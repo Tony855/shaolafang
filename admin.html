@@ -462,6 +462,55 @@
             font-size: 12px;
         }
 
+        /* 管理页面表单容器 */
+        .manage-form-container {
+            background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+        .manage-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+        }
+        .manage-form-grid .form-group {
+            margin-bottom: 0;
+        }
+        .manage-form-grid input,
+        .manage-form-grid select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.15);
+            background: rgba(0,0,0,.25);
+            color: #fff;
+            font-size: 14px;
+            box-sizing: border-box;
+            height: 42px;
+        }
+        .manage-form-grid input:focus,
+        .manage-form-grid select:focus {
+            outline: none;
+            border-color: #e85d3a;
+            box-shadow: 0 0 0 3px rgba(232,93,58,.15);
+        }
+        .manage-form-grid button {
+            height: 42px;
+            background: linear-gradient(135deg, #e85d3a, #e84a2a);
+            color: #fff;
+            border: 0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .manage-form-grid button:hover {
+            box-shadow: 0 4px 14px rgba(232,93,58,.4);
+            transform: translateY(-1px);
+        }
+
         /* ===== 菜单列表 ===== */
         .menu-list {
             display: flex;
@@ -1925,12 +1974,28 @@
             <!-- 服务员管理 -->
             <section class="panel module-panel" id="module-waiters">
                 <h2 id="waitersPanelTitle">服务员管理</h2>
-                <div class="admin-form" style="grid-template-columns:1fr 1fr 1fr 1fr auto;">
-                    <input id="waiterUsernameInput" placeholder="账号">
-                    <input id="waiterPasswordInput" type="password" placeholder="密码">
-                    <input id="waiterNameInput" placeholder="姓名">
-                    <select id="waiterStoreSelect"></select>
-                    <button id="addWaiterBtn">添加服务员</button>
+                <div class="manage-form-container">
+                    <div class="manage-form-grid">
+                        <div class="form-group">
+                            <label>账号</label>
+                            <input id="waiterUsernameInput" placeholder="请输入账号">
+                        </div>
+                        <div class="form-group">
+                            <label>密码</label>
+                            <input id="waiterPasswordInput" type="password" placeholder="请输入密码">
+                        </div>
+                        <div class="form-group">
+                            <label>姓名</label>
+                            <input id="waiterNameInput" placeholder="请输入姓名">
+                        </div>
+                        <div class="form-group">
+                            <label>所属店铺</label>
+                            <select id="waiterStoreSelect"></select>
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;">
+                            <button id="addWaiterBtn" class="primary" style="width:100%;">添加服务员</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="waiterList"></div>
             </section>
@@ -1938,11 +2003,24 @@
             <!-- 店铺管理 -->
             <section class="panel module-panel" id="module-stores">
                 <h2 id="storesPanelTitle">店铺管理</h2>
-                <div class="admin-form" style="grid-template-columns:1fr 1fr 1fr auto;">
-                    <input id="storeNameInput" placeholder="店铺名称">
-                    <input id="storeCodeInput" placeholder="店铺编码">
-                    <input id="storeAddressInput" placeholder="地址">
-                    <button id="addStoreBtn">添加店铺</button>
+                <div class="manage-form-container">
+                    <div class="manage-form-grid">
+                        <div class="form-group">
+                            <label>店铺名称</label>
+                            <input id="storeNameInput" placeholder="请输入店铺名称">
+                        </div>
+                        <div class="form-group">
+                            <label>店铺编码</label>
+                            <input id="storeCodeInput" placeholder="请输入店铺编码">
+                        </div>
+                        <div class="form-group">
+                            <label>地址</label>
+                            <input id="storeAddressInput" placeholder="请输入地址">
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;">
+                            <button id="addStoreBtn" class="primary" style="width:100%;">添加店铺</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="storeList"></div>
             </section>
