@@ -81,7 +81,8 @@ const poolConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  charset: 'utf8mb4'
+  charset: 'utf8mb4',
+  initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
 };
 
 let pool = mysql.createPool(poolConfig);
@@ -313,6 +314,7 @@ async function initDatabase() {
         waitForConnections: true,
         connectionLimit: 1,
         charset: 'utf8mb4',
+        initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
       });
       const conn = await tempPool.getConnection();
       await conn.query(`CREATE DATABASE IF NOT EXISTS \`${poolConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
