@@ -1882,30 +1882,30 @@
 
             <!-- 预约管理 -->
             <section class="panel module-panel" id="module-reservations">
-                <h2>📅 桌台预约管理</h2>
+                <h2 id="reservationsPanelTitle">📅 桌台预约管理</h2>
                 <div id="reservationsList"></div>
             </section>
 
             <!-- 呼叫服务员 -->
             <section class="panel module-panel" id="module-calls">
-                <h2>🔔 顾客呼叫</h2>
+                <h2 id="callsPanelTitle">🔔 顾客呼叫</h2>
                 <div style="margin-bottom:12px;">
-                    <button onclick="loadWaiterCalls()">刷新呼叫列表</button>
+                    <button id="refreshCallsBtn" onclick="loadWaiterCalls()">刷新呼叫列表</button>
                 </div>
                 <div id="waiterCallsList"></div>
             </section>
 
             <!-- 打印机管理 -->
             <section class="panel module-panel" id="module-printers">
-                <h2>🖨️ 小票打印机管理</h2>
+                <h2 id="printersPanelTitle">🖨️ 小票打印机管理</h2>
                 <div class="printer-form-container">
                     <div class="printer-form-grid">
                         <div class="form-group">
-                            <label>打印机名称</label>
+                            <label id="printerNameLabel">打印机名称</label>
                             <input id="printerName" placeholder="如：前台小票机">
                         </div>
                         <div class="form-group">
-                            <label>连接类型</label>
+                            <label id="printerTypeLabel">连接类型</label>
                             <select id="printerType">
                                 <option value="network">网络打印机</option>
                                 <option value="usb">USB打印机</option>
@@ -1913,22 +1913,22 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>IP地址</label>
+                            <label id="printerIpLabel">IP地址</label>
                             <input id="printerIp" placeholder="如：192.168.1.100">
                         </div>
                         <div class="form-group">
-                            <label>端口</label>
+                            <label id="printerPortLabel">端口</label>
                             <input id="printerPort" type="number" value="9100" placeholder="9100">
                         </div>
                         <div class="form-group">
-                            <label>纸宽</label>
+                            <label id="printerWidthLabel">纸宽</label>
                             <select id="printerWidth">
                                 <option value="58">58mm 小票纸</option>
                                 <option value="80">80mm 小票纸</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>品牌</label>
+                            <label id="printerBrandLabel">品牌</label>
                             <select id="printerBrand">
                                 <option value="generic">通用 ESC/POS</option>
                                 <option value="epson">EPSON 爱普生</option>
@@ -1943,9 +1943,9 @@
                     </div>
                     <div class="printer-form-actions">
                         <label class="checkbox-label">
-                            <input type="checkbox" id="printerDefault"> 设为默认打印机
+                            <input type="checkbox" id="printerDefault"> <span id="printerDefaultLabel">设为默认打印机</span>
                         </label>
-                        <button onclick="addPrinter()" class="primary">添加打印机</button>
+                        <button id="addPrinterBtn" onclick="addPrinter()" class="primary">添加打印机</button>
                     </div>
                 </div>
                 <div id="printersList"></div>
@@ -1953,14 +1953,14 @@
 
             <!-- 营业报表 -->
             <section class="panel module-panel" id="module-reports">
-                <h2>📊 营业报表</h2>
+                <h2 id="reportsPanelTitle">📊 营业报表</h2>
                 <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <label style="color:#ccc;">日期:</label>
+                    <label id="reportDateLabel" style="color:#ccc;">日期:</label>
                     <input type="date" id="reportDate" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
-                    <button onclick="loadDailyReport()" style="background:#e85d3a;color:#fff;border:0;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">查询</button>
-                    <button onclick="exportData('orders')" style="background:#3498db;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出订单CSV</button>
-                    <button onclick="exportData('sales')" style="background:#2ecc71;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出销量CSV</button>
-                    <button onclick="exportData('menu')" style="background:#9b59b6;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出菜单CSV</button>
+                    <button id="queryReportBtn" onclick="loadDailyReport()" style="background:#e85d3a;color:#fff;border:0;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">查询</button>
+                    <button id="exportOrdersBtn" onclick="exportData('orders')" style="background:#3498db;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出订单CSV</button>
+                    <button id="exportSalesBtn" onclick="exportData('sales')" style="background:#2ecc71;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出销量CSV</button>
+                    <button id="exportMenuBtn" onclick="exportData('menu')" style="background:#9b59b6;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出菜单CSV</button>
                 </div>
                 <div id="reportContent"></div>
             </section>
@@ -2391,6 +2391,35 @@
                 callWaiterManage: '呼叫服务员',
                 printerManage: '打印机管理',
                 reportManage: '营业报表',
+                refreshCalls: '刷新呼叫列表',
+                printerName: '打印机名称',
+                connectionType: '连接类型',
+                ipAddress: 'IP地址',
+                port: '端口',
+                paperWidth: '纸宽',
+                brand: '品牌',
+                printerNamePlaceholder: '如：前台小票机',
+                ipPlaceholder: '如：192.168.1.100',
+                setAsDefault: '设为默认打印机',
+                addPrinter: '添加打印机',
+                networkPrinter: '网络打印机',
+                usbPrinter: 'USB打印机',
+                bluetoothPrinter: '蓝牙打印机',
+                paper58mm: '58mm 小票纸',
+                paper80mm: '80mm 小票纸',
+                genericEscPos: '通用 ESC/POS',
+                epson: 'EPSON 爱普生',
+                star: 'Star 星亚',
+                bixolon: 'Bixolon 毕索龙',
+                jiabo: '佳博 Gprinter',
+                xprinter: '芯烨 Xprinter',
+                rongta: '容大 Rongta',
+                hoin: '弘印 Hoin',
+                date: '日期',
+                query: '查询',
+                exportOrdersCsv: '导出订单CSV',
+                exportSalesCsv: '导出销量CSV',
+                exportMenuCsv: '导出菜单CSV',
             },
             en: { headerTitle: '🍖 Roast House · Admin', accessKey: 'Admin Key', connect: 'Connect',
                 customerPage: 'Customer Page', connectTitle: 'Admin Login', connectDesc: 'Enter the admin password to access the dashboard.',
@@ -2520,6 +2549,35 @@
                 callWaiterManage: 'Call Waiter',
                 printerManage: 'Printer Management',
                 reportManage: 'Sales Report',
+                refreshCalls: 'Refresh Calls',
+                printerName: 'Printer Name',
+                connectionType: 'Connection Type',
+                ipAddress: 'IP Address',
+                port: 'Port',
+                paperWidth: 'Paper Width',
+                brand: 'Brand',
+                printerNamePlaceholder: 'e.g. Front Desk Printer',
+                ipPlaceholder: 'e.g. 192.168.1.100',
+                setAsDefault: 'Set as Default',
+                addPrinter: 'Add Printer',
+                networkPrinter: 'Network Printer',
+                usbPrinter: 'USB Printer',
+                bluetoothPrinter: 'Bluetooth Printer',
+                paper58mm: '58mm Receipt',
+                paper80mm: '80mm Receipt',
+                genericEscPos: 'Generic ESC/POS',
+                epson: 'EPSON',
+                star: 'Star',
+                bixolon: 'Bixolon',
+                jiabo: 'Gprinter',
+                xprinter: 'Xprinter',
+                rongta: 'Rongta',
+                hoin: 'Hoin',
+                date: 'Date',
+                query: 'Query',
+                exportOrdersCsv: 'Export Orders CSV',
+                exportSalesCsv: 'Export Sales CSV',
+                exportMenuCsv: 'Export Menu CSV',
             }
         };
         ADMIN_LABELS.vi = { ...ADMIN_LABELS.en, headerTitle: '🍖 Quản trị Quán Thịt Quay', customerPage: 'Trang khách',
@@ -2541,6 +2599,35 @@
             currencyManageTitle: 'Loại tiền tệ', currencyCode: 'Mã CNY', currencySymbol: 'Ký hiệu ¥',
             currencyName: 'Tên', currencyRate: 'Tỷ giá', addCurrency: 'Thêm tiền tệ',
             reservationManage: 'Quản lý đặt chỗ', callWaiterManage: 'Gọi nhân viên', printerManage: 'Quản lý máy in', reportManage: 'Báo cáo doanh thu',
+                refreshCalls: 'Làm mới danh sách gọi',
+                printerName: 'Tên máy in',
+                connectionType: 'Loại kết nối',
+                ipAddress: 'Địa chỉ IP',
+                port: 'Cổng',
+                paperWidth: 'Chiều rộng giấy',
+                brand: 'Thương hiệu',
+                printerNamePlaceholder: 'vd: Máy in quầy',
+                ipPlaceholder: 'vd: 192.168.1.100',
+                setAsDefault: 'Đặt làm mặc định',
+                addPrinter: 'Thêm máy in',
+                networkPrinter: 'Máy in mạng',
+                usbPrinter: 'Máy in USB',
+                bluetoothPrinter: 'Máy in Bluetooth',
+                paper58mm: 'Giấy 58mm',
+                paper80mm: 'Giấy 80mm',
+                genericEscPos: 'ESC/POS chung',
+                epson: 'EPSON',
+                star: 'Star',
+                bixolon: 'Bixolon',
+                jiabo: 'Gprinter',
+                xprinter: 'Xprinter',
+                rongta: 'Rongta',
+                hoin: 'Hoin',
+                date: 'Ngày',
+                query: 'Truy vấn',
+                exportOrdersCsv: 'Xuất đơn CSV',
+                exportSalesCsv: 'Xuất doanh thu CSV',
+                exportMenuCsv: 'Xuất menu CSV',
             passwordTitle: 'Mật khẩu quản trị', oldPassword: 'Mật khẩu cũ',
             newPassword: 'Mật khẩu mới (ít nhất 6 ký tự)', changePassword: 'Đổi mật khẩu', tableField: 'Bàn',
             dishList: 'Danh sách món', addDishLine: '➕ Thêm món', saveOrder: 'Lưu đơn',
@@ -2582,7 +2669,37 @@
             tableManageTitle: 'โต๊ะและคิวอาร์โค้ดคงที่', tableName: 'โต๊ะ เช่น A06', addTable: 'เพิ่มโต๊ะ',
             addOrder: '➕ เพิ่มออเดอร์', currencyManageTitle: 'ประเภทสกุลเงิน',
             currencyCode: 'รหัส CNY', currencySymbol: 'สัญลักษณ์ ¥', currencyName: 'ชื่อ', currencyRate: 'อัตราแลกเปลี่ยน',
-            addCurrency: 'เพิ่มสกุลเงิน', reservationManage: 'การจอง', callWaiterManage: 'เรียกพนักงาน', printerManage: 'เครื่องพิมพ์', reportManage: 'รายงานยอดขาย', passwordTitle: 'รหัสผ่านผู้ดูแล', oldPassword: 'รหัสผ่านเก่า',
+            addCurrency: 'เพิ่มสกุลเงิน', reservationManage: 'การจอง', callWaiterManage: 'เรียกพนักงาน', printerManage: 'เครื่องพิมพ์', reportManage: 'รายงานยอดขาย',
+                refreshCalls: 'รีเฟรชรายการเรียก',
+                printerName: 'ชื่อเครื่องพิมพ์',
+                connectionType: 'ประเภทการเชื่อมต่อ',
+                ipAddress: 'ที่อยู่ IP',
+                port: 'พอร์ต',
+                paperWidth: 'ความกว้างกระดาษ',
+                brand: 'ยี่ห้อ',
+                printerNamePlaceholder: 'เช่น เครื่องพิมพ์แผนกหน้า',
+                ipPlaceholder: 'เช่น 192.168.1.100',
+                setAsDefault: 'ตั้งเป็นค่าเริ่มต้น',
+                addPrinter: 'เพิ่มเครื่องพิมพ์',
+                networkPrinter: 'เครื่องพิมพ์เครือข่าย',
+                usbPrinter: 'เครื่องพิมพ์ USB',
+                bluetoothPrinter: 'เครื่องพิมพ์บลูทูธ',
+                paper58mm: 'กระดาษ 58mm',
+                paper80mm: 'กระดาษ 80mm',
+                genericEscPos: 'ESC/POS ทั่วไป',
+                epson: 'EPSON',
+                star: 'Star',
+                bixolon: 'Bixolon',
+                jiabo: 'Gprinter',
+                xprinter: 'Xprinter',
+                rongta: 'Rongta',
+                hoin: 'Hoin',
+                date: 'วันที่',
+                query: 'ค้นหา',
+                exportOrdersCsv: 'ส่งออกออเดอร์ CSV',
+                exportSalesCsv: 'ส่งออกยอดขาย CSV',
+                exportMenuCsv: 'ส่งออกเมนู CSV',
+ passwordTitle: 'รหัสผ่านผู้ดูแล', oldPassword: 'รหัสผ่านเก่า',
             newPassword: 'รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)', changePassword: 'เปลี่ยนรหัสผ่าน', tableField: 'โต๊ะ',
             dishList: 'รายการเมนู', addDishLine: '➕ เพิ่มเมนู', saveOrder: 'บันทึกออเดอร์',
             editTableTitle: 'แก้ไขโต๊ะ', tableNameLabel: 'ชื่อโต๊ะ', statusLabel: 'สถานะ',
@@ -2625,6 +2742,35 @@
             currencyManageTitle: 'ប្រភេទរូបិយប័ណ្ណ', currencyCode: 'កូដ CNY', currencySymbol: 'និមិត្តសញ្ញា ¥',
             currencyName: 'ឈ្មោះ', currencyRate: 'អត្រាប្តូរ', addCurrency: 'បន្ថែមរូបិយប័ណ្ណ',
             reservationManage: 'ការគ្រប់គ្រងការកក់', callWaiterManage: 'ការហៅអ្នកបម្រើ', printerManage: 'ការគ្រប់គ្រងម៉ាស៊ីនបោះពុម្ព', reportManage: 'របាយការណ៍លក់',
+                refreshCalls: 'ទូរទស្សន៍បញ្ជីការហៅ',
+                printerName: 'ឈ្មោះម៉ាស៊ីនបោះពុម្ព',
+                connectionType: 'ប្រភេទការតភ្ជាប់',
+                ipAddress: 'អាសយដ្ឋាន IP',
+                port: 'ច្រក',
+                paperWidth: 'បណ្តោយក្រដាស',
+                brand: 'ម៉ាក',
+                printerNamePlaceholder: 'ឧទា ម៉ាស៊ីនបោះពុម្ពថេប្លេ',
+                ipPlaceholder: 'ឧទា ១៩២.១៦៨.១.១០០',
+                setAsDefault: 'កំណត់ជាលំនាំដើម',
+                addPrinter: 'បន្ថែមម៉ាស៊ីនបោះពុម្ព',
+                networkPrinter: 'ម៉ាស៊ីនបោះពុម្ពបណ្តាញ',
+                usbPrinter: 'ម៉ាស៊ីនបោះពុម្ព USB',
+                bluetoothPrinter: 'ម៉ាស៊ីនបោះពុម្ព Bluetooth',
+                paper58mm: 'ក្រដាស ៥៨mm',
+                paper80mm: 'ក្រដាស ៨០mm',
+                genericEscPos: 'ESC/POS ទូទៅ',
+                epson: 'EPSON',
+                star: 'Star',
+                bixolon: 'Bixolon',
+                jiabo: 'Gprinter',
+                xprinter: 'Xprinter',
+                rongta: 'Rongta',
+                hoin: 'Hoin',
+                date: 'កាលបរិច្ឆេទ',
+                query: 'ស្វែងរក',
+                exportOrdersCsv: 'នាំចេញបញ្ជាទិញ CSV',
+                exportSalesCsv: 'នាំចេញយោបល់ CSV',
+                exportMenuCsv: 'នាំចេញមីនុយ CSV',
                         passwordTitle: 'ពាក្យសម្ងាត់អ្នកគ្រប់គ្រង', oldPassword: 'ពាក្យសម្ងាត់ចាស់',
             newPassword: 'ពាក្យសម្ងាត់ថ្មី (យ៉ាងហោច ៦ តួ)', changePassword: 'ប្តូរពាក្យសម្ងាត់', tableField: 'តុ',
             dishList: 'បញ្ជីម្ហូប', addDishLine: '➕ បន្ថែមម្ហូប', saveOrder: 'រក្សាទុកការបញ្ជាទិញ',
@@ -4304,6 +4450,46 @@
             $('#currencyEditRateLabel').textContent = tAdmin('currencyRate');
             $('#currencyCancelBtn').textContent = L('cancel');
             $('#currencySaveBtn').textContent = L('save');
+            // 预约管理
+            $('#reservationsPanelTitle').textContent = '📅 ' + tAdmin('reservationManage');
+            // 呼叫服务员
+            $('#callsPanelTitle').textContent = '🔔 ' + tAdmin('callWaiterManage');
+            $('#refreshCallsBtn').textContent = tAdmin('refreshCalls');
+            // 打印机管理
+            $('#printersPanelTitle').textContent = '🖨️ ' + tAdmin('printerManage');
+            $('#printerNameLabel').textContent = tAdmin('printerName');
+            $('#printerTypeLabel').textContent = tAdmin('connectionType');
+            $('#printerIpLabel').textContent = tAdmin('ipAddress');
+            $('#printerPortLabel').textContent = tAdmin('port');
+            $('#printerWidthLabel').textContent = tAdmin('paperWidth');
+            $('#printerBrandLabel').textContent = tAdmin('brand');
+            $('#printerName').placeholder = tAdmin('printerNamePlaceholder');
+            $('#printerIp').placeholder = tAdmin('ipPlaceholder');
+            $('#printerDefaultLabel').textContent = tAdmin('setAsDefault');
+            $('#addPrinterBtn').textContent = tAdmin('addPrinter');
+            const printerTypeOptions = $('#printerType').options;
+            printerTypeOptions[0].text = tAdmin('networkPrinter');
+            printerTypeOptions[1].text = tAdmin('usbPrinter');
+            printerTypeOptions[2].text = tAdmin('bluetoothPrinter');
+            const printerWidthOptions = $('#printerWidth').options;
+            printerWidthOptions[0].text = tAdmin('paper58mm');
+            printerWidthOptions[1].text = tAdmin('paper80mm');
+            const printerBrandOptions = $('#printerBrand').options;
+            printerBrandOptions[0].text = tAdmin('genericEscPos');
+            printerBrandOptions[1].text = tAdmin('epson');
+            printerBrandOptions[2].text = tAdmin('star');
+            printerBrandOptions[3].text = tAdmin('bixolon');
+            printerBrandOptions[4].text = tAdmin('jiabo');
+            printerBrandOptions[5].text = tAdmin('xprinter');
+            printerBrandOptions[6].text = tAdmin('rongta');
+            printerBrandOptions[7].text = tAdmin('hoin');
+            // 营业报表
+            $('#reportsPanelTitle').textContent = '📊 ' + tAdmin('reportManage');
+            $('#reportDateLabel').textContent = tAdmin('date') + ':';
+            $('#queryReportBtn').textContent = tAdmin('query');
+            $('#exportOrdersBtn').textContent = tAdmin('exportOrdersCsv');
+            $('#exportSalesBtn').textContent = tAdmin('exportSalesCsv');
+            $('#exportMenuBtn').textContent = tAdmin('exportMenuCsv');
             if (!$('#dashboard').hidden) {
                 loadMenuCategories();
                 loadMenus();
