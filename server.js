@@ -127,7 +127,7 @@ async function withTransaction(work) {
 }
 
 // ---------- 常量 ----------
-const MENU_CATALOG_VERSION = 'roast_meat_v3';
+const MENU_CATALOG_VERSION = 'roast_meat_v4';
 const DEFAULT_MENU_CATEGORIES = ['招牌烧腊', '烧腊', '面食', '卤菜', '快餐', '早茶', '烧腊加料', '饮料'];
 const ORDER_COOLDOWN_MS = 30 * 1000;
 const orderSubmissionCooldown = new Map();
@@ -169,12 +169,42 @@ async function initializeMenuCatalog() {
 
   const catalog = readMenuCatalog();
   await withTransaction(async () => {
+    // 清空菜品和分类
     await runAsync('DELETE FROM menus');
     await runAsync('ALTER TABLE menus AUTO_INCREMENT = 1');
+    await runAsync('DELETE FROM menu_categories');
+    await runAsync('ALTER TABLE menu_categories AUTO_INCREMENT = 1');
+
+    // 从菜品数据中提取唯一分类并创建
+    const categories = [...new Set(catalog.map(item => item.category).filter(Boolean))];
+    for (let i = 0; i < categories.length; i++) {
+      await runAsync(
+        'INSERT INTO menu_categories (name, sort) VALUES (?, ?)',
+        [categories[i], i + 1]
+      );
+    }
+
+    // 插入菜品（包含所有必要字段）
     for (const item of catalog) {
       await runAsync(
-        'INSERT INTO menus (name, emoji, price, category, `desc`, image) VALUES (?, ?, ?, ?, ?, ?)',
-        [item.name, item.emoji || '🍽️', Number(item.price), item.category, item.desc || '', item.image || '']
+        `INSERT INTO menus (name, emoji, price, category, \`desc\`, image, currency_code, name_en, desc_en, active, unit, show_dual, secondary_currency_code, store_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          item.name,
+          item.emoji || '🍽️',
+          Number(item.price) || 0,
+          item.category || '其他',
+          item.desc || '',
+          item.image || '',
+          'USD',
+          item.name_en || '',
+          item.desc_en || '',
+          1,
+          item.unit || '份',
+          0,
+          null,
+          1
+        ]
       );
     }
     await runAsync(
@@ -182,6 +212,7 @@ async function initializeMenuCatalog() {
       [MENU_CATALOG_VERSION]
     );
   });
+  console.log(`🍖 已初始化 ${catalog.length} 道菜品，${categories.length} 个分类`);
 }
 
 async function migrateLegacyJsonOnce() {
