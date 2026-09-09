@@ -16,6 +16,7 @@ const LANGUAGES = {
 
     // ---- 通用 ----
     confirm: '确认',
+    confirmTitle: '确认操作',
     cancel: '取消',
     save: '保存',
     delete: '删除',
@@ -441,6 +442,7 @@ const LANGUAGES = {
     appNameFull: 'Roast House · QR Ordering System',
 
     confirm: 'Confirm',
+    confirmTitle: 'Confirm Action',
     cancel: 'Cancel',
     save: 'Save',
     delete: 'Delete',
@@ -852,6 +854,7 @@ const LANGUAGES = {
     appNameFull: 'Quán Thịt Quay · Hệ thống Đặt món QR',
 
     confirm: 'Xác nhận',
+    confirmTitle: 'Xác nhận thao tác',
     cancel: 'Hủy',
     save: 'Lưu',
     delete: 'Xóa',
@@ -1263,6 +1266,7 @@ const LANGUAGES = {
     appNameFull: 'ร้านหมูแดง · ระบบสั่งอาหาร QR',
 
     confirm: 'ยืนยัน',
+    confirmTitle: 'ยืนยันการดำเนินการ',
     cancel: 'ยกเลิก',
     save: 'บันทึก',
     delete: 'ลบ',
@@ -1674,6 +1678,7 @@ const LANGUAGES = {
     appNameFull: 'ហាងសាច់អាំង · ប្រព័ន្ធបញ្ជាទិញ QR',
 
     confirm: 'បញ្ជាក់',
+    confirmTitle: 'បញ្ជាក់ប្រតិបត្តិការ',
     cancel: 'បោះបង់',
     save: 'រក្សាទុក',
     delete: 'លុប',

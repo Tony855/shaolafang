@@ -353,6 +353,26 @@
     }
     .close:hover{ background: var(--gray-3); }
 
+    /* ===== 确认模态框 ===== */
+    .confirm-modal .confirm-card{
+      max-width: 380px;
+      padding: 32px 28px 28px;
+      text-align: center;
+      border-radius: 20px;
+    }
+    .confirm-icon{ font-size: 48px; margin-bottom: 16px; }
+    .confirm-title{ font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 10px; }
+    .confirm-message{ font-size: 15px; color: #666; line-height: 1.6; margin-bottom: 24px; }
+    .confirm-buttons{ display: flex; gap: 12px; justify-content: center; }
+    .confirm-cancel, .confirm-ok{
+      flex: 1; padding: 12px 24px; border: 0; border-radius: 12px;
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+    }
+    .confirm-cancel{ background: #f0f0f5; color: #666; }
+    .confirm-cancel:hover{ background: #e4e4ec; }
+    .confirm-ok{ background: linear-gradient(135deg, #e85d3a, #e84a2a); color: #fff; }
+    .confirm-ok:hover{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(232,93,58,0.3); }
+
     /* ===== 登录模态框（毛玻璃卡片） ===== */
     .login-modal .modal-card{
       max-width: 420px;
@@ -709,6 +729,19 @@
   </div>
 </div>
 
+<!-- ===== 确认模态框 ===== -->
+<div class="modal confirm-modal" id="confirmModal">
+  <div class="modal-card confirm-card">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title" id="confirmTitle">确认操作</div>
+    <div class="confirm-message" id="confirmMessage">确定要执行此操作吗？</div>
+    <div class="confirm-buttons">
+      <button class="confirm-cancel" id="confirmCancelBtn">取消</button>
+      <button class="confirm-ok" id="confirmOkBtn">确定</button>
+    </div>
+  </div>
+</div>
+
 <script src="languages.js"></script>
 <script src="assets/common.js"></script>
 <script>
@@ -751,18 +784,24 @@
   const API='/api';const $=s=>document.querySelector(s);
   const state={tables:[],orders:[],menu:[],cart:{},cartMeta:{},currentTable:null,currencies:[],defaultCurrency:{symbol:'$',rate:1,code:'USD'},dualCurrency:{enabled:false,currency:null},waiter:null,token:sessionStorage.getItem('waiterToken')||'',editingOrderId:null,lockedItems:[],storeId:null,storeName:''};
   const WAITER_TEXT={
-    zh:{title:'🛎️ 服务员点餐终端',loginTitle:'服务员登录',username:'账号',password:'密码',rememberLogin:'保持登录',remove:'移除',noTables:'暂无桌号',completed:'已完成',noPending:'暂无未结算订单',currentTable:'当前桌号',ordering:'点餐',selectedDishes:'已选菜品',emptySelected:'尚未选择菜品',submitOrder:'提交订单',unit:'份',saveChanges:'保存修改',order:'订单',dishServed:'菜品已上菜',orderCompleted:'结算订单',orderUpdated:'制作中订单已修改',orderSubmitted:'订单已提交',confirmSubmit:'确认提交此订单？',confirmServe:'确认该菜品已上菜？',confirmComplete:'确认结算该订单？',pleaseLogin:'请输入账号和密码',loginFailed:'登录失败',selectDish:'请先选择菜品',logout:'退出登录',recentUsers:'最近登录',autoRefresh:'自动刷新',confirmLogout:'确认退出登录吗？',orderPrinted:'订单已打印',print:'打印'},
-    en:{title:'🛎️ Waiter Order Terminal',loginTitle:'Waiter Login',username:'Username',password:'Password',rememberLogin:'Keep me logged in',remove:'Remove',noTables:'No tables',completed:'Completed',noPending:'No unsettled orders',currentTable:'Current Table',ordering:'Order',selectedDishes:'Selected Dishes',emptySelected:'No dishes selected',submitOrder:'Submit Order',unit:'serving',saveChanges:'Save Changes',order:'Order',dishServed:'Dish served',orderCompleted:'Settle Order',orderUpdated:'Pending order updated',orderSubmitted:'Order submitted',confirmSubmit:'Confirm submitting this order?',confirmServe:'Confirm this dish is served?',confirmComplete:'Confirm settling this order?',pleaseLogin:'Please enter username and password',loginFailed:'Login failed',selectDish:'Please select dishes first',logout:'Logout',recentUsers:'Recent Users',autoRefresh:'Auto refresh',confirmLogout:'Confirm logout?',orderPrinted:'Order printed',print:'Print'},
-    vi:{title:'🛎️ Thiết bị gọi món nhân viên',loginTitle:'Đăng nhập nhân viên',username:'Tài khoản',password:'Mật khẩu',rememberLogin:'Giữ đăng nhập',remove:'Xóa',noTables:'Chưa có bàn',completed:'Hoàn thành',noPending:'Chưa có đơn chờ',currentTable:'Bàn hiện tại',ordering:'Gọi món',selectedDishes:'Món đã chọn',emptySelected:'Chưa chọn món',submitOrder:'Gửi đơn',unit:'phần',saveChanges:'Lưu thay đổi',order:'Đơn',dishServed:'Món đã lên',orderCompleted:'Đơn đã hoàn thành',orderUpdated:'Đơn đang làm đã cập nhật',orderSubmitted:'Đơn đã gửi',confirmSubmit:'Xác nhận gửi đơn này?',confirmServe:'Xác nhận món này đã lên?',confirmComplete:'Xác nhận hoàn thành đơn?',pleaseLogin:'Vui lòng nhập tài khoản và mật khẩu',loginFailed:'Đăng nhập thất bại',selectDish:'Vui lòng chọn món trước',logout:'Đăng xuất',recentUsers:'Người dùng gần đây',autoRefresh:'Tự động làm mới',confirmLogout:'Xác nhận đăng xuất?',orderPrinted:'Đơn hàng đã in',print:'In'},
-    th:{title:'🛎️ เทอร์มินัลสั่งอาหารพนักงาน',loginTitle:'เข้าสู่ระบบพนักงาน',username:'บัญชีผู้ใช้',password:'รหัสผ่าน',rememberLogin:'จดจำการเข้าสู่ระบบ',remove:'ลบ',noTables:'ไม่มีโต๊ะ',completed:'เสร็จสิ้น',noPending:'ไม่มีออเดอร์ที่กำลังทำ',currentTable:'โต๊ะปัจจุบัน',ordering:'สั่งอาหาร',selectedDishes:'เมนูที่เลือก',emptySelected:'ยังไม่ได้เลือกเมนู',submitOrder:'ส่งออเดอร์',unit:'เสิร์ฟ',saveChanges:'บันทึกการแก้ไข',order:'ออเดอร์',dishServed:'เสิร์ฟเมนูแล้ว',orderCompleted:'ออเดอร์เสร็จแล้ว',orderUpdated:'ออเดอร์ที่กำลังทำอัปเดตแล้ว',orderSubmitted:'ส่งออเดอร์แล้ว',confirmSubmit:'ยืนยันส่งออเดอร์นี้?',confirmServe:'ยืนยันเสิร์ฟเมนูนี้?',confirmComplete:'ยืนยันเสร็จออเดอร์นี้?',pleaseLogin:'กรุณากรอกบัญชีและรหัสผ่าน',loginFailed:'เข้าสู่ระบบล้มเหลว',selectDish:'กรุณาเลือกเมนูก่อน',logout:'ออกจากระบบ',recentUsers:'ผู้ใช้ล่าสุด',autoRefresh:'รีเฟรชอัตโนมัติ',confirmLogout:'ยืนยันการออกจากระบบ?',orderPrinted:'พิมพ์ออเดอร์แล้ว',print:'พิมพ์'},
-    km:{title:'🛎️ ស្ថានីយបញ្ជាទិញបុគ្គលិក',loginTitle:'ចូលបុគ្គលិក',username:'គណនី',password:'ពាក្យសម្ងាត់',rememberLogin:'រក្សាការចូល',remove:'លុប',noTables:'គ្មានតុ',completed:'រួចរាល់',noPending:'គ្មានការបញ្ជាទិញកំពុងដំណើរការ',currentTable:'តុបច្ចុប្បន្ន',ordering:'បញ្ជាទិញ',selectedDishes:'ម្ហូបដែលបានជ្រើស',emptySelected:'មិនទាន់ជ្រើសម្ហូប',submitOrder:'បញ្ជូនការបញ្ជាទិញ',unit:'មុខ',saveChanges:'រក្សាទុកការកែ',order:'ការបញ្ជាទិញ',dishServed:'ម្ហូបបានដាក់ជូន',orderCompleted:'ការបញ្ជាទិញបានបញ្ចប់',orderUpdated:'ការបញ្ជាទិញកំពុងដំណើរការបានធ្វើបច្ចុប្បន្នភាព',orderSubmitted:'ការបញ្ជាទិញបានបញ្ជូន',confirmSubmit:'បញ្ជាក់បញ្ជូនការបញ្ជាទិញនេះ?',confirmServe:'បញ្ជាក់ម្ហូបនេះបានដាក់ជូន?',confirmComplete:'បញ្ជាក់បញ្ចប់ការបញ្ជាទិញនេះ?',pleaseLogin:'សូមបញ្ចូលគណនីនិងពាក្យសម្ងាត់',loginFailed:'ចូលបរាជ័យ',selectDish:'សូមជ្រើសម្ហូបជាមុន',logout:'ចាកចេញ',recentUsers:'អ្នកប្រើថ្មីៗ',autoRefresh:'ធ្វើបច្ចុប្បន្នភាពស្វ័យប្រវត្តិ',confirmLogout:'បញ្ជាក់ការចាកចេញ?',orderPrinted:'បោះពុម្ពការបញ្ជាទិញរួចរាល់',print:'បោះពុម្ព'}
+    zh:{title:'🛎️ 服务员点餐终端',loginTitle:'服务员登录',username:'账号',password:'密码',rememberLogin:'保持登录',remove:'移除',noTables:'暂无桌号',completed:'已完成',noPending:'暂无未结算订单',currentTable:'当前桌号',ordering:'点餐',selectedDishes:'已选菜品',emptySelected:'尚未选择菜品',submitOrder:'提交订单',unit:'份',saveChanges:'保存修改',order:'订单',dishServed:'菜品已上菜',orderCompleted:'结算订单',orderUpdated:'制作中订单已修改',orderSubmitted:'订单已提交',confirmSubmit:'确认提交此订单？',confirmServe:'确认该菜品已上菜？',confirmComplete:'确认结算该订单？',pleaseLogin:'请输入账号和密码',loginFailed:'登录失败',selectDish:'请先选择菜品',logout:'退出登录',recentUsers:'最近登录',autoRefresh:'自动刷新',confirmLogout:'确认退出登录吗？',cancel:'取消',confirm:'确定',confirmTitle:'确认操作',orderPrinted:'订单已打印',print:'打印'},
+    en:{title:'🛎️ Waiter Order Terminal',loginTitle:'Waiter Login',username:'Username',password:'Password',rememberLogin:'Keep me logged in',remove:'Remove',noTables:'No tables',completed:'Completed',noPending:'No unsettled orders',currentTable:'Current Table',ordering:'Order',selectedDishes:'Selected Dishes',emptySelected:'No dishes selected',submitOrder:'Submit Order',unit:'serving',saveChanges:'Save Changes',order:'Order',dishServed:'Dish served',orderCompleted:'Settle Order',orderUpdated:'Pending order updated',orderSubmitted:'Order submitted',confirmSubmit:'Confirm submitting this order?',confirmServe:'Confirm this dish is served?',confirmComplete:'Confirm settling this order?',pleaseLogin:'Please enter username and password',loginFailed:'Login failed',selectDish:'Please select dishes first',logout:'Logout',recentUsers:'Recent Users',autoRefresh:'Auto refresh',confirmLogout:'Confirm logout?',cancel:'Cancel',confirm:'Confirm',confirmTitle:'Confirm Action',orderPrinted:'Order printed',print:'Print'},
+    vi:{title:'🛎️ Thiết bị gọi món nhân viên',loginTitle:'Đăng nhập nhân viên',username:'Tài khoản',password:'Mật khẩu',rememberLogin:'Giữ đăng nhập',remove:'Xóa',noTables:'Chưa có bàn',completed:'Hoàn thành',noPending:'Chưa có đơn chờ',currentTable:'Bàn hiện tại',ordering:'Gọi món',selectedDishes:'Món đã chọn',emptySelected:'Chưa chọn món',submitOrder:'Gửi đơn',unit:'phần',saveChanges:'Lưu thay đổi',order:'Đơn',dishServed:'Món đã lên',orderCompleted:'Đơn đã hoàn thành',orderUpdated:'Đơn đang làm đã cập nhật',orderSubmitted:'Đơn đã gửi',confirmSubmit:'Xác nhận gửi đơn này?',confirmServe:'Xác nhận món này đã lên?',confirmComplete:'Xác nhận hoàn thành đơn?',pleaseLogin:'Vui lòng nhập tài khoản và mật khẩu',loginFailed:'Đăng nhập thất bại',selectDish:'Vui lòng chọn món trước',logout:'Đăng xuất',recentUsers:'Người dùng gần đây',autoRefresh:'Tự động làm mới',confirmLogout:'Xác nhận đăng xuất?',cancel:'Hủy',confirm:'Xác nhận',confirmTitle:'Xác nhận thao tác',orderPrinted:'Đơn hàng đã in',print:'In'},
+    th:{title:'🛎️ เทอร์มินัลสั่งอาหารพนักงาน',loginTitle:'เข้าสู่ระบบพนักงาน',username:'บัญชีผู้ใช้',password:'รหัสผ่าน',rememberLogin:'จดจำการเข้าสู่ระบบ',remove:'ลบ',noTables:'ไม่มีโต๊ะ',completed:'เสร็จสิ้น',noPending:'ไม่มีออเดอร์ที่กำลังทำ',currentTable:'โต๊ะปัจจุบัน',ordering:'สั่งอาหาร',selectedDishes:'เมนูที่เลือก',emptySelected:'ยังไม่ได้เลือกเมนู',submitOrder:'ส่งออเดอร์',unit:'เสิร์ฟ',saveChanges:'บันทึกการแก้ไข',order:'ออเดอร์',dishServed:'เสิร์ฟเมนูแล้ว',orderCompleted:'ออเดอร์เสร็จแล้ว',orderUpdated:'ออเดอร์ที่กำลังทำอัปเดตแล้ว',orderSubmitted:'ส่งออเดอร์แล้ว',confirmSubmit:'ยืนยันส่งออเดอร์นี้?',confirmServe:'ยืนยันเสิร์ฟเมนูนี้?',confirmComplete:'ยืนยันเสร็จออเดอร์นี้?',pleaseLogin:'กรุณากรอกบัญชีและรหัสผ่าน',loginFailed:'เข้าสู่ระบบล้มเหลว',selectDish:'กรุณาเลือกเมนูก่อน',logout:'ออกจากระบบ',recentUsers:'ผู้ใช้ล่าสุด',autoRefresh:'รีเฟรชอัตโนมัติ',confirmLogout:'ยืนยันการออกจากระบบ?',cancel:'ยกเลิก',confirm:'ยืนยัน',confirmTitle:'ยืนยันการดำเนินการ',orderPrinted:'พิมพ์ออเดอร์แล้ว',print:'พิมพ์'},
+    km:{title:'🛎️ ស្ថានីយបញ្ជាទិញបុគ្គលិក',loginTitle:'ចូលបុគ្គលិក',username:'គណនី',password:'ពាក្យសម្ងាត់',rememberLogin:'រក្សាការចូល',remove:'លុប',noTables:'គ្មានតុ',completed:'រួចរាល់',noPending:'គ្មានការបញ្ជាទិញកំពុងដំណើរការ',currentTable:'តុបច្ចុប្បន្ន',ordering:'បញ្ជាទិញ',selectedDishes:'ម្ហូបដែលបានជ្រើស',emptySelected:'មិនទាន់ជ្រើសម្ហូប',submitOrder:'បញ្ជូនការបញ្ជាទិញ',unit:'មុខ',saveChanges:'រក្សាទុកការកែ',order:'ការបញ្ជាទិញ',dishServed:'ម្ហូបបានដាក់ជូន',orderCompleted:'ការបញ្ជាទិញបានបញ្ចប់',orderUpdated:'ការបញ្ជាទិញកំពុងដំណើរការបានធ្វើបច្ចុប្បន្នភាព',orderSubmitted:'ការបញ្ជាទិញបានបញ្ជូន',confirmSubmit:'បញ្ជាក់បញ្ជូនការបញ្ជាទិញនេះ?',confirmServe:'បញ្ជាក់ម្ហូបនេះបានដាក់ជូន?',confirmComplete:'បញ្ជាក់បញ្ចប់ការបញ្ជាទិញនេះ?',pleaseLogin:'សូមបញ្ចូលគណនីនិងពាក្យសម្ងាត់',loginFailed:'ចូលបរាជ័យ',selectDish:'សូមជ្រើសម្ហូបជាមុន',logout:'ចាកចេញ',recentUsers:'អ្នកប្រើថ្មីៗ',autoRefresh:'ធ្វើបច្ចុប្បន្នភាពស្វ័យប្រវត្តិ',confirmLogout:'បញ្ជាក់ការចាកចេញ?',cancel:'បោះបង់',confirm:'បញ្ជាក់',confirmTitle:'បញ្ជាក់ប្រតិបត្តិការ',orderPrinted:'បោះពុម្ពការបញ្ជាទិញរួចរាល់',print:'បោះពុម្ព'}
   };
   let waiterLang=localStorage.getItem('waiterLang')||'zh';
   // 本地字典优先，找不到时回退到 languages.js 的共享翻译（如 available/occupied/pending/canceled/orderPending/orderDone），避免重复维护同一个词
   const wt=k=>(WAITER_TEXT[waiterLang]&&WAITER_TEXT[waiterLang][k])||WAITER_TEXT.zh[k]||(LANGUAGES[waiterLang]&&LANGUAGES[waiterLang][k])||(LANGUAGES.zh&&LANGUAGES.zh[k])||k;
   // 简单 HTML 转义，避免顾客备注中的特殊字符破坏页面结构
   function escNote(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function applyWaiterLanguage(){$('#waiterTitle').textContent=wt('title');$('#logoutBtn').textContent=wt('logout');$('#autoRefreshText').textContent=wt('autoRefresh');$('#waiterLang').value=waiterLang;$('#currentTableBadge').textContent=wt('currentTable')+': ';$('#submitBtn').textContent=wt('submitOrder');renderTables();}
+  function applyWaiterLanguage(){$('#waiterTitle').textContent=wt('title');$('#logoutBtn').textContent=wt('logout');$('#autoRefreshText').textContent=wt('autoRefresh');$('#waiterLang').value=waiterLang;$('#currentTableBadge').textContent=wt('currentTable')+': ';$('#submitBtn').textContent=wt('submitOrder');$('#confirmCancelBtn').textContent=wt('cancel')||'取消';$('#confirmOkBtn').textContent=wt('confirm')||'确定';renderTables();}
+  let confirmCallback=null;
+  function showConfirm(message,callback,title){$('#confirmTitle').textContent=title||wt('confirmTitle')||'确认操作';$('#confirmMessage').textContent=message;confirmCallback=callback;$('#confirmModal').classList.add('open');}
+  function hideConfirm(){$('#confirmModal').classList.remove('open');confirmCallback=null;}
+  $('#confirmCancelBtn').onclick=hideConfirm;
+  $('#confirmOkBtn').onclick=function(){if(confirmCallback)confirmCallback();hideConfirm();};
+  $('#confirmModal').onclick=function(e){if(e.target===this)hideConfirm();};
   async function api(path,opt={}){const headers=new Headers(opt.headers||{});if(state.token)headers.set('X-Waiter-Token',state.token);const r=await fetch(API+path,{...opt,headers});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'请求失败');return d}
 
   // ----- 退出登录 -----
@@ -784,7 +823,7 @@
 
 
   // ----- 退出按钮 -----
-  $('#logoutBtn').onclick=function(){if(confirm(wt('confirmLogout'))) logoutWaiter();};
+  $('#logoutBtn').onclick=function(){showConfirm(wt('confirmLogout'),logoutWaiter);};
 
   // ----- Toast -----
   function toast(m){const n=$('#toast');n.textContent=m;n.classList.add('show');setTimeout(()=>n.classList.remove('show'),1800);}
@@ -836,7 +875,7 @@
     return active.length ? `<div class="amount">${active.length} ${wt('order')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${wt('noPending')}</div>`;
   }
   async function toggleWaiterItem(id,index){try{const order=state.orders.find(o=>o.id===id);if(!order||!order.items[index])return;const next=order.items[index].itemStatus==='done'?'pending':'done';await api(`/orders/${id}/items/${index}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({itemStatus:next})});toast('✅ '+wt('orderUpdated'));await load()}catch(e){toast('❌ '+e.message)}}
-  async function completeWaiterOrder(id){if(!confirm(wt('confirmComplete')))return;try{await api(`/orders/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done'})});toast('✅ '+wt('orderCompleted'));await load()}catch(e){toast('❌ '+e.message)}}
+  async function completeWaiterOrder(id){showConfirm(wt('confirmComplete'),async function(){try{await api(`/orders/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done'})});toast('✅ '+wt('orderCompleted'));await load()}catch(e){toast('❌ '+e.message)}});}
 
   // 打印订单
   async function printWaiterOrder(id){
@@ -1027,7 +1066,7 @@
   }
   $('#submitBtn').onclick=async function(){
     if(!state.currentTable){ toast(wt('noTables')); return; }
-    if(!confirm(wt('confirmSubmit'))) return;
+    showConfirm(wt('confirmSubmit'),async function(){
     const cartItems=Object.entries(state.cart).filter(([id,q])=>q>0).map(([id,q])=>{
       const m=state.menu.find(x=>x.id===+id);
       return {id:m.id,name:m.name,price:m.price,quantity:q,emoji:m.emoji,itemStatus:'pending',show_dual:m.show_dual||0,secondary_currency_code:m.secondary_currency_code||'',unit:m.unit||wt('unit')};
@@ -1046,6 +1085,7 @@
       closeModal();
       await load();
     }catch(e){ toast('❌ '+e.message); }
+    });
   };
 
   // ----- 语言切换 -----

@@ -161,6 +161,49 @@
     .top-bar { padding: 10px 12px; }
     .top-bar h1 { font-size: 17px; }
   }
+
+  /* ===== 确认模态框 ===== */
+  .modal{
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 16px;
+  }
+  .modal.open{ display: flex; }
+  .modal-card{
+    background: #fff;
+    border-radius: 16px;
+    max-width: 920px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    padding: 24px;
+  }
+  .confirm-modal .confirm-card{
+    max-width: 380px;
+    padding: 32px 28px 28px;
+    text-align: center;
+    border-radius: 20px;
+  }
+  .confirm-icon{ font-size: 48px; margin-bottom: 16px; }
+  .confirm-title{ font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 10px; }
+  .confirm-message{ font-size: 15px; color: #666; line-height: 1.6; margin-bottom: 24px; }
+  .confirm-buttons{ display: flex; gap: 12px; justify-content: center; }
+  .confirm-cancel, .confirm-ok{
+    flex: 1; padding: 12px 24px; border: 0; border-radius: 12px;
+    font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+  }
+  .confirm-cancel{ background: #f0f0f5; color: #666; }
+  .confirm-cancel:hover{ background: #e4e4ec; }
+  .confirm-ok{ background: linear-gradient(135deg, #e85d3a, #e84a2a); color: #fff; }
+  .confirm-ok:hover{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(232,93,58,0.3); }
 </style>
 </head>
 <body>
@@ -207,6 +250,19 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- ===== 确认模态框 ===== -->
+  <div class="modal confirm-modal" id="confirmModal">
+    <div class="modal-card confirm-card">
+      <div class="confirm-icon">⚠️</div>
+      <div class="confirm-title" id="confirmTitle">确认操作</div>
+      <div class="confirm-message" id="confirmMessage">确定要执行此操作吗？</div>
+      <div class="confirm-buttons">
+        <button class="confirm-cancel" id="confirmCancelBtn">取消</button>
+        <button class="confirm-ok" id="confirmOkBtn">确定</button>
+      </div>
+    </div>
+  </div>
 
   <script src="languages.js"></script>
   <script src="assets/common.js"></script>
@@ -506,8 +562,23 @@
     $('#password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
     $('#username').addEventListener('keydown', e => { if (e.key === 'Enter') $('#password').focus(); });
 
+    let confirmCallback=null;
+    function showConfirm(message,callback,title){
+      $('#confirmTitle').textContent=title||kt('confirmTitle')||'确认操作';
+      $('#confirmMessage').textContent=message;
+      confirmCallback=callback;
+      $('#confirmModal').classList.add('open');
+      // 更新按钮文本
+      $('#confirmCancelBtn').textContent=kt('cancel')||'取消';
+      $('#confirmOkBtn').textContent=kt('confirm')||'确定';
+    }
+    function hideConfirm(){$('#confirmModal').classList.remove('open');confirmCallback=null;}
+    $('#confirmCancelBtn').onclick=hideConfirm;
+    $('#confirmOkBtn').onclick=function(){if(confirmCallback)confirmCallback();hideConfirm();};
+    $('#confirmModal').onclick=function(e){if(e.target===this)hideConfirm();};
+
     function logout(confirmFirst = true) {
-      if (confirmFirst && !confirm(kt('confirmLogout'))) return;
+      if (confirmFirst) { showConfirm(kt('confirmLogout'), function(){ logout(false); }); return; }
       token = '';
       waiter = null;
       localStorage.removeItem('kitchenToken');
