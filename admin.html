@@ -41,11 +41,15 @@
             flex-wrap: nowrap;
             overflow-x: auto;
         }
+        h1, h2, h3, h4, h5, h6 { color: #fff; }
+
         .top strong {
             font-size: 20px;
             letter-spacing: .5px;
             white-space: nowrap;
             flex-shrink: 0;
+            color: #fff;
+            font-weight: 700;
         }
         .top span {
             display: flex;
@@ -127,13 +131,14 @@
             overflow-x: hidden;
         }
         .sidebar-brand {
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 800;
             color: #ffd93d;
-            padding: 6px 6px 14px;
-            border-bottom: 1px solid rgba(255, 255, 255, .08);
+            padding: 8px 6px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, .1);
             flex-shrink: 0;
             letter-spacing: .3px;
+            text-shadow: 0 0 20px rgba(255, 217, 61, .3);
         }
         .nav-item {
             display: flex;
@@ -379,9 +384,14 @@
             background: rgba(255, 255, 255, .06);
             border-color: rgba(255, 255, 255, .12);
         }
+        .row b {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+        }
         .row small {
             display: block;
-            color: #9b9bb2;
+            color: #c8c8d0;
             margin-top: 4px;
             font-size: 12px;
         }
@@ -558,11 +568,64 @@
             justify-content: space-between;
             gap: 10px;
             flex-wrap: wrap;
-            margin-top: 6px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,.06);
+        }
+        .order-item-admin .bottom .time {
+            color: #a8a8b8;
+            font-size: 12px;
         }
         .order-item-admin .bottom .total {
             color: #ffd93d;
             font-weight: 700;
+            font-size: 15px;
+        }
+        .order-item-admin .bottom .actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .order-item-admin .bottom .actions button {
+            background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 8px;
+            padding: 6px 12px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: .18s ease;
+            white-space: nowrap;
+        }
+        .order-item-admin .bottom .actions button:hover {
+            background: rgba(255,255,255,.18);
+            transform: translateY(-1px);
+        }
+        .order-item-admin .bottom .actions button.edit {
+            background: rgba(52,152,219,.15);
+            border-color: rgba(52,152,219,.3);
+            color: #5dade2;
+        }
+        .order-item-admin .bottom .actions button.edit:hover {
+            background: rgba(52,152,219,.25);
+        }
+        .order-item-admin .bottom .actions button.danger {
+            background: rgba(231,76,60,.15);
+            border-color: rgba(231,76,60,.3);
+            color: #ec7063;
+        }
+        .order-item-admin .bottom .actions button.danger:hover {
+            background: rgba(231,76,60,.25);
+        }
+        .order-item-admin .top .table-info {
+            color: #c8c8d0;
+            font-size: 14px;
+        }
+        .order-item-admin .top .table-info strong {
+            color: #fff;
+            font-size: 16px;
         }
 
         .table-status {
@@ -1645,13 +1708,13 @@
                     <button id="changePasswordBtn" class="full">修改密码</button>
                 </form>
                 <hr style="border-color:#444;margin:16px 0;">
-                <h3 style="margin-bottom:12px;" id="notifyPanelTitle">🔔 新订单提示音</h3>
+                <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="notifyPanelTitle">🔔 新订单提示音</h3>
                 <div class="backup-actions">
                     <label style="color:#ccc"><input type="checkbox" id="newOrderSoundEnabled" checked> <span id="newOrderSoundLabel">新订单到达时，服务员端和后厨端播放提示音</span></label>
                     <button id="saveNotifySettingsBtn">保存提示音设置</button>
                 </div>
                 <hr style="border-color:#444;margin:16px 0;">
-                <h3 style="margin-bottom:12px;" id="backupPanelTitle">💾 数据备份</h3>
+                <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="backupPanelTitle">💾 数据备份</h3>
                 <div class="backup-actions">
                     <button id="exportBackupBtn">导出备份</button>
                     <input id="importBackupFile" type="file" accept=".json,application/json">
@@ -1668,7 +1731,7 @@
                     <button id="backupNowBtn">立即备份</button>
                 </div>
                 <hr style="border-color:#444;margin:16px 0;">
-                <h3 style="margin-bottom:12px;" id="resetPanelTitle">⚠️ 重置数据（清空所有订单）</h3>
+                <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="resetPanelTitle">⚠️ 重置数据（清空所有订单）</h3>
                 <button id="resetDataBtn">重置订单数据</button>
             </section>
         </div>
@@ -2230,8 +2293,8 @@
             const sessionLabels = buildSessionLabels(filtered);
             $('#orders').innerHTML = filtered.map(o => `
                 <div class="order-item-admin">
-                  <div class="top"><span><strong>#${o.id}</strong> · ${tAdmin('table')||L('table')} ${esc(o.table)}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
-                  ${o.note ? `<div class="order-note" style="margin:6px 0;padding:6px 10px;border-radius:8px;background:rgba(255,193,7,.15);font-size:12px;color:#c98a1f;line-height:1.4;"><strong>${esc(L('orderNoteDisplay')||'备注')}：</strong>${esc(o.note)}</div>` : ''}
+                  <div class="top"><span class="table-info"><strong>#${o.id}</strong> · ${tAdmin('table')||L('table')} ${esc(o.table)}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
+                  ${o.note ? `<div class="order-note" style="margin:8px 0;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.2);font-size:13px;color:#f0c040;line-height:1.5;"><strong style="color:#ffd93d;">${esc(L('orderNoteDisplay')||'备注')}：</strong>${esc(o.note)}</div>` : ''}
                   <div class="items">${o.items.map((item,index) => `
                     <div class="dish-line">
                       <span class="dish-name">${esc(item.name)} ×${item.quantity}</span>
@@ -2240,7 +2303,7 @@
                     </div>
                   `).join('')}</div>
                   <div class="bottom">
-                    <span>${new Date(o.createdAt).toLocaleString()}</span>
+                    <span class="time">${new Date(o.createdAt).toLocaleString()}</span>
                     <span class="total">${formatMoney(o.total)}${dualAmountSuffix(o.total)}</span>
                     <div class="actions">
                       ${o.status==='done' ? '' : `<button class="edit" onclick="editOrder(${o.id})">${L('edit')}</button>`}
@@ -4034,7 +4097,7 @@
 
                 // 桌台收入
                 if (data.tableRevenue && data.tableRevenue.length > 0) {
-                    html += `<h3 style="margin:20px 0 10px;">🏪 各桌台收入</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;">`;
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🏪 各桌台收入</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;">`;
                     for (const t of data.tableRevenue) {
                         html += `<div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px;text-align:center;">
                             <div style="font-weight:600;">${esc(t.table_name)}</div>
@@ -4047,7 +4110,7 @@
 
                 // 菜品销量排行
                 if (data.dishRanking && data.dishRanking.length > 0) {
-                    html += `<h3 style="margin:20px 0 10px;">🔥 菜品销量 TOP 10</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:20px;">`;
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🔥 菜品销量 TOP 10</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:20px;">`;
                     data.dishRanking.forEach((d, i) => {
                         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
                         html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);">
@@ -4060,7 +4123,7 @@
 
                 // 小时分布
                 if (data.hourlyStats && data.hourlyStats.length > 0) {
-                    html += `<h3 style="margin:20px 0 10px;">⏰ 时段分布</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">⏰ 时段分布</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
                     const maxOrders = Math.max(...data.hourlyStats.map(h => h.orders), 1);
                     for (const h of data.hourlyStats) {
                         const pct = (h.orders / maxOrders * 100).toFixed(0);

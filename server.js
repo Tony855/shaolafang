@@ -312,6 +312,7 @@ async function initDatabase() {
         port: poolConfig.port,
         waitForConnections: true,
         connectionLimit: 1,
+        charset: 'utf8mb4',
       });
       const conn = await tempPool.getConnection();
       await conn.query(`CREATE DATABASE IF NOT EXISTS \`${poolConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
