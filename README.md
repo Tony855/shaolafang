@@ -22,13 +22,25 @@
 
 ## 快速开始
 
-### 1. 安装依赖
+> 📖 **详细安装步骤请查看 [INSTALL.md](./INSTALL.md)**，包含 Windows、Linux/Debian 完整安装指南和常见问题排查。
+
+### 一键安装（Linux 推荐）
+
+```bash
+git clone https://github.com/Tony855/shaolafang.git
+cd shaolafang
+sudo bash onekey-install.sh
+```
+
+### 手动安装
+
+#### 1. 安装依赖
 
 ```bash
 npm install
 ```
 
-### 2. 配置环境
+#### 2. 配置环境
 
 复制 `.env.example` 为 `.env` 并修改配置：
 
@@ -46,30 +58,40 @@ DB_DATABASE=ordering_system
 DB_PORT=3306
 ```
 
-### 3. 初始化数据库
+#### 3. 初始化数据库（仅首次安装执行）
 
 ```bash
 node server.js --init-only
 ```
 
-### 4. 启动服务器
+> 首次安装自动初始化 45 道菜品（默认下架）、8 个分类、5 种货币、12 个桌台。重启不会覆盖用户修改。
+
+#### 4. 启动服务器
 
 ```bash
 node server.js
 ```
 
-### 5. 访问系统
+#### 5. 访问系统
 
-- 顾客点餐: http://localhost:3000/index.html
-- 管理后台: http://localhost:3000/admin.html
-- 服务员端: http://localhost:3000/waiter.html
-- 后厨显示: http://localhost:3000/kitchen.html
-- 登录页: http://localhost:3000/login.html
+- 顾客点餐: http://localhost:3000/
+- 统一登录: http://localhost:3000/login
+- 管理后台: http://localhost:3000/admin
+- 服务员端: http://localhost:3000/waiter
+- 后厨显示: http://localhost:3000/kitchen
 
 ## 默认管理员
 
-- 后台密钥: `admin-key-2026`
 - 管理员密码: `admin123`（首次登录后请修改）
+- 后台密钥: `admin-key-2026`（API 调用使用）
+- 登录地址: http://localhost:3000/login
+
+## 初始数据（首次安装）
+
+- **菜品**: 45 道烧腊菜品，8 个分类（默认全部下架，需手动上架）
+- **货币**: USD 美元（默认）、CNY 人民币、KHR 柬埔寨瑞尔、THB 泰铢、VND 越南盾
+- **双货币**: 默认启用，第二货币为柬埔寨瑞尔（KHR）
+- **桌台**: 12 个（A01-A04, B01-B04, C01-C04）
 
 ## 项目结构
 
@@ -79,15 +101,17 @@ node server.js
 ├── admin.html             # 管理后台
 ├── waiter.html            # 服务员端
 ├── kitchen.html           # 后厨显示
-├── login.html             # 登录页
-├── languages.js           # 多语言翻译
+├── login.html             # 统一登录页
+├── languages.js           # 多语言翻译（5种语言）
 ├── package.json           # 依赖配置
 ├── .env.example           # 环境变量模板
+├── INSTALL.md             # 详细安装指南
+├── onekey-install.sh      # Linux 一键安装脚本
 ├── assets/
 │   ├── common.css         # 统一样式
 │   └── common.js          # 统一工具库 (SLF)
 └── data/
-    ├── roast-meat-menu.json  # 菜单初始化数据
+    ├── roast-meat-menu.json  # 菜单初始化数据（45道）
     └── tables.json           # 桌台初始化数据
 ```
 
