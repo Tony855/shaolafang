@@ -126,7 +126,7 @@ async function withTransaction(work) {
 }
 
 // ---------- 常量 ----------
-const MENU_CATALOG_VERSION = 'roast_meat_v5';
+// 菜品初始化仅在首次安装时执行，无需版本号
 const DEFAULT_MENU_CATEGORIES = ['招牌烧腊', '烧腊', '面食', '卤菜', '快餐', '早茶', '烧腊加料', '饮料'];
 const ORDER_COOLDOWN_MS = 30 * 1000;
 const orderSubmissionCooldown = new Map();
@@ -163,24 +163,22 @@ function readMenuCatalog() {
 
 // ---------- 数据库初始化 ----------
 async function initializeMenuCatalog() {
-  const version = await getAsync("SELECT value FROM settings WHERE `key` = 'menu_catalog_version'");
-  if (version && version.value === MENU_CATALOG_VERSION) return;
+  // 仅在首次安装（菜品表为空）时初始化，之后不覆盖用户的修改
+  const menuCount = await getAsync('SELECT COUNT(*) AS count FROM menus');
+  if (menuCount && menuCount.count > 0) return;
 
   const catalog = readMenuCatalog();
   await withTransaction(async () => {
-    // 清空菜品和分类
-    await runAsync('DELETE FROM menus');
-    await runAsync('ALTER TABLE menus AUTO_INCREMENT = 1');
-    await runAsync('DELETE FROM menu_categories');
-    await runAsync('ALTER TABLE menu_categories AUTO_INCREMENT = 1');
-
-    // 从菜品数据中提取唯一分类并创建
-    const categories = [...new Set(catalog.map(item => item.category).filter(Boolean))];
-    for (let i = 0; i < categories.length; i++) {
-      await runAsync(
-        'INSERT INTO menu_categories (name, sort) VALUES (?, ?)',
-        [categories[i], i + 1]
-      );
+    // 从菜品数据中提取唯一分类并创建（仅在分类表为空时）
+    const catCount = await getAsync('SELECT COUNT(*) AS count FROM menu_categories');
+    if (!catCount || catCount.count === 0) {
+      const categories = [...new Set(catalog.map(item => item.category).filter(Boolean))];
+      for (let i = 0; i < categories.length; i++) {
+        await runAsync(
+          'INSERT INTO menu_categories (name, sort) VALUES (?, ?)',
+          [categories[i], i + 1]
+        );
+      }
     }
 
     // 插入菜品（包含所有必要字段）
@@ -206,12 +204,8 @@ async function initializeMenuCatalog() {
         ]
       );
     }
-    await runAsync(
-      "INSERT INTO settings (`key`, value) VALUES ('menu_catalog_version', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)",
-      [MENU_CATALOG_VERSION]
-    );
   });
-  console.log(`🍖 已初始化 ${catalog.length} 道菜品，${categories.length} 个分类`);
+  console.log(`🍖 首次安装：已初始化 ${catalog.length} 道菜品`);
 }
 
 async function migrateLegacyJsonOnce() {
