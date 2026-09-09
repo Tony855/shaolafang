@@ -2344,6 +2344,13 @@
                 hourlyDistribution: '时段分布',
                 exportFailed: '导出失败',
                 exportSuccess: '导出成功',
+                customer: '客',
+                staffOrder: '服务员/后台下单',
+                note: '备注',
+                completeOrder: '完成订单',
+                copyMainStoreMenu: '复制总店菜品',
+                noStoreCheckDb: '无店铺，请检查数据库',
+                noStore: '无店铺',
             },
             en: { headerTitle: '🍖 Roast House · Admin', accessKey: 'Admin Key', connect: 'Connect',
                 customerPage: 'Customer Page', connectTitle: 'Admin Login', connectDesc: 'Enter the admin password to access the dashboard.',
@@ -2455,6 +2462,13 @@
                 hourlyDistribution: 'Hourly Distribution',
                 exportFailed: 'Export failed',
                 exportSuccess: 'Export successful',
+                customer: 'Customer',
+                staffOrder: 'Staff/Admin Order',
+                note: 'Note',
+                completeOrder: 'Complete Order',
+                copyMainStoreMenu: 'Copy Main Store Menu',
+                noStoreCheckDb: 'No stores, please check database',
+                noStore: 'No Store',
             }
         };
         ADMIN_LABELS.vi = { ...ADMIN_LABELS.en, headerTitle: '🍖 Quản trị Quán Thịt Quay', customerPage: 'Trang khách',
@@ -2641,7 +2655,7 @@
                 if (groupCount <= 1) continue; // 同桌只有一组顾客/来源，不需要额外标注
                 const tokenToIndex = new Map(distinctTokens.map((t, i) => [t, i + 1]));
                 for (const o of sorted) {
-                    labels.set(o.id, o.sessionToken ? `客${tokenToIndex.get(o.sessionToken)}` : '服务员/后台下单');
+                    labels.set(o.id, o.sessionToken ? `${tAdmin('customer')}${tokenToIndex.get(o.sessionToken)}` : tAdmin('staffOrder'));
                 }
             }
             return labels;
@@ -2703,7 +2717,7 @@
             headers.set('X-Store-Id', sessionStorage.getItem('adminStoreId') || '1');
             const r = await fetch(API + path, { ...options, headers });
             const data = await r.json().catch(() => ({}));
-            if (!r.ok) throw new Error(data.error || '操作失败');
+            if (!r.ok) throw new Error(data.error || tAdmin('operationFailed'));
             return data;
         }
 
@@ -2789,7 +2803,7 @@
             $('#orders').innerHTML = filtered.map(o => `
                 <div class="order-item-admin">
                   <div class="top"><span class="table-info"><strong>#${o.id}</strong> · ${tAdmin('table')||L('table')} ${esc(o.table)}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
-                  ${o.note ? `<div class="order-note" style="margin:8px 0;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.2);font-size:13px;color:#f0c040;line-height:1.5;"><strong style="color:#ffd93d;">${esc(L('orderNoteDisplay')||'备注')}：</strong>${esc(o.note)}</div>` : ''}
+                  ${o.note ? `<div class="order-note" style="margin:8px 0;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.2);font-size:13px;color:#f0c040;line-height:1.5;"><strong style="color:#ffd93d;">${esc(L('orderNoteDisplay')||tAdmin('note'))}：</strong>${esc(o.note)}</div>` : ''}
                   <div class="items">${o.items.map((item,index) => `
                     <div class="dish-line">
                       <span class="dish-name">${esc(item.name)} ×${item.quantity}</span>
@@ -2802,7 +2816,7 @@
                     <span class="total">${formatMoney(o.total)}${dualAmountSuffix(o.total)}</span>
                     <div class="actions">
                       ${o.status==='done' ? '' : `<button class="edit" onclick="editOrder(${o.id})">${L('edit')}</button>`}
-                      <button onclick="printOrder(${o.id})" style="background:#3498db;">🖨️ 打印</button>
+                      <button onclick="printOrder(${o.id})" style="background:#3498db;">🖨️ ${tAdmin('print')}</button>
                       ${o.status==='pending' ? `<button onclick="statusOrder(${o.id},'done')">💰 ${tAdmin('settleOrder')}</button><button onclick="statusOrder(${o.id},'canceled')">${L('cancel')}</button>` : ''}
                       <button class="danger" onclick="removeOrder(${o.id})">${L('delete')}</button>
                     </div>
@@ -2861,19 +2875,19 @@
                       <div class="title">${esc(w.display_name)} · ${esc(w.username)}</div>
                       <div class="sub">${w.active?tAdmin('enabled'):tAdmin('disabled')} · 店铺：${storeMap[w.store_id] || tAdmin('mainStore')}</div>
                       <div class="perms">
-                        <label><input type="checkbox" ${w.can_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_order',this.checked)"> 下单</label>
-                        <label><input type="checkbox" ${w.can_mark_item?'checked':''} onchange="updateWaiterPerm(${w.id},'can_mark_item',this.checked)"> 上菜</label>
-                        <label><input type="checkbox" ${w.can_complete_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_complete_order',this.checked)"> 完成订单</label>
+                        <label><input type="checkbox" ${w.can_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_order',this.checked)"> ${tAdmin('placeOrder')}</label>
+                        <label><input type="checkbox" ${w.can_mark_item?'checked':''} onchange="updateWaiterPerm(${w.id},'can_mark_item',this.checked)"> ${tAdmin('serveDish')}</label>
+                        <label><input type="checkbox" ${w.can_complete_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_complete_order',this.checked)"> ${tAdmin('completeOrder')}</label>
                       </div>
                     </div>
                     <div class="actions">
-                      <button class="edit-btn" onclick="openWaiterEdit(${w.id})">✏️ 编辑</button>
+                      <button class="edit-btn" onclick="openWaiterEdit(${w.id})">✏️ ${L('edit')}</button>
                       <button class="danger" onclick="deleteWaiter(${w.id})">${L('delete')}</button>
                     </div>
                   </div>`).join('') :
                     `<div class="empty-hint">${tAdmin('noData')}</div>`;
             } catch (e) {
-                console.error('加载服务员失败:', e);
+                console.error(tAdmin('loadWaiterFailed') + ':', e);
                 $('#waiterList').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
             }
         }
@@ -2888,8 +2902,8 @@
                       <div class="sub">${esc(s.code||'')} ${esc(s.address||'')}</div>
                     </div>
                     <div class="actions">
-                      <button class="edit-btn" onclick="openStoreEdit(${s.id})">✏️ 编辑</button>
-                      <button class="copy" onclick="copyStoreMenu(${s.id})" style="background:#1890ff;color:#fff;border:none;padding:4px 12px;border-radius:8px;cursor:pointer;">📋 复制总店菜品</button>
+                      <button class="edit-btn" onclick="openStoreEdit(${s.id})">✏️ ${L('edit')}</button>
+                      <button class="copy" onclick="copyStoreMenu(${s.id})" style="background:#1890ff;color:#fff;border:none;padding:4px 12px;border-radius:8px;cursor:pointer;">📋 ${tAdmin('copyMainStoreMenu')}</button>
                       <button class="danger" onclick="deleteStore(${s.id})">${L('delete')}</button>
                     </div>
                   </div>`).join('') :
@@ -2912,17 +2926,17 @@
                     }
                     waiterSelect.value = rows[0].id;
                 } else {
-                    adminSelect.innerHTML = '<option value="">无店铺，请检查数据库</option>';
-                    waiterSelect.innerHTML = '<option value="">无店铺</option>';
-                    editWaiterStore.innerHTML = '<option value="">无店铺</option>';
+                    adminSelect.innerHTML = `<option value="">${tAdmin('noStoreCheckDb')}</option>`;
+                    waiterSelect.innerHTML = `<option value="">${tAdmin('noStore')}</option>`;
+                    editWaiterStore.innerHTML = `<option value="">${tAdmin('noStore')}</option>`;
                 }
             } catch (e) {
-                console.error('加载店铺失败:', e);
+                console.error(tAdmin('loadStoreFailed') + ':', e);
                 toast(`❌ ${tAdmin('loadStoreFailed')}: ` + e.message);
                 $('#storeList').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
-                $('#adminStoreSelect').innerHTML = '<option value="">加载失败，请刷新</option>';
-                $('#waiterStoreSelect').innerHTML = '<option value="">加载失败</option>';
-                $('#editWaiterStore').innerHTML = '<option value="">加载失败</option>';
+                $('#adminStoreSelect').innerHTML = `<option value="">${tAdmin('loadFailedRefresh')}</option>`;
+                $('#waiterStoreSelect').innerHTML = `<option value="">${tAdmin('loadFailed')}</option>`;
+                $('#editWaiterStore').innerHTML = `<option value="">${tAdmin('loadFailed')}</option>`;
             }
         }
 
