@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -12,7 +12,7 @@
   </script>
   <style>
     /* ===== CSS 变量 ===== */
-    :root {
+    :root{
       --primary: #e84a2a;
       --primary-light: #ff6b4a;
       --primary-dark: #c73d1f;
@@ -30,7 +30,7 @@
       --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
     }
     * { margin:0; padding:0; box-sizing:border-box; }
-    body {
+    body{
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
       color: var(--gray-6);
       min-height: 100vh;
@@ -40,7 +40,7 @@
       position: relative;
     }
     /* 背景装饰光晕（仅登录时可见，主界面会被内容覆盖） */
-    body::before {
+    body::before{
       content: '';
       position: fixed;
       top: -20%;
@@ -51,7 +51,7 @@
       pointer-events: none;
       z-index: 0;
     }
-    body::after {
+    body::after{
       content: '';
       position: fixed;
       bottom: -20%;
@@ -64,17 +64,17 @@
     }
 
     /* ===== Toast ===== */
-    .toast {
+    .toast{
       position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
       color: #fff; padding: 8px 24px; border-radius: 30px;
       font-weight: 500; font-size: 14px; z-index: 999;
       opacity: 0; transition: opacity 0.3s; pointer-events: none;
     }
-    .toast.show { opacity: 1; }
+    .toast.show{ opacity: 1; }
 
     /* ===== 头部 ===== */
-    header {
+    header{
       position: sticky; top: 0; z-index: 100;
       background: var(--primary);
       color: #fff;
@@ -86,22 +86,22 @@
       gap: 8px;
       box-shadow: 0 4px 16px rgba(232,74,42,0.25);
     }
-    header h1 {
+    header h1{
       font-size: 20px; font-weight: 700;
       display: flex; align-items: center; gap: 8px;
     }
-    header .header-actions {
+    header .header-actions{
       display: flex; align-items: center; gap: 10px;
       flex-wrap: wrap;
     }
-    header .waiter-name {
+    header .waiter-name{
       background: rgba(255,255,255,0.2);
       padding: 4px 14px;
       border-radius: 30px;
       font-weight: 600;
       font-size: 14px;
     }
-    header .store-name {
+    header .store-name{
       background: rgba(255,255,255,0.12);
       border: 1px solid rgba(255,255,255,0.25);
       padding: 4px 14px;
@@ -110,7 +110,7 @@
       font-size: 14px;
     }
     /* ===== 自动刷新开关 ===== */
-    .auto-refresh-toggle {
+    .auto-refresh-toggle{
       display: flex;
       align-items: center;
       gap: 6px;
@@ -125,8 +125,8 @@
       user-select: none;
       transition: var(--transition);
     }
-    .auto-refresh-toggle:hover { background: rgba(255,255,255,0.22); }
-    .auto-refresh-toggle input[type="checkbox"] {
+    .auto-refresh-toggle:hover{ background: rgba(255,255,255,0.22); }
+    .auto-refresh-toggle input[type="checkbox"]{
       appearance: none; -webkit-appearance: none;
       width: 34px; height: 18px;
       border-radius: 20px;
@@ -138,7 +138,7 @@
       transition: var(--transition);
       margin: 0;
     }
-    .auto-refresh-toggle input[type="checkbox"]::before {
+    .auto-refresh-toggle input[type="checkbox"]::before{
       content: '';
       position: absolute;
       top: 2px; left: 2px;
@@ -147,12 +147,12 @@
       background: #fff;
       transition: var(--transition);
     }
-    .auto-refresh-toggle input[type="checkbox"]:checked { background: #fff; }
-    .auto-refresh-toggle input[type="checkbox"]:checked::before {
+    .auto-refresh-toggle input[type="checkbox"]:checked{ background: #fff; }
+    .auto-refresh-toggle input[type="checkbox"]:checked::before{
       transform: translateX(16px);
       background: var(--primary);
     }
-    header select, header .logout-btn {
+    header select,header .logout-btn{
       background: rgba(255,255,255,0.15);
       border: 1px solid rgba(255,255,255,0.25);
       color: #fff;
@@ -163,13 +163,13 @@
       cursor: pointer;
       transition: var(--transition);
     }
-    header select:hover, header .logout-btn:hover {
+    header select:hover,header .logout-btn:hover{
       background: rgba(255,255,255,0.3);
     }
-    header select option { color: var(--gray-6); background: #fff; }
+    header select option{ color: var(--gray-6); background: #fff; }
 
     /* ===== 主内容 ===== */
-    main {
+    main{
       max-width: 1000px;
       margin: 20px auto;
       padding: 0 16px;
@@ -178,12 +178,12 @@
     }
 
     /* ===== 桌号网格 ===== */
-    .table-grid {
+    .table-grid{
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 18px;
     }
-    .table-card {
+    .table-card{
       background: #fff;
       border-radius: var(--radius);
       padding: 20px;
@@ -192,15 +192,15 @@
       cursor: pointer;
       transition: var(--transition);
     }
-    .table-card:hover {
+    .table-card:hover{
       transform: translateY(-4px);
       box-shadow: var(--shadow-hover);
     }
-    .table-card .name {
+    .table-card .name{
       font-size: 22px; font-weight: 700;
       display: flex; align-items: center; gap: 8px;
     }
-    .table-card .status {
+    .table-card .status{
       display: inline-block;
       margin-top: 4px;
       padding: 2px 14px;
@@ -208,29 +208,29 @@
       font-size: 12px;
       font-weight: 600;
     }
-    .status.available { background: #e3f5e3; color: #1d7a3e; }
-    .status.occupied   { background: #fff0e0; color: #b85c2a; }
-    .status.reserved   { background: #e3edfc; color: #2a5fb8; }
+    .status.available{ background: #e3f5e3; color: #1d7a3e; }
+    .status.occupied{ background: #fff0e0; color: #b85c2a; }
+    .status.reserved{ background: #e3edfc; color: #2a5fb8; }
 
-    .table-card .bill {
+    .table-card .bill{
       margin-top: 12px;
       padding-top: 12px;
       border-top: 1px solid var(--gray-2);
       font-size: 14px;
     }
-    .table-card .amount {
+    .table-card .amount{
       font-weight: 700;
       color: var(--primary);
       font-size: 16px;
     }
-    .bill-items {
+    .bill-items{
       margin-top: 8px;
       display: flex;
       flex-direction: column;
       gap: 6px;
       font-size: 13px;
     }
-    .bill-items .line {
+    .bill-items .line{
       display: grid;
       grid-template-columns: 1fr 64px 72px;
       align-items: center;
@@ -238,11 +238,11 @@
       padding: 4px 0;
       border-bottom: 1px dashed var(--gray-2);
     }
-    .bill-items .dish-name { min-width:0; color: var(--gray-6); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .line-amount { text-align:right; color: var(--gray-5); }
+    .bill-items .dish-name{ min-width:0; color: var(--gray-6); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .line-amount{ text-align:right; color: var(--gray-5); }
     .bill-items .line .item-status,
-    .bill-items .line .item-toggle { justify-self:center; text-align:center; white-space:nowrap; }
-    .item-status {
+    .bill-items .line .item-toggle{ justify-self:center; text-align:center; white-space:nowrap; }
+    .item-status{
       padding: 2px 10px;
       border-radius: 30px;
       font-size: 11px;
@@ -250,8 +250,8 @@
       background: rgba(250, 140, 22, .15);
       color: #fa8c16;
     }
-    .item-status.done { background: rgba(82, 196, 26, .15); color: #52c41a; }
-    .item-toggle {
+    .item-status.done{ background: rgba(82, 196, 26, .15); color: #52c41a; }
+    .item-toggle{
       border: 0;
       padding: 3px 12px;
       border-radius: 30px;
@@ -262,25 +262,25 @@
       cursor: pointer;
       transition: var(--transition);
     }
-    .item-toggle.done { background: rgba(82, 196, 26, .15); color: #52c41a; }
-    .order-block {
+    .item-toggle.done{ background: rgba(82, 196, 26, .15); color: #52c41a; }
+    .order-block{
       margin-top: 10px;
       padding-top: 8px;
       border-top: 1px dashed var(--gray-2);
     }
-    .order-head {
+    .order-head{
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-weight: 600;
       margin-bottom: 4px;
     }
-    .order-head .order-meta {
+    .order-head .order-meta{
       font-weight: 400;
       font-size: 12px;
       color: #999;
     }
-    .session-badge {
+    .session-badge{
       display: inline-block;
       padding: 1px 8px;
       border-radius: 999px;
@@ -290,7 +290,7 @@
       font-weight: 700;
       margin-left: 4px;
     }
-    .order-head button {
+    .order-head button{
       background: #e3f5e3;
       border: 1px solid #b7dbb7;
       color: #1d7a3e;
@@ -300,10 +300,10 @@
       cursor: pointer;
       transition: var(--transition);
     }
-    .order-head button:hover { background: #c8eac8; }
+    .order-head button:hover{ background: #c8eac8; }
 
     /* ===== 通用模态框 ===== */
-    .modal {
+    .modal{
       position: fixed; inset: 0;
       background: rgba(0,0,0,0.4);
       backdrop-filter: blur(4px);
@@ -313,10 +313,10 @@
       z-index: 200;
       padding: 16px;
     }
-    .modal.open { display: flex; }
+    .modal.open{ display: flex; }
     /* 页面刷新时，若已存在服务员登录态，则在首次绘制前就隐藏登录窗口，避免闪一下登录窗口又消失 */
-    html[data-waiter-session] .login-modal.open { display: none; }
-    .modal-card {
+    html[data-waiter-session] .login-modal.open{ display: none; }
+    .modal-card{
       background: #fff;
       border-radius: var(--radius);
       max-width: 920px;
@@ -328,7 +328,7 @@
       box-shadow: 0 20px 60px rgba(0,0,0,0.2);
       padding: 24px;
     }
-    .modal-head {
+    .modal-head{
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -336,12 +336,12 @@
       border-bottom: 1px solid var(--gray-2);
       flex-shrink: 0;
     }
-    .modal-head h2 {
+    .modal-head h2{
       font-size: 20px;
       font-weight: 700;
       margin: 0;
     }
-    .close {
+    .close{
       background: var(--gray-2);
       border: 0;
       width: 36px;
@@ -351,10 +351,10 @@
       cursor: pointer;
       transition: var(--transition);
     }
-    .close:hover { background: var(--gray-3); }
+    .close:hover{ background: var(--gray-3); }
 
     /* ===== 登录模态框（毛玻璃卡片） ===== */
-    .login-modal .modal-card {
+    .login-modal .modal-card{
       max-width: 420px;
       padding: 32px 28px 28px;
       background: rgba(255,255,255,0.92);
@@ -365,24 +365,24 @@
       position: relative;
       z-index: 1;
     }
-    .login-modal .modal-head {
+    .login-modal .modal-head{
       border-bottom: none;
       padding-bottom: 8px;
     }
-    .login-modal .modal-head h2 {
+    .login-modal .modal-head h2{
       font-size: 26px;
       font-weight: 700;
       display: flex;
       align-items: center;
       gap: 12px;
     }
-    .login-modal .modal-head h2 .brand-icon {
+    .login-modal .modal-head h2 .brand-icon{
       font-size: 32px;
     }
-    .login-modal .form-group {
+    .login-modal .form-group{
       margin-bottom: 14px;
     }
-    .login-modal .form-group input {
+    .login-modal .form-group input{
       width: 100%;
       height: 48px;
       padding: 0 16px;
@@ -392,13 +392,13 @@
       transition: var(--transition);
       background: rgba(255,255,255,0.8);
     }
-    .login-modal .form-group input:focus {
+    .login-modal .form-group input:focus{
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 4px rgba(232,74,42,0.12);
       background: #fff;
     }
-    .login-modal .form-group label {
+    .login-modal .form-group label{
       display: flex;
       align-items: center;
       gap: 8px;
@@ -407,20 +407,20 @@
       color: var(--gray-5);
       cursor: pointer;
     }
-    .login-modal .form-group label input[type="checkbox"] {
+    .login-modal .form-group label input[type="checkbox"]{
       width: 18px;
       height: 18px;
       accent-color: var(--primary);
     }
-    .login-modal .history-users {
+    .login-modal .history-users{
       margin: 6px 0 12px;
     }
-    .login-modal .history-users .label {
+    .login-modal .history-users .label{
       font-size: 13px;
       color: var(--gray-4);
       margin-bottom: 6px;
     }
-    .login-modal .history-users .user-badge {
+    .login-modal .history-users .user-badge{
       display: inline-block;
       background: rgba(255,255,255,0.7);
       border: 1px solid var(--gray-3);
@@ -433,12 +433,12 @@
       cursor: pointer;
       transition: var(--transition);
     }
-    .login-modal .history-users .user-badge:hover {
+    .login-modal .history-users .user-badge:hover{
       background: var(--primary);
       color: #fff;
       border-color: var(--primary);
     }
-    .login-btn {
+    .login-btn{
       width: 100%;
       height: 50px;
       border: 0;
@@ -451,28 +451,28 @@
       transition: var(--transition);
       margin-top: 4px;
     }
-    .login-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
-    .login-btn:active { transform: scale(0.97); }
-    .login-error {
+    .login-btn:hover{ background: var(--primary-dark); transform: translateY(-1px); }
+    .login-btn:active{ transform: scale(0.97); }
+    .login-error{
       color: var(--primary);
       margin-top: 10px;
       font-size: 14px;
       text-align: center;
       min-height: 22px;
     }
-    .login-sub {
+    .login-sub{
       text-align: center;
       color: var(--gray-4);
       font-size: 13px;
       margin-top: 12px;
     }
     /* 登录窗口语言选择器 */
-    .login-lang-select {
+    .login-lang-select{
       display: flex;
       justify-content: flex-end;
       margin-bottom: 8px;
     }
-    .login-lang-select select {
+    .login-lang-select select{
       background: rgba(255,255,255,0.6);
       border: 1px solid var(--gray-3);
       border-radius: 30px;
@@ -482,12 +482,12 @@
       cursor: pointer;
       outline: none;
     }
-    .login-lang-select select:focus {
+    .login-lang-select select:focus{
       border-color: var(--primary);
     }
 
     /* ===== 点餐弹窗内部 ===== */
-    .current-table {
+    .current-table{
       background: var(--primary-bg);
       border: 1px solid #f5d5c8;
       color: var(--primary-dark);
@@ -497,7 +497,7 @@
       margin-bottom: 14px;
       flex-shrink: 0;
     }
-    .selected-items {
+    .selected-items{
       flex-shrink: 0;
       background: var(--gray-1);
       border-radius: var(--radius-sm);
@@ -506,12 +506,12 @@
       overflow-y: auto;
       margin-bottom: 12px;
     }
-    .selected-items .title {
+    .selected-items .title{
       font-weight: 600;
       margin-bottom: 8px;
       color: var(--gray-5);
     }
-    .selected-item {
+    .selected-item{
       display: grid;
       grid-template-columns: 1fr auto auto auto;
       align-items: center;
@@ -519,24 +519,24 @@
       padding: 6px 0;
       border-bottom: 1px solid var(--gray-2);
     }
-    .selected-item:last-child { border-bottom: 0; }
-    .selected-item .sel-name {
+    .selected-item:last-child{ border-bottom: 0; }
+    .selected-item .sel-name{
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       font-size: 14px;
     }
-    .selected-item .sel-price {
+    .selected-item .sel-price{
       color: var(--gray-5);
       font-size: 13px;
       white-space: nowrap;
     }
     /* 已选菜品的加减数量按钮，复用点菜列表里的圆形按钮样式，保持风格统一 */
-    .selected-item .qty { gap: 4px; }
-    .selected-item .qty button { width: 26px; height: 26px; font-size: 14px; }
-    .selected-item .qty span { min-width: 18px; font-size: 13px; }
-    .selected-item .remove-btn {
+    .selected-item .qty{ gap: 4px; }
+    .selected-item .qty button{ width: 26px; height: 26px; font-size: 14px; }
+    .selected-item .qty span{ min-width: 18px; font-size: 13px; }
+    .selected-item .remove-btn{
       background: #fee8e6;
       border: 0;
       color: var(--primary);
@@ -547,9 +547,9 @@
       white-space: nowrap;
       transition: var(--transition);
     }
-    .selected-item .remove-btn:hover { background: #fdd5d0; }
+    .selected-item .remove-btn:hover{ background: #fdd5d0; }
 
-    .dish-list {
+    .dish-list{
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 14px;
@@ -557,7 +557,7 @@
       overflow-y: auto;
       padding: 6px 2px 12px 0;
     }
-    .dish-item {
+    .dish-item{
       display: flex;
       align-items: center;
       gap: 12px;
@@ -567,8 +567,8 @@
       border: 1px solid var(--gray-2);
       transition: var(--transition);
     }
-    .dish-item:hover { background: #fff; border-color: var(--gray-3); }
-    .dish-thumb {
+    .dish-item:hover{ background: #fff; border-color: var(--gray-3); }
+    .dish-thumb{
       width: 56px;
       height: 56px;
       border-radius: var(--radius-sm);
@@ -580,20 +580,20 @@
       overflow: hidden;
       flex-shrink: 0;
     }
-    .dish-thumb img { width:100%; height:100%; object-fit:cover; }
-    .dish-item .info { flex:1; min-width:0; }
-    .dish-item .info .name { font-weight:600; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .dish-item .info .price { color: var(--primary); font-size:14px; font-weight:500; }
-    .price-secondary { font-size:12px; color: var(--gray-4); margin-left:4px; }
+    .dish-thumb img{ width:100%; height:100%; object-fit:cover; }
+    .dish-item .info{ flex:1; min-width:0; }
+    .dish-item .info .name{ font-weight:600; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .dish-item .info .price{ color: var(--primary); font-size:14px; font-weight:500; }
+    .price-secondary{ font-size:12px; color: var(--gray-4); margin-left:4px; }
 
-    .qty {
+    .qty{
       display: flex;
       align-items: center;
       gap: 6px;
       flex-shrink: 0;      /* 之前没设置，.dish-item 是 flex 布局，窄屏下 +/- 按钮和数量会被挤压裁切 */
       white-space: nowrap;
     }
-    .qty button {
+    .qty button{
       width: 32px;
       height: 32px;
       border-radius: 50%;
@@ -606,14 +606,14 @@
       align-items: center;
       justify-content: center;
     }
-    .qty button:hover { border-color: var(--primary); color: var(--primary); }
-    .qty span {
+    .qty button:hover{ border-color: var(--primary); color: var(--primary); }
+    .qty span{
       min-width: 24px;
       text-align: center;
       font-weight: 600;
     }
 
-    .footer {
+    .footer{
       flex-shrink: 0;
       display: flex;
       justify-content: space-between;
@@ -622,12 +622,12 @@
       margin-top: 12px;
       border-top: 1px solid var(--gray-2);
     }
-    .footer .total {
+    .footer .total{
       font-size: 22px;
       font-weight: 700;
       color: var(--primary);
     }
-    .submit-btn {
+    .submit-btn{
       background: var(--primary);
       border: 0;
       color: #fff;
@@ -638,25 +638,25 @@
       cursor: pointer;
       transition: var(--transition);
     }
-    .submit-btn:hover { background: var(--primary-dark); transform: translateY(-2px); }
-    .submit-btn:active { transform: scale(0.97); }
+    .submit-btn:hover{ background: var(--primary-dark); transform: translateY(-2px); }
+    .submit-btn:active{ transform: scale(0.97); }
 
     /* ===== 响应式 ===== */
     @media (max-width: 600px) {
-      header { padding: 10px 14px; }
-      header h1 { font-size: 17px; }
-      .login-modal .modal-card { padding: 24px 18px 20px; }
-      .dish-list { grid-template-columns: 1fr; }
-      .table-grid { grid-template-columns: 1fr; }
+      header{ padding: 10px 14px; }
+      header h1{ font-size: 17px; }
+      .login-modal .modal-card{ padding: 24px 18px 20px; }
+      .dish-list{ grid-template-columns: 1fr; }
+      .table-grid{ grid-template-columns: 1fr; }
     }
     @media (max-width: 400px) {
-      .header-actions { width:100%; justify-content: flex-end; }
+      .header-actions{ width:100%; justify-content: flex-end; }
     }
     @media (max-width: 480px) {
-      .selected-item { grid-template-columns: 1fr auto auto; row-gap: 4px; }
-      .selected-item .sel-price { grid-column: 1 / 2; font-size: 12px; }
-      .auto-refresh-toggle span:not(.title) { display: none; }
-      .auto-refresh-toggle { padding: 5px 10px; }
+      .selected-item{ grid-template-columns: 1fr auto auto; row-gap: 4px; }
+      .selected-item .sel-price{ grid-column: 1 / 2; font-size: 12px; }
+      .auto-refresh-toggle span:not(.title){ display: none; }
+      .auto-refresh-toggle{ padding: 5px 10px; }
     }
   </style>
   <link rel="stylesheet" href="assets/common.css">
@@ -749,6 +749,7 @@
 <script>
   // 初始化统一 i18n（合并 LANGUAGES 和本地词典）
   SLF.i18n.init(localStorage.getItem('waiterLang') || 'zh');
+</script>
 <script>
   // ================================================================
   //  工具函数（双币支持）

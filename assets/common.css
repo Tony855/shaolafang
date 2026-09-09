@@ -303,7 +303,7 @@ textarea {
   display: flex;
 }
 
-.modal {
+.slf-modal {
   background: #fff;
   border-radius: var(--radius-lg);
   max-width: 560px;
@@ -327,7 +327,7 @@ textarea {
   }
 }
 
-.modal-head {
+.slf-modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -336,13 +336,13 @@ textarea {
   flex-shrink: 0;
 }
 
-.modal-head h2 {
+.slf-modal-head h2 {
   font-size: 18px;
   font-weight: 700;
   color: var(--gray-800);
 }
 
-.modal-close {
+.slf-modal-close {
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -356,17 +356,17 @@ textarea {
   transition: var(--transition-fast);
 }
 
-.modal-close:hover {
+.slf-modal-close:hover {
   background: var(--gray-200);
 }
 
-.modal-body {
+.slf-modal-body {
   padding: 22px;
   overflow-y: auto;
   flex: 1;
 }
 
-.modal-foot {
+.slf-modal-foot {
   padding: 14px 22px;
   border-top: 1px solid var(--gray-200);
   display: flex;
@@ -580,16 +580,16 @@ textarea {
   border-color: var(--dark-border);
 }
 
-.theme-dark .modal {
+.theme-dark .slf-modal {
   background: var(--dark-card);
 }
 
-.theme-dark .modal-head,
-.theme-dark .modal-foot {
+.theme-dark .slf-modal-head,
+.theme-dark .slf-modal-foot {
   border-color: var(--dark-border);
 }
 
-.theme-dark .modal-head h2 {
+.theme-dark .slf-modal-head h2 {
   color: var(--dark-text);
 }
 
@@ -599,7 +599,7 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .modal {
+  .slf-modal {
     max-width: 100%;
     border-radius: var(--radius);
   }
