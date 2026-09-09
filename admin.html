@@ -346,9 +346,10 @@
             font-size: 14px;
         }
         .menu-info .meta {
-            color: #9b9bb2;
+            color: #b8b8c8;
             font-size: 12px;
-            margin-top: 3px;
+            margin-top: 4px;
+            line-height: 1.4;
         }
         .menu-actions {
             display: flex;
@@ -374,15 +375,18 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            background: rgba(255, 255, 255, .035);
-            border: 1px solid rgba(255, 255, 255, .06);
-            border-radius: 12px;
-            padding: 11px 12px;
-            margin-bottom: 8px;
+            background: linear-gradient(135deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+            border: 1px solid rgba(255, 255, 255, .08);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            transition: .2s ease;
         }
         .row:hover {
-            background: rgba(255, 255, 255, .06);
-            border-color: rgba(255, 255, 255, .12);
+            background: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+            border-color: rgba(255, 255, 255, .15);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0,0,0,.15);
         }
         .row b {
             color: #fff;
@@ -401,17 +405,20 @@
             flex-wrap: wrap;
         }
         .row .actions button {
-            background: rgba(255, 255, 255, .09);
-            border: 0;
-            border-radius: 8px;
-            padding: 6px 11px;
+            background: rgba(255, 255, 255, .1);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 10px;
+            padding: 7px 14px;
             color: #fff;
             cursor: pointer;
             font-size: 12px;
-            transition: .18s ease;
+            font-weight: 600;
+            transition: .2s ease;
         }
         .row .actions button:hover {
-            background: rgba(255, 255, 255, .16);
+            background: rgba(255, 255, 255, .18);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,.2);
         }
         .row .actions .danger {
             color: #ff9c9c;
@@ -1707,13 +1714,13 @@
                     <input id="newPassword" type="password" placeholder="新密码（至少 6 位）" required>
                     <button id="changePasswordBtn" class="full">修改密码</button>
                 </form>
-                <hr style="border-color:#444;margin:16px 0;">
+                <hr style="border-color:rgba(255,255,255,.1);margin:16px 0;">
                 <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="notifyPanelTitle">🔔 新订单提示音</h3>
                 <div class="backup-actions">
                     <label style="color:#ccc"><input type="checkbox" id="newOrderSoundEnabled" checked> <span id="newOrderSoundLabel">新订单到达时，服务员端和后厨端播放提示音</span></label>
                     <button id="saveNotifySettingsBtn">保存提示音设置</button>
                 </div>
-                <hr style="border-color:#444;margin:16px 0;">
+                <hr style="border-color:rgba(255,255,255,.1);margin:16px 0;">
                 <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="backupPanelTitle">💾 数据备份</h3>
                 <div class="backup-actions">
                     <button id="exportBackupBtn">导出备份</button>
@@ -1730,7 +1737,7 @@
                     <button id="saveBackupSettingsBtn">保存备份设置</button>
                     <button id="backupNowBtn">立即备份</button>
                 </div>
-                <hr style="border-color:#444;margin:16px 0;">
+                <hr style="border-color:rgba(255,255,255,.1);margin:16px 0;">
                 <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="resetPanelTitle">⚠️ 重置数据（清空所有订单）</h3>
                 <button id="resetDataBtn">重置订单数据</button>
             </section>
@@ -3821,7 +3828,7 @@
                 const data = await api('/admin/reservations');
                 const container = $('#reservationsList');
                 if (!data || data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无预约</div>';
+                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#c8c8d0;">暂无预约</div>';
                     return;
                 }
                 const statusMap = { pending: '待确认', confirmed: '已确认', canceled: '已取消', completed: '已完成' };
@@ -3830,7 +3837,7 @@
                     <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                         <div>
                             <div style="font-weight:700;font-size:16px;">🪑 ${esc(r.table_name)} · ${esc(r.customer_name)}</div>
-                            <div style="color:#999;font-size:13px;margin-top:4px;">
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">
                                 📅 ${esc(r.reservation_time)} · 👥 ${r.guests}人 · 📞 ${esc(r.phone || '未留电话')}
                             </div>
                         </div>
@@ -3873,14 +3880,14 @@
                 const data = await api('/waiter-calls');
                 const container = $('#waiterCallsList');
                 if (!data || data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无呼叫</div>';
+                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#c8c8d0;">暂无呼叫</div>';
                     return;
                 }
                 container.innerHTML = data.map(c => `
                     <div style="background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.3);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
                             <div style="font-weight:700;font-size:16px;">🔔 桌号 ${esc(c.table_name)} 呼叫服务员</div>
-                            <div style="color:#999;font-size:13px;margin-top:4px;">${esc(c.created_at)}</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${esc(c.created_at)}</div>
                         </div>
                         <button onclick="handleWaiterCall('${c.id}')" style="background:#ff7a45;color:#fff;border:0;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;">已处理</button>
                     </div>
@@ -3908,7 +3915,7 @@
                 const data = await api('/admin/printers');
                 const container = $('#printersList');
                 if (!data || data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无打印机，添加一台网络打印机开始打印</div>';
+                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#c8c8d0;">暂无打印机，添加一台网络打印机开始打印</div>';
                     return;
                 }
                 const typeMap = { network: '网络', usb: 'USB', bluetooth: '蓝牙' };
@@ -3919,7 +3926,7 @@
                             <div style="color:#c8c8d0;font-size:13px;line-height:1.6;">
                                 ${typeMap[p.type] || p.type} · ${p.brand} · ${p.paper_width}mm
                                 ${p.ip_address ? ` · ${p.ip_address}:${p.port}` : ''}
-                                · ${p.active ? '<span style="color:#2ecc71;font-weight:600;">已启用</span>' : '<span style="color:#999;">已停用</span>'}
+                                · ${p.active ? '<span style="color:#2ecc71;font-weight:600;">已启用</span>' : '<span style="color:#e74c3c;">已停用</span>'}
                             </div>
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -4074,23 +4081,23 @@
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#e85d3a;">${s.totalOrders}</div>
-                            <div style="color:#999;font-size:13px;margin-top:4px;">总订单数</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">总订单数</div>
                         </div>
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#2ecc71;">${s.completedOrders}</div>
-                            <div style="color:#999;font-size:13px;margin-top:4px;">已完成</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">已完成</div>
                         </div>
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#e74c3c;">${s.canceledOrders}</div>
-                            <div style="color:#999;font-size:13px;margin-top:4px;">已取消</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">已取消</div>
                         </div>
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#f1c40f;">$${Number(s.totalRevenue).toFixed(2)}</div>
-                            <div style="color:#999;font-size:13px;margin-top:4px;">总营收</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">总营收</div>
                         </div>
                         <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                             <div style="font-size:28px;font-weight:700;color:#3498db;">$${Number(s.avgOrderValue).toFixed(2)}</div>
-                            <div style="color:#999;font-size:13px;margin-top:4px;">客单价</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">客单价</div>
                         </div>
                     </div>
                 `;
@@ -4102,7 +4109,7 @@
                         html += `<div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px;text-align:center;">
                             <div style="font-weight:600;">${esc(t.table_name)}</div>
                             <div style="color:#2ecc71;font-size:18px;font-weight:700;margin-top:4px;">$${Number(t.revenue).toFixed(2)}</div>
-                            <div style="color:#999;font-size:12px;">${t.orders} 单</div>
+                            <div style="color:#c8c8d0;font-size:12px;">${t.orders} 单</div>
                         </div>`;
                     }
                     html += `</div>`;
@@ -4128,7 +4135,7 @@
                     for (const h of data.hourlyStats) {
                         const pct = (h.orders / maxOrders * 100).toFixed(0);
                         html += `<div style="display:flex;align-items:center;gap:10px;margin:6px 0;">
-                            <span style="width:50px;color:#999;font-size:13px;">${String(h.hour).padStart(2, '0')}:00</span>
+                            <span style="width:50px;color:#c8c8d0;font-size:13px;">${String(h.hour).padStart(2, '0')}:00</span>
                             <div style="flex:1;background:rgba(255,255,255,.1);border-radius:6px;height:20px;overflow:hidden;">
                                 <div style="width:${pct}%;background:linear-gradient(90deg,#e85d3a,#f39c12);height:100%;border-radius:6px;"></div>
                             </div>
