@@ -1309,6 +1309,13 @@
             cursor: pointer;
             font-weight: 700;
         }
+        #menuForm .full {
+            grid-column: 1 / -1;
+        }
+        #menuForm #menuSaveButton {
+            background: #e85d3a;
+            color: #fff;
+        }
         #menuForm #menuCancelButton {
             background: #555;
             color: #fff;
@@ -2245,7 +2252,6 @@
                 </div>
               `).join('') || `<div class="empty-hint">${tAdmin('noOrders')}</div>`;
             updateOrderSummary();
-            updateStatsSummary();
             if (tablesCache.length) loadTables();
         }
 
@@ -3103,21 +3109,6 @@
             $('#doneOrderAmount').textContent = formatMoney(doneAmount);
         }
 
-        function updateStatsSummary() {
-            const done = ordersCache.filter(o => o.status === 'done');
-            const now = new Date();
-            const today = now.toDateString();
-            const todayAmount = done.filter(o => new Date(o.createdAt).toDateString() === today).reduce((s, o) => s +
-                Number(o.total || 0), 0);
-            const monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-            const monthAmount = done.filter(o => {
-                const d = new Date(o.createdAt);
-                return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === monthKey;
-            }).reduce((s, o) => s + Number(o.total || 0), 0);
-            $('#todayRevenue').textContent = formatMoney(todayAmount);
-            $('#monthRevenue').textContent = formatMoney(monthAmount);
-        }
-
         // ================================================================
         // 模块切换 & 语言 & 刷新逻辑
         // ================================================================
@@ -3225,8 +3216,6 @@
             $('#currencyName').placeholder = tAdmin('currencyName');
             $('#currencyRate').placeholder = tAdmin('currencyRate');
             $('#addCurrencyBtn').textContent = tAdmin('addCurrency');
-            $('#todayRevenueLabel').textContent = tAdmin('todayRevenue');
-            $('#monthRevenueLabel').textContent = tAdmin('monthRevenue');
             $('#logsPanelTitle').textContent = tAdmin('logsTitle');
             $('#waitersPanelTitle').textContent = tAdmin('waitersManage');
             $('#storesPanelTitle').textContent = tAdmin('storesManage');
