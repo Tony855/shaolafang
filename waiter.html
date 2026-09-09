@@ -278,7 +278,7 @@
     .order-head .order-meta{
       font-weight: 400;
       font-size: 12px;
-      color: #999;
+      color: #c8c8d0;
     }
     .session-badge{
       display: inline-block;
@@ -833,7 +833,7 @@
       const noteHtml=o.note?`<div class="order-note" style="margin:4px 0 6px;padding:6px 8px;border-radius:6px;background:rgba(255,193,7,.15);font-size:12px;color:#c98a1f;line-height:1.4;"><strong>${wt('orderNoteDisplay')}：</strong>${escNote(o.note)}</div>`:'';
       return `<div class="order-block"><div class="order-head"><span>#${o.id} · ${wt('orderPending')}${badge}<span class="order-meta"> · ${timeLabel}</span></span><button onclick="event.stopPropagation();printWaiterOrder(${o.id})" style="background:#e8f4fd;color:#2980b9;border:1px solid #b8dff5;padding:4px 12px;border-radius:20px;font-size:12px;cursor:pointer;margin-right:6px;">🖨️ 打印</button>${state.waiter&&state.waiter.can_complete_order?`<button onclick="event.stopPropagation();completeWaiterOrder(${o.id})">${wt('orderCompleted')}</button>`:''}</div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
     }).join('');
-    return active.length ? `<div class="amount">${active.length} ${wt('order')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#999">${wt('noPending')}</div>`;
+    return active.length ? `<div class="amount">${active.length} ${wt('order')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${wt('noPending')}</div>`;
   }
   async function toggleWaiterItem(id,index){try{const order=state.orders.find(o=>o.id===id);if(!order||!order.items[index])return;const next=order.items[index].itemStatus==='done'?'pending':'done';await api(`/orders/${id}/items/${index}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({itemStatus:next})});toast('✅ '+wt('orderUpdated'));await load()}catch(e){toast('❌ '+e.message)}}
   async function completeWaiterOrder(id){if(!confirm(wt('confirmComplete')))return;try{await api(`/orders/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done'})});toast('✅ '+wt('orderCompleted'));await load()}catch(e){toast('❌ '+e.message)}}
@@ -963,7 +963,7 @@
   });
 
   function renderTables(){
-    $('#tableGrid').innerHTML=state.tables.map(t=>`<div class="table-card" onclick="openModal('${t.name}')"><div class="name">🍽️ ${t.name}</div><div class="status ${status(t)===wt('available')?'available':'occupied'}">${status(t)}</div><div class="bill">${bill(t)}</div></div>`).join('')||`<div style="color:#888">${wt('noTables')}</div>`;
+    $('#tableGrid').innerHTML=state.tables.map(t=>`<div class="table-card" onclick="openModal('${t.name}')"><div class="name">🍽️ ${t.name}</div><div class="status ${status(t)===wt('available')?'available':'occupied'}">${status(t)}</div><div class="bill">${bill(t)}</div></div>`).join('')||`<div style="color:#c8c8d0">${wt('noTables')}</div>`;
     $('#submitBtn').style.display=state.waiter&&state.waiter.can_order?'block':'none';
   }
 
@@ -997,7 +997,7 @@
         <div class="qty"><button onclick="changeQty(${x.m.id},-1)">−</button><span>${x.q}</span><button onclick="changeQty(${x.m.id},1)">+</button></div>
         <button class="remove-btn" onclick="removeItem(${x.m.id})">${wt('remove')}</button>
       </div>`;
-    }).join(''):`<div style="color:#999">${wt('emptySelected')}</div>`;
+    }).join(''):`<div style="color:#c8c8d0">${wt('emptySelected')}</div>`;
     $('#selectedItems').innerHTML=`<div class="title">${wt('selectedDishes')}</div>${locked}${cartHtml}`;
   }
   function renderDishes(){
