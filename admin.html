@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -421,8 +421,7 @@
         }
 
         /* ===== 订单 ===== */
-        .order-summary,
-        .stats-summary {
+        .order-summary {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
@@ -1107,8 +1106,7 @@
                 grid-template-columns: 1fr !important;
             }
 
-            .order-summary,
-            .stats-summary {
+            .order-summary {
                 grid-template-columns: 1fr 1fr;
                 gap: 8px;
             }
@@ -1452,12 +1450,6 @@
             <button class="nav-item" data-module="currencies">
                 <span class="nav-icon">💱</span> <span data-i18n-nav="currencies">货币类型</span>
             </button>
-            <button class="nav-item" data-module="stats">
-                <span class="nav-icon">📊</span> <span data-i18n-nav="stats">营业额统计</span>
-            </button>
-            <button class="nav-item" data-module="ranking">
-                <span class="nav-icon">🏆</span> <span>销量排行</span>
-            </button>
             <button class="nav-item" data-module="reservations">
                 <span class="nav-icon">📅</span> <span>预约管理</span>
             </button>
@@ -1537,33 +1529,6 @@
                     <button id="addCurrencyBtn" class="full">新增货币</button>
                 </form>
                 <div id="currencies"></div>
-            </section>
-
-            <!-- 营业额统计 -->
-            <section class="panel module-panel" id="module-stats">
-                <h2 id="statsPanelTitle">营业额统计</h2>
-                <div class="stats-summary">
-                    <div class="summary-card"><span id="todayRevenueLabel">今日营业额</span><strong id="todayRevenue">$0.00</strong></div>
-                    <div class="summary-card"><span id="monthRevenueLabel">本月营业额</span><strong id="monthRevenue">$0.00</strong></div>
-                </div>
-                <div class="form">
-                    <input id="statStart" type="date">
-                    <input id="statEnd" type="date">
-                    <select id="statGroup"><option value="day">按日</option><option value="month">按月</option><option value="year">按年</option></select>
-                    <button id="statQueryBtn" onclick="loadStats()">查询</button>
-                </div>
-                <div id="stats"></div>
-            </section>
-
-            <!-- 销量排行 -->
-            <section class="panel module-panel" id="module-ranking">
-                <h2>🏆 菜品销量排行</h2>
-                <div class="form" style="margin-bottom:16px;">
-                    <input id="rankStart" type="date">
-                    <input id="rankEnd" type="date">
-                    <button onclick="loadDishRanking()">查询排行</button>
-                </div>
-                <div id="dishRanking"></div>
             </section>
 
             <!-- 预约管理 -->
@@ -1863,8 +1828,7 @@
                 dishCategoryManage: '菜品分类管理', newCategory: '新分类名称', addCategory: '添加分类',
                 tableManageTitle: '桌号与固定二维码', tableName: '桌号，例如 A06', addTable: '新增桌号',
                 addOrder: '➕ 新增订单', currencyManageTitle: '货币类型', currencyCode: '代码 CNY', currencySymbol: '符号 ¥',
-                currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', statsTitle: '营业额统计', day: '按日',
-                month: '按月', year: '按年', query: '查询', logsTitle: '登录日志', time: '时间', ip: 'IP', result: '结果',
+                currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '登录日志', time: '时间', ip: 'IP', result: '结果',
                 loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', oldPassword: '旧密码',
                 newPassword: '新密码（至少 6 位）', changePassword: '修改密码', tableField: '桌号', dishList: '菜品清单',
                 addDishLine: '➕ 添加菜品', saveOrder: '保存订单', editTableTitle: '编辑桌号', tableNameLabel: '桌号名称',
@@ -1902,8 +1866,7 @@
                 addTable: 'Add Table', addOrder: '➕ Add Order',
                 currencyManageTitle: 'Currency Types', currencyCode: 'Code CNY', currencySymbol: 'Symbol ¥',
                 currencyName: 'Name', currencyRate: 'Rate', addCurrency: 'Add Currency',
-                statsTitle: 'Revenue Statistics', day: 'By Day', month: 'By Month', year: 'By Year', query: 'Query',
-                logsTitle: 'Login Logs', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
+                                logsTitle: 'Login Logs', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
                 loginFailed: 'Login Failed', passwordTitle: 'Admin Password', oldPassword: 'Old Password',
                 newPassword: 'New Password (min 6 chars)', changePassword: 'Change Password', tableField: 'Table',
                 dishList: 'Dish List', addDishLine: '➕ Add Dish', saveOrder: 'Save Order',
@@ -1946,8 +1909,7 @@
             desc: 'Mô tả', addDish: 'Thêm món', cancelEdit: 'Hủy chỉnh sửa', tableManageTitle: 'Bàn & mã QR cố định',
             tableName: 'Bàn, vd A06', addTable: 'Thêm bàn', addOrder: '➕ Thêm đơn',
             currencyManageTitle: 'Loại tiền tệ', currencyCode: 'Mã CNY', currencySymbol: 'Ký hiệu ¥',
-            currencyName: 'Tên', currencyRate: 'Tỷ giá', addCurrency: 'Thêm tiền tệ', statsTitle: 'Thống kê doanh thu',
-            day: 'Theo ngày', month: 'Theo tháng', year: 'Theo năm', query: 'Truy vấn',
+            currencyName: 'Tên', currencyRate: 'Tỷ giá', addCurrency: 'Thêm tiền tệ',
             passwordTitle: 'Mật khẩu quản trị', oldPassword: 'Mật khẩu cũ',
             newPassword: 'Mật khẩu mới (ít nhất 6 ký tự)', changePassword: 'Đổi mật khẩu', tableField: 'Bàn',
             dishList: 'Danh sách món', addDishLine: '➕ Thêm món', saveOrder: 'Lưu đơn',
@@ -1989,8 +1951,7 @@
             tableManageTitle: 'โต๊ะและคิวอาร์โค้ดคงที่', tableName: 'โต๊ะ เช่น A06', addTable: 'เพิ่มโต๊ะ',
             addOrder: '➕ เพิ่มออเดอร์', currencyManageTitle: 'ประเภทสกุลเงิน',
             currencyCode: 'รหัส CNY', currencySymbol: 'สัญลักษณ์ ¥', currencyName: 'ชื่อ', currencyRate: 'อัตราแลกเปลี่ยน',
-            addCurrency: 'เพิ่มสกุลเงิน', statsTitle: 'สถิติรายได้', day: 'รายวัน', month: 'รายเดือน', year: 'รายปี',
-            query: 'ค้นหา', passwordTitle: 'รหัสผ่านผู้ดูแล', oldPassword: 'รหัสผ่านเก่า',
+            addCurrency: 'เพิ่มสกุลเงิน'
             newPassword: 'รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)', changePassword: 'เปลี่ยนรหัสผ่าน', tableField: 'โต๊ะ',
             dishList: 'รายการเมนู', addDishLine: '➕ เพิ่มเมนู', saveOrder: 'บันทึกออเดอร์',
             editTableTitle: 'แก้ไขโต๊ะ', tableNameLabel: 'ชื่อโต๊ะ', statusLabel: 'สถานะ',
@@ -2032,8 +1993,7 @@
             addOrder: '➕ បន្ថែមការបញ្ជាទិញ',
             currencyManageTitle: 'ប្រភេទរូបិយប័ណ្ណ', currencyCode: 'កូដ CNY', currencySymbol: 'និមិត្តសញ្ញា ¥',
             currencyName: 'ឈ្មោះ', currencyRate: 'អត្រាប្តូរ', addCurrency: 'បន្ថែមរូបិយប័ណ្ណ',
-            statsTitle: 'ស្ថិតិចំណូល', day: 'តាមថ្ងៃ', month: 'តាមខែ', year: 'តាមឆ្នាំ', query: 'ស្វែងរក',
-            passwordTitle: 'ពាក្យសម្ងាត់អ្នកគ្រប់គ្រង', oldPassword: 'ពាក្យសម្ងាត់ចាស់',
+                        passwordTitle: 'ពាក្យសម្ងាត់អ្នកគ្រប់គ្រង', oldPassword: 'ពាក្យសម្ងាត់ចាស់',
             newPassword: 'ពាក្យសម្ងាត់ថ្មី (យ៉ាងហោច ៦ តួ)', changePassword: 'ប្តូរពាក្យសម្ងាត់', tableField: 'តុ',
             dishList: 'បញ្ជីម្ហូប', addDishLine: '➕ បន្ថែមម្ហូប', saveOrder: 'រក្សាទុកការបញ្ជាទិញ',
             editTableTitle: 'កែតុ', tableNameLabel: 'ឈ្មោះតុ', statusLabel: 'ស្ថានភាព',
@@ -2879,33 +2839,6 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
 
-        window.loadStats = async function() {
-            try {
-                const start = $('#statStart').value,
-                    end = $('#statEnd').value,
-                    group = $('#statGroup').value;
-                if (!start || !end) {
-                    toast('❌ 请选择开始和结束日期');
-                    return;
-                }
-                const data = await api(`/orders/stats?start=${start}&end=${end}&group=${group}`);
-                if (!data || data.length === 0) {
-                    $('#stats').innerHTML = `<div class="empty-hint">暂无数据，请确认：
-                        <br>1. 是否有已结算（done）的订单？
-                        <br>2. 日期范围是否正确？
-                        <br>3. 当前店铺是否有订单？</div>`;
-                } else {
-                    $('#stats').innerHTML = data.map(x => {
-                        const revenue = isNaN(x.revenue) ? 0 : x.revenue;
-                        return `<div class="row"><span>${x.period}</span><b>${formatMoney(revenue)} · ${x.orders} ${tAdmin('ordersUnit')}</b></div>`;
-                    }).join('');
-                }
-            } catch (e) {
-                toast('❌ ' + e.message);
-                $('#stats').innerHTML = `<div class="empty-hint">加载失败：${e.message}</div>`;
-            }
-        };
-
         $('#passwordForm').onsubmit = async function(e) {
             e.preventDefault();
             try {
@@ -3201,11 +3134,9 @@
             else if (module === 'tables') loadTables();
             else if (module === 'menu') loadMenus();
             else if (module === 'currencies') loadCurrencies();
-            else if (module === 'stats') loadStats();
             else if (module === 'logs') loadLoginLogs();
             else if (module === 'waiters') loadWaiters();
             else if (module === 'stores') loadStores();
-            else if (module === 'ranking') loadDishRanking();
             else if (module === 'reservations') loadReservations();
             else if (module === 'calls') loadWaiterCalls();
             else if (module === 'printers') loadPrinters();
@@ -3253,8 +3184,7 @@
                     tables: L('tablesManage'),
                     orders: L('orderManage'),
                     currencies: tAdmin('currencyManageTitle'),
-                    stats: L('stats'),
-                    logs: tAdmin('logsTitle'),
+                                        logs: tAdmin('logsTitle'),
                     waiters: tAdmin('waitersManage'),
                     stores: tAdmin('storesManage'),
                     password: tAdmin('passwordTitle')
@@ -3295,7 +3225,6 @@
             $('#currencyName').placeholder = tAdmin('currencyName');
             $('#currencyRate').placeholder = tAdmin('currencyRate');
             $('#addCurrencyBtn').textContent = tAdmin('addCurrency');
-            $('#statsPanelTitle').textContent = tAdmin('statsTitle');
             $('#todayRevenueLabel').textContent = tAdmin('todayRevenue');
             $('#monthRevenueLabel').textContent = tAdmin('monthRevenue');
             $('#logsPanelTitle').textContent = tAdmin('logsTitle');
@@ -3309,11 +3238,6 @@
             $('#waiterPasswordInput').placeholder = tAdmin('waiterPassword');
             $('#waiterNameInput').placeholder = tAdmin('waiterDisplayName');
             $('#addWaiterBtn').textContent = tAdmin('addWaiter');
-            const groupOptions = $('#statGroup').options;
-            groupOptions[0].text = tAdmin('day');
-            groupOptions[1].text = tAdmin('month');
-            groupOptions[2].text = tAdmin('year');
-            $('#statQueryBtn').textContent = tAdmin('query');
             $('#passwordPanelTitle').textContent = tAdmin('passwordTitle');
             $('#oldPassword').placeholder = tAdmin('oldPassword');
             $('#newPassword').placeholder = tAdmin('newPassword');
@@ -3400,8 +3324,6 @@
         // 初始化
         // ================================================================
         const today = new Date().toISOString().slice(0, 10);
-        $('#statStart').value = today.slice(0, 4) + '-01-01';
-        $('#statEnd').value = today;
         applyAdminLanguage();
 
         if (adminKey) {
@@ -3467,44 +3389,6 @@
                 draggedCategoryRow = null;
             }
         });
-
-        // ================================================================
-        //  销量排行
-        // ================================================================
-        async function loadDishRanking() {
-            try {
-                const start = $('#rankStart').value;
-                const end = $('#rankEnd').value;
-                let url = '/admin/stats/dish-ranking?limit=20';
-                if (start) url += '&start=' + start;
-                if (end) url += '&end=' + end;
-                const data = await api(url);
-                const container = $('#dishRanking');
-                if (!data || data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无销售数据</div>';
-                    return;
-                }
-                container.innerHTML = '<table style="width:100%;border-collapse:collapse;">' +
-                    '<thead><tr style="border-bottom:1px solid rgba(255,255,255,.1);">' +
-                    '<th style="padding:10px;text-align:left;">排名</th>' +
-                    '<th style="padding:10px;text-align:left;">菜品</th>' +
-                    '<th style="padding:10px;text-align:right;">销量</th>' +
-                    '<th style="padding:10px;text-align:right;">营收</th>' +
-                    '</tr></thead><tbody>' +
-                    data.map((item, i) => {
-                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
-                        return `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
-                            <td style="padding:10px;font-weight:700;">${medal}</td>
-                            <td style="padding:10px;">${esc(item.emoji || '🍽️')} ${esc(item.name)}</td>
-                            <td style="padding:10px;text-align:right;font-weight:600;">${item.quantity}</td>
-                            <td style="padding:10px;text-align:right;color:#ffd93d;">$${Number(item.revenue).toFixed(2)}</td>
-                        </tr>`;
-                    }).join('') +
-                    '</tbody></table>';
-            } catch (err) {
-                toast('加载排行失败: ' + err.message);
-            }
-        }
 
         // ================================================================
         //  预约管理
