@@ -155,11 +155,7 @@ node server.js --init-only
 # 本地 .env 供 server.js 内置的轻量加载器读取（无 systemd 时也能正常工作），
 # 与下面写入 /etc/default/shaolafang 的内容保持一致，避免配置分散。
 # 检测是否能使用 80 端口（需要 root 或 capabilities）
-SERVER_PORT=80
-if [ "$EUID" -ne 0 ]; then
-  SERVER_PORT=3000
-  echo -e "${YELLOW}⚠️ 非 root 用户，使用端口 3000${NC}"
-fi
+SERVER_PORT=3000
 
 cat > "${INSTALL_DIR}/.env" <<EOF
 PORT=${SERVER_PORT}
