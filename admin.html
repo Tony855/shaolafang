@@ -284,6 +284,184 @@
             color: #fff;
         }
 
+        /* 货币表单网格 */
+        .currency-form-grid {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+            gap: 14px !important;
+            background: rgba(255,255,255,.03) !important;
+            border: 1px solid rgba(255,255,255,.06) !important;
+            border-radius: 14px !important;
+            padding: 18px !important;
+            margin-bottom: 18px !important;
+        }
+        .currency-form-grid .form-group {
+            margin-bottom: 0 !important;
+        }
+        .currency-form-grid button {
+            background: linear-gradient(135deg, #e85d3a, #e84a2a) !important;
+            color: #fff !important;
+            border: 0 !important;
+            border-radius: 10px !important;
+            padding: 10px 20px !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            height: 42px !important;
+        }
+
+        /* 打印机表单容器 */
+        .printer-form-container {
+            background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+        .printer-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        .printer-form-grid .form-group {
+            margin-bottom: 0;
+        }
+        .printer-form-grid input,
+        .printer-form-grid select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.15);
+            background: rgba(0,0,0,.25);
+            color: #fff;
+            font-size: 14px;
+            box-sizing: border-box;
+            height: 42px;
+        }
+        .printer-form-grid input:focus,
+        .printer-form-grid select:focus {
+            outline: none;
+            border-color: #e85d3a;
+            box-shadow: 0 0 0 3px rgba(232,93,58,.15);
+        }
+        .printer-form-actions {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,.08);
+        }
+        .printer-form-actions button {
+            background: linear-gradient(135deg, #e85d3a, #e84a2a);
+            color: #fff;
+            border: 0;
+            border-radius: 10px;
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #d0d0e0;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .checkbox-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #e85d3a;
+        }
+
+        /* 设置页面卡片 */
+        .settings-card {
+            background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .settings-card-title {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+        .settings-form-grid {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+            gap: 14px !important;
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            margin-bottom: 0 !important;
+        }
+        .settings-form-grid .form-group {
+            margin-bottom: 0 !important;
+        }
+        .settings-form-grid button {
+            height: 42px !important;
+            background: linear-gradient(135deg, #e85d3a, #e84a2a) !important;
+            color: #fff !important;
+            border: 0 !important;
+            border-radius: 10px !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            cursor: pointer !important;
+        }
+        .settings-form-grid button:hover {
+            box-shadow: 0 4px 14px rgba(232,93,58,.4) !important;
+            transform: translateY(-1px) !important;
+        }
+        .settings-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.15);
+            color: #fff;
+            border-radius: 10px;
+            padding: 9px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: .2s ease;
+        }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,.14);
+            border-color: rgba(255,255,255,.25);
+            transform: translateY(-1px);
+        }
+        .file-input {
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.15);
+            background: rgba(0,0,0,.2);
+            color: #ccc;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .file-input::file-selector-button {
+            background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.2);
+            color: #fff;
+            border-radius: 6px;
+            padding: 4px 10px;
+            margin-right: 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
         /* ===== 菜单列表 ===== */
         .menu-list {
             display: flex;
@@ -498,11 +676,18 @@
         }
 
         .order-item-admin {
-            background: rgba(255, 255, 255, .045);
-            border: 1px solid rgba(255, 255, 255, .07);
-            border-radius: 14px;
-            padding: 12px 14px;
-            margin-bottom: 10px;
+            background: linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+            border: 1px solid rgba(255, 255, 255, .09);
+            border-radius: 16px;
+            padding: 16px 18px;
+            margin-bottom: 12px;
+            transition: .25s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,.1);
+        }
+        .order-item-admin:hover {
+            border-color: rgba(255,255,255,.18);
+            box-shadow: 0 6px 20px rgba(0,0,0,.2);
+            transform: translateY(-2px);
         }
         .order-item-admin .top {
             position: static;
@@ -1622,12 +1807,26 @@
                     <select id="dualCurrencySelect"></select>
                     <button id="saveDisplaySettingsBtn">保存显示设置</button>
                 </div>
-                <form id="currencyForm" class="form">
-                    <input id="currencyCode" placeholder="代码 CNY" required>
-                    <input id="currencySymbol" placeholder="符号 ¥" required>
-                    <input id="currencyName" placeholder="名称" required>
-                    <input id="currencyRate" type="number" step="any" placeholder="汇率" required>
-                    <button id="addCurrencyBtn" class="full">新增货币</button>
+                <form id="currencyForm" class="currency-form-grid">
+                    <div class="form-group">
+                        <label>货币代码</label>
+                        <input id="currencyCode" placeholder="如：CNY" required>
+                    </div>
+                    <div class="form-group">
+                        <label>符号</label>
+                        <input id="currencySymbol" placeholder="如：¥" required>
+                    </div>
+                    <div class="form-group">
+                        <label>名称</label>
+                        <input id="currencyName" placeholder="如：人民币" required>
+                    </div>
+                    <div class="form-group">
+                        <label>汇率</label>
+                        <input id="currencyRate" type="number" step="any" placeholder="相对默认货币" required>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:flex-end;">
+                        <button id="addCurrencyBtn" class="primary" style="width:100%;">新增货币</button>
+                    </div>
                 </form>
                 <div id="currencies"></div>
             </section>
@@ -1650,36 +1849,54 @@
             <!-- 打印机管理 -->
             <section class="panel module-panel" id="module-printers">
                 <h2>🖨️ 小票打印机管理</h2>
-                <div style="margin-bottom:16px;padding:14px;background:rgba(255,255,255,.05);border-radius:12px;">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px;">
-                        <input id="printerName" placeholder="打印机名称（如：前台小票机）" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
-                        <select id="printerType" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
-                            <option value="network">网络打印机</option>
-                            <option value="usb">USB打印机</option>
-                            <option value="bluetooth">蓝牙打印机</option>
-                        </select>
-                        <input id="printerIp" placeholder="IP地址（如：192.168.1.100）" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
-                        <input id="printerPort" type="number" value="9100" placeholder="端口" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
-                        <select id="printerWidth" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
-                            <option value="58">58mm 小票纸</option>
-                            <option value="80">80mm 小票纸</option>
-                        </select>
-                        <select id="printerBrand" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
-                            <option value="generic">通用 ESC/POS</option>
-                            <option value="epson">EPSON 爱普生</option>
-                            <option value="star">Star 星亚</option>
-                            <option value="bixolon">Bixolon 毕索龙</option>
-                            <option value="jiabo">佳博 Gprinter</option>
-                            <option value="xprinter">芯烨 Xprinter</option>
-                            <option value="rongta">容大 Rongta</option>
-                            <option value="hoin">弘印 Hoin</option>
-                        </select>
+                <div class="printer-form-container">
+                    <div class="printer-form-grid">
+                        <div class="form-group">
+                            <label>打印机名称</label>
+                            <input id="printerName" placeholder="如：前台小票机">
+                        </div>
+                        <div class="form-group">
+                            <label>连接类型</label>
+                            <select id="printerType">
+                                <option value="network">网络打印机</option>
+                                <option value="usb">USB打印机</option>
+                                <option value="bluetooth">蓝牙打印机</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>IP地址</label>
+                            <input id="printerIp" placeholder="如：192.168.1.100">
+                        </div>
+                        <div class="form-group">
+                            <label>端口</label>
+                            <input id="printerPort" type="number" value="9100" placeholder="9100">
+                        </div>
+                        <div class="form-group">
+                            <label>纸宽</label>
+                            <select id="printerWidth">
+                                <option value="58">58mm 小票纸</option>
+                                <option value="80">80mm 小票纸</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>品牌</label>
+                            <select id="printerBrand">
+                                <option value="generic">通用 ESC/POS</option>
+                                <option value="epson">EPSON 爱普生</option>
+                                <option value="star">Star 星亚</option>
+                                <option value="bixolon">Bixolon 毕索龙</option>
+                                <option value="jiabo">佳博 Gprinter</option>
+                                <option value="xprinter">芯烨 Xprinter</option>
+                                <option value="rongta">容大 Rongta</option>
+                                <option value="hoin">弘印 Hoin</option>
+                            </select>
+                        </div>
                     </div>
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
+                    <div class="printer-form-actions">
+                        <label class="checkbox-label">
                             <input type="checkbox" id="printerDefault"> 设为默认打印机
                         </label>
-                        <button onclick="addPrinter()" style="background:#e85d3a;color:#fff;border:0;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">添加打印机</button>
+                        <button onclick="addPrinter()" class="primary">添加打印机</button>
                     </div>
                 </div>
                 <div id="printersList"></div>
@@ -1733,33 +1950,54 @@
             <!-- 管理员密码 -->
             <section class="panel module-panel" id="module-password">
                 <h2 id="passwordPanelTitle">管理员密码</h2>
-                <form id="passwordForm" class="form">
-                    <input id="oldPassword" type="password" placeholder="旧密码" required>
-                    <input id="newPassword" type="password" placeholder="新密码（至少 6 位）" required>
-                    <button id="changePasswordBtn" class="full">修改密码</button>
-                </form>
-                <hr style="border-color:rgba(255,255,255,.1);margin:16px 0;">
-                <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="notifyPanelTitle">🔔 新订单提示音</h3>
-                <div class="backup-actions">
-                    <label style="color:#ccc"><input type="checkbox" id="newOrderSoundEnabled" checked> <span id="newOrderSoundLabel">新订单到达时，服务员端和后厨端播放提示音</span></label>
-                    <button id="saveNotifySettingsBtn">保存提示音设置</button>
+
+                <!-- 修改密码卡片 -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title">🔐 修改密码</h3>
+                    <form id="passwordForm" class="settings-form-grid">
+                        <div class="form-group">
+                            <label>旧密码</label>
+                            <input id="oldPassword" type="password" placeholder="请输入旧密码" required>
+                        </div>
+                        <div class="form-group">
+                            <label>新密码</label>
+                            <input id="newPassword" type="password" placeholder="至少 6 位" required>
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;">
+                            <button id="changePasswordBtn" class="primary" style="width:100%;">修改密码</button>
+                        </div>
+                    </form>
                 </div>
-                <hr style="border-color:rgba(255,255,255,.1);margin:16px 0;">
-                <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="backupPanelTitle">💾 数据备份</h3>
-                <div class="backup-actions">
-                    <button id="exportBackupBtn">导出备份</button>
-                    <input id="importBackupFile" type="file" accept=".json,application/json">
-                    <button id="importBackupBtn">导入备份</button>
+
+                <!-- 提示音设置卡片 -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title" id="notifyPanelTitle">🔔 新订单提示音</h3>
+                    <div class="settings-row">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="newOrderSoundEnabled" checked>
+                            <span id="newOrderSoundLabel">新订单到达时，服务员端和后厨端播放提示音</span>
+                        </label>
+                        <button id="saveNotifySettingsBtn" class="btn-secondary">保存设置</button>
+                    </div>
                 </div>
-                <div class="backup-actions" style="margin-top:10px;">
-                    <select id="backupIntervalSelect">
-                        <option value="1">每 1 小时</option>
-                        <option value="6">每 6 小时</option>
-                        <option value="12">每 12 小时</option>
-                        <option value="24" selected>每 24 小时</option>
-                    </select>
-                    <button id="saveBackupSettingsBtn">保存备份设置</button>
-                    <button id="backupNowBtn">立即备份</button>
+
+                <!-- 数据备份卡片 -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title" id="backupPanelTitle">💾 数据备份</h3>
+                    <div class="settings-row">
+                        <button id="exportBackupBtn" class="btn-secondary">📤 导出备份</button>
+                        <input id="importBackupFile" type="file" accept=".json,application/json" class="file-input">
+                        <button id="importBackupBtn" class="btn-secondary">📥 导入备份</button>
+                    </div>
+                    <div class="settings-row" style="margin-top:12px;">
+                        <select id="backupIntervalSelect">
+                            <option value="1">每 1 小时</option>
+                            <option value="6">每 6 小时</option>
+                            <option value="12">每 12 小时</option>
+                            <option value="24" selected>每 24 小时</option>
+                        </select>
+                        <button id="saveBackupSettingsBtn" class="btn-secondary">保存设置</button>
+                        <button id="backupNowBtn" class="primary">立即备份</button>
                 </div>
                 <hr style="border-color:rgba(255,255,255,.1);margin:16px 0;">
                 <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="resetPanelTitle">⚠️ 重置数据（清空所有订单）</h3>
