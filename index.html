@@ -3124,6 +3124,8 @@
             document.getElementById('orderSuccessMsg').textContent = t('orderSuccessMsg');
             document.getElementById('orderSuccessNote').textContent = t('orderSuccessNote');
             document.getElementById('orderSuccessCloseBtn').textContent = t('gotIt');
+            const callWaiterBtn = document.getElementById('callWaiterBtn');
+            if (callWaiterBtn) callWaiterBtn.textContent = '🔔 ' + t('callWaiter');
             const searchInput = document.getElementById('menuSearchInput');
             if (searchInput) searchInput.placeholder = t('searchDishes');
             connStatus.textContent = isBackendOnline ? `✅ ${t('connected')}` : `⚠️ ${t('offlineMode')}`;

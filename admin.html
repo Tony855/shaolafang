@@ -1842,7 +1842,7 @@
                 </div>
                 <div class="order-toolbar">
                     <input id="orderTableSearch" placeholder="输入订单号查询">
-                    <button onclick="searchOrders()">查询</button>
+                    <button id="searchOrdersBtn" onclick="searchOrders()">查询</button>
                     <button id="openOrderBtn" onclick="openOrderForm()">➕ 新增订单</button>
                 </div>
                 <div id="orders"></div>
@@ -2285,7 +2285,7 @@
                 price: '价格', icon: '图标（例如 🍖）', desc: '菜品描述', addDish: '新增菜品', cancelEdit: '取消编辑',
                 dishCategoryManage: '菜品分类管理', newCategory: '新分类名称', addCategory: '添加分类',
                 tableManageTitle: '桌号与固定二维码', tableName: '桌号，例如 A06', addTable: '新增桌号',
-                addOrder: '➕ 新增订单', currencyManageTitle: '货币类型', currencyCode: '代码 CNY', currencySymbol: '符号 ¥',
+                addOrder: '➕ 新增订单', orderSearchPlaceholder: '输入订单号查询', search: '查询', currencyManageTitle: '货币类型', currencyCode: '代码 CNY', currencySymbol: '符号 ¥',
                 currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '登录日志', time: '时间', ip: 'IP', result: '结果',
                 loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', oldPassword: '旧密码',
                 newPassword: '新密码（至少 6 位）', changePassword: '修改密码', tableField: '桌号', dishList: '菜品清单',
@@ -2438,7 +2438,7 @@
                 icon: 'Icon (e.g. 🍖)', desc: 'Description', addDish: 'Add Dish', cancelEdit: 'Cancel Edit',
                 dishCategoryManage: 'Dish Categories', newCategory: 'New category name', addCategory: 'Add Category',
                 tableManageTitle: 'Tables & Fixed QR Codes', tableName: 'Table, e.g. A06',
-                addTable: 'Add Table', addOrder: '➕ Add Order',
+                addTable: 'Add Table', addOrder: '➕ Add Order', orderSearchPlaceholder: 'Search by order number', search: 'Search',
                 currencyManageTitle: 'Currency Types', currencyCode: 'Code CNY', currencySymbol: 'Symbol ¥',
                 currencyName: 'Name', currencyRate: 'Rate', addCurrency: 'Add Currency',
                                 logsTitle: 'Login Logs', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
@@ -4390,6 +4390,8 @@
             $('#addTableBtn').textContent = tAdmin('addTable');
             $('#orderPanelTitle').textContent = tAdmin('orderManage');
             $('#openOrderBtn').textContent = tAdmin('addOrder');
+            $('#orderTableSearch').placeholder = tAdmin('orderSearchPlaceholder');
+            $('#searchOrdersBtn').textContent = tAdmin('search');
             $('#pendingLabel').textContent = tAdmin('pendingOrders');
             $('#doneLabel').textContent = tAdmin('completedOrders');
             $('#currencyPanelTitle').textContent = tAdmin('currencyManageTitle');
