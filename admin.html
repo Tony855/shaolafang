@@ -2351,6 +2351,13 @@
                 copyMainStoreMenu: '复制总店菜品',
                 noStoreCheckDb: '无店铺，请检查数据库',
                 noStore: '无店铺',
+                editCategory: '编辑菜品分类',
+                confirmCopyMenu: '确定要从总店复制所有菜品到该店铺吗？
+（将新增菜品，不会覆盖已有菜品）',
+                orderingQrCode: '点餐二维码',
+                scanToOrder: '扫码点餐',
+                download: '下载',
+                thankYou: '感谢您的光临',
             },
             en: { headerTitle: '🍖 Roast House · Admin', accessKey: 'Admin Key', connect: 'Connect',
                 customerPage: 'Customer Page', connectTitle: 'Admin Login', connectDesc: 'Enter the admin password to access the dashboard.',
@@ -2469,6 +2476,13 @@
                 copyMainStoreMenu: 'Copy Main Store Menu',
                 noStoreCheckDb: 'No stores, please check database',
                 noStore: 'No Store',
+                editCategory: 'Edit Category',
+                confirmCopyMenu: 'Copy all dishes from main store to this store?
+(Will add new dishes, not overwrite existing)',
+                orderingQrCode: 'Ordering QR Code',
+                scanToOrder: 'Scan to Order',
+                download: 'Download',
+                thankYou: 'Thank You',
             }
         };
         ADMIN_LABELS.vi = { ...ADMIN_LABELS.en, headerTitle: '🍖 Quản trị Quán Thịt Quay', customerPage: 'Trang khách',
@@ -2994,7 +3008,7 @@
         window.editCategory = function(id, oldName) {
             editingCategoryId = id;
             $('#editCategoryName').value = oldName;
-            $('#categoryEditModalTitle').textContent = '编辑菜品分类';
+            $('#categoryEditModalTitle').textContent = tAdmin('editCategory');
             $('#categoryEditModal').classList.add('open');
             setTimeout(() => $('#editCategoryName').focus(), 100);
         };
@@ -3401,7 +3415,7 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
         window.copyStoreMenu = async function(storeId) {
-            if (!confirm('确定要从总店复制所有菜品到该店铺吗？\n（将新增菜品，不会覆盖已有菜品）')) return;
+            if (!confirm(tAdmin('confirmCopyMenu'))) return;
             try {
                 const res = await api('/admin/stores/' + storeId + '/copy-menu', { method: 'POST' });
                 toast('✅ ' + res.message);
@@ -3455,7 +3469,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${esc(q.table)} · 烧腊坊点餐码</title>
+<title>${esc(q.table)} · ${tAdmin('brandName')} ${tAdmin('qrCode')}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -3703,33 +3717,33 @@
   <div class="qr-card">
     <div class="card-header">
       <div class="brand-icon">🍖</div>
-      <div class="brand-name">烧腊坊</div>
+      <div class="brand-name">${tAdmin('brandName')}</div>
       <div class="brand-en">ROAST HOUSE</div>
     </div>
     <div class="card-body">
       <div class="table-badge">
         <span class="dot"></span>
-        ${esc(q.table)} 号桌
+        ${tAdmin('table')} ${esc(q.table)}
       </div>
       <div class="qr-container">
         <div class="qr-frame">
-          <img src="${q.qrDataUrl}" alt="点餐二维码">
+          <img src="${q.qrDataUrl}" alt="${tAdmin('orderingQrCode')}">
         </div>
       </div>
-      <div class="scan-text">扫码点餐</div>
+      <div class="scan-text">${tAdmin('scanToOrder')}</div>
       <div class="scan-sub">SCAN TO ORDER</div>
       <div class="divider"><span>WELCOME</span></div>
       <div class="url-box">${esc(q.url)}</div>
       <div class="actions">
         <button class="btn btn-download" onclick="downloadQR()">
-          <span>📥</span> 下载
+          <span>📥</span> ${tAdmin('download')}
         </button>
         <button class="btn btn-print" onclick="window.print()">
-          <span>🖨️</span> 打印
+          <span>🖨️</span> ${tAdmin('print')}
         </button>
       </div>
     </div>
-    <div class="card-footer">感谢您的光临 · THANK YOU</div>
+    <div class="card-footer">${tAdmin('thankYou')} · THANK YOU</div>
   </div>
   <script>
     function downloadQR() {
@@ -3756,13 +3770,13 @@
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 72px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('🍖 烧腊坊', W/2, 140);
+      ctx.fillText('🍖 ' + tAdmin('brandName'), W/2, 140);
       ctx.font = '30px sans-serif';
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.fillText('ROAST HOUSE', W/2, 200);
       ctx.font = 'bold 42px sans-serif';
       ctx.fillStyle = '#fff';
-      ctx.fillText('${esc(q.table)} 号桌', W/2, 275);
+      ctx.fillText('${tAdmin('table')} ${esc(q.table)}', W/2, 275);
       
       // QR Code background
       ctx.fillStyle = '#fff';
@@ -3779,7 +3793,7 @@
         // Text
         ctx.fillStyle = '#2c3e50';
         ctx.font = 'bold 52px sans-serif';
-        ctx.fillText('扫码点餐', W/2, 1000);
+        ctx.fillText(tAdmin('scanToOrder'), W/2, 1000);
         ctx.font = '28px sans-serif';
         ctx.fillStyle = '#95a5a6';
         ctx.fillText('SCAN TO ORDER', W/2, 1050);
@@ -3800,11 +3814,11 @@
         ctx.fillRect(0, H-100, W, 100);
         ctx.fillStyle = '#bdc3c7';
         ctx.font = '26px sans-serif';
-        ctx.fillText('感谢您的光临 · THANK YOU', W/2, H-40);
+        ctx.fillText(tAdmin('thankYou') + ' · THANK YOU', W/2, H-40);
         
         // Download
         const link = document.createElement('a');
-        link.download = '烧腊坊-${esc(q.table)}-点餐码.png';
+        link.download = tAdmin('brandName') + '-${esc(q.table)}-' + tAdmin('qrCode') + '.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
       };
