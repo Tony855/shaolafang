@@ -420,6 +420,30 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0,0,0,.2);
         }
+/* 桌号网格布局 */
+        .table-grid {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
+            gap: 14px !important;
+        }
+        .table-grid .row {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 12px !important;
+            padding: 20px 16px !important;
+            text-align: center !important;
+        }
+        .table-grid .row > div:first-child {
+            text-align: center !important;
+        }
+        .table-grid .row b {
+            font-size: 24px !important;
+            display: block !important;
+            margin-bottom: 8px !important;
+        }
+        .table-grid .row .actions {
+            justify-content: center !important;
+        }
         .row .actions .danger {
             color: #ff9c9c;
         }
@@ -1572,7 +1596,7 @@
                     <input id="tableName" placeholder="桌号，例如 A06" required>
                     <button id="addTableBtn">新增桌号</button>
                 </form>
-                <div id="tables"></div>
+                <div id="tables" class="table-grid"></div>
             </section>
 
             <!-- 订单管理 -->
@@ -1813,6 +1837,16 @@
             <div class="order-field"><label id="tableNameLabel">桌号名称</label><input id="editTableName" maxlength="20"></div>
             <div class="order-field"><label id="tableStatusLabel">状态</label><select id="editTableStatus"><option value="available">空闲</option><option value="occupied">已占</option><option value="reserved">已预订</option></select></div>
             <div class="order-modal-actions"><button id="tableCancelBtn" onclick="closeTableForm()">取消</button><button class="primary" id="tableSaveBtn">保存</button></div>
+        </div>
+    </div>
+
+    <!-- 菜品分类编辑模态框 -->
+    <div class="order-modal" id="categoryEditModal">
+        <div class="order-modal-card">
+            <button class="modal-close" onclick="closeCategoryEditModal()">✕</button>
+            <h2 id="categoryEditModalTitle">编辑菜品分类</h2>
+            <div class="order-field"><label id="categoryEditNameLabel">分类名称</label><input id="editCategoryName" maxlength="20" placeholder="请输入分类名称"></div>
+            <div class="order-modal-actions"><button onclick="closeCategoryEditModal()">取消</button><button class="primary" onclick="saveCategoryEdit()">保存</button></div>
         </div>
     </div>
 
@@ -2488,12 +2522,25 @@
                 toast('✅ ' + tAdmin('added'));
             } catch (e) { toast('❌ ' + e.message); }
         };
-        window.editCategory = async function(id, oldName) {
-            const name = prompt(tAdmin('dishName'), oldName);
-            if (name === null || !name.trim()) return;
+        let editingCategoryId = null;
+        window.editCategory = function(id, oldName) {
+            editingCategoryId = id;
+            $('#editCategoryName').value = oldName;
+            $('#categoryEditModalTitle').textContent = '编辑菜品分类';
+            $('#categoryEditModal').classList.add('open');
+            setTimeout(() => $('#editCategoryName').focus(), 100);
+        };
+        window.closeCategoryEditModal = function() {
+            $('#categoryEditModal').classList.remove('open');
+            editingCategoryId = null;
+        };
+        window.saveCategoryEdit = async function() {
+            const name = $('#editCategoryName').value.trim();
+            if (!name) { toast('⚠️ 名称不能为空'); return; }
             try {
-                await api('/menu-categories/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name.trim() }) });
+                await api('/menu-categories/' + editingCategoryId, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name }) });
+                closeCategoryEditModal();
                 await loadMenuCategories();
                 await loadMenus();
                 toast('✅ ' + tAdmin('updated'));
