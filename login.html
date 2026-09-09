@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管理员登录</title>
+  <link rel="stylesheet" href="assets/common.css">
+  <style>
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at 12% 8%, rgba(232, 93, 58, .18), transparent 34%),
+        radial-gradient(circle at 88% 18%, rgba(120, 110, 255, .16), transparent 34%),
+        linear-gradient(145deg, #20203a, #15152a 60%);
+      color: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .login-shell { width: 100%; max-width: 430px; }
+    .lang-bar { display: flex; justify-content: flex-end; margin-bottom: 14px; }
+    .lang-bar select {
+      height: 36px; padding: 0 10px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.08); color: #fff; cursor: pointer;
+    }
+    .lang-bar select option { background: #2d2d44; color: #fff; }
+    .login-box {
+      padding: 34px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 24px;
+      background: linear-gradient(165deg, rgba(45,45,74,.98), rgba(33,33,56,.98));
+      box-shadow: 0 26px 60px rgba(0,0,0,.36);
+      text-align: center;
+    }
+    .brand {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      font-size: 24px; font-weight: 800; color: #ffd93d; margin-bottom: 10px;
+    }
+    .brand span {
+      width: 48px; height: 48px; display: flex; align-items: center;
+      justify-content: center; border-radius: 16px;
+      background: rgba(232,93,58,.14); font-size: 28px;
+    }
+    h1 { margin: 0 0 10px; color: #fff; font-size: 22px; }
+    .desc { color: #9b9bb2; margin: 0 0 20px; font-size: 14px; line-height: 1.6; }
+    .login-box input {
+      width: 100%; height: 48px; margin-bottom: 14px; padding: 0 14px;
+      border-radius: 12px; border: 1px solid rgba(255,255,255,.14);
+      background: #20203a; color: #fff; font-size: 15px; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .login-box input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(232,93,58,.15);
+    }
+    .login-box button {
+      width: 100%; height: 48px; border: 0; border-radius: 12px;
+      background: linear-gradient(135deg, #f76b46, #df4d32);
+      color: #fff; font-weight: 800; font-size: 16px; cursor: pointer;
+      transition: transform .15s, filter .15s;
+    }
+    .login-box button:hover { filter: brightness(1.08); }
+    .login-box button:active { transform: scale(.97); }
+    .error { min-height: 20px; margin-top: 12px; color: #ff9c9c; font-size: 13px; }
+    .hint { margin-top: 10px; font-size: 12px; color: #9c9cb2; }
+  </style>
+</head>
+<body>
+  <div class="login-shell">
+    <div class="lang-bar">
+      <select id="langSelect">
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+        <option value="vi">Tiếng Việt</option>
+        <option value="th">ภาษาไทย</option>
+        <option value="km">ភាសាខ្មែរ</option>
+      </select>
+    </div>
+    <div class="login-box">
+      <div class="brand"><span>🍖</span><strong id="brandTitle"></strong></div>
+      <h1 id="loginTitle"></h1>
+      <p class="desc" id="loginDesc"></p>
+      <input id="password" type="password" autocomplete="current-password">
+      <button id="loginBtn"></button>
+      <div class="error" id="loginError"></div>
+    </div>
+  </div>
+
+  <script src="languages.js"></script>
+  <script src="assets/common.js"></script>
+  <script>
+    const $ = s => document.querySelector(s);
+    let lang = localStorage.getItem('adminLang') || 'zh';
+
+    SLF.i18n.init(lang);
+
+    function apply() {
+      document.title = SLF.i18n.t('adminLogin');
+      $('#brandTitle').textContent = SLF.i18n.t('adminBrand');
+      $('#loginTitle').textContent = SLF.i18n.t('adminLogin');
+      $('#loginDesc').textContent = SLF.i18n.t('adminLoginDesc');
+      $('#password').placeholder = SLF.i18n.t('adminPassword');
+      $('#loginBtn').textContent = SLF.i18n.t('login');
+      $('#langSelect').value = lang;
+    }
+
+    $('#langSelect').value = lang;
+    $('#langSelect').addEventListener('change', () => {
+      lang = $('#langSelect').value;
+      localStorage.setItem('adminLang', lang);
+      SLF.i18n.setLang(lang);
+      apply();
+    });
+
+    $('#loginBtn').addEventListener('click', async () => {
+      const password = $('#password').value.trim();
+      if (!password) {
+        $('#loginError').textContent = SLF.i18n.t('adminPassword');
+        return;
+      }
+      try {
+        const data = await SLF.api.post('/admin/login', { password });
+        SLF.auth.setAdminKey(data.adminKey);
+        window.location.href = '/admin';
+      } catch (e) {
+        $('#loginError').textContent = e.message || SLF.i18n.t('loginError');
+      }
+    });
+
+    $('#password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') $('#loginBtn').click();
+    });
+
+    apply();
+  </script>
+</body>
+</html>
