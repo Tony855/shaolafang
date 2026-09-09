@@ -130,28 +130,32 @@
     }
 
     function apply() {
-      document.title = '登录 - 烧腊坊';
-      $('#brandTitle').textContent = '烧腊坊';
+      const t = SLF.i18n.t.bind(SLF.i18n);
+      document.title = t('login') + ' - ' + t('brandName');
+      $('#brandTitle').textContent = t('brandName');
       $('#langSelect').value = lang;
 
       // 更新登录类型按钮状态
+      $('#tabAdmin').textContent = t('admin');
+      $('#tabWaiter').textContent = t('waiter');
       $('#tabAdmin').classList.toggle('active', loginType === 'admin');
       $('#tabWaiter').classList.toggle('active', loginType === 'waiter');
 
       // 显示/隐藏用户名输入框
       $('#username').classList.toggle('hidden', loginType === 'admin');
+      $('#username').placeholder = t('username');
 
       // 更新标题和描述
       if (loginType === 'admin') {
-        $('#loginTitle').textContent = '管理员登录';
-        $('#loginDesc').textContent = '请输入管理员密码';
-        $('#password').placeholder = '管理员密码';
+        $('#loginTitle').textContent = t('adminLogin');
+        $('#loginDesc').textContent = t('adminLoginDesc');
+        $('#password').placeholder = t('adminPassword');
       } else {
-        $('#loginTitle').textContent = '服务员登录';
-        $('#loginDesc').textContent = '请输入服务员账号和密码';
-        $('#password').placeholder = '密码';
+        $('#loginTitle').textContent = t('waiterLogin');
+        $('#loginDesc').textContent = t('waiterLoginDesc');
+        $('#password').placeholder = t('password');
       }
-      $('#loginBtn').textContent = '登录';
+      $('#loginBtn').textContent = t('login');
     }
 
     // 语言切换
@@ -177,9 +181,10 @@
 
     // 登录
     $('#loginBtn').addEventListener('click', async () => {
+      const t = SLF.i18n.t.bind(SLF.i18n);
       const password = $('#password').value.trim();
       if (!password) {
-        $('#loginError').textContent = loginType === 'admin' ? '请输入管理员密码' : '请输入密码';
+        $('#loginError').textContent = loginType === 'admin' ? t('enterPassword') : t('enterPassword');
         return;
       }
 
@@ -190,13 +195,13 @@
           sessionStorage.setItem('adminKey', data.adminKey);
           window.location.href = '/admin';
         } catch (e) {
-          $('#loginError').textContent = e.message || '登录失败';
+          $('#loginError').textContent = e.message || t('loginError');
         }
       } else {
         // 服务员登录
         const username = $('#username').value.trim();
         if (!username) {
-          $('#loginError').textContent = '请输入用户名';
+          $('#loginError').textContent = t('enterUsername');
           return;
         }
         try {
@@ -205,7 +210,7 @@
           sessionStorage.setItem('waiterStoreId', data.storeId || 1);
           window.location.href = '/waiter';
         } catch (e) {
-          $('#loginError').textContent = e.message || '登录失败';
+          $('#loginError').textContent = e.message || t('loginError');
         }
       }
     });

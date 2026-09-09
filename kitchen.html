@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
-<title>后厨订单显示</title>
+<title>Kitchen Display</title>
 <link rel="stylesheet" href="assets/common.css">
 <style>
   :root {
@@ -416,12 +416,12 @@
           body: JSON.stringify({})
         });
         if (data.printed) {
-          showToast('✅ 后厨小票已打印');
+          showToast('✅ ' + kt('kitchenTicketPrinted'));
         } else {
-          showToast('⚠️ 未配置网络打印机，请在管理后台设置');
+          showToast('⚠️ ' + kt('noPrinterConfigured'));
         }
       } catch (e) {
-        showToast('❌ ' + (e.message || '打印失败'));
+        showToast('❌ ' + (e.message || kt('printFailed')));
       }
     };
 
