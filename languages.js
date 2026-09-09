@@ -130,6 +130,7 @@ const LANGUAGES = {
     readyToServe: '可出餐',
     settle: '结算',
     settleOrder: '结算订单',
+    incompleteItemsError: '存在未完成菜品，请先完成或删除该菜品后再结算订单',
     settleConfirm: '确认结算此订单？',
     settled: '已结算',
 
@@ -552,6 +553,7 @@ const LANGUAGES = {
     readyToServe: 'Ready to serve',
     settle: 'Settle',
     settleOrder: 'Settle Order',
+    incompleteItemsError: 'There are incomplete items. Please complete or delete them before settling the order.',
     settleConfirm: 'Settle this order?',
     settled: 'Settled',
 
@@ -964,6 +966,7 @@ const LANGUAGES = {
     readyToServe: 'Sẵn sàng phục vụ',
     settle: 'Thanh toán',
     settleOrder: 'Thanh toán đơn',
+    incompleteItemsError: 'Có món chưa hoàn thành. Vui lòng hoàn thành hoặc xóa trước khi thanh toán.',
     settleConfirm: 'Xác nhận thanh toán đơn này?',
     settled: 'Đã thanh toán',
 
@@ -1376,6 +1379,7 @@ const LANGUAGES = {
     readyToServe: 'พร้อมเสิร์ฟ',
     settle: 'ชำระเงิน',
     settleOrder: 'ชำระออเดอร์',
+    incompleteItemsError: 'มีเมนูที่ยังไม่เสร็จ กรุณาทำให้เสร็จหรือลบก่อนชำระออเดอร์',
     settleConfirm: 'ยืนยันชำระออเดอร์นี้?',
     settled: 'ชำระแล้ว',
 
@@ -1788,6 +1792,7 @@ const LANGUAGES = {
     readyToServe: 'ត្រៀមរួចដាក់ជូន',
     settle: 'ទូទាត់',
     settleOrder: 'ទូទាត់ការបញ្ជាទិញ',
+    incompleteItemsError: 'មានម្ហូបមិនទាន់បញ្ចប់ សូមបញ្ចប់ឬលុបមុនពេលទូទាត់',
     settleConfirm: 'បញ្ជាក់ការទូទាត់ការបញ្ជាទិញនេះ?',
     settled: 'បានទូទាត់',
 

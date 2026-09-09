@@ -875,7 +875,7 @@
     return active.length ? `<div class="amount">${active.length} ${wt('order')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${wt('noPending')}</div>`;
   }
   async function toggleWaiterItem(id,index){try{const order=state.orders.find(o=>o.id===id);if(!order||!order.items[index])return;const next=order.items[index].itemStatus==='done'?'pending':'done';await api(`/orders/${id}/items/${index}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({itemStatus:next})});toast('✅ '+wt('orderUpdated'));await load()}catch(e){toast('❌ '+e.message)}}
-  async function completeWaiterOrder(id){showConfirm(wt('confirmComplete'),async function(){try{await api(`/orders/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done'})});toast('✅ '+wt('orderCompleted'));await load()}catch(e){toast('❌ '+e.message)}});}
+  async function completeWaiterOrder(id){showConfirm(wt('confirmComplete'),async function(){try{await api(`/orders/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done'})});toast('✅ '+wt('orderCompleted'));await load()}catch(e){const msg=e.message.includes('未完成菜品')?wt('incompleteItemsError')||LANGUAGES[waiterLang].incompleteItemsError:e.message;toast('❌ '+msg)}});}
 
   // 打印订单
   async function printWaiterOrder(id){
