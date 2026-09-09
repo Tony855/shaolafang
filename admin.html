@@ -1858,19 +1858,19 @@
                 </div>
                 <form id="currencyForm" class="currency-form-grid">
                     <div class="form-group">
-                        <label>货币代码</label>
+                        <label id="currencyCodeLabel">货币代码</label>
                         <input id="currencyCode" placeholder="如：CNY" required>
                     </div>
                     <div class="form-group">
-                        <label>符号</label>
+                        <label id="currencySymbolLabel">符号</label>
                         <input id="currencySymbol" placeholder="如：¥" required>
                     </div>
                     <div class="form-group">
-                        <label>名称</label>
+                        <label id="currencyNameLabel">名称</label>
                         <input id="currencyName" placeholder="如：人民币" required>
                     </div>
                     <div class="form-group">
-                        <label>汇率</label>
+                        <label id="currencyRateLabel">汇率</label>
                         <input id="currencyRate" type="number" step="any" placeholder="相对默认货币" required>
                     </div>
                     <div class="form-group" style="display:flex;align-items:flex-end;">
@@ -4400,6 +4400,10 @@
             $('#currencyName').placeholder = tAdmin('currencyName');
             $('#currencyRate').placeholder = tAdmin('currencyRate');
             $('#addCurrencyBtn').textContent = tAdmin('addCurrency');
+            $('#currencyCodeLabel').textContent = tAdmin('currencyCode');
+            $('#currencySymbolLabel').textContent = tAdmin('currencySymbol');
+            $('#currencyNameLabel').textContent = tAdmin('currencyName');
+            $('#currencyRateLabel').textContent = tAdmin('currencyRate');
             $('#logsPanelTitle').textContent = tAdmin('logsTitle');
             $('#waitersPanelTitle').textContent = tAdmin('waitersManage');
             $('#storesPanelTitle').textContent = tAdmin('storesManage');
