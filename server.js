@@ -81,8 +81,7 @@ const poolConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  charset: 'utf8mb4',
-  initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+  charset: 'utf8mb4'
 };
 
 let pool = mysql.createPool(poolConfig);
@@ -127,7 +126,7 @@ async function withTransaction(work) {
 }
 
 // ---------- 常量 ----------
-const MENU_CATALOG_VERSION = 'roast_meat_v4';
+const MENU_CATALOG_VERSION = 'roast_meat_v5';
 const DEFAULT_MENU_CATEGORIES = ['招牌烧腊', '烧腊', '面食', '卤菜', '快餐', '早茶', '烧腊加料', '饮料'];
 const ORDER_COOLDOWN_MS = 30 * 1000;
 const orderSubmissionCooldown = new Map();
@@ -199,10 +198,10 @@ async function initializeMenuCatalog() {
           'USD',
           item.name_en || '',
           item.desc_en || '',
-          1,
-          item.unit || '份',
           0,
-          null,
+          item.unit || '份',
+          1,
+          'KHR',
           1
         ]
       );
@@ -345,7 +344,6 @@ async function initDatabase() {
         waitForConnections: true,
         connectionLimit: 1,
         charset: 'utf8mb4',
-        initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
       });
       const conn = await tempPool.getConnection();
       await conn.query(`CREATE DATABASE IF NOT EXISTS \`${poolConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
@@ -562,9 +560,9 @@ async function initDatabase() {
   const backupInterval = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
   if (!backupInterval) await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_interval_hours', '24')");
   const dualCurrency = await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
-  if (!dualCurrency) await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '0')");
+  if (!dualCurrency) await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '1')");
   const secondaryCurrency = await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
-  if (!secondaryCurrency) await runAsync("INSERT INTO settings (`key`, value) VALUES ('secondary_currency_code', 'USD')");
+  if (!secondaryCurrency) await runAsync("INSERT INTO settings (`key`, value) VALUES ('secondary_currency_code', 'KHR')");
   else if (secondaryCurrency.value === 'CNY') await runAsync("UPDATE settings SET value='USD' WHERE `key`='secondary_currency_code'");
   const newOrderSound = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
   if (!newOrderSound) await runAsync("INSERT INTO settings (`key`, value) VALUES ('new_order_sound_enabled', '1')");
@@ -575,6 +573,10 @@ async function initDatabase() {
       ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
     ]) await runAsync('INSERT INTO currencies (code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?)', currency);
   }
+
+  // 确保双货币设置为默认值（启用双币，第二货币为KHR）
+  await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '1') ON DUPLICATE KEY UPDATE value='1'");
+  await runAsync("INSERT INTO settings (`key`, value) VALUES ('secondary_currency_code', 'KHR') ON DUPLICATE KEY UPDATE value='KHR'");
 
   await migrateLegacyJsonOnce();
   await initializeMenuCatalog();
