@@ -1054,6 +1054,35 @@
             font-weight: bold;
         }
 
+        /* ===== 确认模态框 ===== */
+        .confirm-modal .confirm-card {
+            max-width: 400px;
+            text-align: center;
+            padding: 28px 24px 20px;
+        }
+        .confirm-icon {
+            font-size: 44px;
+            margin-bottom: 12px;
+        }
+        .confirm-modal .confirm-card h2 {
+            color: #fff;
+            font-size: 19px;
+            margin-bottom: 10px;
+        }
+        .confirm-message {
+            color: #c8c8d0;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .confirm-actions {
+            justify-content: center;
+            gap: 12px;
+        }
+        .confirm-actions button {
+            min-width: 100px;
+        }
+
         /* ===== 分类 ===== */
         .category-form {
             display: flex;
@@ -2258,6 +2287,20 @@
             <div class="order-modal-actions">
                 <button onclick="closeStoreEdit()">${tAdmin('cancel')}</button>
                 <button class="primary" id="saveStoreEditBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 确认模态框 ===== -->
+    <div class="order-modal confirm-modal" id="confirmModal">
+        <div class="order-modal-card confirm-card">
+            <button class="modal-close" onclick="hideConfirm()">✕</button>
+            <div class="confirm-icon">⚠️</div>
+            <h2 id="confirmTitle">确认操作</h2>
+            <div class="confirm-message" id="confirmMessage">确定要执行此操作吗？</div>
+            <div class="order-modal-actions confirm-actions">
+                <button onclick="hideConfirm()" id="confirmCancelBtn">取消</button>
+                <button class="primary" onclick="executeConfirm()" id="confirmOkBtn">确定</button>
             </div>
         </div>
     </div>
@@ -4346,6 +4389,9 @@
             $('#sidebarBrand').textContent = tAdmin('headerTitle');
             $('#adminLang').value = adminLang;
             $('#logoutBtn').textContent = tAdmin('logout');
+            $('#confirmCancelBtn').textContent = L('cancel') || '取消';
+            $('#confirmOkBtn').textContent = L('confirm') || '确定';
+            $('#confirmTitle').textContent = L('confirmTitle') || '确认操作';
             document.querySelector('.top a').textContent = '📋 ' + tAdmin('customerPage');
             document.querySelectorAll('[data-i18n-nav]').forEach(el => {
                 const map = {
@@ -4549,10 +4595,32 @@
         ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt =>
             document.addEventListener(evt, resetAdminIdleTimer, { passive: true })
         );
+        // 自定义确认模态框
+        let confirmCallback = null;
+        function showConfirm(message, callback, title) {
+            document.getElementById('confirmTitle').textContent = title || tAdmin('confirmTitle') || '确认操作';
+            document.getElementById('confirmMessage').textContent = message;
+            confirmCallback = callback;
+            document.getElementById('confirmModal').classList.add('open');
+        }
+        function hideConfirm() {
+            document.getElementById('confirmModal').classList.remove('open');
+            confirmCallback = null;
+        }
+        function executeConfirm() {
+            if (confirmCallback) confirmCallback();
+            hideConfirm();
+        }
+        document.getElementById('confirmModal').addEventListener('click', function(e) {
+            if (e.target === this) hideConfirm();
+        });
+
         window.logoutAdmin = function() {
-            adminKey = '';
-            sessionStorage.removeItem('adminKey');
-            window.location.href = '/login';
+            showConfirm(tAdmin('confirmLogout') || '确认退出登录吗？', function() {
+                adminKey = '';
+                sessionStorage.removeItem('adminKey');
+                window.location.href = '/login';
+            });
         };
 
         // ================================================================
