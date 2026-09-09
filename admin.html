@@ -2246,7 +2246,7 @@
             zh: { headerTitle: '🍖 烧腊坊 · 后台', accessKey: '后台密钥', connect: '连接', customerPage: '顾客点餐页',
                 connectTitle: '管理员登录', connectDesc: '请输入管理员密码后进入后台管理。', connectSafe: '登录', logout: '退出登录',
                 pendingOrders: '未结算订单', completedOrders: '已结算订单',
-                todayRevenue: '今日营业额', monthRevenue: '本月营业额', settleOrder: '结算订单', listDish: '上架', unlistDish: '下架',
+                todayRevenue: '今日营业额', monthRevenue: '本月营业额', settleOrder: '结算订单', listDish: tAdmin('listDish'), unlistDish: tAdmin('unlistDish'),
                 listed: '已上架', unlisted: '已下架', unit: '单位', dualCurrency: '双币显示', secondaryCurrency: '第二货币',
                 storesManage: '店铺管理', storeName: '店铺名称', storeCode: '店铺编码', storeAddress: '地址', addStore: '添加店铺',
                 waitersManage: '服务员管理', waiterUsername: '账号', waiterPassword: '密码', waiterDisplayName: '姓名',
@@ -2260,9 +2260,9 @@
                 newPassword: '新密码（至少 6 位）', changePassword: '修改密码', tableField: '桌号', dishList: '菜品清单',
                 addDishLine: '➕ 添加菜品', saveOrder: '保存订单', editTableTitle: '编辑桌号', tableNameLabel: '桌号名称',
                 statusLabel: '状态', noOrders: '暂无订单', noDishes: '暂无菜品', noData: '暂无数据',
-                setDefault: '设为默认', default: '默认', ordersUnit: '单', updated: '已更新', added: '已新增', deleted: '已删除',
+                setDefault: '设为默认', default: '默认', ordersUnit: tAdmin('orderUnit'), updated: '已更新', added: '已新增', deleted: '已删除',
                 tableNameRequired: '桌号名称不能为空', orderItemsRequired: '请至少选择一道菜品并填写有效数量', invalidStatus: '无效状态',
-                confirmDelete: '确认删除？', qr: '二维码', qrTitle: '固定点餐码', qrDesc: '此二维码固定对应该桌，顾客扫码后会自动绑定桌号。',
+                confirmDelete: '确认删除？', qr: tAdmin('qrCode'), qrTitle: '固定点餐码', qrDesc: '此二维码固定对应该桌，顾客扫码后会自动绑定桌号。',
                 connectSuccess: '登录成功', connectFailed: '密码错误，请重试',
                 backupTitle: '💾 数据备份', exportBackup: '导出备份', importBackup: '导入备份',
                 backupInterval1h: '每 1 小时', backupInterval6h: '每 6 小时', backupInterval12h: '每 12 小时',
@@ -2274,7 +2274,36 @@
                 resetTitle: '⚠️ 重置数据（清空所有订单）', resetOrderData: '重置订单数据',
                 resetPasswordPrompt: '请输入管理员密码以确认重置', resetSuccess: '订单数据已重置', resetFailed: '重置失败',
                 notifyTitle: '🔔 新订单提示音', newOrderSoundLabel: '新订单到达时，服务员端和后厨端播放提示音',
-                saveNotifySettings: '保存提示音设置', notifySettingsSaved: '提示音设置已保存', notifySettingsSaveFailed: '保存失败'
+                saveNotifySettings: '保存提示音设置', notifySettingsSaved: '提示音设置已保存', notifySettingsSaveFailed: '保存失败',
+                nameRequired: '名称不能为空',
+                cannotRevertDone: '已完成菜品不能改回制作中',
+                categorySortUpdated: '分类顺序已更新',
+                storeUpdated: '店铺信息已更新',
+                waiterUpdated: '服务员信息已更新',
+                dishStatusUpdated: '菜品状态已更新',
+                loadStoreFailed: '加载店铺信息失败',
+                loadWaiterFailed: '加载服务员信息失败',
+                copyFailed: '复制失败',
+                storeNotFound: '店铺不存在',
+                storeNameRequired: '店铺名称不能为空',
+                updateFailed: '更新失败',
+                waiterNotFound: '服务员不存在',
+                waiterInfoRequired: '请完整填写服务员资料',
+                enterStoreName: '请输入店铺名称',
+                usernameAndNameRequired: '账号和显示名称不能为空',
+                deleteFailed: '删除失败',
+                loadCallsFailed: '加载呼叫失败',
+                loadPrinterFailed: '加载打印机失败',
+                loadReportFailed: '加载报表失败',
+                loadFailed: '加载失败',
+                loadFailedRefresh: '加载失败，请刷新',
+                mainStore: '总店',
+                portion: '份',
+                orderUnit: '单',
+                cny: '人民币',
+                qrCode: '二维码',
+                serveDish: '上菜',
+                placeOrder: '下单',
             },
             en: { headerTitle: '🍖 Roast House · Admin', accessKey: 'Admin Key', connect: 'Connect',
                 customerPage: 'Customer Page', connectTitle: 'Admin Login', connectDesc: 'Enter the admin password to access the dashboard.',
@@ -2316,7 +2345,36 @@
                 resetTitle: '⚠️ Reset Data (Clear All Orders)', resetOrderData: 'Reset Order Data',
                 resetPasswordPrompt: 'Enter admin password to confirm reset', resetSuccess: 'Order data has been reset', resetFailed: 'Reset failed',
                 notifyTitle: '🔔 New Order Sound', newOrderSoundLabel: 'Play a sound on the waiter and kitchen displays when a new order arrives',
-                saveNotifySettings: 'Save Sound Settings', notifySettingsSaved: 'Sound settings saved', notifySettingsSaveFailed: 'Save failed'
+                saveNotifySettings: 'Save Sound Settings', notifySettingsSaved: 'Sound settings saved', notifySettingsSaveFailed: 'Save failed',
+                nameRequired: 'Name is required',
+                cannotRevertDone: 'Completed items cannot be reverted to in-progress',
+                categorySortUpdated: 'Category order updated',
+                storeUpdated: 'Store info updated',
+                waiterUpdated: 'Waiter info updated',
+                dishStatusUpdated: 'Dish status updated',
+                loadStoreFailed: 'Failed to load store info',
+                loadWaiterFailed: 'Failed to load waiter info',
+                copyFailed: 'Copy failed',
+                storeNotFound: 'Store not found',
+                storeNameRequired: 'Store name is required',
+                updateFailed: 'Update failed',
+                waiterNotFound: 'Waiter not found',
+                waiterInfoRequired: 'Please complete waiter info',
+                enterStoreName: 'Please enter store name',
+                usernameAndNameRequired: 'Username and display name are required',
+                deleteFailed: 'Delete failed',
+                loadCallsFailed: 'Failed to load calls',
+                loadPrinterFailed: 'Failed to load printers',
+                loadReportFailed: 'Failed to load report',
+                loadFailed: 'Load failed',
+                loadFailedRefresh: 'Load failed, please refresh',
+                mainStore: 'Main Store',
+                portion: 'portion',
+                orderUnit: 'order(s)',
+                cny: 'Chinese Yuan',
+                qrCode: 'QR Code',
+                serveDish: 'Serve',
+                placeOrder: 'Place Order',
             }
         };
         ADMIN_LABELS.vi = { ...ADMIN_LABELS.en, headerTitle: '🍖 Quản trị Quán Thịt Quay', customerPage: 'Trang khách',
@@ -2453,7 +2511,7 @@
                 vi: { USD: 'Đô la Mỹ', CNY: 'Nhân dân tệ', VND: 'Đồng', THB: 'Bạt Thái', KHR: 'Riel' },
                 th: { USD: 'ดอลลาร์สหรัฐ', CNY: 'หยวนจีน', VND: 'ดองเวียดนาม', THB: 'บาทไทย', KHR: 'เรียลกัมพูชา' },
                 km: { USD: 'ដុល្លារអាមេរិក', CNY: 'យ័នចិន', VND: 'ដុងវៀតណាម', THB: 'បាតថៃ', KHR: 'រៀលខ្មែរ' },
-                zh: { USD: '美元', CNY: '人民币', VND: '越南盾', THB: '泰铢', KHR: '柬埔寨瑞尔' }
+                zh: { USD: '美元', CNY: tAdmin('cny'), VND: '越南盾', THB: '泰铢', KHR: '柬埔寨瑞尔' }
             };
             return (map[adminLang] && map[adminLang][code]) || name;
         };
@@ -2721,7 +2779,7 @@
                     rows.map(w => `<div class="admin-card">
                     <div class="info">
                       <div class="title">${esc(w.display_name)} · ${esc(w.username)}</div>
-                      <div class="sub">${w.active?'启用':'停用'} · 店铺：${storeMap[w.store_id] || '总店'}</div>
+                      <div class="sub">${w.active?tAdmin('enabled'):tAdmin('disabled')} · 店铺：${storeMap[w.store_id] || tAdmin('mainStore')}</div>
                       <div class="perms">
                         <label><input type="checkbox" ${w.can_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_order',this.checked)"> 下单</label>
                         <label><input type="checkbox" ${w.can_mark_item?'checked':''} onchange="updateWaiterPerm(${w.id},'can_mark_item',this.checked)"> 上菜</label>
@@ -2780,7 +2838,7 @@
                 }
             } catch (e) {
                 console.error('加载店铺失败:', e);
-                toast('❌ 加载店铺失败: ' + e.message);
+                toast(`❌ ${tAdmin('loadStoreFailed')}: ` + e.message);
                 $('#storeList').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
                 $('#adminStoreSelect').innerHTML = '<option value="">加载失败，请刷新</option>';
                 $('#waiterStoreSelect').innerHTML = '<option value="">加载失败</option>';
@@ -2852,7 +2910,7 @@
         };
         window.saveCategoryEdit = async function() {
             const name = $('#editCategoryName').value.trim();
-            if (!name) { toast('⚠️ 名称不能为空'); return; }
+            if (!name) { toast(`⚠️ ${tAdmin('nameRequired')}`); return; }
             try {
                 await api('/menu-categories/' + editingCategoryId, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name }) });
@@ -2898,7 +2956,7 @@
             $('#menuPrice').value = current.price;
             $('#menuCategory').value = current.category;
             $('#menuCurrency').value = current.currency_code || 'USD';
-            $('#menuUnit').value = current.unit || '份';
+            $('#menuUnit').value = current.unit || tAdmin('portion');
             $('#menuSecondaryCurrency').value = current.secondary_currency_code || '';
             $('#menuEmoji').value = current.emoji || '';
             $('#menuDesc').value = current.desc || '';
@@ -3017,14 +3075,14 @@
             try {
                 const order = ordersCache.find(o => o.id === id);
                 if (!order || !order.items[index]) return;
-                if (order.items[index].itemStatus === 'done') { toast('❌ 已完成菜品不能改回制作中'); return; }
+                if (order.items[index].itemStatus === 'done') { toast(`❌ ${tAdmin('cannotRevertDone')}`); return; }
                 await api('/orders/' + id + '/items/' + index, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ itemStatus: 'done' })
                 });
                 await loadOrders();
-                toast('✅ 菜品状态已更新');
+                toast(`✅ ${tAdmin('dishStatusUpdated')}`);
             } catch (e) { toast('❌ ' + e.message); }
         };
         window.statusOrder = async function(id, status) {
@@ -3213,7 +3271,7 @@
             const display_name = $('#waiterNameInput').value.trim();
             const store_id = parseInt($('#waiterStoreSelect').value) || 1;
             if (!username || !password || !display_name) {
-                toast('❌ 请完整填写服务员资料');
+                toast(`❌ ${tAdmin('waiterInfoRequired')}`);
                 return;
             }
             try {
@@ -3256,14 +3314,14 @@
                 loadStores();
                 if (document.getElementById('module-menu').classList.contains('active')) loadMenus();
             } catch (e) {
-                toast('❌ 复制失败: ' + e.message);
+                toast(`❌ ${tAdmin('copyFailed')}: ` + e.message);
             }
         };
         $('#addStoreBtn').onclick = async function() {
             const name = $('#storeNameInput').value.trim();
             const code = $('#storeCodeInput').value.trim();
             const address = $('#storeAddressInput').value.trim();
-            if (!name) { toast('❌ 请输入店铺名称'); return; }
+            if (!name) { toast(`❌ ${tAdmin('enterStoreName')}`); return; }
             try {
                 await api('/admin/stores', {
                     method: 'POST',
@@ -3791,7 +3849,7 @@
             try {
                 const waiter = await api('/admin/waiters');
                 const target = waiter.find(w => w.id === id);
-                if (!target) { toast('❌ 服务员不存在'); return; }
+                if (!target) { toast(`❌ ${tAdmin('waiterNotFound')}`); return; }
                 $('#editWaiterId').value = target.id;
                 $('#editWaiterUsername').value = target.username;
                 $('#editWaiterPassword').value = '';
@@ -3805,7 +3863,7 @@
                 $('#waiterEditTitle').textContent = `编辑服务员 #${id}`;
                 $('#waiterEditModal').classList.add('open');
             } catch (e) {
-                toast('❌ 加载服务员信息失败: ' + e.message);
+                toast(`❌ ${tAdmin('loadWaiterFailed')}: ` + e.message);
             }
         };
 
@@ -3823,7 +3881,7 @@
             const can_mark_item = $('#editWaiterCanMarkItem').checked ? 1 : 0;
             const can_complete_order = $('#editWaiterCanCompleteOrder').checked ? 1 : 0;
             if (!username || !display_name) {
-                toast('❌ 账号和显示名称不能为空');
+                toast(`❌ ${tAdmin('usernameAndNameRequired')}`);
                 return;
             }
             try {
@@ -3836,9 +3894,9 @@
                 });
                 closeWaiterEdit();
                 await loadWaiters();
-                toast('✅ 服务员信息已更新');
+                toast(`✅ ${tAdmin('waiterUpdated')}`);
             } catch (e) {
-                toast('❌ 更新失败: ' + e.message);
+                toast(`❌ ${tAdmin('updateFailed')}: ` + e.message);
             }
         };
 
@@ -3849,7 +3907,7 @@
             try {
                 const stores = await api('/admin/stores');
                 const target = stores.find(s => s.id === id);
-                if (!target) { toast('❌ 店铺不存在'); return; }
+                if (!target) { toast(`❌ ${tAdmin('storeNotFound')}`); return; }
                 $('#editStoreId').value = target.id;
                 $('#editStoreName').value = target.name;
                 $('#editStoreCode').value = target.code || '';
@@ -3858,7 +3916,7 @@
                 $('#storeEditTitle').textContent = `编辑店铺 #${id}`;
                 $('#storeEditModal').classList.add('open');
             } catch (e) {
-                toast('❌ 加载店铺信息失败: ' + e.message);
+                toast(`❌ ${tAdmin('loadStoreFailed')}: ` + e.message);
             }
         };
 
@@ -3873,7 +3931,7 @@
             const address = $('#editStoreAddress').value.trim();
             const active = $('#editStoreActive').checked ? 1 : 0;
             if (!name) {
-                toast('❌ 店铺名称不能为空');
+                toast(`❌ ${tAdmin('storeNameRequired')}`);
                 return;
             }
             try {
@@ -3884,9 +3942,9 @@
                 });
                 closeStoreEdit();
                 await loadStores();
-                toast('✅ 店铺信息已更新');
+                toast(`✅ ${tAdmin('storeUpdated')}`);
             } catch (e) {
-                toast('❌ 更新失败: ' + e.message);
+                toast(`❌ ${tAdmin('updateFailed')}: ` + e.message);
             }
         };
 
@@ -4170,10 +4228,10 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ ids: newOrder })
                     });
-                    toast('✅ 分类顺序已更新');
+                    toast(`✅ ${tAdmin('categorySortUpdated')}`);
                     await loadMenuCategories();
                 } catch (err) {
-                    toast('❌ 更新失败: ' + err.message);
+                    toast(`❌ ${tAdmin('updateFailed')}: ` + err.message);
                     await loadMenuCategories();
                 }
             }
@@ -4256,7 +4314,7 @@
                     </div>
                 `).join('');
             } catch (err) {
-                toast('加载呼叫失败: ' + err.message);
+                toast(`${tAdmin('loadCallsFailed')}: ` + err.message);
             }
         }
 
@@ -4294,14 +4352,14 @@
                         </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;">
                             <button onclick="testPrinter(${p.id})" style="background:#3498db;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">测试打印</button>
-                            <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})" style="background:${p.active ? '#f39c12' : '#2ecc71'};color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${p.active ? '停用' : '启用'}</button>
+                            <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})" style="background:${p.active ? '#f39c12' : '#2ecc71'};color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${p.active ? tAdmin('disabled') : tAdmin('enabled')}</button>
                             ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})" style="background:#9b59b6;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">设为默认</button>` : ''}
                             <button onclick="deletePrinter(${p.id})" style="background:#e74c3c;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">删除</button>
                         </div>
                     </div>
                 `).join('');
             } catch (err) {
-                toast('加载打印机失败: ' + err.message);
+                toast(`${tAdmin('loadPrinterFailed')}: ` + err.message);
             }
         }
 
@@ -4379,7 +4437,7 @@
                 toast('打印机已删除');
                 loadPrinters();
             } catch (err) {
-                toast('删除失败: ' + err.message);
+                toast(`${tAdmin('deleteFailed')}: ` + err.message);
             }
         }
 
@@ -4510,7 +4568,7 @@
 
                 container.innerHTML = html;
             } catch (err) {
-                toast('加载报表失败: ' + err.message);
+                toast(`${tAdmin('loadReportFailed')}: ` + err.message);
             }
         }
 

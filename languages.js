@@ -284,6 +284,13 @@ const LANGUAGES = {
     },
 
     // ---- 补充翻译（以英文为基准）----
+    backendOffline: '后端未连接，无法提交订单。请启动 node server.js',
+    orderFailed: '下单失败',
+    wrongPassword: '密码错误，请重试',
+    urgeFailed: '催单失败',
+    notifiedKitchen: '已通知后厨，请稍候',
+    inProgress: '制作中',
+    online: '在线',
     kitchenTicketPrinted: '后厨小票已打印',
     noPrinterConfigured: '未配置网络打印机，请在管理后台设置',
     printFailed: '打印失败',
@@ -688,6 +695,13 @@ const LANGUAGES = {
     },
 
     // ---- 补充翻译（以英文为基准）----
+    backendOffline: 'Backend offline, cannot submit order. Please start node server.js',
+    orderFailed: 'Order failed',
+    wrongPassword: 'Wrong password, please try again',
+    urgeFailed: 'Urge failed',
+    notifiedKitchen: 'Kitchen notified, please wait',
+    inProgress: 'In Progress',
+    online: 'Online',
     kitchenTicketPrinted: 'Kitchen ticket printed',
     noPrinterConfigured: 'No network printer configured, please set in admin',
     printFailed: 'Print failed',
@@ -1092,6 +1106,13 @@ const LANGUAGES = {
     },
 
     // ---- 补充翻译（以英文为基准）----
+    backendOffline: 'Máy chủ ngoại tuyến, không thể gửi đơn. Vui lòng khởi động node server.js',
+    orderFailed: 'Đặt hàng thất bại',
+    wrongPassword: 'Sai mật khẩu, vui lòng thử lại',
+    urgeFailed: 'Thúc đơn thất bại',
+    notifiedKitchen: 'Đã thông báo bếp, vui lòng chờ',
+    inProgress: 'Đang chế biến',
+    online: 'Trực tuyến',
     kitchenTicketPrinted: 'In bếp đã in',
     noPrinterConfigured: 'Chưa cấu hình máy in mạng, vui lòng cài đặt trong quản trị',
     printFailed: 'In thất bại',
@@ -1496,6 +1517,13 @@ const LANGUAGES = {
     },
 
     // ---- 补充翻译（以英文为基准）----
+    backendOffline: 'แบ็กเอนด์ออฟไลน์ ไม่สามารถส่งออเดอร์ กรุณาเริ่ม node server.js',
+    orderFailed: 'สั่งอาหารล้มเหลว',
+    wrongPassword: 'รหัสผ่านผิด กรุณาลองใหม่',
+    urgeFailed: 'เร่งออเดอร์ล้มเหลว',
+    notifiedKitchen: 'แจ้งครัวแล้ว กรุณารอสักครู่',
+    inProgress: 'กำลังทำ',
+    online: 'ออนไลน์',
     kitchenTicketPrinted: 'พิมพ์ใบครัวแล้ว',
     noPrinterConfigured: 'ยังไม่ได้ตั้งค่าเครื่องพิมพ์เครือข่าย กรุณาตั้งค่าในแอดมิน',
     printFailed: 'พิมพ์ล้มเหลว',
@@ -1900,6 +1928,13 @@ const LANGUAGES = {
     },
 
     // ---- 补充翻译（以英文为基准）----
+    backendOffline: 'ប្រព័ន្ធខាងក្រោយមិនត្រូវបានតភ្ជាប់ មិនអាចដាក់បញ្ជាទិញបាន។ សូមចាប់ផ្តើម node server.js',
+    orderFailed: 'ការបញ្ជាទិញបរាជ័យ',
+    wrongPassword: 'ពាក្យសម្ងាត់ខុស សូមព្យាយាមម្តងទៀត',
+    urgeFailed: 'ការជម្រុញបរាជ័យ',
+    notifiedKitchen: 'បានជូនដំណឹងដល់ផ្ទះបាយហើយ សូមរង់ចាំ',
+    inProgress: 'កំពុងផលិត',
+    online: 'បានតភ្ជាប់',
     kitchenTicketPrinted: 'បោះពុម្ពវិក្កយបត្រផ្ទះបាយរួចរាល់',
     noPrinterConfigured: 'មិនទាន់បានកំណត់ម៉ាស៊ីនបោះពុម្ពបណ្តាញ សូមកំណត់នៅក្នុងផ្នែកគ្រប់គ្រង',
     printFailed: 'ការបោះពុម្ពបរាជ័យ',

@@ -2227,7 +2227,7 @@
         // ============================================================
         let state = {
             cart: {},
-            currentCategory: '全部',
+            currentCategory: t('all'),
             searchKeyword: '',
             orders: [],
             menu: [],
@@ -2540,11 +2540,11 @@
                 // 状态映射（使用多语言）
                 const orderStatusMap = {
                     'pending': t('orderPending') || '未结算',
-                    'done': t('orderDone') || '已结算'
+                    'done': t('orderDone') || t('completed')
                 };
                 const itemStatusMap = {
-                    'pending': t('pending') || '制作中',
-                    'done': t('itemDone') || '已完成'
+                    'pending': t('pending') || t('inProgress'),
+                    'done': t('itemDone') || t('completed')
                 };
                 const statusClassMap = {
                     'pending': 'pending',
@@ -2728,7 +2728,7 @@
                 return;
             }
             if (!isBackendOnline) {
-                showToast('❌ 后端未连接，无法提交订单。请启动 node server.js', 3000);
+                showToast(`❌ ${t('backendOffline')}`, 3000);
                 return;
             }
             renderConfirmOrderList();
@@ -2777,7 +2777,7 @@
                 const bIdx = orderMap[b] !== undefined ? orderMap[b] : Number.MAX_SAFE_INTEGER;
                 return aIdx - bIdx || a.localeCompare(b, 'zh-CN');
             });
-            const cats = ['全部', ...sorted];
+            const cats = [t('all'), ...sorted];
             categoryTabs.innerHTML = cats.map(c => {
                 const displayName = getCategoryTranslation(c);
                 return `<button class="category-tab ${c === state.currentCategory ? 'active' : ''}" data-cat="${c}">${displayName}</button>`;
@@ -2793,7 +2793,7 @@
 
         function renderMenu() {
             let filtered = state.menu;
-            if (state.currentCategory !== '全部') {
+            if (state.currentCategory !== t('all')) {
                 filtered = filtered.filter(i => i.category === state.currentCategory);
             }
             const keyword = state.searchKeyword.trim().toLowerCase();
@@ -2827,7 +2827,7 @@
                             <div class="name">${name}</div>
                             <div class="desc">${desc || ''}</div>
                             <div class="bottom">
-                                <div>${priceDisplay}/${item.unit||'份'}</div>
+                                <div>${priceDisplay}/${item.unit||t('portion')}</div>
                                 <div class="item-actions">
                                     ${qty > 0 ? `<button class="dec-btn" data-id="${item.id}"><i class="fas fa-minus"></i></button><span class="qty-badge">${qty}</span>` : ''}
                                     <button class="add-btn" data-id="${item.id}"><i class="fas fa-plus"></i></button>
@@ -2956,7 +2956,7 @@
                         <span class="item-emoji">${item.emoji || '🍽️'}</span>
                         <div class="item-info">
                             <div class="item-name">${name}</div>
-                            <div class="item-price">${priceDisplay}/${item.unit||'份'}</div>
+                            <div class="item-price">${priceDisplay}/${item.unit||t('portion')}</div>
                             <div style="font-size:12px;color:var(--gray-500);">小计: ${totalDisplay}</div>
                         </div>
                         <div class="item-qty">
@@ -3009,7 +3009,7 @@
                 return;
             }
             if (!isBackendOnline) {
-                showToast('❌ 后端未连接，无法提交订单。请启动 node server.js', 3000);
+                showToast(`❌ ${t('backendOffline')}`, 3000);
                 return;
             }
             const total = getCartTotal();
@@ -3030,7 +3030,7 @@
                     body: JSON.stringify(orderData)
                 });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.error || '下单失败');
+                if (!res.ok) throw new Error(data.error || t('orderFailed'));
                 if (data.success) {
                     state.cart = {};
                     if (noteInput) noteInput.value = '';
@@ -3040,7 +3040,7 @@
                     showToast(`✅ ${t('submitOrder')} ${t('success')}! #${data.orderId}`);
                     openOrderSuccessNotice();
                 } else {
-                    showToast('❌ ' + (data.error || '下单失败'));
+                    showToast('❌ ' + (data.error || t('orderFailed')));
                 }
             } catch (e) {
                 showToast('❌ ' + (e.message || t('networkError')));
@@ -3066,9 +3066,9 @@
                 openAdmin();
                 document.getElementById('loginPassword').value = '';
                 document.getElementById('loginError').textContent = '';
-                showToast('✅ 登录成功');
+                showToast(`✅ ${t('loginSuccess')}`);
             } else {
-                document.getElementById('loginError').textContent = '❌ 密码错误，请重试';
+                document.getElementById('loginError').textContent = `❌ ${t('wrongPassword')}`;
             }
         }
 
@@ -3252,7 +3252,7 @@
             console.log(`🪑 桌号: ${state.table}`);
             console.log(`🏪 店铺ID: ${state.storeId}`);
             console.log(`🌐 语言: ${currentLang}`);
-            console.log(`📡 后端状态: ${isBackendOnline ? '在线' : '离线（演示模式）'}`);
+            console.log(`📡 后端状态: ${isBackendOnline ? t('online') : '离线（演示模式）'}`);
             console.log(`🏷️ 分类顺序:`, state.categoryOrder);
         }
 
@@ -3288,12 +3288,12 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast('✅ 已通知后厨，请稍候', 2500);
+                    showToast(`✅ ${t('notifiedKitchen')}`, 2500);
                 } else {
-                    showToast('❌ ' + (data.error || '催单失败'), 2500);
+                    showToast('❌ ' + (data.error || t('urgeFailed')), 2500);
                 }
             } catch (e) {
-                showToast('❌ 网络错误', 2500);
+                showToast(`❌ ${t('networkError')}`, 2500);
             }
         }
 
