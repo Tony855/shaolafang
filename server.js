@@ -80,7 +80,8 @@ const poolConfig = {
   port: Number(process.env.DB_PORT) || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  charset: 'utf8mb4'
 };
 
 let pool = mysql.createPool(poolConfig);
