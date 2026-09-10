@@ -374,6 +374,14 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // 迁移 menus 表，添加 sales_count 字段（兼容旧数据库）
+  const menusColumns = await allAsync('SHOW COLUMNS FROM menus');
+  const menusColNames = menusColumns.map(c => c.Field);
+  if (!menusColNames.includes('sales_count')) {
+    await runAsync('ALTER TABLE menus ADD COLUMN sales_count INT NOT NULL DEFAULT 0');
+    console.log('  + 迁移 menus: 添加 sales_count 字段');
+  }
+
   await runAsync(`
     CREATE TABLE IF NOT EXISTS currencies (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -402,6 +410,26 @@ async function initDatabase() {
       message TEXT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  // 迁移 login_logs 表，添加缺失字段（兼容旧数据库）
+  const loginLogsColumns = await allAsync('SHOW COLUMNS FROM login_logs');
+  const loginLogsColNames = loginLogsColumns.map(c => c.Field);
+  if (!loginLogsColNames.includes('username')) {
+    await runAsync('ALTER TABLE login_logs ADD COLUMN username VARCHAR(100) DEFAULT NULL');
+    console.log('  + 迁移 login_logs: 添加 username 字段');
+  }
+  if (!loginLogsColNames.includes('location')) {
+    await runAsync('ALTER TABLE login_logs ADD COLUMN location VARCHAR(255) DEFAULT NULL');
+    console.log('  + 迁移 login_logs: 添加 location 字段');
+  }
+  if (!loginLogsColNames.includes('merchant_id')) {
+    await runAsync('ALTER TABLE login_logs ADD COLUMN merchant_id INT DEFAULT NULL');
+    console.log('  + 迁移 login_logs: 添加 merchant_id 字段');
+  }
+  if (!loginLogsColNames.includes('login_type')) {
+    await runAsync('ALTER TABLE login_logs ADD COLUMN login_type VARCHAR(50) DEFAULT NULL');
+    console.log('  + 迁移 login_logs: 添加 login_type 字段');
+  }
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS scan_sessions (
