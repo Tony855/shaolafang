@@ -54,22 +54,36 @@
       font-size: 13px; margin-bottom: 8px; font-weight: 500;
     }
     .login-type-select {
-      width: 100%; height: 48px; padding: 0 40px 0 14px;
-      border-radius: 12px; border: 1px solid rgba(255,255,255,.14);
-      background: #20203a; color: #fff; font-size: 15px;
+      width: 100%; height: 50px; padding: 0 44px 0 16px;
+      border-radius: 12px; border: 1.5px solid rgba(255,255,255,.18);
+      background: linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      color: #fff; font-size: 15px; font-weight: 500;
       cursor: pointer; outline: none; appearance: none;
-      -webkit-appearance: none; transition: all .2s;
+      -webkit-appearance: none; transition: all .25s ease;
+    }
+    .login-type-select:hover {
+      border-color: rgba(232,93,58,.5);
+      background: linear-gradient(135deg, rgba(255,255,255,.09), rgba(255,255,255,.05));
     }
     .login-type-select:focus {
       border-color: #e85d3a;
-      box-shadow: 0 0 0 3px rgba(232,93,58,.15);
+      box-shadow: 0 0 0 3px rgba(232,93,58,.18), 0 4px 12px rgba(232,93,58,.1);
+      background: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
     }
     .login-type-select option {
-      background: #2d2d44; color: #fff; padding: 10px;
+      background: #2d2d44; color: #fff; padding: 12px;
+      font-size: 14px;
     }
     .login-type-wrapper::after {
-      content: '▼'; position: absolute; right: 16px; top: 38px;
-      color: #9b9bb2; font-size: 10px; pointer-events: none;
+      content: ''; position: absolute; right: 18px; top: 40px;
+      width: 0; height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid rgba(255,255,255,.5);
+      pointer-events: none; transition: transform .2s;
+    }
+    .login-type-wrapper:hover::after {
+      border-top-color: #e85d3a;
     }
 
     .login-box input {
@@ -91,7 +105,18 @@
     }
     .login-box button:hover { filter: brightness(1.08); }
     .login-box button:active { transform: scale(.97); }
-    .error { min-height: 20px; margin-top: 12px; color: #ff9c9c; font-size: 13px; }
+    .error {
+      min-height: 20px;
+      margin-top: 12px;
+      color: #ff6b6b;
+      font-size: 13px;
+      background: rgba(255, 107, 107, 0.1);
+      border: 1px solid rgba(255, 107, 107, 0.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      text-align: center;
+      font-weight: 500;
+    }
     .hint { margin-top: 10px; font-size: 12px; color: #9c9cb2; }
   </style>
 </head>
@@ -192,6 +217,14 @@
     // 登录
     $('#loginBtn').addEventListener('click', async () => {
       const t = SLF.i18n.t.bind(SLF.i18n);
+      // 错误消息翻译映射
+      function translateError(msg) {
+        if (!msg) return t('loginError');
+        if (msg.includes('用户名或密码错误') || msg.includes('用户名不存在') || msg.includes('密码错误')) return t('invalidCredentials');
+        if (msg.includes('账号已被禁用') || msg.includes('已禁用')) return t('accountDisabled');
+        if (msg.includes('请输入')) return t('pleaseEnterCredentials');
+        return msg;
+      }
       const password = $('#password').value.trim();
       if (!password) {
         $('#loginError').textContent = loginType === 'admin' ? t('enterPassword') : t('enterPassword');
@@ -212,7 +245,7 @@
           sessionStorage.setItem('adminMerchantName', data.merchantName);
           window.location.href = '/admin';
         } catch (e) {
-          $('#loginError').textContent = e.message || t('loginError');
+          $('#loginError').textContent = translateError(e.message);
         }
       } else {
         // 服务员登录
@@ -227,7 +260,7 @@
           sessionStorage.setItem('waiterStoreId', data.storeId || 1);
           window.location.href = '/waiter';
         } catch (e) {
-          $('#loginError').textContent = e.message || t('loginError');
+          $('#loginError').textContent = translateError(e.message);
         }
       }
     });

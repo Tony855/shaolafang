@@ -1516,6 +1516,32 @@
             cursor: pointer;
             font-weight: 700;
         }
+        .menu-filter-select {
+            padding: 9px 32px 9px 12px;
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 10px;
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            transition: all .2s;
+        }
+        .menu-filter-select:hover {
+            border-color: rgba(232,93,58,.4);
+            background: rgba(255,255,255,.09);
+        }
+        .menu-filter-select:focus {
+            border-color: #e85d3a;
+            box-shadow: 0 0 0 2px rgba(232,93,58,.15);
+        }
+        .menu-filter-select option {
+            background: #2d2d44;
+            color: #fff;
+            padding: 8px;
+        }
         .order-toolbar {
             display: flex;
             gap: 8px;
@@ -2062,7 +2088,6 @@
                 <option value="km">ភាសាខ្មែរ</option>
             </select>
             <button id="logoutBtn" onclick="logoutAdmin()" hidden>退出</button>
-            <a href="index.html">📋 点餐</a>
         </span>
     </header>
 
@@ -2109,6 +2134,16 @@
                 <div class="menu-toolbar">
                     <button id="openDishModalBtn" onclick="openDishModal()">➕ 新增菜品</button>
                     <button id="openCategoryModalBtn" onclick="openCategoryModal()">🏷️ 菜品分类</button>
+                    <select id="menuCategoryFilter" class="menu-filter-select" onchange="loadMenus()">
+                        <option value="all">📋 全部分类</option>
+                    </select>
+                    <select id="menuSortBy" class="menu-filter-select" onchange="loadMenus()">
+                        <option value="default">🔄 默认排序</option>
+                        <option value="name_asc">🔤 名称 A-Z</option>
+                        <option value="name_desc">🔤 名称 Z-A</option>
+                        <option value="price_asc">💰 价格 低-高</option>
+                        <option value="price_desc">💰 价格 高-低</option>
+                    </select>
                 </div>
                 <div id="menus"></div>
             </section>
@@ -2634,6 +2669,21 @@
         </div>
     </div>
 
+    <!-- 密码输入模态框 -->
+    <div class="order-modal" id="passwordModal">
+        <div class="order-modal-card confirm-card">
+            <button class="modal-close" onclick="hidePasswordModal()">✕</button>
+            <div class="confirm-icon">🔒</div>
+            <h2 id="passwordModalTitle">请输入密码</h2>
+            <div class="confirm-message" id="passwordModalMessage">请输入管理员密码以确认操作</div>
+            <input type="password" id="passwordModalInput" class="modal-input" placeholder="请输入密码" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;margin-bottom:16px;outline:none;">
+            <div class="order-modal-actions confirm-actions">
+                <button onclick="hidePasswordModal()" id="passwordCancelBtn">取消</button>
+                <button class="primary" onclick="executePasswordModal()" id="passwordOkBtn">确认</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== JavaScript ===== -->
     <script src="languages.js"></script>
     <script src="assets/common.js"></script>
@@ -2653,6 +2703,7 @@
                 waitersManage: '服务员管理', waiterUsername: '账号', waiterPassword: '密码', waiterDisplayName: '显示名称', editWaiter: '编辑服务员', waiterStore: '所属店铺', waiterPermission: '权限', permOrder: '下单', permMarkItem: '上菜', permCompleteOrder: '完成订单', permOrderDesc: '接收顾客订单', permMarkItemDesc: '标记菜品已完成', permCompleteDesc: '结算并完成订单', waiterUsernamePlaceholder: '请输入账号', waiterPasswordPlaceholder: '请输入新密码', waiterNamePlaceholder: '请输入姓名',
                 waiterStore: '所属店铺',
                 newPasswordShort: '新密码',
+                passwordModalTitle: '请输入密码', passwordModalMessage: '请输入管理员密码以确认操作', passwordModalPlaceholder: '请输入密码',
                 addWaiter: '添加服务员', dishName: '菜品名称', nameEn: '英文名称', descEn: '英文描述',
                 price: '价格', icon: '图标（例如 🍖）', desc: '菜品描述', addDish: '新增菜品', cancelEdit: '取消编辑',
                 dishCategoryManage: '菜品分类管理', newCategory: '新分类名称', addCategory: '添加分类',
@@ -2805,7 +2856,7 @@
                 storeCode: 'Store Code', storeAddress: 'Store Address', addStore: 'Add Store', editStore: 'Edit Store', storeStatus: 'Store Status', storeActive: 'Active', storeDisabled: 'Disabled', storeNamePlaceholder: 'Enter store name', storeCodePlaceholder: 'Enter store code', storeAddressPlaceholder: 'Enter store address',
                 waitersManage: 'Waiter Management', waiterUsername: 'Username', waiterPassword: 'Password',
                 waiterDisplayName: 'Display Name', addWaiter: 'Add Waiter', editWaiter: 'Edit Waiter',
-                waiterStore: 'Store', waiterPermission: 'Permissions', permOrder: 'Take Order', permMarkItem: 'Serve Dish', permCompleteOrder: 'Complete Order', permOrderDesc: 'Receive customer orders', permMarkItemDesc: 'Mark dishes as served', permCompleteDesc: 'Settle and complete orders', waiterUsernamePlaceholder: 'Enter username', waiterPasswordPlaceholder: 'Enter new password', waiterNamePlaceholder: 'Enter display name', newPasswordShort: 'New Password',
+                waiterStore: 'Store', waiterPermission: 'Permissions', permOrder: 'Take Order', permMarkItem: 'Serve Dish', permCompleteOrder: 'Complete Order', permOrderDesc: 'Receive customer orders', permMarkItemDesc: 'Mark dishes as served', permCompleteDesc: 'Settle and complete orders', waiterUsernamePlaceholder: 'Enter username', waiterPasswordPlaceholder: 'Enter new password', waiterNamePlaceholder: 'Enter display name', newPasswordShort: 'New Password', passwordModalTitle: 'Enter Password', passwordModalMessage: 'Please enter admin password to confirm', passwordModalPlaceholder: 'Enter password',
                 dishName: 'Dish Name', nameEn: 'English Name', descEn: 'English Description', price: 'Price',
                 icon: 'Icon (e.g. 🍖)', desc: 'Description', addDish: 'Add Dish', cancelEdit: 'Cancel Edit',
                 dishCategoryManage: 'Dish Categories', newCategory: 'New category name', addCategory: 'Add Category',
@@ -3300,8 +3351,17 @@
         // ================================================================
         async function loadMenus() {
             menusCache = await api('/admin/menu');
-            $('#menus').innerHTML = menusCache.length ?
-                `<div class="menu-list">${menusCache.map(m => {
+            // 分类筛选
+            const categoryFilter = $('#menuCategoryFilter') ? $('#menuCategoryFilter').value : 'all';
+            let filtered = categoryFilter === 'all' ? menusCache : menusCache.filter(m => m.category === categoryFilter);
+            // 排序
+            const sortBy = $('#menuSortBy') ? $('#menuSortBy').value : 'default';
+            if (sortBy === 'name_asc') filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+            else if (sortBy === 'name_desc') filtered = [...filtered].sort((a, b) => b.name.localeCompare(a.name, 'zh'));
+            else if (sortBy === 'price_asc') filtered = [...filtered].sort((a, b) => Number(a.price) - Number(b.price));
+            else if (sortBy === 'price_desc') filtered = [...filtered].sort((a, b) => Number(b.price) - Number(a.price));
+            $('#menus').innerHTML = filtered.length ?
+                `<div class="menu-list">${filtered.map(m => {
                   let priceDisplay = formatMoney(toBasePrice(m));
                   if (dualCurrencyEnabled && m.secondary_currency_code) {
                     const base = toBaseCurrency(m.price, m.currency_code || 'USD');
@@ -3334,6 +3394,14 @@
             const select = $('#menuCategory');
             select.innerHTML = categoriesCache.map(c =>
                 `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
+            // 同步更新分类筛选下拉框，保持与分类管理排序一致
+            const filterSelect = $('#menuCategoryFilter');
+            if (filterSelect) {
+                const currentValue = filterSelect.value;
+                filterSelect.innerHTML = '<option value="all">📋 全部分类</option>' +
+                    categoriesCache.map(c => `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
+                filterSelect.value = currentValue || 'all';
+            }
         }
 
         function renderCategoryList() {
@@ -3424,12 +3492,28 @@
               `).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
         }
 
+        function translateLoginMessage(msg) {
+            if (!msg) return '';
+            if (msg.includes('商家管理员登录成功')) {
+                const username = msg.split(':')[1] || '';
+                return tAdmin('merchantAdminLogin') + ': ' + username.trim();
+            }
+            if (msg.includes('超级管理员登录成功')) {
+                const username = msg.split(':')[1] || '';
+                return tAdmin('superAdminLogin') + ': ' + username.trim();
+            }
+            if (msg.includes('用户名不存在')) return tAdmin('usernameNotExist');
+            if (msg.includes('密码错误')) return tAdmin('wrongPassword');
+            if (msg.includes('请输入用户名和密码')) return tAdmin('pleaseEnterCredentials');
+            return msg;
+        }
+
         async function loadLoginLogs() {
             try {
                 const logs = await api('/admin/login-logs');
                 $('#loginLogs').innerHTML = logs.length ?
                     logs.map(log =>
-                        `<div class="row"><div><b>${new Date(log.createdAt).toLocaleString()}</b><small>${esc(log.ip||'-')} · ${esc(log.message||'')}</small></div><span class="badge ${log.success?'done':'canceled'}">${log.success ? tAdmin('loginSuccess') : tAdmin('loginFailed')}</span></div>`
+                        `<div class="row"><div><b>${new Date(log.createdAt).toLocaleString()}</b><small>${esc(log.ip||'-')} · ${esc(translateLoginMessage(log.message))}</small></div><span class="badge ${log.success?'done':'canceled'}">${log.success ? tAdmin('loginSuccess') : tAdmin('loginFailed')}</span></div>`
                         ).join('') :
                     `<div class="empty-hint">${tAdmin('noData')}</div>`;
             } catch (e) {
@@ -3588,14 +3672,15 @@
                 toast('✅ ' + tAdmin('updated'));
             } catch (e) { toast('❌ ' + e.message); }
         };
-        window.deleteCategory = async function(id) {
-            if (!confirm(tAdmin('confirmDelete'))) return;
-            try {
-                await api('/menu-categories/' + id, { method: 'DELETE' });
-                await loadMenuCategories();
-                await loadMenus();
-                toast('✅ ' + tAdmin('deleted'));
-            } catch (e) { toast('❌ ' + e.message); }
+        window.deleteCategory = function(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/menu-categories/' + id, { method: 'DELETE' });
+                    await loadMenuCategories();
+                    await loadMenus();
+                    toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { toast('❌ ' + e.message); }
+            });
         };
         $('#addCategoryBtn').onclick = window.addCategory;
 
@@ -3645,13 +3730,14 @@
             if (currenciesCache.length) $('#menuCurrency').value = currenciesCache.find(c => c.is_default)?.code ||
                 currenciesCache[0].code;
         };
-        window.removeMenu = async function(id) {
-            if (!confirm(tAdmin('confirmDelete'))) return;
-            try {
-                await api('/menu/' + id, { method: 'DELETE' });
-                await loadMenus();
-                toast('✅ ' + tAdmin('deleted'));
-            } catch (e) { toast('❌ ' + e.message); }
+        window.removeMenu = function(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/menu/' + id, { method: 'DELETE' });
+                    await loadMenus();
+                    toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { toast('❌ ' + e.message); }
+            });
         };
         window.toggleMenuStatus = async function(id, active) {
             try {
@@ -3691,13 +3777,14 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
 
-        window.removeTable = async function(id) {
-            if (!confirm(tAdmin('confirmDelete'))) return;
-            try {
-                await api('/tables/' + id, { method: 'DELETE' });
-                await loadTables();
-                toast('✅ ' + tAdmin('deleted'));
-            } catch (e) { toast('❌ ' + e.message); }
+        window.removeTable = function(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/tables/' + id, { method: 'DELETE' });
+                    await loadTables();
+                    toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { toast('❌ ' + e.message); }
+            });
         };
         window.editTable = async function(id) { openTableForm(id); };
         window.openTableForm = function(id) {
@@ -3770,15 +3857,15 @@
                 toast('❌ ' + msg);
             }
         };
-        window.removeOrder = async function(id) {
-            const password = prompt(tAdmin('passwordTitle'));
-            if (password === null || !password) { toast('❌ ' + tAdmin('passwordTitle')); return; }
-            try {
-                await api('/orders/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password }) });
-                await loadOrders();
-                toast('✅ ' + tAdmin('deleted'));
-            } catch (e) { toast('❌ ' + e.message); }
+        window.removeOrder = function(id) {
+            showPasswordModal(tAdmin('passwordTitle'), async function(password) {
+                try {
+                    await api('/orders/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password }) });
+                    await loadOrders();
+                    toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { toast('❌ ' + e.message); }
+            });
         };
         window.openOrderForm = function() {
             editingOrderId = null;
@@ -3919,13 +4006,14 @@
                 toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('updated'));
             } catch (e) { toast('❌ ' + e.message); }
         };
-        window.removeCurrency = async function(id) {
-            if (!confirm(tAdmin('confirmDelete'))) return;
-            try {
-                await api('/currencies/' + id, { method: 'DELETE' });
-                await loadCurrencies();
-                toast('✅ ' + tAdmin('deleted'));
-            } catch (e) { toast('❌ ' + e.message); }
+        window.removeCurrency = function(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/currencies/' + id, { method: 'DELETE' });
+                    await loadCurrencies();
+                    toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { toast('❌ ' + e.message); }
+            });
         };
         $('#currencyForm').onsubmit = async function(e) {
             e.preventDefault();
@@ -3954,13 +4042,14 @@
             } catch (e) { toast('❌ ' + e.message);
                 loadWaiters(); }
         };
-        window.deleteWaiter = async function(id) {
-            if (!confirm(tAdmin('confirmDelete'))) return;
-            try {
-                await api('/admin/waiters/' + id, { method: 'DELETE' });
-                loadWaiters();
-                toast('✅ ' + tAdmin('deleted'));
-            } catch (e) { toast('❌ ' + e.message); }
+        window.deleteWaiter = function(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/admin/waiters/' + id, { method: 'DELETE' });
+                    loadWaiters();
+                    toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { toast('❌ ' + e.message); }
+            });
         };
         $('#addWaiterBtn').onclick = async function() {
             const username = $('#waiterUsernameInput').value.trim();
@@ -3995,24 +4084,26 @@
             }
         };
 
-        window.deleteStore = async function(id) {
-            if (!confirm(tAdmin('confirmDelete'))) return;
-            try {
-                await api('/admin/stores/' + id, { method: 'DELETE' });
-                loadStores();
-                toast('✅ ' + tAdmin('deleted'));
-            } catch (e) { toast('❌ ' + e.message); }
+        window.deleteStore = function(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/admin/stores/' + id, { method: 'DELETE' });
+                    loadStores();
+                    toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { toast('❌ ' + e.message); }
+            });
         };
-        window.copyStoreMenu = async function(storeId) {
-            if (!confirm(tAdmin('confirmCopyMenu'))) return;
-            try {
-                const res = await api('/admin/stores/' + storeId + '/copy-menu', { method: 'POST' });
-                toast('✅ ' + res.message);
-                loadStores();
-                if (document.getElementById('module-menu').classList.contains('active')) loadMenus();
-            } catch (e) {
-                toast(`❌ ${tAdmin('copyFailed')}: ` + e.message);
-            }
+        window.copyStoreMenu = function(storeId) {
+            showConfirm(tAdmin('confirmCopyMenu'), async function() {
+                try {
+                    const res = await api('/admin/stores/' + storeId + '/copy-menu', { method: 'POST' });
+                    toast('✅ ' + res.message);
+                    loadStores();
+                    if (document.getElementById('module-menu').classList.contains('active')) loadMenus();
+                } catch (e) {
+                    toast(`❌ ${tAdmin('copyFailed')}: ` + e.message);
+                }
+            });
         };
         $('#addStoreBtn').onclick = async function() {
             const name = $('#storeNameInput').value.trim();
@@ -4521,22 +4612,22 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
 
-        $('#resetDataBtn').onclick = async function() {
-            const password = prompt(tAdmin('resetPasswordPrompt'));
-            if (password === null || !password) { toast('❌ ' + tAdmin('resetPasswordPrompt')); return; }
-            try {
-                const res = await fetch('/api/admin/reset-data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-                    body: JSON.stringify({ password })
-                });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.error || tAdmin('resetFailed'));
-                toast('✅ ' + tAdmin('resetSuccess'));
-                await loadOrders();
-                await loadTables();
-                await loadLoginLogs();
-            } catch (e) { toast('❌ ' + e.message); }
+        $('#resetDataBtn').onclick = function() {
+            showPasswordModal(tAdmin('resetPasswordPrompt'), async function(password) {
+                try {
+                    const res = await fetch('/api/admin/reset-data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+                        body: JSON.stringify({ password })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.error || tAdmin('resetFailed'));
+                    toast('✅ ' + tAdmin('resetSuccess'));
+                    await loadOrders();
+                    await loadTables();
+                    await loadLoginLogs();
+                } catch (e) { toast('❌ ' + e.message); }
+            });
         };
 
         // ================================================================
@@ -4771,7 +4862,12 @@
             $('#storeEditStatusText').textContent = statusText;
             $('#confirmOkBtn').textContent = L('confirm') || '确定';
             $('#confirmTitle').textContent = L('confirmTitle') || '确认操作';
-            document.querySelector('.top a').textContent = '📋 ' + tAdmin('customerPage');
+            // 密码模态框翻译
+            $('#passwordModalTitle').textContent = tAdmin('passwordModalTitle') || '请输入密码';
+            $('#passwordModalMessage').textContent = tAdmin('passwordModalMessage') || '请输入管理员密码以确认操作';
+            $('#passwordModalInput').placeholder = tAdmin('passwordModalPlaceholder') || '请输入密码';
+            $('#passwordCancelBtn').textContent = L('cancel') || '取消';
+            $('#passwordOkBtn').textContent = L('confirm') || '确定';
             document.querySelectorAll('[data-i18n-nav]').forEach(el => {
                 const map = {
                     menu: L('menuManage'),
@@ -4991,6 +5087,37 @@
             if (confirmCallback) confirmCallback();
             hideConfirm();
         }
+
+        // 密码输入模态框
+        let passwordCallback = null;
+        function showPasswordModal(message, callback, title) {
+            document.getElementById('passwordModalTitle').textContent = title || tAdmin('passwordModalTitle') || '请输入密码';
+            document.getElementById('passwordModalMessage').textContent = message || tAdmin('passwordModalMessage') || '请输入管理员密码以确认操作';
+            document.getElementById('passwordModalInput').placeholder = tAdmin('passwordModalPlaceholder') || '请输入密码';
+            document.getElementById('passwordModalInput').value = '';
+            passwordCallback = callback;
+            document.getElementById('passwordModal').classList.add('open');
+            setTimeout(() => document.getElementById('passwordModalInput').focus(), 100);
+        }
+        function hidePasswordModal() {
+            document.getElementById('passwordModal').classList.remove('open');
+            passwordCallback = null;
+        }
+        function executePasswordModal() {
+            const password = document.getElementById('passwordModalInput').value;
+            if (!password) { toast('❌ ' + (tAdmin('passwordModalPlaceholder') || '请输入密码')); return; }
+            if (passwordCallback) passwordCallback(password);
+            hidePasswordModal();
+        }
+        // 密码输入框回车确认
+        document.addEventListener('DOMContentLoaded', function() {
+            const pwdInput = document.getElementById('passwordModalInput');
+            if (pwdInput) {
+                pwdInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') executePasswordModal();
+                });
+            }
+        });
         document.getElementById('confirmModal').addEventListener('click', function(e) {
             if (e.target === this) hideConfirm();
         });
@@ -5315,15 +5442,16 @@
             }
         }
 
-        async function deletePrinter(id) {
-            if (!confirm(tAdmin('confirmDeletePrinter'))) return;
-            try {
-                await api('/admin/printers/' + id, { method: 'DELETE' });
-                toast('打印机已删除');
-                loadPrinters();
-            } catch (err) {
-                toast(`${tAdmin('deleteFailed')}: ` + err.message);
-            }
+        function deletePrinter(id) {
+            showConfirm(tAdmin('confirmDeletePrinter'), async function() {
+                try {
+                    await api('/admin/printers/' + id, { method: 'DELETE' });
+                    toast('打印机已删除');
+                    loadPrinters();
+                } catch (err) {
+                    toast(`${tAdmin('deleteFailed')}: ` + err.message);
+                }
+            });
         }
 
         // 打印订单

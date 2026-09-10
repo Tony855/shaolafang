@@ -1186,17 +1186,17 @@ app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) {
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, message) VALUES (?, 0, ?, ?)', [new Date().toISOString(), req.ip, '请输入用户名和密码']);
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username || '', 'merchant_admin', '请输入用户名和密码']);
       return res.status(400).json({ error: '请输入用户名和密码' });
     }
     const admin = await getAsync('SELECT * FROM merchant_admins WHERE username=? AND active=1', [username]);
     if (!admin) {
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, message) VALUES (?, 0, ?, ?)', [new Date().toISOString(), req.ip, '用户名不存在']);
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username, 'merchant_admin', '用户名不存在']);
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     const isValid = hashPassword(password) === admin.password_hash;
     if (!isValid) {
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, message) VALUES (?, 0, ?, ?)', [new Date().toISOString(), req.ip, '密码错误']);
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username, 'merchant_admin', '密码错误']);
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     // 检查商家状态
@@ -1205,7 +1205,7 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(403).json({ error: '商家账号已被禁用，请联系超级管理员' });
     }
     await runAsync('UPDATE merchant_admins SET last_login_at=NOW() WHERE id=?', [admin.id]);
-    await runAsync('INSERT INTO login_logs (createdAt, success, ip, message) VALUES (?, 1, ?, ?)', [new Date().toISOString(), req.ip, '商家管理员登录成功: ' + username]);
+    await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username, '', admin.merchant_id, 'merchant_admin', '商家管理员登录成功: ' + username]);
     // 生成 token（简单方式：使用 admin_access_key + merchant_id）
     const token = Buffer.from(JSON.stringify({ merchantId: admin.merchant_id, adminId: admin.id, ts: Date.now() })).toString('base64');
     res.json({ success: true, token, merchantId: admin.merchant_id, merchantName: merchant.name, admin: { id: admin.id, username: admin.username, display_name: admin.display_name } });
@@ -1236,12 +1236,22 @@ async function requireMerchantAdmin(req, res, next) {
 app.post('/api/super/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
-    if (!username || !password) return res.status(400).json({ error: '请输入用户名和密码' });
+    if (!username || !password) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username || '', 'super_admin', '请输入用户名和密码']);
+      return res.status(400).json({ error: '请输入用户名和密码' });
+    }
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE username=?', [username]);
-    if (!superAdmin) return res.status(401).json({ error: '用户名或密码错误' });
+    if (!superAdmin) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username, 'super_admin', '用户名不存在']);
+      return res.status(401).json({ error: '用户名或密码错误' });
+    }
     const isValid = hashPassword(password) === superAdmin.password_hash;
-    if (!isValid) return res.status(401).json({ error: '用户名或密码错误' });
+    if (!isValid) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username, 'super_admin', '密码错误']);
+      return res.status(401).json({ error: '用户名或密码错误' });
+    }
     await runAsync('UPDATE super_admins SET last_login_at=NOW() WHERE id=?', [superAdmin.id]);
+    await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username, '', 'super_admin', '超级管理员登录成功: ' + username]);
     const token = Buffer.from(JSON.stringify({ superAdminId: superAdmin.id, ts: Date.now() })).toString('base64');
     res.json({ success: true, token, admin: { id: superAdmin.id, username: superAdmin.username, display_name: superAdmin.display_name } });
   } catch (e) {
@@ -1347,9 +1357,19 @@ app.get('/api/super/stores', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 超级管理员：所有登录日志
+app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 200;
+    const logs = await allAsync('SELECT l.*, m.name as merchant_name FROM login_logs l LEFT JOIN merchants m ON l.merchant_id = m.id ORDER BY l.id DESC LIMIT ?', [limit]);
+    res.json(logs);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/admin/login-logs', requireAdminKey, async (req, res) => {
   try {
-    const rows = await allAsync('SELECT * FROM login_logs ORDER BY id DESC LIMIT 200');
+    const merchantId = req.merchantId || 1;
+    const rows = await allAsync('SELECT * FROM login_logs WHERE merchant_id = ? ORDER BY id DESC LIMIT 200', [merchantId]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });

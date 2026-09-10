@@ -141,6 +141,9 @@ select:focus {
     <div class="nav-item" data-module="stores" onclick="switchModule('stores')">
       <span class="icon">🏪</span><span>门店总览</span>
     </div>
+    <div class="nav-item" data-module="logs" onclick="switchModule('logs')">
+      <span class="icon">📋</span><span>登录日志</span>
+    </div>
     <div class="nav-item" data-module="settings" onclick="switchModule('settings')">
       <span class="icon">⚙️</span><span>系统设置</span>
     </div>
@@ -206,6 +209,32 @@ select:focus {
           <tr><th>ID</th><th>门店名称</th><th>所属商家</th><th>编码</th><th>地址</th><th>状态</th></tr>
         </thead>
         <tbody id="storeList"></tbody>
+      </table>
+    </div>
+
+    <!-- 登录日志 -->
+    <div class="panel" id="panel-logs">
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>商家登录日志</span>
+        <button class="btn-secondary" onclick="loadLoginLogs()" style="padding:8px 16px;font-size:13px;">🔄 刷新</button>
+      </div>
+      <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;">
+        <select id="logFilterType" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
+          <option value="all">全部类型</option>
+          <option value="merchant_admin">商家管理员</option>
+          <option value="super_admin">超级管理员</option>
+        </select>
+        <select id="logFilterStatus" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
+          <option value="all">全部状态</option>
+          <option value="success">成功</option>
+          <option value="fail">失败</option>
+        </select>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr><th>ID</th><th>登录时间</th><th>登录名</th><th>所属商家</th><th>登录IP</th><th>登录地点</th><th>登录类型</th><th>状态</th><th>备注</th></tr>
+        </thead>
+        <tbody id="loginLogList"></tbody>
       </table>
     </div>
 
@@ -316,11 +345,12 @@ function switchModule(mod) {
   currentModule = mod;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === mod));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + mod));
-  const titles = { dashboard: '仪表盘', merchants: '商家管理', stores: '门店总览', settings: '系统设置' };
+  const titles = { dashboard: '仪表盘', merchants: '商家管理', stores: '门店总览', logs: '登录日志', settings: '系统设置' };
   document.getElementById('pageTitle').textContent = titles[mod] || '';
   if (mod === 'dashboard') loadDashboard();
   if (mod === 'merchants') loadMerchants();
   if (mod === 'stores') loadStores();
+  if (mod === 'logs') loadLoginLogs();
 }
 
 // API 请求
@@ -368,6 +398,63 @@ async function loadMerchants() {
       </tr>
     `).join('');
   } catch (e) { toast(e.message, 'error'); }
+}
+
+// 登录日志消息翻译
+function translateLoginMessage(msg) {
+  if (!msg) return '';
+  if (msg.includes('商家管理员登录成功')) {
+    const username = msg.split(':')[1] || '';
+    return '商家管理员登录: ' + username.trim();
+  }
+  if (msg.includes('超级管理员登录成功')) {
+    const username = msg.split(':')[1] || '';
+    return '超级管理员登录: ' + username.trim();
+  }
+  if (msg.includes('用户名不存在')) return '用户名不存在';
+  if (msg.includes('密码错误')) return '密码错误';
+  if (msg.includes('请输入用户名和密码')) return '请输入用户名和密码';
+  return msg;
+}
+
+// 登录日志
+async function loadLoginLogs() {
+  try {
+    const logs = await api('/super/login-logs?limit=200');
+    const filterType = document.getElementById('logFilterType').value;
+    const filterStatus = document.getElementById('logFilterStatus').value;
+    let filtered = logs;
+    if (filterType !== 'all') filtered = filtered.filter(l => l.login_type === filterType);
+    if (filterStatus === 'success') filtered = filtered.filter(l => l.success === 1);
+    if (filterStatus === 'fail') filtered = filtered.filter(l => l.success === 0);
+    const tbody = document.getElementById('loginLogList');
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:40px;">暂无登录日志</td></tr>';
+      return;
+    }
+    tbody.innerHTML = filtered.map(l => {
+      const time = l.createdAt ? new Date(l.createdAt).toLocaleString('zh-CN') : '-';
+      const statusBadge = l.success === 1
+        ? '<span style="color:#2ecc71;font-weight:600;">✅ 成功</span>'
+        : '<span style="color:#e74c3c;font-weight:600;">❌ 失败</span>';
+      const typeBadge = l.login_type === 'super_admin'
+        ? '<span style="background:rgba(102,126,234,.2);color:#667eea;padding:2px 8px;border-radius:4px;font-size:11px;">超级管理员</span>'
+        : '<span style="background:rgba(232,93,58,.2);color:#e85d3a;padding:2px 8px;border-radius:4px;font-size:11px;">商家管理员</span>';
+      return `<tr>
+        <td>${l.id}</td>
+        <td style="white-space:nowrap;">${time}</td>
+        <td style="font-weight:600;">${l.username || '-'}</td>
+        <td>${l.merchant_name || '-'}</td>
+        <td style="font-family:monospace;">${l.ip || '-'}</td>
+        <td>${l.location || '-'}</td>
+        <td>${typeBadge}</td>
+        <td>${statusBadge}</td>
+        <td style="color:#888;font-size:12px;">${translateLoginMessage(l.message)}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('loginLogList').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#e74c3c;padding:40px;">加载失败: ' + e.message + '</td></tr>';
+  }
 }
 
 // 门店总览
