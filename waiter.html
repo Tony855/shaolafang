@@ -834,7 +834,7 @@
   const wt=k=>(WAITER_TEXT[waiterLang]&&WAITER_TEXT[waiterLang][k])||WAITER_TEXT.zh[k]||(LANGUAGES[waiterLang]&&LANGUAGES[waiterLang][k])||(LANGUAGES.zh&&LANGUAGES.zh[k])||k;
   // 简单 HTML 转义，避免顾客备注中的特殊字符破坏页面结构
   function escNote(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function applyWaiterLanguage(){$('#waiterTitle').textContent=wt('title');$('#logoutBtn').textContent=wt('logout');$('#autoRefreshText').textContent=wt('autoRefresh');$('#waiterLang').value=waiterLang;$('#currentTableBadge').textContent=wt('currentTable')+': ';$('#submitBtn').textContent=wt('submitOrder');$('#confirmCancelBtn').textContent=wt('cancel')||'取消';$('#confirmOkBtn').textContent=wt('confirm')||'确定';renderTables();}
+  function applyWaiterLanguage(){$('#waiterTitle').textContent=wt('title');$('#logoutBtn').textContent=wt('logout');$('#autoRefreshText').textContent=wt('autoRefresh');$('#waiterLang').value=waiterLang;$('#currentTableBadge').textContent=wt('currentTable')+': ';$('#submitBtn').textContent=wt('submitOrder');$('#confirmCancelBtn').textContent=wt('cancel')||'取消';$('#confirmOkBtn').textContent=wt('confirm')||'确定';const historyBtn=$('#orderHistoryBtnText');if(historyBtn)historyBtn.textContent=wt('orderHistory');const callBtn=$('#callNotificationBtnText');if(callBtn)callBtn.textContent=wt('callWaiter');renderTables();}
   let confirmCallback=null;
   function showConfirm(message,callback,title){$('#confirmTitle').textContent=title||wt('confirmTitle')||'确认操作';$('#confirmMessage').textContent=message;confirmCallback=callback;$('#confirmModal').classList.add('open');}
   function hideConfirm(){$('#confirmModal').classList.remove('open');confirmCallback=null;}
