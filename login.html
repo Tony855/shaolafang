@@ -105,17 +105,76 @@
     }
     .login-box button:hover { filter: brightness(1.08); }
     .login-box button:active { transform: scale(.97); }
-    .error {
-      min-height: 20px;
-      margin-top: 12px;
-      color: #ff6b6b;
-      font-size: 13px;
-      background: rgba(255, 107, 107, 0.1);
-      border: 1px solid rgba(255, 107, 107, 0.2);
-      border-radius: 8px;
-      padding: 10px 14px;
+    /* 错误提示弹窗 */
+    .error-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+      backdrop-filter: blur(4px);
+    }
+    .error-modal.open {
+      display: flex;
+    }
+    .error-modal-card {
+      background: linear-gradient(145deg, #2d2d44, #252538);
+      border: 1px solid rgba(255, 107, 107, .3);
+      border-radius: 18px;
+      padding: 32px 28px 24px;
       text-align: center;
-      font-weight: 500;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, .4), 0 0 30px rgba(255, 107, 107, .1);
+      animation: errorPop .3s ease;
+    }
+    @keyframes errorPop {
+      from { transform: scale(.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .error-modal-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      animation: shake .5s ease;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    .error-modal-card h2 {
+      color: #ff6b6b;
+      font-size: 20px;
+      margin: 0 0 10px;
+      font-weight: 700;
+    }
+    .error-modal-message {
+      color: #c8c8d0;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .error-modal-btn {
+      width: 100%;
+      padding: 12px;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .error-modal-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(255, 107, 107, .3);
+    }
+    .error-modal-btn:active {
+      transform: translateY(0);
     }
     .hint { margin-top: 10px; font-size: 12px; color: #9c9cb2; }
   </style>
@@ -149,7 +208,16 @@
       <input id="username" type="text" placeholder="用户名" autocomplete="username">
       <input id="password" type="password" placeholder="密码" autocomplete="current-password">
       <button id="loginBtn">登录</button>
-      <div class="error" id="loginError"></div>
+    </div>
+  </div>
+
+  <!-- 错误提示弹窗 -->
+  <div class="error-modal" id="errorModal">
+    <div class="error-modal-card">
+      <div class="error-modal-icon">❌</div>
+      <h2 id="errorModalTitle">登录失败</h2>
+      <div class="error-modal-message" id="errorModalMessage">用户名或密码错误</div>
+      <button class="error-modal-btn" onclick="hideErrorModal()">确定</button>
     </div>
   </div>
 
@@ -210,24 +278,40 @@
     // 登录类型切换
     $('#loginType').addEventListener('change', function() {
       loginType = this.value;
-      $('#loginError').textContent = '';
       apply();
+    });
+
+    // 错误消息翻译映射（全局）
+    function translateError(msg) {
+      const t = SLF.i18n.t.bind(SLF.i18n);
+      if (!msg) return t('loginError');
+      if (msg.includes('用户名或密码错误') || msg.includes('用户名不存在') || msg.includes('密码错误')) return t('invalidCredentials');
+      if (msg.includes('账号已被禁用') || msg.includes('已禁用')) return t('accountDisabled');
+      if (msg.includes('请输入')) return t('pleaseEnterCredentials');
+      return msg;
+    }
+
+    // 错误提示弹窗（全局）
+    function showErrorModal(message, title) {
+      const t = SLF.i18n.t.bind(SLF.i18n);
+      document.getElementById('errorModalTitle').textContent = title || t('loginFailed') || '登录失败';
+      document.getElementById('errorModalMessage').textContent = message || t('loginError');
+      document.getElementById('errorModal').classList.add('open');
+    }
+    function hideErrorModal() {
+      document.getElementById('errorModal').classList.remove('open');
+    }
+    // 点击遮罩关闭
+    document.getElementById('errorModal').addEventListener('click', function(e) {
+      if (e.target === this) hideErrorModal();
     });
 
     // 登录
     $('#loginBtn').addEventListener('click', async () => {
       const t = SLF.i18n.t.bind(SLF.i18n);
-      // 错误消息翻译映射
-      function translateError(msg) {
-        if (!msg) return t('loginError');
-        if (msg.includes('用户名或密码错误') || msg.includes('用户名不存在') || msg.includes('密码错误')) return t('invalidCredentials');
-        if (msg.includes('账号已被禁用') || msg.includes('已禁用')) return t('accountDisabled');
-        if (msg.includes('请输入')) return t('pleaseEnterCredentials');
-        return msg;
-      }
       const password = $('#password').value.trim();
       if (!password) {
-        $('#loginError').textContent = loginType === 'admin' ? t('enterPassword') : t('enterPassword');
+        showErrorModal(t('enterPassword'));
         return;
       }
 
@@ -235,7 +319,7 @@
         // 商家管理员登录（用户名+密码）
         const username = $('#username').value.trim();
         if (!username) {
-          $('#loginError').textContent = t('enterUsername');
+          showErrorModal(t('enterUsername'));
           return;
         }
         try {
@@ -245,13 +329,13 @@
           sessionStorage.setItem('adminMerchantName', data.merchantName);
           window.location.href = '/admin';
         } catch (e) {
-          $('#loginError').textContent = translateError(e.message);
+          showErrorModal(translateError(e.message));
         }
       } else {
         // 服务员登录
         const username = $('#username').value.trim();
         if (!username) {
-          $('#loginError').textContent = t('enterUsername');
+          showErrorModal(t('enterUsername'));
           return;
         }
         try {
@@ -260,7 +344,7 @@
           sessionStorage.setItem('waiterStoreId', data.storeId || 1);
           window.location.href = '/waiter';
         } catch (e) {
-          $('#loginError').textContent = translateError(e.message);
+          showErrorModal(translateError(e.message));
         }
       }
     });
