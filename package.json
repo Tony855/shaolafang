@@ -1,7 +1,7 @@
 {
   "name": "order-system",
   "version": "1.0.0",
-  "description": "烧腊坊扫码点餐系统（MySQL版）",
+  "description": "FoodFlow QR Ordering System (MySQL)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

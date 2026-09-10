@@ -17,7 +17,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo -e "${GREEN}=============================================="
-echo "  烧腊坊扫码点餐系统 - Linux 一键安装（MySQL/MariaDB版）"
+echo "  FoodFlow QR Ordering System - Linux One-Click Install"
 echo -e "==============================================${NC}"
 
 # ---------- 1. 安装 Node.js ----------
@@ -173,7 +173,7 @@ if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/nul
     SERVICE_FILE="/etc/systemd/system/shaolafang.service"
     ENV_FILE="/etc/default/shaolafang"
     cat > "$ENV_FILE" <<EOF
-# 烧腊坊系统环境变量（与 ${INSTALL_DIR}/.env 保持一致）
+# FoodFlow System Environment Variables（与 ${INSTALL_DIR}/.env 保持一致）
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=$MYSQL_PASSWORD
@@ -193,7 +193,7 @@ EOF
 
     cat > "$SERVICE_FILE" <<EOF
 [Unit]
-Description=烧腊坊扫码点餐系统
+Description=FoodFlow QR Ordering System
 After=network.target ${DB_DEPEND}
 
 [Service]

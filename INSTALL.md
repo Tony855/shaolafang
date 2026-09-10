@@ -1,4 +1,4 @@
-# 烧腊坊扫码点餐系统 - 详细安装指南
+# FoodFlow QR Ordering System - Installation Guide
 
 ## 目录
 1. [系统要求](#1-系统要求)
@@ -273,7 +273,7 @@ sudo nano /etc/systemd/system/shaolafang.service
 写入以下内容（修改路径和用户）：
 ```ini
 [Unit]
-Description=烧腊坊扫码点餐系统
+Description=FoodFlow QR Ordering System
 After=network.target mariadb.service
 
 [Service]

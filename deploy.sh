@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 烧腊坊点餐系统 - 服务器一键部署/更新脚本
+# FoodFlow Ordering System - Server Deploy Script
 # 用法:
 #   首次部署: bash deploy.sh init
 #   日常更新: bash deploy.sh update

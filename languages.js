@@ -1,5 +1,5 @@
 ﻿/* ============================================================
-   烧腊坊点餐系统 - 统一多语言翻译表
+   FoodFlow Ordering System - Multi-language Translation Table
    唯一翻译源，所有页面共享。支持中文/英文/越南文/泰文/高棉文
    菜单数据从数据库加载，此处仅翻译界面文本和分类名
    ============================================================ */
@@ -11,8 +11,8 @@ const LANGUAGES = {
     currencySymbol: '¥',
     currencyRate: 7,
     currencyCode: 'CNY',
-    appName: '烧腊坊',
-    appNameFull: '烧腊坊 · 扫码点餐系统',
+    appName: 'FoodFlow',
+    appNameFull: 'FoodFlow · QR Ordering System',
 
     // ---- 通用 ----
     confirm: '确认',
@@ -43,8 +43,8 @@ const LANGUAGES = {
     operationFailed: '操作失败',
 
     // ---- 品牌与登录 ----
-    brand: '烧腊坊',
-    adminBrand: '烧腊坊管理后台',
+    brand: 'FoodFlow',
+    adminBrand: 'FoodFlow Admin',
     login: '登录',
     logout: '退出登录',
     adminLogin: '管理员登录',
@@ -435,7 +435,7 @@ const LANGUAGES = {
     waiterTerminal: '服务员点餐终端',
     ordering: '点餐',
     print: '打印',
-    loginToBrand: '登录烧腊坊',
+    loginToBrand: 'Login to FoodFlow',
     waiter: '服务员',
     admin: '管理员',
     account: '账号',
@@ -448,8 +448,8 @@ const LANGUAGES = {
     every6Hours: '每 6 小时',
     every12Hours: '每 12 小时',
     every24Hours: '每 24 小时',
-    brandName: '烧腊坊',
-    adminBrandFull: '烧腊坊后台管理',
+    brandName: 'FoodFlow',
+    adminBrandFull: 'FoodFlow Admin Dashboard',
   },
 
   en: {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>超级管理员 - 烧腊坊</title>
+<title>Super Admin - FoodFlow</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f1a; color: #fff; min-height: 100vh; }
@@ -114,7 +114,7 @@ select:focus {
 <div class="login-page" id="loginPage">
   <div class="login-card">
     <h1>🔐 超级管理员</h1>
-    <p class="subtitle">烧腊坊商户管理平台</p>
+    <p class="subtitle">FoodFlow Merchant Management Platform</p>
     <div class="form-group">
       <label>用户名</label>
       <input type="text" id="loginUsername" placeholder="请输入用户名" value="superadmin">
@@ -131,7 +131,7 @@ select:focus {
 <!-- 主后台 -->
 <div class="app" id="app">
   <div class="sidebar">
-    <div class="sidebar-brand">🍖 烧腊坊</div>
+    <div class="sidebar-brand">🍽️ FoodFlow</div>
     <div class="nav-item active" data-module="dashboard" onclick="switchModule('dashboard')">
       <span class="icon">📊</span><span>仪表盘</span>
     </div>
@@ -278,7 +278,7 @@ select:focus {
     <input type="hidden" id="editMerchantId">
     <div class="form-group">
       <label>商户名称 *</label>
-      <input type="text" id="merchantName" placeholder="如：烧腊坊">
+      <input type="text" id="merchantName" placeholder="e.g. FoodFlow">
     </div>
     <div class="form-group">
       <label>商户编码 *</label>

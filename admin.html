@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>烧腊坊 · 后台管理</title>
+    <title>FoodFlow · Admin Dashboard</title>
     <style>
         /* ===== 全局重置 & 基础 ===== */
         * {
@@ -2233,7 +2233,7 @@
 
     <!-- ===== 顶部栏（固定） ===== -->
     <header class="top">
-        <strong id="adminHeaderTitle">🍖 烧腊坊 · 后台</strong>
+        <strong id="adminHeaderTitle">🍽️ FoodFlow · Admin</strong>
         <span class="top-right">
             <select id="adminStoreSelect"></select>
             <select id="adminLang">
@@ -2295,7 +2295,7 @@
     <main class="admin-shell" id="dashboard" hidden>
         <!-- 侧边栏（固定） -->
         <aside class="admin-sidebar">
-            <div class="sidebar-brand" id="sidebarBrand">🍖 烧腊坊 · 后台</div>
+            <div class="sidebar-brand" id="sidebarBrand">🍽️ FoodFlow · Admin</div>
             <button class="nav-item active" data-module="menu">
                 <span class="nav-icon">📖</span> <span data-i18n-nav="menu">菜品管理</span>
             </button>
@@ -2914,7 +2914,7 @@
         // 多语言配置与辅助工具
         // ================================================================
         const ADMIN_LABELS = {
-            zh: { headerTitle: '🍖 烧腊坊 · 后台', accessKey: '后台密钥', connect: '连接', customerPage: '顾客点餐页',
+            zh: { headerTitle: '🍽️ FoodFlow · Admin', accessKey: '后台密钥', connect: '连接', customerPage: '顾客点餐页',
                 connectTitle: '管理员登录', connectDesc: '请输入管理员密码后进入后台管理。', connectSafe: '登录', logout: '退出登录',
                 pendingOrders: '未结算订单', completedOrders: '已结算订单',
                 todayRevenue: '今日营业额', monthRevenue: '本月营业额', settleOrder: '结算订单', settleOrderConfirm: '确定要结算该订单吗？结算后订单将标记为已完成。', cancelOrder: '取消订单', cancelOrderConfirm: '确定要取消该订单吗？此操作不可撤销。', listDish: '上架', unlistDish: '下架',
@@ -3012,7 +3012,7 @@
                 allowPopupToPrint: '请允许弹出窗口以打印',
                 order: '订单',
                 print: '打印',
-                brandName: '烧腊坊',
+                brandName: 'FoodFlow',
                 printerConnectHint: '请在连接打印机后使用网络打印功能获得最佳效果。',
                 totalOrders: '总订单数',
                 completed: '已完成',

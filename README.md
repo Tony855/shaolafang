@@ -1,4 +1,4 @@
-# 🍖 烧腊坊扫码点餐系统 (Roast House Ordering System)
+# 🍽️ FoodFlow QR Ordering System
 
 多端餐饮点餐系统，支持顾客扫码点餐、管理后台、服务员端、后厨显示。
 
