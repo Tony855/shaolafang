@@ -1837,7 +1837,7 @@
                 <span class="nav-icon">🏪</span> <span data-i18n-nav="stores">店铺管理</span>
             </button>
             <button class="nav-item" data-module="password">
-                <span class="nav-icon">🔑</span> <span data-i18n-nav="password">管理员密码</span>
+                <span class="nav-icon">⚙️</span> <span data-i18n-nav="systemSettings">系统设置</span>
             </button>
         </aside>
 
@@ -2057,7 +2057,7 @@
 
             <!-- 管理员密码 -->
             <section class="panel module-panel" id="module-password">
-                <h2 id="passwordPanelTitle">管理员密码</h2>
+                <h2 id="passwordPanelTitle">系统设置</h2>
 
                 <!-- 修改密码卡片 -->
                 <div class="settings-card">
@@ -2331,7 +2331,7 @@
                 tableManageTitle: '桌号与固定二维码', tableName: '桌号，例如 A06', addTable: '新增桌号',
                 addOrder: '➕ 新增订单', orderSearchPlaceholder: '输入订单号查询', search: '查询', currencyManageTitle: '货币类型', currencyCode: '代码 CNY', currencySymbol: '符号 ¥',
                 currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '登录日志', time: '时间', ip: 'IP', result: '结果',
-                loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', oldPassword: '旧密码',
+                loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', systemSettings: '系统设置', oldPassword: '旧密码',
                 newPassword: '新密码（至少 6 位）', changePassword: '修改密码', tableField: '桌号', dishList: '菜品清单',
                 addDishLine: '➕ 添加菜品', saveOrder: '保存订单', editTableTitle: '编辑桌号', tableNameLabel: '桌号名称',
                 statusLabel: '状态', noOrders: '暂无订单', noDishes: '暂无菜品', noData: '暂无数据',
@@ -2486,7 +2486,7 @@
                 currencyManageTitle: 'Currency Types', currencyCode: 'Code CNY', currencySymbol: 'Symbol ¥',
                 currencyName: 'Name', currencyRate: 'Rate', addCurrency: 'Add Currency',
                                 logsTitle: 'Login Logs', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
-                loginFailed: 'Login Failed', passwordTitle: 'Admin Password', oldPassword: 'Old Password',
+                loginFailed: 'Login Failed', passwordTitle: 'Admin Password', systemSettings: 'System Settings', oldPassword: 'Old Password',
                 newPassword: 'New Password (min 6 chars)', changePassword: 'Change Password', tableField: 'Table',
                 dishList: 'Dish List', addDishLine: '➕ Add Dish', saveOrder: 'Save Order',
                 editTableTitle: 'Edit Table', tableNameLabel: 'Table Name', statusLabel: 'Status',
@@ -4472,7 +4472,7 @@
             $('#waiterPasswordLabel').textContent = tAdmin('waiterPassword');
             $('#waiterNameLabel').textContent = tAdmin('waiterDisplayName');
             $('#waiterStoreLabel').textContent = tAdmin('waiterStore');
-            $('#passwordPanelTitle').textContent = tAdmin('passwordTitle');
+            $('#passwordPanelTitle').textContent = tAdmin('systemSettings');
             $('#changePasswordCardTitle').textContent = '🔐 ' + tAdmin('changePassword');
             $('#oldPasswordLabel').textContent = tAdmin('oldPassword');
             $('#newPasswordLabel').textContent = tAdmin('newPasswordShort');
