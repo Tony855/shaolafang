@@ -4539,11 +4539,11 @@
     border-radius: 8px;
   }
   .scan-text {
-    font-size: 18px;
+    font-size: 22px;
     font-weight: 700;
     color: #2c3e50;
-    margin-top: 12px;
-    margin-bottom: 8px;
+    margin-top: 16px;
+    margin-bottom: 24px;
     letter-spacing: 1px;
   }
   .scan-sub {
@@ -4651,7 +4651,6 @@
         </div>
       </div>
       <div class="scan-text">${tAdmin('scanToOrder')}</div>
-      <div class="scan-sub">${i18n.scanToOrder}</div>
       
       <div class="url-box">${esc(q.url)}</div>
       <div class="actions">
@@ -4711,11 +4710,8 @@
         
         // Text
         ctx.fillStyle = '#2c3e50';
-        ctx.font = 'bold 52px sans-serif';
+        ctx.font = 'bold 60px sans-serif';
         ctx.fillText('${i18n.scanToOrder}', W/2, 1080);
-        ctx.font = '28px sans-serif';
-        ctx.fillStyle = '#95a5a6';
-        ctx.fillText('${i18n.scanToOrder}', W/2, 1130);
         
 
         
