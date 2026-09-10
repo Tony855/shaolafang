@@ -1960,7 +1960,7 @@
         <div class="menu-grid" id="menuGrid"></div>
     </main>
 
-    <div class="cart-bar" id="cartBar">
+    <div class="cart-bar" id="cartBar" style="display:none;">
         <div class="cart-left" id="cartToggle">
             <div class="cart-icon-wrap">
                 <i class="fas fa-shopping-cart"></i>
@@ -2941,6 +2941,7 @@
             cartBadge.textContent = count;
             cartBadge.style.display = count === 0 ? 'none' : 'flex';
             cartTotal.textContent = totalDisplay;
+            document.getElementById('cartBar').style.display = count === 0 ? 'none' : 'flex';
             drawerTotal.textContent = totalDisplay;
             document.getElementById('checkoutBtn').disabled = count === 0 || !state.table;
             renderDrawer();
