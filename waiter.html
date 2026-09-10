@@ -1281,7 +1281,9 @@
     $('#selectedItems').innerHTML=`<div class="title">${wt('selectedDishes')}</div>${locked}${cartHtml}`;
   }
   function renderDishes(){
-    $('#dishList').innerHTML=state.menu.map(m=>{
+    // 按照销量自动排序，热销菜品排在最前面
+    const sortedMenu=[...state.menu].sort((a,b)=>(Number(b.sales_count)||0)-(Number(a.sales_count)||0));
+    $('#dishList').innerHTML=sortedMenu.map(m=>{
       const locked=state.lockedItems.find(i=>i.id===m.id);
       const q=locked?locked.quantity:(state.cart[m.id]||0);
       const prices=getMenuPrices(m);

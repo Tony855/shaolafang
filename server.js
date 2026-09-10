@@ -1923,6 +1923,12 @@ app.post('/api/orders', async (req, res) => {
       'INSERT INTO orders (table_name, items, total, status, createdAt, session_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, storeId, note]
     );
+    // 更新菜品销量
+    for (const item of items) {
+      if (item.id) {
+        await runAsync('UPDATE menus SET sales_count = sales_count + ? WHERE id = ?', [Number(item.quantity) || 1, item.id]);
+      }
+    }
     const newRow = await getAsync('SELECT * FROM orders WHERE id = ?', [result.lastID]);
     await syncTableStatus(table);
     res.status(201).json({ success: true, orderId: newRow.id, order: formatOrder(newRow) });

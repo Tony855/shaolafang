@@ -2817,6 +2817,8 @@
                     return name.includes(keyword) || desc.includes(keyword);
                 });
             }
+            // 按照销量自动排序，热销菜品排在最前面
+            filtered = [...filtered].sort((a, b) => (Number(b.sales_count) || 0) - (Number(a.sales_count) || 0));
             if (filtered.length === 0) {
                 menuGrid.innerHTML = `<div class="empty-state"><i class="fas fa-utensils"></i><p>${t('noDishes')}</p></div>`;
                 updateUI();
