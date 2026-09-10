@@ -142,13 +142,14 @@
       $('#tabWaiter').classList.toggle('active', loginType === 'waiter');
 
       // 显示/隐藏用户名输入框
-      $('#username').classList.toggle('hidden', loginType === 'admin');
+      $('#username').classList.toggle('hidden', false); // 管理员和服务员都需要用户名
       $('#username').placeholder = t('username');
 
       // 更新标题和描述
       if (loginType === 'admin') {
         $('#loginTitle').textContent = t('adminLogin');
         $('#loginDesc').textContent = t('adminLoginDesc');
+        $('#username').placeholder = t('adminUsername') || '管理员用户名';
         $('#password').placeholder = t('adminPassword');
       } else {
         $('#loginTitle').textContent = t('waiterLogin');
@@ -189,10 +190,17 @@
       }
 
       if (loginType === 'admin') {
-        // 管理员登录
+        // 商家管理员登录（用户名+密码）
+        const username = $('#username').value.trim();
+        if (!username) {
+          $('#loginError').textContent = t('enterUsername');
+          return;
+        }
         try {
-          const data = await SLF.api.post('/admin/login', { password });
-          sessionStorage.setItem('adminKey', data.adminKey);
+          const data = await SLF.api.post('/admin/login', { username, password });
+          sessionStorage.setItem('adminToken', data.token);
+          sessionStorage.setItem('adminMerchantId', data.merchantId);
+          sessionStorage.setItem('adminMerchantName', data.merchantName);
           window.location.href = '/admin';
         } catch (e) {
           $('#loginError').textContent = e.message || t('loginError');

@@ -2876,7 +2876,7 @@
         // ================================================================
         const API = '/api';
         const $ = s => document.querySelector(s);
-        let adminKey = sessionStorage.getItem('adminKey') || '';
+        let adminToken = sessionStorage.getItem('adminToken') || '';
         let menusCache = [];
         let tablesCache = [];
         let ordersCache = [];
@@ -2974,7 +2974,7 @@
         // ================================================================
         async function api(path, options = {}) {
             const headers = new Headers(options.headers || {});
-            if (adminKey) headers.set('X-Admin-Key', adminKey);
+            if (adminToken) headers.set('Authorization', 'Bearer ' + adminToken);
             headers.set('X-Store-Id', sessionStorage.getItem('adminStoreId') || '1');
             const r = await fetch(API + path, { ...options, headers });
             const data = await r.json().catch(() => ({}));
@@ -3203,7 +3203,7 @@
 
         async function loadDisplaySettings() {
             try {
-                const r = await fetch('/api/admin/display-settings', { headers: { 'X-Admin-Key': adminKey } });
+                const r = await fetch('/api/admin/display-settings', { headers: { 'Authorization': 'Bearer ' + adminToken } });
                 const d = await r.json();
                 if (r.ok) {
                     dualCurrencyEnabled = !!d.enabled;
@@ -3211,7 +3211,7 @@
                     $('#dualCurrencyEnabled').checked = dualCurrencyEnabled;
                     $('#dualCurrencySelect').value = secondaryCurrencyCode;
                 }
-                const configRes = await fetch('/api/public/config', { headers: { 'X-Admin-Key': adminKey } });
+                const configRes = await fetch('/api/public/config', { headers: { 'Authorization': 'Bearer ' + adminToken } });
                 if (configRes.ok) {
                     const config = await configRes.json();
                     currenciesCache = config.currencies || [];
@@ -3224,7 +3224,7 @@
 
         async function loadNotificationSettings() {
             try {
-                const r = await fetch('/api/admin/notification-settings', { headers: { 'X-Admin-Key': adminKey } });
+                const r = await fetch('/api/admin/notification-settings', { headers: { 'Authorization': 'Bearer ' + adminToken } });
                 const d = await r.json();
                 if (r.ok) {
                     $('#newOrderSoundEnabled').checked = !!d.enabled;
@@ -4113,7 +4113,7 @@
 
         $('#exportBackupBtn').onclick = async function() {
             try {
-                const res = await fetch('/api/admin/backup/export', { headers: { 'X-Admin-Key': adminKey } });
+                const res = await fetch('/api/admin/backup/export', { headers: { 'Authorization': 'Bearer ' + adminToken } });
                 if (!res.ok) throw new Error(tAdmin('backupExportFailed'));
                 const blob = await res.blob();
                 const url = URL.createObjectURL(blob);
@@ -4132,7 +4132,7 @@
                 const data = JSON.parse(text);
                 const res = await fetch('/api/admin/backup/import', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
                     body: JSON.stringify(data)
                 });
                 const json = await res.json().catch(() => ({}));
@@ -4143,7 +4143,7 @@
         };
         async function loadBackupSettings() {
             try {
-                const r = await fetch('/api/admin/backup/settings', { headers: { 'X-Admin-Key': adminKey } });
+                const r = await fetch('/api/admin/backup/settings', { headers: { 'Authorization': 'Bearer ' + adminToken } });
                 const d = await r.json();
                 if (r.ok) $('#backupIntervalSelect').value = String(d.intervalHours || 24);
             } catch (e) {}
@@ -4153,7 +4153,7 @@
                 const intervalHours = Number($('#backupIntervalSelect').value);
                 const r = await fetch('/api/admin/backup/settings', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
                     body: JSON.stringify({ intervalHours })
                 });
                 const d = await r.json().catch(() => ({}));
@@ -4163,7 +4163,7 @@
         };
         $('#backupNowBtn').onclick = async function() {
             try {
-                const r = await fetch('/api/admin/backup/now', { method: 'POST', headers: { 'X-Admin-Key': adminKey } });
+                const r = await fetch('/api/admin/backup/now', { method: 'POST', headers: { 'Authorization': 'Bearer ' + adminToken } });
                 const d = await r.json().catch(() => ({}));
                 if (!r.ok) throw new Error(d.error || tAdmin('backupFailed'));
                 toast('✅ ' + tAdmin('backupGenerated'));
@@ -4174,7 +4174,7 @@
             try {
                 const r = await fetch('/api/admin/display-settings', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
                     body: JSON.stringify({
                         enabled: $('#dualCurrencyEnabled').checked,
                         secondaryCurrencyCode: $('#dualCurrencySelect').value
@@ -4192,7 +4192,7 @@
             try {
                 const r = await fetch('/api/admin/notification-settings', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
                     body: JSON.stringify({ enabled: $('#newOrderSoundEnabled').checked })
                 });
                 const d = await r.json().catch(() => ({}));
@@ -4208,7 +4208,7 @@
             try {
                 const res = await fetch('/api/admin/reset-data', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
                     body: JSON.stringify({ password })
                 });
                 const data = await res.json().catch(() => ({}));
@@ -4607,8 +4607,8 @@
         function resetAdminIdleTimer() {
             if (adminIdleTimer) clearTimeout(adminIdleTimer);
             adminIdleTimer = setTimeout(() => {
-                adminKey = '';
-                sessionStorage.removeItem('adminKey');
+                adminToken = '';
+                sessionStorage.removeItem('adminToken');
                 window.location.href = '/login';
             }, ADMIN_IDLE_TIMEOUT_MS);
         }
@@ -4638,8 +4638,8 @@
         window.logoutAdmin = function() {
             stopAdminCallPolling();
             showConfirm(tAdmin('confirmLogout') || '确认退出登录吗？', function() {
-                adminKey = '';
-                sessionStorage.removeItem('adminKey');
+                adminToken = '';
+                sessionStorage.removeItem('adminToken');
                 window.location.href = '/login';
             });
         };
@@ -4650,12 +4650,12 @@
         const today = new Date().toISOString().slice(0, 10);
         applyAdminLanguage();
 
-        if (adminKey) {
+        if (adminToken) {
             $('#dashboard').hidden = false;
             $('#logoutBtn').hidden = false;
             resetAdminIdleTimer();
             refresh().catch(() => {
-                sessionStorage.removeItem('adminKey');
+                sessionStorage.removeItem('adminToken');
                 window.location.href = '/login';
             });
             startAdminCallPolling();
@@ -5104,10 +5104,10 @@
         }
 
         function exportData(type) {
-            const adminKey = sessionStorage.getItem('adminKey') || '';
+            const adminTokenLocal = sessionStorage.getItem('adminToken') || '';
             const url = '/api/admin/export/' + type;
             // 使用 fetch 下载，带上 admin key
-            fetch(url, { headers: { 'X-Admin-Key': adminKey } })
+            fetch(url, { headers: { 'Authorization': 'Bearer ' + adminToken } })
                 .then(res => {
                     if (!res.ok) throw new Error(tAdmin('exportFailed'));
                     return res.blob();
