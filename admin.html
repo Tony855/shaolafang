@@ -2186,7 +2186,7 @@
                 <label id="orderNoteFieldLabel">备注</label>
                 <input type="text" id="orderNoteField" maxlength="200" placeholder="顾客备注（选填）" style="width:100%;box-sizing:border-box;">
             </div>
-            <div class="order-modal-actions"><button id="orderCancelBtn" onclick="closeOrderForm()">${tAdmin('cancel')}</button><button class="primary" id="orderSaveBtn">保存订单</button></div>
+            <div class="order-modal-actions"><button id="orderCancelBtn" onclick="closeOrderForm()">取消</button><button class="primary" id="orderSaveBtn">保存订单</button></div>
         </div>
     </div>
 
@@ -2197,7 +2197,7 @@
             <h2 id="tableModalTitle">编辑桌号</h2>
             <div class="order-field"><label id="tableNameLabel">桌号名称</label><input id="editTableName" maxlength="20"></div>
             <div class="order-field"><label id="tableStatusLabel">状态</label><select id="editTableStatus"><option value="available">空闲</option><option value="occupied">已占</option><option value="reserved">已预订</option></select></div>
-            <div class="order-modal-actions"><button id="tableCancelBtn" onclick="closeTableForm()">${tAdmin('cancel')}</button><button class="primary" id="tableSaveBtn">保存</button></div>
+            <div class="order-modal-actions"><button id="tableCancelBtn" onclick="closeTableForm()">取消</button><button class="primary" id="tableSaveBtn">保存</button></div>
         </div>
     </div>
 
@@ -2207,7 +2207,7 @@
             <button class="modal-close" onclick="closeCategoryEditModal()">✕</button>
             <h2 id="categoryEditModalTitle">编辑菜品分类</h2>
             <div class="order-field"><label id="categoryEditNameLabel">分类名称</label><input id="editCategoryName" maxlength="20" placeholder="请输入分类名称"></div>
-            <div class="order-modal-actions"><button onclick="closeCategoryEditModal()">${tAdmin('cancel')}</button><button class="primary" onclick="saveCategoryEdit()">保存</button></div>
+            <div class="order-modal-actions"><button onclick="closeCategoryEditModal()" id="categoryCancelBtn">取消</button><button class="primary" onclick="saveCategoryEdit()">保存</button></div>
         </div>
     </div>
 
@@ -2301,7 +2301,7 @@
                 </label>
             </div>
             <div class="order-modal-actions">
-                <button onclick="closeStoreEdit()">${tAdmin('cancel')}</button>
+                <button onclick="closeStoreEdit()" id="storeEditCancelBtn">取消</button>
                 <button class="primary" id="saveStoreEditBtn">保存</button>
             </div>
         </div>

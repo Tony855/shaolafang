@@ -150,12 +150,20 @@
   .print-btn { background: rgba(52,152,219,.2); color: #5dade2; }
   .complete-btn { background: rgba(46,204,113,.2); color: var(--ok); }
   .toast {
-    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
-    background: rgba(0,0,0,.85); color: #fff; padding: 10px 20px;
-    border-radius: 10px; font-size: 14px; z-index: 999; opacity: 0;
-    pointer-events: none; transition: opacity .25s;
+    position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(20px);
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #fff; padding: 14px 28px;
+    border-radius: 14px; font-size: 15px; font-weight: 600;
+    z-index: 9999; opacity: 0;
+    pointer-events: none; transition: all .3s cubic-bezier(.68,-.55,.27,1.55);
+    box-shadow: 0 10px 40px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.1);
+    display: flex; align-items: center; gap: 10px;
+    backdrop-filter: blur(10px);
   }
-  .toast.show { opacity: 1; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { background: linear-gradient(135deg, #00b09b, #96c93d); }
+  .toast.error { background: linear-gradient(135deg, #eb3349, #f45c43); }
+  .toast.warning { background: linear-gradient(135deg, #f7971e, #ffd200); color: #333; }
   @media (max-width:520px) {
     .ticket-grid { grid-template-columns: 1fr; padding: 12px; }
     .top-bar { padding: 10px 12px; }
@@ -394,9 +402,11 @@
       knownOrderIds = pendingIds;
     }
 
-    function showToast(msg, ms = 2200) {
+    function showToast(msg, type = '', ms = 2500) {
       const el = $('#toast');
       el.textContent = msg;
+      el.className = 'toast';
+      if (type) el.classList.add(type);
       el.classList.add('show');
       clearTimeout(showToast._t);
       showToast._t = setTimeout(() => el.classList.remove('show'), ms);
@@ -505,7 +515,6 @@
             ${readyTag}
             <div class="ticket-actions">
               <button class="print-btn" onclick="printKitchenTicket(${o.id})">🖨️ 打印</button>
-              ${allDone ? `<button class="complete-btn" onclick="completeOrder(${o.id})">✅ ${kt('completeOrder')}</button>` : ''}
             </div>
           </div>`;
       }).join('');
@@ -520,7 +529,7 @@
         });
         await loadOrders();
       } catch (e) {
-        showToast('❌ ' + (e.message || kt('networkError')));
+        showToast('❌ ' + (e.message || kt('networkError')), 'error');
       }
     };
 
@@ -533,29 +542,16 @@
           body: JSON.stringify({})
         });
         if (data.printed) {
-          showToast('✅ ' + kt('kitchenTicketPrinted'));
+          showToast('✅ ' + kt('kitchenTicketPrinted'), 'success');
         } else {
-          showToast('⚠️ ' + kt('noPrinterConfigured'));
+          showToast('⚠️ ' + kt('noPrinterConfigured'), 'warning');
         }
       } catch (e) {
-        showToast('❌ ' + (e.message || kt('printFailed')));
+        showToast('❌ ' + (e.message || kt('printFailed')), 'error');
       }
     };
 
-    // 完成订单
-    window.completeOrder = async function(orderId) {
-      try {
-        await api('/orders/' + orderId, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'done' })
-        });
-        showToast('✅ 订单已完成');
-        await loadOrders();
-      } catch (e) {
-        showToast('❌ ' + (e.message || kt('networkError')));
-      }
-    };
+
 
     async function loadOrders() {
       try {
@@ -576,7 +572,7 @@
         if (/请先登录|无操作权限|401/.test(e.message || '')) {
           logout(false);
         } else {
-          showToast('❌ ' + (e.message || kt('networkError')));
+          showToast('❌ ' + (e.message || kt('networkError')), 'error');
         }
       }
     }
@@ -689,9 +685,10 @@
     $('#username').addEventListener('keydown', e => { if (e.key === 'Enter') $('#password').focus(); });
 
     let confirmCallback=null;
-    function showConfirm(message,callback,title){
+    function showConfirm(message,callback,title,icon){
       $('#confirmTitle').textContent=title||kt('confirmTitle')||'确认操作';
       $('#confirmMessage').textContent=message;
+      $('.confirm-icon').textContent=icon||'⚠️';
       confirmCallback=callback;
       $('#confirmModal').classList.add('open');
       // 更新按钮文本
