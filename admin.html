@@ -1811,6 +1811,9 @@
             <button class="nav-item" data-module="orders">
                 <span class="nav-icon">🧾</span> <span data-i18n-nav="orders">订单管理</span>
             </button>
+            <button class="nav-item" data-module="stores">
+                <span class="nav-icon">🏪</span> <span data-i18n-nav="storeSettings">店铺设置</span>
+            </button>
             <button class="nav-item" data-module="reservations">
                 <span class="nav-icon">📅</span> <span data-i18n-nav="reservations">预约管理</span>
             </button>
@@ -1823,9 +1826,6 @@
             </button>
             <button class="nav-item" data-module="logs">
                 <span class="nav-icon">🕒</span> <span data-i18n-nav="logs">登录日志</span>
-            </button>
-            <button class="nav-item" data-module="stores">
-                <span class="nav-icon">🏪</span> <span data-i18n-nav="stores">店铺管理</span>
             </button>
             <button class="nav-item" data-module="password">
                 <span class="nav-icon">⚙️</span> <span data-i18n-nav="systemSettings">系统设置</span>
@@ -2041,7 +2041,7 @@
 
             <!-- 店铺管理 -->
             <section class="panel module-panel" id="module-stores">
-                <h2 id="storesPanelTitle">店铺管理</h2>
+                <h2 id="storesPanelTitle">店铺设置</h2>
                 <div class="store-sub-buttons" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
                     <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span id="storeSubStores">店铺管理</span></button>
                     <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span id="storeSubCurrencies">货币类型</span></button>
@@ -2346,7 +2346,7 @@
                 tableManageTitle: '桌号与固定二维码', tableName: '桌号，例如 A06', addTable: '新增桌号',
                 addOrder: '➕ 新增订单', orderSearchPlaceholder: '输入订单号查询', search: '查询', currencyManageTitle: '货币类型', currencyCode: '代码 CNY', currencySymbol: '符号 ¥',
                 currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '登录日志', time: '时间', ip: 'IP', result: '结果',
-                loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', systemSettings: '系统设置', backToStores: '返回店铺管理', oldPassword: '旧密码',
+                loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', systemSettings: '系统设置', storeSettingsNav: '店铺设置', backToStores: '返回店铺管理', oldPassword: '旧密码',
                 newPassword: '新密码（至少 6 位）', changePassword: '修改密码', tableField: '桌号', dishList: '菜品清单',
                 addDishLine: '➕ 添加菜品', saveOrder: '保存订单', editTableTitle: '编辑桌号', tableNameLabel: '桌号名称',
                 statusLabel: '状态', noOrders: '暂无订单', noDishes: '暂无菜品', noData: '暂无数据',
@@ -2501,7 +2501,7 @@
                 currencyManageTitle: 'Currency Types', currencyCode: 'Code CNY', currencySymbol: 'Symbol ¥',
                 currencyName: 'Name', currencyRate: 'Rate', addCurrency: 'Add Currency',
                                 logsTitle: 'Login Logs', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
-                loginFailed: 'Login Failed', passwordTitle: 'Admin Password', systemSettings: 'System Settings', backToStores: 'Back to Stores', oldPassword: 'Old Password',
+                loginFailed: 'Login Failed', passwordTitle: 'Admin Password', systemSettings: 'System Settings', storeSettingsNav: 'Store Settings', backToStores: 'Back to Stores', oldPassword: 'Old Password',
                 newPassword: 'New Password (min 6 chars)', changePassword: 'Change Password', tableField: 'Table',
                 dishList: 'Dish List', addDishLine: '➕ Add Dish', saveOrder: 'Save Order',
                 editTableTitle: 'Edit Table', tableNameLabel: 'Table Name', statusLabel: 'Status',
@@ -2660,7 +2660,7 @@
             tableName: 'Bàn, vd A06', addTable: 'Thêm bàn', addOrder: '➕ Thêm đơn',
             currencyManageTitle: 'Loại tiền tệ', currencyCode: 'Mã CNY', currencySymbol: 'Ký hiệu ¥',
             currencyName: 'Tên', currencyRate: 'Tỷ giá', addCurrency: 'Thêm tiền tệ',
-            reservationManage: 'Quản lý đặt chỗ', callWaiterManage: 'Gọi nhân viên', printerManage: 'Quản lý máy in', reportManage: 'Báo cáo doanh thu',
+            reservationManage: 'Quản lý đặt chỗ', callWaiterManage: 'Gọi nhân viên', printerManage: 'Quản lý máy in', reportManage: 'Báo cáo doanh thu', storeSettingsNav: 'Cài đặt cửa hàng',
                 refreshCalls: 'Làm mới danh sách gọi',
                 printerName: 'Tên máy in',
                 connectionType: 'Loại kết nối',
@@ -4425,6 +4425,7 @@
                     logs: tAdmin('logsTitle'),
                     waiters: tAdmin('waitersManage'),
                     stores: tAdmin('storesManage'),
+                    storeSettings: tAdmin('storeSettingsNav'),
                     systemSettings: tAdmin('systemSettings')
                 };
                 el.textContent = map[el.dataset.i18nNav] || el.textContent;
