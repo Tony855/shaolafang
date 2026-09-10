@@ -121,7 +121,7 @@
         .header-right select:hover {
             background: rgba(255, 255, 255, 0.35);
         }
-        .header-right .table-info {
+        .header-left .table-info {
             background: rgba(255, 255, 255, 0.25);
             padding: 4px 14px;
             border-radius: 20px;
@@ -1705,6 +1705,10 @@
                 border-radius: 0 0 18px 18px;
                 padding: 13px 14px
             }
+            .header-right {
+                margin-left: auto;
+                justify-content: flex-end;
+            }
             .menu-grid {
                 gap: 11px
             }
@@ -1934,13 +1938,12 @@
     <header class="header">
         <div class="header-left">
             <div class="header-logo"><i class="fas fa-utensils"></i> <span id="appName">味享</span></div>
-            <span class="status-badge" id="connStatus">⏳ 连接中...</span>
             <span class="store-name-badge" id="storeNameDisplay">🏪 加载中...</span>
+            <span class="table-info" id="tableInfo" title="请扫描桌面二维码绑定桌号"><i class="fas fa-chair"></i> <span id="tableDisplay">未扫码</span></span>
         </div>
         <div class="header-right">
-            <span class="table-info" id="tableInfo" title="请扫描桌面二维码绑定桌号"><i class="fas fa-chair"></i> <span id="tableDisplay">未扫码</span></span>
-            <button id="callWaiterBtn" onclick="callWaiter()" hidden>🔔 呼叫服务员</button>
-            <button id="customerOrderBtn" onclick="openCustomerOrders()" hidden>🧾 订单详情</button>
+            <button id="callWaiterBtn" onclick="callWaiter()" hidden title="呼叫服务员">🔔</button>
+            <button id="customerOrderBtn" onclick="openCustomerOrders()" hidden title="订单详情">🧾</button>
             <select id="langSelect">
                 <option value="zh">🇨🇳 中文</option>
                 <option value="en">🇬🇧 English</option>
@@ -2266,7 +2269,7 @@
         const tableDisplay = $('#tableDisplay');
         const tableInfo = $('#tableInfo');
         const langSelect = $('#langSelect');
-        const connStatus = $('#connStatus');
+
         const orderSearchInput = $('#orderSearchInput');
         const storeNameDisplay = $('#storeNameDisplay');
 
@@ -2315,8 +2318,7 @@
             } catch {
                 isBackendOnline = false;
             }
-            connStatus.textContent = isBackendOnline ? `✅ ${t('connected')}` : `⚠️ ${t('offlineMode')}`;
-            connStatus.style.color = isBackendOnline ? '#8f8' : '#ffb347';
+
             return isBackendOnline;
         }
 
@@ -2361,10 +2363,18 @@
                 state.menu = await res.json();
                 renderCategories();
                 renderMenu();
+                updateUI();
             } catch (e) {
-                state.menu = [];
-                renderCategories();
-                renderMenu();
+                // 🔥 修复：只有从未成功加载过菜单时才清空 state.menu。
+                // 之前无论是否已有数据都会直接清空，一旦这次请求恰好因网络抖动失败，
+                // 就会把已经加载好的菜单（以及依赖它渲染的购物车）一起清没，
+                // 界面表现就是"购物车突然消失"，只有刷新页面重新请求成功才会恢复。
+                // 保留已有菜单数据，只是这次刷新失败，不影响用户已经在操作的购物车。
+                if (state.menu.length === 0) {
+                    renderCategories();
+                    renderMenu();
+                    updateUI();
+                }
                 showToast('⚠️ 无法加载数据库中的菜单，请检查后端服务', 2500);
             }
         }
@@ -2383,10 +2393,12 @@
         }
 
         async function fetchTables() {
+            // 返回值表示本函数内部是否已经拉取过菜单（避免 init() 再重复请求一次）
+            let menuAlreadyFetched = false;
             if (!isBackendOnline) {
                 state.tables = [];
                 renderTables();
-                return;
+                return menuAlreadyFetched;
             }
             try {
                 const res = await apiCall('GET', `${API_BASE}/tables`);
@@ -2417,6 +2429,7 @@
                     state.scanExpiresAt = info.expiresAt;
                     await fetchStoreInfo();
                     await fetchMenu();
+                    menuAlreadyFetched = true;
                 } else if (token) {
                     const tokenRes = await fetch(`${API_BASE}/public/table-token/${encodeURIComponent(token)}`);
                     if (!tokenRes.ok) throw new Error('无效桌码');
@@ -2436,6 +2449,7 @@
                     } catch (_) {}
                     await fetchStoreInfo();
                     await fetchMenu();
+                    menuAlreadyFetched = true;
                 } else {
                     state.table = '';
                     state.scanToken = '';
@@ -2450,6 +2464,7 @@
                 populateTableSelect();
                 await fetchCurrentTableOrders();
                 updateUI();
+                return menuAlreadyFetched;
             } catch (e) {
                 console.warn('fetchTables 错误:', e);
                 state.tables = [];
@@ -2472,6 +2487,7 @@
                 renderTables();
                 populateTableSelect();
                 updateUI();
+                return menuAlreadyFetched;
             }
         }
 
@@ -2803,6 +2819,7 @@
             }
             if (filtered.length === 0) {
                 menuGrid.innerHTML = `<div class="empty-state"><i class="fas fa-utensils"></i><p>${t('noDishes')}</p></div>`;
+                updateUI();
                 return;
             }
             menuGrid.innerHTML = filtered.map(item => {
@@ -3107,7 +3124,7 @@
             document.getElementById('totalOrdersLabel').textContent = t('totalOrders');
             document.getElementById('totalRevenueLabel').textContent = t('totalRevenue');
             document.getElementById('drawerTitle').textContent = t('cart');
-            document.getElementById('customerOrderBtn').textContent = '🧾 ' + t('orderDetails');
+            document.getElementById('customerOrderBtn').title = t('orderDetails');
             document.getElementById('customerOrderTitle').textContent = t('orderDetails');
             document.getElementById('customerOrderCloseBtn').textContent = t('close');
             document.getElementById('confirmOrderTitle').textContent = t('checkout');
@@ -3121,10 +3138,10 @@
             document.getElementById('orderSuccessNote').textContent = t('orderSuccessNote');
             document.getElementById('orderSuccessCloseBtn').textContent = t('gotIt');
             const callWaiterBtn = document.getElementById('callWaiterBtn');
-            if (callWaiterBtn) callWaiterBtn.textContent = '🔔 ' + t('callWaiter');
+            if (callWaiterBtn) callWaiterBtn.title = t('callWaiter');
             const searchInput = document.getElementById('menuSearchInput');
             if (searchInput) searchInput.placeholder = t('searchDishes');
-            connStatus.textContent = isBackendOnline ? `✅ ${t('connected')}` : `⚠️ ${t('offlineMode')}`;
+
             if (!state.table) {
                 tableDisplay.textContent = t('notScanned');
                 tableInfo.title = t('scanToBind');
@@ -3161,8 +3178,14 @@
             await fetchStoreConfig();
             await fetchCategoryOrder();
             await fetchStoreInfo();
-            await fetchTables();
-            await fetchMenu();
+            const menuAlreadyFetchedInTables = await fetchTables();
+            // 🔥 修复：扫码绑定桌号后 fetchTables() 内部已经按正确的 store_id 拉取过一次菜单，
+            // 这里不再重复请求，避免出现"扫码后购物车/菜单闪一下又变空"的问题
+            // （之前是无条件再拉一次，若这第二次请求因网络抖动失败会把 state.menu 清空，
+            //  从而导致购物车找不到对应商品、界面上购物车"凭空消失"，只有刷新页面重新走一遍成功的流程才会恢复）
+            if (!menuAlreadyFetchedInTables) {
+                await fetchMenu();
+            }
             setInterval(checkCustomerOrderCompletion, 5000);
 
             document.getElementById('cartToggle').addEventListener('click', openDrawer);

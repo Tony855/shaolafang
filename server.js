@@ -1091,7 +1091,8 @@ app.post('/api/waiter/login', async (req, res) => {
     const token = crypto.randomBytes(24).toString('base64url');
     const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
     await runAsync('INSERT INTO waiter_sessions (waiter_id, token, expires_at) VALUES (?, ?, ?)', [waiter.id, token, expiresAt]);
-    res.json({ token, storeId: waiter.store_id || 1, waiter: { id: waiter.id, username: waiter.username, display_name: waiter.display_name, can_order: waiter.can_order, can_mark_item: waiter.can_mark_item, can_complete_order: waiter.can_complete_order } });
+    const store = await getAsync('SELECT name FROM stores WHERE id=?', [waiter.store_id || 1]);
+    res.json({ token, storeId: waiter.store_id || 1, storeName: store?.name || '', waiter: { id: waiter.id, username: waiter.username, display_name: waiter.display_name, can_order: waiter.can_order, can_mark_item: waiter.can_mark_item, can_complete_order: waiter.can_complete_order, store_id: waiter.store_id } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1101,9 +1102,10 @@ app.get('/api/waiter/overview', async (req, res) => {
     const waiter = await getWaiterFromRequest(req);
     if (!waiter) return res.status(401).json({ error: '请先登录服务员账号' });
     const storeId = waiter.store_id || 1;
+    const store = await getAsync('SELECT name FROM stores WHERE id=?', [storeId]);
     const tables = await allAsync('SELECT * FROM tables WHERE store_id=? ORDER BY id', [storeId]);
     const rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND status != 'canceled' ORDER BY createdAt DESC", [storeId]);
-    res.json({ waiter, tables, orders: rows.map(formatOrder) });
+    res.json({ waiter, storeName: store?.name || '', tables, orders: rows.map(formatOrder) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1545,7 +1547,15 @@ app.get('/api/orders', requireAdminOrWaiter, async (req, res) => {
     } else {
       storeId = req.waiterStoreId || 1;
     }
-    const rows = await allAsync('SELECT * FROM orders WHERE store_id=? ORDER BY createdAt DESC', [storeId]);
+    const status = req.query.status;
+    let sql = 'SELECT * FROM orders WHERE store_id=?';
+    const params = [storeId];
+    if (status) {
+      sql += ' AND status=?';
+      params.push(status);
+    }
+    sql += ' ORDER BY createdAt DESC';
+    const rows = await allAsync(sql, params);
     const formatted = rows.map(formatOrder);
     res.json(formatted);
   } catch (e) {
@@ -2299,7 +2309,7 @@ app.get('/api/public/table-token/:token', async (req, res) => {
     const table = await getAsync('SELECT name, store_id FROM tables WHERE qr_token=?', [req.params.token]);
     if (!table) return res.status(404).json({ error: '无效或已失效的桌码' });
     const sessionToken = crypto.randomBytes(24).toString('base64url');
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 45 * 60 * 1000).toISOString();
     await runAsync('INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)', [table.name, sessionToken, expiresAt, new Date().toISOString(), table.store_id || 1]);
     res.json({ table: table.name, storeId: table.store_id || 1, sessionToken, expiresAt });
   } catch (e) { res.status(500).json({ error: e.message }); }

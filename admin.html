@@ -1817,8 +1817,9 @@
             <button class="nav-item" data-module="reservations">
                 <span class="nav-icon">📅</span> <span data-i18n-nav="reservations">预约管理</span>
             </button>
-            <button class="nav-item" data-module="calls">
+            <button class="nav-item" data-module="calls" id="callsNavItem">
                 <span class="nav-icon">🔔</span> <span data-i18n-nav="calls">呼叫服务员</span>
+                <span id="callsBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px;">0</span>
             </button>
             <button class="nav-item" data-module="printers">
                 <span class="nav-icon">🖨️</span> <span data-i18n-nav="printers">打印机管理</span>
@@ -1919,7 +1920,7 @@
             <section class="panel module-panel" id="module-calls">
                 <h2 id="callsPanelTitle">🔔 顾客呼叫</h2>
                 <div style="margin-bottom:12px;">
-                    <button id="refreshCallsBtn" onclick="loadWaiterCalls()">刷新呼叫列表</button>
+                    <button id="refreshCallsBtn" onclick="loadWaiterCalls()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">🔄 ${tAdmin('refresh')}</button>
                 </div>
                 <div id="waiterCallsList"></div>
             </section>
@@ -2370,7 +2371,7 @@
                 loadPrinterFailed: '加载打印机失败',
                 loadReportFailed: '加载报表失败',
                 loadFailed: '加载失败',
-                loadFailedRefresh: '加载失败，请刷新',
+                loadFailedRefresh: '加载失败，请刷新', refresh: '刷新',
                 mainStore: '总店',
                 portion: '份',
                 orderUnit: '单',
@@ -2433,7 +2434,7 @@
                 thankYou: '感谢您的光临',
                 editCurrency: '编辑货币',
                 reservationManage: '预约管理',
-                callWaiterManage: '呼叫服务员',
+                callWaiterManage: '呼叫服务员',urgeOrder: '催单',
                 printerManage: '打印机管理',
                 reportManage: '营业报表',
                 refreshCalls: '刷新呼叫列表',
@@ -2529,7 +2530,7 @@
                 loadPrinterFailed: 'Failed to load printers',
                 loadReportFailed: 'Failed to load report',
                 loadFailed: 'Load failed',
-                loadFailedRefresh: 'Load failed, please refresh',
+                loadFailedRefresh: 'Load failed, please refresh', refresh: 'Refresh',
                 mainStore: 'Main Store',
                 portion: 'portion',
                 orderUnit: 'order(s)',
@@ -2592,7 +2593,7 @@
                 thankYou: 'Thank You',
                 editCurrency: 'Edit Currency',
                 reservationManage: 'Reservation Management',
-                callWaiterManage: 'Call Waiter',
+                callWaiterManage: 'Call Waiter',urgeOrder: 'Urge Order',
                 printerManage: 'Printer Management',
                 reportManage: 'Sales Report',
                 refreshCalls: 'Refresh Calls',
@@ -4619,6 +4620,7 @@
         });
 
         window.logoutAdmin = function() {
+            stopAdminCallPolling();
             showConfirm(tAdmin('confirmLogout') || '确认退出登录吗？', function() {
                 adminKey = '';
                 sessionStorage.removeItem('adminKey');
@@ -4640,6 +4642,7 @@
                 sessionStorage.removeItem('adminKey');
                 window.location.href = '/login';
             });
+            startAdminCallPolling();
         } else {
             window.location.href = '/login';
         }
@@ -4751,6 +4754,57 @@
         // ================================================================
         //  呼叫服务员
         // ================================================================
+        let knownAdminCallIds = new Set();
+        let adminCallPollTimer = null;
+        async function pollAdminCalls() {
+            if (document.hidden) return;
+            try {
+                const calls = await api('/waiter-calls');
+                const badge = document.getElementById('callsBadge');
+                if (calls && calls.length > 0) {
+                    badge.style.display = 'inline-block';
+                    badge.textContent = calls.length;
+                    let hasNew = false;
+                    for (const c of calls) { if (!knownAdminCallIds.has(c.id)) { hasNew = true; break; } }
+                    if (hasNew) {
+                        // 播放三声叮咚提示音
+                        try {
+                            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            const now = ctx.currentTime;
+                            [[0, 1000], [0.2, 1400], [0.4, 1000]].forEach(([t, freq]) => {
+                                const osc = ctx.createOscillator();
+                                const gain = ctx.createGain();
+                                osc.connect(gain); gain.connect(ctx.destination);
+                                osc.frequency.value = freq; osc.type = 'sine';
+                                gain.gain.setValueAtTime(0.0001, now + t);
+                                gain.gain.exponentialRampToValueAtTime(0.4, now + t + 0.02);
+                                gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.25);
+                                osc.start(now + t); osc.stop(now + t + 0.3);
+                            });
+                        } catch (e) {}
+                        const newCall = calls.find(c => !knownAdminCallIds.has(c.id));
+                        if (newCall) {
+                            const typeText = newCall.type === 'urge' ? tAdmin('urgeOrder') : tAdmin('callWaiter');
+                            toast('🔔 ' + newCall.table_name + ' ' + typeText);
+                        }
+                    }
+                    knownAdminCallIds = new Set(calls.map(c => c.id));
+                } else {
+                    badge.style.display = 'none';
+                    knownAdminCallIds.clear();
+                }
+            } catch (e) { /* 静默失败 */ }
+        }
+        function startAdminCallPolling() {
+            stopAdminCallPolling();
+            adminCallPollTimer = setInterval(pollAdminCalls, 5000);
+            pollAdminCalls();
+        }
+        function stopAdminCallPolling() {
+            if (adminCallPollTimer) clearInterval(adminCallPollTimer);
+            adminCallPollTimer = null;
+        }
+
         async function loadWaiterCalls() {
             try {
                 const data = await api('/waiter-calls');
@@ -4762,8 +4816,8 @@
                 container.innerHTML = data.map(c => `
                     <div style="background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.3);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div style="font-weight:700;font-size:16px;">🔔 ${tAdmin('table')} ${esc(c.table_name)} ${tAdmin('callWaiter')}</div>
-                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${esc(c.created_at)}</div>
+                            <div style="font-weight:700;font-size:16px;color:#fff;">🔔 ${tAdmin('table')} ${esc(c.table_name)} ${tAdmin('callWaiter')}</div>
+                            <div style="color:#b8b8c8;font-size:13px;margin-top:4px;">${esc(c.created_at)}</div>
                         </div>
                         <button onclick="handleWaiterCall('${c.id}')" style="background:#ff7a45;color:#fff;border:0;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;">${tAdmin('handled')}</button>
                     </div>

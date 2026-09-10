@@ -232,6 +232,10 @@
     <div class="top-bar">
       <h1>🍳 <span id="pageTitle">后厨订单显示</span></h1>
       <span class="count-badge" id="countBadge">0</span>
+      <button class="urge-notification-btn" id="urgeNotificationBtn" onclick="showUrgeNotifications()" style="display:none;background:#e74c3c;color:#fff;border:0;padding:6px 14px;border-radius:20px;cursor:pointer;font-weight:600;font-size:13px;margin-left:10px;">
+        ⚡ <span id="urgeNotificationCount">0</span>
+      </button>
+      <span id="kitchenStoreName" style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:12px;font-size:13px;margin-left:10px;display:none;"></span>
       <div class="spacer"></div>
       <span class="updated"><span class="status-dot" id="statusDot"></span><span id="updatedLabel">更新于</span> <span id="updatedTime">--:--:--</span></span>
       <select id="langSelectMain">
@@ -286,6 +290,63 @@
         try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
       }
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    }
+    function playNewOrderChime() {
+      if (!soundEnabled) return;
+      unlockAudio();
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const compressor = audioCtx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-12, now);
+        compressor.knee.setValueAtTime(20, now);
+        compressor.ratio.setValueAtTime(8, now);
+        compressor.attack.setValueAtTime(0.003, now);
+        compressor.release.setValueAtTime(0.15, now);
+        compressor.connect(audioCtx.destination);
+        [[0, 880], [0.35, 1318.5], [0.70, 880], [1.05, 1318.5], [1.55, 880], [1.90, 1318.5]].forEach(([t, freq]) => {
+          [freq, freq * 2].forEach((f, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine'; osc.frequency.value = f;
+            const peak = i === 0 ? 1.0 : 0.5;
+            gain.gain.setValueAtTime(0.0001, now + t);
+            gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.9);
+            osc.connect(gain).connect(compressor);
+            osc.start(now + t); osc.stop(now + t + 0.95);
+          });
+        });
+      } catch (e) {}
+    }
+    // 催单提示音（急促的四声）
+    function playUrgeChime() {
+      if (!soundEnabled) return;
+      unlockAudio();
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const compressor = audioCtx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-12, now);
+        compressor.knee.setValueAtTime(20, now);
+        compressor.ratio.setValueAtTime(8, now);
+        compressor.attack.setValueAtTime(0.003, now);
+        compressor.release.setValueAtTime(0.15, now);
+        compressor.connect(audioCtx.destination);
+        [[0, 1000], [0.15, 1400], [0.30, 1000], [0.45, 1400]].forEach(([t, freq]) => {
+          [freq, freq * 1.5].forEach((f, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square'; osc.frequency.value = f;
+            const peak = i === 0 ? 0.3 : 0.15;
+            gain.gain.setValueAtTime(0.0001, now + t);
+            gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.12);
+            osc.connect(gain).connect(compressor);
+            osc.start(now + t); osc.stop(now + t + 0.15);
+          });
+        });
+      } catch (e) {}
     }
     function playNewOrderChime() {
       if (!soundEnabled) return;
@@ -500,6 +561,12 @@
       try {
         const data = await api('/waiter/overview');
         waiter = data.waiter;
+        // 显示所属店铺名称
+        const storeNameEl = document.getElementById('kitchenStoreName');
+        if (storeNameEl && data.storeName) {
+          storeNameEl.textContent = '🏪 ' + data.storeName;
+          storeNameEl.style.display = 'inline-block';
+        }
         detectNewOrders(data.orders || []);
         renderTickets(data.orders || []);
         $('#statusDot').classList.remove('off');
@@ -514,6 +581,63 @@
       }
     }
 
+    // ----- 催单实时通知 -----
+    let knownUrgeIds = new Set();
+    let urgePollTimer = null;
+    let pendingUrges = [];
+    async function pollUrges() {
+      if (document.hidden) return;
+      try {
+        const res = await fetch('/api/waiter-calls', { headers: { 'Authorization': 'Bearer ' + state.token } });
+        if (!res.ok) return;
+        const calls = await res.json();
+        pendingUrges = (calls || []).filter(c => c.type === 'urge');
+        const btn = document.getElementById('urgeNotificationBtn');
+        const count = document.getElementById('urgeNotificationCount');
+        if (pendingUrges.length > 0) {
+          btn.style.display = 'inline-flex';
+          count.textContent = pendingUrges.length;
+          let hasNew = false;
+          for (const c of pendingUrges) { if (!knownUrgeIds.has(c.id)) { hasNew = true; break; } }
+          if (hasNew) {
+            playUrgeChime();
+            const newUrge = pendingUrges.find(c => !knownUrgeIds.has(c.id));
+            if (newUrge) showToast('⚡ ' + newUrge.table_name + ' ' + kt('urgeOrder'));
+          }
+          knownUrgeIds = new Set(pendingUrges.map(c => c.id));
+        } else {
+          btn.style.display = 'none';
+          knownUrgeIds.clear();
+        }
+      } catch (e) { /* 静默失败 */ }
+    }
+    function startUrgePolling() {
+      stopUrgePolling();
+      urgePollTimer = setInterval(pollUrges, 5000);
+      pollUrges();
+    }
+    function stopUrgePolling() {
+      if (urgePollTimer) clearInterval(urgePollTimer);
+      urgePollTimer = null;
+    }
+    function showUrgeNotifications() {
+      if (pendingUrges.length === 0) { showToast(kt('noUrges')); return; }
+      const list = pendingUrges.map(c => `
+        <div style="background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div><div style="font-weight:700;">⚡ ${c.table_name} ${kt('urgeOrder')}</div><div style="color:#999;font-size:12px;margin-top:2px;">${c.message || ''}</div></div>
+          <button onclick="handleUrge('${c.id}')" style="background:#27ae60;color:#fff;border:0;padding:6px 14px;border-radius:6px;cursor:pointer;">${kt('handled')}</button>
+        </div>
+      `).join('');
+      showConfirmModal ? showConfirmModal(list, null, kt('urgeOrder'), true) : alert(list);
+    }
+    async function handleUrge(id) {
+      try {
+        await fetch('/api/waiter-calls/' + id + '/handle', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + state.token } });
+        showToast(kt('handled'));
+        pollUrges();
+      } catch (e) { showToast(kt('handleFailed') + ': ' + e.message); }
+    }
+
     function startPolling() {
       stopPolling();
       knownOrderIds = null;
@@ -521,11 +645,13 @@
       loadOrders();
       pollTimer = setInterval(loadOrders, 4000);
       clockTimer = setInterval(() => { renderTickets(lastOrders); loadSoundSetting(); }, 30000);
+      startUrgePolling();
     }
     function stopPolling() {
       if (pollTimer) clearInterval(pollTimer);
       if (clockTimer) clearInterval(clockTimer);
       pollTimer = null; clockTimer = null;
+      stopUrgePolling();
     }
 
     function showKitchenApp() {
