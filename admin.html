@@ -1811,9 +1811,6 @@
             <button class="nav-item" data-module="orders">
                 <span class="nav-icon">🧾</span> <span data-i18n-nav="orders">订单管理</span>
             </button>
-            <button class="nav-item" data-module="currencies">
-                <span class="nav-icon">💱</span> <span data-i18n-nav="currencies">货币类型</span>
-            </button>
             <button class="nav-item" data-module="reservations">
                 <span class="nav-icon">📅</span> <span data-i18n-nav="reservations">预约管理</span>
             </button>
@@ -1821,17 +1818,11 @@
                 <span class="nav-icon">🔔</span> <span data-i18n-nav="calls">呼叫服务员</span>
                 <span id="callsBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px;">0</span>
             </button>
-            <button class="nav-item" data-module="printers">
-                <span class="nav-icon">🖨️</span> <span data-i18n-nav="printers">打印机管理</span>
-            </button>
             <button class="nav-item" data-module="reports">
                 <span class="nav-icon">📊</span> <span data-i18n-nav="reports">营业报表</span>
             </button>
             <button class="nav-item" data-module="logs">
                 <span class="nav-icon">🕒</span> <span data-i18n-nav="logs">登录日志</span>
-            </button>
-            <button class="nav-item" data-module="waiters">
-                <span class="nav-icon">👥</span> <span data-i18n-nav="waiters">服务员管理</span>
             </button>
             <button class="nav-item" data-module="stores">
                 <span class="nav-icon">🏪</span> <span data-i18n-nav="stores">店铺管理</span>
@@ -1881,6 +1872,12 @@
             <!-- 货币类型 -->
             <section class="panel module-panel" id="module-currencies">
                 <h2 id="currencyPanelTitle">货币类型</h2>
+                                <div class="store-sub-buttons" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span id="storeSubStores">店铺管理</span></button>
+                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span id="storeSubCurrencies">货币类型</span></button>
+                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span id="storeSubPrinters">打印机管理</span></button>
+                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span id="storeSubWaiters">服务员管理</span></button>
+                </div>
                 <div class="backup-actions" style="margin-bottom:12px;">
                     <label style="color:#ccc"><input type="checkbox" id="dualCurrencyEnabled"> <span id="currencyDualLabel">启用双币显示</span></label>
                     <select id="dualCurrencySelect"></select>
@@ -1928,6 +1925,12 @@
             <!-- 打印机管理 -->
             <section class="panel module-panel" id="module-printers">
                 <h2 id="printersPanelTitle">🖨️ 小票打印机管理</h2>
+                                <div class="store-sub-buttons" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span id="storeSubStores">店铺管理</span></button>
+                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span id="storeSubCurrencies">货币类型</span></button>
+                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span id="storeSubPrinters">打印机管理</span></button>
+                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span id="storeSubWaiters">服务员管理</span></button>
+                </div>
                 <div class="printer-form-container">
                     <div class="printer-form-grid">
                         <div class="form-group">
@@ -2004,6 +2007,12 @@
             <!-- 服务员管理 -->
             <section class="panel module-panel" id="module-waiters">
                 <h2 id="waitersPanelTitle">服务员管理</h2>
+                                <div class="store-sub-buttons" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span id="storeSubStores">店铺管理</span></button>
+                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span id="storeSubCurrencies">货币类型</span></button>
+                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span id="storeSubPrinters">打印机管理</span></button>
+                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span id="storeSubWaiters">服务员管理</span></button>
+                </div>
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
                         <div class="form-group">
@@ -2033,6 +2042,12 @@
             <!-- 店铺管理 -->
             <section class="panel module-panel" id="module-stores">
                 <h2 id="storesPanelTitle">店铺管理</h2>
+                <div class="store-sub-buttons" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span id="storeSubStores">店铺管理</span></button>
+                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span id="storeSubCurrencies">货币类型</span></button>
+                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span id="storeSubPrinters">打印机管理</span></button>
+                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span id="storeSubWaiters">服务员管理</span></button>
+                </div>
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
                         <div class="form-group">
@@ -2331,7 +2346,7 @@
                 tableManageTitle: '桌号与固定二维码', tableName: '桌号，例如 A06', addTable: '新增桌号',
                 addOrder: '➕ 新增订单', orderSearchPlaceholder: '输入订单号查询', search: '查询', currencyManageTitle: '货币类型', currencyCode: '代码 CNY', currencySymbol: '符号 ¥',
                 currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '登录日志', time: '时间', ip: 'IP', result: '结果',
-                loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', systemSettings: '系统设置', oldPassword: '旧密码',
+                loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', systemSettings: '系统设置', backToStores: '返回店铺管理', oldPassword: '旧密码',
                 newPassword: '新密码（至少 6 位）', changePassword: '修改密码', tableField: '桌号', dishList: '菜品清单',
                 addDishLine: '➕ 添加菜品', saveOrder: '保存订单', editTableTitle: '编辑桌号', tableNameLabel: '桌号名称',
                 statusLabel: '状态', noOrders: '暂无订单', noDishes: '暂无菜品', noData: '暂无数据',
@@ -2486,7 +2501,7 @@
                 currencyManageTitle: 'Currency Types', currencyCode: 'Code CNY', currencySymbol: 'Symbol ¥',
                 currencyName: 'Name', currencyRate: 'Rate', addCurrency: 'Add Currency',
                                 logsTitle: 'Login Logs', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
-                loginFailed: 'Login Failed', passwordTitle: 'Admin Password', systemSettings: 'System Settings', oldPassword: 'Old Password',
+                loginFailed: 'Login Failed', passwordTitle: 'Admin Password', systemSettings: 'System Settings', backToStores: 'Back to Stores', oldPassword: 'Old Password',
                 newPassword: 'New Password (min 6 chars)', changePassword: 'Change Password', tableField: 'Table',
                 dishList: 'Dish List', addDishLine: '➕ Add Dish', saveOrder: 'Save Order',
                 editTableTitle: 'Edit Table', tableNameLabel: 'Table Name', statusLabel: 'Status',
@@ -4410,7 +4425,7 @@
                     logs: tAdmin('logsTitle'),
                     waiters: tAdmin('waitersManage'),
                     stores: tAdmin('storesManage'),
-                    password: tAdmin('passwordTitle')
+                    systemSettings: tAdmin('systemSettings')
                 };
                 el.textContent = map[el.dataset.i18nNav] || el.textContent;
             });
@@ -4460,7 +4475,7 @@
             $('#storeNameInput').placeholder = tAdmin('storeName');
             $('#storeCodeInput').placeholder = tAdmin('storeCode');
             $('#storeAddressInput').placeholder = tAdmin('storeAddress');
-            $('#addStoreBtn').textContent = tAdmin('addStore');
+            $('#addStoreBtn').textContent = tAdmin('addStore'); const subCurrencies=document.querySelectorAll('#storeSubCurrencies');subCurrencies.forEach(el=>el.textContent=tAdmin('currencyManageTitle')); const subPrinters=document.querySelectorAll('#storeSubPrinters');subPrinters.forEach(el=>el.textContent=tAdmin('printerManage')); const subWaiters=document.querySelectorAll('#storeSubWaiters');subWaiters.forEach(el=>el.textContent=tAdmin('waitersManage')); const subStores=document.querySelectorAll('#storeSubStores');subStores.forEach(el=>el.textContent=tAdmin('storesManage')); const backBtns=document.querySelectorAll('#backToStoresText');backBtns.forEach(b=>b.textContent=tAdmin('backToStores')||'返回店铺管理');
             $('#storeNameLabel').textContent = tAdmin('storeName');
             $('#storeCodeLabel').textContent = tAdmin('storeCode');
             $('#storeAddressLabel').textContent = tAdmin('storeAddress');
@@ -4986,7 +5001,13 @@
                     .big { font-size: 16px; font-weight: bold; }
                     .separator { border-top: 1px dashed #000; margin: 8px 0; }
                     .row { display: flex; justify-content: space-between; }
-                </style></head>
+                
+@media (max-width: 768px) {
+    .store-sub-buttons { flex-direction: column !important; }
+    .store-sub-btn { width: 100% !important; padding: 14px 20px !important; font-size: 15px !important; }
+    #module-stores .manage-form-grid { grid-template-columns: 1fr !important; }
+}
+</style></head>
                 <body onload="window.print();setTimeout(()=>window.close(),500);">
                 <div class="center big">${tAdmin('brandName')}</div>
                 <div class="center">${tAdmin('order')} #${orderId}</div>
