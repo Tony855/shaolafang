@@ -4386,13 +4386,14 @@
                     qrCode: tAdmin('qrCode'),
                     orderingQrCode: tAdmin('orderingQrCode')
                 };
+                const storeName = q.storeName || i18n.brand;
                 const w = window.open('', '_blank');
                 const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${esc(q.table)} · ${tAdmin('brandName')} ${tAdmin('qrCode')}</title>
+<title>${esc(q.table)} · ${esc(storeName)} ${tAdmin('qrCode')}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -4464,21 +4465,16 @@
     z-index: 1;
   }
   .brand-name {
-    font-size: 26px;
+    font-size: 34px;
     font-weight: 900;
     color: #fff;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     position: relative;
     z-index: 1;
+    margin-top: 6px;
   }
   .brand-en {
-    font-size: 11px;
-    color: rgba(255,255,255,0.7);
-    letter-spacing: 4px;
-    margin-top: 4px;
-    font-weight: 300;
-    position: relative;
-    z-index: 1;
+    display: none;
   }
   .card-body {
     padding: 28px 28px 24px;
@@ -4510,7 +4506,7 @@
   .qr-container {
     position: relative;
     display: inline-block;
-    margin-bottom: 20px;
+    margin-bottom: 32px;
   }
   .qr-frame {
     background: #fff;
@@ -4538,21 +4534,22 @@
   }
   .qr-frame img {
     display: block;
-    width: 200px;
-    height: 200px;
+    width: 260px;
+    height: 260px;
     border-radius: 8px;
   }
   .scan-text {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     color: #2c3e50;
-    margin-bottom: 6px;
+    margin-top: 12px;
+    margin-bottom: 8px;
     letter-spacing: 1px;
   }
   .scan-sub {
-    font-size: 12px;
+    font-size: 13px;
     color: #95a5a6;
-    margin-bottom: 18px;
+    margin-bottom: 24px;
   }
   .divider {
     display: flex;
@@ -4640,8 +4637,8 @@
   <div class="qr-card">
     <div class="card-header">
       <div class="brand-icon">🍽️</div>
-      <div class="brand-name">${tAdmin('brandName')}</div>
-      <div class="brand-en">${i18n.brand}</div>
+      <div class="brand-name">${esc(storeName)}</div>
+      
     </div>
     <div class="card-body">
       <div class="table-badge">
@@ -4655,7 +4652,7 @@
       </div>
       <div class="scan-text">${tAdmin('scanToOrder')}</div>
       <div class="scan-sub">${i18n.scanToOrder}</div>
-      <div class="divider"><span>${i18n.thankYou}</span></div>
+      
       <div class="url-box">${esc(q.url)}</div>
       <div class="actions">
         <button class="btn btn-download" onclick="downloadQR()">
@@ -4666,7 +4663,6 @@
         </button>
       </div>
     </div>
-    <div class="card-footer">${i18n.thankYou}</div>
   </div>
   <script>
     function downloadQR() {
@@ -4691,12 +4687,12 @@
       
       // Brand
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 72px sans-serif';
+      ctx.font = 'bold 80px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('🍽️ ' + '${i18n.brand}', W/2, 140);
+      ctx.fillText('🍽️ ' + '${esc(storeName)}', W/2, 170);
       ctx.font = '30px sans-serif';
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText('${i18n.brand}', W/2, 200);
+      
       ctx.font = 'bold 42px sans-serif';
       ctx.fillStyle = '#fff';
       ctx.fillText('${i18n.table}' + ' ' + '${esc(q.table)}', W/2, 275);
@@ -4705,43 +4701,27 @@
       ctx.fillStyle = '#fff';
       ctx.strokeStyle = '#f0f0f0';
       ctx.lineWidth = 6;
-      roundRect(ctx, W/2-270, 380, 540, 540, 30);
+      roundRect(ctx, W/2-310, 380, 620, 620, 30);
       ctx.fill(); ctx.stroke();
       
       // QR Code
       const qrImg = new Image();
       qrImg.onload = function() {
-        ctx.drawImage(qrImg, W/2-230, 420, 460, 460);
+        ctx.drawImage(qrImg, W/2-270, 420, 540, 540);
         
         // Text
         ctx.fillStyle = '#2c3e50';
         ctx.font = 'bold 52px sans-serif';
-        ctx.fillText('${i18n.scanToOrder}', W/2, 1000);
+        ctx.fillText('${i18n.scanToOrder}', W/2, 1080);
         ctx.font = '28px sans-serif';
         ctx.fillStyle = '#95a5a6';
-        ctx.fillText('${i18n.scanToOrder}', W/2, 1050);
+        ctx.fillText('${i18n.scanToOrder}', W/2, 1130);
         
-        // Divider
-        ctx.strokeStyle = '#e0e0e0';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(150, 1100); ctx.lineTo(W/2-80, 1100);
-        ctx.moveTo(W/2+80, 1100); ctx.lineTo(W-150, 1100);
-        ctx.stroke();
-        ctx.fillStyle = '#bdc3c7';
-        ctx.font = '24px sans-serif';
-        ctx.fillText('${i18n.thankYou}', W/2, 1108);
-        
-        // Footer
-        ctx.fillStyle = '#fafafa';
-        ctx.fillRect(0, H-100, W, 100);
-        ctx.fillStyle = '#bdc3c7';
-        ctx.font = '26px sans-serif';
-        ctx.fillText('${i18n.thankYou}', W/2, H-40);
+
         
         // Download
         const link = document.createElement('a');
-        link.download = '${i18n.brand}' + '-${esc(q.table)}-' + '${i18n.qrCode}' + '.png';
+        link.download = '${esc(storeName)}' + '-${esc(q.table)}-' + '${i18n.qrCode}' + '.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
       };
@@ -5394,8 +5374,8 @@
         });
 
         window.logoutAdmin = function() {
-            stopAdminCallPolling();
             showConfirm(tAdmin('confirmLogout') || '确认退出登录吗？', function() {
+                try { stopAdminCallPolling(); } catch(e) {}
                 adminToken = '';
                 sessionStorage.removeItem('adminToken');
                 window.location.href = '/login';
