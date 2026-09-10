@@ -2263,24 +2263,24 @@
                         <span id="adminInfoUsername">-</span>
                     </div>
                     <div class="admin-info-row">
-                        <label id="adminInfoDisplayNameLabel">显示名称</label>
-                        <span id="adminInfoDisplayName">-</span>
+                        <label id="adminInfoMerchantLabel">商户名称</label>
+                        <span id="adminInfoMerchant">-</span>
                     </div>
                     <div class="admin-info-row">
-                        <label id="adminInfoMerchantLabel">所属商户</label>
-                        <span id="adminInfoMerchant">-</span>
+                        <label id="adminInfoStoreCountLabel">门店数量</label>
+                        <span id="adminInfoStoreCount">-</span>
+                    </div>
+                    <div class="admin-info-row">
+                        <label id="adminInfoContactLabel">联系人</label>
+                        <span id="adminInfoContact">-</span>
                     </div>
                     <div class="admin-info-row">
                         <label id="adminInfoPhoneLabel">联系电话</label>
                         <span id="adminInfoPhone">-</span>
                     </div>
                     <div class="admin-info-row">
-                        <label id="adminInfoCreatedLabel">创建时间</label>
+                        <label id="adminInfoCreatedLabel">注册时间</label>
                         <span id="adminInfoCreated">-</span>
-                    </div>
-                    <div class="admin-info-row">
-                        <label id="adminInfoLastLoginLabel">最后登录</label>
-                        <span id="adminInfoLastLogin">-</span>
                     </div>
                     <div class="admin-info-row" style="border-bottom:0;">
                         <label id="adminInfoStatusLabel">账号状态</label>
@@ -2926,7 +2926,7 @@
                 passwordModalTitle: '请输入密码', passwordModalMessage: '请输入管理员密码以确认操作', passwordModalPlaceholder: '请输入密码',
                 addWaiter: '添加服务员', dishName: '菜品名称', nameEn: '英文名称', descEn: '英文描述',
                 price: '价格', icon: '图标（例如 🍖）', desc: '菜品描述', addDish: '新增菜品', cancelEdit: '取消编辑',
-                dishCategoryManage: '菜品分类管理', newCategory: '新分类名称', addCategory: '添加分类',
+                dishCategoryManage: '菜品分类', allCategories: '全部分类', defaultSort: '默认排序', nameAsc: '名称 A-Z', nameDesc: '名称 Z-A', priceAsc: '价格 低-高', priceDesc: '价格 高-低', newCategory: '新分类名称', addCategory: '添加分类',
                 tableManageTitle: '桌号与固定二维码', tableName: '桌号，例如 A06', addTable: '新增桌号',
                 addOrder: '➕ 新增订单', orderSearchPlaceholder: '输入订单号查询', search: '查询', currencyManageTitle: '货币类型', currencyCode: '代码 CNY', currencySymbol: '符号 ¥',
                 currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '登录日志', time: '时间', ip: 'IP', result: '结果',
@@ -2938,11 +2938,12 @@
                 tableNameRequired: '桌号名称不能为空', orderItemsRequired: '请至少选择一道菜品并填写有效数量', invalidStatus: '无效状态',
                 confirmDelete: '确认删除？', qr: '二维码', qrTitle: '固定点餐码', qrDesc: '此二维码固定对应该桌，顾客扫码后会自动绑定桌号。',
                 connectSuccess: '登录成功', connectFailed: '密码错误，请重试',
-                adminInfoTitle: '账户信息', adminInfoUsername: '用户名', adminInfoDisplayName: '显示名称',
-                adminInfoMerchant: '所属商户', adminInfoPhone: '联系电话', adminInfoCreated: '创建时间', adminInfoLastLogin: '最后登录',
-                adminInfoStatus: '账号状态', adminInfoNotice: '⚠️ 账户无权修改个人信息，如需修改请联系超级管理员',
+                adminInfoTitle: '账户信息', adminInfoUsername: '用户名', adminInfoMerchant: '商户名称',
+                adminInfoStoreCount: '门店数量', adminInfoContact: '联系人', adminInfoPhone: '联系电话',
+                adminInfoCreated: '注册时间', adminInfoStatus: '账号状态',
+                adminInfoNotice: '⚠️ 账户无权修改个人信息，如需修改请联系超级管理员',
                 adminInfoClose: '关闭', todayRevenue: '今日营业额', monthRevenue: '本月营业额',
-                hotDishesTitle: '热销菜品排行榜', ordersCount: '笔订单',
+                hotDishesTitle: '热销菜品排行榜', ordersCount: '笔订单', noHotDishes: '暂无热销数据', unit: '份',
                 backupTitle: '💾 数据备份', exportBackup: '导出备份', importBackup: '导入备份',
                 backupInterval1h: '每 1 小时', backupInterval6h: '每 6 小时', backupInterval12h: '每 12 小时',
                 backupInterval24h: '每 24 小时', saveBackupSettings: '保存备份设置', backupNow: '立即备份',
@@ -3084,7 +3085,7 @@
                 waiterStore: 'Store', waiterPermission: 'Permissions', permOrder: 'Take Order', permMarkItem: 'Serve Dish', permCompleteOrder: 'Complete Order', permOrderDesc: 'Receive customer orders', permMarkItemDesc: 'Mark dishes as served', permCompleteDesc: 'Settle and complete orders', waiterUsernamePlaceholder: 'Enter username', waiterPasswordPlaceholder: 'Enter new password', waiterNamePlaceholder: 'Enter display name', newPasswordShort: 'New Password', passwordModalTitle: 'Enter Password', passwordModalMessage: 'Please enter admin password to confirm', passwordModalPlaceholder: 'Enter password',
                 dishName: 'Dish Name', nameEn: 'English Name', descEn: 'English Description', price: 'Price',
                 icon: 'Icon (e.g. 🍖)', desc: 'Description', addDish: 'Add Dish', cancelEdit: 'Cancel Edit',
-                dishCategoryManage: 'Dish Categories', newCategory: 'New category name', addCategory: 'Add Category',
+                dishCategoryManage: 'Dish Categories', allCategories: 'All Categories', defaultSort: 'Default Sort', nameAsc: 'Name A-Z', nameDesc: 'Name Z-A', priceAsc: 'Price Low-High', priceDesc: 'Price High-Low', newCategory: 'New category name', addCategory: 'Add Category',
                 tableManageTitle: 'Tables & Fixed QR Codes', tableName: 'Table, e.g. A06',
                 addTable: 'Add Table', addOrder: '➕ Add Order', orderSearchPlaceholder: 'Search by order number', search: 'Search',
                 currencyManageTitle: 'Currency Types', currencyCode: 'Code CNY', currencySymbol: 'Symbol ¥',
@@ -3102,11 +3103,12 @@
                 qrTitle: 'Fixed Order QR Code',
                 qrDesc: 'This QR code is fixed to this table. Customers will be bound to the table after scanning.',
                 connectSuccess: 'Login successful', connectFailed: 'Incorrect password. Please try again.',
-                adminInfoTitle: 'Account Info', adminInfoUsername: 'Username', adminInfoDisplayName: 'Display Name',
-                adminInfoMerchant: 'Merchant', adminInfoPhone: 'Contact Phone', adminInfoCreated: 'Created At', adminInfoLastLogin: 'Last Login',
-                adminInfoStatus: 'Status', adminInfoNotice: '⚠️ Account cannot modify personal info, please contact super admin',
+                adminInfoTitle: 'Account Info', adminInfoUsername: 'Username', adminInfoMerchant: 'Merchant Name',
+                adminInfoStoreCount: 'Store Count', adminInfoContact: 'Contact Person', adminInfoPhone: 'Contact Phone',
+                adminInfoCreated: 'Registered At', adminInfoStatus: 'Status',
+                adminInfoNotice: '⚠️ Account cannot modify personal info, please contact super admin',
                 adminInfoClose: 'Close', todayRevenue: 'Today Revenue', monthRevenue: 'Month Revenue',
-                hotDishesTitle: 'Hot Dishes Ranking', ordersCount: 'orders',
+                hotDishesTitle: 'Hot Dishes Ranking', ordersCount: 'orders', noHotDishes: 'No hot dishes data', unit: 'servings',
                 backupTitle: '💾 Data Backup', exportBackup: 'Export Backup', importBackup: 'Import Backup',
                 backupInterval1h: 'Every 1 hour', backupInterval6h: 'Every 6 hours', backupInterval12h: 'Every 12 hours',
                 backupInterval24h: 'Every 24 hours', saveBackupSettings: 'Save Backup Settings', backupNow: 'Backup Now',
@@ -3248,7 +3250,7 @@
             waiterPassword: 'Mật khẩu', waiterDisplayName: 'Tên hiển thị', addWaiter: 'Thêm nhân viên',
             nameEn: 'Tên tiếng Anh', descEn: 'Mô tả tiếng Anh', logsTitle: 'Nhật ký đăng nhập', time: 'Thời gian',
             result: 'Kết quả', loginSuccess: 'Đăng nhập thành công', loginFailed: 'Đăng nhập thất bại',
-            dishCategoryManage: 'Quản lý danh mục món', newCategory: 'Tên danh mục mới', addCategory: 'Thêm danh mục',
+            dishCategoryManage: 'Danh mục món', allCategories: 'Tất cả danh mục', defaultSort: 'Sắp xếp mặc định', nameAsc: 'Tên A-Z', nameDesc: 'Tên Z-A', priceAsc: 'Giá thấp-cao', priceDesc: 'Giá cao-thấp', newCategory: 'Tên danh mục mới', addCategory: 'Thêm danh mục',
             dishName: 'Tên món', price: 'Giá', icon: 'Biểu tượng (vd 🍖)',
             desc: 'Mô tả', addDish: 'Thêm món', cancelEdit: 'Hủy chỉnh sửa', tableManageTitle: 'Bàn & mã QR cố định',
             tableName: 'Bàn, vd A06', addTable: 'Thêm bàn', addOrder: '➕ Thêm đơn',
@@ -3319,7 +3321,7 @@
             waiterPassword: 'รหัสผ่าน', waiterDisplayName: 'ชื่อที่แสดง', addWaiter: 'เพิ่มพนักงาน',
             nameEn: 'ชื่อภาษาอังกฤษ', descEn: 'คำอธิบายภาษาอังกฤษ', logsTitle: 'บันทึกการเข้าสู่ระบบ', time: 'เวลา',
             result: 'ผลลัพธ์', loginSuccess: 'เข้าสู่ระบบสำเร็จ', loginFailed: 'เข้าสู่ระบบล้มเหลว',
-            dishCategoryManage: 'จัดการหมวดหมู่อาหาร', newCategory: 'ชื่อหมวดหมู่ใหม่', addCategory: 'เพิ่มหมวดหมู่',
+            dishCategoryManage: 'หมวดหมู่อาหาร', allCategories: 'ทุกหมวดหมู่', defaultSort: 'เรียงลำดับเริ่มต้น', nameAsc: 'ชื่อ A-Z', nameDesc: 'ชื่อ Z-A', priceAsc: 'ราคาต่ำ-สูง', priceDesc: 'ราคาสูง-ต่ำ', newCategory: 'ชื่อหมวดหมู่ใหม่', addCategory: 'เพิ่มหมวดหมู่',
             dishName: 'ชื่อเมนู', price: 'ราคา', icon: 'ไอคอน (เช่น 🍖)',
             desc: 'คำอธิบาย', addDish: 'เพิ่มเมนู', cancelEdit: 'ยกเลิกแก้ไข',
             tableManageTitle: 'โต๊ะและคิวอาร์โค้ดคงที่', tableName: 'โต๊ะ เช่น A06', addTable: 'เพิ่มโต๊ะ',
@@ -3390,7 +3392,7 @@
             waiterPassword: 'ពាក្យសម្ងាត់', waiterDisplayName: 'ឈ្មោះបង្ហាញ', addWaiter: 'បន្ថែមបុគ្គលិក',
             nameEn: 'ឈ្មោះជាភាសាអង់គ្លេស', descEn: 'ការពិពណ៌នាជាភាសាអង់គ្លេស', logsTitle: 'កំណត់ហេតុចូល', time: 'ពេលវេលា',
             result: 'លទ្ធផល', loginSuccess: 'ចូលបានជោគជ័យ', loginFailed: 'ចូលបរាជ័យ', qr: 'QR Code',
-            dishCategoryManage: 'គ្រប់គ្រងប្រភេទម្ហូប', newCategory: 'ឈ្មោះប្រភេទថ្មី', addCategory: 'បន្ថែមប្រភេទ',
+            dishCategoryManage: 'ប្រភេទម្ហូប', allCategories: 'គ្រប់ប្រភេទ', defaultSort: 'តម្រៀបលំនាំដើម', nameAsc: 'ឈ្មោះ A-Z', nameDesc: 'ឈ្មោះ Z-A', priceAsc: 'តម្លៃទាប-ខ្ពស់', priceDesc: 'តម្លៃខ្ពស់-ទាប', newCategory: 'ឈ្មោះប្រភេទថ្មី', addCategory: 'បន្ថែមប្រភេទ',
             dishName: 'ឈ្មោះម្ហូប', price: 'តម្លៃ',
             icon: 'រូបតំណាង (ឧ. 🍖)', desc: 'ការពិពណ៌នា', addDish: 'បន្ថែមម្ហូប', cancelEdit: 'បោះបង់ការកែ',
             tableManageTitle: 'តុ និង QR Code ថេរ', tableName: 'តុ ឧ. A06', addTable: 'បន្ថែមតុ',
@@ -3628,7 +3630,7 @@
             const filterSelect = $('#menuCategoryFilter');
             if (filterSelect) {
                 const currentValue = filterSelect.value;
-                filterSelect.innerHTML = '<option value="all">📋 全部分类</option>' +
+                filterSelect.innerHTML = '<option value="all">📋 ' + tAdmin('allCategories') + '</option>' +
                     categoriesCache.map(c => `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
                 filterSelect.value = currentValue || 'all';
             }
@@ -5101,11 +5103,11 @@
             // 管理员信息弹窗翻译
             $('#adminInfoTitle').textContent = tAdmin('adminInfoTitle');
             $('#adminInfoUsernameLabel').textContent = tAdmin('adminInfoUsername');
-            $('#adminInfoDisplayNameLabel').textContent = tAdmin('adminInfoDisplayName');
             $('#adminInfoMerchantLabel').textContent = tAdmin('adminInfoMerchant');
+            $('#adminInfoStoreCountLabel').textContent = tAdmin('adminInfoStoreCount');
+            $('#adminInfoContactLabel').textContent = tAdmin('adminInfoContact');
             $('#adminInfoPhoneLabel').textContent = tAdmin('adminInfoPhone');
             $('#adminInfoCreatedLabel').textContent = tAdmin('adminInfoCreated');
-            $('#adminInfoLastLoginLabel').textContent = tAdmin('adminInfoLastLogin');
             $('#adminInfoStatusLabel').textContent = tAdmin('adminInfoStatus');
             // 营业报表汇总翻译
             $('#todayRevenueLabel').textContent = tAdmin('todayRevenue');
@@ -5132,6 +5134,19 @@
             $('#menuFormTitle').textContent = tAdmin('menuManage');
             $('#openDishModalBtn').textContent = tAdmin('addDish');
             $('#openCategoryModalBtn').textContent = tAdmin('dishCategoryManage');
+            // 更新排序下拉框选项
+            const sortSelect = $('#menuSortBy');
+            if (sortSelect) {
+                const currentValue = sortSelect.value;
+                sortSelect.innerHTML = `
+                    <option value="default">🔄 ${tAdmin('defaultSort')}</option>
+                    <option value="name_asc">🔤 ${tAdmin('nameAsc')}</option>
+                    <option value="name_desc">🔤 ${tAdmin('nameDesc')}</option>
+                    <option value="price_asc">💰 ${tAdmin('priceAsc')}</option>
+                    <option value="price_desc">💰 ${tAdmin('priceDesc')}</option>
+                `;
+                sortSelect.value = currentValue;
+            }
             $('#dishModalTitle').textContent = editingMenuId ? tAdmin('menuManage') + ' #' + editingMenuId : tAdmin(
                 'addDish');
             $('#categoryModalTitle').textContent = tAdmin('dishCategoryManage');
@@ -5284,6 +5299,8 @@
                 loadWaiters();
                 loadStores();
                 loadDisplaySettings();
+                loadReportSummary();
+                loadDailyReport();
             }
         }
         $('#adminLang').value = adminLang;
@@ -5383,13 +5400,13 @@
                 if (data.admin) {
                     $('#adminDisplayName').textContent = data.admin.username || '账户';
                     $('#adminInfoUsername').textContent = data.admin.username || '-';
-                    $('#adminInfoDisplayName').textContent = data.admin.display_name || '-';
                     $('#adminInfoMerchant').textContent = data.merchant?.name || '-';
+                    $('#adminInfoStoreCount').textContent = (data.storeCount || 0) + ' / ' + (data.merchant?.max_stores || 0);
+                    $('#adminInfoContact').textContent = data.merchant?.contact_name || '-';
                     $('#adminInfoPhone').textContent = data.merchant?.contact_phone || '-';
-                    $('#adminInfoCreated').textContent = data.admin.created_at ? new Date(data.admin.created_at).toLocaleString() : '-';
-                    $('#adminInfoLastLogin').textContent = data.admin.last_login_at ? new Date(data.admin.last_login_at).toLocaleString() : '-';
-                    $('#adminInfoStatus').textContent = data.admin.active ? '正常' : '已禁用';
-                    $('#adminInfoStatus').style.color = data.admin.active ? '#2ecc71' : '#e74c3c';
+                    $('#adminInfoCreated').textContent = data.merchant?.created_at ? new Date(data.merchant.created_at).toLocaleString() : (data.admin.created_at ? new Date(data.admin.created_at).toLocaleString() : '-');
+                    $('#adminInfoStatus').textContent = data.merchant?.status ? '正常' : '已禁用';
+                    $('#adminInfoStatus').style.color = data.merchant?.status ? '#2ecc71' : '#e74c3c';
                 }
             } catch (e) { console.warn('加载账户信息失败', e); }
         }
@@ -5411,9 +5428,9 @@
             try {
                 const data = await api('/admin/reports/summary');
                 $('#todayRevenueAmount').textContent = '$' + Number(data.today.revenue).toFixed(2);
-                $('#todayRevenueOrders').textContent = data.today.orders + ' 笔订单';
+                $('#todayRevenueOrders').textContent = data.today.orders + ' ' + tAdmin('ordersCount');
                 $('#monthRevenueAmount').textContent = '$' + Number(data.month.revenue).toFixed(2);
-                $('#monthRevenueOrders').textContent = data.month.orders + ' 笔订单';
+                $('#monthRevenueOrders').textContent = data.month.orders + ' ' + tAdmin('ordersCount');
                 // 热销菜品排行
                 const list = $('#hotDishesList');
                 if (data.topDishes && data.topDishes.length > 0) {
@@ -5424,11 +5441,11 @@
                             <div class="hot-dish-rank ${rankClass}">${rankText}</div>
                             <span class="hot-dish-emoji">${d.emoji || '🍽️'}</span>
                             <span class="hot-dish-name">${esc(d.name)}</span>
-                            <span class="hot-dish-sales">${d.sales_count} 份</span>
+                            <span class="hot-dish-sales">${d.sales_count} ${tAdmin('unit') || '份'}</span>
                         </div>`;
                     }).join('');
                 } else {
-                    list.innerHTML = `<div style="text-align:center;color:#9c9cb2;padding:20px;font-size:13px;">暂无热销数据</div>`;
+                    list.innerHTML = `<div style="text-align:center;color:#9c9cb2;padding:20px;font-size:13px;">${tAdmin('noHotDishes') || '暂无热销数据'}</div>`;
                 }
             } catch (e) { console.warn('加载营业汇总失败', e); }
         }

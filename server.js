@@ -2466,8 +2466,9 @@ app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
 app.get('/api/admin/info', requireAdminKey, async (req, res) => {
   try {
     const admin = await getAsync('SELECT id, username, display_name, merchant_id, created_at, last_login_at, active FROM merchant_admins WHERE id=?', [req.adminId]);
-    const merchant = await getAsync('SELECT id, name, contact_name, contact_phone, max_stores, status FROM merchants WHERE id=?', [admin?.merchant_id]);
-    res.json({ admin, merchant });
+    const merchant = await getAsync('SELECT id, name, contact_name, contact_phone, max_stores, status, created_at FROM merchants WHERE id=?', [admin?.merchant_id]);
+    const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores WHERE merchant_id=?', [admin?.merchant_id]);
+    res.json({ admin, merchant, storeCount: storeCount?.count || 0 });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
