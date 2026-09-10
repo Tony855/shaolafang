@@ -111,6 +111,162 @@
         #logoutBtn:hover {
             background: rgba(255, 77, 79, .4);
         }
+        .admin-name-btn {
+            background: linear-gradient(135deg, rgba(232,93,58,.15), rgba(232,93,58,.05));
+            border: 1px solid rgba(232,93,58,.3);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all .2s;
+        }
+        .admin-name-btn:hover {
+            background: linear-gradient(135deg, rgba(232,93,58,.25), rgba(232,93,58,.1));
+            border-color: rgba(232,93,58,.5);
+            transform: translateY(-1px);
+        }
+        .admin-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        .admin-info-grid .info-item {
+            background: rgba(255,255,255,.04);
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+        .admin-info-grid .info-item label {
+            display: block;
+            font-size: 12px;
+            color: #9c9cb2;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .admin-info-grid .info-item span {
+            font-size: 14px;
+            color: #fff;
+            font-weight: 600;
+        }
+        .admin-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+        }
+        .admin-info-row label {
+            color: #9c9cb2;
+            font-size: 13px;
+            margin: 0;
+            font-weight: 500;
+        }
+        .admin-info-row span {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: right;
+            word-break: break-all;
+            max-width: 55%;
+        }
+        .admin-info-notice {
+            background: rgba(241,196,15,.1);
+            border: 1px solid rgba(241,196,15,.2);
+            color: #f1c40f;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            text-align: center;
+        }
+        .report-summary-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .report-summary-card {
+            background: linear-gradient(135deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 14px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: transform .2s;
+        }
+        .report-summary-card:hover {
+            transform: translateY(-2px);
+        }
+        .report-summary-card.today { border-color: rgba(46,204,113,.3); }
+        .report-summary-card.month { border-color: rgba(52,152,219,.3); }
+        .report-summary-card .card-icon {
+            position: absolute;
+            right: 16px;
+            top: 16px;
+            font-size: 32px;
+            opacity: .3;
+        }
+        .report-summary-card .card-label {
+            font-size: 13px;
+            color: #9c9cb2;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .report-summary-card .card-amount {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .report-summary-card.today .card-amount { color: #2ecc71; }
+        .report-summary-card.month .card-amount { color: #3498db; }
+        .report-summary-card .card-orders {
+            font-size: 12px;
+            color: #9c9cb2;
+            margin-top: 6px;
+        }
+        .hot-dishes-ranking {
+            background: linear-gradient(135deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 14px;
+            padding: 18px;
+            margin-top: 20px;
+        }
+        .hot-dishes-ranking h3 {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            margin: 0 0 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .hot-dish-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+        }
+        .hot-dish-item:last-child { border-bottom: 0; }
+        .hot-dish-rank {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .hot-dish-rank.rank-1 { background: linear-gradient(135deg, #ffd700, #ffaa00); color: #fff; }
+        .hot-dish-rank.rank-2 { background: linear-gradient(135deg, #c0c0c0, #a0a0a0); color: #fff; }
+        .hot-dish-rank.rank-3 { background: linear-gradient(135deg, #cd7f32, #b87333); color: #fff; }
+        .hot-dish-rank.rank-other { background: rgba(255,255,255,.1); color: #9c9cb2; }
+        .hot-dish-emoji { font-size: 20px; margin-right: 10px; }
+        .hot-dish-name { flex: 1; color: #fff; font-size: 14px; font-weight: 600; }
+        .hot-dish-sales { color: #ffd93d; font-weight: 700; font-size: 14px; }
 
         /* ===== 侧边栏 — 固定（桌面） ===== */
         .admin-sidebar {
@@ -2078,7 +2234,7 @@
     <!-- ===== 顶部栏（固定） ===== -->
     <header class="top">
         <strong id="adminHeaderTitle">🍖 烧腊坊 · 后台</strong>
-        <span>
+        <span class="top-right">
             <select id="adminStoreSelect"></select>
             <select id="adminLang">
                 <option value="zh">中文</option>
@@ -2087,9 +2243,53 @@
                 <option value="th">ภาษาไทย</option>
                 <option value="km">ភាសាខ្មែរ</option>
             </select>
+            <button class="admin-name-btn" id="adminNameBtn" onclick="showAdminInfo()" hidden>👤 <span id="adminDisplayName">账户</span></button>
             <button id="logoutBtn" onclick="logoutAdmin()" hidden>退出</button>
         </span>
     </header>
+
+    <!-- 账户信息弹窗（只读） -->
+    <div class="order-modal" id="adminInfoModal">
+        <div class="order-modal-card admin-info-card" style="max-width:460px;padding:0;overflow:hidden;">
+            <button class="modal-close" onclick="hideAdminInfo()" style="top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;border:0;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">✕</button>
+            <div style="background:linear-gradient(135deg,#e85d3a,#c0392b);padding:14px 20px;display:flex;align-items:center;gap:12px;">
+                <div style="width:40px;height:40px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">👤</div>
+                <h2 id="adminInfoTitle" style="color:#fff;font-size:16px;font-weight:700;margin:0;">账户信息</h2>
+            </div>
+            <div style="padding:16px 20px 18px;">
+                <div style="display:flex;flex-direction:column;">
+                    <div class="admin-info-row">
+                        <label id="adminInfoUsernameLabel">用户名</label>
+                        <span id="adminInfoUsername">-</span>
+                    </div>
+                    <div class="admin-info-row">
+                        <label id="adminInfoDisplayNameLabel">显示名称</label>
+                        <span id="adminInfoDisplayName">-</span>
+                    </div>
+                    <div class="admin-info-row">
+                        <label id="adminInfoMerchantLabel">所属商户</label>
+                        <span id="adminInfoMerchant">-</span>
+                    </div>
+                    <div class="admin-info-row">
+                        <label id="adminInfoPhoneLabel">联系电话</label>
+                        <span id="adminInfoPhone">-</span>
+                    </div>
+                    <div class="admin-info-row">
+                        <label id="adminInfoCreatedLabel">创建时间</label>
+                        <span id="adminInfoCreated">-</span>
+                    </div>
+                    <div class="admin-info-row">
+                        <label id="adminInfoLastLoginLabel">最后登录</label>
+                        <span id="adminInfoLastLogin">-</span>
+                    </div>
+                    <div class="admin-info-row" style="border-bottom:0;">
+                        <label id="adminInfoStatusLabel">账号状态</label>
+                        <span id="adminInfoStatus">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ===== 主内容 ===== -->
     <main class="admin-shell" id="dashboard" hidden>
@@ -2291,6 +2491,21 @@
             <!-- 营业报表 -->
             <section class="panel module-panel" id="module-reports">
                 <h2 id="reportsPanelTitle">📊 营业报表</h2>
+                <!-- 今日/本月营业额汇总卡片 -->
+                <div class="report-summary-cards" id="reportSummaryCards">
+                    <div class="report-summary-card today">
+                        <div class="card-icon">💰</div>
+                        <div class="card-label" id="todayRevenueLabel">今日营业额</div>
+                        <div class="card-amount" id="todayRevenueAmount">$0.00</div>
+                        <div class="card-orders" id="todayRevenueOrders">0 笔订单</div>
+                    </div>
+                    <div class="report-summary-card month">
+                        <div class="card-icon">📅</div>
+                        <div class="card-label" id="monthRevenueLabel">本月营业额</div>
+                        <div class="card-amount" id="monthRevenueAmount">$0.00</div>
+                        <div class="card-orders" id="monthRevenueOrders">0 笔订单</div>
+                    </div>
+                </div>
                 <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                     <label id="reportDateLabel" style="color:#ccc;">日期:</label>
                     <input type="date" id="reportDate" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
@@ -2300,6 +2515,11 @@
                     <button id="exportMenuBtn" onclick="exportData('menu')" style="background:#9b59b6;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出菜单CSV</button>
                 </div>
                 <div id="reportContent"></div>
+                <!-- 热销菜品排行榜 -->
+                <div class="hot-dishes-ranking" id="hotDishesRanking">
+                    <h3>🔥 <span id="hotDishesTitle">热销菜品排行榜</span></h3>
+                    <div id="hotDishesList"></div>
+                </div>
             </section>
 
             <!-- 登录日志 -->
@@ -2718,6 +2938,11 @@
                 tableNameRequired: '桌号名称不能为空', orderItemsRequired: '请至少选择一道菜品并填写有效数量', invalidStatus: '无效状态',
                 confirmDelete: '确认删除？', qr: '二维码', qrTitle: '固定点餐码', qrDesc: '此二维码固定对应该桌，顾客扫码后会自动绑定桌号。',
                 connectSuccess: '登录成功', connectFailed: '密码错误，请重试',
+                adminInfoTitle: '账户信息', adminInfoUsername: '用户名', adminInfoDisplayName: '显示名称',
+                adminInfoMerchant: '所属商户', adminInfoPhone: '联系电话', adminInfoCreated: '创建时间', adminInfoLastLogin: '最后登录',
+                adminInfoStatus: '账号状态', adminInfoNotice: '⚠️ 账户无权修改个人信息，如需修改请联系超级管理员',
+                adminInfoClose: '关闭', todayRevenue: '今日营业额', monthRevenue: '本月营业额',
+                hotDishesTitle: '热销菜品排行榜', ordersCount: '笔订单',
                 backupTitle: '💾 数据备份', exportBackup: '导出备份', importBackup: '导入备份',
                 backupInterval1h: '每 1 小时', backupInterval6h: '每 6 小时', backupInterval12h: '每 12 小时',
                 backupInterval24h: '每 24 小时', saveBackupSettings: '保存备份设置', backupNow: '立即备份',
@@ -2877,6 +3102,11 @@
                 qrTitle: 'Fixed Order QR Code',
                 qrDesc: 'This QR code is fixed to this table. Customers will be bound to the table after scanning.',
                 connectSuccess: 'Login successful', connectFailed: 'Incorrect password. Please try again.',
+                adminInfoTitle: 'Account Info', adminInfoUsername: 'Username', adminInfoDisplayName: 'Display Name',
+                adminInfoMerchant: 'Merchant', adminInfoPhone: 'Contact Phone', adminInfoCreated: 'Created At', adminInfoLastLogin: 'Last Login',
+                adminInfoStatus: 'Status', adminInfoNotice: '⚠️ Account cannot modify personal info, please contact super admin',
+                adminInfoClose: 'Close', todayRevenue: 'Today Revenue', monthRevenue: 'Month Revenue',
+                hotDishesTitle: 'Hot Dishes Ranking', ordersCount: 'orders',
                 backupTitle: '💾 Data Backup', exportBackup: 'Export Backup', importBackup: 'Import Backup',
                 backupInterval1h: 'Every 1 hour', backupInterval6h: 'Every 6 hours', backupInterval12h: 'Every 12 hours',
                 backupInterval24h: 'Every 24 hours', saveBackupSettings: 'Save Backup Settings', backupNow: 'Backup Now',
@@ -3494,7 +3724,7 @@
 
         function translateLoginMessage(msg) {
             if (!msg) return '';
-            if (msg.includes('商家管理员登录成功')) {
+            if (msg.includes('商户管理员登录成功')) {
                 const username = msg.split(':')[1] || '';
                 return tAdmin('merchantAdminLogin') + ': ' + username.trim();
             }
@@ -4792,7 +5022,7 @@
             else if (module === 'reservations') loadReservations();
             else if (module === 'calls') loadWaiterCalls();
             else if (module === 'printers') loadPrinters();
-            else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); loadDailyReport(); }
+            else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); loadDailyReport(); loadReportSummary(); }
         }
 
         // 导航点击事件：总是切换到对应模块（若已激活则刷新）
@@ -4868,6 +5098,19 @@
             $('#passwordModalInput').placeholder = tAdmin('passwordModalPlaceholder') || '请输入密码';
             $('#passwordCancelBtn').textContent = L('cancel') || '取消';
             $('#passwordOkBtn').textContent = L('confirm') || '确定';
+            // 管理员信息弹窗翻译
+            $('#adminInfoTitle').textContent = tAdmin('adminInfoTitle');
+            $('#adminInfoUsernameLabel').textContent = tAdmin('adminInfoUsername');
+            $('#adminInfoDisplayNameLabel').textContent = tAdmin('adminInfoDisplayName');
+            $('#adminInfoMerchantLabel').textContent = tAdmin('adminInfoMerchant');
+            $('#adminInfoPhoneLabel').textContent = tAdmin('adminInfoPhone');
+            $('#adminInfoCreatedLabel').textContent = tAdmin('adminInfoCreated');
+            $('#adminInfoLastLoginLabel').textContent = tAdmin('adminInfoLastLogin');
+            $('#adminInfoStatusLabel').textContent = tAdmin('adminInfoStatus');
+            // 营业报表汇总翻译
+            $('#todayRevenueLabel').textContent = tAdmin('todayRevenue');
+            $('#monthRevenueLabel').textContent = tAdmin('monthRevenue');
+            $('#hotDishesTitle').textContent = tAdmin('hotDishesTitle');
             document.querySelectorAll('[data-i18n-nav]').forEach(el => {
                 const map = {
                     menu: L('menuManage'),
@@ -5057,7 +5300,7 @@
         // ================================================================
         // 超时退出
         // ================================================================
-        const ADMIN_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+        let ADMIN_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
         let adminIdleTimer = null;
 
         function resetAdminIdleTimer() {
@@ -5132,6 +5375,65 @@
         };
 
         // ================================================================
+        // 管理员信息（只读）
+        // ================================================================
+        async function loadAdminInfo() {
+            try {
+                const data = await api('/admin/info');
+                if (data.admin) {
+                    $('#adminDisplayName').textContent = data.admin.username || '账户';
+                    $('#adminInfoUsername').textContent = data.admin.username || '-';
+                    $('#adminInfoDisplayName').textContent = data.admin.display_name || '-';
+                    $('#adminInfoMerchant').textContent = data.merchant?.name || '-';
+                    $('#adminInfoPhone').textContent = data.merchant?.contact_phone || '-';
+                    $('#adminInfoCreated').textContent = data.admin.created_at ? new Date(data.admin.created_at).toLocaleString() : '-';
+                    $('#adminInfoLastLogin').textContent = data.admin.last_login_at ? new Date(data.admin.last_login_at).toLocaleString() : '-';
+                    $('#adminInfoStatus').textContent = data.admin.active ? '正常' : '已禁用';
+                    $('#adminInfoStatus').style.color = data.admin.active ? '#2ecc71' : '#e74c3c';
+                }
+            } catch (e) { console.warn('加载账户信息失败', e); }
+        }
+        function showAdminInfo() {
+            document.getElementById('adminInfoModal').classList.add('open');
+        }
+        function hideAdminInfo() {
+            document.getElementById('adminInfoModal').classList.remove('open');
+        }
+        // 点击遮罩关闭
+        document.getElementById('adminInfoModal').addEventListener('click', function(e) {
+            if (e.target === this) hideAdminInfo();
+        });
+
+        // ================================================================
+        // 营业报表汇总（今日/本月营业额 + 热销菜品）
+        // ================================================================
+        async function loadReportSummary() {
+            try {
+                const data = await api('/admin/reports/summary');
+                $('#todayRevenueAmount').textContent = '$' + Number(data.today.revenue).toFixed(2);
+                $('#todayRevenueOrders').textContent = data.today.orders + ' 笔订单';
+                $('#monthRevenueAmount').textContent = '$' + Number(data.month.revenue).toFixed(2);
+                $('#monthRevenueOrders').textContent = data.month.orders + ' 笔订单';
+                // 热销菜品排行
+                const list = $('#hotDishesList');
+                if (data.topDishes && data.topDishes.length > 0) {
+                    list.innerHTML = data.topDishes.map((d, i) => {
+                        const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-other';
+                        const rankText = i < 3 ? ['🥇','🥈','🥉'][i] : (i + 1);
+                        return `<div class="hot-dish-item">
+                            <div class="hot-dish-rank ${rankClass}">${rankText}</div>
+                            <span class="hot-dish-emoji">${d.emoji || '🍽️'}</span>
+                            <span class="hot-dish-name">${esc(d.name)}</span>
+                            <span class="hot-dish-sales">${d.sales_count} 份</span>
+                        </div>`;
+                    }).join('');
+                } else {
+                    list.innerHTML = `<div style="text-align:center;color:#9c9cb2;padding:20px;font-size:13px;">暂无热销数据</div>`;
+                }
+            } catch (e) { console.warn('加载营业汇总失败', e); }
+        }
+
+        // ================================================================
         // 初始化
         // ================================================================
         const today = new Date().toISOString().slice(0, 10);
@@ -5140,6 +5442,15 @@
         if (adminToken) {
             $('#dashboard').hidden = false;
             $('#logoutBtn').hidden = false;
+            $('#adminNameBtn').hidden = false;
+            loadAdminInfo();
+            // 从服务器加载超时配置
+            fetch('/api/public/global-config').then(r => r.json()).then(cfg => {
+                if (cfg.admin_idle_timeout) {
+                    ADMIN_IDLE_TIMEOUT_MS = cfg.admin_idle_timeout * 60 * 1000;
+                    resetAdminIdleTimer();
+                }
+            }).catch(() => {});
             resetAdminIdleTimer();
             refresh().catch(() => {
                 sessionStorage.removeItem('adminToken');

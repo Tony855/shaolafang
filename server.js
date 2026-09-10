@@ -587,11 +587,11 @@ async function initDatabase() {
   }
 
   // 初始化基础数据
-  // 创建默认商家
+  // 创建默认商户
   const merchantCount = await getAsync('SELECT COUNT(*) AS count FROM merchants');
   if (merchantCount.count === 0) {
     await runAsync("INSERT INTO merchants (id, name, code, contact_name, contact_phone, max_stores, status) VALUES (1, '烧腊坊', 'shaolafang', '管理员', '', 10, 1)");
-    console.log('  + 已创建默认商家：烧腊坊 (merchant_id=1)');
+    console.log('  + 已创建默认商户：烧腊坊 (merchant_id=1)');
   }
 
   // 创建唯一超级管理员
@@ -602,15 +602,15 @@ async function initDatabase() {
     console.log('  + 已创建超级管理员：superadmin / super123');
   }
 
-  // 创建默认商家管理员（用户名+密码）
+  // 创建默认商户管理员（用户名+密码）
   const merchantAdminCount = await getAsync('SELECT COUNT(*) AS count FROM merchant_admins WHERE merchant_id=1');
   if (merchantAdminCount.count === 0) {
     const adminHash = hashPassword('admin123');
-    await runAsync("INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)", [1, 'admin', adminHash, '商家管理员']);
-    console.log('  + 已创建商家管理员：admin / admin123');
+    await runAsync("INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)", [1, 'admin', adminHash, '商户管理员']);
+    console.log('  + 已创建商户管理员：admin / admin123');
   }
 
-  // 迁移现有数据的 merchant_id（确保所有现有数据关联到默认商家）
+  // 迁移现有数据的 merchant_id（确保所有现有数据关联到默认商户）
   await runAsync('UPDATE stores SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
   await runAsync('UPDATE menus SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
   await runAsync('UPDATE tables SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
@@ -1036,7 +1036,7 @@ async function getWaiterFromRequest(req) {
 }
 
 async function requireAdminKey(req, res, next) {
-  // 支持新的商家管理员 token 认证
+  // 支持新的商户管理员 token 认证
   const authHeader = req.get('Authorization') || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
   if (token) {
@@ -1046,6 +1046,7 @@ async function requireAdminKey(req, res, next) {
       if (admin) {
         const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
         if (merchant) {
+          req.adminId = admin.id;
           req.merchantId = admin.merchant_id;
           req.storeId = parseInt(req.get('X-Store-Id') || '1', 10);
           return next();
@@ -1064,7 +1065,7 @@ async function requireAdminKey(req, res, next) {
 }
 
 async function requireAdminOrWaiter(req, res, next) {
-  // 支持新的商家管理员 token 认证
+  // 支持新的商户管理员 token 认证
   const authHeader = req.get('Authorization') || '';
   const bearerToken = authHeader.replace(/^Bearer\s+/i, '');
   if (bearerToken) {
@@ -1080,7 +1081,7 @@ async function requireAdminOrWaiter(req, res, next) {
           return next();
         }
       }
-    } catch (e) { /* 不是商家管理员token，继续尝试其他方式 */ }
+    } catch (e) { /* 不是商户管理员token，继续尝试其他方式 */ }
   }
   // 兼容旧的 X-Admin-Key 认证
   const providedKey = req.get('X-Admin-Key');
@@ -1181,7 +1182,7 @@ app.get('/api/public/categories', async (req, res) => {
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'ordering-system', timestamp: new Date().toISOString() }));
 
 // ----- 管理员登录 -----
-// ===== 商家管理员登录（用户名+密码）=====
+// ===== 商户管理员登录（用户名+密码）=====
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
@@ -1199,13 +1200,13 @@ app.post('/api/admin/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username, 'merchant_admin', '密码错误']);
       return res.status(401).json({ error: '用户名或密码错误' });
     }
-    // 检查商家状态
+    // 检查商户状态
     const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [admin.merchant_id]);
     if (!merchant || merchant.status !== 1) {
-      return res.status(403).json({ error: '商家账号已被禁用，请联系超级管理员' });
+      return res.status(403).json({ error: '商户账号已被禁用，请联系超级管理员' });
     }
     await runAsync('UPDATE merchant_admins SET last_login_at=NOW() WHERE id=?', [admin.id]);
-    await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username, '', admin.merchant_id, 'merchant_admin', '商家管理员登录成功: ' + username]);
+    await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?, ?)', [new Date().toISOString(), req.ip, username, '', admin.merchant_id, 'merchant_admin', '商户管理员登录成功: ' + username]);
     // 生成 token（简单方式：使用 admin_access_key + merchant_id）
     const token = Buffer.from(JSON.stringify({ merchantId: admin.merchant_id, adminId: admin.id, ts: Date.now() })).toString('base64');
     res.json({ success: true, token, merchantId: admin.merchant_id, merchantName: merchant.name, admin: { id: admin.id, username: admin.username, display_name: admin.display_name } });
@@ -1215,7 +1216,7 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
-// ===== 商家管理员认证中间件 =====
+// ===== 商户管理员认证中间件 =====
 async function requireMerchantAdmin(req, res, next) {
   try {
     const auth = req.headers['authorization'] || '';
@@ -1275,7 +1276,7 @@ async function requireSuperAdmin(req, res, next) {
   }
 }
 
-// ===== 商家管理 CRUD =====
+// ===== 商户管理 CRUD =====
 app.get('/api/super/merchants', requireSuperAdmin, async (req, res) => {
   try {
     const rows = await allAsync(`SELECT m.*, 
@@ -1290,12 +1291,12 @@ app.get('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
   try {
     const { name, code, contact_name, contact_phone, max_stores } = req.body || {};
-    if (!name || !code) return res.status(400).json({ error: '商家名称和编码必填' });
+    if (!name || !code) return res.status(400).json({ error: '商户名称和编码必填' });
     const exists = await getAsync('SELECT id FROM merchants WHERE code=?', [code]);
-    if (exists) return res.status(400).json({ error: '商家编码已存在' });
+    if (exists) return res.status(400).json({ error: '商户编码已存在' });
     const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status) VALUES (?, ?, ?, ?, ?, 1)', [name, code, contact_name || '', contact_phone || '', max_stores || 1]);
     const newMerchantId = result.lastID;
-    // 自动创建商家管理员
+    // 自动创建商户管理员
     const adminUsername = 'admin_' + code;
     const adminHash = hashPassword('admin123');
     await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
@@ -1313,14 +1314,14 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 
 app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
-    if (req.params.id == 1) return res.status(400).json({ error: '不能删除默认商家' });
+    if (req.params.id == 1) return res.status(400).json({ error: '不能删除默认商户' });
     await runAsync('DELETE FROM merchants WHERE id=?', [req.params.id]);
     await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 重置商家管理员密码
+// 重置商户管理员密码
 app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (req, res) => {
   try {
     const { password } = req.body || {};
@@ -1363,6 +1364,35 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
     const limit = parseInt(req.query.limit) || 200;
     const logs = await allAsync('SELECT l.*, m.name as merchant_name FROM login_logs l LEFT JOIN merchants m ON l.merchant_id = m.id ORDER BY l.id DESC LIMIT ?', [limit]);
     res.json(logs);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 超级管理员获取全局设置
+app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
+  try {
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout')");
+    const settings = {};
+    rows.forEach(r => { settings[r.key] = r.value; });
+    res.json({
+      admin_idle_timeout: parseInt(settings.admin_idle_timeout || '5', 10),
+      qr_session_timeout: parseInt(settings.qr_session_timeout || '45', 10),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 超级管理员更新全局设置
+app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
+  try {
+    const { admin_idle_timeout, qr_session_timeout } = req.body || {};
+    if (admin_idle_timeout !== undefined) {
+      const mins = Math.max(1, Math.min(1440, parseInt(admin_idle_timeout, 10) || 5));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    if (qr_session_timeout !== undefined) {
+      const mins = Math.max(5, Math.min(1440, parseInt(qr_session_timeout, 10) || 45));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('qr_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2399,6 +2429,60 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 营业汇总：今日营业额、本月营业额、热销菜品排行
+app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
+  try {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const todayStats = await getAsync(`
+      SELECT COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
+      FROM orders WHERE status='done' AND createdAt >= ? AND createdAt <= ?
+    `, [todayStart.toISOString(), todayEnd.toISOString()]);
+
+    const monthStats = await getAsync(`
+      SELECT COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
+      FROM orders WHERE status='done' AND createdAt >= ? AND createdAt <= ?
+    `, [monthStart.toISOString(), monthEnd.toISOString()]);
+
+    const topDishes = await allAsync(`
+      SELECT id, name, emoji, sales_count, price, category
+      FROM menus WHERE active=1 AND sales_count > 0
+      ORDER BY sales_count DESC LIMIT 10
+    `);
+
+    res.json({
+      today: { revenue: Number(todayStats?.revenue || 0), orders: todayStats?.orders || 0 },
+      month: { revenue: Number(monthStats?.revenue || 0), orders: monthStats?.orders || 0 },
+      topDishes,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 账户信息（只读）
+app.get('/api/admin/info', requireAdminKey, async (req, res) => {
+  try {
+    const admin = await getAsync('SELECT id, username, display_name, merchant_id, created_at, last_login_at, active FROM merchant_admins WHERE id=?', [req.adminId]);
+    const merchant = await getAsync('SELECT id, name, contact_name, contact_phone, max_stores, status FROM merchants WHERE id=?', [admin?.merchant_id]);
+    res.json({ admin, merchant });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 获取全局配置（包含超时设置）
+app.get('/api/public/global-config', async (req, res) => {
+  try {
+    const idleSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
+    const qrSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
+    res.json({
+      admin_idle_timeout: parseInt(idleSetting?.value || '5', 10),
+      qr_session_timeout: parseInt(qrSetting?.value || '45', 10),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ----- 催单（顾客催单） -----
 app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
   try {
@@ -2617,7 +2701,9 @@ app.get('/api/public/table-token/:token', async (req, res) => {
     const table = await getAsync('SELECT name, store_id FROM tables WHERE qr_token=?', [req.params.token]);
     if (!table) return res.status(404).json({ error: '无效或已失效的桌码' });
     const sessionToken = crypto.randomBytes(24).toString('base64url');
-    const expiresAt = new Date(Date.now() + 45 * 60 * 1000).toISOString();
+    const qrTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
+    const qrTimeoutMinutes = parseInt(qrTimeoutSetting?.value || '45', 10);
+    const expiresAt = new Date(Date.now() + qrTimeoutMinutes * 60 * 1000).toISOString();
     await runAsync('INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)', [table.name, sessionToken, expiresAt, new Date().toISOString(), table.store_id || 1]);
     res.json({ table: table.name, storeId: table.store_id || 1, sessionToken, expiresAt });
   } catch (e) { res.status(500).json({ error: e.message }); }

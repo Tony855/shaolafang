@@ -114,7 +114,7 @@ select:focus {
 <div class="login-page" id="loginPage">
   <div class="login-card">
     <h1>🔐 超级管理员</h1>
-    <p class="subtitle">烧腊坊商家管理平台</p>
+    <p class="subtitle">烧腊坊商户管理平台</p>
     <div class="form-group">
       <label>用户名</label>
       <input type="text" id="loginUsername" placeholder="请输入用户名" value="superadmin">
@@ -136,7 +136,7 @@ select:focus {
       <span class="icon">📊</span><span>仪表盘</span>
     </div>
     <div class="nav-item" data-module="merchants" onclick="switchModule('merchants')">
-      <span class="icon">🏢</span><span>商家管理</span>
+      <span class="icon">🏢</span><span>商户管理</span>
     </div>
     <div class="nav-item" data-module="stores" onclick="switchModule('stores')">
       <span class="icon">🏪</span><span>门店总览</span>
@@ -162,7 +162,7 @@ select:focus {
     <div class="panel active" id="panel-dashboard">
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="label">商家总数</div>
+          <div class="label">商户总数</div>
           <div class="value" id="statMerchants">0</div>
         </div>
         <div class="stat-card">
@@ -187,15 +187,15 @@ select:focus {
       </div>
     </div>
 
-    <!-- 商家管理 -->
+    <!-- 商户管理 -->
     <div class="panel" id="panel-merchants">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <div class="section-title" style="margin:0;">商家列表</div>
-        <button class="btn-primary" onclick="showAddMerchant()">+ 新增商家</button>
+        <div class="section-title" style="margin:0;">商户列表</div>
+        <button class="btn-primary" onclick="showAddMerchant()">+ 新增商户</button>
       </div>
       <table class="data-table">
         <thead>
-          <tr><th>ID</th><th>商家名称</th><th>编码</th><th>管理员账号</th><th>初始密码</th><th>联系人</th><th>门店数/上限</th><th>状态</th><th>操作</th></tr>
+          <tr><th>ID</th><th>商户名称</th><th>编码</th><th>管理员账号</th><th>初始密码</th><th>联系人</th><th>门店数/上限</th><th>状态</th><th>操作</th></tr>
         </thead>
         <tbody id="merchantList"></tbody>
       </table>
@@ -206,7 +206,7 @@ select:focus {
       <div class="section-title">所有门店</div>
       <table class="data-table">
         <thead>
-          <tr><th>ID</th><th>门店名称</th><th>所属商家</th><th>编码</th><th>地址</th><th>状态</th></tr>
+          <tr><th>ID</th><th>门店名称</th><th>所属商户</th><th>编码</th><th>地址</th><th>状态</th></tr>
         </thead>
         <tbody id="storeList"></tbody>
       </table>
@@ -215,13 +215,13 @@ select:focus {
     <!-- 登录日志 -->
     <div class="panel" id="panel-logs">
       <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>商家登录日志</span>
+        <span>商户登录日志</span>
         <button class="btn-secondary" onclick="loadLoginLogs()" style="padding:8px 16px;font-size:13px;">🔄 刷新</button>
       </div>
       <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;">
         <select id="logFilterType" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
           <option value="all">全部类型</option>
-          <option value="merchant_admin">商家管理员</option>
+          <option value="merchant_admin">商户管理员</option>
           <option value="super_admin">超级管理员</option>
         </select>
         <select id="logFilterStatus" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
@@ -232,7 +232,7 @@ select:focus {
       </div>
       <table class="data-table">
         <thead>
-          <tr><th>ID</th><th>登录时间</th><th>登录名</th><th>所属商家</th><th>登录IP</th><th>登录地点</th><th>登录类型</th><th>状态</th><th>备注</th></tr>
+          <tr><th>ID</th><th>登录时间</th><th>登录名</th><th>所属商户</th><th>登录IP</th><th>登录地点</th><th>登录类型</th><th>状态</th><th>备注</th></tr>
         </thead>
         <tbody id="loginLogList"></tbody>
       </table>
@@ -241,7 +241,7 @@ select:focus {
     <!-- 系统设置 -->
     <div class="panel" id="panel-settings">
       <div class="section-title">系统设置</div>
-      <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;">
+      <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
         <p style="color:#888;margin-bottom:16px;">超级管理员账号信息</p>
         <div class="form-group">
           <label>用户名</label>
@@ -253,21 +253,35 @@ select:focus {
         </div>
         <button class="btn-primary" onclick="changeSuperPassword()">保存修改</button>
       </div>
+      <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;">
+        <p style="color:#888;margin-bottom:16px;">全局超时设置</p>
+        <div class="form-group">
+          <label>商户后台无操作超时时间（分钟）</label>
+          <input type="number" id="adminIdleTimeout" min="1" max="1440" placeholder="如：5">
+          <small style="color:#666;">商户后台无任何操作后自动退出登录的时间，范围1-1440分钟</small>
+        </div>
+        <div class="form-group">
+          <label>二维码链接有效时间（分钟）</label>
+          <input type="number" id="qrSessionTimeout" min="5" max="1440" placeholder="如：45">
+          <small style="color:#666;">顾客扫码后 session_token 的有效时间，范围5-1440分钟</small>
+        </div>
+        <button class="btn-primary" onclick="saveGlobalSettings()">保存设置</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- 新增/编辑商家模态框 -->
+<!-- 新增/编辑商户模态框 -->
 <div class="modal" id="merchantModal">
   <div class="modal-card">
-    <h3 id="merchantModalTitle">新增商家</h3>
+    <h3 id="merchantModalTitle">新增商户</h3>
     <input type="hidden" id="editMerchantId">
     <div class="form-group">
-      <label>商家名称 *</label>
+      <label>商户名称 *</label>
       <input type="text" id="merchantName" placeholder="如：烧腊坊">
     </div>
     <div class="form-group">
-      <label>商家编码 *</label>
+      <label>商户编码 *</label>
       <input type="text" id="merchantCode" placeholder="如：shaolafang（英文唯一）">
     </div>
     <div class="form-group">
@@ -345,12 +359,13 @@ function switchModule(mod) {
   currentModule = mod;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === mod));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + mod));
-  const titles = { dashboard: '仪表盘', merchants: '商家管理', stores: '门店总览', logs: '登录日志', settings: '系统设置' };
+  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '登录日志', settings: '系统设置' };
   document.getElementById('pageTitle').textContent = titles[mod] || '';
   if (mod === 'dashboard') loadDashboard();
   if (mod === 'merchants') loadMerchants();
   if (mod === 'stores') loadStores();
   if (mod === 'logs') loadLoginLogs();
+  if (mod === 'settings') loadGlobalSettings();
 }
 
 // API 请求
@@ -376,7 +391,7 @@ async function loadDashboard() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-// 商家列表
+// 商户列表
 async function loadMerchants() {
   try {
     const list = await api('/super/merchants');
@@ -403,9 +418,9 @@ async function loadMerchants() {
 // 登录日志消息翻译
 function translateLoginMessage(msg) {
   if (!msg) return '';
-  if (msg.includes('商家管理员登录成功')) {
+  if (msg.includes('商户管理员登录成功')) {
     const username = msg.split(':')[1] || '';
-    return '商家管理员登录: ' + username.trim();
+    return '商户管理员登录: ' + username.trim();
   }
   if (msg.includes('超级管理员登录成功')) {
     const username = msg.split(':')[1] || '';
@@ -439,7 +454,7 @@ async function loadLoginLogs() {
         : '<span style="color:#e74c3c;font-weight:600;">❌ 失败</span>';
       const typeBadge = l.login_type === 'super_admin'
         ? '<span style="background:rgba(102,126,234,.2);color:#667eea;padding:2px 8px;border-radius:4px;font-size:11px;">超级管理员</span>'
-        : '<span style="background:rgba(232,93,58,.2);color:#e85d3a;padding:2px 8px;border-radius:4px;font-size:11px;">商家管理员</span>';
+        : '<span style="background:rgba(232,93,58,.2);color:#e85d3a;padding:2px 8px;border-radius:4px;font-size:11px;">商户管理员</span>';
       return `<tr>
         <td>${l.id}</td>
         <td style="white-space:nowrap;">${time}</td>
@@ -475,9 +490,9 @@ async function loadStores() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-// 新增商家
+// 新增商户
 function showAddMerchant() {
-  document.getElementById('merchantModalTitle').textContent = '新增商家';
+  document.getElementById('merchantModalTitle').textContent = '新增商户';
   document.getElementById('editMerchantId').value = '';
   document.getElementById('merchantName').value = '';
   document.getElementById('merchantCode').value = '';
@@ -489,13 +504,13 @@ function showAddMerchant() {
   document.getElementById('merchantModal').classList.add('open');
 }
 
-// 编辑商家
+// 编辑商户
 async function editMerchant(id) {
   try {
     const list = await api('/super/merchants');
     const m = list.find(x => x.id === id);
     if (!m) return;
-    document.getElementById('merchantModalTitle').textContent = '编辑商家';
+    document.getElementById('merchantModalTitle').textContent = '编辑商户';
     document.getElementById('editMerchantId').value = m.id;
     document.getElementById('merchantName').value = m.name;
     document.getElementById('merchantCode').value = m.code;
@@ -520,14 +535,14 @@ async function saveMerchant() {
     max_stores: parseInt(document.getElementById('merchantMaxStores').value) || 1,
     status: parseInt(document.getElementById('merchantStatus').value)
   };
-  if (!data.name || !data.code) { toast('商家名称和编码必填', 'error'); return; }
+  if (!data.name || !data.code) { toast('商户名称和编码必填', 'error'); return; }
   try {
     if (id) {
       await api('/super/merchants/' + id, { method: 'PUT', body: JSON.stringify(data) });
-      toast('商家已更新', 'success');
+      toast('商户已更新', 'success');
     } else {
       const result = await api('/super/merchants', { method: 'POST', body: JSON.stringify(data) });
-      toast(`商家已创建，管理员账号：${result.adminUsername}，初始密码：${result.defaultPassword}`, 'success');
+      toast(`商户已创建，管理员账号：${result.adminUsername}，初始密码：${result.defaultPassword}`, 'success');
     }
     closeMerchantModal();
     loadMerchants();
@@ -535,16 +550,16 @@ async function saveMerchant() {
 }
 
 async function deleteMerchant(id) {
-  if (!confirm('确定删除该商家？删除后不可恢复！')) return;
+  if (!confirm('确定删除该商户？删除后不可恢复！')) return;
   try {
     await api('/super/merchants/' + id, { method: 'DELETE' });
-    toast('商家已删除', 'success');
+    toast('商户已删除', 'success');
     loadMerchants();
   } catch (e) { toast(e.message, 'error'); }
 }
 
 async function resetPassword(id) {
-  if (!confirm('确定重置该商家的管理员密码为 admin123？')) return;
+  if (!confirm('确定重置该商户的管理员密码为 admin123？')) return;
   try {
     await api('/super/merchants/' + id + '/reset-password', { method: 'POST', body: JSON.stringify({}) });
     toast('密码已重置为 admin123', 'success');
@@ -557,6 +572,27 @@ async function changeSuperPassword() {
   try {
     toast('超级管理员密码修改功能开发中', 'success');
   } catch (e) { toast(e.message, 'error'); }
+}
+
+// 加载全局设置
+async function loadGlobalSettings() {
+  try {
+    const settings = await api('/super/settings');
+    document.getElementById('adminIdleTimeout').value = settings.admin_idle_timeout || 5;
+    document.getElementById('qrSessionTimeout').value = settings.qr_session_timeout || 45;
+  } catch (e) { toast('加载设置失败: ' + e.message, 'error'); }
+}
+
+// 保存全局设置
+async function saveGlobalSettings() {
+  const idleTimeout = parseInt(document.getElementById('adminIdleTimeout').value, 10);
+  const qrTimeout = parseInt(document.getElementById('qrSessionTimeout').value, 10);
+  if (!idleTimeout || idleTimeout < 1 || idleTimeout > 1440) { toast('商户后台超时时间范围1-1440分钟', 'error'); return; }
+  if (!qrTimeout || qrTimeout < 5 || qrTimeout > 1440) { toast('二维码有效时间范围5-1440分钟', 'error'); return; }
+  try {
+    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout }) });
+    toast('设置保存成功', 'success');
+  } catch (e) { toast('保存失败: ' + e.message, 'error'); }
 }
 
 // Toast
