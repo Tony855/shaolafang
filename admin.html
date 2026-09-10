@@ -4375,6 +4375,17 @@
         window.showQr = async function(id) {
             try {
                 const q = await api('/tables/' + id + '/qrcode');
+                // 在父窗口预计算所有翻译值，避免新窗口无法访问tAdmin
+                const i18n = {
+                    brand: tAdmin('brandName'),
+                    table: tAdmin('table'),
+                    scanToOrder: tAdmin('scanToOrder'),
+                    download: tAdmin('download'),
+                    print: tAdmin('print'),
+                    thankYou: tAdmin('thankYou'),
+                    qrCode: tAdmin('qrCode'),
+                    orderingQrCode: tAdmin('orderingQrCode')
+                };
                 const w = window.open('', '_blank');
                 const html = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -4628,9 +4639,9 @@
 <body>
   <div class="qr-card">
     <div class="card-header">
-      <div class="brand-icon">🍖</div>
+      <div class="brand-icon">🍽️</div>
       <div class="brand-name">${tAdmin('brandName')}</div>
-      <div class="brand-en">ROAST HOUSE</div>
+      <div class="brand-en">${i18n.brand}</div>
     </div>
     <div class="card-body">
       <div class="table-badge">
@@ -4643,19 +4654,19 @@
         </div>
       </div>
       <div class="scan-text">${tAdmin('scanToOrder')}</div>
-      <div class="scan-sub">SCAN TO ORDER</div>
-      <div class="divider"><span>WELCOME</span></div>
+      <div class="scan-sub">${i18n.scanToOrder}</div>
+      <div class="divider"><span>${i18n.thankYou}</span></div>
       <div class="url-box">${esc(q.url)}</div>
       <div class="actions">
         <button class="btn btn-download" onclick="downloadQR()">
-          <span>📥</span> ${tAdmin('download')}
+          <span>📥</span> ${i18n.download}
         </button>
         <button class="btn btn-print" onclick="window.print()">
-          <span>🖨️</span> ${tAdmin('print')}
+          <span>🖨️</span> ${i18n.print}
         </button>
       </div>
     </div>
-    <div class="card-footer">${tAdmin('thankYou')} · THANK YOU</div>
+    <div class="card-footer">${i18n.thankYou}</div>
   </div>
   <script>
     function downloadQR() {
@@ -4682,13 +4693,13 @@
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 72px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('🍖 ' + tAdmin('brandName'), W/2, 140);
+      ctx.fillText('🍽️ ' + '${i18n.brand}', W/2, 140);
       ctx.font = '30px sans-serif';
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText('ROAST HOUSE', W/2, 200);
+      ctx.fillText('${i18n.brand}', W/2, 200);
       ctx.font = 'bold 42px sans-serif';
       ctx.fillStyle = '#fff';
-      ctx.fillText('${tAdmin('table')} ${esc(q.table)}', W/2, 275);
+      ctx.fillText('${i18n.table}' + ' ' + '${esc(q.table)}', W/2, 275);
       
       // QR Code background
       ctx.fillStyle = '#fff';
@@ -4705,10 +4716,10 @@
         // Text
         ctx.fillStyle = '#2c3e50';
         ctx.font = 'bold 52px sans-serif';
-        ctx.fillText(tAdmin('scanToOrder'), W/2, 1000);
+        ctx.fillText('${i18n.scanToOrder}', W/2, 1000);
         ctx.font = '28px sans-serif';
         ctx.fillStyle = '#95a5a6';
-        ctx.fillText('SCAN TO ORDER', W/2, 1050);
+        ctx.fillText('${i18n.scanToOrder}', W/2, 1050);
         
         // Divider
         ctx.strokeStyle = '#e0e0e0';
@@ -4719,18 +4730,18 @@
         ctx.stroke();
         ctx.fillStyle = '#bdc3c7';
         ctx.font = '24px sans-serif';
-        ctx.fillText('WELCOME', W/2, 1108);
+        ctx.fillText('${i18n.thankYou}', W/2, 1108);
         
         // Footer
         ctx.fillStyle = '#fafafa';
         ctx.fillRect(0, H-100, W, 100);
         ctx.fillStyle = '#bdc3c7';
         ctx.font = '26px sans-serif';
-        ctx.fillText(tAdmin('thankYou') + ' · THANK YOU', W/2, H-40);
+        ctx.fillText('${i18n.thankYou}', W/2, H-40);
         
         // Download
         const link = document.createElement('a');
-        link.download = tAdmin('brandName') + '-${esc(q.table)}-' + tAdmin('qrCode') + '.png';
+        link.download = '${i18n.brand}' + '-${esc(q.table)}-' + '${i18n.qrCode}' + '.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
       };
