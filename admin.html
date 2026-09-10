@@ -980,6 +980,275 @@
             color: #fff;
             font-size: 14px;
         }
+        /* 店铺编辑模态框美化 */
+        .store-edit-card {
+            max-width: 520px !important;
+            padding: 24px !important;
+        }
+        .store-edit-card h2 {
+            color: #fff !important;
+            font-size: 20px !important;
+            margin-bottom: 20px !important;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,.1);
+        }
+        .store-edit-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .store-edit-field {
+            display: flex;
+            flex-direction: column;
+        }
+        .store-edit-field.full {
+            grid-column: 1 / -1;
+        }
+        .store-edit-field label {
+            color: #c8c8d0 !important;
+            font-size: 13px !important;
+            margin-bottom: 8px !important;
+            font-weight: 500;
+        }
+        .store-edit-field input[type="text"],
+        .store-edit-field input:not([type="checkbox"]) {
+            width: 100%;
+            height: 44px;
+            padding: 0 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.15);
+            background: rgba(255,255,255,.06);
+            color: #fff !important;
+            font-size: 14px;
+            transition: all .2s;
+        }
+        .store-edit-field input:focus {
+            outline: none;
+            border-color: #e85d3a;
+            background: rgba(255,255,255,.1);
+            box-shadow: 0 0 0 3px rgba(232,93,58,.15);
+        }
+        .store-edit-field input::placeholder {
+            color: #666;
+        }
+        /* 开关样式 */
+        .store-switch-label {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            padding: 12px 16px;
+            background: rgba(255,255,255,.04);
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.08);
+        }
+        .store-switch-label > span {
+            color: #c8c8d0 !important;
+            font-size: 14px !important;
+            font-weight: 500;
+        }
+        .store-switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .store-switch input[type="checkbox"] {
+            display: none;
+        }
+        .store-switch-slider {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #555;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all .3s;
+        }
+        .store-switch-slider::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: all .3s;
+        }
+        .store-switch input:checked + .store-switch-slider {
+            background: linear-gradient(135deg, #e85d3a, #e84a2a);
+        }
+        .store-switch input:checked + .store-switch-slider::before {
+            transform: translateX(20px);
+        }
+        .store-switch-text {
+            color: #2ecc71 !important;
+            font-size: 13px !important;
+            font-weight: 600;
+            min-width: 50px;
+        }
+        .store-switch input:not(:checked) ~ .store-switch-text {
+            color: #e74c3c !important;
+        }
+        /* 数据备份区域样式 */
+        .backup-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .backup-btn {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .backup-btn:hover {
+            background: rgba(255,255,255,.1);
+            transform: translateY(-1px);
+        }
+        .backup-export { border-color: rgba(46,204,113,.3); color: #2ecc71; }
+        .backup-export:hover { background: rgba(46,204,113,.12); }
+        .backup-file-btn { border-color: rgba(102,126,234,.3); color: #667eea; }
+        .backup-file-btn:hover { background: rgba(102,126,234,.12); }
+        .backup-import { border-color: rgba(255,217,61,.3); color: #ffd93d; }
+        .backup-import:hover { background: rgba(255,217,61,.12); }
+        .backup-save { border-color: rgba(102,126,234,.3); color: #667eea; }
+        .backup-save:hover { background: rgba(102,126,234,.12); }
+        .backup-now {
+            background: linear-gradient(135deg, #e85d3a, #e84a2a);
+            border-color: transparent;
+            color: #fff;
+        }
+        .backup-now:hover { filter: brightness(1.1); }
+        .backup-file-name {
+            color: #888;
+            font-size: 13px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .backup-settings-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .backup-interval-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .backup-interval-label {
+            color: #aaa;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .backup-interval-select {
+            height: 40px;
+            padding: 0 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            min-width: 140px;
+        }
+        .backup-interval-select:focus {
+            border-color: #e85d3a;
+        }
+        .backup-interval-select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+        /* 权限选择列表样式 */
+        .permission-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .permission-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.06);
+            border-radius: 10px;
+            transition: all .2s;
+        }
+        .permission-row:hover {
+            background: rgba(255,255,255,.07);
+            border-color: rgba(232,93,58,.2);
+        }
+        .permission-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .permission-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .permission-sub {
+            color: #888;
+            font-size: 12px;
+        }
+        .waiter-edit-select {
+            width: 100%;
+            height: 44px;
+            padding: 0 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.15);
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+        .waiter-edit-select:focus {
+            border-color: #e85d3a;
+        }
+        .waiter-edit-select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+        /* 结算订单按钮样式 */
+        .settle-order-btn {
+            background: rgba(46,204,113,.15) !important;
+            color: #2ecc71 !important;
+            border: 1px solid rgba(46,204,113,.3) !important;
+            transition: all .2s;
+        }
+        .settle-order-btn:hover {
+            background: rgba(46,204,113,.25) !important;
+            border-color: #2ecc71 !important;
+            transform: translateY(-1px);
+        }
+        /* 取消订单按钮样式 */
+        .cancel-order-btn {
+            background: rgba(231,76,60,.15) !important;
+            color: #e74c3c !important;
+            border: 1px solid rgba(231,76,60,.3) !important;
+            transition: all .2s;
+        }
+        .cancel-order-btn:hover {
+            background: rgba(231,76,60,.25) !important;
+            border-color: #e74c3c !important;
+            transform: translateY(-1px);
+        }
         .order-item-line {
             display: flex;
             gap: 8px;
@@ -2107,20 +2376,28 @@
                 <!-- 数据备份卡片 -->
                 <div class="settings-card">
                     <h3 class="settings-card-title" id="backupPanelTitle">💾 数据备份</h3>
-                    <div class="settings-row">
-                        <button id="exportBackupBtn" class="btn-secondary">📤 导出备份</button>
-                        <input id="importBackupFile" type="file" accept=".json,application/json" class="file-input">
-                        <button id="importBackupBtn" class="btn-secondary">📥 导入备份</button>
+                    <div class="backup-actions">
+                        <button id="exportBackupBtn" class="backup-btn backup-export">📤 导出备份</button>
+                        <label class="backup-btn backup-file-btn">
+                            📂 选择文件
+                            <input id="importBackupFile" type="file" accept=".json,application/json" style="display:none;">
+                        </label>
+                        <span id="backupFileName" class="backup-file-name">未选择文件</span>
+                        <button id="importBackupBtn" class="backup-btn backup-import">📥 导入备份</button>
                     </div>
-                    <div class="settings-row" style="margin-top:12px;">
-                        <select id="backupIntervalSelect">
-                            <option value="1">每 1 小时</option>
-                            <option value="6">每 6 小时</option>
-                            <option value="12">每 12 小时</option>
-                            <option value="24" selected>每 24 小时</option>
-                        </select>
-                        <button id="saveBackupSettingsBtn" class="btn-secondary">保存设置</button>
-                        <button id="backupNowBtn" class="primary">立即备份</button>
+                    <div class="backup-settings-row">
+                        <div class="backup-interval-wrapper">
+                            <label class="backup-interval-label">自动备份间隔</label>
+                            <select id="backupIntervalSelect" class="backup-interval-select">
+                                <option value="1">每 1 小时</option>
+                                <option value="6">每 6 小时</option>
+                                <option value="12">每 12 小时</option>
+                                <option value="24" selected>每 24 小时</option>
+                            </select>
+                        </div>
+                        <button id="saveBackupSettingsBtn" class="backup-btn backup-save">💾 保存设置</button>
+                        <button id="backupNowBtn" class="backup-btn backup-now">⚡ 立即备份</button>
+                    </div>
                 </div>
                 <hr style="border-color:rgba(255,255,255,.1);margin:16px 0;">
                 <h3 style="margin-bottom:12px;color:#fff;font-size:15px;font-weight:700;" id="resetPanelTitle">⚠️ 重置数据（清空所有订单）</h3>
@@ -2242,36 +2519,65 @@
 
     <!-- 服务员编辑模态框 -->
     <div class="order-modal edit-modal" id="waiterEditModal">
-        <div class="order-modal-card">
+        <div class="order-modal-card store-edit-card">
             <button class="modal-close" onclick="closeWaiterEdit()">✕</button>
-            <h2 id="waiterEditTitle">编辑服务员</h2>
+            <h2 id="waiterEditTitle">🧑‍🍳 编辑服务员</h2>
             <input type="hidden" id="editWaiterId">
-            <div class="order-field">
-                <label>账号</label>
-                <input id="editWaiterUsername" placeholder="账号">
-            </div>
-            <div class="order-field">
-                <label>密码（留空不修改）</label>
-                <input id="editWaiterPassword" type="password" placeholder="新密码（留空不修改）">
-            </div>
-            <div class="order-field">
-                <label>显示名称</label>
-                <input id="editWaiterDisplayName" placeholder="姓名">
-            </div>
-            <div class="order-field">
-                <label id="waiterStoreLabel">所属店铺</label>
-                <select id="editWaiterStore"></select>
-            </div>
-            <div class="order-field">
-                <label style="margin-bottom:8px;">权限</label>
-                <div style="display:flex;gap:16px;flex-wrap:wrap;color:#b8b8ce;">
-                    <label><input type="checkbox" id="editWaiterCanOrder"> 下单</label>
-                    <label><input type="checkbox" id="editWaiterCanMarkItem"> 上菜</label>
-                    <label><input type="checkbox" id="editWaiterCanCompleteOrder"> 完成订单</label>
+            <div class="store-edit-grid">
+                <div class="store-edit-field full">
+                    <label id="waiterEditUsernameLabel">账号</label>
+                    <input id="editWaiterUsername" placeholder="请输入账号">
+                </div>
+                <div class="store-edit-field full">
+                    <label id="waiterEditPasswordLabel">密码（留空不修改）</label>
+                    <input id="editWaiterPassword" type="password" placeholder="请输入新密码">
+                </div>
+                <div class="store-edit-field">
+                    <label id="waiterEditDisplayNameLabel">显示名称</label>
+                    <input id="editWaiterDisplayName" placeholder="请输入姓名">
+                </div>
+                <div class="store-edit-field">
+                    <label id="waiterEditStoreLabel">所属店铺</label>
+                    <select id="editWaiterStore" class="waiter-edit-select"></select>
+                </div>
+                <div class="store-edit-field full">
+                    <label id="waiterEditPermissionLabel" style="margin-bottom:10px;">权限</label>
+                    <div class="permission-list">
+                        <div class="permission-row">
+                            <div class="permission-text">
+                                <span class="permission-title" id="permOrderLabel">下单</span>
+                                <span class="permission-sub" id="permOrderDesc">接收顾客订单</span>
+                            </div>
+                            <div class="store-switch">
+                                <input type="checkbox" id="editWaiterCanOrder">
+                                <span class="store-switch-slider"></span>
+                            </div>
+                        </div>
+                        <div class="permission-row">
+                            <div class="permission-text">
+                                <span class="permission-title" id="permMarkItemLabel">上菜</span>
+                                <span class="permission-sub" id="permMarkItemDesc">标记菜品已完成</span>
+                            </div>
+                            <div class="store-switch">
+                                <input type="checkbox" id="editWaiterCanMarkItem">
+                                <span class="store-switch-slider"></span>
+                            </div>
+                        </div>
+                        <div class="permission-row">
+                            <div class="permission-text">
+                                <span class="permission-title" id="permCompleteLabel">完成订单</span>
+                                <span class="permission-sub" id="permCompleteDesc">结算并完成订单</span>
+                            </div>
+                            <div class="store-switch">
+                                <input type="checkbox" id="editWaiterCanCompleteOrder">
+                                <span class="store-switch-slider"></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="order-modal-actions">
-                <button onclick="closeWaiterEdit()">${tAdmin('cancel')}</button>
+                <button onclick="closeWaiterEdit()" id="waiterEditCancelBtn">取消</button>
                 <button class="primary" id="saveWaiterEditBtn">保存</button>
             </div>
         </div>
@@ -2279,26 +2585,33 @@
 
     <!-- 店铺编辑模态框 -->
     <div class="order-modal edit-modal" id="storeEditModal">
-        <div class="order-modal-card">
+        <div class="order-modal-card store-edit-card">
             <button class="modal-close" onclick="closeStoreEdit()">✕</button>
-            <h2 id="storeEditTitle">编辑店铺</h2>
+            <h2 id="storeEditTitle">🏪 编辑店铺</h2>
             <input type="hidden" id="editStoreId">
-            <div class="order-field">
-                <label>店铺名称</label>
-                <input id="editStoreName" placeholder="名称">
-            </div>
-            <div class="order-field">
-                <label>店铺编码</label>
-                <input id="editStoreCode" placeholder="编码">
-            </div>
-            <div class="order-field">
-                <label id="storeAddressLabel">地址</label>
-                <input id="editStoreAddress" placeholder="地址">
-            </div>
-            <div class="order-field">
-                <label style="color:#b8b8ce;">
-                    <input type="checkbox" id="editStoreActive" checked> 启用
-                </label>
+            <div class="store-edit-grid">
+                <div class="store-edit-field">
+                    <label id="storeEditNameLabel">店铺名称</label>
+                    <input id="editStoreName" placeholder="请输入店铺名称">
+                </div>
+                <div class="store-edit-field">
+                    <label id="storeEditCodeLabel">店铺编码</label>
+                    <input id="editStoreCode" placeholder="请输入店铺编码">
+                </div>
+                <div class="store-edit-field full">
+                    <label id="storeEditAddressLabel">店铺地址</label>
+                    <input id="editStoreAddress" placeholder="请输入店铺地址">
+                </div>
+                <div class="store-edit-field full">
+                    <label class="store-switch-label">
+                        <span id="storeEditStatusLabel">店铺状态</span>
+                        <div class="store-switch">
+                            <input type="checkbox" id="editStoreActive" checked>
+                            <span class="store-switch-slider"></span>
+                            <span class="store-switch-text" id="storeEditStatusText">启用中</span>
+                        </div>
+                    </label>
+                </div>
             </div>
             <div class="order-modal-actions">
                 <button onclick="closeStoreEdit()" id="storeEditCancelBtn">取消</button>
@@ -2334,10 +2647,10 @@
             zh: { headerTitle: '🍖 烧腊坊 · 后台', accessKey: '后台密钥', connect: '连接', customerPage: '顾客点餐页',
                 connectTitle: '管理员登录', connectDesc: '请输入管理员密码后进入后台管理。', connectSafe: '登录', logout: '退出登录',
                 pendingOrders: '未结算订单', completedOrders: '已结算订单',
-                todayRevenue: '今日营业额', monthRevenue: '本月营业额', settleOrder: '结算订单', listDish: '上架', unlistDish: '下架',
+                todayRevenue: '今日营业额', monthRevenue: '本月营业额', settleOrder: '结算订单', settleOrderConfirm: '确定要结算该订单吗？结算后订单将标记为已完成。', cancelOrder: '取消订单', cancelOrderConfirm: '确定要取消该订单吗？此操作不可撤销。', listDish: '上架', unlistDish: '下架',
                 listed: '已上架', unlisted: '已下架', unit: '单位', dualCurrency: '双币显示', secondaryCurrency: '第二货币',
-                storesManage: '店铺管理', storeName: '店铺名称', storeCode: '店铺编码', storeAddress: '地址', addStore: '添加店铺',
-                waitersManage: '服务员管理', waiterUsername: '账号', waiterPassword: '密码', waiterDisplayName: '姓名',
+                storesManage: '店铺管理', storeName: '店铺名称', storeCode: '店铺编码', storeAddress: '店铺地址', addStore: '添加店铺', editStore: '编辑店铺', storeStatus: '店铺状态', storeActive: '启用中', storeDisabled: '已禁用', storeNamePlaceholder: '请输入店铺名称', storeCodePlaceholder: '请输入店铺编码', storeAddressPlaceholder: '请输入店铺地址',
+                waitersManage: '服务员管理', waiterUsername: '账号', waiterPassword: '密码', waiterDisplayName: '显示名称', editWaiter: '编辑服务员', waiterStore: '所属店铺', waiterPermission: '权限', permOrder: '下单', permMarkItem: '上菜', permCompleteOrder: '完成订单', permOrderDesc: '接收顾客订单', permMarkItemDesc: '标记菜品已完成', permCompleteDesc: '结算并完成订单', waiterUsernamePlaceholder: '请输入账号', waiterPasswordPlaceholder: '请输入新密码', waiterNamePlaceholder: '请输入姓名',
                 waiterStore: '所属店铺',
                 newPasswordShort: '新密码',
                 addWaiter: '添加服务员', dishName: '菜品名称', nameEn: '英文名称', descEn: '英文描述',
@@ -2486,13 +2799,13 @@
                 customerPage: 'Customer Page', connectTitle: 'Admin Login', connectDesc: 'Enter the admin password to access the dashboard.',
                 connectSafe: 'Login', logout: 'Logout',
                 pendingOrders: 'Unsettled Orders', completedOrders: 'Settled Orders', todayRevenue: 'Today Revenue',
-                monthRevenue: 'This Month Revenue', settleOrder: 'Settle Order', listDish: 'List', unlistDish: 'Unlist',
+                monthRevenue: 'This Month Revenue', settleOrder: 'Settle Order', settleOrderConfirm: 'Are you sure you want to settle this order? The order will be marked as completed.', cancelOrder: 'Cancel Order', cancelOrderConfirm: 'Are you sure you want to cancel this order? This action cannot be undone.', listDish: 'List', unlistDish: 'Unlist',
                 listed: 'Listed', unlisted: 'Unlisted', unit: 'Unit', dualCurrency: 'Dual Currency',
                 secondaryCurrency: 'Secondary Currency', storesManage: 'Store Management', storeName: 'Store Name',
-                storeCode: 'Store Code', storeAddress: 'Address', addStore: 'Add Store',
+                storeCode: 'Store Code', storeAddress: 'Store Address', addStore: 'Add Store', editStore: 'Edit Store', storeStatus: 'Store Status', storeActive: 'Active', storeDisabled: 'Disabled', storeNamePlaceholder: 'Enter store name', storeCodePlaceholder: 'Enter store code', storeAddressPlaceholder: 'Enter store address',
                 waitersManage: 'Waiter Management', waiterUsername: 'Username', waiterPassword: 'Password',
-                waiterDisplayName: 'Display Name', addWaiter: 'Add Waiter',
-                waiterStore: 'Store', newPasswordShort: 'New Password',
+                waiterDisplayName: 'Display Name', addWaiter: 'Add Waiter', editWaiter: 'Edit Waiter',
+                waiterStore: 'Store', waiterPermission: 'Permissions', permOrder: 'Take Order', permMarkItem: 'Serve Dish', permCompleteOrder: 'Complete Order', permOrderDesc: 'Receive customer orders', permMarkItemDesc: 'Mark dishes as served', permCompleteDesc: 'Settle and complete orders', waiterUsernamePlaceholder: 'Enter username', waiterPasswordPlaceholder: 'Enter new password', waiterNamePlaceholder: 'Enter display name', newPasswordShort: 'New Password',
                 dishName: 'Dish Name', nameEn: 'English Name', descEn: 'English Description', price: 'Price',
                 icon: 'Icon (e.g. 🍖)', desc: 'Description', addDish: 'Add Dish', cancelEdit: 'Cancel Edit',
                 dishCategoryManage: 'Dish Categories', newCategory: 'New category name', addCategory: 'Add Category',
@@ -2647,10 +2960,10 @@
             connectSafe: 'Đăng nhập', logout: 'Đăng xuất',
             accessKey: 'Khóa quản trị', connect: 'Kết nối', pendingOrders: 'Đơn chưa thanh toán',
             completedOrders: 'Đơn đã thanh toán', todayRevenue: 'Doanh thu hôm nay', monthRevenue: 'Doanh thu tháng này',
-            settleOrder: 'Thanh toán đơn', listDish: 'Hiển thị', unlistDish: 'Ẩn', listed: 'Đang hiển thị', customer: 'KH', staffOrder: 'Nhân viên/Admin đặt',
+            settleOrder: 'Thanh toán đơn', settleOrderConfirm: 'Bạn có chắc chắn muốn thanh toán đơn hàng này? Đơn hàng sẽ được đánh dấu là đã hoàn thành.', cancelOrder: 'Hủy đơn', cancelOrderConfirm: 'Bạn có chắc chắn muốn hủy đơn hàng này? Hành động này không thể hoàn tác.', listDish: 'Hiển thị', unlistDish: 'Ẩn', listed: 'Đang hiển thị', customer: 'KH', staffOrder: 'Nhân viên/Admin đặt',
             unlisted: 'Đã ẩn', unit: 'Đơn vị', dualCurrency: 'Hiển thị 2 loại tiền', secondaryCurrency: 'Tiền tệ phụ',
-            storesManage: 'Quản lý cửa hàng', storeName: 'Tên cửa hàng', storeCode: 'Mã cửa hàng', storeAddress: 'Địa chỉ',
-            addStore: 'Thêm cửa hàng', waitersManage: 'Quản lý nhân viên', waiterUsername: 'Tài khoản',
+            storesManage: 'Quản lý cửa hàng', storeName: 'Tên cửa hàng', storeCode: 'Mã cửa hàng', storeAddress: 'Địa chỉ cửa hàng', editStore: 'Sửa cửa hàng', storeStatus: 'Trạng thái', storeActive: 'Đang hoạt động', storeDisabled: 'Đã vô hiệu hóa', storeNamePlaceholder: 'Nhập tên cửa hàng', storeCodePlaceholder: 'Nhập mã cửa hàng', storeAddressPlaceholder: 'Nhập địa chỉ cửa hàng',
+            addStore: 'Thêm cửa hàng', waitersManage: 'Quản lý nhân viên', waiterUsername: 'Tài khoản', editWaiter: 'Sửa nhân viên', waiterStore: 'Cửa hàng', waiterPermission: 'Quyền hạn', permOrder: 'Đặt món', permMarkItem: 'Phục vụ', permCompleteOrder: 'Hoàn thành', permOrderDesc: 'Nhận đơn khách hàng', permMarkItemDesc: 'Đánh dấu món đã phục vụ', permCompleteDesc: 'Thanh toán và hoàn thành', waiterUsernamePlaceholder: 'Nhập tài khoản', waiterPasswordPlaceholder: 'Nhập mật khẩu mới', waiterNamePlaceholder: 'Nhập tên hiển thị',
             waiterPassword: 'Mật khẩu', waiterDisplayName: 'Tên hiển thị', addWaiter: 'Thêm nhân viên',
             nameEn: 'Tên tiếng Anh', descEn: 'Mô tả tiếng Anh', logsTitle: 'Nhật ký đăng nhập', time: 'Thời gian',
             result: 'Kết quả', loginSuccess: 'Đăng nhập thành công', loginFailed: 'Đăng nhập thất bại',
@@ -2718,10 +3031,10 @@
             connectSafe: 'เข้าสู่ระบบ', logout: 'ออกจากระบบ',
             accessKey: 'คีย์ผู้ดูแล', connect: 'เชื่อมต่อ', pendingOrders: 'ออเดอร์ที่ยังไม่ชำระ',
             completedOrders: 'ออเดอร์ที่ชำระแล้ว', todayRevenue: 'รายได้วันนี้', monthRevenue: 'รายได้เดือนนี้',
-            settleOrder: 'ชำระออเดอร์', listDish: 'แสดงเมนู', unlistDish: 'ซ่อนเมนู', listed: 'แสดงอยู่', customer: 'ลูกค้า', staffOrder: 'พนักงาน/Admin สั่ง',
+            settleOrder: 'ชำระออเดอร์', settleOrderConfirm: 'คุณแน่ใจหรือไม่ว่าต้องการชำระออเดอร์นี้? ออเดอร์จะถูกทำเครื่องหมายว่าเสร็จสมบูรณ์.', cancelOrder: 'ยกเลิกออเดอร์', cancelOrderConfirm: 'คุณแน่ใจหรือไม่ว่าต้องการยกเลิกออเดอร์นี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้.', listDish: 'แสดงเมนู', unlistDish: 'ซ่อนเมนู', listed: 'แสดงอยู่', customer: 'ลูกค้า', staffOrder: 'พนักงาน/Admin สั่ง',
             unlisted: 'ซ่อนอยู่', unit: 'หน่วย', dualCurrency: 'แสดงสองสกุลเงิน', secondaryCurrency: 'สกุลเงินที่สอง',
-            storesManage: 'จัดการร้านค้า', storeName: 'ชื่อร้าน', storeCode: 'รหัสร้าน', storeAddress: 'ที่อยู่',
-            addStore: 'เพิ่มร้านค้า', waitersManage: 'จัดการพนักงาน', waiterUsername: 'บัญชีผู้ใช้',
+            storesManage: 'จัดการร้านค้า', storeName: 'ชื่อร้านค้า', storeCode: 'รหัสร้านค้า', storeAddress: 'ที่อยู่ร้านค้า', editStore: 'แก้ไขร้านค้า', storeStatus: 'สถานะร้านค้า', storeActive: 'กำลังใช้งาน', storeDisabled: 'ปิดใช้งาน', storeNamePlaceholder: 'กรอกชื่อร้านค้า', storeCodePlaceholder: 'กรอกรหัสร้านค้า', storeAddressPlaceholder: 'กรอกที่อยู่ร้านค้า',
+            addStore: 'เพิ่มร้านค้า', waitersManage: 'จัดการพนักงาน', waiterUsername: 'บัญชีผู้ใช้', editWaiter: 'แก้ไขพนักงาน', waiterStore: 'ร้านค้า', waiterPermission: 'สิทธิ์', permOrder: 'รับออเดอร์', permMarkItem: 'เสิร์ฟเมนู', permCompleteOrder: 'เสร็จสิ้น', permOrderDesc: 'รับออเดอร์ลูกค้า', permMarkItemDesc: 'ทำเครื่องหมายเมนูเสิร์ฟแล้ว', permCompleteDesc: 'ชำระและเสร็จสิ้น', waiterUsernamePlaceholder: 'กรอกชื่อผู้ใช้', waiterPasswordPlaceholder: 'กรอกรหัสผ่านใหม่', waiterNamePlaceholder: 'กรอกชื่อแสดง',
             waiterPassword: 'รหัสผ่าน', waiterDisplayName: 'ชื่อที่แสดง', addWaiter: 'เพิ่มพนักงาน',
             nameEn: 'ชื่อภาษาอังกฤษ', descEn: 'คำอธิบายภาษาอังกฤษ', logsTitle: 'บันทึกการเข้าสู่ระบบ', time: 'เวลา',
             result: 'ผลลัพธ์', loginSuccess: 'เข้าสู่ระบบสำเร็จ', loginFailed: 'เข้าสู่ระบบล้มเหลว',
@@ -2789,10 +3102,10 @@
             connectSafe: 'ចូល', logout: 'ចាកចេញ',
             accessKey: 'លេខសម្ងាត់អ្នកគ្រប់គ្រង', connect: 'ភ្ជាប់', pendingOrders: 'ការបញ្ជាទិញមិនទាន់ទូទាត់',
             completedOrders: 'ការបញ្ជាទិញបានទូទាត់', todayRevenue: 'ចំណូលថ្ងៃនេះ', monthRevenue: 'ចំណូលខែនេះ',
-            settleOrder: 'ទូទាត់ការបញ្ជាទិញ', listDish: 'បង្ហាញ', unlistDish: 'លាក់', listed: 'កំពុងបង្ហាញ', customer: 'អតិថិជន', staffOrder: 'បុគ្គលិក/Admin បញ្ជាទិញ',
+            settleOrder: 'ទូទាត់ការបញ្ជាទិញ', settleOrderConfirm: 'តើអ្នកប្រាកដទេថាចង់ទូទាត់ការបញ្ជាទិញនេះ? ការបញ្ជាទិញនឹងត្រូវបានសម្គាល់ថាបានបញ្ចប់.', cancelOrder: 'បោះបង់ការបញ្ជាទិញ', cancelOrderConfirm: 'តើអ្នកប្រាកដទេថាចង់បោះបង់ការបញ្ជាទិញនេះ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ.', listDish: 'បង្ហាញ', unlistDish: 'លាក់', listed: 'កំពុងបង្ហាញ', customer: 'អតិថិជន', staffOrder: 'បុគ្គលិក/Admin បញ្ជាទិញ',
             unlisted: 'បានលាក់', unit: 'ឯកតា', dualCurrency: 'បង្ហាញរូបិយប័ណ្ណពីរ', secondaryCurrency: 'រូបិយប័ណ្ណទីពីរ',
-            storesManage: 'គ្រប់គ្រងហាង', storeName: 'ឈ្មោះហាង', storeCode: 'កូដហាង', storeAddress: 'អាសយដ្ឋាន',
-            addStore: 'បន្ថែមហាង', waitersManage: 'គ្រប់គ្រងបុគ្គលិក', waiterUsername: 'គណនី',
+            storesManage: 'គ្រប់គ្រងហាង', storeName: 'ឈ្មោះហាង', storeCode: 'កូដហាង', storeAddress: 'អាសយដ្ឋានហាង', editStore: 'កែសម្រួលហាង', storeStatus: 'ស្ថានភាពហាង', storeActive: 'កំពុងដំណើរការ', storeDisabled: 'បានបិទ', storeNamePlaceholder: 'បញ្ចូលឈ្មោះហាង', storeCodePlaceholder: 'បញ្ចូលកូដហាង', storeAddressPlaceholder: 'បញ្ចូលអាសយដ្ឋានហាង',
+            addStore: 'បន្ថែមហាង', waitersManage: 'គ្រប់គ្រងបុគ្គលិក', waiterUsername: 'គណនី', editWaiter: 'កែសម្រួលបុគ្គលិក', waiterStore: 'ហាង', waiterPermission: 'សិទ្ធិ', permOrder: 'ទទួលការបញ្ជាទិញ', permMarkItem: 'បម្រើមុខម្ហូប', permCompleteOrder: 'បញ្ចប់', permOrderDesc: 'ទទួលការបញ្ជាទិញអតិថិជន', permMarkItemDesc: 'សម្គាល់មុខម្ហូបបានបម្រើ', permCompleteDesc: 'ទូទាត់និងបញ្ចប់', waiterUsernamePlaceholder: 'បញ្ចូលគណនី', waiterPasswordPlaceholder: 'បញ្ចូលពាក្យសម្ងាត់ថ្មី', waiterNamePlaceholder: 'បញ្ចូលឈ្មោះបង្ហាញ',
             waiterPassword: 'ពាក្យសម្ងាត់', waiterDisplayName: 'ឈ្មោះបង្ហាញ', addWaiter: 'បន្ថែមបុគ្គលិក',
             nameEn: 'ឈ្មោះជាភាសាអង់គ្លេស', descEn: 'ការពិពណ៌នាជាភាសាអង់គ្លេស', logsTitle: 'កំណត់ហេតុចូល', time: 'ពេលវេលា',
             result: 'លទ្ធផល', loginSuccess: 'ចូលបានជោគជ័យ', loginFailed: 'ចូលបរាជ័យ', qr: 'QR Code',
@@ -3078,7 +3391,7 @@
                     <div class="actions">
                       ${o.status==='done' ? '' : `<button class="edit" onclick="editOrder(${o.id})">${L('edit')}</button>`}
                       <button onclick="printOrder(${o.id})" style="background:#3498db;">🖨️ ${tAdmin('print')}</button>
-                      ${o.status==='pending' ? `<button onclick="statusOrder(${o.id},'done')">💰 ${tAdmin('settleOrder')}</button><button onclick="statusOrder(${o.id},'canceled')">${L('cancel')}</button>` : ''}
+                      ${o.status==='pending' ? `<button class="settle-order-btn" onclick="confirmSettleOrder(${o.id})">💰 ${tAdmin('settleOrder')}</button><button class="cancel-order-btn" onclick="confirmCancelOrder(${o.id})">🗑️ ${tAdmin('cancelOrder')}</button>` : ''}
                       <button class="danger" onclick="removeOrder(${o.id})">${L('delete')}</button>
                     </div>
                   </div>
@@ -3439,6 +3752,12 @@
                 await loadOrders();
                 toast(`✅ ${tAdmin('dishStatusUpdated')}`);
             } catch (e) { toast('❌ ' + e.message); }
+        };
+        window.confirmSettleOrder = function(id) {
+            showConfirm(tAdmin('settleOrderConfirm'), () => statusOrder(id, 'done'), tAdmin('settleOrder'));
+        };
+        window.confirmCancelOrder = function(id) {
+            showConfirm(tAdmin('cancelOrderConfirm'), () => statusOrder(id, 'canceled'), tAdmin('cancelOrder'));
         };
         window.statusOrder = async function(id, status) {
             try {
@@ -4238,7 +4557,7 @@
                 $('#editWaiterCanOrder').checked = !!target.can_order;
                 $('#editWaiterCanMarkItem').checked = !!target.can_mark_item;
                 $('#editWaiterCanCompleteOrder').checked = !!target.can_complete_order;
-                $('#waiterEditTitle').textContent = `编辑服务员 #${id}`;
+                $('#waiterEditTitle').textContent = '🧑‍🍳 ' + tAdmin('editWaiter') + ' #' + id;
                 $('#waiterEditModal').classList.add('open');
             } catch (e) {
                 toast(`❌ ${tAdmin('loadWaiterFailed')}: ` + e.message);
@@ -4291,7 +4610,7 @@
                 $('#editStoreCode').value = target.code || '';
                 $('#editStoreAddress').value = target.address || '';
                 $('#editStoreActive').checked = !!target.active;
-                $('#storeEditTitle').textContent = `编辑店铺 #${id}`;
+                $('#storeEditTitle').textContent = '🏪 ' + tAdmin('editStore') + ' #' + id;
                 $('#storeEditModal').classList.add('open');
             } catch (e) {
                 toast(`❌ ${tAdmin('loadStoreFailed')}: ` + e.message);
@@ -4301,6 +4620,17 @@
         window.closeStoreEdit = function() {
             $('#storeEditModal').classList.remove('open');
         };
+
+        // 备份文件选择时显示文件名
+        document.getElementById('importBackupFile').addEventListener('change', function() {
+            const fileName = this.files.length ? this.files[0].name : '未选择文件';
+            document.getElementById('backupFileName').textContent = fileName;
+        });
+        // 店铺状态开关变化时更新文字
+        document.getElementById('editStoreActive').addEventListener('change', function() {
+            const statusText = this.checked ? tAdmin('storeActive') : tAdmin('storeDisabled');
+            document.getElementById('storeEditStatusText').textContent = statusText;
+        });
 
         document.getElementById('saveStoreEditBtn').onclick = async function() {
             const id = parseInt($('#editStoreId').value);
@@ -4409,6 +4739,36 @@
             $('#adminLang').value = adminLang;
             $('#logoutBtn').textContent = tAdmin('logout');
             $('#confirmCancelBtn').textContent = L('cancel') || '取消';
+            // 服务员编辑模态框翻译
+            $('#waiterEditUsernameLabel').textContent = tAdmin('waiterUsername');
+            $('#waiterEditPasswordLabel').textContent = tAdmin('waiterPassword') + '（留空不修改）';
+            $('#waiterEditDisplayNameLabel').textContent = tAdmin('waiterDisplayName');
+            $('#waiterEditStoreLabel').textContent = tAdmin('waiterStore');
+            $('#waiterEditPermissionLabel').textContent = tAdmin('waiterPermission');
+            $('#permOrderLabel').textContent = tAdmin('permOrder');
+            $('#permOrderDesc').textContent = tAdmin('permOrderDesc');
+            $('#permMarkItemLabel').textContent = tAdmin('permMarkItem');
+            $('#permMarkItemDesc').textContent = tAdmin('permMarkItemDesc');
+            $('#permCompleteLabel').textContent = tAdmin('permCompleteOrder');
+            $('#permCompleteDesc').textContent = tAdmin('permCompleteDesc');
+            $('#editWaiterUsername').placeholder = tAdmin('waiterUsernamePlaceholder');
+            $('#editWaiterPassword').placeholder = tAdmin('waiterPasswordPlaceholder');
+            $('#editWaiterDisplayName').placeholder = tAdmin('waiterNamePlaceholder');
+            $('#waiterEditCancelBtn').textContent = L('cancel') || '取消';
+            $('#saveWaiterEditBtn').textContent = L('save') || '保存';
+            // 店铺编辑模态框翻译
+            $('#storeEditNameLabel').textContent = tAdmin('storeName');
+            $('#storeEditCodeLabel').textContent = tAdmin('storeCode');
+            $('#storeEditAddressLabel').textContent = tAdmin('storeAddress');
+            $('#storeEditStatusLabel').textContent = tAdmin('storeStatus');
+            $('#editStoreName').placeholder = tAdmin('storeNamePlaceholder');
+            $('#editStoreCode').placeholder = tAdmin('storeCodePlaceholder');
+            $('#editStoreAddress').placeholder = tAdmin('storeAddressPlaceholder');
+            $('#storeEditCancelBtn').textContent = L('cancel') || '取消';
+            $('#saveStoreEditBtn').textContent = L('save') || '保存';
+            // 更新开关状态文字
+            const statusText = $('#editStoreActive').checked ? tAdmin('storeActive') : tAdmin('storeDisabled');
+            $('#storeEditStatusText').textContent = statusText;
             $('#confirmOkBtn').textContent = L('confirm') || '确定';
             $('#confirmTitle').textContent = L('confirmTitle') || '确认操作';
             document.querySelector('.top a').textContent = '📋 ' + tAdmin('customerPage');

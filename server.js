@@ -1284,11 +1284,12 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     const exists = await getAsync('SELECT id FROM merchants WHERE code=?', [code]);
     if (exists) return res.status(400).json({ error: '商家编码已存在' });
     const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status) VALUES (?, ?, ?, ?, ?, 1)', [name, code, contact_name || '', contact_phone || '', max_stores || 1]);
+    const newMerchantId = result.lastID;
     // 自动创建商家管理员
     const adminUsername = 'admin_' + code;
     const adminHash = hashPassword('admin123');
-    await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [result.insertId, adminUsername, adminHash, name + '管理员']);
-    res.json({ success: true, id: result.insertId, adminUsername, defaultPassword: 'admin123' });
+    await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
+    res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: 'admin123' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

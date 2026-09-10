@@ -45,19 +45,31 @@
     h1 { margin: 0 0 10px; color: #fff; font-size: 22px; }
     .desc { color: #9b9bb2; margin: 0 0 20px; font-size: 14px; line-height: 1.6; }
 
-    /* 登录类型切换 */
-    .login-tabs {
-      display: flex; gap: 8px; margin-bottom: 20px;
-      background: rgba(255,255,255,.06); padding: 4px; border-radius: 12px;
+    /* 登录类型下拉选择 */
+    .login-type-wrapper {
+      position: relative; margin-bottom: 20px;
     }
-    .login-tab {
-      flex: 1; padding: 10px; border: 0; border-radius: 8px;
-      background: transparent; color: #9b9bb2; font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: all .2s;
+    .login-type-wrapper label {
+      display: block; text-align: left; color: #9b9bb2;
+      font-size: 13px; margin-bottom: 8px; font-weight: 500;
     }
-    .login-tab.active {
-      background: linear-gradient(135deg, #f76b46, #df4d32);
-      color: #fff; box-shadow: 0 4px 12px rgba(232,93,58,.3);
+    .login-type-select {
+      width: 100%; height: 48px; padding: 0 40px 0 14px;
+      border-radius: 12px; border: 1px solid rgba(255,255,255,.14);
+      background: #20203a; color: #fff; font-size: 15px;
+      cursor: pointer; outline: none; appearance: none;
+      -webkit-appearance: none; transition: all .2s;
+    }
+    .login-type-select:focus {
+      border-color: #e85d3a;
+      box-shadow: 0 0 0 3px rgba(232,93,58,.15);
+    }
+    .login-type-select option {
+      background: #2d2d44; color: #fff; padding: 10px;
+    }
+    .login-type-wrapper::after {
+      content: '▼'; position: absolute; right: 16px; top: 38px;
+      color: #9b9bb2; font-size: 10px; pointer-events: none;
     }
 
     .login-box input {
@@ -99,14 +111,17 @@
       <h1 id="loginTitle">登录</h1>
       <p class="desc" id="loginDesc">请选择登录类型</p>
 
-      <!-- 登录类型切换 -->
-      <div class="login-tabs">
-        <button class="login-tab active" data-type="admin" id="tabAdmin">管理员</button>
-        <button class="login-tab" data-type="waiter" id="tabWaiter">服务员</button>
+      <!-- 登录类型下拉选择 -->
+      <div class="login-type-wrapper">
+        <label id="loginTypeLabel">登录类型</label>
+        <select id="loginType" class="login-type-select">
+          <option value="admin">👔 管理员</option>
+          <option value="waiter">🧑‍🍳 服务员</option>
+        </select>
       </div>
 
-      <!-- 服务员用户名（管理员模式隐藏） -->
-      <input id="username" type="text" placeholder="用户名" autocomplete="username" class="hidden">
+      <!-- 用户名输入框 -->
+      <input id="username" type="text" placeholder="用户名" autocomplete="username">
       <input id="password" type="password" placeholder="密码" autocomplete="current-password">
       <button id="loginBtn">登录</button>
       <div class="error" id="loginError"></div>
@@ -135,20 +150,19 @@
       $('#brandTitle').textContent = t('brandName');
       $('#langSelect').value = lang;
 
-      // 更新登录类型按钮状态
-      $('#tabAdmin').textContent = t('admin');
-      $('#tabWaiter').textContent = t('waiter');
-      $('#tabAdmin').classList.toggle('active', loginType === 'admin');
-      $('#tabWaiter').classList.toggle('active', loginType === 'waiter');
+      // 更新登录类型下拉选择
+      $('#loginType').value = loginType;
+      $('#loginTypeLabel').textContent = t('loginType') || '登录类型';
+      $('#loginType option[value="admin"]').textContent = '👔 ' + t('admin');
+      $('#loginType option[value="waiter"]').textContent = '🧑‍🍳 ' + t('waiter');
 
-      // 显示/隐藏用户名输入框
-      $('#username').classList.toggle('hidden', false); // 管理员和服务员都需要用户名
+      // 用户名输入框
       $('#username').placeholder = t('username');
 
       // 更新标题和描述
       if (loginType === 'admin') {
         $('#loginTitle').textContent = t('adminLogin');
-        $('#loginDesc').textContent = t('adminLoginDesc');
+        $('#loginDesc').textContent = t('adminLoginDesc') || '请输入管理员用户名和密码';
         $('#username').placeholder = t('adminUsername') || '管理员用户名';
         $('#password').placeholder = t('adminPassword');
       } else {
@@ -169,13 +183,8 @@
     });
 
     // 登录类型切换
-    $('#tabAdmin').addEventListener('click', () => {
-      loginType = 'admin';
-      $('#loginError').textContent = '';
-      apply();
-    });
-    $('#tabWaiter').addEventListener('click', () => {
-      loginType = 'waiter';
+    $('#loginType').addEventListener('change', function() {
+      loginType = this.value;
       $('#loginError').textContent = '';
       apply();
     });
