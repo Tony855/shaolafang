@@ -4590,6 +4590,57 @@
     color: #bdc3c7;
     letter-spacing: 1px;
   }
+  /* 移动端响应式适配 */
+  @media (max-width: 480px) {
+    body { padding: 12px; }
+    body::before { width: 300px; height: 300px; top: -120px; right: -120px; }
+    body::after { width: 250px; height: 250px; bottom: -100px; left: -100px; }
+    .qr-card { max-width: 100%; border-radius: 22px; }
+    .card-header { padding: 22px 20px 20px; }
+    .brand-icon { font-size: 36px; }
+    .brand-name { font-size: 28px; letter-spacing: 1px; }
+    .card-body { padding: 22px 20px 20px; }
+    .table-badge { font-size: 16px; padding: 8px 22px; margin-bottom: 18px; }
+    .qr-frame { padding: 14px; border-radius: 16px; }
+    .qr-frame img { width: 200px; height: 200px; }
+    .qr-container { margin-bottom: 24px; }
+    .scan-text { font-size: 18px; margin-top: 12px; margin-bottom: 18px; }
+    .scan-sub { font-size: 12px; margin-bottom: 18px; }
+    .url-box { font-size: 9px; padding: 8px 12px; margin-bottom: 16px; }
+    .btn { padding: 12px 10px; font-size: 13px; border-radius: 12px; }
+    .card-footer { padding: 12px; font-size: 9px; }
+  }
+  @media (max-width: 360px) {
+    body { padding: 8px; }
+    .card-header { padding: 18px 16px 16px; }
+    .brand-icon { font-size: 32px; }
+    .brand-name { font-size: 24px; }
+    .card-body { padding: 18px 16px 16px; }
+    .table-badge { font-size: 14px; padding: 7px 18px; }
+    .qr-frame { padding: 12px; border-radius: 14px; }
+    .qr-frame img { width: 170px; height: 170px; }
+    .qr-container { margin-bottom: 20px; }
+    .scan-text { font-size: 16px; margin-bottom: 14px; }
+    .scan-sub { font-size: 11px; margin-bottom: 14px; }
+    .actions { flex-direction: column; gap: 8px; }
+    .btn { padding: 11px 10px; font-size: 12px; }
+  }
+  @media (max-height: 600px) and (orientation: landscape) {
+    body { padding: 10px; align-items: flex-start; overflow-y: auto; }
+    .qr-card { max-width: 340px; }
+    .card-header { padding: 18px 20px 16px; }
+    .brand-icon { font-size: 32px; margin-bottom: 4px; }
+    .brand-name { font-size: 26px; }
+    .card-body { padding: 18px 20px 16px; }
+    .table-badge { font-size: 15px; padding: 7px 20px; margin-bottom: 14px; }
+    .qr-frame { padding: 12px; }
+    .qr-frame img { width: 160px; height: 160px; }
+    .qr-container { margin-bottom: 16px; }
+    .scan-text { font-size: 16px; margin-top: 10px; margin-bottom: 12px; }
+    .scan-sub { display: none; }
+    .url-box { display: none; }
+    .btn { padding: 10px 12px; font-size: 12px; }
+  }
   @media print {
     body { background: #fff; padding: 0; }
     body::before, body::after { display: none; }
