@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -224,6 +224,9 @@ select:focus {
     <div class="nav-item" data-module="logs" onclick="closeSidebar();switchModule('logs')">
       <span class="icon">📋</span><span>登录日志</span>
     </div>
+    <div class="nav-item" data-module="backup" onclick="closeSidebar();switchModule('backup')">
+      <span class="icon">💾</span><span>数据备份</span>
+    </div>
     <div class="nav-item" data-module="settings" onclick="closeSidebar();switchModule('settings')">
       <span class="icon">⚙️</span><span>系统设置</span>
     </div>
@@ -316,6 +319,40 @@ select:focus {
         </thead>
         <tbody id="loginLogList"></tbody>
       </table>
+    </div>
+
+    <!-- 数据备份 -->
+    <div class="panel" id="panel-backup">
+      <div class="section-title">数据备份</div>
+      <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
+        <p style="color:#888;margin-bottom:16px;">全量数据备份（包含所有商户、门店、菜品、订单等数据）</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+          <button class="btn-primary" onclick="exportBackup()" style="background:linear-gradient(135deg,#2ecc71,#27ae60);">📤 导出备份</button>
+          <label class="btn-primary" style="background:linear-gradient(135deg,#667eea,#764ba2);cursor:pointer;">
+            📁 选择备份文件
+            <input type="file" id="backupFileInput" accept=".json" style="display:none;" onchange="onBackupFileSelected(this)">
+          </label>
+          <span id="backupFileName" style="color:#888;align-self:center;">未选择文件</span>
+          <button class="btn-primary" onclick="importBackup()" style="background:linear-gradient(135deg,#ffd93d,#f39c12);color:#333;">📥 导入备份</button>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <label style="color:#aaa;">自动备份间隔：</label>
+          <select id="backupIntervalSelect" style="background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;">
+            <option value="1">每 1 小时</option>
+            <option value="6">每 6 小时</option>
+            <option value="12">每 12 小时</option>
+            <option value="24">每 24 小时</option>
+          </select>
+          <button class="btn-primary" onclick="saveBackupSettings()" style="background:linear-gradient(135deg,#667eea,#764ba2);">💾 保存设置</button>
+          <button class="btn-primary" onclick="backupNow()" style="background:linear-gradient(135deg,#e85d3a,#e84a2a);">⚡ 立即备份</button>
+        </div>
+        <div id="lastBackupInfo" style="color:#666;margin-top:12px;font-size:13px;"></div>
+      </div>
+      <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.2);border-radius:12px;padding:24px;">
+        <p style="color:#e74c3c;margin-bottom:16px;font-weight:600;">⚠️ 危险操作</p>
+        <p style="color:#aaa;margin-bottom:16px;font-size:13px;">重置将清空所有订单、呼叫记录和扫码会话，菜品、商户、门店等基础数据保留。</p>
+        <button class="btn-primary" onclick="resetData()" style="background:linear-gradient(135deg,#e74c3c,#c0392b);">🗑️ 重置订单数据</button>
+      </div>
     </div>
 
     <!-- 系统设置 -->
@@ -454,13 +491,14 @@ function switchModule(mod) {
   currentModule = mod;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === mod));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + mod));
-  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '登录日志', settings: '系统设置' };
+  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '登录日志', backup: '数据备份', settings: '系统设置' };
   document.getElementById('pageTitle').textContent = titles[mod] || '';
   if (mod === 'dashboard') loadDashboard();
   if (mod === 'merchants') loadMerchants();
   if (mod === 'stores') loadStores();
   if (mod === 'logs') loadLoginLogs();
   if (mod === 'settings') loadGlobalSettings();
+  if (mod === 'backup') loadBackupSettings();
 }
 
 // API 请求
@@ -704,6 +742,106 @@ document.getElementById('loginPassword').addEventListener('keypress', e => { if 
 
 // 自动登录
 if (token) showApp();
+
+  // ========== 数据备份功能 ==========
+  let selectedBackupFile = null;
+
+  async function loadBackupSettings() {
+    try {
+      const data = await api('/super/backup/settings');
+      document.getElementById('backupIntervalSelect').value = String(data.intervalHours || 24);
+      if (data.lastBackupAt) {
+        document.getElementById('lastBackupInfo').textContent = '上次备份时间：' + new Date(data.lastBackupAt).toLocaleString();
+      }
+    } catch (e) {
+      console.error('加载备份设置失败', e);
+    }
+  }
+
+  async function exportBackup() {
+    try {
+      const res = await fetch('/api/super/backup/export', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) throw new Error('导出失败');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'foodflow-backup-' + new Date().toISOString().slice(0,10) + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('✅ 备份已导出', 'success');
+    } catch (e) {
+      toast('❌ 导出失败：' + e.message, 'error');
+    }
+  }
+
+  function onBackupFileSelected(input) {
+    if (input.files && input.files[0]) {
+      selectedBackupFile = input.files[0];
+      document.getElementById('backupFileName').textContent = selectedBackupFile.name;
+    }
+  }
+
+  async function importBackup() {
+    if (!selectedBackupFile) {
+      toast('⚠️ 请先选择备份文件', 'error');
+      return;
+    }
+    if (!confirm('确定要导入备份吗？这将覆盖当前所有数据！')) return;
+    try {
+      const text = await selectedBackupFile.text();
+      const data = JSON.parse(text);
+      const res = await fetch('/api/super/backup/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(data)
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || '导入失败');
+      toast('✅ 备份已导入', 'success');
+      setTimeout(() => location.reload(), 1500);
+    } catch (e) {
+      toast('❌ 导入失败：' + e.message, 'error');
+    }
+  }
+
+  async function saveBackupSettings() {
+    try {
+      const intervalHours = document.getElementById('backupIntervalSelect').value;
+      await api('/super/backup/settings', { method: 'PUT', body: JSON.stringify({ intervalHours }) });
+      toast('✅ 备份设置已保存', 'success');
+    } catch (e) {
+      toast('❌ 保存失败', 'error');
+    }
+  }
+
+  async function backupNow() {
+    try {
+      await api('/super/backup/now', { method: 'POST' });
+      toast('✅ 备份已生成', 'success');
+      loadBackupSettings();
+    } catch (e) {
+      toast('❌ 备份失败', 'error');
+    }
+  }
+
+  async function resetData() {
+    const password = prompt('请输入超级管理员密码以确认重置：');
+    if (!password) return;
+    try {
+      const res = await fetch('/api/super/reset-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '重置失败');
+      toast('✅ 订单数据已重置', 'success');
+    } catch (e) {
+      toast('❌ 重置失败：' + e.message, 'error');
+    }
+  }
+
 </script>
 </body>
 </html>
