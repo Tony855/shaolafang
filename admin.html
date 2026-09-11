@@ -2616,6 +2616,13 @@
                         <button id="saveNotifySettingsBtn" class="btn-secondary">保存设置</button>
                     </div>
                 </div>
+
+                <!-- 重置数据卡片 -->
+                <div class="settings-card" style="border-color: #ff4d4f;">
+                    <h3 class="settings-card-title" id="resetDataCardTitle" style="color: #ff4d4f;">⚠️ 重置数据</h3>
+                    <p id="resetDataDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">清空本商户所有订单数据（订单、呼叫记录、扫码会话），保留商户、门店、菜品、服务员等基础数据。此操作不可恢复！</p>
+                    <button id="resetDataBtn" style="background: #ff4d4f; border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">重置订单数据</button>
+                </div>
             </section>
         </div>
     </main>
@@ -2911,7 +2918,7 @@
                 backupGenerated: '备份已生成', backupFailed: '备份失败',
                 saveDisplaySettings: '保存显示设置', displaySettingsSaved: '双币显示设置已保存', displaySettingsSaveFailed: '保存失败',
                 resetTitle: '⚠️ 重置数据（清空所有订单）', resetOrderData: '重置订单数据',
-                resetPasswordPrompt: '请输入管理员密码以确认重置', resetSuccess: '订单数据已重置', resetFailed: '重置失败',
+                resetPasswordPrompt: '请输入管理员密码以确认重置', resetSuccess: '订单数据已重置', resetFailed: '重置失败', resetDataCardTitle: '⚠️ 重置数据', resetDataDesc: '清空本商户所有订单数据（订单、呼叫记录、扫码会话），保留商户、门店、菜品、服务员等基础数据。此操作不可恢复！', resetDataBtn: '重置订单数据', resetDataConfirmTitle: '确认重置数据', resetDataConfirmMsg: '此操作将清空本商户所有订单数据，且不可恢复！确定要继续吗？', resetDataPasswordTitle: '验证管理员密码', resetDataPasswordMsg: '请输入当前登录管理员的密码以验证身份',
                 notifyTitle: '🔔 新订单提示音', newOrderSoundLabel: '新订单到达时，服务员端和后厨端播放提示音',
                 saveNotifySettings: '保存提示音设置', notifySettingsSaved: '提示音设置已保存', notifySettingsSaveFailed: '保存失败',
                 nameRequired: '名称不能为空',
@@ -3076,7 +3083,7 @@
                 backupGenerated: 'Backup generated', backupFailed: 'Backup failed',
                 saveDisplaySettings: 'Save Display Settings', displaySettingsSaved: 'Dual currency display settings saved', displaySettingsSaveFailed: 'Save failed',
                 resetTitle: '⚠️ Reset Data (Clear All Orders)', resetOrderData: 'Reset Order Data',
-                resetPasswordPrompt: 'Enter admin password to confirm reset', resetSuccess: 'Order data has been reset', resetFailed: 'Reset failed',
+                resetPasswordPrompt: 'Enter admin password to confirm reset', resetSuccess: 'Order data has been reset', resetFailed: 'Reset failed', resetDataCardTitle: '⚠️ Reset Data', resetDataDesc: 'Clear all order data for this merchant (orders, call records, scan sessions), keep merchant, stores, menu, waiters and other basic data. This operation cannot be undone!', resetDataBtn: 'Reset Order Data', resetDataConfirmTitle: 'Confirm Reset Data', resetDataConfirmMsg: 'This will clear all order data for this merchant and cannot be undone! Are you sure you want to continue?', resetDataPasswordTitle: 'Verify Admin Password', resetDataPasswordMsg: 'Please enter the password of the currently logged-in admin to verify identity',
                 notifyTitle: '🔔 New Order Sound', newOrderSoundLabel: 'Play a sound on the waiter and kitchen displays when a new order arrives',
                 saveNotifySettings: 'Save Sound Settings', notifySettingsSaved: 'Sound settings saved', notifySettingsSaveFailed: 'Save failed',
                 nameRequired: 'Name is required',
@@ -3264,7 +3271,7 @@
             backupGenerated: 'Đã tạo bản sao lưu', backupFailed: 'Sao lưu thất bại',
             saveDisplaySettings: 'Lưu cài đặt hiển thị', displaySettingsSaved: 'Đã lưu cài đặt hiển thị 2 loại tiền', displaySettingsSaveFailed: 'Lưu thất bại',
             resetTitle: '⚠️ Đặt lại dữ liệu (Xóa toàn bộ đơn)', resetOrderData: 'Đặt lại dữ liệu đơn hàng',
-            resetPasswordPrompt: 'Nhập mật khẩu quản trị để xác nhận đặt lại', resetSuccess: 'Đã đặt lại dữ liệu đơn hàng', resetFailed: 'Đặt lại thất bại',
+            resetPasswordPrompt: 'Nhập mật khẩu quản trị để xác nhận đặt lại', resetSuccess: 'Đã đặt lại dữ liệu đơn hàng', resetFailed: 'Đặt lại thất bại', resetDataCardTitle: '⚠️ Đặt lại dữ liệu', resetDataDesc: 'Xóa tất cả dữ liệu đơn hàng của merchant này (đơn hàng, cuộc gọi, phiên quét), giữ merchant, cửa hàng, thực đơn, nhân viên và dữ liệu cơ bản khác. Không thể hoàn tác!', resetDataBtn: 'Đặt lại dữ liệu đơn hàng', resetDataConfirmTitle: 'Xác nhận đặt lại dữ liệu', resetDataConfirmMsg: 'Thao tác này sẽ xóa tất cả dữ liệu đơn hàng của merchant này và không thể hoàn tác! Bạn có chắc chắn muốn tiếp tục?', resetDataPasswordTitle: 'Xác minh mật khẩu quản trị', resetDataPasswordMsg: 'Vui lòng nhập mật khẩu của quản trị viên đang đăng nhập để xác minh danh tính',
             notifyTitle: '🔔 Âm báo đơn mới', newOrderSoundLabel: 'Phát âm báo trên màn hình nhân viên và bếp khi có đơn mới',
             saveNotifySettings: 'Lưu cài đặt âm báo', notifySettingsSaved: 'Đã lưu cài đặt âm báo', notifySettingsSaveFailed: 'Lưu thất bại'
         };
@@ -3335,7 +3342,7 @@
             backupGenerated: 'สร้างไฟล์สำรองแล้ว', backupFailed: 'สำรองข้อมูลล้มเหลว',
             saveDisplaySettings: 'บันทึกการตั้งค่าการแสดงผล', displaySettingsSaved: 'บันทึกการตั้งค่าสองสกุลเงินแล้ว', displaySettingsSaveFailed: 'บันทึกล้มเหลว',
             resetTitle: '⚠️ รีเซ็ตข้อมูล (ล้างออเดอร์ทั้งหมด)', resetOrderData: 'รีเซ็ตข้อมูลออเดอร์',
-            resetPasswordPrompt: 'กรอกรหัสผ่านผู้ดูแลเพื่อยืนยันการรีเซ็ต', resetSuccess: 'รีเซ็ตข้อมูลออเดอร์แล้ว', resetFailed: 'รีเซ็ตล้มเหลว',
+            resetPasswordPrompt: 'กรอกรหัสผ่านผู้ดูแลเพื่อยืนยันการรีเซ็ต', resetSuccess: 'รีเซ็ตข้อมูลออเดอร์แล้ว', resetFailed: 'รีเซ็ตล้มเหลว', resetDataCardTitle: '⚠️ รีเซ็ตข้อมูล', resetDataDesc: 'ล้างข้อมูลออเดอร์ทั้งหมดของ merchant นี้ (ออเดอร์, บันทึกการเรียก, เซสชันสแกน) เก็บ merchant, ร้านค้า, เมนู, พนักงานและข้อมูลพื้นฐานอื่นๆ ไม่สามารถย้อนกลับได้!', resetDataBtn: 'รีเซ็ตข้อมูลออเดอร์', resetDataConfirmTitle: 'ยืนยันรีเซ็ตข้อมูล', resetDataConfirmMsg: 'การดำเนินการนี้จะล้างข้อมูลออเดอร์ทั้งหมดของ merchant นี้และไม่สามารถย้อนกลับได้! คุณแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ?', resetDataPasswordTitle: 'ยืนยันรหัสผ่านผู้ดูแล', resetDataPasswordMsg: 'กรุณากรอกรหัสผ่านของผู้ดูแลที่เข้าสู่ระบบอยู่เพื่อยืนยันตัวตน',
             notifyTitle: '🔔 เสียงแจ้งเตือนออเดอร์ใหม่', newOrderSoundLabel: 'เล่นเสียงที่หน้าจอพนักงานและครัวเมื่อมีออเดอร์ใหม่',
             saveNotifySettings: 'บันทึกการตั้งค่าเสียง', notifySettingsSaved: 'บันทึกการตั้งค่าเสียงแล้ว', notifySettingsSaveFailed: 'บันทึกล้มเหลว'
         };
@@ -3407,7 +3414,7 @@
             backupGenerated: 'បានបង្កើតការបម្រុងទុក', backupFailed: 'បម្រុងទុកបរាជ័យ',
             saveDisplaySettings: 'រក្សាទុកការកំណត់បង្ហាញ', displaySettingsSaved: 'បានរក្សាទុកការកំណត់រូបិយប័ណ្ណពីរ', displaySettingsSaveFailed: 'រក្សាទុកបរាជ័យ',
             resetTitle: '⚠️ កំណត់ទិន្នន័យឡើងវិញ (សម្អាតការបញ្ជាទិញទាំងអស់)', resetOrderData: 'កំណត់ទិន្នន័យការបញ្ជាទិញឡើងវិញ',
-            resetPasswordPrompt: 'សូមបញ្ចូលពាក្យសម្ងាត់អ្នកគ្រប់គ្រងដើម្បីបញ្ជាក់ការកំណត់ឡើងវិញ', resetSuccess: 'បានកំណត់ទិន្នន័យការបញ្ជាទិញឡើងវិញ', resetFailed: 'កំណត់ឡើងវិញបរាជ័យ',
+            resetPasswordPrompt: 'សូមបញ្ចូលពាក្យសម្ងាត់អ្នកគ្រប់គ្រងដើម្បីបញ្ជាក់ការកំណត់ឡើងវិញ', resetSuccess: 'បានកំណត់ទិន្នន័យការបញ្ជាទិញឡើងវិញ', resetFailed: 'កំណត់ឡើងវិញបរាជ័យ', resetDataCardTitle: '⚠️ កំណត់ទិន្នន័យឡើងវិញ', resetDataDesc: 'សម្អាតទិន្នន័យការបញ្ជាទិញទាំងអស់សម្រាប់ merchant នេះ (ការបញ្ជាទិញ, កំណត់ត្រាការហៅ, សម័យស្កេន) រក្សា merchant, ហាង, មឺនុយ, អ្នកបម្រើនិងទិន្នន័យមូលដ្ឋានផ្សេងទៀត។ ប្រតិបត្តិការនេះមិនអាចត្រឡប់វិញបានទេ!', resetDataBtn: 'កំណត់ទិន្នន័យការបញ្ជាទិញឡើងវិញ', resetDataConfirmTitle: 'បញ្ជាក់ការកំណត់ទិន្នន័យឡើងវិញ', resetDataConfirmMsg: 'ប្រតិបត្តិការនេះនឹងសម្អាតទិន្នន័យការបញ្ជាទិញទាំងអស់សម្រាប់ merchant នេះ ហើយមិនអាចត្រឡប់វិញបានទេ! តើអ្នកប្រាកដថាចង់បន្តទេ?', resetDataPasswordTitle: 'ផ្ទៀងផ្ទាត់ពាក្យសម្ងាត់អ្នកគ្រប់គ្រង', resetDataPasswordMsg: 'សូមបញ្ចូលពាក្យសម្ងាត់របស់អ្នកគ្រប់គ្រងដែលកំពុងប្រើដើម្បីផ្ទៀងផ្ទាត់អត្តសញ្ញាណ',
             notifyTitle: '🔔 សំឡេងជូនដំណឹងការបញ្ជាទិញថ្មី', newOrderSoundLabel: 'ចាក់សំឡេងនៅអេក្រង់បុគ្គលិកនិងផ្ទះបាយពេលមានការបញ្ជាទិញថ្មី',
             saveNotifySettings: 'រក្សាទុកការកំណត់សំឡេង', notifySettingsSaved: 'បានរក្សាទុកការកំណត់សំឡេង', notifySettingsSaveFailed: 'រក្សាទុកបរាជ័យ'
         };
@@ -4731,6 +4738,26 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
 
+        $('#resetDataBtn').onclick = function() {
+            showPasswordModal(tAdmin('resetDataPasswordMsg'), function(password) {
+                showConfirm(tAdmin('resetDataConfirmMsg'), async function() {
+                    try {
+                        const res = await fetch('/api/admin/reset-data', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
+                            body: JSON.stringify({ password })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.error || tAdmin('resetFailed'));
+                        toast('✅ ' + tAdmin('resetSuccess'));
+                        await loadOrders();
+                        await loadTables();
+                        await loadLoginLogs();
+                    } catch (e) { toast('❌ ' + e.message); }
+                }, tAdmin('resetDataConfirmTitle'));
+            }, tAdmin('resetDataPasswordTitle'));
+        };
+
         // ================================================================
         // 新增：服务员编辑功能
         // ================================================================
@@ -5073,6 +5100,12 @@
             $('#oldPassword').placeholder = tAdmin('oldPassword');
             $('#newPassword').placeholder = tAdmin('newPassword');
             $('#changePasswordBtn').textContent = tAdmin('changePassword');
+            $('#notifyPanelTitle').textContent = tAdmin('notifyTitle');
+            $('#newOrderSoundLabel').textContent = tAdmin('newOrderSoundLabel');
+            $('#saveNotifySettingsBtn').textContent = tAdmin('saveNotifySettings');
+            $('#resetDataCardTitle').textContent = tAdmin('resetDataCardTitle');
+            $('#resetDataDesc').textContent = tAdmin('resetDataDesc');
+            $('#resetDataBtn').textContent = tAdmin('resetDataBtn');
             $('#orderTableLabel').textContent = tAdmin('tableField');
             $('#orderDishListLabel').textContent = tAdmin('dishList');
             $('#addOrderItemBtn').textContent = tAdmin('addDishLine');

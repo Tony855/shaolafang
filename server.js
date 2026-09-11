@@ -2569,12 +2569,20 @@ app.post('/api/admin/change-password', requireAdminKey, async (req, res) => {
 app.post('/api/admin/reset-data', requireAdminKey, async (req, res) => {
   try {
     const { password } = req.body;
-    if (!password) return res.status(400).json({ error: '请提供管理员密码' });
-    const isValid = await verifyPassword(password);
-    if (!isValid) return res.status(401).json({ error: '密码错误，重置失败' });
-    await runAsync('DELETE FROM orders');
-    await runAsync('ALTER TABLE orders AUTO_INCREMENT = 1');
-    res.json({ success: true, message: '所有订单数据已重置' });
+    if (!password) return res.status(400).json({ error: '请输入管理员密码' });
+    const merchantId = req.merchantId;
+    if (!merchantId) return res.status(400).json({ error: '商户信息缺失' });
+    // 验证当前商户管理员密码
+    const admin = await getAsync('SELECT password_hash FROM merchant_admins WHERE id=?', [req.adminId]);
+    if (!admin || hashPassword(password) !== admin.password_hash) {
+      return res.status(401).json({ error: '密码错误，重置失败' });
+    }
+    // 只重置当前商户的订单相关数据
+    await runAsync('DELETE FROM orders WHERE merchant_id = ?', [merchantId]);
+    await runAsync('DELETE FROM waiter_calls WHERE merchant_id = ?', [merchantId]);
+    await runAsync('DELETE FROM scan_sessions WHERE merchant_id = ?', [merchantId]);
+    await runAsync('DELETE FROM reservations WHERE merchant_id = ?', [merchantId]);
+    res.json({ success: true, message: '订单数据已重置' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

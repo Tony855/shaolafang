@@ -432,6 +432,31 @@ select:focus {
   </div>
 </div>
 
+<!-- 确认弹窗 -->
+<div class="modal" id="confirmModal">
+  <div class="modal-card">
+    <h3 id="confirmModalTitle">确认操作</h3>
+    <p id="confirmModalMessage" style="color:#aaa;line-height:1.6;margin-bottom:8px;">确定要执行此操作吗？</p>
+    <div class="modal-actions">
+      <button class="cancel" onclick="hideConfirm()">取消</button>
+      <button class="confirm" id="confirmModalBtn" style="background:linear-gradient(135deg,#e74c3c,#c0392b);">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 密码输入弹窗 -->
+<div class="modal" id="passwordModal">
+  <div class="modal-card">
+    <h3 id="passwordModalTitle">验证密码</h3>
+    <p id="passwordModalMessage" style="color:#aaa;line-height:1.6;margin-bottom:16px;">请输入密码以验证身份</p>
+    <input type="password" id="passwordModalInput" placeholder="请输入密码" style="width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;margin-bottom:8px;">
+    <div class="modal-actions">
+      <button class="cancel" onclick="hidePasswordModal()">取消</button>
+      <button class="confirm" onclick="executePasswordModal()">确认</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -825,21 +850,71 @@ if (token) showApp();
     }
   }
 
-  async function resetData() {
-    const password = prompt('请输入超级管理员密码以确认重置：');
-    if (!password) return;
-    try {
-      const res = await fetch('/api/super/reset-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '重置失败');
-      toast('✅ 订单数据已重置', 'success');
-    } catch (e) {
-      toast('❌ 重置失败：' + e.message, 'error');
-    }
+  // 通用确认弹窗
+  let confirmCallback = null;
+  function showConfirm(message, callback, title) {
+    document.getElementById('confirmModalTitle').textContent = title || '确认操作';
+    document.getElementById('confirmModalMessage').textContent = message;
+    confirmCallback = callback;
+    document.getElementById('confirmModal').classList.add('open');
+  }
+  function hideConfirm() {
+    document.getElementById('confirmModal').classList.remove('open');
+    confirmCallback = null;
+  }
+  document.getElementById('confirmModalBtn').onclick = function() {
+    if (confirmCallback) confirmCallback();
+    hideConfirm();
+  };
+  document.getElementById('confirmModal').addEventListener('click', function(e) {
+    if (e.target === this) hideConfirm();
+  });
+
+  // 密码输入弹窗
+  let passwordCallback = null;
+  function showPasswordModal(message, callback, title) {
+    document.getElementById('passwordModalTitle').textContent = title || '验证密码';
+    document.getElementById('passwordModalMessage').textContent = message || '请输入密码以验证身份';
+    document.getElementById('passwordModalInput').value = '';
+    passwordCallback = callback;
+    document.getElementById('passwordModal').classList.add('open');
+    setTimeout(() => document.getElementById('passwordModalInput').focus(), 100);
+  }
+  function hidePasswordModal() {
+    document.getElementById('passwordModal').classList.remove('open');
+    passwordCallback = null;
+  }
+  function executePasswordModal() {
+    const password = document.getElementById('passwordModalInput').value;
+    if (!password) { toast('请输入密码', 'error'); return; }
+    if (passwordCallback) passwordCallback(password);
+    hidePasswordModal();
+  }
+  document.getElementById('passwordModalInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') executePasswordModal();
+  });
+  document.getElementById('passwordModal').addEventListener('click', function(e) {
+    if (e.target === this) hidePasswordModal();
+  });
+
+  // 重置数据：密码验证 → 二次确认 → 执行
+  function resetData() {
+    showPasswordModal('请输入超级管理员密码以验证身份', function(password) {
+      showConfirm('此操作将清空所有商户的订单数据（订单、呼叫记录、扫码会话、预约），且不可恢复！确定要继续吗？', async function() {
+        try {
+          const res = await fetch('/api/super/reset-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ password })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || '重置失败');
+          toast('✅ 订单数据已重置', 'success');
+        } catch (e) {
+          toast('❌ 重置失败：' + e.message, 'error');
+        }
+      }, '确认重置数据');
+    }, '验证超级管理员密码');
   }
 
 </script>
