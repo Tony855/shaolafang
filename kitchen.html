@@ -421,9 +421,6 @@
             ${noteHtml}
             <div class="ticket-items">${itemsHtml}</div>
             ${readyTag}
-            <div class="ticket-actions">
-              <button class="print-btn" onclick="printKitchenTicket(${o.id})">🖨️ 打印</button>
-            </div>
           </div>`;
       }).join('');
     }
@@ -438,24 +435,6 @@
         await loadOrders();
       } catch (e) {
         showToast('❌ ' + (e.message || kt('networkError')), 'error');
-      }
-    };
-
-    // 打印后厨小票
-    window.printKitchenTicket = async function(orderId) {
-      try {
-        const data = await api('/orders/' + orderId + '/print-kitchen', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        });
-        if (data.printed) {
-          showToast('✅ ' + kt('kitchenTicketPrinted'), 'success');
-        } else {
-          showToast('⚠️ ' + kt('noPrinterConfigured'), 'warning');
-        }
-      } catch (e) {
-        showToast('❌ ' + (e.message || kt('printFailed')), 'error');
       }
     };
 

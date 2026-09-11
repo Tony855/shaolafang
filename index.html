@@ -2914,10 +2914,6 @@
         function resetCustomerSession() {
             const savedKey = 'scanSession_' + (state.storeId || 1) + '_' + (state.table || '');
             if (savedKey !== 'scanSession_' + (state.storeId || 1) + '_') localStorage.removeItem(savedKey);
-            if (state.scanSessionToken) {
-                fetch(`${API_BASE}/public/table-session/${encodeURIComponent(state.scanSessionToken)}`, { method: 'DELETE' })
-                    .catch(() => {});
-            }
             try {
                 const url = new URL(window.location.href);
                 url.searchParams.delete('token');
@@ -2940,18 +2936,6 @@
             updateUI();
             renderMenu();
             showToast('✅ ' + t('orderCompleted'), 2600);
-        }
-
-        async function checkCustomerOrderCompletion() {
-            if (!isScanSessionValid()) return;
-            try {
-                const res = await fetch(`${API_BASE}/public/table-session/${encodeURIComponent(state.scanSessionToken)}/orders`);
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data.orders.length && data.orders.every(order => order.status === 'done')) {
-                    resetCustomerSession();
-                }
-            } catch (_) {}
         }
 
         // ============================================================
@@ -3073,13 +3057,22 @@
                                 <span class="total-label">${t('total')}</span>
                                 <span class="total-amount">${orderTotalDisplay}</span>
                             </div>
-                            ${order.status === 'pending' ? `
-                                <div style="margin-top:12px;text-align:center;">
+                            ${(() => {
+                                if (order.status !== 'pending') return '';
+                                const allDone = (order.items || []).every(item => item.itemStatus === 'done');
+                                if (allDone) {
+                                    return `<div style="margin-top:12px;text-align:center;">
+                                        <button disabled style="background:#ccc;color:#999;border:0;padding:10px 24px;border-radius:20px;font-size:14px;font-weight:600;cursor:not-allowed;box-shadow:none;">
+                                            ⏰ 催单
+                                        </button>
+                                    </div>`;
+                                }
+                                return `<div style="margin-top:12px;text-align:center;">
                                     <button onclick="urgeOrder(${order.id})" style="background:linear-gradient(135deg,#e85d3a,#f39c12);color:#fff;border:0;padding:10px 24px;border-radius:20px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(232,93,58,.3);">
                                         ⏰ 催单
                                     </button>
-                                </div>
-                            ` : ''}
+                                </div>`;
+                            })()}
                         </div>
                     `;
                 });
@@ -3607,7 +3600,6 @@
             if (!menuAlreadyFetchedInTables) {
                 await fetchMenu();
             }
-            setInterval(checkCustomerOrderCompletion, 5000);
 
             document.getElementById('cartToggle').addEventListener('click', openDrawer);
             document.getElementById('closeDrawer').addEventListener('click', closeDrawer);
