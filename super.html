@@ -392,7 +392,12 @@ select:focus {
         <div class="form-group">
           <label>二维码链接有效时间（分钟）</label>
           <input type="number" id="qrSessionTimeout" min="5" max="1440" placeholder="如：45">
-          <small style="color:#666;">顾客扫码后 session_token 的有效时间，范围5-1440分钟</small>
+          <small style="color:#666;">顾客扫码后 session_token 的有效时间，范围5-1440分钟，活跃使用自动续期</small>
+        </div>
+        <div class="form-group">
+          <label>服务员登录有效期（小时）</label>
+          <input type="number" id="waiterSessionTimeout" min="1" max="168" placeholder="如：12">
+          <small style="color:#666;">服务员登录后 session 的初始有效时间，范围1-168小时，活跃使用自动续期</small>
         </div>
         <div class="form-group">
           <label>前端下单间隔时间（秒）</label>
@@ -755,6 +760,7 @@ async function loadGlobalSettings() {
     const settings = await api('/super/settings');
     document.getElementById('adminIdleTimeout').value = settings.admin_idle_timeout || 5;
     document.getElementById('qrSessionTimeout').value = settings.qr_session_timeout || 45;
+    document.getElementById('waiterSessionTimeout').value = settings.waiter_session_timeout || 12;
     document.getElementById('orderIntervalSeconds').value = settings.order_interval_seconds || 30;
     document.getElementById('waiterRefreshInterval').value = settings.waiter_refresh_interval || 8;
   } catch (e) { toast('加载设置失败: ' + e.message, 'error'); }
@@ -771,7 +777,8 @@ async function saveGlobalSettings() {
   if (isNaN(orderInterval) || orderInterval < 0 || orderInterval > 3600) { toast('前端下单间隔时间范围0-3600秒', 'error'); return; }
   if (!waiterRefresh || waiterRefresh < 3 || waiterRefresh > 300) { toast('服务员端刷新间隔范围3-300秒', 'error'); return; }
   try {
-    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh }) });
+    const waiterSessionTimeout = parseInt(document.getElementById('waiterSessionTimeout').value) || 12;
+    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh }) });
     toast('设置保存成功', 'success');
   } catch (e) { toast('保存失败: ' + e.message, 'error'); }
 }

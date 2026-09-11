@@ -1138,6 +1138,14 @@ async function requireAdminOrWaiter(req, res, next) {
         req.waiter = waiter;
         req.waiterStoreId = waiter.store_id || 1;
         req.isAdmin = false;
+        // 滑动过期：距离过期小于1小时时自动续期（活跃用户不会掉线）
+        const expiresTime = new Date(session.expires_at).getTime();
+        if (expiresTime - Date.now() < 60 * 60 * 1000) {
+          const wTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
+          const wTimeoutHours = parseInt(wTimeoutSetting?.value || '12', 10);
+          const newExpires = new Date(Date.now() + wTimeoutHours * 60 * 60 * 1000).toISOString();
+          runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(()=>{});
+        }
         return next();
       }
     }
@@ -1409,12 +1417,13 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
 // 超级管理员获取全局设置
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval')");
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout')");
     const settings = {};
     rows.forEach(r => { settings[r.key] = r.value; });
     res.json({
       admin_idle_timeout: parseInt(settings.admin_idle_timeout || '5', 10),
       qr_session_timeout: parseInt(settings.qr_session_timeout || '45', 10),
+      waiter_session_timeout: parseInt(settings.waiter_session_timeout || '12', 10),
       order_interval_seconds: parseInt(settings.order_interval_seconds || '30', 10),
       waiter_refresh_interval: parseInt(settings.waiter_refresh_interval || '8', 10),
     });
@@ -1424,7 +1433,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 // 超级管理员更新全局设置
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval } = req.body || {};
+    const { admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout } = req.body || {};
     if (admin_idle_timeout !== undefined) {
       const mins = Math.max(1, Math.min(1440, parseInt(admin_idle_timeout, 10) || 5));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
@@ -1432,6 +1441,10 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     if (qr_session_timeout !== undefined) {
       const mins = Math.max(5, Math.min(1440, parseInt(qr_session_timeout, 10) || 45));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('qr_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    if (waiter_session_timeout !== undefined) {
+      const hours = Math.max(1, Math.min(168, parseInt(waiter_session_timeout, 10) || 12));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('waiter_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(hours), String(hours)]);
     }
     if (order_interval_seconds !== undefined) {
       const secs = Math.max(0, Math.min(3600, parseInt(order_interval_seconds, 10) || 30));
@@ -1463,7 +1476,9 @@ app.post('/api/waiter/login', async (req, res) => {
     const waiter = await getAsync('SELECT * FROM waiters WHERE username=? AND active=1', [String(username).trim()]);
     if (!waiter || waiter.password_hash !== hashPassword(password)) return res.status(401).json({ error: '服务员账号或密码错误' });
     const token = crypto.randomBytes(24).toString('base64url');
-    const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+    const waiterTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
+    const waiterTimeoutHours = parseInt(waiterTimeoutSetting?.value || '12', 10);
+    const expiresAt = new Date(Date.now() + waiterTimeoutHours * 60 * 60 * 1000).toISOString();
     await runAsync('INSERT INTO waiter_sessions (waiter_id, token, expires_at) VALUES (?, ?, ?)', [waiter.id, token, expiresAt]);
     const store = await getAsync('SELECT name FROM stores WHERE id=?', [waiter.store_id || 1]);
     res.json({ token, storeId: waiter.store_id || 1, storeName: store?.name || '', waiter: { id: waiter.id, username: waiter.username, display_name: waiter.display_name, can_order: waiter.can_order, can_mark_item: waiter.can_mark_item, can_complete_order: waiter.can_complete_order, store_id: waiter.store_id } });
@@ -2860,6 +2875,11 @@ app.get('/api/public/table-session/:token/orders', async (req, res) => {
     const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [req.params.token]);
     if (!session) return res.status(404).json({ error: '扫码会话不存在，请重新扫码' });
     if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '二维码已过期，请重新扫码' });
+    // 二维码无操作过期：每次有效请求都重置过期时间（最后一次操作后N分钟过期）
+    const qrTimeoutS = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
+    const qrTimeoutMins = parseInt(qrTimeoutS?.value || '45', 10);
+    const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
+    runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
     const rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, req.params.token]);
     res.json({ table: session.table_name, orders: rows.map(formatOrder) });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -2870,7 +2890,12 @@ app.get('/api/public/table-session/:token/info', async (req, res) => {
     const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [req.params.token]);
     if (!session) return res.status(404).json({ error: '会话不存在' });
     if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '会话已过期' });
-    res.json({ table: session.table_name, storeId: session.store_id || 1, sessionToken: req.params.token, expiresAt: session.expires_at });
+    // 二维码无操作过期：每次有效请求都重置过期时间（最后一次操作后N分钟过期）
+    const qrTimeoutS2 = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
+    const qrTimeoutMins2 = parseInt(qrTimeoutS2?.value || '45', 10);
+    const newQrExpires2 = new Date(Date.now() + qrTimeoutMins2 * 60 * 1000).toISOString();
+    runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires2, req.params.token]).catch(()=>{});
+    res.json({ table: session.table_name, storeId: session.store_id || 1, sessionToken: req.params.token, expiresAt: newQrExpires2 });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

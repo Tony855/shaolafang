@@ -280,6 +280,8 @@
   <script src="assets/common.js"></script>
   <script>
     const $ = s => document.querySelector(s);
+    // 安全兜底：兼容旧版 common.js 没有 SLF.audio 的情况
+    const audio = SLF.audio || { unlock: () => {}, setEnabled: () => {}, playNewOrderChime: () => {}, playUrgeChime: () => {} };
     let lang = localStorage.getItem('kitchenLang') || 'zh';
     SLF.i18n.init(lang);
     const kt = k => SLF.i18n.t(k);
@@ -295,7 +297,7 @@
     async function loadSoundSetting() {
       try {
         const data = await SLF.api.get('/public/config');
-        if (typeof data.newOrderSoundEnabled === 'boolean') SLF.audio.setEnabled(data.newOrderSoundEnabled);
+        if (typeof data.newOrderSoundEnabled === 'boolean') audio.setEnabled(data.newOrderSoundEnabled);
       } catch (e) {}
     }
     function detectNewOrders(orders) {
@@ -303,7 +305,7 @@
       if (knownOrderIds !== null) {
         let hasNew = false;
         for (const id of pendingIds) { if (!knownOrderIds.has(id)) { hasNew = true; break; } }
-        if (hasNew) SLF.audio.playNewOrderChime();
+        if (hasNew) audio.playNewOrderChime();
       }
       knownOrderIds = pendingIds;
     }
@@ -502,7 +504,7 @@
           let hasNew = false;
           for (const c of pendingUrges) { if (!knownUrgeIds.has(c.id)) { hasNew = true; break; } }
           if (hasNew) {
-            SLF.audio.playUrgeChime();
+            audio.playUrgeChime();
             const newUrge = pendingUrges.find(c => !knownUrgeIds.has(c.id));
             if (newUrge) showToast('⚡ ' + newUrge.table_name + ' ' + kt('urgeOrder'));
           }
@@ -571,7 +573,7 @@
     }
 
     async function doLogin() {
-      SLF.audio.unlock();
+      audio.unlock();
       const username = $('#username').value.trim();
       const password = $('#password').value.trim();
       if (!username || !password) { $('#loginError').textContent = kt('pleaseLogin'); return; }
@@ -616,7 +618,7 @@
     $('#logoutBtn').addEventListener('click', () => logout(true));
 
     $('#fullscreenBtn').addEventListener('click', () => {
-      SLF.audio.unlock();
+      audio.unlock();
       if (document.fullscreenElement) {
         document.exitFullscreen();
       } else {
@@ -627,7 +629,7 @@
       $('#fullscreenLabel').textContent = document.fullscreenElement ? kt('exitFullscreen') : kt('fullscreen');
     });
 
-    document.addEventListener('click', () => SLF.audio.unlock(), { once: true });
+    document.addEventListener('click', () => audio.unlock(), { once: true });
 
     // 初始化
     applyLoginLanguage();
