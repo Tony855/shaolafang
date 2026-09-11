@@ -1187,11 +1187,13 @@ app.get('/api/public/config', async (req, res) => {
     const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
     const secondaryCurrency = currencies.find(c => c.code === secondaryRow?.value) || null;
     const soundRow = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
+    const refreshRow = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_refresh_interval'");
     res.json({
       currencies,
       defaultCurrency: currencies.find(c => c.is_default) || currencies[0] || { code: 'USD', symbol: '$', rate: 1 },
       dualCurrency: { enabled: dualRow?.value === '1', currency: secondaryCurrency },
-      newOrderSoundEnabled: soundRow ? soundRow.value === '1' : true
+      newOrderSoundEnabled: soundRow ? soundRow.value === '1' : true,
+      waiter_refresh_interval: parseInt(refreshRow?.value || '8', 10)
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1407,13 +1409,14 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
 // 超级管理员获取全局设置
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds')");
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval')");
     const settings = {};
     rows.forEach(r => { settings[r.key] = r.value; });
     res.json({
       admin_idle_timeout: parseInt(settings.admin_idle_timeout || '5', 10),
       qr_session_timeout: parseInt(settings.qr_session_timeout || '45', 10),
       order_interval_seconds: parseInt(settings.order_interval_seconds || '30', 10),
+      waiter_refresh_interval: parseInt(settings.waiter_refresh_interval || '8', 10),
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1421,7 +1424,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 // 超级管理员更新全局设置
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { admin_idle_timeout, qr_session_timeout, order_interval_seconds } = req.body || {};
+    const { admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval } = req.body || {};
     if (admin_idle_timeout !== undefined) {
       const mins = Math.max(1, Math.min(1440, parseInt(admin_idle_timeout, 10) || 5));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
@@ -1433,6 +1436,10 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     if (order_interval_seconds !== undefined) {
       const secs = Math.max(0, Math.min(3600, parseInt(order_interval_seconds, 10) || 30));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('order_interval_seconds', ?) ON DUPLICATE KEY UPDATE value=?", [String(secs), String(secs)]);
+    }
+    if (waiter_refresh_interval !== undefined) {
+      const secs = Math.max(3, Math.min(300, parseInt(waiter_refresh_interval, 10) || 8));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('waiter_refresh_interval', ?) ON DUPLICATE KEY UPDATE value=?", [String(secs), String(secs)]);
     }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }

@@ -1837,6 +1837,8 @@
             .top span {
                 gap: 4px;
                 flex-shrink: 0;
+                width: auto !important;
+                justify-content: flex-end !important;
             }
             .top select {
                 height: 28px;
@@ -2193,12 +2195,7 @@
             border-color: rgba(24, 144, 255, .25);
             color: #69c0ff;
         }
-        @media (max-width: 760px) {
-            .top span {
-                width: auto !important;
-                justify-content: flex-end !important;
-            }
-        }
+
     /* ===== 移动端响应式（P0） ===== */
     .hamburger-btn {
         display: none;

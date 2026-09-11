@@ -127,6 +127,22 @@
             border-radius: 20px;
             font-size: 13px;
             font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            max-width: 140px;
+            white-space: nowrap;
+        }
+        .header-left .table-info i {
+            flex-shrink: 0;
+        }
+        .table-info .badge-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: fit-content;
+            max-width: 100%;
         }
         .header-right .status-badge {
             background: rgba(255, 255, 255, 0.15);
@@ -136,10 +152,20 @@
         }
         .store-name-badge {
             background: rgba(255, 255, 255, 0.2);
-            padding: 2px 14px;
+            padding: 4px 14px;
             border-radius: 20px;
             font-size: 13px;
             font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            max-width: 160px;
+            white-space: nowrap;
+        }
+        .store-name-badge .badge-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .category-tabs {
             background: #fff;
@@ -1233,6 +1259,97 @@
             font-size: 14px;
             margin-bottom: 4px;
         }
+        /* 确认弹窗 */
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 20px;
+        }
+        .confirm-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .confirm-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 28px 24px 24px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .confirm-overlay.show .confirm-card {
+            transform: scale(1) translateY(0);
+        }
+        .confirm-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            box-shadow: 0 8px 24px rgba(232, 74, 42, 0.35);
+        }
+        .confirm-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .confirm-message {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .confirm-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .confirm-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        .confirm-btn.cancel {
+            background: #f5f5f7;
+            color: #666;
+        }
+        .confirm-btn.cancel:hover {
+            background: #e8e8ed;
+        }
+        .confirm-btn.confirm {
+            background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(232, 74, 42, 0.3);
+        }
+        .confirm-btn.confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(232, 74, 42, 0.4);
+        }
+        .confirm-btn:active {
+            transform: scale(0.97);
+        }
+
         .order-modal .form-group select,
         .order-modal .form-group input {
             width: 100%;
@@ -1543,29 +1660,6 @@
         .main-content {
             padding-top: 16px
         }
-        .menu-search {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: #fff;
-            border: 1px solid rgba(0, 0, 0, .05);
-            border-radius: 999px;
-            padding: 0 14px;
-            height: 42px;
-            margin-bottom: 14px;
-            box-shadow: 0 8px 22px rgba(20, 20, 40, .05)
-        }
-        .menu-search i {
-            color: #aaa
-        }
-        .menu-search input {
-            flex: 1;
-            border: 0;
-            outline: none;
-            background: transparent;
-            font-size: 14px;
-            color: #333
-        }
         .menu-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -1716,7 +1810,47 @@
                 height: 108px
             }
             .category-tabs {
-                top: 68px
+                top: 97px
+            }
+            /* 菜品卡片统一优化 */
+            .menu-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 14px !important;
+                padding: 0 4px;
+            }
+            .menu-item {
+                min-height: 220px !important;
+                border-radius: 16px !important;
+            }
+            .menu-item .img-wrap {
+                height: 100px !important;
+                font-size: 36px !important;
+            }
+            .menu-item .info {
+                padding: 8px 10px 10px !important;
+            }
+            .menu-item .info .name {
+                font-size: 13px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+            .menu-item .info .desc {
+                font-size: 10px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+            .menu-item .info .price {
+                font-size: 14px !important;
+            }
+            .menu-item .info .price-secondary {
+                font-size: 10px !important;
+            }
+            .menu-item .info .add-btn {
+                width: 28px !important;
+                height: 28px !important;
+                font-size: 14px !important;
             }
         }
         html,
@@ -1930,33 +2064,304 @@
             padding: 9px 40px;
             border-radius: 30px;
         }
+    
+
+
+    
+    
+
+
+    
+        /* ===== 移动端响应式：Header优化 + 导航栏固定 + 语言按钮圆形 ===== */
+        @media (max-width: 768px) {
+            /* Header优化：logo单独一行居中 */
+            .header {
+                padding: 8px 12px 10px;
+                gap: 8px;
+                flex-wrap: wrap;
+                align-content: flex-start;
+            }
+            .header .header-logo {
+                order: 0;
+                width: 100%;
+                text-align: center;
+                justify-content: center;
+                font-size: 20px !important;
+                padding-bottom: 4px;
+                border-bottom: 1px solid rgba(255,255,255,0.15);
+            }
+            .header .header-logo i {
+                font-size: 20px !important;
+            }
+            .header .header-left {
+                order: 1;
+                flex: 1;
+                min-width: 0;
+                gap: 6px;
+            }
+            .header .header-right {
+                order: 2;
+                margin-left: 0;
+                gap: 6px;
+            }
+
+            .store-name-badge {
+                max-width: 130px !important;
+                padding: 3px 10px !important;
+                font-size: 12px !important;
+            }
+            .table-info {
+                max-width: 120px !important;
+                padding: 3px 10px !important;
+                font-size: 12px !important;
+            }
+            .header-right {
+                gap: 6px;
+            }
+            .header-right button,
+            .header-right select {
+                height: 30px !important;
+                padding: 0 10px !important;
+                font-size: 12px !important;
+            }
+            /* 分类导航栏固定 */
+            .category-tabs {
+                position: fixed !important;
+                top: 97px !important;
+                left: 0 !important;
+                right: 0 !important;
+                display: flex !important;
+                align-items: center;
+                padding: 8px 10px !important;
+                gap: 8px;
+                z-index: 90 !important;
+            }
+            .cats-scroll {
+                flex: 1;
+                width: 100%;
+                display: flex;
+                gap: 6px;
+                overflow-x: auto;
+                scrollbar-width: none;
+                min-width: 0;
+            }
+            .cats-scroll::-webkit-scrollbar {
+                display: none;
+            }
+            .main-content {
+                padding-top: 100px !important;
+            }
+            /* 语言切换按钮圆形 */
+            .header-right button,
+            .lang-btn-wrap {
+                width: 34px !important;
+                height: 34px !important;
+                min-width: 34px !important;
+                max-width: 34px !important;
+                min-height: 34px !important;
+                max-height: 34px !important;
+                border-radius: 50% !important;
+                background: rgba(255,255,255,0.2) !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                flex-shrink: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 16px !important;
+                line-height: 1 !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+                vertical-align: middle !important;
+            }
+            .header-right button * {
+                line-height: 1 !important;
+            }
+            .lang-btn-wrap {
+                position: relative;
+            }
+            .lang-btn-wrap .lang-icon {
+                font-size: 16px;
+                pointer-events: none;
+                line-height: 1;
+            }
+            .lang-btn-wrap select {
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                opacity: 0 !important;
+                cursor: pointer !important;
+                border: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+        }
+        @media (max-width: 480px) {
+            .store-name-badge {
+                max-width: 90px !important;
+            }
+            .table-info {
+                max-width: 100px !important;
+            }
+            .header-logo {
+                font-size: 16px !important;
+            }
+            .header-logo i {
+                font-size: 16px !important;
+            }
+            .category-tabs {
+                top: 97px !important;
+                padding: 6px 8px !important;
+            }
+            .main-content {
+                padding-top: 102px !important;
+            }
+        }
+
+    
+        /* ===== 电脑端恢复：覆盖错误的全局fixed样式 ===== */
+        @media (min-width: 769px) {
+            /* Header一行布局：logo居中，店名+桌号+按钮全部靠右 */
+            .header {
+                position: sticky !important;
+                top: 0 !important;
+                left: auto !important;
+                right: auto !important;
+                border-radius: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+                padding: 12px 20px !important;
+                gap: 0 !important;
+                position: relative !important;
+            }
+            .header .header-logo {
+                position: absolute !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                font-size: 24px !important;
+                width: auto !important;
+                padding-bottom: 0 !important;
+                border-bottom: none !important;
+            }
+            .header .header-logo i {
+                font-size: 24px !important;
+            }
+            .header .header-left {
+                display: flex !important;
+                align-items: center !important;
+                gap: 10px !important;
+                min-width: 0 !important;
+                margin-left: auto !important;
+            }
+            .header .header-right {
+                display: flex !important;
+                align-items: center !important;
+                gap: 10px !important;
+                margin-left: 10px !important;
+            }
+            body {
+                padding-top: 0 !important;
+            }
+            .category-tabs {
+                position: sticky !important;
+                top: 72px !important;
+                left: auto !important;
+                right: auto !important;
+                display: flex !important;
+            }
+            .cats-scroll {
+                display: contents !important;
+            }
+            .main-content {
+                padding-top: 12px !important;
+            }
+
+        }
+
+    
+        /* ===== 全局：语言按钮圆形（电脑端和移动端统一） ===== */
+        .lang-btn-wrap {
+            width: 34px !important;
+            height: 34px !important;
+            min-width: 34px !important;
+            max-width: 34px !important;
+            min-height: 34px !important;
+            max-height: 34px !important;
+            border-radius: 50% !important;
+            background: rgba(255,255,255,0.2) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            position: relative !important;
+            vertical-align: middle !important;
+        }
+        .lang-btn-wrap .lang-icon {
+            display: inline !important;
+            font-size: 16px !important;
+            line-height: 1 !important;
+            pointer-events: none !important;
+        }
+        .lang-btn-wrap select {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            opacity: 0 !important;
+            cursor: pointer !important;
+            border: none !important;
+            background: transparent !important;
+            color: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            font-size: 0 !important;
+        }
+        .lang-btn-wrap select option {
+            color: #333 !important;
+            font-size: 14px !important;
+        }
+
+    
     </style>
     <link rel="stylesheet" href="assets/common.css">
 </head>
 <body>
     <div class="toast" id="toast"></div>
     <header class="header">
+        <div class="header-logo"><i class="fas fa-utensils"></i> <span id="appName">味享</span></div>
         <div class="header-left">
-            <div class="header-logo"><i class="fas fa-utensils"></i> <span id="appName">味享</span></div>
-            <span class="store-name-badge" id="storeNameDisplay">🏪 加载中...</span>
-            <span class="table-info" id="tableInfo" title="请扫描桌面二维码绑定桌号"><i class="fas fa-chair"></i> <span id="tableDisplay">未扫码</span></span>
+            <span class="store-name-badge" id="storeNameDisplay"><i class="fas fa-store"></i> <span class="badge-text">加载中...</span></span>
+            <span class="table-info" id="tableInfo" title="请扫描桌面二维码绑定桌号"><i class="fas fa-chair"></i> <span class="badge-text" id="tableDisplay">未扫码</span></span>
         </div>
         <div class="header-right">
-            <button id="callWaiterBtn" onclick="callWaiter()" hidden title="呼叫服务员">🔔</button>
+            <button id="callWaiterBtn" onclick="showCallWaiterConfirm()" hidden title="呼叫服务员">🔔</button>
             <button id="customerOrderBtn" onclick="openCustomerOrders()" hidden title="订单详情">🧾</button>
-            <select id="langSelect">
-                <option value="zh">🇨🇳 中文</option>
-                <option value="en">🇬🇧 English</option>
-                <option value="vi">🇻🇳 Tiếng Việt</option>
-                <option value="th">🇹🇭 ภาษาไทย</option>
-                <option value="km">🇰🇭 ភាសាខ្មែរ</option>
-            </select>
+            <div class="lang-btn-wrap">
+                <span class="lang-icon">🌐</span>
+                <select id="langSelect">
+                    <option value="zh">🇨🇳 中文</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="vi">🇻🇳 Tiếng Việt</option>
+                    <option value="th">🇹🇭 ภาษาไทย</option>
+                    <option value="km">🇰🇭 ភាសាខ្មែរ</option>
+                </select>
+            </div>
         </div>
     </header>
 
-    <nav class="category-tabs" id="categoryTabs"></nav>
+    <nav class="category-tabs" id="categoryTabs">
+        <div class="cats-scroll" id="catsScroll"></div>
+    </nav>
     <main class="main-content" id="mainContent">
-        <div class="menu-search"><i class="fas fa-search"></i><input id="menuSearchInput" placeholder="搜索菜品..."></div>
         <div class="menu-grid" id="menuGrid"></div>
     </main>
 
@@ -2107,6 +2512,19 @@
         <div class="form-actions">
             <button class="btn-cancel" onclick="closeOrderForm()">取消</button>
             <button class="btn-save" id="orderFormSaveBtn">保存</button>
+        </div>
+    </div>
+
+    <!-- ===== 呼叫服务员确认弹窗 ===== -->
+    <div class="confirm-overlay" id="callWaiterConfirmOverlay">
+        <div class="confirm-card">
+            <div class="confirm-icon">🔔</div>
+            <div class="confirm-title" id="callConfirmTitle">呼叫服务员</div>
+            <div class="confirm-message" id="callConfirmMessage">确认呼叫服务员？</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn cancel" id="callConfirmCancel">取消</button>
+                <button class="confirm-btn confirm" id="callConfirmOk">确认呼叫</button>
+            </div>
         </div>
     </div>
 
@@ -2790,17 +3208,20 @@
                 return aIdx - bIdx || a.localeCompare(b, 'zh-CN');
             });
             const cats = [t('all'), ...sorted];
-            categoryTabs.innerHTML = cats.map(c => {
-                const displayName = getCategoryTranslation(c);
-                return `<button class="category-tab ${c === state.currentCategory ? 'active' : ''}" data-cat="${c}">${displayName}</button>`;
-            }).join('');
-            categoryTabs.querySelectorAll('.category-tab').forEach(b => {
+            const catsScroll = document.getElementById('catsScroll');
+            if (catsScroll) {
+                catsScroll.innerHTML = cats.map(c => {
+                    const displayName = getCategoryTranslation(c);
+                    return `<button class="category-tab ${c === state.currentCategory ? 'active' : ''}" data-cat="${c}">${displayName}</button>`;
+                }).join('');
+                catsScroll.querySelectorAll('.category-tab').forEach(b => {
                 b.addEventListener('click', () => {
                     state.currentCategory = b.dataset.cat;
                     renderCategories();
                     renderMenu();
                 });
-            });
+                });
+            }
         }
 
         function renderMenu() {
@@ -3142,9 +3563,6 @@
             document.getElementById('orderSuccessCloseBtn').textContent = t('gotIt');
             const callWaiterBtn = document.getElementById('callWaiterBtn');
             if (callWaiterBtn) callWaiterBtn.title = t('callWaiter');
-            const searchInput = document.getElementById('menuSearchInput');
-            if (searchInput) searchInput.placeholder = t('searchDishes');
-
             if (!state.table) {
                 tableDisplay.textContent = t('notScanned');
                 tableInfo.title = t('scanToBind');
@@ -3196,11 +3614,6 @@
             // 🔥 修改：点击“去结算”直接提交订单，不再打开购物车抽屉（移除二次确认）
             document.getElementById('checkoutBtn').addEventListener('click', openOrderConfirm);
             document.getElementById('submitOrderBtn').addEventListener('click', openOrderConfirm);
-            document.getElementById('menuSearchInput').addEventListener('input', e => {
-                state.searchKeyword = e.target.value;
-                renderMenu();
-            });
-
             document.getElementById('adminClose').addEventListener('click', closeAdmin);
             document.getElementById('loginBtn').addEventListener('click', handleLogin);
             document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
@@ -3288,6 +3701,22 @@
         // ============================================================
         //  呼叫服务员
         // ============================================================
+        // 显示呼叫服务员确认弹窗
+        function showCallWaiterConfirm() {
+            if (!state.table) {
+                showToast('⚠️ ' + t('scanFirst'), 2500);
+                return;
+            }
+            const overlay = document.getElementById('callWaiterConfirmOverlay');
+            document.getElementById('callConfirmTitle').textContent = t('callWaiter');
+            document.getElementById('callConfirmMessage').textContent = t('confirmCallWaiter');
+            document.getElementById('callConfirmCancel').textContent = t('cancel');
+            document.getElementById('callConfirmOk').textContent = t('confirmCall');
+            overlay.classList.add('show');
+        }
+        function hideCallWaiterConfirm() {
+            document.getElementById('callWaiterConfirmOverlay').classList.remove('show');
+        }
         async function callWaiter() {
             if (!state.table) {
                 showToast('⚠️ ' + t('scanFirst'), 2500);
@@ -3302,7 +3731,7 @@
                         sessionToken: state.scanSessionToken || ''
                     })
                 });
-                showToast('✅ ' + t('billRequested'), 2500);
+                showToast('✅ ' + t('callWaiterSent'), 2500);
             } catch (e) {
                 showToast('❌ ' + t('networkError'), 2500);
             }
@@ -3325,6 +3754,16 @@
                 showToast(`❌ ${t('networkError')}`, 2500);
             }
         }
+
+        // 呼叫服务员确认弹窗事件绑定
+        document.getElementById('callConfirmCancel').addEventListener('click', hideCallWaiterConfirm);
+        document.getElementById('callConfirmOk').addEventListener('click', async () => {
+            hideCallWaiterConfirm();
+            await callWaiter();
+        });
+        document.getElementById('callWaiterConfirmOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'callWaiterConfirmOverlay') hideCallWaiterConfirm();
+        });
 
         document.addEventListener('DOMContentLoaded', init);
     </script>

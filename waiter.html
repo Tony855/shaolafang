@@ -73,26 +73,37 @@
     }
     .toast.show{ opacity: 1; }
 
-    /* ===== 头部 ===== */
+    /* ===== 头部（与前端统一风格）logo居中，信息+按钮全部靠右 ===== */
     header{
       position: sticky; top: 0; z-index: 100;
-      background: var(--primary);
+      background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
       color: #fff;
       padding: 12px 20px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      box-shadow: 0 4px 16px rgba(232,74,42,0.25);
+      justify-content: flex-start;
+      gap: 0;
+      box-shadow: 0 10px 28px rgba(200, 65, 30, .22);
+      border-radius: 0 0 22px 22px;
+      position: relative;
     }
-    header h1{
+    header .header-title{
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
       font-size: 20px; font-weight: 700;
       display: flex; align-items: center; gap: 8px;
+      white-space: nowrap;
     }
-    header .header-actions{
+    header .header-left{
+      display: flex; align-items: center; gap: 10px;
+      min-width: 0;
+      margin-left: auto;
+    }
+    header .header-right{
       display: flex; align-items: center; gap: 10px;
       flex-wrap: wrap;
+      margin-left: 10px;
     }
     header .waiter-name{
       background: rgba(255,255,255,0.2);
@@ -109,62 +120,96 @@
       font-weight: 600;
       font-size: 14px;
     }
-    /* ===== 自动刷新开关 ===== */
-    .auto-refresh-toggle{
+    header .header-btn{
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #fff;
+      padding: 5px 14px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    header .header-btn:hover{
+      background: rgba(255,255,255,0.3);
+    }
+    header .icon-btn{
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      padding: 0;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 1;
+      position: relative;
+    }
+    header .call-notification-btn{
+      position: relative;
+    }
+    header .call-notification-btn #callNotificationCount{
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: #ff3b30;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
-      gap: 6px;
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.25);
-      padding: 5px 14px;
-      border-radius: 30px;
-      font-size: 13px;
-      font-weight: 500;
-      color: #fff;
-      cursor: pointer;
-      user-select: none;
-      transition: var(--transition);
+      justify-content: center;
+      padding: 0 4px;
+      line-height: 1;
     }
-    .auto-refresh-toggle:hover{ background: rgba(255,255,255,0.22); }
-    .auto-refresh-toggle input[type="checkbox"]{
-      appearance: none; -webkit-appearance: none;
-      width: 34px; height: 18px;
-      border-radius: 20px;
-      background: rgba(255,255,255,0.35);
+    header .call-notification-btn{
       position: relative;
-      cursor: pointer;
-      outline: none;
-      flex-shrink: 0;
-      transition: var(--transition);
-      margin: 0;
-    }
-    .auto-refresh-toggle input[type="checkbox"]::before{
-      content: '';
-      position: absolute;
-      top: 2px; left: 2px;
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: #fff;
-      transition: var(--transition);
-    }
-    .auto-refresh-toggle input[type="checkbox"]:checked{ background: #fff; }
-    .auto-refresh-toggle input[type="checkbox"]:checked::before{
-      transform: translateX(16px);
-      background: var(--primary);
-    }
-    header select,header .logout-btn{
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.25);
+      background: #ff7a45;
       color: #fff;
+      border: 0;
       padding: 5px 14px;
       border-radius: 30px;
-      font-size: 13px;
-      font-weight: 500;
       cursor: pointer;
-      transition: var(--transition);
+      font-weight: 600;
+      font-size: 13px;
     }
-    header select:hover,header .logout-btn:hover{
-      background: rgba(255,255,255,0.3);
+    /* 语言按钮圆形 */
+    .lang-btn-wrap{
+      width: 34px; height: 34px;
+      min-width: 34px; max-width: 34px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding: 0; margin: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+      position: relative;
+    }
+    .lang-btn-wrap .lang-icon{
+      font-size: 16px;
+      line-height: 1;
+      pointer-events: none;
+    }
+    .lang-btn-wrap select{
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: transparent;
+      padding: 0;
+      margin: 0;
+      width: 100%;
+      height: 100%;
     }
     header select option{ color: var(--gray-6); background: #fff; }
 
@@ -663,14 +708,60 @@
 
     /* ===== 响应式 ===== */
     @media (max-width: 600px) {
-      header{ padding: 10px 14px; }
-      header h1{ font-size: 17px; }
+      header{
+        padding: 10px 14px; gap: 8px;
+        display: flex !important;
+        flex-wrap: wrap !important;
+      }
+      header .header-title{
+        position: static !important;
+        transform: none !important;
+        order: 0;
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+        font-size: 17px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.15);
+      }
+      header .header-left{
+        order: 1;
+        margin-left: 0 !important;
+      }
+      header .header-right{
+        order: 2;
+        margin-left: 0 !important;
+        flex: 1;
+        justify-content: flex-end;
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+      }
+      header .header-left{
+        order: 1;
+        margin-left: 0 !important;
+        gap: 6px !important;
+      }
+      header .header-btn{
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+      }
+      header .icon-btn{
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px !important;
+        font-size: 14px !important;
+      }
+      header .waiter-name,
+      header .store-name{
+        padding: 3px 10px !important;
+        font-size: 12px !important;
+      }
       .login-modal .modal-card{ padding: 24px 18px 20px; }
       .dish-list{ grid-template-columns: 1fr; }
       .table-grid{ grid-template-columns: 1fr; }
     }
     @media (max-width: 400px) {
-      .header-actions{ width:100%; justify-content: flex-end; }
+
     }
     @media (max-width: 480px) {
       .selected-item{ grid-template-columns: 1fr auto auto; row-gap: 4px; }
@@ -688,28 +779,29 @@
 
 <!-- ===== 主界面头部 ===== -->
 <header id="mainHeader" style="display:none;">
-  <h1 id="waiterTitle">🛎️ 服务员点餐终端</h1>
-  <div class="header-actions">
-    <button class="call-notification-btn" id="callNotificationBtn" onclick="showCallNotifications()" style="display:none;position:relative;background:#ff7a45;color:#fff;border:0;padding:6px 14px;border-radius:20px;cursor:pointer;font-weight:600;font-size:13px;">
-      🔔 <span id="callNotificationCount">0</span>
-    </button>
-    <button onclick="showOrderHistory()" style="background:rgba(255,255,255,.2);color:#fff;border:0;padding:6px 14px;border-radius:20px;cursor:pointer;font-weight:600;font-size:13px;">
-      📋 <span id="orderHistoryBtnText">订单历史</span>
-    </button>
+  <div class="header-title" id="waiterTitle">🍴 FoodFlow</div>
+  <div class="header-left">
     <span class="store-name" id="storeNameDisplay" style="display:none;"></span>
     <span class="waiter-name" id="waiterNameDisplay"></span>
-    <label class="auto-refresh-toggle" id="autoRefreshLabel">
-      <input type="checkbox" id="autoRefreshToggle">
-      <span id="autoRefreshText">自动刷新</span>
-    </label>
-    <button class="logout-btn" id="logoutBtn">退出登录</button>
-    <select id="waiterLang">
-      <option value="zh">中文</option>
-      <option value="en">English</option>
-      <option value="vi">Tiếng Việt</option>
-      <option value="th">ภาษาไทย</option>
-      <option value="km">ភាសាខ្មែរ</option>
-    </select>
+  </div>
+  <div class="header-right">
+    <button class="call-notification-btn icon-btn" id="callNotificationBtn" onclick="showCallNotifications()" style="display:none;" title="呼叫通知">
+      🔔 <span id="callNotificationCount">0</span>
+    </button>
+    <button class="header-btn icon-btn" onclick="showOrderHistory()" id="orderHistoryBtn" title="订单历史">
+      📋
+    </button>
+    <div class="lang-btn-wrap">
+      <span class="lang-icon">🌐</span>
+      <select id="waiterLang">
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+        <option value="vi">Tiếng Việt</option>
+        <option value="th">ภาษาไทย</option>
+        <option value="km">ភាសាខ្មែរ</option>
+      </select>
+    </div>
+    <button class="header-btn icon-btn logout-btn" id="logoutBtn" title="退出登录">🚪</button>
   </div>
 </header>
 
@@ -786,6 +878,17 @@
 <script>
   // 初始化统一 i18n（合并 LANGUAGES 和本地词典）
   SLF.i18n.init(localStorage.getItem('waiterLang') || 'zh');
+  // 安全兜底：确保 SLF.audio 存在，避免旧版本common.js或加载异常导致崩溃
+  if (!SLF.audio) {
+    SLF.audio = {
+      _enabled: true,
+      setEnabled(v) { this._enabled = !!v; },
+      isEnabled() { return this._enabled; },
+      unlock() {},
+      playNewOrderChime() {},
+      playCallChime() {},
+    };
+  }
 </script>
 <script>
   // ================================================================
@@ -823,18 +926,18 @@
   const API='/api';const $=s=>document.querySelector(s);
   const state={tables:[],orders:[],menu:[],cart:{},cartMeta:{},currentTable:null,currencies:[],defaultCurrency:{symbol:'$',rate:1,code:'USD'},dualCurrency:{enabled:false,currency:null},waiter:null,token:sessionStorage.getItem('waiterToken')||'',editingOrderId:null,lockedItems:[],storeId:null,storeName:''};
   const WAITER_TEXT={
-    zh:{title:'🛎️ 服务员点餐终端',loginTitle:'服务员登录',username:'账号',password:'密码',rememberLogin:'保持登录',remove:'移除',noTables:'暂无桌号',completed:'已完成',noPending:'暂无未结算订单',pending:'制作中',canceled:'已取消',allStatus:'全部状态',urgeOrder:'催单',noCalls:'暂无呼叫',handled:'已处理',handleFailed:'处理失败',currentTable:'当前桌号',ordering:'点餐',selectedDishes:'已选菜品',emptySelected:'尚未选择菜品',submitOrder:'提交订单',unit:'份',saveChanges:'保存修改',order:'订单',orderHistory:'订单历史',orderTime:'下单时间',dishes:'道菜品',note:'备注',total:'合计',noOrders:'暂无订单',dishServed:'菜品已上菜',orderCompleted:'结算订单',orderUpdated:'制作中订单已修改',orderSubmitted:'订单已提交',confirmSubmit:'确认提交此订单？',confirmServe:'确认该菜品已上菜？',confirmComplete:'确认结算该订单？',pleaseLogin:'请输入账号和密码',loginFailed:'登录失败',selectDish:'请先选择菜品',logout:'退出登录',recentUsers:'最近登录',autoRefresh:'自动刷新',confirmLogout:'确认退出登录吗？',cancel:'取消',confirm:'确定',confirmTitle:'确认操作',orderPrinted:'订单已打印',print:'打印',customer:'客',staffOrder:'服务员下单'},
-    en:{title:'🛎️ Waiter Order Terminal',loginTitle:'Waiter Login',username:'Username',password:'Password',rememberLogin:'Keep me logged in',remove:'Remove',noTables:'No tables',completed:'Completed',pending:'In Progress',canceled:'Canceled',allStatus:'All Status',noPending:'No unsettled orders',urgeOrder:'Urge Order',noCalls:'No calls',handled:'Handled',handleFailed:'Handle failed',currentTable:'Current Table',ordering:'Order',selectedDishes:'Selected Dishes',emptySelected:'No dishes selected',submitOrder:'Submit Order',unit:'serving',saveChanges:'Save Changes',order:'Order',orderHistory:'Order History',orderTime:'Order Time',dishes:'items',note:'Note',total:'Total',noOrders:'No orders',dishServed:'Dish served',orderCompleted:'Settle Order',orderUpdated:'Pending order updated',orderSubmitted:'Order submitted',confirmSubmit:'Confirm submitting this order?',confirmServe:'Confirm this dish is served?',confirmComplete:'Confirm settling this order?',pleaseLogin:'Please enter username and password',loginFailed:'Login failed',selectDish:'Please select dishes first',logout:'Logout',recentUsers:'Recent Users',autoRefresh:'Auto refresh',confirmLogout:'Confirm logout?',cancel:'Cancel',confirm:'Confirm',confirmTitle:'Confirm Action',orderPrinted:'Order printed',print:'Print',customer:'Cust',staffOrder:'Staff Order'},
-    vi:{title:'🛎️ Thiết bị gọi món nhân viên',loginTitle:'Đăng nhập nhân viên',username:'Tài khoản',password:'Mật khẩu',rememberLogin:'Giữ đăng nhập',remove:'Xóa',noTables:'Chưa có bàn',completed:'Hoàn thành',noPending:'Chưa có đơn chờ',pending:'Đang làm',canceled:'Đã hủy',allStatus:'Tất cả trạng thái',urgeOrder:'Nhắc đơn',noCalls:'Chưa có gọi',handled:'Đã xử lý',handleFailed:'Xử lý thất bại',orderHistory:'Lịch sử đơn',orderTime:'Thời gian đặt',dishes:'món',note:'Ghi chú',total:'Tổng cộng',noOrders:'Chưa có đơn',currentTable:'Bàn hiện tại',ordering:'Gọi món',selectedDishes:'Món đã chọn',emptySelected:'Chưa chọn món',submitOrder:'Gửi đơn',unit:'phần',saveChanges:'Lưu thay đổi',order:'Đơn',dishServed:'Món đã lên',orderCompleted:'Đơn đã hoàn thành',orderUpdated:'Đơn đang làm đã cập nhật',orderSubmitted:'Đơn đã gửi',confirmSubmit:'Xác nhận gửi đơn này?',confirmServe:'Xác nhận món này đã lên?',confirmComplete:'Xác nhận hoàn thành đơn?',pleaseLogin:'Vui lòng nhập tài khoản và mật khẩu',loginFailed:'Đăng nhập thất bại',selectDish:'Vui lòng chọn món trước',logout:'Đăng xuất',recentUsers:'Người dùng gần đây',autoRefresh:'Tự động làm mới',confirmLogout:'Xác nhận đăng xuất?',cancel:'Hủy',confirm:'Xác nhận',confirmTitle:'Xác nhận thao tác',orderPrinted:'Đơn hàng đã in',print:'In',customer:'KH',staffOrder:'Nhân viên đặt'},
-    th:{title:'🛎️ เทอร์มินัลสั่งอาหารพนักงาน',loginTitle:'เข้าสู่ระบบพนักงาน',username:'บัญชีผู้ใช้',password:'รหัสผ่าน',rememberLogin:'จดจำการเข้าสู่ระบบ',remove:'ลบ',noTables:'ไม่มีโต๊ะ',completed:'เสร็จสิ้น',noPending:'ไม่มีออเดอร์ที่กำลังทำ',pending:'กำลังทำ',canceled:'ยกเลิก',allStatus:'ทุกสถานะ',urgeOrder:'เร่งออเดอร์',noCalls:'ไม่มีการเรียก',handled:'จัดการแล้ว',handleFailed:'จัดการล้มเหลว',orderHistory:'ประวัติออเดอร์',orderTime:'เวลาสั่ง',dishes:'เมนู',note:'หมายเหตุ',total:'รวมทั้งหมด',noOrders:'ไม่มีออเดอร์',currentTable:'โต๊ะปัจจุบัน',ordering:'สั่งอาหาร',selectedDishes:'เมนูที่เลือก',emptySelected:'ยังไม่ได้เลือกเมนู',submitOrder:'ส่งออเดอร์',unit:'เสิร์ฟ',saveChanges:'บันทึกการแก้ไข',order:'ออเดอร์',dishServed:'เสิร์ฟเมนูแล้ว',orderCompleted:'ออเดอร์เสร็จแล้ว',orderUpdated:'ออเดอร์ที่กำลังทำอัปเดตแล้ว',orderSubmitted:'ส่งออเดอร์แล้ว',confirmSubmit:'ยืนยันส่งออเดอร์นี้?',confirmServe:'ยืนยันเสิร์ฟเมนูนี้?',confirmComplete:'ยืนยันเสร็จออเดอร์นี้?',pleaseLogin:'กรุณากรอกบัญชีและรหัสผ่าน',loginFailed:'เข้าสู่ระบบล้มเหลว',selectDish:'กรุณาเลือกเมนูก่อน',logout:'ออกจากระบบ',recentUsers:'ผู้ใช้ล่าสุด',autoRefresh:'รีเฟรชอัตโนมัติ',confirmLogout:'ยืนยันการออกจากระบบ?',cancel:'ยกเลิก',confirm:'ยืนยัน',confirmTitle:'ยืนยันการดำเนินการ',orderPrinted:'พิมพ์ออเดอร์แล้ว',print:'พิมพ์',customer:'ลูกค้า',staffOrder:'พนักงานสั่ง'},
-    km:{title:'🛎️ ស្ថានីយបញ្ជាទិញបុគ្គលិក',loginTitle:'ចូលបុគ្គលិក',username:'គណនី',password:'ពាក្យសម្ងាត់',rememberLogin:'រក្សាការចូល',remove:'លុប',noTables:'គ្មានតុ',completed:'រួចរាល់',noPending:'គ្មានការបញ្ជាទិញកំពុងដំណើរការ',pending:'កំពុងដំណើរការ',canceled:'បានបោះបង់',allStatus:'គ្រប់ស្ថានភាព',urgeOrder:'បង្កាន់ដៃ',noCalls:'គ្មានការហៅ',handled:'បានដោះស្រាយ',handleFailed:'ដោះស្រាយបរាជ័យ',orderHistory:'ប្រវត្តិការបញ្ជាទិញ',orderTime:'ពេលវេលាបញ្ជាទិញ',dishes:'មុខម្ហូប',note:'កំណត់ចំណាំ',total:'សរុប',noOrders:'គ្មានការបញ្ជាទិញ',currentTable:'តុបច្ចុប្បន្ន',ordering:'បញ្ជាទិញ',selectedDishes:'ម្ហូបដែលបានជ្រើស',emptySelected:'មិនទាន់ជ្រើសម្ហូប',submitOrder:'បញ្ជូនការបញ្ជាទិញ',unit:'មុខ',saveChanges:'រក្សាទុកការកែ',order:'ការបញ្ជាទិញ',dishServed:'ម្ហូបបានដាក់ជូន',orderCompleted:'ការបញ្ជាទិញបានបញ្ចប់',orderUpdated:'ការបញ្ជាទិញកំពុងដំណើរការបានធ្វើបច្ចុប្បន្នភាព',orderSubmitted:'ការបញ្ជាទិញបានបញ្ជូន',confirmSubmit:'បញ្ជាក់បញ្ជូនការបញ្ជាទិញនេះ?',confirmServe:'បញ្ជាក់ម្ហូបនេះបានដាក់ជូន?',confirmComplete:'បញ្ជាក់បញ្ចប់ការបញ្ជាទិញនេះ?',pleaseLogin:'សូមបញ្ចូលគណនីនិងពាក្យសម្ងាត់',loginFailed:'ចូលបរាជ័យ',selectDish:'សូមជ្រើសម្ហូបជាមុន',logout:'ចាកចេញ',recentUsers:'អ្នកប្រើថ្មីៗ',autoRefresh:'ធ្វើបច្ចុប្បន្នភាពស្វ័យប្រវត្តិ',confirmLogout:'បញ្ជាក់ការចាកចេញ?',cancel:'បោះបង់',confirm:'បញ្ជាក់',confirmTitle:'បញ្ជាក់ប្រតិបត្តិការ',orderPrinted:'បោះពុម្ពការបញ្ជាទិញរួចរាល់',print:'បោះពុម្ព',customer:'អតិថិជន',staffOrder:'បុគ្គលិកបញ្ជាទិញ'}
+    zh:{title:'🍴 FoodFlow',loginTitle:'服务员登录',username:'账号',password:'密码',rememberLogin:'保持登录',remove:'移除',noTables:'暂无桌号',completed:'已完成',noPending:'暂无未结算订单',pending:'制作中',canceled:'已取消',allStatus:'全部状态',urgeOrder:'催单',noCalls:'暂无呼叫',handled:'已处理',handleFailed:'处理失败',currentTable:'当前桌号',ordering:'点餐',selectedDishes:'已选菜品',emptySelected:'尚未选择菜品',submitOrder:'提交订单',unit:'份',saveChanges:'保存修改',order:'订单',orderHistory:'订单历史',orderTime:'下单时间',dishes:'道菜品',note:'备注',total:'合计',noOrders:'暂无订单',dishServed:'菜品已上菜',orderCompleted:'结算订单',orderUpdated:'制作中订单已修改',orderSubmitted:'订单已提交',confirmSubmit:'确认提交此订单？',confirmServe:'确认该菜品已上菜？',confirmComplete:'确认结算该订单？',pleaseLogin:'请输入账号和密码',loginFailed:'登录失败',selectDish:'请先选择菜品',logout:'退出登录',recentUsers:'最近登录',autoRefresh:'自动刷新',confirmLogout:'确认退出登录吗？',cancel:'取消',confirm:'确定',confirmTitle:'确认操作',orderPrinted:'订单已打印',print:'打印',customer:'客',staffOrder:'服务员下单'},
+    en:{title:'🍴 FoodFlow',loginTitle:'Waiter Login',username:'Username',password:'Password',rememberLogin:'Keep me logged in',remove:'Remove',noTables:'No tables',completed:'Completed',pending:'In Progress',canceled:'Canceled',allStatus:'All Status',noPending:'No unsettled orders',urgeOrder:'Urge Order',noCalls:'No calls',handled:'Handled',handleFailed:'Handle failed',currentTable:'Current Table',ordering:'Order',selectedDishes:'Selected Dishes',emptySelected:'No dishes selected',submitOrder:'Submit Order',unit:'serving',saveChanges:'Save Changes',order:'Order',orderHistory:'Order History',orderTime:'Order Time',dishes:'items',note:'Note',total:'Total',noOrders:'No orders',dishServed:'Dish served',orderCompleted:'Settle Order',orderUpdated:'Pending order updated',orderSubmitted:'Order submitted',confirmSubmit:'Confirm submitting this order?',confirmServe:'Confirm this dish is served?',confirmComplete:'Confirm settling this order?',pleaseLogin:'Please enter username and password',loginFailed:'Login failed',selectDish:'Please select dishes first',logout:'Logout',recentUsers:'Recent Users',autoRefresh:'Auto refresh',confirmLogout:'Confirm logout?',cancel:'Cancel',confirm:'Confirm',confirmTitle:'Confirm Action',orderPrinted:'Order printed',print:'Print',customer:'Cust',staffOrder:'Staff Order'},
+    vi:{title:'🍴 FoodFlow',loginTitle:'Đăng nhập nhân viên',username:'Tài khoản',password:'Mật khẩu',rememberLogin:'Giữ đăng nhập',remove:'Xóa',noTables:'Chưa có bàn',completed:'Hoàn thành',noPending:'Chưa có đơn chờ',pending:'Đang làm',canceled:'Đã hủy',allStatus:'Tất cả trạng thái',urgeOrder:'Nhắc đơn',noCalls:'Chưa có gọi',handled:'Đã xử lý',handleFailed:'Xử lý thất bại',orderHistory:'Lịch sử đơn',orderTime:'Thời gian đặt',dishes:'món',note:'Ghi chú',total:'Tổng cộng',noOrders:'Chưa có đơn',currentTable:'Bàn hiện tại',ordering:'Gọi món',selectedDishes:'Món đã chọn',emptySelected:'Chưa chọn món',submitOrder:'Gửi đơn',unit:'phần',saveChanges:'Lưu thay đổi',order:'Đơn',dishServed:'Món đã lên',orderCompleted:'Đơn đã hoàn thành',orderUpdated:'Đơn đang làm đã cập nhật',orderSubmitted:'Đơn đã gửi',confirmSubmit:'Xác nhận gửi đơn này?',confirmServe:'Xác nhận món này đã lên?',confirmComplete:'Xác nhận hoàn thành đơn?',pleaseLogin:'Vui lòng nhập tài khoản và mật khẩu',loginFailed:'Đăng nhập thất bại',selectDish:'Vui lòng chọn món trước',logout:'Đăng xuất',recentUsers:'Người dùng gần đây',autoRefresh:'Tự động làm mới',confirmLogout:'Xác nhận đăng xuất?',cancel:'Hủy',confirm:'Xác nhận',confirmTitle:'Xác nhận thao tác',orderPrinted:'Đơn hàng đã in',print:'In',customer:'KH',staffOrder:'Nhân viên đặt'},
+    th:{title:'🍴 FoodFlow',loginTitle:'เข้าสู่ระบบพนักงาน',username:'บัญชีผู้ใช้',password:'รหัสผ่าน',rememberLogin:'จดจำการเข้าสู่ระบบ',remove:'ลบ',noTables:'ไม่มีโต๊ะ',completed:'เสร็จสิ้น',noPending:'ไม่มีออเดอร์ที่กำลังทำ',pending:'กำลังทำ',canceled:'ยกเลิก',allStatus:'ทุกสถานะ',urgeOrder:'เร่งออเดอร์',noCalls:'ไม่มีการเรียก',handled:'จัดการแล้ว',handleFailed:'จัดการล้มเหลว',orderHistory:'ประวัติออเดอร์',orderTime:'เวลาสั่ง',dishes:'เมนู',note:'หมายเหตุ',total:'รวมทั้งหมด',noOrders:'ไม่มีออเดอร์',currentTable:'โต๊ะปัจจุบัน',ordering:'สั่งอาหาร',selectedDishes:'เมนูที่เลือก',emptySelected:'ยังไม่ได้เลือกเมนู',submitOrder:'ส่งออเดอร์',unit:'เสิร์ฟ',saveChanges:'บันทึกการแก้ไข',order:'ออเดอร์',dishServed:'เสิร์ฟเมนูแล้ว',orderCompleted:'ออเดอร์เสร็จแล้ว',orderUpdated:'ออเดอร์ที่กำลังทำอัปเดตแล้ว',orderSubmitted:'ส่งออเดอร์แล้ว',confirmSubmit:'ยืนยันส่งออเดอร์นี้?',confirmServe:'ยืนยันเสิร์ฟเมนูนี้?',confirmComplete:'ยืนยันเสร็จออเดอร์นี้?',pleaseLogin:'กรุณากรอกบัญชีและรหัสผ่าน',loginFailed:'เข้าสู่ระบบล้มเหลว',selectDish:'กรุณาเลือกเมนูก่อน',logout:'ออกจากระบบ',recentUsers:'ผู้ใช้ล่าสุด',autoRefresh:'รีเฟรชอัตโนมัติ',confirmLogout:'ยืนยันการออกจากระบบ?',cancel:'ยกเลิก',confirm:'ยืนยัน',confirmTitle:'ยืนยันการดำเนินการ',orderPrinted:'พิมพ์ออเดอร์แล้ว',print:'พิมพ์',customer:'ลูกค้า',staffOrder:'พนักงานสั่ง'},
+    km:{title:'🍴 FoodFlow',loginTitle:'ចូលបុគ្គលិក',username:'គណនី',password:'ពាក្យសម្ងាត់',rememberLogin:'រក្សាការចូល',remove:'លុប',noTables:'គ្មានតុ',completed:'រួចរាល់',noPending:'គ្មានការបញ្ជាទិញកំពុងដំណើរការ',pending:'កំពុងដំណើរការ',canceled:'បានបោះបង់',allStatus:'គ្រប់ស្ថានភាព',urgeOrder:'បង្កាន់ដៃ',noCalls:'គ្មានការហៅ',handled:'បានដោះស្រាយ',handleFailed:'ដោះស្រាយបរាជ័យ',orderHistory:'ប្រវត្តិការបញ្ជាទិញ',orderTime:'ពេលវេលាបញ្ជាទិញ',dishes:'មុខម្ហូប',note:'កំណត់ចំណាំ',total:'សរុប',noOrders:'គ្មានការបញ្ជាទិញ',currentTable:'តុបច្ចុប្បន្ន',ordering:'បញ្ជាទិញ',selectedDishes:'ម្ហូបដែលបានជ្រើស',emptySelected:'មិនទាន់ជ្រើសម្ហូប',submitOrder:'បញ្ជូនការបញ្ជាទិញ',unit:'មុខ',saveChanges:'រក្សាទុកការកែ',order:'ការបញ្ជាទិញ',dishServed:'ម្ហូបបានដាក់ជូន',orderCompleted:'ការបញ្ជាទិញបានបញ្ចប់',orderUpdated:'ការបញ្ជាទិញកំពុងដំណើរការបានធ្វើបច្ចុប្បន្នភាព',orderSubmitted:'ការបញ្ជាទិញបានបញ្ជូន',confirmSubmit:'បញ្ជាក់បញ្ជូនការបញ្ជាទិញនេះ?',confirmServe:'បញ្ជាក់ម្ហូបនេះបានដាក់ជូន?',confirmComplete:'បញ្ជាក់បញ្ចប់ការបញ្ជាទិញនេះ?',pleaseLogin:'សូមបញ្ចូលគណនីនិងពាក្យសម្ងាត់',loginFailed:'ចូលបរាជ័យ',selectDish:'សូមជ្រើសម្ហូបជាមុន',logout:'ចាកចេញ',recentUsers:'អ្នកប្រើថ្មីៗ',autoRefresh:'ធ្វើបច្ចុប្បន្នភាពស្វ័យប្រវត្តិ',confirmLogout:'បញ្ជាក់ការចាកចេញ?',cancel:'បោះបង់',confirm:'បញ្ជាក់',confirmTitle:'បញ្ជាក់ប្រតិបត្តិការ',orderPrinted:'បោះពុម្ពការបញ្ជាទិញរួចរាល់',print:'បោះពុម្ព',customer:'អតិថិជន',staffOrder:'បុគ្គលិកបញ្ជាទិញ'}
   };
   let waiterLang=localStorage.getItem('waiterLang')||'zh';
   // 本地字典优先，找不到时回退到 languages.js 的共享翻译（如 available/occupied/pending/canceled/orderPending/orderDone），避免重复维护同一个词
   const wt=k=>(WAITER_TEXT[waiterLang]&&WAITER_TEXT[waiterLang][k])||WAITER_TEXT.zh[k]||(LANGUAGES[waiterLang]&&LANGUAGES[waiterLang][k])||(LANGUAGES.zh&&LANGUAGES.zh[k])||k;
   // 简单 HTML 转义，避免顾客备注中的特殊字符破坏页面结构
   function escNote(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function applyWaiterLanguage(){$('#waiterTitle').textContent=wt('title');$('#logoutBtn').textContent=wt('logout');$('#autoRefreshText').textContent=wt('autoRefresh');$('#waiterLang').value=waiterLang;$('#currentTableBadge').textContent=wt('currentTable')+': ';$('#submitBtn').textContent=wt('submitOrder');$('#confirmCancelBtn').textContent=wt('cancel')||'取消';$('#confirmOkBtn').textContent=wt('confirm')||'确定';const historyBtn=$('#orderHistoryBtnText');if(historyBtn)historyBtn.textContent=wt('orderHistory');const callBtn=$('#callNotificationBtnText');if(callBtn)callBtn.textContent=wt('callWaiter');renderTables();}
+  function applyWaiterLanguage(){$('#waiterTitle').textContent=wt('title');$('#logoutBtn').title=wt('logout');$('#waiterLang').value=waiterLang;$('#currentTableBadge').textContent=wt('currentTable')+': ';$('#submitBtn').textContent=wt('submitOrder');$('#confirmCancelBtn').textContent=wt('cancel')||'取消';$('#confirmOkBtn').textContent=wt('confirm')||'确定';const historyBtn=$('#orderHistoryBtn');if(historyBtn)historyBtn.title=wt('orderHistory');const callBtn=$('#callNotificationBtnText');if(callBtn)callBtn.textContent=wt('callWaiter');renderTables();}
   let confirmCallback=null;
   function showConfirm(message,callback,title){$('#confirmTitle').textContent=title||wt('confirmTitle')||'确认操作';$('#confirmMessage').textContent=message;confirmCallback=callback;$('#confirmModal').classList.add('open');}
   function hideConfirm(){$('#confirmModal').classList.remove('open');confirmCallback=null;}
@@ -942,7 +1045,9 @@
       state.tables=overview.tables;state.orders=overview.orders;state.waiter=overview.waiter;state.menu=menuRes;
       state.currencies=configRes.currencies||[];state.defaultCurrency=configRes.defaultCurrency||state.defaultCurrency;
       state.dualCurrency=configRes.dualCurrency||{enabled:false,currency:null};
-      if(typeof configRes.newOrderSoundEnabled==='boolean') SLF.audio.setEnabled(configRes.newOrderSoundEnabled);
+      if(typeof configRes.newOrderSoundEnabled==='boolean' && SLF.audio) SLF.audio.setEnabled(configRes.newOrderSoundEnabled);
+      // 启动自动刷新（间隔由超级管理员后台配置）
+      startWaiterAutoRefresh(configRes.waiter_refresh_interval || 8);
       if(state.dualCurrency.enabled && !state.dualCurrency.currency){
         const defaultSec=state.currencies.find(c=>c.code==='USD')||state.currencies[0];
         if(defaultSec) state.dualCurrency.currency=defaultSec;
@@ -965,11 +1070,11 @@
     if(knownWaiterOrderIds!==null){
       let hasNew=false;
       for(const id of pendingIds){ if(!knownWaiterOrderIds.has(id)){ hasNew=true; break; } }
-      if(hasNew) SLF.audio.playNewOrderChime();
+      if(hasNew && SLF.audio) SLF.audio.playNewOrderChime();
     }
     knownWaiterOrderIds=pendingIds;
   }
-  document.addEventListener('click', () => SLF.audio.unlock(), {once:true});
+  document.addEventListener('click', () => { if(SLF.audio) SLF.audio.unlock(); }, {once:true});
 
   // ----- 服务员所属店铺 -----
   // 登录返回和概览接口都只带 store_id，店铺名称需要单独查询一次，之后缓存起来避免重复请求
@@ -1004,7 +1109,7 @@
         let hasNew=false;
         for(const c of pendingCalls){ if(!knownCallIds.has(c.id)){ hasNew=true; break; } }
         if(hasNew){
-          SLF.audio.playCallChime();
+          if(SLF.audio) SLF.audio.playCallChime();
           const newCall=pendingCalls.find(c=>!knownCallIds.has(c.id));
           if(newCall){
             const typeText = newCall.type === 'urge' ? wt('urgeOrder') : wt('callWaiter');
@@ -1159,23 +1264,15 @@
 
   // ----- 自动刷新开关 -----
   let waiterAutoRefreshTimer=null;
-  function startWaiterAutoRefresh(){
+  function startWaiterAutoRefresh(intervalSec){
     stopWaiterAutoRefresh();
-    waiterAutoRefreshTimer=setInterval(()=>{ if(state.token && !document.hidden) load(); }, 8000);
+    const secs = Math.max(3, parseInt(intervalSec, 10) || 8);
+    waiterAutoRefreshTimer=setInterval(()=>{ if(state.token && !document.hidden) load(); }, secs * 1000);
   }
   function stopWaiterAutoRefresh(){
     if(waiterAutoRefreshTimer) clearInterval(waiterAutoRefreshTimer);
     waiterAutoRefreshTimer=null;
   }
-  function applyAutoRefreshSetting(){
-    const enabled=localStorage.getItem('waiterAutoRefresh')!=='0'; // 默认开启
-    $('#autoRefreshToggle').checked=enabled;
-    if(enabled && state.token) startWaiterAutoRefresh(); else stopWaiterAutoRefresh();
-  }
-  $('#autoRefreshToggle').addEventListener('change', e=>{
-    localStorage.setItem('waiterAutoRefresh', e.target.checked?'1':'0');
-    if(e.target.checked && state.token) startWaiterAutoRefresh(); else stopWaiterAutoRefresh();
-  });
 
   function renderTables(){
     $('#tableGrid').innerHTML=state.tables.map(t=>`<div class="table-card" onclick="openModal('${t.name}')"><div class="name">🍽️ ${t.name}</div><div class="status ${status(t)===wt('available')?'available':'occupied'}">${status(t)}</div><div class="bill">${bill(t)}</div></div>`).join('')||`<div style="color:#c8c8d0">${wt('noTables')}</div>`;
@@ -1288,7 +1385,7 @@
     $('#mainHeader').style.display='flex';
     $('#mainContent').style.display='block';
     applyWaiterLanguage();
-    load().then(()=>{applyAutoRefreshSetting();startCallPolling();}).catch(()=>logoutWaiter());
+    load().then(()=>{startCallPolling();}).catch(()=>logoutWaiter());
   }else{
     window.location.href = '/login?type=waiter';
   }
