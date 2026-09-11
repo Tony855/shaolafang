@@ -29,15 +29,14 @@
             z-index: 200;
             padding: 0 24px;
             height: 64px;
+            min-height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            background: rgba(22, 22, 42, .92);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
+            background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%);
             border-bottom: 1px solid rgba(255, 255, 255, .08);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .3);
             flex-wrap: nowrap;
             overflow-x: auto;
         }
@@ -273,28 +272,47 @@
             position: fixed;
             left: 0;
             top: 64px;
-            width: 220px;
+            width: 200px;
             height: calc(100vh - 64px);
             z-index: 150;
             display: flex;
             flex-direction: column;
             gap: 4px;
             padding: 14px 12px;
-            border-right: 1px solid rgba(255, 255, 255, .06);
-            background: linear-gradient(165deg, rgba(33, 33, 56, .98), rgba(22, 22, 42, .98));
+            border-right: 1px solid rgba(255, 255, 255, .1);
+            background: rgba(22, 22, 42, 0.75);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
             box-shadow: 4px 0 28px rgba(0, 0, 0, .18);
             overflow-y: auto;
             overflow-x: hidden;
         }
         .sidebar-brand {
-            font-size: 18px;
-            font-weight: 800;
-            color: #ffd93d;
             padding: 8px 6px 16px;
             border-bottom: 1px solid rgba(255, 255, 255, .1);
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .sidebar-store-icon {
+            font-size: 28px;
+            margin-bottom: 2px;
+        }
+        .sidebar-store-name {
+            font-size: 16px;
+            font-weight: 800;
+            color: #ffd93d;
             letter-spacing: .3px;
             text-shadow: 0 0 20px rgba(255, 217, 61, .3);
+            text-align: center;
+            word-break: break-all;
+        }
+        .sidebar-store-code {
+            font-size: 11px;
+            color: rgba(255,255,255,.4);
+            letter-spacing: 1px;
         }
         .nav-item {
             display: flex;
@@ -332,6 +350,11 @@
             padding: 20px 24px 40px;
             max-width: 1260px;
         }
+        .admin-modules {
+            margin-left: 200px;
+            padding: 4px 24px 40px;
+            max-width: 1260px;
+        }
         .admin-modules .module-panel {
             display: none;
         }
@@ -355,6 +378,7 @@
             margin: 0 0 16px;
             font-size: 17px;
             letter-spacing: .3px;
+            color: #fff;
             color: #ffd93d;
         }
         .panel h2::after {
@@ -1846,52 +1870,19 @@
                 padding: 8px 14px;
             }
 
-            .admin-sidebar {
-                position: fixed;
-                left: 0;
-                right: 0;
-                top: 48px;
-                width: 100%;
-                height: 44px;
-                padding: 4px 10px;
-                flex-direction: row;
-                overflow-x: auto;
-                overflow-y: hidden;
-                gap: 4px;
-                border-right: none;
-                border-bottom: 1px solid rgba(255, 255, 255, .06);
-                background: rgba(22, 22, 42, .96);
-                backdrop-filter: blur(10px);
-                -webkit-backdrop-filter: blur(10px);
-                box-shadow: 0 4px 16px rgba(0, 0, 0, .15);
-                scrollbar-width: thin;
-                -webkit-overflow-scrolling: touch;
-            }
-            .admin-sidebar::-webkit-scrollbar {
-                height: 2px;
-            }
-            .admin-sidebar::-webkit-scrollbar-thumb {
-                background: rgba(255, 255, 255, .2);
-                border-radius: 4px;
-            }
-            .sidebar-brand {
-                display: none;
-            }
             .nav-item {
-                flex: 0 0 auto;
-                padding: 6px 12px;
-                font-size: 12px;
-                gap: 4px;
-                border-radius: 8px;
-                white-space: nowrap;
+                padding: 10px 12px;
+                font-size: 13px;
+                gap: 8px;
+                border-radius: 10px;
             }
             .nav-item .nav-icon {
-                font-size: 14px;
+                font-size: 16px;
             }
 
             .admin-shell {
                 margin-left: 0;
-                padding: 60px 10px 20px;
+                padding: 56px 10px 20px;
             }
 
             .panel {
@@ -2038,19 +2029,14 @@
                 gap: 4px;
             }
             body {
-                padding-top: 42px;
-            }
-            .admin-sidebar {
-                top: 42px;
-                height: 38px;
-                padding: 2px 6px;
+                padding-top: 48px;
             }
             .nav-item {
-                font-size: 10px;
-                padding: 4px 8px;
+                font-size: 12px;
+                padding: 8px 10px;
             }
             .admin-shell {
-                padding-top: 50px;
+                padding-top: 52px;
                 padding-left: 6px;
                 padding-right: 6px;
             }
@@ -2213,12 +2199,120 @@
                 justify-content: flex-end !important;
             }
         }
+    /* ===== 移动端响应式（P0） ===== */
+    .hamburger-btn {
+        display: none;
+        position: fixed;
+        top: 6px;
+        left: 6px;
+        z-index: 300;
+        width: 36px;
+        height: 36px;
+        background: rgba(255,255,255,.08);
+        border: 1px solid rgba(255,255,255,.1);
+        color: #fff;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+        border-radius: 10px;
+        transition: background .2s, transform .2s;
+        align-items: center;
+        justify-content: center;
+    }
+    .hamburger-btn:hover { background: rgba(255,255,255,.1); }
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.5);
+        z-index: 149;
+        opacity: 0;
+        transition: opacity .3s ease;
+    }
+    .sidebar-overlay.show {
+        display: block;
+        opacity: 1;
+    }
+    .sidebar-close {
+        display: none;
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.1);
+        border: 0;
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 10;
+        align-items: center;
+        justify-content: center;
+    }
+    .sidebar-close:hover { background: rgba(255,255,255,.2); }
+
+    @media (max-width: 1024px) {
+        .hamburger-btn { display: flex; }
+        .top { padding: 0 10px 0 52px; gap: 8px; height: 48px; min-height: 48px; background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%); }
+        .top #adminHeaderTitle { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+        .top-right { gap: 5px; }
+        .top-right select { padding: 5px 7px; font-size: 11px; border-radius: 8px; }
+        .admin-name-btn { padding: 5px 8px; font-size: 11px; border-radius: 8px; }
+        #logoutBtn { display: none; }
+        .admin-sidebar {
+            transform: translateX(-100%);
+            transition: transform .3s cubic-bezier(.4,0,.2,1);
+            width: 160px !important;
+            max-width: 75%;
+            top: 48px;
+            height: calc(100vh - 48px);
+            z-index: 150;
+            box-shadow: 4px 0 30px rgba(0,0,0,.5);
+            padding: 16px 10px 10px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 4px !important;
+            background: rgba(0,0,0,0) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+            border-right: none;
+        }
+        .admin-sidebar.open { transform: translateX(0) !important; }
+        .sidebar-close { display: flex !important; top: 8px; right: 8px; width: 28px; height: 28px; font-size: 13px; position: absolute; z-index: 10; }
+        .sidebar-brand { padding: 4px 4px 6px !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 100%; flex-shrink: 0; gap: 0 !important; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 4px; }
+        .sidebar-store-icon { font-size: 18px !important; margin-bottom: 0 !important; }
+        .sidebar-store-name { font-size: 12px !important; color: #ffd93d !important; font-weight: 700 !important; line-height: 1.2 !important; }
+        .sidebar-store-code { font-size: 9px !important; color: rgba(255,255,255,.4) !important; line-height: 1.2 !important; }
+        .nav-item { padding: 12px 12px !important; font-size: 14px; color: #e8e8f0 !important; font-weight: 500; width: 100%; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 10px !important; }
+        .nav-item:hover { background: rgba(255,255,255,.1); color: #fff; }
+        .nav-item.active { background: linear-gradient(135deg, rgba(232,93,58,.9), rgba(201,74,42,.9)) !important; color: #fff !important; }
+        .nav-icon { font-size: 16px; flex-shrink: 0; }
+        .admin-modules { margin-left: 0 !important; padding: 4px 10px 16px; }
+        .panel.module-panel { padding: 14px; border-radius: 14px; max-width: 520px; margin-left: auto; margin-right: auto; }
+        .panel.module-panel h2 { font-size: 17px; margin-bottom: 12px; }
+    }
+    @media (max-width: 480px) {
+        .top { padding: 0 8px 0 48px; gap: 6px; height: 44px; min-height: 44px; }
+        .top-right select { font-size: 10px; padding: 4px 5px; }
+        .admin-name-btn span { display: none; }
+        .admin-name-btn { padding: 5px 7px; font-size: 14px; }
+        .hamburger-btn { width: 34px; height: 34px; font-size: 16px; top: 7px; left: 5px; }
+        .admin-sidebar { width: 150px !important; padding: 14px 8px 8px !important; }
+        .nav-item { padding: 10px; font-size: 13px; gap: 8px; }
+        .panel.module-panel { padding: 10px; max-width: 100%; }
+        .panel.module-panel h2 { font-size: 16px; }
+        .menu-toolbar { flex-wrap: wrap; gap: 6px; }
+        .menu-toolbar button, .menu-toolbar select { font-size: 11px; padding: 7px 9px; border-radius: 8px; }
+        .admin-modules { padding: 2px 8px 14px; }
+    }
     </style>
     <link rel="stylesheet" href="assets/common.css">
 </head>
 <body>
     <!-- ===== 通知 ===== -->
     <div id="notice" class="notice"></div>
+
+    <!-- ===== 移动端汉堡按钮（独立浮动） ===== -->
+    <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="菜单">☰</button>
 
     <!-- ===== 顶部栏（固定） ===== -->
     <header class="top">
@@ -2276,15 +2370,26 @@
                         <span id="adminInfoStatus">-</span>
                     </div>
                 </div>
+                <button onclick="hideAdminInfo();logoutAdmin()" style="width:100%;margin-top:16px;padding:12px;background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:0;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(231,76,60,.3)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+                    <span>🚪</span>
+                    <span id="adminInfoLogoutBtn">退出登录</span>
+                </button>
             </div>
         </div>
     </div>
 
     <!-- ===== 主内容 ===== -->
     <main class="admin-shell" id="dashboard" hidden>
+        <!-- 侧边栏遮罩（移动端） -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
         <!-- 侧边栏（固定） -->
-        <aside class="admin-sidebar">
-            <div class="sidebar-brand" id="sidebarBrand">🍽️ FoodFlow · Admin</div>
+        <aside class="admin-sidebar" id="adminSidebar">
+            <button class="sidebar-close" onclick="closeSidebar()" aria-label="关闭">✕</button>
+            <div class="sidebar-brand" id="sidebarBrand">
+                <div class="sidebar-store-icon">🏪</div>
+                <div class="sidebar-store-name" id="sidebarStoreName">加载中...</div>
+                <div class="sidebar-store-code" id="sidebarStoreCode"></div>
+            </div>
             <button class="nav-item active" data-module="menu">
                 <span class="nav-icon">📖</span> <span data-i18n-nav="menu">菜品管理</span>
             </button>
@@ -2366,10 +2471,10 @@
             <section class="panel module-panel" id="module-currencies">
                 <h2 id="currencyPanelTitle">货币类型</h2>
                                 <div class="store-sub-buttons" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span id="storeSubStores">店铺管理</span></button>
-                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span id="storeSubCurrencies">货币类型</span></button>
-                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span id="storeSubPrinters">打印机管理</span></button>
-                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span id="storeSubWaiters">服务员管理</span></button>
+                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span class="store-sub-stores">店铺管理</span></button>
+                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span class="store-sub-currencies">货币类型</span></button>
+                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span class="store-sub-printers">打印机管理</span></button>
+                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span class="store-sub-waiters">服务员管理</span></button>
                 </div>
                 <div class="backup-actions" style="margin-bottom:12px;">
                     <label style="color:#ccc"><input type="checkbox" id="dualCurrencyEnabled"> <span id="currencyDualLabel">启用双币显示</span></label>
@@ -2419,10 +2524,10 @@
             <section class="panel module-panel" id="module-printers">
                 <h2 id="printersPanelTitle">🖨️ 小票打印机管理</h2>
                                 <div class="store-sub-buttons" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span id="storeSubStores">店铺管理</span></button>
-                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span id="storeSubCurrencies">货币类型</span></button>
-                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span id="storeSubPrinters">打印机管理</span></button>
-                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span id="storeSubWaiters">服务员管理</span></button>
+                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span class="store-sub-stores">店铺管理</span></button>
+                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span class="store-sub-currencies">货币类型</span></button>
+                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span class="store-sub-printers">打印机管理</span></button>
+                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span class="store-sub-waiters">服务员管理</span></button>
                 </div>
                 <div class="printer-form-container">
                     <div class="printer-form-grid">
@@ -2521,10 +2626,10 @@
             <section class="panel module-panel" id="module-waiters">
                 <h2 id="waitersPanelTitle">服务员管理</h2>
                                 <div class="store-sub-buttons" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span id="storeSubStores">店铺管理</span></button>
-                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span id="storeSubCurrencies">货币类型</span></button>
-                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span id="storeSubPrinters">打印机管理</span></button>
-                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span id="storeSubWaiters">服务员管理</span></button>
+                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span class="store-sub-stores">店铺管理</span></button>
+                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span class="store-sub-currencies">货币类型</span></button>
+                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span class="store-sub-printers">打印机管理</span></button>
+                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span class="store-sub-waiters">服务员管理</span></button>
                 </div>
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
@@ -2556,10 +2661,10 @@
             <section class="panel module-panel" id="module-stores">
                 <h2 id="storesPanelTitle">店铺设置</h2>
                 <div class="store-sub-buttons" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span id="storeSubStores">店铺管理</span></button>
-                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span id="storeSubCurrencies">货币类型</span></button>
-                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span id="storeSubPrinters">打印机管理</span></button>
-                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span id="storeSubWaiters">服务员管理</span></button>
+                    <button onclick="switchAdminModule('stores')" class="store-sub-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🏪 <span class="store-sub-stores">店铺管理</span></button>
+                    <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span class="store-sub-currencies">货币类型</span></button>
+                    <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span class="store-sub-printers">打印机管理</span></button>
+                    <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span class="store-sub-waiters">服务员管理</span></button>
                 </div>
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
@@ -3748,6 +3853,29 @@
             }
         }
 
+        function updateSidebarStore() {
+            const select = document.getElementById('adminStoreSelect');
+            const nameEl = document.getElementById('sidebarStoreName');
+            const codeEl = document.getElementById('sidebarStoreCode');
+            if (!select || !nameEl) return;
+            const opt = select.options[select.selectedIndex];
+            if (opt && opt.value) {
+                nameEl.textContent = opt.text;
+                // 尝试从stores数据中获取编码
+                const storeId = opt.value;
+                if (window._adminStores && window._adminStores.length) {
+                    const s = window._adminStores.find(x => String(x.id) === String(storeId));
+                    if (s && s.code) codeEl.textContent = s.code;
+                    else codeEl.textContent = '';
+                } else {
+                    codeEl.textContent = '';
+                }
+            } else {
+                nameEl.textContent = '未选择店铺';
+                codeEl.textContent = '';
+            }
+        }
+
         async function loadStores() {
             try {
                 const rows = await api('/admin/stores');
@@ -3773,6 +3901,7 @@
                     adminSelect.innerHTML = optionsHtml;
                     waiterSelect.innerHTML = optionsHtml;
                     editWaiterStore.innerHTML = optionsHtml;
+                    window._adminStores = rows;
                     const savedId = sessionStorage.getItem('adminStoreId') || '1';
                     if (rows.some(r => String(r.id) === savedId)) {
                         adminSelect.value = savedId;
@@ -3781,6 +3910,7 @@
                         sessionStorage.setItem('adminStoreId', String(rows[0].id));
                     }
                     waiterSelect.value = rows[0].id;
+                    updateSidebarStore();
                 } else {
                     adminSelect.innerHTML = `<option value="">${tAdmin('noStoreCheckDb')}</option>`;
                     waiterSelect.innerHTML = `<option value="">${tAdmin('noStore')}</option>`;
@@ -4359,6 +4489,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>${esc(q.table)} · ${esc(storeName)} ${tAdmin('qrCode')}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
@@ -4970,12 +5103,103 @@
             else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); loadDailyReport(); loadReportSummary(); }
         }
 
+        // 移动端侧边栏控制
+        function toggleSidebar() {
+            const sidebar = document.getElementById('adminSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+            document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+        }
+        function closeSidebar() {
+            const sidebar = document.getElementById('adminSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // 汉堡按钮拖动 + 磁吸效果
+        (function() {
+            const btn = document.getElementById('hamburgerBtn');
+            if (!btn) return;
+            let isDragging = false;
+            let startX, startY, startLeft, startTop;
+            let hasMoved = false;
+
+            function getPos(e) {
+                if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                return { x: e.clientX, y: e.clientY };
+            }
+
+            function onStart(e) {
+                if (window.innerWidth > 1024) return;
+                isDragging = true;
+                hasMoved = false;
+                const pos = getPos(e);
+                startX = pos.x;
+                startY = pos.y;
+                const rect = btn.getBoundingClientRect();
+                startLeft = rect.left;
+                startTop = rect.top;
+                btn.classList.add('dragging');
+                btn.style.transition = 'none';
+            }
+
+            function onMove(e) {
+                if (!isDragging) return;
+                const pos = getPos(e);
+                const dx = pos.x - startX;
+                const dy = pos.y - startY;
+                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) { hasMoved = true; e.preventDefault(); }
+                let newLeft = startLeft + dx;
+                let newTop = startTop + dy;
+                newLeft = Math.max(0, Math.min(window.innerWidth - btn.offsetWidth, newLeft));
+                newTop = Math.max(0, Math.min(window.innerHeight - btn.offsetHeight, newTop));
+                btn.style.left = newLeft + 'px';
+                btn.style.top = newTop + 'px';
+                e.preventDefault();
+            }
+
+            function onEnd(e) {
+                if (!isDragging) return;
+                isDragging = false;
+                btn.classList.remove('dragging');
+                btn.style.transition = '';
+                if (hasMoved) {
+                    const rect = btn.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    if (centerX < window.innerWidth / 2) {
+                        btn.style.left = '8px';
+                    } else {
+                        btn.style.left = (window.innerWidth - btn.offsetWidth - 8) + 'px';
+                    }
+                    if (rect.top < 60) {
+                        btn.style.top = '8px';
+                    } else if (rect.bottom > window.innerHeight - 60) {
+                        btn.style.top = (window.innerHeight - btn.offsetHeight - 8) + 'px';
+                    }
+                } else {
+                    toggleSidebar();
+                }
+            }
+
+            btn.addEventListener('mousedown', onStart);
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+            btn.addEventListener('touchstart', onStart, { passive: false });
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onEnd);
+        })();
+
         // 导航点击事件：总是切换到对应模块（若已激活则刷新）
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', function() {
                 const module = this.dataset.module;
                 // 如果当前已是该模块，仍然调用 switchAdminModule 实现刷新
                 switchAdminModule(module);
+                // 移动端点击导航后自动关闭侧边栏
+                if (window.innerWidth <= 1024) closeSidebar();
             });
         });
 
@@ -5000,7 +5224,6 @@
         function applyAdminLanguage() {
             document.title = tAdmin('headerTitle');
             $('#adminHeaderTitle').textContent = tAdmin('headerTitle');
-            $('#sidebarBrand').textContent = tAdmin('headerTitle');
             $('#adminLang').value = adminLang;
             $('#logoutBtn').textContent = tAdmin('logout');
             $('#confirmCancelBtn').textContent = L('cancel') || '取消';
@@ -5132,7 +5355,7 @@
             $('#storeNameInput').placeholder = tAdmin('storeName');
             $('#storeCodeInput').placeholder = tAdmin('storeCode');
             $('#storeAddressInput').placeholder = tAdmin('storeAddress');
-            $('#addStoreBtn').textContent = tAdmin('addStore'); const subCurrencies=document.querySelectorAll('#storeSubCurrencies');subCurrencies.forEach(el=>el.textContent=tAdmin('currencyManageTitle')); const subPrinters=document.querySelectorAll('#storeSubPrinters');subPrinters.forEach(el=>el.textContent=tAdmin('printerManage')); const subWaiters=document.querySelectorAll('#storeSubWaiters');subWaiters.forEach(el=>el.textContent=tAdmin('waitersManage')); const subStores=document.querySelectorAll('#storeSubStores');subStores.forEach(el=>el.textContent=tAdmin('storesManage')); const backBtns=document.querySelectorAll('#backToStoresText');backBtns.forEach(b=>b.textContent=tAdmin('backToStores')||'返回店铺管理');
+            $('#addStoreBtn').textContent = tAdmin('addStore'); const subCurrencies=document.querySelectorAll('.store-sub-currencies');subCurrencies.forEach(el=>el.textContent=tAdmin('currencyManageTitle')); const subPrinters=document.querySelectorAll('.store-sub-printers');subPrinters.forEach(el=>el.textContent=tAdmin('printerManage')); const subWaiters=document.querySelectorAll('.store-sub-waiters');subWaiters.forEach(el=>el.textContent=tAdmin('waitersManage')); const subStores=document.querySelectorAll('.store-sub-stores');subStores.forEach(el=>el.textContent=tAdmin('storesManage')); const backBtns=document.querySelectorAll('#backToStoresText');backBtns.forEach(b=>b.textContent=tAdmin('backToStores')||'返回店铺管理');
             $('#storeNameLabel').textContent = tAdmin('storeName');
             $('#storeCodeLabel').textContent = tAdmin('storeCode');
             $('#storeAddressLabel').textContent = tAdmin('storeAddress');
@@ -5243,6 +5466,7 @@
         };
         $('#adminStoreSelect').onchange = function() {
             sessionStorage.setItem('adminStoreId', this.value);
+            updateSidebarStore();
             refresh();
         };
 
@@ -5385,6 +5609,7 @@
         // ================================================================
         // 初始化
         // ================================================================
+        let adminCallPollTimer = null;
         const today = new Date().toISOString().slice(0, 10);
         applyAdminLanguage();
 
@@ -5393,6 +5618,7 @@
             $('#logoutBtn').hidden = false;
             $('#adminNameBtn').hidden = false;
             loadAdminInfo();
+            loadStores();
             // 从服务器加载超时配置
             fetch('/api/public/global-config').then(r => r.json()).then(cfg => {
                 if (cfg.admin_idle_timeout) {
@@ -5518,7 +5744,6 @@
         //  呼叫服务员
         // ================================================================
         let knownAdminCallIds = new Set();
-        let adminCallPollTimer = null;
         async function pollAdminCalls() {
             if (document.hidden) return;
             try {
@@ -5751,7 +5976,7 @@
                     .separator { border-top: 1px dashed #000; margin: 8px 0; }
                     .row { display: flex; justify-content: space-between; }
                 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .store-sub-buttons { flex-direction: column !important; }
     .store-sub-btn { width: 100% !important; padding: 14px 20px !important; font-size: 15px !important; }
     #module-stores .manage-form-grid { grid-template-columns: 1fr !important; }

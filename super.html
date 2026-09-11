@@ -54,10 +54,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .section-title { font-size: 18px; margin-bottom: 20px; color: #fff; }
 
 /* 表格 */
-.data-table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.03); border-radius: 12px; overflow: hidden; }
-.data-table th { background: rgba(255,255,255,.06); padding: 14px 16px; text-align: left; color: #aaa; font-size: 13px; font-weight: 600; }
+.data-table { width: 100%; border-collapse: collapse; background: transparent; border-radius: 12px; overflow: hidden; }
+.data-table th { background: rgba(255,255,255,.04); padding: 14px 16px; text-align: left; color: #aaa; font-size: 13px; font-weight: 600; }
 .data-table td { padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.05); color: #ddd; }
-.data-table tr:hover { background: rgba(255,255,255,.03); }
+.data-table tr:hover { background: rgba(255,255,255,.04); }
 .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .status-active { background: rgba(46,204,113,.2); color: #2ecc71; }
 .status-disabled { background: rgba(231,76,60,.2); color: #e74c3c; }
@@ -87,9 +87,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .toast.error { border-left-color: #e74c3c; }
 
 /* 移动端菜单按钮 */
-.mobile-menu-btn { display: none; position: fixed; top: 16px; left: 16px; z-index: 201; background: #e85d3a; color: #fff; border: 0; width: 44px; height: 44px; border-radius: 10px; font-size: 20px; cursor: pointer; box-shadow: 0 4px 12px rgba(232,93,58,.3); }
+.mobile-menu-btn { display: none; position: fixed; top: 6px; left: 6px; z-index: 300; width: 36px; height: 36px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); color: #fff; font-size: 18px; cursor: pointer; padding: 0; border-radius: 10px; transition: background .2s, transform .2s; align-items: center; justify-content: center; }
+.mobile-menu-btn:hover { background: rgba(255,255,255,.15); }
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99; }
 .sidebar-overlay.show { display: block; }
+
+/* 移动端顶部导航栏 */
+.super-top { display: none; }
 
 /* 平板适配 768px */
 @media (max-width: 1024px) {
@@ -99,15 +103,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 }
 
 /* 移动端适配 768px */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .mobile-menu-btn { display: flex; align-items: center; justify-content: center; }
-  .sidebar { transform: translateX(-100%); transition: transform .3s ease; width: 260px; }
+  .super-top { display: flex; position: fixed; top: 0; left: 0; right: 0; z-index: 200; height: 48px; min-height: 48px; padding: 0 10px 0 52px; align-items: center; justify-content: space-between; gap: 8px; background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%); border-bottom: 1px solid rgba(255,255,255,.08); box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+  .super-top .brand { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+  .super-top .top-right { display: flex; align-items: center; gap: 8px; }
+  .super-top .logout-btn { padding: 5px 10px; font-size: 11px; border-radius: 8px; }
+  .sidebar { transform: translateX(-100%); transition: transform .3s ease; width: 240px; top: 48px; height: calc(100vh - 48px); z-index: 150; }
   .sidebar.open { transform: translateX(0); }
   .sidebar-brand, .nav-item span { display: block; }
-  .main { margin-left: 0; padding: 20px 16px; padding-top: 70px; }
-  .top-bar { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
-  .top-bar h1 { font-size: 20px; }
-  .top-bar .user-info { width: 100%; justify-content: space-between; }
+  .main { margin-left: 0; padding: 56px 16px 20px; }
+  .top-bar { display: none; }
   .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .stat-card { padding: 18px; }
   .stat-card .value { font-size: 26px; }
@@ -127,7 +133,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 
 /* 小屏手机适配 480px */
 @media (max-width: 480px) {
-  .main { padding: 16px 12px; padding-top: 70px; }
+  .super-top { padding: 0 8px 0 48px; height: 44px; min-height: 44px; }
+  .super-top .brand { font-size: 13px; max-width: 140px; }
+  .mobile-menu-btn { width: 34px; height: 34px; font-size: 16px; top: 5px; left: 5px; }
+  .sidebar { top: 44px; height: calc(100vh - 44px); width: 220px; }
+  .main { padding: 52px 12px 16px; }
   .stats-grid { grid-template-columns: 1fr; gap: 10px; }
   .stat-card { padding: 16px; }
   .stat-card .value { font-size: 24px; }
@@ -189,6 +199,14 @@ select:focus {
 <!-- 移动端菜单按钮 -->
 <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleSidebar()">☰</button>
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- 移动端顶部导航栏 -->
+<header class="super-top" id="superTop">
+  <div class="brand">🍽️ FoodFlow · Super</div>
+  <div class="top-right">
+    <button class="logout-btn" onclick="logout()">退出登录</button>
+  </div>
+</header>
 
 <!-- 登录页 -->
 <div class="login-page" id="loginPage">
@@ -910,6 +928,58 @@ if (token) showApp();
       }, '确认重置数据');
     }, '验证超级管理员密码');
   }
+
+
+// 汉堡按钮拖动+磁吸
+(function() {
+  const btn = document.getElementById('mobileMenuBtn');
+  if (!btn) return;
+  let isDragging = false, startX, startY, origX, origY, moved = false;
+  function getPos(e) { return e.touches ? e.touches[0] : e; }
+  function onStart(e) {
+    isDragging = true; moved = false;
+    const p = getPos(e);
+    startX = p.clientX; startY = p.clientY;
+    const rect = btn.getBoundingClientRect();
+    origX = rect.left; origY = rect.top;
+    btn.style.transition = 'none';
+  }
+  function onMove(e) {
+    if (!isDragging) return;
+    const p = getPos(e);
+    const dx = p.clientX - startX, dy = p.clientY - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) { moved = true; e.preventDefault(); }
+    btn.style.left = Math.max(0, Math.min(window.innerWidth - btn.offsetWidth, origX + dx)) + 'px';
+    btn.style.top = Math.max(0, Math.min(window.innerHeight - btn.offsetHeight, origY + dy)) + 'px';
+  }
+  function onEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    btn.style.transition = 'left .3s, top .3s';
+    // 磁吸到最近边缘
+    const rect = btn.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    if (centerX < window.innerWidth / 2) {
+      btn.style.left = '6px';
+    } else {
+      btn.style.left = (window.innerWidth - btn.offsetWidth - 6) + 'px';
+    }
+    // 垂直方向保持在导航栏区域
+    if (rect.top < 60) {
+      btn.style.top = '6px';
+    }
+  }
+  btn.addEventListener('mousedown', onStart);
+  btn.addEventListener('touchstart', onStart, {passive: false});
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, {passive: false});
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchend', onEnd);
+  // 点击时如果没移动才触发toggle
+  btn.addEventListener('click', function(e) {
+    if (moved) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+})();
 
 </script>
 </body>
