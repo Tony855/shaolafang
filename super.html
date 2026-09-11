@@ -224,9 +224,6 @@ select:focus {
     <div class="nav-item" data-module="logs" onclick="closeSidebar();switchModule('logs')">
       <span class="icon">📋</span><span>登录日志</span>
     </div>
-    <div class="nav-item" data-module="backup" onclick="closeSidebar();switchModule('backup')">
-      <span class="icon">💾</span><span>数据备份</span>
-    </div>
     <div class="nav-item" data-module="settings" onclick="closeSidebar();switchModule('settings')">
       <span class="icon">⚙️</span><span>系统设置</span>
     </div>
@@ -321,9 +318,22 @@ select:focus {
       </table>
     </div>
 
-    <!-- 数据备份 -->
-    <div class="panel" id="panel-backup">
-      <div class="section-title">数据备份</div>
+    <!-- 系统设置 -->
+    <div class="panel" id="panel-settings">
+      <div class="section-title">系统设置</div>
+      <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
+        <p style="color:#888;margin-bottom:16px;">超级管理员账号信息</p>
+        <div class="form-group">
+          <label>用户名</label>
+          <input type="text" value="superadmin" disabled style="opacity:.5;">
+        </div>
+        <div class="form-group">
+          <label>新密码</label>
+          <input type="password" id="newSuperPassword" placeholder="留空则不修改">
+        </div>
+        <button class="btn-primary" onclick="changeSuperPassword()">保存修改</button>
+      </div>
+      <div class="section-title" style="margin-top:8px;">数据备份</div>
       <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
         <p style="color:#888;margin-bottom:16px;">全量数据备份（包含所有商户、门店、菜品、订单等数据）</p>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
@@ -353,23 +363,7 @@ select:focus {
         <p style="color:#aaa;margin-bottom:16px;font-size:13px;">重置将清空所有订单、呼叫记录和扫码会话，菜品、商户、门店等基础数据保留。</p>
         <button class="btn-primary" onclick="resetData()" style="background:linear-gradient(135deg,#e74c3c,#c0392b);">🗑️ 重置订单数据</button>
       </div>
-    </div>
-
-    <!-- 系统设置 -->
-    <div class="panel" id="panel-settings">
-      <div class="section-title">系统设置</div>
-      <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
-        <p style="color:#888;margin-bottom:16px;">超级管理员账号信息</p>
-        <div class="form-group">
-          <label>用户名</label>
-          <input type="text" value="superadmin" disabled style="opacity:.5;">
-        </div>
-        <div class="form-group">
-          <label>新密码</label>
-          <input type="password" id="newSuperPassword" placeholder="留空则不修改">
-        </div>
-        <button class="btn-primary" onclick="changeSuperPassword()">保存修改</button>
-      </div>
+      <div class="section-title" style="margin-top:8px;">全局超时设置</div>
       <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;">
         <p style="color:#888;margin-bottom:16px;">全局超时设置</p>
         <div class="form-group">
@@ -516,14 +510,14 @@ function switchModule(mod) {
   currentModule = mod;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === mod));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + mod));
-  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '登录日志', backup: '数据备份', settings: '系统设置' };
+  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '登录日志', settings: '系统设置' };
   document.getElementById('pageTitle').textContent = titles[mod] || '';
   if (mod === 'dashboard') loadDashboard();
   if (mod === 'merchants') loadMerchants();
   if (mod === 'stores') loadStores();
   if (mod === 'logs') loadLoginLogs();
   if (mod === 'settings') loadGlobalSettings();
-  if (mod === 'backup') loadBackupSettings();
+  if (mod === 'settings') loadBackupSettings();
 }
 
 // API 请求
