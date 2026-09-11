@@ -296,6 +296,7 @@
       const t = SLF.i18n.t.bind(SLF.i18n);
       document.getElementById('errorModalTitle').textContent = title || t('loginFailed') || '登录失败';
       document.getElementById('errorModalMessage').textContent = message || t('loginError');
+      document.getElementById('errorModalBtn').textContent = t('confirm') || '确定';
       document.getElementById('errorModal').classList.add('open');
     }
     function hideErrorModal() {
