@@ -942,7 +942,7 @@
       state.tables=overview.tables;state.orders=overview.orders;state.waiter=overview.waiter;state.menu=menuRes;
       state.currencies=configRes.currencies||[];state.defaultCurrency=configRes.defaultCurrency||state.defaultCurrency;
       state.dualCurrency=configRes.dualCurrency||{enabled:false,currency:null};
-      if(typeof configRes.newOrderSoundEnabled==='boolean') soundEnabled=configRes.newOrderSoundEnabled;
+      if(typeof configRes.newOrderSoundEnabled==='boolean') SLF.audio.setEnabled(configRes.newOrderSoundEnabled);
       if(state.dualCurrency.enabled && !state.dualCurrency.currency){
         const defaultSec=state.currencies.find(c=>c.code==='USD')||state.currencies[0];
         if(defaultSec) state.dualCurrency.currency=defaultSec;
@@ -957,84 +957,19 @@
   }
 
   // ----- 新订单提示音（总开关由后台控制） -----
-  let soundEnabled=true;
   let knownWaiterOrderIds=null;
-  let audioCtx=null;
-  function unlockAudio(){
-    if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ /* 浏览器不支持 */ } }
-    if(audioCtx && audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
-  }
-  function playNewOrderChime(){
-    if(!soundEnabled) return;
-    unlockAudio();
-    if(!audioCtx) return;
-    try{
-      const now=audioCtx.currentTime;
-      // 压缩器统一提升整体响度，同时防止削波失真
-      const compressor=audioCtx.createDynamicsCompressor();
-      compressor.threshold.setValueAtTime(-12, now);
-      compressor.knee.setValueAtTime(20, now);
-      compressor.ratio.setValueAtTime(8, now);
-      compressor.attack.setValueAtTime(0.003, now);
-      compressor.release.setValueAtTime(0.15, now);
-      compressor.connect(audioCtx.destination);
-      // 更长、更响的六声提示音（含八度叠音），确保门店嘈杂环境下也能听到
-      [[0,880],[0.35,1318.5],[0.70,880],[1.05,1318.5],[1.55,880],[1.90,1318.5]].forEach(([t,freq])=>{
-        [freq, freq*2].forEach((f,i)=>{
-          const osc=audioCtx.createOscillator();
-          const gain=audioCtx.createGain();
-          osc.type='sine';osc.frequency.value=f;
-          const peak = i===0 ? 1.0 : 0.5;
-          gain.gain.setValueAtTime(0.0001, now+t);
-          gain.gain.exponentialRampToValueAtTime(peak, now+t+0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now+t+0.9);
-          osc.connect(gain).connect(compressor);
-          osc.start(now+t);osc.stop(now+t+0.95);
-        });
-      });
-    }catch(e){ /* 静默失败，不影响主流程 */ }
-  }
-  // 呼叫服务员/催单提示音（三声清脆叮咚，更急促）
-  function playCallChime(){
-    if(!soundEnabled) return;
-    unlockAudio();
-    if(!audioCtx) return;
-    try{
-      const now=audioCtx.currentTime;
-      const compressor=audioCtx.createDynamicsCompressor();
-      compressor.threshold.setValueAtTime(-12, now);
-      compressor.knee.setValueAtTime(20, now);
-      compressor.ratio.setValueAtTime(8, now);
-      compressor.attack.setValueAtTime(0.003, now);
-      compressor.release.setValueAtTime(0.15, now);
-      compressor.connect(audioCtx.destination);
-      // 三声急促叮咚，频率更高更醒目
-      [[0,1200],[0.2,1600],[0.4,1200]].forEach(([t,freq])=>{
-        [freq, freq*1.5].forEach((f,i)=>{
-          const osc=audioCtx.createOscillator();
-          const gain=audioCtx.createGain();
-          osc.type='sine';osc.frequency.value=f;
-          const peak = i===0 ? 0.8 : 0.4;
-          gain.gain.setValueAtTime(0.0001, now+t);
-          gain.gain.exponentialRampToValueAtTime(peak, now+t+0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now+t+0.3);
-          osc.connect(gain).connect(compressor);
-          osc.start(now+t);osc.stop(now+t+0.35);
-        });
-      });
-    }catch(e){ /* 静默失败 */ }
-  }
+
   // 与已知的待处理订单号对比，出现新订单号时播放提示音；首次加载不触发，避免刚打开页面就响
   function detectNewWaiterOrders(orders){
     const pendingIds=new Set((orders||[]).filter(o=>o.status==='pending').map(o=>o.id));
     if(knownWaiterOrderIds!==null){
       let hasNew=false;
       for(const id of pendingIds){ if(!knownWaiterOrderIds.has(id)){ hasNew=true; break; } }
-      if(hasNew) playNewOrderChime();
+      if(hasNew) SLF.audio.playNewOrderChime();
     }
     knownWaiterOrderIds=pendingIds;
   }
-  document.addEventListener('click', unlockAudio, {once:true});
+  document.addEventListener('click', () => SLF.audio.unlock(), {once:true});
 
   // ----- 服务员所属店铺 -----
   // 登录返回和概览接口都只带 store_id，店铺名称需要单独查询一次，之后缓存起来避免重复请求
@@ -1069,7 +1004,7 @@
         let hasNew=false;
         for(const c of pendingCalls){ if(!knownCallIds.has(c.id)){ hasNew=true; break; } }
         if(hasNew){
-          playCallChime();
+          SLF.audio.playCallChime();
           const newCall=pendingCalls.find(c=>!knownCallIds.has(c.id));
           if(newCall){
             const typeText = newCall.type === 'urge' ? wt('urgeOrder') : wt('callWaiter');

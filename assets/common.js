@@ -488,6 +488,140 @@
     },
   };
 
+  // ---------- 音频工具 ----------
+  const audio = {
+    _ctx: null,
+    _enabled: true,
+
+    // 解锁音频上下文（必须在用户交互后调用）
+    unlock() {
+      if (!this._ctx) {
+        try {
+          this._ctx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+          // 浏览器不支持 Web Audio
+        }
+      }
+      if (this._ctx && this._ctx.state === 'suspended') {
+        this._ctx.resume().catch(() => {});
+      }
+    },
+
+    // 设置声音开关
+    setEnabled(enabled) {
+      this._enabled = !!enabled;
+    },
+
+    // 获取声音开关状态
+    isEnabled() {
+      return this._enabled;
+    },
+
+    // 播放新订单提示音（六声提示音，含八度叠音）
+    playNewOrderChime() {
+      if (!this._enabled) return;
+      this.unlock();
+      if (!this._ctx) return;
+      try {
+        const now = this._ctx.currentTime;
+        // 压缩器统一提升整体响度，防止削波失真
+        const compressor = this._ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-12, now);
+        compressor.knee.setValueAtTime(20, now);
+        compressor.ratio.setValueAtTime(8, now);
+        compressor.attack.setValueAtTime(0.003, now);
+        compressor.release.setValueAtTime(0.15, now);
+        compressor.connect(this._ctx.destination);
+        // 六声提示音
+        [[0, 880], [0.35, 1318.5], [0.70, 880], [1.05, 1318.5], [1.55, 880], [1.90, 1318.5]].forEach(([t, freq]) => {
+          [freq, freq * 2].forEach((f, i) => {
+            const osc = this._ctx.createOscillator();
+            const gain = this._ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = f;
+            const peak = i === 0 ? 1.0 : 0.5;
+            gain.gain.setValueAtTime(0.0001, now + t);
+            gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.9);
+            osc.connect(gain).connect(compressor);
+            osc.start(now + t);
+            osc.stop(now + t + 0.95);
+          });
+        });
+      } catch (e) {
+        // 忽略音频播放错误
+      }
+    },
+
+    // 播放催单提示音（急促的四声）
+    playUrgeChime() {
+      if (!this._enabled) return;
+      this.unlock();
+      if (!this._ctx) return;
+      try {
+        const now = this._ctx.currentTime;
+        const compressor = this._ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-12, now);
+        compressor.knee.setValueAtTime(20, now);
+        compressor.ratio.setValueAtTime(8, now);
+        compressor.attack.setValueAtTime(0.003, now);
+        compressor.release.setValueAtTime(0.15, now);
+        compressor.connect(this._ctx.destination);
+        [[0, 1000], [0.15, 1400], [0.30, 1000], [0.45, 1400]].forEach(([t, freq]) => {
+          [freq, freq * 1.5].forEach((f, i) => {
+            const osc = this._ctx.createOscillator();
+            const gain = this._ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.value = f;
+            const peak = i === 0 ? 0.3 : 0.15;
+            gain.gain.setValueAtTime(0.0001, now + t);
+            gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.12);
+            osc.connect(gain).connect(compressor);
+            osc.start(now + t);
+            osc.stop(now + t + 0.15);
+          });
+        });
+      } catch (e) {
+        // 忽略音频播放错误
+      }
+    },
+
+    // 播放呼叫服务员/催单提示音（三声清脆叮咚，更急促）
+    playCallChime() {
+      if (!this._enabled) return;
+      this.unlock();
+      if (!this._ctx) return;
+      try {
+        const now = this._ctx.currentTime;
+        const compressor = this._ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-12, now);
+        compressor.knee.setValueAtTime(20, now);
+        compressor.ratio.setValueAtTime(8, now);
+        compressor.attack.setValueAtTime(0.003, now);
+        compressor.release.setValueAtTime(0.15, now);
+        compressor.connect(this._ctx.destination);
+        [[0, 1200], [0.2, 1600], [0.4, 1200]].forEach(([t, freq]) => {
+          [freq, freq * 1.5].forEach((f, i) => {
+            const osc = this._ctx.createOscillator();
+            const gain = this._ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = f;
+            const peak = i === 0 ? 0.8 : 0.4;
+            gain.gain.setValueAtTime(0.0001, now + t);
+            gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.3);
+            osc.connect(gain).connect(compressor);
+            osc.start(now + t);
+            osc.stop(now + t + 0.35);
+          });
+        });
+      } catch (e) {
+        // 忽略音频播放错误
+      }
+    },
+  };
+
   // ---------- 导出到全局 ----------
   global.SLF = {
     CONFIG,
@@ -496,6 +630,7 @@
     utils,
     ui,
     auth,
+    audio,
     ApiClient,
     I18n,
   };

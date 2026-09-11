@@ -289,107 +289,13 @@
     let pollTimer = null;
     let clockTimer = null;
     let knownOrderIds = null;
-    let soundEnabled = true;
 
     // 新订单提示音
-    let audioCtx = null;
-    function unlockAudio() {
-      if (!audioCtx) {
-        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
-      }
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-    }
-    function playNewOrderChime() {
-      if (!soundEnabled) return;
-      unlockAudio();
-      if (!audioCtx) return;
-      try {
-        const now = audioCtx.currentTime;
-        const compressor = audioCtx.createDynamicsCompressor();
-        compressor.threshold.setValueAtTime(-12, now);
-        compressor.knee.setValueAtTime(20, now);
-        compressor.ratio.setValueAtTime(8, now);
-        compressor.attack.setValueAtTime(0.003, now);
-        compressor.release.setValueAtTime(0.15, now);
-        compressor.connect(audioCtx.destination);
-        [[0, 880], [0.35, 1318.5], [0.70, 880], [1.05, 1318.5], [1.55, 880], [1.90, 1318.5]].forEach(([t, freq]) => {
-          [freq, freq * 2].forEach((f, i) => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine'; osc.frequency.value = f;
-            const peak = i === 0 ? 1.0 : 0.5;
-            gain.gain.setValueAtTime(0.0001, now + t);
-            gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.9);
-            osc.connect(gain).connect(compressor);
-            osc.start(now + t); osc.stop(now + t + 0.95);
-          });
-        });
-      } catch (e) {}
-    }
     // 催单提示音（急促的四声）
-    function playUrgeChime() {
-      if (!soundEnabled) return;
-      unlockAudio();
-      if (!audioCtx) return;
-      try {
-        const now = audioCtx.currentTime;
-        const compressor = audioCtx.createDynamicsCompressor();
-        compressor.threshold.setValueAtTime(-12, now);
-        compressor.knee.setValueAtTime(20, now);
-        compressor.ratio.setValueAtTime(8, now);
-        compressor.attack.setValueAtTime(0.003, now);
-        compressor.release.setValueAtTime(0.15, now);
-        compressor.connect(audioCtx.destination);
-        [[0, 1000], [0.15, 1400], [0.30, 1000], [0.45, 1400]].forEach(([t, freq]) => {
-          [freq, freq * 1.5].forEach((f, i) => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'square'; osc.frequency.value = f;
-            const peak = i === 0 ? 0.3 : 0.15;
-            gain.gain.setValueAtTime(0.0001, now + t);
-            gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.12);
-            osc.connect(gain).connect(compressor);
-            osc.start(now + t); osc.stop(now + t + 0.15);
-          });
-        });
-      } catch (e) {}
-    }
-    function playNewOrderChime() {
-      if (!soundEnabled) return;
-      unlockAudio();
-      if (!audioCtx) return;
-      try {
-        const now = audioCtx.currentTime;
-        const compressor = audioCtx.createDynamicsCompressor();
-        compressor.threshold.setValueAtTime(-12, now);
-        compressor.knee.setValueAtTime(20, now);
-        compressor.ratio.setValueAtTime(8, now);
-        compressor.attack.setValueAtTime(0.003, now);
-        compressor.release.setValueAtTime(0.15, now);
-        compressor.connect(audioCtx.destination);
-        [[0, 880], [0.35, 1318.5], [0.70, 880], [1.05, 1318.5], [1.55, 880], [1.90, 1318.5]].forEach(([t, freq]) => {
-          [freq, freq * 2].forEach((f, i) => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = f;
-            const peak = i === 0 ? 1.0 : 0.5;
-            gain.gain.setValueAtTime(0.0001, now + t);
-            gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.9);
-            osc.connect(gain).connect(compressor);
-            osc.start(now + t);
-            osc.stop(now + t + 0.95);
-          });
-        });
-      } catch (e) {}
-    }
     async function loadSoundSetting() {
       try {
         const data = await SLF.api.get('/public/config');
-        if (typeof data.newOrderSoundEnabled === 'boolean') soundEnabled = data.newOrderSoundEnabled;
+        if (typeof data.newOrderSoundEnabled === 'boolean') SLF.audio.setEnabled(data.newOrderSoundEnabled);
       } catch (e) {}
     }
     function detectNewOrders(orders) {
@@ -397,7 +303,7 @@
       if (knownOrderIds !== null) {
         let hasNew = false;
         for (const id of pendingIds) { if (!knownOrderIds.has(id)) { hasNew = true; break; } }
-        if (hasNew) playNewOrderChime();
+        if (hasNew) SLF.audio.playNewOrderChime();
       }
       knownOrderIds = pendingIds;
     }
@@ -596,7 +502,7 @@
           let hasNew = false;
           for (const c of pendingUrges) { if (!knownUrgeIds.has(c.id)) { hasNew = true; break; } }
           if (hasNew) {
-            playUrgeChime();
+            SLF.audio.playUrgeChime();
             const newUrge = pendingUrges.find(c => !knownUrgeIds.has(c.id));
             if (newUrge) showToast('⚡ ' + newUrge.table_name + ' ' + kt('urgeOrder'));
           }
@@ -665,7 +571,7 @@
     }
 
     async function doLogin() {
-      unlockAudio();
+      SLF.audio.unlock();
       const username = $('#username').value.trim();
       const password = $('#password').value.trim();
       if (!username || !password) { $('#loginError').textContent = kt('pleaseLogin'); return; }
@@ -710,7 +616,7 @@
     $('#logoutBtn').addEventListener('click', () => logout(true));
 
     $('#fullscreenBtn').addEventListener('click', () => {
-      unlockAudio();
+      SLF.audio.unlock();
       if (document.fullscreenElement) {
         document.exitFullscreen();
       } else {
@@ -721,7 +627,7 @@
       $('#fullscreenLabel').textContent = document.fullscreenElement ? kt('exitFullscreen') : kt('fullscreen');
     });
 
-    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('click', () => SLF.audio.unlock(), { once: true });
 
     // 初始化
     applyLoginLanguage();

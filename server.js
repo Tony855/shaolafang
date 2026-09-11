@@ -132,10 +132,19 @@ async function withTransaction(work) {
 // ---------- 常量 ----------
 // 菜品初始化仅在首次安装时执行，无需版本号
 const DEFAULT_MENU_CATEGORIES = ['招牌烧腊', '烧腊', '面食', '卤菜', '快餐', '早茶', '烧腊加料', '饮料'];
-const ORDER_COOLDOWN_MS = 30 * 1000;
+// 获取下单间隔时间（秒），从数据库读取，默认30秒
+async function getOrderCooldownMs() {
+  try {
+    const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'order_interval_seconds'");
+    const seconds = parseInt(setting?.value || '30', 10);
+    return Math.max(0, Math.min(3600, seconds)) * 1000;
+  } catch (e) {
+    return 30 * 1000;
+  }
+}
 const orderSubmissionCooldown = new Map();
 setInterval(() => {
-  const cutoff = Date.now() - ORDER_COOLDOWN_MS;
+  const cutoff = Date.now() - 3600 * 1000; // 清理1小时前的记录
   for (const [key, ts] of orderSubmissionCooldown) {
     if (ts < cutoff) orderSubmissionCooldown.delete(key);
   }
@@ -618,8 +627,8 @@ async function initDatabase() {
   // 创建默认商户
   const merchantCount = await getAsync('SELECT COUNT(*) AS count FROM merchants');
   if (merchantCount.count === 0) {
-    await runAsync("INSERT INTO merchants (id, name, code, contact_name, contact_phone, max_stores, status) VALUES (1, '烧腊坊', 'shaolafang', '管理员', '', 10, 1)");
-    console.log('  + 已创建默认商户：烧腊坊 (merchant_id=1)');
+    await runAsync("INSERT INTO merchants (id, name, code, contact_name, contact_phone, max_stores, status) VALUES (1, 'FoodFlow', 'shaolafang', '管理员', '', 10, 1)");
+    console.log('  + 已创建默认商户：FoodFlow (merchant_id=1)');
   }
 
   // 创建唯一超级管理员
@@ -874,7 +883,7 @@ function buildReceipt(order, store, printer) {
   pos.init();
   pos.align(1); // 居中
   pos.big(true);
-  pos.line(store?.name || '烧腊坊');
+  pos.line(store?.name || 'FoodFlow');
   pos.big(false);
   pos.newline();
 
@@ -1398,12 +1407,13 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
 // 超级管理员获取全局设置
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout')");
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds')");
     const settings = {};
     rows.forEach(r => { settings[r.key] = r.value; });
     res.json({
       admin_idle_timeout: parseInt(settings.admin_idle_timeout || '5', 10),
       qr_session_timeout: parseInt(settings.qr_session_timeout || '45', 10),
+      order_interval_seconds: parseInt(settings.order_interval_seconds || '30', 10),
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1411,7 +1421,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 // 超级管理员更新全局设置
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { admin_idle_timeout, qr_session_timeout } = req.body || {};
+    const { admin_idle_timeout, qr_session_timeout, order_interval_seconds } = req.body || {};
     if (admin_idle_timeout !== undefined) {
       const mins = Math.max(1, Math.min(1440, parseInt(admin_idle_timeout, 10) || 5));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
@@ -1419,6 +1429,10 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     if (qr_session_timeout !== undefined) {
       const mins = Math.max(5, Math.min(1440, parseInt(qr_session_timeout, 10) || 45));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('qr_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    if (order_interval_seconds !== undefined) {
+      const secs = Math.max(0, Math.min(3600, parseInt(order_interval_seconds, 10) || 30));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('order_interval_seconds', ?) ON DUPLICATE KEY UPDATE value=?", [String(secs), String(secs)]);
     }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1962,8 +1976,10 @@ app.post('/api/orders', async (req, res) => {
     const cooldownKey = sessionToken || table;
     const now = Date.now();
     const lastSubmission = orderSubmissionCooldown.get(cooldownKey) || 0;
-    if (now - lastSubmission < ORDER_COOLDOWN_MS) {
-      return res.status(429).json({ error: '下单过于频繁，请稍后再试' });
+    const cooldownMs = await getOrderCooldownMs();
+    if (cooldownMs > 0 && now - lastSubmission < cooldownMs) {
+      const waitSec = Math.ceil((cooldownMs - (now - lastSubmission)) / 1000);
+      return res.status(429).json({ error: `下单过于频繁，请等待${waitSec}秒后再试` });
     }
     const items = await normalizeOrderItems(req.body.items);
     if (items.length > 50) return res.status(400).json({ error: '单次下单菜品数量过多' });
@@ -2198,7 +2214,7 @@ app.get('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) =>
     const store = await getAsync('SELECT name, address FROM stores WHERE id=?', [row.store_id || 1]);
     res.json({
       order,
-      store: store || { name: '烧腊坊', address: '' },
+      store: store || { name: 'FoodFlow', address: '' },
       printedAt: new Date().toISOString()
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -2505,9 +2521,11 @@ app.get('/api/public/global-config', async (req, res) => {
   try {
     const idleSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
     const qrSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
+    const intervalSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'order_interval_seconds'");
     res.json({
       admin_idle_timeout: parseInt(idleSetting?.value || '5', 10),
       qr_session_timeout: parseInt(qrSetting?.value || '45', 10),
+      order_interval_seconds: parseInt(intervalSetting?.value || '30', 10),
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
