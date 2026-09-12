@@ -277,8 +277,8 @@
             z-index: 150;
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            padding: 14px 12px;
+            gap: 6px;
+            padding: 16px 16px;
             border-right: 1px solid rgba(255, 255, 255, .1);
             background: rgba(22, 22, 42, 0.75);
             backdrop-filter: blur(14px);
@@ -288,13 +288,14 @@
             overflow-x: hidden;
         }
         .sidebar-brand {
-            padding: 8px 6px 16px;
+            padding: 4px 6px 14px;
             border-bottom: 1px solid rgba(255, 255, 255, .1);
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 4px;
+            margin-bottom: 6px;
         }
         .sidebar-store-icon {
             font-size: 28px;
@@ -318,9 +319,9 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 10px 12px;
+            padding: 11px 12px;
             border: 0;
-            border-radius: 11px;
+            border-radius: 10px;
             background: transparent;
             color: #b8b8ce;
             font-size: 14px;
@@ -329,6 +330,7 @@
             transition: .18s ease;
             flex-shrink: 0;
             white-space: nowrap;
+            min-height: 40px;
         }
         .nav-item:hover {
             background: rgba(255, 255, 255, .07);
@@ -346,14 +348,16 @@
 
         /* ===== 主内容区域 ===== */
         .admin-shell {
-            margin-left: 220px;
-            padding: 20px 24px 40px;
-            max-width: 1260px;
+            margin-left: 200px;
+            padding: 16px 20px 40px;
+            max-width: none;
+            width: calc(100% - 200px);
         }
         .admin-modules {
-            margin-left: 200px;
-            padding: 4px 24px 40px;
-            max-width: 1260px;
+            margin-left: 0;
+            padding: 0;
+            max-width: none;
+            width: 100%;
         }
         .admin-modules .module-panel {
             display: none;
@@ -1788,12 +1792,15 @@
 
         /* ===== 响应式 — 平板及以下 ===== */
         @media (max-width: 920px) {
-            .admin-sidebar {
-                width: 180px;
-            }
             .admin-shell {
-                margin-left: 180px;
-                padding: 16px 16px 30px;
+                padding: 14px 14px 30px;
+                width: 100%;
+                max-width: none;
+            }
+            .admin-modules {
+                padding: 0;
+                width: 100%;
+                max-width: none;
             }
             .top strong {
                 font-size: 17px;
@@ -1885,6 +1892,14 @@
             .admin-shell {
                 margin-left: 0;
                 padding: 12px 10px 20px;
+                width: 100%;
+                max-width: none;
+            }
+            .admin-modules {
+                margin-left: 0;
+                padding: 0;
+                width: 100%;
+                max-width: none;
             }
 
             .panel {
@@ -2276,6 +2291,16 @@
         }
         .admin-sidebar.open { transform: translateX(0) !important; }
         .sidebar-close { display: flex !important; top: 8px; right: 8px; width: 28px; height: 28px; font-size: 13px; position: absolute; z-index: 10; }
+        .admin-shell {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+        }
+        .admin-modules {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+        }
         .sidebar-brand { padding: 4px 4px 6px !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 100%; flex-shrink: 0; gap: 0 !important; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 4px; }
         .sidebar-store-icon { font-size: 18px !important; margin-bottom: 0 !important; }
         .sidebar-store-name { font-size: 12px !important; color: #ffd93d !important; font-weight: 700 !important; line-height: 1.2 !important; }
@@ -2340,15 +2365,19 @@
             <div style="padding:16px 20px 18px;">
                 <div style="display:flex;flex-direction:column;">
                     <div class="admin-info-row">
-                        <label id="adminInfoUsernameLabel">用户名</label>
-                        <span id="adminInfoUsername">-</span>
+                        <label id="adminInfoUsernameLabel">商户账号</label>
+                        <span id="adminInfoUsername" style="font-weight:600;color:#e85d3a;">-</span>
                     </div>
                     <div class="admin-info-row">
                         <label id="adminInfoMerchantLabel">商户名称</label>
                         <span id="adminInfoMerchant">-</span>
                     </div>
                     <div class="admin-info-row">
-                        <label id="adminInfoStoreCountLabel">门店数量</label>
+                        <label id="adminInfoCodeLabel">商户编码</label>
+                        <span id="adminInfoCode" style="font-family:monospace;background:rgba(232,93,58,.1);padding:2px 8px;border-radius:6px;font-size:12px;">-</span>
+                    </div>
+                    <div class="admin-info-row">
+                        <label id="adminInfoStoreCountLabel">店铺数量</label>
                         <span id="adminInfoStoreCount">-</span>
                     </div>
                     <div class="admin-info-row">
@@ -2356,16 +2385,16 @@
                         <span id="adminInfoContact">-</span>
                     </div>
                     <div class="admin-info-row">
-                        <label id="adminInfoPhoneLabel">联系电话</label>
+                        <label id="adminInfoPhoneLabel">电话</label>
                         <span id="adminInfoPhone">-</span>
                     </div>
                     <div class="admin-info-row">
-                        <label id="adminInfoCreatedLabel">注册时间</label>
-                        <span id="adminInfoCreated">-</span>
+                        <label id="adminInfoStatusLabel">状态</label>
+                        <span id="adminInfoStatus">-</span>
                     </div>
                     <div class="admin-info-row" style="border-bottom:0;">
-                        <label id="adminInfoStatusLabel">账号状态</label>
-                        <span id="adminInfoStatus">-</span>
+                        <label id="adminInfoCreatedLabel">注册时间</label>
+                        <span id="adminInfoCreated" style="font-size:12px;color:#999;">-</span>
                     </div>
                 </div>
                 <button onclick="hideAdminInfo();logoutAdmin()" style="width:100%;margin-top:16px;padding:12px;background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:0;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(231,76,60,.3)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
@@ -3007,9 +3036,9 @@
                 tableNameRequired: '桌号名称不能为空', orderItemsRequired: '请至少选择一道菜品并填写有效数量', invalidStatus: '无效状态',
                 confirmDelete: '确认删除？', qr: '二维码', qrTitle: '固定点餐码', qrDesc: '此二维码固定对应该桌，顾客扫码后会自动绑定桌号。',
                 connectSuccess: '登录成功', connectFailed: '密码错误，请重试',
-                adminInfoTitle: '账户信息', adminInfoUsername: '用户名', adminInfoMerchant: '商户名称',
-                adminInfoStoreCount: '门店数量', adminInfoContact: '联系人', adminInfoPhone: '联系电话',
-                adminInfoCreated: '注册时间', adminInfoStatus: '账号状态',
+                adminInfoTitle: '账户信息', adminInfoUsername: '商户账号', adminInfoMerchant: '商户名称',
+                adminInfoCode: '商户编码', adminInfoStoreCount: '店铺数量', adminInfoContact: '联系人', adminInfoPhone: '电话',
+                adminInfoCreated: '注册时间', adminInfoStatus: '状态',
                 adminInfoNotice: '⚠️ 账户无权修改个人信息，如需修改请联系超级管理员',
                 adminInfoClose: '关闭', todayRevenue: '今日营业额', monthRevenue: '本月营业额',
                 hotDishesTitle: '热销菜品排行榜', ordersCount: '笔订单', noHotDishes: '暂无热销数据', unit: '份',
@@ -3172,8 +3201,8 @@
                 qrTitle: 'Fixed Order QR Code',
                 qrDesc: 'This QR code is fixed to this table. Customers will be bound to the table after scanning.',
                 connectSuccess: 'Login successful', connectFailed: 'Incorrect password. Please try again.',
-                adminInfoTitle: 'Account Info', adminInfoUsername: 'Username', adminInfoMerchant: 'Merchant Name',
-                adminInfoStoreCount: 'Store Count', adminInfoContact: 'Contact Person', adminInfoPhone: 'Contact Phone',
+                adminInfoTitle: 'Account Info', adminInfoUsername: 'Merchant Account', adminInfoMerchant: 'Merchant Name',
+                adminInfoCode: 'Merchant Code', adminInfoStoreCount: 'Stores', adminInfoContact: 'Contact Person', adminInfoPhone: 'Phone',
                 adminInfoCreated: 'Registered At', adminInfoStatus: 'Status',
                 adminInfoNotice: '⚠️ Account cannot modify personal info, please contact super admin',
                 adminInfoClose: 'Close', todayRevenue: 'Today Revenue', monthRevenue: 'Month Revenue',
@@ -5300,11 +5329,12 @@
             $('#adminInfoTitle').textContent = tAdmin('adminInfoTitle');
             $('#adminInfoUsernameLabel').textContent = tAdmin('adminInfoUsername');
             $('#adminInfoMerchantLabel').textContent = tAdmin('adminInfoMerchant');
+            $('#adminInfoCodeLabel').textContent = tAdmin('adminInfoCode') || '商户编码';
             $('#adminInfoStoreCountLabel').textContent = tAdmin('adminInfoStoreCount');
             $('#adminInfoContactLabel').textContent = tAdmin('adminInfoContact');
             $('#adminInfoPhoneLabel').textContent = tAdmin('adminInfoPhone');
-            $('#adminInfoCreatedLabel').textContent = tAdmin('adminInfoCreated');
             $('#adminInfoStatusLabel').textContent = tAdmin('adminInfoStatus');
+            $('#adminInfoCreatedLabel').textContent = tAdmin('adminInfoCreated');
             // 营业报表汇总翻译
             $('#todayRevenueLabel').textContent = tAdmin('todayRevenue');
             $('#monthRevenueLabel').textContent = tAdmin('monthRevenue');
@@ -5588,12 +5618,14 @@
                     $('#adminDisplayName').textContent = data.admin.username || '账户';
                     $('#adminInfoUsername').textContent = data.admin.username || '-';
                     $('#adminInfoMerchant').textContent = data.merchant?.name || '-';
+                    $('#adminInfoCode').textContent = data.merchant?.code || '-';
                     $('#adminInfoStoreCount').textContent = (data.storeCount || 0) + ' / ' + (data.merchant?.max_stores || 0);
                     $('#adminInfoContact').textContent = data.merchant?.contact_name || '-';
                     $('#adminInfoPhone').textContent = data.merchant?.contact_phone || '-';
-                    $('#adminInfoCreated').textContent = data.merchant?.created_at ? new Date(data.merchant.created_at).toLocaleString() : (data.admin.created_at ? new Date(data.admin.created_at).toLocaleString() : '-');
                     $('#adminInfoStatus').textContent = data.merchant?.status ? '正常' : '已禁用';
                     $('#adminInfoStatus').style.color = data.merchant?.status ? '#2ecc71' : '#e74c3c';
+                    $('#adminInfoStatus').style.fontWeight = '600';
+                    $('#adminInfoCreated').textContent = data.merchant?.created_at ? new Date(data.merchant.created_at).toLocaleString() : (data.admin.created_at ? new Date(data.admin.created_at).toLocaleString() : '-');
                 }
             } catch (e) { console.warn('加载账户信息失败', e); }
         }

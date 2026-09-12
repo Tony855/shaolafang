@@ -518,7 +518,8 @@ select:focus {
     </div>
     <div class="form-group">
       <label>商户编码</label>
-      <input type="text" id="merchantCode" placeholder="自动生成" readonly style="background:rgba(255,255,255,.04);color:#888;cursor:not-allowed;">
+      <input type="text" id="merchantCode" placeholder="留空自动生成，创建后不可修改">
+      <small style="color:#666;">自定义商户唯一编码，留空则自动生成，创建后不可修改</small>
     </div>
     <div class="form-group">
       <label>商户账号 *</label>
@@ -818,7 +819,11 @@ function showAddMerchant() {
   document.getElementById('merchantModalTitle').textContent = '新增商户';
   document.getElementById('editMerchantId').value = '';
   document.getElementById('merchantName').value = '';
-  document.getElementById('merchantCode').value = '自动生成';
+  document.getElementById('merchantCode').value = '';
+  document.getElementById('merchantCode').disabled = false;
+  document.getElementById('merchantCode').style.background = '';
+  document.getElementById('merchantCode').style.color = '';
+  document.getElementById('merchantCode').style.cursor = '';
   document.getElementById('merchantUsername').value = '';
   document.getElementById('merchantPassword').value = '';
   document.getElementById('merchantContact').value = '';
@@ -839,6 +844,10 @@ async function editMerchant(id) {
     document.getElementById('editMerchantId').value = m.id;
     document.getElementById('merchantName').value = m.name;
     document.getElementById('merchantCode').value = m.code;
+    document.getElementById('merchantCode').disabled = true;
+    document.getElementById('merchantCode').style.background = 'rgba(255,255,255,.04)';
+    document.getElementById('merchantCode').style.color = '#888';
+    document.getElementById('merchantCode').style.cursor = 'not-allowed';
     document.getElementById('merchantUsername').value = m.admin_username || '';
     document.getElementById('merchantPassword').value = '';
     document.getElementById('merchantContact').value = m.contact_name || '';
@@ -857,6 +866,7 @@ async function saveMerchant() {
   const id = document.getElementById('editMerchantId').value;
   const data = {
     name: document.getElementById('merchantName').value.trim(),
+    code: document.getElementById('merchantCode').value.trim(),
     username: document.getElementById('merchantUsername').value.trim(),
     password: document.getElementById('merchantPassword').value.trim(),
     contact_name: document.getElementById('merchantContact').value.trim(),

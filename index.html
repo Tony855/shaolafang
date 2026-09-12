@@ -2917,32 +2917,7 @@
 
         async function fetchCurrentTableOrders() {}
 
-        function resetCustomerSession() {
-            const savedKey = 'scanSession_' + (state.storeId || 1) + '_' + (state.table || '');
-            if (savedKey !== 'scanSession_' + (state.storeId || 1) + '_') localStorage.removeItem(savedKey);
-            try {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('token');
-                url.searchParams.delete('table');
-                url.searchParams.delete('session');
-                history.replaceState(null, '', url.pathname + url.search + url.hash);
-            } catch (_) {}
-            localStorage.setItem('customer_session_terminated', '1');
-            state.table = '';
-            state.scanToken = '';
-            state.scanSessionToken = '';
-            state.scanExpiresAt = '';
-            state.cart = {};
-            tableDisplay.textContent = t('notScanned');
-            tableInfo.title = t('scanToBind');
-            document.getElementById('customerOrderBtn').hidden = true;
-            document.getElementById('callWaiterBtn').hidden = true;
-            closeDrawer();
-            closeCustomerOrders();
-            updateUI();
-            renderMenu();
-            showToast('✅ ' + t('orderCompleted'), 2600);
-        }
+
 
         // ============================================================
         //  🔥 核心修改：顾客订单详情（仿图片样式）
@@ -3519,8 +3494,7 @@
         function addItemRow() {}
         function removeItemRow() {}
         function searchOrders() {}
-        function renderAdminOrders() {}
-        function renderStats() {}
+
         async function fetchOrders() {}
 
         // ============================================================

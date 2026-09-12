@@ -1343,16 +1343,29 @@ app.get('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 
 app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
   try {
-    const { name, username, password, contact_name, contact_phone, max_stores } = req.body || {};
+    const { name, code, username, password, contact_name, contact_phone, max_stores } = req.body || {};
     if (!name) return res.status(400).json({ error: '商户名称必填' });
     if (!username || !username.trim()) return res.status(400).json({ error: '登录账号必填' });
     const adminUsername = username.trim();
     // 检查用户名是否已存在
     const userExists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [adminUsername]);
     if (userExists) return res.status(400).json({ error: '登录账号已存在' });
-    // 自动生成商户编码（用M+时间戳后6位）
-    const code = 'M' + Date.now().toString().slice(-6);
-    const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status) VALUES (?, ?, ?, ?, ?, 1)', [name, code, contact_name || '', contact_phone || '', max_stores || 1]);
+    // 商户编码：用户自定义或自动生成
+    let merchantCode = (code && code.trim()) ? code.trim() : '';
+    if (merchantCode) {
+      // 检查自定义编码是否已存在
+      const codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [merchantCode]);
+      if (codeExists) return res.status(400).json({ error: '商户编码已存在' });
+    } else {
+      // 自动生成商户编码（M+时间戳后6位+2位随机字符），确保唯一
+      let generatedCode, codeExists;
+      do {
+        generatedCode = 'M' + Date.now().toString().slice(-6) + Math.random().toString(36).slice(2,4).toUpperCase();
+        codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [generatedCode]);
+      } while (codeExists);
+      merchantCode = generatedCode;
+    }
+    const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status) VALUES (?, ?, ?, ?, ?, 1)', [name, merchantCode, contact_name || '', contact_phone || '', max_stores || 1]);
     const newMerchantId = result.lastID;
     // 密码为空则自动生成8位随机密码
     let adminPassword = (password && password.trim()) ? password.trim() : '';
@@ -1369,6 +1382,7 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
     const { name, username, password, contact_name, contact_phone, max_stores, status } = req.body || {};
+    // 注意：商户编码(code)不允许修改，此处忽略该字段
     await runAsync('UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=? WHERE id=?', [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, req.params.id]);
     // 更新登录账号（如果提供了）
     if (username && username.trim()) {
@@ -2584,7 +2598,7 @@ app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
 app.get('/api/admin/info', requireAdminKey, async (req, res) => {
   try {
     const admin = await getAsync('SELECT id, username, display_name, merchant_id, created_at, last_login_at, active FROM merchant_admins WHERE id=?', [req.adminId]);
-    const merchant = await getAsync('SELECT id, name, contact_name, contact_phone, max_stores, status, created_at FROM merchants WHERE id=?', [admin?.merchant_id]);
+    const merchant = await getAsync('SELECT id, name, code, contact_name, contact_phone, max_stores, status, created_at FROM merchants WHERE id=?', [admin?.merchant_id]);
     const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores WHERE merchant_id=?', [admin?.merchant_id]);
     res.json({ admin, merchant, storeCount: storeCount?.count || 0 });
   } catch (e) { res.status(500).json({ error: e.message }); }
