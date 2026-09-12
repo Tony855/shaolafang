@@ -2118,7 +2118,13 @@ app.post('/api/orders', async (req, res) => {
     }
     const newRow = await getAsync('SELECT * FROM orders WHERE id = ?', [result.lastID]);
     await syncTableStatus(table);
-    res.status(201).json({ success: true, orderId: newRow.id, order: formatOrder(newRow) });
+    // 返回新的session过期时间，供前端同步
+    const responseData = { success: true, orderId: newRow.id, order: formatOrder(newRow) };
+    if (sessionToken) {
+      const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
+      if (updatedSession) responseData.newExpiresAt = updatedSession.expires_at;
+    }
+    res.status(201).json(responseData);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
