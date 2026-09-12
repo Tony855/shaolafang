@@ -3613,11 +3613,6 @@
             return Number(price || 0) / Number(currency.rate || 1);
         }
 
-        function formatPrimary(amount) {
-            const c = defaultCurrencyObj || defaultCurrency() || { symbol: '$', rate: 1 };
-            return `${c.symbol}${(Number(amount || 0) * Number(c.rate || 1)).toFixed(2)}`;
-        }
-
         function formatSecondary(amount, secondaryCode) {
             if (!secondaryCode) return '';
             const secCurr = currenciesCache.find(c => c.code === secondaryCode);

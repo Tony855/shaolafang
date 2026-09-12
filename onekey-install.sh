@@ -153,7 +153,7 @@ node server.js --init-only
 
 # ---------- 5b. 写入统一配置文件 .env ----------
 # 本地 .env 供 server.js 内置的轻量加载器读取（无 systemd 时也能正常工作），
-# 与下面写入 /etc/default/shaolafang 的内容保持一致，避免配置分散。
+# 与下面写入 /etc/default/foodflow 的内容保持一致，避免配置分散。
 # 检测是否能使用 80 端口（需要 root 或 capabilities）
 SERVER_PORT=3000
 
@@ -170,8 +170,8 @@ chmod 600 "${INSTALL_DIR}/.env"
 # ---------- 6. 配置 systemd 服务（包含环境变量） ----------
 if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then
     echo -e "${YELLOW}🔄 正在配置 systemd 服务以实现开机自启...${NC}"
-    SERVICE_FILE="/etc/systemd/system/shaolafang.service"
-    ENV_FILE="/etc/default/shaolafang"
+    SERVICE_FILE="/etc/systemd/system/foodflow.service"
+    ENV_FILE="/etc/default/foodflow"
     cat > "$ENV_FILE" <<EOF
 # FoodFlow System Environment Variables（与 ${INSTALL_DIR}/.env 保持一致）
 DB_HOST=localhost
@@ -211,19 +211,19 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
     systemctl daemon-reload
-    systemctl enable shaolafang.service
-    systemctl start shaolafang.service
+    systemctl enable foodflow.service
+    systemctl start foodflow.service
     echo -e "${GREEN}✅ systemd 服务已配置并启动。${NC}"
-    echo -e "${GREEN}👉 手动管理服务：systemctl {start|stop|restart|status} shaolafang${NC}"
+    echo -e "${GREEN}👉 手动管理服务：systemctl {start|stop|restart|status} foodflow${NC}"
 else
     echo -e "${YELLOW}⚠️ 未检测到可用的 systemd，使用 nohup 后台启动...${NC}"
     # 非 systemd 环境（如 WSL），使用 nohup 后台启动
     cd "${INSTALL_DIR}"
-    nohup node server.js > /var/log/shaolafang.log 2>&1 &
-    echo $! > /var/run/shaolafang.pid
-    echo -e "${GREEN}✅ 服务已后台启动，PID: $(cat /var/run/shaolafang.pid)${NC}"
-    echo -e "${YELLOW}👉 查看日志：tail -f /var/log/shaolafang.log${NC}"
-    echo -e "${YELLOW}👉 停止服务：kill \$(cat /var/run/shaolafang.pid)${NC}"
+    nohup node server.js > /var/log/foodflow.log 2>&1 &
+    echo $! > /var/run/foodflow.pid
+    echo -e "${GREEN}✅ 服务已后台启动，PID: $(cat /var/run/foodflow.pid)${NC}"
+    echo -e "${YELLOW}👉 查看日志：tail -f /var/log/foodflow.log${NC}"
+    echo -e "${YELLOW}👉 停止服务：kill \$(cat /var/run/foodflow.pid)${NC}"
 fi
 
 # ---------- 7. 获取访问地址 ----------

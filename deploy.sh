@@ -10,11 +10,11 @@
 set -e
 
 # ===== 配置区 =====
-PROJECT_DIR="/root/shaolafang-main"
+PROJECT_DIR="/root/foodflow-main"
 GITHUB_TOKEN="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"
-REPO_URL="https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git"
+REPO_URL="https://${GITHUB_TOKEN}@github.com/Tony855/foodflow.git"
 BRANCH="main"
-BACKUP_DIR="/root/shaolafang-backups"
+BACKUP_DIR="/root/foodflow-backups"
 NODE_PORT=3000
 
 # ===== 颜色输出 =====
@@ -63,14 +63,14 @@ restart_service() {
         chmod +x ./restart.sh
         ./restart.sh
     else
-        nohup node server.js > /root/shaolafang.log 2>&1 &
+        nohup node server.js > /root/foodflow.log 2>&1 &
     fi
     sleep 3
     # 验证
     if curl -s http://localhost:$NODE_PORT/api/health > /dev/null 2>&1; then
         success "服务启动成功，运行在端口 $NODE_PORT"
     else
-        warn "服务可能未完全启动，请检查日志: tail -f /root/shaolafang.log"
+        warn "服务可能未完全启动，请检查日志: tail -f /root/foodflow.log"
     fi
 }
 

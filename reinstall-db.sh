@@ -28,7 +28,7 @@ if [ "$confirm" != "YES" ]; then
 fi
 
 # 配置
-PROJECT_DIR="/root/shaolafang-main"
+PROJECT_DIR="/root/foodflow-main"
 DB_NAME="ordering_system"
 DB_USER="root"
 DB_PASS="I9t1bcMe7mqKaNUR"

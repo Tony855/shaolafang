@@ -27,8 +27,8 @@
 ### 一键安装（Linux 推荐）
 
 ```bash
-git clone https://github.com/Tony855/shaolafang.git
-cd shaolafang
+git clone https://github.com/Tony855/foodflow.git
+cd foodflow
 sudo bash onekey-install.sh
 ```
 

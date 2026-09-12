@@ -20,7 +20,7 @@ if [ -f .env ]; then
   source .env
   set +a
 fi
-DOMAIN="${DOMAIN:-shaolafang.v2net.cc}"
+DOMAIN="${DOMAIN:-foodflow.v2net.cc}"
 EMAIL="${EMAIL:-v2wallid@gmail.com}"
 BACKEND_PORT="${BACKEND_PORT:-3000}"
 if [ "$BACKEND_PORT" = "80" ] || [ "$BACKEND_PORT" = "443" ]; then
@@ -101,7 +101,7 @@ done
 echo -e "${GREEN}✅ 端口 80 已释放。${NC}"
 
 # ---------- 2. 配置 Node.js 后端端口 ----------
-ENV_FILE="/etc/default/shaolafang"
+ENV_FILE="/etc/default/foodflow"
 if [ -f "$ENV_FILE" ]; then
   sed -i "s/^PORT=.*/PORT=${BACKEND_PORT}/" "$ENV_FILE" || echo "PORT=${BACKEND_PORT}" >> "$ENV_FILE"
 else
@@ -119,9 +119,9 @@ if [ -f .env ]; then
   sed -i "s/^PORT=.*/PORT=${BACKEND_PORT}/" .env || echo "PORT=${BACKEND_PORT}" >> .env
 fi
 
-if systemctl list-unit-files | grep -q shaolafang.service; then
+if systemctl list-unit-files | grep -q foodflow.service; then
   systemctl daemon-reload
-  systemctl restart shaolafang.service
+  systemctl restart foodflow.service
 else
   pkill -9 node 2>/dev/null || true
   nohup node server.js > server.log 2>&1 &

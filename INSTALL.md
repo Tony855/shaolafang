@@ -73,8 +73,8 @@ mysql -u root -p
 
 ```cmd
 cd C:\Users\你的用户名\Downloads
-git clone https://github.com/Tony855/shaolafang.git
-cd shaolafang
+git clone https://github.com/Tony855/foodflow.git
+cd foodflow
 ```
 
 如果没有安装 Git，可以直接从 GitHub 下载 ZIP 包并解压。
@@ -143,7 +143,7 @@ node server.js
 
 ```cmd
 npm install -g pm2
-pm2 start server.js --name shaolafang
+pm2 start server.js --name foodflow
 pm2 save
 pm2 startup
 ```
@@ -215,9 +215,9 @@ EXIT;
 
 ```bash
 cd /opt
-sudo git clone https://github.com/Tony855/shaolafang.git
-cd shaolafang
-sudo chown -R $USER:$USER /opt/shaolafang
+sudo git clone https://github.com/Tony855/foodflow.git
+cd foodflow
+sudo chown -R $USER:$USER /opt/foodflow
 ```
 
 ### 3.5 配置环境变量
@@ -267,7 +267,7 @@ nohup node server.js > server.log 2>&1 &
 
 创建服务文件：
 ```bash
-sudo nano /etc/systemd/system/shaolafang.service
+sudo nano /etc/systemd/system/foodflow.service
 ```
 
 写入以下内容（修改路径和用户）：
@@ -279,9 +279,9 @@ After=network.target mariadb.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/shaolafang
-EnvironmentFile=/opt/shaolafang/.env
-ExecStart=/usr/bin/node /opt/shaolafang/server.js
+WorkingDirectory=/opt/foodflow
+EnvironmentFile=/opt/foodflow/.env
+ExecStart=/usr/bin/node /opt/foodflow/server.js
 Restart=always
 RestartSec=10
 
@@ -292,18 +292,18 @@ WantedBy=multi-user.target
 启动并设置开机自启：
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl start shaolafang
-sudo systemctl enable shaolafang
+sudo systemctl start foodflow
+sudo systemctl enable foodflow
 ```
 
 查看状态：
 ```bash
-sudo systemctl status shaolafang
+sudo systemctl status foodflow
 ```
 
 查看日志：
 ```bash
-sudo journalctl -u shaolafang -f
+sudo journalctl -u foodflow -f
 ```
 
 ### 3.9 配置防火墙
@@ -334,8 +334,8 @@ hostname -I
 
 ```bash
 # 下载项目
-git clone https://github.com/Tony855/shaolafang.git
-cd shaolafang
+git clone https://github.com/Tony855/foodflow.git
+cd foodflow
 
 # 运行一键安装（需要 root 权限）
 sudo bash onekey-install.sh
@@ -367,16 +367,16 @@ sudo bash onekey-install.sh
 
 ```bash
 # 查看状态
-sudo systemctl status shaolafang
+sudo systemctl status foodflow
 
 # 重启服务
-sudo systemctl restart shaolafang
+sudo systemctl restart foodflow
 
 # 停止服务
-sudo systemctl stop shaolafang
+sudo systemctl stop foodflow
 
 # 查看日志
-sudo journalctl -u shaolafang -f
+sudo journalctl -u foodflow -f
 ```
 
 ---
@@ -393,8 +393,8 @@ sudo journalctl -u shaolafang -f
 
 ### 步骤 3：下载代码
 ```bash
-git clone https://github.com/Tony855/shaolafang.git
-cd shaolafang
+git clone https://github.com/Tony855/foodflow.git
+cd foodflow
 ```
 
 ### 步骤 4：配置 .env
@@ -473,7 +473,7 @@ node server.js
 nohup node server.js > server.log 2>&1 &
 
 # 使用 pm2（推荐）
-pm2 start server.js --name shaolafang
+pm2 start server.js --name foodflow
 ```
 
 ### 页面地址
@@ -652,7 +652,7 @@ sudo netstat -tlnp | grep 3306
 **解决**:
 ```bash
 # Windows (以管理员身份运行)
-netsh advfirewall firewall add rule name="shaolafang" dir=in action=allow protocol=TCP localport=3000
+netsh advfirewall firewall add rule name="foodflow" dir=in action=allow protocol=TCP localport=3000
 
 # Linux (ufw)
 sudo ufw allow 3000/tcp
@@ -719,8 +719,8 @@ mysql -u root -p ordering_system < backup.sql
 
 ## 技术支持
 
-- GitHub 仓库: https://github.com/Tony855/shaolafang
-- 提交 Issue: https://github.com/Tony855/shaolafang/issues
+- GitHub 仓库: https://github.com/Tony855/foodflow
+- 提交 Issue: https://github.com/Tony855/foodflow/issues
 
 ---
 

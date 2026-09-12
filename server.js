@@ -627,7 +627,7 @@ async function initDatabase() {
   // 创建默认商户
   const merchantCount = await getAsync('SELECT COUNT(*) AS count FROM merchants');
   if (merchantCount.count === 0) {
-    await runAsync("INSERT INTO merchants (id, name, code, contact_name, contact_phone, max_stores, status) VALUES (1, 'FoodFlow', 'shaolafang', '管理员', '', 10, 1)");
+    await runAsync("INSERT INTO merchants (id, name, code, contact_name, contact_phone, max_stores, status) VALUES (1, 'FoodFlow', 'foodflow', '管理员', '', 10, 1)");
     console.log('  + 已创建默认商户：FoodFlow (merchant_id=1)');
   }
 
