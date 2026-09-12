@@ -1336,31 +1336,51 @@ app.get('/api/super/merchants', requireSuperAdmin, async (req, res) => {
       (SELECT COUNT(*) FROM stores WHERE merchant_id=m.id) as store_count,
       (SELECT username FROM merchant_admins WHERE merchant_id=m.id LIMIT 1) as admin_username,
       (SELECT display_name FROM merchant_admins WHERE merchant_id=m.id LIMIT 1) as admin_display_name
-      FROM merchants m ORDER BY m.id DESC`);
+      FROM merchants m ORDER BY m.code ASC`);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
   try {
-    const { name, code, contact_name, contact_phone, max_stores } = req.body || {};
-    if (!name || !code) return res.status(400).json({ error: '商户名称和编码必填' });
-    const exists = await getAsync('SELECT id FROM merchants WHERE code=?', [code]);
-    if (exists) return res.status(400).json({ error: '商户编码已存在' });
+    const { name, username, password, contact_name, contact_phone, max_stores } = req.body || {};
+    if (!name) return res.status(400).json({ error: '商户名称必填' });
+    if (!username || !username.trim()) return res.status(400).json({ error: '登录账号必填' });
+    const adminUsername = username.trim();
+    // 检查用户名是否已存在
+    const userExists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [adminUsername]);
+    if (userExists) return res.status(400).json({ error: '登录账号已存在' });
+    // 自动生成商户编码（用M+时间戳后6位）
+    const code = 'M' + Date.now().toString().slice(-6);
     const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status) VALUES (?, ?, ?, ?, ?, 1)', [name, code, contact_name || '', contact_phone || '', max_stores || 1]);
     const newMerchantId = result.lastID;
-    // 自动创建商户管理员
-    const adminUsername = 'admin_' + code;
-    const adminHash = hashPassword('admin123');
+    // 密码为空则自动生成8位随机密码
+    let adminPassword = (password && password.trim()) ? password.trim() : '';
+    if (!adminPassword) {
+      const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      for (let i = 0; i < 8; i++) adminPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const adminHash = hashPassword(adminPassword);
     await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
-    res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: 'admin123' });
+    res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
-    const { name, contact_name, contact_phone, max_stores, status } = req.body || {};
+    const { name, username, password, contact_name, contact_phone, max_stores, status } = req.body || {};
     await runAsync('UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=? WHERE id=?', [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, req.params.id]);
+    // 更新登录账号（如果提供了）
+    if (username && username.trim()) {
+      const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=? AND merchant_id<>?', [username.trim(), req.params.id]);
+      if (exists) return res.status(400).json({ error: '登录账号已被其他商户使用' });
+      await runAsync('UPDATE merchant_admins SET username=? WHERE merchant_id=?', [username.trim(), req.params.id]);
+    }
+    // 更新密码（如果提供了非空密码）
+    if (password && password.trim()) {
+      const hash = hashPassword(password.trim());
+      await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
+    }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
