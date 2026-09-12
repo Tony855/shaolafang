@@ -2575,12 +2575,37 @@
     <script src="languages.js"></script>
     <script src="assets/common.js"></script>
     <script>
-        // 初始化统一 i18n
-        SLF.i18n.init(localStorage.getItem('customerLang') || 'zh');
+        // 初始化统一 i18n - 自动检测顾客手机终端语言
+        (function() {
+            const savedLang = localStorage.getItem('preferredLang');
+            let initLang = 'zh';
+            if (savedLang && ['zh','en','vi','th','km'].includes(savedLang)) {
+                initLang = savedLang;
+            } else {
+                const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
+                if (sys.startsWith('zh')) initLang = 'zh';
+                else if (sys.startsWith('vi')) initLang = 'vi';
+                else if (sys.startsWith('th')) initLang = 'th';
+                else if (sys.startsWith('km')) initLang = 'km';
+                else if (sys.startsWith('en')) initLang = 'en';
+                else initLang = 'zh';
+            }
+            SLF.i18n.init(initLang);
+        })();
         // ============================================================
         //  工具函数（双币支持）
         // ============================================================
-        let currentLang = 'zh';
+        let currentLang = (function() {
+            const saved = localStorage.getItem('preferredLang');
+            if (saved && ['zh','en','vi','th','km'].includes(saved)) return saved;
+            const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
+            if (sys.startsWith('zh')) return 'zh';
+            if (sys.startsWith('vi')) return 'vi';
+            if (sys.startsWith('th')) return 'th';
+            if (sys.startsWith('km')) return 'km';
+            if (sys.startsWith('en')) return 'en';
+            return 'zh';
+        })();
 
         function t(key) {
             const langData = LANGUAGES[currentLang];
