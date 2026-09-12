@@ -150,15 +150,15 @@
   .print-btn { background: rgba(52,152,219,.2); color: #5dade2; }
   .complete-btn { background: rgba(46,204,113,.2); color: var(--ok); }
   .toast {
-    position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(20px);
+    position: fixed; left: 50%; top: auto; bottom: 32px; transform: translateX(-50%) translateY(20px);
     background: linear-gradient(135deg, #1a1a2e, #16213e);
-    color: #fff; padding: 14px 28px;
-    border-radius: 14px; font-size: 15px; font-weight: 600;
+    color: #fff; padding: 12px 24px;
+    border-radius: 12px; font-size: 14px; font-weight: 600;
     z-index: 9999; opacity: 0;
-    pointer-events: none; transition: all .3s cubic-bezier(.68,-.55,.27,1.55);
-    box-shadow: 0 10px 40px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.1);
-    display: flex; align-items: center; gap: 10px;
-    backdrop-filter: blur(10px);
+    pointer-events: none; transition: all .3s ease;
+    box-shadow: 0 8px 30px rgba(0,0,0,.3);
+    max-width: 80%; width: auto; height: auto;
+    text-align: center; white-space: nowrap;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.success { background: linear-gradient(135deg, #00b09b, #96c93d); }
@@ -195,23 +195,86 @@
     padding: 24px;
   }
   .confirm-modal .confirm-card{
-    max-width: 380px;
-    padding: 32px 28px 28px;
+    max-width: 360px;
+    padding: 24px 24px 20px;
     text-align: center;
-    border-radius: 20px;
+    border-radius: 16px;
   }
-  .confirm-icon{ font-size: 48px; margin-bottom: 16px; }
-  .confirm-title{ font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 10px; }
-  .confirm-message{ font-size: 15px; color: #666; line-height: 1.6; margin-bottom: 24px; }
-  .confirm-buttons{ display: flex; gap: 12px; justify-content: center; }
+  .confirm-icon{ font-size: 40px; margin-bottom: 12px; }
+  .confirm-title{ font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+  .confirm-message{ font-size: 14px; color: #666; line-height: 1.5; margin-bottom: 18px; }
+  .confirm-buttons{ display: flex; gap: 10px; justify-content: center; }
   .confirm-cancel, .confirm-ok{
-    flex: 1; padding: 12px 24px; border: 0; border-radius: 12px;
-    font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+    flex: 1; padding: 10px 20px; border: 0; border-radius: 10px;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
   }
   .confirm-cancel{ background: #f0f0f5; color: #666; }
   .confirm-cancel:hover{ background: #e4e4ec; }
   .confirm-ok{ background: linear-gradient(135deg, #e85d3a, #e84a2a); color: #fff; }
   .confirm-ok:hover{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(232,93,58,0.3); }
+  .urge-modal .urge-card{
+    max-width: 400px;
+    padding: 0;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .urge-header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: #fff;
+  }
+  .urge-title{ font-size: 15px; font-weight: 700; }
+  .urge-close{
+    background: rgba(255,255,255,.2);
+    border: 0;
+    color: #fff;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .2s;
+  }
+  .urge-close:hover{ background: rgba(255,255,255,.3); }
+  .urge-list{
+    padding: 12px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .urge-item{
+    background: rgba(231,76,60,.08);
+    border: 1px solid rgba(231,76,60,.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .urge-item:last-child{ margin-bottom: 0; }
+  .urge-item-info{ flex: 1; min-width: 0; }
+  .urge-item-table{ font-weight: 700; color: #1a1a2e; font-size: 14px; }
+  .urge-item-msg{ color: #888; font-size: 11px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .urge-item-btn{
+    background: #27ae60;
+    color: #fff;
+    border: 0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all .2s;
+  }
+  .urge-item-btn:hover{ background: #219a52; transform: translateY(-1px); }
 </style>
 </head>
 <body>
@@ -276,6 +339,17 @@
     </div>
   </div>
 
+  <!-- ===== 催单通知模态框 ===== -->
+  <div class="modal urge-modal" id="urgeModal">
+    <div class="modal-card urge-card">
+      <div class="urge-header">
+        <div class="urge-title">⚡ <span id="urgeModalTitle">催单通知</span></div>
+        <button class="urge-close" onclick="hideUrgeModal()">✕</button>
+      </div>
+      <div class="urge-list" id="urgeList"></div>
+    </div>
+  </div>
+
   <script src="languages.js"></script>
   <script src="assets/common.js"></script>
   <script>
@@ -305,7 +379,7 @@
       if (knownOrderIds !== null) {
         let hasNew = false;
         for (const id of pendingIds) { if (!knownOrderIds.has(id)) { hasNew = true; break; } }
-        if (hasNew) audio.playNewOrderChime();
+        if (hasNew) audio.playUrgeChime();
       }
       knownOrderIds = pendingIds;
     }
@@ -471,7 +545,7 @@
     async function pollUrges() {
       if (document.hidden) return;
       try {
-        const res = await fetch('/api/waiter-calls', { headers: { 'Authorization': 'Bearer ' + state.token } });
+        const res = await fetch('/api/waiter-calls', { headers: { 'X-Waiter-Token': token } });
         if (!res.ok) return;
         const calls = await res.json();
         pendingUrges = (calls || []).filter(c => c.type === 'urge');
@@ -505,20 +579,28 @@
     }
     function showUrgeNotifications() {
       if (pendingUrges.length === 0) { showToast(kt('noUrges')); return; }
+      $('#urgeModalTitle').textContent = kt('urgeOrder') + ' (' + pendingUrges.length + ')';
       const list = pendingUrges.map(c => `
-        <div style="background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
-          <div><div style="font-weight:700;">⚡ ${c.table_name} ${kt('urgeOrder')}</div><div style="color:#999;font-size:12px;margin-top:2px;">${c.message || ''}</div></div>
-          <button onclick="handleUrge('${c.id}')" style="background:#27ae60;color:#fff;border:0;padding:6px 14px;border-radius:6px;cursor:pointer;">${kt('handled')}</button>
+        <div class="urge-item">
+          <div class="urge-item-info">
+            <div class="urge-item-table">⚡ ${c.table_name} ${kt('urgeOrder')}</div>
+            <div class="urge-item-msg">${c.message || ''}</div>
+          </div>
+          <button class="urge-item-btn" onclick="handleUrge('${c.id}')">${kt('handled')}</button>
         </div>
       `).join('');
-      showConfirmModal ? showConfirmModal(list, null, kt('urgeOrder'), true) : alert(list);
+      $('#urgeList').innerHTML = list;
+      $('#urgeModal').classList.add('open');
     }
+    function hideUrgeModal(){ $('#urgeModal').classList.remove('open'); }
+    $('#urgeModal').onclick=function(e){if(e.target===this)hideUrgeModal();};
     async function handleUrge(id) {
       try {
-        await fetch('/api/waiter-calls/' + id + '/handle', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + state.token } });
-        showToast(kt('handled'));
+        await fetch('/api/waiter-calls/' + id + '/handle', { method: 'PUT', headers: { 'X-Waiter-Token': token } });
+        hideUrgeModal();
+        showToast(kt('handled'), 'success');
         pollUrges();
-      } catch (e) { showToast(kt('handleFailed') + ': ' + e.message); }
+      } catch (e) { showToast(kt('handleFailed') + ': ' + e.message, 'error'); }
     }
 
     function startPolling() {
