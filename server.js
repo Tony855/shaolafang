@@ -1375,6 +1375,8 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     }
     const adminHash = hashPassword(adminPassword);
     await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
+    // 为新商户创建默认店铺（名称FoodFlow，菜品类型和菜品列表为空）
+    await runAsync('INSERT INTO stores (name, code, address, active, merchant_id) VALUES (?, ?, ?, 1, ?)', ['FoodFlow', 'store_' + newMerchantId, '', newMerchantId]);
     res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
