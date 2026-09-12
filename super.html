@@ -460,7 +460,7 @@ select:focus {
         <div class="form-group">
           <label>二维码链接有效时间（分钟）</label>
           <input type="number" id="qrSessionTimeout" min="0" max="1440" placeholder="如：45，0=永不过期">
-          <small style="color:#666;">顾客扫码后 session_token 的有效时间，范围5-1440分钟，活跃使用自动续期</small>
+          <small style="color:#666;">顾客扫码后 session_token 的有效时间，范围0-1440分钟，0=永不过期，活跃使用自动续期</small>
         </div>
         <div class="form-group">
           <label>服务员登录有效期（小时）</label>
@@ -705,6 +705,15 @@ async function api(path, options = {}) {
   return data;
 }
 
+// 日期格式化
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
 // 仪表盘
 async function loadDashboard() {
   try {
@@ -773,7 +782,7 @@ async function loadLoginLogs() {
       return;
     }
     tbody.innerHTML = filtered.map(l => {
-      const time = l.createdAt ? SLF.utils.formatDateTime(l.createdAt) : '-';
+      const time = l.createdAt ? formatDateTime(l.createdAt) : '-';
       const statusBadge = l.success === 1
         ? '<span style="color:#2ecc71;font-weight:600;">✅ 成功</span>'
         : '<span style="color:#e74c3c;font-weight:600;">❌ 失败</span>';
@@ -964,7 +973,7 @@ async function saveGlobalSettings() {
   const orderInterval = parseInt(document.getElementById('orderIntervalSeconds').value, 10);
   const waiterRefresh = parseInt(document.getElementById('waiterRefreshInterval').value, 10);
   if (!idleTimeout || idleTimeout < 1 || idleTimeout > 1440) { toast('商户后台超时时间范围1-1440分钟', 'error'); return; }
-  if (!qrTimeout || qrTimeout < 5 || qrTimeout > 1440) { toast('二维码有效时间范围5-1440分钟', 'error'); return; }
+  if (isNaN(qrTimeout) || qrTimeout < 0 || qrTimeout > 1440) { toast('二维码有效时间范围0-1440分钟（0=永不过期）', 'error'); return; }
   if (isNaN(orderInterval) || orderInterval < 0 || orderInterval > 3600) { toast('前端下单间隔时间范围0-3600秒', 'error'); return; }
   if (!waiterRefresh || waiterRefresh < 3 || waiterRefresh > 300) { toast('服务员端刷新间隔范围3-300秒', 'error'); return; }
   const maxOrderItems = parseInt(document.getElementById('maxOrderItems').value, 10);
@@ -1004,7 +1013,7 @@ if (token) showApp();
       const data = await api('/super/backup/settings');
       document.getElementById('backupIntervalSelect').value = String(data.intervalHours || 24);
       if (data.lastBackupAt) {
-        document.getElementById('lastBackupInfo').textContent = '上次备份时间：' + SLF.utils.formatDateTime(data.lastBackupAt);
+        document.getElementById('lastBackupInfo').textContent = '上次备份时间：' + formatDateTime(data.lastBackupAt);
       }
     } catch (e) {
       console.error('加载备份设置失败', e);
