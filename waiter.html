@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 ﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -1112,10 +1113,11 @@
       const badgeColor=badgeLabel?getCustomerColor(badgeLabel):null;
       const badge=badgeLabel?`<span class="session-badge" style="background:${badgeColor.bg};color:${badgeColor.color};">${badgeLabel}</span>`:'';
       const noteHtml=o.note?`<div class="order-note" style="margin:4px 0 6px;padding:6px 8px;border-radius:6px;background:rgba(255,193,7,.15);font-size:12px;color:#c98a1f;line-height:1.4;"><strong>${wt('orderNoteDisplay')}：</strong>${escNote(o.note)}</div>`:'';
-      return `<div class="order-block"><div class="order-head"><span>#${o.id} · ${wt('orderPending')}${badge}<span class="order-meta"> · ${timeLabel}</span></span></div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
+      // 每张订单独立的结算按钮，显示在订单头部靠右
+      const orderSettleBtn = (state.waiter&&state.waiter.can_complete_order) ? `<button onclick="event.stopPropagation();completeWaiterOrder(${o.id})" style="background:var(--primary);color:#fff;border:none;padding:5px 14px;border-radius:16px;font-size:12px;cursor:pointer;font-weight:600;flex-shrink:0;">${wt('settleOrder')}</button>` : '';
+      return `<div class="order-block"><div class="order-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>#${o.id} · ${wt('orderPending')}${badge}<span class="order-meta"> · ${timeLabel}</span></span>${orderSettleBtn}</div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
     }).join('');
-    const settleBtn = (state.waiter&&state.waiter.can_complete_order&&active.length>0) ? `<button onclick="event.stopPropagation();completeWaiterOrder(${active[0].id})" style="background:var(--primary);color:#fff;border:none;padding:6px 16px;border-radius:20px;font-size:13px;cursor:pointer;font-weight:600;">${wt('settleOrder')}</button>` : '';
-    return active.length ? `<div class="amount" style="display:flex;align-items:center;justify-content:space-between;">${active.length} ${wt('order')} · ${totalDisplay}${settleBtn}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${wt('noCustomerOrder')}</div>`;
+    return active.length ? `<div class="amount" style="display:flex;align-items:center;justify-content:space-between;">${active.length} ${wt('order')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${wt('noCustomerOrder')}</div>`;
   }
   async function toggleWaiterItem(id,index){try{const order=state.orders.find(o=>o.id===id);if(!order||!order.items[index])return;const next=order.items[index].itemStatus==='done'?'pending':'done';await api(`/orders/${id}/items/${index}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({itemStatus:next})});toast('✅ '+wt('orderUpdated'));await load()}catch(e){toast('❌ '+e.message)}}
   async function completeWaiterOrder(id){showConfirm(wt('confirmComplete'),async function(){try{await api(`/orders/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done'})});toast('✅ '+wt('settleOrder'));await load()}catch(e){const msg=e.message.includes('未完成菜品')?wt('incompleteItemsError')||LANGUAGES[waiterLang].incompleteItemsError:e.message;toast('❌ '+msg)}});}
