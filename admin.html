@@ -2311,7 +2311,7 @@
         .nav-item.active { background: linear-gradient(135deg, rgba(232,93,58,.9), rgba(201,74,42,.9)) !important; color: #fff !important; }
         .nav-icon { font-size: 16px; flex-shrink: 0; }
         .admin-modules { margin-left: 0 !important; padding: 4px 10px 16px; }
-        .panel.module-panel { padding: 14px; border-radius: 14px; max-width: 520px; margin-left: auto; margin-right: auto; }
+        .panel.module-panel { padding: 14px; border-radius: 14px; max-width: 100%; margin-left: auto; margin-right: auto; }
         .panel.module-panel h2 { font-size: 17px; margin-bottom: 12px; }
     }
     @media (max-width: 480px) {
@@ -6039,12 +6039,6 @@
                     .big { font-size: 16px; font-weight: bold; }
                     .separator { border-top: 1px dashed #000; margin: 8px 0; }
                     .row { display: flex; justify-content: space-between; }
-                
-@media (max-width: 1024px) {
-    .store-sub-buttons { flex-direction: column !important; }
-    .store-sub-btn { width: 100% !important; padding: 14px 20px !important; font-size: 15px !important; }
-    #module-stores .manage-form-grid { grid-template-columns: 1fr !important; }
-}
 </style></head>
                 <body onload="window.print();setTimeout(()=>window.close(),500);">
                 <div class="center big">${tAdmin('brandName')}</div>
