@@ -378,9 +378,16 @@
     function detectNewOrders(orders) {
       const pendingIds = new Set((orders || []).filter(o => o.status === 'pending').map(o => o.id));
       if (knownOrderIds !== null) {
-        let hasNew = false;
-        for (const id of pendingIds) { if (!knownOrderIds.has(id)) { hasNew = true; break; } }
-        if (hasNew) audio.playNewOrderChime();
+        const newOrders = [];
+        for (const o of (orders || [])) {
+          if (o.status === 'pending' && !knownOrderIds.has(o.id)) newOrders.push(o);
+        }
+        if (newOrders.length > 0) {
+          audio.playNewOrderChime();
+          // 视觉提醒：Toast提示新订单
+          const tableNames = newOrders.map(o => o.table_name).join('、');
+          showToast('🔔 ' + kt('newOrderArrived') + '：' + tableNames, 'success', 4000);
+        }
       }
       knownOrderIds = pendingIds;
     }

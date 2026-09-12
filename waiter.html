@@ -1079,9 +1079,13 @@
     return {bg: 'rgba(149, 165, 166, .15)', color: '#95a5a6'};
   }
   function buildSessionLabels(orders){
-    const sorted=[...orders].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+    // 按创建时间排序，确保新扫码的客户分配更大的编号
+    const sorted=[...orders].sort((a,b)=>{
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return ta - tb;
+    });
     const distinctTokens=[...new Set(sorted.filter(o=>o.sessionToken).map(o=>o.sessionToken))];
-    const hasNoSession=sorted.some(o=>!o.sessionToken);
     const labels=new Map();
     const tokenToIndex=new Map(distinctTokens.map((t,i)=>[t,i+1]));
     for(const o of sorted){
@@ -1110,7 +1114,7 @@
       const noteHtml=o.note?`<div class="order-note" style="margin:4px 0 6px;padding:6px 8px;border-radius:6px;background:rgba(255,193,7,.15);font-size:12px;color:#c98a1f;line-height:1.4;"><strong>${wt('orderNoteDisplay')}：</strong>${escNote(o.note)}</div>`:'';
       return `<div class="order-block"><div class="order-head"><span>#${o.id} · ${wt('orderPending')}${badge}<span class="order-meta"> · ${timeLabel}</span></span></div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
     }).join('');
-    const settleBtn = (state.waiter&&state.waiter.can_complete_order&&active.length===1) ? `<button onclick="event.stopPropagation();completeWaiterOrder(${active[0].id})" style="background:var(--primary);color:#fff;border:none;padding:6px 16px;border-radius:20px;font-size:13px;cursor:pointer;font-weight:600;">${wt('settleOrder')}</button>` : '';
+    const settleBtn = (state.waiter&&state.waiter.can_complete_order&&active.length>0) ? `<button onclick="event.stopPropagation();completeWaiterOrder(${active[0].id})" style="background:var(--primary);color:#fff;border:none;padding:6px 16px;border-radius:20px;font-size:13px;cursor:pointer;font-weight:600;">${wt('settleOrder')}</button>` : '';
     return active.length ? `<div class="amount" style="display:flex;align-items:center;justify-content:space-between;">${active.length} ${wt('order')} · ${totalDisplay}${settleBtn}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${wt('noCustomerOrder')}</div>`;
   }
   async function toggleWaiterItem(id,index){try{const order=state.orders.find(o=>o.id===id);if(!order||!order.items[index])return;const next=order.items[index].itemStatus==='done'?'pending':'done';await api(`/orders/${id}/items/${index}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({itemStatus:next})});toast('✅ '+wt('orderUpdated'));await load()}catch(e){toast('❌ '+e.message)}}

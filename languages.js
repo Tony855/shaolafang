@@ -265,6 +265,7 @@ const LANGUAGES = {
     backupSuccess: '备份成功',
     importSuccess: '备份已导入',
     newOrderSound: '新订单提示音',
+    newOrderArrived: '新订单来了',
     enabled: '启用',
     disabled: '禁用',
 
@@ -705,6 +706,7 @@ const LANGUAGES = {
     backupSuccess: 'Backup successful',
     importSuccess: 'Backup imported',
     newOrderSound: 'New Order Sound',
+    newOrderArrived: 'New Order Arrived',
     enabled: 'Enabled',
     disabled: 'Disabled',
 
@@ -1139,6 +1141,7 @@ const LANGUAGES = {
     backupSuccess: 'Sao lưu thành công',
     importSuccess: 'Đã nhập sao lưu',
     newOrderSound: 'Âm thanh đơn mới',
+    newOrderArrived: 'Đơn hàng mới',
     enabled: 'Bật',
     disabled: 'Tắt',
 
@@ -1573,6 +1576,7 @@ const LANGUAGES = {
     backupSuccess: 'สำรองสำเร็จ',
     importSuccess: 'นำเข้าสำรองแล้ว',
     newOrderSound: 'เสียงแจ้งออเดอร์ใหม่',
+    newOrderArrived: 'ออเดอร์ใหม่',
     enabled: 'เปิด',
     disabled: 'ปิด',
 
@@ -2007,6 +2011,7 @@ const LANGUAGES = {
     backupSuccess: 'បម្រុងទុកជោគជ័យ',
     importSuccess: 'ការបម្រុងទុកត្រូវបាននាំចូល',
     newOrderSound: 'សំឡេងការបញ្ជាទិញថ្មី',
+    newOrderArrived: 'ការបញ្ជាទិញថ្មី',
     enabled: 'បើក',
     disabled: 'បិទ',
 
