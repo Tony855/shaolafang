@@ -1,4 +1,16 @@
 ﻿const express = require('express');
+
+// 全球通用日期时间格式 YYYY-MM-DD HH:mm:ss
+function formatGlobalDateTime(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function formatGlobalTime(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
 const cors = require('cors');
 const multer = require('multer');
 const QRCode = require('qrcode');
@@ -898,7 +910,7 @@ function buildReceipt(order, store, printer) {
   pos.align(0); // 左对齐
   pos.twoColumn('订单号:', `#${order.id}`);
   pos.twoColumn('桌号:', order.table);
-  pos.twoColumn('时间:', new Date(order.createdAt).toLocaleString('zh-CN'));
+  pos.twoColumn('时间:', formatGlobalDateTime(order.createdAt));
   if (order.note) {
     pos.line(`备注: ${order.note}`);
   }
@@ -949,7 +961,7 @@ function buildKitchenTicket(order, store, printer) {
   pos.align(0);
   pos.twoColumn('桌号:', order.table);
   pos.twoColumn('订单号:', `#${order.id}`);
-  pos.twoColumn('时间:', new Date(order.createdAt).toLocaleTimeString('zh-CN'));
+  pos.twoColumn('时间:', formatGlobalTime(order.createdAt));
   if (order.note) {
     pos.line(`备注: ${order.note}`);
   }
@@ -2443,7 +2455,7 @@ app.post('/api/admin/printers/test', requireAdminKey, async (req, res) => {
     pos.line(`打印机: ${printer.name}`);
     pos.line(`品牌: ${printer.brand}`);
     pos.line(`纸宽: ${printer.paper_width}mm`);
-    pos.line(`时间: ${new Date().toLocaleString('zh-CN')}`);
+    pos.line(`时间: ${formatGlobalDateTime(new Date())}`);
     pos.newline();
     pos.separator();
     pos.line('如果您看到此内容，说明打印机正常工作！');

@@ -773,7 +773,7 @@ async function loadLoginLogs() {
       return;
     }
     tbody.innerHTML = filtered.map(l => {
-      const time = l.createdAt ? new Date(l.createdAt).toLocaleString('zh-CN') : '-';
+      const time = l.createdAt ? SLF.utils.formatDateTime(l.createdAt) : '-';
       const statusBadge = l.success === 1
         ? '<span style="color:#2ecc71;font-weight:600;">✅ 成功</span>'
         : '<span style="color:#e74c3c;font-weight:600;">❌ 失败</span>';
@@ -1004,7 +1004,7 @@ if (token) showApp();
       const data = await api('/super/backup/settings');
       document.getElementById('backupIntervalSelect').value = String(data.intervalHours || 24);
       if (data.lastBackupAt) {
-        document.getElementById('lastBackupInfo').textContent = '上次备份时间：' + new Date(data.lastBackupAt).toLocaleString();
+        document.getElementById('lastBackupInfo').textContent = '上次备份时间：' + SLF.utils.formatDateTime(data.lastBackupAt);
       }
     } catch (e) {
       console.error('加载备份设置失败', e);

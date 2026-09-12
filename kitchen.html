@@ -536,7 +536,7 @@
         detectNewOrders(data.orders || []);
         renderTickets(data.orders || []);
         $('#statusDot').classList.remove('off');
-        $('#updatedTime').textContent = new Date().toLocaleTimeString();
+        $('#updatedTime').textContent = SLF.utils.formatTime(new Date());
       } catch (e) {
         $('#statusDot').classList.add('off');
         if (/请先登录|无操作权限|401/.test(e.message || '')) {

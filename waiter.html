@@ -1108,7 +1108,7 @@
         if(prices.secondary) priceDisplay += ` (${prices.secondary})`;
         return `<div class="line"><span class="dish-name">${i.name} ×${i.quantity}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus==='done'?`<span class="item-status done">${wt('completed')}</span>`:(state.waiter&&state.waiter.can_mark_item?`<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${wt('pending')}</button>`:'')}</div>`;
       }).join('');
-      const timeLabel=o.createdAt?new Date(o.createdAt).toLocaleString():'';
+      const timeLabel=o.createdAt?SLF.utils.formatDateTime(o.createdAt):'';
       const badgeLabel=sessionLabels.get(o.id);
       const badgeColor=badgeLabel?getCustomerColor(badgeLabel):null;
       const badge=badgeLabel?`<span class="session-badge" style="background:${badgeColor.bg};color:${badgeColor.color};">${badgeLabel}</span>`:'';
@@ -1301,7 +1301,7 @@
             <div style="font-weight:700;font-size:15px;">#${o.id} ${wt('table')} ${o.table||'-'}</div>
             <span style="background:${o.status==='done'?'#27ae60':o.status==='canceled'?'#95a5a6':'#f39c12'};color:#fff;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;">${statusMap[o.status]||o.status}</span>
           </div>
-          <div style="color:#666;font-size:13px;">${new Date(o.createdAt).toLocaleString()}</div>
+          <div style="color:#666;font-size:13px;">${SLF.utils.formatDateTime(o.createdAt)}</div>
           <div style="display:flex;justify-content:space-between;margin-top:8px;">
             <span style="color:#888;font-size:13px;">${(o.items||[]).length} ${wt('dishes')}</span>
             <span style="font-weight:700;color:#e74c3c;">$${(Number(o.total)||0).toFixed(2)}</span>
@@ -1331,7 +1331,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
           <span style="color:#666;">${wt('orderTime')}</span>
-          <span>${new Date(order.createdAt).toLocaleString()}</span>
+          <span>${SLF.utils.formatDateTime(order.createdAt)}</span>
         </div>
         ${order.note?`<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${wt('note')}</span><span>${order.note}</span></div>`:''}
       </div>

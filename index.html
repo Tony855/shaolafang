@@ -2968,7 +2968,7 @@
                         try {
                             const dt = new Date(order.createdAt);
                             if (!isNaN(dt.getTime())) {
-                                timeStr = dt.toLocaleString();
+                                timeStr = SLF.utils.formatDateTime(order.createdAt);
                             }
                         } catch (_) {}
                     }

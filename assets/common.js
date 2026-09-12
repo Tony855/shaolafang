@@ -238,26 +238,24 @@
       };
     },
 
-    // 格式化日期时间
-    formatDateTime(isoStr, lang) {
+    // 格式化日期时间（全球通用格式 YYYY-MM-DD HH:mm:ss）
+    formatDateTime(isoStr) {
       try {
         const d = new Date(isoStr);
-        const localeMap = {
-          zh: 'zh-CN',
-          en: 'en-US',
-          vi: 'vi-VN',
-          th: 'th-TH',
-          km: 'km-KH',
-        };
-        return d.toLocaleString(localeMap[lang] || 'zh-CN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
       } catch {
         return isoStr;
+      }
+    },
+    // 格式化时间（全球通用格式 HH:mm:ss）
+    formatTime(date) {
+      try {
+        const d = date instanceof Date ? date : new Date(date);
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      } catch {
+        return '';
       }
     },
 

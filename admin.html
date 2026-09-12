@@ -3780,7 +3780,7 @@
                     </div>
                   `).join('')}</div>
                   <div class="bottom">
-                    <span class="time">${new Date(o.createdAt).toLocaleString()}</span>
+                    <span class="time">${SLF.utils.formatDateTime(o.createdAt)}</span>
                     <span class="total">${formatMoney(o.total)}${dualAmountSuffix(o.total)}</span>
                     <div class="actions">
                       ${o.status==='done' ? '' : `<button class="edit" onclick="editOrder(${o.id})">${L('edit')}</button>`}
@@ -3839,7 +3839,7 @@
                 const logs = await api('/admin/login-logs');
                 $('#loginLogs').innerHTML = logs.length ?
                     logs.map(log =>
-                        `<div class="row"><div><b>${new Date(log.createdAt).toLocaleString()}</b><small>${esc(log.ip||'-')} · ${esc(translateLoginMessage(log.message))}</small></div><span class="badge ${log.success?'done':'canceled'}">${log.success ? tAdmin('loginSuccess') : tAdmin('loginFailed')}</span></div>`
+                        `<div class="row"><div><b>${SLF.utils.formatDateTime(log.createdAt)}</b><small>${esc(log.ip||'-')} · ${esc(translateLoginMessage(log.message))}</small></div><span class="badge ${log.success?'done':'canceled'}">${log.success ? tAdmin('loginSuccess') : tAdmin('loginFailed')}</span></div>`
                         ).join('') :
                     `<div class="empty-hint">${tAdmin('noData')}</div>`;
             } catch (e) {
@@ -5627,7 +5627,7 @@
                     $('#adminInfoStatus').textContent = data.merchant?.status ? '正常' : '已禁用';
                     $('#adminInfoStatus').style.color = data.merchant?.status ? '#2ecc71' : '#e74c3c';
                     $('#adminInfoStatus').style.fontWeight = '600';
-                    $('#adminInfoCreated').textContent = data.merchant?.created_at ? new Date(data.merchant.created_at).toLocaleString() : (data.admin.created_at ? new Date(data.admin.created_at).toLocaleString() : '-');
+                    $('#adminInfoCreated').textContent = data.merchant?.created_at ? SLF.utils.formatDateTime(data.merchant.created_at) : (data.admin.created_at ? SLF.utils.formatDateTime(data.admin.created_at) : '-');
                 }
             } catch (e) { console.warn('加载账户信息失败', e); }
         }
