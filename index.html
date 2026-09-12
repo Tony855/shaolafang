@@ -2804,10 +2804,16 @@
             state.currencies = config.currencies || [];
             state.defaultCurrency = config.defaultCurrency || state.defaultCurrency;
             state.dualCurrency = config.dualCurrency || { enabled: false, currency: null };
+            state.maxOrderItems = config.max_order_items || 50;
+            state.maxItemQuantity = config.max_item_quantity || 100;
+            state.maxOrderNoteLength = config.max_order_note_length || 200;
             if (state.dualCurrency.enabled && !state.dualCurrency.currency) {
                 const defaultSec = state.currencies.find(c => c.code === 'USD') || state.currencies[0];
                 if (defaultSec) state.dualCurrency.currency = defaultSec;
             }
+            // 动态设置备注输入框最大长度
+            const noteInput = document.getElementById('orderNoteInput');
+            if (noteInput) noteInput.maxLength = state.maxOrderNoteLength;
         }
 
         async function fetchTables() {

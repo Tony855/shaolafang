@@ -1196,12 +1196,18 @@ app.get('/api/public/config', async (req, res) => {
     const secondaryCurrency = currencies.find(c => c.code === secondaryRow?.value) || null;
     const soundRow = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
     const refreshRow = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_refresh_interval'");
+    const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
+    const maxQtyRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_item_quantity'");
+    const maxNoteRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_note_length'");
     res.json({
       currencies,
       defaultCurrency: currencies.find(c => c.is_default) || currencies[0] || { code: 'USD', symbol: '$', rate: 1 },
       dualCurrency: { enabled: dualRow?.value === '1', currency: secondaryCurrency },
       newOrderSoundEnabled: soundRow ? soundRow.value === '1' : true,
-      waiter_refresh_interval: parseInt(refreshRow?.value || '8', 10)
+      waiter_refresh_interval: parseInt(refreshRow?.value || '8', 10),
+      max_order_items: parseInt(maxItemsRow?.value || '50', 10),
+      max_item_quantity: parseInt(maxQtyRow?.value || '100', 10),
+      max_order_note_length: parseInt(maxNoteRow?.value || '200', 10)
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1417,7 +1423,7 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
 // 超级管理员获取全局设置
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout')");
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length')");
     const settings = {};
     rows.forEach(r => { settings[r.key] = r.value; });
     res.json({
@@ -1426,6 +1432,9 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
       waiter_session_timeout: parseInt(settings.waiter_session_timeout || '12', 10),
       order_interval_seconds: parseInt(settings.order_interval_seconds || '30', 10),
       waiter_refresh_interval: parseInt(settings.waiter_refresh_interval || '8', 10),
+      max_order_items: parseInt(settings.max_order_items || '50', 10),
+      max_item_quantity: parseInt(settings.max_item_quantity || '100', 10),
+      max_order_note_length: parseInt(settings.max_order_note_length || '200', 10),
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1433,7 +1442,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 // 超级管理员更新全局设置
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout } = req.body || {};
+    const { admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length } = req.body || {};
     if (admin_idle_timeout !== undefined) {
       const mins = Math.max(1, Math.min(1440, parseInt(admin_idle_timeout, 10) || 5));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
@@ -1453,6 +1462,18 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     if (waiter_refresh_interval !== undefined) {
       const secs = Math.max(3, Math.min(300, parseInt(waiter_refresh_interval, 10) || 8));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('waiter_refresh_interval', ?) ON DUPLICATE KEY UPDATE value=?", [String(secs), String(secs)]);
+    }
+    if (max_order_items !== undefined) {
+      const val = Math.max(1, Math.min(200, parseInt(max_order_items, 10) || 50));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('max_order_items', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (max_item_quantity !== undefined) {
+      const val = Math.max(1, Math.min(999, parseInt(max_item_quantity, 10) || 100));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('max_item_quantity', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (max_order_note_length !== undefined) {
+      const val = Math.max(10, Math.min(1000, parseInt(max_order_note_length, 10) || 200));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('max_order_note_length', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
     }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -2004,9 +2025,13 @@ app.post('/api/orders', async (req, res) => {
       return res.status(429).json({ error: `下单过于频繁，请等待${waitSec}秒后再试` });
     }
     const items = await normalizeOrderItems(req.body.items);
-    if (items.length > 50) return res.status(400).json({ error: '单次下单菜品数量过多' });
+    const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
+    const maxItems = parseInt(maxItemsRow?.value || '50', 10);
+    if (items.length > maxItems) return res.status(400).json({ error: `单次下单菜品数量不能超过${maxItems}种` });
+    const maxQtyRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_item_quantity'");
+    const maxQty = parseInt(maxQtyRow?.value || '100', 10);
     for (const item of items) {
-      if (Number(item.quantity) > 100) return res.status(400).json({ error: '单个菜品数量过多' });
+      if (Number(item.quantity) > maxQty) return res.status(400).json({ error: `单个菜品数量不能超过${maxQty}份` });
     }
     orderSubmissionCooldown.set(cooldownKey, now);
     const calculatedTotal = items.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
@@ -2014,7 +2039,9 @@ app.post('/api/orders', async (req, res) => {
     const createdAt = new Date().toISOString();
     // 顾客备注：仅接受字符串，去除首尾空白，限制长度，防止异常输入
     let note = typeof req.body.note === 'string' ? req.body.note.trim() : '';
-    if (note.length > 200) note = note.slice(0, 200);
+    const maxNoteRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_note_length'");
+    const maxNoteLen = parseInt(maxNoteRow?.value || '200', 10);
+    if (note.length > maxNoteLen) note = note.slice(0, maxNoteLen);
     const result = await runAsync(
       'INSERT INTO orders (table_name, items, total, status, createdAt, session_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, storeId, note]
