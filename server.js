@@ -1443,10 +1443,11 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
 // 超级管理员获取全局设置
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length')");
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length')");
     const settings = {};
     rows.forEach(r => { settings[r.key] = r.value; });
     res.json({
+      super_idle_timeout: parseInt(settings.super_idle_timeout || '30', 10),
       admin_idle_timeout: parseInt(settings.admin_idle_timeout || '5', 10),
       qr_session_timeout: parseInt(settings.qr_session_timeout || '45', 10),
       waiter_session_timeout: parseInt(settings.waiter_session_timeout || '12', 10),
@@ -1462,7 +1463,11 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 // 超级管理员更新全局设置
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length } = req.body || {};
+    const { super_idle_timeout, admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length } = req.body || {};
+    if (super_idle_timeout !== undefined) {
+      const mins = Math.max(1, Math.min(1440, parseInt(super_idle_timeout, 10) || 30));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
     if (admin_idle_timeout !== undefined) {
       const mins = Math.max(1, Math.min(1440, parseInt(admin_idle_timeout, 10) || 5));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);

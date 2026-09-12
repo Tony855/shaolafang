@@ -447,6 +447,11 @@ select:focus {
         <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
             <p style="color:#888;margin-bottom:16px;">全局超时相关配置</p>
         <div class="form-group">
+          <label>超级管理员无操作超时时间（分钟）</label>
+          <input type="number" id="superIdleTimeout" min="1" max="1440" placeholder="如：30">
+          <small style="color:#666;">超级管理员后台无任何操作后自动退出登录的时间，范围1-1440分钟</small>
+        </div>
+        <div class="form-group">
           <label>商户后台无操作超时时间（分钟）</label>
           <input type="number" id="adminIdleTimeout" min="1" max="1440" placeholder="如：5">
           <small style="color:#666;">商户后台无任何操作后自动退出登录的时间，范围1-1440分钟</small>
@@ -590,6 +595,43 @@ function closeSidebar() {
 const API = '/api';
 let token = localStorage.getItem('superToken') || '';
 let currentModule = 'dashboard';
+let idleTimer = null;
+let lastActivity = Date.now();
+
+// 重置活动时间（用户有操作时调用）
+function resetIdleTimer() {
+  lastActivity = Date.now();
+}
+
+// 启动无操作超时检测
+async function startIdleCheck() {
+  if (idleTimer) clearInterval(idleTimer);
+  try {
+    const res = await fetch(API + '/super/settings', { headers: { 'Authorization': 'Bearer ' + token } });
+    const settings = await res.json();
+    const timeoutMin = settings.super_idle_timeout || 30;
+    const timeoutMs = timeoutMin * 60 * 1000;
+    idleTimer = setInterval(() => {
+      if (Date.now() - lastActivity > timeoutMs) {
+        clearInterval(idleTimer);
+        localStorage.removeItem('superToken');
+        localStorage.removeItem('superAdmin');
+        location.reload();
+      }
+    }, 10000);
+  } catch(e) {
+    // 获取设置失败，使用默认30分钟
+    const timeoutMs = 30 * 60 * 1000;
+    idleTimer = setInterval(() => {
+      if (Date.now() - lastActivity > timeoutMs) {
+        clearInterval(idleTimer);
+        localStorage.removeItem('superToken');
+        localStorage.removeItem('superAdmin');
+        location.reload();
+      }
+    }, 10000);
+  }
+}
 
 // 登录
 async function doLogin() {
@@ -619,10 +661,17 @@ function showApp() {
   document.getElementById('app').style.display = 'block';
   const admin = JSON.parse(localStorage.getItem('superAdmin') || '{}');
   document.getElementById('adminName').textContent = admin.display_name || '超级管理员';
+  lastActivity = Date.now();
+  startIdleCheck();
+  // 监听用户活动
+  ['click', 'keydown', 'mousemove', 'scroll'].forEach(evt => {
+    document.addEventListener(evt, resetIdleTimer, { passive: true });
+  });
   loadDashboard();
 }
 
 function logout() {
+  if (idleTimer) clearInterval(idleTimer);
   localStorage.removeItem('superToken');
   localStorage.removeItem('superAdmin');
   location.reload();
@@ -859,6 +908,7 @@ async function changeSuperPassword() {
 async function loadGlobalSettings() {
   try {
     const settings = await api('/super/settings');
+    document.getElementById('superIdleTimeout').value = settings.super_idle_timeout || 30;
     document.getElementById('adminIdleTimeout').value = settings.admin_idle_timeout || 5;
     document.getElementById('qrSessionTimeout').value = settings.qr_session_timeout || 45;
     document.getElementById('waiterSessionTimeout').value = settings.waiter_session_timeout || 12;
@@ -914,7 +964,9 @@ async function saveGlobalSettings() {
   if (!maxOrderNoteLength || maxOrderNoteLength < 10 || maxOrderNoteLength > 1000) { toast('订单备注最大长度范围10-1000', 'error'); return; }
   try {
     const waiterSessionTimeout = parseInt(document.getElementById('waiterSessionTimeout').value) || 12;
-    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength }) });
+    const superIdleTimeout = parseInt(document.getElementById('superIdleTimeout').value);
+    if (!superIdleTimeout || superIdleTimeout < 1 || superIdleTimeout > 1440) { toast('超级管理员超时时间范围1-1440分钟', 'error'); return; }
+    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength }) });
     toast('设置保存成功', 'success');
   } catch (e) { toast('保存失败: ' + e.message, 'error'); }
 }
