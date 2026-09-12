@@ -1489,7 +1489,7 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
     }
     if (qr_session_timeout !== undefined) {
-      const mins = Math.max(5, Math.min(1440, parseInt(qr_session_timeout, 10) || 45));
+      const mins = Math.max(0, Math.min(1440, parseInt(qr_session_timeout, 10) || 0));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('qr_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
     }
     if (waiter_session_timeout !== undefined) {
@@ -2087,6 +2087,17 @@ app.post('/api/orders', async (req, res) => {
       'INSERT INTO orders (table_name, items, total, status, createdAt, session_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, storeId, note]
     );
+    // 二维码无操作过期：下单后重置session过期时间（从下单时间开始重新计算）
+    if (sessionToken) {
+      try {
+        const qrTimeoutRow = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
+        const qrTimeoutMins = parseInt(qrTimeoutRow?.value || '45', 10);
+        if (qrTimeoutMins > 0) {
+          const newExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
+          await runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newExpires, sessionToken]);
+        }
+      } catch (e) {}
+    }
     // 更新菜品销量
     for (const item of items) {
       if (item.id) {
@@ -2932,7 +2943,10 @@ app.get('/api/public/table-token/:token', async (req, res) => {
     const sessionToken = crypto.randomBytes(24).toString('base64url');
     const qrTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
     const qrTimeoutMinutes = parseInt(qrTimeoutSetting?.value || '45', 10);
-    const expiresAt = new Date(Date.now() + qrTimeoutMinutes * 60 * 1000).toISOString();
+    // 0表示永不过期，设置为year 9999
+    const expiresAt = qrTimeoutMinutes > 0
+      ? new Date(Date.now() + qrTimeoutMinutes * 60 * 1000).toISOString()
+      : new Date('9999-12-31T23:59:59Z').toISOString();
     await runAsync('INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)', [table.name, sessionToken, expiresAt, new Date().toISOString(), table.store_id || 1]);
     res.json({ table: table.name, storeId: table.store_id || 1, sessionToken, expiresAt });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -2946,8 +2960,10 @@ app.get('/api/public/table-session/:token/orders', async (req, res) => {
     // 二维码无操作过期：每次有效请求都重置过期时间（最后一次操作后N分钟过期）
     const qrTimeoutS = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
     const qrTimeoutMins = parseInt(qrTimeoutS?.value || '45', 10);
-    const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
-    runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
+    if (qrTimeoutMins > 0) {
+      const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
+      runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
+    }
     const rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, req.params.token]);
     res.json({ table: session.table_name, orders: rows.map(formatOrder) });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -2961,9 +2977,12 @@ app.get('/api/public/table-session/:token/info', async (req, res) => {
     // 二维码无操作过期：每次有效请求都重置过期时间（最后一次操作后N分钟过期）
     const qrTimeoutS2 = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
     const qrTimeoutMins2 = parseInt(qrTimeoutS2?.value || '45', 10);
-    const newQrExpires2 = new Date(Date.now() + qrTimeoutMins2 * 60 * 1000).toISOString();
-    runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires2, req.params.token]).catch(()=>{});
-    res.json({ table: session.table_name, storeId: session.store_id || 1, sessionToken: req.params.token, expiresAt: newQrExpires2 });
+    let expiresAt2 = session.expires_at;
+    if (qrTimeoutMins2 > 0) {
+      expiresAt2 = new Date(Date.now() + qrTimeoutMins2 * 60 * 1000).toISOString();
+      runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [expiresAt2, req.params.token]).catch(()=>{});
+    }
+    res.json({ table: session.table_name, storeId: session.store_id || 1, sessionToken: req.params.token, expiresAt: expiresAt2 });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

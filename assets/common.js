@@ -517,36 +517,36 @@
       return this._enabled;
     },
 
-    // 播放新订单提示音（六声提示音，含八度叠音）
+    // 播放新订单提示音（C大调上行琶音，悦耳愉悦，响亮清晰）
     playNewOrderChime() {
       if (!this._enabled) return;
       this.unlock();
       if (!this._ctx) return;
       try {
         const now = this._ctx.currentTime;
-        // 压缩器统一提升整体响度，防止削波失真
-        const compressor = this._ctx.createDynamicsCompressor();
-        compressor.threshold.setValueAtTime(-12, now);
-        compressor.knee.setValueAtTime(20, now);
-        compressor.ratio.setValueAtTime(8, now);
-        compressor.attack.setValueAtTime(0.003, now);
-        compressor.release.setValueAtTime(0.15, now);
-        compressor.connect(this._ctx.destination);
-        // 六声提示音
-        [[0, 880], [0.35, 1318.5], [0.70, 880], [1.05, 1318.5], [1.55, 880], [1.90, 1318.5]].forEach(([t, freq]) => {
-          [freq, freq * 2].forEach((f, i) => {
-            const osc = this._ctx.createOscillator();
-            const gain = this._ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = f;
-            const peak = i === 0 ? 1.0 : 0.5;
-            gain.gain.setValueAtTime(0.0001, now + t);
-            gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.9);
-            osc.connect(gain).connect(compressor);
-            osc.start(now + t);
-            osc.stop(now + t + 0.95);
-          });
+        // C大调上行琶音：C5→E5→G5→C6→E6，愉悦上扬
+        // 频率：C5=523.25, E5=659.25, G5=783.99, C6=1046.50, E6=1318.51
+        const notes = [
+          [0, 523.25],
+          [0.15, 659.25],
+          [0.30, 783.99],
+          [0.45, 1046.50],
+          [0.60, 1318.51]
+        ];
+        notes.forEach(([t, freq], idx) => {
+          const isLast = idx === notes.length - 1;
+          const osc = this._ctx.createOscillator();
+          const gain = this._ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          const duration = isLast ? 0.8 : 0.3;
+          const peak = 1.0;
+          gain.gain.setValueAtTime(0.0001, now + t);
+          gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + t + duration);
+          osc.connect(gain).connect(this._ctx.destination);
+          osc.start(now + t);
+          osc.stop(now + t + duration + 0.05);
         });
       } catch (e) {
         // 忽略音频播放错误
@@ -573,7 +573,7 @@
             const gain = this._ctx.createGain();
             osc.type = 'square';
             osc.frequency.value = f;
-            const peak = i === 0 ? 0.3 : 0.15;
+            const peak = i === 0 ? 1.0 : 0.5;
             gain.gain.setValueAtTime(0.0001, now + t);
             gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.01);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.12);
@@ -607,7 +607,7 @@
             const gain = this._ctx.createGain();
             osc.type = 'sine';
             osc.frequency.value = f;
-            const peak = i === 0 ? 0.8 : 0.4;
+            const peak = i === 0 ? 1.0 : 0.5;
             gain.gain.setValueAtTime(0.0001, now + t);
             gain.gain.exponentialRampToValueAtTime(peak, now + t + 0.02);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.3);

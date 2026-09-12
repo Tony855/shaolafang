@@ -370,7 +370,8 @@
     // 催单提示音（急促的四声）
     async function loadSoundSetting() {
       try {
-        const data = await SLF.api.get('/public/config');
+        const res = await fetch('/api/public/config');
+        const data = await res.json();
         if (typeof data.newOrderSoundEnabled === 'boolean') audio.setEnabled(data.newOrderSoundEnabled);
       } catch (e) {}
     }
@@ -379,7 +380,7 @@
       if (knownOrderIds !== null) {
         let hasNew = false;
         for (const id of pendingIds) { if (!knownOrderIds.has(id)) { hasNew = true; break; } }
-        if (hasNew) audio.playUrgeChime();
+        if (hasNew) audio.playNewOrderChime();
       }
       knownOrderIds = pendingIds;
     }
@@ -690,7 +691,10 @@
       $('#fullscreenLabel').textContent = document.fullscreenElement ? kt('exitFullscreen') : kt('fullscreen');
     });
 
-    document.addEventListener('click', () => audio.unlock(), { once: true });
+    // 音频解锁：任何用户交互都解锁音频上下文
+    ['click', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+      document.addEventListener(evt, () => audio.unlock(), { passive: true });
+    });
 
     // 初始化
     applyLoginLanguage();

@@ -1158,7 +1158,10 @@
     }
     knownWaiterOrderIds=pendingIds;
   }
-  document.addEventListener('click', () => { if(SLF.audio) SLF.audio.unlock(); }, {once:true});
+  // 音频解锁：任何用户交互都解锁音频上下文
+  ['click', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+    document.addEventListener(evt, () => { if(SLF.audio) SLF.audio.unlock(); }, { passive: true });
+  });
 
   // ----- 服务员所属店铺 -----
   // 登录返回和概览接口都只带 store_id，店铺名称需要单独查询一次，之后缓存起来避免重复请求
