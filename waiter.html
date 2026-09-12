@@ -245,6 +245,12 @@
       font-size: 22px; font-weight: 700;
       display: flex; align-items: center; gap: 8px;
     }
+    .table-card .name .status{
+      margin-top: 0;
+      font-size: 12px;
+      padding: 2px 10px;
+      font-weight: 500;
+    }
     .table-card .status{
       display: inline-block;
       margin-top: 4px;
@@ -562,20 +568,32 @@
       border: 1px solid #f5d5c8;
       color: var(--primary-dark);
       font-weight: 600;
-      padding: 10px 16px;
+      padding: 8px 14px;
       border-radius: var(--radius-sm);
-      margin-bottom: 14px;
-      flex-shrink: 0;
+      font-size: 15px;
+      flex: 1;
+    }
+    .modal-head .current-table{
+      margin-bottom: 0;
+      background: transparent;
+      border: none;
+      padding: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
     }
     .selected-items{
       flex-shrink: 0;
       background: var(--gray-1);
       border-radius: var(--radius-sm);
-      padding: 14px;
-      max-height: 30vh;
+      padding: 12px 14px;
+      max-height: 110px;
       overflow-y: auto;
       margin-bottom: 12px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
+    .selected-items::-webkit-scrollbar{ display: none; }
     .selected-items .title{
       font-weight: 600;
       margin-bottom: 8px;
@@ -596,6 +614,19 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .item-status.new{
+      background: var(--primary-bg);
+      color: var(--primary);
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .selected-item .sel-price{
       color: var(--gray-5);
@@ -855,10 +886,9 @@
 <div class="modal" id="orderModal">
   <div class="modal-card">
     <div class="modal-head">
-      <h2 id="modalTitle">选择菜品</h2>
+      <div class="current-table" id="currentTableBadge">当前桌号：</div>
       <button class="close" onclick="closeModal()">✕</button>
     </div>
-    <div class="current-table" id="currentTableBadge">当前桌号：</div>
     <div class="selected-items" id="selectedItems"></div>
     <div class="dish-list" id="dishList"></div>
     <div class="footer">
@@ -989,15 +1019,37 @@
     }
     return secondary ? `${primary} (${secondary})` : primary;
   }
-  function menuPrice(item){const prices=getMenuPrices(item);return prices.secondary ? `${prices.primary} (${prices.secondary})` : prices.primary;}
   // 同一桌可能被多位顾客先后扫码下单：按 session_token 分组，给每组分配短标签（客1/客2...），
   // 没有 session_token 的订单（服务员代下单）单独标注，帮助服务员区分是同一顾客的多笔订单还是不同顾客。
+  // 根据客人标签返回对应颜色
+  function getCustomerColor(label){
+    const colors = [
+      {bg: 'rgba(123, 104, 238, .15)', color: '#7b68ee'},  // 客1 - 紫色
+      {bg: 'rgba(232, 93, 58, .15)', color: '#e85d3a'},   // 客2 - 橙色
+      {bg: 'rgba(46, 204, 113, .15)', color: '#2ecc71'},  // 客3 - 绿色
+      {bg: 'rgba(52, 152, 219, .15)', color: '#3498db'},  // 客4 - 蓝色
+      {bg: 'rgba(241, 196, 15, .15)', color: '#f39c12'},  // 客5 - 黄色
+      {bg: 'rgba(231, 76, 60, .15)', color: '#e74c3c'},   // 客6 - 红色
+      {bg: 'rgba(26, 188, 156, .15)', color: '#1abc9c'},  // 客7 - 青色
+      {bg: 'rgba(155, 89, 182, .15)', color: '#9b59b6'},  // 客8 - 品红
+      {bg: 'rgba(52, 73, 94, .15)', color: '#34495e'},    // 客9 - 深蓝灰
+      {bg: 'rgba(230, 126, 34, .15)', color: '#e67e22'},  // 客10 - 深橙
+      {bg: 'rgba(39, 174, 96, .15)', color: '#27ae60'},   // 客11 - 深绿
+      {bg: 'rgba(41, 128, 185, .15)', color: '#2980b9'},  // 客12 - 深蓝
+    ];
+    const match = label.match(/\d+/);
+    if(match){
+      const idx = (parseInt(match[0]) - 1) % colors.length;
+      return colors[idx];
+    }
+    // 服务员下单用灰色
+    return {bg: 'rgba(149, 165, 166, .15)', color: '#95a5a6'};
+  }
   function buildSessionLabels(orders){
     const sorted=[...orders].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
     const distinctTokens=[...new Set(sorted.filter(o=>o.sessionToken).map(o=>o.sessionToken))];
     const hasNoSession=sorted.some(o=>!o.sessionToken);
     const labels=new Map();
-    if(distinctTokens.length+(hasNoSession?1:0)<=1) return labels;
     const tokenToIndex=new Map(distinctTokens.map((t,i)=>[t,i+1]));
     for(const o of sorted){
       labels.set(o.id, o.sessionToken ? `${wt('customer')}${tokenToIndex.get(o.sessionToken)}` : wt('staffOrder'));
@@ -1019,26 +1071,17 @@
         return `<div class="line"><span class="dish-name">${i.name} ×${i.quantity}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus==='done'?`<span class="item-status done">${wt('completed')}</span>`:(state.waiter&&state.waiter.can_mark_item?`<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${wt('pending')}</button>`:'')}</div>`;
       }).join('');
       const timeLabel=o.createdAt?new Date(o.createdAt).toLocaleString():'';
-      const badge=sessionLabels.get(o.id)?`<span class="session-badge">${sessionLabels.get(o.id)}</span>`:'';
+      const badgeLabel=sessionLabels.get(o.id);
+      const badgeColor=badgeLabel?getCustomerColor(badgeLabel):null;
+      const badge=badgeLabel?`<span class="session-badge" style="background:${badgeColor.bg};color:${badgeColor.color};">${badgeLabel}</span>`:'';
       const noteHtml=o.note?`<div class="order-note" style="margin:4px 0 6px;padding:6px 8px;border-radius:6px;background:rgba(255,193,7,.15);font-size:12px;color:#c98a1f;line-height:1.4;"><strong>${wt('orderNoteDisplay')}：</strong>${escNote(o.note)}</div>`:'';
-      return `<div class="order-block"><div class="order-head"><span>#${o.id} · ${wt('orderPending')}${badge}<span class="order-meta"> · ${timeLabel}</span></span><button onclick="event.stopPropagation();printWaiterOrder(${o.id})" style="background:#e8f4fd;color:#2980b9;border:1px solid #b8dff5;padding:4px 12px;border-radius:20px;font-size:12px;cursor:pointer;margin-right:6px;">🖨️ ${wt('print')}</button>${state.waiter&&state.waiter.can_complete_order?`<button onclick="event.stopPropagation();completeWaiterOrder(${o.id})">${wt('orderCompleted')}</button>`:''}</div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
+      return `<div class="order-block"><div class="order-head"><span>#${o.id} · ${wt('orderPending')}${badge}<span class="order-meta"> · ${timeLabel}</span></span></div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
     }).join('');
-    return active.length ? `<div class="amount">${active.length} ${wt('order')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${wt('noPending')}</div>`;
+    const settleBtn = (state.waiter&&state.waiter.can_complete_order&&active.length===1) ? `<button onclick="event.stopPropagation();completeWaiterOrder(${active[0].id})" style="background:var(--primary);color:#fff;border:none;padding:6px 16px;border-radius:20px;font-size:13px;cursor:pointer;font-weight:600;">${wt('settleOrder')}</button>` : '';
+    return active.length ? `<div class="amount" style="display:flex;align-items:center;justify-content:space-between;">${active.length} ${wt('order')} · ${totalDisplay}${settleBtn}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${wt('noCustomerOrder')}</div>`;
   }
   async function toggleWaiterItem(id,index){try{const order=state.orders.find(o=>o.id===id);if(!order||!order.items[index])return;const next=order.items[index].itemStatus==='done'?'pending':'done';await api(`/orders/${id}/items/${index}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({itemStatus:next})});toast('✅ '+wt('orderUpdated'));await load()}catch(e){toast('❌ '+e.message)}}
-  async function completeWaiterOrder(id){showConfirm(wt('confirmComplete'),async function(){try{await api(`/orders/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done'})});toast('✅ '+wt('orderCompleted'));await load()}catch(e){const msg=e.message.includes('未完成菜品')?wt('incompleteItemsError')||LANGUAGES[waiterLang].incompleteItemsError:e.message;toast('❌ '+msg)}});}
-
-  // 打印订单
-  async function printWaiterOrder(id){
-    try{
-      const data = await api(`/orders/${id}/print`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
-      if(data.printed){
-        toast('✅ ' + wt('orderPrinted'));
-      }else{
-        toast('⚠️ ' + wt('noPrinterConfigured'));
-      }
-    }catch(e){toast('❌ '+e.message)}
-  }
+  async function completeWaiterOrder(id){showConfirm(wt('confirmComplete'),async function(){try{await api(`/orders/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'done'})});toast('✅ '+wt('settleOrder'));await load()}catch(e){const msg=e.message.includes('未完成菜品')?wt('incompleteItemsError')||LANGUAGES[waiterLang].incompleteItemsError:e.message;toast('❌ '+msg)}});}
 
   // ----- 加载数据 -----
   async function load(){
@@ -1283,7 +1326,7 @@
   }
 
   function renderTables(){
-    $('#tableGrid').innerHTML=state.tables.map(t=>`<div class="table-card" onclick="openModal('${t.name}')"><div class="name">🍽️ ${t.name}</div><div class="status ${status(t)===wt('available')?'available':'occupied'}">${status(t)}</div><div class="bill">${bill(t)}</div></div>`).join('')||`<div style="color:#c8c8d0">${wt('noTables')}</div>`;
+    $('#tableGrid').innerHTML=state.tables.map(t=>`<div class="table-card" onclick="openModal('${t.name}')"><div class="name">🍽️ ${t.name} <span class="status ${status(t)===wt('available')?'available':'occupied'}">${status(t)}</span></div><div class="bill">${bill(t)}</div></div>`).join('')||`<div style="color:#c8c8d0">${wt('noTables')}</div>`;
     $('#submitBtn').style.display=state.waiter&&state.waiter.can_order?'block':'none';
   }
 
@@ -1296,8 +1339,18 @@
       state.lockedItems=pending.items.filter(i=>i.itemStatus==='done');
       pending.items.filter(i=>i.itemStatus!=='done').forEach(i=>{state.cart[i.id]=(state.cart[i.id]||0)+i.quantity;state.cartMeta[i.id]=i;});
     }
-    $('#modalTitle').textContent=pending?`${table} · ${wt('pending')}`:`${table} ${wt('ordering')}`;
-    $('#currentTableBadge').textContent=wt('currentTable')+'：'+table;
+    // 标题栏显示桌号+客人信息（带颜色标签）
+    let tableLabel = wt('currentTable')+'：'+table;
+    if(pending && pending.sessionToken){
+      const tableOrders=state.orders.filter(o=>o.table===table&&o.status==='pending');
+      const labels=buildSessionLabels(tableOrders);
+      const customerLabel=labels.get(pending.id);
+      if(customerLabel){
+        const customerColor = getCustomerColor(customerLabel);
+        tableLabel += ` <span class="session-badge" style="background:${customerColor.bg};color:${customerColor.color};">${customerLabel}</span>`;
+      }
+    }
+    $('#currentTableBadge').innerHTML=tableLabel;
     $('#submitBtn').textContent=pending?wt('saveChanges'):wt('submitOrder');
     renderDishes();
     $('#orderModal').classList.add('open');
@@ -1305,31 +1358,38 @@
   function closeModal(){ $('#orderModal').classList.remove('open'); state.currentTable=null; state.cart={}; state.cartMeta={}; state.editingOrderId=null; state.lockedItems=[]; $('#submitBtn').textContent=wt('submitOrder'); }
   function renderSelected(){
     const items=Object.entries(state.cart).filter(([id,q])=>q>0).map(([id,q])=>{const m=state.menu.find(x=>x.id===+id)||state.cartMeta[id];return m?{m,q}:null}).filter(Boolean);
-    const locked=state.lockedItems.map(i=>`<div class="selected-item"><span class="sel-name">${i.name} ×${i.quantity}</span><span></span><span></span><span class="item-status done">${wt('completed')}</span></div>`).join('');
     // 已选菜品同样支持加减数量（复用 changeQty），客户想加同一道菜时服务员不用再回到菜单里找
     const cartHtml=items.length?items.map(x=>{
       const prices=getMenuPrices(x.m);
       let priceDisplay=prices.primary;
       if(prices.secondary) priceDisplay += ` (${prices.secondary})`;
+      const statusLabel = `<span class="item-status new">新下单</span>`;
       return `<div class="selected-item">
-        <span class="sel-name">${x.m.name}</span>
+        <span class="sel-name">${x.m.name} ${statusLabel}</span>
         <span class="sel-price">${priceDisplay}</span>
         <div class="qty"><button onclick="changeQty(${x.m.id},-1)">−</button><span>${x.q}</span><button onclick="changeQty(${x.m.id},1)">+</button></div>
         <button class="remove-btn" onclick="removeItem(${x.m.id})">${wt('remove')}</button>
       </div>`;
     }).join(''):`<div style="color:#c8c8d0">${wt('emptySelected')}</div>`;
-    $('#selectedItems').innerHTML=`<div class="title">${wt('selectedDishes')}</div>${locked}${cartHtml}`;
+    $('#selectedItems').innerHTML=`<div class="title">${wt('selectedDishes')}</div>${cartHtml}`;
   }
   function renderDishes(){
     // 按照销量自动排序，热销菜品排在最前面
     const sortedMenu=[...state.menu].sort((a,b)=>(Number(b.sales_count)||0)-(Number(a.sales_count)||0));
     $('#dishList').innerHTML=sortedMenu.map(m=>{
       const locked=state.lockedItems.find(i=>i.id===m.id);
-      const q=locked?locked.quantity:(state.cart[m.id]||0);
+      const cartQty=state.cart[m.id]||0;
       const prices=getMenuPrices(m);
       let priceDisplay=prices.primary;
       if(prices.secondary) priceDisplay += ` <span class="price-secondary">(${prices.secondary})</span>`;
-      return `<div class="dish-item"><div class="dish-thumb">${m.image?`<img src="/uploads/${m.image}" alt="${m.name}">`:m.emoji||'🍽️'}</div><div class="info"><div class="name">${m.name}</div><div class="price">${priceDisplay}/${m.unit||wt('unit')}</div></div><div class="qty">${locked?`<span>${q} · ${wt('completed')}</span>`:`<button onclick="changeQty(${m.id},-1)">−</button><span>${q}</span><button onclick="changeQty(${m.id},1)">+</button>`}</div></div>`;
+      let qtyHtml;
+      if(locked){
+        // 已完成菜品：只显示新下单数量（可加减），不显示已完成标签
+        qtyHtml=`<button onclick="changeQty(${m.id},-1)">−</button><span>${cartQty}</span><button onclick="changeQty(${m.id},1)">+</button>`;
+      } else {
+        qtyHtml=`<button onclick="changeQty(${m.id},-1)">−</button><span>${cartQty}</span><button onclick="changeQty(${m.id},1)">+</button>`;
+      }
+      return `<div class="dish-item"><div class="dish-thumb">${m.image?`<img src="/uploads/${m.image}" alt="${m.name}">`:m.emoji||'🍽️'}</div><div class="info"><div class="name">${m.name}</div><div class="price">${priceDisplay}/${m.unit||wt('unit')}</div></div>${qtyHtml}</div>`;
     }).join('');
     renderSelected();
     updateTotal();
@@ -1400,3 +1460,4 @@
 </script>
 </body>
 </html>
+

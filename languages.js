@@ -271,6 +271,7 @@ const LANGUAGES = {
     // ---- 后厨 ----
     kitchenDisplay: '后厨订单显示',
     noPendingOrders: '暂无待处理订单',
+    noCustomerOrder: '暂无顾客下单',
     pendingCount: '单待处理',
     updatedAt: '更新于',
     fullscreen: '全屏',
@@ -708,6 +709,7 @@ const LANGUAGES = {
 
     kitchenDisplay: 'Kitchen Display',
     noPendingOrders: 'No pending orders',
+    noCustomerOrder: 'No customer orders',
     pendingCount: 'pending',
     updatedAt: 'Updated',
     fullscreen: 'Fullscreen',
@@ -1140,6 +1142,7 @@ const LANGUAGES = {
 
     kitchenDisplay: 'Màn hình bếp',
     noPendingOrders: 'Chưa có đơn cần xử lý',
+    noCustomerOrder: 'Chưa có đơn hàng của khách',
     pendingCount: 'đơn đang chờ',
     updatedAt: 'Cập nhật lúc',
     fullscreen: 'Toàn màn hình',
@@ -1572,6 +1575,7 @@ const LANGUAGES = {
 
     kitchenDisplay: 'จอแสดงผลครัว',
     noPendingOrders: 'ไม่มีออเดอร์ที่ต้องทำ',
+    noCustomerOrder: 'ไม่มีออเดอร์ลูกค้า',
     pendingCount: 'ออเดอร์รอดำเนินการ',
     updatedAt: 'อัปเดตเมื่อ',
     fullscreen: 'เต็มจอ',
@@ -2004,6 +2008,7 @@ const LANGUAGES = {
 
     kitchenDisplay: 'អេក្រង់ផ្ទះបាយ',
     noPendingOrders: 'មិនទាន់មានការបញ្ជាទិញត្រូវធ្វើ',
+    noCustomerOrder: 'មិនទាន់មានការបញ្ជាទិញរបស់អតិថិជន',
     pendingCount: 'ការបញ្ជាទិញកំពុងរង់ចាំ',
     updatedAt: 'ធ្វើបច្ចុប្បន្នភាពនៅ',
     fullscreen: 'ពេញអេក្រង់',
