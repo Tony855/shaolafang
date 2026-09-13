@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -30,7 +29,8 @@
   }
   /* 登录界面 */
   .login-wrap {
-    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
   }
   .login-box {
     width: 100%; max-width: 420px; padding: 34px;
@@ -59,7 +59,7 @@
   }
   .lang-bar select option { background: #2d2d44; color: #fff; }
   /* 主显示界面 */
-  .kitchen-app { display: none; min-height: 100vh; flex-direction: column; }
+  .kitchen-app { display: none; min-height: 100vh; min-height: 100dvh; flex-direction: column; }
   .kitchen-app.show { display: flex; }
   .login-wrap.hide { display: none; }
   .top-bar {
