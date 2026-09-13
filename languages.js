@@ -58,20 +58,17 @@ const LANGUAGES = {
     username: '账号',
     password: '密码',
     adminPassword: '管理员密码',
-    loginError: '账号或密码错误',
     loginSuccess: '登录成功',
     loginFailed: '登录失败',
     merchantAdminLogin: '商户管理员登录',
     superAdminLogin: '超级管理员登录',
     usernameNotExist: '用户名不存在',
-    wrongPassword: '密码错误',
     pleaseEnterCredentials: '请输入用户名和密码',
     invalidCredentials: '用户名或密码错误',
     accountDisabled: '账号已被禁用',
     loginError: '登录失败，请重试',
     loginLocation: '登录地点',
     loginName: '登录名',
-    loginType: '登录类型',
     pleaseLogin: '请输入账号和密码',
     confirmLogout: '确认退出登录？',
 
@@ -238,8 +235,8 @@ const LANGUAGES = {
     copyMenuSuccess: '菜单复制成功',
 
     // ---- 货币管理 ----
-    currencyCode: '货币代码',
-    currencySymbol: '货币符号',
+    currencyCodeLabel: '货币代码',
+    currencySymbolLabel: '货币符号',
     currencyName: '货币名称',
     exchangeRate: '汇率',
     isDefault: '设为默认',
@@ -417,7 +414,6 @@ const LANGUAGES = {
     note: '备注',
     customerCall: '顾客呼叫',
     refreshCallList: '刷新呼叫列表',
-    noCalls: '暂无呼叫',
     serveDish: '上菜',
     orderSuccess: '下单成功',
     viewOrderDetails: '请移步到订单详情查看订单',
@@ -509,20 +505,17 @@ const LANGUAGES = {
     username: 'Username',
     password: 'Password',
     adminPassword: 'Admin Password',
-    loginError: 'Incorrect username or password',
     loginSuccess: 'Login successful',
     loginFailed: 'Login failed',
     merchantAdminLogin: 'Merchant admin login',
     superAdminLogin: 'Super admin login',
     usernameNotExist: 'Username does not exist',
-    wrongPassword: 'Wrong password',
     pleaseEnterCredentials: 'Please enter username and password',
     invalidCredentials: 'Invalid username or password',
     accountDisabled: 'Account is disabled',
     loginError: 'Login failed, please try again',
     loginLocation: 'Location',
     loginName: 'Username',
-    loginType: 'Login type',
     pleaseLogin: 'Please enter username and password',
     confirmLogout: 'Log out?',
 
@@ -680,8 +673,8 @@ const LANGUAGES = {
     copyMenu: 'Copy Menu',
     copyMenuSuccess: 'Menu copied successfully',
 
-    currencyCode: 'Code',
-    currencySymbol: 'Symbol',
+    currencyCodeLabel: 'Code',
+    currencySymbolLabel: 'Symbol',
     currencyName: 'Name',
     exchangeRate: 'Rate',
     isDefault: 'Default',
@@ -855,7 +848,6 @@ const LANGUAGES = {
     note: 'Note',
     customerCall: 'Customer Call',
     refreshCallList: 'Refresh Call List',
-    noCalls: 'No Calls',
     serveDish: 'Serve Dish',
     orderSuccess: 'Order Placed Successfully',
     viewOrderDetails: 'Please view order details',
@@ -947,20 +939,17 @@ const LANGUAGES = {
     username: 'Tài khoản',
     password: 'Mật khẩu',
     adminPassword: 'Mật khẩu quản trị',
-    loginError: 'Sai tài khoản hoặc mật khẩu',
     loginSuccess: 'Đăng nhập thành công',
     loginFailed: 'Đăng nhập thất bại',
     merchantAdminLogin: 'Đăng nhập quản trị viên thương mại',
     superAdminLogin: 'Đăng nhập siêu quản trị',
     usernameNotExist: 'Tên người dùng không tồn tại',
-    wrongPassword: 'Sai mật khẩu',
     pleaseEnterCredentials: 'Vui lòng nhập tên người dùng và mật khẩu',
     invalidCredentials: 'Tên người dùng hoặc mật khẩu sai',
     accountDisabled: 'Tài khoản đã bị vô hiệu hóa',
     loginError: 'Đăng nhập thất bại, vui lòng thử lại',
     loginLocation: 'Địa điểm',
     loginName: 'Tên người dùng',
-    loginType: 'Loại đăng nhập',
     pleaseLogin: 'Vui lòng nhập tài khoản và mật khẩu',
     confirmLogout: 'Đăng xuất?',
 
@@ -1115,8 +1104,8 @@ const LANGUAGES = {
     copyMenu: 'Sao chép menu',
     copyMenuSuccess: 'Sao chép menu thành công',
 
-    currencyCode: 'Mã',
-    currencySymbol: 'Ký hiệu',
+    currencyCodeLabel: 'Mã',
+    currencySymbolLabel: 'Ký hiệu',
     currencyName: 'Tên',
     exchangeRate: 'Tỷ giá',
     isDefault: 'Mặc định',
@@ -1290,7 +1279,6 @@ const LANGUAGES = {
     note: 'Ghi chú',
     customerCall: 'Khách hàng gọi',
     refreshCallList: 'Làm mới danh sách gọi',
-    noCalls: 'Chưa có cuộc gọi',
     serveDish: 'Phục vụ món',
     orderSuccess: 'Đặt hàng thành công',
     viewOrderDetails: 'Vui lòng xem chi tiết đơn hàng',
@@ -1382,20 +1370,17 @@ const LANGUAGES = {
     username: 'บัญชีผู้ใช้',
     password: 'รหัสผ่าน',
     adminPassword: 'รหัสผ่านผู้ดูแล',
-    loginError: 'บัญชีหรือรหัสผ่านไม่ถูกต้อง',
     loginSuccess: 'เข้าสู่ระบบสำเร็จ',
     loginFailed: 'เข้าสู่ระบบล้มเหลว',
     merchantAdminLogin: 'ผู้ดูแลร้านค้าเข้าสู่ระบบ',
     superAdminLogin: 'ผู้ดูแลระดับสูงเข้าสู่ระบบ',
     usernameNotExist: 'ชื่อผู้ใช้ไม่มีอยู่',
-    wrongPassword: 'รหัสผ่านผิด',
     pleaseEnterCredentials: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน',
     invalidCredentials: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
     accountDisabled: 'บัญชีถูกปิดใช้งาน',
     loginError: 'เข้าสู่ระบบล้มเหลว โปรดลองอีกครั้ง',
     loginLocation: 'สถานที่',
     loginName: 'ชื่อผู้ใช้',
-    loginType: 'ประเภทการเข้าสู่ระบบ',
     pleaseLogin: 'กรุณากรอกบัญชีและรหัสผ่าน',
     confirmLogout: 'ออกจากระบบหรือไม่?',
 
@@ -1550,8 +1535,8 @@ const LANGUAGES = {
     copyMenu: 'คัดลอกเมนู',
     copyMenuSuccess: 'คัดลอกเมนูสำเร็จ',
 
-    currencyCode: 'รหัส',
-    currencySymbol: 'สัญลักษณ์',
+    currencyCodeLabel: 'รหัส',
+    currencySymbolLabel: 'สัญลักษณ์',
     currencyName: 'ชื่อ',
     exchangeRate: 'อัตราแลกเปลี่ยน',
     isDefault: 'ค่าเริ่มต้น',
@@ -1725,7 +1710,6 @@ const LANGUAGES = {
     note: 'หมายเหตุ',
     customerCall: 'ลูกค้าเรียก',
     refreshCallList: 'รีเฟรชรายการเรียก',
-    noCalls: 'ไม่มีการเรียก',
     serveDish: 'เสิร์ฟเมนู',
     orderSuccess: 'สั่งอาหารสำเร็จ',
     viewOrderDetails: 'กรุณาดูรายละเอียดออเดอร์',
@@ -1817,20 +1801,17 @@ const LANGUAGES = {
     username: 'គណនី',
     password: 'ពាក្យសម្ងាត់',
     adminPassword: 'ពាក្យសម្ងាត់អ្នកគ្រប់គ្រង',
-    loginError: 'គណនីឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ',
     loginSuccess: 'ចូលបានជោគជ័យ',
     loginFailed: 'ចូលបរាជ័យ',
     merchantAdminLogin: 'អ្នកគ្រប់គ្រងអ្នកផ្តល់សិទ្ធិចូល',
     superAdminLogin: 'អ្នកគ្រប់គ្រងផ្នែកខាងលើចូល',
     usernameNotExist: 'ឈ្មោះអ្នកប្រើមិនមាន',
-    wrongPassword: 'ពាក្យសម្ងាត់ខុស',
     pleaseEnterCredentials: 'សូមបញ្ចូលឈ្មោះអ្នកប្រើនិងពាក្យសម្ងាត់',
     invalidCredentials: 'ឈ្មោះអ្នកប្រើឬពាក្យសម្ងាត់ខុស',
     accountDisabled: 'គណនីត្រូវបានបិទ',
     loginError: 'ការចូលបរាជ័យ សូមព្យាយាមម្តងទៀត',
     loginLocation: 'ទីតាំង',
     loginName: 'ឈ្មោះអ្នកប្រើ',
-    loginType: 'ប្រភេទការចូល',
     pleaseLogin: 'សូមបញ្ចូលគណនីនិងពាក្យសម្ងាត់',
     confirmLogout: 'ចាកចេញ?',
 
@@ -1985,8 +1966,8 @@ const LANGUAGES = {
     copyMenu: 'ចម្លងមុខម្ហូប',
     copyMenuSuccess: 'ចម្លងមុខម្ហូបជោគជ័យ',
 
-    currencyCode: 'កូដ',
-    currencySymbol: 'និមិត្តសញ្ញា',
+    currencyCodeLabel: 'កូដ',
+    currencySymbolLabel: 'និមិត្តសញ្ញា',
     currencyName: 'ឈ្មោះ',
     exchangeRate: 'អត្រាប្តូរប្រាក់',
     isDefault: 'លំនាំដើម',
@@ -2160,7 +2141,6 @@ const LANGUAGES = {
     note: 'កត់សម្គាល់',
     customerCall: 'អតិថិជនហៅ',
     refreshCallList: 'ធ្វើឱ្យបញ្ជីហៅថ្មី',
-    noCalls: 'គ្មានការហៅ',
     serveDish: 'បម្រើម្ហូប',
     orderSuccess: 'បញ្ជាទិញជោគជ័យ',
     viewOrderDetails: 'សូមមើលព័ត៌មានលម្អិតការបញ្ជាទិញ',
@@ -2201,6 +2181,20 @@ const LANGUAGES = {
     adminBrandFull: 'FoodFlow Admin Dashboard',
   },
 };
+
+/**
+ * 检测浏览器语言并映射到系统支持的语言代码
+ * @returns {string} zh/en/vi/th/km
+ */
+function detectBrowserLanguage() {
+    const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    if (sys.startsWith('zh')) return 'zh';
+    if (sys.startsWith('vi')) return 'vi';
+    if (sys.startsWith('th')) return 'th';
+    if (sys.startsWith('km')) return 'km';
+    if (sys.startsWith('en')) return 'en';
+    return 'zh';
+}
 
 // 兼容旧代码：确保全局可访问
 if (typeof window !== 'undefined') {

@@ -2494,13 +2494,7 @@
             if (savedLang && ['zh','en','vi','th','km'].includes(savedLang)) {
                 initLang = savedLang;
             } else {
-                const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
-                if (sys.startsWith('zh')) initLang = 'zh';
-                else if (sys.startsWith('vi')) initLang = 'vi';
-                else if (sys.startsWith('th')) initLang = 'th';
-                else if (sys.startsWith('km')) initLang = 'km';
-                else if (sys.startsWith('en')) initLang = 'en';
-                else initLang = 'zh';
+                initLang = detectBrowserLanguage();
             }
             SLF.i18n.init(initLang);
         })();
@@ -2510,13 +2504,7 @@
         let currentLang = (function() {
             const saved = localStorage.getItem('preferredLang');
             if (saved && ['zh','en','vi','th','km'].includes(saved)) return saved;
-            const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
-            if (sys.startsWith('zh')) return 'zh';
-            if (sys.startsWith('vi')) return 'vi';
-            if (sys.startsWith('th')) return 'th';
-            if (sys.startsWith('km')) return 'km';
-            if (sys.startsWith('en')) return 'en';
-            return 'zh';
+            return detectBrowserLanguage();
         })();
 
         function t(key) {
@@ -3525,13 +3513,7 @@
             if (savedLang && LANGUAGES[savedLang]) {
                 langSelect.value = savedLang;
             } else {
-                const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
-                if (sys.startsWith('zh')) langSelect.value = 'zh';
-                else if (sys.startsWith('vi')) langSelect.value = 'vi';
-                else if (sys.startsWith('th')) langSelect.value = 'th';
-                else if (sys.startsWith('km')) langSelect.value = 'km';
-                else if (sys.startsWith('en')) langSelect.value = 'en';
-                else langSelect.value = 'zh';
+                langSelect.value = detectBrowserLanguage();
             }
             applyLanguage();
 
