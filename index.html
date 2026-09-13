@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
@@ -2384,128 +2384,6 @@
         </div>
     </div>
 
-    <div class="admin-panel" id="adminPanel">
-        <button class="admin-close" id="adminClose">✕</button>
-        <h2><i class="fas fa-cog"></i> <span id="panelTitle">管理面板</span></h2>
-        <div class="admin-tabs" id="adminTabs">
-            <button class="active" data-tab="menu"><span id="menuManageLabel">菜品管理</span></button>
-            <button data-tab="tables"><span id="tablesLabel">桌号管理</span></button>
-            <button data-tab="orders"><span id="orderManageLabel">订单管理</span></button>
-            <button data-tab="stats"><span id="statsLabel">统计</span></button>
-            <button data-tab="settings"><span id="settingsLabel">设置</span></button>
-        </div>
-        <!-- 菜品管理 -->
-        <div class="admin-tab-content active" id="tabMenu">
-            <div class="admin-form" id="menuForm">
-                <input type="hidden" id="editId" value="">
-                <input type="text" id="menuName" placeholder="名称" class="full-width">
-                <input type="text" id="menuEmoji" placeholder="Emoji (如 🍗)" style="grid-column:span 1;">
-                <input type="number" id="menuPrice" placeholder="价格" step="0.01">
-                <input type="text" id="menuCategory" placeholder="分类 (如 川菜)">
-                <input type="text" id="menuDesc" placeholder="描述" class="full-width">
-                <div class="file-input-wrapper">
-                    <input type="file" id="menuImage" accept="image/*">
-                    <img id="imagePreview" class="preview" style="display:none;" />
-                </div>
-                <button id="menuSaveBtn"><span id="saveLabel">保存</span></button>
-                <button id="menuCancelBtn" style="background:#555;"><span id="cancelLabel">取消</span></button>
-            </div>
-            <div id="menuList"></div>
-        </div>
-        <!-- 桌号管理 -->
-        <div class="admin-tab-content" id="tabTables">
-            <div class="admin-form" style="grid-template-columns:1fr 1fr auto;">
-                <input type="text" id="tableNameInput" placeholder="桌号 (如 A07)">
-                <select id="tableStatusInput">
-                    <option value="available">空闲</option>
-                    <option value="occupied">已占</option>
-                    <option value="reserved">已预订</option>
-                </select>
-                <button id="addTableBtn">添加</button>
-            </div>
-            <div id="tableList" class="table-grid"></div>
-        </div>
-        <!-- 订单管理 -->
-        <div class="admin-tab-content" id="tabOrders">
-            <div class="order-actions-header">
-                <div class="search-box">
-                    <input type="text" id="orderSearchInput" placeholder="搜索订单ID或桌号...">
-                    <button onclick="searchOrders()"><i class="fas fa-search"></i></button>
-                </div>
-                <button onclick="showOrderForm()"><i class="fas fa-plus"></i> 新增订单</button>
-            </div>
-            <div id="orderListAdmin"></div>
-        </div>
-        <!-- 统计 -->
-        <div class="admin-tab-content" id="tabStats">
-            <div class="stat-grid">
-                <div class="stat-card"><div class="num" id="statOrders">0</div><div class="label" id="totalOrdersLabel">总订单</div></div>
-                <div class="stat-card"><div class="num" id="statRevenue">0.00</div><div class="label" id="totalRevenueLabel">总营业额</div></div>
-            </div>
-            <div id="statDetail" style="margin:12px 0;"></div>
-            <div class="stat-query-container">
-                <div class="filter-row">
-                    <label>开始日期：<input type="date" id="statStartDate"></label>
-                    <label>结束日期：<input type="date" id="statEndDate"></label>
-                    <label>分组：<select id="statGroup">
-                        <option value="day">按日</option>
-                        <option value="month">按月</option>
-                    </select></label>
-                    <button id="statQueryBtn">查询</button>
-                </div>
-                <div id="statResult"></div>
-            </div>
-        </div>
-        <!-- 设置 -->
-        <div class="admin-tab-content" id="tabSettings">
-            <h3 style="margin-bottom:12px;">🔑 修改管理员密码</h3>
-            <div class="admin-form" style="grid-template-columns:1fr;">
-                <input type="password" id="oldPwd" placeholder="旧密码">
-                <input type="password" id="newPwd" placeholder="新密码">
-                <input type="password" id="confirmPwd" placeholder="确认新密码">
-                <button id="changePwdBtn" style="grid-column:1;">修改密码</button>
-            </div>
-            <hr style="border-color:#444;margin:16px 0;">
-            <h3 style="margin-bottom:12px;">⚠️ 重置数据（清空所有订单）</h3>
-            <button id="resetDataBtn" style="background:#ff4d4f;border:none;color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;">重置订单数据</button>
-        </div>
-    </div>
-
-    <div class="login-modal" id="loginModal">
-        <h3><i class="fas fa-lock"></i> <span id="loginTitle">管理员登录</span></h3>
-        <input type="password" id="loginPassword" placeholder="请输入密码">
-        <div class="error" id="loginError"></div>
-        <button id="loginBtn"><span id="loginBtnLabel">登录</span></button>
-    </div>
-
-    <div class="order-modal" id="orderFormModal">
-        <h3 id="orderFormTitle">新增订单</h3>
-        <input type="hidden" id="editOrderId" value="">
-        <div class="form-group">
-            <label>桌号</label>
-            <select id="orderTableSelect"></select>
-        </div>
-        <div class="form-group">
-            <label>菜品</label>
-            <div id="orderItemsContainer">
-                <div class="item-row">
-                    <select class="item-select"><option value="">选择菜品...</option></select>
-                    <input type="number" class="item-qty" value="1" min="1" step="1">
-                    <button onclick="removeItemRow(this)"><i class="fas fa-times"></i></button>
-                </div>
-            </div>
-            <button class="add-item-btn" onclick="addItemRow()"><i class="fas fa-plus"></i> 添加菜品</button>
-        </div>
-        <div class="form-group">
-            <label>合计</label>
-            <div class="total-display" id="orderFormTotal">¥0.00</div>
-        </div>
-        <div class="form-actions">
-            <button class="btn-cancel" onclick="closeOrderForm()">取消</button>
-            <button class="btn-save" id="orderFormSaveBtn">保存</button>
-        </div>
-    </div>
-
     <!-- ===== 呼叫服务员确认弹窗 ===== -->
     <div class="confirm-overlay" id="callWaiterConfirmOverlay">
         <div class="confirm-card">
@@ -2724,8 +2602,6 @@
         const cartDrawer = $('#cartDrawer');
         const overlay = $('#overlay');
         const toastEl = $('#toast');
-        const adminPanel = $('#adminPanel');
-        const loginModal = $('#loginModal');
         const tableDisplay = $('#tableDisplay');
         const tableInfo = $('#tableInfo');
         const langSelect = $('#langSelect');
@@ -2863,7 +2739,6 @@
             let menuAlreadyFetched = false;
             if (!isBackendOnline) {
                 state.tables = [];
-                renderTables();
                 return menuAlreadyFetched;
             }
             try {
@@ -2926,9 +2801,6 @@
                 tableInfo.title = state.table ? `${t('table')}: ${state.table}` : t('scanToBind');
                 document.getElementById('customerOrderBtn').hidden = !isScanSessionValid();
                 document.getElementById('callWaiterBtn').hidden = !isScanSessionValid();
-                renderTables();
-                populateTableSelect();
-                await fetchCurrentTableOrders();
                 updateUI();
                 return menuAlreadyFetched;
             } catch (e) {
@@ -2950,14 +2822,11 @@
                     history.replaceState(null, '', url.pathname + url.search + url.hash);
                 } catch (_) {}
                 Object.keys(localStorage).filter(k => k.startsWith('scanSession_')).forEach(k => localStorage.removeItem(k));
-                renderTables();
-                populateTableSelect();
                 updateUI();
                 return menuAlreadyFetched;
             }
         }
 
-        async function fetchCurrentTableOrders() {}
 
         function resetCustomerSession() {
             const savedKey = 'scanSession_' + (state.storeId || 1) + '_' + (state.table || '');
@@ -3530,46 +3399,6 @@
         }
 
         // ============================================================
-        //  管理面板（占位）
-        // ============================================================
-        function renderTables() {}
-        function populateTableSelect() {}
-
-        function closeAdmin() { adminPanel.classList.remove('open');
-            overlay.classList.remove('show');
-            document.body.style.overflow = ''; }
-
-        function handleLogin() {
-            const pwd = document.getElementById('loginPassword').value;
-            if (pwd === 'admin123') {
-                state.isAdmin = true;
-                loginModal.classList.remove('show');
-                overlay.classList.remove('show');
-                openAdmin();
-                document.getElementById('loginPassword').value = '';
-                document.getElementById('loginError').textContent = '';
-                showToast(`✅ ${t('loginSuccess')}`);
-            } else {
-                document.getElementById('loginError').textContent = `❌ ${t('wrongPassword')}`;
-            }
-        }
-
-        function openAdmin() { adminPanel.classList.add('open');
-            overlay.classList.add('show');
-            document.body.style.overflow = 'hidden'; }
-
-        function renderAdminMenu() {}
-        function resetForm() {}
-        function handleMenuSave() {}
-        function closeOrderForm() {}
-        function addItemRow() {}
-        function removeItemRow() {}
-        function searchOrders() {}
-        function renderAdminOrders() {}
-        function renderStats() {}
-        async function fetchOrders() {}
-
-        // ============================================================
         //  语言切换
         // ============================================================
         async function applyLanguage() {
@@ -3584,18 +3413,6 @@
             document.getElementById('checkoutLabel').textContent = t('checkout');
             document.getElementById('totalLabel').textContent = t('total');
             document.getElementById('submitLabel').textContent = t('submitOrder');
-            document.getElementById('panelTitle').textContent = t('adminPanel');
-            document.getElementById('menuManageLabel').textContent = t('menuManage');
-            document.getElementById('tablesLabel').textContent = t('tablesManage');
-            document.getElementById('orderManageLabel').textContent = t('orderManage');
-            document.getElementById('statsLabel').textContent = t('stats');
-            document.getElementById('settingsLabel').textContent = t('settings') || '设置';
-            document.getElementById('saveLabel').textContent = t('save');
-            document.getElementById('cancelLabel').textContent = t('cancel');
-            document.getElementById('loginTitle').textContent = t('adminLogin');
-            document.getElementById('loginBtnLabel').textContent = t('login');
-            document.getElementById('totalOrdersLabel').textContent = t('totalOrders');
-            document.getElementById('totalRevenueLabel').textContent = t('totalRevenue');
             document.getElementById('drawerTitle').textContent = t('cart');
             document.getElementById('customerOrderBtn').title = t('orderDetails');
             document.getElementById('customerOrderTitle').textContent = t('orderDetails');
@@ -3662,27 +3479,6 @@
             // 🔥 修改：点击“去结算”直接提交订单，不再打开购物车抽屉（移除二次确认）
             document.getElementById('checkoutBtn').addEventListener('click', openOrderConfirm);
             document.getElementById('submitOrderBtn').addEventListener('click', openOrderConfirm);
-            document.getElementById('adminClose').addEventListener('click', closeAdmin);
-            document.getElementById('loginBtn').addEventListener('click', handleLogin);
-            document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
-
-            document.querySelectorAll('#adminTabs button').forEach(b => {
-                b.addEventListener('click', () => {
-                    document.querySelectorAll('#adminTabs button').forEach(x => x.classList.remove('active'));
-                    b.classList.add('active');
-                    document.querySelectorAll('.admin-tab-content').forEach(x => x.classList.remove('active'));
-                    const tabId = b.dataset.tab;
-                    const target = document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1));
-                    if (target) target.classList.add('active');
-                    if (tabId === 'orders') fetchOrders();
-                    if (tabId === 'stats') fetchOrders();
-                    if (tabId === 'menu') renderAdminMenu();
-                    if (tabId === 'tables') fetchTables();
-                });
-            });
-
-            document.getElementById('menuSaveBtn').addEventListener('click', handleMenuSave);
-            document.getElementById('menuCancelBtn').addEventListener('click', resetForm);
             langSelect.addEventListener('change', applyLanguage);
 
             // 兜底绑定：确保“订单详情”弹窗的关闭按钮一定能响应
@@ -3710,9 +3506,6 @@
 
             overlay.addEventListener('click', () => {
                 closeDrawer();
-                closeAdmin();
-                loginModal.classList.remove('show');
-                closeOrderForm();
                 closeCustomerOrders();
                 closeOrderConfirm();
                 closeOrderSuccessNotice();
@@ -3721,22 +3514,11 @@
             document.addEventListener('keydown', e => {
                 if (e.key === 'Escape') {
                     closeDrawer();
-                    closeAdmin();
-                    loginModal.classList.remove('show');
-                    closeOrderForm();
-                    closeCustomerOrders();
+                                closeCustomerOrders();
                     closeOrderConfirm();
                     closeOrderSuccessNotice();
                 }
             });
-
-            const now = new Date();
-            const sevenDaysAgo = new Date(now);
-            sevenDaysAgo.setDate(now.getDate() - 7);
-            document.getElementById('statStartDate').value = sevenDaysAgo.toISOString().slice(0, 10);
-            document.getElementById('statEndDate').value = now.toISOString().slice(0, 10);
-
-            await fetchOrders();
 
             console.log('🍽️ 多语言点餐系统已启动 (前端)');
 

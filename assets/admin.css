@@ -1604,8 +1604,7 @@
 
         
         #waiterList .admin-card,
-        #storeList .admin-card,
-        #comboList .admin-card {
+        #storeList .admin-card,{
             display: grid;
             grid-template-columns: 1fr auto;
             align-items: center;
@@ -1619,15 +1618,13 @@
             transition: all .25s ease;
         }
         #waiterList .admin-card:hover,
-        #storeList .admin-card:hover,
-        #comboList .admin-card:hover {
+        #storeList .admin-card:hover,{
             transform: translateY(-2px);
             box-shadow: 0 14px 28px rgba(0, 0, 0, .18);
             border-color: rgba(255, 255, 255, .18);
         }
         #waiterList .admin-card .info .title,
-        #storeList .admin-card .info .title,
-        #comboList .admin-card .info .title {
+        #storeList .admin-card .info .title,{
             font-size: 17px;
             font-weight: 700;
             letter-spacing: .2px;
@@ -1637,8 +1634,7 @@
             gap: 8px;
         }
         #waiterList .admin-card .info .sub,
-        #storeList .admin-card .info .sub,
-        #comboList .admin-card .info .sub {
+        #storeList .admin-card .info .sub,{
             font-size: 13px;
             color: #9b9bb2;
             margin-top: 5px;
@@ -1664,8 +1660,7 @@
             accent-color: #e85d3a;
         }
         #waiterList .actions button,
-        #storeList .actions button,
-        #comboList .actions button {
+        #storeList .actions button,{
             min-width: 72px;
             background: rgba(255, 77, 79, .12);
             border: 1px solid rgba(255, 77, 79, .22);
@@ -1678,8 +1673,7 @@
             transition: all .2s ease;
         }
         #waiterList .actions button:hover,
-        #storeList .actions button:hover,
-        #comboList .actions button:hover {
+        #storeList .actions button:hover,{
             transform: translateY(-2px);
         }
         #waiterList .actions button.copy,
@@ -1689,15 +1683,13 @@
             color: #69c0ff;
         }
         #waiterList .actions button.edit-btn,
-        #storeList .actions button.edit-btn,
-        #comboList .actions button.edit-btn {
+        #storeList .actions button.edit-btn,{
             background: linear-gradient(135deg, rgba(255, 217, 61, .2), rgba(255, 193, 7, .15));
             border-color: rgba(255, 217, 61, .35);
             color: #ffd93d;
         }
         #waiterList .actions button.edit-btn:hover,
-        #storeList .actions button.edit-btn:hover,
-        #comboList .actions button.edit-btn:hover {
+        #storeList .actions button.edit-btn:hover,{
             background: linear-gradient(135deg, rgba(255, 217, 61, .3), rgba(255, 193, 7, .25));
             box-shadow: 0 4px 12px rgba(255, 217, 61, .2);
         }
@@ -1896,6 +1888,58 @@
             color: #fff !important;
             font-weight: 700;
         }
+    @media (max-width: 1024px) {
+        .hamburger-btn { display: flex; }
+/* ===== 顶部导航栏（固定） ===== */
+        .top { padding: 0 10px 0 52px; gap: 8px; height: 56px; min-height: 56px; background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%); }
+        .top #adminHeaderTitle { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+        .top-right { gap: 6px; }
+        .top-right select { padding: 6px 8px; font-size: 12px; border-radius: 8px; }
+        .admin-name-btn { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+        #logoutBtn { display: none; }
+/* ===== 侧边栏（桌面端固定） ===== */
+        .admin-sidebar {
+            transform: translateX(-100%);
+            transition: transform .3s cubic-bezier(.4,0,.2,1);
+            width: 160px !important;
+            max-width: 75%;
+            top: 56px;
+            height: calc(100vh - 56px);
+            z-index: 150;
+            box-shadow: 4px 0 30px rgba(0,0,0,.5);
+            padding: 16px 10px 10px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 4px !important;
+            background: rgba(0,0,0,0) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+            border-right: none;
+        }
+        .admin-sidebar.open { transform: translateX(0) !important; }
+        .sidebar-close { display: flex !important; top: 8px; right: 8px; width: 28px; height: 28px; font-size: 13px; position: absolute; z-index: 10; }
+        .admin-shell {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+        }
+        .admin-modules {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+        }
+        .sidebar-brand { padding: 4px 4px 6px !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 100%; flex-shrink: 0; gap: 0 !important; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 4px; }
+        .sidebar-store-icon { font-size: 18px !important; margin-bottom: 0 !important; }
+        .sidebar-store-name { font-size: 12px !important; color: #ffd93d !important; font-weight: 700 !important; line-height: 1.2 !important; }
+        .sidebar-store-code { font-size: 9px !important; color: rgba(255,255,255,.4) !important; line-height: 1.2 !important; }
+        .nav-item { padding: 12px 12px !important; font-size: 14px; color: #e8e8f0 !important; font-weight: 500; width: 100%; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 10px !important; }
+        .nav-item:hover { background: rgba(255,255,255,.1); color: #fff; }
+        .nav-item.active { background: linear-gradient(135deg, rgba(232,93,58,.9), rgba(201,74,42,.9)) !important; color: #fff !important; }
+        .nav-icon { font-size: 16px; flex-shrink: 0; }
+        .admin-modules { margin-left: 0 !important; padding: 0; }
+        .panel.module-panel { padding: 14px; border-radius: 14px; max-width: 100%; margin-left: auto; margin-right: auto; }
+        .panel.module-panel h2 { font-size: 17px; margin-bottom: 12px; }
+    }
+
+
 
         
         @media (max-width: 920px) {
@@ -1936,6 +1980,8 @@
                 top: 66px;
             }
         }
+
+
 
         
         @media (max-width: 760px) {
@@ -2130,6 +2176,27 @@
             }
         }
 
+
+    @media (max-width: 480px) {
+/* ===== 顶部导航栏（固定） ===== */
+        .top { padding: 0 8px 0 48px; gap: 6px; height: 52px; min-height: 52px; }
+        .top-right select { font-size: 11px; padding: 5px 6px; }
+        .admin-name-btn span { display: none; }
+        .admin-name-btn { padding: 6px 8px; font-size: 14px; }
+        .hamburger-btn { width: 36px; height: 36px; font-size: 16px; top: 8px; left: 5px; }
+/* ===== 侧边栏（桌面端固定） ===== */
+        .admin-sidebar { width: 150px !important; padding: 14px 8px 8px !important; }
+        .nav-item { padding: 10px; font-size: 13px; gap: 8px; }
+        .panel.module-panel { padding: 10px; max-width: 100%; }
+        .panel.module-panel h2 { font-size: 16px; }
+        .menu-toolbar { flex-wrap: wrap; gap: 6px; }
+        .menu-toolbar button, .menu-toolbar select { font-size: 11px; padding: 7px 9px; border-radius: 8px; }
+        .admin-shell { padding: 8px 8px 16px; }
+        .admin-modules { padding: 0; }
+    }
+
+
+
         @media (max-width: 420px) {
             .top strong {
                 font-size: 13px;
@@ -2180,271 +2247,6 @@
                 padding: 10px;
             }
         }
-
-
-        .qr {
-            max-width: 220px;
-            background: #fff;
-            padding: 8px;
-            border-radius: 8px;
-        }
-        #menuForm input[type=file] {
-            height: auto;
-            padding: 9px 10px;
-            line-height: 1.4;
-            border-style: dashed;
-        }
-        #menuForm {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 14px;
-            padding: 12px;
-            background: rgba(255, 255, 255, .04);
-            border: 1px solid #3c3c58;
-            border-radius: 14px;
-        }
-        #menuForm input,
-        #menuForm select {
-            width: 100%;
-            height: 42px;
-            padding: 0 12px;
-            font-size: 14px;
-            border-radius: 10px;
-            border: 1px solid #4d4d70;
-            background: #22223a;
-            color: #fff;
-        }
-        #menuForm input::placeholder {
-            color: #7d7d96;
-        }
-        #menuForm input:focus,
-        #menuForm select:focus {
-            outline: none;
-            border-color: #e85d3a;
-            box-shadow: 0 0 0 3px rgba(232, 93, 58, .15);
-        }
-        #menuForm button {
-            height: 42px;
-            font-size: 14px;
-            padding: 0 14px;
-            border-radius: 10px;
-            border: 0;
-            cursor: pointer;
-            font-weight: 700;
-        }
-        #menuForm .full {
-            grid-column: 1 / -1;
-        }
-        #menuForm #menuSaveButton {
-            background: #e85d3a;
-            color: #fff;
-        }
-        #menuForm #menuCancelButton {
-            background: #555;
-            color: #fff;
-        }
-        #currencyForm {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 14px;
-            padding: 12px;
-            background: rgba(255, 255, 255, .04);
-            border: 1px solid #3c3c58;
-            border-radius: 14px;
-        }
-        #currencyForm input {
-            width: 100%;
-            height: 42px;
-            padding: 0 12px;
-            font-size: 14px;
-            border-radius: 10px;
-            border: 1px solid #4d4d70;
-            background: #22223a;
-            color: #fff;
-        }
-        #currencyForm input::placeholder {
-            color: #7d7d96;
-        }
-        #currencyForm input:focus {
-            outline: none;
-            border-color: #e85d3a;
-            box-shadow: 0 0 0 3px rgba(232, 93, 58, .15);
-        }
-        #currencyForm button {
-            height: 42px;
-            font-size: 14px;
-            padding: 0 14px;
-            border-radius: 10px;
-            border: 0;
-            cursor: pointer;
-            font-weight: 700;
-        }
-        #passwordForm {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 14px;
-            padding: 12px;
-            background: rgba(255, 255, 255, .04);
-            border: 1px solid #3c3c58;
-            border-radius: 14px;
-        }
-        #passwordForm input {
-            width: 100%;
-            height: 42px;
-            padding: 0 12px;
-            font-size: 14px;
-            border-radius: 10px;
-            border: 1px solid #4d4d70;
-            background: #22223a;
-            color: #fff;
-        }
-        #passwordForm input::placeholder {
-            color: #7d7d96;
-        }
-        #passwordForm input:focus {
-            outline: none;
-            border-color: #e85d3a;
-            box-shadow: 0 0 0 3px rgba(232, 93, 58, .15);
-        }
-        #passwordForm button {
-            height: 42px;
-            font-size: 14px;
-            padding: 0 14px;
-            border-radius: 10px;
-            border: 0;
-            cursor: pointer;
-            font-weight: 700;
-        }
-        #storeList .admin-card .actions button.copy {
-            background: rgba(24, 144, 255, .15);
-            border-color: rgba(24, 144, 255, .25);
-            color: #69c0ff;
-        }
-
-    
-    .hamburger-btn {
-        display: none;
-        position: fixed;
-        top: 6px;
-        left: 6px;
-        z-index: 300;
-        width: 36px;
-        height: 36px;
-        background: rgba(255,255,255,.08);
-        border: 1px solid rgba(255,255,255,.1);
-        color: #fff;
-        font-size: 18px;
-        cursor: pointer;
-        padding: 0;
-        border-radius: 10px;
-        transition: background .2s, transform .2s;
-        align-items: center;
-        justify-content: center;
-    }
-    .hamburger-btn:hover { background: rgba(255,255,255,.1); }
-    .sidebar-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,.5);
-        z-index: 149;
-        opacity: 0;
-        transition: opacity .3s ease;
-    }
-    .sidebar-overlay.show {
-        display: block;
-        opacity: 1;
-    }
-    .sidebar-close {
-        display: none;
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: rgba(255,255,255,.1);
-        border: 0;
-        color: #fff;
-        font-size: 16px;
-        cursor: pointer;
-        z-index: 10;
-        align-items: center;
-        justify-content: center;
-    }
-    .sidebar-close:hover { background: rgba(255,255,255,.2); }
-
-/* ===== 响应式：平板及以下 ===== */
-    @media (max-width: 1024px) {
-        .hamburger-btn { display: flex; }
-/* ===== 顶部导航栏（固定） ===== */
-        .top { padding: 0 10px 0 52px; gap: 8px; height: 56px; min-height: 56px; background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%); }
-        .top #adminHeaderTitle { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-        .top-right { gap: 6px; }
-        .top-right select { padding: 6px 8px; font-size: 12px; border-radius: 8px; }
-        .admin-name-btn { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
-        #logoutBtn { display: none; }
-/* ===== 侧边栏（桌面端固定） ===== */
-        .admin-sidebar {
-            transform: translateX(-100%);
-            transition: transform .3s cubic-bezier(.4,0,.2,1);
-            width: 160px !important;
-            max-width: 75%;
-            top: 56px;
-            height: calc(100vh - 56px);
-            z-index: 150;
-            box-shadow: 4px 0 30px rgba(0,0,0,.5);
-            padding: 16px 10px 10px !important;
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 4px !important;
-            background: rgba(0,0,0,0) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
-            border-right: none;
-        }
-        .admin-sidebar.open { transform: translateX(0) !important; }
-        .sidebar-close { display: flex !important; top: 8px; right: 8px; width: 28px; height: 28px; font-size: 13px; position: absolute; z-index: 10; }
-        .admin-shell {
-            margin-left: 0 !important;
-            width: 100% !important;
-            max-width: none !important;
-        }
-        .admin-modules {
-            margin-left: 0 !important;
-            width: 100% !important;
-            max-width: none !important;
-        }
-        .sidebar-brand { padding: 4px 4px 6px !important; display: flex !important; flex-direction: column !important; align-items: center !important; width: 100%; flex-shrink: 0; gap: 0 !important; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 4px; }
-        .sidebar-store-icon { font-size: 18px !important; margin-bottom: 0 !important; }
-        .sidebar-store-name { font-size: 12px !important; color: #ffd93d !important; font-weight: 700 !important; line-height: 1.2 !important; }
-        .sidebar-store-code { font-size: 9px !important; color: rgba(255,255,255,.4) !important; line-height: 1.2 !important; }
-        .nav-item { padding: 12px 12px !important; font-size: 14px; color: #e8e8f0 !important; font-weight: 500; width: 100%; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 10px !important; }
-        .nav-item:hover { background: rgba(255,255,255,.1); color: #fff; }
-        .nav-item.active { background: linear-gradient(135deg, rgba(232,93,58,.9), rgba(201,74,42,.9)) !important; color: #fff !important; }
-        .nav-icon { font-size: 16px; flex-shrink: 0; }
-        .admin-modules { margin-left: 0 !important; padding: 0; }
-        .panel.module-panel { padding: 14px; border-radius: 14px; max-width: 100%; margin-left: auto; margin-right: auto; }
-        .panel.module-panel h2 { font-size: 17px; margin-bottom: 12px; }
-    }
-    @media (max-width: 480px) {
-/* ===== 顶部导航栏（固定） ===== */
-        .top { padding: 0 8px 0 48px; gap: 6px; height: 52px; min-height: 52px; }
-        .top-right select { font-size: 11px; padding: 5px 6px; }
-        .admin-name-btn span { display: none; }
-        .admin-name-btn { padding: 6px 8px; font-size: 14px; }
-        .hamburger-btn { width: 36px; height: 36px; font-size: 16px; top: 8px; left: 5px; }
-/* ===== 侧边栏（桌面端固定） ===== */
-        .admin-sidebar { width: 150px !important; padding: 14px 8px 8px !important; }
-        .nav-item { padding: 10px; font-size: 13px; gap: 8px; }
-        .panel.module-panel { padding: 10px; max-width: 100%; }
-        .panel.module-panel h2 { font-size: 16px; }
-        .menu-toolbar { flex-wrap: wrap; gap: 6px; }
-        .menu-toolbar button, .menu-toolbar select { font-size: 11px; padding: 7px 9px; border-radius: 8px; }
-        .admin-shell { padding: 8px 8px 16px; }
-        .admin-modules { padding: 0; }
-    }
 
 
 /* ===== 统一的编辑和删除按钮样式 ===== */
@@ -2513,18 +2315,3 @@ button.edit-btn:disabled {
 }
 
 
-/* ===== 套餐管理卡片美化 ===== */
-#comboList .actions button.danger {
-    background: linear-gradient(135deg, rgba(255, 77, 79, .2), rgba(255, 107, 107, .15));
-    border-color: rgba(255, 77, 79, .35);
-    color: #ff9c9c;
-}
-#comboList .actions button.danger:hover {
-    background: linear-gradient(135deg, rgba(255, 77, 79, .3), rgba(255, 107, 107, .25));
-    box-shadow: 0 4px 12px rgba(255, 77, 79, .2);
-}
-#comboList .admin-card .info .title .price {
-    color: #ffd93d;
-    font-weight: 600;
-    margin-left: auto;
-}

@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -417,7 +416,6 @@
                 <h2 id="menuFormTitle">菜品管理</h2>
                 <div class="tab-group">
                     <button id="menuTabDish" class="tab-btn active" onclick="switchMenuTab('dish')">🍽️ <span id="menuTabDishText">菜品管理</span></button>
-                    <button id="menuTabCombo" class="tab-btn" onclick="switchMenuTab('combo')">🍱 <span id="menuTabComboText">套餐管理</span></button>
                     <span class="tab-divider"></span>
                     <button id="openCategoryModalBtn" class="tab-btn tab-action" onclick="openCategoryModal()">🏷️ <span id="categoryBtnText">菜品分类</span></button>
                 </div>
@@ -437,16 +435,6 @@
                     </select>
                 </div>
                 <div id="menus"></div>
-                </div>
-                <div id="comboPanel" style="display:none;">
-                <div class="admin-form-row" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-                    <input id="newComboName" placeholder="套餐名称" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
-                    <input id="newComboEmoji" placeholder="图标" value="🍱" style="width:60px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;text-align:center;">
-                    <input id="newComboPrice" type="number" step="0.01" placeholder="价格" style="width:100px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
-                    <input id="newComboDesc" placeholder="描述" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
-                    <button id="addComboBtn" onclick="addCombo()" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addComboBtnText">添加套餐</span></button>
-                </div>
-                <div id="comboList"></div>
                 </div>
             </section>
 
@@ -1114,9 +1102,9 @@
                 dishCategoryManage: '菜品分类', allCategories: '全部分类', defaultSort: '默认排序', nameAsc: '名称 A-Z', nameDesc: '名称 Z-A', priceAsc: '价格 低-高', priceDesc: '价格 高-低', newCategory: '新分类名称', addCategory: '添加分类',
                 tableManageTitle: '桌号管理', tableName: '桌号，例如 A06', addTable: '新增桌号',
                 addOrder: '➕ 新增订单', orderSearchPlaceholder: '输入订单号查询', search: '查询', currencyManageTitle: '货币类型', currencyCode: '代码 CNY', currencySymbol: '符号 ¥',
-                currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '日志', dishManagement: '菜品管理', comboManagement: '套餐管理', loginLogs: '登录日志', auditLogs: '操作日志', menuCategory: '菜品分类', time: '时间', ip: 'IP', result: '结果',
+                currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '日志', dishManagement: '菜品管理', loginLogs: '登录日志', auditLogs: '操作日志', menuCategory: '菜品分类', time: '时间', ip: 'IP', result: '结果',
                 loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', systemSettings: '系统设置', storeSettingsNav: '店铺设置', backToStores: '返回店铺管理', oldPassword: '旧密码',
-                newPassword: '新密码（至少 6 位）', changePassword: '修改密码', adminManageTitle: '管理员管理', adminManageDesc: '管理商户的管理员账号，支持添加、编辑、删除管理员', enterAdminManage: '进入管理员管理', adminUsername: '登录账号', adminPassword: '密码(至少6位)', adminDisplayName: '显示名称', addAdminBtn: '添加管理员', currentAdmin: '(当前)', adminActive: '启用', adminInactive: '停用', lastLogin: '最后登录:', neverLogin: '从未', editAdminBtn: '编辑', deleteAdminBtn: '删除', noAdmins: '暂无管理员', fillAllFields: '请填写完整信息', passwordMin6: '密码至少6位', adminAdded: '管理员添加成功', adminUpdated: '更新成功', adminDeleted: '删除成功', deleteAdminConfirm: '确定删除管理员 {username}？此操作不可恢复', editDisplayName: '显示名称：', editNewPassword: '新密码（留空不修改）：', editActiveConfirm: '是否启用该账号？\n确定=启用，取消=停用', comboName: '套餐名称', comboEmoji: '图标', comboPrice: '价格', comboDesc: '描述', addCombo: '添加套餐', onSale: '上架', offSale: '下架', sales: '销量', noCombos: '暂无套餐', noAuditLogs: '暂无操作记录', loadFailed: '加载失败', auditAction: { create_combo: '创建套餐', update_combo: '更新套餐', delete_combo: '删除套餐', create_admin: '创建管理员', update_admin: '更新管理员', delete_admin: '删除管理员', create_menu: '创建菜品', update_menu: '更新菜品', delete_menu: '删除菜品', create_category: '创建分类', update_category: '更新分类', delete_category: '删除分类', create_table: '创建桌号', update_table: '更新桌号', delete_table: '删除桌号', create_store: '创建店铺', update_store: '更新店铺', delete_store: '删除店铺', create_waiter: '创建服务员', update_waiter: '更新服务员', delete_waiter: '删除服务员', create_currency: '创建货币', update_currency: '更新货币', delete_currency: '删除货币', settle_order: '结算订单', cancel_order: '取消订单', reset_data: '重置数据', change_password: '修改密码', login: '登录', logout: '退出登录' }, tableField: '桌号', dishList: '菜品清单',
+                newPassword: '新密码（至少 6 位）', changePassword: '修改密码', adminManageTitle: '管理员管理', adminManageDesc: '管理商户的管理员账号，支持添加、编辑、删除管理员', enterAdminManage: '进入管理员管理', adminUsername: '登录账号', adminPassword: '密码(至少6位)', adminDisplayName: '显示名称', addAdminBtn: '添加管理员', currentAdmin: '(当前)', adminActive: '启用', adminInactive: '停用', lastLogin: '最后登录:', neverLogin: '从未', editAdminBtn: '编辑', deleteAdminBtn: '删除', noAdmins: '暂无管理员', fillAllFields: '请填写完整信息', passwordMin6: '密码至少6位', adminAdded: '管理员添加成功', adminUpdated: '更新成功', adminDeleted: '删除成功', deleteAdminConfirm: '确定删除管理员 {username}？此操作不可恢复', editDisplayName: '显示名称：', editNewPassword: '新密码（留空不修改）：', editActiveConfirm: '是否启用该账号？\n确定=启用，取消=停用', noAuditLogs: '暂无操作记录', loadFailed: '加载失败', auditAction: { create_admin: '创建管理员', update_admin: '更新管理员', delete_admin: '删除管理员', create_menu: '创建菜品', update_menu: '更新菜品', delete_menu: '删除菜品', create_category: '创建分类', update_category: '更新分类', delete_category: '删除分类', create_table: '创建桌号', update_table: '更新桌号', delete_table: '删除桌号', create_store: '创建店铺', update_store: '更新店铺', delete_store: '删除店铺', create_waiter: '创建服务员', update_waiter: '更新服务员', delete_waiter: '删除服务员', create_currency: '创建货币', update_currency: '更新货币', delete_currency: '删除货币', settle_order: '结算订单', cancel_order: '取消订单', reset_data: '重置数据', change_password: '修改密码', login: '登录', logout: '退出登录' }, tableField: '桌号', dishList: '菜品清单',
                 addDishLine: '➕ 添加菜品', saveOrder: '保存订单', editTableTitle: '编辑桌号', tableNameLabel: '桌号名称',
                 statusLabel: '状态', noOrders: '暂无订单', noDishes: '暂无菜品', noData: '暂无数据',
                 setDefault: '设为默认', default: '默认', ordersUnit: '单', updated: '已更新', added: '已新增', deleted: '已删除',
@@ -1279,9 +1267,9 @@
                 addTable: 'Add Table', addOrder: '➕ Add Order', orderSearchPlaceholder: 'Search by order number', search: 'Search',
                 currencyManageTitle: 'Currency Types', currencyCode: 'Code CNY', currencySymbol: 'Symbol ¥',
                 currencyName: 'Name', currencyRate: 'Rate', addCurrency: 'Add Currency',
-                                logsTitle: 'Logs', dishManagement: 'Dish Management', comboManagement: 'Combo Management', loginLogs: 'Login Logs', auditLogs: 'Audit Logs', menuCategory: 'Categories', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
+                                logsTitle: 'Logs', dishManagement: 'Dish Management', loginLogs: 'Login Logs', auditLogs: 'Audit Logs', menuCategory: 'Categories', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
                 loginFailed: 'Login Failed', passwordTitle: 'Admin Password', systemSettings: 'System Settings', storeSettingsNav: 'Store Settings', backToStores: 'Back to Stores', oldPassword: 'Old Password',
-                newPassword: 'New Password (min 6 chars)', changePassword: 'Change Password', adminManageTitle: 'Admin Management', adminManageDesc: 'Manage merchant admin accounts, support add, edit, delete', enterAdminManage: 'Enter Admin Management', adminUsername: 'Username', adminPassword: 'Password (min 6)', adminDisplayName: 'Display Name', addAdminBtn: 'Add Admin', currentAdmin: '(Current)', adminActive: 'Active', adminInactive: 'Disabled', lastLogin: 'Last Login:', neverLogin: 'Never', editAdminBtn: 'Edit', deleteAdminBtn: 'Delete', noAdmins: 'No admins yet', fillAllFields: 'Please fill in all fields', passwordMin6: 'Password must be at least 6 characters', adminAdded: 'Admin added successfully', adminUpdated: 'Updated successfully', adminDeleted: 'Deleted successfully', deleteAdminConfirm: 'Delete admin {username}? This cannot be undone', editDisplayName: 'Display Name:', editNewPassword: 'New Password (leave blank to keep):', editActiveConfirm: 'Enable this account?\nOK=Enable, Cancel=Disable', comboName: 'Combo Name', comboEmoji: 'Icon', comboPrice: 'Price', comboDesc: 'Description', addCombo: 'Add Combo', onSale: 'On Sale', offSale: 'Off Sale', sales: 'Sales', noCombos: 'No combos yet', noAuditLogs: 'No audit records', loadFailed: 'Load failed', auditAction: { create_combo: 'Create Combo', update_combo: 'Update Combo', delete_combo: 'Delete Combo', create_admin: 'Create Admin', update_admin: 'Update Admin', delete_admin: 'Delete Admin', create_menu: 'Create Dish', update_menu: 'Update Dish', delete_menu: 'Delete Dish', create_category: 'Create Category', update_category: 'Update Category', delete_category: 'Delete Category', create_table: 'Create Table', update_table: 'Update Table', delete_table: 'Delete Table', create_store: 'Create Store', update_store: 'Update Store', delete_store: 'Delete Store', create_waiter: 'Create Waiter', update_waiter: 'Update Waiter', delete_waiter: 'Delete Waiter', create_currency: 'Create Currency', update_currency: 'Update Currency', delete_currency: 'Delete Currency', settle_order: 'Settle Order', cancel_order: 'Cancel Order', reset_data: 'Reset Data', change_password: 'Change Password', login: 'Login', logout: 'Logout' }, tableField: 'Table',
+                newPassword: 'New Password (min 6 chars)', changePassword: 'Change Password', adminManageTitle: 'Admin Management', adminManageDesc: 'Manage merchant admin accounts, support add, edit, delete', enterAdminManage: 'Enter Admin Management', adminUsername: 'Username', adminPassword: 'Password (min 6)', adminDisplayName: 'Display Name', addAdminBtn: 'Add Admin', currentAdmin: '(Current)', adminActive: 'Active', adminInactive: 'Disabled', lastLogin: 'Last Login:', neverLogin: 'Never', editAdminBtn: 'Edit', deleteAdminBtn: 'Delete', noAdmins: 'No admins yet', fillAllFields: 'Please fill in all fields', passwordMin6: 'Password must be at least 6 characters', adminAdded: 'Admin added successfully', adminUpdated: 'Updated successfully', adminDeleted: 'Deleted successfully', deleteAdminConfirm: 'Delete admin {username}? This cannot be undone', editDisplayName: 'Display Name:', editNewPassword: 'New Password (leave blank to keep):', editActiveConfirm: 'Enable this account?\nOK=Enable, Cancel=Disable', noAuditLogs: 'No audit records', loadFailed: 'Load failed', auditAction: { create_admin: 'Create Admin', update_admin: 'Update Admin', delete_admin: 'Delete Admin', create_menu: 'Create Dish', update_menu: 'Update Dish', delete_menu: 'Delete Dish', create_category: 'Create Category', update_category: 'Update Category', delete_category: 'Delete Category', create_table: 'Create Table', update_table: 'Update Table', delete_table: 'Delete Table', create_store: 'Create Store', update_store: 'Update Store', delete_store: 'Delete Store', create_waiter: 'Create Waiter', update_waiter: 'Update Waiter', delete_waiter: 'Delete Waiter', create_currency: 'Create Currency', update_currency: 'Update Currency', delete_currency: 'Delete Currency', settle_order: 'Settle Order', cancel_order: 'Cancel Order', reset_data: 'Reset Data', change_password: 'Change Password', login: 'Login', logout: 'Logout' }, tableField: 'Table',
                 dishList: 'Dish List', addDishLine: '➕ Add Dish', saveOrder: 'Save Order',
                 editTableTitle: 'Edit Table', tableNameLabel: 'Table Name', statusLabel: 'Status',
                 noOrders: 'No orders', noDishes: 'No dishes', noData: 'No data', setDefault: 'Set Default',
@@ -1441,7 +1429,7 @@
             storesManage: 'Quản lý cửa hàng', storeName: 'Tên cửa hàng', storeCode: 'Mã cửa hàng', storeAddress: 'Địa chỉ cửa hàng', editStore: 'Sửa cửa hàng', storeStatus: 'Trạng thái', storeActive: 'Đang hoạt động', storeDisabled: 'Đã vô hiệu hóa', storeNamePlaceholder: 'Nhập tên cửa hàng', storeCodePlaceholder: 'Nhập mã cửa hàng', storeAddressPlaceholder: 'Nhập địa chỉ cửa hàng',
             addStore: 'Thêm cửa hàng', waitersManage: 'Quản lý nhân viên', waiterUsername: 'Tài khoản', editWaiter: 'Sửa nhân viên', waiterStore: 'Cửa hàng', waiterPermission: 'Quyền hạn', permOrder: 'Đặt món', permMarkItem: 'Phục vụ', permCompleteOrder: 'Hoàn thành', permOrderDesc: 'Nhận đơn khách hàng', permMarkItemDesc: 'Đánh dấu món đã phục vụ', permCompleteDesc: 'Thanh toán và hoàn thành', waiterUsernamePlaceholder: 'Nhập tài khoản', waiterPasswordPlaceholder: 'Nhập mật khẩu mới', waiterNamePlaceholder: 'Nhập tên hiển thị',
             waiterPassword: 'Mật khẩu', waiterDisplayName: 'Tên hiển thị', addWaiter: 'Thêm nhân viên',
-            nameEn: 'Tên tiếng Anh', descEn: 'Mô tả tiếng Anh', logsTitle: 'Nhật ký', dishManagement: 'Quản lý món ăn', comboManagement: 'Quản lý combo', loginLogs: 'Nhật ký đăng nhập', auditLogs: 'Nhật ký hoạt động', menuCategory: 'Danh mục', time: 'Thời gian',
+            nameEn: 'Tên tiếng Anh', descEn: 'Mô tả tiếng Anh', logsTitle: 'Nhật ký', dishManagement: 'Quản lý món ăn', loginLogs: 'Nhật ký đăng nhập', auditLogs: 'Nhật ký hoạt động', menuCategory: 'Danh mục', time: 'Thời gian',
             result: 'Kết quả', loginSuccess: 'Đăng nhập thành công', loginFailed: 'Đăng nhập thất bại',
             dishCategoryManage: 'Danh mục món', allCategories: 'Tất cả danh mục', defaultSort: 'Sắp xếp mặc định', nameAsc: 'Tên A-Z', nameDesc: 'Tên Z-A', priceAsc: 'Giá thấp-cao', priceDesc: 'Giá cao-thấp', newCategory: 'Tên danh mục mới', addCategory: 'Thêm danh mục',
             dishName: 'Tên món', price: 'Giá', icon: 'Biểu tượng (vd 🍖)',
@@ -1485,7 +1473,7 @@
                 exportSalesCsv: 'Xuất doanh thu CSV',
                 exportMenuCsv: 'Xuất menu CSV',
             passwordTitle: 'Mật khẩu quản trị', oldPassword: 'Mật khẩu cũ',
-            newPassword: 'Mật khẩu mới (ít nhất 6 ký tự)', changePassword: 'Đổi mật khẩu', adminManageTitle: 'Quản lý quản trị viên', adminManageDesc: 'Quản lý tài khoản quản trị viên merchant, hỗ trợ thêm, sửa, xóa', enterAdminManage: 'Vào Quản lý quản trị viên', adminUsername: 'Tên đăng nhập', adminPassword: 'Mật khẩu (tối thiểu 6)', adminDisplayName: 'Tên hiển thị', addAdminBtn: 'Thêm quản trị', currentAdmin: '(Hiện tại)', adminActive: 'Đang hoạt động', adminInactive: 'Vô hiệu hóa', lastLogin: 'Đăng nhập cuối:', neverLogin: 'Chưa bao giờ', editAdminBtn: 'Sửa', deleteAdminBtn: 'Xóa', noAdmins: 'Chưa có quản trị viên', fillAllFields: 'Vui lòng điền đầy đủ thông tin', passwordMin6: 'Mật khẩu phải có ít nhất 6 ký tự', adminAdded: 'Thêm quản trị thành công', adminUpdated: 'Cập nhật thành công', adminDeleted: 'Xóa thành công', deleteAdminConfirm: 'Xóa quản trị {username}? Không thể hoàn tác', editDisplayName: 'Tên hiển thị:', editNewPassword: 'Mật khẩu mới (để trống để giữ):', editActiveConfirm: 'Kích hoạt tài khoản này?\nOK=Kích hoạt, Cancel=Vô hiệu hóa', comboName: 'Tên combo', comboEmoji: 'Biểu tượng', comboPrice: 'Giá', comboDesc: 'Mô tả', addCombo: 'Thêm combo', onSale: 'Đang bán', offSale: 'Ngừng bán', sales: 'Doanh số', noCombos: 'Chưa có combo', noAuditLogs: 'Chưa có nhật ký hoạt động', loadFailed: 'Tải thất bại', auditAction: { create_combo: 'Tạo combo', update_combo: 'Cập nhật combo', delete_combo: 'Xóa combo', create_admin: 'Tạo quản trị viên', update_admin: 'Cập nhật quản trị viên', delete_admin: 'Xóa quản trị viên', create_menu: 'Tạo món ăn', update_menu: 'Cập nhật món ăn', delete_menu: 'Xóa món ăn', create_category: 'Tạo danh mục', update_category: 'Cập nhật danh mục', delete_category: 'Xóa danh mục', create_table: 'Tạo bàn', update_table: 'Cập nhật bàn', delete_table: 'Xóa bàn', create_store: 'Tạo cửa hàng', update_store: 'Cập nhật cửa hàng', delete_store: 'Xóa cửa hàng', create_waiter: 'Tạo nhân viên', update_waiter: 'Cập nhật nhân viên', delete_waiter: 'Xóa nhân viên', create_currency: 'Tạo tiền tệ', update_currency: 'Cập nhật tiền tệ', delete_currency: 'Xóa tiền tệ', settle_order: 'Thanh toán đơn', cancel_order: 'Hủy đơn', reset_data: 'Đặt lại dữ liệu', change_password: 'Đổi mật khẩu', login: 'Đăng nhập', logout: 'Đăng xuất' }, tableField: 'Bàn',
+            newPassword: 'Mật khẩu mới (ít nhất 6 ký tự)', changePassword: 'Đổi mật khẩu', adminManageTitle: 'Quản lý quản trị viên', adminManageDesc: 'Quản lý tài khoản quản trị viên merchant, hỗ trợ thêm, sửa, xóa', enterAdminManage: 'Vào Quản lý quản trị viên', adminUsername: 'Tên đăng nhập', adminPassword: 'Mật khẩu (tối thiểu 6)', adminDisplayName: 'Tên hiển thị', addAdminBtn: 'Thêm quản trị', currentAdmin: '(Hiện tại)', adminActive: 'Đang hoạt động', adminInactive: 'Vô hiệu hóa', lastLogin: 'Đăng nhập cuối:', neverLogin: 'Chưa bao giờ', editAdminBtn: 'Sửa', deleteAdminBtn: 'Xóa', noAdmins: 'Chưa có quản trị viên', fillAllFields: 'Vui lòng điền đầy đủ thông tin', passwordMin6: 'Mật khẩu phải có ít nhất 6 ký tự', adminAdded: 'Thêm quản trị thành công', adminUpdated: 'Cập nhật thành công', adminDeleted: 'Xóa thành công', deleteAdminConfirm: 'Xóa quản trị {username}? Không thể hoàn tác', editDisplayName: 'Tên hiển thị:', editNewPassword: 'Mật khẩu mới (để trống để giữ):', editActiveConfirm: 'Kích hoạt tài khoản này?\nOK=Kích hoạt, Cancel=Vô hiệu hóa', noAuditLogs: 'Chưa có nhật ký hoạt động', loadFailed: 'Tải thất bại', auditAction: { create_admin: 'Tạo quản trị viên', update_admin: 'Cập nhật quản trị viên', delete_admin: 'Xóa quản trị viên', create_menu: 'Tạo món ăn', update_menu: 'Cập nhật món ăn', delete_menu: 'Xóa món ăn', create_category: 'Tạo danh mục', update_category: 'Cập nhật danh mục', delete_category: 'Xóa danh mục', create_table: 'Tạo bàn', update_table: 'Cập nhật bàn', delete_table: 'Xóa bàn', create_store: 'Tạo cửa hàng', update_store: 'Cập nhật cửa hàng', delete_store: 'Xóa cửa hàng', create_waiter: 'Tạo nhân viên', update_waiter: 'Cập nhật nhân viên', delete_waiter: 'Xóa nhân viên', create_currency: 'Tạo tiền tệ', update_currency: 'Cập nhật tiền tệ', delete_currency: 'Xóa tiền tệ', settle_order: 'Thanh toán đơn', cancel_order: 'Hủy đơn', reset_data: 'Đặt lại dữ liệu', change_password: 'Đổi mật khẩu', login: 'Đăng nhập', logout: 'Đăng xuất' }, tableField: 'Bàn',
             dishList: 'Danh sách món', addDishLine: '➕ Thêm món', saveOrder: 'Lưu đơn',
             editTableTitle: 'Sửa bàn', tableNameLabel: 'Tên bàn', statusLabel: 'Trạng thái',
             noOrders: 'Chưa có đơn', noDishes: 'Chưa có món', noData: 'Chưa có dữ liệu', setDefault: 'Đặt mặc định',
@@ -1517,7 +1505,7 @@
             storesManage: 'จัดการร้านค้า', storeName: 'ชื่อร้านค้า', storeCode: 'รหัสร้านค้า', storeAddress: 'ที่อยู่ร้านค้า', editStore: 'แก้ไขร้านค้า', storeStatus: 'สถานะร้านค้า', storeActive: 'กำลังใช้งาน', storeDisabled: 'ปิดใช้งาน', storeNamePlaceholder: 'กรอกชื่อร้านค้า', storeCodePlaceholder: 'กรอกรหัสร้านค้า', storeAddressPlaceholder: 'กรอกที่อยู่ร้านค้า',
             addStore: 'เพิ่มร้านค้า', waitersManage: 'จัดการพนักงาน', waiterUsername: 'บัญชีผู้ใช้', editWaiter: 'แก้ไขพนักงาน', waiterStore: 'ร้านค้า', waiterPermission: 'สิทธิ์', permOrder: 'รับออเดอร์', permMarkItem: 'เสิร์ฟเมนู', permCompleteOrder: 'เสร็จสิ้น', permOrderDesc: 'รับออเดอร์ลูกค้า', permMarkItemDesc: 'ทำเครื่องหมายเมนูเสิร์ฟแล้ว', permCompleteDesc: 'ชำระและเสร็จสิ้น', waiterUsernamePlaceholder: 'กรอกชื่อผู้ใช้', waiterPasswordPlaceholder: 'กรอกรหัสผ่านใหม่', waiterNamePlaceholder: 'กรอกชื่อแสดง',
             waiterPassword: 'รหัสผ่าน', waiterDisplayName: 'ชื่อที่แสดง', addWaiter: 'เพิ่มพนักงาน',
-            nameEn: 'ชื่อภาษาอังกฤษ', descEn: 'คำอธิบายภาษาอังกฤษ', logsTitle: 'บันทึก', dishManagement: 'จัดการเมนู', comboManagement: 'จัดการคอมโบ', loginLogs: 'บันทึกการเข้าสู่ระบบ', auditLogs: 'บันทึกการดำเนินการ', menuCategory: 'หมวดหมู่', time: 'เวลา',
+            nameEn: 'ชื่อภาษาอังกฤษ', descEn: 'คำอธิบายภาษาอังกฤษ', logsTitle: 'บันทึก', dishManagement: 'จัดการเมนู', loginLogs: 'บันทึกการเข้าสู่ระบบ', auditLogs: 'บันทึกการดำเนินการ', menuCategory: 'หมวดหมู่', time: 'เวลา',
             result: 'ผลลัพธ์', loginSuccess: 'เข้าสู่ระบบสำเร็จ', loginFailed: 'เข้าสู่ระบบล้มเหลว',
             dishCategoryManage: 'หมวดหมู่อาหาร', allCategories: 'ทุกหมวดหมู่', defaultSort: 'เรียงลำดับเริ่มต้น', nameAsc: 'ชื่อ A-Z', nameDesc: 'ชื่อ Z-A', priceAsc: 'ราคาต่ำ-สูง', priceDesc: 'ราคาสูง-ต่ำ', newCategory: 'ชื่อหมวดหมู่ใหม่', addCategory: 'เพิ่มหมวดหมู่',
             dishName: 'ชื่อเมนู', price: 'ราคา', icon: 'ไอคอน (เช่น 🍖)',
@@ -1561,7 +1549,7 @@
                 exportSalesCsv: 'ส่งออกยอดขาย CSV',
                 exportMenuCsv: 'ส่งออกเมนู CSV',
  passwordTitle: 'รหัสผ่านผู้ดูแล', oldPassword: 'รหัสผ่านเก่า',
-            newPassword: 'รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)', changePassword: 'เปลี่ยนรหัสผ่าน', adminManageTitle: 'จัดการผู้ดูแล', adminManageDesc: 'จัดการบัญชีผู้ดูแลร้านค้า รองรับเพิ่ม แก้ไข ลบ', enterAdminManage: 'เข้าจัดการผู้ดูแล', adminUsername: 'ชื่อผู้ใช้', adminPassword: 'รหัสผ่าน (อย่างน้อย 6 ตัว)', adminDisplayName: 'ชื่อที่แสดง', addAdminBtn: 'เพิ่มผู้ดูแล', currentAdmin: '(ปัจจุบัน)', adminActive: 'ใช้งาน', adminInactive: 'ปิดใช้งาน', lastLogin: 'เข้าสู่ระบบล่าสุด:', neverLogin: 'ไม่เคย', editAdminBtn: 'แก้ไข', deleteAdminBtn: 'ลบ', noAdmins: 'ยังไม่มีผู้ดูแล', fillAllFields: 'กรุณากรอกข้อมูลให้ครบ', passwordMin6: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', adminAdded: 'เพิ่มผู้ดูแลสำเร็จ', adminUpdated: 'อัปเดตสำเร็จ', adminDeleted: 'ลบสำเร็จ', deleteAdminConfirm: 'ลบผู้ดูแล {username}? ไม่สามารถกู้คืนได้', editDisplayName: 'ชื่อที่แสดง:', editNewPassword: 'รหัสผ่านใหม่ (เว้นว่างเพื่อเก็บ):', editActiveConfirm: 'เปิดใช้งานบัญชีนี้?\nOK=เปิดใช้งาน, Cancel=ปิดใช้งาน', comboName: 'ชื่อคอมโบ', comboEmoji: 'ไอคอน', comboPrice: 'ราคา', comboDesc: 'คำอธิบาย', addCombo: 'เพิ่มคอมโบ', onSale: 'กำลังขาย', offSale: 'หยุดขาย', sales: 'ยอดขาย', noCombos: 'ยังไม่มีคอมโบ', noAuditLogs: 'ยังไม่มีบันทึกการดำเนินการ', loadFailed: 'โหลดล้มเหลว', auditAction: { create_combo: 'สร้างคอมโบ', update_combo: 'อัปเดตคอมโบ', delete_combo: 'ลบคอมโบ', create_admin: 'สร้างผู้ดูแล', update_admin: 'อัปเดตผู้ดูแล', delete_admin: 'ลบผู้ดูแล', create_menu: 'สร้างเมนู', update_menu: 'อัปเดตเมนู', delete_menu: 'ลบเมนู', create_category: 'สร้างหมวดหมู่', update_category: 'อัปเดตหมวดหมู่', delete_category: 'ลบหมวดหมู่', create_table: 'สร้างโต๊ะ', update_table: 'อัปเดตโต๊ะ', delete_table: 'ลบโต๊ะ', create_store: 'สร้างร้าน', update_store: 'อัปเดตร้าน', delete_store: 'ลบร้าน', create_waiter: 'สร้างพนักงาน', update_waiter: 'อัปเดตพนักงาน', delete_waiter: 'ลบพนักงาน', create_currency: 'สร้างสกุลเงิน', update_currency: 'อัปเดตสกุลเงิน', delete_currency: 'ลบสกุลเงิน', settle_order: 'ชำระเงิน', cancel_order: 'ยกเลิกออเดอร์', reset_data: 'รีเซ็ตข้อมูล', change_password: 'เปลี่ยนรหัสผ่าน', login: 'เข้าสู่ระบบ', logout: 'ออกจากระบบ' }, tableField: 'โต๊ะ',
+            newPassword: 'รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)', changePassword: 'เปลี่ยนรหัสผ่าน', adminManageTitle: 'จัดการผู้ดูแล', adminManageDesc: 'จัดการบัญชีผู้ดูแลร้านค้า รองรับเพิ่ม แก้ไข ลบ', enterAdminManage: 'เข้าจัดการผู้ดูแล', adminUsername: 'ชื่อผู้ใช้', adminPassword: 'รหัสผ่าน (อย่างน้อย 6 ตัว)', adminDisplayName: 'ชื่อที่แสดง', addAdminBtn: 'เพิ่มผู้ดูแล', currentAdmin: '(ปัจจุบัน)', adminActive: 'ใช้งาน', adminInactive: 'ปิดใช้งาน', lastLogin: 'เข้าสู่ระบบล่าสุด:', neverLogin: 'ไม่เคย', editAdminBtn: 'แก้ไข', deleteAdminBtn: 'ลบ', noAdmins: 'ยังไม่มีผู้ดูแล', fillAllFields: 'กรุณากรอกข้อมูลให้ครบ', passwordMin6: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', adminAdded: 'เพิ่มผู้ดูแลสำเร็จ', adminUpdated: 'อัปเดตสำเร็จ', adminDeleted: 'ลบสำเร็จ', deleteAdminConfirm: 'ลบผู้ดูแล {username}? ไม่สามารถกู้คืนได้', editDisplayName: 'ชื่อที่แสดง:', editNewPassword: 'รหัสผ่านใหม่ (เว้นว่างเพื่อเก็บ):', editActiveConfirm: 'เปิดใช้งานบัญชีนี้?\nOK=เปิดใช้งาน, Cancel=ปิดใช้งาน', noAuditLogs: 'ยังไม่มีบันทึกการดำเนินการ', loadFailed: 'โหลดล้มเหลว', auditAction: { create_admin: 'สร้างผู้ดูแล', update_admin: 'อัปเดตผู้ดูแล', delete_admin: 'ลบผู้ดูแล', create_menu: 'สร้างเมนู', update_menu: 'อัปเดตเมนู', delete_menu: 'ลบเมนู', create_category: 'สร้างหมวดหมู่', update_category: 'อัปเดตหมวดหมู่', delete_category: 'ลบหมวดหมู่', create_table: 'สร้างโต๊ะ', update_table: 'อัปเดตโต๊ะ', delete_table: 'ลบโต๊ะ', create_store: 'สร้างร้าน', update_store: 'อัปเดตร้าน', delete_store: 'ลบร้าน', create_waiter: 'สร้างพนักงาน', update_waiter: 'อัปเดตพนักงาน', delete_waiter: 'ลบพนักงาน', create_currency: 'สร้างสกุลเงิน', update_currency: 'อัปเดตสกุลเงิน', delete_currency: 'ลบสกุลเงิน', settle_order: 'ชำระเงิน', cancel_order: 'ยกเลิกออเดอร์', reset_data: 'รีเซ็ตข้อมูล', change_password: 'เปลี่ยนรหัสผ่าน', login: 'เข้าสู่ระบบ', logout: 'ออกจากระบบ' }, tableField: 'โต๊ะ',
             dishList: 'รายการเมนู', addDishLine: '➕ เพิ่มเมนู', saveOrder: 'บันทึกออเดอร์',
             editTableTitle: 'แก้ไขโต๊ะ', tableNameLabel: 'ชื่อโต๊ะ', statusLabel: 'สถานะ',
             noOrders: 'ไม่มีออเดอร์', noDishes: 'ไม่มีเมนู', noData: 'ไม่มีข้อมูล', setDefault: 'ตั้งเป็นค่าเริ่มต้น',
@@ -1593,7 +1581,7 @@
             storesManage: 'គ្រប់គ្រងហាង', storeName: 'ឈ្មោះហាង', storeCode: 'កូដហាង', storeAddress: 'អាសយដ្ឋានហាង', editStore: 'កែសម្រួលហាង', storeStatus: 'ស្ថានភាពហាង', storeActive: 'កំពុងដំណើរការ', storeDisabled: 'បានបិទ', storeNamePlaceholder: 'បញ្ចូលឈ្មោះហាង', storeCodePlaceholder: 'បញ្ចូលកូដហាង', storeAddressPlaceholder: 'បញ្ចូលអាសយដ្ឋានហាង',
             addStore: 'បន្ថែមហាង', waitersManage: 'គ្រប់គ្រងបុគ្គលិក', waiterUsername: 'គណនី', editWaiter: 'កែសម្រួលបុគ្គលិក', waiterStore: 'ហាង', waiterPermission: 'សិទ្ធិ', permOrder: 'ទទួលការបញ្ជាទិញ', permMarkItem: 'បម្រើមុខម្ហូប', permCompleteOrder: 'បញ្ចប់', permOrderDesc: 'ទទួលការបញ្ជាទិញអតិថិជន', permMarkItemDesc: 'សម្គាល់មុខម្ហូបបានបម្រើ', permCompleteDesc: 'ទូទាត់និងបញ្ចប់', waiterUsernamePlaceholder: 'បញ្ចូលគណនី', waiterPasswordPlaceholder: 'បញ្ចូលពាក្យសម្ងាត់ថ្មី', waiterNamePlaceholder: 'បញ្ចូលឈ្មោះបង្ហាញ',
             waiterPassword: 'ពាក្យសម្ងាត់', waiterDisplayName: 'ឈ្មោះបង្ហាញ', addWaiter: 'បន្ថែមបុគ្គលិក',
-            nameEn: 'ឈ្មោះជាភាសាអង់គ្លេស', descEn: 'ការពិពណ៌នាជាភាសាអង់គ្លេស', logsTitle: 'កំណត់ហេតុ', dishManagement: 'គ្រប់គ្រងមុខម្ហូប', comboManagement: 'គ្រប់គ្រងកុំបូ', loginLogs: 'កំណត់ហេតុចូល', auditLogs: 'កំណត់ហេតុប្រតិបត្តិការ', menuCategory: 'ប្រភេទម្ហូប', time: 'ពេលវេលា',
+            nameEn: 'ឈ្មោះជាភាសាអង់គ្លេស', descEn: 'ការពិពណ៌នាជាភាសាអង់គ្លេស', logsTitle: 'កំណត់ហេតុ', dishManagement: 'គ្រប់គ្រងមុខម្ហូប', loginLogs: 'កំណត់ហេតុចូល', auditLogs: 'កំណត់ហេតុប្រតិបត្តិការ', menuCategory: 'ប្រភេទម្ហូប', time: 'ពេលវេលា',
             result: 'លទ្ធផល', loginSuccess: 'ចូលបានជោគជ័យ', loginFailed: 'ចូលបរាជ័យ', qr: 'QR Code',
             dishCategoryManage: 'ប្រភេទម្ហូប', allCategories: 'គ្រប់ប្រភេទ', defaultSort: 'តម្រៀបលំនាំដើម', nameAsc: 'ឈ្មោះ A-Z', nameDesc: 'ឈ្មោះ Z-A', priceAsc: 'តម្លៃទាប-ខ្ពស់', priceDesc: 'តម្លៃខ្ពស់-ទាប', newCategory: 'ឈ្មោះប្រភេទថ្មី', addCategory: 'បន្ថែមប្រភេទ',
             dishName: 'ឈ្មោះម្ហូប', price: 'តម្លៃ',
@@ -1638,7 +1626,7 @@
                 exportSalesCsv: 'នាំចេញយោបល់ CSV',
                 exportMenuCsv: 'នាំចេញមីនុយ CSV',
                         passwordTitle: 'ពាក្យសម្ងាត់អ្នកគ្រប់គ្រង', oldPassword: 'ពាក្យសម្ងាត់ចាស់',
-            newPassword: 'ពាក្យសម្ងាត់ថ្មី (យ៉ាងហោច ៦ តួ)', changePassword: 'ប្តូរពាក្យសម្ងាត់', adminManageTitle: 'គ្រប់គ្រងអ្នកគ្រប់គ្រង', adminManageDesc: 'គ្រប់គ្រងគណនីអ្នកគ្រប់គ្រងមេគង្គ គាំទ្របន្ថែម កែសម្រួល លុប', enterAdminManage: 'ចូលគ្រប់គ្រងអ្នកគ្រប់គ្រង', adminUsername: 'ឈ្មោះគណនី', adminPassword: 'ពាក្យសម្ងាត់ (យ៉ាងតិច 6 តួ)', adminDisplayName: 'ឈ្មោះបង្ហាញ', addAdminBtn: 'បន្ថែមអ្នកគ្រប់គ្រង', currentAdmin: '(បច្ចុប្បន្ន)', adminActive: 'កំពុងដំណើរការ', adminInactive: 'បានបិទ', lastLogin: 'ការចូលចុងក្រោយ:', neverLogin: 'មិនដែល', editAdminBtn: 'កែសម្រួល', deleteAdminBtn: 'លុប', noAdmins: 'មិនទាន់មានអ្នកគ្រប់គ្រង', fillAllFields: 'សូមបំពេញព័ត៌មានឱ្យបានគ្រប់', passwordMin6: 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច 6 តួអក្សរ', adminAdded: 'បន្ថែមអ្នកគ្រប់គ្រងជោគជ័យ', adminUpdated: 'ធ្វើបច្ចុប្បន្នភាពជោគជ័យ', adminDeleted: 'លុបជោគជ័យ', deleteAdminConfirm: 'លុបអ្នកគ្រប់គ្រង {username}? មិនអាចត្រឡប់វិញបាន', editDisplayName: 'ឈ្មោះបង្ហាញ:', editNewPassword: 'ពាក្យសម្ងាត់ថ្មី (ទុកចន្លោះដើម្បីរក្សា):', editActiveConfirm: 'បើកដំណើរការគណនីនេះ?\nOK=បើក, Cancel=បិទ', comboName: 'ឈ្មោះកុំបូ', comboEmoji: 'រូបតំណាង', comboPrice: 'តម្លៃ', comboDesc: 'ការពិពណ៌នា', addCombo: 'បន្ថែមកុំបូ', onSale: 'កំពុងលក់', offSale: 'ឈប់លក់', sales: 'ចំនួនលក់', noCombos: 'មិនទាន់មានកុំបូ', noAuditLogs: 'មិនទាន់មានកំណត់ហេតុប្រតិបត្តិការ', loadFailed: 'បានបរាជ័យក្នុងការផ្ទុក', auditAction: { create_combo: 'បង្កើតកុំបូ', update_combo: 'ធ្វើបច្ចុប្បន្នភាពកុំបូ', delete_combo: 'លុបកុំបូ', create_admin: 'បង្កើតអ្នកគ្រប់គ្រង', update_admin: 'ធ្វើបច្ចុប្បន្នភាពអ្នកគ្រប់គ្រង', delete_admin: 'លុបអ្នកគ្រប់គ្រង', create_menu: 'បង្កើតមុខម្ហូប', update_menu: 'ធ្វើបច្ចុប្បន្នភាពមុខម្ហូប', delete_menu: 'លុបមុខម្ហូប', create_category: 'បង្កើតប្រភេទ', update_category: 'ធ្វើបច្ចុប្បន្នភាពប្រភេទ', delete_category: 'លុបប្រភេទ', create_table: 'បង្កើតតុ', update_table: 'ធ្វើបច្ចុប្បន្នភាពតុ', delete_table: 'លុបតុ', create_store: 'បង្កើតហាង', update_store: 'ធ្វើបច្ចុប្បន្នភាពហាង', delete_store: 'លុបហាង', create_waiter: 'បង្កើតបុគ្គលិក', update_waiter: 'ធ្វើបច្ចុប្បន្នភាពបុគ្គលិក', delete_waiter: 'លុបបុគ្គលិក', create_currency: 'បង្កើតរូបិយប័ណ្ណ', update_currency: 'ធ្វើបច្ចុប្បន្នភាពរូបិយប័ណ្ណ', delete_currency: 'លុបរូបិយប័ណ្ណ', settle_order: 'បង់ប្រាក់', cancel_order: 'បោះបង់ការបញ្ជាទិញ', reset_data: 'កំណត់ទិន្នន័យឡើងវិញ', change_password: 'ប្តូរពាក្យសម្ងាត់', login: 'ចូល', logout: 'ចាកចេញ' }, tableField: 'តុ',
+            newPassword: 'ពាក្យសម្ងាត់ថ្មី (យ៉ាងហោច ៦ តួ)', changePassword: 'ប្តូរពាក្យសម្ងាត់', adminManageTitle: 'គ្រប់គ្រងអ្នកគ្រប់គ្រង', adminManageDesc: 'គ្រប់គ្រងគណនីអ្នកគ្រប់គ្រងមេគង្គ គាំទ្របន្ថែម កែសម្រួល លុប', enterAdminManage: 'ចូលគ្រប់គ្រងអ្នកគ្រប់គ្រង', adminUsername: 'ឈ្មោះគណនី', adminPassword: 'ពាក្យសម្ងាត់ (យ៉ាងតិច 6 តួ)', adminDisplayName: 'ឈ្មោះបង្ហាញ', addAdminBtn: 'បន្ថែមអ្នកគ្រប់គ្រង', currentAdmin: '(បច្ចុប្បន្ន)', adminActive: 'កំពុងដំណើរការ', adminInactive: 'បានបិទ', lastLogin: 'ការចូលចុងក្រោយ:', neverLogin: 'មិនដែល', editAdminBtn: 'កែសម្រួល', deleteAdminBtn: 'លុប', noAdmins: 'មិនទាន់មានអ្នកគ្រប់គ្រង', fillAllFields: 'សូមបំពេញព័ត៌មានឱ្យបានគ្រប់', passwordMin6: 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច 6 តួអក្សរ', adminAdded: 'បន្ថែមអ្នកគ្រប់គ្រងជោគជ័យ', adminUpdated: 'ធ្វើបច្ចុប្បន្នភាពជោគជ័យ', adminDeleted: 'លុបជោគជ័យ', deleteAdminConfirm: 'លុបអ្នកគ្រប់គ្រង {username}? មិនអាចត្រឡប់វិញបាន', editDisplayName: 'ឈ្មោះបង្ហាញ:', editNewPassword: 'ពាក្យសម្ងាត់ថ្មី (ទុកចន្លោះដើម្បីរក្សា):', editActiveConfirm: 'បើកដំណើរការគណនីនេះ?\nOK=បើក, Cancel=បិទ', noAuditLogs: 'មិនទាន់មានកំណត់ហេតុប្រតិបត្តិការ', loadFailed: 'បានបរាជ័យក្នុងការផ្ទុក', auditAction: { create_admin: 'បង្កើតអ្នកគ្រប់គ្រង', update_admin: 'ធ្វើបច្ចុប្បន្នភាពអ្នកគ្រប់គ្រង', delete_admin: 'លុបអ្នកគ្រប់គ្រង', create_menu: 'បង្កើតមុខម្ហូប', update_menu: 'ធ្វើបច្ចុប្បន្នភាពមុខម្ហូប', delete_menu: 'លុបមុខម្ហូប', create_category: 'បង្កើតប្រភេទ', update_category: 'ធ្វើបច្ចុប្បន្នភាពប្រភេទ', delete_category: 'លុបប្រភេទ', create_table: 'បង្កើតតុ', update_table: 'ធ្វើបច្ចុប្បន្នភាពតុ', delete_table: 'លុបតុ', create_store: 'បង្កើតហាង', update_store: 'ធ្វើបច្ចុប្បន្នភាពហាង', delete_store: 'លុបហាង', create_waiter: 'បង្កើតបុគ្គលិក', update_waiter: 'ធ្វើបច្ចុប្បន្នភាពបុគ្គលិក', delete_waiter: 'លុបបុគ្គលិក', create_currency: 'បង្កើតរូបិយប័ណ្ណ', update_currency: 'ធ្វើបច្ចុប្បន្នភាពរូបិយប័ណ្ណ', delete_currency: 'លុបរូបិយប័ណ្ណ', settle_order: 'បង់ប្រាក់', cancel_order: 'បោះបង់ការបញ្ជាទិញ', reset_data: 'កំណត់ទិន្នន័យឡើងវិញ', change_password: 'ប្តូរពាក្យសម្ងាត់', login: 'ចូល', logout: 'ចាកចេញ' }, tableField: 'តុ',
             dishList: 'បញ្ជីម្ហូប', addDishLine: '➕ បន្ថែមម្ហូប', saveOrder: 'រក្សាទុកការបញ្ជាទិញ',
             editTableTitle: 'កែតុ', tableNameLabel: 'ឈ្មោះតុ', statusLabel: 'ស្ថានភាព',
             noOrders: 'គ្មានការបញ្ជាទិញ', noDishes: 'គ្មានម្ហូប', noData: 'គ្មានទិន្នន័យ', setDefault: 'កំណត់ជាលំនាំដើម',
@@ -1685,6 +1673,8 @@
         let menusCache = [];
         let tablesCache = [];
         let ordersCache = [];
+        let printedOrders = new Set();
+        let autoPrintPollTimer = null;
         let currenciesCache = [];
         let categoriesCache = [];
         let editingMenuId = null;
@@ -2053,70 +2043,14 @@
             }, tAdmin('deleteAdminBtn'));
         }
 
-        // ===== 套餐管理 =====
-        async function loadCombos() {
-            try {
-                const rows = await api('/admin/combos');
-                $('#comboList').innerHTML = rows.length ?
-                    rows.map(c => `<div class="admin-card">
-                    <div class="info">
-                      <div class="title"><span class="combo-emoji">${esc(c.emoji || '🍱')}</span><span class="combo-name">${esc(c.name)}</span><span class="price">$${Number(c.price).toFixed(2)}</span></div>
-                      <div class="sub">${esc(c.description || '')} · ${c.active?'<span style="color:#43e97b">'+tAdmin('onSale')+'</span>':'<span style="color:#f5576c">'+tAdmin('offSale')+'</span>'} · ${tAdmin('sales')}: ${c.sales_count || 0}</div>
-                    </div>
-                    <div class="actions">
-                      <button class="edit-btn" onclick="editCombo(${c.id}, '${esc(c.name)}')">✏️ ${tAdmin('edit')}</button>
-                      <button class="danger" onclick="deleteCombo(${c.id}, '${esc(c.name)}')">🗑️ ${tAdmin('delete')}</button>
-                    </div>
-                  </div>`).join('') :
-                    `<div class="empty-hint">${tAdmin('noCombos')}</div>`;
-            } catch (e) {
-                $('#comboList').innerHTML = `<div class="empty-hint">加载失败</div>`;
-            }
-        }
 
         function switchMenuTab(tab) {
             $('#menuTabDish').classList.toggle('active', tab === 'dish');
-            $('#menuTabCombo').classList.toggle('active', tab === 'combo');
             $('#dishPanel').style.display = tab === 'dish' ? 'block' : 'none';
-            $('#comboPanel').style.display = tab === 'combo' ? 'block' : 'none';
-            if (tab === 'combo') loadCombos();
         }
 
-        async function addCombo() {
-            const name = $('#newComboName').value.trim();
-            const emoji = $('#newComboEmoji').value.trim() || '🍱';
-            const price = parseFloat($('#newComboPrice').value);
-            const description = $('#newComboDesc').value.trim();
-            if (!name || isNaN(price)) { toast('请填写套餐名称和价格'); return; }
-            try {
-                await api('/admin/combos', { method: 'POST', body: { name, emoji, price, description, active: 1, items: [] } });
-                $('#newComboName').value = '';
-                $('#newComboPrice').value = '';
-                $('#newComboDesc').value = '';
-                toast('套餐添加成功');
-                loadCombos();
-            } catch (e) { toast('❌ ' + e.message); }
-        }
 
-        function editCombo(id, name) {
-            // 只编辑套餐名称
-            showPromptModal('请输入套餐名称', function(newName) {
-                if (newName === null || newName === undefined || newName === '') return;
-                api('/admin/combos/' + id, { method: 'PUT', body: { name: newName } }).then(() => {
-                    toast('更新成功');
-                    loadCombos();
-                }).catch(e => toast('❌ ' + e.message));
-            }, '编辑套餐', name);
-        }
 
-        function deleteCombo(id, name) {
-            showConfirm('确定删除套餐 ' + name + '？此操作不可恢复', function() {
-                api('/admin/combos/' + id, { method: 'DELETE' }).then(() => {
-                    toast('删除成功');
-                    loadCombos();
-                }).catch(e => toast('❌ ' + e.message));
-            }, '删除确认');
-        }
 
         // ===== 操作日志 =====
         // 翻译操作日志的action
@@ -2814,7 +2748,7 @@
                 };
                 const storeName = q.storeName || i18n.brand;
                 const w = window.open('', '_blank');
-                const html = `<!DOCTYPE html>
+                const html = `
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -3597,7 +3531,6 @@
             $('#adminLang').value = adminLang;
             // 更新标签按钮文字
             const dishText = $('#menuTabDishText'); if (dishText) dishText.textContent = tAdmin('dishManagement');
-            const comboText = $('#menuTabComboText'); if (comboText) comboText.textContent = tAdmin('comboManagement');
             const loginLogText = $('#logTabLoginText'); if (loginLogText) loginLogText.textContent = tAdmin('loginLogs');
             const auditLogText = $('#logTabAuditText'); if (auditLogText) auditLogText.textContent = tAdmin('auditLogs');
             const categoryBtnText = $('#categoryBtnText'); if (categoryBtnText) categoryBtnText.textContent = tAdmin('menuCategory');
@@ -3754,12 +3687,6 @@
             const addAdminBtnText = $('#addAdminBtnText'); if (addAdminBtnText) addAdminBtnText.textContent = tAdmin('addAdminBtn');
             const adminsPanelTitle = $('#adminsPanelTitle'); if (adminsPanelTitle) adminsPanelTitle.textContent = '👤 ' + tAdmin('adminManageTitle');
             if ($('#module-admins') && $('#module-admins').classList.contains('active')) loadAdmins();
-            // 套餐管理
-            const newComboName = $('#newComboName'); if (newComboName) newComboName.placeholder = tAdmin('comboName');
-            const newComboEmoji = $('#newComboEmoji'); if (newComboEmoji) newComboEmoji.placeholder = tAdmin('comboEmoji');
-            const newComboPrice = $('#newComboPrice'); if (newComboPrice) newComboPrice.placeholder = tAdmin('comboPrice');
-            const newComboDesc = $('#newComboDesc'); if (newComboDesc) newComboDesc.placeholder = tAdmin('comboDesc');
-            const addComboBtnText = $('#addComboBtnText'); if (addComboBtnText) addComboBtnText.textContent = tAdmin('addCombo');
             $('#changePasswordCardTitle').textContent = '🔐 ' + tAdmin('changePassword');
             $('#oldPasswordLabel').textContent = tAdmin('oldPassword');
             $('#newPasswordLabel').textContent = tAdmin('newPasswordShort');
@@ -3859,11 +3786,6 @@
             localStorage.setItem('adminLang', adminLang);
             if (adminLang !== 'zh') await loadAdminLanguage(adminLang);
             applyAdminLanguage();
-            // 如果当前在套餐管理标签，重新加载列表以应用新语言
-            const comboPanel = document.getElementById('comboPanel');
-            if (comboPanel && comboPanel.style.display !== 'none') {
-                loadCombos();
-            }
             // 如果当前在操作日志标签，重新加载以应用新语言
             const auditLogsPanel = document.getElementById('auditLogsPanel');
             if (auditLogsPanel && auditLogsPanel.style.display !== 'none') {
@@ -4289,6 +4211,64 @@
         // ================================================================
         //  打印机管理
         // ================================================================
+        function toggleAutoPrint() {
+            const enabled = document.getElementById('autoPrintToggle').checked;
+            localStorage.setItem('autoPrintEnabled', enabled ? '1' : '0');
+            toast(enabled ? (tAdmin('autoPrintEnabled') || '已开启自动打印') : (tAdmin('autoPrintDisabled') || '已关闭自动打印'));
+            if (enabled) {
+                startAutoPrintPoll();
+            } else {
+                stopAutoPrintPoll();
+            }
+        }
+        function startAutoPrintPoll() {
+            if (autoPrintPollTimer) return;
+            // 初始化已打印订单列表，避免启动时打印所有历史订单
+            if (ordersCache.length) {
+                ordersCache.forEach(o => printedOrders.add(o.id));
+            }
+            autoPrintPollTimer = setInterval(checkNewOrdersAndPrint, 15000);
+            console.log('🖨️ 自动打印轮询已启动');
+        }
+        function stopAutoPrintPoll() {
+            if (autoPrintPollTimer) {
+                clearInterval(autoPrintPollTimer);
+                autoPrintPollTimer = null;
+                console.log('🖨️ 自动打印轮询已停止');
+            }
+        }
+        async function checkNewOrdersAndPrint() {
+            try {
+                const orders = await api('/orders');
+                const newOrders = orders.filter(o => o.status === 'pending' && !printedOrders.has(o.id));
+                for (const order of newOrders) {
+                    printedOrders.add(order.id);
+                    console.log('🖨️ 自动打印新订单 #' + order.id);
+                    try {
+                        const data = await api('/orders/' + order.id + '/print', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({})
+                        });
+                        if (data.printData) {
+                            printViaBrowser(data.printData, order.id);
+                        }
+                    } catch (e) {
+                        console.error('自动打印失败:', e);
+                    }
+                }
+            } catch (e) {
+                console.error('检查新订单失败:', e);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const saved = localStorage.getItem('autoPrintEnabled');
+            const toggle = document.getElementById('autoPrintToggle');
+            if (toggle) toggle.checked = saved === '1';
+            if (saved === '1') {
+                setTimeout(startAutoPrintPoll, 3000);
+            }
+        });
         async function loadPrinters() {
             try {
                 const data = await api('/admin/printers');
@@ -4436,7 +4416,7 @@
                     .big { font-size: 16px; font-weight: bold; }
                     .separator { border-top: 1px dashed #000; margin: 8px 0; }
                     .row { display: flex; justify-content: space-between; }
-</style>    <link rel="stylesheet" href="assets/admin.css">
+</style>
 </head>
                 <body onload="window.print();setTimeout(()=>window.close(),500);">
                 <div class="center big">${tAdmin('brandName')}</div>

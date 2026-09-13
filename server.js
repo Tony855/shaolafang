@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 
 // 全球通用日期时间格式 YYYY-MM-DD HH:mm:ss
 function formatGlobalDateTime(date) {
@@ -506,21 +506,6 @@ async function initDatabase() {
   }
 
   // 创建表
-  await runAsync(`
-    CREATE TABLE IF NOT EXISTS combos (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      merchant_id INT DEFAULT 1,
-      store_id INT DEFAULT 1,
-      name VARCHAR(100) NOT NULL,
-      emoji VARCHAR(20) DEFAULT '🍱',
-      price DECIMAL(10,2) NOT NULL DEFAULT 0,
-      description TEXT,
-      items JSON,
-      active TINYINT DEFAULT 1,
-      sales_count INT DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
-
   await runAsync(`
     CREATE TABLE IF NOT EXISTS menus (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -3142,61 +3127,6 @@ app.delete('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
     if (!admin) return res.status(404).json({ error: '管理员不存在' });
     await runAsync('DELETE FROM merchant_admins WHERE id=?', [id]);
     await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_admin', 'merchant_admin', id, `删除管理员: ${admin.username}`, req.ip);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ----- 套餐管理 -----
-app.get('/api/admin/combos', requireAdminKey, async (req, res) => {
-  try {
-    const rows = await allAsync('SELECT * FROM combos WHERE merchant_id=? ORDER BY id DESC', [req.merchantId]);
-    res.json(rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/admin/combos', requireAdminKey, async (req, res) => {
-  try {
-    const { name, emoji, price, description, items, active } = req.body || {};
-    if (!name || !price) return res.status(400).json({ error: '请填写套餐名称和价格' });
-    const result = await runAsync(
-      'INSERT INTO combos (merchant_id, store_id, name, emoji, price, description, items, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.merchantId, req.storeId, name, emoji || '🍱', price, description || '', JSON.stringify(items || []), active ? 1 : 0]
-    );
-    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_combo', 'combo', result.lastID, `创建套餐: ${name}`, req.ip);
-    res.status(201).json(await getAsync('SELECT * FROM combos WHERE id=?', [result.lastID]));
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/admin/combos/:id', requireAdminKey, async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    const combo = await getAsync('SELECT * FROM combos WHERE id=? AND merchant_id=?', [id, req.merchantId]);
-    if (!combo) return res.status(404).json({ error: '套餐不存在' });
-    const { name, emoji, price, description, items, active } = req.body || {};
-    const fields = [];
-    const values = [];
-    if (name !== undefined) { fields.push('name=?'); values.push(name); }
-    if (emoji !== undefined) { fields.push('emoji=?'); values.push(emoji); }
-    if (price !== undefined) { fields.push('price=?'); values.push(price); }
-    if (description !== undefined) { fields.push('description=?'); values.push(description); }
-    if (items !== undefined) { fields.push('items=?'); values.push(JSON.stringify(items)); }
-    if (active !== undefined) { fields.push('active=?'); values.push(active ? 1 : 0); }
-    if (fields.length) {
-      values.push(id);
-      await runAsync(`UPDATE combos SET ${fields.join(',')} WHERE id=?`, values);
-    }
-    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_combo', 'combo', id, `更新套餐: ${combo.name}`, req.ip);
-    res.json(await getAsync('SELECT * FROM combos WHERE id=?', [id]));
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/admin/combos/:id', requireAdminKey, async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    const combo = await getAsync('SELECT * FROM combos WHERE id=? AND merchant_id=?', [id, req.merchantId]);
-    if (!combo) return res.status(404).json({ error: '套餐不存在' });
-    await runAsync('DELETE FROM combos WHERE id=?', [id]);
-    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_combo', 'combo', id, `删除套餐: ${combo.name}`, req.ip);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

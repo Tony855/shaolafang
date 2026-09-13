@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    FoodFlow Ordering System - Multi-language Translation Table
    唯一翻译源，所有页面共享。支持中文/英文/越南文/泰文/高棉文
    菜单数据从数据库加载，此处仅翻译界面文本和分类名
@@ -1005,6 +1005,9 @@ const LANGUAGES = {
     menuEmpty: 'Chưa có món',
     selectTable: 'Vui lòng chọn bàn',
     callWaiter: 'Gọi nhân viên',
+    confirmCallWaiter: 'Xác nhận gọi nhân viên?',
+    confirmCall: 'Xác nhận gọi',
+    callWaiterSent: 'Đã gọi nhân viên, vui lòng chờ',
     urgeOrder: 'Nhắc nhở',
     noCalls: 'Chưa có cuộc gọi',
     noUrges: 'Chưa có nhắc nhở',
@@ -1436,6 +1439,9 @@ const LANGUAGES = {
     menuEmpty: 'ไม่มีเมนู',
     selectTable: 'กรุณาเลือกโต๊ะ',
     callWaiter: 'เรียกพนักงาน',
+    confirmCallWaiter: 'ยืนยันการเรียกพนักงาน?',
+    confirmCall: 'ยืนยันการเรียก',
+    callWaiterSent: 'ได้เรียกพนักงานแล้ว กรุณารอสักครู่',
     urgeOrder: 'เร่งอาหาร',
     noCalls: 'ไม่มีการเรียก',
     noUrges: 'ไม่มีการเร่ง',
@@ -1867,6 +1873,9 @@ const LANGUAGES = {
     menuEmpty: 'គ្មានមុខម្ហូប',
     selectTable: 'សូមជ្រើសតុ',
     callWaiter: 'ហៅបុគ្គលិក',
+    confirmCallWaiter: 'បញ្ជាក់ការហៅបុគ្គលិក?',
+    confirmCall: 'បញ្ជាក់ការហៅ',
+    callWaiterSent: 'បានហៅបុគ្គលិករួចរាល់ សូមរង់ចាំ',
     urgeOrder: 'បញ្ជូនអោយលឿន',
     noCalls: 'គ្មានការហៅ',
     noUrges: 'គ្មានការបញ្ជូន',
