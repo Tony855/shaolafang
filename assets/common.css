@@ -111,6 +111,37 @@
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  /* 始终预留滚动条空间，避免某个页面/模块内容较多出现滚动条、
+     另一个内容较少不出现滚动条时，内容框到侧边栏的可用宽度
+     发生变化，看起来像"边距间隔不一致" */
+  scrollbar-gutter: stable;
+}
+
+/* ---------- 全局滚动条美化 ----------
+   之前没有自定义滚动条样式，不同系统/浏览器会各自套用原生滚动条
+   （宽度不同、是否带上下箭头也不同），这也是内容框边距时宽时窄的
+   常见原因。这里统一改成纤细、半透明的滚动条。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 120, 145, 0.4) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 145, 0.4);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 145, 0.6);
 }
 
 body {
