@@ -507,6 +507,21 @@ async function initDatabase() {
 
   // 创建表
   await runAsync(`
+    CREATE TABLE IF NOT EXISTS combos (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      merchant_id INT DEFAULT 1,
+      store_id INT DEFAULT 1,
+      name VARCHAR(100) NOT NULL,
+      emoji VARCHAR(20) DEFAULT '🍱',
+      price DECIMAL(10,2) NOT NULL DEFAULT 0,
+      description TEXT,
+      items JSON,
+      active TINYINT DEFAULT 1,
+      sales_count INT DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+  await runAsync(`
     CREATE TABLE IF NOT EXISTS menus (
       id INT PRIMARY KEY AUTO_INCREMENT,
       name VARCHAR(255) NOT NULL,
@@ -3071,6 +3086,132 @@ app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ----- 商户管理员管理 -----
+app.get('/api/admin/admins', requireAdminKey, async (req, res) => {
+  try {
+    const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/admins', requireAdminKey, async (req, res) => {
+  try {
+    const { username, password, display_name, active } = req.body || {};
+    if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写管理员资料' });
+    if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+    const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [String(username).trim()]);
+    if (exists) return res.status(400).json({ error: '用户名已存在' });
+    const result = await runAsync(
+      'INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name, active) VALUES (?, ?, ?, ?, ?)',
+      [req.merchantId, String(username).trim(), hashPassword(password), display_name, active ? 1 : 0]
+    );
+    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_admin', 'merchant_admin', result.lastID, `创建管理员: ${username}`, req.ip);
+    res.status(201).json(await getAsync('SELECT id, username, display_name, active, created_at FROM merchant_admins WHERE id=?', [result.lastID]));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { display_name, active, password } = req.body || {};
+    const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
+    if (!admin) return res.status(404).json({ error: '管理员不存在' });
+    if (id === req.adminId && active === 0) return res.status(400).json({ error: '不能禁用当前登录账号' });
+    const fields = [];
+    const values = [];
+    if (display_name !== undefined) { fields.push('display_name=?'); values.push(display_name); }
+    if (active !== undefined) { fields.push('active=?'); values.push(active ? 1 : 0); }
+    if (password) {
+      if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+      fields.push('password_hash=?'); values.push(hashPassword(password));
+    }
+    if (fields.length) {
+      values.push(id);
+      await runAsync(`UPDATE merchant_admins SET ${fields.join(',')} WHERE id=?`, values);
+    }
+    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_admin', 'merchant_admin', id, `更新管理员: ${admin.username}`, req.ip);
+    res.json(await getAsync('SELECT id, username, display_name, active, created_at FROM merchant_admins WHERE id=?', [id]));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (id === req.adminId) return res.status(400).json({ error: '不能删除当前登录账号' });
+    const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
+    if (!admin) return res.status(404).json({ error: '管理员不存在' });
+    await runAsync('DELETE FROM merchant_admins WHERE id=?', [id]);
+    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_admin', 'merchant_admin', id, `删除管理员: ${admin.username}`, req.ip);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 套餐管理 -----
+app.get('/api/admin/combos', requireAdminKey, async (req, res) => {
+  try {
+    const rows = await allAsync('SELECT * FROM combos WHERE merchant_id=? ORDER BY id DESC', [req.merchantId]);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/combos', requireAdminKey, async (req, res) => {
+  try {
+    const { name, emoji, price, description, items, active } = req.body || {};
+    if (!name || !price) return res.status(400).json({ error: '请填写套餐名称和价格' });
+    const result = await runAsync(
+      'INSERT INTO combos (merchant_id, store_id, name, emoji, price, description, items, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.merchantId, req.storeId, name, emoji || '🍱', price, description || '', JSON.stringify(items || []), active ? 1 : 0]
+    );
+    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_combo', 'combo', result.lastID, `创建套餐: ${name}`, req.ip);
+    res.status(201).json(await getAsync('SELECT * FROM combos WHERE id=?', [result.lastID]));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/admin/combos/:id', requireAdminKey, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const combo = await getAsync('SELECT * FROM combos WHERE id=? AND merchant_id=?', [id, req.merchantId]);
+    if (!combo) return res.status(404).json({ error: '套餐不存在' });
+    const { name, emoji, price, description, items, active } = req.body || {};
+    const fields = [];
+    const values = [];
+    if (name !== undefined) { fields.push('name=?'); values.push(name); }
+    if (emoji !== undefined) { fields.push('emoji=?'); values.push(emoji); }
+    if (price !== undefined) { fields.push('price=?'); values.push(price); }
+    if (description !== undefined) { fields.push('description=?'); values.push(description); }
+    if (items !== undefined) { fields.push('items=?'); values.push(JSON.stringify(items)); }
+    if (active !== undefined) { fields.push('active=?'); values.push(active ? 1 : 0); }
+    if (fields.length) {
+      values.push(id);
+      await runAsync(`UPDATE combos SET ${fields.join(',')} WHERE id=?`, values);
+    }
+    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_combo', 'combo', id, `更新套餐: ${combo.name}`, req.ip);
+    res.json(await getAsync('SELECT * FROM combos WHERE id=?', [id]));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/admin/combos/:id', requireAdminKey, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const combo = await getAsync('SELECT * FROM combos WHERE id=? AND merchant_id=?', [id, req.merchantId]);
+    if (!combo) return res.status(404).json({ error: '套餐不存在' });
+    await runAsync('DELETE FROM combos WHERE id=?', [id]);
+    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_combo', 'combo', id, `删除套餐: ${combo.name}`, req.ip);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 商户操作日志 -----
+app.get('/api/admin/audit-logs', requireAdminKey, async (req, res) => {
+  try {
+    const rows = await allAsync(
+      "SELECT id, actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at FROM audit_logs WHERE actor_type='merchant_admin' AND actor_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?) ORDER BY id DESC LIMIT 200",
+      [req.merchantId]
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ----- 管理员操作 -----
 app.post('/api/admin/change-password', requireAdminKey, async (req, res) => {
   try {
@@ -3096,7 +3237,7 @@ app.post('/api/admin/reset-data', requireAdminKey, async (req, res) => {
     if (!merchantId) return res.status(400).json({ error: '商户信息缺失' });
     // 验证当前商户管理员密码
     const admin = await getAsync('SELECT password_hash FROM merchant_admins WHERE id=?', [req.adminId]);
-    if (!admin || hashPassword(password) !== admin.password_hash) {
+    if (!admin || !verifyPassword(password, admin.password_hash)) {
       return res.status(401).json({ error: '密码错误，重置失败' });
     }
     // 只重置当前商户的订单相关数据

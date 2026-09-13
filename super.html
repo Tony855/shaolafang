@@ -271,10 +271,7 @@ select:focus {
       <span class="icon">🏪</span><span>门店总览</span>
     </div>
     <div class="nav-item" data-module="logs" onclick="closeSidebar();switchModule('logs')">
-      <span class="icon">📋</span><span>登录日志</span>
-    </div>
-    <div class="nav-item" data-module="audit" onclick="closeSidebar();switchModule('audit')">
-      <span class="icon">🔍</span><span>操作审计</span>
+      <span class="icon">📋</span><span id="navLogsText">日志</span>
     </div>
     <div class="nav-item" data-module="settings" onclick="closeSidebar();switchModule('settings')">
       <span class="icon">⚙️</span><span>系统设置</span>
@@ -363,30 +360,51 @@ select:focus {
       </div>
     </div>
 
-    <!-- 登录日志 -->
+    <!-- 日志（登录日志+操作审计） -->
     <div class="panel" id="panel-logs">
       <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>商户登录日志</span>
-        <button class="btn-secondary" onclick="loadLoginLogs()" style="padding:8px 16px;font-size:13px;">🔄 刷新</button>
+        <span id="logsPanelTitle">📋 日志</span>
+        <button onclick="refreshCurrentLog()" style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;transition:all .2s;box-shadow:0 2px 8px rgba(102,126,234,.3);" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(102,126,234,.4)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(102,126,234,.3)'">🔄 刷新</button>
       </div>
-      <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;">
-        <select id="logFilterType" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
-          <option value="all">全部类型</option>
-          <option value="merchant_admin">商户管理员</option>
-          <option value="super_admin">超级管理员</option>
-        </select>
-        <select id="logFilterStatus" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
-          <option value="all">全部状态</option>
-          <option value="success">成功</option>
-          <option value="fail">失败</option>
-        </select>
+      <!-- 标签页切换 -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button id="logTabLogin" onclick="switchSuperLogTab('login')" style="flex:1;max-width:200px;padding:10px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">🕒 登录日志</button>
+        <button id="logTabAudit" onclick="switchSuperLogTab('audit')" style="flex:1;max-width:200px;padding:10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">📝 操作审计</button>
       </div>
-      <table class="data-table">
-        <thead>
-          <tr><th>ID</th><th>登录时间</th><th>登录名</th><th>所属商户</th><th>登录IP</th><th>登录地点</th><th>登录类型</th><th>状态</th><th>备注</th></tr>
-        </thead>
-        <tbody id="loginLogList"></tbody>
-      </table>
+      <!-- 登录日志面板 -->
+      <div id="superLoginLogsPanel">
+        <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;">
+          <select id="logFilterType" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
+            <option value="all">全部类型</option>
+            <option value="merchant_admin">商户管理员</option>
+            <option value="super_admin">超级管理员</option>
+          </select>
+          <select id="logFilterStatus" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
+            <option value="all">全部状态</option>
+            <option value="success">成功</option>
+            <option value="fail">失败</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr><th>ID</th><th>登录时间</th><th>登录名</th><th>所属商户</th><th>登录IP</th><th>登录地点</th><th>登录类型</th><th>状态</th><th>备注</th></tr>
+          </thead>
+          <tbody id="loginLogList"></tbody>
+        </table>
+        </div>
+      </div>
+      <!-- 操作审计面板 -->
+      <div id="superAuditLogsPanel" style="display:none;">
+        <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr><th>ID</th><th>时间</th><th>操作者</th><th>操作类型</th><th>目标</th><th>详情</th><th>IP</th></tr>
+          </thead>
+          <tbody id="auditLogsBody"></tbody>
+        </table>
+        </div>
+      </div>
     </div>
 
     <!-- 系统设置 -->
@@ -703,7 +721,7 @@ function switchModule(mod) {
   currentModule = mod;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === mod));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + mod));
-  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '登录日志', audit: '操作审计', settings: '系统设置' };
+  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '日志', settings: '系统设置' };
   document.getElementById('pageTitle').textContent = titles[mod] || '';
   if (mod === 'dashboard') loadDashboard();
   if (mod === 'merchants') loadMerchants();
@@ -711,7 +729,7 @@ function switchModule(mod) {
   if (mod === 'logs') loadLoginLogs();
   if (mod === 'settings') loadGlobalSettings();
   if (mod === 'settings') loadBackupSettings();
-  if (mod === 'audit') loadAuditLogs();
+  if (mod === 'logs') { if (currentLogTab === 'audit') loadAuditLogs(); else loadLoginLogs(); }
 }
 
 // API 请求
@@ -1013,23 +1031,49 @@ async function saveGlobalSettings() {
   } catch (e) { toast('保存失败: ' + e.message, 'error'); }
 }
 
+// 当前日志标签页
+let currentLogTab = 'login';
+// 切换超级管理员日志标签页
+function switchSuperLogTab(tab) {
+    currentLogTab = tab;
+    document.getElementById('logTabLogin').style.background = tab === 'login' ? 'rgba(232,93,58,.15)' : 'rgba(255,255,255,.04)';
+    document.getElementById('logTabLogin').style.color = tab === 'login' ? '#e85d3a' : '#aaa';
+    document.getElementById('logTabLogin').style.borderColor = tab === 'login' ? 'rgba(232,93,58,.4)' : 'rgba(255,255,255,.1)';
+    document.getElementById('logTabAudit').style.background = tab === 'audit' ? 'rgba(232,93,58,.15)' : 'rgba(255,255,255,.04)';
+    document.getElementById('logTabAudit').style.color = tab === 'audit' ? '#e85d3a' : '#aaa';
+    document.getElementById('logTabAudit').style.borderColor = tab === 'audit' ? 'rgba(232,93,58,.4)' : 'rgba(255,255,255,.1)';
+    document.getElementById('superLoginLogsPanel').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('superAuditLogsPanel').style.display = tab === 'audit' ? 'block' : 'none';
+    if (tab === 'audit') loadAuditLogs();
+    else loadLoginLogs();
+}
+// 刷新当前日志
+function refreshCurrentLog() {
+    if (currentLogTab === 'audit') loadAuditLogs();
+    else loadLoginLogs();
+}
 // 加载操作审计日志
 async function loadAuditLogs() {
   try {
     const logs = await api('/super/audit-logs');
     const tbody = document.getElementById('auditLogsBody');
     if (!logs || logs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#666;">暂无操作记录</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#666;">暂无操作记录</td></tr>';
       return;
     }
     const actionNames = {
-      'delete_merchant': '删除商户',
-      'reset_merchant_password': '重置商户密码',
-      'update_settings': '更新系统设置',
-      'reset_all_data': '重置全部数据',
-      'change_password': '修改密码',
-      'create_merchant': '创建商户',
-      'update_merchant': '编辑商户'
+      'create_merchant': '创建商户', 'update_merchant': '编辑商户', 'delete_merchant': '删除商户',
+      'reset_merchant_password': '重置商户密码', 'create_store': '创建门店', 'update_store': '编辑门店',
+      'delete_store': '删除门店', 'create_menu': '创建菜品', 'update_menu': '编辑菜品', 'delete_menu': '删除菜品',
+      'create_combo': '创建套餐', 'update_combo': '编辑套餐', 'delete_combo': '删除套餐',
+      'create_category': '创建分类', 'update_category': '编辑分类', 'delete_category': '删除分类',
+      'create_admin': '创建管理员', 'update_admin': '编辑管理员', 'delete_admin': '删除管理员',
+      'create_waiter': '创建服务员', 'update_waiter': '编辑服务员', 'delete_waiter': '删除服务员',
+      'create_table': '创建桌号', 'update_table': '编辑桌号', 'delete_table': '删除桌号',
+      'create_currency': '创建货币', 'update_currency': '编辑货币', 'delete_currency': '删除货币',
+      'settle_order': '结算订单', 'cancel_order': '取消订单', 'reset_data': '重置数据',
+      'change_password': '修改密码', 'update_settings': '更新系统设置', 'reset_all_data': '重置全部数据',
+      'login': '登录', 'logout': '退出登录', 'backup': '数据备份', 'import_backup': '导入备份'
     };
     tbody.innerHTML = logs.map(log => {
       const action = actionNames[log.action] || log.action;
@@ -1037,6 +1081,7 @@ async function loadAuditLogs() {
       let details = log.details || '-';
       if (details.length > 60) details = details.substring(0, 60) + '...';
       return `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+        <td style="padding:10px;color:#666;">${log.id}</td>
         <td style="padding:10px;color:#aaa;">${formatDateTime(log.created_at)}</td>
         <td style="padding:10px;color:#fff;">${log.actor_username || '-'}</td>
         <td style="padding:10px;"><span style="background:rgba(232,93,58,.15);color:#e85d3a;padding:3px 8px;border-radius:4px;font-size:12px;">${action}</span></td>
@@ -1046,7 +1091,7 @@ async function loadAuditLogs() {
       </tr>`;
     }).join('');
   } catch (e) {
-    document.getElementById('auditLogsBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#e74c3c;">加载失败: ' + e.message + '</td></tr>';
+    document.getElementById('auditLogsBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#e74c3c;">加载失败: ' + e.message + '</td></tr>';
   }
 }
 

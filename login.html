@@ -383,6 +383,7 @@
           sessionStorage.setItem('adminToken', data.token);
           sessionStorage.setItem('adminMerchantId', data.merchantId);
           sessionStorage.setItem('adminMerchantName', data.merchantName);
+          sessionStorage.setItem('adminId', data.admin?.id || '');
           window.location.href = '/admin';
         } catch (e) {
           showErrorModal(translateError(e.message));

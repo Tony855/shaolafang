@@ -250,6 +250,17 @@
         .panel.module-panel { padding: 14px; border-radius: 14px; max-width: 100%; margin-left: auto; margin-right: auto; }
         .panel.module-panel h2 { font-size: 17px; margin-bottom: 12px; }
     }
+    /* 标签切换按钮 - 全局样式 */
+    .tab-group { display: inline-flex; gap: 0; margin-bottom: 20px; background: rgba(255,255,255,.06); padding: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); }
+    .tab-btn { background: transparent; color: rgba(255,255,255,.6); border: 0; padding: 10px 28px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all .3s cubic-bezier(.4,0,.2,1); display: flex; align-items: center; gap: 7px; letter-spacing: .3px; }
+    .tab-btn:hover { color: rgba(255,255,255,.9); }
+    .tab-btn.active { background: linear-gradient(135deg,#e85d3a 0%,#f0823a 100%); color: #fff; box-shadow: 0 3px 12px rgba(232,93,58,.45), inset 0 1px 0 rgba(255,255,255,.2); }
+    .tab-btn.active .tab-icon { transform: scale(1.1); }
+    .tab-icon { transition: transform .3s ease; }
+    .tab-divider { width: 1px; background: rgba(255,255,255,.15); margin: 6px 4px; }
+    .tab-btn.tab-action { color: rgba(255,255,255,.75); }
+    .tab-btn.tab-action:hover { background: rgba(255,255,255,.1); color: #fff; }
+
     @media (max-width: 480px) {
         .top { padding: 0 8px 0 48px; gap: 6px; height: 52px; min-height: 52px; }
         .top-right select { font-size: 11px; padding: 5px 6px; }
@@ -379,7 +390,7 @@
                 <span class="nav-icon">📊</span> <span data-i18n-nav="reports">营业报表</span>
             </button>
             <button class="nav-item" data-module="logs">
-                <span class="nav-icon">🕒</span> <span data-i18n-nav="logs">登录日志</span>
+                <span class="nav-icon">📋</span> <span data-i18n-nav="logs">日志</span>
             </button>
             <button class="nav-item" data-module="password">
                 <span class="nav-icon">⚙️</span> <span data-i18n-nav="systemSettings">系统设置</span>
@@ -391,9 +402,16 @@
             <!-- 菜品管理 -->
             <section class="panel module-panel active" id="module-menu">
                 <h2 id="menuFormTitle">菜品管理</h2>
+                <div class="tab-group">
+                    <button id="menuTabDish" class="tab-btn active" onclick="switchMenuTab('dish')">🍽️ <span id="menuTabDishText">菜品管理</span></button>
+                    <button id="menuTabCombo" class="tab-btn" onclick="switchMenuTab('combo')">🍱 <span id="menuTabComboText">套餐管理</span></button>
+                    <span class="tab-divider"></span>
+                    <button id="openCategoryModalBtn" class="tab-btn tab-action" onclick="openCategoryModal()">🏷️ <span id="categoryBtnText">菜品分类</span></button>
+                </div>
+                <div id="dishPanel">
                 <div class="menu-toolbar">
                     <button id="openDishModalBtn" onclick="openDishModal()">➕ 新增菜品</button>
-                    <button id="openCategoryModalBtn" onclick="openCategoryModal()">🏷️ 菜品分类</button>
+                    <!-- category button moved to tab group -->
                     <select id="menuCategoryFilter" class="menu-filter-select" onchange="loadMenus()">
                         <option value="all">📋 全部分类</option>
                     </select>
@@ -406,6 +424,17 @@
                     </select>
                 </div>
                 <div id="menus"></div>
+                </div>
+                <div id="comboPanel" style="display:none;">
+                <div class="admin-form-row" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+                    <input id="newComboName" placeholder="套餐名称" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
+                    <input id="newComboEmoji" placeholder="图标" value="🍱" style="width:60px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;text-align:center;">
+                    <input id="newComboPrice" type="number" step="0.01" placeholder="价格" style="width:100px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
+                    <input id="newComboDesc" placeholder="描述" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
+                    <button id="addComboBtn" onclick="addCombo()" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addComboBtnText">添加套餐</span></button>
+                </div>
+                <div id="comboList"></div>
+                </div>
             </section>
 
             <!-- 桌号管理 -->
@@ -441,6 +470,7 @@
                     <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span class="store-sub-waiters">服务员管理</span></button>
                     <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span class="store-sub-currencies">货币类型</span></button>
                     <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span class="store-sub-printers">打印机管理</span></button>
+
                 </div>
                 <div class="backup-actions" style="margin-bottom:12px;">
                     <label style="color:#ccc"><input type="checkbox" id="dualCurrencyEnabled"> <span id="currencyDualLabel">启用双币显示</span></label>
@@ -494,6 +524,7 @@
                     <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span class="store-sub-waiters">服务员管理</span></button>
                     <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span class="store-sub-currencies">货币类型</span></button>
                     <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span class="store-sub-printers">打印机管理</span></button>
+
                 </div>
                 <!-- 自动打印总开关 -->
                 <div class="auto-print-toggle-card" style="background:linear-gradient(135deg,#fef3e2,#fde8d0);border:1px solid #f5c89a;border-radius:14px;padding:16px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
@@ -601,10 +632,31 @@
                 </div>
             </section>
 
-            <!-- 登录日志 -->
+            <!-- 日志（登录日志+操作日志） -->
             <section class="panel module-panel" id="module-logs">
-                <h2 id="logsPanelTitle">登录日志</h2>
+                <h2 id="logsPanelTitle">📋 日志</h2>
+                <div class="tab-group">
+                    <button id="logTabLogin" class="tab-btn active" onclick="switchLogTab('login')">🕒 <span id="logTabLoginText">登录日志</span></button>
+                    <button id="logTabAudit" class="tab-btn" onclick="switchLogTab('audit')">📝 <span id="logTabAuditText">操作日志</span></button>
+                </div>
+                <div id="loginLogsPanel">
                 <div id="loginLogs"></div>
+                </div>
+                <div id="auditLogsPanel" style="display:none;">
+                <div id="auditLogs"></div>
+                </div>
+            </section>
+
+            <!-- 管理员管理 -->
+            <section class="panel module-panel" id="module-admins">
+                <h2 id="adminsPanelTitle">👤 管理员管理</h2>
+                <div class="admin-form-row" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+                    <input id="newAdminUsername" placeholder="登录账号" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
+                    <input id="newAdminPassword" type="password" placeholder="密码(至少6位)" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
+                    <input id="newAdminDisplayName" placeholder="显示名称" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
+                    <button onclick="addAdmin()" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ 添加管理员</button>
+                </div>
+                <div id="adminList"></div>
             </section>
 
             <!-- 服务员管理 -->
@@ -615,6 +667,7 @@
                     <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span class="store-sub-waiters">服务员管理</span></button>
                     <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span class="store-sub-currencies">货币类型</span></button>
                     <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span class="store-sub-printers">打印机管理</span></button>
+
                 </div>
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
@@ -650,6 +703,7 @@
                     <button onclick="switchAdminModule('waiters')" class="store-sub-btn" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">👥 <span class="store-sub-waiters">服务员管理</span></button>
                     <button onclick="switchAdminModule('currencies')" class="store-sub-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">💱 <span class="store-sub-currencies">货币类型</span></button>
                     <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span class="store-sub-printers">打印机管理</span></button>
+
                 </div>
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
@@ -676,6 +730,13 @@
             <!-- 管理员密码 -->
             <section class="panel module-panel" id="module-password">
                 <h2 id="passwordPanelTitle">系统设置</h2>
+
+                <!-- 管理员管理卡片 -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title" id="adminManageCardTitle">👤 管理员管理</h3>
+                    <p id="adminManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理商户的管理员账号，支持添加、编辑、删除管理员</p>
+                    <button id="enterAdminManageBtn" onclick="switchAdminModule('admins')" style="background: linear-gradient(135deg,#43e97b,#38f9d7); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入管理员管理</button>
+                </div>
 
                 <!-- 修改密码卡片 -->
                 <div class="settings-card">
@@ -985,9 +1046,9 @@
                 dishCategoryManage: '菜品分类', allCategories: '全部分类', defaultSort: '默认排序', nameAsc: '名称 A-Z', nameDesc: '名称 Z-A', priceAsc: '价格 低-高', priceDesc: '价格 高-低', newCategory: '新分类名称', addCategory: '添加分类',
                 tableManageTitle: '桌号管理', tableName: '桌号，例如 A06', addTable: '新增桌号',
                 addOrder: '➕ 新增订单', orderSearchPlaceholder: '输入订单号查询', search: '查询', currencyManageTitle: '货币类型', currencyCode: '代码 CNY', currencySymbol: '符号 ¥',
-                currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '登录日志', time: '时间', ip: 'IP', result: '结果',
+                currencyName: '名称', currencyRate: '汇率', addCurrency: '新增货币', logsTitle: '日志', dishManagement: '菜品管理', comboManagement: '套餐管理', loginLogs: '登录日志', auditLogs: '操作日志', menuCategory: '菜品分类', time: '时间', ip: 'IP', result: '结果',
                 loginSuccess: '登录成功', loginFailed: '登录失败', passwordTitle: '管理员密码', systemSettings: '系统设置', storeSettingsNav: '店铺设置', backToStores: '返回店铺管理', oldPassword: '旧密码',
-                newPassword: '新密码（至少 6 位）', changePassword: '修改密码', tableField: '桌号', dishList: '菜品清单',
+                newPassword: '新密码（至少 6 位）', changePassword: '修改密码', adminManageTitle: '管理员管理', adminManageDesc: '管理商户的管理员账号，支持添加、编辑、删除管理员', enterAdminManage: '进入管理员管理', comboName: '套餐名称', comboEmoji: '图标', comboPrice: '价格', comboDesc: '描述', addCombo: '添加套餐', onSale: '上架', offSale: '下架', sales: '销量', noCombos: '暂无套餐', noAuditLogs: '暂无操作记录', loadFailed: '加载失败', auditAction: { create_combo: '创建套餐', update_combo: '更新套餐', delete_combo: '删除套餐', create_admin: '创建管理员', update_admin: '更新管理员', delete_admin: '删除管理员', create_menu: '创建菜品', update_menu: '更新菜品', delete_menu: '删除菜品', create_category: '创建分类', update_category: '更新分类', delete_category: '删除分类', create_table: '创建桌号', update_table: '更新桌号', delete_table: '删除桌号', create_store: '创建店铺', update_store: '更新店铺', delete_store: '删除店铺', create_waiter: '创建服务员', update_waiter: '更新服务员', delete_waiter: '删除服务员', create_currency: '创建货币', update_currency: '更新货币', delete_currency: '删除货币', settle_order: '结算订单', cancel_order: '取消订单', reset_data: '重置数据', change_password: '修改密码', login: '登录', logout: '退出登录' }, tableField: '桌号', dishList: '菜品清单',
                 addDishLine: '➕ 添加菜品', saveOrder: '保存订单', editTableTitle: '编辑桌号', tableNameLabel: '桌号名称',
                 statusLabel: '状态', noOrders: '暂无订单', noDishes: '暂无菜品', noData: '暂无数据',
                 setDefault: '设为默认', default: '默认', ordersUnit: '单', updated: '已更新', added: '已新增', deleted: '已删除',
@@ -1150,9 +1211,9 @@
                 addTable: 'Add Table', addOrder: '➕ Add Order', orderSearchPlaceholder: 'Search by order number', search: 'Search',
                 currencyManageTitle: 'Currency Types', currencyCode: 'Code CNY', currencySymbol: 'Symbol ¥',
                 currencyName: 'Name', currencyRate: 'Rate', addCurrency: 'Add Currency',
-                                logsTitle: 'Login Logs', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
+                                logsTitle: 'Logs', dishManagement: 'Dish Management', comboManagement: 'Combo Management', loginLogs: 'Login Logs', auditLogs: 'Audit Logs', menuCategory: 'Categories', time: 'Time', ip: 'IP', result: 'Result', loginSuccess: 'Login Success',
                 loginFailed: 'Login Failed', passwordTitle: 'Admin Password', systemSettings: 'System Settings', storeSettingsNav: 'Store Settings', backToStores: 'Back to Stores', oldPassword: 'Old Password',
-                newPassword: 'New Password (min 6 chars)', changePassword: 'Change Password', tableField: 'Table',
+                newPassword: 'New Password (min 6 chars)', changePassword: 'Change Password', adminManageTitle: 'Admin Management', adminManageDesc: 'Manage merchant admin accounts, support add, edit, delete', enterAdminManage: 'Enter Admin Management', comboName: 'Combo Name', comboEmoji: 'Icon', comboPrice: 'Price', comboDesc: 'Description', addCombo: 'Add Combo', onSale: 'On Sale', offSale: 'Off Sale', sales: 'Sales', noCombos: 'No combos yet', noAuditLogs: 'No audit records', loadFailed: 'Load failed', auditAction: { create_combo: 'Create Combo', update_combo: 'Update Combo', delete_combo: 'Delete Combo', create_admin: 'Create Admin', update_admin: 'Update Admin', delete_admin: 'Delete Admin', create_menu: 'Create Dish', update_menu: 'Update Dish', delete_menu: 'Delete Dish', create_category: 'Create Category', update_category: 'Update Category', delete_category: 'Delete Category', create_table: 'Create Table', update_table: 'Update Table', delete_table: 'Delete Table', create_store: 'Create Store', update_store: 'Update Store', delete_store: 'Delete Store', create_waiter: 'Create Waiter', update_waiter: 'Update Waiter', delete_waiter: 'Delete Waiter', create_currency: 'Create Currency', update_currency: 'Update Currency', delete_currency: 'Delete Currency', settle_order: 'Settle Order', cancel_order: 'Cancel Order', reset_data: 'Reset Data', change_password: 'Change Password', login: 'Login', logout: 'Logout' }, tableField: 'Table',
                 dishList: 'Dish List', addDishLine: '➕ Add Dish', saveOrder: 'Save Order',
                 editTableTitle: 'Edit Table', tableNameLabel: 'Table Name', statusLabel: 'Status',
                 noOrders: 'No orders', noDishes: 'No dishes', noData: 'No data', setDefault: 'Set Default',
@@ -1312,7 +1373,7 @@
             storesManage: 'Quản lý cửa hàng', storeName: 'Tên cửa hàng', storeCode: 'Mã cửa hàng', storeAddress: 'Địa chỉ cửa hàng', editStore: 'Sửa cửa hàng', storeStatus: 'Trạng thái', storeActive: 'Đang hoạt động', storeDisabled: 'Đã vô hiệu hóa', storeNamePlaceholder: 'Nhập tên cửa hàng', storeCodePlaceholder: 'Nhập mã cửa hàng', storeAddressPlaceholder: 'Nhập địa chỉ cửa hàng',
             addStore: 'Thêm cửa hàng', waitersManage: 'Quản lý nhân viên', waiterUsername: 'Tài khoản', editWaiter: 'Sửa nhân viên', waiterStore: 'Cửa hàng', waiterPermission: 'Quyền hạn', permOrder: 'Đặt món', permMarkItem: 'Phục vụ', permCompleteOrder: 'Hoàn thành', permOrderDesc: 'Nhận đơn khách hàng', permMarkItemDesc: 'Đánh dấu món đã phục vụ', permCompleteDesc: 'Thanh toán và hoàn thành', waiterUsernamePlaceholder: 'Nhập tài khoản', waiterPasswordPlaceholder: 'Nhập mật khẩu mới', waiterNamePlaceholder: 'Nhập tên hiển thị',
             waiterPassword: 'Mật khẩu', waiterDisplayName: 'Tên hiển thị', addWaiter: 'Thêm nhân viên',
-            nameEn: 'Tên tiếng Anh', descEn: 'Mô tả tiếng Anh', logsTitle: 'Nhật ký đăng nhập', time: 'Thời gian',
+            nameEn: 'Tên tiếng Anh', descEn: 'Mô tả tiếng Anh', logsTitle: 'Nhật ký', dishManagement: 'Quản lý món ăn', comboManagement: 'Quản lý combo', loginLogs: 'Nhật ký đăng nhập', auditLogs: 'Nhật ký hoạt động', menuCategory: 'Danh mục', time: 'Thời gian',
             result: 'Kết quả', loginSuccess: 'Đăng nhập thành công', loginFailed: 'Đăng nhập thất bại',
             dishCategoryManage: 'Danh mục món', allCategories: 'Tất cả danh mục', defaultSort: 'Sắp xếp mặc định', nameAsc: 'Tên A-Z', nameDesc: 'Tên Z-A', priceAsc: 'Giá thấp-cao', priceDesc: 'Giá cao-thấp', newCategory: 'Tên danh mục mới', addCategory: 'Thêm danh mục',
             dishName: 'Tên món', price: 'Giá', icon: 'Biểu tượng (vd 🍖)',
@@ -1356,7 +1417,7 @@
                 exportSalesCsv: 'Xuất doanh thu CSV',
                 exportMenuCsv: 'Xuất menu CSV',
             passwordTitle: 'Mật khẩu quản trị', oldPassword: 'Mật khẩu cũ',
-            newPassword: 'Mật khẩu mới (ít nhất 6 ký tự)', changePassword: 'Đổi mật khẩu', tableField: 'Bàn',
+            newPassword: 'Mật khẩu mới (ít nhất 6 ký tự)', changePassword: 'Đổi mật khẩu', adminManageTitle: 'Quản lý quản trị viên', adminManageDesc: 'Quản lý tài khoản quản trị viên merchant, hỗ trợ thêm, sửa, xóa', enterAdminManage: 'Vào Quản lý quản trị viên', comboName: 'Tên combo', comboEmoji: 'Biểu tượng', comboPrice: 'Giá', comboDesc: 'Mô tả', addCombo: 'Thêm combo', onSale: 'Đang bán', offSale: 'Ngừng bán', sales: 'Doanh số', noCombos: 'Chưa có combo', noAuditLogs: 'Chưa có nhật ký hoạt động', loadFailed: 'Tải thất bại', auditAction: { create_combo: 'Tạo combo', update_combo: 'Cập nhật combo', delete_combo: 'Xóa combo', create_admin: 'Tạo quản trị viên', update_admin: 'Cập nhật quản trị viên', delete_admin: 'Xóa quản trị viên', create_menu: 'Tạo món ăn', update_menu: 'Cập nhật món ăn', delete_menu: 'Xóa món ăn', create_category: 'Tạo danh mục', update_category: 'Cập nhật danh mục', delete_category: 'Xóa danh mục', create_table: 'Tạo bàn', update_table: 'Cập nhật bàn', delete_table: 'Xóa bàn', create_store: 'Tạo cửa hàng', update_store: 'Cập nhật cửa hàng', delete_store: 'Xóa cửa hàng', create_waiter: 'Tạo nhân viên', update_waiter: 'Cập nhật nhân viên', delete_waiter: 'Xóa nhân viên', create_currency: 'Tạo tiền tệ', update_currency: 'Cập nhật tiền tệ', delete_currency: 'Xóa tiền tệ', settle_order: 'Thanh toán đơn', cancel_order: 'Hủy đơn', reset_data: 'Đặt lại dữ liệu', change_password: 'Đổi mật khẩu', login: 'Đăng nhập', logout: 'Đăng xuất' }, tableField: 'Bàn',
             dishList: 'Danh sách món', addDishLine: '➕ Thêm món', saveOrder: 'Lưu đơn',
             editTableTitle: 'Sửa bàn', tableNameLabel: 'Tên bàn', statusLabel: 'Trạng thái',
             noOrders: 'Chưa có đơn', noDishes: 'Chưa có món', noData: 'Chưa có dữ liệu', setDefault: 'Đặt mặc định',
@@ -1388,7 +1449,7 @@
             storesManage: 'จัดการร้านค้า', storeName: 'ชื่อร้านค้า', storeCode: 'รหัสร้านค้า', storeAddress: 'ที่อยู่ร้านค้า', editStore: 'แก้ไขร้านค้า', storeStatus: 'สถานะร้านค้า', storeActive: 'กำลังใช้งาน', storeDisabled: 'ปิดใช้งาน', storeNamePlaceholder: 'กรอกชื่อร้านค้า', storeCodePlaceholder: 'กรอกรหัสร้านค้า', storeAddressPlaceholder: 'กรอกที่อยู่ร้านค้า',
             addStore: 'เพิ่มร้านค้า', waitersManage: 'จัดการพนักงาน', waiterUsername: 'บัญชีผู้ใช้', editWaiter: 'แก้ไขพนักงาน', waiterStore: 'ร้านค้า', waiterPermission: 'สิทธิ์', permOrder: 'รับออเดอร์', permMarkItem: 'เสิร์ฟเมนู', permCompleteOrder: 'เสร็จสิ้น', permOrderDesc: 'รับออเดอร์ลูกค้า', permMarkItemDesc: 'ทำเครื่องหมายเมนูเสิร์ฟแล้ว', permCompleteDesc: 'ชำระและเสร็จสิ้น', waiterUsernamePlaceholder: 'กรอกชื่อผู้ใช้', waiterPasswordPlaceholder: 'กรอกรหัสผ่านใหม่', waiterNamePlaceholder: 'กรอกชื่อแสดง',
             waiterPassword: 'รหัสผ่าน', waiterDisplayName: 'ชื่อที่แสดง', addWaiter: 'เพิ่มพนักงาน',
-            nameEn: 'ชื่อภาษาอังกฤษ', descEn: 'คำอธิบายภาษาอังกฤษ', logsTitle: 'บันทึกการเข้าสู่ระบบ', time: 'เวลา',
+            nameEn: 'ชื่อภาษาอังกฤษ', descEn: 'คำอธิบายภาษาอังกฤษ', logsTitle: 'บันทึก', dishManagement: 'จัดการเมนู', comboManagement: 'จัดการคอมโบ', loginLogs: 'บันทึกการเข้าสู่ระบบ', auditLogs: 'บันทึกการดำเนินการ', menuCategory: 'หมวดหมู่', time: 'เวลา',
             result: 'ผลลัพธ์', loginSuccess: 'เข้าสู่ระบบสำเร็จ', loginFailed: 'เข้าสู่ระบบล้มเหลว',
             dishCategoryManage: 'หมวดหมู่อาหาร', allCategories: 'ทุกหมวดหมู่', defaultSort: 'เรียงลำดับเริ่มต้น', nameAsc: 'ชื่อ A-Z', nameDesc: 'ชื่อ Z-A', priceAsc: 'ราคาต่ำ-สูง', priceDesc: 'ราคาสูง-ต่ำ', newCategory: 'ชื่อหมวดหมู่ใหม่', addCategory: 'เพิ่มหมวดหมู่',
             dishName: 'ชื่อเมนู', price: 'ราคา', icon: 'ไอคอน (เช่น 🍖)',
@@ -1432,7 +1493,7 @@
                 exportSalesCsv: 'ส่งออกยอดขาย CSV',
                 exportMenuCsv: 'ส่งออกเมนู CSV',
  passwordTitle: 'รหัสผ่านผู้ดูแล', oldPassword: 'รหัสผ่านเก่า',
-            newPassword: 'รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)', changePassword: 'เปลี่ยนรหัสผ่าน', tableField: 'โต๊ะ',
+            newPassword: 'รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)', changePassword: 'เปลี่ยนรหัสผ่าน', adminManageTitle: 'จัดการผู้ดูแล', adminManageDesc: 'จัดการบัญชีผู้ดูแลร้านค้า รองรับเพิ่ม แก้ไข ลบ', enterAdminManage: 'เข้าจัดการผู้ดูแล', comboName: 'ชื่อคอมโบ', comboEmoji: 'ไอคอน', comboPrice: 'ราคา', comboDesc: 'คำอธิบาย', addCombo: 'เพิ่มคอมโบ', onSale: 'กำลังขาย', offSale: 'หยุดขาย', sales: 'ยอดขาย', noCombos: 'ยังไม่มีคอมโบ', noAuditLogs: 'ยังไม่มีบันทึกการดำเนินการ', loadFailed: 'โหลดล้มเหลว', auditAction: { create_combo: 'สร้างคอมโบ', update_combo: 'อัปเดตคอมโบ', delete_combo: 'ลบคอมโบ', create_admin: 'สร้างผู้ดูแล', update_admin: 'อัปเดตผู้ดูแล', delete_admin: 'ลบผู้ดูแล', create_menu: 'สร้างเมนู', update_menu: 'อัปเดตเมนู', delete_menu: 'ลบเมนู', create_category: 'สร้างหมวดหมู่', update_category: 'อัปเดตหมวดหมู่', delete_category: 'ลบหมวดหมู่', create_table: 'สร้างโต๊ะ', update_table: 'อัปเดตโต๊ะ', delete_table: 'ลบโต๊ะ', create_store: 'สร้างร้าน', update_store: 'อัปเดตร้าน', delete_store: 'ลบร้าน', create_waiter: 'สร้างพนักงาน', update_waiter: 'อัปเดตพนักงาน', delete_waiter: 'ลบพนักงาน', create_currency: 'สร้างสกุลเงิน', update_currency: 'อัปเดตสกุลเงิน', delete_currency: 'ลบสกุลเงิน', settle_order: 'ชำระเงิน', cancel_order: 'ยกเลิกออเดอร์', reset_data: 'รีเซ็ตข้อมูล', change_password: 'เปลี่ยนรหัสผ่าน', login: 'เข้าสู่ระบบ', logout: 'ออกจากระบบ' }, tableField: 'โต๊ะ',
             dishList: 'รายการเมนู', addDishLine: '➕ เพิ่มเมนู', saveOrder: 'บันทึกออเดอร์',
             editTableTitle: 'แก้ไขโต๊ะ', tableNameLabel: 'ชื่อโต๊ะ', statusLabel: 'สถานะ',
             noOrders: 'ไม่มีออเดอร์', noDishes: 'ไม่มีเมนู', noData: 'ไม่มีข้อมูล', setDefault: 'ตั้งเป็นค่าเริ่มต้น',
@@ -1464,7 +1525,7 @@
             storesManage: 'គ្រប់គ្រងហាង', storeName: 'ឈ្មោះហាង', storeCode: 'កូដហាង', storeAddress: 'អាសយដ្ឋានហាង', editStore: 'កែសម្រួលហាង', storeStatus: 'ស្ថានភាពហាង', storeActive: 'កំពុងដំណើរការ', storeDisabled: 'បានបិទ', storeNamePlaceholder: 'បញ្ចូលឈ្មោះហាង', storeCodePlaceholder: 'បញ្ចូលកូដហាង', storeAddressPlaceholder: 'បញ្ចូលអាសយដ្ឋានហាង',
             addStore: 'បន្ថែមហាង', waitersManage: 'គ្រប់គ្រងបុគ្គលិក', waiterUsername: 'គណនី', editWaiter: 'កែសម្រួលបុគ្គលិក', waiterStore: 'ហាង', waiterPermission: 'សិទ្ធិ', permOrder: 'ទទួលការបញ្ជាទិញ', permMarkItem: 'បម្រើមុខម្ហូប', permCompleteOrder: 'បញ្ចប់', permOrderDesc: 'ទទួលការបញ្ជាទិញអតិថិជន', permMarkItemDesc: 'សម្គាល់មុខម្ហូបបានបម្រើ', permCompleteDesc: 'ទូទាត់និងបញ្ចប់', waiterUsernamePlaceholder: 'បញ្ចូលគណនី', waiterPasswordPlaceholder: 'បញ្ចូលពាក្យសម្ងាត់ថ្មី', waiterNamePlaceholder: 'បញ្ចូលឈ្មោះបង្ហាញ',
             waiterPassword: 'ពាក្យសម្ងាត់', waiterDisplayName: 'ឈ្មោះបង្ហាញ', addWaiter: 'បន្ថែមបុគ្គលិក',
-            nameEn: 'ឈ្មោះជាភាសាអង់គ្លេស', descEn: 'ការពិពណ៌នាជាភាសាអង់គ្លេស', logsTitle: 'កំណត់ហេតុចូល', time: 'ពេលវេលា',
+            nameEn: 'ឈ្មោះជាភាសាអង់គ្លេស', descEn: 'ការពិពណ៌នាជាភាសាអង់គ្លេស', logsTitle: 'កំណត់ហេតុ', dishManagement: 'គ្រប់គ្រងមុខម្ហូប', comboManagement: 'គ្រប់គ្រងកុំបូ', loginLogs: 'កំណត់ហេតុចូល', auditLogs: 'កំណត់ហេតុប្រតិបត្តិការ', menuCategory: 'ប្រភេទម្ហូប', time: 'ពេលវេលា',
             result: 'លទ្ធផល', loginSuccess: 'ចូលបានជោគជ័យ', loginFailed: 'ចូលបរាជ័យ', qr: 'QR Code',
             dishCategoryManage: 'ប្រភេទម្ហូប', allCategories: 'គ្រប់ប្រភេទ', defaultSort: 'តម្រៀបលំនាំដើម', nameAsc: 'ឈ្មោះ A-Z', nameDesc: 'ឈ្មោះ Z-A', priceAsc: 'តម្លៃទាប-ខ្ពស់', priceDesc: 'តម្លៃខ្ពស់-ទាប', newCategory: 'ឈ្មោះប្រភេទថ្មី', addCategory: 'បន្ថែមប្រភេទ',
             dishName: 'ឈ្មោះម្ហូប', price: 'តម្លៃ',
@@ -1509,7 +1570,7 @@
                 exportSalesCsv: 'នាំចេញយោបល់ CSV',
                 exportMenuCsv: 'នាំចេញមីនុយ CSV',
                         passwordTitle: 'ពាក្យសម្ងាត់អ្នកគ្រប់គ្រង', oldPassword: 'ពាក្យសម្ងាត់ចាស់',
-            newPassword: 'ពាក្យសម្ងាត់ថ្មី (យ៉ាងហោច ៦ តួ)', changePassword: 'ប្តូរពាក្យសម្ងាត់', tableField: 'តុ',
+            newPassword: 'ពាក្យសម្ងាត់ថ្មី (យ៉ាងហោច ៦ តួ)', changePassword: 'ប្តូរពាក្យសម្ងាត់', adminManageTitle: 'គ្រប់គ្រងអ្នកគ្រប់គ្រង', adminManageDesc: 'គ្រប់គ្រងគណនីអ្នកគ្រប់គ្រងមេគង្គ គាំទ្របន្ថែម កែសម្រួល លុប', enterAdminManage: 'ចូលគ្រប់គ្រងអ្នកគ្រប់គ្រង', comboName: 'ឈ្មោះកុំបូ', comboEmoji: 'រូបតំណាង', comboPrice: 'តម្លៃ', comboDesc: 'ការពិពណ៌នា', addCombo: 'បន្ថែមកុំបូ', onSale: 'កំពុងលក់', offSale: 'ឈប់លក់', sales: 'ចំនួនលក់', noCombos: 'មិនទាន់មានកុំបូ', noAuditLogs: 'មិនទាន់មានកំណត់ហេតុប្រតិបត្តិការ', loadFailed: 'បានបរាជ័យក្នុងការផ្ទុក', auditAction: { create_combo: 'បង្កើតកុំបូ', update_combo: 'ធ្វើបច្ចុប្បន្នភាពកុំបូ', delete_combo: 'លុបកុំបូ', create_admin: 'បង្កើតអ្នកគ្រប់គ្រង', update_admin: 'ធ្វើបច្ចុប្បន្នភាពអ្នកគ្រប់គ្រង', delete_admin: 'លុបអ្នកគ្រប់គ្រង', create_menu: 'បង្កើតមុខម្ហូប', update_menu: 'ធ្វើបច្ចុប្បន្នភាពមុខម្ហូប', delete_menu: 'លុបមុខម្ហូប', create_category: 'បង្កើតប្រភេទ', update_category: 'ធ្វើបច្ចុប្បន្នភាពប្រភេទ', delete_category: 'លុបប្រភេទ', create_table: 'បង្កើតតុ', update_table: 'ធ្វើបច្ចុប្បន្នភាពតុ', delete_table: 'លុបតុ', create_store: 'បង្កើតហាង', update_store: 'ធ្វើបច្ចុប្បន្នភាពហាង', delete_store: 'លុបហាង', create_waiter: 'បង្កើតបុគ្គលិក', update_waiter: 'ធ្វើបច្ចុប្បន្នភាពបុគ្គលិក', delete_waiter: 'លុបបុគ្គលិក', create_currency: 'បង្កើតរូបិយប័ណ្ណ', update_currency: 'ធ្វើបច្ចុប្បន្នភាពរូបិយប័ណ្ណ', delete_currency: 'លុបរូបិយប័ណ្ណ', settle_order: 'បង់ប្រាក់', cancel_order: 'បោះបង់ការបញ្ជាទិញ', reset_data: 'កំណត់ទិន្នន័យឡើងវិញ', change_password: 'ប្តូរពាក្យសម្ងាត់', login: 'ចូល', logout: 'ចាកចេញ' }, tableField: 'តុ',
             dishList: 'បញ្ជីម្ហូប', addDishLine: '➕ បន្ថែមម្ហូប', saveOrder: 'រក្សាទុកការបញ្ជាទិញ',
             editTableTitle: 'កែតុ', tableNameLabel: 'ឈ្មោះតុ', statusLabel: 'ស្ថានភាព',
             noOrders: 'គ្មានការបញ្ជាទិញ', noDishes: 'គ្មានម្ហូប', noData: 'គ្មានទិន្នន័យ', setDefault: 'កំណត់ជាលំនាំដើម',
@@ -1552,6 +1613,7 @@
         const API = '/api';
         const $ = s => document.querySelector(s);
         let adminToken = sessionStorage.getItem('adminToken') || '';
+        let adminId = parseInt(sessionStorage.getItem('adminId') || '0', 10);
         let menusCache = [];
         let tablesCache = [];
         let ordersCache = [];
@@ -1664,9 +1726,14 @@
             const headers = new Headers(options.headers || {});
             if (adminToken) headers.set('Authorization', 'Bearer ' + adminToken);
             headers.set('X-Store-Id', sessionStorage.getItem('adminStoreId') || '1');
-            const r = await fetch(API + path, { ...options, headers });
+            let body = options.body;
+            if (body && typeof body === 'object' && !(body instanceof FormData)) {
+                headers.set('Content-Type', 'application/json');
+                body = JSON.stringify(body);
+            }
+            const r = await fetch(API + path, { ...options, headers, body, cache: 'no-store' });
             const data = await r.json().catch(() => ({}));
-            if (!r.ok) throw new Error(data.error || tAdmin('operationFailed'));
+            if (!r.ok && r.status !== 304) throw new Error(data.error || tAdmin('operationFailed'));
             return data;
         }
 
@@ -1843,6 +1910,168 @@
             } catch (e) {
                 $('#loginLogs').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
             }
+        }
+
+        // ===== 管理员管理 =====
+        async function loadAdmins() {
+            try {
+                const rows = await api('/admin/admins');
+                $('#adminList').innerHTML = rows.length ?
+                    rows.map(a => `<div class="admin-card">
+                    <div class="info">
+                      <div class="title">${esc(a.display_name)} · ${esc(a.username)}${a.id === adminId ? ' (当前)' : ''}</div>
+                      <div class="sub">${a.active?'<span style="color:#43e97b">启用</span>':'<span style="color:#f5576c">停用</span>'} · 最后登录: ${a.last_login_at ? SLF.utils.formatDateTime(a.last_login_at) : '从未'}</div>
+                    </div>
+                    <div class="actions">
+                      <button class="edit-btn" onclick="editAdmin(${a.id}, '${esc(a.username)}', '${esc(a.display_name)}', ${a.active})">✏️ 编辑</button>
+                      <button class="danger" onclick="deleteAdmin(${a.id}, '${esc(a.username)}')" ${a.id === adminId ? 'disabled style="opacity:.4;cursor:not-allowed;"' : ''}>删除</button>
+                    </div>
+                  </div>`).join('') :
+                    `<div class="empty-hint">暂无管理员</div>`;
+            } catch (e) {
+                $('#adminList').innerHTML = `<div class="empty-hint">加载失败</div>`;
+            }
+        }
+
+        async function addAdmin() {
+            const username = $('#newAdminUsername').value.trim();
+            const password = $('#newAdminPassword').value;
+            const display_name = $('#newAdminDisplayName').value.trim();
+            if (!username || !password || !display_name) { toast('请填写完整信息'); return; }
+            if (password.length < 6) { toast('密码至少6位'); return; }
+            try {
+                await api('/admin/admins', { method: 'POST', body: { username, password, display_name, active: 1 } });
+                $('#newAdminUsername').value = '';
+                $('#newAdminPassword').value = '';
+                $('#newAdminDisplayName').value = '';
+                toast('管理员添加成功');
+                loadAdmins();
+            } catch (e) { toast('❌ ' + e.message); }
+        }
+
+        function editAdmin(id, username, displayName, active) {
+            const newName = prompt('显示名称：', displayName);
+            if (newName === null) return;
+            const newPass = prompt('新密码（留空不修改）：', '');
+            if (newPass === null) return;
+            const isActive = confirm('是否启用该账号？\n确定=启用，取消=停用');
+            const body = { display_name: newName, active: isActive ? 1 : 0 };
+            if (newPass) body.password = newPass;
+            api('/admin/admins/' + id, { method: 'PUT', body }).then(() => {
+                toast('更新成功');
+                loadAdmins();
+            }).catch(e => toast('❌ ' + e.message));
+        }
+
+        function deleteAdmin(id, username) {
+            if (!confirm('确定删除管理员 ' + username + '？此操作不可恢复')) return;
+            api('/admin/admins/' + id, { method: 'DELETE' }).then(() => {
+                toast('删除成功');
+                loadAdmins();
+            }).catch(e => toast('❌ ' + e.message));
+        }
+
+        // ===== 套餐管理 =====
+        async function loadCombos() {
+            try {
+                const rows = await api('/admin/combos');
+                $('#comboList').innerHTML = rows.length ?
+                    rows.map(c => `<div class="admin-card">
+                    <div class="info">
+                      <div class="title">${esc(c.emoji || '🍱')} ${esc(c.name)} - $${Number(c.price).toFixed(2)}</div>
+                      <div class="sub">${esc(c.description || '')} · ${c.active?'<span style="color:#43e97b">'+tAdmin('onSale')+'</span>':'<span style="color:#f5576c">'+tAdmin('offSale')+'</span>'} · ${tAdmin('sales')}: ${c.sales_count || 0}</div>
+                    </div>
+                    <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+                      <button onclick="editCombo(${c.id}, '${esc(c.name)}', '${esc(c.emoji || '🍱')}', ${c.price}, '${esc(c.description || '')}', ${c.active})" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='rgba(255,255,255,.08)'">✏️ ${tAdmin('edit')}</button>
+                      <button onclick="deleteCombo(${c.id}, '${esc(c.name)}')" style="background:rgba(245,87,108,.15);border:1px solid rgba(245,87,108,.3);color:#f5576c;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s;" onmouseover="this.style.background='rgba(245,87,108,.25)'" onmouseout="this.style.background='rgba(245,87,108,.15)'">🗑️ ${tAdmin('delete')}</button>
+                    </div>
+                  </div>`).join('') :
+                    `<div class="empty-hint">${tAdmin('noCombos')}</div>`;
+            } catch (e) {
+                $('#comboList').innerHTML = `<div class="empty-hint">加载失败</div>`;
+            }
+        }
+
+        function switchMenuTab(tab) {
+            $('#menuTabDish').classList.toggle('active', tab === 'dish');
+            $('#menuTabCombo').classList.toggle('active', tab === 'combo');
+            $('#dishPanel').style.display = tab === 'dish' ? 'block' : 'none';
+            $('#comboPanel').style.display = tab === 'combo' ? 'block' : 'none';
+            if (tab === 'combo') loadCombos();
+        }
+
+        async function addCombo() {
+            const name = $('#newComboName').value.trim();
+            const emoji = $('#newComboEmoji').value.trim() || '🍱';
+            const price = parseFloat($('#newComboPrice').value);
+            const description = $('#newComboDesc').value.trim();
+            if (!name || isNaN(price)) { toast('请填写套餐名称和价格'); return; }
+            try {
+                await api('/admin/combos', { method: 'POST', body: { name, emoji, price, description, active: 1, items: [] } });
+                $('#newComboName').value = '';
+                $('#newComboPrice').value = '';
+                $('#newComboDesc').value = '';
+                toast('套餐添加成功');
+                loadCombos();
+            } catch (e) { toast('❌ ' + e.message); }
+        }
+
+        function editCombo(id, name, emoji, price, description, active) {
+            const newName = prompt('套餐名称：', name);
+            if (newName === null) return;
+            const newPrice = prompt('套餐价格：', price);
+            if (newPrice === null) return;
+            const newDesc = prompt('套餐描述：', description);
+            if (newDesc === null) return;
+            const isActive = confirm('是否上架该套餐？\n确定=上架，取消=下架');
+            api('/admin/combos/' + id, { method: 'PUT', body: { name: newName, emoji, price: parseFloat(newPrice), description: newDesc, active: isActive ? 1 : 0 } }).then(() => {
+                toast('更新成功');
+                loadCombos();
+            }).catch(e => toast('❌ ' + e.message));
+        }
+
+        function deleteCombo(id, name) {
+            if (!confirm('确定删除套餐 ' + name + '？此操作不可恢复')) return;
+            api('/admin/combos/' + id, { method: 'DELETE' }).then(() => {
+                toast('删除成功');
+                loadCombos();
+            }).catch(e => toast('❌ ' + e.message));
+        }
+
+        // ===== 操作日志 =====
+        // 翻译操作日志的action
+        function translateAuditAction(action) {
+            const labels = tAdmin('auditAction');
+            return (labels && labels[action]) || action;
+        }
+        // 解析操作日志的details，只返回对象名称（冒号后面的部分）
+        function parseAuditObject(details) {
+            if (!details) return '';
+            const colonIdx = details.indexOf(':');
+            if (colonIdx > 0) {
+                return details.substring(colonIdx + 1).trim();
+            }
+            return details;
+        }
+        async function loadAuditLogs() {
+            try {
+                const logs = await api('/admin/audit-logs');
+                $('#auditLogs').innerHTML = logs.length ?
+                    logs.map(log =>
+                        `<div class="row"><div><b>${SLF.utils.formatDateTime(log.created_at)}</b><small>${esc(log.actor_username || '-')} · ${translateAuditAction(log.action)}${parseAuditObject(log.details) ? ' · ' + esc(parseAuditObject(log.details)) : ''}</small></div><span class="badge">${esc(log.ip || '-')}</span></div>`
+                    ).join('') :
+                    `<div class="empty-hint">${tAdmin('noAuditLogs')}</div>`;
+            } catch (e) {
+                $('#auditLogs').innerHTML = `<div class="empty-hint">${tAdmin('loadFailed')}</div>`;
+            }
+        }
+
+        function switchLogTab(tab) {
+            $('#logTabLogin').classList.toggle('active', tab === 'login');
+            $('#logTabAudit').classList.toggle('active', tab === 'audit');
+            $('#loginLogsPanel').style.display = tab === 'login' ? 'block' : 'none';
+            $('#auditLogsPanel').style.display = tab === 'audit' ? 'block' : 'none';
+            if (tab === 'audit') loadAuditLogs();
         }
 
         async function loadWaiters() {
@@ -3161,6 +3390,7 @@
             else if (module === 'calls') loadWaiterCalls();
             else if (module === 'printers') loadPrinters();
             else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); loadDailyReport(); loadReportSummary(); }
+            else if (module === 'admins') loadAdmins();
         }
 
         // 移动端侧边栏控制
@@ -3271,7 +3501,7 @@
                 await loadStores();
                 await loadDisplaySettings();
                 await loadNotificationSettings();
-                await Promise.all([loadMenus(), loadTables(), loadOrders(), loadLoginLogs()]);
+                await Promise.all([loadMenus(), loadTables(), loadOrders(), loadLoginLogs(), loadAdmins(), loadAuditLogs()]);
                 // 刷新当前模块视图
                 const currentModule = getCurrentModule();
                 if (currentModule) switchAdminModule(currentModule);
@@ -3285,6 +3515,12 @@
             document.title = tAdmin('headerTitle');
             $('#adminHeaderTitle').textContent = tAdmin('headerTitle');
             $('#adminLang').value = adminLang;
+            // 更新标签按钮文字
+            const dishText = $('#menuTabDishText'); if (dishText) dishText.textContent = tAdmin('dishManagement');
+            const comboText = $('#menuTabComboText'); if (comboText) comboText.textContent = tAdmin('comboManagement');
+            const loginLogText = $('#logTabLoginText'); if (loginLogText) loginLogText.textContent = tAdmin('loginLogs');
+            const auditLogText = $('#logTabAuditText'); if (auditLogText) auditLogText.textContent = tAdmin('auditLogs');
+            const categoryBtnText = $('#categoryBtnText'); if (categoryBtnText) categoryBtnText.textContent = tAdmin('menuCategory');
             $('#logoutBtn').textContent = tAdmin('logout');
             $('#confirmCancelBtn').textContent = L('cancel') || '取消';
             // 服务员编辑模态框翻译
@@ -3359,7 +3595,7 @@
             });
             $('#menuFormTitle').textContent = tAdmin('menuManage');
             $('#openDishModalBtn').textContent = tAdmin('addDish');
-            $('#openCategoryModalBtn').textContent = tAdmin('dishCategoryManage');
+            // category button text updated via categoryBtnText above
             // 更新排序下拉框选项
             const sortSelect = $('#menuSortBy');
             if (sortSelect) {
@@ -3429,6 +3665,15 @@
             $('#waiterNameLabel').textContent = tAdmin('waiterDisplayName');
             $('#waiterStoreLabel').textContent = tAdmin('waiterStore');
             $('#passwordPanelTitle').textContent = tAdmin('systemSettings');
+            const adminManageCardTitle = $('#adminManageCardTitle'); if (adminManageCardTitle) adminManageCardTitle.textContent = '👤 ' + tAdmin('adminManageTitle');
+            const adminManageDesc = $('#adminManageDesc'); if (adminManageDesc) adminManageDesc.textContent = tAdmin('adminManageDesc');
+            const enterAdminManageBtn = $('#enterAdminManageBtn'); if (enterAdminManageBtn) enterAdminManageBtn.textContent = tAdmin('enterAdminManage');
+            // 套餐管理
+            const newComboName = $('#newComboName'); if (newComboName) newComboName.placeholder = tAdmin('comboName');
+            const newComboEmoji = $('#newComboEmoji'); if (newComboEmoji) newComboEmoji.placeholder = tAdmin('comboEmoji');
+            const newComboPrice = $('#newComboPrice'); if (newComboPrice) newComboPrice.placeholder = tAdmin('comboPrice');
+            const newComboDesc = $('#newComboDesc'); if (newComboDesc) newComboDesc.placeholder = tAdmin('comboDesc');
+            const addComboBtnText = $('#addComboBtnText'); if (addComboBtnText) addComboBtnText.textContent = tAdmin('addCombo');
             $('#changePasswordCardTitle').textContent = '🔐 ' + tAdmin('changePassword');
             $('#oldPasswordLabel').textContent = tAdmin('oldPassword');
             $('#newPasswordLabel').textContent = tAdmin('newPasswordShort');
@@ -3528,6 +3773,16 @@
             localStorage.setItem('adminLang', adminLang);
             if (adminLang !== 'zh') await loadAdminLanguage(adminLang);
             applyAdminLanguage();
+            // 如果当前在套餐管理标签，重新加载列表以应用新语言
+            const comboPanel = document.getElementById('comboPanel');
+            if (comboPanel && comboPanel.style.display !== 'none') {
+                loadCombos();
+            }
+            // 如果当前在操作日志标签，重新加载以应用新语言
+            const auditLogsPanel = document.getElementById('auditLogsPanel');
+            if (auditLogsPanel && auditLogsPanel.style.display !== 'none') {
+                loadAuditLogs();
+            }
         };
         $('#adminStoreSelect').onchange = function() {
             sessionStorage.setItem('adminStoreId', this.value);
