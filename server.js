@@ -1962,9 +1962,8 @@ app.post('/api/admin/waiters', requireAdminKey, async (req, res) => {
 app.put('/api/admin/waiters/:id', requireAdminKey, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT * FROM waiters WHERE id=?', [id]);
+    const current = await getAsync('SELECT * FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '服务员不存在' });
-    if (current.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此服务员' });
     const next = { ...current, ...req.body };
     await runAsync(
       'UPDATE waiters SET username=?, display_name=?, can_order=?, can_mark_item=?, can_complete_order=?, active=?, store_id=? WHERE id=?',
@@ -1978,9 +1977,8 @@ app.put('/api/admin/waiters/:id', requireAdminKey, async (req, res) => {
 app.delete('/api/admin/waiters/:id', requireAdminKey, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT store_id FROM waiters WHERE id=?', [id]);
+    const current = await getAsync('SELECT id FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '服务员不存在' });
-    if (current.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此服务员' });
     await runAsync('DELETE FROM waiters WHERE id=?', [id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -2117,9 +2115,8 @@ app.put('/api/menu/:id', requireAdminKey, upload.single('image'), async (req, re
   try {
     const id = parseInt(req.params.id);
     const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code } = req.body;
-    const current = await getAsync('SELECT * FROM menus WHERE id = ?', [id]);
+    const current = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '菜品不存在' });
-    if (current.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此菜品' });
     const nextCurrency = currency_code || current.currency_code || 'USD';
     const currency = await getAsync('SELECT code FROM currencies WHERE code=?', [nextCurrency]);
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
@@ -2142,9 +2139,8 @@ app.put('/api/menu/:id', requireAdminKey, upload.single('image'), async (req, re
 app.delete('/api/menu/:id', requireAdminKey, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const item = await getAsync('SELECT * FROM menus WHERE id = ?', [id]);
+    const item = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!item) return res.status(404).json({ error: '菜品不存在' });
-    if (item.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此菜品' });
     if (item.image) {
       const imgPath = path.join(__dirname, 'uploads', item.image);
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
@@ -2159,9 +2155,8 @@ app.delete('/api/menu/:id', requireAdminKey, async (req, res) => {
 app.put('/api/menu/:id/status', requireAdminKey, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const item = await getAsync('SELECT store_id FROM menus WHERE id = ?', [id]);
+    const item = await getAsync('SELECT id FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!item) return res.status(404).json({ error: '菜品不存在' });
-    if (item.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此菜品' });
     const active = req.body.active ? 1 : 0;
     await runAsync('UPDATE menus SET active=? WHERE id=?', [active, id]);
     res.json(await getAsync('SELECT * FROM menus WHERE id = ?', [id]));
@@ -2335,9 +2330,8 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
 app.put('/api/tables/:id', requireAdminKey, async (req, res) => {
   try {
     const id = req.params.id;
-    const existing = await getAsync('SELECT * FROM tables WHERE id = ?', [id]);
+    const existing = await getAsync('SELECT * FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!existing) return res.status(404).json({ error: '桌号不存在' });
-    if (existing.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此桌号' });
     const newName = req.body.name !== undefined ? String(req.body.name).trim() : existing.name;
     const newStatus = req.body.status || existing.status;
     if (!newName) return res.status(400).json({ error: '桌号名称不能为空' });
@@ -2367,9 +2361,8 @@ app.put('/api/tables/:id', requireAdminKey, async (req, res) => {
 app.delete('/api/tables/:id', requireAdminKey, async (req, res) => {
   try {
     const id = req.params.id;
-    const existing = await getAsync('SELECT * FROM tables WHERE id = ?', [id]);
+    const existing = await getAsync('SELECT * FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!existing) return res.status(404).json({ error: '桌号不存在' });
-    if (existing.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此桌号' });
     const orderCount = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name = ? AND status != 'canceled'", [existing.name]);
     if (orderCount.count > 0) return res.status(409).json({ error: '该桌仍有未完成订单，不能删除' });
     await runAsync('DELETE FROM tables WHERE id = ?', [id]);
@@ -2406,10 +2399,9 @@ app.get('/api/orders', requireAdminOrWaiter, async (req, res) => {
 
 app.get('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   try {
-    const row = await getAsync('SELECT * FROM orders WHERE id = ?', [req.params.id]);
-    if (!row) return res.status(404).json({ error: '订单不存在' });
     const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
-    if (row.store_id !== orderStoreId) return res.status(403).json({ error: '无权访问此订单' });
+    const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [req.params.id, orderStoreId]);
+    if (!row) return res.status(404).json({ error: '订单不存在' });
     res.json(formatOrder(row));
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2524,10 +2516,9 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   try {
     const id = req.params.id;
     const { table, items, status, note } = req.body;
-    const existing = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
-    if (!existing) return res.status(404).json({ error: '订单不存在' });
     const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
-    if (existing.store_id !== orderStoreId) return res.status(403).json({ error: '无权操作此订单' });
+    const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
+    if (!existing) return res.status(404).json({ error: '订单不存在' });
     if (existing.status === 'done') return res.status(409).json({ error: '已完成订单不能编辑' });
 
     // 解析现有 items（与 formatOrder 一致）
@@ -2604,9 +2595,8 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, async (req, res) => {
     if (!password || !(await verifyLegacyAdminPassword(password))) {
       return res.status(401).json({ error: '管理员密码验证失败' });
     }
-    const existing = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
+    const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
-    if (existing.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此订单' });
     const result = await runAsync('DELETE FROM orders WHERE id = ?', [id]);
     if (result.changes === 0) return res.status(404).json({ error: '订单不存在' });
     if (existing) await syncTableStatus(existing.table_name);
@@ -2753,9 +2743,8 @@ app.post('/api/admin/printers', requireAdminKey, async (req, res) => {
 app.put('/api/admin/printers/:id', requireAdminKey, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT * FROM printers WHERE id=?', [id]);
+    const current = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '打印机不存在' });
-    if (current.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此打印机' });
     const { name, type, ip_address, port, paper_width, brand, is_default, active } = req.body || {};
     if (is_default) await runAsync('UPDATE printers SET is_default=0 WHERE store_id=?', [current.store_id]);
     await runAsync(
@@ -2769,9 +2758,8 @@ app.put('/api/admin/printers/:id', requireAdminKey, async (req, res) => {
 app.delete('/api/admin/printers/:id', requireAdminKey, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT store_id FROM printers WHERE id=?', [id]);
+    const current = await getAsync('SELECT id FROM printers WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '打印机不存在' });
-    if (current.store_id !== req.storeId) return res.status(403).json({ error: '无权操作此打印机' });
     await runAsync('DELETE FROM printers WHERE id=?', [id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
