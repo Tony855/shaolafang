@@ -1,12 +1,12 @@
-/* ============================================================
+﻿/* ============================================================
    FoodFlow Ordering System - Common JS Library (Common JS)
-   所有页面共享此文件，提供 API 客户端、i18n、工具函数
+   鎵€鏈夐〉闈㈠叡浜鏂囦欢锛屾彁渚?API 瀹㈡埛绔€乮18n銆佸伐鍏峰嚱鏁?
    ============================================================ */
 
 (function (global) {
   'use strict';
 
-  // ---------- 配置 ----------
+  // ---------- 閰嶇疆 ----------
   const CONFIG = {
     API_BASE: '/api',
     DEFAULT_LANG: 'zh',
@@ -22,7 +22,7 @@
     },
   };
 
-  // ---------- 统一 API 客户端 ----------
+  // ---------- 缁熶竴 API 瀹㈡埛绔?----------
   class ApiClient {
     constructor(baseUrl) {
       this.baseUrl = baseUrl || CONFIG.API_BASE;
@@ -50,7 +50,7 @@
         ...(options.headers || {}),
       };
 
-      // FormData 时移除 Content-Type，让浏览器自动设置 boundary
+      // FormData 鏃剁Щ闄?Content-Type锛岃娴忚鍣ㄨ嚜鍔ㄨ缃?boundary
       if (options.body instanceof FormData) {
         delete headers['Content-Type'];
       }
@@ -80,7 +80,7 @@
 
         if (!res.ok) {
           const error = new Error(
-            (data && data.error) || `请求失败 (${res.status})`
+            (data && data.error) || `璇锋眰澶辫触 (${res.status})`
           );
           error.status = res.status;
           error.data = data;
@@ -89,7 +89,7 @@
         return data;
       } catch (err) {
         if (err.name === 'TypeError' || !err.status) {
-          throw new Error('网络连接失败，请检查后端服务');
+          throw new Error('缃戠粶杩炴帴澶辫触锛岃妫€鏌ュ悗绔湇鍔?);
         }
         throw err;
       }
@@ -122,7 +122,7 @@
 
   const api = new ApiClient();
 
-  // ---------- 统一 i18n 翻译系统 ----------
+  // ---------- 缁熶竴 i18n 缈昏瘧绯荤粺 ----------
   class I18n {
     constructor() {
       this.lang = CONFIG.DEFAULT_LANG;
@@ -137,7 +137,7 @@
           this.dicts[code] = { ...(this.dicts[code] || {}), ...dict };
         }
       }
-      // 合并全局 LANGUAGES（如果存在，作为回退）
+      // 鍚堝苟鍏ㄥ眬 LANGUAGES锛堝鏋滃瓨鍦紝浣滀负鍥為€€锛?
       if (typeof LANGUAGES !== 'undefined') {
         for (const [code, dict] of Object.entries(LANGUAGES)) {
           this.dicts[code] = { ...(this.dicts[code] || {}), ...dict };
@@ -145,16 +145,16 @@
       }
     }
 
-    // 动态加载指定语言的翻译（方案二：按需从API加载，减少初始体积）
+    // 鍔ㄦ€佸姞杞芥寚瀹氳瑷€鐨勭炕璇戯紙鏂规浜岋細鎸夐渶浠嶢PI鍔犺浇锛屽噺灏戝垵濮嬩綋绉級
     async loadLanguage(lang) {
       const validLangs = ['zh', 'en', 'vi', 'th', 'km'];
       if (!validLangs.includes(lang)) lang = 'zh';
-      // 检查内存缓存
+      // 妫€鏌ュ唴瀛樼紦瀛?
       if (this.dicts[lang] && this.dicts[lang]._loaded) {
         this.lang = lang;
         return true;
       }
-      // 检查localStorage缓存
+      // 妫€鏌ocalStorage缂撳瓨
       try {
         const cached = localStorage.getItem('i18n_' + lang);
         if (cached) {
@@ -164,14 +164,14 @@
           return true;
         }
       } catch (e) {}
-      // 从API动态加载
+      // 浠嶢PI鍔ㄦ€佸姞杞?
       try {
         const res = await fetch('/api/i18n/' + lang);
         if (res.ok) {
           const data = await res.json();
           this.dicts[lang] = { ...data, _loaded: true };
           this.lang = lang;
-          // 缓存到localStorage（24小时）
+          // 缂撳瓨鍒發ocalStorage锛?4灏忔椂锛?
           try {
             localStorage.setItem('i18n_' + lang, JSON.stringify(data));
           } catch (e) {}
@@ -180,7 +180,7 @@
       } catch (e) {
         console.warn('i18n dynamic load failed, using fallback:', e.message);
       }
-      // 加载失败，回退到全局LANGUAGES或中文
+      // 鍔犺浇澶辫触锛屽洖閫€鍒板叏灞€LANGUAGES鎴栦腑鏂?
       this.lang = this.dicts[lang] ? lang : this.fallbackLang;
       return false;
     }
@@ -194,12 +194,12 @@
       const fallback = this.dicts[this.fallbackLang] || {};
       let value = dict[key] ?? fallback[key] ?? key;
 
-      // 支持嵌套 categories 等对象
+      // 鏀寔宓屽 categories 绛夊璞?
       if (typeof value === 'object' && value !== null) {
         return value;
       }
 
-      // 支持参数替换 {0}, {1} 或 {name}
+      // 鏀寔鍙傛暟鏇挎崲 {0}, {1} 鎴?{name}
       if (params) {
         if (Array.isArray(params)) {
           params.forEach((p, i) => {
@@ -214,29 +214,29 @@
       return value;
     }
 
-    // 获取分类翻译
+    // 鑾峰彇鍒嗙被缈昏瘧
     category(name) {
       const cats = this.t('categories');
       if (cats && typeof cats === 'object' && cats[name]) return cats[name];
       return name;
     }
 
-    // 获取当前语言的货币信息
+    // 鑾峰彇褰撳墠璇█鐨勮揣甯佷俊鎭?
     currency() {
       const dict = this.dicts[this.lang] || this.dicts[this.fallbackLang] || {};
       return {
-        symbol: dict.currencySymbol || '¥',
+        symbol: dict.currencySymbol || '楼',
         rate: Number(dict.currencyRate) || 1,
         code: dict.currencyCode || this.lang.toUpperCase(),
       };
     }
 
-    // 格式化价格（基础货币 USD -> 当前语言货币）
+    // 鏍煎紡鍖栦环鏍硷紙鍩虹璐у竵 USD -> 褰撳墠璇█璐у竵锛?
     formatPrice(basePrice, baseCurrency) {
       const cur = this.currency();
       const rate = cur.rate || 1;
       const converted = Number(basePrice) * rate;
-      // 大额货币（VND/KHR）不显示小数
+      // 澶ч璐у竵锛圴ND/KHR锛変笉鏄剧ず灏忔暟
       const decimals = rate >= 1000 ? 0 : 2;
       return `${cur.symbol}${converted.toFixed(decimals)}`;
     }
@@ -244,9 +244,9 @@
 
   const i18n = new I18n();
 
-  // ---------- 工具函数 ----------
+  // ---------- 宸ュ叿鍑芥暟 ----------
   const utils = {
-    // HTML 转义
+    // HTML 杞箟
     esc(str) {
       return String(str ?? '').replace(/[&<>"']/g, (c) => ({
         '&': '&amp;',
@@ -257,7 +257,7 @@
       }[c]));
     },
 
-    // 防抖
+    // 闃叉姈
     debounce(fn, delay) {
       let timer;
       return function (...args) {
@@ -266,7 +266,7 @@
       };
     },
 
-    // 节流
+    // 鑺傛祦
     throttle(fn, limit) {
       let inThrottle;
       return function (...args) {
@@ -278,7 +278,7 @@
       };
     },
 
-    // 格式化日期时间（全球通用格式 YYYY-MM-DD HH:mm:ss）
+    // 鏍煎紡鍖栨棩鏈熸椂闂达紙鍏ㄧ悆閫氱敤鏍煎紡 YYYY-MM-DD HH:mm:ss锛?
     formatDateTime(isoStr) {
       try {
         const d = new Date(isoStr);
@@ -288,7 +288,7 @@
         return isoStr;
       }
     },
-    // 格式化时间（全球通用格式 HH:mm:ss）
+    // 鏍煎紡鍖栨椂闂达紙鍏ㄧ悆閫氱敤鏍煎紡 HH:mm:ss锛?
     formatTime(date) {
       try {
         const d = date instanceof Date ? date : new Date(date);
@@ -299,24 +299,24 @@
       }
     },
 
-    // 相对时间
+    // 鐩稿鏃堕棿
     timeAgo(isoStr) {
       const diff = Date.now() - new Date(isoStr).getTime();
       const mins = Math.floor(diff / 60000);
-      if (mins < 1) return { text: i18n.t('justNow') || '刚刚', level: 'ok' };
+      if (mins < 1) return { text: i18n.t('justNow') || '鍒氬垰', level: 'ok' };
       if (mins < 60)
         return {
-          text: `${mins} ${i18n.t('minutesAgo') || '分钟前'}`,
+          text: `${mins} ${i18n.t('minutesAgo') || '鍒嗛挓鍓?}`,
           level: mins >= 15 ? 'danger' : mins >= 8 ? 'warn' : 'ok',
         };
       const hours = Math.floor(mins / 60);
       return {
-        text: `${hours} ${i18n.t('hoursAgo') || '小时前'}`,
+        text: `${hours} ${i18n.t('hoursAgo') || '灏忔椂鍓?}`,
         level: 'danger',
       };
     },
 
-    // 生成随机 ID
+    // 鐢熸垚闅忔満 ID
     uid(prefix) {
       return (
         (prefix || '') +
@@ -325,12 +325,12 @@
       );
     },
 
-    // 深拷贝
+    // 娣辨嫹璐?
     clone(obj) {
       return JSON.parse(JSON.stringify(obj));
     },
 
-    // 下载文件
+    // 涓嬭浇鏂囦欢
     download(filename, content, mimeType) {
       const blob = new Blob([content], {
         type: mimeType || 'application/octet-stream',
@@ -343,7 +343,7 @@
       URL.revokeObjectURL(url);
     },
 
-    // 复制到剪贴板
+    // 澶嶅埗鍒板壀璐存澘
     async copyToClipboard(text) {
       try {
         await navigator.clipboard.writeText(text);
@@ -360,9 +360,9 @@
     },
   };
 
-  // ---------- 通用 UI 组件 ----------
+  // ---------- 閫氱敤 UI 缁勪欢 ----------
   const ui = {
-    // Toast 提示
+    // Toast 鎻愮ず
     _toastEl: null,
     _toastTimer: null,
     toast(message, type, duration) {
@@ -379,7 +379,7 @@
       }, duration || 2500);
     },
 
-    // 确认对话框
+    // 纭瀵硅瘽妗?
     confirm(message, title) {
       return new Promise((resolve) => {
         const overlay = document.createElement('div');
@@ -387,8 +387,8 @@
         overlay.innerHTML = `
           <div class="slf-modal" style="max-width:400px">
             <div class="slf-modal-head">
-              <h2>${utils.esc(title || i18n.t('confirm') || '确认')}</h2>
-              <button class="slf-modal-close" data-action="cancel" aria-label="关闭">
+              <h2>${utils.esc(title || i18n.t('confirm') || '纭')}</h2>
+              <button class="slf-modal-close" data-action="cancel" aria-label="鍏抽棴">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -396,8 +396,8 @@
               <p style="font-size:15px;color:var(--gray-600)">${utils.esc(message)}</p>
             </div>
             <div class="slf-modal-foot">
-              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '取消'}</button>
-              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '确认'}</button>
+              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '鍙栨秷'}</button>
+              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '纭'}</button>
             </div>
           </div>`;
         document.body.appendChild(overlay);
@@ -415,7 +415,7 @@
       });
     },
 
-    // 输入对话框
+    // 杈撳叆瀵硅瘽妗?
     prompt(message, defaultValue, title) {
       return new Promise((resolve) => {
         const overlay = document.createElement('div');
@@ -423,8 +423,8 @@
         overlay.innerHTML = `
           <div class="slf-modal" style="max-width:420px">
             <div class="slf-modal-head">
-              <h2>${utils.esc(title || i18n.t('input') || '请输入')}</h2>
-              <button class="slf-modal-close" data-action="cancel" aria-label="关闭">
+              <h2>${utils.esc(title || i18n.t('input') || '璇疯緭鍏?)}</h2>
+              <button class="slf-modal-close" data-action="cancel" aria-label="鍏抽棴">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -433,8 +433,8 @@
               <input type="text" class="modal-input" value="${utils.esc(defaultValue || '')}" style="width:100%;padding:12px 14px;border:1px solid var(--gray-300);border-radius:10px;font-size:15px;outline:none;transition:border-color .2s,box-shadow .2s;" onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px rgba(232,93,58,.15)'" onblur="this.style.borderColor='var(--gray-300)';this.style.boxShadow='none'">
             </div>
             <div class="slf-modal-foot">
-              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '取消'}</button>
-              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '确定'}</button>
+              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '鍙栨秷'}</button>
+              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '纭畾'}</button>
             </div>
           </div>`;
         document.body.appendChild(overlay);
@@ -458,7 +458,7 @@
       });
     },
 
-    // 打开模态框（基于已存在的 DOM）
+    // 鎵撳紑妯℃€佹锛堝熀浜庡凡瀛樺湪鐨?DOM锛?
     openModal(selector) {
       const el =
         typeof selector === 'string'
@@ -476,9 +476,9 @@
     },
   };
 
-  // ---------- 认证辅助 ----------
+  // ---------- 璁よ瘉杈呭姪 ----------
   const auth = {
-    // 管理员
+    // 绠＄悊鍛?
     getAdminKey() {
       return sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminKey);
     },
@@ -492,7 +492,7 @@
       return !!this.getAdminKey();
     },
 
-    // 服务员
+    // 鏈嶅姟鍛?
     getWaiterToken() {
       return (
         localStorage.getItem(CONFIG.STORAGE_KEYS.waiterToken) ||
@@ -517,7 +517,7 @@
       }
     },
 
-    // 店铺
+    // 搴楅摵
     getStoreId() {
       return parseInt(localStorage.getItem(CONFIG.STORAGE_KEYS.storeId) || '1', 10);
     },
@@ -526,18 +526,18 @@
     },
   };
 
-  // ---------- 音频工具 ----------
+  // ---------- 闊抽宸ュ叿 ----------
   const audio = {
     _ctx: null,
     _enabled: true,
 
-    // 解锁音频上下文（必须在用户交互后调用）
+    // 瑙ｉ攣闊抽涓婁笅鏂囷紙蹇呴』鍦ㄧ敤鎴蜂氦浜掑悗璋冪敤锛?
     unlock() {
       if (!this._ctx) {
         try {
           this._ctx = new (window.AudioContext || window.webkitAudioContext)();
         } catch (e) {
-          // 浏览器不支持 Web Audio
+          // 娴忚鍣ㄤ笉鏀寔 Web Audio
         }
       }
       if (this._ctx && this._ctx.state === 'suspended') {
@@ -545,25 +545,25 @@
       }
     },
 
-    // 设置声音开关
+    // 璁剧疆澹伴煶寮€鍏?
     setEnabled(enabled) {
       this._enabled = !!enabled;
     },
 
-    // 获取声音开关状态
+    // 鑾峰彇澹伴煶寮€鍏崇姸鎬?
     isEnabled() {
       return this._enabled;
     },
 
-    // 播放新订单提示音（C大调上行琶音，悦耳愉悦，响亮清晰）
+    // 鎾斁鏂拌鍗曟彁绀洪煶锛圕澶ц皟涓婅鐞堕煶锛屾偊鑰虫剦鎮︼紝鍝嶄寒娓呮櫚锛?
     playNewOrderChime() {
       if (!this._enabled) return;
       this.unlock();
       if (!this._ctx) return;
       try {
         const now = this._ctx.currentTime;
-        // C大调上行琶音：C5→E5→G5→C6→E6，愉悦上扬
-        // 频率：C5=523.25, E5=659.25, G5=783.99, C6=1046.50, E6=1318.51
+        // C澶ц皟涓婅鐞堕煶锛欳5鈫扙5鈫扜5鈫扖6鈫扙6锛屾剦鎮︿笂鎵?
+        // 棰戠巼锛欳5=523.25, E5=659.25, G5=783.99, C6=1046.50, E6=1318.51
         const notes = [
           [0, 523.25],
           [0.15, 659.25],
@@ -587,11 +587,11 @@
           osc.stop(now + t + duration + 0.05);
         });
       } catch (e) {
-        // 忽略音频播放错误
+        // 蹇界暐闊抽鎾斁閿欒
       }
     },
 
-    // 播放催单提示音（急促的四声）
+    // 鎾斁鍌崟鎻愮ず闊筹紙鎬ヤ績鐨勫洓澹帮級
     playUrgeChime() {
       if (!this._enabled) return;
       this.unlock();
@@ -621,11 +621,11 @@
           });
         });
       } catch (e) {
-        // 忽略音频播放错误
+        // 蹇界暐闊抽鎾斁閿欒
       }
     },
 
-    // 播放呼叫服务员/催单提示音（三声清脆叮咚，更急促）
+    // 鎾斁鍛煎彨鏈嶅姟鍛?鍌崟鎻愮ず闊筹紙涓夊０娓呰剢鍙挌锛屾洿鎬ヤ績锛?
     playCallChime() {
       if (!this._enabled) return;
       this.unlock();
@@ -655,12 +655,12 @@
           });
         });
       } catch (e) {
-        // 忽略音频播放错误
+        // 蹇界暐闊抽鎾斁閿欒
       }
     },
   };
 
-  // ---------- 导出到全局 ----------
+  // ---------- 瀵煎嚭鍒板叏灞€ ----------
   global.SLF = {
     CONFIG,
     api,
@@ -673,7 +673,7 @@
     I18n,
   };
 
-  // 兼容旧代码：提供全局 t 函数快捷方式
+  // 鍏煎鏃т唬鐮侊細鎻愪緵鍏ㄥ眬 t 鍑芥暟蹇嵎鏂瑰紡
   global.t = function (key, params) {
     return i18n.t(key, params);
   };

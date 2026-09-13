@@ -1567,12 +1567,6 @@
             padding-bottom: 96px
         }
         .header {
-            background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
-            padding: 16px 18px;
-            box-shadow: 0 10px 28px rgba(200, 65, 30, .22);
-            border-radius: 0 0 22px 22px
-        }
-        .header {
             position: fixed;
             top: 0;
             left: 0;
@@ -1581,19 +1575,24 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px
+            gap: 10px;
+            min-height: 64px;
+            background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
+            padding: 16px 18px;
+            box-shadow: 0 10px 28px rgba(200, 65, 30, .22);
+            border-radius: 0 0 22px 22px
         }
         body {
             padding-top: 64px
-        }
-        .header {
-            min-height: 64px
         }
         .header-left {
             display: flex;
             align-items: center;
             gap: 8px;
-            min-width: 0
+            min-width: 0;
+            flex-shrink: 0;
+            overflow: hidden;
+            text-overflow: ellipsis
         }
         .header-right {
             display: flex;
@@ -1601,10 +1600,7 @@
             justify-content: flex-end;
             gap: 8px;
             min-width: 0;
-            flex-wrap: wrap
-        }
-        .header-left,
-        .header-right {
+            flex-wrap: wrap;
             flex-shrink: 0
         }
         .header .table-info,
@@ -1615,10 +1611,6 @@
         }
         .header-right select {
             min-width: 92px
-        }
-        .header-left {
-            overflow: hidden;
-            text-overflow: ellipsis
         }
         .header-logo {
             font-size: 24px
@@ -3748,11 +3740,11 @@
             await fetchOrders();
 
             console.log('🍽️ 多语言点餐系统已启动 (前端)');
-            console.log(`🪑 桌号: ${state.table}`);
-            console.log(`🏪 店铺ID: ${state.storeId}`);
-            console.log(`🌐 语言: ${currentLang}`);
+
+
+
             console.log(`📡 后端状态: ${isBackendOnline ? t('online') : '离线（演示模式）'}`);
-            console.log(`🏷️ 分类顺序:`, state.categoryOrder);
+
         }
 
         // ============================================================

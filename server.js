@@ -315,7 +315,7 @@ async function initializeMenuCatalog() {
       );
     }
   });
-  console.log(`🍖 首次安装：已初始化 ${catalog.length} 道菜品`);
+
 }
 
 async function migrateLegacyJsonOnce() {
@@ -439,7 +439,7 @@ async function initDatabase() {
     await pool.getConnection();
   } catch (err) {
     if (err.code === 'ER_BAD_DB_ERROR') {
-      console.log('数据库不存在，尝试创建...');
+
       const tempPool = mysql.createPool({
         host: poolConfig.host,
         user: poolConfig.user,
@@ -485,7 +485,7 @@ async function initDatabase() {
   const menusColNames = menusColumns.map(c => c.Field);
   if (!menusColNames.includes('sales_count')) {
     await runAsync('ALTER TABLE menus ADD COLUMN sales_count INT NOT NULL DEFAULT 0');
-    console.log('  + 迁移 menus: 添加 sales_count 字段');
+
   }
 
   await runAsync(`
@@ -522,19 +522,19 @@ async function initDatabase() {
   const loginLogsColNames = loginLogsColumns.map(c => c.Field);
   if (!loginLogsColNames.includes('username')) {
     await runAsync('ALTER TABLE login_logs ADD COLUMN username VARCHAR(100) DEFAULT NULL');
-    console.log('  + 迁移 login_logs: 添加 username 字段');
+
   }
   if (!loginLogsColNames.includes('location')) {
     await runAsync('ALTER TABLE login_logs ADD COLUMN location VARCHAR(255) DEFAULT NULL');
-    console.log('  + 迁移 login_logs: 添加 location 字段');
+
   }
   if (!loginLogsColNames.includes('merchant_id')) {
     await runAsync('ALTER TABLE login_logs ADD COLUMN merchant_id INT DEFAULT NULL');
-    console.log('  + 迁移 login_logs: 添加 merchant_id 字段');
+
   }
   if (!loginLogsColNames.includes('login_type')) {
     await runAsync('ALTER TABLE login_logs ADD COLUMN login_type VARCHAR(50) DEFAULT NULL');
-    console.log('  + 迁移 login_logs: 添加 login_type 字段');
+
   }
 
   await runAsync(`
@@ -714,7 +714,7 @@ async function initDatabase() {
   for (const tbl of tablesToAlter) {
     try {
       await runAsync(`ALTER TABLE ${tbl} ADD COLUMN merchant_id INT NOT NULL DEFAULT 1`);
-      console.log(`  + 已为 ${tbl} 表添加 merchant_id 字段`);
+
     } catch (e) {
       if (!/duplicate column/i.test(e.message || '')) console.log(`  ! ${tbl}: ${e.message}`);
     }
@@ -733,7 +733,7 @@ async function initDatabase() {
   if (superAdminCount.count === 0) {
     const superHash = hashPassword('super123');
     await runAsync("INSERT INTO super_admins (username, password_hash, display_name) VALUES (?, ?, ?)", ['superadmin', superHash, '超级管理员']);
-    console.log('  + 已创建超级管理员：superadmin / super123');
+
   }
 
   // 创建默认商户管理员（用户名+密码）
@@ -741,7 +741,7 @@ async function initDatabase() {
   if (merchantAdminCount.count === 0) {
     const adminHash = hashPassword('admin123');
     await runAsync("INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)", [1, 'admin', adminHash, '商户管理员']);
-    console.log('  + 已创建商户管理员：admin / admin123');
+
   }
 
   // 迁移现有数据的 merchant_id（确保所有现有数据关联到默认商户）
@@ -811,7 +811,6 @@ async function initDatabase() {
   const allTables = await allAsync('SELECT name FROM tables');
   for (const t of allTables) await syncTableStatus(t.name);
 
-  console.log('✅ 数据库初始化完成');
 }
 
 // ---------- 统一响应格式 ----------
@@ -1267,7 +1266,7 @@ async function autoBackupDatabase() {
   const filename = path.join(backupDir, `auto-${new Date().toISOString().slice(0,10)}.json`);
   fs.writeFileSync(filename, JSON.stringify(data, null, 2));
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('last_backup_at', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [new Date().toISOString()]);
-  console.log(`📦 自动备份已生成: ${filename}`);
+
 }
 
 async function maybeAutoBackup() {
@@ -2219,7 +2218,7 @@ app.post('/api/orders', async (req, res) => {
           const printData = buildReceipt(newRow, storeInfo, defaultPrinter);
           try {
             await printToNetworkPrinter(printData, defaultPrinter.ip_address, defaultPrinter.port);
-            console.log(`[AutoPrint] Order #${newRow.id} printed to ${defaultPrinter.name}`);
+
           } catch (printErr) {
             console.error(`[AutoPrint] Failed to print order #${newRow.id}:`, printErr.message);
           }
@@ -3169,13 +3168,13 @@ const isInitOnly = process.argv.includes('--init-only');
 
 initDatabase().then(() => {
   if (isInitOnly) {
-    console.log('✅ 数据库、菜单、桌号、货币、分类和后台密钥已初始化');
+
     process.exit(0);
   }
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ 后端服务已启动: http://localhost:${PORT}`);
+
     console.log(`📁 数据库: MySQL (${poolConfig.database})`);
-    console.log(`📋 菜单、桌号、订单数据已初始化`);
+
     maybeAutoBackup().catch(err => console.error('自动备份失败:', err.message));
     setInterval(() => {
       maybeAutoBackup().catch(err => console.error('自动备份失败:', err.message));
