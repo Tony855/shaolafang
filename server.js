@@ -2281,6 +2281,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     if (!req.isAdmin) {
       const storeId = req.waiterStoreId || 1;
       if (row.store_id !== storeId) return res.status(403).json({ error: '无权操作此订单' });
+      if (req.waiter && !req.waiter.can_mark_item) return res.status(403).json({ error: '该服务员没有标记菜品权限' });
     }
     if (row.status === 'done') return res.status(409).json({ error: '已结算订单不能修改菜品状态' });
     
@@ -2554,9 +2555,14 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     // 计算总价
     const calculatedTotal = newItems.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
 
-    // 如果状态要改为 done，检查是否所有菜品都已完成
-    if (status === 'done' && newItems.some(item => item.itemStatus !== 'done')) {
-      return res.status(409).json({ error: '存在未完成菜品，请先完成或删除该菜品后再结算订单' });
+    // 如果状态要改为 done，检查服务员权限和是否所有菜品都已完成
+    if (status === 'done') {
+      if (!req.isAdmin && req.waiter && !req.waiter.can_complete_order) {
+        return res.status(403).json({ error: '该服务员没有结算订单权限' });
+      }
+      if (newItems.some(item => item.itemStatus !== 'done')) {
+        return res.status(409).json({ error: '存在未完成菜品，请先完成或删除该菜品后再结算订单' });
+      }
     }
 
     // 处理桌号更新
