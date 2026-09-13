@@ -358,6 +358,14 @@
     // 安全兜底：兼容旧版 common.js 没有 SLF.audio 的情况
     const audio = SLF.audio || { unlock: () => {}, setEnabled: () => {}, playNewOrderChime: () => {}, playUrgeChime: () => {} };
     let lang = localStorage.getItem('kitchenLang') || 'zh';
+    // 预加载非中文语言数据，确保初始化时字典完整
+    if (lang !== 'zh') {
+      loadKitchenLanguage(lang).then(() => {
+        SLF.i18n.init(lang);
+        applyLoginLanguage();
+        applyMainLanguage();
+      });
+    }
     SLF.i18n.init(lang);
     const kt = k => SLF.i18n.t(k);
 
@@ -451,7 +459,8 @@
       lang = next;
       if (lang !== 'zh') await loadKitchenLanguage(lang);
       localStorage.setItem('kitchenLang', lang);
-      SLF.i18n.setLang(lang);
+      // 重新初始化i18n，将新加载的LANGUAGES字典合并到SLF.i18n.dicts中
+      SLF.i18n.init(lang);
       applyLoginLanguage();
       applyMainLanguage();
       renderTickets(lastOrders);
@@ -480,7 +489,7 @@
       $('#countBadge').textContent = pending.length;
 
       if (pending.length === 0) {
-        grid.innerHTML = `<div class="empty-state">${kt('noPendingOrders')}</div>`;
+        grid.innerHTML = `<div class="empty-state" id="emptyState">${kt('noPendingOrders')}</div>`;
         return;
       }
 
