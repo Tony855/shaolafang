@@ -80,7 +80,7 @@
 
         if (!res.ok) {
           const error = new Error(
-            (data && data.error) || `璇锋眰澶辫触 (${res.status})`
+            (data && data.error) || `请求失败 (${res.status})`
           );
           error.status = res.status;
           error.data = data;
@@ -89,7 +89,7 @@
         return data;
       } catch (err) {
         if (err.name === 'TypeError' || !err.status) {
-          throw new Error('缃戠粶杩炴帴澶辫触锛岃妫€鏌ュ悗绔湇鍔?);
+          throw new Error('网络连接失败，请检查后端服务');
         }
         throw err;
       }
@@ -149,12 +149,12 @@
     async loadLanguage(lang) {
       const validLangs = ['zh', 'en', 'vi', 'th', 'km'];
       if (!validLangs.includes(lang)) lang = 'zh';
-      // 妫€鏌ュ唴瀛樼紦瀛?
+      // 检查内存缓存
       if (this.dicts[lang] && this.dicts[lang]._loaded) {
         this.lang = lang;
         return true;
       }
-      // 妫€鏌ocalStorage缂撳瓨
+      // 检查localStorage缓存
       try {
         const cached = localStorage.getItem('i18n_' + lang);
         if (cached) {
@@ -171,7 +171,7 @@
           const data = await res.json();
           this.dicts[lang] = { ...data, _loaded: true };
           this.lang = lang;
-          // 缂撳瓨鍒發ocalStorage锛?4灏忔椂锛?
+          // 缓存到localStorage（24小时）
           try {
             localStorage.setItem('i18n_' + lang, JSON.stringify(data));
           } catch (e) {}
@@ -180,7 +180,7 @@
       } catch (e) {
         console.warn('i18n dynamic load failed, using fallback:', e.message);
       }
-      // 鍔犺浇澶辫触锛屽洖閫€鍒板叏灞€LANGUAGES鎴栦腑鏂?
+      // 加载失败，回退到全局LANGUAGES或中文
       this.lang = this.dicts[lang] ? lang : this.fallbackLang;
       return false;
     }
@@ -306,12 +306,12 @@
       if (mins < 1) return { text: i18n.t('justNow') || '鍒氬垰', level: 'ok' };
       if (mins < 60)
         return {
-          text: `${mins} ${i18n.t('minutesAgo') || '鍒嗛挓鍓?}`,
+          text: `${mins} ${i18n.t('minutesAgo') || '分钟前'}`,
           level: mins >= 15 ? 'danger' : mins >= 8 ? 'warn' : 'ok',
         };
       const hours = Math.floor(mins / 60);
       return {
-        text: `${hours} ${i18n.t('hoursAgo') || '灏忔椂鍓?}`,
+        text: `${hours} ${i18n.t('hoursAgo') || '小时前'}`,
         level: 'danger',
       };
     },
@@ -423,7 +423,7 @@
         overlay.innerHTML = `
           <div class="slf-modal" style="max-width:420px">
             <div class="slf-modal-head">
-              <h2>${utils.esc(title || i18n.t('input') || '璇疯緭鍏?)}</h2>
+              <h2>${utils.esc(title || i18n.t('input') || '请输入')}</h2>
               <button class="slf-modal-close" data-action="cancel" aria-label="鍏抽棴">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>

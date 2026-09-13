@@ -272,6 +272,14 @@
 
     SLF.i18n.init(lang);
 
+    // 页面初始化时，如果是非中文语言，需要动态加载翻译
+    (async () => {
+      if (lang !== 'zh') {
+        await SLF.i18n.loadLanguage(lang);
+      }
+      apply();
+    })();
+
     // 从 URL 参数获取登录类型
     const urlParams = new URLSearchParams(window.location.search);
     const typeParam = urlParams.get('type');
@@ -308,7 +316,7 @@
       $('#loginBtn').textContent = t('login');
     }
 
-    // 语言切换
+    // 语言切换（apply已在上面异步初始化中调用）
     $('#langSelect').value = lang;
     $('#langSelect').addEventListener('change', async () => {
       lang = $('#langSelect').value;
