@@ -964,12 +964,6 @@ function ok(res, data, statusCode) {
 function fail(res, error, statusCode) {
   res.status(statusCode || 400).json({ success: false, error: error.message || error });
 }
-function handleError(res, error, defaultStatus) {
-  const msg = error.message || String(error);
-  if (/Duplicate entry/i.test(msg)) return fail(res, '数据已存在', 409);
-  if (/ER_BAD_NULL_ERROR|NOT NULL/i.test(msg)) return fail(res, '必填字段不能为空', 400);
-  fail(res, msg, defaultStatus || 500);
-}
 
 // ---------- ESC/POS 小票打印工具 ----------
 const ESC = Buffer.from([0x1b]);
@@ -1312,7 +1306,8 @@ async function getWaiterFromRequest(req) {
   return await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
 }
 
-async function requireAdminKey(req, res, next) {
+// 共用管理员认证逻辑：返回 { adminId, merchantId, storeId, sessionToken } 或 null
+async function authenticateAdmin(req) {
   const authHeader = req.get('Authorization') || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
   if (token) {
@@ -1321,7 +1316,7 @@ async function requireAdminKey(req, res, next) {
     if (session) {
       if (new Date(session.expires_at).getTime() <= Date.now()) {
         await runAsync('DELETE FROM admin_sessions WHERE token=?', [token]).catch(() => {});
-        return res.status(401).json({ error: '登录已过期，请重新登录' });
+        return { error: '登录已过期，请重新登录' };
       }
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [session.admin_id]);
       if (admin) {
@@ -1332,11 +1327,12 @@ async function requireAdminKey(req, res, next) {
           const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
           const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
           runAsync('UPDATE admin_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
-          req.adminId = admin.id;
-          req.merchantId = admin.merchant_id;
-          req.adminSessionToken = token;
-          req.storeId = parseInt(req.get('X-Store-Id') || '1', 10);
-          return next();
+          return {
+            adminId: admin.id,
+            merchantId: admin.merchant_id,
+            storeId: parseInt(req.get('X-Store-Id') || '1', 10),
+            sessionToken: token
+          };
         }
       }
     }
@@ -1348,10 +1344,11 @@ async function requireAdminKey(req, res, next) {
         if (admin) {
           const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
           if (merchant) {
-            req.adminId = admin.id;
-            req.merchantId = admin.merchant_id;
-            req.storeId = parseInt(req.get('X-Store-Id') || '1', 10);
-            return next();
+            return {
+              adminId: admin.id,
+              merchantId: admin.merchant_id,
+              storeId: parseInt(req.get('X-Store-Id') || '1', 10)
+            };
           }
         }
       }
@@ -1361,7 +1358,19 @@ async function requireAdminKey(req, res, next) {
   const providedKey = req.get('X-Admin-Key');
   const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
   if (providedKey && setting && providedKey === setting.value) {
-    req.storeId = parseInt(req.get('X-Store-Id') || '1', 10);
+    return { storeId: parseInt(req.get('X-Store-Id') || '1', 10) };
+  }
+  return null;
+}
+
+async function requireAdminKey(req, res, next) {
+  const result = await authenticateAdmin(req);
+  if (result && result.error) return res.status(401).json({ error: result.error });
+  if (result) {
+    req.adminId = result.adminId;
+    req.merchantId = result.merchantId;
+    req.adminSessionToken = result.sessionToken;
+    req.storeId = result.storeId;
     return next();
   }
   return res.status(401).json({ error: '未登录或登录已过期' });
@@ -1376,61 +1385,20 @@ async function logAudit(actorType, actorId, actorUsername, action, targetType, t
 }
 
 async function requireAdminOrWaiter(req, res, next) {
-  // 支持新的商户管理员 session token 认证
-  const authHeader = req.get('Authorization') || '';
-  const bearerToken = authHeader.replace(/^Bearer\s+/i, '');
-  if (bearerToken) {
-    // 优先检查新的session token
-    const session = await getAsync('SELECT * FROM admin_sessions WHERE token=?', [bearerToken]);
-    if (session) {
-      if (new Date(session.expires_at).getTime() <= Date.now()) {
-        await runAsync('DELETE FROM admin_sessions WHERE token=?', [bearerToken]).catch(() => {});
-        return res.status(401).json({ error: '登录已过期，请重新登录' });
-      }
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [session.admin_id]);
-      if (admin) {
-        const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
-        if (merchant) {
-          // 滑动过期
-          const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
-          const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
-          const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
-          runAsync('UPDATE admin_sessions SET expires_at=? WHERE token=?', [newExpires, bearerToken]).catch(() => {});
-          req.adminId = admin.id;
-          req.merchantId = admin.merchant_id;
-          req.isAdmin = true;
-          req.adminSessionToken = bearerToken;
-          req.storeId = parseInt(req.get('X-Store-Id') || '1', 10);
-          return next();
-        }
-      }
-    }
-    // 兼容旧的base64 token（无过期）
-    try {
-      const payload = JSON.parse(Buffer.from(bearerToken, 'base64').toString());
-      if (payload.adminId) {
-        const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [payload.adminId]);
-        if (admin) {
-          const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
-          if (merchant) {
-            req.merchantId = admin.merchant_id;
-            req.isAdmin = true;
-            req.storeId = parseInt(req.get('X-Store-Id') || '1', 10);
-            return next();
-          }
-        }
-      }
-    } catch (e) { /* 不是旧格式token，继续尝试其他方式 */ }
-  }
-  // 兼容旧的 X-Admin-Key 认证
-  const providedKey = req.get('X-Admin-Key');
-  const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
-  if (providedKey && setting && providedKey === setting.value) {
+  // 先尝试管理员认证
+  const adminResult = await authenticateAdmin(req);
+  if (adminResult && adminResult.error) return res.status(401).json({ error: adminResult.error });
+  if (adminResult) {
+    req.adminId = adminResult.adminId;
+    req.merchantId = adminResult.merchantId;
     req.isAdmin = true;
-    req.storeId = parseInt(req.get('X-Store-Id') || '1', 10);
+    req.adminSessionToken = adminResult.sessionToken;
+    req.storeId = adminResult.storeId;
     return next();
   }
   // 服务员 token 认证
+  const authHeader = req.get('Authorization') || '';
+  const bearerToken = authHeader.replace(/^Bearer\s+/i, '');
   const token = req.get('X-Waiter-Token') || bearerToken;
   if (token) {
     const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
@@ -1586,22 +1554,6 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
-// ===== 商户管理员认证中间件 =====
-async function requireMerchantAdmin(req, res, next) {
-  try {
-    const auth = req.headers['authorization'] || '';
-    const token = auth.replace('Bearer ', '');
-    if (!token) return res.status(401).json({ error: '未登录' });
-    const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-    const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [payload.adminId]);
-    if (!admin) return res.status(401).json({ error: '登录已过期' });
-    req.merchantId = admin.merchant_id;
-    req.adminId = admin.id;
-    next();
-  } catch (e) {
-    res.status(401).json({ error: '认证失败' });
-  }
-}
 
 // ===== 超级管理员登录 =====
 app.post('/api/super/login', async (req, res) => {

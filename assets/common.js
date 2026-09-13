@@ -376,123 +376,6 @@
     },
   };
 
-  /* ===== 通用 UI 组件 ===== */
-  const ui = {
-    /* Toast 轻提示 */
-    _toastEl: null,
-    _toastTimer: null,
-    toast(message, type, duration) {
-      if (!this._toastEl) {
-        this._toastEl = document.createElement('div');
-        this._toastEl.className = 'toast';
-        document.body.appendChild(this._toastEl);
-      }
-      this._toastEl.textContent = message;
-      this._toastEl.className = 'toast show' + (type ? ' ' + type : '');
-      clearTimeout(this._toastTimer);
-      this._toastTimer = setTimeout(() => {
-        this._toastEl.classList.remove('show');
-      }, duration || 2500);
-    },
-
-    /* 确认对话框（Promise） */
-    confirm(message, title) {
-      return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay open';
-        overlay.innerHTML = `
-          <div class="slf-modal" style="max-width:400px">
-            <div class="slf-modal-head">
-              <h2>${utils.esc(title || i18n.t('confirm') || '确认')}</h2>
-              <button class="slf-modal-close" data-action="cancel" aria-label="关闭">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <div class="slf-modal-body">
-              <p style="font-size:15px;color:var(--gray-600)">${utils.esc(message)}</p>
-            </div>
-            <div class="slf-modal-foot">
-              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '取消'}</button>
-              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '确认'}</button>
-            </div>
-          </div>`;
-        document.body.appendChild(overlay);
-
-        const cleanup = (result) => {
-          overlay.remove();
-          resolve(result);
-        };
-        overlay.addEventListener('click', (e) => {
-          if (e.target === overlay) cleanup(false);
-          const action = e.target.dataset.action;
-          if (action === 'cancel') cleanup(false);
-          if (action === 'ok') cleanup(true);
-        });
-      });
-    },
-
-    /* 输入对话框（Promise，返回输入值） */
-    prompt(message, defaultValue, title) {
-      return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay open';
-        overlay.innerHTML = `
-          <div class="slf-modal" style="max-width:420px">
-            <div class="slf-modal-head">
-              <h2>${utils.esc(title || i18n.t('input') || '请输入')}</h2>
-              <button class="slf-modal-close" data-action="cancel" aria-label="关闭">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <div class="slf-modal-body">
-              <p style="font-size:14px;color:var(--gray-600);margin-bottom:12px;">${utils.esc(message)}</p>
-              <input type="text" class="modal-input" value="${utils.esc(defaultValue || '')}" style="width:100%;padding:12px 14px;border:1px solid var(--gray-300);border-radius:10px;font-size:15px;outline:none;transition:border-color .2s,box-shadow .2s;" onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px rgba(232,93,58,.15)'" onblur="this.style.borderColor='var(--gray-300)';this.style.boxShadow='none'">
-            </div>
-            <div class="slf-modal-foot">
-              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '取消'}</button>
-              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '确定'}</button>
-            </div>
-          </div>`;
-        document.body.appendChild(overlay);
-        const input = overlay.querySelector('.modal-input');
-        input.focus();
-        input.select();
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') overlay.querySelector('[data-action="ok"]').click();
-          if (e.key === 'Escape') overlay.querySelector('[data-action="cancel"]').click();
-        });
-        const cleanup = (result) => {
-          overlay.remove();
-          resolve(result);
-        };
-        overlay.addEventListener('click', (e) => {
-          if (e.target === overlay) cleanup(null);
-          const action = e.target.dataset.action;
-          if (action === 'cancel') cleanup(null);
-          if (action === 'ok') cleanup(input.value);
-        });
-      });
-    },
-
-    /* 打开已存在的模态框（添加 open 类） */
-    openModal(selector) {
-      const el =
-        typeof selector === 'string'
-          ? document.querySelector(selector)
-          : selector;
-      if (el) el.classList.add('open');
-    },
-
-    /* 关闭已存在的模态框（移除 open 类） */
-    closeModal(selector) {
-      const el =
-        typeof selector === 'string'
-          ? document.querySelector(selector)
-          : selector;
-      if (el) el.classList.remove('open');
-    },
-  };
-
   /* ===== 认证辅助工具 ===== */
   const auth = {
     /* 管理员密钥（sessionStorage，关闭浏览器即失效） */
@@ -682,7 +565,6 @@
     api,
     i18n,
     utils,
-    ui,
     auth,
     audio,
     ApiClient,

@@ -1062,19 +1062,6 @@
         </div>
     </div>
 
-    <!-- 通用输入模态框 -->
-    <div class="order-modal" id="promptModal">
-        <div class="order-modal-card confirm-card">
-            <button class="modal-close" onclick="hidePromptModal()">✕</button>
-            <div class="confirm-icon">✏️</div>
-            <h2 id="promptModalTitle">请输入</h2>
-            <div class="confirm-message" id="promptModalMessage">请输入内容</div>
-            <input type="text" id="promptModalInput" class="modal-input" placeholder="" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;margin-bottom:16px;outline:none;">
-            <div class="order-modal-actions confirm-actions">
-                <button onclick="hidePromptModal()" id="promptCancelBtn">取消</button>
-                <button class="primary" onclick="executePromptModal()" id="promptOkBtn">确定</button>
-            </div>
-        </div>
     </div>
 
     <!-- ===== JavaScript ===== -->
@@ -3409,46 +3396,6 @@
                     if (e.key === 'Enter') executePasswordModal();
                 });
             }
-        });
-        // 通用输入模态框
-        let promptCallback = null;
-        function showPromptModal(message, callback, title, defaultValue, inputType) {
-            document.getElementById('promptModalTitle').textContent = title || '请输入';
-            const msgEl = document.getElementById('promptModalMessage');
-            if (message && message !== title) {
-                msgEl.textContent = message;
-                msgEl.style.display = 'block';
-            } else {
-                msgEl.style.display = 'none';
-            }
-            const input = document.getElementById('promptModalInput');
-            input.value = defaultValue || '';
-            input.type = inputType || 'text';
-            input.placeholder = title || '请输入';
-            promptCallback = callback;
-            document.getElementById('promptModal').classList.add('open');
-            setTimeout(() => { input.focus(); input.select(); }, 100);
-        }
-        function hidePromptModal() {
-            document.getElementById('promptModal').classList.remove('open');
-            promptCallback = null;
-        }
-        function executePromptModal() {
-            const value = document.getElementById('promptModalInput').value;
-            if (promptCallback) promptCallback(value);
-            hidePromptModal();
-        }
-        // 输入框回车确认
-        document.addEventListener('DOMContentLoaded', function() {
-            const promptInput = document.getElementById('promptModalInput');
-            if (promptInput) {
-                promptInput.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') executePromptModal();
-                });
-            }
-        });
-        document.getElementById('promptModal').addEventListener('click', function(e) {
-            if (e.target === this) hidePromptModal();
         });
 
         document.getElementById('confirmModal').addEventListener('click', function(e) {
