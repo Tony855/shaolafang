@@ -320,9 +320,7 @@
       <button id="fullscreenBtn">⛶ <span id="fullscreenLabel">全屏</span></button>
       <button id="logoutBtn">🚪 <span id="logoutLabel">退出登录</span></button>
     </div>
-    <div class="ticket-grid" id="ticketGrid">
-      <div class="empty-state" id="emptyState">暂无待处理订单</div>
-    </div>
+    <div class="ticket-grid" id="ticketGrid"></div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -435,7 +433,6 @@
       $('#fullscreenLabel').textContent = document.fullscreenElement ? kt('exitFullscreen') : kt('fullscreen');
       $('#logoutLabel').textContent = kt('logout');
       $('#langSelectMain').value = lang;
-      $('#emptyState').textContent = kt('noPendingOrders');
     }
 
     async function loadKitchenLanguage(lang) {
