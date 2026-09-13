@@ -1,7 +1,8 @@
-/* FoodFlow Admin Styles - 自动从admin.html提取 */
 
-/* ===== 主样式 ===== */
-        /* ===== 鍏ㄥ眬閲嶇疆 & 鍩虹 ===== */
+
+
+        
+/* ===== 全局重置与基础样式 ===== */
         * {
             box-sizing: border-box;
         }
@@ -16,7 +17,8 @@
             padding-top: 64px;
         }
 
-        /* ===== 椤堕儴鏍?鈥?鍥哄畾 ===== */
+        
+/* ===== 顶部导航栏（固定） ===== */
         .top {
             position: fixed;
             top: 0;
@@ -263,12 +265,13 @@
         .hot-dish-name { flex: 1; color: #fff; font-size: 14px; font-weight: 600; }
         .hot-dish-sales { color: #ffd93d; font-weight: 700; font-size: 14px; }
 
-        /* ===== 渚ц竟鏍?鈥?鍥哄畾锛堟闈級 ===== */
+        
+/* ===== 侧边栏（桌面端固定） ===== */
         .admin-sidebar {
             position: fixed;
             left: 0;
             top: 64px;
-            width: 200px;
+            width: 220px;
             height: calc(100vh - 64px);
             z-index: 150;
             display: flex;
@@ -334,7 +337,8 @@
             cursor: pointer;
             transition: .18s ease;
             flex-shrink: 0;
-            white-space: nowrap;
+            white-space: normal;
+            word-break: break-word;
             min-height: 40px;
         }
         .nav-item:hover {
@@ -351,12 +355,12 @@
             flex-shrink: 0;
         }
 
-        /* ===== 涓诲唴瀹瑰尯鍩?===== */
+        
         .admin-shell {
-            margin-left: 200px;
+            margin-left: 220px;
             padding: 20px 20px 40px;
             max-width: none;
-            width: calc(100% - 200px);
+            width: calc(100% - 220px);
         }
         .admin-modules {
             margin-left: 0;
@@ -371,7 +375,8 @@
             display: block;
         }
 
-        /* ===== 闈㈡澘鍗＄墖 ===== */
+        
+/* ===== 面板卡片 ===== */
         .panel {
             background: linear-gradient(160deg, rgba(45, 45, 74, .97), rgba(33, 33, 56, .97));
             border: 1px solid rgba(255, 255, 255, .07);
@@ -398,7 +403,7 @@
             background: linear-gradient(90deg, rgba(255, 217, 61, .35), transparent);
         }
 
-        /* ===== 琛ㄥ崟 ===== */
+        
         .form {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -474,7 +479,7 @@
             color: #fff;
         }
 
-        /* 璐у竵琛ㄥ崟缃戞牸 */
+        
         .currency-form-grid {
             display: grid !important;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
@@ -499,7 +504,7 @@
             height: 42px !important;
         }
 
-        /* 鎵撳嵃鏈鸿〃鍗曞鍣?*/
+        
         .printer-form-container {
             background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
             border: 1px solid rgba(255,255,255,.08);
@@ -568,7 +573,7 @@
             accent-color: #e85d3a;
         }
 
-        /* 璁剧疆椤甸潰鍗＄墖 */
+        
         .settings-card {
             background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
             border: 1px solid rgba(255,255,255,.08);
@@ -652,7 +657,7 @@
             font-size: 12px;
         }
 
-        /* 绠＄悊椤甸潰琛ㄥ崟瀹瑰櫒 */
+        
         .manage-form-container {
             background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
             border: 1px solid rgba(255,255,255,.08);
@@ -701,7 +706,8 @@
             transform: translateY(-1px);
         }
 
-        /* ===== 鑿滃崟鍒楄〃 ===== */
+        
+/* ===== 菜品菜单列表 ===== */
         .menu-list {
             display: flex;
             flex-direction: column;
@@ -786,7 +792,7 @@
             color: #ff9c9c;
         }
 
-        /* ===== 琛?===== */
+        
         .row {
             display: flex;
             align-items: center;
@@ -837,7 +843,7 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0,0,0,.2);
         }
-/* 妗屽彿缃戞牸甯冨眬 */
+
         .table-grid {
             display: grid !important;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
@@ -878,7 +884,7 @@
             background: #777;
         }
 
-        /* ===== 璁㈠崟 ===== */
+        
         .order-summary {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -1103,7 +1109,7 @@
             color: #1890ff;
         }
 
-        /* ===== 妯℃€佹 ===== */
+        
         .order-modal {
             position: fixed;
             inset: 0;
@@ -1170,7 +1176,7 @@
             color: #fff;
             font-size: 14px;
         }
-        /* 搴楅摵缂栬緫妯℃€佹缇庡寲 */
+        
         .store-edit-card {
             max-width: 520px !important;
             padding: 24px !important;
@@ -1222,7 +1228,7 @@
         .store-edit-field input::placeholder {
             color: #666;
         }
-        /* 寮€鍏虫牱寮?*/
+        
         .store-switch-label {
             display: flex !important;
             justify-content: space-between !important;
@@ -1280,7 +1286,7 @@
         .store-switch input:not(:checked) ~ .store-switch-text {
             color: #e74c3c !important;
         }
-        /* 鏁版嵁澶囦唤鍖哄煙鏍峰紡 */
+        
         .backup-actions {
             display: flex;
             align-items: center;
@@ -1363,7 +1369,7 @@
             background: #1a1a2e;
             color: #fff;
         }
-        /* 鏉冮檺閫夋嫨鍒楄〃鏍峰紡 */
+        
         .permission-list {
             display: flex;
             flex-direction: column;
@@ -1415,7 +1421,7 @@
             background: #1a1a2e;
             color: #fff;
         }
-        /* 缁撶畻璁㈠崟鎸夐挳鏍峰紡 */
+        
         .settle-order-btn {
             background: rgba(46,204,113,.15) !important;
             color: #2ecc71 !important;
@@ -1427,7 +1433,7 @@
             border-color: #2ecc71 !important;
             transform: translateY(-1px);
         }
-        /* 鍙栨秷璁㈠崟鎸夐挳鏍峰紡 */
+        
         .cancel-order-btn {
             background: rgba(231,76,60,.15) !important;
             color: #e74c3c !important;
@@ -1513,7 +1519,7 @@
             font-weight: bold;
         }
 
-        /* ===== 纭妯℃€佹 ===== */
+        
         .confirm-modal .confirm-card {
             max-width: 400px;
             text-align: center;
@@ -1542,7 +1548,7 @@
             min-width: 100px;
         }
 
-        /* ===== 鍒嗙被 ===== */
+        
         .category-form {
             display: flex;
             gap: 8px;
@@ -1596,7 +1602,7 @@
             color: #ff9c9c;
         }
 
-        /* ===== 鏈嶅姟鍛?& 搴楅摵 ===== */
+        
         #waiterList .admin-card,
         #storeList .admin-card {
             display: grid;
@@ -1690,7 +1696,7 @@
             text-align: center;
         }
 
-        /* ===== 鑿滃崟宸ュ叿鏍?===== */
+        
         .menu-toolbar {
             display: flex;
             gap: 8px;
@@ -1759,7 +1765,7 @@
             font-size: 14px;
         }
 
-        /* ===== 閫氱煡 ===== */
+        
         .notice {
             position: fixed;
             top: 74px;
@@ -1778,7 +1784,7 @@
             pointer-events: none;
         }
 
-        /* ===== 鎸夐挳閫氱敤 ===== */
+        
         button {
             transition: transform .15s ease, filter .15s ease, background .15s ease;
         }
@@ -1796,7 +1802,7 @@
             font-weight: 700;
         }
 
-        /* ===== 鍝嶅簲寮?鈥?骞虫澘鍙婁互涓?===== */
+        
         @media (max-width: 920px) {
             .admin-shell {
                 padding: 14px 14px 30px;
@@ -1811,6 +1817,7 @@
             .top strong {
                 font-size: 17px;
             }
+/* ===== 顶部导航栏（固定） ===== */
             .top {
                 padding: 0 16px;
                 height: 58px;
@@ -1825,6 +1832,7 @@
             body {
                 padding-top: 58px;
             }
+/* ===== 侧边栏（桌面端固定） ===== */
             .admin-sidebar {
                 top: 58px;
                 height: calc(100vh - 58px);
@@ -1834,8 +1842,9 @@
             }
         }
 
-        /* ===== 鍝嶅簲寮?鈥?绉诲姩绔?===== */
+        
         @media (max-width: 760px) {
+/* ===== 顶部导航栏（固定） ===== */
             .top {
                 height: 56px;
                 padding: 0 12px;
@@ -1908,6 +1917,7 @@
                 max-width: none;
             }
 
+/* ===== 面板卡片 ===== */
             .panel {
                 padding: 14px;
                 border-radius: 14px;
@@ -2047,6 +2057,7 @@
                 height: 28px;
                 line-height: 28px;
             }
+/* ===== 顶部导航栏（固定） ===== */
             .top {
                 height: 48px;
                 padding: 0 8px;
@@ -2069,12 +2080,13 @@
                 font-size: 11px;
                 padding: 6px 10px;
             }
+/* ===== 面板卡片 ===== */
             .panel {
                 padding: 10px;
             }
         }
 
-/* ===== 原有功能样式（保留） ===== */
+
         .qr {
             max-width: 220px;
             background: #fff;
@@ -2217,7 +2229,7 @@
             color: #69c0ff;
         }
 
-    /* ===== 绉诲姩绔搷搴斿紡锛圥0锛?===== */
+    
     .hamburger-btn {
         display: none;
         position: fixed;
@@ -2270,14 +2282,17 @@
     }
     .sidebar-close:hover { background: rgba(255,255,255,.2); }
 
+/* ===== 响应式：平板及以下 ===== */
     @media (max-width: 1024px) {
         .hamburger-btn { display: flex; }
+/* ===== 顶部导航栏（固定） ===== */
         .top { padding: 0 10px 0 52px; gap: 8px; height: 56px; min-height: 56px; background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%); }
         .top #adminHeaderTitle { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
         .top-right { gap: 6px; }
         .top-right select { padding: 6px 8px; font-size: 12px; border-radius: 8px; }
         .admin-name-btn { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
         #logoutBtn { display: none; }
+/* ===== 侧边栏（桌面端固定） ===== */
         .admin-sidebar {
             transform: translateX(-100%);
             transition: transform .3s cubic-bezier(.4,0,.2,1);
@@ -2319,11 +2334,13 @@
         .panel.module-panel h2 { font-size: 17px; margin-bottom: 12px; }
     }
     @media (max-width: 480px) {
+/* ===== 顶部导航栏（固定） ===== */
         .top { padding: 0 8px 0 48px; gap: 6px; height: 52px; min-height: 52px; }
         .top-right select { font-size: 11px; padding: 5px 6px; }
         .admin-name-btn span { display: none; }
         .admin-name-btn { padding: 6px 8px; font-size: 14px; }
         .hamburger-btn { width: 36px; height: 36px; font-size: 16px; top: 8px; left: 5px; }
+/* ===== 侧边栏（桌面端固定） ===== */
         .admin-sidebar { width: 150px !important; padding: 14px 8px 8px !important; }
         .nav-item { padding: 10px; font-size: 13px; gap: 8px; }
         .panel.module-panel { padding: 10px; max-width: 100%; }

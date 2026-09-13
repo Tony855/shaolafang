@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>FoodFlow · Admin Dashboard</title>
     
-    <!-- ===== 原有功能样式（保留） ===== -->
     <style>
         .qr {
             max-width: 220px;
@@ -3679,7 +3678,10 @@
         // ================================================================
         let adminCallPollTimer = null;
         const today = new Date().toISOString().slice(0, 10);
-        applyAdminLanguage();
+        (async function() {
+            if (adminLang !== 'zh') await loadAdminLanguage(adminLang);
+            applyAdminLanguage();
+        })();
 
         if (adminToken) {
             $('#dashboard').hidden = false;

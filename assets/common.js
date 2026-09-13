@@ -1,12 +1,12 @@
-﻿/* ============================================================
-   FoodFlow Ordering System - Common JS Library (Common JS)
-   鎵€鏈夐〉闈㈠叡浜鏂囦欢锛屾彁渚?API 瀹㈡埛绔€乮18n銆佸伐鍏峰嚱鏁?
+/* ============================================================
+   FoodFlow 点餐系统 - 公共 JS 库
+   所有页面共享此文件，提供 API 客户端、i18n 国际化、工具函数、UI 组件、认证和音频功能
    ============================================================ */
 
 (function (global) {
   'use strict';
 
-  // ---------- 閰嶇疆 ----------
+  /* ===== 全局配置 ===== */
   const CONFIG = {
     API_BASE: '/api',
     DEFAULT_LANG: 'zh',
@@ -22,13 +22,14 @@
     },
   };
 
-  // ---------- 缁熶竴 API 瀹㈡埛绔?----------
+  /* ===== 统一 API 客户端 ===== */
   class ApiClient {
     constructor(baseUrl) {
       this.baseUrl = baseUrl || CONFIG.API_BASE;
       this.defaultHeaders = { 'Content-Type': 'application/json' };
     }
 
+    /* 构建认证请求头：管理员密钥、服务员令牌、店铺ID */
     _getAuthHeaders() {
       const headers = {};
       const adminKey = sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminKey);
@@ -42,6 +43,7 @@
       return headers;
     }
 
+    /* 核心请求方法：统一处理请求头、Body序列化、错误处理 */
     async _request(method, path, options = {}) {
       const url = path.startsWith('http') ? path : this.baseUrl + path;
       const headers = {
@@ -50,7 +52,7 @@
         ...(options.headers || {}),
       };
 
-      // FormData 鏃剁Щ闄?Content-Type锛岃娴忚鍣ㄨ嚜鍔ㄨ缃?boundary
+      /* FormData 上传时移除 Content-Type，让浏览器自动设置 boundary */
       if (options.body instanceof FormData) {
         delete headers['Content-Type'];
       }
@@ -88,6 +90,7 @@
         }
         return data;
       } catch (err) {
+        /* 网络错误或无状态码时统一提示 */
         if (err.name === 'TypeError' || !err.status) {
           throw new Error('网络连接失败，请检查后端服务');
         }
@@ -95,6 +98,7 @@
       }
     }
 
+    /* GET 请求，支持查询参数 */
     get(path, params) {
       if (params) {
         const qs = new URLSearchParams(params).toString();
@@ -103,18 +107,22 @@
       return this._request('GET', path);
     }
 
+    /* POST 请求 */
     post(path, body, options) {
       return this._request('POST', path, { body, ...options });
     }
 
+    /* PUT 请求 */
     put(path, body, options) {
       return this._request('PUT', path, { body, ...options });
     }
 
+    /* DELETE 请求 */
     del(path, body) {
       return this._request('DELETE', path, { body });
     }
 
+    /* 文件上传（FormData） */
     upload(path, formData) {
       return this._request('POST', path, { body: formData });
     }
@@ -122,7 +130,7 @@
 
   const api = new ApiClient();
 
-  // ---------- 缁熶竴 i18n 缈昏瘧绯荤粺 ----------
+  /* ===== 统一 i18n 国际化系统 ===== */
   class I18n {
     constructor() {
       this.lang = CONFIG.DEFAULT_LANG;
@@ -130,6 +138,7 @@
       this.fallbackLang = 'zh';
     }
 
+    /* 初始化：设置当前语言，合并自定义字典和全局 LANGUAGES */
     init(lang, customDicts) {
       this.lang = lang || CONFIG.DEFAULT_LANG;
       if (customDicts) {
@@ -137,7 +146,7 @@
           this.dicts[code] = { ...(this.dicts[code] || {}), ...dict };
         }
       }
-      // 鍚堝苟鍏ㄥ眬 LANGUAGES锛堝鏋滃瓨鍦紝浣滀负鍥為€€锛?
+      /* 合并全局 LANGUAGES（如果存在，作为回退） */
       if (typeof LANGUAGES !== 'undefined') {
         for (const [code, dict] of Object.entries(LANGUAGES)) {
           this.dicts[code] = { ...(this.dicts[code] || {}), ...dict };
@@ -145,16 +154,19 @@
       }
     }
 
-    // 鍔ㄦ€佸姞杞芥寚瀹氳瑷€鐨勭炕璇戯紙鏂规浜岋細鎸夐渶浠嶢PI鍔犺浇锛屽噺灏戝垵濮嬩綋绉級
+    /* 动态按需加载指定语言的翻译（方案二：从API加载，减少初始体积）
+       优先级：内存缓存 → localStorage缓存（24小时）→ API请求 → 回退中文 */
     async loadLanguage(lang) {
       const validLangs = ['zh', 'en', 'vi', 'th', 'km'];
       if (!validLangs.includes(lang)) lang = 'zh';
-      // 检查内存缓存
+
+      /* 检查内存缓存 */
       if (this.dicts[lang] && this.dicts[lang]._loaded) {
         this.lang = lang;
         return true;
       }
-      // 检查localStorage缓存
+
+      /* 检查 localStorage 缓存 */
       try {
         const cached = localStorage.getItem('i18n_' + lang);
         if (cached) {
@@ -164,14 +176,15 @@
           return true;
         }
       } catch (e) {}
-      // 浠嶢PI鍔ㄦ€佸姞杞?
+
+      /* 从 API 动态加载 */
       try {
         const res = await fetch('/api/i18n/' + lang);
         if (res.ok) {
           const data = await res.json();
           this.dicts[lang] = { ...data, _loaded: true };
           this.lang = lang;
-          // 缓存到localStorage（24小时）
+          /* 缓存到 localStorage（24小时） */
           try {
             localStorage.setItem('i18n_' + lang, JSON.stringify(data));
           } catch (e) {}
@@ -180,26 +193,29 @@
       } catch (e) {
         console.warn('i18n dynamic load failed, using fallback:', e.message);
       }
-      // 加载失败，回退到全局LANGUAGES或中文
+
+      /* 加载失败，回退到全局 LANGUAGES 或中文 */
       this.lang = this.dicts[lang] ? lang : this.fallbackLang;
       return false;
     }
 
+    /* 直接设置当前语言（不加载数据） */
     setLang(lang) {
       this.lang = lang;
     }
 
+    /* 翻译核心方法：支持参数替换 {0}, {1} 或 {name} */
     t(key, params) {
       const dict = this.dicts[this.lang] || {};
       const fallback = this.dicts[this.fallbackLang] || {};
       let value = dict[key] ?? fallback[key] ?? key;
 
-      // 鏀寔宓屽 categories 绛夊璞?
+      /* 支持嵌套对象（如 categories） */
       if (typeof value === 'object' && value !== null) {
         return value;
       }
 
-      // 鏀寔鍙傛暟鏇挎崲 {0}, {1} 鎴?{name}
+      /* 支持参数替换 */
       if (params) {
         if (Array.isArray(params)) {
           params.forEach((p, i) => {
@@ -214,29 +230,28 @@
       return value;
     }
 
-    // 鑾峰彇鍒嗙被缈昏瘧
+    /* 获取分类翻译 */
     category(name) {
       const cats = this.t('categories');
       if (cats && typeof cats === 'object' && cats[name]) return cats[name];
       return name;
     }
 
-    // 鑾峰彇褰撳墠璇█鐨勮揣甯佷俊鎭?
+    /* 获取当前语言的货币信息（符号、汇率、代码） */
     currency() {
       const dict = this.dicts[this.lang] || this.dicts[this.fallbackLang] || {};
       return {
-        symbol: dict.currencySymbol || '楼',
+        symbol: dict.currencySymbol || '$',
         rate: Number(dict.currencyRate) || 1,
         code: dict.currencyCode || this.lang.toUpperCase(),
       };
     }
 
-    // 鏍煎紡鍖栦环鏍硷紙鍩虹璐у竵 USD -> 褰撳墠璇█璐у竵锛?
+    /* 格式化价格：基础货币 USD → 当前语言货币，大额货币（VND/KHR）不显示小数 */
     formatPrice(basePrice, baseCurrency) {
       const cur = this.currency();
       const rate = cur.rate || 1;
       const converted = Number(basePrice) * rate;
-      // 澶ч璐у竵锛圴ND/KHR锛変笉鏄剧ず灏忔暟
       const decimals = rate >= 1000 ? 0 : 2;
       return `${cur.symbol}${converted.toFixed(decimals)}`;
     }
@@ -244,9 +259,9 @@
 
   const i18n = new I18n();
 
-  // ---------- 宸ュ叿鍑芥暟 ----------
+  /* ===== 工具函数集合 ===== */
   const utils = {
-    // HTML 杞箟
+    /* HTML 转义，防止 XSS */
     esc(str) {
       return String(str ?? '').replace(/[&<>"']/g, (c) => ({
         '&': '&amp;',
@@ -257,7 +272,7 @@
       }[c]));
     },
 
-    // 闃叉姈
+    /* 防抖：延迟执行，频繁调用只执行最后一次 */
     debounce(fn, delay) {
       let timer;
       return function (...args) {
@@ -266,7 +281,7 @@
       };
     },
 
-    // 鑺傛祦
+    /* 节流：限制执行频率，固定间隔内只执行一次 */
     throttle(fn, limit) {
       let inThrottle;
       return function (...args) {
@@ -278,7 +293,7 @@
       };
     },
 
-    // 鏍煎紡鍖栨棩鏈熸椂闂达紙鍏ㄧ悆閫氱敤鏍煎紡 YYYY-MM-DD HH:mm:ss锛?
+    /* 格式化日期时间（全球通用格式 YYYY-MM-DD HH:mm:ss） */
     formatDateTime(isoStr) {
       try {
         const d = new Date(isoStr);
@@ -288,7 +303,8 @@
         return isoStr;
       }
     },
-    // 鏍煎紡鍖栨椂闂达紙鍏ㄧ悆閫氱敤鏍煎紡 HH:mm:ss锛?
+
+    /* 格式化时间（全球通用格式 HH:mm:ss） */
     formatTime(date) {
       try {
         const d = date instanceof Date ? date : new Date(date);
@@ -299,11 +315,11 @@
       }
     },
 
-    // 鐩稿鏃堕棿
+    /* 相对时间：刚刚 / N分钟前 / N小时前，带紧急程度等级 */
     timeAgo(isoStr) {
       const diff = Date.now() - new Date(isoStr).getTime();
       const mins = Math.floor(diff / 60000);
-      if (mins < 1) return { text: i18n.t('justNow') || '鍒氬垰', level: 'ok' };
+      if (mins < 1) return { text: i18n.t('justNow') || '刚刚', level: 'ok' };
       if (mins < 60)
         return {
           text: `${mins} ${i18n.t('minutesAgo') || '分钟前'}`,
@@ -316,7 +332,7 @@
       };
     },
 
-    // 鐢熸垚闅忔満 ID
+    /* 生成唯一 ID（时间戳+随机数） */
     uid(prefix) {
       return (
         (prefix || '') +
@@ -325,12 +341,12 @@
       );
     },
 
-    // 娣辨嫹璐?
+    /* 深拷贝（JSON方式） */
     clone(obj) {
       return JSON.parse(JSON.stringify(obj));
     },
 
-    // 涓嬭浇鏂囦欢
+    /* 下载文件（Blob方式） */
     download(filename, content, mimeType) {
       const blob = new Blob([content], {
         type: mimeType || 'application/octet-stream',
@@ -343,7 +359,7 @@
       URL.revokeObjectURL(url);
     },
 
-    // 澶嶅埗鍒板壀璐存澘
+    /* 复制到剪贴板（优先 Clipboard API，降级 execCommand） */
     async copyToClipboard(text) {
       try {
         await navigator.clipboard.writeText(text);
@@ -360,9 +376,9 @@
     },
   };
 
-  // ---------- 閫氱敤 UI 缁勪欢 ----------
+  /* ===== 通用 UI 组件 ===== */
   const ui = {
-    // Toast 鎻愮ず
+    /* Toast 轻提示 */
     _toastEl: null,
     _toastTimer: null,
     toast(message, type, duration) {
@@ -379,7 +395,7 @@
       }, duration || 2500);
     },
 
-    // 纭瀵硅瘽妗?
+    /* 确认对话框（Promise） */
     confirm(message, title) {
       return new Promise((resolve) => {
         const overlay = document.createElement('div');
@@ -387,8 +403,8 @@
         overlay.innerHTML = `
           <div class="slf-modal" style="max-width:400px">
             <div class="slf-modal-head">
-              <h2>${utils.esc(title || i18n.t('confirm') || '纭')}</h2>
-              <button class="slf-modal-close" data-action="cancel" aria-label="鍏抽棴">
+              <h2>${utils.esc(title || i18n.t('confirm') || '确认')}</h2>
+              <button class="slf-modal-close" data-action="cancel" aria-label="关闭">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -396,8 +412,8 @@
               <p style="font-size:15px;color:var(--gray-600)">${utils.esc(message)}</p>
             </div>
             <div class="slf-modal-foot">
-              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '鍙栨秷'}</button>
-              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '纭'}</button>
+              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '取消'}</button>
+              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '确认'}</button>
             </div>
           </div>`;
         document.body.appendChild(overlay);
@@ -415,7 +431,7 @@
       });
     },
 
-    // 杈撳叆瀵硅瘽妗?
+    /* 输入对话框（Promise，返回输入值） */
     prompt(message, defaultValue, title) {
       return new Promise((resolve) => {
         const overlay = document.createElement('div');
@@ -424,7 +440,7 @@
           <div class="slf-modal" style="max-width:420px">
             <div class="slf-modal-head">
               <h2>${utils.esc(title || i18n.t('input') || '请输入')}</h2>
-              <button class="slf-modal-close" data-action="cancel" aria-label="鍏抽棴">
+              <button class="slf-modal-close" data-action="cancel" aria-label="关闭">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -433,8 +449,8 @@
               <input type="text" class="modal-input" value="${utils.esc(defaultValue || '')}" style="width:100%;padding:12px 14px;border:1px solid var(--gray-300);border-radius:10px;font-size:15px;outline:none;transition:border-color .2s,box-shadow .2s;" onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px rgba(232,93,58,.15)'" onblur="this.style.borderColor='var(--gray-300)';this.style.boxShadow='none'">
             </div>
             <div class="slf-modal-foot">
-              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '鍙栨秷'}</button>
-              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '纭畾'}</button>
+              <button class="btn btn-secondary" data-action="cancel">${i18n.t('cancel') || '取消'}</button>
+              <button class="btn btn-primary" data-action="ok">${i18n.t('confirm') || '确定'}</button>
             </div>
           </div>`;
         document.body.appendChild(overlay);
@@ -458,7 +474,7 @@
       });
     },
 
-    // 鎵撳紑妯℃€佹锛堝熀浜庡凡瀛樺湪鐨?DOM锛?
+    /* 打开已存在的模态框（添加 open 类） */
     openModal(selector) {
       const el =
         typeof selector === 'string'
@@ -467,6 +483,7 @@
       if (el) el.classList.add('open');
     },
 
+    /* 关闭已存在的模态框（移除 open 类） */
     closeModal(selector) {
       const el =
         typeof selector === 'string'
@@ -476,9 +493,9 @@
     },
   };
 
-  // ---------- 璁よ瘉杈呭姪 ----------
+  /* ===== 认证辅助工具 ===== */
   const auth = {
-    // 绠＄悊鍛?
+    /* 管理员密钥（sessionStorage，关闭浏览器即失效） */
     getAdminKey() {
       return sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminKey);
     },
@@ -492,7 +509,7 @@
       return !!this.getAdminKey();
     },
 
-    // 鏈嶅姟鍛?
+    /* 服务员/后厨令牌（localStorage，持久化） */
     getWaiterToken() {
       return (
         localStorage.getItem(CONFIG.STORAGE_KEYS.waiterToken) ||
@@ -517,7 +534,7 @@
       }
     },
 
-    // 搴楅摵
+    /* 当前店铺 ID */
     getStoreId() {
       return parseInt(localStorage.getItem(CONFIG.STORAGE_KEYS.storeId) || '1', 10);
     },
@@ -526,18 +543,18 @@
     },
   };
 
-  // ---------- 闊抽宸ュ叿 ----------
+  /* ===== 音频提示工具（Web Audio API 合成音效） ===== */
   const audio = {
     _ctx: null,
     _enabled: true,
 
-    // 瑙ｉ攣闊抽涓婁笅鏂囷紙蹇呴』鍦ㄧ敤鎴蜂氦浜掑悗璋冪敤锛?
+    /* 解锁音频上下文（必须在用户交互后调用，否则浏览器会阻止自动播放） */
     unlock() {
       if (!this._ctx) {
         try {
           this._ctx = new (window.AudioContext || window.webkitAudioContext)();
         } catch (e) {
-          // 娴忚鍣ㄤ笉鏀寔 Web Audio
+          /* 浏览器不支持 Web Audio */
         }
       }
       if (this._ctx && this._ctx.state === 'suspended') {
@@ -545,25 +562,24 @@
       }
     },
 
-    // 璁剧疆澹伴煶寮€鍏?
+    /* 设置声音开关 */
     setEnabled(enabled) {
       this._enabled = !!enabled;
     },
 
-    // 鑾峰彇澹伴煶寮€鍏崇姸鎬?
+    /* 获取声音开关状态 */
     isEnabled() {
       return this._enabled;
     },
 
-    // 鎾斁鏂拌鍗曟彁绀洪煶锛圕澶ц皟涓婅鐞堕煶锛屾偊鑰虫剦鎮︼紝鍝嶄寒娓呮櫚锛?
+    /* 新订单提示音：C大调上行琶音（C5→E5→G5→C6→E6），悠扬上扬，响亮清晰 */
     playNewOrderChime() {
       if (!this._enabled) return;
       this.unlock();
       if (!this._ctx) return;
       try {
         const now = this._ctx.currentTime;
-        // C澶ц皟涓婅鐞堕煶锛欳5鈫扙5鈫扜5鈫扖6鈫扙6锛屾剦鎮︿笂鎵?
-        // 棰戠巼锛欳5=523.25, E5=659.25, G5=783.99, C6=1046.50, E6=1318.51
+        /* 频率：C5=523.25, E5=659.25, G5=783.99, C6=1046.50, E6=1318.51 */
         const notes = [
           [0, 523.25],
           [0.15, 659.25],
@@ -587,11 +603,11 @@
           osc.stop(now + t + duration + 0.05);
         });
       } catch (e) {
-        // 蹇界暐闊抽鎾斁閿欒
+        /* 忽略音频播放错误 */
       }
     },
 
-    // 鎾斁鍌崟鎻愮ず闊筹紙鎬ヤ績鐨勫洓澹帮級
+    /* 催单提示音：急促的双音四声（方波+压缩器），紧迫感强 */
     playUrgeChime() {
       if (!this._enabled) return;
       this.unlock();
@@ -621,11 +637,11 @@
           });
         });
       } catch (e) {
-        // 蹇界暐闊抽鎾斁閿欒
+        /* 忽略音频播放错误 */
       }
     },
 
-    // 鎾斁鍛煎彨鏈嶅姟鍛?鍌崟鎻愮ず闊筹紙涓夊０娓呰剢鍙挌锛屾洿鎬ヤ績锛?
+    /* 呼叫服务员提示音：三声清脆叮咚（正弦波+压缩器），更急促 */
     playCallChime() {
       if (!this._enabled) return;
       this.unlock();
@@ -655,12 +671,12 @@
           });
         });
       } catch (e) {
-        // 蹇界暐闊抽鎾斁閿欒
+        /* 忽略音频播放错误 */
       }
     },
   };
 
-  // ---------- 瀵煎嚭鍒板叏灞€ ----------
+  /* ===== 导出到全局 SLF 对象 ===== */
   global.SLF = {
     CONFIG,
     api,
@@ -673,7 +689,7 @@
     I18n,
   };
 
-  // 鍏煎鏃т唬鐮侊細鎻愪緵鍏ㄥ眬 t 鍑芥暟蹇嵎鏂瑰紡
+  /* 兼容旧代码：提供全局 t 和 esc 快捷方式 */
   global.t = function (key, params) {
     return i18n.t(key, params);
   };
