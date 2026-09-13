@@ -1604,7 +1604,8 @@
 
         
         #waiterList .admin-card,
-        #storeList .admin-card {
+        #storeList .admin-card,
+        #comboList .admin-card {
             display: grid;
             grid-template-columns: 1fr auto;
             align-items: center;
@@ -1612,22 +1613,36 @@
             background: linear-gradient(145deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .025));
             border: 1px solid rgba(255, 255, 255, .1);
             border-radius: 14px;
-            padding: 14px;
-            margin-bottom: 10px;
+            padding: 16px 18px;
+            margin-bottom: 12px;
             box-shadow: 0 10px 22px rgba(0, 0, 0, .12);
+            transition: all .25s ease;
+        }
+        #waiterList .admin-card:hover,
+        #storeList .admin-card:hover,
+        #comboList .admin-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 28px rgba(0, 0, 0, .18);
+            border-color: rgba(255, 255, 255, .18);
         }
         #waiterList .admin-card .info .title,
-        #storeList .admin-card .info .title {
+        #storeList .admin-card .info .title,
+        #comboList .admin-card .info .title {
             font-size: 17px;
             font-weight: 700;
             letter-spacing: .2px;
             color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         #waiterList .admin-card .info .sub,
-        #storeList .admin-card .info .sub {
-            font-size: 12px;
+        #storeList .admin-card .info .sub,
+        #comboList .admin-card .info .sub {
+            font-size: 13px;
             color: #9b9bb2;
-            margin-top: 3px;
+            margin-top: 5px;
+            line-height: 1.5;
         }
         #waiterList .admin-card .perms {
             display: flex;
@@ -1649,15 +1664,23 @@
             accent-color: #e85d3a;
         }
         #waiterList .actions button,
-        #storeList .actions button {
-            min-width: 64px;
+        #storeList .actions button,
+        #comboList .actions button {
+            min-width: 72px;
             background: rgba(255, 77, 79, .12);
             border: 1px solid rgba(255, 77, 79, .22);
             color: #ff9c9c;
-            font-weight: 700;
-            border-radius: 8px;
-            padding: 7px 11px;
+            font-weight: 600;
+            border-radius: 10px;
+            padding: 8px 16px;
             cursor: pointer;
+            font-size: 13px;
+            transition: all .2s ease;
+        }
+        #waiterList .actions button:hover,
+        #storeList .actions button:hover,
+        #comboList .actions button:hover {
+            transform: translateY(-2px);
         }
         #waiterList .actions button.copy,
         #storeList .actions button.copy {
@@ -1666,10 +1689,82 @@
             color: #69c0ff;
         }
         #waiterList .actions button.edit-btn,
-        #storeList .actions button.edit-btn {
-            background: rgba(255, 217, 61, .15);
-            border-color: rgba(255, 217, 61, .25);
+        #storeList .actions button.edit-btn,
+        #comboList .actions button.edit-btn {
+            background: linear-gradient(135deg, rgba(255, 217, 61, .2), rgba(255, 193, 7, .15));
+            border-color: rgba(255, 217, 61, .35);
             color: #ffd93d;
+        }
+        #waiterList .actions button.edit-btn:hover,
+        #storeList .actions button.edit-btn:hover,
+        #comboList .actions button.edit-btn:hover {
+            background: linear-gradient(135deg, rgba(255, 217, 61, .3), rgba(255, 193, 7, .25));
+            box-shadow: 0 4px 12px rgba(255, 217, 61, .2);
+        }
+        /* 管理员列表按钮样式 */
+        #adminList .admin-card {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .025));
+            border: 1px solid rgba(255, 255, 255, .1);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 10px 22px rgba(0, 0, 0, .12);
+        }
+        #adminList .admin-card .info .title {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: .2px;
+            color: #fff;
+        }
+        #adminList .admin-card .info .sub {
+            font-size: 12px;
+            color: #9b9bb2;
+            margin-top: 3px;
+        }
+        #adminList .admin-card .actions {
+            display: flex;
+            gap: 8px;
+        }
+        #adminList .admin-card .actions button {
+            min-width: 64px;
+            background: rgba(255, 77, 79, .12);
+            border: 1px solid rgba(255, 77, 79, .22);
+            color: #ff9c9c;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 7px 14px;
+            cursor: pointer;
+            transition: all .2s ease;
+            font-size: 13px;
+        }
+        #adminList .admin-card .actions button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
+        }
+        #adminList .admin-card .actions button.edit-btn {
+            background: linear-gradient(135deg, rgba(255, 217, 61, .2), rgba(255, 193, 7, .15));
+            border-color: rgba(255, 217, 61, .35);
+            color: #ffd93d;
+        }
+        #adminList .admin-card .actions button.edit-btn:hover {
+            background: linear-gradient(135deg, rgba(255, 217, 61, .3), rgba(255, 193, 7, .25));
+        }
+        #adminList .admin-card .actions button.danger {
+            background: linear-gradient(135deg, rgba(255, 77, 79, .2), rgba(255, 107, 107, .15));
+            border-color: rgba(255, 77, 79, .35);
+            color: #ff9c9c;
+        }
+        #adminList .admin-card .actions button.danger:hover {
+            background: linear-gradient(135deg, rgba(255, 77, 79, .3), rgba(255, 107, 107, .25));
+        }
+        #adminList .admin-card .actions button:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .backup-actions {
@@ -2350,3 +2445,86 @@
         .admin-shell { padding: 8px 8px 16px; }
         .admin-modules { padding: 0; }
     }
+
+
+/* ===== 统一的编辑和删除按钮样式 ===== */
+button.edit-btn,
+.menu-actions button.edit-btn,
+#adminList .admin-card .actions button.edit-btn,
+#waiterList .actions button.edit-btn,
+#storeList .actions button.edit-btn {
+    background: linear-gradient(135deg, rgba(255, 217, 61, .2), rgba(255, 193, 7, .15)) !important;
+    border: 1px solid rgba(255, 217, 61, .35) !important;
+    color: #ffd93d !important;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: all .2s ease;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+button.edit-btn:hover,
+.menu-actions button.edit-btn:hover,
+#adminList .admin-card .actions button.edit-btn:hover,
+#waiterList .actions button.edit-btn:hover,
+#storeList .actions button.edit-btn:hover {
+    background: linear-gradient(135deg, rgba(255, 217, 61, .3), rgba(255, 193, 7, .25)) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 217, 61, .2);
+}
+
+button.danger,
+.menu-actions button.danger,
+#adminList .admin-card .actions button.danger,
+#waiterList .actions button.danger,
+#storeList .actions button.danger {
+    background: linear-gradient(135deg, rgba(255, 77, 79, .2), rgba(255, 107, 107, .15)) !important;
+    border: 1px solid rgba(255, 77, 79, .35) !important;
+    color: #ff9c9c !important;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: all .2s ease;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+button.danger:hover,
+.menu-actions button.danger:hover,
+#adminList .admin-card .actions button.danger:hover,
+#waiterList .actions button.danger:hover,
+#storeList .actions button.danger:hover {
+    background: linear-gradient(135deg, rgba(255, 77, 79, .3), rgba(255, 107, 107, .25)) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 77, 79, .2);
+}
+
+button.danger:disabled,
+button.edit-btn:disabled {
+    opacity: .4 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+
+/* ===== 套餐管理卡片美化 ===== */
+#comboList .actions button.danger {
+    background: linear-gradient(135deg, rgba(255, 77, 79, .2), rgba(255, 107, 107, .15));
+    border-color: rgba(255, 77, 79, .35);
+    color: #ff9c9c;
+}
+#comboList .actions button.danger:hover {
+    background: linear-gradient(135deg, rgba(255, 77, 79, .3), rgba(255, 107, 107, .25));
+    box-shadow: 0 4px 12px rgba(255, 77, 79, .2);
+}
+#comboList .admin-card .info .title .price {
+    color: #ffd93d;
+    font-weight: 600;
+    margin-left: auto;
+}

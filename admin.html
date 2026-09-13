@@ -444,7 +444,7 @@
                     <input id="newComboEmoji" placeholder="图标" value="🍱" style="width:60px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;text-align:center;">
                     <input id="newComboPrice" type="number" step="0.01" placeholder="价格" style="width:100px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
                     <input id="newComboDesc" placeholder="描述" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
-                    <button id="addComboBtn" onclick="addCombo()" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addComboBtnText">添加套餐</span></button>
+                    <button id="addComboBtn" onclick="addCombo()" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addComboBtnText">添加套餐</span></button>
                 </div>
                 <div id="comboList"></div>
                 </div>
@@ -968,6 +968,46 @@
         </div>
     </div>
 
+    <!-- 编辑管理员弹窗 -->
+    <div class="order-modal edit-modal" id="adminEditModal">
+        <div class="order-modal-card store-edit-card">
+            <button class="modal-close" onclick="closeAdminEdit()">✕</button>
+            <h2>👤 编辑管理员</h2>
+            <input type="hidden" id="editAdminId">
+            <div class="store-edit-grid">
+                <div class="store-edit-field full">
+                    <label>登录账号（不可修改）</label>
+                    <input id="editAdminUsername" disabled style="opacity:.5;background:rgba(255,255,255,.03);">
+                </div>
+                <div class="store-edit-field full">
+                    <label>显示名称</label>
+                    <input id="editAdminDisplayName" placeholder="请输入显示名称">
+                </div>
+                <div class="store-edit-field full">
+                    <label>新密码（留空不修改）</label>
+                    <input id="editAdminPassword" type="password" placeholder="请输入新密码（至少6位）">
+                </div>
+                <div class="store-edit-field full">
+                    <label style="margin-bottom:10px;">账号状态</label>
+                    <div class="permission-row">
+                        <div class="permission-text">
+                            <span class="permission-title">启用账号</span>
+                            <span class="permission-sub">关闭后该管理员无法登录</span>
+                        </div>
+                        <div class="store-switch">
+                            <input type="checkbox" id="editAdminActive">
+                            <span class="store-switch-slider"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="order-modal-actions">
+                <button onclick="closeAdminEdit()">取消</button>
+                <button class="primary" onclick="saveAdminEdit()">保存</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 店铺编辑模态框 -->
     <div class="order-modal edit-modal" id="storeEditModal">
         <div class="order-modal-card store-edit-card">
@@ -1030,6 +1070,21 @@
             <div class="order-modal-actions confirm-actions">
                 <button onclick="hidePasswordModal()" id="passwordCancelBtn">取消</button>
                 <button class="primary" onclick="executePasswordModal()" id="passwordOkBtn">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通用输入模态框 -->
+    <div class="order-modal" id="promptModal">
+        <div class="order-modal-card confirm-card">
+            <button class="modal-close" onclick="hidePromptModal()">✕</button>
+            <div class="confirm-icon">✏️</div>
+            <h2 id="promptModalTitle">请输入</h2>
+            <div class="confirm-message" id="promptModalMessage">请输入内容</div>
+            <input type="text" id="promptModalInput" class="modal-input" placeholder="" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;margin-bottom:16px;outline:none;">
+            <div class="order-modal-actions confirm-actions">
+                <button onclick="hidePromptModal()" id="promptCancelBtn">取消</button>
+                <button class="primary" onclick="executePromptModal()" id="promptOkBtn">确定</button>
             </div>
         </div>
     </div>
@@ -1780,7 +1835,7 @@
                     </div>
                     <div class="menu-actions">
                       <button onclick="toggleMenuStatus(${m.id},${m.active?0:1})">${m.active ? tAdmin('unlistDish') : tAdmin('listDish')}</button>
-                      <button onclick="editMenu(${m.id})">${L('edit')}</button>
+                      <button class="edit-btn" onclick="editMenu(${m.id})">✏️ ${L('edit')}</button>
                       <button class="danger" onclick="removeMenu(${m.id})">${L('delete')}</button>
                     </div>
                   </div>`;
@@ -1963,25 +2018,39 @@
         }
 
         function editAdmin(id, username, displayName, active) {
-            const newName = prompt(tAdmin('editDisplayName'), displayName);
-            if (newName === null) return;
-            const newPass = prompt(tAdmin('editNewPassword'), '');
-            if (newPass === null) return;
-            const isActive = confirm(tAdmin('editActiveConfirm'));
-            const body = { display_name: newName, active: isActive ? 1 : 0 };
-            if (newPass) body.password = newPass;
+            document.getElementById('editAdminId').value = id;
+            document.getElementById('editAdminUsername').value = username || '';
+            document.getElementById('editAdminDisplayName').value = displayName || '';
+            document.getElementById('editAdminPassword').value = '';
+            document.getElementById('editAdminActive').checked = active ? true : false;
+            document.getElementById('adminEditModal').classList.add('open');
+        }
+        function closeAdminEdit() {
+            document.getElementById('adminEditModal').classList.remove('open');
+        }
+        function saveAdminEdit() {
+            const id = document.getElementById('editAdminId').value;
+            const displayName = document.getElementById('editAdminDisplayName').value.trim();
+            const password = document.getElementById('editAdminPassword').value;
+            const active = document.getElementById('editAdminActive').checked ? 1 : 0;
+            if (!displayName) { toast('❌ 请输入显示名称'); return; }
+            if (password && password.length < 6) { toast('❌ 密码至少6位'); return; }
+            const body = { display_name: displayName, active };
+            if (password) body.password = password;
             api('/admin/admins/' + id, { method: 'PUT', body }).then(() => {
                 toast('✅ ' + tAdmin('adminUpdated'));
+                closeAdminEdit();
                 loadAdmins();
             }).catch(e => toast('❌ ' + e.message));
         }
 
         function deleteAdmin(id, username) {
-            if (!confirm(tAdmin('deleteAdminConfirm').replace('{username}', username))) return;
-            api('/admin/admins/' + id, { method: 'DELETE' }).then(() => {
-                toast('✅ ' + tAdmin('adminDeleted'));
-                loadAdmins();
-            }).catch(e => toast('❌ ' + e.message));
+            showConfirm(tAdmin('deleteAdminConfirm').replace('{username}', username), function() {
+                api('/admin/admins/' + id, { method: 'DELETE' }).then(() => {
+                    toast('✅ ' + tAdmin('adminDeleted'));
+                    loadAdmins();
+                }).catch(e => toast('❌ ' + e.message));
+            }, tAdmin('deleteAdminBtn'));
         }
 
         // ===== 套餐管理 =====
@@ -1991,12 +2060,12 @@
                 $('#comboList').innerHTML = rows.length ?
                     rows.map(c => `<div class="admin-card">
                     <div class="info">
-                      <div class="title">${esc(c.emoji || '🍱')} ${esc(c.name)} - $${Number(c.price).toFixed(2)}</div>
+                      <div class="title"><span class="combo-emoji">${esc(c.emoji || '🍱')}</span><span class="combo-name">${esc(c.name)}</span><span class="price">$${Number(c.price).toFixed(2)}</span></div>
                       <div class="sub">${esc(c.description || '')} · ${c.active?'<span style="color:#43e97b">'+tAdmin('onSale')+'</span>':'<span style="color:#f5576c">'+tAdmin('offSale')+'</span>'} · ${tAdmin('sales')}: ${c.sales_count || 0}</div>
                     </div>
-                    <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;">
-                      <button onclick="editCombo(${c.id}, '${esc(c.name)}', '${esc(c.emoji || '🍱')}', ${c.price}, '${esc(c.description || '')}', ${c.active})" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='rgba(255,255,255,.08)'">✏️ ${tAdmin('edit')}</button>
-                      <button onclick="deleteCombo(${c.id}, '${esc(c.name)}')" style="background:rgba(245,87,108,.15);border:1px solid rgba(245,87,108,.3);color:#f5576c;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s;" onmouseover="this.style.background='rgba(245,87,108,.25)'" onmouseout="this.style.background='rgba(245,87,108,.15)'">🗑️ ${tAdmin('delete')}</button>
+                    <div class="actions">
+                      <button class="edit-btn" onclick="editCombo(${c.id}, '${esc(c.name)}')">✏️ ${tAdmin('edit')}</button>
+                      <button class="danger" onclick="deleteCombo(${c.id}, '${esc(c.name)}')">🗑️ ${tAdmin('delete')}</button>
                     </div>
                   </div>`).join('') :
                     `<div class="empty-hint">${tAdmin('noCombos')}</div>`;
@@ -2029,26 +2098,24 @@
             } catch (e) { toast('❌ ' + e.message); }
         }
 
-        function editCombo(id, name, emoji, price, description, active) {
-            const newName = prompt('套餐名称：', name);
-            if (newName === null) return;
-            const newPrice = prompt('套餐价格：', price);
-            if (newPrice === null) return;
-            const newDesc = prompt('套餐描述：', description);
-            if (newDesc === null) return;
-            const isActive = confirm('是否上架该套餐？\n确定=上架，取消=下架');
-            api('/admin/combos/' + id, { method: 'PUT', body: { name: newName, emoji, price: parseFloat(newPrice), description: newDesc, active: isActive ? 1 : 0 } }).then(() => {
-                toast('更新成功');
-                loadCombos();
-            }).catch(e => toast('❌ ' + e.message));
+        function editCombo(id, name) {
+            // 只编辑套餐名称
+            showPromptModal('请输入套餐名称', function(newName) {
+                if (newName === null || newName === undefined || newName === '') return;
+                api('/admin/combos/' + id, { method: 'PUT', body: { name: newName } }).then(() => {
+                    toast('更新成功');
+                    loadCombos();
+                }).catch(e => toast('❌ ' + e.message));
+            }, '编辑套餐', name);
         }
 
         function deleteCombo(id, name) {
-            if (!confirm('确定删除套餐 ' + name + '？此操作不可恢复')) return;
-            api('/admin/combos/' + id, { method: 'DELETE' }).then(() => {
-                toast('删除成功');
-                loadCombos();
-            }).catch(e => toast('❌ ' + e.message));
+            showConfirm('确定删除套餐 ' + name + '？此操作不可恢复', function() {
+                api('/admin/combos/' + id, { method: 'DELETE' }).then(() => {
+                    toast('删除成功');
+                    loadCombos();
+                }).catch(e => toast('❌ ' + e.message));
+            }, '删除确认');
         }
 
         // ===== 操作日志 =====
@@ -3828,15 +3895,24 @@
         );
         // 自定义确认模态框
         let confirmCallback = null;
-        function showConfirm(message, callback, title) {
+        let confirmCancelCallback = null;
+        function showConfirm(message, callback, title, cancelCallback) {
             document.getElementById('confirmTitle').textContent = title || tAdmin('confirmTitle') || '确认操作';
             document.getElementById('confirmMessage').textContent = message;
             confirmCallback = callback;
+            confirmCancelCallback = cancelCallback || null;
             document.getElementById('confirmModal').classList.add('open');
         }
         function hideConfirm() {
             document.getElementById('confirmModal').classList.remove('open');
-            confirmCallback = null;
+            if (confirmCancelCallback) {
+                const cb = confirmCancelCallback;
+                confirmCallback = null;
+                confirmCancelCallback = null;
+                cb();
+            } else {
+                confirmCallback = null;
+            }
         }
         function executeConfirm() {
             if (confirmCallback) confirmCallback();
@@ -3873,6 +3949,47 @@
                 });
             }
         });
+        // 通用输入模态框
+        let promptCallback = null;
+        function showPromptModal(message, callback, title, defaultValue, inputType) {
+            document.getElementById('promptModalTitle').textContent = title || '请输入';
+            const msgEl = document.getElementById('promptModalMessage');
+            if (message && message !== title) {
+                msgEl.textContent = message;
+                msgEl.style.display = 'block';
+            } else {
+                msgEl.style.display = 'none';
+            }
+            const input = document.getElementById('promptModalInput');
+            input.value = defaultValue || '';
+            input.type = inputType || 'text';
+            input.placeholder = title || '请输入';
+            promptCallback = callback;
+            document.getElementById('promptModal').classList.add('open');
+            setTimeout(() => { input.focus(); input.select(); }, 100);
+        }
+        function hidePromptModal() {
+            document.getElementById('promptModal').classList.remove('open');
+            promptCallback = null;
+        }
+        function executePromptModal() {
+            const value = document.getElementById('promptModalInput').value;
+            if (promptCallback) promptCallback(value);
+            hidePromptModal();
+        }
+        // 输入框回车确认
+        document.addEventListener('DOMContentLoaded', function() {
+            const promptInput = document.getElementById('promptModalInput');
+            if (promptInput) {
+                promptInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') executePromptModal();
+                });
+            }
+        });
+        document.getElementById('promptModal').addEventListener('click', function(e) {
+            if (e.target === this) hidePromptModal();
+        });
+
         document.getElementById('confirmModal').addEventListener('click', function(e) {
             if (e.target === this) hideConfirm();
         });
