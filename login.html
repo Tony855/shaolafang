@@ -286,8 +286,10 @@
       loginType = 'waiter';
     }
 
+    // 全局翻译函数（避免在每个函数中重复定义）
+    const t = SLF.i18n.t.bind(SLF.i18n);
+
     function apply() {
-      const t = SLF.i18n.t.bind(SLF.i18n);
       document.title = t('login') + ' - ' + t('brandName');
       $('#brandTitle').textContent = t('brandName');
       $('#langSelect').value = lang;
@@ -337,7 +339,6 @@
 
     // 错误消息翻译映射（全局）
     function translateError(msg) {
-      const t = SLF.i18n.t.bind(SLF.i18n);
       if (!msg) return t('loginError');
       if (msg.includes('用户名或密码错误') || msg.includes('用户名不存在') || msg.includes('密码错误')) return t('invalidCredentials');
       if (msg.includes('账号已被禁用') || msg.includes('已禁用')) return t('accountDisabled');
@@ -347,7 +348,6 @@
 
     // 错误提示弹窗（全局）
     function showErrorModal(message, title) {
-      const t = SLF.i18n.t.bind(SLF.i18n);
       document.getElementById('errorModalTitle').textContent = title || t('loginFailed') || '登录失败';
       document.getElementById('errorModalMessage').textContent = message || t('loginError');
       document.getElementById('errorModalBtn').textContent = t('confirm') || '确定';
@@ -363,7 +363,6 @@
 
     // 登录
     $('#loginBtn').addEventListener('click', async () => {
-      const t = SLF.i18n.t.bind(SLF.i18n);
       const password = $('#password').value.trim();
       if (!password) {
         showErrorModal(t('enterPassword'));
