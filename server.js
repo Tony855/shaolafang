@@ -154,6 +154,62 @@ app.get('/admin', (req, res) => {
 app.get('/super', (req, res) => {
   res.sendFile(path.join(__dirname, 'super.html'));
 });
+
+// ---------- 二维码打印页面（独立路由，服务端渲染） ----------
+app.get('/qr-print', async (req, res) => {
+  try {
+    const tableId = parseInt(req.query.tableId || '0', 10);
+    const lang = ['zh', 'en', 'vi', 'th', 'km'].includes(req.query.lang) ? req.query.lang : 'zh';
+    if (!tableId) return res.status(400).send('Invalid tableId');
+
+    const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ?', [tableId]);
+    if (!table) return res.status(404).send('Table not found');
+    const store = await getAsync('SELECT name FROM stores WHERE id = ?', [table.store_id || 1]);
+    const storeName = store?.name || 'FoodFlow';
+    const url = `${req.protocol}://${req.get('host')}/?token=${encodeURIComponent(table.qr_token)}`;
+    const qrDataUrl = await QRCode.toDataURL(url);
+
+    // 翻译映射（服务端简单翻译，避免依赖前端i18n）
+    const i18nMap = {
+      zh: { table: '桌号', qrCode: '二维码', scanToOrder: '扫码点餐', download: '下载', print: '打印', orderingQrCode: '点餐二维码' },
+      en: { table: 'Table', qrCode: 'QR Code', scanToOrder: 'Scan to Order', download: 'Download', print: 'Print', orderingQrCode: 'Ordering QR Code' },
+      vi: { table: 'Bàn', qrCode: 'Mã QR', scanToOrder: 'Quét mã để đặt hàng', download: 'Tải xuống', print: 'In', orderingQrCode: 'Mã QR đặt hàng' },
+      th: { table: 'โต๊ะ', qrCode: 'คิวอาร์โค้ด', scanToOrder: 'สแกนเพื่อสั่งอาหาร', download: 'ดาวน์โหลด', print: 'พิมพ์', orderingQrCode: 'คิวอาร์โค้ดสั่งอาหาร' },
+      km: { table: 'តុ', qrCode: 'QR Code', scanToOrder: 'ស្កេនដើម្បីបញ្ជាទិញ', download: 'ទាញយក', print: 'បោះពុម្ព', orderingQrCode: 'កូដ QR បញ្ជាទិញ' }
+    };
+    const t = i18nMap[lang] || i18nMap.zh;
+
+    // 读取模板文件
+    const template = fs.readFileSync(path.join(__dirname, 'views', 'qr-print.html'), 'utf-8');
+
+    // 替换变量
+    const html = template
+      .replace(/{{lang}}/g, lang)
+      .replace(/{{table}}/g, table.name)
+      .replace(/{{storeName}}/g, storeName)
+      .replace(/{{qrCode}}/g, t.qrCode)
+      .replace(/{{tableLabel}}/g, t.table)
+      .replace(/{{orderingQrCode}}/g, t.orderingQrCode)
+      .replace(/{{scanToOrder}}/g, t.scanToOrder)
+      .replace(/{{download}}/g, t.download)
+      .replace(/{{print}}/g, t.print)
+      .replace(/{{url}}/g, url)
+      .replace(/{{qrDataUrl}}/g, qrDataUrl)
+      .replace(/{{storeNameJson}}/g, JSON.stringify(storeName))
+      .replace(/{{tableJson}}/g, JSON.stringify(table.name))
+      .replace(/{{tableLabelJson}}/g, JSON.stringify(t.table))
+      .replace(/{{scanToOrderJson}}/g, JSON.stringify(t.scanToOrder))
+      .replace(/{{qrCodeJson}}/g, JSON.stringify(t.qrCode))
+      .replace(/{{qrDataUrlJson}}/g, JSON.stringify(qrDataUrl));
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e) {
+    console.error('QR print error:', e);
+    res.status(500).send('Failed to generate QR print page');
+  }
+});
+
 app.get('/login.html', (req, res) => res.redirect('/login'));
 app.get('/admin.html', (req, res) => res.redirect('/admin'));
 app.get('/kitchen.html', (req, res) => res.redirect('/kitchen'));
