@@ -1562,11 +1562,15 @@
             font-weight: 600;
             color: #ffd93d;
         }
-        @media (max-width: 768px) {
         body {
             background: linear-gradient(180deg, #fff6f2 0%, #f7f7fb 46%, #eef0f7 100%);
-            padding-bottom: 96px;
-            padding-top: 64px
+            padding-bottom: 96px
+        }
+        .header {
+            background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
+            padding: 16px 18px;
+            box-shadow: 0 10px 28px rgba(200, 65, 30, .22);
+            border-radius: 0 0 22px 22px
         }
         .header {
             position: fixed;
@@ -1577,12 +1581,13 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
-            min-height: 64px;
-            background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
-            padding: 16px 18px;
-            box-shadow: 0 10px 28px rgba(200, 65, 30, .22);
-            border-radius: 0 0 22px 22px
+            gap: 10px
+        }
+        body {
+            padding-top: 64px
+        }
+        .header {
+            min-height: 64px
         }
         .header-left {
             display: flex;
@@ -1899,7 +1904,6 @@
             height: 32px;
             flex: 0 0 32px
         }
-        }
         @media(max-width:380px) {
             .header-logo {
                 font-size: 19px
@@ -2148,7 +2152,8 @@
                 padding-top: 149px !important;
             }
             /* 语言切换按钮圆形 */
-            .header-right button {
+            .header-right button,
+            .lang-btn-wrap {
                 width: 34px !important;
                 height: 34px !important;
                 min-width: 34px !important;
@@ -2172,6 +2177,27 @@
             .header-right button * {
                 line-height: 1 !important;
             }
+            .lang-btn-wrap {
+                position: relative;
+            }
+            .lang-btn-wrap .lang-icon {
+                font-size: 16px;
+                pointer-events: none;
+                line-height: 1;
+            }
+            .lang-btn-wrap select {
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                opacity: 0 !important;
+                cursor: pointer !important;
+                border: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
         }
         @media (max-width: 480px) {
             .store-name-badge {
@@ -2194,6 +2220,68 @@
                 padding-top: 97px !important;
             }
         }
+
+    
+        /* ===== 电脑端恢复：覆盖错误的全局fixed样式 ===== */
+        @media (min-width: 769px) {
+            /* Header一行布局：logo居中，店名+桌号+按钮全部靠右 */
+            .header {
+                position: sticky !important;
+                top: 0 !important;
+                left: auto !important;
+                right: auto !important;
+                border-radius: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+                padding: 12px 20px !important;
+                gap: 0 !important;
+                position: relative !important;
+            }
+            .header .header-logo {
+                position: absolute !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                font-size: 24px !important;
+                width: auto !important;
+                padding-bottom: 0 !important;
+                border-bottom: none !important;
+            }
+            .header .header-logo i {
+                font-size: 24px !important;
+            }
+            .header .header-left {
+                display: flex !important;
+                align-items: center !important;
+                gap: 10px !important;
+                min-width: 0 !important;
+                margin-left: auto !important;
+            }
+            .header .header-right {
+                display: flex !important;
+                align-items: center !important;
+                gap: 10px !important;
+                margin-left: 10px !important;
+            }
+            body {
+                padding-top: 0 !important;
+            }
+            .category-tabs {
+                position: sticky !important;
+                top: 72px !important;
+                left: auto !important;
+                right: auto !important;
+                display: flex !important;
+            }
+            .cats-scroll {
+                display: contents !important;
+            }
+            .main-content {
+                padding-top: 12px !important;
+            }
+
+        }
+
     
         /* ===== 全局：语言按钮圆形（电脑端和移动端统一） ===== */
         .lang-btn-wrap {
@@ -2494,7 +2582,13 @@
             if (savedLang && ['zh','en','vi','th','km'].includes(savedLang)) {
                 initLang = savedLang;
             } else {
-                initLang = detectBrowserLanguage();
+                const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
+                if (sys.startsWith('zh')) initLang = 'zh';
+                else if (sys.startsWith('vi')) initLang = 'vi';
+                else if (sys.startsWith('th')) initLang = 'th';
+                else if (sys.startsWith('km')) initLang = 'km';
+                else if (sys.startsWith('en')) initLang = 'en';
+                else initLang = 'zh';
             }
             SLF.i18n.init(initLang);
         })();
@@ -2504,7 +2598,13 @@
         let currentLang = (function() {
             const saved = localStorage.getItem('preferredLang');
             if (saved && ['zh','en','vi','th','km'].includes(saved)) return saved;
-            return detectBrowserLanguage();
+            const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
+            if (sys.startsWith('zh')) return 'zh';
+            if (sys.startsWith('vi')) return 'vi';
+            if (sys.startsWith('th')) return 'th';
+            if (sys.startsWith('km')) return 'km';
+            if (sys.startsWith('en')) return 'en';
+            return 'zh';
         })();
 
         function t(key) {
@@ -3513,7 +3613,13 @@
             if (savedLang && LANGUAGES[savedLang]) {
                 langSelect.value = savedLang;
             } else {
-                langSelect.value = detectBrowserLanguage();
+                const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
+                if (sys.startsWith('zh')) langSelect.value = 'zh';
+                else if (sys.startsWith('vi')) langSelect.value = 'vi';
+                else if (sys.startsWith('th')) langSelect.value = 'th';
+                else if (sys.startsWith('km')) langSelect.value = 'km';
+                else if (sys.startsWith('en')) langSelect.value = 'en';
+                else langSelect.value = 'zh';
             }
             applyLanguage();
 
