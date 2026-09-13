@@ -2162,6 +2162,27 @@ app.post('/api/orders', async (req, res) => {
     const newRow = await getAsync('SELECT * FROM orders WHERE id = ?', [result.lastID]);
     await syncTableStatus(table);
     // 返回新的session过期时间，供前端同步
+    // 自动打印小票
+    try {
+      const autoPrintRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${storeId}`]);
+      const autoPrintEnabled = !autoPrintRow || autoPrintRow.value === '1' || autoPrintRow.value === 'true'; // 默认开启
+      if (autoPrintEnabled) {
+        const defaultPrinter = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [storeId]);
+        if (defaultPrinter && defaultPrinter.type === 'network' && defaultPrinter.ip_address) {
+          const storeInfo = await getAsync('SELECT * FROM stores WHERE id=?', [storeId]);
+          const printData = buildReceipt(newRow, storeInfo, defaultPrinter);
+          try {
+            await printToNetworkPrinter(printData, defaultPrinter.ip_address, defaultPrinter.port);
+            console.log(`[AutoPrint] Order #${newRow.id} printed to ${defaultPrinter.name}`);
+          } catch (printErr) {
+            console.error(`[AutoPrint] Failed to print order #${newRow.id}:`, printErr.message);
+          }
+        }
+      }
+    } catch (autoPrintErr) {
+      console.error('[AutoPrint] Error:', autoPrintErr.message);
+    }
+
     const responseData = { success: true, orderId: newRow.id, order: formatOrder(newRow) };
     if (sessionToken) {
       const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
@@ -2486,6 +2507,36 @@ app.post('/api/orders/:id(\\d+)/print-kitchen', requireAdminOrWaiter, async (req
 });
 
 // ----- 测试打印 -----
+// 自动打印设置 - 获取
+app.get('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
+  try {
+    const storeId = req.storeId || 1;
+    const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${storeId}`]);
+    const enabled = row ? (row.value === '1' || row.value === 'true') : true; // 默认开启
+    res.json({ enabled: enabled });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 自动打印设置 - 保存
+app.post('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
+  try {
+    const storeId = req.storeId || 1;
+    const { enabled } = req.body || {};
+    const key = `auto_print_receipt_${storeId}`;
+    const existing = await getAsync("SELECT value FROM settings WHERE `key` = ?", [key]);
+    if (existing) {
+      await runAsync("UPDATE settings SET value = ? WHERE `key` = ?", [enabled ? '1' : '0', key]);
+    } else {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?)", [key, enabled ? '1' : '0']);
+    }
+    res.json({ success: true, enabled: enabled });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/admin/printers/test', requireAdminKey, async (req, res) => {
   try {
     const { printer_id } = req.body || {};
