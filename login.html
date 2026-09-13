@@ -396,8 +396,8 @@
         }
         try {
           const data = await SLF.api.post('/waiter/login', { username, password });
-          sessionStorage.setItem('waiterToken', data.token);
-          sessionStorage.setItem('waiterStoreId', data.storeId || 1);
+          localStorage.setItem('waiterToken', data.token);
+          localStorage.setItem('storeId', String(data.storeId || 1));
           window.location.href = '/waiter';
         } catch (e) {
           showErrorModal(translateError(e.message));
