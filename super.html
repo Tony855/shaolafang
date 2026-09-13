@@ -273,6 +273,9 @@ select:focus {
     <div class="nav-item" data-module="logs" onclick="closeSidebar();switchModule('logs')">
       <span class="icon">📋</span><span>登录日志</span>
     </div>
+    <div class="nav-item" data-module="audit" onclick="closeSidebar();switchModule('audit')">
+      <span class="icon">🔍</span><span>操作审计</span>
+    </div>
     <div class="nav-item" data-module="settings" onclick="closeSidebar();switchModule('settings')">
       <span class="icon">⚙️</span><span>系统设置</span>
     </div>
@@ -432,24 +435,15 @@ select:focus {
         <button class="btn-primary" onclick="resetData()" style="background:linear-gradient(135deg,#e74c3c,#c0392b);">🗑️ 重置订单数据</button>
       </div>
       <!-- 标签页切换按钮 -->
-      <div style="display:flex;gap:10px;margin:16px 0;">
-        <button id="tabTimeout" onclick="switchSettingsTab('timeout')" style="flex:1;padding:12px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">⏱️ 全局超时设置</button>
-        <button id="tabOrder" onclick="switchSettingsTab('order')" style="flex:1;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">📦 下单限制设置</button>
+      <div style="display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;">
+        <button id="tabTimeout" onclick="switchSettingsTab('timeout')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">⏱️ 全局超时设置</button>
+        <button id="tabOrder" onclick="switchSettingsTab('order')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">📦 下单限制设置</button>
+        <button id="tabSecurity" onclick="switchSettingsTab('security')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">🔒 安全设置</button>
       </div>
       <!-- 全局超时设置面板 -->
       <div id="timeoutSettings">
         <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
-            <p style="color:#888;margin-bottom:16px;">全局超时相关配置</p>
-        <div class="form-group">
-          <label>超级管理员无操作超时时间（分钟）</label>
-          <input type="number" id="superIdleTimeout" min="1" max="1440" placeholder="如：30">
-          <small style="color:#666;">超级管理员后台无任何操作后自动退出登录的时间，范围1-1440分钟</small>
-        </div>
-        <div class="form-group">
-          <label>商户后台无操作超时时间（分钟）</label>
-          <input type="number" id="adminIdleTimeout" min="1" max="1440" placeholder="如：5">
-          <small style="color:#666;">商户后台无任何操作后自动退出登录的时间，范围1-1440分钟</small>
-        </div>
+            <p style="color:#888;margin-bottom:16px;">业务超时与刷新配置</p>
         <div class="form-group">
           <label>二维码链接有效时间（分钟）</label>
           <input type="number" id="qrSessionTimeout" min="0" max="1440" placeholder="如：45，0=永不过期">
@@ -490,6 +484,37 @@ select:focus {
           <label>订单备注最大长度（字符）</label>
           <input type="number" id="maxOrderNoteLength" min="10" max="1000" placeholder="如：200">
           <small style="color:#666;">顾客订单备注的最大字符数，范围10-1000字符</small>
+        </div>
+        </div>
+      </div>
+      <!-- 安全设置面板 -->
+      <div id="securitySettings" style="display:none;">
+        <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
+            <p style="color:#888;margin-bottom:16px;">账号安全与访问控制</p>
+        <div class="form-group">
+          <label>超级管理员无操作超时时间（分钟）</label>
+          <input type="number" id="superIdleTimeout" min="1" max="1440" placeholder="如：60">
+          <small style="color:#666;">超级管理员后台无任何操作后自动退出登录的时间，范围1-1440分钟</small>
+        </div>
+        <div class="form-group">
+          <label>商户后台无操作超时时间（分钟）</label>
+          <input type="number" id="adminIdleTimeout" min="1" max="1440" placeholder="如：30">
+          <small style="color:#666;">商户后台无任何操作后自动退出登录的时间，范围1-1440分钟</small>
+        </div>
+        <div class="form-group">
+          <label>登录失败最大尝试次数</label>
+          <input type="number" id="loginMaxAttempts" min="1" max="20" placeholder="如：5">
+          <small style="color:#666;">同一账号连续登录失败达到此次数后锁定账号，范围1-20次</small>
+        </div>
+        <div class="form-group">
+          <label>账号锁定时间（分钟）</label>
+          <input type="number" id="loginLockMinutes" min="1" max="1440" placeholder="如：15">
+          <small style="color:#666;">登录失败次数超限后账号锁定的时间，范围1-1440分钟</small>
+        </div>
+        <div class="form-group">
+          <label>超级管理员IP白名单</label>
+          <input type="text" id="superIpWhitelist" placeholder="如：192.168.1.1,10.0.0.1，留空则不限制">
+          <small style="color:#666;">仅允许这些IP地址登录超级管理员后台，多个IP用英文逗号分隔，留空表示不限制</small>
         </div>
         </div>
       </div>
@@ -665,8 +690,9 @@ function showApp() {
   loadDashboard();
 }
 
-function logout() {
+async function logout() {
   if (idleTimer) clearInterval(idleTimer);
+  try { await api('/super/logout', { method: 'POST' }); } catch (e) {}
   localStorage.removeItem('superToken');
   localStorage.removeItem('superAdmin');
   location.reload();
@@ -677,7 +703,7 @@ function switchModule(mod) {
   currentModule = mod;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === mod));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + mod));
-  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '登录日志', settings: '系统设置' };
+  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '登录日志', audit: '操作审计', settings: '系统设置' };
   document.getElementById('pageTitle').textContent = titles[mod] || '';
   if (mod === 'dashboard') loadDashboard();
   if (mod === 'merchants') loadMerchants();
@@ -685,6 +711,7 @@ function switchModule(mod) {
   if (mod === 'logs') loadLoginLogs();
   if (mod === 'settings') loadGlobalSettings();
   if (mod === 'settings') loadBackupSettings();
+  if (mod === 'audit') loadAuditLogs();
 }
 
 // API 请求
@@ -930,34 +957,31 @@ async function loadGlobalSettings() {
     document.getElementById('maxOrderItems').value = settings.max_order_items || 50;
     document.getElementById('maxItemQuantity').value = settings.max_item_quantity || 100;
     document.getElementById('maxOrderNoteLength').value = settings.max_order_note_length || 200;
+    document.getElementById('loginMaxAttempts').value = settings.login_max_attempts || 5;
+    document.getElementById('loginLockMinutes').value = settings.login_lock_minutes || 15;
+    document.getElementById('superIpWhitelist').value = settings.super_ip_whitelist || '';
   } catch (e) { toast('加载设置失败: ' + e.message, 'error'); }
 }
 
 // 保存全局设置
 function switchSettingsTab(tab) {
-  const timeoutTab = document.getElementById('tabTimeout');
-  const orderTab = document.getElementById('tabOrder');
-  const timeoutSettings = document.getElementById('timeoutSettings');
-  const orderSettings = document.getElementById('orderSettings');
-  if (tab === 'timeout') {
-    timeoutTab.className = 'settings-tab active';
-    timeoutTab.style.background = 'rgba(232,93,58,.15)';
-    timeoutTab.style.color = '#e85d3a';
-    orderTab.className = 'settings-tab';
-    orderTab.style.background = 'rgba(255,255,255,.04)';
-    orderTab.style.color = '#aaa';
-    timeoutSettings.style.display = 'block';
-    orderSettings.style.display = 'none';
-  } else {
-    orderTab.className = 'settings-tab active';
-    orderTab.style.background = 'rgba(232,93,58,.15)';
-    orderTab.style.color = '#e85d3a';
-    timeoutTab.className = 'settings-tab';
-    timeoutTab.style.background = 'rgba(255,255,255,.04)';
-    timeoutTab.style.color = '#aaa';
-    orderSettings.style.display = 'block';
-    timeoutSettings.style.display = 'none';
-  }
+  const tabs = { timeout: 'tabTimeout', order: 'tabOrder', security: 'tabSecurity' };
+  const panels = { timeout: 'timeoutSettings', order: 'orderSettings', security: 'securitySettings' };
+  Object.keys(tabs).forEach(t => {
+    const tabEl = document.getElementById(tabs[t]);
+    const panelEl = document.getElementById(panels[t]);
+    if (t === tab) {
+      tabEl.style.background = 'rgba(232,93,58,.15)';
+      tabEl.style.color = '#e85d3a';
+      tabEl.style.borderColor = 'rgba(232,93,58,.4)';
+      panelEl.style.display = 'block';
+    } else {
+      tabEl.style.background = 'rgba(255,255,255,.04)';
+      tabEl.style.color = '#aaa';
+      tabEl.style.borderColor = 'rgba(255,255,255,.1)';
+      panelEl.style.display = 'none';
+    }
+  });
 }
 
 async function saveGlobalSettings() {
@@ -979,9 +1003,51 @@ async function saveGlobalSettings() {
     const waiterSessionTimeout = parseInt(document.getElementById('waiterSessionTimeout').value) || 12;
     const superIdleTimeout = parseInt(document.getElementById('superIdleTimeout').value);
     if (!superIdleTimeout || superIdleTimeout < 1 || superIdleTimeout > 1440) { toast('超级管理员超时时间范围1-1440分钟', 'error'); return; }
-    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength }) });
+    const loginMaxAttempts = parseInt(document.getElementById('loginMaxAttempts').value, 10);
+    const loginLockMinutes = parseInt(document.getElementById('loginLockMinutes').value, 10);
+    const superIpWhitelist = document.getElementById('superIpWhitelist').value.trim();
+    if (!loginMaxAttempts || loginMaxAttempts < 1 || loginMaxAttempts > 20) { toast('登录失败最大尝试次数范围1-20次', 'error'); return; }
+    if (!loginLockMinutes || loginLockMinutes < 1 || loginLockMinutes > 1440) { toast('账号锁定时间范围1-1440分钟', 'error'); return; }
+    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength, login_max_attempts: loginMaxAttempts, login_lock_minutes: loginLockMinutes, super_ip_whitelist: superIpWhitelist }) });
     toast('设置保存成功', 'success');
   } catch (e) { toast('保存失败: ' + e.message, 'error'); }
+}
+
+// 加载操作审计日志
+async function loadAuditLogs() {
+  try {
+    const logs = await api('/super/audit-logs');
+    const tbody = document.getElementById('auditLogsBody');
+    if (!logs || logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#666;">暂无操作记录</td></tr>';
+      return;
+    }
+    const actionNames = {
+      'delete_merchant': '删除商户',
+      'reset_merchant_password': '重置商户密码',
+      'update_settings': '更新系统设置',
+      'reset_all_data': '重置全部数据',
+      'change_password': '修改密码',
+      'create_merchant': '创建商户',
+      'update_merchant': '编辑商户'
+    };
+    tbody.innerHTML = logs.map(log => {
+      const action = actionNames[log.action] || log.action;
+      const target = log.target_type ? `${log.target_type}${log.target_id ? ' #' + log.target_id : ''}` : '-';
+      let details = log.details || '-';
+      if (details.length > 60) details = details.substring(0, 60) + '...';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+        <td style="padding:10px;color:#aaa;">${formatDateTime(log.created_at)}</td>
+        <td style="padding:10px;color:#fff;">${log.actor_username || '-'}</td>
+        <td style="padding:10px;"><span style="background:rgba(232,93,58,.15);color:#e85d3a;padding:3px 8px;border-radius:4px;font-size:12px;">${action}</span></td>
+        <td style="padding:10px;color:#aaa;">${target}</td>
+        <td style="padding:10px;color:#888;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${log.details || ''}">${details}</td>
+        <td style="padding:10px;color:#888;">${log.ip || '-'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('auditLogsBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#e74c3c;">加载失败: ' + e.message + '</td></tr>';
+  }
 }
 
 // Toast
