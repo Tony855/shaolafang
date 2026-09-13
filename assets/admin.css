@@ -2222,7 +2222,7 @@
 /* ===== 顶部导航栏（固定） ===== */
             .top {
                 height: 48px;
-                padding: 0 8px;
+                padding: 0 8px 0 44px;
                 gap: 5px;
             }
             body {
