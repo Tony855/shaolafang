@@ -1496,10 +1496,12 @@
   };
 
   // ----- 语言切换 -----
-  function setLanguage(lang) {
+  async function setLanguage(lang) {
     waiterLang = lang;
     localStorage.setItem('waiterLang', lang);
     document.getElementById('waiterLang').value = lang;
+    // 先加载共享翻译数据（available/occupied/noCustomerOrder等存在LANGUAGES中）
+    await loadWaiterLanguage(lang);
     if (state.token) {
       applyWaiterLanguage();
     }
@@ -1523,12 +1525,14 @@
     return false;
   }
   document.getElementById('waiterLang').addEventListener('change', async function() {
-    setLanguage(this.value);
+    await setLanguage(this.value);
   });
   // ----- 初始化语言 -----
   // 从 localStorage 读取，如果无则默认 zh
   const savedLang = localStorage.getItem('waiterLang') || 'zh';
   waiterLang = savedLang;
+  // 预加载当前语言的共享翻译数据
+  loadWaiterLanguage(savedLang);
 
   // 启动：检查登录状态，未登录跳转到统一登录页
   if(state.token){

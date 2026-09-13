@@ -2690,7 +2690,7 @@
         // ============================================================
         let state = {
             cart: {},
-            currentCategory: t('all'),
+            currentCategory: '',
             searchKeyword: '',
             orders: [],
             menu: [],
@@ -3631,7 +3631,7 @@
         // ============================================================
         async function init() {
             const savedLang = localStorage.getItem('preferredLang');
-            if (savedLang && LANGUAGES[savedLang]) {
+            if (savedLang && ['zh','en','vi','th','km'].includes(savedLang)) {
                 langSelect.value = savedLang;
             } else {
                 const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
@@ -3642,7 +3642,7 @@
                 else if (sys.startsWith('en')) langSelect.value = 'en';
                 else langSelect.value = 'zh';
             }
-            applyLanguage();
+            await applyLanguage();
 
             await checkBackend();
             await fetchStoreConfig();

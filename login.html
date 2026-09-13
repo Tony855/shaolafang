@@ -267,7 +267,7 @@
   <script src="assets/common.js"></script>
   <script>
     const $ = s => document.querySelector(s);
-    let lang = localStorage.getItem('lang') || 'zh';
+    let lang = localStorage.getItem('lang') || localStorage.getItem('adminLang') || localStorage.getItem('waiterLang') || 'zh';
     let loginType = 'admin'; // admin 或 waiter
 
     SLF.i18n.init(lang);
@@ -320,7 +320,11 @@
     $('#langSelect').value = lang;
     $('#langSelect').addEventListener('change', async () => {
       lang = $('#langSelect').value;
+      // 同步保存所有角色的语言设置，确保登录后各页面使用相同语言
       localStorage.setItem('lang', lang);
+      localStorage.setItem('adminLang', lang);
+      localStorage.setItem('waiterLang', lang);
+      localStorage.setItem('kitchenLang', lang);
       if (lang !== 'zh') await SLF.i18n.loadLanguage(lang);
       SLF.i18n.setLang(lang);
       apply();
