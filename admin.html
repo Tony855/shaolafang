@@ -1081,8 +1081,6 @@
     <script src="languages.min.js"></script>
     <script src="assets/common.js"></script>
     <script>
-        // 初始化统一 i18n
-        SLF.i18n.init(localStorage.getItem('adminLang') || 'zh');
         // ================================================================
         // 多语言配置与辅助工具
         // ================================================================
@@ -1649,6 +1647,9 @@
             saveNotifySettings: 'រក្សាទុកការកំណត់សំឡេង', notifySettingsSaved: 'បានរក្សាទុកការកំណត់សំឡេង', notifySettingsSaveFailed: 'រក្សាទុកបរាជ័យ'
         };
 
+        // 初始化统一 i18n（ADMIN_LABELS定义后执行）
+        SLF.i18n.init(localStorage.getItem('adminLang') || 'zh', ADMIN_LABELS);
+
         const categoryText = c => (LANGUAGES[adminLang] && LANGUAGES[adminLang].categories && LANGUAGES[adminLang]
             .categories[c]) || c;
         const currencyNameText = (name, code) => {
@@ -1685,31 +1686,22 @@
         let adminLang = localStorage.getItem('adminLang') || 'zh';
         // 动态加载指定语言的翻译
         async function loadAdminLanguage(lang) {
-            if (LANGUAGES[lang] && LANGUAGES[lang]._loaded) return true;
-            try {
-                const cached = localStorage.getItem('i18n_' + lang);
-                if (cached) { LANGUAGES[lang] = { ...JSON.parse(cached), _loaded: true }; return true; }
-            } catch (e) {}
-            try {
-                const res = await fetch('/api/i18n/' + lang);
-                if (res.ok) {
-                    const data = await res.json();
-                    LANGUAGES[lang] = { ...data, _loaded: true };
-                    try { localStorage.setItem('i18n_' + lang, JSON.stringify(data)); } catch (e) {}
-                    return true;
-                }
-            } catch (e) { console.warn('加载语言失败:', e.message); }
-            return false;
+            // 使用SLF.i18n统一加载（内存→localStorage→API→中文兜底）
+            await SLF.i18n.loadLanguage(lang);
+            // 合并ADMIN_LABELS自定义字典（admin特有翻译键）
+            if (ADMIN_LABELS[lang]) {
+                SLF.i18n.dicts[lang] = { ...(SLF.i18n.dicts[lang] || {}), ...ADMIN_LABELS[lang] };
+            }
+            adminLang = lang;
+            return true;
         }
         let dualCurrencyEnabled = false;
         let secondaryCurrencyCode = 'USD';
         let defaultCurrencyObj = null;
 
-        // 本地字典优先，找不到时回退到 languages.js 的共享翻译（如 menuManage/orderManage/close/total/save），避免重复维护同一个词
-        const tAdmin = k => (ADMIN_LABELS[adminLang] && ADMIN_LABELS[adminLang][k]) || ADMIN_LABELS.zh[k] || (LANGUAGES[adminLang] && LANGUAGES[adminLang][k]) || (LANGUAGES.zh && LANGUAGES.zh[k]) || k;
-        const L = k => (LANGUAGES[adminLang] && LANGUAGES[adminLang][k]) || LANGUAGES.zh[k] || k;
-        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
-            "'": '&#39;' }[c]));
+        // 统一使用SLF.i18n翻译系统，tAdmin和L为别名，esc使用common.js提供的全局函数
+        const tAdmin = (k, params) => SLF.i18n.t(k, params);
+        const L = (k, params) => SLF.i18n.t(k, params);
 
         // 同一桌可能被多位顾客先后扫码下单：按桌号 + session_token 分组，
         // 给每一组分配一个短标签（客1/客2...），方便后台区分是同一位顾客的多笔订单

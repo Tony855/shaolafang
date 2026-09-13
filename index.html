@@ -2476,36 +2476,17 @@
             return 'zh';
         })();
 
-        // 动态加载指定语言的翻译（方案二：按需加载）
+        // 动态加载指定语言的翻译（使用SLF.i18n统一加载：内存→localStorage→API→中文兜底）
         async function loadLanguageData(lang) {
-            if (LANGUAGES[lang] && LANGUAGES[lang]._loaded) return true;
-            // 检查localStorage缓存
-            try {
-                const cached = localStorage.getItem('i18n_' + lang);
-                if (cached) {
-                    LANGUAGES[lang] = { ...JSON.parse(cached), _loaded: true };
-                    return true;
-                }
-            } catch (e) {}
-            // 从API加载
-            try {
-                const res = await fetch('/api/i18n/' + lang);
-                if (res.ok) {
-                    const data = await res.json();
-                    LANGUAGES[lang] = { ...data, _loaded: true };
-                    try { localStorage.setItem('i18n_' + lang, JSON.stringify(data)); } catch (e) {}
-                    return true;
-                }
-            } catch (e) {
-                console.warn('动态加载语言失败:', e.message);
-            }
-            return false;
+            await SLF.i18n.loadLanguage(lang);
+            SLF.i18n.lang = lang;
+            currentLang = lang;
+            return true;
         }
 
-        function t(key) {
-            const langData = LANGUAGES[currentLang];
-            if (!langData) return key;
-            return langData[key] || key;
+        // 统一使用SLF.i18n翻译系统，t为别名
+        function t(key, params) {
+            return SLF.i18n.t(key, params);
         }
 
         // 简单 HTML 转义，避免顾客备注中的特殊字符破坏页面结构
@@ -2514,9 +2495,9 @@
         }
 
         function getCategoryTranslation(cat) {
-            const langData = LANGUAGES[currentLang];
-            if (langData && langData.categories && langData.categories[cat]) {
-                return langData.categories[cat];
+            const result = SLF.i18n.t('categories');
+            if (result && typeof result === 'object' && result[cat]) {
+                return result[cat];
             }
             return cat;
         }
@@ -3404,10 +3385,8 @@
         async function applyLanguage() {
             currentLang = langSelect.value;
             localStorage.setItem('preferredLang', currentLang);
-            // 动态加载对应语言（非中文时）
-            if (currentLang !== 'zh') {
-                await loadLanguageData(currentLang);
-            }
+            // 动态加载对应语言（所有语言都加载，确保SLF.i18n.lang正确设置）
+            await loadLanguageData(currentLang);
             document.getElementById('appName').textContent = t('appName');
             document.getElementById('cartLabel').textContent = t('cart');
             document.getElementById('checkoutLabel').textContent = t('checkout');
