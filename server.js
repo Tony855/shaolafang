@@ -214,6 +214,8 @@ app.get('/login.html', (req, res) => res.redirect('/login'));
 app.get('/admin.html', (req, res) => res.redirect('/admin'));
 app.get('/kitchen.html', (req, res) => res.redirect('/kitchen'));
 app.get('/super.html', (req, res) => res.redirect('/super'));
+app.get('/waiter.html', (req, res) => res.redirect('/waiter'));
+app.get('/index.html', (req, res) => res.redirect('/'));
 
 // ---------- 文件上传 ----------
 const storage = multer.diskStorage({

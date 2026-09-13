@@ -223,6 +223,8 @@ select:focus {
   border-color: #e85d3a !important;
 }
 </style>
+  <script src="languages.min.js"></script>
+  <script src="assets/common.js"></script>
 </head>
 <body>
 
@@ -292,28 +294,28 @@ select:focus {
         <div class="stat-card stat-merchants">
           <div class="stat-icon">🏪</div>
           <div class="stat-content">
-            <div class="label">商户总数</div>
+            <div class="label" data-i18n="totalMerchants">商户总数</div>
             <div class="value" id="statMerchants">0</div>
           </div>
         </div>
         <div class="stat-card stat-stores">
           <div class="stat-icon">🏬</div>
           <div class="stat-content">
-            <div class="label">门店总数</div>
+            <div class="label" data-i18n="totalStores">门店总数</div>
             <div class="value" id="statStores">0</div>
           </div>
         </div>
         <div class="stat-card stat-orders">
           <div class="stat-icon">📋</div>
           <div class="stat-content">
-            <div class="label">订单总数</div>
+            <div class="label" data-i18n="totalOrders">订单总数</div>
             <div class="value" id="statOrders">0</div>
           </div>
         </div>
         <div class="stat-card stat-revenue">
           <div class="stat-icon">💰</div>
           <div class="stat-content">
-            <div class="label">今日营业额</div>
+            <div class="label" data-i18n="todayRevenue">今日营业额</div>
             <div class="value" id="statRevenue">$0</div>
           </div>
         </div>
@@ -323,7 +325,7 @@ select:focus {
         <div class="stat-card stat-today">
           <div class="stat-icon">📊</div>
           <div class="stat-content">
-            <div class="label">今日订单</div>
+            <div class="label" data-i18n="todayOrders">今日订单</div>
             <div class="value" id="statTodayOrders">0</div>
           </div>
         </div>
@@ -334,12 +336,12 @@ select:focus {
     <div class="panel" id="panel-merchants">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
         <div class="section-title" style="margin:0;">商户列表</div>
-        <button class="btn-primary" onclick="showAddMerchant()">+ 新增商户</button>
+        <button class="btn-primary" onclick="showAddMerchant()" data-i18n="addMerchant">+ 新增商户</button>
       </div>
       <div class="table-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
       <table class="data-table">
         <thead>
-          <tr><th style="width:180px;">商户名称</th><th style="width:120px;">商户编码</th><th style="width:140px;">商户账号</th><th style="width:100px;">联系人</th><th style="width:130px;">联系电话</th><th style="width:90px;">门店数</th><th style="width:80px;">状态</th><th style="width:220px;">操作</th></tr>
+          <tr><th style="width:180px;" data-i18n="merchantName">商户名称</th><th style="width:120px;" data-i18n="merchantCode">商户编码</th><th style="width:140px;" data-i18n="merchantAccount">商户账号</th><th style="width:100px;" data-i18n="contactPerson">联系人</th><th style="width:130px;" data-i18n="contactPhone">联系电话</th><th style="width:90px;" data-i18n="storeCount">门店数</th><th style="width:80px;" data-i18n="status">状态</th><th style="width:220px;" data-i18n="actions">操作</th></tr>
         </thead>
         <tbody id="merchantList"></tbody>
       </table>
@@ -352,7 +354,7 @@ select:focus {
       <div class="table-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
       <table class="data-table">
         <thead>
-          <tr><th>ID</th><th>门店名称</th><th>所属商户</th><th>编码</th><th>地址</th><th>状态</th></tr>
+          <tr><th>ID</th><th data-i18n="storeName">门店名称</th><th data-i18n="belongMerchant">所属商户</th><th>编码</th><th data-i18n="address">地址</th><th data-i18n="status">状态</th></tr>
         </thead>
         <tbody id="storeList"></tbody>
       </table>
@@ -387,7 +389,7 @@ select:focus {
         <div style="overflow-x:auto;">
         <table class="data-table">
           <thead>
-            <tr><th>ID</th><th>登录时间</th><th>登录名</th><th>所属商户</th><th>登录IP</th><th>登录地点</th><th>登录类型</th><th>状态</th><th>备注</th></tr>
+            <tr><th>ID</th><th data-i18n="loginTime">登录时间</th><th data-i18n="loginName">登录名</th><th data-i18n="belongMerchant">所属商户</th><th data-i18n="loginIp">登录IP</th><th data-i18n="loginLocation">登录地点</th><th data-i18n="loginType">登录类型</th><th data-i18n="status">状态</th><th data-i18n="remark">备注</th></tr>
           </thead>
           <tbody id="loginLogList"></tbody>
         </table>
@@ -416,10 +418,10 @@ select:focus {
           <input type="text" value="superadmin" disabled style="opacity:.5;">
         </div>
         <div class="form-group">
-          <label>新密码</label>
+          <label data-i18n="newPassword">新密码</label>
           <input type="password" id="newSuperPassword" placeholder="留空则不修改">
         </div>
-        <button class="btn-primary" onclick="changeSuperPassword()">保存修改</button>
+        <button class="btn-primary" onclick="changeSuperPassword()" data-i18n="saveChanges">保存修改</button>
       </div>
       <div class="section-title" style="margin-top:8px;">数据备份</div>
       <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
@@ -430,11 +432,11 @@ select:focus {
             📁 选择备份文件
             <input type="file" id="backupFileInput" accept=".json" style="display:none;" onchange="onBackupFileSelected(this)">
           </label>
-          <span id="backupFileName" style="color:#888;align-self:center;">未选择文件</span>
+          <span id="backupFileName" style="color:#888;align-self:center;" data-i18n="noFileSelected">未选择文件</span>
           <button class="btn-primary" onclick="importBackup()" style="background:linear-gradient(135deg,#ffd93d,#f39c12);color:#333;">📥 导入备份</button>
         </div>
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-          <label style="color:#aaa;">自动备份间隔：</label>
+          <label style="color:#aaa;" data-i18n="autoBackupInterval">自动备份间隔：</label>
           <select id="backupIntervalSelect" style="background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;">
             <option value="1">每 1 小时</option>
             <option value="6">每 6 小时</option>
@@ -453,9 +455,9 @@ select:focus {
       </div>
       <!-- 标签页切换按钮 -->
       <div style="display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;">
-        <button id="tabTimeout" onclick="switchSettingsTab('timeout')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">⏱️ 全局超时设置</button>
-        <button id="tabOrder" onclick="switchSettingsTab('order')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">📦 下单限制设置</button>
-        <button id="tabSecurity" onclick="switchSettingsTab('security')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">🔒 安全设置</button>
+        <button id="tabTimeout" onclick="switchSettingsTab('timeout')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="globalTimeoutSettings">⏱️ 全局超时设置</button>
+        <button id="tabOrder" onclick="switchSettingsTab('order')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="orderLimitSettings">📦 下单限制设置</button>
+        <button id="tabSecurity" onclick="switchSettingsTab('security')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="securitySettingsTab">🔒 安全设置</button>
       </div>
       <!-- 全局超时设置面板 -->
       <div id="timeoutSettings">
@@ -549,32 +551,32 @@ select:focus {
     <h3 id="merchantModalTitle">新增商户<span class="modal-close" onclick="closeMerchantModal()">✕</span></h3>
     <input type="hidden" id="editMerchantId">
     <div class="form-group">
-      <label>商户名称 *</label>
+      <label data-i18n="merchantName">商户名称 *</label>
       <input type="text" id="merchantName" placeholder="e.g. FoodFlow">
     </div>
     <div class="form-group">
-      <label>商户编码</label>
+      <label data-i18n="merchantCode">商户编码</label>
       <input type="text" id="merchantCode" placeholder="留空自动生成，创建后不可修改">
       <small style="color:#666;">自定义商户唯一编码，留空则自动生成，创建后不可修改</small>
     </div>
     <div class="form-group">
-      <label>商户账号 *</label>
+      <label data-i18n="merchantUsername">商户账号 *</label>
       <input type="text" id="merchantUsername" placeholder="商户管理员登录账号">
     </div>
     <div class="form-group">
-      <label>登录密码</label>
+      <label data-i18n="loginPassword">登录密码</label>
       <input type="text" id="merchantPassword" placeholder="留空则自动生成8位随机密码">
     </div>
     <div class="form-group">
-      <label>联系人</label>
+      <label data-i18n="contactPerson">联系人</label>
       <input type="text" id="merchantContact" placeholder="联系人姓名">
     </div>
     <div class="form-group">
-      <label>联系电话</label>
+      <label data-i18n="contactPhone">联系电话</label>
       <input type="text" id="merchantPhone" placeholder="联系电话">
     </div>
     <div class="form-group">
-      <label>最大门店数</label>
+      <label data-i18n="maxStores">最大门店数</label>
       <input type="number" id="merchantMaxStores" value="1" min="1">
     </div>
     <div class="form-group">
@@ -594,7 +596,7 @@ select:focus {
 <!-- 确认弹窗 -->
 <div class="modal" id="confirmModal">
   <div class="modal-card">
-    <h3 id="confirmModalTitle">确认操作</h3>
+    <h3 id="confirmModalTitle" data-i18n="confirmOperation">确认操作</h3>
     <p id="confirmModalMessage" style="color:#aaa;line-height:1.6;margin-bottom:8px;">确定要执行此操作吗？</p>
     <div class="modal-actions">
       <button class="cancel" onclick="hideConfirm()">取消</button>
@@ -606,7 +608,7 @@ select:focus {
 <!-- 密码输入弹窗 -->
 <div class="modal" id="passwordModal">
   <div class="modal-card">
-    <h3 id="passwordModalTitle">验证密码</h3>
+    <h3 id="passwordModalTitle" data-i18n="verifyPassword">验证密码</h3>
     <p id="passwordModalMessage" style="color:#aaa;line-height:1.6;margin-bottom:16px;">请输入密码以验证身份</p>
     <input type="password" id="passwordModalInput" placeholder="请输入密码" style="width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;margin-bottom:8px;">
     <div class="modal-actions">
@@ -619,6 +621,57 @@ select:focus {
 <div class="toast" id="toast"></div>
 
 <script>
+// ===== i18n 多语言支持 =====
+let currentLang = localStorage.getItem('superLang') || 'zh';
+let i18nData = {};
+
+async function initI18n() {
+  try {
+    const res = await fetch('/api/i18n/' + currentLang + '?t=' + Date.now());
+    i18nData = await res.json();
+  } catch (e) {
+    i18nData = {};
+  }
+  applyI18n();
+}
+
+function t(key) {
+  return i18nData[key] || key;
+}
+
+function switchLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('superLang', lang);
+  initI18n();
+}
+
+function applyI18n() {
+  // 更新语言选择器
+  const loginSel = document.getElementById('loginLangSelect');
+  if (loginSel) loginSel.value = currentLang;
+  const adminSel = document.getElementById('adminLangSelect');
+  if (adminSel) adminSel.value = currentLang;
+  
+  // 更新静态文案
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (i18nData[key]) el.textContent = i18nData[key];
+  });
+  
+  // 更新placeholder
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (i18nData[key]) el.placeholder = i18nData[key];
+  });
+  
+  // 更新当前页面标题
+  if (typeof currentModule !== 'undefined' && currentModule) {
+    const titles = { dashboard: t('dashboard'), merchants: t('merchantManage'), stores: t('storeOverview'), logs: t('logs'), settings: t('systemSettings') };
+    const titleEl = document.getElementById('pageTitle');
+    if (titleEl && titles[currentModule]) titleEl.textContent = titles[currentModule];
+  }
+}
+
 // 移动端侧边栏切换
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
@@ -674,14 +727,14 @@ async function startIdleCheck() {
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
-  if (!username || !password) { showError('请输入用户名和密码'); return; }
+  if (!username || !password) { showError(t('pleaseEnterCredentials')); return; }
   try {
     const res = await fetch(API + '/super/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '登录失败');
+    if (!res.ok) throw new Error(data.error || t('loginFailed'));
     token = data.token;
     localStorage.setItem('superToken', token);
     localStorage.setItem('superAdmin', JSON.stringify(data.admin));
@@ -694,10 +747,11 @@ async function doLogin() {
 function showError(msg) { document.getElementById('loginError').textContent = msg; }
 
 function showApp() {
+  initI18n();
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   const admin = JSON.parse(localStorage.getItem('superAdmin') || '{}');
-  document.getElementById('adminName').textContent = admin.display_name || '超级管理员';
+  document.getElementById('adminName').textContent = admin.display_name || t('superAdmin');
   lastActivity = Date.now();
   startIdleCheck();
   // 监听用户活动
@@ -720,7 +774,7 @@ function switchModule(mod) {
   currentModule = mod;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === mod));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + mod));
-  const titles = { dashboard: '仪表盘', merchants: '商户管理', stores: '门店总览', logs: '日志', settings: '系统设置' };
+  const titles = { dashboard: t('dashboard'), merchants: t('merchantManage'), stores: t('storeOverview'), logs: t('logs'), settings: t('systemSettings') };
   document.getElementById('pageTitle').textContent = titles[mod] || '';
   if (mod === 'dashboard') loadDashboard();
   if (mod === 'merchants') loadMerchants();
@@ -738,7 +792,7 @@ async function api(path, options = {}) {
   if (options.body) headers.set('Content-Type', 'application/json');
   const res = await fetch(API + path, { ...options, headers });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || '请求失败');
+  if (!res.ok) throw new Error(data.error || t('requestFailed'));
   return data;
 }
 
@@ -775,7 +829,7 @@ async function loadMerchants() {
         <td data-label="联系人" style="color:#ccc;">${m.contact_name || '-'}</td>
         <td data-label="联系电话" style="color:#999;font-family:monospace;font-size:13px;">${m.contact_phone || '-'}</td>
         <td data-label="门店数"><span style="color:#aaa;">${m.store_count}</span><span style="color:#666;"> / </span><span style="color:#ffd93d;font-weight:600;">${m.max_stores}</span></td>
-        <td data-label="状态"><span class="status-badge ${m.status == 1 ? 'status-active' : 'status-disabled'}">${m.status == 1 ? '启用' : '禁用'}</span></td>
+        <td data-label="状态"><span class="status-badge ${m.status == 1 ? 'status-active' : 'status-disabled'}">${m.status == 1 ? t('enabled') : t('disabled')}</span></td>
         <td>
           <button class="action-btn primary" onclick="editMerchant(${m.id})">编辑</button>
           <button class="action-btn warning" onclick="resetPassword(${m.id})">重置密码</button>
@@ -791,15 +845,15 @@ function translateLoginMessage(msg) {
   if (!msg) return '';
   if (msg.includes('商户管理员登录成功')) {
     const username = msg.split(':')[1] || '';
-    return '商户管理员登录: ' + username.trim();
+    return t('merchantAdminLogin') + ': ' + username.trim();
   }
   if (msg.includes('超级管理员登录成功')) {
     const username = msg.split(':')[1] || '';
-    return '超级管理员登录: ' + username.trim();
+    return t('superAdminLogin') + ': ' + username.trim();
   }
-  if (msg.includes('用户名不存在')) return '用户名不存在';
-  if (msg.includes('密码错误')) return '密码错误';
-  if (msg.includes('请输入用户名和密码')) return '请输入用户名和密码';
+  if (msg.includes(t('usernameNotExist'))) return t('usernameNotExist');
+  if (msg.includes(t('passwordError'))) return t('passwordError');
+  if (msg.includes(t('pleaseEnterCredentials'))) return t('pleaseEnterCredentials');
   return msg;
 }
 
@@ -852,10 +906,10 @@ async function loadStores() {
       <tr>
         <td data-label="门店ID"><span style="display:inline-block;background:rgba(255,217,61,.12);color:#ffd93d;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;">#${s.id}</span></td>
         <td data-label="门店名称" style="font-weight:600;color:#fff;">${s.name}</td>
-        <td data-label="所属商户" style="color:#ccc;">${s.merchant_name || '未知'}</td>
+        <td data-label="所属商户" style="color:#ccc;">${s.merchant_name || t('unknown')}</td>
         <td data-label="编码"><code style="color:#66ccff;font-family:monospace;font-size:13px;">${s.code || '-'}</code></td>
         <td data-label="地址" style="color:#999;font-size:13px;">${s.address || '-'}</td>
-        <td data-label="状态"><span class="status-badge ${s.active ? 'status-active' : 'status-disabled'}">${s.active ? '启用' : '禁用'}</span></td>
+        <td data-label="状态"><span class="status-badge ${s.active ? 'status-active' : 'status-disabled'}">${s.active ? t('enabled') : t('disabled')}</span></td>
       </tr>
     `).join('');
   } catch (e) { toast(e.message, 'error'); }
@@ -863,7 +917,7 @@ async function loadStores() {
 
 // 新增商户
 function showAddMerchant() {
-  document.getElementById('merchantModalTitle').textContent = '新增商户';
+  document.getElementById('merchantModalTitle').textContent = t('addMerchantTitle');
   document.getElementById('editMerchantId').value = '';
   document.getElementById('merchantName').value = '';
   document.getElementById('merchantCode').value = '';
@@ -887,7 +941,7 @@ async function editMerchant(id) {
     const list = await api('/super/merchants');
     const m = list.find(x => x.id === id);
     if (!m) return;
-    document.getElementById('merchantModalTitle').textContent = '编辑商户';
+    document.getElementById('merchantModalTitle').textContent = t('editMerchantTitle');
     document.getElementById('editMerchantId').value = m.id;
     document.getElementById('merchantName').value = m.name;
     document.getElementById('merchantCode').value = m.code;
@@ -921,12 +975,12 @@ async function saveMerchant() {
     max_stores: parseInt(document.getElementById('merchantMaxStores').value) || 1,
     status: parseInt(document.getElementById('merchantStatus').value)
   };
-  if (!data.name) { toast('商户名称必填', 'error'); return; }
-  if (!data.username) { toast('登录账号必填', 'error'); return; }
+  if (!data.name) { toast(t('merchantNameRequired'), 'error'); return; }
+  if (!data.username) { toast(t('accountRequired'), 'error'); return; }
   try {
     if (id) {
       await api('/super/merchants/' + id, { method: 'PUT', body: JSON.stringify(data) });
-      toast('商户已更新', 'success');
+      toast(t('merchantUpdated'), 'success');
     } else {
       const result = await api('/super/merchants', { method: 'POST', body: JSON.stringify(data) });
       toast(`商户已创建，登录账号：${result.adminUsername}，初始密码：${result.defaultPassword}`, 'success');
@@ -937,27 +991,27 @@ async function saveMerchant() {
 }
 
 async function deleteMerchant(id) {
-  if (!confirm('确定删除该商户？删除后不可恢复！')) return;
+  if (!confirm(t('confirmDeleteMerchant'))) return;
   try {
     await api('/super/merchants/' + id, { method: 'DELETE' });
-    toast('商户已删除', 'success');
+    toast(t('merchantDeleted'), 'success');
     loadMerchants();
   } catch (e) { toast(e.message, 'error'); }
 }
 
 async function resetPassword(id) {
-  if (!confirm('确定重置该商户的管理员密码为 admin123？')) return;
+  if (!confirm(t('confirmResetPassword'))) return;
   try {
     await api('/super/merchants/' + id + '/reset-password', { method: 'POST', body: JSON.stringify({}) });
-    toast('密码已重置为 admin123', 'success');
+    toast(t('passwordReset'), 'success');
   } catch (e) { toast(e.message, 'error'); }
 }
 
 async function changeSuperPassword() {
   const pwd = document.getElementById('newSuperPassword').value;
-  if (!pwd) { toast('请输入新密码', 'error'); return; }
+  if (!pwd) { toast(t('pleaseEnterNewPassword'), 'error'); return; }
   try {
-    toast('超级管理员密码修改功能开发中', 'success');
+    toast(t('featureInDevelopment'), 'success');
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -977,7 +1031,7 @@ async function loadGlobalSettings() {
     document.getElementById('loginMaxAttempts').value = settings.login_max_attempts || 5;
     document.getElementById('loginLockMinutes').value = settings.login_lock_minutes || 15;
     document.getElementById('superIpWhitelist').value = settings.super_ip_whitelist || '';
-  } catch (e) { toast('加载设置失败: ' + e.message, 'error'); }
+  } catch (e) { toast(t('loadFailed') + ': ' + e.message, 'error'); }
 }
 
 // 保存全局设置
@@ -1006,28 +1060,28 @@ async function saveGlobalSettings() {
   const qrTimeout = parseInt(document.getElementById('qrSessionTimeout').value, 10);
   const orderInterval = parseInt(document.getElementById('orderIntervalSeconds').value, 10);
   const waiterRefresh = parseInt(document.getElementById('waiterRefreshInterval').value, 10);
-  if (!idleTimeout || idleTimeout < 1 || idleTimeout > 1440) { toast('商户后台超时时间范围1-1440分钟', 'error'); return; }
-  if (isNaN(qrTimeout) || qrTimeout < 0 || qrTimeout > 1440) { toast('二维码有效时间范围0-1440分钟（0=永不过期）', 'error'); return; }
-  if (isNaN(orderInterval) || orderInterval < 0 || orderInterval > 3600) { toast('前端下单间隔时间范围0-3600秒', 'error'); return; }
-  if (!waiterRefresh || waiterRefresh < 3 || waiterRefresh > 300) { toast('服务员端刷新间隔范围3-300秒', 'error'); return; }
+  if (!idleTimeout || idleTimeout < 1 || idleTimeout > 1440) { toast(t('adminIdleTimeout') + ' 1-1440', 'error'); return; }
+  if (isNaN(qrTimeout) || qrTimeout < 0 || qrTimeout > 1440) { toast(t('qrSessionTimeout') + ' 0-1440', 'error'); return; }
+  if (isNaN(orderInterval) || orderInterval < 0 || orderInterval > 3600) { toast(t('orderInterval') + ' 0-3600', 'error'); return; }
+  if (!waiterRefresh || waiterRefresh < 3 || waiterRefresh > 300) { toast(t('waiterRefreshInterval') + ' 3-300', 'error'); return; }
   const maxOrderItems = parseInt(document.getElementById('maxOrderItems').value, 10);
   const maxItemQuantity = parseInt(document.getElementById('maxItemQuantity').value, 10);
   const maxOrderNoteLength = parseInt(document.getElementById('maxOrderNoteLength').value, 10);
-  if (!maxOrderItems || maxOrderItems < 1 || maxOrderItems > 200) { toast('单次下单菜品种类上限范围1-200', 'error'); return; }
-  if (!maxItemQuantity || maxItemQuantity < 1 || maxItemQuantity > 999) { toast('单个菜品数量上限范围1-999', 'error'); return; }
-  if (!maxOrderNoteLength || maxOrderNoteLength < 10 || maxOrderNoteLength > 1000) { toast('订单备注最大长度范围10-1000', 'error'); return; }
+  if (!maxOrderItems || maxOrderItems < 1 || maxOrderItems > 200) { toast(t('maxOrderItems') + ' 1-200', 'error'); return; }
+  if (!maxItemQuantity || maxItemQuantity < 1 || maxItemQuantity > 999) { toast(t('maxItemQuantity') + ' 1-999', 'error'); return; }
+  if (!maxOrderNoteLength || maxOrderNoteLength < 10 || maxOrderNoteLength > 1000) { toast(t('maxOrderNoteLength') + ' 10-1000', 'error'); return; }
   try {
     const waiterSessionTimeout = parseInt(document.getElementById('waiterSessionTimeout').value) || 12;
     const superIdleTimeout = parseInt(document.getElementById('superIdleTimeout').value);
-    if (!superIdleTimeout || superIdleTimeout < 1 || superIdleTimeout > 1440) { toast('超级管理员超时时间范围1-1440分钟', 'error'); return; }
+    if (!superIdleTimeout || superIdleTimeout < 1 || superIdleTimeout > 1440) { toast(t('superIdleTimeout') + ' 1-1440', 'error'); return; }
     const loginMaxAttempts = parseInt(document.getElementById('loginMaxAttempts').value, 10);
     const loginLockMinutes = parseInt(document.getElementById('loginLockMinutes').value, 10);
     const superIpWhitelist = document.getElementById('superIpWhitelist').value.trim();
-    if (!loginMaxAttempts || loginMaxAttempts < 1 || loginMaxAttempts > 20) { toast('登录失败最大尝试次数范围1-20次', 'error'); return; }
-    if (!loginLockMinutes || loginLockMinutes < 1 || loginLockMinutes > 1440) { toast('账号锁定时间范围1-1440分钟', 'error'); return; }
+    if (!loginMaxAttempts || loginMaxAttempts < 1 || loginMaxAttempts > 20) { toast(t('loginMaxAttempts') + ' 1-20', 'error'); return; }
+    if (!loginLockMinutes || loginLockMinutes < 1 || loginLockMinutes > 1440) { toast(t('loginLockMinutes') + ' 1-1440', 'error'); return; }
     await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength, login_max_attempts: loginMaxAttempts, login_lock_minutes: loginLockMinutes, super_ip_whitelist: superIpWhitelist }) });
-    toast('设置保存成功', 'success');
-  } catch (e) { toast('保存失败: ' + e.message, 'error'); }
+    toast(t('settingsSaved'), 'success');
+  } catch (e) { toast(t('saveFailed') + ': ' + e.message, 'error'); }
 }
 
 // 当前日志标签页
@@ -1061,17 +1115,17 @@ async function loadAuditLogs() {
       return;
     }
     const actionNames = {
-      'create_merchant': '创建商户', 'update_merchant': '编辑商户', 'delete_merchant': '删除商户',
-      'reset_merchant_password': '重置商户密码', 'create_store': '创建门店', 'update_store': '编辑门店',
-      'delete_store': '删除门店', 'create_menu': '创建菜品', 'update_menu': '编辑菜品', 'delete_menu': '删除菜品',
-      'create_category': '创建分类', 'update_category': '编辑分类', 'delete_category': '删除分类',
-      'create_admin': '创建管理员', 'update_admin': '编辑管理员', 'delete_admin': '删除管理员',
-      'create_waiter': '创建服务员', 'update_waiter': '编辑服务员', 'delete_waiter': '删除服务员',
-      'create_table': '创建桌号', 'update_table': '编辑桌号', 'delete_table': '删除桌号',
-      'create_currency': '创建货币', 'update_currency': '编辑货币', 'delete_currency': '删除货币',
-      'settle_order': '结算订单', 'cancel_order': '取消订单', 'reset_data': '重置数据',
-      'change_password': '修改密码', 'update_settings': '更新系统设置', 'reset_all_data': '重置全部数据',
-      'login': '登录', 'logout': '退出登录', 'backup': '数据备份', 'import_backup': '导入备份'
+      'create_merchant': t('createMerchant'), 'update_merchant': t('editMerchantTitle'), 'delete_merchant': t('deleteMerchant'),
+      'reset_merchant_password': t('resetMerchantPassword'), 'create_store': t('createStore'), 'update_store': t('updateStore'),
+      'delete_store': t('deleteStore'), 'create_menu': t('createMenu'), 'update_menu': t('updateMenu'), 'delete_menu': t('deleteMenu'),
+      'create_category': t('createCategory'), 'update_category': t('updateCategory'), 'delete_category': t('deleteCategory'),
+      'create_admin': t('createAdmin'), 'update_admin': t('updateAdmin'), 'delete_admin': t('deleteAdmin'),
+      'create_waiter': t('createWaiter'), 'update_waiter': t('updateWaiter'), 'delete_waiter': t('deleteWaiter'),
+      'create_table': t('createTable'), 'update_table': t('updateTable'), 'delete_table': t('deleteTable'),
+      'create_currency': t('createCurrency'), 'update_currency': t('updateCurrency'), 'delete_currency': t('deleteCurrency'),
+      'settle_order': t('settleOrder'), 'cancel_order': t('cancelOrder'), 'reset_data': t('resetData'),
+      'change_password': t('changePassword'), 'update_settings': t('updateSettings'), 'reset_all_data': t('resetAllData'),
+      'login': t('login'), 'logout': t('logout'), 'backup': t('dataBackup'), 'import_backup': t('importBackup')
     };
     tbody.innerHTML = logs.map(log => {
       const action = actionNames[log.action] || log.action;
@@ -1104,6 +1158,8 @@ function toast(msg, type = '') {
 // 回车登录
 document.getElementById('loginPassword').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
 
+// 初始化i18n
+initI18n();
 // 自动登录
 if (token) showApp();
 
@@ -1115,7 +1171,7 @@ if (token) showApp();
       const data = await api('/super/backup/settings');
       document.getElementById('backupIntervalSelect').value = String(data.intervalHours || 24);
       if (data.lastBackupAt) {
-        document.getElementById('lastBackupInfo').textContent = '上次备份时间：' + formatDateTime(data.lastBackupAt);
+        document.getElementById('lastBackupInfo').textContent = t('lastBackupTime') + formatDateTime(data.lastBackupAt);
       }
     } catch (e) {
       console.error('加载备份设置失败', e);
@@ -1125,7 +1181,7 @@ if (token) showApp();
   async function exportBackup() {
     try {
       const res = await fetch('/api/super/backup/export', { headers: { 'Authorization': 'Bearer ' + token } });
-      if (!res.ok) throw new Error('导出失败');
+      if (!res.ok) throw new Error(t('exportFailed'));
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1133,9 +1189,9 @@ if (token) showApp();
       a.download = 'foodflow-backup-' + new Date().toISOString().slice(0,10) + '.json';
       a.click();
       URL.revokeObjectURL(url);
-      toast('✅ 备份已导出', 'success');
+      toast('✅ ' + t('backupExported'), 'success');
     } catch (e) {
-      toast('❌ 导出失败：' + e.message, 'error');
+      toast('❌ ' + t('exportFailed') + ': ' + e.message, 'error');
     }
   }
 
@@ -1148,10 +1204,10 @@ if (token) showApp();
 
   async function importBackup() {
     if (!selectedBackupFile) {
-      toast('⚠️ 请先选择备份文件', 'error');
+      toast('⚠️ ' + t('pleaseSelectBackupFile'), 'error');
       return;
     }
-    if (!confirm('确定要导入备份吗？这将覆盖当前所有数据！')) return;
+    if (!confirm(t('confirmImportBackup'))) return;
     try {
       const text = await selectedBackupFile.text();
       const data = JSON.parse(text);
@@ -1161,11 +1217,11 @@ if (token) showApp();
         body: JSON.stringify(data)
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || '导入失败');
-      toast('✅ 备份已导入', 'success');
+      if (!res.ok) throw new Error(json.error || t('importFailed'));
+      toast('✅ ' + t('backupImported'), 'success');
       setTimeout(() => location.reload(), 1500);
     } catch (e) {
-      toast('❌ 导入失败：' + e.message, 'error');
+      toast('❌ ' + t('importFailed') + ': ' + e.message, 'error');
     }
   }
 
@@ -1173,26 +1229,26 @@ if (token) showApp();
     try {
       const intervalHours = document.getElementById('backupIntervalSelect').value;
       await api('/super/backup/settings', { method: 'PUT', body: JSON.stringify({ intervalHours }) });
-      toast('✅ 备份设置已保存', 'success');
+      toast('✅ ' + t('backupSettingsSaved'), 'success');
     } catch (e) {
-      toast('❌ 保存失败', 'error');
+      toast('❌ ' + t('saveFailed'), 'error');
     }
   }
 
   async function backupNow() {
     try {
       await api('/super/backup/now', { method: 'POST' });
-      toast('✅ 备份已生成', 'success');
+      toast('✅ ' + t('backupGenerated'), 'success');
       loadBackupSettings();
     } catch (e) {
-      toast('❌ 备份失败', 'error');
+      toast('❌ ' + t('backupFailed'), 'error');
     }
   }
 
   // 通用确认弹窗
   let confirmCallback = null;
   function showConfirm(message, callback, title) {
-    document.getElementById('confirmModalTitle').textContent = title || '确认操作';
+    document.getElementById('confirmModalTitle').textContent = title || t('confirmOperation');
     document.getElementById('confirmModalMessage').textContent = message;
     confirmCallback = callback;
     document.getElementById('confirmModal').classList.add('open');
@@ -1212,8 +1268,8 @@ if (token) showApp();
   // 密码输入弹窗
   let passwordCallback = null;
   function showPasswordModal(message, callback, title) {
-    document.getElementById('passwordModalTitle').textContent = title || '验证密码';
-    document.getElementById('passwordModalMessage').textContent = message || '请输入密码以验证身份';
+    document.getElementById('passwordModalTitle').textContent = title || t('verifyPassword');
+    document.getElementById('passwordModalMessage').textContent = message || t('enterPasswordVerify');
     document.getElementById('passwordModalInput').value = '';
     passwordCallback = callback;
     document.getElementById('passwordModal').classList.add('open');
@@ -1225,7 +1281,7 @@ if (token) showApp();
   }
   function executePasswordModal() {
     const password = document.getElementById('passwordModalInput').value;
-    if (!password) { toast('请输入密码', 'error'); return; }
+    if (!password) { toast(t('enterPassword'), 'error'); return; }
     if (passwordCallback) passwordCallback(password);
     hidePasswordModal();
   }
@@ -1238,8 +1294,8 @@ if (token) showApp();
 
   // 重置数据：密码验证 → 二次确认 → 执行
   function resetData() {
-    showPasswordModal('请输入超级管理员密码以验证身份', function(password) {
-      showConfirm('此操作将清空所有商户的订单数据（订单、呼叫记录、扫码会话、预约），且不可恢复！确定要继续吗？', async function() {
+    showPasswordModal(t('enterPasswordVerify'), function(password) {
+      showConfirm(t('confirmResetData'), async function() {
         try {
           const res = await fetch('/api/super/reset-data', {
             method: 'POST',
@@ -1247,13 +1303,13 @@ if (token) showApp();
             body: JSON.stringify({ password })
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || '重置失败');
-          toast('✅ 订单数据已重置', 'success');
+          if (!res.ok) throw new Error(data.error || t('resetFailed'));
+          toast('✅ ' + t('orderDataReset'), 'success');
         } catch (e) {
-          toast('❌ 重置失败：' + e.message, 'error');
+          toast('❌ ' + t('resetFailed') + ': ' + e.message, 'error');
         }
-      }, '确认重置数据');
-    }, '验证超级管理员密码');
+      }, t('confirmResetDataTitle'));
+    }, t('verifySuperPassword'));
   }
 
 
