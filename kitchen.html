@@ -351,7 +351,7 @@
     </div>
   </div>
 
-  <script src="languages.js"></script>
+  <script src="languages.min.js"></script>
   <script src="assets/common.js"></script>
   <script>
     const $ = s => document.querySelector(s);
@@ -430,8 +430,26 @@
       $('#emptyState').textContent = kt('noPendingOrders');
     }
 
-    function setLang(next) {
+    async function loadKitchenLanguage(lang) {
+      if (LANGUAGES[lang] && LANGUAGES[lang]._loaded) return true;
+      try {
+        const cached = localStorage.getItem('i18n_' + lang);
+        if (cached) { LANGUAGES[lang] = { ...JSON.parse(cached), _loaded: true }; return true; }
+      } catch (e) {}
+      try {
+        const res = await fetch('/api/i18n/' + lang);
+        if (res.ok) {
+          const data = await res.json();
+          LANGUAGES[lang] = { ...data, _loaded: true };
+          try { localStorage.setItem('i18n_' + lang, JSON.stringify(data)); } catch (e) {}
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    }
+    async function setLang(next) {
       lang = next;
+      if (lang !== 'zh') await loadKitchenLanguage(lang);
       localStorage.setItem('kitchenLang', lang);
       SLF.i18n.setLang(lang);
       applyLoginLanguage();

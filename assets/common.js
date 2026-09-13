@@ -137,12 +137,52 @@
           this.dicts[code] = { ...(this.dicts[code] || {}), ...dict };
         }
       }
-      // 合并全局 LANGUAGES
+      // 合并全局 LANGUAGES（如果存在，作为回退）
       if (typeof LANGUAGES !== 'undefined') {
         for (const [code, dict] of Object.entries(LANGUAGES)) {
           this.dicts[code] = { ...(this.dicts[code] || {}), ...dict };
         }
       }
+    }
+
+    // 动态加载指定语言的翻译（方案二：按需从API加载，减少初始体积）
+    async loadLanguage(lang) {
+      const validLangs = ['zh', 'en', 'vi', 'th', 'km'];
+      if (!validLangs.includes(lang)) lang = 'zh';
+      // 检查内存缓存
+      if (this.dicts[lang] && this.dicts[lang]._loaded) {
+        this.lang = lang;
+        return true;
+      }
+      // 检查localStorage缓存
+      try {
+        const cached = localStorage.getItem('i18n_' + lang);
+        if (cached) {
+          const data = JSON.parse(cached);
+          this.dicts[lang] = { ...data, _loaded: true };
+          this.lang = lang;
+          return true;
+        }
+      } catch (e) {}
+      // 从API动态加载
+      try {
+        const res = await fetch('/api/i18n/' + lang);
+        if (res.ok) {
+          const data = await res.json();
+          this.dicts[lang] = { ...data, _loaded: true };
+          this.lang = lang;
+          // 缓存到localStorage（24小时）
+          try {
+            localStorage.setItem('i18n_' + lang, JSON.stringify(data));
+          } catch (e) {}
+          return true;
+        }
+      } catch (e) {
+        console.warn('i18n dynamic load failed, using fallback:', e.message);
+      }
+      // 加载失败，回退到全局LANGUAGES或中文
+      this.lang = this.dicts[lang] ? lang : this.fallbackLang;
+      return false;
     }
 
     setLang(lang) {

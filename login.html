@@ -263,7 +263,7 @@
     </div>
   </div>
 
-  <script src="languages.js"></script>
+  <script src="languages.min.js"></script>
   <script src="assets/common.js"></script>
   <script>
     const $ = s => document.querySelector(s);
@@ -310,9 +310,10 @@
 
     // 语言切换
     $('#langSelect').value = lang;
-    $('#langSelect').addEventListener('change', () => {
+    $('#langSelect').addEventListener('change', async () => {
       lang = $('#langSelect').value;
       localStorage.setItem('lang', lang);
+      if (lang !== 'zh') await SLF.i18n.loadLanguage(lang);
       SLF.i18n.setLang(lang);
       apply();
     });

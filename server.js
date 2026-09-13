@@ -84,9 +84,55 @@ async function getLocationByIp(ip) {
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-// dotfiles: 'deny' 防止 .env（含数据库密码）等隐藏文件通过静态服务被直接访问下载
-app.use(express.static(__dirname, { dotfiles: 'deny' }));
+// 静态文件服务：只暴露必要的目录，防止 server.js、.env 等敏感文件被直接下载
+app.use('/assets', express.static(path.join(__dirname, 'assets'), { dotfiles: 'deny', index: false }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { dotfiles: 'deny', index: false }));
+// languages.js 是前端多语言翻译文件，单独提供路由
+app.get('/languages.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'languages.js'));
+});
+app.get('/languages.min.js', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'languages.min.js'));
+});
+
+// 动态加载指定语言的翻译（方案二：按需加载，减少初始体积）
+// 返回压缩后的JSON，只包含当前语言，不暴露全部5种语言
+const i18nCache = {};
+app.get('/api/i18n/:lang', (req, res) => {
+  const lang = req.params.lang;
+  const validLangs = ['zh', 'en', 'vi', 'th', 'km'];
+  if (!validLangs.includes(lang)) {
+    return res.status(400).json({ error: 'Unsupported language' });
+  }
+  // 内存缓存，避免每次读取文件
+  if (i18nCache[lang]) {
+    return res.json(i18nCache[lang]);
+  }
+  try {
+    // 读取languages.js，提取指定语言
+    const langContent = fs.readFileSync(path.join(__dirname, 'languages.js'), 'utf-8');
+    // 简单解析：提取 LANGUAGES = { ... } 中的指定语言部分
+    // 使用eval在沙箱中执行（仅用于提取数据）
+    const sandbox = { module: {}, exports: {} };
+    const vm = require('vm');
+    const context = vm.createContext(sandbox);
+    vm.runInContext(langContent + '; this._result = LANGUAGES["' + lang + '"];', context);
+    const dict = sandbox._result || {};
+    i18nCache[lang] = dict;
+    // 设置缓存头
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.json(dict);
+  } catch (e) {
+    console.error('i18n load error:', e.message);
+    res.status(500).json({ error: 'Failed to load language' });
+  }
+});
+
+// 根路径返回点餐首页
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // 伪静态入口
 app.get(['/login', '/manage'], (req, res) => {
