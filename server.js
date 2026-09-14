@@ -985,14 +985,6 @@ async function initDatabase() {
 
 }
 
-// ---------- 统一响应格式 ----------
-function ok(res, data, statusCode) {
-  res.status(statusCode || 200).json({ success: true, data: data === undefined ? null : data });
-}
-function fail(res, error, statusCode) {
-  res.status(statusCode || 400).json({ success: false, error: error.message || error });
-}
-
 // ---------- ESC/POS 小票打印工具 ----------
 const ESC = Buffer.from([0x1b]);
 const GS = Buffer.from([0x1d]);
@@ -2117,7 +2109,7 @@ app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/admin/stores/:id', requireAdminKey, async (req, res) => {
+app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (id === 1) return res.status(400).json({ error: '默认总店不能删除' });
@@ -2621,6 +2613,10 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
     if (existing.status === 'done') return res.status(409).json({ error: '已完成订单不能编辑' });
+    // 管理员修改订单需要 can_edit_order 权限
+    if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_edit_order)) {
+      return res.status(403).json({ error: '无权修改订单' });
+    }
 
     // 解析现有 items（与 formatOrder 一致）
     let currentItems = existing.items;
@@ -2818,7 +2814,7 @@ app.get('/api/admin/reservations', requireAdminKey, async (req, res) => {
 });
 
 // ----- 更新预约状态 -----
-app.put('/api/admin/reservations/:id', requireAdminKey, async (req, res) => {
+app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { status } = req.body || {};
@@ -3229,7 +3225,7 @@ app.get('/api/admin/admins', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/admins', requireAdminKey, async (req, res) => {
+app.post('/api/admin/admins', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
     const { username, password, display_name, active } = req.body || {};
     if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写管理员资料' });
@@ -3245,7 +3241,7 @@ app.post('/api/admin/admins', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
+app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const { display_name, active, password, permissions } = req.body || {};
@@ -3279,7 +3275,7 @@ app.put('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
+app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (id === req.adminId) return res.status(400).json({ error: '不能删除当前登录账号' });
@@ -3319,7 +3315,7 @@ app.post('/api/admin/change-password', requireAdminKey, async (req, res) => {
   }
 });
 
-app.post('/api/admin/reset-data', requireAdminKey, async (req, res) => {
+app.post('/api/admin/reset-data', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: '请输入管理员密码' });
@@ -3424,7 +3420,7 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
 });
 
 // ----- 数据备份与恢复 -----
-app.get('/api/admin/backup/export', requireAdminKey, async (req, res) => {
+app.get('/api/admin/backup/export', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
     const data = await collectBackupData();
     res.setHeader('Content-Type', 'application/json');
@@ -3435,7 +3431,7 @@ app.get('/api/admin/backup/export', requireAdminKey, async (req, res) => {
   }
 });
 
-app.post('/api/admin/backup/import', requireAdminKey, async (req, res) => {
+app.post('/api/admin/backup/import', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
     const data = req.body;
     if (!data || !data.tables || typeof data.tables !== 'object') return res.status(400).json({ error: '备份文件格式无效' });
@@ -3459,14 +3455,14 @@ app.post('/api/admin/backup/import', requireAdminKey, async (req, res) => {
   }
 });
 
-app.get('/api/admin/backup/settings', requireAdminKey, async (req, res) => {
+app.get('/api/admin/backup/settings', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
     const row = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
     res.json({ intervalHours: Number(row?.value || 24) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/backup/settings', requireAdminKey, async (req, res) => {
+app.post('/api/admin/backup/settings', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
     const intervalHours = Number(req.body.intervalHours);
     if (![1, 6, 12, 24].includes(intervalHours)) return res.status(400).json({ error: '备份间隔无效' });
@@ -3475,7 +3471,7 @@ app.post('/api/admin/backup/settings', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/backup/now', requireAdminKey, async (req, res) => {
+app.post('/api/admin/backup/now', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
     await autoBackupDatabase();
     res.json({ success: true });
@@ -3488,7 +3484,7 @@ app.get('/api/currencies', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/currencies', requireAdminKey, async (req, res) => {
+app.post('/api/currencies', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
   try {
     const { code, symbol, name, rate, is_default } = req.body;
     if (!code || !symbol || !name || !(Number(rate) > 0)) return res.status(400).json({ error: '货币资料不完整' });
@@ -3500,7 +3496,7 @@ app.post('/api/currencies', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/currencies/:id', requireAdminKey, async (req, res) => {
+app.put('/api/currencies/:id', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
   try {
     const current = await getAsync('SELECT * FROM currencies WHERE id=?', [req.params.id]);
     if (!current) return res.status(404).json({ error: '货币不存在' });
@@ -3514,7 +3510,7 @@ app.put('/api/currencies/:id', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/currencies/:id', requireAdminKey, async (req, res) => {
+app.delete('/api/currencies/:id', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
   try {
     const current = await getAsync('SELECT * FROM currencies WHERE id=?', [req.params.id]);
     if (!current) return res.status(404).json({ error: '货币不存在' });
