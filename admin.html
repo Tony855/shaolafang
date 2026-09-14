@@ -1829,12 +1829,14 @@
             for (const [, tableOrders] of byTable) {
                 const sorted = [...tableOrders].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
                 const distinctTokens = [...new Set(sorted.filter(o => o.sessionToken).map(o => o.sessionToken))];
-                const hasNoSession = sorted.some(o => !o.sessionToken);
-                const groupCount = distinctTokens.length + (hasNoSession ? 1 : 0);
-                if (groupCount <= 1) continue; // 同桌只有一组顾客/来源，不需要额外标注
                 const tokenToIndex = new Map(distinctTokens.map((t, i) => [t, i + 1]));
                 for (const o of sorted) {
-                    labels.set(o.id, o.sessionToken ? `${tAdmin('customer')}${tokenToIndex.get(o.sessionToken)}` : tAdmin('staffOrder'));
+                    if (o.sessionToken) {
+                        labels.set(o.id, `${tAdmin('customer')}${tokenToIndex.get(o.sessionToken)}`);
+                    } else if (sorted.some(x => x.sessionToken)) {
+                        // 只有当同桌存在扫码客户订单时，才给代下单订单标注"服务员/Admin下单"
+                        labels.set(o.id, tAdmin('staffOrder'));
+                    }
                 }
             }
             return labels;
