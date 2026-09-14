@@ -364,57 +364,156 @@
     qrDataUrl: {{qrDataUrlJson}}
   };
   function downloadQR() {
+    // 精确绘制，与网页样式一致（白色背景，无深色背景）
+    const W = 1200, H = 1600;
     const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
     const ctx = canvas.getContext('2d');
-    const W = 1080, H = 1440;
-    canvas.width = W; canvas.height = H;
-    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-    bgGrad.addColorStop(0, '#ffffff');
-    bgGrad.addColorStop(1, '#f8f9fa');
-    ctx.fillStyle = bgGrad;
+    
+    // 1. 白色背景
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
-    const headerGrad = ctx.createLinearGradient(0, 0, W, 320);
+    
+    // 2. 白色卡片（带浅灰边框，无阴影）
+    const cardX = 90, cardY = 90, cardW = W - 180, cardH = H - 180;
+    const cardGrad = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardH);
+    cardGrad.addColorStop(0, '#ffffff');
+    cardGrad.addColorStop(1, '#f8f9fa');
+    ctx.fillStyle = cardGrad;
+    roundRect(ctx, cardX, cardY, cardW, cardH, 35);
+    ctx.fill();
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 2;
+    roundRect(ctx, cardX, cardY, cardW, cardH, 35);
+    ctx.stroke();
+    
+    // 3. 红色渐变头部
+    const headerH = 300;
+    const headerGrad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + headerH);
     headerGrad.addColorStop(0, '#e85d3a');
     headerGrad.addColorStop(1, '#c0392b');
     ctx.fillStyle = headerGrad;
-    ctx.fillRect(0, 0, W, 320);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 80px sans-serif';
+    roundRect(ctx, cardX, cardY, cardW, headerH, 35, true, true, false, false);
+    ctx.fill();
+    
+    // 头部装饰圆
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.beginPath();
+    ctx.arc(cardX + cardW - 30, cardY + 30, 90, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath();
+    ctx.arc(cardX + 50, cardY + headerH - 20, 70, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 4. 品牌图标和名称
     ctx.textAlign = 'center';
-    ctx.fillText('🍽️ ' + QR_DATA.storeName, W/2, 170);
-    ctx.font = 'bold 42px sans-serif';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff';
-    ctx.fillText(QR_DATA.tableLabel + ' ' + QR_DATA.table, W/2, 275);
+    ctx.font = '50px sans-serif';
+    ctx.fillText('🍽️', W/2, cardY + 90);
+    ctx.font = 'bold 44px "Noto Sans SC", sans-serif';
+    const storeName = QR_DATA.storeName;
+    if (storeName.length > 10) {
+      const mid = Math.ceil(storeName.length / 2);
+      ctx.fillText(storeName.substring(0, mid), W/2, cardY + 170);
+      ctx.fillText(storeName.substring(mid), W/2, cardY + 235);
+    } else {
+      ctx.fillText(storeName, W/2, cardY + 200);
+    }
+    
+    // 5. 桌号徽章
+    const badgeY = cardY + headerH + 50;
+    const badgeText = QR_DATA.tableLabel + ' ' + QR_DATA.table;
+    ctx.font = 'bold 28px "Noto Sans SC", sans-serif';
+    const badgeWidth = ctx.measureText(badgeText).width + 80;
+    const badgeX = W/2 - badgeWidth/2;
+    const badgeH = 60;
+    const badgeGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX, badgeY + badgeH);
+    badgeGrad.addColorStop(0, '#fff5f0');
+    badgeGrad.addColorStop(1, '#ffe8dc');
+    ctx.fillStyle = badgeGrad;
+    roundRect(ctx, badgeX, badgeY, badgeWidth, badgeH, 30);
+    ctx.fill();
+    ctx.strokeStyle = '#ffd4c2';
+    ctx.lineWidth = 3;
+    roundRect(ctx, badgeX, badgeY, badgeWidth, badgeH, 30);
+    ctx.stroke();
+    // 徽章圆点
+    ctx.fillStyle = '#c0392b';
+    ctx.beginPath();
+    ctx.arc(badgeX + 30, badgeY + badgeH/2, 9, 0, Math.PI * 2);
+    ctx.fill();
+    // 徽章文字
+    ctx.fillStyle = '#c0392b';
+    ctx.font = 'bold 28px "Noto Sans SC", sans-serif';
+    ctx.fillText(badgeText, W/2 + 15, badgeY + badgeH/2);
+    
+    // 6. 二维码框
+    const qrSize = 540;
+    const qrX = W/2 - qrSize/2;
+    const qrY = badgeY + badgeH + 50;
     ctx.fillStyle = '#fff';
     ctx.strokeStyle = '#f0f0f0';
+    ctx.lineWidth = 4;
+    roundRect(ctx, qrX - 20, qrY - 20, qrSize + 40, qrSize + 40, 22);
+    ctx.fill();
+    ctx.stroke();
+    // 四角红色装饰
+    ctx.strokeStyle = '#e85d3a';
     ctx.lineWidth = 6;
-    roundRect(ctx, W/2-310, 380, 620, 620, 30);
-    ctx.fill(); ctx.stroke();
+    const cs = 35;
+    // 左上角
+    ctx.beginPath();
+    ctx.moveTo(qrX - 20, qrY - 20 + cs);
+    ctx.lineTo(qrX - 20, qrY - 20);
+    ctx.lineTo(qrX - 20 + cs, qrY - 20);
+    ctx.stroke();
+    // 右下角
+    ctx.beginPath();
+    ctx.moveTo(qrX + qrSize + 20 - cs, qrY + qrSize + 20);
+    ctx.lineTo(qrX + qrSize + 20, qrY + qrSize + 20);
+    ctx.lineTo(qrX + qrSize + 20, qrY + qrSize + 20 - cs);
+    ctx.stroke();
+    
+    // 绘制二维码
     const qrImg = new Image();
     qrImg.crossOrigin = 'anonymous';
     qrImg.onload = function() {
-      ctx.drawImage(qrImg, W/2-270, 420, 540, 540);
-      ctx.fillStyle = '#2c3e50';
-      ctx.font = 'bold 56px sans-serif';
+      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      // 7. 扫码点餐文字（多语言）
       const lines = Array.isArray(QR_DATA.scanToOrder) ? QR_DATA.scanToOrder : [QR_DATA.scanToOrder];
-      const startY = 1080 - (lines.length - 1) * 35;
+      ctx.fillStyle = '#2c3e50';
+      ctx.font = 'bold 36px "Noto Sans SC", sans-serif';
+      const textStartY = qrY + qrSize + 70;
       lines.forEach((line, i) => {
-        ctx.fillText(line, W/2, startY + i * 72);
+        ctx.fillText(line, W/2, textStartY + i * 55);
       });
+      // 下载
       const link = document.createElement('a');
       link.download = QR_DATA.storeName + '-' + QR_DATA.table + '-' + QR_DATA.qrCode + '.png';
-      link.href = canvas.toDataURL('image/png');
+      link.href = canvas.toDataURL('image/png', 1.0);
       link.click();
     };
     qrImg.src = QR_DATA.qrDataUrl;
   }
-  function roundRect(ctx, x, y, w, h, r) {
+  
+  function roundRect(ctx, x, y, w, h, r, topLeft=true, topRight=true, bottomRight=true, bottomLeft=true) {
     ctx.beginPath();
-    ctx.moveTo(x+r, y);
-    ctx.arcTo(x+w, y, x+w, y+h, r);
-    ctx.arcTo(x+w, y+h, x, y+h, r);
-    ctx.arcTo(x, y+h, x, y, r);
-    ctx.arcTo(x, y, x+w, y, r);
+    ctx.moveTo(x + r, y);
+    if (topRight) ctx.lineTo(x + w - r, y);
+    else ctx.lineTo(x + w, y);
+    if (topRight) ctx.arcTo(x + w, y, x + w, y + r, r);
+    if (bottomRight) ctx.lineTo(x + w, y + h - r);
+    else ctx.lineTo(x + w, y + h);
+    if (bottomRight) ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    if (bottomLeft) ctx.lineTo(x + r, y + h);
+    else ctx.lineTo(x, y + h);
+    if (bottomLeft) ctx.arcTo(x, y + h, x, y + h - r, r);
+    if (topLeft) ctx.lineTo(x, y + r);
+    else ctx.lineTo(x, y);
+    if (topLeft) ctx.arcTo(x, y, x + r, y, r);
     ctx.closePath();
   }
   </script>

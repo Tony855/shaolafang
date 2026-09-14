@@ -79,6 +79,8 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex: 1;
+            min-width: 0;
         }
         .header-logo {
             font-size: 22px;
@@ -132,6 +134,7 @@
             gap: 5px;
             max-width: 140px;
             white-space: nowrap;
+            flex-shrink: 0;
         }
         .header-left .table-info i {
             flex-shrink: 0;
@@ -156,16 +159,21 @@
             border-radius: 20px;
             font-size: 13px;
             font-weight: 500;
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 5px;
-            max-width: 160px;
+            max-width: 300px;
+            min-width: 0;
+            flex: 1;
             white-space: nowrap;
+            overflow: hidden;
         }
         .store-name-badge .badge-text {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            min-width: 0;
+            flex: 1;
         }
         .category-tabs {
             background: #fff;
@@ -1891,10 +1899,11 @@
             background: #fff1f1
         }
         .menu-item .info .add-btn {
-            min-height: 0;
-            width: 32px;
-            height: 32px;
-            flex: 0 0 32px
+            min-height: 0 !important;
+            width: 32px !important;
+            height: 32px !important;
+            flex: 0 0 32px;
+            border-radius: 50% !important;
         }
         @media(max-width:380px) {
             .header-logo {
