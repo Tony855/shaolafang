@@ -2038,7 +2038,7 @@
                 ?.code;
             $('#currencies').innerHTML = currenciesCache.map(c => `
                 <div class="row">
-                  <div><b>${esc(c.code)} ${esc(c.symbol)}</b><small>${esc(currencyNameText(c.name,c.code))} · ${tAdmin('currencyRate')} ${c.rate}${c.is_default ? ` · ${tAdmin('default')}` : ''}</small></div>
+                  <div><b>${esc(c.code)} ${esc(c.symbol)}</b><small>${esc(currencyNameText(c.name,c.code))} · ${tAdmin('currencyRate')} ${esc(c.rate)}${c.is_default ? ` · ${tAdmin('default')}` : ''}</small></div>
                   <div class="actions">
                     ${c.is_default ? '' : `<button onclick="setDefaultCurrency(${c.id})">${tAdmin('setDefault')}</button>`}
                     <button onclick="editCurrency(${c.id})">${L('edit')}</button>
@@ -4013,8 +4013,8 @@
                         <div class="info">
                             <div class="title">🖨️ ${esc(p.name)} ${p.is_default ? `<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>` : ''}</div>
                             <div class="sub">
-                                ${typeMap[p.type] || p.type} · ${p.brand} · ${p.paper_width}mm
-                                ${p.ip_address ? ' · ' + p.ip_address + ':' + p.port : ''}
+                                ${typeMap[p.type] || esc(p.type)} · ${esc(p.brand)} · ${esc(p.paper_width)}mm
+                                ${p.ip_address ? ' · ' + esc(p.ip_address) + ':' + esc(p.port) : ''}
                                 · ${p.active ? '<span style="color:#2ecc71;font-weight:600;">' + tAdmin('enabled') + '</span>' : '<span style="color:#e74c3c;">' + tAdmin('disabled') + '</span>'}
                             </div>
                         </div>

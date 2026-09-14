@@ -616,7 +616,7 @@
       const list = pendingUrges.map(c => `
         <div class="urge-item">
           <div class="urge-item-info">
-            <div class="urge-item-table">⚡ ${c.table_name} ${kt('urgeOrder')}</div>
+            <div class="urge-item-table">⚡ ${SLF.utils.esc(c.table_name)} ${kt('urgeOrder')}</div>
             <div class="urge-item-msg">${c.message || ''}</div>
           </div>
           <button class="urge-item-btn" onclick="handleUrge('${c.id}')">${kt('handled')}</button>

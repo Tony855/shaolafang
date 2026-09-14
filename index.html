@@ -2977,7 +2977,7 @@
             let rows = '';
             items.forEach(item => {
                 const trans = getMenuTranslation(item);
-                const name = trans ? trans.name : item.name;
+                const name = esc(trans ? trans.name : item.name);
                 const prices = getMenuPrices(item);
                 let priceDisplay = prices.primary;
                 if (prices.secondary) priceDisplay += ` (${prices.secondary})`;

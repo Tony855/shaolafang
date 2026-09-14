@@ -1099,7 +1099,7 @@
         const prices=getMenuPrices(i);
         let priceDisplay=prices.primary;
         if(prices.secondary) priceDisplay += ` (${prices.secondary})`;
-        return `<div class="line"><span class="dish-name">${i.name} ×${i.quantity}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus==='done'?`<span class="item-status done">${wt('completed')}</span>`:(state.waiter&&state.waiter.can_mark_item?`<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${wt('pending')}</button>`:'')}</div>`;
+        return `<div class="line"><span class="dish-name">${esc(i.name)} ×${i.quantity}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus==='done'?`<span class="item-status done">${wt('completed')}</span>`:(state.waiter&&state.waiter.can_mark_item?`<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${wt('pending')}</button>`:'')}</div>`;
       }).join('');
       const timeLabel=o.createdAt?SLF.utils.formatDateTime(o.createdAt):'';
       const badgeLabel=sessionLabels.get(o.id);
@@ -1223,7 +1223,7 @@
     const list=pendingCalls.map(c=>{
       const typeText = c.type === 'urge' ? wt('urgeOrder') : wt('callWaiter');
       return `<div style="background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.3);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
-        <div><div style="font-weight:700;">🔔 ${c.table_name} ${typeText}</div><div style="color:#999;font-size:12px;margin-top:2px;">${c.created_at||''}</div></div>
+        <div><div style="font-weight:700;">🔔 ${esc(c.table_name)} ${typeText}</div><div style="color:#999;font-size:12px;margin-top:2px;">${esc(c.created_at)||''}</div></div>
         <button onclick="handleCall('${c.id}')" style="background:#27ae60;color:#fff;border:0;padding:6px 14px;border-radius:6px;cursor:pointer;">${wt('handled')}</button>
       </div>`;
     }).join('');
@@ -1291,7 +1291,7 @@
       container.innerHTML=filtered.map(o=>`
         <div onclick="showOrderDetail(${o.id})" style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div style="font-weight:700;font-size:15px;">#${o.id} ${wt('table')} ${o.table||'-'}</div>
+            <div style="font-weight:700;font-size:15px;">#${o.id} ${wt('table')} ${esc(o.table)||'-'}</div>
             <span style="background:${o.status==='done'?'#27ae60':o.status==='canceled'?'#95a5a6':'#f39c12'};color:#fff;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;">${statusMap[o.status]||o.status}</span>
           </div>
           <div style="color:#666;font-size:13px;">${SLF.utils.formatDateTime(o.createdAt)}</div>
@@ -1316,7 +1316,7 @@
       <div style="margin-bottom:15px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
           <span style="color:#666;">${wt('table')}</span>
-          <span style="font-weight:600;">${order.table||'-'}</span>
+          <span style="font-weight:600;">${esc(order.table)||'-'}</span>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
           <span style="color:#666;">${wt('status')}</span>
@@ -1326,13 +1326,13 @@
           <span style="color:#666;">${wt('orderTime')}</span>
           <span>${SLF.utils.formatDateTime(order.createdAt)}</span>
         </div>
-        ${order.note?`<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${wt('note')}</span><span>${order.note}</span></div>`:''}
+        ${order.note?`<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${wt('note')}</span><span>${esc(order.note)}</span></div>`:''}
       </div>
       <div style="border-top:1px solid #eee;padding-top:12px;margin-bottom:12px;">
         <div style="font-weight:700;margin-bottom:10px;">${wt('dishes')}</div>
         ${(order.items||[]).map((item,i)=>`
           <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;">
-            <span>${item.emoji||'🍽️'} ${item.name} x${item.quantity}</span>
+            <span>${esc(item.emoji)||'🍽️'} ${esc(item.name)} x${item.quantity}</span>
             <span style="color:#e74c3c;">$${((Number(item.price)||0)*item.quantity).toFixed(2)}</span>
           </div>
         `).join('')}
@@ -1453,7 +1453,7 @@
       } else {
         qtyHtml=`<button onclick="changeQty(${m.id},-1)">−</button><span>${cartQty}</span><button onclick="changeQty(${m.id},1)">+</button>`;
       }
-      return `<div class="dish-item"><div class="dish-thumb">${m.image?`<img src="/uploads/${m.image}" alt="${m.name}">`:m.emoji||'🍽️'}</div><div class="info"><div class="name">${m.name}</div><div class="price">${priceDisplay}/${m.unit||wt('unit')}</div></div>${qtyHtml}</div>`;
+      return `<div class="dish-item"><div class="dish-thumb">${m.image?`<img src="/uploads/${esc(m.image)}" alt="${esc(m.name)}">`:esc(m.emoji)||'🍽️'}</div><div class="info"><div class="name">${esc(m.name)}</div><div class="price">${priceDisplay}/${esc(m.unit)||wt('unit')}</div></div>${qtyHtml}</div>`;
     }).join('');
     renderSelected();
     updateTotal();
