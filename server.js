@@ -615,8 +615,10 @@ async function initDatabase() {
   await runAsync(`
     CREATE TABLE IF NOT EXISTS menu_categories (
       id INT PRIMARY KEY AUTO_INCREMENT,
-      name VARCHAR(255) UNIQUE NOT NULL,
-      sort INT NOT NULL DEFAULT 0
+      store_id INT NOT NULL DEFAULT 1,
+      name VARCHAR(255) NOT NULL,
+      sort INT NOT NULL DEFAULT 0,
+      UNIQUE KEY unique_store_name (store_id, name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
@@ -865,7 +867,7 @@ async function initDatabase() {
   `);
 
   // 为现有表添加 merchant_id 字段（兼容旧表）
-  const tablesToAlter = ['stores', 'menus', 'tables', 'orders', 'waiters', 'printers', 'waiter_calls', 'reservations', 'scan_sessions', 'currencies'];
+  const tablesToAlter = ['stores', 'menus', 'tables', 'orders', 'waiters', 'printers', 'waiter_calls', 'reservations', 'scan_sessions', 'currencies', 'menu_categories'];
   for (const tbl of tablesToAlter) {
     try {
       await runAsync(`ALTER TABLE ${tbl} ADD COLUMN merchant_id INT NOT NULL DEFAULT 1`);
@@ -984,7 +986,7 @@ async function initDatabase() {
   const menuCategoryCount = await getAsync('SELECT COUNT(*) AS count FROM menu_categories');
   if (menuCategoryCount.count === 0) {
     for (let i = 0; i < DEFAULT_MENU_CATEGORIES.length; i++) {
-      await runAsync('INSERT INTO menu_categories (name, sort) VALUES (?, ?)', [DEFAULT_MENU_CATEGORIES[i], i]);
+      await runAsync('INSERT INTO menu_categories (store_id, name, sort) VALUES (1, ?, ?)', [DEFAULT_MENU_CATEGORIES[i], i]);
     }
   }
   await rebaseCurrencyToUSDOnce();
@@ -1560,7 +1562,8 @@ app.get('/api/public/store-info', async (req, res) => {
 
 app.get('/api/public/categories', async (req, res) => {
   try {
-    const rows = await allAsync('SELECT id, name, sort FROM menu_categories ORDER BY sort');
+    const storeId = parseInt(req.query.store_id || '1', 10);
+    const rows = await allAsync('SELECT id, name, sort FROM menu_categories WHERE store_id=? ORDER BY sort', [storeId]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2283,7 +2286,7 @@ app.put('/api/menu/:id/status', requireAdminKey, requirePermission('can_manage_m
 // ----- 菜品分类 -----
 app.get('/api/menu-categories', requireAdminKey, async (req, res) => {
   try {
-    const rows = await allAsync('SELECT * FROM menu_categories ORDER BY sort, id');
+    const rows = await allAsync('SELECT * FROM menu_categories WHERE store_id=? ORDER BY sort, id', [req.storeId]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });

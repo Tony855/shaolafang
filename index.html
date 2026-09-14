@@ -2645,7 +2645,7 @@
 
         async function fetchCategoryOrder() {
             try {
-                const res = await fetch('/api/public/categories');
+                const res = await fetch(`/api/public/categories?store_id=${state.storeId || 1}`);
                 if (!res.ok) throw new Error('获取分类顺序失败');
                 const data = await res.json();
                 state.categoryOrder = data.map(c => c.name);
