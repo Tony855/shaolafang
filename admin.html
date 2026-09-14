@@ -721,11 +721,8 @@
             <!-- 管理员管理 -->
             <section class="panel module-panel" id="module-admins">
                 <h2 id="adminsPanelTitle">👤 管理员管理</h2>
-                <div class="admin-form-row" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-                    <input id="newAdminUsername" placeholder="" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
-                    <input id="newAdminPassword" type="password" placeholder="" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
-                    <input id="newAdminDisplayName" placeholder="" style="flex:1;min-width:120px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;">
-                    <button onclick="addAdmin()" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addAdminBtnText">添加管理员</span></button>
+                <div style="margin-bottom:16px;">
+                    <button onclick="openAddAdminModal()" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addAdminBtnText">添加管理员</span></button>
                 </div>
                 <div id="adminList"></div>
             </section>
@@ -803,7 +800,7 @@
                 <h2 id="passwordPanelTitle">系统设置</h2>
 
                 <!-- 管理员管理卡片 -->
-                <div class="settings-card">
+                <div class="settings-card" id="adminManageCard">
                     <h3 class="settings-card-title" id="adminManageCardTitle">👤 管理员管理</h3>
                     <p id="adminManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理商户的管理员账号，支持添加、编辑、删除管理员</p>
                     <button id="enterAdminManageBtn" onclick="switchAdminModule('admins')" style="background: linear-gradient(135deg,#43e97b,#38f9d7); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入管理员管理</button>
@@ -1061,10 +1058,49 @@
                         </div>
                     </div>
                 </div>
+                <div class="store-edit-field full">
+                    <label id="editAdminPermissionsLabel" style="margin-bottom:12px;">权限设置</label>
+                    <div class="admin-permissions-grid" id="editAdminPermissions">
+                        <!-- 权限项由JS动态生成 -->
+                    </div>
+                    <div id="editAdminPermNotice" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(232,93,58,.1);border:1px solid rgba(232,93,58,.3);border-radius:8px;color:#ffb088;font-size:13px;">主管理员拥有全部权限，不可修改</div>
+                </div>
             </div>
             <div class="order-modal-actions">
                 <button onclick="closeAdminEdit()">取消</button>
                 <button class="primary" onclick="saveAdminEdit()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增管理员弹窗 -->
+    <div class="order-modal edit-modal" id="adminAddModal">
+        <div class="order-modal-card store-edit-card">
+            <button class="modal-close" onclick="closeAddAdminModal()">✕</button>
+            <h2>👤 <span id="addAdminModalTitle">添加管理员</span></h2>
+            <div class="store-edit-grid">
+                <div class="store-edit-field">
+                    <label id="addAdminUsernameLabel">登录账号</label>
+                    <input id="addAdminUsername" placeholder="">
+                </div>
+                <div class="store-edit-field">
+                    <label id="addAdminPasswordLabel">密码(至少6位)</label>
+                    <input id="addAdminPassword" type="password" placeholder="">
+                </div>
+                <div class="store-edit-field full">
+                    <label id="addAdminDisplayNameLabel">显示名称</label>
+                    <input id="addAdminDisplayName" placeholder="">
+                </div>
+                <div class="store-edit-field full">
+                    <label id="addAdminPermissionsLabel" style="margin-bottom:12px;">权限设置</label>
+                    <div class="admin-permissions-grid" id="addAdminPermissions">
+                        <!-- 权限项由JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+            <div class="order-modal-actions">
+                <button onclick="closeAddAdminModal()">取消</button>
+                <button class="primary" onclick="submitAddAdmin()">保存</button>
             </div>
         </div>
     </div>
@@ -1314,6 +1350,12 @@
                 exportOrdersCsv: '导出订单CSV',
                 exportSalesCsv: '导出销量CSV',
                 exportMenuCsv: '导出菜单CSV',
+                permMenu: '菜品管理', permTable: '桌号管理', permOrder: '订单管理',
+                permStore: '店铺管理', permWaiter: '服务员管理', permCurrency: '货币管理', permPrinter: '打印机管理',
+                permAdmin: '管理员管理', permLogs: '日志查看',
+                permGroupOps: '运营管理', permGroupBase: '基础设置', permGroupSystem: '系统管理',
+                addAdminModalTitle: '添加管理员', addAdminUsernameLabel: '登录账号', addAdminPasswordLabel: '密码(至少6位)',
+                addAdminDisplayNameLabel: '显示名称', addAdminPermissionsLabel: '权限设置', editAdminPermissionsLabel: '权限设置',
             },
             en: { headerTitle: '🍽️ FoodFlow · Admin', accessKey: 'Admin Key', connect: 'Connect',
                 customerPage: 'Customer Page', connectTitle: 'Admin Login', connectDesc: 'Enter the admin password to access the dashboard.',
@@ -1739,6 +1781,9 @@
         const $ = s => document.querySelector(s);
         let adminToken = sessionStorage.getItem('adminToken') || '';
         let adminId = parseInt(sessionStorage.getItem('adminId') || '0', 10);
+        let adminIsPrimary = sessionStorage.getItem('adminIsPrimary') === '1';
+        let adminPermissions = {};
+        try { adminPermissions = JSON.parse(sessionStorage.getItem('adminPermissions') || '{}'); } catch(e) {}
         let menusCache = [];
         let tablesCache = [];
         let ordersCache = [];
@@ -2033,6 +2078,78 @@
         }
 
         // ===== 管理员管理 =====
+        // 管理员权限配置
+        const ADMIN_PERMISSIONS = [
+            { key: 'can_manage_menu', labelKey: 'permMenu', icon: '🍽️', group: 'permGroupOps' },
+            { key: 'can_manage_table', labelKey: 'permTable', icon: '🪑', group: 'permGroupOps' },
+            { key: 'can_manage_order', labelKey: 'permOrder', icon: '📋', group: 'permGroupOps' },
+            { key: 'can_manage_store', labelKey: 'permStore', icon: '🏪', group: 'permGroupBase' },
+            { key: 'can_manage_waiter', labelKey: 'permWaiter', icon: '👥', group: 'permGroupBase' },
+            { key: 'can_manage_currency', labelKey: 'permCurrency', icon: '💱', group: 'permGroupBase' },
+            { key: 'can_manage_printer', labelKey: 'permPrinter', icon: '🖨️', group: 'permGroupBase' },
+            { key: 'can_manage_admin', labelKey: 'permAdmin', icon: '👤', group: 'permGroupSystem' },
+            { key: 'can_view_logs', labelKey: 'permLogs', icon: '📝', group: 'permGroupSystem' }
+        ];
+
+        // 渲染权限设置区域
+        function renderAdminPermissions(containerId, permissions, disabled) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const groups = {};
+            ADMIN_PERMISSIONS.forEach(p => {
+                if (!groups[p.group]) groups[p.group] = [];
+                groups[p.group].push(p);
+            });
+            let html = '';
+            for (const [groupKey, perms] of Object.entries(groups)) {
+                html += `<div class="admin-perm-group">
+                    <div class="admin-perm-group-title">${tAdmin(groupKey)}</div>
+                    <div class="admin-perm-items">`;
+                perms.forEach(p => {
+                    const checked = permissions && permissions[p.key] ? 'checked' : '';
+                    const dis = disabled ? 'disabled' : '';
+                    html += `<label class="admin-perm-item ${disabled ? 'disabled' : ''}">
+                        <span class="admin-perm-icon">${p.icon}</span>
+                        <span class="admin-perm-label">${tAdmin(p.labelKey)}</span>
+                        <div class="store-switch">
+                            <input type="checkbox" class="admin-perm-checkbox" data-key="${p.key}" ${checked} ${dis}>
+                            <span class="store-switch-slider"></span>
+                        </div>
+                    </label>`;
+                });
+                html += `</div></div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        // 收集权限设置
+        function collectAdminPermissions(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return {};
+            const perms = {};
+            container.querySelectorAll('.admin-perm-checkbox').forEach(cb => {
+                perms[cb.dataset.key] = cb.checked ? 1 : 0;
+            });
+            return perms;
+        }
+
+        // 打开新增管理员弹窗
+        function openAddAdminModal() {
+            document.getElementById('addAdminUsername').value = '';
+            document.getElementById('addAdminPassword').value = '';
+            document.getElementById('addAdminDisplayName').value = '';
+            // 默认开启除管理员管理外的所有权限
+            const defaultPerms = {};
+            ADMIN_PERMISSIONS.forEach(p => {
+                defaultPerms[p.key] = p.key === 'can_manage_admin' ? 0 : 1;
+            });
+            renderAdminPermissions('addAdminPermissions', defaultPerms, false);
+            document.getElementById('adminAddModal').classList.add('open');
+        }
+        function closeAddAdminModal() {
+            document.getElementById('adminAddModal').classList.remove('open');
+        }
+
         async function loadAdmins() {
             try {
                 const rows = await api('/admin/admins');
@@ -2043,7 +2160,7 @@
                       <div class="sub">${a.active?'<span style="color:#43e97b">' + tAdmin('adminActive') + '</span>':'<span style="color:#f5576c">' + tAdmin('adminInactive') + '</span>'} · ${tAdmin('lastLogin')} ${a.last_login_at ? SLF.utils.formatDateTime(a.last_login_at) : tAdmin('neverLogin')}</div>
                     </div>
                     <div class="actions">
-                      <button class="edit-btn" onclick="editAdmin(${a.id}, '${esc(a.username)}', '${esc(a.display_name)}', ${a.active})">✏️ ${tAdmin('editAdminBtn')}</button>
+                      <button class="edit-btn" onclick="editAdmin(${a.id}, '${esc(a.username)}', '${esc(a.display_name)}', ${a.active}, {can_manage_menu:${a.can_manage_menu},can_manage_table:${a.can_manage_table},can_manage_order:${a.can_manage_order},can_manage_store:${a.can_manage_store},can_manage_waiter:${a.can_manage_waiter},can_manage_currency:${a.can_manage_currency},can_manage_printer:${a.can_manage_printer},can_manage_admin:${a.can_manage_admin},can_view_logs:${a.can_view_logs}}, ${a.id === adminId})">✏️ ${tAdmin('editAdminBtn')}</button>
                       <button class="danger" onclick="deleteAdmin(${a.id}, '${esc(a.username)}')" ${a.id === adminId ? 'disabled style="opacity:.4;cursor:not-allowed;"' : ''}>${tAdmin('deleteAdminBtn')}</button>
                     </div>
                   </div>`).join('') :
@@ -2053,28 +2170,30 @@
             }
         }
 
-        async function addAdmin() {
-            const username = $('#newAdminUsername').value.trim();
-            const password = $('#newAdminPassword').value;
-            const display_name = $('#newAdminDisplayName').value.trim();
+        async function submitAddAdmin() {
+            const username = $('#addAdminUsername').value.trim();
+            const password = $('#addAdminPassword').value;
+            const display_name = $('#addAdminDisplayName').value.trim();
             if (!username || !password || !display_name) { toast(tAdmin('fillAllFields')); return; }
             if (password.length < 6) { toast(tAdmin('passwordMin6')); return; }
+            const permissions = collectAdminPermissions('addAdminPermissions');
             try {
-                await api('/admin/admins', { method: 'POST', body: { username, password, display_name, active: 1 } });
-                $('#newAdminUsername').value = '';
-                $('#newAdminPassword').value = '';
-                $('#newAdminDisplayName').value = '';
+                await api('/admin/admins', { method: 'POST', body: { username, password, display_name, active: 1, permissions } });
+                closeAddAdminModal();
                 toast('✅ ' + tAdmin('adminAdded'));
                 loadAdmins();
             } catch (e) { toast('❌ ' + e.message); }
         }
 
-        function editAdmin(id, username, displayName, active) {
+        function editAdmin(id, username, displayName, active, permissions, isPrimary) {
             document.getElementById('editAdminId').value = id;
             document.getElementById('editAdminUsername').value = username || '';
             document.getElementById('editAdminDisplayName').value = displayName || '';
             document.getElementById('editAdminPassword').value = '';
             document.getElementById('editAdminActive').checked = active ? true : false;
+            // 渲染权限设置，主管理员禁用
+            renderAdminPermissions('editAdminPermissions', permissions, isPrimary);
+            document.getElementById('editAdminPermNotice').style.display = isPrimary ? 'block' : 'none';
             document.getElementById('adminEditModal').classList.add('open');
         }
         function closeAdminEdit() {
@@ -2089,6 +2208,11 @@
             if (password && password.length < 6) { toast('❌ 密码至少6位'); return; }
             const body = { display_name: displayName, active };
             if (password) body.password = password;
+            // 只有非主管理员才保存权限
+            const notice = document.getElementById('editAdminPermNotice');
+            if (!notice || notice.style.display !== 'block') {
+                body.permissions = collectAdminPermissions('editAdminPermissions');
+            }
             api('/admin/admins/' + id, { method: 'PUT', body }).then(() => {
                 toast('✅ ' + tAdmin('adminUpdated'));
                 closeAdminEdit();
@@ -3340,6 +3464,13 @@
             $('#currencyCancelBtn').textContent = L('cancel');
             $('#currencySaveBtn').textContent = L('save');
             $('#saveDisplaySettingsBtn').textContent = tAdmin('saveDisplaySettings');
+            // 新增/编辑管理员弹窗
+            const addAdminModalTitle = $('#addAdminModalTitle'); if (addAdminModalTitle) addAdminModalTitle.textContent = tAdmin('addAdminModalTitle');
+            const addAdminUsernameLabel = $('#addAdminUsernameLabel'); if (addAdminUsernameLabel) addAdminUsernameLabel.textContent = tAdmin('addAdminUsernameLabel');
+            const addAdminPasswordLabel = $('#addAdminPasswordLabel'); if (addAdminPasswordLabel) addAdminPasswordLabel.textContent = tAdmin('addAdminPasswordLabel');
+            const addAdminDisplayNameLabel = $('#addAdminDisplayNameLabel'); if (addAdminDisplayNameLabel) addAdminDisplayNameLabel.textContent = tAdmin('addAdminDisplayNameLabel');
+            const addAdminPermissionsLabel = $('#addAdminPermissionsLabel'); if (addAdminPermissionsLabel) addAdminPermissionsLabel.textContent = tAdmin('addAdminPermissionsLabel');
+            const editAdminPermissionsLabel = $('#editAdminPermissionsLabel'); if (editAdminPermissionsLabel) editAdminPermissionsLabel.textContent = tAdmin('editAdminPermissionsLabel');
             // 预约管理
             $('#reservationsPanelTitle').textContent = '📅 ' + tAdmin('reservationManage');
             // 呼叫服务员
@@ -3586,6 +3717,13 @@
                 }
             }).catch(() => {});
             resetAdminIdleTimer();
+            // 根据权限隐藏管理员管理
+            if (!adminIsPrimary && !adminPermissions.can_manage_admin) {
+                const adminManageCard = document.getElementById('adminManageCard');
+                if (adminManageCard) adminManageCard.style.display = 'none';
+                const adminsModule = document.getElementById('module-admins');
+                if (adminsModule) adminsModule.style.display = 'none';
+            }
             refresh().catch(() => {
                 sessionStorage.removeItem('adminToken');
                 window.location.href = '/login';

@@ -873,6 +873,16 @@ async function initDatabase() {
     }
   }
 
+  // 为 merchant_admins 表添加权限字段（兼容旧表）
+  const adminPermFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs'];
+  for (const field of adminPermFields) {
+    try {
+      await runAsync(`ALTER TABLE merchant_admins ADD COLUMN ${field} TINYINT NOT NULL DEFAULT 1`);
+    } catch (e) {
+      if (!/duplicate column/i.test(e.message || '')) console.log(`  ! merchant_admins.${field}: ${e.message}`);
+    }
+  }
+
   // 初始化基础数据
   // 创建默认商户
   const merchantCount = await getAsync('SELECT COUNT(*) AS count FROM merchants');
@@ -3162,7 +3172,7 @@ app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
 // ----- 商户管理员管理 -----
 app.get('/api/admin/admins', requireAdminKey, async (req, res) => {
   try {
-    const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
+    const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, can_manage_menu, can_manage_table, can_manage_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3179,7 +3189,7 @@ app.post('/api/admin/admins', requireAdminKey, async (req, res) => {
       [req.merchantId, String(username).trim(), hashPassword(password), display_name, active ? 1 : 0]
     );
     await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_admin', 'merchant_admin', result.lastID, `创建管理员: ${username}`, req.ip);
-    res.status(201).json(await getAsync('SELECT id, username, display_name, active, created_at FROM merchant_admins WHERE id=?', [result.lastID]));
+    res.status(201).json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=?', [result.lastID]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3203,7 +3213,7 @@ app.put('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
       await runAsync(`UPDATE merchant_admins SET ${fields.join(',')} WHERE id=?`, values);
     }
     await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_admin', 'merchant_admin', id, `更新管理员: ${admin.username}`, req.ip);
-    res.json(await getAsync('SELECT id, username, display_name, active, created_at FROM merchant_admins WHERE id=?', [id]));
+    res.json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=?', [id]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

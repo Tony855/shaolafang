@@ -381,7 +381,9 @@
           sessionStorage.setItem('adminToken', data.token);
           sessionStorage.setItem('adminMerchantId', data.merchantId);
           sessionStorage.setItem('adminMerchantName', data.merchantName);
-          sessionStorage.setItem('adminId', data.admin?.id || '');
+          sessionStorage.setItem('adminId', data.adminId || '');
+          sessionStorage.setItem('adminIsPrimary', data.isPrimary ? '1' : '0');
+          sessionStorage.setItem('adminPermissions', JSON.stringify(data.permissions || {}));
           window.location.href = '/admin';
         } catch (e) {
           showErrorModal(translateError(e.message));

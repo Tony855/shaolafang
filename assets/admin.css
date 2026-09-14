@@ -557,6 +557,74 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(232,93,58,.3);
         }
+        /* 管理员权限设置 */
+        .admin-permissions-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .admin-perm-group {
+            background: rgba(255,255,255,.03);
+            border: 1px solid rgba(255,255,255,.06);
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .admin-perm-group-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #e85d3a;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+        }
+        .admin-perm-items {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .admin-perm-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .admin-perm-item:hover {
+            background: rgba(255,255,255,.07);
+            border-color: rgba(232,93,58,.3);
+        }
+        .admin-perm-item.disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+        .admin-perm-item.disabled:hover {
+            background: rgba(255,255,255,.04);
+            border-color: rgba(255,255,255,.08);
+        }
+        .admin-perm-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .admin-perm-label {
+            flex: 1;
+            font-size: 13px;
+            color: #ddd;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .admin-perm-item .store-switch {
+            flex-shrink: 0;
+        }
+        @media (max-width: 600px) {
+            .admin-perm-items {
+                grid-template-columns: 1fr;
+            }
+        }
 
         
         .printer-form-container {
