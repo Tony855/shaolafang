@@ -289,8 +289,8 @@
         .meta { font-size: 11px; }
     }
     </style>
-    <link rel="stylesheet" href="assets/common.css">
-    <link rel="stylesheet" href="assets/admin.css">
+    <link rel="stylesheet" href="assets/common.css?v=20260914c">
+    <link rel="stylesheet" href="assets/admin.css?v=20260914c">
 </head>
 <body>
     <!-- ===== 通知 ===== -->
@@ -831,11 +831,14 @@
                 <div class="settings-card">
                     <h3 class="settings-card-title" id="notifyPanelTitle">🔔 新订单提示音</h3>
                     <div class="settings-row">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="newOrderSoundEnabled" checked>
+                        <label class="store-switch-label">
                             <span id="newOrderSoundLabel">新订单到达时，服务员端和后厨端播放提示音</span>
+                            <div class="store-switch">
+                                <input type="checkbox" id="newOrderSoundEnabled" checked>
+                                <span class="store-switch-slider"></span>
+                            </div>
                         </label>
-                        <button id="saveNotifySettingsBtn" class="btn-secondary">保存设置</button>
+                        <button id="saveNotifySettingsBtn" class="display-settings-btn">保存设置</button>
                     </div>
                 </div>
 
@@ -1925,6 +1928,8 @@
 
         async function loadTables() {
             tablesCache = await api('/tables');
+            // 按桌号名称自然排序（A01, A02, A10, B01...）
+            tablesCache.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true, sensitivity: 'base' }));
             const statusText = { available: L('available'), occupied: L('occupied'), reserved: L('reserved') };
             $('#tables').innerHTML = tablesCache.map(t => {
                 const hasPending = ordersCache.some(o => o.table === t.name && o.status === 'pending');
