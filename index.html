@@ -3490,13 +3490,45 @@
         function hideCallWaiterConfirm() {
             document.getElementById('callWaiterConfirmOverlay').classList.remove('show');
         }
+        // 呼叫冷却状态
+        let callCooldownTimer = null;
+        let callCooldownSeconds = 0;
+
+        function startCallCooldown(minutes) {
+            callCooldownSeconds = Math.max(1, minutes) * 60;
+            const btn = document.getElementById('callWaiterBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            }
+            if (callCooldownTimer) clearInterval(callCooldownTimer);
+            callCooldownTimer = setInterval(() => {
+                callCooldownSeconds--;
+                if (callCooldownSeconds <= 0) {
+                    clearInterval(callCooldownTimer);
+                    callCooldownTimer = null;
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.style.opacity = '';
+                        btn.style.cursor = '';
+                    }
+                }
+            }, 1000);
+        }
+
         async function callWaiter() {
             if (!state.table) {
                 showToast('⚠️ ' + t('scanFirst'), 2500);
                 return;
             }
+            if (callCooldownSeconds > 0) {
+                const mins = Math.ceil(callCooldownSeconds / 60);
+                showToast('⏳ ' + t('callCooldown').replace('{minutes}', mins), 3000);
+                return;
+            }
             try {
-                await fetch('/api/public/call-waiter', {
+                const res = await fetch('/api/public/call-waiter', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -3504,6 +3536,14 @@
                         sessionToken: state.scanSessionToken || ''
                     })
                 });
+                const data = await res.json();
+                if (res.status === 429) {
+                    const mins = data.cooldownMinutes || 10;
+                    startCallCooldown(mins);
+                    showToast('⏳ ' + t('callCooldown').replace('{minutes}', mins), 3000);
+                    return;
+                }
+                if (!res.ok) throw new Error(data.error || 'Failed');
                 showToast('✅ ' + t('callWaiterSent'), 2500);
             } catch (e) {
                 showToast('❌ ' + t('networkError'), 2500);

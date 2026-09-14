@@ -1694,16 +1694,20 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
     const { name, username, password, contact_name, contact_phone, max_stores, status } = req.body || {};
     // 注意：商户编码(code)不允许修改，此处忽略该字段
     await runAsync('UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=? WHERE id=?', [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, req.params.id]);
-    // 更新登录账号（如果提供了）
-    if (username && username.trim()) {
-      const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=? AND merchant_id<>?', [username.trim(), req.params.id]);
-      if (exists) return res.status(400).json({ error: '登录账号已被其他商户使用' });
-      await runAsync('UPDATE merchant_admins SET username=? WHERE merchant_id=?', [username.trim(), req.params.id]);
-    }
-    // 更新密码（如果提供了非空密码）
-    if (password && password.trim()) {
-      const hash = hashPassword(password.trim());
-      await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
+    // 查询该商户的主管理员（id最小的），只更新主管理员账号，避免覆盖商户后台创建的其他子管理员
+    const primaryAdmin = await getAsync('SELECT id, username FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.params.id]);
+    if (primaryAdmin) {
+      // 更新登录账号（仅当提供了新账号且与当前值不同时）
+      if (username && username.trim() && username.trim() !== primaryAdmin.username) {
+        const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=? AND id<>?', [username.trim(), primaryAdmin.id]);
+        if (exists) return res.status(400).json({ error: '登录账号已被使用' });
+        await runAsync('UPDATE merchant_admins SET username=? WHERE id=?', [username.trim(), primaryAdmin.id]);
+      }
+      // 更新主管理员密码（如果提供了非空密码）
+      if (password && password.trim()) {
+        const hash = hashPassword(password.trim());
+        await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=?', [hash, primaryAdmin.id]);
+      }
     }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1772,7 +1776,7 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
 // 超级管理员获取全局设置
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist')");
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist', 'call_limit_enabled', 'call_limit_max', 'call_limit_window_minutes', 'call_limit_cooldown_minutes')");
     const settings = {};
     rows.forEach(r => { settings[r.key] = r.value; });
     res.json({
@@ -1788,6 +1792,10 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
       login_max_attempts: parseInt(settings.login_max_attempts || '5', 10),
       login_lock_minutes: parseInt(settings.login_lock_minutes || '15', 10),
       super_ip_whitelist: settings.super_ip_whitelist || '',
+      call_limit_enabled: (settings.call_limit_enabled || '1') !== '0',
+      call_limit_max: parseInt(settings.call_limit_max || '3', 10),
+      call_limit_window_minutes: parseInt(settings.call_limit_window_minutes || '5', 10),
+      call_limit_cooldown_minutes: parseInt(settings.call_limit_cooldown_minutes || '10', 10),
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1795,7 +1803,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 // 超级管理员更新全局设置
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { super_idle_timeout, admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist } = req.body || {};
+    const { super_idle_timeout, admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes } = req.body || {};
     if (super_idle_timeout !== undefined) {
       const mins = Math.max(1, Math.min(1440, parseInt(super_idle_timeout, 10) || 60));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
@@ -1842,6 +1850,21 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     }
     if (super_ip_whitelist !== undefined) {
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_ip_whitelist', ?) ON DUPLICATE KEY UPDATE value=?", [String(super_ip_whitelist || ''), String(super_ip_whitelist || '')]);
+    }
+    if (call_limit_enabled !== undefined) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_enabled', ?) ON DUPLICATE KEY UPDATE value=?", [call_limit_enabled ? '1' : '0', call_limit_enabled ? '1' : '0']);
+    }
+    if (call_limit_max !== undefined) {
+      const val = Math.max(1, Math.min(20, parseInt(call_limit_max, 10) || 3));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_max', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (call_limit_window_minutes !== undefined) {
+      const val = Math.max(1, Math.min(60, parseInt(call_limit_window_minutes, 10) || 5));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_window_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (call_limit_cooldown_minutes !== undefined) {
+      const val = Math.max(1, Math.min(120, parseInt(call_limit_cooldown_minutes, 10) || 10));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_cooldown_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
     }
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_settings', 'settings', null,
       JSON.stringify(req.body), getClientIp(req));
@@ -2614,17 +2637,47 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, async (req, res) => {
   }
 });
 
-// ----- 呼叫服务员 -----
+// ----- 呼叫服务员（含次数限制） -----
 app.post('/api/public/call-waiter', async (req, res) => {
   try {
     const { table, sessionToken } = req.body || {};
     if (!table) return res.status(400).json({ error: '桌号不能为空' });
     const tableRow = await getAsync('SELECT id, store_id FROM tables WHERE name=?', [table]);
     if (!tableRow) return res.status(404).json({ error: '桌号不存在' });
+    // 读取呼叫限制配置
+    const limitRows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('call_limit_enabled','call_limit_max','call_limit_window_minutes','call_limit_cooldown_minutes')");
+    const limitCfg = {};
+    limitRows.forEach(r => { limitCfg[r.key] = r.value; });
+    const limitEnabled = (limitCfg.call_limit_enabled || '1') !== '0';
+    const maxCalls = parseInt(limitCfg.call_limit_max || '3', 10);
+    const windowMinutes = parseInt(limitCfg.call_limit_window_minutes || '5', 10);
+    const cooldownMinutes = parseInt(limitCfg.call_limit_cooldown_minutes || '10', 10);
+    if (limitEnabled) {
+      // 查询时间窗口内该桌号的呼叫次数
+      const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
+      const countRow = await getAsync(
+        "SELECT COUNT(*) AS cnt FROM waiter_calls WHERE table_name=? AND store_id=? AND (type='call' OR type='' OR type IS NULL) AND created_at >= ?",
+        [table, tableRow.store_id, windowStart]
+      );
+      const callCount = countRow?.cnt || 0;
+      if (callCount >= maxCalls) {
+        // 查询最后一次呼叫时间，计算剩余冷却时间
+        const lastCall = await getAsync(
+          "SELECT created_at FROM waiter_calls WHERE table_name=? AND store_id=? AND (type='call' OR type='' OR type IS NULL) ORDER BY created_at DESC LIMIT 1",
+          [table, tableRow.store_id]
+        );
+        let cooldownRemaining = cooldownMinutes;
+        if (lastCall) {
+          const elapsed = (Date.now() - new Date(lastCall.created_at).getTime()) / 60000;
+          cooldownRemaining = Math.max(0, Math.ceil(cooldownMinutes - elapsed));
+        }
+        return res.status(429).json({ error: '呼叫过于频繁', cooldownMinutes: cooldownRemaining });
+      }
+    }
     const callId = crypto.randomBytes(8).toString('hex');
     await runAsync(
-      'INSERT INTO waiter_calls (id, table_name, store_id, session_token, status, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [callId, table, tableRow.store_id, sessionToken || '', 'pending', new Date().toISOString()]
+      'INSERT INTO waiter_calls (id, table_name, store_id, session_token, status, type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [callId, table, tableRow.store_id, sessionToken || '', 'pending', 'call', new Date().toISOString()]
     );
     res.json({ success: true, callId, message: '已通知服务员' });
   } catch (e) { res.status(500).json({ error: e.message }); }

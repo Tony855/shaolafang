@@ -458,6 +458,7 @@ select:focus {
         <button id="tabTimeout" onclick="switchSettingsTab('timeout')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="globalTimeoutSettings">⏱️ 全局超时设置</button>
         <button id="tabOrder" onclick="switchSettingsTab('order')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="orderLimitSettings">📦 下单限制设置</button>
         <button id="tabSecurity" onclick="switchSettingsTab('security')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="securitySettingsTab">🔒 安全设置</button>
+        <button id="tabCallLimit" onclick="switchSettingsTab('callLimit')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="callLimitSettingsTab">🔔 呼叫限制设置</button>
       </div>
       <!-- 全局超时设置面板 -->
       <div id="timeoutSettings">
@@ -534,6 +535,35 @@ select:focus {
           <label>超级管理员IP白名单</label>
           <input type="text" id="superIpWhitelist" placeholder="如：192.168.1.1,10.0.0.1，留空则不限制">
           <small style="color:#666;">仅允许这些IP地址登录超级管理员后台，多个IP用英文逗号分隔，留空表示不限制</small>
+        </div>
+        </div>
+      </div>
+      <!-- 呼叫限制设置面板 -->
+      <div id="callLimitSettings" style="display:none;">
+        <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
+            <p style="color:#888;margin-bottom:16px;">顾客呼叫服务员次数限制，防止恶意骚扰</p>
+        <div class="form-group">
+          <label>启用呼叫次数限制</label>
+          <select id="callLimitEnabled" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+            <option value="1">启用</option>
+            <option value="0">禁用</option>
+          </select>
+          <small style="color:#666;">启用后，顾客在时间窗口内呼叫次数达到上限后将进入冷却期</small>
+        </div>
+        <div class="form-group">
+          <label>时间窗口内最大呼叫次数</label>
+          <input type="number" id="callLimitMax" min="1" max="20" placeholder="如：3">
+          <small style="color:#666;">在时间窗口内最多允许呼叫的次数，范围1-20次</small>
+        </div>
+        <div class="form-group">
+          <label>统计时间窗口（分钟）</label>
+          <input type="number" id="callLimitWindowMinutes" min="1" max="60" placeholder="如：5">
+          <small style="color:#666;">统计呼叫次数的时间范围，范围1-60分钟</small>
+        </div>
+        <div class="form-group">
+          <label>超限后冷却时间（分钟）</label>
+          <input type="number" id="callLimitCooldownMinutes" min="1" max="120" placeholder="如：10">
+          <small style="color:#666;">呼叫次数超限后禁止呼叫的时长，范围1-120分钟</small>
         </div>
         </div>
       </div>
@@ -1025,13 +1055,17 @@ async function loadGlobalSettings() {
     document.getElementById('loginMaxAttempts').value = settings.login_max_attempts || 5;
     document.getElementById('loginLockMinutes').value = settings.login_lock_minutes || 15;
     document.getElementById('superIpWhitelist').value = settings.super_ip_whitelist || '';
+    document.getElementById('callLimitEnabled').value = settings.call_limit_enabled ? '1' : '0';
+    document.getElementById('callLimitMax').value = settings.call_limit_max || 3;
+    document.getElementById('callLimitWindowMinutes').value = settings.call_limit_window_minutes || 5;
+    document.getElementById('callLimitCooldownMinutes').value = settings.call_limit_cooldown_minutes || 10;
   } catch (e) { toast(t('loadFailed') + ': ' + e.message, 'error'); }
 }
 
 // 保存全局设置
 function switchSettingsTab(tab) {
-  const tabs = { timeout: 'tabTimeout', order: 'tabOrder', security: 'tabSecurity' };
-  const panels = { timeout: 'timeoutSettings', order: 'orderSettings', security: 'securitySettings' };
+  const tabs = { timeout: 'tabTimeout', order: 'tabOrder', security: 'tabSecurity', callLimit: 'tabCallLimit' };
+  const panels = { timeout: 'timeoutSettings', order: 'orderSettings', security: 'securitySettings', callLimit: 'callLimitSettings' };
   Object.keys(tabs).forEach(t => {
     const tabEl = document.getElementById(tabs[t]);
     const panelEl = document.getElementById(panels[t]);
@@ -1073,7 +1107,14 @@ async function saveGlobalSettings() {
     const superIpWhitelist = document.getElementById('superIpWhitelist').value.trim();
     if (!loginMaxAttempts || loginMaxAttempts < 1 || loginMaxAttempts > 20) { toast(t('loginMaxAttempts') + ' 1-20', 'error'); return; }
     if (!loginLockMinutes || loginLockMinutes < 1 || loginLockMinutes > 1440) { toast(t('loginLockMinutes') + ' 1-1440', 'error'); return; }
-    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength, login_max_attempts: loginMaxAttempts, login_lock_minutes: loginLockMinutes, super_ip_whitelist: superIpWhitelist }) });
+    const callLimitEnabled = document.getElementById('callLimitEnabled').value === '1';
+    const callLimitMax = parseInt(document.getElementById('callLimitMax').value, 10);
+    const callLimitWindow = parseInt(document.getElementById('callLimitWindowMinutes').value, 10);
+    const callLimitCooldown = parseInt(document.getElementById('callLimitCooldownMinutes').value, 10);
+    if (!callLimitMax || callLimitMax < 1 || callLimitMax > 20) { toast('最大呼叫次数 1-20', 'error'); return; }
+    if (!callLimitWindow || callLimitWindow < 1 || callLimitWindow > 60) { toast('时间窗口 1-60分钟', 'error'); return; }
+    if (!callLimitCooldown || callLimitCooldown < 1 || callLimitCooldown > 120) { toast('冷却时间 1-120分钟', 'error'); return; }
+    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength, login_max_attempts: loginMaxAttempts, login_lock_minutes: loginLockMinutes, super_ip_whitelist: superIpWhitelist, call_limit_enabled: callLimitEnabled, call_limit_max: callLimitMax, call_limit_window_minutes: callLimitWindow, call_limit_cooldown_minutes: callLimitCooldown }) });
     toast(t('settingsSaved'), 'success');
   } catch (e) { toast(t('saveFailed') + ': ' + e.message, 'error'); }
 }
@@ -1108,31 +1149,69 @@ async function loadAuditLogs() {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#666;">暂无操作记录</td></tr>';
       return;
     }
+    // 操作类型映射（同时支持下划线和驼峰格式，兼容历史数据）
     const actionNames = {
-      'create_merchant': t('createMerchant'), 'update_merchant': t('editMerchantTitle'), 'delete_merchant': t('deleteMerchant'),
-      'reset_merchant_password': t('resetMerchantPassword'), 'create_store': t('createStore'), 'update_store': t('updateStore'),
-      'delete_store': t('deleteStore'), 'create_menu': t('createMenu'), 'update_menu': t('updateMenu'), 'delete_menu': t('deleteMenu'),
-      'create_category': t('createCategory'), 'update_category': t('updateCategory'), 'delete_category': t('deleteCategory'),
-      'create_admin': t('createAdmin'), 'update_admin': t('updateAdmin'), 'delete_admin': t('deleteAdmin'),
-      'create_waiter': t('createWaiter'), 'update_waiter': t('updateWaiter'), 'delete_waiter': t('deleteWaiter'),
-      'create_table': t('createTable'), 'update_table': t('updateTable'), 'delete_table': t('deleteTable'),
-      'create_currency': t('createCurrency'), 'update_currency': t('updateCurrency'), 'delete_currency': t('deleteCurrency'),
-      'settle_order': t('settleOrder'), 'cancel_order': t('cancelOrder'), 'reset_data': t('resetData'),
-      'change_password': t('changePassword'), 'update_settings': t('updateSettings'), 'reset_all_data': t('resetAllData'),
-      'login': t('login'), 'logout': t('logout'), 'backup': t('dataBackup'), 'import_backup': t('importBackup')
+      'create_merchant': '创建商户', 'createMerchant': '创建商户',
+      'update_merchant': '编辑商户', 'updateMerchant': '编辑商户',
+      'delete_merchant': '删除商户', 'deleteMerchant': '删除商户',
+      'reset_merchant_password': '重置商户密码', 'resetMerchantPassword': '重置商户密码',
+      'create_store': '创建店铺', 'createStore': '创建店铺',
+      'update_store': '编辑店铺', 'updateStore': '编辑店铺',
+      'delete_store': '删除店铺', 'deleteStore': '删除店铺',
+      'create_menu': '创建菜品', 'createMenu': '创建菜品',
+      'update_menu': '编辑菜品', 'updateMenu': '编辑菜品',
+      'delete_menu': '删除菜品', 'deleteMenu': '删除菜品',
+      'create_category': '创建分类', 'createCategory': '创建分类',
+      'update_category': '编辑分类', 'updateCategory': '编辑分类',
+      'delete_category': '删除分类', 'deleteCategory': '删除分类',
+      'create_admin': '创建管理员', 'createAdmin': '创建管理员',
+      'update_admin': '编辑管理员', 'updateAdmin': '编辑管理员',
+      'delete_admin': '删除管理员', 'deleteAdmin': '删除管理员',
+      'create_waiter': '创建服务员', 'createWaiter': '创建服务员',
+      'update_waiter': '编辑服务员', 'updateWaiter': '编辑服务员',
+      'delete_waiter': '删除服务员', 'deleteWaiter': '删除服务员',
+      'create_table': '创建桌号', 'createTable': '创建桌号',
+      'update_table': '编辑桌号', 'updateTable': '编辑桌号',
+      'delete_table': '删除桌号', 'deleteTable': '删除桌号',
+      'create_currency': '创建货币', 'createCurrency': '创建货币',
+      'update_currency': '编辑货币', 'updateCurrency': '编辑货币',
+      'delete_currency': '删除货币', 'deleteCurrency': '删除货币',
+      'settle_order': '结算订单', 'settleOrder': '结算订单',
+      'cancel_order': '取消订单', 'cancelOrder': '取消订单',
+      'reset_data': '重置数据', 'resetData': '重置数据',
+      'change_password': '修改密码', 'changePassword': '修改密码',
+      'update_settings': '更新设置', 'updateSettings': '更新设置',
+      'reset_all_data': '重置所有数据', 'resetAllData': '重置所有数据',
+      'login': '登录', 'logout': '登出',
+      'backup': '数据备份', 'import_backup': '导入备份', 'importBackup': '导入备份'
+    };
+    // 目标类型中文映射
+    const targetTypeNames = {
+      'merchant': '商户', 'merchant_admin': '管理员', 'store': '店铺',
+      'menu': '菜品', 'category': '分类', 'waiter': '服务员',
+      'table': '桌号', 'currency': '货币', 'order': '订单',
+      'settings': '设置', 'system': '系统', 'super_admin': '超级管理员'
     };
     tbody.innerHTML = logs.map(log => {
       const action = actionNames[log.action] || log.action;
-      const target = log.target_type ? `${log.target_type}${log.target_id ? ' #' + log.target_id : ''}` : '-';
+      const targetTypeName = targetTypeNames[log.target_type] || log.target_type;
+      const target = log.target_type ? `${targetTypeName}${log.target_id ? ' #' + log.target_id : ''}` : '-';
+      // 详情列：如果是JSON则解析为友好文本
       let details = log.details || '-';
-      if (details.length > 60) details = details.substring(0, 60) + '...';
+      try {
+        if (typeof details === 'string' && (details.startsWith('{') || details.startsWith('['))) {
+          const obj = JSON.parse(details);
+          details = Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join(', ');
+        }
+      } catch (e) { /* 不是JSON，保持原文 */ }
+      const displayDetails = details.length > 60 ? details.substring(0, 60) + '...' : details;
       return `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
         <td style="padding:10px;color:#666;">${log.id}</td>
         <td style="padding:10px;color:#aaa;">${formatDateTime(log.created_at)}</td>
         <td style="padding:10px;color:#fff;">${log.actor_username || '-'}</td>
         <td style="padding:10px;"><span style="background:rgba(232,93,58,.15);color:#e85d3a;padding:3px 8px;border-radius:4px;font-size:12px;">${action}</span></td>
         <td style="padding:10px;color:#aaa;">${target}</td>
-        <td style="padding:10px;color:#888;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${log.details || ''}">${details}</td>
+        <td style="padding:10px;color:#888;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${log.details || ''}">${displayDetails}</td>
         <td style="padding:10px;color:#888;">${log.ip || '-'}</td>
       </tr>`;
     }).join('');
