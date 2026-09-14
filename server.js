@@ -743,10 +743,12 @@ async function initDatabase() {
   await runAsync(`
     CREATE TABLE IF NOT EXISTS stores (
       id INT PRIMARY KEY AUTO_INCREMENT,
+      merchant_id INT NOT NULL DEFAULT 1,
       name VARCHAR(255) NOT NULL,
       code VARCHAR(50) UNIQUE,
       address TEXT,
-      active TINYINT NOT NULL DEFAULT 1
+      active TINYINT NOT NULL DEFAULT 1,
+      INDEX idx_merchant (merchant_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 

@@ -1001,6 +1001,7 @@
   const wt=k=>(WAITER_TEXT[waiterLang]&&WAITER_TEXT[waiterLang][k])||WAITER_TEXT.zh[k]||(LANGUAGES[waiterLang]&&LANGUAGES[waiterLang][k])||(LANGUAGES.zh&&LANGUAGES.zh[k])||k;
   // 简单 HTML 转义，避免顾客备注中的特殊字符破坏页面结构
   function escNote(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function applyWaiterLanguage(){$('#waiterTitle').textContent=wt('title');$('#logoutBtn').title=wt('logout');$('#waiterLang').value=waiterLang;$('#currentTableBadge').textContent=wt('currentTable')+': ';$('#submitBtn').textContent=wt('submitOrder');$('#confirmCancelBtn').textContent=wt('cancel')||'取消';$('#confirmOkBtn').textContent=wt('confirm')||'确定';const historyBtn=$('#orderHistoryBtn');if(historyBtn)historyBtn.title=wt('orderHistory');const callBtn=$('#callNotificationBtnText');if(callBtn)callBtn.textContent=wt('callWaiter');renderTables();}
   let confirmCallback=null;
   function showConfirm(message,callback,title){$('#confirmTitle').textContent=title||wt('confirmTitle')||'确认操作';$('#confirmMessage').textContent=message;confirmCallback=callback;$('#confirmModal').classList.add('open');}
@@ -1360,7 +1361,7 @@
   }
 
   function renderTables(){
-    $('#tableGrid').innerHTML=state.tables.map(t=>`<div class="table-card" onclick="openModal('${t.name}')"><div class="name">🍽️ ${t.name} <span class="status ${status(t)===wt('available')?'available':'occupied'}">${status(t)}</span></div><div class="bill">${bill(t)}</div></div>`).join('')||`<div style="color:#c8c8d0">${wt('noTables')}</div>`;
+    $('#tableGrid').innerHTML=state.tables.map(t=>`<div class="table-card" onclick="openModal('${esc(t.name)}')"><div class="name">🍽️ ${esc(t.name)} <span class="status ${status(t)===wt('available')?'available':'occupied'}">${status(t)}</span></div><div class="bill">${bill(t)}</div></div>`).join('')||`<div style="color:#c8c8d0">${wt('noTables')}</div>`;
     $('#submitBtn').style.display=state.waiter&&state.waiter.can_order?'block':'none';
   }
 
@@ -1399,7 +1400,7 @@
       if(prices.secondary) priceDisplay += ` (${prices.secondary})`;
       const statusLabel = `<span class="item-status new">${wt('newItem')}</span>`;
       return `<div class="selected-item">
-        <span class="sel-name">${x.m.name} ${statusLabel}</span>
+        <span class="sel-name">${esc(x.m.name)} ${statusLabel}</span>
         <span class="sel-price">${priceDisplay}</span>
         <div class="qty"><button onclick="changeQty(${x.m.id},-1)">−</button><span>${x.q}</span><button onclick="changeQty(${x.m.id},1)">+</button></div>
         <button class="remove-btn" onclick="removeItem(${x.m.id})">${wt('remove')}</button>

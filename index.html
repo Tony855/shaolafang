@@ -2494,6 +2494,7 @@
         }
 
         // 简单 HTML 转义，避免顾客备注中的特殊字符破坏页面结构
+        function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         function escNote(s) {
             return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
@@ -2984,7 +2985,7 @@
                 rows += `
                     <div class="order-item">
                         <span class="item-name">
-                            <span class="item-emoji">${item.emoji || '🍽️'}</span>
+                            <span class="item-emoji">${esc(item.emoji) || '🍽️'}</span>
                             <span class="item-label">${name}</span>
                             <span class="item-qty-mark">× ${item.quantity}</span>
                         </span>
@@ -3115,10 +3116,10 @@
             }
             menuGrid.innerHTML = filtered.map(item => {
                 const qty = state.cart[item.id] || 0;
-                const imgHtml = item.image ? `<img src="/uploads/${item.image}" alt="${item.name}">` : (item.emoji || '🍽️');
+                const imgHtml = item.image ? `<img src="/uploads/${esc(item.image)}" alt="${esc(item.name)}">` : (esc(item.emoji) || '🍽️');
                 const trans = getMenuTranslation(item);
-                const name = trans ? trans.name : item.name;
-                const desc = trans ? trans.desc : item.desc;
+                const name = esc(trans ? trans.name : item.name);
+                const desc = esc(trans ? trans.desc : item.desc);
                 const prices = getMenuPrices(item);
                 let priceDisplay = `<span class="price">${prices.primary}</span>`;
                 if (prices.secondary) {
@@ -3131,7 +3132,7 @@
                             <div class="name">${name}</div>
                             <div class="desc">${desc || ''}</div>
                             <div class="bottom">
-                                <div>${priceDisplay}/${item.unit||t('portion')}</div>
+                                <div>${priceDisplay}/${esc(item.unit)||t('portion')}</div>
                                 <div class="item-actions">
                                     ${qty > 0 ? `<button class="dec-btn" data-id="${item.id}"><i class="fas fa-minus"></i></button><span class="qty-badge">${qty}</span>` : ''}
                                     <button class="add-btn" data-id="${item.id}"><i class="fas fa-plus"></i></button>
@@ -3258,10 +3259,10 @@
                 const totalDisplay = secondaryTotal ? `${primaryTotal} (${secondaryTotal})` : primaryTotal;
                 return `
                     <div class="cart-item">
-                        <span class="item-emoji">${item.emoji || '🍽️'}</span>
+                        <span class="item-emoji">${esc(item.emoji) || '🍽️'}</span>
                         <div class="item-info">
                             <div class="item-name">${name}</div>
-                            <div class="item-price">${priceDisplay}/${item.unit||t('portion')}</div>
+                            <div class="item-price">${priceDisplay}/${esc(item.unit)||t('portion')}</div>
                             <div style="font-size:12px;color:var(--gray-500);">小计: ${totalDisplay}</div>
                         </div>
                         <div class="item-qty">
