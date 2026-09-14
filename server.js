@@ -1575,7 +1575,22 @@ app.post('/api/admin/login', async (req, res) => {
     const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
     const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
     await runAsync('INSERT INTO admin_sessions (admin_id, token, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [admin.id, token, expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
-    res.json({ success: true, token, merchantId: admin.merchant_id, merchantName: merchant.name, admin: { id: admin.id, username: admin.username, display_name: admin.display_name } });
+    // 查询该商户的第一个管理员ID（主管理员，拥有全部权限）
+    const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+    const isPrimary = primaryAdmin && primaryAdmin.id === admin.id;
+    res.json({ success: true, token, merchantId: admin.merchant_id, merchantName: merchant.name, adminId: admin.id, username: admin.username, displayName: admin.display_name, isPrimary,
+      permissions: {
+        can_manage_menu: isPrimary || admin.can_manage_menu ? 1 : 0,
+        can_manage_table: isPrimary || admin.can_manage_table ? 1 : 0,
+        can_manage_order: isPrimary || admin.can_manage_order ? 1 : 0,
+        can_manage_store: isPrimary || admin.can_manage_store ? 1 : 0,
+        can_manage_waiter: isPrimary || admin.can_manage_waiter ? 1 : 0,
+        can_manage_currency: isPrimary || admin.can_manage_currency ? 1 : 0,
+        can_manage_printer: isPrimary || admin.can_manage_printer ? 1 : 0,
+        can_manage_admin: isPrimary || admin.can_manage_admin ? 1 : 0,
+        can_view_logs: isPrimary || admin.can_view_logs ? 1 : 0
+      }
+    });
   } catch (e) {
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, message) VALUES (?, 0, ?, ?)', [new Date().toISOString(), getClientIp(req), e.message]).catch(() => {});
     res.status(500).json({ error: e.message });
@@ -3196,7 +3211,7 @@ app.post('/api/admin/admins', requireAdminKey, async (req, res) => {
 app.put('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const { display_name, active, password } = req.body || {};
+    const { display_name, active, password, permissions } = req.body || {};
     const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     if (!admin) return res.status(404).json({ error: '管理员不存在' });
     if (id === req.adminId && active === 0) return res.status(400).json({ error: '不能禁用当前登录账号' });
@@ -3207,6 +3222,16 @@ app.put('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
     if (password) {
       if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
       fields.push('password_hash=?'); values.push(hashPassword(password));
+    }
+    // 处理权限字段
+    if (permissions && typeof permissions === 'object') {
+      const permFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs'];
+      for (const field of permFields) {
+        if (permissions[field] !== undefined) {
+          fields.push(field + '=?');
+          values.push(permissions[field] ? 1 : 0);
+        }
+      }
     }
     if (fields.length) {
       values.push(id);

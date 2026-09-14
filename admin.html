@@ -3718,7 +3718,10 @@
             }).catch(() => {});
             resetAdminIdleTimer();
             // 根据权限隐藏管理员管理
-            if (!adminIsPrimary && !adminPermissions.can_manage_admin) {
+            // 只有明确无权限（isPrimary=false 且 can_manage_admin=0）时才隐藏
+            // 旧登录状态（sessionStorage中无权限信息）默认显示，避免误隐藏
+            const hasPermInfo = sessionStorage.getItem('adminIsPrimary') !== null;
+            if (hasPermInfo && !adminIsPrimary && !adminPermissions.can_manage_admin) {
                 const adminManageCard = document.getElementById('adminManageCard');
                 if (adminManageCard) adminManageCard.style.display = 'none';
                 const adminsModule = document.getElementById('module-admins');
