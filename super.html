@@ -853,7 +853,7 @@ async function loadMerchants() {
         <td data-label="联系人" style="color:#ccc;">${esc(m.contact_name) || '-'}</td>
         <td data-label="联系电话" style="color:#999;font-family:monospace;font-size:13px;">${esc(m.contact_phone) || '-'}</td>
         <td data-label="门店数"><span style="color:#aaa;">${m.store_count}</span><span style="color:#666;"> / </span><span style="color:#ffd93d;font-weight:600;">${m.max_stores}</span></td>
-        <td data-label="状态"><span class="status-badge ${m.status == 1 ? 'status-active' : 'status-disabled'}">${m.status == 1 ? t('enabled') : t('disabled')}</span></td>
+        <td data-label="状态"><span class="status-badge ${m.status === 1 ? 'status-active' : 'status-disabled'}">${m.status === 1 ? t('enabled') : t('disabled')}</span></td>
         <td>
           <button class="action-btn primary" onclick="editMerchant(${m.id})">编辑</button>
           <button class="action-btn warning" onclick="resetPassword(${m.id})">重置密码</button>

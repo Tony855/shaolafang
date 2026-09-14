@@ -902,32 +902,14 @@ async function initDatabase() {
     }
   }
 
-  // 初始化基础数据
-  // 创建默认商户
-  const merchantCount = await getAsync('SELECT COUNT(*) AS count FROM merchants');
-  if (merchantCount.count === 0) {
-    await runAsync("INSERT INTO merchants (id, name, code, contact_name, contact_phone, max_stores, status) VALUES (1, 'FoodFlow', 'foodflow', '管理员', '', 10, 1)");
-    console.log('  + 已创建默认商户：FoodFlow (merchant_id=1)');
-  }
-
+  // 初始化基础数据：只创建超级管理员和全局设置，不创建商户/店铺/桌号/菜品
   // 创建唯一超级管理员
   const superAdminCount = await getAsync('SELECT COUNT(*) AS count FROM super_admins');
   if (superAdminCount.count === 0) {
     const superHash = hashPassword('super123');
     await runAsync("INSERT INTO super_admins (username, password_hash, display_name) VALUES (?, ?, ?)", ['superadmin', superHash, '超级管理员']);
-
+    console.log('  + 已创建超级管理员：superadmin / super123');
   }
-
-  // 创建默认商户管理员（用户名+密码）
-  const merchantAdminCount = await getAsync('SELECT COUNT(*) AS count FROM merchant_admins WHERE merchant_id=1');
-  if (merchantAdminCount.count === 0) {
-    const adminHash = hashPassword('admin123');
-    await runAsync("INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)", [1, 'admin', adminHash, '商户管理员']);
-
-  }
-
-  // 迁移现有数据的 merchant_id（确保所有现有数据关联到默认商户）
-  await runAsync('UPDATE stores SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
 
   // 迁移：stores表添加qr_languages字段（二维码显示语言，逗号分隔，如zh,en,km）
   try {
@@ -937,35 +919,8 @@ async function initDatabase() {
       console.log('  + 迁移 stores: 添加 qr_languages 字段');
     }
   } catch (e) { console.log('  stores qr_languages 迁移跳过:', e.message); }
-  await runAsync('UPDATE menus SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
-  await runAsync('UPDATE tables SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
-  await runAsync('UPDATE orders SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
-  await runAsync('UPDATE waiters SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
-  await runAsync('UPDATE printers SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
-  await runAsync('UPDATE waiter_calls SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
-  await runAsync('UPDATE reservations SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
-  await runAsync('UPDATE scan_sessions SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
 
-  const storeCount = await getAsync('SELECT COUNT(*) AS count FROM stores');
-  if (storeCount.count === 0) {
-    await runAsync("INSERT INTO stores (id, name, code, address, active, merchant_id) VALUES (1, '总店', 'main', '', 1, 1)");
-  }
-
-  const tableCount = await getAsync('SELECT COUNT(*) as count FROM tables');
-  if (tableCount.count === 0) {
-    const defaultTables = ['A01','A02','A03','B01','B02'];
-    for (const t of defaultTables) {
-      await runAsync('INSERT INTO tables (name, status, store_id) VALUES (?, ?, 1)', [t, 'available']);
-    }
-  }
-
-  const pwdSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
-  if (!pwdSetting) {
-    const hash = hashPassword('admin123');
-    await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?)", ['admin_password', hash]);
-  }
-  const keySetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
-  if (!keySetting) await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_access_key', 'admin-key-2026')");
+  // 全局设置（不依赖商户）
   const backupInterval = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
   if (!backupInterval) await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_interval_hours', '24')");
   const dualCurrency = await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
@@ -975,49 +930,21 @@ async function initDatabase() {
   else if (secondaryCurrency.value === 'CNY') await runAsync("UPDATE settings SET value='USD' WHERE `key`='secondary_currency_code'");
   const newOrderSound = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
   if (!newOrderSound) await runAsync("INSERT INTO settings (`key`, value) VALUES ('new_order_sound_enabled', '1')");
-  const currencyCount = await getAsync('SELECT COUNT(*) AS count FROM currencies');
-  if (currencyCount.count === 0) {
-    for (const currency of [
-      ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
-      ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
-    ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (1, ?, ?, ?, ?, ?)', currency);
-  }
-
-  // 为所有商户初始化默认货币（如果该商户还没有货币）
-  const allMerchants = await allAsync('SELECT id FROM merchants');
-  for (const m of allMerchants) {
-    const cnt = await getAsync('SELECT COUNT(*) AS count FROM currencies WHERE merchant_id=?', [m.id]);
-    if (cnt.count === 0) {
-      await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) SELECT ?, code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=1', [m.id]);
-    }
-  }
 
   // 确保双货币设置为默认值（启用双币，第二货币为KHR）
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '1') ON DUPLICATE KEY UPDATE value='1'");
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('secondary_currency_code', 'KHR') ON DUPLICATE KEY UPDATE value='KHR'");
 
-  await migrateLegacyJsonOnce();
-  await initializeMenuCatalog();
-  const menuCategoryCount = await getAsync('SELECT COUNT(*) AS count FROM menu_categories');
-  if (menuCategoryCount.count === 0) {
-    for (let i = 0; i < DEFAULT_MENU_CATEGORIES.length; i++) {
-      await runAsync('INSERT INTO menu_categories (store_id, name, sort) VALUES (1, ?, ?)', [DEFAULT_MENU_CATEGORIES[i], i]);
-    }
-  }
   await rebaseCurrencyToUSDOnce();
   await ensureOrderTables();
   const tablesWithoutTokens = await allAsync("SELECT id FROM tables WHERE qr_token IS NULL OR qr_token = ''");
   for (const table of tablesWithoutTokens) await runAsync('UPDATE tables SET qr_token=? WHERE id=?', [createTableToken(), table.id]);
-  const allTables = await allAsync('SELECT name FROM tables');
+  const allTables = await allAsync('SELECT name, store_id FROM tables');
   for (const t of allTables) await syncTableStatus(t.name, t.store_id);
 
 }
 
 // ---------- ESC/POS 小票打印工具 ----------
-const ESC = Buffer.from([0x1b]);
-const GS = Buffer.from([0x1d]);
-const FS = Buffer.from([0x1c]);
-
 // 兼容多品牌的 ESC/POS 命令生成器
 class EscPosBuilder {
   constructor(paperWidth) {
@@ -1840,16 +1767,11 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     }
     const adminHash = hashPassword(adminPassword);
     await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
-    // 为新商户创建默认店铺（名称FoodFlow，菜品类型和菜品列表为空）
-    const storeResult = await runAsync('INSERT INTO stores (name, code, address, active, merchant_id) VALUES (?, ?, ?, 1, ?)', ['FoodFlow', 'store_' + newMerchantId, '', newMerchantId]);
-    const newStoreId = storeResult.lastID;
-    // 为新商户初始化默认货币（从商户1复制）
-    await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) SELECT ?, code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=1', [newMerchantId]);
-    // 为新店铺初始化默认菜品分类
-    const defaultCategories = ['热门推荐', '主食', '小吃', '饮品', '甜点'];
-    for (let i = 0; i < defaultCategories.length; i++) {
-      await runAsync('INSERT IGNORE INTO menu_categories (store_id, name, sort) VALUES (?, ?, ?)', [newStoreId, defaultCategories[i], i]);
-    }
+    // 为新商户初始化默认货币（直接插入默认货币列表，店铺由商户自行创建）
+    for (const currency of [
+      ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
+      ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
+    ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
     res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1880,7 +1802,7 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 
 app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
-    if (req.params.id == 1) return res.status(400).json({ error: '不能删除默认商户' });
+    if (req.params.id === '1') return res.status(400).json({ error: '不能删除默认商户' });
     const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [req.params.id]);
     const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.params.id])).map(s => s.id);
     await runAsync('DELETE FROM merchants WHERE id=?', [req.params.id]);

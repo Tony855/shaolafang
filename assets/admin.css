@@ -545,13 +545,15 @@
             background: linear-gradient(135deg, #e85d3a, #e84a2a);
             color: #fff;
             border: 0;
-            border-radius: 10px;
-            padding: 10px 22px;
+            border-radius: 12px;
+            padding: 12px 28px;
             font-size: 14px;
             font-weight: 700;
             cursor: pointer;
-            height: 40px;
+            height: auto;
+            min-height: 44px;
             transition: all .2s;
+            white-space: nowrap;
         }
         .display-settings-btn:hover {
             transform: translateY(-1px);
@@ -744,9 +746,29 @@
         }
         .settings-row {
             display: flex;
-            gap: 12px;
+            gap: 16px;
             align-items: center;
             flex-wrap: wrap;
+        }
+        .settings-row .store-switch-label {
+            flex: 0 1 auto;
+        }
+        .settings-row .display-settings-btn {
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+        @media (max-width: 600px) {
+            .settings-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .settings-row .store-switch-label {
+                min-width: auto;
+            }
+            .settings-row .display-settings-btn {
+                width: 100%;
+            }
         }
         .btn-secondary {
             background: rgba(255,255,255,.08);
@@ -1361,17 +1383,19 @@
         
         .store-switch-label {
             display: flex !important;
-            justify-content: space-between !important;
+            justify-content: flex-start !important;
             align-items: center !important;
-            padding: 12px 16px;
+            padding: 14px 18px;
             background: rgba(255,255,255,.04);
-            border-radius: 10px;
+            border-radius: 12px;
             border: 1px solid rgba(255,255,255,.08);
+            gap: 16px;
         }
         .store-switch-label > span {
             color: #c8c8d0 !important;
             font-size: 14px !important;
             font-weight: 500;
+            line-height: 1.5;
         }
         .store-switch {
             display: flex;
@@ -1907,25 +1931,6 @@
             transform: none;
         }
 
-        .backup-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 4px;
-        }
-        .backup-actions button {
-            padding: 8px 14px;
-            border: 0;
-            border-radius: 10px;
-            background: #484867;
-            color: #fff;
-            cursor: pointer;
-        }
-        .backup-actions input[type=file] {
-            color: #fff;
-            font-size: 12px;
-        }
         .empty-hint {
             color: #888;
             padding: 14px;
@@ -2316,14 +2321,6 @@
                 width: 100%;
             }
 
-            .backup-actions {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .backup-actions button,
-            .backup-actions input[type=file] {
-                width: 100%;
-            }
 
             .order-toolbar {
                 flex-direction: column;
