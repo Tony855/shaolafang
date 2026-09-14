@@ -2441,8 +2441,8 @@
         </div>
     </div>
 
-    <script src="languages.min.js"></script>
-    <script src="assets/common.js"></script>
+    <script src="languages.min.js?v=20260914b"></script>
+    <script src="assets/common.js?v=20260914b"></script>
     <script>
         // 初始化统一 i18n - 自动检测顾客手机终端语言
         (function() {
@@ -2478,6 +2478,10 @@
 
         // 动态加载指定语言的翻译（使用SLF.i18n统一加载：内存→localStorage→API→中文兜底）
         async function loadLanguageData(lang) {
+            // 清除该语言的本地缓存，强制从API加载最新翻译（避免新键缺失）
+            try { localStorage.removeItem('i18n_' + lang); } catch (e) {}
+            // 同时清除内存缓存
+            if (SLF.i18n.dicts) { delete SLF.i18n.dicts[lang]; }
             await SLF.i18n.loadLanguage(lang);
             SLF.i18n.lang = lang;
             currentLang = lang;
@@ -3387,6 +3391,15 @@
             }
             // 切换语言后总是重置当前分类为新语言的"全部"，避免旧语言分类名过滤不匹配
             state.currentCategory = t('all');
+            // 同步更新呼叫服务员确认弹窗的文本（即使弹窗已打开也能实时切换）
+            const callConfirmTitleEl = document.getElementById('callConfirmTitle');
+            if (callConfirmTitleEl) callConfirmTitleEl.textContent = t('callWaiter');
+            const callConfirmMessageEl = document.getElementById('callConfirmMessage');
+            if (callConfirmMessageEl) callConfirmMessageEl.textContent = t('confirmCallWaiter');
+            const callConfirmCancelEl = document.getElementById('callConfirmCancel');
+            if (callConfirmCancelEl) callConfirmCancelEl.textContent = t('cancel');
+            const callConfirmOkEl = document.getElementById('callConfirmOk');
+            if (callConfirmOkEl) callConfirmOkEl.textContent = t('confirmCall');
             renderCategories();
             renderMenu();
             updateUI();
@@ -3396,6 +3409,16 @@
         //  初始化
         // ============================================================
         async function init() {
+            // 清除旧格式的i18n缓存（无_cacheTime字段），确保新翻译键生效
+            try {
+                ['zh','en','vi','th','km'].forEach(l => {
+                    const cached = localStorage.getItem('i18n_' + l);
+                    if (cached) {
+                        const data = JSON.parse(cached);
+                        if (!data._cacheTime) localStorage.removeItem('i18n_' + l);
+                    }
+                });
+            } catch (e) {}
             const savedLang = localStorage.getItem('preferredLang');
             if (savedLang && ['zh','en','vi','th','km'].includes(savedLang)) {
                 langSelect.value = savedLang;
@@ -3524,7 +3547,7 @@
             }
             if (callCooldownSeconds > 0) {
                 const mins = Math.ceil(callCooldownSeconds / 60);
-                showToast('⏳ ' + t('callCooldown').replace('{minutes}', mins), 3000);
+                showToast('⏳ ' + t('callCooldown', { minutes: mins }), 3000);
                 return;
             }
             try {
@@ -3540,7 +3563,7 @@
                 if (res.status === 429) {
                     const mins = data.cooldownMinutes || 10;
                     startCallCooldown(mins);
-                    showToast('⏳ ' + t('callCooldown').replace('{minutes}', mins), 3000);
+                    showToast('⏳ ' + t('callCooldown', { minutes: mins }), 3000);
                     return;
                 }
                 if (!res.ok) throw new Error(data.error || 'Failed');

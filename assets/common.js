@@ -166,14 +166,19 @@
         return true;
       }
 
-      /* 检查 localStorage 缓存 */
+      /* 检查 localStorage 缓存（24小时过期） */
       try {
         const cached = localStorage.getItem('i18n_' + lang);
         if (cached) {
-          const data = JSON.parse(cached);
-          this.dicts[lang] = { ...data, _loaded: true };
-          this.lang = lang;
-          return true;
+          const parsed = JSON.parse(cached);
+          const cacheTime = parsed._cacheTime || 0;
+          const isExpired = Date.now() - cacheTime > 24 * 60 * 60 * 1000;
+          if (!isExpired) {
+            const { _cacheTime, ...data } = parsed;
+            this.dicts[lang] = { ...data, _loaded: true };
+            this.lang = lang;
+            return true;
+          }
         }
       } catch (e) {}
 
@@ -184,9 +189,9 @@
           const data = await res.json();
           this.dicts[lang] = { ...data, _loaded: true };
           this.lang = lang;
-          /* 缓存到 localStorage（24小时） */
+          /* 缓存到 localStorage（24小时，带时间戳） */
           try {
-            localStorage.setItem('i18n_' + lang, JSON.stringify(data));
+            localStorage.setItem('i18n_' + lang, JSON.stringify({ ...data, _cacheTime: Date.now() }));
           } catch (e) {}
           return true;
         }
