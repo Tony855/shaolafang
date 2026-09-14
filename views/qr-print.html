@@ -189,6 +189,17 @@
     margin-bottom: clamp(10px, 1.8vw, 24px);
     letter-spacing: clamp(0.5px, 0.1vw, 1px);
     flex-shrink: 0;
+    line-height: 1.5;
+  }
+  .scan-line {
+    font-size: clamp(14px, 2vw, 22px);
+    font-weight: 700;
+    color: #2c3e50;
+    line-height: 1.6;
+    letter-spacing: clamp(0.5px, 0.1vw, 1px);
+  }
+  .scan-line:not(:last-child) {
+    margin-bottom: clamp(2px, 0.4vw, 6px);
   }
   .url-box {
     background: #f8f9fa;
@@ -270,6 +281,7 @@
     .qr-frame img { width: 130px; height: 130px; }
     .qr-container { margin-bottom: 10px; }
     .scan-text { font-size: 14px; margin-top: 6px; margin-bottom: 8px; }
+    .scan-line { font-size: 13px; line-height: 1.5; }
     .url-box { display: none; }
     .btn { padding: 8px 10px; font-size: 11px; }
   }
@@ -308,6 +320,7 @@
     .qr-frame img { width: 180px !important; height: 180px !important; }
     .qr-container { margin-bottom: 14px !important; }
     .scan-text { font-size: 16px !important; margin-top: 8px !important; margin-bottom: 12px !important; }
+    .scan-line { font-size: 15px !important; line-height: 1.6 !important; }
     .url-box { display: none !important; }
     .actions, .card-footer { display: none !important; }
   }
@@ -329,7 +342,7 @@
           <img src="{{qrDataUrl}}" alt="{{orderingQrCode}}">
         </div>
       </div>
-      <div class="scan-text">{{scanToOrder}}</div>
+      <div class="scan-text">{{scanToOrderLines}}</div>
       <div class="url-box">{{url}}</div>
       <div class="actions">
         <button class="btn btn-download" onclick="downloadQR()">
@@ -382,8 +395,12 @@
     qrImg.onload = function() {
       ctx.drawImage(qrImg, W/2-270, 420, 540, 540);
       ctx.fillStyle = '#2c3e50';
-      ctx.font = 'bold 60px sans-serif';
-      ctx.fillText(QR_DATA.scanToOrder, W/2, 1080);
+      ctx.font = 'bold 56px sans-serif';
+      const lines = Array.isArray(QR_DATA.scanToOrder) ? QR_DATA.scanToOrder : [QR_DATA.scanToOrder];
+      const startY = 1080 - (lines.length - 1) * 35;
+      lines.forEach((line, i) => {
+        ctx.fillText(line, W/2, startY + i * 72);
+      });
       const link = document.createElement('a');
       link.download = QR_DATA.storeName + '-' + QR_DATA.table + '-' + QR_DATA.qrCode + '.png';
       link.href = canvas.toDataURL('image/png');

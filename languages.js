@@ -237,6 +237,7 @@ const LANGUAGES = {
     // ---- 货币管理 ----
     currencyCodeLabel: '货币代码',
     currencySymbolLabel: '货币符号',
+    currencyRateLabel: '汇率',
     currencyName: '货币名称',
     exchangeRate: '汇率',
     isDefault: '设为默认',
@@ -845,6 +846,7 @@ const LANGUAGES = {
 
     currencyCodeLabel: 'Code',
     currencySymbolLabel: 'Symbol',
+    currencyRateLabel: 'Rate',
     currencyName: 'Name',
     exchangeRate: 'Rate',
     isDefault: 'Default',
@@ -1449,6 +1451,7 @@ const LANGUAGES = {
 
     currencyCodeLabel: 'Mã',
     currencySymbolLabel: 'Ký hiệu',
+    currencyRateLabel: 'Tỷ giá',
     currencyName: 'Tên',
     exchangeRate: 'Tỷ giá',
     isDefault: 'Mặc định',
@@ -2053,6 +2056,7 @@ const LANGUAGES = {
 
     currencyCodeLabel: 'รหัส',
     currencySymbolLabel: 'สัญลักษณ์',
+    currencyRateLabel: 'อัตราแลกเปลี่ยน',
     currencyName: 'ชื่อ',
     exchangeRate: 'อัตราแลกเปลี่ยน',
     isDefault: 'ค่าเริ่มต้น',
@@ -2657,6 +2661,7 @@ const LANGUAGES = {
 
     currencyCodeLabel: 'កូដ',
     currencySymbolLabel: 'និមិត្តសញ្ញា',
+    currencyRateLabel: 'អត្រាប្តូរប្រាក់',
     currencyName: 'ឈ្មោះ',
     exchangeRate: 'អត្រាប្តូរប្រាក់',
     isDefault: 'លំនាំដើម',

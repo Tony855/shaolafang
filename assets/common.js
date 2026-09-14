@@ -136,6 +136,7 @@
       this.lang = CONFIG.DEFAULT_LANG;
       this.dicts = {};
       this.fallbackLang = 'zh';
+      this.cacheVersion = '20260914c'; // i18n缓存版本号，更新翻译时递增以强制刷新缓存
     }
 
     /* 初始化：设置当前语言，合并自定义字典和全局 LANGUAGES */
@@ -166,15 +167,17 @@
         return true;
       }
 
-      /* 检查 localStorage 缓存（24小时过期） */
+      /* 检查 localStorage 缓存（24小时过期 + 版本号验证） */
       try {
         const cached = localStorage.getItem('i18n_' + lang);
         if (cached) {
           const parsed = JSON.parse(cached);
           const cacheTime = parsed._cacheTime || 0;
+          const cacheVersion = parsed._cacheVersion || '';
           const isExpired = Date.now() - cacheTime > 24 * 60 * 60 * 1000;
-          if (!isExpired) {
-            const { _cacheTime, ...data } = parsed;
+          const isVersionMatch = cacheVersion === this.cacheVersion;
+          if (!isExpired && isVersionMatch) {
+            const { _cacheTime, _cacheVersion, ...data } = parsed;
             this.dicts[lang] = { ...data, _loaded: true };
             this.lang = lang;
             return true;
@@ -189,9 +192,9 @@
           const data = await res.json();
           this.dicts[lang] = { ...data, _loaded: true };
           this.lang = lang;
-          /* 缓存到 localStorage（24小时，带时间戳） */
+          /* 缓存到 localStorage（24小时，带时间戳和版本号） */
           try {
-            localStorage.setItem('i18n_' + lang, JSON.stringify({ ...data, _cacheTime: Date.now() }));
+            localStorage.setItem('i18n_' + lang, JSON.stringify({ ...data, _cacheTime: Date.now(), _cacheVersion: this.cacheVersion }));
           } catch (e) {}
           return true;
         }

@@ -164,8 +164,14 @@ app.get('/qr-print', async (req, res) => {
 
     const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ?', [tableId]);
     if (!table) return res.status(404).send('Table not found');
-    const store = await getAsync('SELECT name FROM stores WHERE id = ?', [table.store_id || 1]);
+    const store = await getAsync('SELECT name, qr_languages FROM stores WHERE id = ?', [table.store_id || 1]);
     const storeName = store?.name || 'FoodFlow';
+    // 解析商户配置的二维码显示语言，未配置则默认只显示中文
+    let displayLangs = ['zh'];
+    if (store?.qr_languages) {
+      const configured = store.qr_languages.split(',').map(s => s.trim()).filter(s => ['zh','en','vi','th','km'].includes(s));
+      if (configured.length > 0) displayLangs = configured;
+    }
     const url = `${req.protocol}://${req.get('host')}/?token=${encodeURIComponent(table.qr_token)}`;
     const qrDataUrl = await QRCode.toDataURL(url);
 
@@ -190,7 +196,8 @@ app.get('/qr-print', async (req, res) => {
       .replace(/{{qrCode}}/g, t.qrCode)
       .replace(/{{tableLabel}}/g, t.table)
       .replace(/{{orderingQrCode}}/g, t.orderingQrCode)
-      .replace(/{{scanToOrder}}/g, t.scanToOrder)
+      .replace(/{{scanToOrder}}/g, displayLangs.map(l => (i18nMap[l] || i18nMap.zh).scanToOrder).join('\n'))
+      .replace(/{{scanToOrderLines}}/g, displayLangs.map(l => '<div class="scan-line">' + (i18nMap[l] || i18nMap.zh).scanToOrder + '</div>').join(''))
       .replace(/{{download}}/g, t.download)
       .replace(/{{print}}/g, t.print)
       .replace(/{{url}}/g, url)
@@ -198,7 +205,7 @@ app.get('/qr-print', async (req, res) => {
       .replace(/{{storeNameJson}}/g, JSON.stringify(storeName))
       .replace(/{{tableJson}}/g, JSON.stringify(table.name))
       .replace(/{{tableLabelJson}}/g, JSON.stringify(t.table))
-      .replace(/{{scanToOrderJson}}/g, JSON.stringify(t.scanToOrder))
+      .replace(/{{scanToOrderJson}}/g, JSON.stringify(displayLangs.map(l => (i18nMap[l] || i18nMap.zh).scanToOrder)))
       .replace(/{{qrCodeJson}}/g, JSON.stringify(t.qrCode))
       .replace(/{{qrDataUrlJson}}/g, JSON.stringify(qrDataUrl));
 
@@ -892,6 +899,15 @@ async function initDatabase() {
 
   // 迁移现有数据的 merchant_id（确保所有现有数据关联到默认商户）
   await runAsync('UPDATE stores SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
+
+  // 迁移：stores表添加qr_languages字段（二维码显示语言，逗号分隔，如zh,en,km）
+  try {
+    const cols = await pool.query('SHOW COLUMNS FROM stores LIKE ?', ['qr_languages']);
+    if (!cols[0] || cols[0].length === 0) {
+      await runAsync('ALTER TABLE stores ADD COLUMN qr_languages VARCHAR(50) DEFAULT NULL');
+      console.log('  + 迁移 stores: 添加 qr_languages 字段');
+    }
+  } catch (e) { console.log('  stores qr_languages 迁移跳过:', e.message); }
   await runAsync('UPDATE menus SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
   await runAsync('UPDATE tables SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
   await runAsync('UPDATE orders SET merchant_id=1 WHERE merchant_id IS NULL OR merchant_id=0');
@@ -2037,7 +2053,8 @@ app.put('/api/admin/stores/:id', requireAdminKey, async (req, res) => {
     const id = parseInt(req.params.id);
     const current = await getAsync('SELECT * FROM stores WHERE id=?', [id]);
     if (!current) return res.status(404).json({ error: '店铺不存在' });
-    await runAsync('UPDATE stores SET name=?, code=?, address=?, active=? WHERE id=?', [req.body.name || current.name, req.body.code || current.code, req.body.address ?? current.address, req.body.active === undefined ? current.active : (req.body.active ? 1 : 0), id]);
+    const qrLanguages = req.body.qr_languages !== undefined ? (req.body.qr_languages || null) : current.qr_languages;
+    await runAsync('UPDATE stores SET name=?, code=?, address=?, active=?, qr_languages=? WHERE id=?', [req.body.name || current.name, req.body.code || current.code, req.body.address ?? current.address, req.body.active === undefined ? current.active : (req.body.active ? 1 : 0), qrLanguages, id]);
     res.json(await getAsync('SELECT * FROM stores WHERE id=?', [id]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

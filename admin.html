@@ -473,10 +473,16 @@
                     <button onclick="switchAdminModule('printers')" class="store-sub-btn" style="background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:0;padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:transform .2s;flex:1;min-width:120px;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">🖨️ <span class="store-sub-printers">打印机管理</span></button>
 
                 </div>
-                <div class="backup-actions" style="margin-bottom:12px;">
-                    <label style="color:#ccc"><input type="checkbox" id="dualCurrencyEnabled"> <span id="currencyDualLabel">启用双币显示</span></label>
-                    <select id="dualCurrencySelect"></select>
-                    <button id="saveDisplaySettingsBtn">保存显示设置</button>
+                <div class="display-settings-bar">
+                    <label class="store-switch-label">
+                        <span id="currencyDualLabel">启用双币显示</span>
+                        <div class="store-switch">
+                            <input type="checkbox" id="dualCurrencyEnabled">
+                            <span class="store-switch-slider"></span>
+                        </div>
+                    </label>
+                    <select id="dualCurrencySelect" class="display-settings-select"></select>
+                    <button id="saveDisplaySettingsBtn" class="display-settings-btn">保存显示设置</button>
                 </div>
                 <form id="currencyForm" class="currency-form-grid">
                     <div class="form-group">
@@ -493,7 +499,7 @@
                     </div>
                     <div class="form-group">
                         <label id="currencyRateLabel">汇率</label>
-                        <input id="currencyRate" type="number" step="any" placeholder="相对默认货币" required>
+                        <input id="currencyRate" type="number" step="any" placeholder="汇率" required>
                     </div>
                     <div class="form-group" style="display:flex;align-items:flex-end;">
                         <button id="addCurrencyBtn" class="primary" style="width:100%;">新增货币</button>
@@ -590,13 +596,77 @@
                         </div>
                     </div>
                     <div class="printer-form-actions">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="printerDefault"> <span id="printerDefaultLabel">设为默认打印机</span>
+                        <label class="store-switch-label">
+                            <span id="printerDefaultLabel">设为默认打印机</span>
+                            <div class="store-switch">
+                                <input type="checkbox" id="printerDefault">
+                                <span class="store-switch-slider"></span>
+                            </div>
                         </label>
                         <button id="addPrinterBtn" onclick="addPrinter()" class="primary">添加打印机</button>
                     </div>
                 </div>
                 <div id="printersList"></div>
+    <!-- 打印机编辑弹窗 -->
+    <div class="order-modal edit-modal" id="printerEditModal">
+        <div class="order-modal-card">
+            <button class="modal-close" onclick="closePrinterEdit()">✕</button>
+            <h2 id="printerEditTitle">🖨️ 编辑打印机</h2>
+            <input type="hidden" id="editPrinterId">
+            <div class="store-edit-grid">
+                <div class="store-edit-field">
+                    <label id="printerEditNameLabel">打印机名称</label>
+                    <input id="editPrinterName" placeholder="如：前台小票机">
+                </div>
+                <div class="store-edit-field">
+                    <label id="printerEditTypeLabel">连接类型</label>
+                    <select id="editPrinterType">
+                        <option value="network">网络打印机</option>
+                        <option value="usb">USB打印机</option>
+                        <option value="bluetooth">蓝牙打印机</option>
+                    </select>
+                </div>
+                <div class="store-edit-field">
+                    <label id="printerEditIpLabel">IP地址</label>
+                    <input id="editPrinterIp" placeholder="如：192.168.1.100">
+                </div>
+                <div class="store-edit-field">
+                    <label id="printerEditPortLabel">端口</label>
+                    <input id="editPrinterPort" type="number" value="9100">
+                </div>
+                <div class="store-edit-field">
+                    <label id="printerEditWidthLabel">纸宽</label>
+                    <select id="editPrinterWidth">
+                        <option value="58">58mm 小票纸</option>
+                        <option value="80">80mm 小票纸</option>
+                    </select>
+                </div>
+                <div class="store-edit-field">
+                    <label id="printerEditBrandLabel">打印机品牌</label>
+                    <select id="editPrinterBrand">
+                        <option value="generic">通用 ESC/POS</option>
+                        <option value="epson">EPSON 爱普生</option>
+                        <option value="bixolon">Bixolon 毕索龙</option>
+                        <option value="rongta">容大 Rongta</option>
+                        <option value="xprinter">芯烨 Xprinter</option>
+                    </select>
+                </div>
+                <div class="store-edit-field full">
+                    <label class="store-switch-label">
+                        <span id="printerEditDefaultLabel">设为默认打印机</span>
+                        <div class="store-switch">
+                            <input type="checkbox" id="editPrinterDefault">
+                            <span class="store-switch-slider"></span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <div class="order-modal-actions">
+                <button onclick="closePrinterEdit()" id="printerEditCancelBtn">取消</button>
+                <button class="primary" onclick="savePrinterEdit()" id="printerEditSaveBtn">保存</button>
+            </div>
+        </div>
+    </div>
             </section>
 
             <!-- 营业报表 -->
@@ -1025,6 +1095,16 @@
                         </div>
                     </label>
                 </div>
+                <div class="store-edit-field full">
+                    <label id="storeEditQrLangLabel">二维码显示语言</label>
+                    <div class="qr-lang-selector" id="qrLangSelector">
+                        <label class="qr-lang-option"><input type="checkbox" value="zh"> 🇨🇳 中文</label>
+                        <label class="qr-lang-option"><input type="checkbox" value="en"> 🇬🇧 English</label>
+                        <label class="qr-lang-option"><input type="checkbox" value="vi"> 🇻🇳 Tiếng Việt</label>
+                        <label class="qr-lang-option"><input type="checkbox" value="th"> 🇹🇭 ภาษาไทย</label>
+                        <label class="qr-lang-option"><input type="checkbox" value="km"> 🇰🇭 ភាសាខ្មែរ</label>
+                    </div>
+                </div>
             </div>
             <div class="order-modal-actions">
                 <button onclick="closeStoreEdit()" id="storeEditCancelBtn">取消</button>
@@ -1063,8 +1143,8 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js"></script>
-    <script src="assets/common.js"></script>
+    <script src="languages.min.js?v=20260914c"></script>
+    <script src="assets/common.js?v=20260914c"></script>
     <script>
         // ================================================================
         // 多语言配置与辅助工具
@@ -1075,7 +1155,7 @@
                 pendingOrders: '未结算订单', completedOrders: '已结算订单',
                 todayRevenue: '今日营业额', monthRevenue: '本月营业额', settleOrder: '结算订单', settleOrderConfirm: '确定要结算该订单吗？结算后订单将标记为已完成。', cancelOrder: '取消订单', cancelOrderConfirm: '确定要取消该订单吗？此操作不可撤销。', listDish: '上架', unlistDish: '下架',
                 listed: '已上架', unlisted: '已下架', unit: '单位', dualCurrency: '双币显示', secondaryCurrency: '第二货币',
-                storesManage: '店铺管理', storeName: '店铺名称', storeCode: '店铺编码', storeAddress: '店铺地址', addStore: '添加店铺', editStore: '编辑店铺', storeStatus: '店铺状态', storeActive: '启用中', storeDisabled: '已禁用', storeNamePlaceholder: '请输入店铺名称', storeCodePlaceholder: '请输入店铺编码', storeAddressPlaceholder: '请输入店铺地址',
+                storesManage: '店铺管理', storeName: '店铺名称', storeCode: '店铺编码', storeAddress: '店铺地址', addStore: '添加店铺', editStore: '编辑店铺', storeStatus: '店铺状态', storeActive: '启用中', storeDisabled: '已禁用', storeNamePlaceholder: '请输入店铺名称', storeCodePlaceholder: '请输入店铺编码', storeAddressPlaceholder: '请输入店铺地址', qrDisplayLanguages: '二维码显示语言',
                 waitersManage: '服务员管理', waiterUsername: '账号', waiterPassword: '密码', waiterDisplayName: '显示名称', editWaiter: '编辑服务员', waiterStore: '所属店铺', waiterPermission: '权限', permOrder: '下单', permMarkItem: '上菜', permCompleteOrder: '完成订单', permOrderDesc: '接收顾客订单', permMarkItemDesc: '标记菜品已完成', permCompleteDesc: '结算并完成订单', waiterUsernamePlaceholder: '请输入账号', waiterPasswordPlaceholder: '请输入新密码', waiterNamePlaceholder: '请输入姓名',
                 waiterStore: '所属店铺',
                 newPasswordShort: '新密码',
@@ -1156,7 +1236,7 @@
                 bluetoothPrinter: '蓝牙',
                 defaultPrinter: '默认',
                 setDefaultPrinter: '设为默认',
-                printerNameRequired: '请输入打印机名称',
+                printerNameRequired: '请输入打印机名称', editPrinter: '编辑打印机',
                 printerAdded: '打印机已添加',
                 addFailed: '添加失败',
                 testPrintSent: '测试打印已发送',
@@ -1239,7 +1319,7 @@
                 monthRevenue: 'This Month Revenue', settleOrder: 'Settle Order', settleOrderConfirm: 'Are you sure you want to settle this order? The order will be marked as completed.', cancelOrder: 'Cancel Order', cancelOrderConfirm: 'Are you sure you want to cancel this order? This action cannot be undone.', listDish: 'List', unlistDish: 'Unlist',
                 listed: 'Listed', unlisted: 'Unlisted', unit: 'Unit', dualCurrency: 'Dual Currency',
                 secondaryCurrency: 'Secondary Currency', storesManage: 'Store Management', storeName: 'Store Name',
-                storeCode: 'Store Code', storeAddress: 'Store Address', addStore: 'Add Store', editStore: 'Edit Store', storeStatus: 'Store Status', storeActive: 'Active', storeDisabled: 'Disabled', storeNamePlaceholder: 'Enter store name', storeCodePlaceholder: 'Enter store code', storeAddressPlaceholder: 'Enter store address',
+                storeCode: 'Store Code', storeAddress: 'Store Address', addStore: 'Add Store', editStore: 'Edit Store', storeStatus: 'Store Status', storeActive: 'Active', storeDisabled: 'Disabled', storeNamePlaceholder: 'Enter store name', storeCodePlaceholder: 'Enter store code', storeAddressPlaceholder: 'Enter store address', qrDisplayLanguages: 'QR Display Languages',
                 waitersManage: 'Waiter Management', waiterUsername: 'Username', waiterPassword: 'Password',
                 waiterDisplayName: 'Display Name', addWaiter: 'Add Waiter', editWaiter: 'Edit Waiter',
                 waiterStore: 'Store', waiterPermission: 'Permissions', permOrder: 'Take Order', permMarkItem: 'Serve Dish', permCompleteOrder: 'Complete Order', permOrderDesc: 'Receive customer orders', permMarkItemDesc: 'Mark dishes as served', permCompleteDesc: 'Settle and complete orders', waiterUsernamePlaceholder: 'Enter username', waiterPasswordPlaceholder: 'Enter new password', waiterNamePlaceholder: 'Enter display name', newPasswordShort: 'New Password', passwordModalTitle: 'Enter Password', passwordModalMessage: 'Please enter admin password to confirm', passwordModalPlaceholder: 'Enter password',
@@ -1409,7 +1489,7 @@
             completedOrders: 'Đơn đã thanh toán', todayRevenue: 'Doanh thu hôm nay', monthRevenue: 'Doanh thu tháng này',
             settleOrder: 'Thanh toán đơn', settleOrderConfirm: 'Bạn có chắc chắn muốn thanh toán đơn hàng này? Đơn hàng sẽ được đánh dấu là đã hoàn thành.', cancelOrder: 'Hủy đơn', cancelOrderConfirm: 'Bạn có chắc chắn muốn hủy đơn hàng này? Hành động này không thể hoàn tác.', listDish: 'Hiển thị', unlistDish: 'Ẩn', listed: 'Đang hiển thị', customer: 'KH', staffOrder: 'Nhân viên/Admin đặt',
             unlisted: 'Đã ẩn', unit: 'Đơn vị', dualCurrency: 'Hiển thị 2 loại tiền', secondaryCurrency: 'Tiền tệ phụ', hotDishesTitle: 'Bảng xếp hạng món ăn bán chạy', ordersCount: 'đơn hàng', noHotDishes: 'Chưa có dữ liệu món bán chạy', topDishes: 'Top 10 món ăn theo doanh số',
-            storesManage: 'Quản lý cửa hàng', storeName: 'Tên cửa hàng', storeCode: 'Mã cửa hàng', storeAddress: 'Địa chỉ cửa hàng', editStore: 'Sửa cửa hàng', storeStatus: 'Trạng thái', storeActive: 'Đang hoạt động', storeDisabled: 'Đã vô hiệu hóa', storeNamePlaceholder: 'Nhập tên cửa hàng', storeCodePlaceholder: 'Nhập mã cửa hàng', storeAddressPlaceholder: 'Nhập địa chỉ cửa hàng',
+            storesManage: 'Quản lý cửa hàng', storeName: 'Tên cửa hàng', storeCode: 'Mã cửa hàng', storeAddress: 'Địa chỉ cửa hàng', editStore: 'Sửa cửa hàng', storeStatus: 'Trạng thái', storeActive: 'Đang hoạt động', storeDisabled: 'Đã vô hiệu hóa', storeNamePlaceholder: 'Nhập tên cửa hàng', storeCodePlaceholder: 'Nhập mã cửa hàng', storeAddressPlaceholder: 'Nhập địa chỉ cửa hàng', qrDisplayLanguages: 'Ngôn ngữ hiển thị QR',
             addStore: 'Thêm cửa hàng', waitersManage: 'Quản lý nhân viên', waiterUsername: 'Tài khoản', editWaiter: 'Sửa nhân viên', waiterStore: 'Cửa hàng', waiterPermission: 'Quyền hạn', permOrder: 'Đặt món', permMarkItem: 'Phục vụ', permCompleteOrder: 'Hoàn thành', permOrderDesc: 'Nhận đơn khách hàng', permMarkItemDesc: 'Đánh dấu món đã phục vụ', permCompleteDesc: 'Thanh toán và hoàn thành', waiterUsernamePlaceholder: 'Nhập tài khoản', waiterPasswordPlaceholder: 'Nhập mật khẩu mới', waiterNamePlaceholder: 'Nhập tên hiển thị',
             waiterPassword: 'Mật khẩu', waiterDisplayName: 'Tên hiển thị', addWaiter: 'Thêm nhân viên',
             nameEn: 'Tên tiếng Anh', descEn: 'Mô tả tiếng Anh', logsTitle: 'Nhật ký', dishManagement: 'Quản lý món ăn', loginLogs: 'Nhật ký đăng nhập', auditLogs: 'Nhật ký hoạt động', menuCategory: 'Danh mục', time: 'Thời gian',
@@ -1485,7 +1565,7 @@
             completedOrders: 'ออเดอร์ที่ชำระแล้ว', todayRevenue: 'รายได้วันนี้', monthRevenue: 'รายได้เดือนนี้',
             settleOrder: 'ชำระออเดอร์', settleOrderConfirm: 'คุณแน่ใจหรือไม่ว่าต้องการชำระออเดอร์นี้? ออเดอร์จะถูกทำเครื่องหมายว่าเสร็จสมบูรณ์.', cancelOrder: 'ยกเลิกออเดอร์', cancelOrderConfirm: 'คุณแน่ใจหรือไม่ว่าต้องการยกเลิกออเดอร์นี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้.', listDish: 'แสดงเมนู', unlistDish: 'ซ่อนเมนู', listed: 'แสดงอยู่', customer: 'ลูกค้า', staffOrder: 'พนักงาน/Admin สั่ง',
             unlisted: 'ซ่อนอยู่', unit: 'หน่วย', dualCurrency: 'แสดงสองสกุลเงิน', secondaryCurrency: 'สกุลเงินที่สอง', hotDishesTitle: 'อันดับเมนูยอดนิยม', ordersCount: 'ออเดอร์', noHotDishes: 'ไม่มีข้อมูลเมนูยอดนิยม', topDishes: 'Top 10 เมนูยอดขาย',
-            storesManage: 'จัดการร้านค้า', storeName: 'ชื่อร้านค้า', storeCode: 'รหัสร้านค้า', storeAddress: 'ที่อยู่ร้านค้า', editStore: 'แก้ไขร้านค้า', storeStatus: 'สถานะร้านค้า', storeActive: 'กำลังใช้งาน', storeDisabled: 'ปิดใช้งาน', storeNamePlaceholder: 'กรอกชื่อร้านค้า', storeCodePlaceholder: 'กรอกรหัสร้านค้า', storeAddressPlaceholder: 'กรอกที่อยู่ร้านค้า',
+            storesManage: 'จัดการร้านค้า', storeName: 'ชื่อร้านค้า', storeCode: 'รหัสร้านค้า', storeAddress: 'ที่อยู่ร้านค้า', editStore: 'แก้ไขร้านค้า', storeStatus: 'สถานะร้านค้า', storeActive: 'กำลังใช้งาน', storeDisabled: 'ปิดใช้งาน', storeNamePlaceholder: 'กรอกชื่อร้านค้า', storeCodePlaceholder: 'กรอกรหัสร้านค้า', storeAddressPlaceholder: 'กรอกที่อยู่ร้านค้า', qrDisplayLanguages: 'ภาษาที่แสดงบนคิวอาร์โค้ด',
             addStore: 'เพิ่มร้านค้า', waitersManage: 'จัดการพนักงาน', waiterUsername: 'บัญชีผู้ใช้', editWaiter: 'แก้ไขพนักงาน', waiterStore: 'ร้านค้า', waiterPermission: 'สิทธิ์', permOrder: 'รับออเดอร์', permMarkItem: 'เสิร์ฟเมนู', permCompleteOrder: 'เสร็จสิ้น', permOrderDesc: 'รับออเดอร์ลูกค้า', permMarkItemDesc: 'ทำเครื่องหมายเมนูเสิร์ฟแล้ว', permCompleteDesc: 'ชำระและเสร็จสิ้น', waiterUsernamePlaceholder: 'กรอกชื่อผู้ใช้', waiterPasswordPlaceholder: 'กรอกรหัสผ่านใหม่', waiterNamePlaceholder: 'กรอกชื่อแสดง',
             waiterPassword: 'รหัสผ่าน', waiterDisplayName: 'ชื่อที่แสดง', addWaiter: 'เพิ่มพนักงาน',
             nameEn: 'ชื่อภาษาอังกฤษ', descEn: 'คำอธิบายภาษาอังกฤษ', logsTitle: 'บันทึก', dishManagement: 'จัดการเมนู', loginLogs: 'บันทึกการเข้าสู่ระบบ', auditLogs: 'บันทึกการดำเนินการ', menuCategory: 'หมวดหมู่', time: 'เวลา',
@@ -1561,7 +1641,7 @@
             completedOrders: 'ការបញ្ជាទិញបានទូទាត់', todayRevenue: 'ចំណូលថ្ងៃនេះ', monthRevenue: 'ចំណូលខែនេះ',
             settleOrder: 'ទូទាត់ការបញ្ជាទិញ', settleOrderConfirm: 'តើអ្នកប្រាកដទេថាចង់ទូទាត់ការបញ្ជាទិញនេះ? ការបញ្ជាទិញនឹងត្រូវបានសម្គាល់ថាបានបញ្ចប់.', cancelOrder: 'បោះបង់ការបញ្ជាទិញ', cancelOrderConfirm: 'តើអ្នកប្រាកដទេថាចង់បោះបង់ការបញ្ជាទិញនេះ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ.', listDish: 'បង្ហាញ', unlistDish: 'លាក់', listed: 'កំពុងបង្ហាញ', customer: 'អតិថិជន', staffOrder: 'បុគ្គលិក/Admin បញ្ជាទិញ',
             unlisted: 'បានលាក់', unit: 'ឯកតា', dualCurrency: 'បង្ហាញរូបិយប័ណ្ណពីរ', secondaryCurrency: 'រូបិយប័ណ្ណទីពីរ', hotDishesTitle: 'ចំណាត់ថ្នាក់មុខម្ហូបដែលលក់ដាច់', ordersCount: 'ការបញ្ជាទិញ', noHotDishes: 'មិនមានទិន្នន័យមុខម្ហូបដែលលក់ដាច់', topDishes: 'កំពូល ១០ មុខម្ហូបយោងទៅតាមការលក់',
-            storesManage: 'គ្រប់គ្រងហាង', storeName: 'ឈ្មោះហាង', storeCode: 'កូដហាង', storeAddress: 'អាសយដ្ឋានហាង', editStore: 'កែសម្រួលហាង', storeStatus: 'ស្ថានភាពហាង', storeActive: 'កំពុងដំណើរការ', storeDisabled: 'បានបិទ', storeNamePlaceholder: 'បញ្ចូលឈ្មោះហាង', storeCodePlaceholder: 'បញ្ចូលកូដហាង', storeAddressPlaceholder: 'បញ្ចូលអាសយដ្ឋានហាង',
+            storesManage: 'គ្រប់គ្រងហាង', storeName: 'ឈ្មោះហាង', storeCode: 'កូដហាង', storeAddress: 'អាសយដ្ឋានហាង', editStore: 'កែសម្រួលហាង', storeStatus: 'ស្ថានភាពហាង', storeActive: 'កំពុងដំណើរការ', storeDisabled: 'បានបិទ', storeNamePlaceholder: 'បញ្ចូលឈ្មោះហាង', storeCodePlaceholder: 'បញ្ចូលកូដហាង', storeAddressPlaceholder: 'បញ្ចូលអាសយដ្ឋានហាង', qrDisplayLanguages: 'ភាសាបង្ហាញលើកូដ QR',
             addStore: 'បន្ថែមហាង', waitersManage: 'គ្រប់គ្រងបុគ្គលិក', waiterUsername: 'គណនី', editWaiter: 'កែសម្រួលបុគ្គលិក', waiterStore: 'ហាង', waiterPermission: 'សិទ្ធិ', permOrder: 'ទទួលការបញ្ជាទិញ', permMarkItem: 'បម្រើមុខម្ហូប', permCompleteOrder: 'បញ្ចប់', permOrderDesc: 'ទទួលការបញ្ជាទិញអតិថិជន', permMarkItemDesc: 'សម្គាល់មុខម្ហូបបានបម្រើ', permCompleteDesc: 'ទូទាត់និងបញ្ចប់', waiterUsernamePlaceholder: 'បញ្ចូលគណនី', waiterPasswordPlaceholder: 'បញ្ចូលពាក្យសម្ងាត់ថ្មី', waiterNamePlaceholder: 'បញ្ចូលឈ្មោះបង្ហាញ',
             waiterPassword: 'ពាក្យសម្ងាត់', waiterDisplayName: 'ឈ្មោះបង្ហាញ', addWaiter: 'បន្ថែមបុគ្គលិក',
             nameEn: 'ឈ្មោះជាភាសាអង់គ្លេស', descEn: 'ការពិពណ៌នាជាភាសាអង់គ្លេស', logsTitle: 'កំណត់ហេតុ', dishManagement: 'គ្រប់គ្រងមុខម្ហូប', loginLogs: 'កំណត់ហេតុចូល', auditLogs: 'កំណត់ហេតុប្រតិបត្តិការ', menuCategory: 'ប្រភេទម្ហូប', time: 'ពេលវេលា',
@@ -1671,12 +1751,12 @@
         let adminLang = localStorage.getItem('adminLang') || 'zh';
         // 动态加载指定语言的翻译
         async function loadAdminLanguage(lang) {
-            // 使用SLF.i18n统一加载（内存→localStorage→API→中文兜底）
-            await SLF.i18n.loadLanguage(lang);
-            // 合并ADMIN_LABELS自定义字典（admin特有翻译键）
-            if (ADMIN_LABELS[lang]) {
-                SLF.i18n.dicts[lang] = { ...(SLF.i18n.dicts[lang] || {}), ...ADMIN_LABELS[lang] };
-            }
+            // 直接使用全局LANGUAGES（languages.min.js已包含完整5种语言）
+            // 合并优先级：全局LANGUAGES → ADMIN_LABELS（admin特有键覆盖）
+            const globalDict = (typeof LANGUAGES !== 'undefined' && LANGUAGES[lang]) || {};
+            const adminDict = ADMIN_LABELS[lang] || {};
+            SLF.i18n.dicts[lang] = { ...globalDict, ...adminDict, _loaded: true };
+            SLF.i18n.lang = lang;
             adminLang = lang;
             return true;
         }
@@ -2128,7 +2208,7 @@
                     </div>
                     <div class="actions">
                       <button class="edit-btn" onclick="openStoreEdit(${s.id})">✏️ ${L('edit')}</button>
-                      <button class="copy" onclick="copyStoreMenu(${s.id})" style="background:#1890ff;color:#fff;border:none;padding:4px 12px;border-radius:8px;cursor:pointer;">📋 ${tAdmin('copyMainStoreMenu')}</button>
+                      <button class="copy" onclick="copyStoreMenu(${s.id})">📋 ${tAdmin('copyMainStoreMenu')}</button>
                       <button class="danger" onclick="deleteStore(${s.id})">${L('delete')}</button>
                     </div>
                   </div>`).join('') :
@@ -2840,6 +2920,11 @@
                 $('#editStoreCode').value = target.code || '';
                 $('#editStoreAddress').value = target.address || '';
                 $('#editStoreActive').checked = !!target.active;
+                // 设置二维码显示语言
+                const qrLangs = (target.qr_languages || '').split(',').map(s => s.trim()).filter(Boolean);
+                document.querySelectorAll('#qrLangSelector input[type="checkbox"]').forEach(cb => {
+                    cb.checked = qrLangs.includes(cb.value);
+                });
                 $('#storeEditTitle').textContent = '🏪 ' + tAdmin('editStore') + ' #' + id;
                 $('#storeEditModal').classList.add('open');
             } catch (e) {
@@ -2864,6 +2949,7 @@
             const code = $('#editStoreCode').value.trim();
             const address = $('#editStoreAddress').value.trim();
             const active = $('#editStoreActive').checked ? 1 : 0;
+            const qrLanguages = Array.from(document.querySelectorAll('#qrLangSelector input[type="checkbox"]:checked')).map(cb => cb.value).join(',');
             if (!name) {
                 toast(`❌ ${tAdmin('storeNameRequired')}`);
                 return;
@@ -2872,7 +2958,7 @@
                 await api('/admin/stores/' + id, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, code, address, active })
+                    body: JSON.stringify({ name, code, address, active, qr_languages: qrLanguages })
                 });
                 closeStoreEdit();
                 await loadStores();
@@ -3081,6 +3167,7 @@
             $('#storeEditNameLabel').textContent = tAdmin('storeName');
             $('#storeEditCodeLabel').textContent = tAdmin('storeCode');
             $('#storeEditAddressLabel').textContent = tAdmin('storeAddress');
+            $('#storeEditQrLangLabel').textContent = tAdmin('qrDisplayLanguages');
             $('#storeEditStatusLabel').textContent = tAdmin('storeStatus');
             $('#editStoreName').placeholder = tAdmin('storeNamePlaceholder');
             $('#editStoreCode').placeholder = tAdmin('storeCodePlaceholder');
@@ -3179,10 +3266,10 @@
             $('#currencyName').placeholder = tAdmin('currencyName');
             $('#currencyRate').placeholder = tAdmin('currencyRate');
             $('#addCurrencyBtn').textContent = tAdmin('addCurrency');
-            $('#currencyCodeLabel').textContent = tAdmin('currencyCode');
-            $('#currencySymbolLabel').textContent = tAdmin('currencySymbol');
+            $('#currencyCodeLabel').textContent = tAdmin('currencyCodeLabel');
+            $('#currencySymbolLabel').textContent = tAdmin('currencySymbolLabel');
             $('#currencyNameLabel').textContent = tAdmin('currencyName');
-            $('#currencyRateLabel').textContent = tAdmin('currencyRate');
+            $('#currencyRateLabel').textContent = tAdmin('currencyRateLabel');
             $('#logsPanelTitle').textContent = tAdmin('logsTitle');
             $('#waitersPanelTitle').textContent = tAdmin('waitersManage');
             $('#storesPanelTitle').textContent = tAdmin('storesManage');
@@ -3241,10 +3328,10 @@
             tableStatusOptions[2].text = L('reserved');
             // 货币编辑模态框
             $('#currencyEditTitle').textContent = tAdmin('editCurrency');
-            $('#currencyEditCodeLabel').textContent = tAdmin('currencyCode');
+            $('#currencyEditCodeLabel').textContent = tAdmin('currencyCodeLabel');
             $('#currencyEditNameLabel').textContent = tAdmin('currencyName');
-            $('#currencyEditSymbolLabel').textContent = tAdmin('currencySymbol');
-            $('#currencyEditRateLabel').textContent = tAdmin('currencyRate');
+            $('#currencyEditSymbolLabel').textContent = tAdmin('currencySymbolLabel');
+            $('#currencyEditRateLabel').textContent = tAdmin('currencyRateLabel');
             $('#currencyCancelBtn').textContent = L('cancel');
             $('#currencySaveBtn').textContent = L('save');
             $('#saveDisplaySettingsBtn').textContent = tAdmin('saveDisplaySettings');
@@ -3461,7 +3548,7 @@
                             <div class="hot-dish-rank ${rankClass}">${rankText}</div>
                             <span class="hot-dish-emoji">${d.emoji || '🍽️'}</span>
                             <span class="hot-dish-name">${esc(d.name)}</span>
-                            <span class="hot-dish-sales">${d.sales_count} ${tAdmin('unit') || '份'}</span>
+                            <span class="hot-dish-sales">${d.sales_count}</span>
                         </div>`;
                     }).join('');
                 } else {
@@ -3753,6 +3840,7 @@
         async function loadPrinters() {
             try {
                 const data = await api('/admin/printers');
+                window._adminPrinters = data;
                 const container = $('#printersList');
                 if (!data || data.length === 0) {
                     container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noPrinterHint')}</div>`;
@@ -3760,20 +3848,21 @@
                 }
                 const typeMap = { network: tAdmin('networkPrinter'), usb: 'USB', bluetooth: tAdmin('bluetoothPrinter') };
                 container.innerHTML = data.map(p => `
-                    <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                        <div>
-                            <div style="font-weight:700;font-size:17px;color:#fff;margin-bottom:6px;">🖨️ ${esc(p.name)} ${p.is_default ? `<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>` : ''}</div>
-                            <div style="color:#c8c8d0;font-size:13px;line-height:1.6;">
+                    <div class="admin-card">
+                        <div class="info">
+                            <div class="title">🖨️ ${esc(p.name)} ${p.is_default ? `<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>` : ''}</div>
+                            <div class="sub">
                                 ${typeMap[p.type] || p.type} · ${p.brand} · ${p.paper_width}mm
-                                ${p.ip_address ? ` · ${p.ip_address}:${p.port}` : ''}
-                                · ${p.active ? `<span style="color:#2ecc71;font-weight:600;">${tAdmin('enabled')}</span>` : `<span style="color:#e74c3c;">${tAdmin('disabled')}</span>`}
+                                ${p.ip_address ? ' · ' + p.ip_address + ':' + p.port : ''}
+                                · ${p.active ? '<span style="color:#2ecc71;font-weight:600;">' + tAdmin('enabled') + '</span>' : '<span style="color:#e74c3c;">' + tAdmin('disabled') + '</span>'}
                             </div>
                         </div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <button onclick="testPrinter(${p.id})" style="background:#3498db;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('testPrint')}</button>
-                            <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})" style="background:${p.active ? '#f39c12' : '#2ecc71'};color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${p.active ? tAdmin('disabled') : tAdmin('enabled')}</button>
-                            ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})" style="background:#9b59b6;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('setDefaultPrinter')}</button>` : ''}
-                            <button onclick="deletePrinter(${p.id})" style="background:#e74c3c;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('delete')}</button>
+                        <div class="actions">
+                            <button class="copy" onclick="testPrinter(${p.id})">${tAdmin('testPrint')}</button>
+                            <button class="edit-btn" onclick="openPrinterEdit(${p.id})">${L('edit')}</button>
+                            <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})">${p.active ? tAdmin('disabled') : tAdmin('enabled')}</button>
+                            ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})">${tAdmin('setDefaultPrinter')}</button>` : ''}
+                            <button class="danger" onclick="deletePrinter(${p.id})">${L('delete')}</button>
                         </div>
                     </div>
                 `).join('');
@@ -3819,6 +3908,50 @@
                 toast(tAdmin('testPrintSent'));
             } catch (err) {
                 toast(tAdmin('printFailed') + ': ' + err.message);
+            }
+        }
+
+        // 打开打印机编辑弹窗
+        function openPrinterEdit(id) {
+            const printers = window._adminPrinters || [];
+            const p = printers.find(x => x.id === id);
+            if (!p) return;
+            $('#editPrinterId').value = p.id;
+            $('#editPrinterName').value = p.name || '';
+            $('#editPrinterType').value = p.type || 'network';
+            $('#editPrinterIp').value = p.ip_address || '';
+            $('#editPrinterPort').value = p.port || 9100;
+            $('#editPrinterWidth').value = p.paper_width || 58;
+            $('#editPrinterBrand').value = p.brand || 'generic';
+            $('#editPrinterDefault').checked = !!p.is_default;
+            $('#printerEditModal').classList.add('open');
+        }
+        function closePrinterEdit() {
+            $('#printerEditModal').classList.remove('open');
+        }
+        async function savePrinterEdit() {
+            const id = parseInt($('#editPrinterId').value);
+            const name = $('#editPrinterName').value.trim();
+            if (!name) { toast(tAdmin('printerNameRequired')); return; }
+            try {
+                await api('/admin/printers/' + id, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        type: $('#editPrinterType').value,
+                        ip_address: $('#editPrinterIp').value.trim(),
+                        port: parseInt($('#editPrinterPort').value) || 9100,
+                        paper_width: parseInt($('#editPrinterWidth').value) || 58,
+                        brand: $('#editPrinterBrand').value,
+                        is_default: $('#editPrinterDefault').checked
+                    })
+                });
+                toast(tAdmin('saveSuccess') || '保存成功');
+                closePrinterEdit();
+                loadPrinters();
+            } catch (err) {
+                toast(tAdmin('saveFailed') + ': ' + err.message);
             }
         }
 
