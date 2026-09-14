@@ -1544,34 +1544,6 @@ async function collectBackupData() {
   return data;
 }
 
-// 商户专属备份：只导出当前商户的数据，不包含敏感表
-async function collectMerchantBackupData(merchantId) {
-  const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [merchantId])).map(s => s.id);
-  const data = { exportedAt: new Date().toISOString(), merchantId, tables: {} };
-  // 按merchant_id过滤的表
-  data.tables.stores = await allAsync('SELECT * FROM stores WHERE merchant_id=?', [merchantId]);
-  data.tables.currencies = await allAsync('SELECT * FROM currencies WHERE merchant_id=?', [merchantId]);
-  data.tables.merchant_admins = await allAsync('SELECT id, username, display_name, active, merchant_id FROM merchant_admins WHERE merchant_id=?', [merchantId]);
-  // 按store_id过滤的表
-  for (const table of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions']) {
-    if (storeIds.length > 0) {
-      const placeholders = storeIds.map(() => '?').join(',');
-      data.tables[table] = await allAsync(`SELECT * FROM \`${table}\` WHERE store_id IN (${placeholders})`, storeIds);
-    } else {
-      data.tables[table] = [];
-    }
-  }
-  // 分类表按store_id过滤
-  if (storeIds.length > 0) {
-    const placeholders = storeIds.map(() => '?').join(',');
-    data.tables.menu_categories = await allAsync(`SELECT * FROM menu_categories WHERE store_id IN (${placeholders})`, storeIds);
-  } else {
-    data.tables.menu_categories = [];
-  }
-  data.tables.login_logs = await allAsync('SELECT * FROM login_logs WHERE merchant_id=?', [merchantId]);
-  return data;
-}
-
 async function autoBackupDatabase() {
   const backupDir = path.join(__dirname, 'backups');
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
@@ -3715,85 +3687,6 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
-});
-
-// ----- 数据备份与恢复 -----
-app.get('/api/admin/backup/export', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
-  try {
-    const data = await collectMerchantBackupData(req.merchantId);
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="foodflow-merchant-${req.merchantId}-backup-${new Date().toISOString().slice(0,10)}.json"`);
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/admin/backup/import', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
-  try {
-    const data = req.body;
-    const merchantId = req.merchantId;
-    if (!data || !data.tables || typeof data.tables !== 'object') return res.status(400).json({ error: '备份文件格式无效' });
-    const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [merchantId])).map(s => s.id);
-    await withTransaction(async () => {
-      // 只删除和替换当前商户相关的表，不触碰全局表和敏感表
-      // 按merchant_id删除的表
-      await runAsync('DELETE FROM stores WHERE merchant_id=?', [merchantId]);
-      await runAsync('DELETE FROM currencies WHERE merchant_id=?', [merchantId]);
-      await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [merchantId]);
-      await runAsync('DELETE FROM login_logs WHERE merchant_id=?', [merchantId]);
-      // 按store_id删除的表
-      if (storeIds.length > 0) {
-        const placeholders = storeIds.map(() => '?').join(',');
-        for (const table of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
-          await runAsync(`DELETE FROM \`${table}\` WHERE store_id IN (${placeholders})`, storeIds);
-        }
-      }
-      // 导入商户数据
-      const merchantTables = ['stores', 'currencies', 'merchant_admins', 'login_logs', 'menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories'];
-      for (const table of merchantTables) {
-        const rows = Array.isArray(data.tables[table]) ? data.tables[table] : [];
-        for (const row of rows) {
-          const keys = Object.keys(row).filter(k => !['id'].includes(k));
-          const placeholders = keys.map(() => '?').join(', ');
-          const values = keys.map(k => row[k]);
-          if (keys.length) {
-            await runAsync(`INSERT INTO \`${table}\` (${keys.map(k => `\`${k}\``).join(', ')}) VALUES (${placeholders})`, values);
-          }
-        }
-      }
-    });
-    res.json({ success: true, message: '商户数据已恢复' });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.get('/api/admin/backup/settings', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
-  try {
-    const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${req.merchantId}_backup_interval_hours`]) || await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
-    res.json({ intervalHours: Number(row?.value || 24) });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/admin/backup/settings', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
-  try {
-    const intervalHours = Number(req.body.intervalHours);
-    if (![1, 6, 12, 24].includes(intervalHours)) return res.status(400).json({ error: '备份间隔无效' });
-    await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`merchant_${req.merchantId}_backup_interval_hours`, String(intervalHours)]);
-    res.json({ success: true, intervalHours });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/admin/backup/now', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
-  try {
-    const backupDir = path.join(__dirname, 'backups');
-    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-    const data = await collectMerchantBackupData(req.merchantId);
-    const filename = path.join(backupDir, `merchant-${req.merchantId}-${new Date().toISOString().slice(0,10)}.json`);
-    fs.writeFileSync(filename, JSON.stringify(data, null, 2));
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ----- 货币管理 -----
