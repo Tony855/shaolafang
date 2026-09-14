@@ -20,6 +20,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const net = require('net');
+const os = require('os');
+const { execSync } = require('child_process');
 
 // ---------- 统一配置加载（.env） ----------
 // 轻量内置解析，不引入 dotenv 依赖。若已存在同名环境变量（如 systemd
@@ -1780,6 +1782,8 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
       ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
       ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
     ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
+      `创建商户「${name}」(编码: ${merchantCode}, 账号: ${adminUsername})`, getClientIp(req));
     res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1804,6 +1808,9 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
         await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=?', [hash, primaryAdmin.id]);
       }
     }
+    const updatedMerchant = await getAsync('SELECT name, code FROM merchants WHERE id=?', [req.params.id]);
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_merchant', 'merchant', req.params.id,
+      `编辑商户「${updatedMerchant?.name || '未知'}」的信息`, getClientIp(req));
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1825,7 +1832,7 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       }
     }
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'delete_merchant', 'merchant', req.params.id,
-      JSON.stringify({ name: merchant?.name, code: merchant?.code }), getClientIp(req));
+      `删除商户「${merchant?.name || '未知'}」(编码: ${merchant?.code || '-'})`, getClientIp(req));
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1837,8 +1844,9 @@ app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (re
     const newPwd = password || 'admin123';
     const hash = hashPassword(newPwd);
     await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
+    const merchantForLog = await getAsync('SELECT name, code FROM merchants WHERE id=?', [req.params.id]);
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', req.params.id,
-      JSON.stringify({ merchant_id: req.params.id }), getClientIp(req));
+      `重置商户「${merchantForLog?.name || '未知'}」的管理员密码`, getClientIp(req));
     res.json({ success: true, newPassword: newPwd });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1867,6 +1875,90 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
       onlineClients: onlineClients.count,
       totalScanSessions: totalScanSessions.count,
       todayScanSessions: todayScanSessions.count
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 超级管理员：服务器负载监控
+app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
+  try {
+    // CPU 使用率：两次采样计算差值
+    function getCpuTimes() {
+      const cpus = os.cpus();
+      let user = 0, nice = 0, sys = 0, idle = 0, irq = 0;
+      for (const cpu of cpus) {
+        user += cpu.times.user;
+        nice += cpu.times.nice;
+        sys += cpu.times.sys;
+        idle += cpu.times.idle;
+        irq += cpu.times.irq;
+      }
+      return { user, nice, sys, idle, irq, total: user + nice + sys + idle + irq };
+    }
+    const start = getCpuTimes();
+    await new Promise(r => setTimeout(r, 300));
+    const end = getCpuTimes();
+    const idleDiff = end.idle - start.idle;
+    const totalDiff = end.total - start.total;
+    const cpuUsage = totalDiff > 0 ? ((1 - idleDiff / totalDiff) * 100).toFixed(1) : 0;
+
+    // 内存
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const memUsage = ((usedMem / totalMem) * 100).toFixed(1);
+
+    // 磁盘使用率（执行 df 命令，取根分区）
+    let diskUsage = 0, diskTotal = 0, diskUsed = 0;
+    try {
+      const dfOutput = execSync('df -B1 / | tail -1', { encoding: 'utf8' }).trim().split(/\s+/);
+      diskTotal = parseInt(dfOutput[1]) || 0;
+      diskUsed = parseInt(dfOutput[2]) || 0;
+      diskUsage = diskTotal > 0 ? ((diskUsed / diskTotal) * 100).toFixed(1) : 0;
+    } catch (e) { diskUsage = 0; }
+
+    // 系统运行时间
+    const uptimeSeconds = os.uptime();
+    const uptimeDays = Math.floor(uptimeSeconds / 86400);
+    const uptimeHours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const uptimeMins = Math.floor((uptimeSeconds % 3600) / 60);
+
+    // Node.js 进程内存
+    const processMem = process.memoryUsage();
+
+    // 负载均衡
+    const loadAvg = os.loadavg();
+
+    res.json({
+      cpu: {
+        usage: parseFloat(cpuUsage),
+        cores: os.cpus().length,
+        model: os.cpus()[0]?.model || 'Unknown'
+      },
+      memory: {
+        total: totalMem,
+        used: usedMem,
+        free: freeMem,
+        usage: parseFloat(memUsage),
+        processRss: processMem.rss,
+        processHeapUsed: processMem.heapUsed,
+        processHeapTotal: processMem.heapTotal
+      },
+      disk: {
+        total: diskTotal,
+        used: diskUsed,
+        free: diskTotal - diskUsed,
+        usage: parseFloat(diskUsage)
+      },
+      system: {
+        hostname: os.hostname(),
+        platform: os.platform(),
+        arch: os.arch(),
+        uptime: uptimeSeconds,
+        uptimeFormatted: `${uptimeDays}天 ${uptimeHours}时 ${uptimeMins}分`,
+        loadAvg: loadAvg.map(v => v.toFixed(2)),
+        nodeVersion: process.version
+      }
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1982,7 +2074,7 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_cooldown_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
     }
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_settings', 'settings', null,
-      JSON.stringify(req.body), getClientIp(req));
+      '更新系统全局设置', getClientIp(req));
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2017,7 +2109,7 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
     }
     const hash = hashPassword(newPassword);
     await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, null, getClientIp(req));
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
