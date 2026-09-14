@@ -874,7 +874,7 @@ async function initDatabase() {
   }
 
   // 为 merchant_admins 表添加权限字段（兼容旧表）
-  const adminPermFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs'];
+  const adminPermFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs'];
   for (const field of adminPermFields) {
     try {
       await runAsync(`ALTER TABLE merchant_admins ADD COLUMN ${field} TINYINT NOT NULL DEFAULT 1`);
@@ -1399,9 +1399,40 @@ async function requireAdminKey(req, res, next) {
     req.merchantId = result.merchantId;
     req.adminSessionToken = result.sessionToken;
     req.storeId = result.storeId;
+    // 加载管理员权限信息
+    try {
+      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [result.adminId]);
+      if (admin) {
+        const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [result.merchantId]);
+        req.isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
+        req.adminPermissions = {
+          can_manage_menu: req.isPrimaryAdmin || admin.can_manage_menu ? 1 : 0,
+          can_manage_table: req.isPrimaryAdmin || admin.can_manage_table ? 1 : 0,
+          can_manage_order: req.isPrimaryAdmin || admin.can_manage_order ? 1 : 0,
+          can_delete_order: req.isPrimaryAdmin || admin.can_delete_order ? 1 : 0,
+          can_edit_order: req.isPrimaryAdmin || admin.can_edit_order ? 1 : 0,
+          can_manage_store: req.isPrimaryAdmin || admin.can_manage_store ? 1 : 0,
+          can_manage_waiter: req.isPrimaryAdmin || admin.can_manage_waiter ? 1 : 0,
+          can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
+          can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
+          can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
+          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
+        };
+      }
+    } catch (e) { console.warn('加载管理员权限失败:', e.message); }
     return next();
   }
   return res.status(401).json({ error: '未登录或登录已过期' });
+}
+
+// 权限校验中间件工厂
+function requirePermission(permKey) {
+  return function(req, res, next) {
+    if (req.isPrimaryAdmin || (req.adminPermissions && req.adminPermissions[permKey])) {
+      return next();
+    }
+    return res.status(403).json({ error: '没有操作权限' });
+  };
 }
 
 // 操作审计日志记录
@@ -1583,6 +1614,8 @@ app.post('/api/admin/login', async (req, res) => {
         can_manage_menu: isPrimary || admin.can_manage_menu ? 1 : 0,
         can_manage_table: isPrimary || admin.can_manage_table ? 1 : 0,
         can_manage_order: isPrimary || admin.can_manage_order ? 1 : 0,
+        can_delete_order: isPrimary || admin.can_delete_order ? 1 : 0,
+        can_edit_order: isPrimary || admin.can_edit_order ? 1 : 0,
         can_manage_store: isPrimary || admin.can_manage_store ? 1 : 0,
         can_manage_waiter: isPrimary || admin.can_manage_waiter ? 1 : 0,
         can_manage_currency: isPrimary || admin.can_manage_currency ? 1 : 0,
@@ -2008,7 +2041,7 @@ app.get('/api/admin/waiters', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/waiters', requireAdminKey, async (req, res) => {
+app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_waiter'), async (req, res) => {
   try {
     const { username, password, display_name, can_order, can_mark_item, can_complete_order, store_id } = req.body || {};
     if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写服务员资料' });
@@ -2025,7 +2058,7 @@ app.post('/api/admin/waiters', requireAdminKey, async (req, res) => {
   }
 });
 
-app.put('/api/admin/waiters/:id', requireAdminKey, async (req, res) => {
+app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage_waiter'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const current = await getAsync('SELECT * FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]);
@@ -2040,7 +2073,7 @@ app.put('/api/admin/waiters/:id', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/admin/waiters/:id', requireAdminKey, async (req, res) => {
+app.delete('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage_waiter'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const current = await getAsync('SELECT id FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]);
@@ -2057,7 +2090,7 @@ app.get('/api/admin/stores', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/stores', requireAdminKey, async (req, res) => {
+app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const { name, code, address } = req.body || {};
     if (!name) return res.status(400).json({ error: '店铺名称必填' });
@@ -2073,7 +2106,7 @@ app.post('/api/admin/stores', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/admin/stores/:id', requireAdminKey, async (req, res) => {
+app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const current = await getAsync('SELECT * FROM stores WHERE id=?', [id]);
@@ -2093,7 +2126,7 @@ app.delete('/api/admin/stores/:id', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, async (req, res) => {
+app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const targetStoreId = parseInt(req.params.id);
     if (targetStoreId === 1) return res.status(400).json({ error: '总店无需复制自身' });
@@ -2160,7 +2193,7 @@ app.get('/api/admin/menu', requireAdminKey, async (req, res) => {
   }
 });
 
-app.post('/api/menu', requireAdminKey, upload.single('image'), async (req, res) => {
+app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upload.single('image'), async (req, res) => {
   try {
     const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code = 'USD' } = req.body;
     if (!name || !price) return res.status(400).json({ error: '名称和价格必填' });
@@ -2178,7 +2211,7 @@ app.post('/api/menu', requireAdminKey, upload.single('image'), async (req, res) 
   }
 });
 
-app.put('/api/menu/:id', requireAdminKey, upload.single('image'), async (req, res) => {
+app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), upload.single('image'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code } = req.body;
@@ -2203,7 +2236,7 @@ app.put('/api/menu/:id', requireAdminKey, upload.single('image'), async (req, re
   }
 });
 
-app.delete('/api/menu/:id', requireAdminKey, async (req, res) => {
+app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const item = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
@@ -2219,7 +2252,7 @@ app.delete('/api/menu/:id', requireAdminKey, async (req, res) => {
   }
 });
 
-app.put('/api/menu/:id/status', requireAdminKey, async (req, res) => {
+app.put('/api/menu/:id/status', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const item = await getAsync('SELECT id FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
@@ -2242,7 +2275,7 @@ app.get('/api/menu-categories', requireAdminKey, async (req, res) => {
   }
 });
 
-app.post('/api/menu-categories', requireAdminKey, async (req, res) => {
+app.post('/api/menu-categories', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const name = String(req.body.name || '').trim();
     if (!name) return res.status(400).json({ error: '分类名称必填' });
@@ -2257,7 +2290,7 @@ app.post('/api/menu-categories', requireAdminKey, async (req, res) => {
   }
 });
 
-app.put('/api/menu-categories/:id', requireAdminKey, async (req, res) => {
+app.put('/api/menu-categories/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const name = String(req.body.name || '').trim();
@@ -2275,7 +2308,7 @@ app.put('/api/menu-categories/:id', requireAdminKey, async (req, res) => {
   }
 });
 
-app.delete('/api/menu-categories/:id', requireAdminKey, async (req, res) => {
+app.delete('/api/menu-categories/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const current = await getAsync('SELECT name FROM menu_categories WHERE id = ?', [id]);
@@ -2293,7 +2326,7 @@ app.delete('/api/menu-categories/:id', requireAdminKey, async (req, res) => {
   }
 });
 
-app.post('/api/menu-categories/sort', requireAdminKey, async (req, res) => {
+app.post('/api/menu-categories/sort', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids must be a non-empty array' });
@@ -2319,7 +2352,7 @@ app.get('/api/tables', async (req, res) => {
   }
 });
 
-app.post('/api/tables', requireAdminKey, async (req, res) => {
+app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
   try {
     const { name, status } = req.body;
     if (!name) return res.status(400).json({ error: '桌号名称必填' });
@@ -2395,7 +2428,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
   }
 });
 
-app.put('/api/tables/:id', requireAdminKey, async (req, res) => {
+app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
   try {
     const id = req.params.id;
     const existing = await getAsync('SELECT * FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
@@ -2426,7 +2459,7 @@ app.put('/api/tables/:id', requireAdminKey, async (req, res) => {
   }
 });
 
-app.delete('/api/tables/:id', requireAdminKey, async (req, res) => {
+app.delete('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
   try {
     const id = req.params.id;
     const existing = await getAsync('SELECT * FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
@@ -2622,6 +2655,10 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     // 计算总价
     const calculatedTotal = newItems.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
 
+    // 管理员操作订单需要can_manage_order权限（服务员不受此限制，走自己的权限位）
+    if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_edit_order)) {
+      return res.status(403).json({ error: '没有订单修改权限' });
+    }
     // 如果状态要改为 done，检查服务员权限和是否所有菜品都已完成
     if (status === 'done') {
       if (!req.isAdmin && req.waiter && !req.waiter.can_complete_order) {
@@ -2661,7 +2698,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   }
 });
 
-app.delete('/api/orders/:id(\\d+)', requireAdminKey, async (req, res) => {
+app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_delete_order'), async (req, res) => {
   try {
     const id = req.params.id;
     const { password } = req.body || {};
@@ -2830,7 +2867,7 @@ app.get('/api/admin/printers', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/printers', requireAdminKey, async (req, res) => {
+app.post('/api/admin/printers', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
   try {
     const { name, type, ip_address, port, paper_width, brand, is_default } = req.body || {};
     if (!name) return res.status(400).json({ error: '打印机名称必填' });
@@ -2843,7 +2880,7 @@ app.post('/api/admin/printers', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/admin/printers/:id', requireAdminKey, async (req, res) => {
+app.put('/api/admin/printers/:id', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const current = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [id, req.storeId]);
@@ -2858,7 +2895,7 @@ app.put('/api/admin/printers/:id', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/admin/printers/:id', requireAdminKey, async (req, res) => {
+app.delete('/api/admin/printers/:id', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const current = await getAsync('SELECT id FROM printers WHERE id=? AND store_id=?', [id, req.storeId]);
@@ -2942,7 +2979,7 @@ app.get('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
 });
 
 // 自动打印设置 - 保存
-app.post('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
+app.post('/api/admin/settings/auto-print', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
   try {
     const storeId = req.storeId || 1;
     const { enabled } = req.body || {};
@@ -2959,7 +2996,7 @@ app.post('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => 
   }
 });
 
-app.post('/api/admin/printers/test', requireAdminKey, async (req, res) => {
+app.post('/api/admin/printers/test', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
   try {
     const { printer_id } = req.body || {};
     const printer = await getAsync('SELECT * FROM printers WHERE id=? AND active=1', [printer_id]);
@@ -3204,7 +3241,7 @@ app.post('/api/admin/admins', requireAdminKey, async (req, res) => {
       [req.merchantId, String(username).trim(), hashPassword(password), display_name, active ? 1 : 0]
     );
     await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_admin', 'merchant_admin', result.lastID, `创建管理员: ${username}`, req.ip);
-    res.status(201).json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=?', [result.lastID]));
+    res.status(201).json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=?', [result.lastID]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3225,7 +3262,7 @@ app.put('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
     }
     // 处理权限字段
     if (permissions && typeof permissions === 'object') {
-      const permFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs'];
+      const permFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs'];
       for (const field of permFields) {
         if (permissions[field] !== undefined) {
           fields.push(field + '=?');
@@ -3238,7 +3275,7 @@ app.put('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
       await runAsync(`UPDATE merchant_admins SET ${fields.join(',')} WHERE id=?`, values);
     }
     await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_admin', 'merchant_admin', id, `更新管理员: ${admin.username}`, req.ip);
-    res.json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=?', [id]));
+    res.json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=?', [id]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3255,7 +3292,7 @@ app.delete('/api/admin/admins/:id', requireAdminKey, async (req, res) => {
 });
 
 // ----- 商户操作日志 -----
-app.get('/api/admin/audit-logs', requireAdminKey, async (req, res) => {
+app.get('/api/admin/audit-logs', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
   try {
     const rows = await allAsync(
       "SELECT id, actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at FROM audit_logs WHERE actor_type='merchant_admin' AND actor_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?) ORDER BY id DESC LIMIT 200",
@@ -3496,7 +3533,7 @@ app.get('/api/admin/display-settings', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/display-settings', requireAdminKey, async (req, res) => {
+app.post('/api/admin/display-settings', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
   try {
     const enabled = req.body.enabled ? '1' : '0';
     const secondary = String(req.body.secondaryCurrencyCode || 'USD');
@@ -3514,7 +3551,7 @@ app.get('/api/admin/notification-settings', requireAdminKey, async (req, res) =>
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/notification-settings', requireAdminKey, async (req, res) => {
+app.post('/api/admin/notification-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const enabled = req.body.enabled ? '1' : '0';
     await runAsync("INSERT INTO settings (`key`, value) VALUES ('new_order_sound_enabled', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [enabled]);
