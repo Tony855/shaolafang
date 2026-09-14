@@ -1535,7 +1535,8 @@ async function requireAdminOrWaiter(req, res, next) {
 
 // ---------- 自动备份 ----------
 async function collectBackupData() {
-  const tables = ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'settings', 'login_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
+  // 注意：admin_sessions、super_sessions 为会话临时表，故意不纳入备份，恢复后需重新登录
+  const tables = ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
   const data = { exportedAt: new Date().toISOString(), tables: {} };
   for (const table of tables) {
     data.tables[table] = await allAsync(`SELECT * FROM \`${table}\``);
@@ -3651,7 +3652,8 @@ app.post('/api/super/backup/import', requireSuperAdmin, async (req, res) => {
     const data = req.body;
     if (!data || !data.tables || typeof data.tables !== 'object') return res.status(400).json({ error: '备份文件格式无效' });
     await withTransaction(async () => {
-      for (const table of ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'login_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins']) {
+      // 注意：admin_sessions、super_sessions 为会话临时表，故意不纳入恢复，恢复后需重新登录
+      for (const table of ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins']) {
         const rows = Array.isArray(data.tables[table]) ? data.tables[table] : [];
         await runAsync(`DELETE FROM \`${table}\``);
         for (const row of rows) {
