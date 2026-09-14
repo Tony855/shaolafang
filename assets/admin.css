@@ -1235,14 +1235,6 @@
             color: #e74c3c !important;
         }
         
-        .backup-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 14px;
-        }
-        
         .permission-list {
             display: flex;
             flex-direction: column;
@@ -1634,6 +1626,7 @@
 
         .backup-actions {
             display: flex;
+            align-items: center;
             gap: 8px;
             flex-wrap: wrap;
             margin-bottom: 4px;

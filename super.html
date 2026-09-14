@@ -639,12 +639,6 @@ function t(key) {
   return i18nData[key] || key;
 }
 
-function switchLang(lang) {
-  currentLang = lang;
-  localStorage.setItem('superLang', lang);
-  initI18n();
-}
-
 function applyI18n() {
   // 更新语言选择器
   const loginSel = document.getElementById('loginLangSelect');

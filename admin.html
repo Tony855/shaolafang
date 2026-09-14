@@ -3712,13 +3712,11 @@
                 ordersCache.forEach(o => printedOrders.add(o.id));
             }
             autoPrintPollTimer = setInterval(checkNewOrdersAndPrint, 15000);
-            console.log('🖨️ 自动打印轮询已启动');
         }
         function stopAutoPrintPoll() {
             if (autoPrintPollTimer) {
                 clearInterval(autoPrintPollTimer);
                 autoPrintPollTimer = null;
-                console.log('🖨️ 自动打印轮询已停止');
             }
         }
         async function checkNewOrdersAndPrint() {
@@ -3727,7 +3725,6 @@
                 const newOrders = orders.filter(o => o.status === 'pending' && !printedOrders.has(o.id));
                 for (const order of newOrders) {
                     printedOrders.add(order.id);
-                    console.log('🖨️ 自动打印新订单 #' + order.id);
                     try {
                         const data = await api('/orders/' + order.id + '/print', {
                             method: 'POST',
