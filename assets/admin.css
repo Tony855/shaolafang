@@ -1,6 +1,5 @@
 
 
-
         
 /* ===== 全局重置与基础样式 ===== */
         * {
@@ -622,11 +621,7 @@
         .admin-perm-item .store-switch {
             flex-shrink: 0;
         }
-        @media (max-width: 600px) {
-            .admin-perm-items {
-                grid-template-columns: 1fr;
-            }
-        }
+        
 
         
         .printer-form-container {
@@ -757,19 +752,7 @@
             flex-shrink: 0;
             margin-left: auto;
         }
-        @media (max-width: 600px) {
-            .settings-row {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 12px;
-            }
-            .settings-row .store-switch-label {
-                min-width: auto;
-            }
-            .settings-row .display-settings-btn {
-                width: 100%;
-            }
-        }
+        
         .btn-secondary {
             background: rgba(255,255,255,.08);
             border: 1px solid rgba(255,255,255,.15);
@@ -2052,8 +2035,88 @@
             color: #fff !important;
             font-weight: 700;
         }
-    @media (max-width: 1024px) {
-        .hamburger-btn { display: flex; }
+    
+
+        
+        
+
+        
+        
+
+    
+
+        
+
+/* ===== 统一的编辑和删除按钮样式 ===== */
+button.edit-btn,
+.menu-actions button.edit-btn,
+#adminList .admin-card .actions button.edit-btn,
+#waiterList .actions button.edit-btn,
+#storeList .actions button.edit-btn {
+    background: linear-gradient(135deg, rgba(255, 217, 61, .2), rgba(255, 193, 7, .15)) !important;
+    border: 1px solid rgba(255, 217, 61, .35) !important;
+    color: #ffd93d !important;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: all .2s ease;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+button.edit-btn:hover,
+.menu-actions button.edit-btn:hover,
+#adminList .admin-card .actions button.edit-btn:hover,
+#waiterList .actions button.edit-btn:hover,
+#storeList .actions button.edit-btn:hover {
+    background: linear-gradient(135deg, rgba(255, 217, 61, .3), rgba(255, 193, 7, .25)) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 217, 61, .2);
+}
+
+button.danger,
+.menu-actions button.danger,
+#adminList .admin-card .actions button.danger,
+#waiterList .actions button.danger,
+#storeList .actions button.danger {
+    background: linear-gradient(135deg, rgba(255, 77, 79, .2), rgba(255, 107, 107, .15)) !important;
+    border: 1px solid rgba(255, 77, 79, .35) !important;
+    color: #ff9c9c !important;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: all .2s ease;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+button.danger:hover,
+.menu-actions button.danger:hover,
+#adminList .admin-card .actions button.danger:hover,
+#waiterList .actions button.danger:hover,
+#storeList .actions button.danger:hover {
+    background: linear-gradient(135deg, rgba(255, 77, 79, .3), rgba(255, 107, 107, .25)) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 77, 79, .2);
+}
+
+button.danger:disabled,
+button.edit-btn:disabled {
+    opacity: .4 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+
+/* ===== 响应式断点（按宽度从大到小排序，小屏覆盖大屏） ===== */
+
+@media (max-width: 1024px) {
+.hamburger-btn { display: flex; }
 /* ===== 顶部导航栏（固定） ===== */
         .top { padding: 0 10px 0 52px; gap: 8px; height: 56px; min-height: 56px; background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%); }
         .top #adminHeaderTitle { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
@@ -2102,13 +2165,10 @@
         .panel.module-panel { padding: 14px; border-radius: 14px; max-width: 100%; margin-left: auto; margin-right: auto; }
         .panel.module-panel h2 { font-size: 17px; margin-bottom: 12px; justify-content: center; text-align: center; }
         .panel.module-panel h2::after { display: none; }
-    }
+}
 
-
-
-        
-        @media (max-width: 920px) {
-            .admin-shell {
+@media (max-width: 920px) {
+.admin-shell {
                 padding: 14px 14px 30px;
                 width: 100%;
                 max-width: none;
@@ -2144,12 +2204,9 @@
             .notice {
                 top: 66px;
             }
-        }
+}
 
-
-
-        
-        @media (max-width: 760px) {
+@media (max-width: 760px) {
 /* ===== 顶部导航栏（固定） ===== */
             .top {
                 height: 56px;
@@ -2331,10 +2388,26 @@
             .order-toolbar button {
                 width: 100%;
             }
-        }
+}
 
+@media (max-width: 600px) {
+.admin-perm-items {
+                grid-template-columns: 1fr;
+            }
+.settings-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .settings-row .store-switch-label {
+                min-width: auto;
+            }
+            .settings-row .display-settings-btn {
+                width: 100%;
+            }
+}
 
-    @media (max-width: 480px) {
+@media (max-width: 480px) {
 /* ===== 顶部导航栏（固定） ===== */
         .top { padding: 0 8px 0 48px; gap: 6px; height: 52px; min-height: 52px; }
         .top-right select { font-size: 11px; padding: 5px 6px; }
@@ -2350,12 +2423,10 @@
         .menu-toolbar button, .menu-toolbar select { font-size: 11px; padding: 7px 9px; border-radius: 8px; }
         .admin-shell { padding: 8px 8px 16px; }
         .admin-modules { padding: 0; }
-    }
+}
 
-
-
-        @media (max-width: 420px) {
-            .top strong {
+@media (max-width: 420px) {
+.top strong {
                 font-size: 13px;
             }
             .top select {
@@ -2403,72 +2474,5 @@
             .panel {
                 padding: 10px;
             }
-        }
-
-
-/* ===== 统一的编辑和删除按钮样式 ===== */
-button.edit-btn,
-.menu-actions button.edit-btn,
-#adminList .admin-card .actions button.edit-btn,
-#waiterList .actions button.edit-btn,
-#storeList .actions button.edit-btn {
-    background: linear-gradient(135deg, rgba(255, 217, 61, .2), rgba(255, 193, 7, .15)) !important;
-    border: 1px solid rgba(255, 217, 61, .35) !important;
-    color: #ffd93d !important;
-    font-weight: 600;
-    border-radius: 8px;
-    padding: 7px 14px;
-    cursor: pointer;
-    transition: all .2s ease;
-    font-size: 13px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
 }
-button.edit-btn:hover,
-.menu-actions button.edit-btn:hover,
-#adminList .admin-card .actions button.edit-btn:hover,
-#waiterList .actions button.edit-btn:hover,
-#storeList .actions button.edit-btn:hover {
-    background: linear-gradient(135deg, rgba(255, 217, 61, .3), rgba(255, 193, 7, .25)) !important;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 217, 61, .2);
-}
-
-button.danger,
-.menu-actions button.danger,
-#adminList .admin-card .actions button.danger,
-#waiterList .actions button.danger,
-#storeList .actions button.danger {
-    background: linear-gradient(135deg, rgba(255, 77, 79, .2), rgba(255, 107, 107, .15)) !important;
-    border: 1px solid rgba(255, 77, 79, .35) !important;
-    color: #ff9c9c !important;
-    font-weight: 600;
-    border-radius: 8px;
-    padding: 7px 14px;
-    cursor: pointer;
-    transition: all .2s ease;
-    font-size: 13px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-button.danger:hover,
-.menu-actions button.danger:hover,
-#adminList .admin-card .actions button.danger:hover,
-#waiterList .actions button.danger:hover,
-#storeList .actions button.danger:hover {
-    background: linear-gradient(135deg, rgba(255, 77, 79, .3), rgba(255, 107, 107, .25)) !important;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 77, 79, .2);
-}
-
-button.danger:disabled,
-button.edit-btn:disabled {
-    opacity: .4 !important;
-    cursor: not-allowed !important;
-    transform: none !important;
-    box-shadow: none !important;
-}
-
 

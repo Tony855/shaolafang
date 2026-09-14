@@ -1591,6 +1591,33 @@ async function maybeAutoBackup() {
   }
 }
 
+// 自动清理过期日志
+async function autoCleanLogs() {
+  try {
+    const enabledRow = await getAsync("SELECT value FROM settings WHERE `key` = 'auto_clean_log_enabled'");
+    if (!enabledRow || enabledRow.value !== '1' && enabledRow.value !== 'true') return;
+    const daysRow = await getAsync("SELECT value FROM settings WHERE `key` = 'log_retention_days'");
+    const retentionDays = parseInt(daysRow?.value || '30', 10);
+    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+    const cleanLoginRow = await getAsync("SELECT value FROM settings WHERE `key` = 'clean_login_log'");
+    const cleanAuditRow = await getAsync("SELECT value FROM settings WHERE `key` = 'clean_audit_log'");
+    let cleaned = 0;
+    if (!cleanLoginRow || cleanLoginRow.value === '1' || cleanLoginRow.value === 'true') {
+      const result = await runAsync('DELETE FROM login_logs WHERE created_at < ?', [cutoff]);
+      cleaned += result.affectedRows || 0;
+    }
+    if (!cleanAuditRow || cleanAuditRow.value === '1' || cleanAuditRow.value === 'true') {
+      const result = await runAsync('DELETE FROM audit_logs WHERE created_at < ?', [cutoff]);
+      cleaned += result.affectedRows || 0;
+    }
+    if (cleaned > 0) {
+      console.log(`🧹 自动清理日志: 删除 ${cleaned} 条过期日志（保留 ${retentionDays} 天）`);
+    }
+  } catch (e) {
+    console.warn('自动清理日志失败:', e.message);
+  }
+}
+
 // ================================================================
 //  路由
 // ================================================================
@@ -2058,7 +2085,7 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
 // 超级管理员获取全局设置
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist', 'call_limit_enabled', 'call_limit_max', 'call_limit_window_minutes', 'call_limit_cooldown_minutes')");
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist', 'call_limit_enabled', 'call_limit_max', 'call_limit_window_minutes', 'call_limit_cooldown_minutes', 'auto_clean_log_enabled', 'log_retention_days', 'clean_login_log', 'clean_audit_log')");
     const settings = {};
     rows.forEach(r => { settings[r.key] = r.value; });
     res.json({
@@ -2078,6 +2105,10 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
       call_limit_max: parseInt(settings.call_limit_max || '3', 10),
       call_limit_window_minutes: parseInt(settings.call_limit_window_minutes || '5', 10),
       call_limit_cooldown_minutes: parseInt(settings.call_limit_cooldown_minutes || '10', 10),
+      auto_clean_log_enabled: (settings.auto_clean_log_enabled || '0') !== '0',
+      log_retention_days: parseInt(settings.log_retention_days || '30', 10),
+      clean_login_log: (settings.clean_login_log || '1') !== '0',
+      clean_audit_log: (settings.clean_audit_log || '1') !== '0',
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2085,7 +2116,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 // 超级管理员更新全局设置
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { super_idle_timeout, admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes } = req.body || {};
+    const { super_idle_timeout, admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes, auto_clean_log_enabled, log_retention_days, clean_login_log, clean_audit_log } = req.body || {};
     if (super_idle_timeout !== undefined) {
       const mins = Math.max(1, Math.min(1440, parseInt(super_idle_timeout, 10) || 60));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
@@ -2147,6 +2178,19 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     if (call_limit_cooldown_minutes !== undefined) {
       const val = Math.max(1, Math.min(120, parseInt(call_limit_cooldown_minutes, 10) || 10));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_cooldown_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (auto_clean_log_enabled !== undefined) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('auto_clean_log_enabled', ?) ON DUPLICATE KEY UPDATE value=?", [auto_clean_log_enabled ? '1' : '0', auto_clean_log_enabled ? '1' : '0']);
+    }
+    if (log_retention_days !== undefined) {
+      const val = Math.max(1, Math.min(365, parseInt(log_retention_days, 10) || 30));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('log_retention_days', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (clean_login_log !== undefined) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('clean_login_log', ?) ON DUPLICATE KEY UPDATE value=?", [clean_login_log ? '1' : '0', clean_login_log ? '1' : '0']);
+    }
+    if (clean_audit_log !== undefined) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('clean_audit_log', ?) ON DUPLICATE KEY UPDATE value=?", [clean_audit_log ? '1' : '0', clean_audit_log ? '1' : '0']);
     }
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_settings', 'settings', null,
       '更新系统全局设置', getClientIp(req));
@@ -3948,6 +3992,11 @@ initDatabase().then(() => {
     setInterval(() => {
       maybeAutoBackup().catch(err => console.error('自动备份失败:', err.message));
     }, 5 * 60 * 1000);
+    // 每天检查一次是否需要清理日志
+    autoCleanLogs().catch(err => console.error('日志清理失败:', err.message));
+    setInterval(() => {
+      autoCleanLogs().catch(err => console.error('日志清理失败:', err.message));
+    }, 24 * 60 * 60 * 1000);
   });
 }).catch(err => {
   console.error('❌ 数据库初始化失败:', err);

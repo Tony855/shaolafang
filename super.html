@@ -534,6 +534,7 @@ select:focus {
         <button id="tabOrder" onclick="switchSettingsTab('order')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="orderLimitSettings">📦 下单限制设置</button>
         <button id="tabSecurity" onclick="switchSettingsTab('security')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="securitySettingsTab">🔒 安全设置</button>
         <button id="tabCallLimit" onclick="switchSettingsTab('callLimit')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="callLimitSettingsTab">🔔 呼叫限制设置</button>
+        <button id="tabLog" onclick="switchSettingsTab('log')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="logSettingsTab">📋 日志设置</button>
       </div>
       <!-- 全局超时设置面板 -->
       <div id="timeoutSettings">
@@ -639,6 +640,39 @@ select:focus {
           <label>超限后冷却时间（分钟）</label>
           <input type="number" id="callLimitCooldownMinutes" min="1" max="120" placeholder="如：10">
           <small style="color:#666;">呼叫次数超限后禁止呼叫的时长，范围1-120分钟</small>
+        </div>
+        </div>
+      </div>
+      <!-- 日志设置面板 -->
+      <div id="logSettings" style="display:none;">
+        <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
+            <p style="color:#888;margin-bottom:16px;">系统日志自动清理配置，防止日志数据过大影响性能</p>
+        <div class="form-group">
+          <label data-i18n="autoCleanLogEnabled">启用自动清理日志</label>
+          <select id="autoCleanLogEnabled" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+            <option value="1" data-i18n="enabled">启用</option>
+            <option value="0" data-i18n="disabled">禁用</option>
+          </select>
+          <small style="color:#666;" data-i18n="autoCleanLogDesc">启用后，系统每天自动清理超过保留天数的登录日志和操作审计日志</small>
+        </div>
+        <div class="form-group">
+          <label data-i18n="logRetentionDays">日志保留天数</label>
+          <input type="number" id="logRetentionDays" min="1" max="365" placeholder="如：30">
+          <small style="color:#666;" data-i18n="logRetentionDaysDesc">超过此天数的日志将被自动清理，范围1-365天</small>
+        </div>
+        <div class="form-group">
+          <label data-i18n="cleanLoginLog">清理登录日志</label>
+          <select id="cleanLoginLog" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+            <option value="1" data-i18n="yes">是</option>
+            <option value="0" data-i18n="no">否</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label data-i18n="cleanAuditLog">清理操作审计日志</label>
+          <select id="cleanAuditLog" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+            <option value="1" data-i18n="yes">是</option>
+            <option value="0" data-i18n="no">否</option>
+          </select>
         </div>
         </div>
       </div>
@@ -1172,13 +1206,17 @@ async function loadGlobalSettings() {
     document.getElementById('callLimitMax').value = settings.call_limit_max || 3;
     document.getElementById('callLimitWindowMinutes').value = settings.call_limit_window_minutes || 5;
     document.getElementById('callLimitCooldownMinutes').value = settings.call_limit_cooldown_minutes || 10;
+    document.getElementById('autoCleanLogEnabled').value = settings.auto_clean_log_enabled ? '1' : '0';
+    document.getElementById('logRetentionDays').value = settings.log_retention_days || 30;
+    document.getElementById('cleanLoginLog').value = settings.clean_login_log ? '1' : '0';
+    document.getElementById('cleanAuditLog').value = settings.clean_audit_log ? '1' : '0';
   } catch (e) { toast(t('loadFailed') + ': ' + e.message, 'error'); }
 }
 
 // 保存全局设置
 function switchSettingsTab(tab) {
-  const tabs = { timeout: 'tabTimeout', order: 'tabOrder', security: 'tabSecurity', callLimit: 'tabCallLimit' };
-  const panels = { timeout: 'timeoutSettings', order: 'orderSettings', security: 'securitySettings', callLimit: 'callLimitSettings' };
+  const tabs = { timeout: 'tabTimeout', order: 'tabOrder', security: 'tabSecurity', callLimit: 'tabCallLimit', log: 'tabLog' };
+  const panels = { timeout: 'timeoutSettings', order: 'orderSettings', security: 'securitySettings', callLimit: 'callLimitSettings', log: 'logSettings' };
   Object.keys(tabs).forEach(t => {
     const tabEl = document.getElementById(tabs[t]);
     const panelEl = document.getElementById(panels[t]);
@@ -1227,7 +1265,7 @@ async function saveGlobalSettings() {
     if (!callLimitMax || callLimitMax < 1 || callLimitMax > 20) { toast('最大呼叫次数 1-20', 'error'); return; }
     if (!callLimitWindow || callLimitWindow < 1 || callLimitWindow > 60) { toast('时间窗口 1-60分钟', 'error'); return; }
     if (!callLimitCooldown || callLimitCooldown < 1 || callLimitCooldown > 120) { toast('冷却时间 1-120分钟', 'error'); return; }
-    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength, login_max_attempts: loginMaxAttempts, login_lock_minutes: loginLockMinutes, super_ip_whitelist: superIpWhitelist, call_limit_enabled: callLimitEnabled, call_limit_max: callLimitMax, call_limit_window_minutes: callLimitWindow, call_limit_cooldown_minutes: callLimitCooldown }) });
+    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength, login_max_attempts: loginMaxAttempts, login_lock_minutes: loginLockMinutes, super_ip_whitelist: superIpWhitelist, call_limit_enabled: callLimitEnabled, call_limit_max: callLimitMax, call_limit_window_minutes: callLimitWindow, call_limit_cooldown_minutes: callLimitCooldown, auto_clean_log_enabled: document.getElementById('autoCleanLogEnabled').value === '1', log_retention_days: parseInt(document.getElementById('logRetentionDays').value, 10) || 30, clean_login_log: document.getElementById('cleanLoginLog').value === '1', clean_audit_log: document.getElementById('cleanAuditLog').value === '1' }) });
     toast(t('settingsSaved'), 'success');
   } catch (e) { toast(t('saveFailed') + ': ' + e.message, 'error'); }
 }
