@@ -602,11 +602,13 @@ async function initDatabase() {
   await runAsync(`
     CREATE TABLE IF NOT EXISTS currencies (
       id INT PRIMARY KEY AUTO_INCREMENT,
-      code VARCHAR(10) UNIQUE NOT NULL,
+      merchant_id INT NOT NULL DEFAULT 1,
+      code VARCHAR(10) NOT NULL,
       symbol VARCHAR(10) NOT NULL,
       name VARCHAR(255) NOT NULL,
       rate DECIMAL(10,4) NOT NULL DEFAULT 1,
-      is_default TINYINT NOT NULL DEFAULT 0
+      is_default TINYINT NOT NULL DEFAULT 0,
+      UNIQUE KEY unique_merchant_code (merchant_id, code)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
@@ -863,7 +865,7 @@ async function initDatabase() {
   `);
 
   // 为现有表添加 merchant_id 字段（兼容旧表）
-  const tablesToAlter = ['stores', 'menus', 'tables', 'orders', 'waiters', 'printers', 'waiter_calls', 'reservations', 'scan_sessions'];
+  const tablesToAlter = ['stores', 'menus', 'tables', 'orders', 'waiters', 'printers', 'waiter_calls', 'reservations', 'scan_sessions', 'currencies'];
   for (const tbl of tablesToAlter) {
     try {
       await runAsync(`ALTER TABLE ${tbl} ADD COLUMN merchant_id INT NOT NULL DEFAULT 1`);
@@ -961,7 +963,16 @@ async function initDatabase() {
     for (const currency of [
       ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
       ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
-    ]) await runAsync('INSERT INTO currencies (code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?)', currency);
+    ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (1, ?, ?, ?, ?, ?)', currency);
+  }
+
+  // 为所有商户初始化默认货币（如果该商户还没有货币）
+  const allMerchants = await allAsync('SELECT id FROM merchants');
+  for (const m of allMerchants) {
+    const cnt = await getAsync('SELECT COUNT(*) AS count FROM currencies WHERE merchant_id=?', [m.id]);
+    if (cnt.count === 0) {
+      await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) SELECT ?, code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=1', [m.id]);
+    }
   }
 
   // 确保双货币设置为默认值（启用双币，第二货币为KHR）
@@ -1285,7 +1296,7 @@ async function normalizeOrderItems(items) {
     }
     const menuItem = await getAsync('SELECT * FROM menus WHERE id = ?', [menuId]);
     if (!menuItem) throw new Error(`菜品不存在（ID: ${menuId}）`);
-    const currency = await getAsync('SELECT code, rate FROM currencies WHERE code=?', [menuItem.currency_code || 'USD']);
+    const currency = await getAsync('SELECT code, rate FROM currencies WHERE code=? AND merchant_id=(SELECT merchant_id FROM stores WHERE id=?)', [menuItem.currency_code || 'USD', menuItem.store_id || 1]);
     if (!currency || !(Number(currency.rate) > 0)) throw new Error(`菜品货币无效（${menuItem.currency_code || 'CNY'}）`);
     normalized.push({
       id: menuItem.id,
@@ -1511,7 +1522,10 @@ async function maybeAutoBackup() {
 // ----- 公开接口 -----
 app.get('/api/public/config', async (req, res) => {
   try {
-    const currencies = await allAsync('SELECT code, symbol, name, rate, is_default FROM currencies ORDER BY is_default DESC, code');
+    const storeId = parseInt(req.query.store_id || '1', 10);
+    const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [storeId]);
+    const merchantId = store?.merchant_id || 1;
+    const currencies = await allAsync('SELECT code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code', [merchantId]);
     const dualRow = await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
     const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
     const secondaryCurrency = currencies.find(c => c.code === secondaryRow?.value) || null;
@@ -2078,7 +2092,7 @@ app.delete('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_man
 // ----- 店铺管理 -----
 app.get('/api/admin/stores', requireAdminKey, async (req, res) => {
   try {
-    res.json(await allAsync('SELECT * FROM stores ORDER BY id'));
+    res.json(await allAsync('SELECT * FROM stores WHERE merchant_id=? ORDER BY id', [req.merchantId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2101,7 +2115,7 @@ app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_sto
 app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT * FROM stores WHERE id=?', [id]);
+    const current = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     if (!current) return res.status(404).json({ error: '店铺不存在' });
     const qrLanguages = req.body.qr_languages !== undefined ? (req.body.qr_languages || null) : current.qr_languages;
     await runAsync('UPDATE stores SET name=?, code=?, address=?, active=?, qr_languages=? WHERE id=?', [req.body.name || current.name, req.body.code || current.code, req.body.address ?? current.address, req.body.active === undefined ? current.active : (req.body.active ? 1 : 0), qrLanguages, id]);
@@ -2112,8 +2126,10 @@ app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_
 app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    const current = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [id, req.merchantId]);
+    if (!current) return res.status(404).json({ error: '店铺不存在' });
     if (id === 1) return res.status(400).json({ error: '默认总店不能删除' });
-    await runAsync('DELETE FROM stores WHERE id=?', [id]);
+    await runAsync('DELETE FROM stores WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2121,8 +2137,15 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
 app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const targetStoreId = parseInt(req.params.id);
-    if (targetStoreId === 1) return res.status(400).json({ error: '总店无需复制自身' });
-    const sourceMenus = await allAsync('SELECT * FROM menus WHERE store_id = 1');
+    // 校验目标店铺属于当前商户
+    const targetStore = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
+    if (!targetStore) return res.status(404).json({ error: '店铺不存在' });
+    // 源店铺：当前商户的第一个店铺（总店）
+    const sourceStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.merchantId]);
+    if (!sourceStore) return res.status(400).json({ error: '未找到源店铺' });
+    const sourceStoreId = sourceStore.id;
+    if (targetStoreId === sourceStoreId) return res.status(400).json({ error: '总店无需复制自身' });
+    const sourceMenus = await allAsync('SELECT * FROM menus WHERE store_id = ? AND merchant_id=?', [sourceStoreId, req.merchantId]);
     if (sourceMenus.length === 0) return res.status(404).json({ error: '总店暂无菜品可复制' });
     const existingMenus = await allAsync('SELECT name FROM menus WHERE store_id = ?', [targetStoreId]);
     const existingNames = new Set(existingMenus.map(m => m.name));
@@ -2189,7 +2212,7 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
   try {
     const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code = 'USD' } = req.body;
     if (!name || !price) return res.status(400).json({ error: '名称和价格必填' });
-    const currency = await getAsync('SELECT code FROM currencies WHERE code=?', [currency_code]);
+    const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [currency_code, req.merchantId]);
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
     const image = req.file ? req.file.filename : '';
     const result = await runAsync(
@@ -2210,7 +2233,7 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
     const current = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '菜品不存在' });
     const nextCurrency = currency_code || current.currency_code || 'USD';
-    const currency = await getAsync('SELECT code FROM currencies WHERE code=?', [nextCurrency]);
+    const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [nextCurrency, req.merchantId]);
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
     let image = req.file ? req.file.filename : current.image;
     if (req.file && current.image) {
@@ -3479,8 +3502,8 @@ app.post('/api/admin/backup/now', requireAdminKey, requirePermission('can_manage
 });
 
 // ----- 货币管理 -----
-app.get('/api/currencies', async (req, res) => {
-  try { res.json(await allAsync('SELECT * FROM currencies ORDER BY is_default DESC, code')); }
+app.get('/api/currencies', requireAdminKey, async (req, res) => {
+  try { res.json(await allAsync('SELECT * FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code', [req.merchantId])); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3489,33 +3512,33 @@ app.post('/api/currencies', requireAdminKey, requirePermission('can_manage_curre
     const { code, symbol, name, rate, is_default } = req.body;
     if (!code || !symbol || !name || !(Number(rate) > 0)) return res.status(400).json({ error: '货币资料不完整' });
     await withTransaction(async () => {
-      if (is_default) await runAsync('UPDATE currencies SET is_default=0');
-      const result = await runAsync('INSERT INTO currencies (code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?)', [String(code).toUpperCase(), symbol, name, Number(rate), is_default ? 1 : 0]);
-      res.status(201).json(await getAsync('SELECT * FROM currencies WHERE id=?', [result.lastID]));
+      if (is_default) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [req.merchantId]);
+      const result = await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [req.merchantId, String(code).toUpperCase(), symbol, name, Number(rate), is_default ? 1 : 0]);
+      res.status(201).json(await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [result.lastID, req.merchantId]));
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/currencies/:id', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
   try {
-    const current = await getAsync('SELECT * FROM currencies WHERE id=?', [req.params.id]);
+    const current = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [req.params.id, req.merchantId]);
     if (!current) return res.status(404).json({ error: '货币不存在' });
     const next = { ...current, ...req.body };
     if (!(Number(next.rate) > 0)) return res.status(400).json({ error: '汇率必须大于 0' });
     await withTransaction(async () => {
-      if (next.is_default) await runAsync('UPDATE currencies SET is_default=0');
+      if (next.is_default) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [req.merchantId]);
       await runAsync('UPDATE currencies SET code=?,symbol=?,name=?,rate=?,is_default=? WHERE id=?', [String(next.code).toUpperCase(), next.symbol, next.name, Number(next.rate), next.is_default ? 1 : 0, current.id]);
     });
-    res.json(await getAsync('SELECT * FROM currencies WHERE id=?', [current.id]));
+    res.json(await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [current.id, req.merchantId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/currencies/:id', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
   try {
-    const current = await getAsync('SELECT * FROM currencies WHERE id=?', [req.params.id]);
+    const current = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [req.params.id, req.merchantId]);
     if (!current) return res.status(404).json({ error: '货币不存在' });
     if (current.is_default) return res.status(409).json({ error: '默认货币不能删除，请先设置其他默认货币' });
-    await runAsync('DELETE FROM currencies WHERE id=?', [current.id]);
+    await runAsync('DELETE FROM currencies WHERE id=? AND merchant_id=?', [current.id, req.merchantId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

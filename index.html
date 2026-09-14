@@ -2701,7 +2701,7 @@
         }
 
         async function fetchStoreConfig() {
-            const res = await fetch(`${API_BASE}/public/config`);
+            const res = await fetch(`${API_BASE}/public/config?store_id=${state.storeId || 1}`);
             if (!res.ok) throw new Error('货币配置加载失败');
             const config = await res.json();
             state.currencies = config.currencies || [];
