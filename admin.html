@@ -3308,7 +3308,7 @@
         $('#adminLang').onchange = async function() {
             adminLang = this.value;
             localStorage.setItem('adminLang', adminLang);
-            if (adminLang !== 'zh') await loadAdminLanguage(adminLang);
+            await loadAdminLanguage(adminLang);
             applyAdminLanguage();
             // 如果当前在操作日志标签，重新加载以应用新语言
             const auditLogsPanel = document.getElementById('auditLogsPanel');

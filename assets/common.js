@@ -11,7 +11,7 @@
     API_BASE: '/api',
     DEFAULT_LANG: 'zh',
     STORAGE_KEYS: {
-      adminKey: 'adminKey',
+      adminToken: 'adminToken',
       adminLang: 'adminLang',
       waiterToken: 'waiterToken',
       waiterLang: 'waiterLang',
@@ -32,11 +32,11 @@
     /* 构建认证请求头：管理员密钥、服务员令牌、店铺ID */
     _getAuthHeaders() {
       const headers = {};
-      const adminKey = sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminKey);
+      const adminToken = sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminToken);
       const waiterToken =
         localStorage.getItem(CONFIG.STORAGE_KEYS.waiterToken) ||
         localStorage.getItem(CONFIG.STORAGE_KEYS.kitchenToken);
-      if (adminKey) headers['X-Admin-Key'] = adminKey;
+      if (adminToken) headers['Authorization'] = 'Bearer ' + adminToken;
       if (waiterToken) headers['X-Waiter-Token'] = waiterToken;
       const storeId = localStorage.getItem(CONFIG.STORAGE_KEYS.storeId);
       if (storeId) headers['X-Store-Id'] = storeId;
@@ -378,18 +378,18 @@
 
   /* ===== 认证辅助工具 ===== */
   const auth = {
-    /* 管理员密钥（sessionStorage，关闭浏览器即失效） */
-    getAdminKey() {
-      return sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminKey);
+    /* 管理员令牌（sessionStorage，关闭浏览器即失效） */
+    getAdminToken() {
+      return sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminToken);
     },
-    setAdminKey(key) {
-      sessionStorage.setItem(CONFIG.STORAGE_KEYS.adminKey, key);
+    setAdminToken(token) {
+      sessionStorage.setItem(CONFIG.STORAGE_KEYS.adminToken, token);
     },
     clearAdmin() {
-      sessionStorage.removeItem(CONFIG.STORAGE_KEYS.adminKey);
+      sessionStorage.removeItem(CONFIG.STORAGE_KEYS.adminToken);
     },
     isAdminLoggedIn() {
-      return !!this.getAdminKey();
+      return !!this.getAdminToken();
     },
 
     /* 服务员/后厨令牌（localStorage，持久化） */
