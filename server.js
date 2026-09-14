@@ -1301,7 +1301,7 @@ async function authenticateAdmin(req) {
         if (merchant) {
           // 验证X-Store-Id对应的店铺是否属于当前商户，防止越权访问其他商户店铺
           let requestedStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
-          let validStoreId = 1;
+          let validStoreId = null;
           if (requestedStoreId > 0) {
             const storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
             if (storeCheck) {
@@ -1309,12 +1309,14 @@ async function authenticateAdmin(req) {
             } else {
               // 请求的店铺不属于当前商户，使用该商户的第一个店铺
               const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-              validStoreId = firstStore ? firstStore.id : 1;
+              if (!firstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
+              validStoreId = firstStore.id;
             }
           } else {
             // 未指定店铺，使用该商户的第一个店铺
             const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-            validStoreId = firstStore ? firstStore.id : 1;
+            if (!firstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
+            validStoreId = firstStore.id;
           }
           // 滑动过期
           const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
@@ -1339,18 +1341,20 @@ async function authenticateAdmin(req) {
           const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
           if (merchant) {
             let legacyStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
-            let legacyValidStoreId = 1;
+            let legacyValidStoreId = null;
             if (legacyStoreId > 0) {
               const legacyStoreCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [legacyStoreId, admin.merchant_id]);
               if (legacyStoreCheck) {
                 legacyValidStoreId = legacyStoreId;
               } else {
                 const legacyFirstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-                legacyValidStoreId = legacyFirstStore ? legacyFirstStore.id : 1;
+                if (!legacyFirstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
+                legacyValidStoreId = legacyFirstStore.id;
               }
             } else {
               const legacyFirstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-              legacyValidStoreId = legacyFirstStore ? legacyFirstStore.id : 1;
+              if (!legacyFirstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
+              legacyValidStoreId = legacyFirstStore.id;
             }
             return {
               adminId: admin.id,
@@ -1777,11 +1781,15 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     }
     const adminHash = hashPassword(adminPassword);
     await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
-    // 为新商户初始化默认货币（直接插入默认货币列表，店铺由商户自行创建）
+    // 为新商户初始化默认货币
     for (const currency of [
       ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
       ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
     ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
+    // 自动创建默认店铺（确保商户登录后有自己的店铺，避免越权访问其他商户数据）
+    const defaultStoreName = name + '总店';
+    const defaultStoreCode = merchantCode.toLowerCase() + '-main';
+    await runAsync('INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)', [newMerchantId, defaultStoreName, defaultStoreCode, '']);
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
       `创建商户「${name}」(编码: ${merchantCode}, 账号: ${adminUsername})`, getClientIp(req));
     res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
@@ -2494,7 +2502,7 @@ app.post('/api/menu-categories/sort', requireAdminKey, requirePermission('can_ma
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids must be a non-empty array' });
     await withTransaction(async () => {
       for (let i = 0; i < ids.length; i++) {
-        await runAsync('UPDATE menu_categories SET sort = ? WHERE id = ?', [i, ids[i]]);
+        await runAsync('UPDATE menu_categories SET sort = ? WHERE id = ? AND store_id = ?', [i, ids[i], req.storeId]);
       }
     });
     res.json({ success: true });
@@ -2739,7 +2747,7 @@ app.post('/api/orders', async (req, res) => {
     // 更新菜品销量
     for (const item of items) {
       if (item.id) {
-        await runAsync('UPDATE menus SET sales_count = sales_count + ? WHERE id = ?', [Number(item.quantity) || 1, item.id]);
+        await runAsync('UPDATE menus SET sales_count = sales_count + ? WHERE id = ? AND store_id = ?', [Number(item.quantity) || 1, item.id, finalStoreId]);
       }
     }
     const newRow = await getAsync('SELECT * FROM orders WHERE id = ?', [result.lastID]);
