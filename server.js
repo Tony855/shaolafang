@@ -531,10 +531,10 @@ async function rebaseCurrencyToUSDOnce() {
   });
 }
 
-async function syncTableStatus(tableName) {
-  const table = await getAsync('SELECT id, status FROM tables WHERE name=?', [tableName]);
+async function syncTableStatus(tableName, storeId) {
+  const table = await getAsync('SELECT id, status FROM tables WHERE name=? AND store_id=?', [tableName, storeId || 1]);
   if (!table) return;
-  const active = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND status='pending'", [tableName]);
+  const active = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [tableName, storeId || 1]);
   if (active.count > 0) {
     if (table.status !== 'occupied') {
       await runAsync('UPDATE tables SET status=? WHERE id=?', ['occupied', table.id]);
@@ -741,10 +741,11 @@ async function initDatabase() {
   await runAsync(`
     CREATE TABLE IF NOT EXISTS tables (
       id INT PRIMARY KEY AUTO_INCREMENT,
-      name VARCHAR(50) UNIQUE NOT NULL,
+      name VARCHAR(50) NOT NULL,
       status VARCHAR(20) DEFAULT 'available',
       qr_token VARCHAR(255),
-      store_id INT NOT NULL DEFAULT 1
+      store_id INT NOT NULL DEFAULT 1,
+      UNIQUE KEY unique_store_table (store_id, name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
@@ -994,7 +995,7 @@ async function initDatabase() {
   const tablesWithoutTokens = await allAsync("SELECT id FROM tables WHERE qr_token IS NULL OR qr_token = ''");
   for (const table of tablesWithoutTokens) await runAsync('UPDATE tables SET qr_token=? WHERE id=?', [createTableToken(), table.id]);
   const allTables = await allAsync('SELECT name FROM tables');
-  for (const t of allTables) await syncTableStatus(t.name);
+  for (const t of allTables) await syncTableStatus(t.name, t.store_id);
 
 }
 
@@ -1317,10 +1318,10 @@ async function normalizeOrderItems(items) {
   return normalized;
 }
 
-async function assertTableExists(table) {
+async function assertTableExists(table, storeId) {
   const normalized = String(table || '').trim();
   if (!normalized) throw new Error('请选择桌号');
-  const existing = await getAsync('SELECT name FROM tables WHERE name = ?', [normalized]);
+  const existing = await getAsync('SELECT name FROM tables WHERE name = ? AND store_id = ?', [normalized, storeId || 1]);
   if (!existing) throw new Error('桌号不存在');
   return normalized;
 }
@@ -1355,6 +1356,23 @@ async function authenticateAdmin(req) {
       if (admin) {
         const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
         if (merchant) {
+          // 验证X-Store-Id对应的店铺是否属于当前商户，防止越权访问其他商户店铺
+          let requestedStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
+          let validStoreId = 1;
+          if (requestedStoreId > 0) {
+            const storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
+            if (storeCheck) {
+              validStoreId = requestedStoreId;
+            } else {
+              // 请求的店铺不属于当前商户，使用该商户的第一个店铺
+              const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+              validStoreId = firstStore ? firstStore.id : 1;
+            }
+          } else {
+            // 未指定店铺，使用该商户的第一个店铺
+            const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+            validStoreId = firstStore ? firstStore.id : 1;
+          }
           // 滑动过期
           const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
           const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
@@ -1363,7 +1381,7 @@ async function authenticateAdmin(req) {
           return {
             adminId: admin.id,
             merchantId: admin.merchant_id,
-            storeId: parseInt(req.get('X-Store-Id') || '1', 10),
+            storeId: validStoreId,
             sessionToken: token
           };
         }
@@ -1377,10 +1395,24 @@ async function authenticateAdmin(req) {
         if (admin) {
           const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
           if (merchant) {
+            let legacyStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
+            let legacyValidStoreId = 1;
+            if (legacyStoreId > 0) {
+              const legacyStoreCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [legacyStoreId, admin.merchant_id]);
+              if (legacyStoreCheck) {
+                legacyValidStoreId = legacyStoreId;
+              } else {
+                const legacyFirstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+                legacyValidStoreId = legacyFirstStore ? legacyFirstStore.id : 1;
+              }
+            } else {
+              const legacyFirstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+              legacyValidStoreId = legacyFirstStore ? legacyFirstStore.id : 1;
+            }
             return {
               adminId: admin.id,
               merchantId: admin.merchant_id,
-              storeId: parseInt(req.get('X-Store-Id') || '1', 10)
+              storeId: legacyValidStoreId
             };
           }
         }
@@ -1497,6 +1529,34 @@ async function collectBackupData() {
   return data;
 }
 
+// 商户专属备份：只导出当前商户的数据，不包含敏感表
+async function collectMerchantBackupData(merchantId) {
+  const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [merchantId])).map(s => s.id);
+  const data = { exportedAt: new Date().toISOString(), merchantId, tables: {} };
+  // 按merchant_id过滤的表
+  data.tables.stores = await allAsync('SELECT * FROM stores WHERE merchant_id=?', [merchantId]);
+  data.tables.currencies = await allAsync('SELECT * FROM currencies WHERE merchant_id=?', [merchantId]);
+  data.tables.merchant_admins = await allAsync('SELECT id, username, display_name, active, merchant_id FROM merchant_admins WHERE merchant_id=?', [merchantId]);
+  // 按store_id过滤的表
+  for (const table of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions']) {
+    if (storeIds.length > 0) {
+      const placeholders = storeIds.map(() => '?').join(',');
+      data.tables[table] = await allAsync(`SELECT * FROM \`${table}\` WHERE store_id IN (${placeholders})`, storeIds);
+    } else {
+      data.tables[table] = [];
+    }
+  }
+  // 分类表按store_id过滤
+  if (storeIds.length > 0) {
+    const placeholders = storeIds.map(() => '?').join(',');
+    data.tables.menu_categories = await allAsync(`SELECT * FROM menu_categories WHERE store_id IN (${placeholders})`, storeIds);
+  } else {
+    data.tables.menu_categories = [];
+  }
+  data.tables.login_logs = await allAsync('SELECT * FROM login_logs WHERE merchant_id=?', [merchantId]);
+  return data;
+}
+
 async function autoBackupDatabase() {
   const backupDir = path.join(__dirname, 'backups');
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
@@ -1528,10 +1588,10 @@ app.get('/api/public/config', async (req, res) => {
     const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [storeId]);
     const merchantId = store?.merchant_id || 1;
     const currencies = await allAsync('SELECT code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code', [merchantId]);
-    const dualRow = await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
-    const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
+    const dualRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_dual_currency_enabled`]) || await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
+    const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_secondary_currency_code`]) || await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
     const secondaryCurrency = currencies.find(c => c.code === secondaryRow?.value) || null;
-    const soundRow = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
+    const soundRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_new_order_sound_enabled`]) || await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
     const refreshRow = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_refresh_interval'");
     const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
     const maxQtyRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_item_quantity'");
@@ -2045,7 +2105,7 @@ app.get('/api/waiter/overview', async (req, res) => {
 // ----- 服务员管理（管理员）-----
 app.get('/api/admin/waiters', requireAdminKey, async (req, res) => {
   try {
-    const rows = await allAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters ORDER BY id');
+    const rows = await allAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE store_id=? ORDER BY id', [req.storeId]);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2054,11 +2114,12 @@ app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_wa
   try {
     const { username, password, display_name, can_order, can_mark_item, can_complete_order, store_id } = req.body || {};
     if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写服务员资料' });
-    const store = await getAsync('SELECT id FROM stores WHERE id=?', [store_id || 1]);
+    const targetStoreId = store_id || req.storeId || 1;
+    const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
     if (!store) return res.status(400).json({ error: '店铺不存在' });
     const result = await runAsync(
       'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, store_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [String(username).trim(), hashPassword(password), display_name, can_order ? 1 : 0, can_mark_item ? 1 : 0, can_complete_order ? 1 : 0, store_id || 1]
+      [String(username).trim(), hashPassword(password), display_name, can_order ? 1 : 0, can_mark_item ? 1 : 0, can_complete_order ? 1 : 0, targetStoreId]
     );
     res.status(201).json(await getAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE id=?', [result.lastID]));
   } catch (e) {
@@ -2074,11 +2135,11 @@ app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage
     if (!current) return res.status(404).json({ error: '服务员不存在' });
     const next = { ...current, ...req.body };
     await runAsync(
-      'UPDATE waiters SET username=?, display_name=?, can_order=?, can_mark_item=?, can_complete_order=?, active=?, store_id=? WHERE id=?',
-      [String(next.username||current.username).trim(), next.display_name||current.display_name, next.can_order?1:0, next.can_mark_item?1:0, next.can_complete_order?1:0, next.active?1:0, next.store_id || current.store_id || 1, id]
+      'UPDATE waiters SET username=?, display_name=?, can_order=?, can_mark_item=?, can_complete_order=?, active=? WHERE id=? AND store_id=?',
+      [String(next.username||current.username).trim(), next.display_name||current.display_name, next.can_order?1:0, next.can_mark_item?1:0, next.can_complete_order?1:0, next.active?1:0, id, req.storeId]
     );
-    if (req.body.password) await runAsync('UPDATE waiters SET password_hash=? WHERE id=?', [hashPassword(req.body.password), id]);
-    res.json(await getAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE id=?', [id]));
+    if (req.body.password) await runAsync('UPDATE waiters SET password_hash=? WHERE id=? AND store_id=?', [hashPassword(req.body.password), id, req.storeId]);
+    res.json(await getAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2087,7 +2148,7 @@ app.delete('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_man
     const id = parseInt(req.params.id);
     const current = await getAsync('SELECT id FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '服务员不存在' });
-    await runAsync('DELETE FROM waiters WHERE id=?', [id]);
+    await runAsync('DELETE FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2121,8 +2182,8 @@ app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_
     const current = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     if (!current) return res.status(404).json({ error: '店铺不存在' });
     const qrLanguages = req.body.qr_languages !== undefined ? (req.body.qr_languages || null) : current.qr_languages;
-    await runAsync('UPDATE stores SET name=?, code=?, address=?, active=?, qr_languages=? WHERE id=?', [req.body.name || current.name, req.body.code || current.code, req.body.address ?? current.address, req.body.active === undefined ? current.active : (req.body.active ? 1 : 0), qrLanguages, id]);
-    res.json(await getAsync('SELECT * FROM stores WHERE id=?', [id]));
+    await runAsync('UPDATE stores SET name=?, code=?, address=?, active=?, qr_languages=? WHERE id=? AND merchant_id=?', [req.body.name || current.name, req.body.code || current.code, req.body.address ?? current.address, req.body.active === undefined ? current.active : (req.body.active ? 1 : 0), qrLanguages, id, req.merchantId]);
+    res.json(await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [id, req.merchantId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2244,8 +2305,8 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
     }
     await runAsync(
-      'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=?',
-      [name || current.name, emoji || current.emoji, Number.isFinite(Number(price)) ? Number(price) : current.price, category || current.category, desc ?? current.desc, image, nextCurrency, name_en ?? current.name_en ?? '', desc_en ?? current.desc_en ?? '', unit || current.unit || '份', show_dual === undefined ? (current.show_dual || 0) : (show_dual ? 1 : 0), secondary_currency_code ?? current.secondary_currency_code ?? '', id]
+      'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=? AND store_id=?',
+      [name || current.name, emoji || current.emoji, Number.isFinite(Number(price)) ? Number(price) : current.price, category || current.category, desc ?? current.desc, image, nextCurrency, name_en ?? current.name_en ?? '', desc_en ?? current.desc_en ?? '', unit || current.unit || '份', show_dual === undefined ? (current.show_dual || 0) : (show_dual ? 1 : 0), secondary_currency_code ?? current.secondary_currency_code ?? '', id, req.storeId]
     );
     const updated = await getAsync('SELECT * FROM menus WHERE id = ?', [id]);
     res.json(updated);
@@ -2276,8 +2337,8 @@ app.put('/api/menu/:id/status', requireAdminKey, requirePermission('can_manage_m
     const item = await getAsync('SELECT id FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!item) return res.status(404).json({ error: '菜品不存在' });
     const active = req.body.active ? 1 : 0;
-    await runAsync('UPDATE menus SET active=? WHERE id=?', [active, id]);
-    res.json(await getAsync('SELECT * FROM menus WHERE id = ?', [id]));
+    await runAsync('UPDATE menus SET active=? WHERE id=? AND store_id=?', [active, id, req.storeId]);
+    res.json(await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -2313,13 +2374,13 @@ app.put('/api/menu-categories/:id', requireAdminKey, requirePermission('can_mana
     const id = parseInt(req.params.id);
     const name = String(req.body.name || '').trim();
     if (!name) return res.status(400).json({ error: '分类名称必填' });
-    const current = await getAsync('SELECT name FROM menu_categories WHERE id = ?', [id]);
+    const current = await getAsync('SELECT name FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '分类不存在' });
     await withTransaction(async () => {
-      await runAsync('UPDATE menu_categories SET name=? WHERE id=?', [name, id]);
-      await runAsync('UPDATE menus SET category=? WHERE category=?', [name, current.name]);
+      await runAsync('UPDATE menu_categories SET name=? WHERE id=? AND store_id=?', [name, id, req.storeId]);
+      await runAsync('UPDATE menus SET category=? WHERE category=? AND store_id=?', [name, current.name, req.storeId]);
     });
-    res.json(await getAsync('SELECT * FROM menu_categories WHERE id = ?', [id]));
+    res.json(await getAsync('SELECT * FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]));
   } catch (e) {
     if (String(e.message).includes('Duplicate entry')) return res.status(409).json({ error: '分类已存在' });
     res.status(500).json({ error: e.message });
@@ -2329,13 +2390,13 @@ app.put('/api/menu-categories/:id', requireAdminKey, requirePermission('can_mana
 app.delete('/api/menu-categories/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT name FROM menu_categories WHERE id = ?', [id]);
+    const current = await getAsync('SELECT name FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '分类不存在' });
-    const remaining = await getAsync("SELECT name FROM menu_categories WHERE id != ? ORDER BY sort, id LIMIT 1", [id]);
+    const remaining = await getAsync("SELECT name FROM menu_categories WHERE id != ? AND store_id = ? ORDER BY sort, id LIMIT 1", [id, req.storeId]);
     let fallback = remaining ? remaining.name : '其他';
     await withTransaction(async () => {
-      if (!remaining) await runAsync("INSERT IGNORE INTO menu_categories (name, sort) VALUES ('其他', 0)");
-      await runAsync('DELETE FROM menu_categories WHERE id = ?', [id]);
+      if (!remaining) await runAsync("INSERT IGNORE INTO menu_categories (name, sort, store_id) VALUES ('其他', 0, ?)", [req.storeId]);
+      await runAsync('DELETE FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]);
       await runAsync('UPDATE menus SET category=? WHERE category=? AND store_id=?', [fallback, current.name, req.storeId]);
     });
     res.json({ success: true });
@@ -2396,11 +2457,9 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     if (!row) return res.status(404).json({ error: '订单不存在' });
     
     // 2. 权限检查
-    if (!req.isAdmin) {
-      const storeId = req.waiterStoreId || 1;
-      if (row.store_id !== storeId) return res.status(403).json({ error: '无权操作此订单' });
-      if (req.waiter && !req.waiter.can_mark_item) return res.status(403).json({ error: '该服务员没有标记菜品权限' });
-    }
+    const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    if (row.store_id !== orderStoreId) return res.status(403).json({ error: '无权操作此订单' });
+    if (!req.isAdmin && req.waiter && !req.waiter.can_mark_item) return res.status(403).json({ error: '该服务员没有标记菜品权限' });
     if (row.status === 'done') return res.status(409).json({ error: '已结算订单不能修改菜品状态' });
     
     // 3. 解析 items（与 formatOrder 一致）
@@ -2468,7 +2527,7 @@ app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'
     if (newName !== existing.name) {
       // 桌号改名后，同步更新该桌尚未结算的订单的桌号，避免改名后订单与桌号对不上；
       // 已结算的历史订单保留原桌号，便于对账。
-      await runAsync("UPDATE orders SET table_name=? WHERE table_name=? AND status='pending'", [newName, existing.name]);
+      await runAsync("UPDATE orders SET table_name=? WHERE table_name=? AND store_id=? AND status='pending'", [newName, existing.name, req.storeId]);
     }
     const updated = await getAsync('SELECT * FROM tables WHERE id = ?', [id]);
     res.json(updated);
@@ -2482,9 +2541,9 @@ app.delete('/api/tables/:id', requireAdminKey, requirePermission('can_manage_tab
     const id = req.params.id;
     const existing = await getAsync('SELECT * FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!existing) return res.status(404).json({ error: '桌号不存在' });
-    const orderCount = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name = ? AND status != 'canceled'", [existing.name]);
+    const orderCount = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name = ? AND store_id = ? AND status != 'canceled'", [existing.name, req.storeId]);
     if (orderCount.count > 0) return res.status(409).json({ error: '该桌仍有未完成订单，不能删除' });
-    await runAsync('DELETE FROM tables WHERE id = ?', [id]);
+    await runAsync('DELETE FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2529,8 +2588,8 @@ app.get('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const table = await assertTableExists(req.body.table);
-    const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=?', [table]);
+    const table = await assertTableExists(req.body.table, req.storeId);
+    const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, req.storeId]);
     const storeId = tableStore?.store_id || 1;
     const adminKey = req.get('X-Admin-Key');
     const keySetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
@@ -2597,7 +2656,7 @@ app.post('/api/orders', async (req, res) => {
       }
     }
     const newRow = await getAsync('SELECT * FROM orders WHERE id = ?', [result.lastID]);
-    await syncTableStatus(table);
+    await syncTableStatus(table, req.storeId);
     // 返回新的session过期时间，供前端同步
     // 自动打印小票
     try {
@@ -2692,7 +2751,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     }
 
     // 处理桌号更新
-    const nextTable = table === undefined ? existing.table_name : await assertTableExists(table);
+    const nextTable = table === undefined ? existing.table_name : await assertTableExists(table, req.storeId);
 
     // 序列化 items 为 JSON 字符串存储
     const itemsJson = JSON.stringify(newItems);
@@ -2710,8 +2769,8 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     );
 
     const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
-    await syncTableStatus(nextTable);
-    if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name);
+    await syncTableStatus(nextTable, req.storeId);
+    if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, req.storeId);
 
     res.json(formatOrder(updatedRow));
   } catch (e) {
@@ -2729,9 +2788,9 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
     }
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
-    const result = await runAsync('DELETE FROM orders WHERE id = ?', [id]);
+    const result = await runAsync('DELETE FROM orders WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (result.changes === 0) return res.status(404).json({ error: '订单不存在' });
-    if (existing) await syncTableStatus(existing.table_name);
+    if (existing) await syncTableStatus(existing.table_name, existing.store_id);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2743,7 +2802,7 @@ app.post('/api/public/call-waiter', async (req, res) => {
   try {
     const { table, sessionToken } = req.body || {};
     if (!table) return res.status(400).json({ error: '桌号不能为空' });
-    const tableRow = await getAsync('SELECT id, store_id FROM tables WHERE name=?', [table]);
+    const tableRow = await getAsync('SELECT id, store_id FROM tables WHERE name=? AND store_id=?', [table, req.storeId]);
     if (!tableRow) return res.status(404).json({ error: '桌号不存在' });
     // 读取呼叫限制配置
     const limitRows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('call_limit_enabled','call_limit_max','call_limit_window_minutes','call_limit_cooldown_minutes')");
@@ -2816,7 +2875,7 @@ app.post('/api/public/reservations', async (req, res) => {
     if (!table || !customerName || !reservationTime) {
       return res.status(400).json({ error: '桌号、顾客姓名和预约时间必填' });
     }
-    const tableRow = await getAsync('SELECT id, store_id, status FROM tables WHERE name=?', [table]);
+    const tableRow = await getAsync('SELECT id, store_id, status FROM tables WHERE name=? AND store_id=?', [table, req.storeId]);
     if (!tableRow) return res.status(404).json({ error: '桌号不存在' });
     const result = await runAsync(
       'INSERT INTO reservations (table_name, store_id, customer_name, phone, reservation_time, guests, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -2844,17 +2903,17 @@ app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_m
   try {
     const id = parseInt(req.params.id);
     const { status } = req.body || {};
-    const reservation = await getAsync('SELECT * FROM reservations WHERE id=?', [id]);
+    const reservation = await getAsync('SELECT * FROM reservations WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!reservation) return res.status(404).json({ error: '预约不存在' });
     if (!['pending', 'confirmed', 'canceled', 'completed'].includes(status)) {
       return res.status(400).json({ error: '无效的预约状态' });
     }
-    await runAsync('UPDATE reservations SET status=? WHERE id=?', [status, id]);
+    await runAsync('UPDATE reservations SET status=? WHERE id=? AND store_id=?', [status, id, req.storeId]);
     // 如果预约取消或完成，且桌台仍为 reserved，恢复为 available
     if (status === 'canceled' || status === 'completed') {
-      const table = await getAsync('SELECT id, status FROM tables WHERE name=?', [reservation.table_name]);
+      const table = await getAsync('SELECT id, status FROM tables WHERE name=? AND store_id=?', [reservation.table_name, req.storeId]);
       if (table && table.status === 'reserved') {
-        const active = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND status='pending'", [reservation.table_name]);
+        const active = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [reservation.table_name, req.storeId]);
         if (active.count === 0) await runAsync('UPDATE tables SET status=? WHERE id=?', ['available', table.id]);
       }
     }
@@ -2867,10 +2926,8 @@ app.get('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) =>
   try {
     const row = await getAsync('SELECT * FROM orders WHERE id = ?', [req.params.id]);
     if (!row) return res.status(404).json({ error: '订单不存在' });
-    if (!req.isAdmin) {
-      const storeId = req.waiterStoreId || 1;
-      if (row.store_id !== storeId) return res.status(403).json({ error: '无权访问此订单' });
-    }
+    const printStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    if (row.store_id !== printStoreId) return res.status(403).json({ error: '无权访问此订单' });
     const order = formatOrder(row);
     const store = await getAsync('SELECT name, address FROM stores WHERE id=?', [row.store_id || 1]);
     res.json({
@@ -2910,10 +2967,10 @@ app.put('/api/admin/printers/:id', requireAdminKey, requirePermission('can_manag
     const { name, type, ip_address, port, paper_width, brand, is_default, active } = req.body || {};
     if (is_default) await runAsync('UPDATE printers SET is_default=0 WHERE store_id=?', [current.store_id]);
     await runAsync(
-      'UPDATE printers SET name=?, type=?, ip_address=?, port=?, paper_width=?, brand=?, is_default=?, active=? WHERE id=?',
-      [name || current.name, type || current.type, ip_address ?? current.ip_address, port || current.port, paper_width || current.paper_width, brand || current.brand, is_default !== undefined ? (is_default ? 1 : 0) : current.is_default, active !== undefined ? (active ? 1 : 0) : current.active, id]
+      'UPDATE printers SET name=?, type=?, ip_address=?, port=?, paper_width=?, brand=?, is_default=?, active=? WHERE id=? AND store_id=?',
+      [name || current.name, type || current.type, ip_address ?? current.ip_address, port || current.port, paper_width || current.paper_width, brand || current.brand, is_default !== undefined ? (is_default ? 1 : 0) : current.is_default, active !== undefined ? (active ? 1 : 0) : current.active, id, req.storeId]
     );
-    res.json(await getAsync('SELECT * FROM printers WHERE id=?', [id]));
+    res.json(await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [id, req.storeId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2931,18 +2988,15 @@ app.delete('/api/admin/printers/:id', requireAdminKey, requirePermission('can_ma
 app.post('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) => {
   try {
     const id = req.params.id;
-    const row = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
+    const printStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, printStoreId]);
     if (!row) return res.status(404).json({ error: '订单不存在' });
-    if (!req.isAdmin) {
-      const storeId = req.waiterStoreId || 1;
-      if (row.store_id !== storeId) return res.status(403).json({ error: '无权操作此订单' });
-    }
     const order = formatOrder(row);
-    const store = await getAsync('SELECT name, address FROM stores WHERE id=?', [row.store_id || 1]);
+    const store = await getAsync('SELECT name, address FROM stores WHERE id=? AND merchant_id=?', [row.store_id || 1, req.merchantId || 1]);
     const printerId = req.body?.printer_id;
     let printer;
     if (printerId) {
-      printer = await getAsync('SELECT * FROM printers WHERE id=? AND active=1', [printerId]);
+      printer = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=? AND active=1', [printerId, row.store_id]);
     } else {
       printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [row.store_id || 1]);
     }
@@ -3055,11 +3109,11 @@ app.get('/api/admin/export/:type', requireAdminKey, async (req, res) => {
     let rows = [], filename = '', headers = [];
 
     if (type === 'orders') {
-      rows = await allAsync('SELECT * FROM orders ORDER BY id DESC LIMIT 1000');
+      rows = await allAsync('SELECT * FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000', [req.storeId]);
       filename = `orders_${new Date().toISOString().slice(0,10)}.csv`;
       headers = ['订单号','桌号','状态','金额','备注','下单时间'];
     } else if (type === 'menu') {
-      rows = await allAsync('SELECT * FROM menus ORDER BY id');
+      rows = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [req.storeId]);
       filename = `menu_${new Date().toISOString().slice(0,10)}.csv`;
       headers = ['ID','名称','英文名','价格','货币','分类','单位','状态'];
     } else if (type === 'sales') {
@@ -3071,10 +3125,10 @@ app.get('/api/admin/export/:type', requireAdminKey, async (req, res) => {
         JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
           ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
         JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
-        WHERE o.status = 'done'
+        WHERE o.store_id=? AND o.status = 'done'
         GROUP BY m.id, m.name, m.price
         ORDER BY total_qty DESC
-      `);
+      `, [req.storeId]);
       filename = `sales_${new Date().toISOString().slice(0,10)}.csv`;
       headers = ['菜品ID','菜品名称','单价','销量','销售额'];
     } else {
@@ -3116,17 +3170,17 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
         SUM(CASE WHEN status='done' THEN total ELSE 0 END) AS total_revenue,
         AVG(CASE WHEN status='done' THEN total END) AS avg_order_value
       FROM orders
-      WHERE createdAt >= ? AND createdAt <= ?
-    `, [startOfDay.toISOString(), endOfDay.toISOString()]);
+      WHERE store_id=? AND createdAt >= ? AND createdAt <= ?
+    `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
 
     // 各桌台收入
     const tableRevenue = await allAsync(`
       SELECT table_name, COUNT(*) AS orders, SUM(total) AS revenue
       FROM orders
-      WHERE status='done' AND createdAt >= ? AND createdAt <= ?
+      WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt <= ?
       GROUP BY table_name
       ORDER BY revenue DESC
-    `, [startOfDay.toISOString(), endOfDay.toISOString()]);
+    `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
 
     // 菜品销量排行（当日）
     const dishRanking = await allAsync(`
@@ -3136,20 +3190,20 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
       JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
         ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
       JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
-      WHERE o.status='done' AND o.createdAt >= ? AND o.createdAt <= ?
+      WHERE o.store_id=? AND o.status='done' AND o.createdAt >= ? AND o.createdAt <= ?
       GROUP BY m.id, m.name, m.emoji
       ORDER BY quantity DESC
       LIMIT 10
-    `, [startOfDay.toISOString(), endOfDay.toISOString()]);
+    `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
 
     // 小时分布
     const hourlyStats = await allAsync(`
       SELECT HOUR(createdAt) AS hour, COUNT(*) AS orders, SUM(total) AS revenue
       FROM orders
-      WHERE status='done' AND createdAt >= ? AND createdAt <= ?
+      WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt <= ?
       GROUP BY HOUR(createdAt)
       ORDER BY hour
-    `, [startOfDay.toISOString(), endOfDay.toISOString()]);
+    `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
 
     res.json({
       date,
@@ -3178,19 +3232,19 @@ app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
 
     const todayStats = await getAsync(`
       SELECT COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
-      FROM orders WHERE status='done' AND createdAt >= ? AND createdAt <= ?
-    `, [todayStart.toISOString(), todayEnd.toISOString()]);
+      FROM orders WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt <= ?
+    `, [req.storeId, todayStart.toISOString(), todayEnd.toISOString()]);
 
     const monthStats = await getAsync(`
       SELECT COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
-      FROM orders WHERE status='done' AND createdAt >= ? AND createdAt <= ?
-    `, [monthStart.toISOString(), monthEnd.toISOString()]);
+      FROM orders WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt <= ?
+    `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
 
     const topDishes = await allAsync(`
       SELECT id, name, emoji, sales_count, price, category
-      FROM menus WHERE active=1 AND sales_count > 0
+      FROM menus WHERE store_id=? AND active=1 AND sales_count > 0
       ORDER BY sales_count DESC LIMIT 10
-    `);
+    `, [req.storeId]);
 
     res.json({
       today: { revenue: Number(todayStats?.revenue || 0), orders: todayStats?.orders || 0 },
@@ -3294,10 +3348,11 @@ app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_
     }
     if (fields.length) {
       values.push(id);
-      await runAsync(`UPDATE merchant_admins SET ${fields.join(',')} WHERE id=?`, values);
+      values.push(req.merchantId);
+      await runAsync(`UPDATE merchant_admins SET ${fields.join(',')} WHERE id=? AND merchant_id=?`, values);
     }
     await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_admin', 'merchant_admin', id, `更新管理员: ${admin.username}`, req.ip);
-    res.json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=?', [id]));
+    res.json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3307,7 +3362,7 @@ app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_mana
     if (id === req.adminId) return res.status(400).json({ error: '不能删除当前登录账号' });
     const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     if (!admin) return res.status(404).json({ error: '管理员不存在' });
-    await runAsync('DELETE FROM merchant_admins WHERE id=?', [id]);
+    await runAsync('DELETE FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_admin', 'merchant_admin', id, `删除管理员: ${admin.username}`, req.ip);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -3448,9 +3503,9 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
 // ----- 数据备份与恢复 -----
 app.get('/api/admin/backup/export', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
-    const data = await collectBackupData();
+    const data = await collectMerchantBackupData(req.merchantId);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="dianchan-backup-${new Date().toISOString().slice(0,10)}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="foodflow-merchant-${req.merchantId}-backup-${new Date().toISOString().slice(0,10)}.json"`);
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -3460,11 +3515,27 @@ app.get('/api/admin/backup/export', requireAdminKey, requirePermission('can_mana
 app.post('/api/admin/backup/import', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
     const data = req.body;
+    const merchantId = req.merchantId;
     if (!data || !data.tables || typeof data.tables !== 'object') return res.status(400).json({ error: '备份文件格式无效' });
+    const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [merchantId])).map(s => s.id);
     await withTransaction(async () => {
-      for (const table of ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'login_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins']) {
+      // 只删除和替换当前商户相关的表，不触碰全局表和敏感表
+      // 按merchant_id删除的表
+      await runAsync('DELETE FROM stores WHERE merchant_id=?', [merchantId]);
+      await runAsync('DELETE FROM currencies WHERE merchant_id=?', [merchantId]);
+      await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [merchantId]);
+      await runAsync('DELETE FROM login_logs WHERE merchant_id=?', [merchantId]);
+      // 按store_id删除的表
+      if (storeIds.length > 0) {
+        const placeholders = storeIds.map(() => '?').join(',');
+        for (const table of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
+          await runAsync(`DELETE FROM \`${table}\` WHERE store_id IN (${placeholders})`, storeIds);
+        }
+      }
+      // 导入商户数据
+      const merchantTables = ['stores', 'currencies', 'merchant_admins', 'login_logs', 'menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories'];
+      for (const table of merchantTables) {
         const rows = Array.isArray(data.tables[table]) ? data.tables[table] : [];
-        await runAsync(`DELETE FROM \`${table}\``);
         for (const row of rows) {
           const keys = Object.keys(row).filter(k => !['id'].includes(k));
           const placeholders = keys.map(() => '?').join(', ');
@@ -3475,7 +3546,7 @@ app.post('/api/admin/backup/import', requireAdminKey, requirePermission('can_man
         }
       }
     });
-    res.json({ success: true, message: '备份已导入' });
+    res.json({ success: true, message: '商户数据已恢复' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -3483,7 +3554,7 @@ app.post('/api/admin/backup/import', requireAdminKey, requirePermission('can_man
 
 app.get('/api/admin/backup/settings', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
-    const row = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
+    const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${req.merchantId}_backup_interval_hours`]) || await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
     res.json({ intervalHours: Number(row?.value || 24) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3492,14 +3563,18 @@ app.post('/api/admin/backup/settings', requireAdminKey, requirePermission('can_m
   try {
     const intervalHours = Number(req.body.intervalHours);
     if (![1, 6, 12, 24].includes(intervalHours)) return res.status(400).json({ error: '备份间隔无效' });
-    await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_interval_hours', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [String(intervalHours)]);
+    await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`merchant_${req.merchantId}_backup_interval_hours`, String(intervalHours)]);
     res.json({ success: true, intervalHours });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/backup/now', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
   try {
-    await autoBackupDatabase();
+    const backupDir = path.join(__dirname, 'backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    const data = await collectMerchantBackupData(req.merchantId);
+    const filename = path.join(backupDir, `merchant-${req.merchantId}-${new Date().toISOString().slice(0,10)}.json`);
+    fs.writeFileSync(filename, JSON.stringify(data, null, 2));
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3530,7 +3605,7 @@ app.put('/api/currencies/:id', requireAdminKey, requirePermission('can_manage_cu
     if (!(Number(next.rate) > 0)) return res.status(400).json({ error: '汇率必须大于 0' });
     await withTransaction(async () => {
       if (next.is_default) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [req.merchantId]);
-      await runAsync('UPDATE currencies SET code=?,symbol=?,name=?,rate=?,is_default=? WHERE id=?', [String(next.code).toUpperCase(), next.symbol, next.name, Number(next.rate), next.is_default ? 1 : 0, current.id]);
+      await runAsync('UPDATE currencies SET code=?,symbol=?,name=?,rate=?,is_default=? WHERE id=? AND merchant_id=?', [String(next.code).toUpperCase(), next.symbol, next.name, Number(next.rate), next.is_default ? 1 : 0, current.id, req.merchantId]);
     });
     res.json(await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [current.id, req.merchantId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -3549,18 +3624,22 @@ app.delete('/api/currencies/:id', requireAdminKey, requirePermission('can_manage
 // ----- 显示设置 -----
 app.get('/api/admin/display-settings', requireAdminKey, async (req, res) => {
   try {
-    const enabled = await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
-    const secondary = await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
-    res.json({ enabled: enabled?.value === '1', secondaryCurrencyCode: secondary?.value || 'USD' });
+    const mid = req.merchantId || 1;
+    const enabled = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_dual_currency_enabled`]);
+    const secondary = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_secondary_currency_code`]);
+    const enabledFallback = enabled || await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
+    const secondaryFallback = secondary || await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
+    res.json({ enabled: enabledFallback?.value === '1', secondaryCurrencyCode: secondaryFallback?.value || 'USD' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/display-settings', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
   try {
+    const mid = req.merchantId || 1;
     const enabled = req.body.enabled ? '1' : '0';
     const secondary = String(req.body.secondaryCurrencyCode || 'USD');
-    await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [enabled]);
-    await runAsync("INSERT INTO settings (`key`, value) VALUES ('secondary_currency_code', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [secondary]);
+    await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`merchant_${mid}_dual_currency_enabled`, enabled]);
+    await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`merchant_${mid}_secondary_currency_code`, secondary]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3568,15 +3647,18 @@ app.post('/api/admin/display-settings', requireAdminKey, requirePermission('can_
 // ----- 新订单提示音设置（总开关） -----
 app.get('/api/admin/notification-settings', requireAdminKey, async (req, res) => {
   try {
-    const row = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
-    res.json({ enabled: row ? row.value === '1' : true });
+    const mid = req.merchantId || 1;
+    const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_new_order_sound_enabled`]);
+    const fallback = row || await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
+    res.json({ enabled: fallback ? fallback.value === '1' : true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/notification-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
+    const mid = req.merchantId || 1;
     const enabled = req.body.enabled ? '1' : '0';
-    await runAsync("INSERT INTO settings (`key`, value) VALUES ('new_order_sound_enabled', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [enabled]);
+    await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`merchant_${mid}_new_order_sound_enabled`, enabled]);
     res.json({ success: true, enabled: enabled === '1' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3637,7 +3719,7 @@ app.get('/api/public/table-session/:token/orders', async (req, res) => {
       const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
       runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
     }
-    const rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, req.params.token]);
+    const rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, session.store_id || 1, req.params.token]);
     res.json({ table: session.table_name, orders: rows.map(formatOrder) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
