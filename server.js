@@ -232,11 +232,23 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname).toLowerCase();
     cb(null, Date.now() + ext);
   }
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 限制5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extName = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimeType = allowedTypes.test(file.mimetype);
+    if (extName && mimeType) {
+      return cb(null, true);
+    }
+    cb(new Error('只允许上传图片文件（JPG/PNG/GIF/WEBP）'));
+  }
+});
 
 // ---------- MySQL 连接池 ----------
 const poolConfig = {
@@ -941,7 +953,7 @@ async function initDatabase() {
   if (tableCount.count === 0) {
     const defaultTables = ['A01','A02','A03','B01','B02'];
     for (const t of defaultTables) {
-      await runAsync('INSERT INTO tables (name, status) VALUES (?, ?)', [t, 'available']);
+      await runAsync('INSERT INTO tables (name, status, store_id) VALUES (?, ?, 1)', [t, 'available']);
     }
   }
 
@@ -1288,7 +1300,7 @@ function formatOrder(row) {
   };
 }
 
-async function normalizeOrderItems(items) {
+async function normalizeOrderItems(items, storeId) {
   if (!Array.isArray(items) || items.length === 0) throw new Error('订单至少需要一道菜品');
   const normalized = [];
   for (const item of items) {
@@ -1297,7 +1309,7 @@ async function normalizeOrderItems(items) {
     if (!Number.isInteger(menuId) || !Number.isInteger(quantity) || quantity <= 0) {
       throw new Error('菜品或数量无效');
     }
-    const menuItem = await getAsync('SELECT * FROM menus WHERE id = ?', [menuId]);
+    const menuItem = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [menuId, storeId || 1]);
     if (!menuItem) throw new Error(`菜品不存在（ID: ${menuId}）`);
     const currency = await getAsync('SELECT code, rate FROM currencies WHERE code=? AND merchant_id=(SELECT merchant_id FROM stores WHERE id=?)', [menuItem.currency_code || 'USD', menuItem.store_id || 1]);
     if (!currency || !(Number(currency.rate) > 0)) throw new Error(`菜品货币无效（${menuItem.currency_code || 'CNY'}）`);
@@ -1827,7 +1839,15 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     const adminHash = hashPassword(adminPassword);
     await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
     // 为新商户创建默认店铺（名称FoodFlow，菜品类型和菜品列表为空）
-    await runAsync('INSERT INTO stores (name, code, address, active, merchant_id) VALUES (?, ?, ?, 1, ?)', ['FoodFlow', 'store_' + newMerchantId, '', newMerchantId]);
+    const storeResult = await runAsync('INSERT INTO stores (name, code, address, active, merchant_id) VALUES (?, ?, ?, 1, ?)', ['FoodFlow', 'store_' + newMerchantId, '', newMerchantId]);
+    const newStoreId = storeResult.lastID;
+    // 为新商户初始化默认货币（从商户1复制）
+    await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) SELECT ?, code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=1', [newMerchantId]);
+    // 为新店铺初始化默认菜品分类
+    const defaultCategories = ['热门推荐', '主食', '小吃', '饮品', '甜点'];
+    for (let i = 0; i < defaultCategories.length; i++) {
+      await runAsync('INSERT IGNORE INTO menu_categories (store_id, name, sort) VALUES (?, ?, ?)', [newStoreId, defaultCategories[i], i]);
+    }
     res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1860,8 +1880,18 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
     if (req.params.id == 1) return res.status(400).json({ error: '不能删除默认商户' });
     const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [req.params.id]);
+    const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.params.id])).map(s => s.id);
     await runAsync('DELETE FROM merchants WHERE id=?', [req.params.id]);
     await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [req.params.id]);
+    await runAsync('DELETE FROM stores WHERE merchant_id=?', [req.params.id]);
+    await runAsync('DELETE FROM currencies WHERE merchant_id=?', [req.params.id]);
+    await runAsync('DELETE FROM login_logs WHERE merchant_id=?', [req.params.id]);
+    if (storeIds.length > 0) {
+      const placeholders = storeIds.map(() => '?').join(',');
+      for (const tbl of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
+        await runAsync(`DELETE FROM \`${tbl}\` WHERE store_id IN (${placeholders})`, storeIds);
+      }
+    }
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'delete_merchant', 'merchant', req.params.id,
       JSON.stringify({ name: merchant?.name, code: merchant?.code }), getClientIp(req));
     res.json({ success: true });
@@ -2074,9 +2104,28 @@ app.get('/api/admin/login-logs', requireAdminKey, async (req, res) => {
 app.post('/api/waiter/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
-    if (!username || !password) return res.status(400).json({ error: '请输入服务员账号和密码' });
+    if (!username || !password) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username || '', 'waiter', '请输入账号和密码']);
+      return res.status(400).json({ error: '请输入服务员账号和密码' });
+    }
+    // 登录限流检查
+    const lockStatus = await isLoginLocked(username, 'waiter');
+    if (lockStatus.locked) {
+      return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
+    }
     const waiter = await getAsync('SELECT * FROM waiters WHERE username=? AND active=1', [String(username).trim()]);
-    if (!waiter || !verifyPassword(password, waiter.password_hash)) return res.status(401).json({ error: '服务员账号或密码错误' });
+    if (!waiter) {
+      incrementLoginAttempts(username, 'waiter');
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'waiter', '账号不存在']);
+      return res.status(401).json({ error: '服务员账号或密码错误' });
+    }
+    if (!verifyPassword(password, waiter.password_hash)) {
+      incrementLoginAttempts(username, 'waiter');
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 0, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '密码错误']);
+      return res.status(401).json({ error: '服务员账号或密码错误' });
+    }
+    resetLoginAttempts(username, 'waiter');
+    await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '服务员登录成功']);
     const token = crypto.randomBytes(24).toString('base64url');
     const waiterTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
     const waiterTimeoutHours = parseInt(waiterTimeoutSetting?.value || '12', 10);
@@ -2324,7 +2373,7 @@ app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'
       const imgPath = path.join(__dirname, 'uploads', item.image);
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
-    await runAsync('DELETE FROM menus WHERE id = ?', [id]);
+    await runAsync('DELETE FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2358,10 +2407,10 @@ app.post('/api/menu-categories', requireAdminKey, requirePermission('can_manage_
   try {
     const name = String(req.body.name || '').trim();
     if (!name) return res.status(400).json({ error: '分类名称必填' });
-    const maxSort = await getAsync('SELECT MAX(sort) as max FROM menu_categories');
+    const maxSort = await getAsync('SELECT MAX(sort) as max FROM menu_categories WHERE store_id=?', [req.storeId]);
     const nextSort = (maxSort && maxSort.max !== null) ? maxSort.max + 1 : 0;
-    const result = await runAsync('INSERT INTO menu_categories (name, sort) VALUES (?, ?)', [name, nextSort]);
-    const row = await getAsync('SELECT * FROM menu_categories WHERE id = ?', [result.lastID]);
+    const result = await runAsync('INSERT INTO menu_categories (name, sort, store_id) VALUES (?, ?, ?)', [name, nextSort, req.storeId]);
+    const row = await getAsync('SELECT * FROM menu_categories WHERE id = ? AND store_id = ?', [result.lastID, req.storeId]);
     res.status(201).json(row);
   } catch (e) {
     if (String(e.message).includes('Duplicate entry')) return res.status(409).json({ error: '分类已存在' });
@@ -2517,7 +2566,7 @@ app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'
       return res.status(400).json({ error: '无效的桌号状态' });
     }
     try {
-      await runAsync('UPDATE tables SET name=?, status=? WHERE id=?', [newName, newStatus, id]);
+      await runAsync('UPDATE tables SET name=?, status=? WHERE id=? AND store_id=?', [newName, newStatus, id, req.storeId]);
     } catch (e) {
       if (e && e.code === 'ER_DUP_ENTRY') {
         return res.status(409).json({ error: '该桌号名称已存在，请换一个' });
@@ -2599,15 +2648,19 @@ app.post('/api/orders', async (req, res) => {
     if (waiter && !waiter.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
     if (isWaiter && waiter.store_id !== storeId) return res.status(403).json({ error: '不能为其他店铺的桌号下单' });
     let sessionToken = null;
+    let sessionStoreId = null;
     if (!isAdmin && !isWaiter) {
       const token = req.body.sessionToken || null;
       if (!token) return res.status(401).json({ error: '请重新扫码后再下单' });
-      const session = await getAsync('SELECT table_name, expires_at FROM scan_sessions WHERE token=?', [token]);
+      const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [token]);
       if (!session) return res.status(401).json({ error: '请重新扫码后再下单' });
       if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '二维码已过期，请重新扫码' });
       if (session.table_name !== table) return res.status(403).json({ error: '扫码桌号与下单桌号不一致' });
+      sessionStoreId = session.store_id || 1;
       sessionToken = token;
     }
+    // 确定最终的storeId：优先使用session中的store_id，其次使用桌号查询的store_id
+    const finalStoreId = sessionStoreId || storeId;
     const cooldownKey = sessionToken || table;
     const now = Date.now();
     const lastSubmission = orderSubmissionCooldown.get(cooldownKey) || 0;
@@ -2616,7 +2669,7 @@ app.post('/api/orders', async (req, res) => {
       const waitSec = Math.ceil((cooldownMs - (now - lastSubmission)) / 1000);
       return res.status(429).json({ error: `下单过于频繁，请等待${waitSec}秒后再试` });
     }
-    const items = await normalizeOrderItems(req.body.items);
+    const items = await normalizeOrderItems(req.body.items, finalStoreId);
     const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
     const maxItems = parseInt(maxItemsRow?.value || '50', 10);
     if (items.length > maxItems) return res.status(400).json({ error: `单次下单菜品数量不能超过${maxItems}种` });
@@ -2636,7 +2689,7 @@ app.post('/api/orders', async (req, res) => {
     if (note.length > maxNoteLen) note = note.slice(0, maxNoteLen);
     const result = await runAsync(
       'INSERT INTO orders (table_name, items, total, status, createdAt, session_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, storeId, note]
+      [table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, finalStoreId, note]
     );
     // 二维码无操作过期：下单后重置session过期时间（从下单时间开始重新计算）
     if (sessionToken) {
@@ -2656,16 +2709,16 @@ app.post('/api/orders', async (req, res) => {
       }
     }
     const newRow = await getAsync('SELECT * FROM orders WHERE id = ?', [result.lastID]);
-    await syncTableStatus(table, req.storeId);
+    await syncTableStatus(table, finalStoreId);
     // 返回新的session过期时间，供前端同步
     // 自动打印小票
     try {
-      const autoPrintRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${storeId}`]);
+      const autoPrintRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${finalStoreId}`]);
       const autoPrintEnabled = !autoPrintRow || autoPrintRow.value === '1' || autoPrintRow.value === 'true'; // 默认开启
       if (autoPrintEnabled) {
-        const defaultPrinter = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [storeId]);
+        const defaultPrinter = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [finalStoreId]);
         if (defaultPrinter && defaultPrinter.type === 'network' && defaultPrinter.ip_address) {
-          const storeInfo = await getAsync('SELECT * FROM stores WHERE id=?', [storeId]);
+          const storeInfo = await getAsync('SELECT * FROM stores WHERE id=?', [finalStoreId]);
           const printData = buildReceipt(newRow, storeInfo, defaultPrinter);
           try {
             await printToNetworkPrinter(printData, defaultPrinter.ip_address, defaultPrinter.port);
@@ -2723,7 +2776,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         newItems = [];
       } else {
         // 规范化新 items（从菜单中获取最新价格等信息）
-        newItems = await normalizeOrderItems(items);
+        newItems = await normalizeOrderItems(items, orderStoreId);
         // 保留原有的 itemStatus（如果前端传了）
         for (let i = 0; i < newItems.length; i++) {
           if (items[i] && (items[i].itemStatus === 'done' || items[i].itemStatus === 'pending')) {
@@ -2859,10 +2912,13 @@ app.get('/api/waiter-calls', requireAdminOrWaiter, async (req, res) => {
 app.put('/api/waiter-calls/:id/handle', requireAdminOrWaiter, async (req, res) => {
   try {
     const id = req.params.id;
+    const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    const existing = await getAsync('SELECT * FROM waiter_calls WHERE id=? AND store_id=?', [id, storeId]);
+    if (!existing) return res.status(404).json({ error: '呼叫记录不存在' });
     const handler = req.isAdmin ? 'admin' : (req.waiter?.display_name || 'waiter');
     await runAsync(
-      'UPDATE waiter_calls SET status=?, handled_by=?, handled_at=? WHERE id=?',
-      ['handled', handler, new Date().toISOString(), id]
+      'UPDATE waiter_calls SET status=?, handled_by=?, handled_at=? WHERE id=? AND store_id=?',
+      ['handled', handler, new Date().toISOString(), id, storeId]
     );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -2979,7 +3035,7 @@ app.delete('/api/admin/printers/:id', requireAdminKey, requirePermission('can_ma
     const id = parseInt(req.params.id);
     const current = await getAsync('SELECT id FROM printers WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '打印机不存在' });
-    await runAsync('DELETE FROM printers WHERE id=?', [id]);
+    await runAsync('DELETE FROM printers WHERE id=? AND store_id=?', [id, req.storeId]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
