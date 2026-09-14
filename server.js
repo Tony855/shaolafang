@@ -3735,7 +3735,7 @@ app.get('/api/qrcode/:table', async (req, res) => {
 
 app.get('/api/tables/:id/qrcode', requireAdminKey, async (req, res) => {
   try {
-    const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ?', [req.params.id]);
+    const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ? AND store_id = ?', [req.params.id, req.storeId]);
     if (!table) return res.status(404).json({ error: '桌号不存在' });
     const store = await getAsync('SELECT name FROM stores WHERE id = ?', [table.store_id || 1]);
     const url = `${req.protocol}://${req.get('host')}/?token=${encodeURIComponent(table.qr_token)}`;
