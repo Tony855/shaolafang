@@ -904,13 +904,80 @@ async function initDatabase() {
     }
   }
 
-  // 初始化基础数据：只创建超级管理员和全局设置，不创建商户/店铺/桌号/菜品
+  // 初始化基础数据：超级管理员 + 默认商户 + 店铺 + 菜品 + 桌号
   // 创建唯一超级管理员
   const superAdminCount = await getAsync('SELECT COUNT(*) AS count FROM super_admins');
   if (superAdminCount.count === 0) {
     const superHash = hashPassword('super123');
     await runAsync("INSERT INTO super_admins (username, password_hash, display_name) VALUES (?, ?, ?)", ['superadmin', superHash, '超级管理员']);
     console.log('  + 已创建超级管理员：superadmin / super123');
+  }
+
+  // 创建默认商户（仅首次安装时）
+  const merchantCount = await getAsync('SELECT COUNT(*) AS count FROM merchants');
+  if (merchantCount.count === 0) {
+    const defaultMerchantCode = 'FF0001';
+    await runAsync("INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status) VALUES (?, ?, ?, ?, ?, 1)",
+      ['FoodFlow', defaultMerchantCode, '管理员', '', 5]);
+    const defaultMerchantId = (await getAsync('SELECT id FROM merchants WHERE code=?', [defaultMerchantCode])).id;
+    console.log('  + 已创建默认商户：FoodFlow (id=' + defaultMerchantId + ')');
+
+    // 创建商户管理员
+    const adminHash = hashPassword('admin123');
+    await runAsync("INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)",
+      [defaultMerchantId, 'admin', adminHash, 'FoodFlow管理员']);
+    console.log('  + 已创建商户管理员：admin / admin123');
+
+    // 创建默认店铺
+    await runAsync("INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)",
+      [defaultMerchantId, 'FoodFlow总店', 'ff-main', '']);
+    const defaultStoreId = (await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [defaultMerchantId])).id;
+    console.log('  + 已创建默认店铺：FoodFlow总店 (id=' + defaultStoreId + ')');
+
+    // 创建默认货币
+    for (const currency of [
+      ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
+      ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
+    ]) {
+      await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)',
+        [defaultMerchantId, ...currency]);
+    }
+    console.log('  + 已创建默认货币：USD/CNY/VND/THB/KHR');
+
+    // 创建默认菜品分类
+    const categories = [
+      ['热销', 0], ['主食', 1], ['小吃', 2], ['饮料', 3], ['甜点', 4]
+    ];
+    for (const [catName, sort] of categories) {
+      await runAsync('INSERT INTO menu_categories (name, sort, store_id) VALUES (?, ?, ?)', [catName, sort, defaultStoreId]);
+    }
+    console.log('  + 已创建默认菜品分类：热销/主食/小吃/饮料/甜点');
+
+    // 创建默认菜品
+    const defaultMenus = [
+      ['招牌烧腊饭', '🍱', 8.5, '热销', '招牌烧腊配米饭', '份'],
+      ['蜜汁叉烧饭', '🍖', 9.0, '热销', '蜜汁叉烧配米饭', '份'],
+      ['白切鸡饭', '🍗', 7.5, '主食', '白切鸡配米饭', '份'],
+      ['排骨饭', '🍖', 8.0, '主食', '红烧排骨配米饭', '份'],
+      ['春卷', '🥟', 3.5, '小吃', '酥脆春卷', '份'],
+      ['炸鸡翅', '🍗', 4.0, '小吃', '香酥炸鸡翅', '份'],
+      ['柠檬茶', '🍋', 2.5, '饮料', '冰镇柠檬茶', '杯'],
+      ['咖啡', '☕', 3.0, '饮料', '现磨咖啡', '杯'],
+      ['芒果布丁', '🍮', 3.5, '甜点', '新鲜芒果布丁', '份'],
+      ['双皮奶', '🥛', 3.0, '甜点', '传统双皮奶', '份']
+    ];
+    for (const [name, emoji, price, category, desc, unit] of defaultMenus) {
+      await runAsync('INSERT INTO menus (name, emoji, price, category, `desc`, unit, active, store_id, currency_code) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)',
+        [name, emoji, price, category, desc, unit, defaultStoreId, 'USD']);
+    }
+    console.log('  + 已创建默认菜品：10道示例菜品');
+
+    // 创建默认桌号
+    const defaultTables = ['A01', 'A02', 'A03', 'A04', 'A05', 'B01', 'B02', 'B03', 'B04', 'B05'];
+    for (const tableName of defaultTables) {
+      await runAsync('INSERT INTO tables (name, status, store_id) VALUES (?, ?, ?)', [tableName, 'available', defaultStoreId]);
+    }
+    console.log('  + 已创建默认桌号：A01-A05, B01-B05');
   }
 
   // 迁移：stores表添加qr_languages字段（二维码显示语言，逗号分隔，如zh,en,km）
