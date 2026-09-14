@@ -1749,11 +1749,19 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
       const codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [merchantCode]);
       if (codeExists) return res.status(400).json({ error: '商户编码已存在' });
     } else {
-      // 自动生成商户编码（M+时间戳后6位+2位随机字符），确保唯一
+      // 自动生成商户编码：年份2位+月份2位+4位序号（每月重置），如 26090001
+      const now = new Date();
+      const yy = String(now.getFullYear()).slice(-2);
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const monthPrefix = yy + mm;
+      // 查询当月已有商户数，序号从1开始递增
+      const monthCountRow = await getAsync("SELECT COUNT(*) AS cnt FROM merchants WHERE code LIKE ?", [monthPrefix + '%']);
+      let seq = monthCountRow.cnt + 1;
       let generatedCode, codeExists;
       do {
-        generatedCode = 'M' + Date.now().toString().slice(-6) + Math.random().toString(36).slice(2,4).toUpperCase();
+        generatedCode = monthPrefix + String(seq).padStart(4, '0');
         codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [generatedCode]);
+        if (codeExists) seq++;
       } while (codeExists);
       merchantCode = generatedCode;
     }
@@ -1843,12 +1851,22 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
     const orderCount = await getAsync('SELECT COUNT(*) as count FROM orders');
     const todayOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE DATE(createdAt)=CURDATE()");
     const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE DATE(createdAt)=CURDATE() AND status='done'");
+    // 在线客户端：当前未过期的扫码会话数
+    const now = new Date().toISOString();
+    const onlineClients = await getAsync('SELECT COUNT(*) as count FROM scan_sessions WHERE expires_at > ?', [now]);
+    // 累计扫码连接总数
+    const totalScanSessions = await getAsync('SELECT COUNT(*) as count FROM scan_sessions');
+    // 今日新增扫码连接数
+    const todayScanSessions = await getAsync("SELECT COUNT(*) as count FROM scan_sessions WHERE DATE(created_at)=CURDATE()");
     res.json({
       merchantCount: merchantCount.count,
       storeCount: storeCount.count,
       orderCount: orderCount.count,
       todayOrders: todayOrders.count,
-      todayRevenue: Number(todayRevenue.total) || 0
+      todayRevenue: Number(todayRevenue.total) || 0,
+      onlineClients: onlineClients.count,
+      totalScanSessions: totalScanSessions.count,
+      todayScanSessions: todayScanSessions.count
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2561,8 +2579,8 @@ app.get('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const table = await assertTableExists(req.body.table, req.storeId);
-    const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, req.storeId]);
+    const table = await assertTableExists(req.body.table, req.storeId || 1);
+    const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, req.storeId || 1]);
     const storeId = tableStore?.store_id || 1;
     const adminKey = req.get('X-Admin-Key');
     const keySetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
@@ -2779,7 +2797,13 @@ app.post('/api/public/call-waiter', async (req, res) => {
   try {
     const { table, sessionToken } = req.body || {};
     if (!table) return res.status(400).json({ error: '桌号不能为空' });
-    const tableRow = await getAsync('SELECT id, store_id FROM tables WHERE name=? AND store_id=?', [table, req.storeId]);
+    // 通过 sessionToken 获取 store_id，无 token 时兜底为 1
+    let callStoreId = req.storeId || 1;
+    if (sessionToken) {
+      const session = await getAsync('SELECT store_id FROM scan_sessions WHERE token=?', [sessionToken]);
+      if (session) callStoreId = session.store_id || 1;
+    }
+    const tableRow = await getAsync('SELECT id, store_id FROM tables WHERE name=? AND store_id=?', [table, callStoreId]);
     if (!tableRow) return res.status(404).json({ error: '桌号不存在' });
     // 读取呼叫限制配置
     const limitRows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('call_limit_enabled','call_limit_max','call_limit_window_minutes','call_limit_cooldown_minutes')");
@@ -2855,7 +2879,7 @@ app.post('/api/public/reservations', async (req, res) => {
     if (!table || !customerName || !reservationTime) {
       return res.status(400).json({ error: '桌号、顾客姓名和预约时间必填' });
     }
-    const tableRow = await getAsync('SELECT id, store_id, status FROM tables WHERE name=? AND store_id=?', [table, req.storeId]);
+    const tableRow = await getAsync('SELECT id, store_id, status FROM tables WHERE name=? AND store_id=?', [table, req.storeId || 1]);
     if (!tableRow) return res.status(404).json({ error: '桌号不存在' });
     const result = await runAsync(
       'INSERT INTO reservations (table_name, store_id, customer_name, phone, reservation_time, guests, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',

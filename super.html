@@ -319,6 +319,20 @@ select:focus {
             <div class="value" id="statRevenue">$0</div>
           </div>
         </div>
+        <div class="stat-card stat-online">
+          <div class="stat-icon">🟢</div>
+          <div class="stat-content">
+            <div class="label" data-i18n="onlineClients">在线客户端</div>
+            <div class="value" id="statOnlineClients">0</div>
+          </div>
+        </div>
+        <div class="stat-card stat-scan">
+          <div class="stat-icon">📱</div>
+          <div class="stat-content">
+            <div class="label" data-i18n="scanSessions">扫码连接数</div>
+            <div class="value" id="statScanSessions">0</div>
+          </div>
+        </div>
       </div>
       <div class="section-title">今日数据</div>
       <div class="stats-grid stats-today">
@@ -838,6 +852,8 @@ async function loadDashboard() {
     document.getElementById('statOrders').textContent = stats.orderCount;
     document.getElementById('statTodayOrders').textContent = stats.todayOrders;
     document.getElementById('statRevenue').textContent = '$' + Number(stats.todayRevenue).toFixed(2);
+    document.getElementById('statOnlineClients').textContent = stats.onlineClients || 0;
+    document.getElementById('statScanSessions').textContent = stats.totalScanSessions || 0;
   } catch (e) { toast(e.message, 'error'); }
 }
 
