@@ -1760,16 +1760,12 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
     }
     const admin = await getAsync('SELECT * FROM merchant_admins WHERE username=? AND active=1', [username]);
-    if (!admin) {
-      incrementLoginAttempts(username, 'merchant_admin');
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '用户名不存在']);
+    if (!admin) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '用户名不存在']);
       recordLoginAttempt(username, 'merchant_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     const isValid = verifyPassword(password, admin.password_hash);
-    if (!isValid) {
-      incrementLoginAttempts(username, 'merchant_admin');
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '密码错误']);
+    if (!isValid) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '密码错误']);
       recordLoginAttempt(username, 'merchant_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
@@ -1839,16 +1835,12 @@ app.post('/api/super/login', async (req, res) => {
       }
     }
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE username=?', [username]);
-    if (!superAdmin) {
-      incrementLoginAttempts(username, 'super_admin');
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '用户名不存在']);
+    if (!superAdmin) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '用户名不存在']);
       recordLoginAttempt(username, 'super_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     const isValid = verifyPassword(password, superAdmin.password_hash);
-    if (!isValid) {
-      incrementLoginAttempts(username, 'super_admin');
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
+    if (!isValid) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     // 登录成功，重置登录尝试计数
@@ -2342,15 +2334,11 @@ app.post('/api/waiter/login', async (req, res) => {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
     }
     const waiter = await getAsync('SELECT * FROM waiters WHERE username=? AND active=1', [String(username).trim()]);
-    if (!waiter) {
-      incrementLoginAttempts(username, 'waiter');
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'waiter', '账号不存在']);
+    if (!waiter) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'waiter', '账号不存在']);
       recordLoginAttempt(username, 'waiter');
       return res.status(401).json({ error: '服务员账号或密码错误' });
     }
-    if (!verifyPassword(password, waiter.password_hash)) {
-      incrementLoginAttempts(username, 'waiter');
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 0, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '密码错误']);
+    if (!verifyPassword(password, waiter.password_hash)) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 0, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '密码错误']);
       recordLoginAttempt(username, 'waiter');
       return res.status(401).json({ error: '服务员账号或密码错误' });
     }
