@@ -434,6 +434,27 @@ function verifyPassword(pwd, hash) {
 }
 
 // ---------- 登录限流器 ----------
+const loginAttempts = new Map();
+
+function getLoginAttempts(username, type) {
+  const key = `${username}|${type}`;
+  if (!loginAttempts.has(key)) {
+    loginAttempts.set(key, { count: 0, lockUntil: 0, firstAttempt: 0 });
+  }
+  return loginAttempts.get(key);
+}
+
+function recordLoginAttempt(username, type) {
+  const attempt = getLoginAttempts(username, type);
+  attempt.count += 1;
+  if (attempt.firstAttempt === 0) attempt.firstAttempt = Date.now();
+  loginAttempts.set(`${username}|${type}`, attempt);
+}
+
+function resetLoginAttempts(username, type) {
+  loginAttempts.delete(`${username}|${type}`);
+}
+
 async function isLoginLocked(username, type) {
   const settings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_max_attempts'");
   const lockSettings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_lock_minutes'");
@@ -1739,12 +1760,14 @@ app.post('/api/admin/login', async (req, res) => {
     if (!admin) {
       incrementLoginAttempts(username, 'merchant_admin');
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '用户名不存在']);
+      recordLoginAttempt(username, 'merchant_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     const isValid = verifyPassword(password, admin.password_hash);
     if (!isValid) {
       incrementLoginAttempts(username, 'merchant_admin');
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '密码错误']);
+      recordLoginAttempt(username, 'merchant_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     // 检查商户状态
@@ -1816,6 +1839,7 @@ app.post('/api/super/login', async (req, res) => {
     if (!superAdmin) {
       incrementLoginAttempts(username, 'super_admin');
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '用户名不存在']);
+      recordLoginAttempt(username, 'super_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     const isValid = verifyPassword(password, superAdmin.password_hash);
@@ -2318,11 +2342,13 @@ app.post('/api/waiter/login', async (req, res) => {
     if (!waiter) {
       incrementLoginAttempts(username, 'waiter');
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'waiter', '账号不存在']);
+      recordLoginAttempt(username, 'waiter');
       return res.status(401).json({ error: '服务员账号或密码错误' });
     }
     if (!verifyPassword(password, waiter.password_hash)) {
       incrementLoginAttempts(username, 'waiter');
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 0, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '密码错误']);
+      recordLoginAttempt(username, 'waiter');
       return res.status(401).json({ error: '服务员账号或密码错误' });
     }
     resetLoginAttempts(username, 'waiter');
