@@ -30,6 +30,9 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# 设置非交互模式，避免 apt 安装时弹出键盘布局等交互界面
+export DEBIAN_FRONTEND=noninteractive
+
 # ===== 获取当前目录 =====
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 log_info "应用目录: $APP_DIR"
