@@ -476,10 +476,10 @@
                 <div class="display-settings-bar">
                     <label class="store-switch-label">
                         <span id="currencyDualLabel">启用双币显示</span>
-                        <div class="store-switch">
+                        <label class="store-switch">
                             <input type="checkbox" id="dualCurrencyEnabled">
                             <span class="store-switch-slider"></span>
-                        </div>
+                        </label>
                     </label>
                     <select id="dualCurrencySelect" class="display-settings-select"></select>
                     <button id="saveDisplaySettingsBtn" class="display-settings-btn">保存显示设置</button>
@@ -598,10 +598,10 @@
                     <div class="printer-form-actions">
                         <label class="store-switch-label">
                             <span id="printerDefaultLabel">设为默认打印机</span>
-                            <div class="store-switch">
+                            <label class="store-switch">
                                 <input type="checkbox" id="printerDefault">
                                 <span class="store-switch-slider"></span>
-                            </div>
+                            </label>
                         </label>
                         <button id="addPrinterBtn" onclick="addPrinter()" class="primary">添加打印机</button>
                     </div>
@@ -654,10 +654,10 @@
                 <div class="store-edit-field full">
                     <label class="store-switch-label">
                         <span id="printerEditDefaultLabel">设为默认打印机</span>
-                        <div class="store-switch">
+                        <label class="store-switch">
                             <input type="checkbox" id="editPrinterDefault">
                             <span class="store-switch-slider"></span>
-                        </div>
+                        </label>
                     </label>
                 </div>
             </div>
@@ -830,10 +830,10 @@
                     <div class="settings-row">
                         <label class="store-switch-label">
                             <span id="newOrderSoundLabel">新订单到达时，服务员端和后厨端播放提示音</span>
-                            <div class="store-switch">
+                            <label class="store-switch">
                                 <input type="checkbox" id="newOrderSoundEnabled" checked>
                                 <span class="store-switch-slider"></span>
-                            </div>
+                            </label>
                         </label>
                         <button id="saveNotifySettingsBtn" class="display-settings-btn">保存设置</button>
                     </div>
@@ -991,30 +991,21 @@
                                 <span class="permission-title" id="permOrderLabel">下单</span>
                                 <span class="permission-sub" id="permOrderDesc">接收顾客订单</span>
                             </div>
-                            <div class="store-switch">
-                                <input type="checkbox" id="editWaiterCanOrder">
-                                <span class="store-switch-slider"></span>
-                            </div>
+                            <label class="store-switch"><input type="checkbox" id="editWaiterCanOrder"><span class="store-switch-slider"></span></label>
                         </div>
                         <div class="permission-row">
                             <div class="permission-text">
                                 <span class="permission-title" id="permMarkItemLabel">上菜</span>
                                 <span class="permission-sub" id="permMarkItemDesc">标记菜品已完成</span>
                             </div>
-                            <div class="store-switch">
-                                <input type="checkbox" id="editWaiterCanMarkItem">
-                                <span class="store-switch-slider"></span>
-                            </div>
+                            <label class="store-switch"><input type="checkbox" id="editWaiterCanMarkItem"><span class="store-switch-slider"></span></label>
                         </div>
                         <div class="permission-row">
                             <div class="permission-text">
                                 <span class="permission-title" id="permCompleteLabel">完成订单</span>
                                 <span class="permission-sub" id="permCompleteDesc">结算并完成订单</span>
                             </div>
-                            <div class="store-switch">
-                                <input type="checkbox" id="editWaiterCanCompleteOrder">
-                                <span class="store-switch-slider"></span>
-                            </div>
+                            <label class="store-switch"><input type="checkbox" id="editWaiterCanCompleteOrder"><span class="store-switch-slider"></span></label>
                         </div>
                     </div>
                 </div>
@@ -1052,10 +1043,10 @@
                             <span class="permission-title" id="editAdminActiveTitle">启用账号</span>
                             <span class="permission-sub" id="editAdminActiveDesc">关闭后该管理员无法登录</span>
                         </div>
-                        <div class="store-switch">
+                        <label class="store-switch">
                             <input type="checkbox" id="editAdminActive">
                             <span class="store-switch-slider"></span>
-                        </div>
+                        </label>
                     </div>
                 </div>
                 <div class="store-edit-field full">
@@ -1127,11 +1118,11 @@
                 <div class="store-edit-field full">
                     <label class="store-switch-label">
                         <span id="storeEditStatusLabel">店铺状态</span>
-                        <div class="store-switch">
+                        <label class="store-switch">
                             <input type="checkbox" id="editStoreActive" checked>
                             <span class="store-switch-slider"></span>
                             <span class="store-switch-text" id="storeEditStatusText">启用中</span>
-                        </div>
+                        </label>
                     </label>
                 </div>
                 <div class="store-edit-field full">
@@ -1754,6 +1745,8 @@
         try { adminPermissions = JSON.parse(sessionStorage.getItem('adminPermissions') || '{}'); } catch(e) {}
         // 权限检查：主管理员拥有所有权限
         function hasPermission(permKey) {
+            // 旧登录状态（sessionStorage中无adminIsPrimary）默认显示所有按钮，避免误隐藏
+            if (sessionStorage.getItem('adminIsPrimary') === null) return true;
             if (adminIsPrimary) return true;
             return adminPermissions && adminPermissions[permKey] ? true : false;
         }
@@ -1985,9 +1978,9 @@
                 return `<div class="row">
                   <div><b>${esc(t.name)}</b><small><span class="table-status ${dynamic}">${statusText[dynamic] || dynamic}</span></small></div>
                   <div class="actions">
-                    ${hasPermission('can_manage_table') ? "<button onclick=\"editTable(${t.id})\">${L('edit')}</button>" : ''}
+                    ${hasPermission('can_manage_table') ? '<button onclick="editTable(' + t.id + ')">' + L('edit') + '</button>' : ''}
                     <button onclick="showQr(${t.id})">${tAdmin('qr')}</button>
-                    ${hasPermission('can_manage_table') ? "<button class=\"danger\" onclick=\"removeTable(${t.id})\">${L('delete')}</button>" : ''}
+                    ${hasPermission('can_manage_table') ? '<button class="danger" onclick="removeTable(' + t.id + ')">' + L('delete') + '</button>' : ''}
                   </div>
                 </div>`;
             }).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
@@ -2044,8 +2037,8 @@
                   <div><b>${esc(c.code)} ${esc(c.symbol)}</b><small>${esc(currencyNameText(c.name,c.code))} · ${tAdmin('currencyRateLabel')} ${esc(c.rate)}${c.is_default ? ` · ${tAdmin('default')}` : ''}</small></div>
                   <div class="actions">
                     ${c.is_default ? '' : `<button onclick="setDefaultCurrency(${c.id})">${tAdmin('setDefault')}</button>`}
-                    ${hasPermission('can_manage_currency') ? "<button onclick=\"editCurrency(${c.id})\">${L('edit')}</button>" : ''}
-                    ${hasPermission('can_manage_currency') ? "<button class=\"danger\" onclick=\"removeCurrency(${c.id})\">${L('delete')}</button>" : ''}
+                    ${hasPermission('can_manage_currency') ? '<button onclick="editCurrency(' + c.id + ')">' + L('edit') + '</button>' : ''}
+                    ${hasPermission('can_manage_currency') ? '<button class="danger" onclick="removeCurrency(' + c.id + ')">' + L('delete') + '</button>' : ''}
                   </div>
                 </div>
               `).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
@@ -2116,10 +2109,10 @@
                     html += `<label class="admin-perm-item ${disabled ? 'disabled' : ''}">
                         <span class="admin-perm-icon">${p.icon}</span>
                         <span class="admin-perm-label">${tAdmin(p.labelKey)}</span>
-                        <div class="store-switch">
+                        <label class="store-switch">
                             <input type="checkbox" class="admin-perm-checkbox" data-key="${p.key}" ${checked} ${dis}>
                             <span class="store-switch-slider"></span>
-                        </div>
+                        </label>
                     </label>`;
                 });
                 html += `</div></div>`;
@@ -2298,7 +2291,7 @@
                     </div>
                     <div class="actions">
                       <button class="edit-btn" onclick="openWaiterEdit(${w.id})">✏️ ${L('edit')}</button>
-                      ${hasPermission('can_manage_waiter') ? "<button class=\"danger\" onclick=\"deleteWaiter(${w.id})\">${L('delete')}</button>" : ''}
+                      ${hasPermission('can_manage_waiter') ? '<button class="danger" onclick="deleteWaiter(' + w.id + ')">' + L('delete') + '</button>' : ''}
                     </div>
                   </div>`).join('') :
                     `<div class="empty-hint">${tAdmin('noData')}</div>`;
@@ -2343,7 +2336,7 @@
                     <div class="actions">
                       <button class="edit-btn" onclick="openStoreEdit(${s.id})">✏️ ${L('edit')}</button>
                       <button class="copy" onclick="copyStoreMenu(${s.id})">📋 ${tAdmin('copyMainStoreMenu')}</button>
-                      ${hasPermission('can_manage_store') ? "<button class=\"danger\" onclick=\"deleteStore(${s.id})\">${L('delete')}</button>" : ''}
+                      ${hasPermission('can_manage_store') ? '<button class="danger" onclick="deleteStore(' + s.id + ')">' + L('delete') + '</button>' : ''}
                     </div>
                   </div>`).join('') :
                     `<div class="empty-hint">${tAdmin('noData')}</div>`;
@@ -4027,11 +4020,11 @@
                             </div>
                         </div>
                         <div class="actions">
-                            ${hasPermission('can_manage_printer') ? "<button class=\"copy\" onclick=\"testPrinter(${p.id})\">${tAdmin('testPrint')}</button>" : ''}
+                            ${hasPermission('can_manage_printer') ? '<button class="copy" onclick="testPrinter(' + p.id + ')">' + tAdmin('testPrint') + '</button>' : ''}
                             <button class="edit-btn" onclick="openPrinterEdit(${p.id})">${L('edit')}</button>
                             <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})">${p.active ? tAdmin('disabled') : tAdmin('enabled')}</button>
                             ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})">${tAdmin('setDefaultPrinter')}</button>` : ''}
-                            ${hasPermission('can_manage_printer') ? "<button class=\"danger\" onclick=\"deletePrinter(${p.id})\">${L('delete')}</button>" : ''}
+                            ${hasPermission('can_manage_printer') ? '<button class="danger" onclick="deletePrinter(' + p.id + ')">' + L('delete') + '</button>' : ''}
                         </div>
                     </div>
                 `).join('');
