@@ -124,76 +124,112 @@ mkdir -p "$APP_DIR"/{uploads,backups,logs}
 mkdir -p /etc/foodflow
 log_success "目录创建完成"
 
-# ===== 7. 配置环境变量 =====
+# ===== 7. 自动配置数据库和环境变量 =====
 echo ""
-log_info "配置环境变量..."
-ENV_FILE="$APP_DIR/.env"
+log_info "自动配置数据库..."
 
-if [ ! -f "$ENV_FILE" ]; then
-    if [ -f "$APP_DIR/.env.example" ]; then
-        cp "$APP_DIR/.env.example" "$ENV_FILE"
-        log_warn "已从 .env.example 创建 .env 文件"
+# 7.1 检测 server.js 中的默认数据库名
+DEFAULT_DB_NAME="ordering_system"
+if [ -f "$APP_DIR/server.js" ]; then
+    DETECTED_DB=$(grep -oP "database\s*[:=]\s*['\"]?\K[a-zA-Z0-9_]+" "$APP_DIR/server.js" 2>/dev/null | head -1)
+    if [ -n "$DETECTED_DB" ]; then
+        DEFAULT_DB_NAME="$DETECTED_DB"
+    fi
+fi
+log_info "检测到默认数据库名: $DEFAULT_DB_NAME"
+
+# 7.2 生成随机密码
+DB_RANDOM_PASSWORD=$(head -c 16 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 16)
+JWT_RANDOM_SECRET=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
+
+# 7.3 创建专用数据库用户和数据库（通过 sudo mariadb -u root，处理 unix_socket 认证）
+log_info "创建数据库用户和数据库..."
+DB_CREATE_SUCCESS=false
+
+if mariadb -u root -e "SELECT 1" 2>/dev/null; then
+    MYSQL_CMD="mariadb -u root"
+elif mysql -u root -e "SELECT 1" 2>/dev/null; then
+    MYSQL_CMD="mysql -u root"
+elif sudo mariadb -u root -e "SELECT 1" 2>/dev/null; then
+    MYSQL_CMD="sudo mariadb -u root"
+elif sudo mysql -u root -e "SELECT 1" 2>/dev/null; then
+    MYSQL_CMD="sudo mysql -u root"
+else
+    log_warn "无法以 root 身份登录数据库，将使用 .env.example 中的配置"
+fi
+
+if [ -n "$MYSQL_CMD" ]; then
+    # 创建数据库
+    $MYSQL_CMD -e "CREATE DATABASE IF NOT EXISTS \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null
+
+    # 创建用户（localhost 和 127.0.0.1）
+    $MYSQL_CMD -e "CREATE USER IF NOT EXISTS 'foodflow'@'localhost' IDENTIFIED BY '$DB_RANDOM_PASSWORD';" 2>/dev/null
+    $MYSQL_CMD -e "CREATE USER IF NOT EXISTS 'foodflow'@'127.0.0.1' IDENTIFIED BY '$DB_RANDOM_PASSWORD';" 2>/dev/null
+
+    # 授权
+    $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'localhost';" 2>/dev/null
+    $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'127.0.0.1';" 2>/dev/null
+    $MYSQL_CMD -e "FLUSH PRIVILEGES;" 2>/dev/null
+
+    # 验证
+    if $MYSQL_CMD -e "USE \`$DEFAULT_DB_NAME\`;" 2>/dev/null; then
+        DB_CREATE_SUCCESS=true
+        log_success "数据库 $DEFAULT_DB_NAME 和用户 foodflow 创建成功"
     else
-        # 创建默认 .env
-        cat > "$ENV_FILE" << 'EOF'
+        log_warn "数据库创建验证失败"
+    fi
+fi
+
+# 7.4 写入 .env 文件（始终覆盖，确保配置正确）
+ENV_FILE="$APP_DIR/.env"
+log_info "写入环境变量配置..."
+
+cat > "$ENV_FILE" << EOF
 PORT=3000
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_NAME=foodflow
-DB_USER=root
-DB_PASSWORD=
+DB_NAME=$DEFAULT_DB_NAME
+DB_USER=foodflow
+DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
 REDIS_URL=
 UPLOAD_DIR=./uploads
 RUN_SCHEDULED_TASKS=true
-JWT_SECRET=please-change-this-secret-key
+JWT_SECRET=$JWT_RANDOM_SECRET
 QR_DOMAIN=
 EOF
-        log_warn "已创建默认 .env 文件"
-    fi
-else
-    log_success ".env 文件已存在"
-fi
 
 chmod 600 "$ENV_FILE"
+log_success ".env 配置文件已生成"
 
-# 生成随机 JWT_SECRET（如果是默认值）
-if grep -q "please-change-this-secret-key" "$ENV_FILE"; then
-    RANDOM_SECRET=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
-    sed -i "s/please-change-this-secret-key/$RANDOM_SECRET/" "$ENV_FILE"
-    log_success "已生成随机 JWT_SECRET"
-fi
+# 显示数据库配置（不显示完整密码）
+echo "  数据库配置:"
+echo "    主机: 127.0.0.1"
+echo "    数据库: $DEFAULT_DB_NAME"
+echo "    用户: foodflow"
+echo "    密码: ${DB_RANDOM_PASSWORD:0:4}****（完整密码见 .env 文件）"
 
-# 显示数据库配置（不显示密码）
-echo "  当前数据库配置:"
-echo "    主机: $(grep '^DB_HOST=' "$ENV_FILE" | cut -d= -f2)"
-echo "    数据库: $(grep '^DB_NAME=' "$ENV_FILE" | cut -d= -f2)"
-echo "    用户: $(grep '^DB_USER=' "$ENV_FILE" | cut -d= -f2)"
-
-# ===== 8. 创建数据库（如果需要） =====
+# 7.5 测试数据库连接
 echo ""
-log_info "检查数据库..."
-DB_NAME=$(grep '^DB_NAME=' "$ENV_FILE" | cut -d= -f2)
-DB_USER=$(grep '^DB_USER=' "$ENV_FILE" | cut -d= -f2)
-DB_PASSWORD=$(grep '^DB_PASSWORD=' "$ENV_FILE" | cut -d= -f2)
-
-# 尝试连接数据库并创建
-if [ -z "$DB_PASSWORD" ]; then
-    # 无密码，尝试 root 无密码连接
-    if mariadb -u root -e "USE $DB_NAME;" 2>/dev/null || mysql -u root -e "USE $DB_NAME;" 2>/dev/null; then
-        log_success "数据库 $DB_NAME 已存在"
-    else
-        log_info "创建数据库 $DB_NAME..."
-        mariadb -u root -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || \
-        mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || \
-        log_warn "自动创建数据库失败，请手动创建"
-        log_success "数据库 $DB_NAME 创建完成"
-    fi
+log_info "测试数据库连接..."
+sleep 2
+if node -e "
+const mysql = require('mysql2/promise');
+const env = require('fs').readFileSync('.env', 'utf8');
+const cfg = {};
+env.split('\n').forEach(l => { const [k,v] = l.split('='); if(k && v) cfg[k.trim()] = v.trim(); });
+mysql.createConnection({
+  host: cfg.DB_HOST, port: cfg.DB_PORT,
+  user: cfg.DB_USER, password: cfg.DB_PASSWORD,
+  database: cfg.DB_NAME
+}).then(conn => { console.log('OK'); conn.end(); }).catch(e => { console.log('FAIL:', e.message); process.exit(1); });
+" 2>/dev/null; then
+    log_success "数据库连接测试通过"
 else
-    log_info "数据库密码已配置，跳过自动创建（请确保数据库已存在）"
+    log_warn "数据库连接测试失败，应用启动时会重试"
 fi
 
-# ===== 9. 配置 Systemd 服务 =====
+# ===== 8. 配置 Systemd 服务 =====
 echo ""
 log_info "配置 Systemd 服务..."
 NODE_PATH=$(which node)
@@ -225,7 +261,7 @@ systemctl daemon-reload
 systemctl enable foodflow
 log_success "Systemd 服务配置完成"
 
-# ===== 10. 配置 Nginx =====
+# ===== 9. 配置 Nginx =====
 echo ""
 log_info "配置 Nginx..."
 cat > /etc/nginx/conf.d/foodflow.conf << EOF
@@ -262,7 +298,7 @@ else
     log_warn "Nginx 配置测试失败，请手动检查 /etc/nginx/conf.d/foodflow.conf"
 fi
 
-# ===== 11. 启动服务 =====
+# ===== 10. 启动服务 =====
 echo ""
 log_info "启动 FoodFlow 服务..."
 
@@ -284,7 +320,7 @@ else
     exit 1
 fi
 
-# ===== 12. 健康检查 =====
+# ===== 11. 健康检查 =====
 echo ""
 log_info "执行健康检查..."
 sleep 2
