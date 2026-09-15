@@ -20,6 +20,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const net = require('net');
+let redis = null;
+try { redis = require('redis'); } catch(e) { /* redis可选，未安装时回退到内存Map */ }
 const os = require('os');
 const { execSync } = require('child_process');
 
@@ -46,6 +48,93 @@ const app = express();
 app.set('trust proxy', true);
 const PORT = Number(process.env.PORT || 3000);
 
+
+// ===== 双服务器部署配置 =====
+// 上传目录：可通过环境变量配置，双服务器时挂载NFS到同一目录
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
+// 定时任务：只在一台服务器上设置 RUN_SCHEDULED_TASKS=true，避免重复执行
+const RUN_SCHEDULED_TASKS = process.env.RUN_SCHEDULED_TASKS === 'true';
+// Redis连接：双服务器时配置 REDIS_URL，共享防重复下单和登录限流状态
+const REDIS_URL = process.env.REDIS_URL || null;
+
+// ===== 通用缓存层：有Redis用Redis，无Redis回退到内存Map =====
+let redisClient = null;
+let redisReady = false;
+async function initRedis() {
+  if (!redis || !REDIS_URL) return false;
+  try {
+    redisClient = redis.createClient({ url: REDIS_URL });
+    redisClient.on('error', (err) => console.error('Redis连接错误:', err.message));
+    await redisClient.connect();
+    redisReady = true;
+    console.log('✅ Redis缓存已连接');
+    return true;
+  } catch(e) {
+    console.log('ℹ️ Redis未启用，使用内存缓存（单服务器模式）');
+    redisReady = false;
+    return false;
+  }
+}
+const memoryCache = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, item] of memoryCache) {
+    if (item && item.expireAt && item.expireAt < now) memoryCache.delete(key);
+  }
+}, 60000);
+const origMemorySet = memoryCache.set.bind(memoryCache);
+memoryCache.set = function(key, value, ttlSeconds) {
+  const item = ttlSeconds ? { value, expireAt: Date.now() + ttlSeconds * 1000 } : { value };
+  return origMemorySet(key, item);
+};
+const origMemoryGet = memoryCache.get.bind(memoryCache);
+memoryCache.get = function(key) {
+  const item = origMemoryGet(key);
+  return item ? item.value : undefined;
+};
+const cache = {
+  async get(key) {
+    if (redisReady) {
+      const val = await redisClient.get(key);
+      return val ? JSON.parse(val) : null;
+    }
+    return memoryCache.get(key) || null;
+  },
+  async set(key, value, ttlSeconds) {
+    if (redisReady) {
+      if (ttlSeconds) await redisClient.setEx(key, ttlSeconds, JSON.stringify(value));
+      else await redisClient.set(key, JSON.stringify(value));
+    } else {
+      memoryCache.set(key, value, ttlSeconds);
+    }
+  },
+  async del(key) {
+    if (redisReady) await redisClient.del(key);
+    else memoryCache.delete(key);
+  }
+};
+// 防重复下单冷却
+async function checkAndSetCooldown(key, cooldownMs) {
+  const last = await cache.get('cooldown:' + key);
+  const now = Date.now();
+  if (last && (now - last) < cooldownMs) return false;
+  await cache.set('cooldown:' + key, now, Math.ceil(cooldownMs / 1000) + 1);
+  return true;
+}
+// 登录失败限流
+async function getLoginAttempt(key) {
+  const val = await cache.get('login:' + key);
+  return val || { count: 0, lockUntil: 0 };
+}
+async function incrementLoginAttempt(key) {
+  const attempt = await getLoginAttempt(key);
+  attempt.count += 1;
+  await cache.set('login:' + key, attempt, 24 * 3600);
+  return attempt;
+}
+async function clearLoginAttempt(key) {
+  await cache.del('login:' + key);
+}
 // ---------- 获取真实客户端IP（兼容Nginx反向代理） ----------
 function getClientIp(req) {
   const xff = req.headers['x-forwarded-for'];
@@ -89,7 +178,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 // 静态文件服务：只暴露必要的目录，防止 server.js、.env 等敏感文件被直接下载
 app.use('/assets', express.static(path.join(__dirname, 'assets'), { dotfiles: 'deny', index: false }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { dotfiles: 'deny', index: false }));
+app.use('/uploads', express.static(UPLOAD_DIR, { dotfiles: 'deny', index: false }));
 // languages.js 是前端多语言翻译文件，单独提供路由
 app.get('/languages.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'languages.js'));
@@ -233,9 +322,8 @@ app.get('/index.html', (req, res) => res.redirect('/'));
 // ---------- 文件上传 ----------
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, 'uploads');
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-    cb(null, uploadDir);
+    if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    cb(null, UPLOAD_DIR);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -323,7 +411,6 @@ async function getOrderCooldownMs() {
     return 30 * 1000;
   }
 }
-const orderSubmissionCooldown = new Map();
 setInterval(() => {
   const cutoff = Date.now() - 3600 * 1000; // 清理1小时前的记录
   for (const [key, ts] of orderSubmissionCooldown) {
@@ -347,22 +434,6 @@ function verifyPassword(pwd, hash) {
 }
 
 // ---------- 登录限流器 ----------
-const loginAttempts = new Map(); // key: username|type, value: {count, lockUntil}
-function getLoginAttempts(username, type) {
-  const key = `${username}|${type}`;
-  return loginAttempts.get(key) || { count: 0, lockUntil: 0 };
-}
-function incrementLoginAttempts(username, type) {
-  const key = `${username}|${type}`;
-  const attempt = loginAttempts.get(key) || { count: 0, lockUntil: 0 };
-  attempt.count += 1;
-  loginAttempts.set(key, attempt);
-  return attempt;
-}
-function resetLoginAttempts(username, type) {
-  const key = `${username}|${type}`;
-  loginAttempts.delete(key);
-}
 async function isLoginLocked(username, type) {
   const settings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_max_attempts'");
   const lockSettings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_lock_minutes'");
@@ -2394,7 +2465,7 @@ app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('
     const existingNames = new Set(existingMenus.map(m => m.name));
     const menusToCopy = sourceMenus.filter(menu => !existingNames.has(menu.name));
     if (menusToCopy.length === 0) return res.json({ success: true, copied: 0, message: '目标店铺已包含全部菜品，无需复制' });
-    const uploadDir = path.join(__dirname, 'uploads');
+    const uploadDir = UPLOAD_DIR;
     let copiedCount = 0;
     for (const menu of menusToCopy) {
       let newImage = '';
@@ -2793,7 +2864,10 @@ app.post('/api/orders', async (req, res) => {
     const finalStoreId = sessionStoreId || storeId;
     const cooldownKey = sessionToken || table;
     const now = Date.now();
-    const lastSubmission = orderSubmissionCooldown.get(cooldownKey) || 0;
+    const canSubmit = await checkAndSetCooldown(cooldownKey, 3000);
+    if (!canSubmit) {
+      return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
+    }
     const cooldownMs = await getOrderCooldownMs();
     if (cooldownMs > 0 && now - lastSubmission < cooldownMs) {
       const waitSec = Math.ceil((cooldownMs - (now - lastSubmission)) / 1000);
@@ -3878,24 +3952,32 @@ app.use((err, req, res, next) => {
 // ---------- 启动 ----------
 const isInitOnly = process.argv.includes('--init-only');
 
-initDatabase().then(() => {
+initDatabase().then(async () => {
   if (isInitOnly) {
 
     process.exit(0);
   }
+  // 初始化Redis（双服务器部署时用于共享状态）
+  await initRedis();
   app.listen(PORT, '0.0.0.0', () => {
 
     console.log(`📁 数据库: MySQL (${poolConfig.database})`);
 
-    maybeAutoBackup().catch(err => console.error('自动备份失败:', err.message));
-    setInterval(() => {
+    // 定时任务：只在 RUN_SCHEDULED_TASKS=true 的服务器上执行，避免双服务器重复执行
+    if (RUN_SCHEDULED_TASKS) {
+      console.log('⏰ 定时任务已启用（自动备份、日志清理）');
       maybeAutoBackup().catch(err => console.error('自动备份失败:', err.message));
-    }, 5 * 60 * 1000);
-    // 每天检查一次是否需要清理日志
-    autoCleanLogs().catch(err => console.error('日志清理失败:', err.message));
-    setInterval(() => {
+      setInterval(() => {
+        maybeAutoBackup().catch(err => console.error('自动备份失败:', err.message));
+      }, 5 * 60 * 1000);
+      // 每天检查一次是否需要清理日志
       autoCleanLogs().catch(err => console.error('日志清理失败:', err.message));
-    }, 24 * 60 * 60 * 1000);
+      setInterval(() => {
+        autoCleanLogs().catch(err => console.error('日志清理失败:', err.message));
+      }, 24 * 60 * 60 * 1000);
+    } else {
+      console.log('⏭️ 定时任务未启用（设置 RUN_SCHEDULED_TASKS=true 启用）');
+    }
   });
 }).catch(err => {
   console.error('❌ 数据库初始化失败:', err);
