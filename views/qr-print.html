@@ -201,6 +201,57 @@
   .scan-line:not(:last-child) {
     margin-bottom: clamp(2px, 0.4vw, 6px);
   }
+  .url-box-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: clamp(12px, 2vw, 20px);
+    width: 100%;
+    flex-shrink: 0;
+  }
+  .url-input {
+    flex: 1;
+    min-width: 0;
+    background: #f8f9fa;
+    border: 1px solid #eee;
+    border-radius: clamp(8px, 1.2vw, 10px);
+    padding: clamp(8px, 1.2vw, 12px) clamp(10px, 1.5vw, 14px);
+    font-size: clamp(10px, 1.3vw, 13px);
+    color: #2c3e50;
+    font-family: monospace;
+    outline: none;
+    cursor: text;
+  }
+  .url-input:focus {
+    border-color: #e85d3a;
+    box-shadow: 0 0 0 3px rgba(232,93,58,0.1);
+  }
+  .copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #e85d3a 0%, #c0392b 100%);
+    color: #fff;
+    border: none;
+    border-radius: clamp(8px, 1.2vw, 10px);
+    padding: clamp(8px, 1.2vw, 12px) clamp(14px, 2vw, 20px);
+    font-size: clamp(11px, 1.4vw, 14px);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .copy-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(232,93,58,0.3);
+  }
+  .copy-btn:active {
+    transform: translateY(0);
+  }
+  .copy-btn.copied {
+    background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+  }
   .url-box {
     background: #f8f9fa;
     border: 1px solid #eee;
@@ -325,6 +376,7 @@
     .actions, .card-footer { display: none !important; }
   }
 </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <div class="qr-card">
@@ -343,7 +395,13 @@
         </div>
       </div>
       <div class="scan-text">{{scanToOrderLines}}</div>
-      <div class="url-box">{{url}}</div>
+      <div class="url-box-wrap">
+        <input type="text" class="url-input" id="urlInput" value="{{url}}" readonly>
+        <button class="copy-btn" onclick="copyUrl()" title="复制链接">
+          <i class="fas fa-copy"></i>
+          <span class="copy-text">复制</span>
+        </button>
+      </div>
       <div class="actions">
         <button class="btn btn-download" onclick="downloadQR()">
           <span>📥</span> {{download}}
@@ -515,6 +573,40 @@
     else ctx.lineTo(x, y);
     if (topLeft) ctx.arcTo(x, y, x + r, y, r);
     ctx.closePath();
+  }
+  function copyUrl() {
+    const input = document.getElementById('urlInput');
+    const btn = document.querySelector('.copy-btn');
+    if (!input || !btn) return;
+    input.select();
+    input.setSelectionRange(0, 99999);
+    let success = false;
+    try {
+      success = document.execCommand('copy');
+    } catch(e) {
+      success = false;
+    }
+    if (!success && navigator.clipboard) {
+      navigator.clipboard.writeText(input.value).then(function() {
+        showCopiedState(btn);
+      }).catch(function() {
+        alert('复制失败，请手动复制');
+      });
+    } else if (success) {
+      showCopiedState(btn);
+    } else {
+      alert('复制失败，请手动复制');
+    }
+    window.getSelection().removeAllRanges();
+  }
+  function showCopiedState(btn) {
+    const originalHTML = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fas fa-check"></i> <span class="copy-text">已复制</span>';
+    setTimeout(function() {
+      btn.classList.remove('copied');
+      btn.innerHTML = originalHTML;
+    }, 2000);
   }
   </script>
 </body>
