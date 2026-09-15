@@ -1768,6 +1768,19 @@
                 const perm = btn.dataset.perm;
                 btn.style.display = (perm && !hasPermission(perm)) ? 'none' : '';
             });
+            // 模块添加按钮
+            const addBtnMap = {
+                openDishModalBtn: 'can_manage_menu',
+                addTableBtn: 'can_manage_table',
+                addCurrencyBtn: 'can_manage_currency',
+                addPrinterBtn: 'can_manage_printer',
+                addWaiterBtn: 'can_manage_waiter',
+                addStoreBtn: 'can_manage_store'
+            };
+            for (const [btnId, perm] of Object.entries(addBtnMap)) {
+                const btn = document.getElementById(btnId);
+                if (btn) btn.style.display = hasPermission(perm) ? '' : 'none';
+            }
             const adminManageCard = document.getElementById('adminManageCard');
             if (adminManageCard) adminManageCard.style.display = hasPermission('can_manage_admin') ? '' : 'none';
         }
@@ -1919,9 +1932,9 @@
                       <div class="meta">${esc(categoryText(m.category))}${m.desc ? ` · ${esc(m.desc)}` : ''}</div>
                     </div>
                     <div class="menu-actions">
-                      <button onclick="toggleMenuStatus(${m.id},${m.active?0:1})">${m.active ? tAdmin('unlistDish') : tAdmin('listDish')}</button>
-                      <button class="edit-btn" onclick="editMenu(${m.id})">✏️ ${L('edit')}</button>
-                      <button class="danger" onclick="removeMenu(${m.id})">${L('delete')}</button>
+                      ${hasPermission('can_manage_menu') ? '<button onclick="toggleMenuStatus(' + m.id + ',' + (m.active?0:1) + ')">' + (m.active ? tAdmin('unlistDish') : tAdmin('listDish')) + '</button>' : ''}
+                      ${hasPermission('can_manage_menu') ? '<button class="edit-btn" onclick="editMenu(' + m.id + ')">✏️ ' + L('edit') + '</button>' : ''}
+                      ${hasPermission('can_manage_menu') ? '<button class="danger" onclick="removeMenu(' + m.id + ')">' + L('delete') + '</button>' : ''}
                     </div>
                   </div>`;
                 }).join('')}</div>` :
@@ -1972,9 +1985,9 @@
                 return `<div class="row">
                   <div><b>${esc(t.name)}</b><small><span class="table-status ${dynamic}">${statusText[dynamic] || dynamic}</span></small></div>
                   <div class="actions">
-                    <button onclick="editTable(${t.id})">${L('edit')}</button>
+                    ${hasPermission('can_manage_table') ? "<button onclick=\"editTable(${t.id})\">${L('edit')}</button>" : ''}
                     <button onclick="showQr(${t.id})">${tAdmin('qr')}</button>
-                    <button class="danger" onclick="removeTable(${t.id})">${L('delete')}</button>
+                    ${hasPermission('can_manage_table') ? "<button class=\"danger\" onclick=\"removeTable(${t.id})\">${L('delete')}</button>" : ''}
                   </div>
                 </div>`;
             }).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
@@ -2031,8 +2044,8 @@
                   <div><b>${esc(c.code)} ${esc(c.symbol)}</b><small>${esc(currencyNameText(c.name,c.code))} · ${tAdmin('currencyRateLabel')} ${esc(c.rate)}${c.is_default ? ` · ${tAdmin('default')}` : ''}</small></div>
                   <div class="actions">
                     ${c.is_default ? '' : `<button onclick="setDefaultCurrency(${c.id})">${tAdmin('setDefault')}</button>`}
-                    <button onclick="editCurrency(${c.id})">${L('edit')}</button>
-                    <button class="danger" onclick="removeCurrency(${c.id})">${L('delete')}</button>
+                    ${hasPermission('can_manage_currency') ? "<button onclick=\"editCurrency(${c.id})\">${L('edit')}</button>" : ''}
+                    ${hasPermission('can_manage_currency') ? "<button class=\"danger\" onclick=\"removeCurrency(${c.id})\">${L('delete')}</button>" : ''}
                   </div>
                 </div>
               `).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
@@ -2285,7 +2298,7 @@
                     </div>
                     <div class="actions">
                       <button class="edit-btn" onclick="openWaiterEdit(${w.id})">✏️ ${L('edit')}</button>
-                      <button class="danger" onclick="deleteWaiter(${w.id})">${L('delete')}</button>
+                      ${hasPermission('can_manage_waiter') ? "<button class=\"danger\" onclick=\"deleteWaiter(${w.id})\">${L('delete')}</button>" : ''}
                     </div>
                   </div>`).join('') :
                     `<div class="empty-hint">${tAdmin('noData')}</div>`;
@@ -2330,7 +2343,7 @@
                     <div class="actions">
                       <button class="edit-btn" onclick="openStoreEdit(${s.id})">✏️ ${L('edit')}</button>
                       <button class="copy" onclick="copyStoreMenu(${s.id})">📋 ${tAdmin('copyMainStoreMenu')}</button>
-                      <button class="danger" onclick="deleteStore(${s.id})">${L('delete')}</button>
+                      ${hasPermission('can_manage_store') ? "<button class=\"danger\" onclick=\"deleteStore(${s.id})\">${L('delete')}</button>" : ''}
                     </div>
                   </div>`).join('') :
                     `<div class="empty-hint">${tAdmin('noData')}</div>`;
@@ -4014,11 +4027,11 @@
                             </div>
                         </div>
                         <div class="actions">
-                            <button class="copy" onclick="testPrinter(${p.id})">${tAdmin('testPrint')}</button>
+                            ${hasPermission('can_manage_printer') ? "<button class=\"copy\" onclick=\"testPrinter(${p.id})\">${tAdmin('testPrint')}</button>" : ''}
                             <button class="edit-btn" onclick="openPrinterEdit(${p.id})">${L('edit')}</button>
                             <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})">${p.active ? tAdmin('disabled') : tAdmin('enabled')}</button>
                             ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})">${tAdmin('setDefaultPrinter')}</button>` : ''}
-                            <button class="danger" onclick="deletePrinter(${p.id})">${L('delete')}</button>
+                            ${hasPermission('can_manage_printer') ? "<button class=\"danger\" onclick=\"deletePrinter(${p.id})\">${L('delete')}</button>" : ''}
                         </div>
                     </div>
                 `).join('');
