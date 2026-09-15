@@ -1,6 +1,9 @@
 # ============================================================
 # FoodFlow 点餐系统 - 单台部署 Systemd 服务配置
 # 部署位置：/etc/systemd/system/foodflow.service
+#
+# 注意：install-local.sh 会自动生成此文件，
+# 本文件仅作为参考模板
 # ============================================================
 
 [Unit]
@@ -10,29 +13,20 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=root
+Group=root
 
 WorkingDirectory=/var/www/foodflow
-EnvironmentFile=/etc/foodflow/.env
 
-ExecStart=/usr/bin/node server.js
+# 使用 env 命令查找 node，避免路径写死
+ExecStart=/usr/bin/env node server.js
 
 Restart=always
 RestartSec=5
 
 LimitNOFILE=65536
-LimitNPROC=4096
-MemoryMax=7G
-MemoryHigh=6G
 
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/www/foodflow/uploads /var/www/foodflow/backups /var/www/foodflow/logs
-ReadOnlyPaths=/var/www/foodflow
-
+# 生产环境输出到 journal
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=foodflow

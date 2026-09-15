@@ -48,7 +48,7 @@ if [ -f .env ]; then
     set +a
 fi
 
-DOMAIN="${DOMAIN:-}"
+DOMAIN="${DOMAIN:-${QR_DOMAIN:-}}"
 EMAIL="${EMAIL:-admin@example.com}"
 BACKEND_PORT="${PORT:-3000}"
 

@@ -7,6 +7,9 @@
 
 set -e
 
+# 设置非交互模式，避免 apt 安装时弹出键盘布局等交互界面
+export DEBIAN_FRONTEND=noninteractive
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -32,7 +35,7 @@ DEPLOY_DIR="$SCRIPT_DIR/deploy"
 # 显示横幅
 # ============================================================
 show_banner() {
-    clear
+    clear 2>/dev/null || true
     echo -e "${PURPLE}${BOLD}"
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║                                                              ║"
@@ -93,7 +96,7 @@ check_system() {
     log_info "系统架构：$ARCH"
 
     # 检查内存
-    MEM_TOTAL=$(free -m | awk '/^Mem:/{print $2}')
+    MEM_TOTAL=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}' || echo "未知")
     log_info "内存总量：${MEM_TOTAL}MB"
 
     # 检查磁盘
@@ -215,7 +218,7 @@ confirm_installation() {
     echo -e "${YELLOW}${BOLD}═══════════════════════════════════════════════════════════${NC}"
     echo ""
     echo "  部署模式：$DEPLOY_NAME"
-    if [ "$DEPLOY_MODE" != "single" ]; then
+    if [ "$DEPLOY_MODE" != "standard" ]; then
         echo "  节点角色：$NODE_ROLE"
     fi
     echo "  操作系统：$OS_NAME $OS_VERSION"
@@ -400,6 +403,13 @@ main() {
 
     # 检查系统环境
     check_system
+
+    # 早期检查 deploy 目录是否完整
+    if [ ! -d "$DEPLOY_DIR" ]; then
+        log_error "未找到 deploy 目录：$DEPLOY_DIR"
+        log_info "请确保从项目根目录运行此脚本，且 deploy 目录完整"
+        exit 1
+    fi
 
     # 选择部署模式
     select_deploy_mode
