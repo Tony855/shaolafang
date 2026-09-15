@@ -1,10 +1,10 @@
 # ============================================================
-# FoodFlow 标准版 - 集群部署 Systemd 服务配置
+# FoodFlow 企业版 - 集群部署 Systemd 服务配置
 # 部署位置：/etc/systemd/system/foodflow.service
 # ============================================================
 
 [Unit]
-Description=FoodFlow Standard - Cluster Node
+Description=FoodFlow Enterprise - Cluster Node
 After=network.target nfs-client.target
 Wants=network.target nfs-client.target
 
@@ -21,11 +21,14 @@ ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=5
 
-LimitNOFILE=65536
-LimitNPROC=4096
-MemoryMax=7G
-MemoryHigh=6G
+# 企业版资源限制（建议4核8GB以上）
+LimitNOFILE=131072
+LimitNPROC=8192
+MemoryMax=14G
+MemoryHigh=12G
+CPUShares=1024
 
+# 安全加固
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

@@ -75,7 +75,7 @@ if [ -d "$PROJECT_DIR/.git" ]; then
     cp -r "$PROJECT_DIR"/* /var/www/foodflow/
     cd /var/www/foodflow
 else
-    git clone https://github.com/Tony855/foodflow.git /var/www/foodflow
+    git clone https://github.com/Tony855/foodflow-standard.git /var/www/foodflow
     cd /var/www/foodflow
 fi
 

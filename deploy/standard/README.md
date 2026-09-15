@@ -1,124 +1,69 @@
-# FoodFlow 标准版部署指南
+# FoodFlow 标准版部署指南（单台部署）
 
-> **定位**：单个餐饮品牌，2台服务器双机负载均衡
-> **适用规模**：100-200家门店
-> **并发能力**：约3,000同时在线
-
----
-
-## 一、架构概览
-
-```
-                    ┌─────────────┐
-                    │   Nginx LB   │  负载均衡 + SSL
-                    │  (可复用节点1)│
-                    └──────┬──────┘
-                           │
-              ┌────────────┴────────────┐
-              │                         │
-        ┌─────▼─────┐           ┌─────▼─────┐
-        │  App Node1 │           │  App Node2 │  Node.js 应用服务器
-        │  4核8GB    │           │  4核8GB    │
-        │  (主节点)   │           │  (从节点)   │
-        └─────┬─────┘           └─────┬─────┘
-              │                         │
-              └──────────┬──────────────┘
-                         │
-              ┌──────────▼──────────┐
-              │   MySQL 高可用版     │  8核16GB 200GB SSD
-              └──────────┬──────────┘
-                         │
-              ┌──────────▼──────────┐
-              │   Redis 主从版       │  4GB（共享缓存+限流）
-              └──────────┬──────────┘
-                         │
-              ┌──────────▼──────────┐
-              │   NFS 共享存储        │  菜品图片上传目录
-              └─────────────────────┘
-```
+> **定位**：单个餐饮品牌，所有服务在一台服务器
+> **适用规模**：1-50家门店
+> **并发能力**：约500同时在线
 
 ---
 
-## 二、服务器清单
+## 一、服务器配置要求
 
-| 角色 | 规格 | 数量 | 说明 |
-|------|------|------|------|
-| 应用服务器 | 4核8GB 100GB | 2台 | 主节点执行定时任务 |
-| MySQL数据库 | 8核16GB 200GB SSD | 1套（高可用） | 云数据库或自建主从 |
-| Redis缓存 | 4GB | 1套（主从） | 共享缓存+限流状态 |
-| NFS存储 | 2核4GB 500GB | 1台 | 可复用数据库服务器 |
-
-> **注意**：Nginx负载均衡可复用其中一台应用服务器，无需单独购买。
+| 配置项 | 最低配置 | 推荐配置 |
+|--------|---------|---------|
+| CPU | 2核 | 4核 |
+| 内存 | 4GB | 8GB |
+| 硬盘 | 50GB SSD | 100GB SSD |
+| 带宽 | 5Mbps | 10Mbps |
+| 系统 | Debian 11+ / Ubuntu 20.04+ | Debian 12 / Ubuntu 22.04 |
 
 ---
 
-## 三、部署步骤
+## 二、架构图
 
-### 步骤1：配置NFS共享存储服务器
-
-```bash
-# 在NFS服务器上运行
-sudo bash deploy/standard/cluster/setup-nfs-server.sh
+```
+┌─────────────────────────────────────────┐
+│            单台服务器                     │
+│                                         │
+│  ┌─────────┐    ┌──────────────────┐  │
+│  │  Nginx  │───▶│  Node.js 应用     │  │
+│  │  (SSL)  │    │  (端口3000)       │  │
+│  └─────────┘    └────────┬─────────┘  │
+│                           │             │
+│              ┌────────────┴──────────┐  │
+│              │                       │  │
+│        ┌─────▼─────┐          ┌────▼─────┐│
+│        │   MySQL    │          │   Redis   ││
+│        │  (数据库)   │          │  (缓存)   ││
+│        └───────────┘          └──────────┘│
+│                                         │
+│  上传目录：/var/www/foodflow/uploads/   │
+└─────────────────────────────────────────┘
 ```
 
-### 步骤2：初始化数据库
+---
+
+## 三、快速部署
+
+### 方式一：一键安装脚本（推荐）
 
 ```bash
-# 先编辑 init-db.sh 中的数据库配置
-sudo bash deploy/standard/cluster/init-db.sh
+# 1. 下载代码
+git clone https://github.com/Tony855/foodflow-standard.git
+cd foodflow-standard
+
+# 2. 运行一键安装脚本，选择"标准版 - 单台部署"
+sudo bash install.sh
 ```
 
-### 步骤3：部署主节点应用服务器
+### 方式二：手动部署脚本
 
 ```bash
-# 在第一台应用服务器上运行
-sudo bash deploy/standard/cluster/deploy.sh master
-
-# 编辑环境变量配置
-sudo nano /etc/foodflow/.env
-# 配置数据库、Redis、NFS挂载点等
-
-# 重启服务
-sudo systemctl restart foodflow
+sudo bash deploy/standard/deploy.sh
 ```
 
-### 步骤4：部署从节点应用服务器
+### 方式三：手动部署
 
-```bash
-# 在第二台应用服务器上运行
-sudo bash deploy/standard/cluster/deploy.sh slave
-
-# 编辑环境变量配置（数据库、Redis与主节点相同）
-sudo nano /etc/foodflow/.env
-# 注意：从节点不需要 RUN_SCHEDULED_TASKS=true
-
-# 重启服务
-sudo systemctl restart foodflow
-```
-
-### 步骤5：配置Nginx负载均衡
-
-```bash
-# 在Nginx服务器上（可复用节点1）
-sudo cp deploy/standard/cluster/nginx.conf /etc/nginx/conf.d/foodflow.conf
-
-# 编辑配置
-sudo nano /etc/nginx/conf.d/foodflow.conf
-# - server_name: 修改为你的域名
-# - upstream 中的服务器IP: 修改为两台应用服务器的实际IP
-# - SSL证书路径: 修改为实际证书路径
-
-# 测试并加载配置
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 步骤6：配置SSL证书（推荐）
-
-```bash
-sudo apt-get install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
-```
+详见 `deploy/standard/deploy.sh` 脚本中的步骤。
 
 ---
 
@@ -126,16 +71,22 @@ sudo certbot --nginx -d your-domain.com
 
 编辑 `/etc/foodflow/.env`：
 
-| 变量 | 说明 | 主节点 | 从节点 |
-|------|------|--------|--------|
-| `DB_HOST` | 数据库主机 | ✅ 相同 | ✅ 相同 |
-| `DB_NAME` | 数据库名 | foodflow_standard | foodflow_standard |
-| `REDIS_URL` | Redis连接（必须） | ✅ 相同 | ✅ 相同 |
-| `UPLOAD_DIR` | 上传目录（NFS） | /mnt/shared/uploads | /mnt/shared/uploads |
-| `RUN_SCHEDULED_TASKS` | 执行定时任务 | **true** | **不设置** |
-| `JWT_SECRET` | JWT密钥 | ✅ 相同 | ✅ 相同 |
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `PORT` | 应用端口 | 3000 |
+| `DB_HOST` | 数据库主机 | 127.0.0.1 |
+| `DB_PORT` | 数据库端口 | 3306 |
+| `DB_NAME` | 数据库名 | foodflow_standard |
+| `DB_USER` | 数据库用户 | foodflow |
+| `DB_PASSWORD` | 数据库密码 | （需修改） |
+| `DB_CONNECTION_LIMIT` | 连接池大小 | 50 |
+| `REDIS_URL` | Redis连接（可选） | 不配置则用内存 |
+| `UPLOAD_DIR` | 上传目录 | /var/www/foodflow/uploads |
+| `RUN_SCHEDULED_TASKS` | 执行定时任务 | true |
+| `QR_DOMAIN` | 二维码域名 | （需修改） |
+| `JWT_SECRET` | JWT密钥 | （需修改为随机字符串） |
 
-> **关键**：两台节点的数据库、Redis、NFS配置必须完全相同！
+> **注意**：Redis是可选的，不配置 `REDIS_URL` 时系统自动使用内存Map，功能完全正常。
 
 ---
 
@@ -143,36 +94,94 @@ sudo certbot --nginx -d your-domain.com
 
 ```bash
 # 服务管理
-sudo systemctl status foodflow
+sudo systemctl status foodflow    # 查看状态
+sudo systemctl restart foodflow   # 重启服务
+sudo systemctl stop foodflow      # 停止服务
+
+# 查看日志
+sudo journalctl -u foodflow -f           # 实时日志
+sudo journalctl -u foodflow -n 100       # 最近100行日志
+
+# 应用更新
+cd /var/www/foodflow
+sudo git pull origin main
+sudo npm install --production
 sudo systemctl restart foodflow
-sudo journalctl -u foodflow -f
 
-# 滚动更新应用（不中断服务）
-# 1. 在主节点更新
-cd /var/www/foodflow && sudo git pull && sudo npm install --production && sudo systemctl restart foodflow
-# 2. 等待主节点启动后，在从节点执行相同操作
+# Nginx管理
+sudo nginx -t                    # 测试配置
+sudo systemctl reload nginx      # 重载配置
+sudo tail -f /var/log/nginx/access.log   # 访问日志
+sudo tail -f /var/log/nginx/error.log    # 错误日志
 
-# NFS管理
-df -h /mnt/shared/uploads
-mountpoint /mnt/shared/uploads
+# 数据库管理
+sudo mysql -u root -p           # 登录MySQL
+sudo mysqldump foodflow_standard > backup.sql  # 备份数据库
 
-# 健康检查
-curl -s http://192.168.1.101:3000/health
-curl -s http://192.168.1.102:3000/health
+# Redis管理
+redis-cli ping                   # 测试连接
+redis-cli info memory            # 查看内存使用
 ```
 
 ---
 
 ## 六、常见问题
 
-### Q1：图片上传后404？
-A：检查两台服务器的NFS是否正常挂载：`df -h /mnt/shared/uploads`
+### Q1：访问页面显示502 Bad Gateway？
+A：Node.js应用未启动，检查：
+```bash
+sudo systemctl status foodflow
+sudo journalctl -u foodflow -n 50
+```
 
-### Q2：防重复下单不生效？
-A：检查 `REDIS_URL` 是否配置正确，两台服务器是否都能连接到同一个Redis。
+### Q2：图片上传后不显示？
+A：检查上传目录权限：
+```bash
+ls -la /var/www/foodflow/uploads/
+sudo chown -R www-data:www-data /var/www/foodflow/uploads
+```
 
-### Q3：定时任务执行了两次？
-A：检查从节点的 `/etc/foodflow/.env` 中是否设置了 `RUN_SCHEDULED_TASKS=true`，从节点不应设置此项。
+### Q3：如何修改数据库密码？
+A：编辑 `/etc/foodflow/.env` 中的 `DB_PASSWORD`，然后重启：
+```bash
+sudo systemctl restart foodflow
+```
 
-### Q4：某个节点故障怎么办？
-A：Nginx会自动剔除故障节点，流量自动转发到正常节点。修复后重启服务即可自动加入集群。
+### Q4：如何备份数据？
+A：系统自动备份（每5分钟检查一次），备份文件在 `/var/www/foodflow/backups/`。
+手动备份：
+```bash
+sudo mysqldump foodflow_standard > /var/www/foodflow/backups/manual_$(date +%Y%m%d).sql
+```
+
+### Q5：如何查看版本？
+```bash
+cd /var/www/foodflow
+git log --oneline -1
+```
+
+---
+
+## 七、安全建议
+
+1. **修改默认密码**：数据库root密码、应用数据库密码、JWT密钥
+2. **配置防火墙**：只开放 80、443 端口，SSH改为非默认端口
+3. **启用SSL**：使用 Let's Encrypt 免费证书
+4. **定期备份**：确认自动备份正常，定期下载备份到异地
+5. **系统更新**：定期运行 `apt-get update && apt-get upgrade`
+
+---
+
+## 八、升级到企业版
+
+当业务增长需要更高可用性时，可以升级到企业版（2台服务器部署）：
+
+1. 准备第二台应用服务器
+2. 准备独立的MySQL和Redis服务器
+3. 准备NFS共享存储
+4. 迁移数据库和上传文件
+5. 部署2台应用服务器节点
+6. 配置Nginx负载均衡
+7. 切换DNS，下线旧服务器
+
+详见 `deploy/enterprise/README.md`

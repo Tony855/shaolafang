@@ -111,17 +111,17 @@ select_deploy_mode() {
     echo -e "${CYAN}${BOLD}  请选择部署模式：${NC}"
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
     echo ""
-    echo -e "  ${BOLD}1. 单台部署${NC}"
+    echo -e "  ${BOLD}1. 标准版 - 单台部署${NC}"
     echo "     所有服务（Nginx + Node.js + MySQL + Redis）在一台服务器"
     echo "     适用：1-50家门店，测试环境，小型餐饮企业"
     echo "     配置要求：2核4GB以上"
     echo ""
-    echo -e "  ${BOLD}2. 2台服务器部署（标准版）${NC}"
+    echo -e "  ${BOLD}2. 企业版 - 2台服务器部署${NC}"
     echo "     双机负载均衡 + 共享数据库/Redis/NFS"
     echo "     适用：100-200家门店，中型餐饮连锁"
     echo "     配置要求：2台4核8GB应用服务器 + 独立MySQL/Redis"
     echo ""
-    echo -e "  ${BOLD}3. 多台服务器集群部署（企业版）${NC}"
+    echo -e "  ${BOLD}3. 企业旗舰版 - 多台服务器集群部署${NC}"
     echo "     多节点负载均衡，可水平扩展，支持多商户/SaaS"
     echo "     适用：200+家门店，大型餐饮集团，SaaS平台"
     echo "     配置要求：3台以上8核16GB应用服务器 + 高可用MySQL/Redis"
@@ -134,18 +134,18 @@ select_deploy_mode() {
         echo
         case $REPLY in
             1)
-                DEPLOY_MODE="single"
-                DEPLOY_NAME="单台部署"
+                DEPLOY_MODE="standard"
+                DEPLOY_NAME="标准版 - 单台部署"
                 break
                 ;;
             2)
-                DEPLOY_MODE="standard"
-                DEPLOY_NAME="2台服务器部署（标准版）"
+                DEPLOY_MODE="enterprise"
+                DEPLOY_NAME="企业版 - 2台服务器部署"
                 break
                 ;;
             3)
-                DEPLOY_MODE="enterprise"
-                DEPLOY_NAME="多台服务器集群部署（企业版）"
+                DEPLOY_MODE="enterprise-ultimate"
+                DEPLOY_NAME="企业旗舰版 - 多台服务器集群部署"
                 break
                 ;;
             *)
@@ -163,7 +163,7 @@ select_deploy_mode() {
 # 节点角色选择（集群部署）
 # ============================================================
 select_node_role() {
-    if [ "$DEPLOY_MODE" == "single" ]; then
+    if [ "$DEPLOY_MODE" == "standard" ]; then
         NODE_ROLE="single"
         return
     fi
@@ -242,24 +242,24 @@ install_single() {
     log_step "开始单台部署..."
 
     # 检查deploy目录是否存在
-    if [ ! -d "$DEPLOY_DIR/single" ]; then
-        log_error "未找到单台部署配置目录：$DEPLOY_DIR/single"
+    if [ ! -d "$DEPLOY_DIR/standard" ]; then
+        log_error "未找到标准版部署配置目录：$DEPLOY_DIR/standard"
         log_info "请确保 deploy 目录完整"
         exit 1
     fi
 
     # 检查部署脚本是否存在
-    if [ ! -f "$DEPLOY_DIR/single/deploy.sh" ]; then
-        log_error "未找到单台部署脚本：$DEPLOY_DIR/single/deploy.sh"
+    if [ ! -f "$DEPLOY_DIR/standard/deploy.sh" ]; then
+        log_error "未找到标准版部署脚本：$DEPLOY_DIR/standard/deploy.sh"
         exit 1
     fi
 
     # 执行单台部署脚本
-    log_info "执行单台部署脚本..."
-    bash "$DEPLOY_DIR/single/deploy.sh"
+    log_info "执行标准版单台部署脚本..."
+    bash "$DEPLOY_DIR/standard/deploy.sh"
 
     echo ""
-    log_success "单台部署完成！"
+    log_success "标准版单台部署完成！"
     echo ""
     echo "  应用目录：/var/www/foodflow"
     echo "  环境变量：/etc/foodflow/.env"
@@ -277,10 +277,10 @@ install_cluster() {
     log_step "开始$DEPLOY_NAME..."
 
     # 确定部署目录
-    if [ "$DEPLOY_MODE" == "standard" ]; then
-        CLUSTER_DIR="$DEPLOY_DIR/standard/cluster"
-    else
+    if [ "$DEPLOY_MODE" == "enterprise" ]; then
         CLUSTER_DIR="$DEPLOY_DIR/enterprise/cluster"
+    else
+        CLUSTER_DIR="$DEPLOY_DIR/enterprise-ultimate/cluster"
     fi
 
     # 检查目录
@@ -331,7 +331,7 @@ show_post_install_guide() {
     echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-    if [ "$DEPLOY_MODE" == "single" ]; then
+    if [ "$DEPLOY_MODE" == "standard" ]; then
         echo "  1. 编辑环境变量配置："
         echo "     sudo nano /etc/foodflow/.env"
         echo ""
@@ -367,8 +367,8 @@ show_post_install_guide() {
         echo "     curl -s http://节点1IP:3000/health"
         echo "     curl -s http://节点2IP:3000/health"
         echo ""
-        if [ "$DEPLOY_MODE" == "enterprise" ]; then
-            echo "  6. 企业版超级管理员后台："
+        if [ "$DEPLOY_MODE" == "enterprise-ultimate" ]; then
+            echo "  6. 企业旗舰版超级管理员后台："
             echo "     https://your-domain.com/super"
             echo "     默认账号：superadmin / super123"
             echo "     （请尽快修改默认密码！）"
@@ -412,10 +412,10 @@ main() {
 
     # 执行安装
     case $DEPLOY_MODE in
-        single)
+        standard)
             install_single
             ;;
-        standard|enterprise)
+        enterprise|enterprise-ultimate)
             install_cluster
             ;;
     esac
