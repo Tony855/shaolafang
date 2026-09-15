@@ -171,11 +171,11 @@ $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'loc
 $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'127.0.0.1';" 2>/dev/null
 $MYSQL_CMD -e "FLUSH PRIVILEGES;" 2>/dev/null
 
-# 7.6 验证数据库连接（用临时文件+timeout，避免卡住）
+# 7.6 验证数据库连接（测试脚本写在项目目录下，才能找到node_modules）
 log_info "验证数据库连接..."
 
-# 写入测试脚本到临时文件
-cat > /tmp/db-test.js << EOF
+# 写入测试脚本到项目目录（必须在项目目录才能找到 mysql2 模块）
+cat > "$APP_DIR/db-test.js" << EOF
 const mysql = require('mysql2/promise');
 const conn = mysql.createConnection({
   host: '127.0.0.1', port: 3306,
@@ -187,15 +187,16 @@ conn.then(c => { console.log('OK'); c.end(); process.exit(0); })
     .catch(e => { console.log('FAIL:', e.message); process.exit(1); });
 EOF
 
-# 用 timeout 执行，最多等10秒
-if timeout 10 node /tmp/db-test.js; then
+# 在项目目录下执行，最多等10秒
+cd "$APP_DIR"
+if timeout 10 node db-test.js; then
     log_success "数据库和用户创建成功，连接测试通过"
 else
     log_error "数据库连接测试失败，请检查 MariaDB 配置"
-    rm -f /tmp/db-test.js
+    rm -f "$APP_DIR/db-test.js"
     exit 1
 fi
-rm -f /tmp/db-test.js
+rm -f "$APP_DIR/db-test.js"
 
 # 7.7 写入 .env 文件（始终覆盖）
 ENV_FILE="$APP_DIR/.env"
