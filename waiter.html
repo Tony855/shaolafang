@@ -937,6 +937,20 @@
   </div>
 </div>
 
+<!-- ===== 订单选择模态框 ===== -->
+<div class="modal" id="orderSelectModal">
+  <div class="modal-card" style="max-width:400px;">
+    <div class="modal-head">
+      <div class="current-table" id="orderSelectTitle">选择订单</div>
+      <button class="close" onclick="closeOrderSelect()">✕</button>
+    </div>
+    <div id="orderSelectList" style="max-height:400px;overflow-y:auto;"></div>
+    <div style="padding:12px 0 0;border-top:1px solid var(--gray-2);margin-top:8px;">
+      <button class="submit-btn" style="width:100%;" onclick="createNewOrderFromSelect()">➕ 创建新订单</button>
+    </div>
+  </div>
+</div>
+
 <script src="languages.min.js"></script>
 <script src="assets/common.js"></script>
 <script>
@@ -990,11 +1004,11 @@
   const API='/api';const $=s=>document.querySelector(s);
   const state={tables:[],orders:[],menu:[],cart:{},cartMeta:{},currentTable:null,currencies:[],defaultCurrency:{symbol:'$',rate:1,code:'USD'},dualCurrency:{enabled:false,currency:null},waiter:null,token:localStorage.getItem('waiterToken')||'',editingOrderId:null,lockedItems:[],storeId:null,storeName:''};
   const WAITER_TEXT={
-    zh:{title:'🍴 FoodFlow',loginTitle:'服务员登录',username:'账号',password:'密码',rememberLogin:'保持登录',remove:'移除',noTables:'暂无桌号',completed:'已完成',noPending:'暂无未结算订单',pending:'制作中',canceled:'已取消',allStatus:'全部状态',urgeOrder:'催单',noCalls:'暂无呼叫',handled:'已处理',handleFailed:'处理失败',currentTable:'当前桌号',ordering:'点餐',selectedDishes:'已选菜品',emptySelected:'尚未选择菜品',submitOrder:'提交订单',unit:'份',saveChanges:'保存修改',order:'订单',orderHistory:'订单历史',orderTime:'下单时间',dishes:'道菜品',note:'备注',total:'合计',noOrders:'暂无订单',dishServed:'菜品已上菜',orderCompleted:'结算订单',orderUpdated:'制作中订单已修改',orderSubmitted:'订单已提交',confirmSubmit:'确认提交此订单？',confirmServe:'确认该菜品已上菜？',confirmComplete:'确认结算该订单？',pleaseLogin:'请输入账号和密码',loginFailed:'登录失败',selectDish:'请先选择菜品',logout:'退出登录',recentUsers:'最近登录',autoRefresh:'自动刷新',confirmLogout:'确认退出登录吗？',cancel:'取消',confirm:'确定',confirmTitle:'确认操作',orderPrinted:'订单已打印',print:'打印',customer:'客',staffOrder:'服务员下单',newItem:'新下单'},
-    en:{title:'🍴 FoodFlow',loginTitle:'Waiter Login',username:'Username',password:'Password',rememberLogin:'Keep me logged in',remove:'Remove',noTables:'No tables',completed:'Completed',pending:'In Progress',canceled:'Canceled',allStatus:'All Status',noPending:'No unsettled orders',urgeOrder:'Urge Order',noCalls:'No calls',handled:'Handled',handleFailed:'Handle failed',currentTable:'Current Table',ordering:'Order',selectedDishes:'Selected Dishes',emptySelected:'No dishes selected',submitOrder:'Submit Order',unit:'serving',saveChanges:'Save Changes',order:'Order',orderHistory:'Order History',orderTime:'Order Time',dishes:'items',note:'Note',total:'Total',noOrders:'No orders',dishServed:'Dish served',orderCompleted:'Settle Order',orderUpdated:'Pending order updated',orderSubmitted:'Order submitted',confirmSubmit:'Confirm submitting this order?',confirmServe:'Confirm this dish is served?',confirmComplete:'Confirm settling this order?',pleaseLogin:'Please enter username and password',loginFailed:'Login failed',selectDish:'Please select dishes first',logout:'Logout',recentUsers:'Recent Users',autoRefresh:'Auto refresh',confirmLogout:'Confirm logout?',cancel:'Cancel',confirm:'Confirm',confirmTitle:'Confirm Action',orderPrinted:'Order printed',print:'Print',customer:'Cust',staffOrder:'Staff Order',newItem:'New'},
-    vi:{title:'🍴 FoodFlow',loginTitle:'Đăng nhập nhân viên',username:'Tài khoản',password:'Mật khẩu',rememberLogin:'Giữ đăng nhập',remove:'Xóa',noTables:'Chưa có bàn',completed:'Hoàn thành',noPending:'Chưa có đơn chờ',pending:'Đang làm',canceled:'Đã hủy',allStatus:'Tất cả trạng thái',urgeOrder:'Nhắc đơn',noCalls:'Chưa có gọi',handled:'Đã xử lý',handleFailed:'Xử lý thất bại',orderHistory:'Lịch sử đơn',orderTime:'Thời gian đặt',dishes:'món',note:'Ghi chú',total:'Tổng cộng',noOrders:'Chưa có đơn',currentTable:'Bàn hiện tại',ordering:'Gọi món',selectedDishes:'Món đã chọn',emptySelected:'Chưa chọn món',submitOrder:'Gửi đơn',unit:'phần',saveChanges:'Lưu thay đổi',order:'Đơn',dishServed:'Món đã lên',orderCompleted:'Đơn đã hoàn thành',orderUpdated:'Đơn đang làm đã cập nhật',orderSubmitted:'Đơn đã gửi',confirmSubmit:'Xác nhận gửi đơn này?',confirmServe:'Xác nhận món này đã lên?',confirmComplete:'Xác nhận hoàn thành đơn?',pleaseLogin:'Vui lòng nhập tài khoản và mật khẩu',loginFailed:'Đăng nhập thất bại',selectDish:'Vui lòng chọn món trước',logout:'Đăng xuất',recentUsers:'Người dùng gần đây',autoRefresh:'Tự động làm mới',confirmLogout:'Xác nhận đăng xuất?',cancel:'Hủy',confirm:'Xác nhận',confirmTitle:'Xác nhận thao tác',orderPrinted:'Đơn hàng đã in',print:'In',customer:'KH',staffOrder:'Nhân viên đặt',newItem:'Mới'},
-    th:{title:'🍴 FoodFlow',loginTitle:'เข้าสู่ระบบพนักงาน',username:'บัญชีผู้ใช้',password:'รหัสผ่าน',rememberLogin:'จดจำการเข้าสู่ระบบ',remove:'ลบ',noTables:'ไม่มีโต๊ะ',completed:'เสร็จสิ้น',noPending:'ไม่มีออเดอร์ที่กำลังทำ',pending:'กำลังทำ',canceled:'ยกเลิก',allStatus:'ทุกสถานะ',urgeOrder:'เร่งออเดอร์',noCalls:'ไม่มีการเรียก',handled:'จัดการแล้ว',handleFailed:'จัดการล้มเหลว',orderHistory:'ประวัติออเดอร์',orderTime:'เวลาสั่ง',dishes:'เมนู',note:'หมายเหตุ',total:'รวมทั้งหมด',noOrders:'ไม่มีออเดอร์',currentTable:'โต๊ะปัจจุบัน',ordering:'สั่งอาหาร',selectedDishes:'เมนูที่เลือก',emptySelected:'ยังไม่ได้เลือกเมนู',submitOrder:'ส่งออเดอร์',unit:'เสิร์ฟ',saveChanges:'บันทึกการแก้ไข',order:'ออเดอร์',dishServed:'เสิร์ฟเมนูแล้ว',orderCompleted:'ออเดอร์เสร็จแล้ว',orderUpdated:'ออเดอร์ที่กำลังทำอัปเดตแล้ว',orderSubmitted:'ส่งออเดอร์แล้ว',confirmSubmit:'ยืนยันส่งออเดอร์นี้?',confirmServe:'ยืนยันเสิร์ฟเมนูนี้?',confirmComplete:'ยืนยันเสร็จออเดอร์นี้?',pleaseLogin:'กรุณากรอกบัญชีและรหัสผ่าน',loginFailed:'เข้าสู่ระบบล้มเหลว',selectDish:'กรุณาเลือกเมนูก่อน',logout:'ออกจากระบบ',recentUsers:'ผู้ใช้ล่าสุด',autoRefresh:'รีเฟรชอัตโนมัติ',confirmLogout:'ยืนยันการออกจากระบบ?',cancel:'ยกเลิก',confirm:'ยืนยัน',confirmTitle:'ยืนยันการดำเนินการ',orderPrinted:'พิมพ์ออเดอร์แล้ว',print:'พิมพ์',customer:'ลูกค้า',staffOrder:'พนักงานสั่ง',newItem:'ใหม่'},
-    km:{title:'🍴 FoodFlow',loginTitle:'ចូលបុគ្គលិក',username:'គណនី',password:'ពាក្យសម្ងាត់',rememberLogin:'រក្សាការចូល',remove:'លុប',noTables:'គ្មានតុ',completed:'រួចរាល់',noPending:'គ្មានការបញ្ជាទិញកំពុងដំណើរការ',pending:'កំពុងដំណើរការ',canceled:'បានបោះបង់',allStatus:'គ្រប់ស្ថានភាព',urgeOrder:'បង្កាន់ដៃ',noCalls:'គ្មានការហៅ',handled:'បានដោះស្រាយ',handleFailed:'ដោះស្រាយបរាជ័យ',orderHistory:'ប្រវត្តិការបញ្ជាទិញ',orderTime:'ពេលវេលាបញ្ជាទិញ',dishes:'មុខម្ហូប',note:'កំណត់ចំណាំ',total:'សរុប',noOrders:'គ្មានការបញ្ជាទិញ',currentTable:'តុបច្ចុប្បន្ន',ordering:'បញ្ជាទិញ',selectedDishes:'ម្ហូបដែលបានជ្រើស',emptySelected:'មិនទាន់ជ្រើសម្ហូប',submitOrder:'បញ្ជូនការបញ្ជាទិញ',unit:'មុខ',saveChanges:'រក្សាទុកការកែ',order:'ការបញ្ជាទិញ',dishServed:'ម្ហូបបានដាក់ជូន',orderCompleted:'ការបញ្ជាទិញបានបញ្ចប់',orderUpdated:'ការបញ្ជាទិញកំពុងដំណើរការបានធ្វើបច្ចុប្បន្នភាព',orderSubmitted:'ការបញ្ជាទិញបានបញ្ជូន',confirmSubmit:'បញ្ជាក់បញ្ជូនការបញ្ជាទិញនេះ?',confirmServe:'បញ្ជាក់ម្ហូបនេះបានដាក់ជូន?',confirmComplete:'បញ្ជាក់បញ្ចប់ការបញ្ជាទិញនេះ?',pleaseLogin:'សូមបញ្ចូលគណនីនិងពាក្យសម្ងាត់',loginFailed:'ចូលបរាជ័យ',selectDish:'សូមជ្រើសម្ហូបជាមុន',logout:'ចាកចេញ',recentUsers:'អ្នកប្រើថ្មីៗ',autoRefresh:'ធ្វើបច្ចុប្បន្នភាពស្វ័យប្រវត្តិ',confirmLogout:'បញ្ជាក់ការចាកចេញ?',cancel:'បោះបង់',confirm:'បញ្ជាក់',confirmTitle:'បញ្ជាក់ប្រតិបត្តិការ',orderPrinted:'បោះពុម្ពការបញ្ជាទិញរួចរាល់',print:'បោះពុម្ព',customer:'អតិថិជន',staffOrder:'បុគ្គលិកបញ្ជាទិញ',newItem:'ថ្មី'}
+    zh:{title:'🍴 FoodFlow',loginTitle:'服务员登录',username:'账号',password:'密码',rememberLogin:'保持登录',remove:'移除',noTables:'暂无桌号',completed:'已完成',noPending:'暂无未结算订单',pending:'制作中',canceled:'已取消',allStatus:'全部状态',urgeOrder:'催单',noCalls:'暂无呼叫',handled:'已处理',handleFailed:'处理失败',currentTable:'当前桌号',ordering:'点餐',selectedDishes:'已选菜品',emptySelected:'尚未选择菜品',submitOrder:'提交订单',unit:'份',saveChanges:'保存修改',order:'订单',orderHistory:'订单历史',orderTime:'下单时间',dishes:'道菜品',note:'备注',total:'合计',noOrders:'暂无订单',dishServed:'菜品已上菜',orderCompleted:'结算订单',orderUpdated:'制作中订单已修改',orderSubmitted:'订单已提交',confirmSubmit:'确认提交此订单？',confirmServe:'确认该菜品已上菜？',confirmComplete:'确认结算该订单？',pleaseLogin:'请输入账号和密码',loginFailed:'登录失败',selectDish:'请先选择菜品',logout:'退出登录',recentUsers:'最近登录',autoRefresh:'自动刷新',confirmLogout:'确认退出登录吗？',cancel:'取消',confirm:'确定',confirmTitle:'确认操作',orderPrinted:'订单已打印',print:'打印',customer:'客',staffOrder:'服务员下单',newItem:'新下单',selectOrder:'选择订单'},
+    en:{title:'🍴 FoodFlow',loginTitle:'Waiter Login',username:'Username',password:'Password',rememberLogin:'Keep me logged in',remove:'Remove',noTables:'No tables',completed:'Completed',pending:'In Progress',canceled:'Canceled',allStatus:'All Status',noPending:'No unsettled orders',urgeOrder:'Urge Order',noCalls:'No calls',handled:'Handled',handleFailed:'Handle failed',currentTable:'Current Table',ordering:'Order',selectedDishes:'Selected Dishes',emptySelected:'No dishes selected',submitOrder:'Submit Order',unit:'serving',saveChanges:'Save Changes',order:'Order',orderHistory:'Order History',orderTime:'Order Time',dishes:'items',note:'Note',total:'Total',noOrders:'No orders',dishServed:'Dish served',orderCompleted:'Settle Order',orderUpdated:'Pending order updated',orderSubmitted:'Order submitted',confirmSubmit:'Confirm submitting this order?',confirmServe:'Confirm this dish is served?',confirmComplete:'Confirm settling this order?',pleaseLogin:'Please enter username and password',loginFailed:'Login failed',selectDish:'Please select dishes first',logout:'Logout',recentUsers:'Recent Users',autoRefresh:'Auto refresh',confirmLogout:'Confirm logout?',cancel:'Cancel',confirm:'Confirm',confirmTitle:'Confirm Action',orderPrinted:'Order printed',print:'Print',customer:'Cust',staffOrder:'Staff Order',newItem:'New',selectOrder:'Select Order'},
+    vi:{title:'🍴 FoodFlow',loginTitle:'Đăng nhập nhân viên',username:'Tài khoản',password:'Mật khẩu',rememberLogin:'Giữ đăng nhập',remove:'Xóa',noTables:'Chưa có bàn',completed:'Hoàn thành',noPending:'Chưa có đơn chờ',pending:'Đang làm',canceled:'Đã hủy',allStatus:'Tất cả trạng thái',urgeOrder:'Nhắc đơn',noCalls:'Chưa có gọi',handled:'Đã xử lý',handleFailed:'Xử lý thất bại',orderHistory:'Lịch sử đơn',orderTime:'Thời gian đặt',dishes:'món',note:'Ghi chú',total:'Tổng cộng',noOrders:'Chưa có đơn',currentTable:'Bàn hiện tại',ordering:'Gọi món',selectedDishes:'Món đã chọn',emptySelected:'Chưa chọn món',submitOrder:'Gửi đơn',unit:'phần',saveChanges:'Lưu thay đổi',order:'Đơn',dishServed:'Món đã lên',orderCompleted:'Đơn đã hoàn thành',orderUpdated:'Đơn đang làm đã cập nhật',orderSubmitted:'Đơn đã gửi',confirmSubmit:'Xác nhận gửi đơn này?',confirmServe:'Xác nhận món này đã lên?',confirmComplete:'Xác nhận hoàn thành đơn?',pleaseLogin:'Vui lòng nhập tài khoản và mật khẩu',loginFailed:'Đăng nhập thất bại',selectDish:'Vui lòng chọn món trước',logout:'Đăng xuất',recentUsers:'Người dùng gần đây',autoRefresh:'Tự động làm mới',confirmLogout:'Xác nhận đăng xuất?',cancel:'Hủy',confirm:'Xác nhận',confirmTitle:'Xác nhận thao tác',orderPrinted:'Đơn hàng đã in',print:'In',customer:'KH',staffOrder:'Nhân viên đặt',newItem:'Mới',selectOrder:'Chọn đơn'},
+    th:{title:'🍴 FoodFlow',loginTitle:'เข้าสู่ระบบพนักงาน',username:'บัญชีผู้ใช้',password:'รหัสผ่าน',rememberLogin:'จดจำการเข้าสู่ระบบ',remove:'ลบ',noTables:'ไม่มีโต๊ะ',completed:'เสร็จสิ้น',noPending:'ไม่มีออเดอร์ที่กำลังทำ',pending:'กำลังทำ',canceled:'ยกเลิก',allStatus:'ทุกสถานะ',urgeOrder:'เร่งออเดอร์',noCalls:'ไม่มีการเรียก',handled:'จัดการแล้ว',handleFailed:'จัดการล้มเหลว',orderHistory:'ประวัติออเดอร์',orderTime:'เวลาสั่ง',dishes:'เมนู',note:'หมายเหตุ',total:'รวมทั้งหมด',noOrders:'ไม่มีออเดอร์',currentTable:'โต๊ะปัจจุบัน',ordering:'สั่งอาหาร',selectedDishes:'เมนูที่เลือก',emptySelected:'ยังไม่ได้เลือกเมนู',submitOrder:'ส่งออเดอร์',unit:'เสิร์ฟ',saveChanges:'บันทึกการแก้ไข',order:'ออเดอร์',dishServed:'เสิร์ฟเมนูแล้ว',orderCompleted:'ออเดอร์เสร็จแล้ว',orderUpdated:'ออเดอร์ที่กำลังทำอัปเดตแล้ว',orderSubmitted:'ส่งออเดอร์แล้ว',confirmSubmit:'ยืนยันส่งออเดอร์นี้?',confirmServe:'ยืนยันเสิร์ฟเมนูนี้?',confirmComplete:'ยืนยันเสร็จออเดอร์นี้?',pleaseLogin:'กรุณากรอกบัญชีและรหัสผ่าน',loginFailed:'เข้าสู่ระบบล้มเหลว',selectDish:'กรุณาเลือกเมนูก่อน',logout:'ออกจากระบบ',recentUsers:'ผู้ใช้ล่าสุด',autoRefresh:'รีเฟรชอัตโนมัติ',confirmLogout:'ยืนยันการออกจากระบบ?',cancel:'ยกเลิก',confirm:'ยืนยัน',confirmTitle:'ยืนยันการดำเนินการ',orderPrinted:'พิมพ์ออเดอร์แล้ว',print:'พิมพ์',customer:'ลูกค้า',staffOrder:'พนักงานสั่ง',newItem:'ใหม่',selectOrder:'เลือกออเดอร์'},
+    km:{title:'🍴 FoodFlow',loginTitle:'ចូលបុគ្គលិក',username:'គណនី',password:'ពាក្យសម្ងាត់',rememberLogin:'រក្សាការចូល',remove:'លុប',noTables:'គ្មានតុ',completed:'រួចរាល់',noPending:'គ្មានការបញ្ជាទិញកំពុងដំណើរការ',pending:'កំពុងដំណើរការ',canceled:'បានបោះបង់',allStatus:'គ្រប់ស្ថានភាព',urgeOrder:'បង្កាន់ដៃ',noCalls:'គ្មានការហៅ',handled:'បានដោះស្រាយ',handleFailed:'ដោះស្រាយបរាជ័យ',orderHistory:'ប្រវត្តិការបញ្ជាទិញ',orderTime:'ពេលវេលាបញ្ជាទិញ',dishes:'មុខម្ហូប',note:'កំណត់ចំណាំ',total:'សរុប',noOrders:'គ្មានការបញ្ជាទិញ',currentTable:'តុបច្ចុប្បន្ន',ordering:'បញ្ជាទិញ',selectedDishes:'ម្ហូបដែលបានជ្រើស',emptySelected:'មិនទាន់ជ្រើសម្ហូប',submitOrder:'បញ្ជូនការបញ្ជាទិញ',unit:'មុខ',saveChanges:'រក្សាទុកការកែ',order:'ការបញ្ជាទិញ',dishServed:'ម្ហូបបានដាក់ជូន',orderCompleted:'ការបញ្ជាទិញបានបញ្ចប់',orderUpdated:'ការបញ្ជាទិញកំពុងដំណើរការបានធ្វើបច្ចុប្បន្នភាព',orderSubmitted:'ការបញ្ជាទិញបានបញ្ជូន',confirmSubmit:'បញ្ជាក់បញ្ជូនការបញ្ជាទិញនេះ?',confirmServe:'បញ្ជាក់ម្ហូបនេះបានដាក់ជូន?',confirmComplete:'បញ្ជាក់បញ្ចប់ការបញ្ជាទិញនេះ?',pleaseLogin:'សូមបញ្ចូលគណនីនិងពាក្យសម្ងាត់',loginFailed:'ចូលបរាជ័យ',selectDish:'សូមជ្រើសម្ហូបជាមុន',logout:'ចាកចេញ',recentUsers:'អ្នកប្រើថ្មីៗ',autoRefresh:'ធ្វើបច្ចុប្បន្នភាពស្វ័យប្រវត្តិ',confirmLogout:'បញ្ជាក់ការចាកចេញ?',cancel:'បោះបង់',confirm:'បញ្ជាក់',confirmTitle:'បញ្ជាក់ប្រតិបត្តិការ',orderPrinted:'បោះពុម្ពការបញ្ជាទិញរួចរាល់',print:'បោះពុម្ព',customer:'អតិថិជន',staffOrder:'បុគ្គលិកបញ្ជាទិញ',newItem:'ថ្មី',selectOrder:'ជ្រើសរើសការបញ្ជាទិញ'}
   };
   let waiterLang=localStorage.getItem('waiterLang')||'zh';
   // 本地字典优先，找不到时回退到 languages.js 的共享翻译（如 available/occupied/pending/canceled/orderPending/orderDone），避免重复维护同一个词
@@ -1367,46 +1381,113 @@
 
   // ----- 点餐弹窗 -----
   function openModal(table){
-    state.currentTable=table;state.cart={};state.cartMeta={};state.lockedItems=[];state.currentCategory='all';
-    const pending=state.orders.find(o=>o.table===table&&o.status==='pending');
-    state.editingOrderId=pending?pending.id:null;
-    if(pending){
-      state.lockedItems=pending.items.filter(i=>i.itemStatus==='done');
-      pending.items.filter(i=>i.itemStatus!=='done').forEach(i=>{state.cart[i.id]=(state.cart[i.id]||0)+i.quantity;state.cartMeta[i.id]=i;});
+    state.currentTable=table;
+    const tableOrders=state.orders.filter(o=>o.table===table&&o.status==='pending');
+    // 多个订单时先弹出选择框
+    if(tableOrders.length>1){
+      showOrderSelect(tableOrders);
+      return;
     }
-    // 标题栏显示桌号+客人信息（带颜色标签）
+    openOrderEditor(table, tableOrders[0]||null);
+  }
+  // 打开订单编辑器（编辑指定订单或创建新订单）
+  function openOrderEditor(table, order){
+    state.cart={};state.cartMeta={};state.lockedItems=[];state.currentCategory='all';
+    state.editingOrderId=order?order.id:null;
+    if(order && order.items && order.items.length){
+      state.lockedItems=order.items.filter(i=>i.itemStatus==='done'||i.status==='done'||i.completed===true);
+      order.items.filter(i=>!(i.itemStatus==='done'||i.status==='done'||i.completed===true)).forEach(i=>{
+        const menuItem = state.menu.find(m=>(m.id==i.id||m.id===+i.id||m.name===i.name));
+        const itemId = menuItem ? menuItem.id : (i.id || i.name);
+        const qty = i.quantity || i.qty || 1;
+        state.cart[itemId]=(state.cart[itemId]||0)+qty;
+        state.cartMeta[itemId]=menuItem || i;
+      });
+    }
     let tableLabel = wt('currentTable')+'：'+table;
-    if(pending && pending.sessionToken){
+    if(order && order.sessionToken){
       const tableOrders=state.orders.filter(o=>o.table===table&&o.status==='pending');
       const labels=buildSessionLabels(tableOrders);
-      const customerLabel=labels.get(pending.id);
+      const customerLabel=labels.get(order.id);
       if(customerLabel){
         const customerColor = getCustomerColor(customerLabel);
-        tableLabel += ` <span class="session-badge" style="background:${customerColor.bg};color:${customerColor.color};">${customerLabel}</span>`;
+        tableLabel += ' <span class="session-badge" style="background:'+customerColor.bg+';color:'+customerColor.color+';">'+customerLabel+'</span>';
       }
     }
     $('#currentTableBadge').innerHTML=tableLabel;
-    $('#submitBtn').textContent=pending?wt('saveChanges'):wt('submitOrder');
+    $('#submitBtn').textContent=order?wt('saveChanges'):wt('submitOrder');
     renderDishes();
     $('#orderModal').classList.add('open');
   }
+  // 显示订单选择框
+  function showOrderSelect(tableOrders){
+    $('#orderSelectTitle').textContent=wt('currentTable')+'：'+state.currentTable+' - '+wt('selectOrder');
+    const labels=buildSessionLabels(tableOrders);
+    const listEl=$('#orderSelectList');
+    let html='';
+    tableOrders.forEach((order,idx)=>{
+      const customerLabel=labels.get(order.id)||(wt('order')+(idx+1));
+      const itemCount=order.items?order.items.length:0;
+      let total=0;
+      if(order.items){ order.items.forEach(i=>{ total += (i.price||0)*(i.quantity||1); }); }
+      const timeStr=order.created_at?new Date(order.created_at).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}):'';
+      html += '<div class="order-select-item" onclick="selectOrder('+order.id+')" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid var(--gray-2);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .2s;">';
+      html += '<div><div style="font-weight:600;font-size:15px;">'+customerLabel+'</div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">'+itemCount+' '+wt('dishes')+' · '+timeStr+'</div></div>';
+      html += '<div style="font-weight:700;color:var(--primary);">'+formatMoney(total)+'</div>';
+      html += '</div>';
+    });
+    listEl.innerHTML=html;
+    $('#orderSelectModal').classList.add('open');
+  }
+  // 选择订单进行编辑
+  function selectOrder(orderId){
+    const order=state.orders.find(o=>o.id===orderId);
+    if(!order) return;
+    closeOrderSelect();
+    openOrderEditor(state.currentTable, order);
+  }
+  // 从选择框创建新订单
+  function createNewOrderFromSelect(){
+    closeOrderSelect();
+    openOrderEditor(state.currentTable, null);
+  }
+  // 关闭订单选择框
+  function closeOrderSelect(){
+    $('#orderSelectModal').classList.remove('open');
+  }
   function closeModal(){ $('#orderModal').classList.remove('open'); state.currentTable=null; state.cart={}; state.cartMeta={}; state.editingOrderId=null; state.lockedItems=[]; $('#submitBtn').textContent=wt('submitOrder'); }
   function renderSelected(){
-    const items=Object.entries(state.cart).filter(([id,q])=>q>0).map(([id,q])=>{const m=state.menu.find(x=>x.id===+id)||state.cartMeta[id];return m?{m,q}:null}).filter(Boolean);
-    // 已选菜品同样支持加减数量（复用 changeQty），客户想加同一道菜时服务员不用再回到菜单里找
+    const items=Object.entries(state.cart).filter(([id,q])=>q>0).map(([id,q])=>{
+      // 容错：从 menu 或 cartMeta 中查找菜品
+      let m=state.menu.find(x=>(x.id==id||x.id===+id||x.name===id))||state.cartMeta[id];
+      if(!m){
+        // 尝试用 menu_id 或 name 查找
+        m=state.menu.find(x=>state.cartMeta[id]&&(x.id==state.cartMeta[id].id||x.name===state.cartMeta[id].name));
+      }
+      return m?{m,q,id}:null;
+    }).filter(Boolean);
+    // 未完成菜品（可编辑）
     const cartHtml=items.length?items.map(x=>{
       const prices=getMenuPrices(x.m);
       let priceDisplay=prices.primary;
-      if(prices.secondary) priceDisplay += ` (${prices.secondary})`;
-      const statusLabel = `<span class="item-status new">${wt('newItem')}</span>`;
-      return `<div class="selected-item">
-        <span class="sel-name">${esc(x.m.name)} ${statusLabel}</span>
-        <span class="sel-price">${priceDisplay}</span>
-        <div class="qty"><button onclick="changeQty(${x.m.id},-1)">−</button><span>${x.q}</span><button onclick="changeQty(${x.m.id},1)">+</button></div>
-        <button class="remove-btn" onclick="removeItem(${x.m.id})">${wt('remove')}</button>
-      </div>`;
-    }).join(''):`<div style="color:#c8c8d0">${wt('emptySelected')}</div>`;
-    $('#selectedItems').innerHTML=`<div class="title">${wt('selectedDishes')}</div>${cartHtml}`;
+      if(prices.secondary) priceDisplay += ' ('+prices.secondary+')';
+      const statusLabel = '<span class="item-status new">'+wt('newItem')+'</span>';
+      const itemId = x.m.id || x.id;
+      return '<div class="selected-item"><span class="sel-name">'+esc(x.m.name)+' '+statusLabel+'</span><span class="sel-price">'+priceDisplay+'</span><div class="qty"><button onclick="changeQty('+itemId+',-1)">−</button><span>'+x.q+'</span><button onclick="changeQty('+itemId+',1)">+</button></div><button class="remove-btn" onclick="removeItem('+itemId+')">'+wt('remove')+'</button></div>';
+    }).join(''):'';
+    // 已完成菜品（灰色只读）
+    let doneHtml='';
+    if(state.lockedItems.length){
+      doneHtml=state.lockedItems.map(i=>{
+        const prices=getMenuPrices(i);
+        let priceDisplay=prices.primary;
+        if(prices.secondary) priceDisplay += ' ('+prices.secondary+')';
+        return '<div class="selected-item" style="opacity:.55;pointer-events:none;"><span class="sel-name">'+esc(i.name)+' <span class="item-status done">'+wt('dishServed')+'</span></span><span class="sel-price">'+priceDisplay+'</span><div class="qty"><span>×'+(i.quantity||1)+'</span></div></div>';
+      }).join('');
+    }
+    // 如果都没有，显示空提示
+    const emptyHtml = (!items.length && !state.lockedItems.length) ? '<div style="color:#c8c8d0">'+wt('emptySelected')+'</div>' : '';
+    $('#selectedItems').innerHTML='<div class="title">'+wt('selectedDishes')+'</div>'+cartHtml+doneHtml+emptyHtml;
   }
   // 菜品分类名称翻译映射
   const CATEGORY_TRANS={
