@@ -5,7 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
 <title>Kitchen Display</title>
 <link rel="stylesheet" href="assets/common.css">
+<script>
+  // 页面渲染前立即检查登录状态，避免登录框闪现
+  (function() {
+    try {
+      if (localStorage.getItem('kitchenToken')) {
+        document.documentElement.setAttribute('data-authed', 'true');
+      }
+    } catch(e) {}
+  })();
+</script>
 <style>
+  /* 已登录状态：隐藏登录框，显示主应用 */
+  html[data-authed="true"] .login-wrap { display: none !important; }
+  html[data-authed="true"] .kitchen-app { display: flex !important; }
   :root {
     --bg: #14151f;
     --panel: #1c1e2b;
