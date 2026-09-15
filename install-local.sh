@@ -128,24 +128,16 @@ log_success "目录创建完成"
 echo ""
 log_info "自动配置数据库..."
 
-# 7.1 检测 server.js 中的默认数据库名
+# 7.1 数据库名（固定，不做不可靠的自动检测）
 DEFAULT_DB_NAME="ordering_system"
-if [ -f "$APP_DIR/server.js" ]; then
-    DETECTED_DB=$(grep -oP "database\s*[:=]\s*['\"]?\K[a-zA-Z0-9_]+" "$APP_DIR/server.js" 2>/dev/null | head -1)
-    if [ -n "$DETECTED_DB" ]; then
-        DEFAULT_DB_NAME="$DETECTED_DB"
-    fi
-fi
-log_info "检测到默认数据库名: $DEFAULT_DB_NAME"
+log_info "数据库名: $DEFAULT_DB_NAME"
 
 # 7.2 生成随机密码
 DB_RANDOM_PASSWORD=$(head -c 16 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 16)
 JWT_RANDOM_SECRET=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
 
-# 7.3 创建专用数据库用户和数据库（通过 sudo mariadb -u root，处理 unix_socket 认证）
-log_info "创建数据库用户和数据库..."
-DB_CREATE_SUCCESS=false
-
+# 7.3 找到可用的 mysql 命令（处理 MariaDB unix_socket 认证）
+MYSQL_CMD=""
 if mariadb -u root -e "SELECT 1" 2>/dev/null; then
     MYSQL_CMD="mariadb -u root"
 elif mysql -u root -e "SELECT 1" 2>/dev/null; then
@@ -154,33 +146,47 @@ elif sudo mariadb -u root -e "SELECT 1" 2>/dev/null; then
     MYSQL_CMD="sudo mariadb -u root"
 elif sudo mysql -u root -e "SELECT 1" 2>/dev/null; then
     MYSQL_CMD="sudo mysql -u root"
+fi
+
+if [ -z "$MYSQL_CMD" ]; then
+    log_error "无法以 root 身份登录数据库，请检查 MariaDB 是否安装并启动"
+    exit 1
+fi
+
+# 7.4 创建数据库（先删除旧的，确保干净）
+log_info "创建数据库..."
+$MYSQL_CMD -e "DROP DATABASE IF EXISTS \`$DEFAULT_DB_NAME\`;" 2>/dev/null
+$MYSQL_CMD -e "CREATE DATABASE \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null
+
+# 7.5 创建数据库用户（先删除旧用户，确保密码正确）
+log_info "创建数据库用户..."
+$MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'localhost';" 2>/dev/null
+$MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'127.0.0.1';" 2>/dev/null
+$MYSQL_CMD -e "CREATE USER 'foodflow'@'localhost' IDENTIFIED BY '$DB_RANDOM_PASSWORD';" 2>/dev/null
+$MYSQL_CMD -e "CREATE USER 'foodflow'@'127.0.0.1' IDENTIFIED BY '$DB_RANDOM_PASSWORD';" 2>/dev/null
+$MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'localhost';" 2>/dev/null
+$MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'127.0.0.1';" 2>/dev/null
+$MYSQL_CMD -e "FLUSH PRIVILEGES;" 2>/dev/null
+
+# 7.6 验证数据库连接（用新创建的用户测试）
+log_info "验证数据库连接..."
+DB_TEST_OK=false
+if node -e "
+const mysql = require('mysql2/promise');
+mysql.createConnection({
+  host: '127.0.0.1', port: 3306,
+  user: 'foodflow', password: '$DB_RANDOM_PASSWORD',
+  database: '$DEFAULT_DB_NAME'
+}).then(conn => { console.log('OK'); conn.end(); }).catch(e => { console.log('FAIL:', e.message); process.exit(1); });
+" 2>/dev/null; then
+    DB_TEST_OK=true
+    log_success "数据库和用户创建成功，连接测试通过"
 else
-    log_warn "无法以 root 身份登录数据库，将使用 .env.example 中的配置"
+    log_error "数据库连接测试失败，请检查 MariaDB 配置"
+    exit 1
 fi
 
-if [ -n "$MYSQL_CMD" ]; then
-    # 创建数据库
-    $MYSQL_CMD -e "CREATE DATABASE IF NOT EXISTS \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null
-
-    # 创建用户（localhost 和 127.0.0.1）
-    $MYSQL_CMD -e "CREATE USER IF NOT EXISTS 'foodflow'@'localhost' IDENTIFIED BY '$DB_RANDOM_PASSWORD';" 2>/dev/null
-    $MYSQL_CMD -e "CREATE USER IF NOT EXISTS 'foodflow'@'127.0.0.1' IDENTIFIED BY '$DB_RANDOM_PASSWORD';" 2>/dev/null
-
-    # 授权
-    $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'localhost';" 2>/dev/null
-    $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'127.0.0.1';" 2>/dev/null
-    $MYSQL_CMD -e "FLUSH PRIVILEGES;" 2>/dev/null
-
-    # 验证
-    if $MYSQL_CMD -e "USE \`$DEFAULT_DB_NAME\`;" 2>/dev/null; then
-        DB_CREATE_SUCCESS=true
-        log_success "数据库 $DEFAULT_DB_NAME 和用户 foodflow 创建成功"
-    else
-        log_warn "数据库创建验证失败"
-    fi
-fi
-
-# 7.4 写入 .env 文件（始终覆盖，确保配置正确）
+# 7.7 写入 .env 文件（始终覆盖）
 ENV_FILE="$APP_DIR/.env"
 log_info "写入环境变量配置..."
 
@@ -202,43 +208,31 @@ EOF
 chmod 600 "$ENV_FILE"
 log_success ".env 配置文件已生成"
 
-# 显示数据库配置（不显示完整密码）
 echo "  数据库配置:"
 echo "    主机: 127.0.0.1"
 echo "    数据库: $DEFAULT_DB_NAME"
 echo "    用户: foodflow"
 echo "    密码: ${DB_RANDOM_PASSWORD:0:4}****（完整密码见 .env 文件）"
 
-# 7.5 测试数据库连接
-echo ""
-log_info "测试数据库连接..."
-sleep 2
-if node -e "
-const mysql = require('mysql2/promise');
-const env = require('fs').readFileSync('.env', 'utf8');
-const cfg = {};
-env.split('\n').forEach(l => { const [k,v] = l.split('='); if(k && v) cfg[k.trim()] = v.trim(); });
-mysql.createConnection({
-  host: cfg.DB_HOST, port: cfg.DB_PORT,
-  user: cfg.DB_USER, password: cfg.DB_PASSWORD,
-  database: cfg.DB_NAME
-}).then(conn => { console.log('OK'); conn.end(); }).catch(e => { console.log('FAIL:', e.message); process.exit(1); });
-" 2>/dev/null; then
-    log_success "数据库连接测试通过"
-else
-    log_warn "数据库连接测试失败，应用启动时会重试"
-fi
-
-# ===== 8. 配置 Systemd 服务 =====
+# ===== 8. 停止旧服务，配置 Systemd =====
 echo ""
 log_info "配置 Systemd 服务..."
+
+# 先停止并禁用旧服务（避免不断重启）
+systemctl stop foodflow 2>/dev/null || true
+systemctl disable foodflow 2>/dev/null || true
+sleep 1
+
+# 杀掉可能占用3000端口的进程
+fuser -k 3000/tcp 2>/dev/null || true
+sleep 1
+
 NODE_PATH=$(which node)
 
 cat > /etc/systemd/system/foodflow.service << EOF
 [Unit]
 Description=FoodFlow QR Ordering System
 After=network.target mariadb.service mysql.service redis.service
-Wants=network.target
 
 [Service]
 Type=simple
@@ -248,10 +242,7 @@ ExecStart=$NODE_PATH server.js
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
-EnvironmentFile=$ENV_FILE
 LimitNOFILE=65536
-StandardOutput=append:$APP_DIR/logs/server.log
-StandardError=append:$APP_DIR/logs/server-error.log
 
 [Install]
 WantedBy=multi-user.target
@@ -302,21 +293,17 @@ fi
 echo ""
 log_info "启动 FoodFlow 服务..."
 
-# 先杀掉可能占用3000端口的进程
-fuser -k 3000/tcp 2>/dev/null || true
-sleep 1
-
 systemctl restart foodflow
-sleep 5
+sleep 8
 
 # 检查服务状态
 if systemctl is-active --quiet foodflow; then
     log_success "FoodFlow 服务启动成功！"
 else
-    log_error "服务启动失败，查看日志："
-    journalctl -u foodflow -n 30 --no-pager
+    log_error "服务启动失败，最近日志："
+    journalctl -u foodflow -n 40 --no-pager
     echo ""
-    log_error "也可以查看应用日志：tail -50 $APP_DIR/logs/server.log"
+    log_error "应用日志目录: $APP_DIR/logs/"
     exit 1
 fi
 
