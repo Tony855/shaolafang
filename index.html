@@ -1,12 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FoodFlow · QR Ordering System</title>
+    <title>FoodFlow 路 QR Ordering System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* ========== 原有样式保持不变 ========== */
+        /* ========== 鍘熸湁鏍峰紡淇濇寔涓嶅彉 ========== */
         * {
             margin: 0;
             padding: 0;
@@ -162,18 +162,13 @@
             display: flex;
             align-items: center;
             gap: 5px;
-            max-width: 300px;
+            max-width: none;
             min-width: 0;
-            flex: 1;
             white-space: nowrap;
-            overflow: hidden;
         }
         .store-name-badge .badge-text {
-            overflow: hidden;
-            text-overflow: ellipsis;
             white-space: nowrap;
             min-width: 0;
-            flex: 1;
         }
         .category-tabs {
             background: #fff;
@@ -258,7 +253,7 @@
             flex-direction: column;
             gap: 4px;
         }
-        /* ---- 旧样式（保留兼容） ---- */
+        /* ---- 鏃ф牱寮忥紙淇濈暀鍏煎锛?---- */
         .current-order-item {
             display: grid;
             grid-template-columns: 1fr auto 64px;
@@ -315,7 +310,7 @@
         }
 
         /* ============================================================
-           新增：订单详情卡片样式（仿图片）
+           鏂板锛氳鍗曡鎯呭崱鐗囨牱寮忥紙浠垮浘鐗囷級
            ============================================================ */
         .order-detail-wrap {
             padding: 4px 0;
@@ -333,7 +328,7 @@
             margin-bottom: 0;
         }
 
-        /* ---- 订单头部 ---- */
+        /* ---- 璁㈠崟澶撮儴 ---- */
         .order-card .order-header {
             display: flex;
             justify-content: space-between;
@@ -372,7 +367,7 @@
             color: #d97a2a;
         }
 
-        /* ---- 菜品列表 ---- */
+        /* ---- 鑿滃搧鍒楄〃 ---- */
         .order-card .order-items {
             display: flex;
             flex-direction: column;
@@ -454,7 +449,7 @@
             color: #2f9e44;
         }
 
-        /* ---- 订单底部 ---- */
+        /* ---- 璁㈠崟搴曢儴 ---- */
         .order-card .order-footer {
             display: flex;
             justify-content: space-between;
@@ -481,7 +476,7 @@
             color: var(--gray-500);
         }
 
-        /* ---- 空状态 ---- */
+        /* ---- 绌虹姸鎬?---- */
         .order-empty-state {
             color: #aaa;
             padding: 30px 20px;
@@ -495,7 +490,7 @@
             color: #ddd;
         }
 
-        /* ---- 响应式 ---- */
+        /* ---- 鍝嶅簲寮?---- */
         @media (max-width: 500px) {
             .order-card {
                 padding: 12px 14px 12px;
@@ -549,7 +544,7 @@
             }
         }
 
-        /* ========== 其余原有样式 ========== */
+        /* ========== 鍏朵綑鍘熸湁鏍峰紡 ========== */
         .category-tab {
             flex-shrink: 0;
             padding: 5px 16px;
@@ -1267,7 +1262,7 @@
             font-size: 14px;
             margin-bottom: 4px;
         }
-        /* 确认弹窗 */
+        /* 纭寮圭獥 */
         .confirm-overlay {
             position: fixed;
             inset: 0;
@@ -1812,7 +1807,7 @@
             .category-tabs {
                 top: 97px
             }
-            /* 菜品卡片统一优化 */
+            /* 鑿滃搧鍗＄墖缁熶竴浼樺寲 */
             .menu-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
                 gap: 10px !important;
@@ -1976,7 +1971,7 @@
             }
         }
 
-        /* ---- 顾客订单弹窗内部卡片容器 ---- */
+        /* ---- 椤惧璁㈠崟寮圭獥鍐呴儴鍗＄墖瀹瑰櫒 ---- */
         #customerOrderModal .order-modal-card {
             padding: 2px 0;
         }
@@ -2011,7 +2006,7 @@
             background: #e5dfda;
         }
 
-        /* ===== 下单成功提示弹窗 ===== */
+        /* ===== 涓嬪崟鎴愬姛鎻愮ず寮圭獥 ===== */
         #orderSuccessModal .order-modal-card {
             text-align: center;
             padding: 8px 4px;
@@ -2073,9 +2068,9 @@
 
 
     
-        /* ===== 移动端响应式：Header优化 + 导航栏固定 + 语言按钮圆形 ===== */
+        /* ===== 绉诲姩绔搷搴斿紡锛欻eader浼樺寲 + 瀵艰埅鏍忓浐瀹?+ 璇█鎸夐挳鍦嗗舰 ===== */
         @media (max-width: 768px) {
-            /* Header优化：logo单独一行居中 */
+            /* Header浼樺寲锛歭ogo鍗曠嫭涓€琛屽眳涓?*/
             .header {
                 padding: 8px 12px 10px;
                 gap: 8px;
@@ -2107,7 +2102,7 @@
             }
 
             .store-name-badge {
-                max-width: 130px !important;
+                max-width: none !important;
                 padding: 3px 10px !important;
                 font-size: 12px !important;
             }
@@ -2125,7 +2120,7 @@
                 padding: 0 10px !important;
                 font-size: 12px !important;
             }
-            /* 分类导航栏固定 */
+            /* 鍒嗙被瀵艰埅鏍忓浐瀹?*/
             .category-tabs {
                 position: fixed !important;
                 top: 97px !important;
@@ -2152,7 +2147,7 @@
             .main-content {
                 padding-top: 149px !important;
             }
-            /* 语言切换按钮圆形 */
+            /* 璇█鍒囨崲鎸夐挳鍦嗗舰 */
             .header-right button,
             .lang-btn-wrap {
                 width: 34px !important;
@@ -2202,7 +2197,7 @@
         }
         @media (max-width: 480px) {
             .store-name-badge {
-                max-width: 90px !important;
+                max-width: none !important;
             }
             .table-info {
                 max-width: 100px !important;
@@ -2223,9 +2218,9 @@
         }
 
     
-        /* ===== 电脑端恢复：覆盖错误的全局fixed样式 ===== */
+        /* ===== 鐢佃剳绔仮澶嶏細瑕嗙洊閿欒鐨勫叏灞€fixed鏍峰紡 ===== */
         @media (min-width: 769px) {
-            /* Header一行布局：logo居中，店名+桌号+按钮全部靠右 */
+            /* Header涓€琛屽竷灞€锛歭ogo灞呬腑锛屽簵鍚?妗屽彿+鎸夐挳鍏ㄩ儴闈犲彸 */
             .header {
                 position: relative !important;
                 top: 0 !important;
@@ -2283,7 +2278,7 @@
         }
 
     
-        /* ===== 全局：语言按钮圆形（电脑端和移动端统一） ===== */
+        /* ===== 鍏ㄥ眬锛氳瑷€鎸夐挳鍦嗗舰锛堢數鑴戠鍜岀Щ鍔ㄧ缁熶竴锛?===== */
         .lang-btn-wrap {
             width: 34px !important;
             height: 34px !important;
@@ -2337,22 +2332,22 @@
 <body>
     <div class="toast" id="toast"></div>
     <header class="header">
-        <div class="header-logo"><i class="fas fa-utensils"></i> <span id="appName">味享</span></div>
+        <div class="header-logo"><i class="fas fa-utensils"></i> <span id="appName">鍛充韩</span></div>
         <div class="header-left">
-            <span class="store-name-badge" id="storeNameDisplay"><i class="fas fa-store"></i> <span class="badge-text">加载中...</span></span>
-            <span class="table-info" id="tableInfo" title="请扫描桌面二维码绑定桌号"><i class="fas fa-chair"></i> <span class="badge-text" id="tableDisplay">未扫码</span></span>
+            <span class="store-name-badge" id="storeNameDisplay"><i class="fas fa-store"></i> <span class="badge-text">鍔犺浇涓?..</span></span>
+            <span class="table-info" id="tableInfo" title="璇锋壂鎻忔闈簩缁寸爜缁戝畾妗屽彿"><i class="fas fa-chair"></i> <span class="badge-text" id="tableDisplay">鏈壂鐮?/span></span>
         </div>
         <div class="header-right">
-            <button id="callWaiterBtn" onclick="showCallWaiterConfirm()" hidden title="呼叫服务员">🔔</button>
-            <button id="customerOrderBtn" onclick="openCustomerOrders()" hidden title="订单详情">🧾</button>
+            <button id="callWaiterBtn" onclick="showCallWaiterConfirm()" hidden title="鍛煎彨鏈嶅姟鍛?>馃敂</button>
+            <button id="customerOrderBtn" onclick="openCustomerOrders()" hidden title="璁㈠崟璇︽儏">馃Ь</button>
             <div class="lang-btn-wrap">
-                <span class="lang-icon">🌐</span>
+                <span class="lang-icon">馃寪</span>
                 <select id="langSelect">
-                    <option value="zh">🇨🇳 中文</option>
-                    <option value="en">🇬🇧 English</option>
-                    <option value="vi">🇻🇳 Tiếng Việt</option>
-                    <option value="th">🇹🇭 ภาษาไทย</option>
-                    <option value="km">🇰🇭 ភាសាខ្មែរ</option>
+                    <option value="zh">馃嚚馃嚦 涓枃</option>
+                    <option value="en">馃嚞馃嚙 English</option>
+                    <option value="vi">馃嚮馃嚦 Ti岷縩g Vi峄噒</option>
+                    <option value="th">馃嚬馃嚟 喔犩覆喔┼覆喙勦笚喔?/option>
+                    <option value="km">馃嚢馃嚟 釣椺灦釣熱灦釣佱煉釣樶焸釣?/option>
                 </select>
             </div>
         </div>
@@ -2373,79 +2368,79 @@
             </div>
             <div class="cart-summary">
                 <span class="total" id="cartTotal">0.00</span>
-                <span id="cartLabel">购物车</span>
+                <span id="cartLabel">璐墿杞?/span>
             </div>
         </div>
-        <button class="checkout-btn" id="checkoutBtn" disabled><span id="checkoutLabel">去结算</span></button>
+        <button class="checkout-btn" id="checkoutBtn" disabled><span id="checkoutLabel">鍘荤粨绠?/span></button>
     </div>
 
     <div class="overlay" id="overlay"></div>
 
     <div class="cart-drawer" id="cartDrawer">
         <div class="drawer-header">
-            <h3><i class="fas fa-shopping-cart" style="color:var(--primary);"></i> <span id="drawerTitle">购物车</span></h3>
-            <button class="close-btn" id="closeDrawer" style="background:none;border:none;font-size:22px;cursor:pointer;">✕</button>
+            <h3><i class="fas fa-shopping-cart" style="color:var(--primary);"></i> <span id="drawerTitle">璐墿杞?/span></h3>
+            <button class="close-btn" id="closeDrawer" style="background:none;border:none;font-size:22px;cursor:pointer;">鉁?/button>
         </div>
         <div class="drawer-body" id="drawerBody"></div>
         <div class="drawer-footer">
-            <div class="drawer-total"><span id="totalLabel">合计</span> <strong id="drawerTotal">0.00</strong></div>
-            <button class="submit-btn" id="submitOrderBtn"><span id="submitLabel">确认下单</span></button>
+            <div class="drawer-total"><span id="totalLabel">鍚堣</span> <strong id="drawerTotal">0.00</strong></div>
+            <button class="submit-btn" id="submitOrderBtn"><span id="submitLabel">纭涓嬪崟</span></button>
         </div>
     </div>
 
-    <!-- ===== 呼叫服务员确认弹窗 ===== -->
+    <!-- ===== 鍛煎彨鏈嶅姟鍛樼‘璁ゅ脊绐?===== -->
     <div class="confirm-overlay" id="callWaiterConfirmOverlay">
         <div class="confirm-card">
-            <div class="confirm-icon">🔔</div>
-            <div class="confirm-title" id="callConfirmTitle">呼叫服务员</div>
-            <div class="confirm-message" id="callConfirmMessage">确认呼叫服务员？</div>
+            <div class="confirm-icon">馃敂</div>
+            <div class="confirm-title" id="callConfirmTitle">鍛煎彨鏈嶅姟鍛?/div>
+            <div class="confirm-message" id="callConfirmMessage">纭鍛煎彨鏈嶅姟鍛橈紵</div>
             <div class="confirm-buttons">
-                <button class="confirm-btn cancel" id="callConfirmCancel">取消</button>
-                <button class="confirm-btn confirm" id="callConfirmOk">确认呼叫</button>
+                <button class="confirm-btn cancel" id="callConfirmCancel">鍙栨秷</button>
+                <button class="confirm-btn confirm" id="callConfirmOk">纭鍛煎彨</button>
             </div>
         </div>
     </div>
 
-    <!-- ===== 顾客订单详情弹窗 ===== -->
+    <!-- ===== 椤惧璁㈠崟璇︽儏寮圭獥 ===== -->
     <div class="order-modal" id="customerOrderModal">
         <div class="order-modal-card">
-            <h3><i class="fas fa-list-ul"></i> <span id="customerOrderTitle">订单详情</span></h3>
+            <h3><i class="fas fa-list-ul"></i> <span id="customerOrderTitle">璁㈠崟璇︽儏</span></h3>
             <div id="customerOrderDetail" class="order-detail-wrap"></div>
             <div class="form-actions">
-                <button class="btn-cancel" id="customerOrderCloseBtn" onclick="closeCustomerOrders()">关闭</button>
+                <button class="btn-cancel" id="customerOrderCloseBtn" onclick="closeCustomerOrders()">鍏抽棴</button>
             </div>
         </div>
     </div>
 
-    <!-- ===== 下单二次确认弹窗 ===== -->
+    <!-- ===== 涓嬪崟浜屾纭寮圭獥 ===== -->
     <div class="order-modal" id="confirmOrderModal">
         <div class="order-modal-card">
-            <h3><i class="fas fa-clipboard-check"></i> <span id="confirmOrderTitle">去结算</span></h3>
-            <p id="confirmOrderDesc" style="color:#999;font-size:13px;margin:-8px 0 12px;line-height:1.5;">请核对以下菜品和数量，确认无误后提交</p>
+            <h3><i class="fas fa-clipboard-check"></i> <span id="confirmOrderTitle">鍘荤粨绠?/span></h3>
+            <p id="confirmOrderDesc" style="color:#999;font-size:13px;margin:-8px 0 12px;line-height:1.5;">璇锋牳瀵逛互涓嬭彍鍝佸拰鏁伴噺锛岀‘璁ゆ棤璇悗鎻愪氦</p>
             <div id="confirmOrderList" class="order-detail-wrap"></div>
             <div class="order-note-wrap" style="margin-top:12px;">
-                <label for="orderNoteInput" id="orderNoteLabel" style="display:block;font-size:13px;color:#999;margin-bottom:6px;">备注（选填）</label>
-                <textarea id="orderNoteInput" maxlength="200" rows="2" placeholder="如：不要香菜、少辣、打包带走…" style="width:100%;box-sizing:border-box;resize:vertical;min-height:40px;max-height:120px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:inherit;font:inherit;"></textarea>
+                <label for="orderNoteInput" id="orderNoteLabel" style="display:block;font-size:13px;color:#999;margin-bottom:6px;">澶囨敞锛堥€夊～锛?/label>
+                <textarea id="orderNoteInput" maxlength="200" rows="2" placeholder="濡傦細涓嶈棣欒彍銆佸皯杈ｃ€佹墦鍖呭甫璧扳€? style="width:100%;box-sizing:border-box;resize:vertical;min-height:40px;max-height:120px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:inherit;font:inherit;"></textarea>
             </div>
             <div class="form-actions">
-                <button class="btn-cancel" id="confirmOrderCancelBtn">取消</button>
-                <button class="btn-save" id="confirmOrderSubmitBtn">确认下单</button>
+                <button class="btn-cancel" id="confirmOrderCancelBtn">鍙栨秷</button>
+                <button class="btn-save" id="confirmOrderSubmitBtn">纭涓嬪崟</button>
             </div>
         </div>
     </div>
 
-    <!-- ===== 下单成功提示弹窗 ===== -->
+    <!-- ===== 涓嬪崟鎴愬姛鎻愮ず寮圭獥 ===== -->
     <div class="order-modal" id="orderSuccessModal">
         <div class="order-modal-card">
             <div class="success-icon"><i class="fas fa-check"></i></div>
-            <h3 id="orderSuccessTitle">下单成功</h3>
-            <p class="success-msg" id="orderSuccessMsg">请移步到「订单详情」查看订单</p>
+            <h3 id="orderSuccessTitle">涓嬪崟鎴愬姛</h3>
+            <p class="success-msg" id="orderSuccessMsg">璇风Щ姝ュ埌銆岃鍗曡鎯呫€嶆煡鐪嬭鍗?/p>
             <div class="success-note">
                 <i class="fas fa-circle-exclamation"></i>
-                <span id="orderSuccessNote">注意：无法自行修改和取消订单，如需修改或取消订单，请联系商户</span>
+                <span id="orderSuccessNote">娉ㄦ剰锛氭棤娉曡嚜琛屼慨鏀瑰拰鍙栨秷璁㈠崟锛屽闇€淇敼鎴栧彇娑堣鍗曪紝璇疯仈绯诲晢鎴?/span>
             </div>
             <div class="form-actions">
-                <button class="btn-save" id="orderSuccessCloseBtn">知道了</button>
+                <button class="btn-save" id="orderSuccessCloseBtn">鐭ラ亾浜?/button>
             </div>
         </div>
     </div>
@@ -2453,7 +2448,7 @@
     <script src="languages.min.js?v=20260914b"></script>
     <script src="assets/common.js?v=20260914b"></script>
     <script>
-        // 初始化统一 i18n - 自动检测顾客手机终端语言
+        // 鍒濆鍖栫粺涓€ i18n - 鑷姩妫€娴嬮【瀹㈡墜鏈虹粓绔瑷€
         (function() {
             const savedLang = localStorage.getItem('preferredLang');
             let initLang = 'zh';
@@ -2471,7 +2466,7 @@
             SLF.i18n.init(initLang);
         })();
         // ============================================================
-        //  工具函数（双币支持）
+        //  宸ュ叿鍑芥暟锛堝弻甯佹敮鎸侊級
         // ============================================================
         let currentLang = (function() {
             const saved = localStorage.getItem('preferredLang');
@@ -2485,11 +2480,11 @@
             return 'zh';
         })();
 
-        // 动态加载指定语言的翻译（使用SLF.i18n统一加载：内存→localStorage→API→中文兜底）
+        // 鍔ㄦ€佸姞杞芥寚瀹氳瑷€鐨勭炕璇戯紙浣跨敤SLF.i18n缁熶竴鍔犺浇锛氬唴瀛樷啋localStorage鈫扐PI鈫掍腑鏂囧厹搴曪級
         async function loadLanguageData(lang) {
-            // 清除该语言的本地缓存，强制从API加载最新翻译（避免新键缺失）
+            // 娓呴櫎璇ヨ瑷€鐨勬湰鍦扮紦瀛橈紝寮哄埗浠嶢PI鍔犺浇鏈€鏂扮炕璇戯紙閬垮厤鏂伴敭缂哄け锛?
             try { localStorage.removeItem('i18n_' + lang); } catch (e) {}
-            // 同时清除内存缓存
+            // 鍚屾椂娓呴櫎鍐呭瓨缂撳瓨
             if (SLF.i18n.dicts) { delete SLF.i18n.dicts[lang]; }
             await SLF.i18n.loadLanguage(lang);
             SLF.i18n.lang = lang;
@@ -2497,12 +2492,12 @@
             return true;
         }
 
-        // 统一使用SLF.i18n翻译系统，t为别名
+        // 缁熶竴浣跨敤SLF.i18n缈昏瘧绯荤粺锛宼涓哄埆鍚?
         function t(key, params) {
             return SLF.i18n.t(key, params);
         }
 
-        // 简单 HTML 转义，避免顾客备注中的特殊字符破坏页面结构
+        // 绠€鍗?HTML 杞箟锛岄伩鍏嶉【瀹㈠娉ㄤ腑鐨勭壒娈婂瓧绗︾牬鍧忛〉闈㈢粨鏋?
         function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         function escNote(s) {
             return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -2523,7 +2518,7 @@
             return { name, desc };
         }
 
-        // 货币基础工具
+        // 璐у竵鍩虹宸ュ叿
         function toBaseCurrency(price, currencyCode) {
             const currency = state.currencies.find(item => item.code === currencyCode) || { rate: 1 };
             return Number(price || 0) / Number(currency.rate || 1);
@@ -2543,7 +2538,7 @@
             return `${secCurr.symbol}${secValue.toFixed(2)}`;
         }
 
-        // 获取菜品主副价格
+        // 鑾峰彇鑿滃搧涓诲壇浠锋牸
         function getMenuPrices(item) {
             const base = toBaseCurrency(item.price, item.currency_code);
             const primary = formatPrimary(base);
@@ -2559,7 +2554,7 @@
         }
 
         // ============================================================
-        //  状态
+        //  鐘舵€?
         // ============================================================
         let state = {
             cart: {},
@@ -2584,7 +2579,7 @@
         let orderSearchKeyword = '';
 
         // ============================================================
-        //  DOM 引用
+        //  DOM 寮曠敤
         // ============================================================
         const $ = (s) => document.querySelector(s);
         const $$ = (s) => document.querySelectorAll(s);
@@ -2637,7 +2632,7 @@
                 }
                 return await res.json();
             } catch (e) {
-                console.warn('API调用失败:', e);
+                console.warn('API璋冪敤澶辫触:', e);
                 throw e;
             }
         }
@@ -2656,11 +2651,11 @@
         async function fetchCategoryOrder() {
             try {
                 const res = await fetch(`/api/public/categories?store_id=${state.storeId || 1}`);
-                if (!res.ok) throw new Error('获取分类顺序失败');
+                if (!res.ok) throw new Error('鑾峰彇鍒嗙被椤哄簭澶辫触');
                 const data = await res.json();
                 state.categoryOrder = data.map(c => c.name);
             } catch (e) {
-                console.warn('分类顺序加载失败，使用默认排序', e);
+                console.warn('鍒嗙被椤哄簭鍔犺浇澶辫触锛屼娇鐢ㄩ粯璁ゆ帓搴?, e);
                 state.categoryOrder = [];
             }
         }
@@ -2668,11 +2663,11 @@
         async function fetchStoreInfo() {
             try {
                 const res = await fetch(`${API_BASE}/public/store-info?store_id=${state.storeId || 1}`);
-                if (!res.ok) throw new Error('店铺信息加载失败');
+                if (!res.ok) throw new Error('搴楅摵淇℃伅鍔犺浇澶辫触');
                 state.currentStore = await res.json();
                 updateStoreNameDisplay();
             } catch (e) {
-                console.warn('加载店铺信息失败:', e);
+                console.warn('鍔犺浇搴楅摵淇℃伅澶辫触:', e);
                 state.currentStore = null;
                 updateStoreNameDisplay();
             }
@@ -2680,39 +2675,39 @@
 
         function updateStoreNameDisplay() {
             if (state.currentStore && state.currentStore.name) {
-                storeNameDisplay.textContent = '🏪 ' + state.currentStore.name;
+                storeNameDisplay.textContent = '馃彧 ' + state.currentStore.name;
             } else {
-                storeNameDisplay.textContent = '🏪 未知店铺';
+                storeNameDisplay.textContent = '馃彧 鏈煡搴楅摵';
             }
         }
 
         async function fetchMenu() {
             try {
-                if (!await checkBackend()) throw new Error('后端未连接');
+                if (!await checkBackend()) throw new Error('鍚庣鏈繛鎺?);
                 const res = await fetch(`${API_BASE}/menu?store_id=${state.storeId || 1}`);
-                if (!res.ok) throw new Error('菜单加载失败');
+                if (!res.ok) throw new Error('鑿滃崟鍔犺浇澶辫触');
                 state.menu = await res.json();
                 renderCategories();
                 renderMenu();
                 updateUI();
             } catch (e) {
-                // 🔥 修复：只有从未成功加载过菜单时才清空 state.menu。
-                // 之前无论是否已有数据都会直接清空，一旦这次请求恰好因网络抖动失败，
-                // 就会把已经加载好的菜单（以及依赖它渲染的购物车）一起清没，
-                // 界面表现就是"购物车突然消失"，只有刷新页面重新请求成功才会恢复。
-                // 保留已有菜单数据，只是这次刷新失败，不影响用户已经在操作的购物车。
+                // 馃敟 淇锛氬彧鏈変粠鏈垚鍔熷姞杞借繃鑿滃崟鏃舵墠娓呯┖ state.menu銆?
+                // 涔嬪墠鏃犺鏄惁宸叉湁鏁版嵁閮戒細鐩存帴娓呯┖锛屼竴鏃﹁繖娆¤姹傛伆濂藉洜缃戠粶鎶栧姩澶辫触锛?
+                // 灏变細鎶婂凡缁忓姞杞藉ソ鐨勮彍鍗曪紙浠ュ強渚濊禆瀹冩覆鏌撶殑璐墿杞︼級涓€璧锋竻娌★紝
+                // 鐣岄潰琛ㄧ幇灏辨槸"璐墿杞︾獊鐒舵秷澶?锛屽彧鏈夊埛鏂伴〉闈㈤噸鏂拌姹傛垚鍔熸墠浼氭仮澶嶃€?
+                // 淇濈暀宸叉湁鑿滃崟鏁版嵁锛屽彧鏄繖娆″埛鏂板け璐ワ紝涓嶅奖鍝嶇敤鎴峰凡缁忓湪鎿嶄綔鐨勮喘鐗╄溅銆?
                 if (state.menu.length === 0) {
                     renderCategories();
                     renderMenu();
                     updateUI();
                 }
-                showToast('⚠️ 无法加载数据库中的菜单，请检查后端服务', 2500);
+                showToast('鈿狅笍 鏃犳硶鍔犺浇鏁版嵁搴撲腑鐨勮彍鍗曪紝璇锋鏌ュ悗绔湇鍔?, 2500);
             }
         }
 
         async function fetchStoreConfig() {
             const res = await fetch(`${API_BASE}/public/config?store_id=${state.storeId || 1}`);
-            if (!res.ok) throw new Error('货币配置加载失败');
+            if (!res.ok) throw new Error('璐у竵閰嶇疆鍔犺浇澶辫触');
             const config = await res.json();
             state.currencies = config.currencies || [];
             state.defaultCurrency = config.defaultCurrency || state.defaultCurrency;
@@ -2724,13 +2719,13 @@
                 const defaultSec = state.currencies.find(c => c.code === 'USD') || state.currencies[0];
                 if (defaultSec) state.dualCurrency.currency = defaultSec;
             }
-            // 动态设置备注输入框最大长度
+            // 鍔ㄦ€佽缃娉ㄨ緭鍏ユ鏈€澶ч暱搴?
             const noteInput = document.getElementById('orderNoteInput');
             if (noteInput) noteInput.maxLength = state.maxOrderNoteLength;
         }
 
         async function fetchTables() {
-            // 返回值表示本函数内部是否已经拉取过菜单（避免 init() 再重复请求一次）
+            // 杩斿洖鍊艰〃绀烘湰鍑芥暟鍐呴儴鏄惁宸茬粡鎷夊彇杩囪彍鍗曪紙閬垮厤 init() 鍐嶉噸澶嶈姹備竴娆★級
             let menuAlreadyFetched = false;
             if (!isBackendOnline) {
                 state.tables = [];
@@ -2756,7 +2751,7 @@
                 }
                 if (sessionParam) {
                     const sessionRes = await fetch(`${API_BASE}/public/table-session/${encodeURIComponent(sessionParam)}/info`);
-                    if (!sessionRes.ok) throw new Error('会话已失效，请重新扫码');
+                    if (!sessionRes.ok) throw new Error('浼氳瘽宸插け鏁堬紝璇烽噸鏂版壂鐮?);
                     const info = await sessionRes.json();
                     state.table = info.table;
                     state.storeId = info.storeId || 1;
@@ -2768,13 +2763,13 @@
                     menuAlreadyFetched = true;
                 } else if (token) {
                     const tokenRes = await fetch(`${API_BASE}/public/table-token/${encodeURIComponent(token)}`);
-                    if (!tokenRes.ok) throw new Error('无效桌码');
+                    if (!tokenRes.ok) throw new Error('鏃犳晥妗岀爜');
                     const session = await tokenRes.json();
                     state.table = session.table;
                     state.storeId = session.storeId || 1;
                     state.scanToken = token;
-                    // 每次扫码生成新的 session_token，确保同一桌不同顾客能被区分
-                    // 同一顾客如需继续之前的订单，可通过 ?session=xxx 参数访问
+                    // 姣忔鎵爜鐢熸垚鏂扮殑 session_token锛岀‘淇濆悓涓€妗屼笉鍚岄【瀹㈣兘琚尯鍒?
+                    // 鍚屼竴椤惧濡傞渶缁х画涔嬪墠鐨勮鍗曪紝鍙€氳繃 ?session=xxx 鍙傛暟璁块棶
                     state.scanSessionToken = session.sessionToken;
                     state.scanExpiresAt = session.expiresAt;
                     try {
@@ -2799,7 +2794,7 @@
                 updateUI();
                 return menuAlreadyFetched;
             } catch (e) {
-                console.warn('fetchTables 错误:', e);
+                console.warn('fetchTables 閿欒:', e);
                 state.tables = [];
                 state.table = '';
                 state.scanToken = '';
@@ -2824,7 +2819,7 @@
 
 
         // ============================================================
-        //  🔥 核心修改：顾客订单详情（仿图片样式）
+        //  馃敟 鏍稿績淇敼锛氶【瀹㈣鍗曡鎯咃紙浠垮浘鐗囨牱寮忥級
         // ============================================================
         async function openCustomerOrders() {
             if (!isScanSessionValid()) {
@@ -2833,12 +2828,12 @@
             }
             try {
                 const res = await fetch(`${API_BASE}/public/table-session/${encodeURIComponent(state.scanSessionToken)}/orders`);
-                if (!res.ok) throw new Error('订单加载失败');
+                if (!res.ok) throw new Error('璁㈠崟鍔犺浇澶辫触');
                 const data = await res.json();
         
-                // 状态映射（使用多语言）
+                // 鐘舵€佹槧灏勶紙浣跨敤澶氳瑷€锛?
                 const orderStatusMap = {
-                    'pending': t('orderPending') || '未结算',
+                    'pending': t('orderPending') || '鏈粨绠?,
                     'done': t('orderDone') || t('completed')
                 };
                 const itemStatusMap = {
@@ -2866,7 +2861,7 @@
         
                 let html = '';
                 data.orders.forEach((order) => {
-                    let timeStr = '未知时间';
+                    let timeStr = '鏈煡鏃堕棿';
                     if (order.createdAt) {
                         try {
                             const dt = new Date(order.createdAt);
@@ -2898,7 +2893,7 @@
                                     <span class="order-id">
                                         <span class="order-id-hash">#</span>${order.id}
                                     </span>
-                                    <span style="font-size:12px;color:#888;white-space:nowrap;">🕒 ${timeStr}</span>
+                                    <span style="font-size:12px;color:#888;white-space:nowrap;">馃晵 ${timeStr}</span>
                                 </div>
                                 <span class="order-status-badge ${orderStatusClass}">${orderStatusText}</span>
                             </div>
@@ -2919,15 +2914,15 @@
                             `${itemPrimaryTotal} <span class="price-secondary">(${itemSecondaryTotal})</span>` :
                             itemPrimaryTotal;
         
-                        const emoji = item.emoji || '🍽️';
-                        const name = item.name || '菜品';
+                        const emoji = item.emoji || '馃嵔锔?;
+                        const name = item.name || '鑿滃搧';
         
                         html += `
                             <div class="order-item">
                                 <span class="item-name">
                                     <span class="item-emoji">${emoji}</span>
                                     <span class="item-label">${name}</span>
-                                    <span class="item-qty-mark">× ${item.quantity}</span>
+                                    <span class="item-qty-mark">脳 ${item.quantity}</span>
                                 </span>
                                 <span class="item-price">${itemTotalDisplay}</span>
                                 <span class="item-status-label ${itemStatusClass}">${itemStatusText}</span>
@@ -2937,7 +2932,7 @@
         
                     html += `
                             </div>
-                            ${order.note ? `<div class="order-note" style="margin:8px 0 0;padding:8px 10px;border-radius:8px;background:rgba(255,193,7,.12);font-size:13px;color:#c98a1f;line-height:1.5;"><strong>${t('orderNoteDisplay')}：</strong>${escNote(order.note)}</div>` : ''}
+                            ${order.note ? `<div class="order-note" style="margin:8px 0 0;padding:8px 10px;border-radius:8px;background:rgba(255,193,7,.12);font-size:13px;color:#c98a1f;line-height:1.5;"><strong>${t('orderNoteDisplay')}锛?/strong>${escNote(order.note)}</div>` : ''}
                             <div class="order-footer">
                                 <span class="total-label">${t('total')}</span>
                                 <span class="total-amount">${orderTotalDisplay}</span>
@@ -2948,13 +2943,13 @@
                                 if (allDone) {
                                     return `<div style="margin-top:12px;text-align:center;">
                                         <button disabled style="background:#ccc;color:#999;border:0;padding:10px 24px;border-radius:20px;font-size:14px;font-weight:600;cursor:not-allowed;box-shadow:none;">
-                                            ⏰ 催单
+                                            鈴?鍌崟
                                         </button>
                                     </div>`;
                                 }
                                 return `<div style="margin-top:12px;text-align:center;">
                                     <button onclick="urgeOrder(${order.id})" style="background:linear-gradient(135deg,#e85d3a,#f39c12);color:#fff;border:0;padding:10px 24px;border-radius:20px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(232,93,58,.3);">
-                                        ⏰ 催单
+                                        鈴?鍌崟
                                     </button>
                                 </div>`;
                             })()}
@@ -2967,7 +2962,7 @@
                 overlay.classList.add('show');
         
             } catch (e) {
-                showToast('❌ ' + (e.message || t('networkError')));
+                showToast('鉂?' + (e.message || t('networkError')));
             }
         }
 
@@ -2977,7 +2972,7 @@
         }
 
         // ============================================================
-        //  下单二次确认弹窗
+        //  涓嬪崟浜屾纭寮圭獥
         // ============================================================
         function renderConfirmOrderList() {
             const items = getCartItems();
@@ -2994,9 +2989,9 @@
                 rows += `
                     <div class="order-item">
                         <span class="item-name">
-                            <span class="item-emoji">${esc(item.emoji) || '🍽️'}</span>
+                            <span class="item-emoji">${esc(item.emoji) || '馃嵔锔?}</span>
                             <span class="item-label">${name}</span>
-                            <span class="item-qty-mark">× ${item.quantity}</span>
+                            <span class="item-qty-mark">脳 ${item.quantity}</span>
                         </span>
                         <span class="item-price">${priceDisplay}</span>
                     </div>
@@ -3024,7 +3019,7 @@
             `;
         }
 
-        // 点击“去结算/确认下单”时，先弹出详细清单做二次确认，而不是直接提交
+        // 鐐瑰嚮鈥滃幓缁撶畻/纭涓嬪崟鈥濇椂锛屽厛寮瑰嚭璇︾粏娓呭崟鍋氫簩娆＄‘璁わ紝鑰屼笉鏄洿鎺ユ彁浜?
         function openOrderConfirm() {
             if (getCartCount() === 0) return;
             if (!state.table) {
@@ -3036,7 +3031,7 @@
                 return;
             }
             if (!isBackendOnline) {
-                showToast(`❌ ${t('backendOffline')}`, 3000);
+                showToast(`鉂?${t('backendOffline')}`, 3000);
                 return;
             }
             renderConfirmOrderList();
@@ -3049,19 +3044,19 @@
             overlay.classList.remove('show');
         }
 
-        // 取消下单：只关闭二次确认弹窗，回到点餐界面，不再弹出订单详情
+        // 鍙栨秷涓嬪崟锛氬彧鍏抽棴浜屾纭寮圭獥锛屽洖鍒扮偣椁愮晫闈紝涓嶅啀寮瑰嚭璁㈠崟璇︽儏
         function cancelOrderConfirm() {
             closeOrderConfirm();
         }
 
-        // 确认下单：关闭二次确认弹窗，真正提交订单
+        // 纭涓嬪崟锛氬叧闂簩娆＄‘璁ゅ脊绐楋紝鐪熸鎻愪氦璁㈠崟
         function confirmOrderSubmit() {
             closeOrderConfirm();
             submitOrder();
         }
 
         // ============================================================
-        //  下单成功提示弹窗（仅提示语，不展示明细/金额）
+        //  涓嬪崟鎴愬姛鎻愮ず寮圭獥锛堜粎鎻愮ず璇紝涓嶅睍绀烘槑缁?閲戦锛?
         // ============================================================
         function openOrderSuccessNotice() {
             document.getElementById('orderSuccessModal').classList.add('show');
@@ -3074,7 +3069,7 @@
         }
 
         // ============================================================
-        //  渲染函数
+        //  娓叉煋鍑芥暟
         // ============================================================
         function renderCategories() {
             const presentCategories = [...new Set(state.menu.map(i => i.category))];
@@ -3116,7 +3111,7 @@
                     return name.includes(keyword) || desc.includes(keyword);
                 });
             }
-            // 按照销量自动排序，热销菜品排在最前面
+            // 鎸夌収閿€閲忚嚜鍔ㄦ帓搴忥紝鐑攢鑿滃搧鎺掑湪鏈€鍓嶉潰
             filtered = [...filtered].sort((a, b) => (Number(b.sales_count) || 0) - (Number(a.sales_count) || 0));
             if (filtered.length === 0) {
                 menuGrid.innerHTML = `<div class="empty-state"><i class="fas fa-utensils"></i><p>${t('noDishes')}</p></div>`;
@@ -3125,7 +3120,7 @@
             }
             menuGrid.innerHTML = filtered.map(item => {
                 const qty = state.cart[item.id] || 0;
-                const imgHtml = item.image ? `<img src="/uploads/${esc(item.image)}" alt="${esc(item.name)}">` : (esc(item.emoji) || '🍽️');
+                const imgHtml = item.image ? `<img src="/uploads/${esc(item.image)}" alt="${esc(item.name)}">` : (esc(item.emoji) || '馃嵔锔?);
                 const trans = getMenuTranslation(item);
                 const name = esc(trans ? trans.name : item.name);
                 const desc = esc(trans ? trans.desc : item.desc);
@@ -3136,7 +3131,7 @@
                 }
                 return `
                     <div class="menu-item" data-id="${item.id}">
-                        <div class="img-wrap">${imgHtml}${item.category === '热销' ? '<span class="tag">🔥</span>' : ''}</div>
+                        <div class="img-wrap">${imgHtml}${item.category === '鐑攢' ? '<span class="tag">馃敟</span>' : ''}</div>
                         <div class="info">
                             <div class="name">${name}</div>
                             <div class="desc">${desc || ''}</div>
@@ -3170,7 +3165,7 @@
         }
 
         // ============================================================
-        //  购物车
+        //  璐墿杞?
         // ============================================================
         function addToCart(id) {
             if (!isScanSessionValid()) {
@@ -3268,11 +3263,11 @@
                 const totalDisplay = secondaryTotal ? `${primaryTotal} (${secondaryTotal})` : primaryTotal;
                 return `
                     <div class="cart-item">
-                        <span class="item-emoji">${esc(item.emoji) || '🍽️'}</span>
+                        <span class="item-emoji">${esc(item.emoji) || '馃嵔锔?}</span>
                         <div class="item-info">
                             <div class="item-name">${name}</div>
                             <div class="item-price">${priceDisplay}/${esc(item.unit)||t('portion')}</div>
-                            <div style="font-size:12px;color:var(--gray-500);">小计: ${totalDisplay}</div>
+                            <div style="font-size:12px;color:var(--gray-500);">灏忚: ${totalDisplay}</div>
                         </div>
                         <div class="item-qty">
                             <button data-id="${item.id}" data-act="dec"><i class="fas fa-minus"></i></button>
@@ -3310,7 +3305,7 @@
         }
 
         // ============================================================
-        //  下单
+        //  涓嬪崟
         // ============================================================
         async function submitOrder() {
             const items = getCartItems();
@@ -3324,7 +3319,7 @@
                 return;
             }
             if (!isBackendOnline) {
-                showToast(`❌ ${t('backendOffline')}`, 3000);
+                showToast(`鉂?${t('backendOffline')}`, 3000);
                 return;
             }
             const total = getCartTotal();
@@ -3334,7 +3329,7 @@
                 sessionToken: state.scanSessionToken,
                 items: items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, emoji: i.emoji,
                     show_dual: i.show_dual || 0, secondary_currency_code: i.secondary_currency_code || '', unit: i
-                        .unit || '份' })),
+                        .unit || '浠? })),
                 total: total,
                 note: noteInput ? noteInput.value.trim().slice(0, 200) : '',
             };
@@ -3349,30 +3344,30 @@
                 if (data.success) {
                     state.cart = {};
                     if (noteInput) noteInput.value = '';
-                    // 同步更新二维码session过期时间（下单后重置）
+                    // 鍚屾鏇存柊浜岀淮鐮乻ession杩囨湡鏃堕棿锛堜笅鍗曞悗閲嶇疆锛?
                     if (data.newExpiresAt) {
                         state.scanExpiresAt = data.newExpiresAt;
                     }
                     updateUI();
                     renderMenu();
                     closeDrawer();
-                    showToast(`✅ ${t('submitOrder')} ${t('success')}! #${data.orderId}`);
+                    showToast(`鉁?${t('submitOrder')} ${t('success')}! #${data.orderId}`);
                     openOrderSuccessNotice();
                 } else {
-                    showToast('❌ ' + (data.error || t('orderFailed')));
+                    showToast('鉂?' + (data.error || t('orderFailed')));
                 }
             } catch (e) {
-                showToast('❌ ' + (e.message || t('networkError')));
+                showToast('鉂?' + (e.message || t('networkError')));
             }
         }
 
         // ============================================================
-        //  语言切换
+        //  璇█鍒囨崲
         // ============================================================
         async function applyLanguage() {
             currentLang = langSelect.value;
             localStorage.setItem('preferredLang', currentLang);
-            // 动态加载对应语言（所有语言都加载，确保SLF.i18n.lang正确设置）
+            // 鍔ㄦ€佸姞杞藉搴旇瑷€锛堟墍鏈夎瑷€閮藉姞杞斤紝纭繚SLF.i18n.lang姝ｇ‘璁剧疆锛?
             await loadLanguageData(currentLang);
             document.getElementById('appName').textContent = t('appName');
             document.getElementById('cartLabel').textContent = t('cart');
@@ -3399,9 +3394,9 @@
                 tableDisplay.textContent = t('notScanned');
                 tableInfo.title = t('scanToBind');
             }
-            // 切换语言后总是重置当前分类为新语言的"全部"，避免旧语言分类名过滤不匹配
+            // 鍒囨崲璇█鍚庢€绘槸閲嶇疆褰撳墠鍒嗙被涓烘柊璇█鐨?鍏ㄩ儴"锛岄伩鍏嶆棫璇█鍒嗙被鍚嶈繃婊や笉鍖归厤
             state.currentCategory = t('all');
-            // 同步更新呼叫服务员确认弹窗的文本（即使弹窗已打开也能实时切换）
+            // 鍚屾鏇存柊鍛煎彨鏈嶅姟鍛樼‘璁ゅ脊绐楃殑鏂囨湰锛堝嵆浣垮脊绐楀凡鎵撳紑涔熻兘瀹炴椂鍒囨崲锛?
             const callConfirmTitleEl = document.getElementById('callConfirmTitle');
             if (callConfirmTitleEl) callConfirmTitleEl.textContent = t('callWaiter');
             const callConfirmMessageEl = document.getElementById('callConfirmMessage');
@@ -3416,10 +3411,10 @@
         }
 
         // ============================================================
-        //  初始化
+        //  鍒濆鍖?
         // ============================================================
         async function init() {
-            // 清除旧格式的i18n缓存（无_cacheTime字段），确保新翻译键生效
+            // 娓呴櫎鏃ф牸寮忕殑i18n缂撳瓨锛堟棤_cacheTime瀛楁锛夛紝纭繚鏂扮炕璇戦敭鐢熸晥
             try {
                 ['zh','en','vi','th','km'].forEach(l => {
                     const cached = localStorage.getItem('i18n_' + l);
@@ -3448,22 +3443,22 @@
             await fetchCategoryOrder();
             await fetchStoreInfo();
             const menuAlreadyFetchedInTables = await fetchTables();
-            // 🔥 修复：扫码绑定桌号后 fetchTables() 内部已经按正确的 store_id 拉取过一次菜单，
-            // 这里不再重复请求，避免出现"扫码后购物车/菜单闪一下又变空"的问题
-            // （之前是无条件再拉一次，若这第二次请求因网络抖动失败会把 state.menu 清空，
-            //  从而导致购物车找不到对应商品、界面上购物车"凭空消失"，只有刷新页面重新走一遍成功的流程才会恢复）
+            // 馃敟 淇锛氭壂鐮佺粦瀹氭鍙峰悗 fetchTables() 鍐呴儴宸茬粡鎸夋纭殑 store_id 鎷夊彇杩囦竴娆¤彍鍗曪紝
+            // 杩欓噷涓嶅啀閲嶅璇锋眰锛岄伩鍏嶅嚭鐜?鎵爜鍚庤喘鐗╄溅/鑿滃崟闂竴涓嬪張鍙樼┖"鐨勯棶棰?
+            // 锛堜箣鍓嶆槸鏃犳潯浠跺啀鎷変竴娆★紝鑻ヨ繖绗簩娆¤姹傚洜缃戠粶鎶栧姩澶辫触浼氭妸 state.menu 娓呯┖锛?
+            //  浠庤€屽鑷磋喘鐗╄溅鎵句笉鍒板搴斿晢鍝併€佺晫闈笂璐墿杞?鍑┖娑堝け"锛屽彧鏈夊埛鏂伴〉闈㈤噸鏂拌蛋涓€閬嶆垚鍔熺殑娴佺▼鎵嶄細鎭㈠锛?
             if (!menuAlreadyFetchedInTables) {
                 await fetchMenu();
             }
 
             document.getElementById('cartToggle').addEventListener('click', openDrawer);
             document.getElementById('closeDrawer').addEventListener('click', closeDrawer);
-            // 🔥 修改：点击“去结算”直接提交订单，不再打开购物车抽屉（移除二次确认）
+            // 馃敟 淇敼锛氱偣鍑烩€滃幓缁撶畻鈥濈洿鎺ユ彁浜よ鍗曪紝涓嶅啀鎵撳紑璐墿杞︽娊灞夛紙绉婚櫎浜屾纭锛?
             document.getElementById('checkoutBtn').addEventListener('click', openOrderConfirm);
             document.getElementById('submitOrderBtn').addEventListener('click', openOrderConfirm);
             langSelect.addEventListener('change', applyLanguage);
 
-            // 兜底绑定：确保“订单详情”弹窗的关闭按钮一定能响应
+            // 鍏滃簳缁戝畾锛氱‘淇濃€滆鍗曡鎯呪€濆脊绐楃殑鍏抽棴鎸夐挳涓€瀹氳兘鍝嶅簲
             const customerOrderCloseBtnEl = document.getElementById('customerOrderCloseBtn');
             if (customerOrderCloseBtnEl) {
                 customerOrderCloseBtnEl.addEventListener('click', (e) => {
@@ -3472,7 +3467,7 @@
                 });
             }
 
-            // 下单二次确认弹窗：取消 -> 关闭并弹出订单详情；确认下单 -> 真正提交
+            // 涓嬪崟浜屾纭寮圭獥锛氬彇娑?-> 鍏抽棴骞跺脊鍑鸿鍗曡鎯咃紱纭涓嬪崟 -> 鐪熸鎻愪氦
             document.getElementById('confirmOrderCancelBtn').addEventListener('click', (e) => {
                 e.preventDefault();
                 cancelOrderConfirm();
@@ -3505,12 +3500,12 @@
         }
 
         // ============================================================
-        //  呼叫服务员
+        //  鍛煎彨鏈嶅姟鍛?
         // ============================================================
-        // 显示呼叫服务员确认弹窗
+        // 鏄剧ず鍛煎彨鏈嶅姟鍛樼‘璁ゅ脊绐?
         function showCallWaiterConfirm() {
             if (!state.table) {
-                showToast('⚠️ ' + t('scanFirst'), 2500);
+                showToast('鈿狅笍 ' + t('scanFirst'), 2500);
                 return;
             }
             const overlay = document.getElementById('callWaiterConfirmOverlay');
@@ -3523,7 +3518,7 @@
         function hideCallWaiterConfirm() {
             document.getElementById('callWaiterConfirmOverlay').classList.remove('show');
         }
-        // 呼叫冷却状态
+        // 鍛煎彨鍐峰嵈鐘舵€?
         let callCooldownTimer = null;
         let callCooldownSeconds = 0;
 
@@ -3552,12 +3547,12 @@
 
         async function callWaiter() {
             if (!state.table) {
-                showToast('⚠️ ' + t('scanFirst'), 2500);
+                showToast('鈿狅笍 ' + t('scanFirst'), 2500);
                 return;
             }
             if (callCooldownSeconds > 0) {
                 const mins = Math.ceil(callCooldownSeconds / 60);
-                showToast('⏳ ' + t('callCooldown', { minutes: mins }), 3000);
+                showToast('鈴?' + t('callCooldown', { minutes: mins }), 3000);
                 return;
             }
             try {
@@ -3573,17 +3568,17 @@
                 if (res.status === 429) {
                     const mins = data.cooldownMinutes || 10;
                     startCallCooldown(mins);
-                    showToast('⏳ ' + t('callCooldown', { minutes: mins }), 3000);
+                    showToast('鈴?' + t('callCooldown', { minutes: mins }), 3000);
                     return;
                 }
                 if (!res.ok) throw new Error(data.error || 'Failed');
-                showToast('✅ ' + t('callWaiterSent'), 2500);
+                showToast('鉁?' + t('callWaiterSent'), 2500);
             } catch (e) {
-                showToast('❌ ' + t('networkError'), 2500);
+                showToast('鉂?' + t('networkError'), 2500);
             }
         }
 
-        // 催单
+        // 鍌崟
         async function urgeOrder(orderId) {
             try {
                 const res = await fetch('/api/orders/' + orderId + '/urge', {
@@ -3592,16 +3587,16 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast(`✅ ${t('notifiedKitchen')}`, 2500);
+                    showToast(`鉁?${t('notifiedKitchen')}`, 2500);
                 } else {
-                    showToast('❌ ' + (data.error || t('urgeFailed')), 2500);
+                    showToast('鉂?' + (data.error || t('urgeFailed')), 2500);
                 }
             } catch (e) {
-                showToast(`❌ ${t('networkError')}`, 2500);
+                showToast(`鉂?${t('networkError')}`, 2500);
             }
         }
 
-        // 呼叫服务员确认弹窗事件绑定
+        // 鍛煎彨鏈嶅姟鍛樼‘璁ゅ脊绐椾簨浠剁粦瀹?
         document.getElementById('callConfirmCancel').addEventListener('click', hideCallWaiterConfirm);
         document.getElementById('callConfirmOk').addEventListener('click', async () => {
             hideCallWaiterConfirm();
