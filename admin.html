@@ -3532,7 +3532,7 @@
         // ================================================================
         // 超时退出
         // ================================================================
-        let ADMIN_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+        let ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
         let adminIdleTimer = null;
 
         function resetAdminIdleTimer() {
@@ -3696,11 +3696,14 @@
             loadStores();
             // 从服务器加载超时配置
             fetch('/api/public/global-config').then(r => r.json()).then(cfg => {
-                if (cfg.admin_idle_timeout) {
+                if (cfg.admin_idle_timeout && cfg.admin_idle_timeout > 0) {
                     ADMIN_IDLE_TIMEOUT_MS = cfg.admin_idle_timeout * 60 * 1000;
                     resetAdminIdleTimer();
+                    console.log('[空闲超时] 已加载配置:', cfg.admin_idle_timeout, '分钟');
                 }
-            }).catch(() => {});
+            }).catch(err => {
+                console.warn('[空闲超时] 加载配置失败，使用默认30分钟:', err.message);
+            });
             resetAdminIdleTimer();
             // 根据权限隐藏管理员管理
             // 只有明确无权限（isPrimary=false 且 can_manage_admin=0）时才隐藏

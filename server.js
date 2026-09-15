@@ -401,6 +401,9 @@ async function withTransaction(work) {
 // ---------- 常量 ----------
 // 菜品初始化仅在首次安装时执行，无需版本号
 const DEFAULT_MENU_CATEGORIES = ['招牌烧腊', '烧腊', '面食', '卤菜', '快餐', '早茶', '烧腊加料', '饮料'];
+// 下单冷却记录：key为sessionToken或桌号，value为上次下单时间戳
+const orderSubmissionCooldown = new Map();
+
 // 获取下单间隔时间（秒），从数据库读取，默认30秒
 async function getOrderCooldownMs() {
   try {
@@ -2895,6 +2898,7 @@ app.post('/api/orders', async (req, res) => {
       return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
     }
     const cooldownMs = await getOrderCooldownMs();
+    const lastSubmission = orderSubmissionCooldown.get(cooldownKey) || 0;
     if (cooldownMs > 0 && now - lastSubmission < cooldownMs) {
       const waitSec = Math.ceil((cooldownMs - (now - lastSubmission)) / 1000);
       return res.status(429).json({ error: `下单过于频繁，请等待${waitSec}秒后再试` });
@@ -3563,7 +3567,7 @@ app.get('/api/public/global-config', async (req, res) => {
     const qrSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
     const intervalSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'order_interval_seconds'");
     res.json({
-      admin_idle_timeout: parseInt(idleSetting?.value || '5', 10),
+      admin_idle_timeout: parseInt(idleSetting?.value || '30', 10),
       qr_session_timeout: parseInt(qrSetting?.value || '45', 10),
       order_interval_seconds: parseInt(intervalSetting?.value || '30', 10),
     });
