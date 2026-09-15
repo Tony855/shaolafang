@@ -1,0 +1,41 @@
+# ============================================================
+# FoodFlow 点餐系统 - 单台部署 Systemd 服务配置
+# 部署位置：/etc/systemd/system/foodflow.service
+# ============================================================
+
+[Unit]
+Description=FoodFlow QR Ordering System
+After=network.target mysql.service redis.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+
+WorkingDirectory=/var/www/foodflow
+EnvironmentFile=/etc/foodflow/.env
+
+ExecStart=/usr/bin/node server.js
+
+Restart=always
+RestartSec=5
+
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=7G
+MemoryHigh=6G
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/foodflow/uploads /var/www/foodflow/backups /var/www/foodflow/logs
+ReadOnlyPaths=/var/www/foodflow
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=foodflow
+
+[Install]
+WantedBy=multi-user.target
