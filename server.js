@@ -179,11 +179,11 @@ app.get('/qr-print', async (req, res) => {
 
     // 翻译映射（服务端简单翻译，避免依赖前端i18n）
     const i18nMap = {
-      zh: { table: '桌号', qrCode: '二维码', scanToOrder: '扫码点餐', download: '下载', print: '打印', orderingQrCode: '点餐二维码' },
-      en: { table: 'Table', qrCode: 'QR Code', scanToOrder: 'Scan to Order', download: 'Download', print: 'Print', orderingQrCode: 'Ordering QR Code' },
-      vi: { table: 'Bàn', qrCode: 'Mã QR', scanToOrder: 'Quét mã để đặt hàng', download: 'Tải xuống', print: 'In', orderingQrCode: 'Mã QR đặt hàng' },
-      th: { table: 'โต๊ะ', qrCode: 'คิวอาร์โค้ด', scanToOrder: 'สแกนเพื่อสั่งอาหาร', download: 'ดาวน์โหลด', print: 'พิมพ์', orderingQrCode: 'คิวอาร์โค้ดสั่งอาหาร' },
-      km: { table: 'តុ', qrCode: 'QR Code', scanToOrder: 'ស្កេនដើម្បីបញ្ជាទិញ', download: 'ទាញយក', print: 'បោះពុម្ព', orderingQrCode: 'កូដ QR បញ្ជាទិញ' }
+      zh: { table: '桌号', qrCode: '二维码', scanToOrder: '扫码点餐', download: '下载', print: '打印', orderingQrCode: '点餐二维码', copy: '复制', copied: '已复制', copyLink: '复制链接', copyFailed: '复制失败，请手动复制' },
+      en: { table: 'Table', qrCode: 'QR Code', scanToOrder: 'Scan to Order', download: 'Download', print: 'Print', orderingQrCode: 'Ordering QR Code', copy: 'Copy', copied: 'Copied', copyLink: 'Copy Link', copyFailed: 'Copy failed, please copy manually' },
+      vi: { table: 'Bàn', qrCode: 'Mã QR', scanToOrder: 'Quét mã để đặt hàng', download: 'Tải xuống', print: 'In', orderingQrCode: 'Mã QR đặt hàng', copy: 'Sao chép', copied: 'Đã sao chép', copyLink: 'Sao chép liên kết', copyFailed: 'Sao chép thất bại, vui lòng sao chép thủ công' },
+      th: { table: 'โต๊ะ', qrCode: 'คิวอาร์โค้ด', scanToOrder: 'สแกนเพื่อสั่งอาหาร', download: 'ดาวน์โหลด', print: 'พิมพ์', orderingQrCode: 'คิวอาร์โค้ดสั่งอาหาร', copy: 'คัดลอก', copied: 'คัดลอกแล้ว', copyLink: 'คัดลอกลิงก์', copyFailed: 'คัดลอกล้มเหลว โปรดคัดลอกด้วยตัวเอง' },
+      km: { table: 'តុ', qrCode: 'QR Code', scanToOrder: 'ស្កេនដើម្បីបញ្ជាទិញ', download: 'ទាញយក', print: 'បោះពុម្ព', orderingQrCode: 'កូដ QR បញ្ជាទិញ', copy: 'ចម្លង', copied: 'បានចម្លង', copyLink: 'ចម្លងតំណ', copyFailed: 'ការចម្លងបរាជ័យ សូមចម្លងដោយដៃ' }
     };
     const t = i18nMap[lang] || i18nMap.zh;
 
@@ -202,6 +202,10 @@ app.get('/qr-print', async (req, res) => {
       .replace(/{{scanToOrderLines}}/g, displayLangs.map(l => '<div class="scan-line">' + (i18nMap[l] || i18nMap.zh).scanToOrder + '</div>').join(''))
       .replace(/{{download}}/g, t.download)
       .replace(/{{print}}/g, t.print)
+      .replace(/{{copy}}/g, t.copy)
+      .replace(/{{copied}}/g, t.copied)
+      .replace(/{{copyLink}}/g, t.copyLink)
+      .replace(/{{copyFailed}}/g, t.copyFailed)
       .replace(/{{url}}/g, url)
       .replace(/{{qrDataUrl}}/g, qrDataUrl)
       .replace(/{{storeNameJson}}/g, JSON.stringify(storeName))
