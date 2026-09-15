@@ -2858,9 +2858,25 @@ app.post('/api/orders', async (req, res) => {
     const table = await assertTableExists(req.body.table, req.storeId || 1);
     const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, req.storeId || 1]);
     const storeId = tableStore?.store_id || 1;
+    // 支持两种认证方式：Authorization Bearer token（管理员）和 X-Admin-Key（旧版兼容）
+    const adminAuth = await authenticateAdmin(req);
     const adminKey = req.get('X-Admin-Key');
     const keySetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
-    const isAdmin = Boolean(adminKey && keySetting && adminKey === keySetting.value);
+    const isAdmin = Boolean((adminAuth && !adminAuth.error) || (adminKey && keySetting && adminKey === keySetting.value));
+    if (adminAuth && !adminAuth.error) {
+      req.adminId = adminAuth.adminId;
+      req.merchantId = adminAuth.merchantId;
+      req.storeId = adminAuth.storeId;
+      // 管理员下单权限检查（主管理员除外）
+      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [req.adminId]);
+      if (admin) {
+        const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.merchantId]);
+        const isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
+        if (!isPrimaryAdmin && !admin.can_manage_order) {
+          return res.status(403).json({ error: '没有下单权限' });
+        }
+      }
+    }
     const waiter = await getWaiterFromRequest(req);
     const isWaiter = Boolean(waiter && waiter.can_order);
     if (waiter && !waiter.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
@@ -3584,7 +3600,7 @@ app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
 // ----- 商户管理员管理 -----
 app.get('/api/admin/admins', requireAdminKey, async (req, res) => {
   try {
-    const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, is_primary, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
+    const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, (id = (SELECT MIN(id) FROM merchant_admins ma2 WHERE ma2.merchant_id = merchant_admins.merchant_id)) AS is_primary, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3611,7 +3627,9 @@ app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_
     const { display_name, active, password, permissions } = req.body || {};
     const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     if (!admin) return res.status(404).json({ error: '管理员不存在' });
-    if (admin.is_primary) return res.status(400).json({ error: '主管理员拥有全部权限，不可修改权限和状态' });
+    const primaryAdminId = await getAsync('SELECT MIN(id) AS min_id FROM merchant_admins WHERE merchant_id=?', [req.merchantId]);
+    const isPrimaryAdmin = primaryAdminId && primaryAdminId.min_id === admin.id;
+    if (isPrimaryAdmin) return res.status(400).json({ error: '主管理员拥有全部权限，不可修改权限和状态' });
     if (id === req.adminId && active === 0) return res.status(400).json({ error: '不能禁用当前登录账号' });
     const fields = [];
     const values = [];
@@ -3646,7 +3664,10 @@ app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_mana
     const id = parseInt(req.params.id, 10);
     if (id === req.adminId) return res.status(400).json({ error: '不能删除当前登录账号' });
     const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
-    if (admin && admin.is_primary) return res.status(400).json({ error: '主管理员不可删除' });
+    if (admin) {
+      const primaryAdminIdDel = await getAsync('SELECT MIN(id) AS min_id FROM merchant_admins WHERE merchant_id=?', [req.merchantId]);
+      if (primaryAdminIdDel && primaryAdminIdDel.min_id === admin.id) return res.status(400).json({ error: '主管理员不可删除' });
+    }
     if (!admin) return res.status(404).json({ error: '管理员不存在' });
     await runAsync('DELETE FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_admin', 'merchant_admin', id, `删除管理员: ${admin.username}`, req.ip);
