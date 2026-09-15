@@ -158,18 +158,18 @@ fi
 
 # 7.4 创建数据库（先删除旧的，确保干净）
 log_info "创建数据库..."
-$MYSQL_CMD -e "DROP DATABASE IF EXISTS \`$DEFAULT_DB_NAME\`;" 2>/dev/null
-$MYSQL_CMD -e "CREATE DATABASE \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null
+$MYSQL_CMD -e "DROP DATABASE IF EXISTS \`$DEFAULT_DB_NAME\`;"
+$MYSQL_CMD -e "CREATE DATABASE \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 7.5 创建数据库用户（先删除旧用户，确保密码正确）
 log_info "创建数据库用户..."
-$MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'localhost';" 2>/dev/null
-$MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'127.0.0.1';" 2>/dev/null
-$MYSQL_CMD -e "CREATE USER 'foodflow'@'localhost' IDENTIFIED BY '$DB_RANDOM_PASSWORD';" 2>/dev/null
-$MYSQL_CMD -e "CREATE USER 'foodflow'@'127.0.0.1' IDENTIFIED BY '$DB_RANDOM_PASSWORD';" 2>/dev/null
-$MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'localhost';" 2>/dev/null
-$MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'127.0.0.1';" 2>/dev/null
-$MYSQL_CMD -e "FLUSH PRIVILEGES;" 2>/dev/null
+$MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'localhost';"
+$MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'127.0.0.1';"
+$MYSQL_CMD -e "CREATE USER 'foodflow'@'localhost' IDENTIFIED BY '$DB_RANDOM_PASSWORD';"
+$MYSQL_CMD -e "CREATE USER 'foodflow'@'127.0.0.1' IDENTIFIED BY '$DB_RANDOM_PASSWORD';"
+$MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'localhost';"
+$MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'127.0.0.1';"
+$MYSQL_CMD -e "FLUSH PRIVILEGES;"
 
 # 7.6 验证数据库连接（测试脚本写在项目目录下，才能找到node_modules）
 log_info "验证数据库连接..."
@@ -305,7 +305,7 @@ fi
 echo ""
 log_info "启动 FoodFlow 服务..."
 
-systemctl restart foodflow
+systemctl restart foodflow || true
 sleep 8
 
 # 检查服务状态
@@ -369,8 +369,8 @@ echo "  超级管理员: superadmin / super123"
 echo "  商户管理员: admin / admin123"
 echo ""
 log_warn "重要提示："
-echo "  1. 请编辑 $ENV_FILE 配置正确的数据库密码"
+echo "  1. 数据库已自动配置，密码保存在 $ENV_FILE（权限600）"
 echo "  2. 请及时修改默认管理员密码"
-echo "  3. 建议配置 SSL 证书: sudo apt-get install certbot python3-certbot-nginx && sudo bash setup-nginx.sh"
-echo "  4. 如数据库连接失败，请检查 .env 中的数据库配置并手动创建数据库"
+echo "  3. 建议配置 SSL 证书: sudo bash setup-nginx.sh"
+echo "  4. 服务日志: sudo journalctl -u foodflow -f"
 echo ""
