@@ -3584,7 +3584,7 @@ app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
 // ----- 商户管理员管理 -----
 app.get('/api/admin/admins', requireAdminKey, async (req, res) => {
   try {
-    const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, can_manage_menu, can_manage_table, can_manage_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
+    const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, is_primary, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3611,6 +3611,7 @@ app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_
     const { display_name, active, password, permissions } = req.body || {};
     const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     if (!admin) return res.status(404).json({ error: '管理员不存在' });
+    if (admin.is_primary) return res.status(400).json({ error: '主管理员拥有全部权限，不可修改权限和状态' });
     if (id === req.adminId && active === 0) return res.status(400).json({ error: '不能禁用当前登录账号' });
     const fields = [];
     const values = [];
@@ -3645,6 +3646,7 @@ app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_mana
     const id = parseInt(req.params.id, 10);
     if (id === req.adminId) return res.status(400).json({ error: '不能删除当前登录账号' });
     const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
+    if (admin && admin.is_primary) return res.status(400).json({ error: '主管理员不可删除' });
     if (!admin) return res.status(404).json({ error: '管理员不存在' });
     await runAsync('DELETE FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
     await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_admin', 'merchant_admin', id, `删除管理员: ${admin.username}`, req.ip);
