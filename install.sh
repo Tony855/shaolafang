@@ -112,7 +112,7 @@ select_deploy_mode() {
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
     echo ""
     echo -e "  ${BOLD}1. 标准版 - 单台部署${NC}"
-    echo "     所有服务（Nginx + Node.js + MySQL + Redis）在一台服务器"
+    echo "     所有服务（Nginx + Node.js + MariaDB + Redis）在一台服务器"
     echo "     适用：1-50家门店，测试环境，小型餐饮企业"
     echo "     配置要求：2核4GB以上"
     echo ""

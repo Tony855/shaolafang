@@ -5,7 +5,7 @@
 
 [Unit]
 Description=FoodFlow QR Ordering System
-After=network.target mysql.service redis.service
+After=network.target mysql.service mariadb.service redis.service
 Wants=network.target
 
 [Service]

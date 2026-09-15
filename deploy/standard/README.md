@@ -32,8 +32,8 @@
 │              ┌────────────┴──────────┐  │
 │              │                       │  │
 │        ┌─────▼─────┐          ┌────▼─────┐│
-│        │   MySQL    │          │   Redis   ││
-│        │  (数据库)   │          │  (缓存)   ││
+│        │  MariaDB   │          │   Redis   ││
+│        │ (兼容MySQL) │          │  (缓存)   ││
 │        └───────────┘          └──────────┘│
 │                                         │
 │  上传目录：/var/www/foodflow/uploads/   │
@@ -114,8 +114,8 @@ sudo systemctl reload nginx      # 重载配置
 sudo tail -f /var/log/nginx/access.log   # 访问日志
 sudo tail -f /var/log/nginx/error.log    # 错误日志
 
-# 数据库管理
-sudo mysql -u root -p           # 登录MySQL
+# 数据库管理（MariaDB，命令与MySQL完全兼容）
+sudo mysql -u root -p           # 登录数据库
 sudo mysqldump foodflow_standard > backup.sql  # 备份数据库
 
 # Redis管理

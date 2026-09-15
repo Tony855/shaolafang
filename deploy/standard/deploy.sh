@@ -31,14 +31,14 @@ apt-get update -qq
 apt-get upgrade -y -qq
 apt-get install -y -qq curl wget git nginx build-essential
 
-# 2. 安装 MySQL
-if ! command -v mysql &> /dev/null; then
-    log_info "安装 MySQL 8.0..."
-    apt-get install -y -qq mysql-server
-    systemctl enable mysql
-    systemctl start mysql
+# 2. 安装 MariaDB（兼容MySQL，Debian默认）
+if ! command -v mariadb &> /dev/null && ! command -v mysql &> /dev/null; then
+    log_info "安装 MariaDB（兼容MySQL）..."
+    apt-get install -y -qq mariadb-server
+    systemctl enable mariadb
+    systemctl start mariadb
 else
-    log_info "MySQL 已安装"
+    log_info "MariaDB/MySQL 已安装"
 fi
 
 # 3. 安装 Redis（可选）
