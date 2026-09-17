@@ -727,6 +727,15 @@
                 <div id="adminList"></div>
             </section>
 
+            <!-- 收银员管理 -->
+            <section class="panel module-panel" id="module-cashiers">
+                <h2 id="cashiersPanelTitle">💰 收银员管理</h2>
+                <div style="margin-bottom:16px;">
+                    <button onclick="openAddCashierModal()" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addCashierBtnText">添加收银员</span></button>
+                </div>
+                <div id="cashierList"></div>
+            </section>
+
             <!-- 服务员管理 -->
             <section class="panel module-panel" id="module-waiters">
                 <h2 id="waitersPanelTitle">服务员管理</h2>
@@ -804,6 +813,13 @@
                     <h3 class="settings-card-title" id="adminManageCardTitle">👤 管理员管理</h3>
                     <p id="adminManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理商户的管理员账号，支持添加、编辑、删除管理员</p>
                     <button id="enterAdminManageBtn" onclick="switchAdminModule('admins')" style="background: linear-gradient(135deg,#43e97b,#38f9d7); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入管理员管理</button>
+                </div>
+
+                <!-- 收银员管理卡片 -->
+                <div class="settings-card" id="cashierManageCard">
+                    <h3 class="settings-card-title" id="cashierManageCardTitle">💰 收银员管理</h3>
+                    <p id="cashierManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理收银员账号，支持添加、编辑、删除收银员，配置结算权限</p>
+                    <button id="enterCashierManageBtn" onclick="switchAdminModule('cashiers')" style="background: linear-gradient(135deg,#f6d365,#fda085); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入收银员管理</button>
                 </div>
 
                 <!-- 修改密码卡片 -->
@@ -957,6 +973,68 @@
                 <button onclick="closeCurrencyEdit()" id="currencyCancelBtn">取消</button>
                 <button class="primary" onclick="saveCurrencyEdit()" id="currencySaveBtn">保存</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 收银员模态框 -->
+    <div class="order-modal" id="cashierModal">
+        <div class="order-modal-card" style="max-width:500px;">
+            <button class="modal-close" onclick="closeCashierModal()">✕</button>
+            <h2 id="cashierModalTitle">添加收银员</h2>
+            <form id="cashierForm" class="modal-form">
+                <div class="form-group">
+                    <label id="cashierUsernameLabel">收银员账号</label>
+                    <input id="cashierUsername" placeholder="请输入登录账号" required>
+                </div>
+                <div class="form-group">
+                    <label id="cashierNameLabel">收银员姓名</label>
+                    <input id="cashierName" placeholder="请输入姓名" required>
+                </div>
+                <div class="form-group">
+                    <label id="cashierPasswordLabel">密码</label>
+                    <input id="cashierPassword" type="password" placeholder="至少6位（编辑时留空则不修改）">
+                </div>
+                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
+                    <label id="cashierActiveLabel">启用账号</label>
+                    <label class="store-switch">
+                        <input type="checkbox" id="cashierActive" checked>
+                        <span class="store-switch-slider"></span>
+                    </label>
+                </div>
+                <div style="border-top:1px solid var(--gray-2);padding-top:12px;margin-top:8px;">
+                    <div style="font-weight:600;margin-bottom:10px;" id="cashierPermTitle">权限配置</div>
+                    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
+                        <label id="cashierCanSettleLabel">结算订单</label>
+                        <label class="store-switch">
+                            <input type="checkbox" id="cashierCanSettle" checked>
+                            <span class="store-switch-slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
+                        <label id="cashierCanCancelLabel">取消订单</label>
+                        <label class="store-switch">
+                            <input type="checkbox" id="cashierCanCancel" checked>
+                            <span class="store-switch-slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
+                        <label id="cashierCanRefundLabel">退款</label>
+                        <label class="store-switch">
+                            <input type="checkbox" id="cashierCanRefund">
+                            <span class="store-switch-slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
+                        <label id="cashierCanViewReportLabel">查看报表</label>
+                        <label class="store-switch">
+                            <input type="checkbox" id="cashierCanViewReport" checked>
+                            <span class="store-switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <button id="cashierSaveButton" class="full" type="submit">保存</button>
+                <button id="cashierCancelButton" class="full" type="button" onclick="closeCashierModal()">取消</button>
+            </form>
         </div>
     </div>
 
@@ -1717,6 +1795,19 @@
         };
 
         // 初始化统一 i18n（ADMIN_LABELS定义后执行）
+        // 收银员管理翻译键
+        const CASHIER_LABELS = {
+            zh: { cashierManage: '收银员管理', cashierManageDesc: '管理收银员账号，支持添加、编辑、删除收银员，配置结算权限', enterCashierManage: '进入收银员管理', cashierList: '收银员列表', addCashier: '添加收银员', editCashier: '编辑收银员', cashierUsername: '收银员账号', cashierName: '收银员姓名', cashierPassword: '密码', canSettle: '结算订单', canCancel: '取消订单', canRefund: '退款', canViewReport: '查看报表', cashierStatus: '状态', cashierEnabled: '启用', cashierDisabled: '禁用', cashierAdded: '收银员添加成功', cashierUpdated: '收银员更新成功', cashierDeleted: '收银员删除成功', deleteCashier: '删除', deleteCashierConfirm: '确定要删除收银员 {username} 吗？此操作不可撤销。', noCashiers: '暂无收银员', noPermission: '无权限', cashierPermTitle: '权限配置', cashierActiveLabel: '启用账号' },
+            en: { cashierManage: 'Cashier Management', cashierManageDesc: 'Manage cashier accounts, add/edit/delete cashiers, configure settlement permissions', enterCashierManage: 'Enter Cashier Management', cashierList: 'Cashier List', addCashier: 'Add Cashier', editCashier: 'Edit Cashier', cashierUsername: 'Username', cashierName: 'Name', cashierPassword: 'Password', canSettle: 'Settle Orders', canCancel: 'Cancel Orders', canRefund: 'Refund', canViewReport: 'View Reports', cashierStatus: 'Status', cashierEnabled: 'Enabled', cashierDisabled: 'Disabled', cashierAdded: 'Cashier added successfully', cashierUpdated: 'Cashier updated successfully', cashierDeleted: 'Cashier deleted successfully', deleteCashier: 'Delete', deleteCashierConfirm: 'Are you sure you want to delete cashier {username}? This action cannot be undone.', noCashiers: 'No cashiers', noPermission: 'No permission', cashierPermTitle: 'Permissions', cashierActiveLabel: 'Enable Account' },
+            vi: { cashierManage: 'Quản lý thu ngân', cashierManageDesc: 'Quản lý tài khoản thu ngân, thêm/sửa/xóa thu ngân, cấu hình quyền thanh toán', enterCashierManage: 'Vào Quản lý thu ngân', cashierList: 'Danh sách thu ngân', addCashier: 'Thêm thu ngân', editCashier: 'Sửa thu ngân', cashierUsername: 'Tài khoản', cashierName: 'Họ tên', cashierPassword: 'Mật khẩu', canSettle: 'Thanh toán', canCancel: 'Hủy đơn', canRefund: 'Hoàn tiền', canViewReport: 'Xem báo cáo', cashierStatus: 'Trạng thái', cashierEnabled: 'Đang bật', cashierDisabled: 'Đã tắt', cashierAdded: 'Thêm thu ngân thành công', cashierUpdated: 'Cập nhật thu ngân thành công', cashierDeleted: 'Xóa thu ngân thành công', deleteCashier: 'Xóa', deleteCashierConfirm: 'Bạn có chắc muốn xóa thu ngân {username}? Hành động này không thể hoàn tác.', noCashiers: 'Chưa có thu ngân', noPermission: 'Không có quyền', cashierPermTitle: 'Cấu hình quyền', cashierActiveLabel: 'Bật tài khoản' },
+            th: { cashierManage: 'การจัดการพนักงานเงินสด', cashierManageDesc: 'จัดการบัญชีพนักงานเงินสด เพิ่ม/แก้ไข/ลบ พนักงานเงินสด กำหนดสิทธิ์การชำระเงิน', enterCashierManage: 'เข้าจัดการพนักงานเงินสด', cashierList: 'รายการพนักงานเงินสด', addCashier: 'เพิ่มพนักงานเงินสด', editCashier: 'แก้ไขพนักงานเงินสด', cashierUsername: 'ชื่อผู้ใช้', cashierName: 'ชื่อ', cashierPassword: 'รหัสผ่าน', canSettle: 'ชำระเงิน', canCancel: 'ยกเลิกออเดอร์', canRefund: 'คืนเงิน', canViewReport: 'ดูรายงาน', cashierStatus: 'สถานะ', cashierEnabled: 'เปิดใช้งาน', cashierDisabled: 'ปิดใช้งาน', cashierAdded: 'เพิ่มพนักงานเงินสดสำเร็จ', cashierUpdated: 'อัปเดตพนักงานเงินสดสำเร็จ', cashierDeleted: 'ลบพนักงานเงินสดสำเร็จ', deleteCashier: 'ลบ', deleteCashierConfirm: 'คุณแน่ใจหรือไม่ที่จะลบพนักงานเงินสด {username}? การดำเนินการนี้ไม่สามารถย้อนกลับได้', noCashiers: 'ยังไม่มีพนักงานเงินสด', noPermission: 'ไม่มีสิทธิ์', cashierPermTitle: 'กำหนดสิทธิ์', cashierActiveLabel: 'เปิดใช้งานบัญชี' },
+            km: { cashierManage: 'ការគ្រប់គ្រងបុគ្គលិកសាងប្រាក់', cashierManageDesc: 'គ្រប់គ្រងគណនីបុគ្គលិកសាងប្រាក់ បន្ថែម/កែសម្រួល/លុប បុគ្គលិកសាងប្រាក់ កំណត់សិទ្ធិទូទាត់', enterCashierManage: 'ចូលគ្រប់គ្រងបុគ្គលិកសាងប្រាក់', cashierList: 'បញ្ជីបុគ្គលិកសាងប្រាក់', addCashier: 'បន្ថែមបុគ្គលិកសាងប្រាក់', editCashier: 'កែសម្រួលបុគ្គលិកសាងប្រាក់', cashierUsername: 'ឈ្មោះគណនី', cashierName: 'ឈ្មោះ', cashierPassword: 'ពាក្យសម្ងាត់', canSettle: 'ទូទាត់ប្រាក់', canCancel: 'បោះបង់ការកម្មង់', canRefund: 'សងប្រាក់វិញ', canViewReport: 'មើលរបាយការណ៍', cashierStatus: 'ស្ថានភាព', cashierEnabled: 'បើកដំណើរការ', cashierDisabled: 'បិទដំណើរការ', cashierAdded: 'បន្ថែមបុគ្គលិកសាងប្រាក់ជោគជ័យ', cashierUpdated: 'អាប់ដេតបុគ្គលិកសាងប្រាក់ជោគជ័យ', cashierDeleted: 'លុបបុគ្គលិកសាងប្រាក់ជោគជ័យ', deleteCashier: 'លុប', deleteCashierConfirm: 'តើអ្នកប្រាកដជាចង់លុបបុគ្គលិកសាងប្រាក់ {username} ទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។', noCashiers: 'មិនទាន់មានបុគ្គលិកសាងប្រាក់', noPermission: 'គ្មានសិទ្ធិ', cashierPermTitle: 'កំណត់សិទ្ធិ', cashierActiveLabel: 'បើកដំណើរការគណនី' }
+        };
+        // 合并收银员翻译键到 ADMIN_LABELS
+        for (const lang of Object.keys(CASHIER_LABELS)) {
+            if (ADMIN_LABELS[lang]) Object.assign(ADMIN_LABELS[lang], CASHIER_LABELS[lang]);
+        }
+
         SLF.i18n.init(localStorage.getItem('adminLang') || 'zh', ADMIN_LABELS);
 
         const categoryText = c => (LANGUAGES[adminLang] && LANGUAGES[adminLang].categories && LANGUAGES[adminLang]
@@ -2227,6 +2318,120 @@
             }, tAdmin('deleteAdminBtn'));
         }
 
+
+        // ================================================================
+        // 收银员管理
+        // ================================================================
+        let editingCashierId = null;
+
+        function openAddCashierModal() {
+            editingCashierId = null;
+            document.getElementById('cashierModalTitle').textContent = tAdmin('addCashier');
+            document.getElementById('cashierUsername').value = '';
+            document.getElementById('cashierUsername').disabled = false;
+            document.getElementById('cashierName').value = '';
+            document.getElementById('cashierPassword').value = '';
+            document.getElementById('cashierPassword').placeholder = '至少6位';
+            document.getElementById('cashierActive').checked = true;
+            document.getElementById('cashierCanSettle').checked = true;
+            document.getElementById('cashierCanCancel').checked = true;
+            document.getElementById('cashierCanRefund').checked = false;
+            document.getElementById('cashierCanViewReport').checked = true;
+            document.getElementById('cashierModal').classList.add('open');
+        }
+
+        function editCashier(cashier) {
+            editingCashierId = cashier.id;
+            document.getElementById('cashierModalTitle').textContent = tAdmin('editCashier');
+            document.getElementById('cashierUsername').value = cashier.username;
+            document.getElementById('cashierUsername').disabled = true;
+            document.getElementById('cashierName').value = cashier.display_name;
+            document.getElementById('cashierPassword').value = '';
+            document.getElementById('cashierPassword').placeholder = '留空则不修改密码';
+            document.getElementById('cashierActive').checked = cashier.active !== false;
+            document.getElementById('cashierCanSettle').checked = cashier.permissions?.can_settle !== false;
+            document.getElementById('cashierCanCancel').checked = cashier.permissions?.can_cancel !== false;
+            document.getElementById('cashierCanRefund').checked = cashier.permissions?.can_refund === true;
+            document.getElementById('cashierCanViewReport').checked = cashier.permissions?.can_view_report !== false;
+            document.getElementById('cashierModal').classList.add('open');
+        }
+
+        function closeCashierModal() {
+            document.getElementById('cashierModal').classList.remove('open');
+            editingCashierId = null;
+        }
+
+        async function loadCashiers() {
+            try {
+                const data = await api('/admin/cashiers');
+                const cashiers = data.cashiers || [];
+                $('#cashierList').innerHTML = cashiers.length ?
+                    cashiers.map(c => {
+                        const perms = [];
+                        if (c.permissions?.can_settle) perms.push(tAdmin('canSettle'));
+                        if (c.permissions?.can_cancel) perms.push(tAdmin('canCancel'));
+                        if (c.permissions?.can_refund) perms.push(tAdmin('canRefund'));
+                        if (c.permissions?.can_view_report) perms.push(tAdmin('canViewReport'));
+                        return '<div class="admin-card">' +
+                        '<div class="info">' +
+                          '<div class="title">' + esc(c.display_name) + ' · ' + esc(c.username) + '</div>' +
+                          '<div class="sub">' + (c.active?'<span style="color:#43e97b">' + tAdmin('cashierEnabled') + '</span>':'<span style="color:#f5576c">' + tAdmin('cashierDisabled') + '</span>') + ' · ' + (perms.join(' / ') || tAdmin('noPermission')) + '</div>' +
+                        '</div>' +
+                        '<div class="actions">' +
+                          '<button class="edit-btn" onclick="editCashier(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">✏️ ' + tAdmin('editCashier') + '</button>' +
+                          '<button class="danger" onclick="deleteCashier(' + c.id + ', \'' + esc(c.username) + '\')">' + tAdmin('deleteCashier') + '</button>' +
+                        '</div>' +
+                      '</div>';
+                    }).join('') :
+                    '<div class="empty-hint">' + tAdmin('noCashiers') + '</div>';
+            } catch (e) {
+                $('#cashierList').innerHTML = '<div class="empty-hint">' + tAdmin('loadFailed') + '</div>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const cashierForm = document.getElementById('cashierForm');
+            if (cashierForm) {
+                cashierForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const username = document.getElementById('cashierUsername').value.trim();
+                    const display_name = document.getElementById('cashierName').value.trim();
+                    const password = document.getElementById('cashierPassword').value;
+                    const active = document.getElementById('cashierActive').checked;
+                    const permissions = {
+                        can_settle: document.getElementById('cashierCanSettle').checked,
+                        can_cancel: document.getElementById('cashierCanCancel').checked,
+                        can_refund: document.getElementById('cashierCanRefund').checked,
+                        can_view_report: document.getElementById('cashierCanViewReport').checked
+                    };
+                    if (!username || !display_name) { toast('❌ ' + tAdmin('fillAllFields')); return; }
+                    if (!editingCashierId && !password) { toast('❌ ' + tAdmin('passwordMin6')); return; }
+                    if (password && password.length < 6) { toast('❌ ' + tAdmin('passwordMin6')); return; }
+                    try {
+                        if (editingCashierId) {
+                            const body = { display_name, active, permissions };
+                            if (password) body.password = password;
+                            await api('/admin/cashiers/' + editingCashierId, { method: 'PUT', body });
+                            toast('✅ ' + tAdmin('cashierUpdated'));
+                        } else {
+                            await api('/admin/cashiers', { method: 'POST', body: { username, password, display_name, active, permissions } });
+                            toast('✅ ' + tAdmin('cashierAdded'));
+                        }
+                        closeCashierModal();
+                        loadCashiers();
+                    } catch (e) { toast('❌ ' + e.message); }
+                });
+            }
+        });
+
+        function deleteCashier(id, username) {
+            showConfirm(tAdmin('deleteCashierConfirm').replace('{username}', username), function() {
+                api('/admin/cashiers/' + id, { method: 'DELETE' }).then(() => {
+                    toast('✅ ' + tAdmin('cashierDeleted'));
+                    loadCashiers();
+                }).catch(e => toast('❌ ' + e.message));
+            }, tAdmin('deleteCashier'));
+        }
 
         function switchMenuTab(tab) {
             $('#menuTabDish').classList.toggle('active', tab === 'dish');
@@ -3141,6 +3346,7 @@
             else if (module === 'printers') loadPrinters();
             else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); loadDailyReport(); loadReportSummary(); }
             else if (module === 'admins') loadAdmins();
+            else if (module === 'cashiers') loadCashiers();
         }
 
         // 移动端侧边栏控制
