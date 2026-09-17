@@ -1849,7 +1849,7 @@
             background: rgba(255, 77, 79, .25);
         }
         /* 管理员列表按钮样式 */
-        #adminList .admin-card {
+        #adminList .admin-card, #cashierList .admin-card {
             display: grid;
             grid-template-columns: 1fr auto;
             align-items: center;
@@ -1861,22 +1861,22 @@
             margin-bottom: 10px;
             box-shadow: 0 10px 22px rgba(0, 0, 0, .12);
         }
-        #adminList .admin-card .info .title {
+        #adminList .admin-card .info .title, #cashierList .admin-card .info .title {
             font-size: 17px;
             font-weight: 700;
             letter-spacing: .2px;
             color: #fff;
         }
-        #adminList .admin-card .info .sub {
+        #adminList .admin-card .info .sub, #cashierList .admin-card .info .sub {
             font-size: 12px;
             color: #9b9bb2;
             margin-top: 3px;
         }
-        #adminList .admin-card .actions {
+        #adminList .admin-card .actions, #cashierList .admin-card .actions {
             display: flex;
             gap: 8px;
         }
-        #adminList .admin-card .actions button {
+        #adminList .admin-card .actions button, #cashierList .admin-card .actions button {
             min-width: 64px;
             background: rgba(255, 77, 79, .12);
             border: 1px solid rgba(255, 77, 79, .22);
@@ -1888,27 +1888,27 @@
             transition: all .2s ease;
             font-size: 13px;
         }
-        #adminList .admin-card .actions button:hover {
+        #adminList .admin-card .actions button:hover, #cashierList .admin-card .actions button:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
         }
-        #adminList .admin-card .actions button.edit-btn {
+        #adminList .admin-card .actions button.edit-btn, #cashierList .admin-card .actions button.edit-btn {
             background: linear-gradient(135deg, rgba(255, 217, 61, .2), rgba(255, 193, 7, .15));
             border-color: rgba(255, 217, 61, .35);
             color: #ffd93d;
         }
-        #adminList .admin-card .actions button.edit-btn:hover {
+        #adminList .admin-card .actions button.edit-btn:hover, #cashierList .admin-card .actions button.edit-btn:hover {
             background: linear-gradient(135deg, rgba(255, 217, 61, .3), rgba(255, 193, 7, .25));
         }
-        #adminList .admin-card .actions button.danger {
+        #adminList .admin-card .actions button.danger, #cashierList .admin-card .actions button.danger {
             background: linear-gradient(135deg, rgba(255, 77, 79, .2), rgba(255, 107, 107, .15));
             border-color: rgba(255, 77, 79, .35);
             color: #ff9c9c;
         }
-        #adminList .admin-card .actions button.danger:hover {
+        #adminList .admin-card .actions button.danger:hover, #cashierList .admin-card .actions button.danger:hover {
             background: linear-gradient(135deg, rgba(255, 77, 79, .3), rgba(255, 107, 107, .25));
         }
-        #adminList .admin-card .actions button:disabled {
+        #adminList .admin-card .actions button:disabled, #cashierList .admin-card .actions button:disabled {
             opacity: .4;
             cursor: not-allowed;
             transform: none;
@@ -2050,7 +2050,7 @@
 /* ===== 统一的编辑和删除按钮样式 ===== */
 button.edit-btn,
 .menu-actions button.edit-btn,
-#adminList .admin-card .actions button.edit-btn,
+#adminList .admin-card .actions button.edit-btn, #cashierList .admin-card .actions button.edit-btn,
 #waiterList .actions button.edit-btn,
 #storeList .actions button.edit-btn {
     background: linear-gradient(135deg, rgba(255, 217, 61, .2), rgba(255, 193, 7, .15)) !important;
@@ -2068,7 +2068,7 @@ button.edit-btn,
 }
 button.edit-btn:hover,
 .menu-actions button.edit-btn:hover,
-#adminList .admin-card .actions button.edit-btn:hover,
+#adminList .admin-card .actions button.edit-btn:hover, #cashierList .admin-card .actions button.edit-btn:hover,
 #waiterList .actions button.edit-btn:hover,
 #storeList .actions button.edit-btn:hover {
     background: linear-gradient(135deg, rgba(255, 217, 61, .3), rgba(255, 193, 7, .25)) !important;
@@ -2078,7 +2078,7 @@ button.edit-btn:hover,
 
 button.danger,
 .menu-actions button.danger,
-#adminList .admin-card .actions button.danger,
+#adminList .admin-card .actions button.danger, #cashierList .admin-card .actions button.danger,
 #waiterList .actions button.danger,
 #storeList .actions button.danger {
     background: linear-gradient(135deg, rgba(255, 77, 79, .2), rgba(255, 107, 107, .15)) !important;
@@ -2096,7 +2096,7 @@ button.danger,
 }
 button.danger:hover,
 .menu-actions button.danger:hover,
-#adminList .admin-card .actions button.danger:hover,
+#adminList .admin-card .actions button.danger:hover, #cashierList .admin-card .actions button.danger:hover,
 #waiterList .actions button.danger:hover,
 #storeList .actions button.danger:hover {
     background: linear-gradient(135deg, rgba(255, 77, 79, .3), rgba(255, 107, 107, .25)) !important;

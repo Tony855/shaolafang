@@ -977,63 +977,71 @@
     </div>
 
     <!-- 收银员模态框 -->
-    <div class="order-modal" id="cashierModal">
-        <div class="order-modal-card" style="max-width:500px;">
+    <div class="order-modal edit-modal" id="cashierModal">
+        <div class="order-modal-card store-edit-card">
             <button class="modal-close" onclick="closeCashierModal()">✕</button>
-            <h2 id="cashierModalTitle">添加收银员</h2>
-            <form id="cashierForm" class="modal-form">
-                <div class="form-group">
-                    <label id="cashierUsernameLabel">收银员账号</label>
-                    <input id="cashierUsername" placeholder="请输入登录账号" required>
-                </div>
-                <div class="form-group">
-                    <label id="cashierNameLabel">收银员姓名</label>
-                    <input id="cashierName" placeholder="请输入姓名" required>
-                </div>
-                <div class="form-group">
-                    <label id="cashierPasswordLabel">密码</label>
-                    <input id="cashierPassword" type="password" placeholder="至少6位（编辑时留空则不修改）">
-                </div>
-                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
-                    <label id="cashierActiveLabel">启用账号</label>
-                    <label class="store-switch">
-                        <input type="checkbox" id="cashierActive" checked>
-                        <span class="store-switch-slider"></span>
-                    </label>
-                </div>
-                <div style="border-top:1px solid var(--gray-2);padding-top:12px;margin-top:8px;">
-                    <div style="font-weight:600;margin-bottom:10px;" id="cashierPermTitle">权限配置</div>
-                    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
-                        <label id="cashierCanSettleLabel">结算订单</label>
-                        <label class="store-switch">
-                            <input type="checkbox" id="cashierCanSettle" checked>
-                            <span class="store-switch-slider"></span>
-                        </label>
+            <h2 id="cashierModalTitle">💰 添加收银员</h2>
+            <form id="cashierForm">
+                <div class="store-edit-grid">
+                    <div class="store-edit-field full">
+                        <label id="cashierUsernameLabel">收银员账号</label>
+                        <input id="cashierUsername" placeholder="请输入登录账号" required>
                     </div>
-                    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
-                        <label id="cashierCanCancelLabel">取消订单</label>
-                        <label class="store-switch">
-                            <input type="checkbox" id="cashierCanCancel" checked>
-                            <span class="store-switch-slider"></span>
-                        </label>
+                    <div class="store-edit-field full">
+                        <label id="cashierNameLabel">收银员姓名</label>
+                        <input id="cashierName" placeholder="请输入姓名" required>
                     </div>
-                    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
-                        <label id="cashierCanRefundLabel">退款</label>
-                        <label class="store-switch">
-                            <input type="checkbox" id="cashierCanRefund">
-                            <span class="store-switch-slider"></span>
-                        </label>
+                    <div class="store-edit-field full">
+                        <label id="cashierPasswordLabel">密码（编辑时留空则不修改）</label>
+                        <input id="cashierPassword" type="password" placeholder="至少6位">
                     </div>
-                    <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
-                        <label id="cashierCanViewReportLabel">查看报表</label>
-                        <label class="store-switch">
-                            <input type="checkbox" id="cashierCanViewReport" checked>
-                            <span class="store-switch-slider"></span>
-                        </label>
+                    <div class="store-edit-field full">
+                        <div class="permission-row" style="padding:0;">
+                            <div class="permission-text">
+                                <span class="permission-title" id="cashierActiveLabel">启用账号</span>
+                                <span class="permission-sub">启用后可登录收银台</span>
+                            </div>
+                            <label class="store-switch"><input type="checkbox" id="cashierActive" checked><span class="store-switch-slider"></span></label>
+                        </div>
+                    </div>
+                    <div class="store-edit-field full">
+                        <label id="cashierPermTitle" style="margin-bottom:10px;">权限配置</label>
+                        <div class="permission-list">
+                            <div class="permission-row">
+                                <div class="permission-text">
+                                    <span class="permission-title" id="cashierCanSettleLabel">结算订单</span>
+                                    <span class="permission-sub">允许结算顾客订单</span>
+                                </div>
+                                <label class="store-switch"><input type="checkbox" id="cashierCanSettle" checked><span class="store-switch-slider"></span></label>
+                            </div>
+                            <div class="permission-row">
+                                <div class="permission-text">
+                                    <span class="permission-title" id="cashierCanCancelLabel">取消订单</span>
+                                    <span class="permission-sub">允许取消未结算订单</span>
+                                </div>
+                                <label class="store-switch"><input type="checkbox" id="cashierCanCancel" checked><span class="store-switch-slider"></span></label>
+                            </div>
+                            <div class="permission-row">
+                                <div class="permission-text">
+                                    <span class="permission-title" id="cashierCanRefundLabel">退款</span>
+                                    <span class="permission-sub">允许已结算订单退款</span>
+                                </div>
+                                <label class="store-switch"><input type="checkbox" id="cashierCanRefund"><span class="store-switch-slider"></span></label>
+                            </div>
+                            <div class="permission-row">
+                                <div class="permission-text">
+                                    <span class="permission-title" id="cashierCanViewReportLabel">查看报表</span>
+                                    <span class="permission-sub">允许查看营业数据报表</span>
+                                </div>
+                                <label class="store-switch"><input type="checkbox" id="cashierCanViewReport" checked><span class="store-switch-slider"></span></label>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <button id="cashierSaveButton" class="full" type="submit">保存</button>
-                <button id="cashierCancelButton" class="full" type="button" onclick="closeCashierModal()">取消</button>
+                <div class="order-modal-actions">
+                    <button type="button" onclick="closeCashierModal()" id="cashierCancelButton">取消</button>
+                    <button type="submit" class="primary" id="cashierSaveButton">保存</button>
+                </div>
             </form>
         </div>
     </div>
@@ -2378,8 +2386,8 @@
                           '<div class="sub">' + (c.active?'<span style="color:#43e97b">' + tAdmin('cashierEnabled') + '</span>':'<span style="color:#f5576c">' + tAdmin('cashierDisabled') + '</span>') + ' · ' + (perms.join(' / ') || tAdmin('noPermission')) + '</div>' +
                         '</div>' +
                         '<div class="actions">' +
-                          '<button class="edit-btn" onclick="editCashier(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">✏️ ' + tAdmin('editCashier') + '</button>' +
-                          '<button class="danger" onclick="deleteCashier(' + c.id + ', \'' + esc(c.username) + '\')">' + tAdmin('deleteCashier') + '</button>' +
+                          '<button class="edit-btn" onclick="editCashier(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">✏️ ' + L('edit') + '</button>' +
+                          '<button class="danger" onclick="deleteCashier(' + c.id + ', \'' + esc(c.username) + '\')">' + L('delete') + '</button>' +
                         '</div>' +
                       '</div>';
                     }).join('') :
