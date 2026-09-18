@@ -257,7 +257,7 @@
 
     <div class="tabs">
       <div class="tab active" data-tab="orders" onclick="switchTab('orders')" id="tabOrders">订单列表</div>
-      <div class="tab" data-tab="report" onclick="switchTab('report')" id="tabReport">报表</div>
+      <div class="tab" data-tab="report" onclick="switchTab('report')" id="tabReport"></div>
     </div>
 
     <div class="content">
@@ -272,15 +272,15 @@
     <div class="bottom-bar">
       <div class="stat-item">
         <div class="stat-value" id="pendingCount">0</div>
-        <div class="stat-label" id="pendingLabel">待结算</div>
+        <div class="stat-label" id="pendingLabel"></div>
       </div>
       <div class="stat-item">
         <div class="stat-value" id="todayCount">0</div>
-        <div class="stat-label" id="todayLabel">今日订单</div>
+        <div class="stat-label" id="todayLabel"></div>
       </div>
       <div class="stat-item">
         <div class="stat-value" id="todayRevenue">$0.00</div>
-        <div class="stat-label" id="revenueLabel">今日营业额</div>
+        <div class="stat-label" id="revenueLabel"></div>
       </div>
     </div>
   </div>
@@ -289,13 +289,13 @@
   <div class="modal-overlay" id="orderDetailModal">
     <div class="modal">
       <button class="modal-close" onclick="closeOrderDetail()">✕</button>
-      <div class="modal-title" id="detailTitle">订单详情</div>
+      <div class="modal-title" id="detailTitle"></div>
       <div class="modal-section">
-        <div class="modal-section-title" id="dishListTitle">菜品清单</div>
+        <div class="modal-section-title" id="dishListTitle"></div>
         <div id="detailDishes"></div>
       </div>
       <div class="modal-total">
-        <span id="totalLabel">合计</span>
+        <span id="totalLabel"></span>
         <span class="amount" id="detailTotal">$0.00</span>
       </div>
       <div class="modal-actions" id="detailActions"></div>
@@ -307,11 +307,11 @@
     <div class="modal" style="max-width:360px;text-align:center;">
       <button class="modal-close" onclick="hideConfirm()">✕</button>
       <div style="font-size:48px;margin-bottom:12px;" id="confirmIcon">⚠️</div>
-      <div class="modal-title" id="confirmTitle" style="padding-right:0;">确认操作</div>
-      <p style="color:#aaa;margin-bottom:20px;font-size:14px;" id="confirmMessage">确定要执行此操作吗？</p>
+      <div class="modal-title" id="confirmTitle" style="padding-right:0;"></div>
+      <p style="color:#aaa;margin-bottom:20px;font-size:14px;" id="confirmMessage"></p>
       <div class="modal-actions" style="justify-content:center;">
-        <button class="btn" onclick="hideConfirm()" id="confirmCancelBtn">取消</button>
-        <button class="btn btn-primary" onclick="executeConfirm()" id="confirmOkBtn">确定</button>
+        <button class="btn" onclick="hideConfirm()" id="confirmCancelBtn"></button>
+        <button class="btn btn-primary" onclick="executeConfirm()" id="confirmOkBtn"></button>
       </div>
     </div>
   </div>
@@ -600,8 +600,12 @@
       document.getElementById('loginDesc').textContent = t('reloginDesc');
       document.getElementById('loginBtn').textContent = t('relogin');
       document.getElementById('logoutBtn').textContent = t('logout');
+      document.getElementById('detailTitle').textContent = t('orderDetail');
       document.getElementById('dishListTitle').textContent = t('dishList');
       document.getElementById('totalLabel').textContent = t('total');
+      document.getElementById('confirmTitle').textContent = t('confirmTitle');
+      document.getElementById('confirmCancelBtn').textContent = t('cancel');
+      document.getElementById('confirmOkBtn').textContent = t('confirm');
     }
 
     function switchTab(tab) {
