@@ -2514,7 +2514,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status === 'done') return res.status(400).json({ error: '订单已结算' });
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
-    await runAsync("UPDATE orders SET status='done', updatedAt=? WHERE id=?", [new Date().toISOString(), id]);
+    await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
     await syncTableStatus(order.table_name, req.storeId);
     // 记录操作日志
     await runAsync('INSERT INTO audit_logs (admin_id, merchant_id, store_id, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.cashier.id, req.merchantId, req.storeId, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
@@ -2534,7 +2534,7 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
     if (order.status === 'done') return res.status(400).json({ error: '已结算订单不能取消，请使用退款' });
-    await runAsync("UPDATE orders SET status='canceled', updatedAt=? WHERE id=?", [new Date().toISOString(), id]);
+    await runAsync("UPDATE orders SET status='canceled', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
     await syncTableStatus(order.table_name, req.storeId);
     // 记录操作日志
     await runAsync('INSERT INTO audit_logs (admin_id, merchant_id, store_id, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.cashier.id, req.merchantId, req.storeId, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), new Date().toISOString()]);
@@ -2553,7 +2553,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status !== 'done') return res.status(400).json({ error: '只有已结算订单才能退款' });
-    await runAsync("UPDATE orders SET status='refunded', updatedAt=? WHERE id=?", [new Date().toISOString(), id]);
+    await runAsync("UPDATE orders SET status='refunded', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
     // 记录操作日志
     await runAsync('INSERT INTO audit_logs (admin_id, merchant_id, store_id, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.cashier.id, req.merchantId, req.storeId, 'refund_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     res.json({ success: true, message: '退款成功' });
