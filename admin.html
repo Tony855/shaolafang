@@ -3908,9 +3908,9 @@
         async function loadReportSummary() {
             try {
                 const data = await api('/admin/reports/summary');
-                $('#todayRevenueAmount').textContent = '$' + Number(data.today.revenue).toFixed(2);
+                $('#todayRevenueAmount').textContent = formatMoney(data.today.revenue);
                 $('#todayRevenueOrders').textContent = data.today.orders + ' ' + tAdmin('ordersCount');
-                $('#monthRevenueAmount').textContent = '$' + Number(data.month.revenue).toFixed(2);
+                $('#monthRevenueAmount').textContent = formatMoney(data.month.revenue);
                 $('#monthRevenueOrders').textContent = data.month.orders + ' ' + tAdmin('ordersCount');
                 // 热销菜品排行
                 const list = $('#hotDishesList');
