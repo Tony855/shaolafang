@@ -1679,9 +1679,9 @@
     waiterLang = lang;
     SLF.store.rawSet('waiterLang', lang);
     SLF.store.rawSet('lang', lang);
-    await SLF.i18n.setLang(lang);
     if (state.token) {
       applyWaiterLanguage();
+    }
   }
 
   document.getElementById('waiterLang').addEventListener('change', async function () {
