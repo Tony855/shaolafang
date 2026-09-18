@@ -3155,8 +3155,6 @@
 
 
 
-                const d = await r.json().catch(() => ({}));
-                if (!r.ok) throw new Error(d.error || tAdmin('displaySettingsSaveFailed'));
                 toast('✅ ' + tAdmin('displaySettingsSaved'));
                 await loadDisplaySettings();
                 await loadMenus();
@@ -3170,9 +3168,7 @@
                 });
 
 
-
-                if (!r.ok) throw new Error(d.error || tAdmin('notifySettingsSaveFailed'));
-                toast('✅ ' + tAdmin('notifySettingsSaved'));
+                if (!d.ok) throw new Error(d.error || tAdmin('notifySettingsSaveFailed'));
                 await loadNotificationSettings();
             } catch (e) { toast('❌ ' + e.message); }
         };
@@ -3184,7 +3180,7 @@
                         const data = await SLF.api.post('/admin/reset-data', { password });
 
 
-
+                        if (!data.ok) throw new Error(data.error || tAdmin('resetFailed'));
 
 
                         if (!res.ok) throw new Error(data.error || tAdmin('resetFailed'));
