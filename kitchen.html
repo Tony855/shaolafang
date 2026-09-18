@@ -525,7 +525,10 @@
       }).join('');
     }
 
+    let isMarking = false; // 防止竞态条件
     window.markItemDone = async function(orderId, index) {
+      if (isMarking) return; // 防止并发点击
+      isMarking = true;
       try {
         await api(`/orders/${orderId}/items/${index}`, {
           method: 'PUT',
@@ -535,6 +538,8 @@
         await loadOrders();
       } catch (e) {
         showToast('❌ ' + (e.message || t('networkError')), 'error');
+      } finally {
+        isMarking = false;
       }
     };
 
