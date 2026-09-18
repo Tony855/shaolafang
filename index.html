@@ -2005,6 +2005,9 @@
             await checkBackend();
             await fetchCategoryOrder();
             await fetchStoreInfo();
+            // 先设置按钮隐藏，防止 fetchTables 抛异常时按钮保持可见
+            document.getElementById('customerOrderBtn').hidden = true;
+            document.getElementById('callWaiterBtn').hidden = true;
             const menuAlreadyFetchedInTables = await fetchTables();
             if (!menuAlreadyFetchedInTables) {
                 await fetchMenu();
