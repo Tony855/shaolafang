@@ -3174,12 +3174,10 @@
 
         $('#saveNotifySettingsBtn').onclick = async function() {
             try {
-                const d = await SLF.api.post('/admin/notification-settings', {
+                await SLF.api.post('/admin/notification-settings', {
                     enabled: document.getElementById('newOrderSoundEnabled').checked
                 });
-
-
-                if (!d.ok) throw new Error(d.error || tAdmin('notifySettingsSaveFailed'));
+                toast('✅ ' + tAdmin('notifySettingsSaved'));
                 await loadNotificationSettings();
             } catch (e) { toast('❌ ' + e.message); }
         };
