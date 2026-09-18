@@ -3945,7 +3945,7 @@
             loadAdminInfo();
             loadStores();
             // 从服务器加载超时配置
-            fetch('/api/public/global-config').then(r => r.json()).then(cfg => {
+            SLF.api.get('/public/global-config').then(cfg => {
                 if (cfg.admin_idle_timeout && cfg.admin_idle_timeout > 0) {
                     ADMIN_IDLE_TIMEOUT_MS = cfg.admin_idle_timeout * 60 * 1000;
                     resetAdminIdleTimer();
