@@ -3252,10 +3252,6 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     // 计算总价
     const calculatedTotal = newItems.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
 
-    // 管理员操作订单需要can_manage_order权限（服务员不受此限制，走自己的权限位）
-    if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_edit_order)) {
-      return res.status(403).json({ error: '没有订单修改权限' });
-    }
     // 如果状态要改为 done，检查服务员权限和是否所有菜品都已完成
     if (status === 'done') {
       if (!req.isAdmin && req.waiter && !req.waiter.can_complete_order) {
