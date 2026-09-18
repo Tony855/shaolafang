@@ -136,7 +136,7 @@
       this.lang = CONFIG.DEFAULT_LANG;
       this.dicts = {};
       this.fallbackLang = 'zh';
-      this.cacheVersion = '20260914c'; // i18n缓存版本号，更新翻译时递增以强制刷新缓存
+      this.cacheVersion = '20260918a'; // i18n缓存版本号，更新翻译时递增以强制刷新缓存
     }
 
     /* 初始化：设置当前语言，合并自定义字典和全局 LANGUAGES */

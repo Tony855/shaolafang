@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
-  <title>收银台</title>
+  <title>鏀堕摱鍙?/title>
   <script>
     if (localStorage.getItem('cashierToken')) {
       document.documentElement.setAttribute('data-cashier-session', '1');
@@ -163,82 +163,82 @@
   </style>
 </head>
 <body>
-  <!-- 登录提示 -->
+  <!-- 鐧诲綍鎻愮ず -->
   <div class="login-modal modal-overlay">
     <div class="modal" style="text-align:center;">
-      <div style="font-size:48px;margin-bottom:16px;">💰</div>
-      <h2 style="margin-bottom:8px;" id="loginTitle">收银员登录</h2>
-      <p style="color:var(--gray-4);margin-bottom:20px;" id="loginDesc">请先登录收银员账号</p>
-      <button class="btn btn-primary" style="width:100%;" onclick="goLogin()">前往登录</button>
+      <div style="font-size:48px;margin-bottom:16px;">馃挵</div>
+      <h2 style="margin-bottom:8px;" id="loginTitle">鏀堕摱鍛樼櫥褰?/h2>
+      <p style="color:var(--gray-4);margin-bottom:20px;" id="loginDesc">璇峰厛鐧诲綍鏀堕摱鍛樿处鍙?/p>
+      <button class="btn btn-primary" style="width:100%;" onclick="goLogin()">鍓嶅線鐧诲綍</button>
     </div>
   </div>
 
-  <!-- 主内容 -->
+  <!-- 涓诲唴瀹?-->
   <div class="app-content">
     <header>
       <div class="header-left">
-        <span class="header-logo">💰</span>
+        <span class="header-logo">馃挵</span>
         <div>
-          <div class="header-title" id="pageTitle">收银台</div>
-          <div class="header-store" id="storeName">加载中...</div>
+          <div class="header-title" id="pageTitle">鏀堕摱鍙?/div>
+          <div class="header-store" id="storeName">鍔犺浇涓?..</div>
         </div>
       </div>
       <div class="header-right">
         <select class="lang-select" id="langSelect" onchange="changeLang(this.value)">
-          <option value="zh">中文</option>
+          <option value="zh">涓枃</option>
           <option value="en">English</option>
-          <option value="vi">Tiếng Việt</option>
-          <option value="th">ไทย</option>
-          <option value="km">ខ្មែរ</option>
+          <option value="vi">Ti岷縩g Vi峄噒</option>
+          <option value="th">喙勦笚喔?/option>
+          <option value="km">釣佱煉釣樶焸釣?/option>
         </select>
-        <button class="header-btn" onclick="logout()">退出</button>
+        <button class="header-btn" onclick="logout()">閫€鍑?/button>
       </div>
     </header>
 
     <div class="tabs">
-      <div class="tab active" data-tab="orders" onclick="switchTab('orders')" id="tabOrders">订单列表</div>
-      <div class="tab" data-tab="report" onclick="switchTab('report')" id="tabReport">报表</div>
+      <div class="tab active" data-tab="orders" onclick="switchTab('orders')" id="tabOrders">璁㈠崟鍒楄〃</div>
+      <div class="tab" data-tab="report" onclick="switchTab('report')" id="tabReport">鎶ヨ〃</div>
     </div>
 
     <div class="content">
-      <!-- 订单列表 -->
+      <!-- 璁㈠崟鍒楄〃 -->
       <div id="ordersView">
         <div id="orderList"></div>
       </div>
 
-      <!-- 报表 -->
+      <!-- 鎶ヨ〃 -->
       <div id="reportView" style="display:none;">
         <div id="reportContent"></div>
       </div>
     </div>
 
-    <!-- 底部统计栏 -->
+    <!-- 搴曢儴缁熻鏍?-->
     <div class="bottom-bar">
       <div class="stat-item">
         <div class="stat-value" id="pendingCount">0</div>
-        <div class="stat-label" id="pendingLabel">待结算</div>
+        <div class="stat-label" id="pendingLabel">寰呯粨绠?/div>
       </div>
       <div class="stat-item">
         <div class="stat-value" id="todayCount">0</div>
-        <div class="stat-label" id="todayLabel">今日订单</div>
+        <div class="stat-label" id="todayLabel">浠婃棩璁㈠崟</div>
       </div>
       <div class="stat-item">
         <div class="stat-value" id="todayRevenue">$0.00</div>
-        <div class="stat-label" id="revenueLabel">今日营业额</div>
+        <div class="stat-label" id="revenueLabel">浠婃棩钀ヤ笟棰?/div>
       </div>
     </div>
   </div>
 
-  <!-- 订单详情弹窗 -->
+  <!-- 璁㈠崟璇︽儏寮圭獥 -->
   <div class="modal-overlay" id="orderDetailModal">
     <div class="modal">
-      <div class="modal-title" id="detailTitle">订单详情</div>
+      <div class="modal-title" id="detailTitle">璁㈠崟璇︽儏</div>
       <div class="modal-section">
-        <div class="modal-section-title" id="dishListTitle">菜品清单</div>
+        <div class="modal-section-title" id="dishListTitle">鑿滃搧娓呭崟</div>
         <div id="detailDishes"></div>
       </div>
       <div class="modal-total">
-        <span id="totalLabel">合计</span>
+        <span id="totalLabel">鍚堣</span>
         <span class="amount" id="detailTotal">$0.00</span>
       </div>
       <div class="modal-actions" id="detailActions"></div>
@@ -257,24 +257,24 @@
 
     function t(key) {
       try {
-        if (window.I18N && window.I18N[currentLang] && window.I18N[currentLang][key]) {
-          return window.I18N[currentLang][key];
+        if (window.LANGUAGES && window.LANGUAGES[currentLang] && window.LANGUAGES[currentLang][key]) {
+          return window.LANGUAGES[currentLang][key];
         }
-        if (window.I18N && window.I18N.zh && window.I18N.zh[key]) {
-          return window.I18N.zh[key];
+        if (window.LANGUAGES && window.LANGUAGES.zh && window.LANGUAGES.zh[key]) {
+          return window.LANGUAGES.zh[key];
         }
       } catch (e) {}
       const defaults = {
-        cashier: '收银员', cashierLogin: '收银员登录', cashierLoginDesc: '请输入收银员用户名和密码',
-        orderList: '订单列表', report: '报表', pendingSettlement: '待结算', settled: '已结算',
-        canceled: '已取消', refunded: '已退款', settleOrder: '结算订单', cancelOrder: '取消订单',
-        refundOrder: '退款', orderDetail: '订单详情', dishList: '菜品清单', total: '合计',
-        todayRevenue: '今日营业额', orderCount: '订单数', avgOrderValue: '客单价',
-        pendingCount: '待结算', todayCount: '今日订单', confirmSettle: '确认结算该订单？',
-        confirmCancel: '确认取消该订单？', confirmRefund: '确认退款该订单？',
-        settleSuccess: '结算成功', cancelSuccess: '取消成功', refundSuccess: '退款成功',
-        noPermission: '无权限', noOrders: '暂无订单', loading: '加载中...',
-        logout: '退出登录', confirmLogout: '确认退出登录？'
+        cashier: '鏀堕摱鍛?, cashierLogin: '鏀堕摱鍛樼櫥褰?, cashierLoginDesc: '璇疯緭鍏ユ敹閾跺憳鐢ㄦ埛鍚嶅拰瀵嗙爜',
+        orderList: '璁㈠崟鍒楄〃', report: '鎶ヨ〃', pendingSettlement: '寰呯粨绠?, settled: '宸茬粨绠?,
+        canceled: '宸插彇娑?, refunded: '宸查€€娆?, settleOrder: '缁撶畻璁㈠崟', cancelOrder: '鍙栨秷璁㈠崟',
+        refundOrder: '閫€娆?, orderDetail: '璁㈠崟璇︽儏', dishList: '鑿滃搧娓呭崟', total: '鍚堣',
+        todayRevenue: '浠婃棩钀ヤ笟棰?, orderCount: '璁㈠崟鏁?, avgOrderValue: '瀹㈠崟浠?,
+        pendingCount: '寰呯粨绠?, todayCount: '浠婃棩璁㈠崟', confirmSettle: '纭缁撶畻璇ヨ鍗曪紵',
+        confirmCancel: '纭鍙栨秷璇ヨ鍗曪紵', confirmRefund: '纭閫€娆捐璁㈠崟锛?,
+        settleSuccess: '缁撶畻鎴愬姛', cancelSuccess: '鍙栨秷鎴愬姛', refundSuccess: '閫€娆炬垚鍔?,
+        noPermission: '鏃犳潈闄?, noOrders: '鏆傛棤璁㈠崟', loading: '鍔犺浇涓?..',
+        logout: '閫€鍑虹櫥褰?, confirmLogout: '纭閫€鍑虹櫥褰曪紵'
       };
       return defaults[key] || key;
     }
@@ -349,7 +349,7 @@
       };
       const res = await fetch('/api' + url, { ...options, headers });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '请求失败');
+      if (!res.ok) throw new Error(data.error || '璇锋眰澶辫触');
       return data;
     }
 
@@ -360,11 +360,11 @@
         renderOrders();
         updateBottomStats();
       } catch (e) {
-        if (e.message.includes('请先登录')) {
+        if (e.message.includes('璇峰厛鐧诲綍')) {
           localStorage.removeItem('cashierToken');
           window.location.href = '/login?type=cashier';
         } else {
-          toast('❌ ' + e.message);
+          toast('鉂?' + e.message);
         }
       }
     }
@@ -372,22 +372,22 @@
     function renderOrders() {
       const container = document.getElementById('orderList');
       if (!orders.length) {
-        container.innerHTML = '<div class="empty-hint"><div class="empty-icon">📋</div>' + t('noOrders') + '</div>';
+        container.innerHTML = '<div class="empty-hint"><div class="empty-icon">馃搵</div>' + t('noOrders') + '</div>';
         return;
       }
       container.innerHTML = orders.map(order => {
         const statusClass = order.status === 'done' ? 'done' : order.status === 'canceled' ? 'canceled' : order.status === 'refunded' ? 'refunded' : 'pending';
         const statusText = order.status === 'done' ? t('settled') : order.status === 'canceled' ? t('canceled') : order.status === 'refunded' ? t('refunded') : t('pendingSettlement');
-        const dishes = (order.items || []).map(i => i.name + '×' + i.quantity).join('、');
+        const dishes = (order.items || []).map(i => i.name + '脳' + i.quantity).join('銆?);
         const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending';
         const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
         const canRefund = cashierInfo?.permissions?.can_refund && order.status === 'done';
         return '<div class="order-card status-' + statusClass + '" onclick="showOrderDetail(' + order.id + ')">' +
           '<div class="order-header">' +
-            '<span class="order-table">📋 ' + (order.table_name || '-') + (order.customer_name ? ' · ' + order.customer_name : '') + '</span>' +
+            '<span class="order-table">馃搵 ' + (order.table_name || '-') + (order.customer_name ? ' 路 ' + order.customer_name : '') + '</span>' +
             '<span class="order-status ' + statusClass + '">' + statusText + '</span>' +
           '</div>' +
-          '<div class="order-info">🕐 ' + formatTime(order.createdAt) + ' · ' + (order.items?.length || 0) + '道菜</div>' +
+          '<div class="order-info">馃晲 ' + formatTime(order.createdAt) + ' 路 ' + (order.items?.length || 0) + '閬撹彍</div>' +
           '<div class="order-dishes">' + (dishes || '-') + '</div>' +
           '<div class="order-footer">' +
             '<span class="order-total">$' + (parseFloat(order.total || 0).toFixed(2)) + '</span>' +
@@ -417,16 +417,16 @@
       document.getElementById('detailDishes').innerHTML = (order.items || []).map(item =>
         '<div class="dish-item">' +
           '<span class="dish-name">' + item.name + '</span>' +
-          '<span class="dish-qty">×' + item.quantity + '</span>' +
+          '<span class="dish-qty">脳' + item.quantity + '</span>' +
           '<span class="dish-price">$' + (parseFloat(item.price || 0) * item.quantity).toFixed(2) + '</span>' +
         '</div>'
-      ).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">无菜品</div>';
+      ).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">鏃犺彍鍝?/div>';
       document.getElementById('detailTotal').textContent = '$' + (parseFloat(order.total || 0).toFixed(2));
       const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending';
       const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
       const canRefund = cashierInfo?.permissions?.can_refund && order.status === 'done';
       document.getElementById('detailActions').innerHTML =
-        '<button class="btn btn-secondary" onclick="closeOrderDetail()">关闭</button>' +
+        '<button class="btn btn-secondary" onclick="closeOrderDetail()">鍏抽棴</button>' +
         (canSettle ? '<button class="btn btn-primary" onclick="settleOrder(' + order.id + ')">' + t('settleOrder') + '</button>' : '') +
         (canCancel ? '<button class="btn btn-warning" onclick="cancelOrder(' + order.id + ')">' + t('cancelOrder') + '</button>' : '') +
         (canRefund ? '<button class="btn btn-danger" onclick="refundOrder(' + order.id + ')">' + t('refundOrder') + '</button>' : '');
@@ -441,11 +441,11 @@
       if (!confirm(t('confirmSettle'))) return;
       try {
         await api('/cashier/orders/' + id + '/settle', { method: 'PUT' });
-        toast('✅ ' + t('settleSuccess'));
+        toast('鉁?' + t('settleSuccess'));
         closeOrderDetail();
         loadOrders();
       } catch (e) {
-        toast('❌ ' + e.message);
+        toast('鉂?' + e.message);
       }
     }
 
@@ -453,11 +453,11 @@
       if (!confirm(t('confirmCancel'))) return;
       try {
         await api('/cashier/orders/' + id + '/cancel', { method: 'PUT' });
-        toast('✅ ' + t('cancelSuccess'));
+        toast('鉁?' + t('cancelSuccess'));
         closeOrderDetail();
         loadOrders();
       } catch (e) {
-        toast('❌ ' + e.message);
+        toast('鉂?' + e.message);
       }
     }
 
@@ -465,11 +465,11 @@
       if (!confirm(t('confirmRefund'))) return;
       try {
         await api('/cashier/orders/' + id + '/refund', { method: 'PUT' });
-        toast('✅ ' + t('refundSuccess'));
+        toast('鉁?' + t('refundSuccess'));
         closeOrderDetail();
         loadOrders();
       } catch (e) {
-        toast('❌ ' + e.message);
+        toast('鉂?' + e.message);
       }
     }
 
@@ -485,14 +485,14 @@
               '<div class="report-stat"><div class="report-stat-value">$' + data.avgOrderValue + '</div><div class="report-stat-label">' + t('avgOrderValue') + '</div></div>' +
             '</div>' +
           '</div>' +
-          (data.orders && data.orders.length ? '<div class="modal-section-title" style="margin-bottom:8px;">今日已结算订单</div>' + data.orders.map(o =>
-            '<div class="dish-item"><span class="dish-name">📋 ' + (o.table_name || '-') + ' · ' + formatTime(o.createdAt) + '</span><span class="dish-price">$' + (parseFloat(o.total || 0).toFixed(2)) + '</span></div>'
-          ).join('') : '<div class="empty-hint">今日暂无已结算订单</div>');
+          (data.orders && data.orders.length ? '<div class="modal-section-title" style="margin-bottom:8px;">浠婃棩宸茬粨绠楄鍗?/div>' + data.orders.map(o =>
+            '<div class="dish-item"><span class="dish-name">馃搵 ' + (o.table_name || '-') + ' 路 ' + formatTime(o.createdAt) + '</span><span class="dish-price">$' + (parseFloat(o.total || 0).toFixed(2)) + '</span></div>'
+          ).join('') : '<div class="empty-hint">浠婃棩鏆傛棤宸茬粨绠楄鍗?/div>');
       } catch (e) {
-        if (e.message.includes('没有')) {
-          document.getElementById('reportContent').innerHTML = '<div class="empty-hint"><div class="empty-icon">🔒</div>' + t('noPermission') + '</div>';
+        if (e.message.includes('娌℃湁')) {
+          document.getElementById('reportContent').innerHTML = '<div class="empty-hint"><div class="empty-icon">馃敀</div>' + t('noPermission') + '</div>';
         } else {
-          toast('❌ ' + e.message);
+          toast('鉂?' + e.message);
         }
       }
     }
@@ -516,7 +516,7 @@
         const info = JSON.parse(localStorage.getItem('cashierInfo') || '{}');
         cashierInfo = info;
         const storeId = localStorage.getItem('cashierStoreId') || '1';
-        document.getElementById('storeName').textContent = '店铺 #' + storeId;
+        document.getElementById('storeName').textContent = '搴楅摵 #' + storeId;
         await loadOrders();
         setInterval(loadOrders, 15000);
       } catch (e) {

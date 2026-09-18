@@ -641,6 +641,32 @@ const LANGUAGES = {
     'back': '返回',
     'search': '搜索',
     'loading': '加载中...',
+    // ---- 收银员 ----
+    cashier: '收银员',
+    cashierLogin: '收银员登录',
+    cashierLoginDesc: '请输入收银员账号和密码',
+    cashierUsername: '收银员账号',
+    cashierPassword: '密码',
+    orderList: '订单列表',
+    report: '报表',
+    pendingSettlement: '待结算',
+    refunded: '已退款',
+    refundOrder: '退款订单',
+    orderDetail: '订单详情',
+    dishList: '菜品清单',
+    orderCount: '订单数',
+    todayCount: '今日订单',
+    confirmSettle: '确认结算该订单？',
+    confirmCancel: '确认取消该订单？',
+    confirmRefund: '确认退款该订单？',
+    settleSuccess: '结算成功',
+    cancelSuccess: '取消成功',
+    refundSuccess: '退款成功',
+    noPermission: '无权限',
+    noOrders: '暂无订单',
+
+
+
   },
 
   en: {
@@ -1264,6 +1290,32 @@ const LANGUAGES = {
     'back': 'Back',
     'search': 'Search',
     'loading': 'Loading...',
+    // ---- 收银员 ----
+    cashier: 'Cashier',
+    cashierLogin: 'Cashier Login',
+    cashierLoginDesc: 'Please enter cashier username and password',
+    cashierUsername: 'Cashier Username',
+    cashierPassword: 'Password',
+    orderList: 'Order List',
+    report: 'Report',
+    pendingSettlement: 'Pending Settlement',
+    refunded: 'Refunded',
+    refundOrder: 'Refund Order',
+    orderDetail: 'Order Detail',
+    dishList: 'Dish List',
+    orderCount: 'Order Count',
+    todayCount: 'Today Orders',
+    confirmSettle: 'Confirm settle this order?',
+    confirmCancel: 'Confirm cancel this order?',
+    confirmRefund: 'Confirm refund this order?',
+    settleSuccess: 'Settle Success',
+    cancelSuccess: 'Cancel Success',
+    refundSuccess: 'Refund Success',
+    noPermission: 'No Permission',
+    noOrders: 'No Orders',
+
+
+
   },
 
   vi: {
@@ -1887,6 +1939,32 @@ const LANGUAGES = {
     'back': 'Quay lại',
     'search': 'Tìm kiếm',
     'loading': 'Đang tải...',
+    // ---- 收银员 ----
+    cashier: 'Thu ngân',
+    cashierLogin: 'Đăng nhập thu ngân',
+    cashierLoginDesc: 'Vui lòng nhập tên đăng nhập và mật khẩu thu ngân',
+    cashierUsername: 'Tên đăng nhập thu ngân',
+    cashierPassword: 'Mật khẩu',
+    orderList: 'Danh sách đơn hàng',
+    report: 'Báo cáo',
+    pendingSettlement: 'Chờ thanh toán',
+    refunded: 'Đã hoàn tiền',
+    refundOrder: 'Hoàn tiền đơn hàng',
+    orderDetail: 'Chi tiết đơn hàng',
+    dishList: 'Danh sách món ăn',
+    orderCount: 'Số đơn hàng',
+    todayCount: 'Đơn hàng hôm nay',
+    confirmSettle: 'Xác nhận thanh toán đơn hàng này?',
+    confirmCancel: 'Xác nhận hủy đơn hàng này?',
+    confirmRefund: 'Xác nhận hoàn tiền đơn hàng này?',
+    settleSuccess: 'Thanh toán thành công',
+    cancelSuccess: 'Hủy thành công',
+    refundSuccess: 'Hoàn tiền thành công',
+    noPermission: 'Không có quyền',
+    noOrders: 'Chưa có đơn hàng',
+
+
+
   },
 
   th: {
@@ -2510,6 +2588,32 @@ const LANGUAGES = {
     'back': 'กลับ',
     'search': 'ค้นหា',
     'loading': 'กำลังโหลด...',
+    // ---- 收银员 ----
+    cashier: 'เจ้าหน้าที่เงินสด',
+    cashierLogin: 'เข้าสู่ระบบเจ้าหน้าที่เงินสด',
+    cashierLoginDesc: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่านเจ้าหน้าที่เงินสด',
+    cashierUsername: 'ชื่อผู้ใช้เจ้าหน้าที่เงินสด',
+    cashierPassword: 'รหัสผ่าน',
+    orderList: 'รายการออเดอร์',
+    report: 'รายงาน',
+    pendingSettlement: 'รอชำระเงิน',
+    refunded: 'คืนเงินแล้ว',
+    refundOrder: 'คืนเงินออเดอร์',
+    orderDetail: 'รายละเอียดออเดอร์',
+    dishList: 'รายการเมนู',
+    orderCount: 'จำนวนออเดอร์',
+    todayCount: 'ออเดอร์วันนี้',
+    confirmSettle: 'ยืนยันการชำระเงินออเดอร์นี้?',
+    confirmCancel: 'ยืนยันการยกเลิกออเดอร์นี้?',
+    confirmRefund: 'ยืนยันการคืนเงินออเดอร์นี้?',
+    settleSuccess: 'ชำระเงินสำเร็จ',
+    cancelSuccess: 'ยกเลิกสำเร็จ',
+    refundSuccess: 'คืนเงินสำเร็จ',
+    noPermission: 'ไม่มีสิทธิ์',
+    noOrders: 'ไม่มีออเดอร์',
+
+
+
   },
 
   km: {
@@ -3133,7 +3237,33 @@ const LANGUAGES = {
     'back': 'ត្រឡប់',
     'search': 'ស្វែងរក',
     'loading': 'កំពុងផ្ទុក...',
+    // ---- 收银员 ----
+    cashier: 'បុគ្គលិកសំណើម',
+    cashierLogin: 'ចូលប្រព័ន្ធបុគ្គលិកសំណើម',
+    cashierLoginDesc: 'សូមបញ្ចូលឈ្មោះអ្នកប្រើនិងពាក្យសម្ងាត់បុគ្គលិកសំណើម',
+    cashierUsername: 'ឈ្មោះអ្នកប្រើបុគ្គលិកសំណើម',
+    cashierPassword: 'ពាក្យសម្ងាត់',
+    orderList: 'បញ្ជីការកម្មង់',
+    report: 'របាយការណ៍',
+    pendingSettlement: 'រង់ចាំបង់ប្រាក់',
+    refunded: 'បានសងប្រាក់វិញ',
+    refundOrder: 'សងប្រាក់វិញការកម្មង់',
+    orderDetail: 'ព័ត៌មានលម្អិតការកម្មង់',
+    dishList: 'បញ្ជីមុខម្ហូប',
+    orderCount: 'ចំនួនការកម្មង់',
+    todayCount: 'ការកម្មង់ថ្ងៃនេះ',
+    confirmSettle: 'បញ្ជាក់ការបង់ប្រាក់ការកម្មង់នេះ?',
+    confirmCancel: 'បញ្ជាក់ការលុបចោលការកម្មង់នេះ?',
+    confirmRefund: 'បញ្ជាក់ការសងប្រាក់វិញការកម្មង់នេះ?',
+    settleSuccess: 'បង់ប្រាក់ជោគជ័យ',
+    cancelSuccess: 'លុបចោលជោគជ័យ',
+    refundSuccess: 'សងប្រាក់វិញជោគជ័យ',
+    noPermission: 'គ្មានសិទ្ធិ',
+    noOrders: 'គ្មានការកម្មង់',
+
+
   },
+
 };
 
 /**
