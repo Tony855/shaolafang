@@ -1303,7 +1303,7 @@ function buildReceipt(order, store, printer) {
   pos.separator('-');
   for (const item of order.items) {
     const name = item.name.length > 16 ? item.name.slice(0, 15) + '..' : item.name;
-    pos.twoColumn(`${item.emoji || ''}${name} x${item.quantity}`, `$${(item.base_price * item.quantity).toFixed(2)}`);
+    pos.twoColumn(`${item.emoji || ''}${name} x${item.quantity}`, `$${((Number(item.base_price) || Number(item.price) || 0) * item.quantity).toFixed(2)}`);
   }
   pos.separator();
 
