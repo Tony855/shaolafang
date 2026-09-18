@@ -3205,18 +3205,8 @@
                 loadReportSummary();
                 loadDailyReport();
             }
+        
         }
-        $('#adminLang').value = adminLang;
-        $('#adminLang').onchange = async function() {
-            adminLang = this.value;
-            SLF.store.rawSet('adminLang', adminLang);
-            await loadAdminLanguage(adminLang);
-            applyAdminLanguage();
-            // 如果当前在操作日志标签，重新加载以应用新语言
-            const auditLogsPanel = document.getElementById('auditLogsPanel');
-            if (auditLogsPanel && auditLogsPanel.style.display !== 'none') {
-                loadAuditLogs();
-            }
         };
         $('#adminStoreSelect').onchange = function() {
             SLF.store.rawSetSession('adminStoreId', this.value);
