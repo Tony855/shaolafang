@@ -3256,7 +3256,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     }
 
     // 处理桌号更新
-    const nextTable = table === undefined ? existing.table_name : await assertTableExists(table, req.storeId);
+    const nextTable = table === undefined ? existing.table_name : await assertTableExists(table, orderStoreId);
 
     // 序列化 items 为 JSON 字符串存储
     const itemsJson = JSON.stringify(newItems);
@@ -3274,8 +3274,8 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     );
 
     const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
-    await syncTableStatus(nextTable, req.storeId);
-    if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, req.storeId);
+    await syncTableStatus(nextTable, orderStoreId);
+    if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
 
     res.json(formatOrder(updatedRow));
   } catch (e) {
