@@ -1020,8 +1020,8 @@
     $('#waiterLang').value = waiterLang;
     if (!state.currentTable) { $('#currentTableBadge').textContent = t('currentTable') + ': '; }
     $('#submitBtn').textContent = t('submitOrder');
-    $('#confirmCancelBtn').textContent = t('cancel') || '取消';
-    $('#confirmOkBtn').textContent = t('confirm') || '确定';
+    $('#confirmCancelBtn').textContent = t('cancel');
+    $('#confirmOkBtn').textContent = t('confirm');
     const historyBtn = $('#orderHistoryBtn');
     if (historyBtn) historyBtn.title = t('orderHistory');
     renderTables();
@@ -1030,7 +1030,7 @@
   let confirmCallback = null;
   function showConfirm(message, callback, title) {
     if ($('#confirmModal').classList.contains('open')) return;
-    $('#confirmTitle').textContent = title || t('confirmTitle') || '确认操作';
+    $('#confirmTitle').textContent = title || t('confirmTitle');
     $('#confirmMessage').textContent = message;
     confirmCallback = callback;
     $('#confirmModal').classList.add('open');
@@ -1192,7 +1192,7 @@
         toast('✅ ' + t('settleOrder'));
         await load();
       } catch (e) {
-        const msg = e.message.includes('未完成菜品') ? (t('incompleteItemsError') || '还有未完成的菜品') : e.message;
+        const msg = e.message.includes('未完成菜品') ? (t('incompleteItemsError')) : e.message;
         toast('❌ ' + msg);
       }
     });
@@ -1709,7 +1709,7 @@
             logoutWaiter();
           } else {
             console.error('加载失败:', e);
-            toast(t('loadFailed') || '加载失败，请重试');
+            toast(t('loadFailed'));
           }
         });
       } else {
@@ -1729,4 +1729,5 @@
 </script>
 </body>
 </html>
+
 
