@@ -667,6 +667,9 @@ const LANGUAGES = {
     refundSuccess: '退款成功',
     noPermission: '无权限',
     noOrders: '暂无订单',
+    todaySettled: '今日已结算订单',
+    noTodaySettled: '今日暂无已结算订单',
+    noDishes: '无菜品',
 
 
 
@@ -1320,6 +1323,9 @@ const LANGUAGES = {
     refundSuccess: 'Refund Success',
     noPermission: 'No Permission',
     noOrders: 'No Orders',
+    todaySettled: "Today's Settled Orders",
+    noTodaySettled: 'No settled orders today',
+    noDishes: 'No dishes',
 
 
 
@@ -1973,6 +1979,9 @@ const LANGUAGES = {
     refundSuccess: 'Hoàn tiền thành công',
     noPermission: 'Không có quyền',
     noOrders: 'Chưa có đơn hàng',
+    todaySettled: 'Đơn đã thanh toán hôm nay',
+    noTodaySettled: 'Không có đơn nào được thanh toán hôm nay',
+    noDishes: 'Không có món',
 
 
 
@@ -2626,6 +2635,9 @@ const LANGUAGES = {
     refundSuccess: 'คืนเงินสำเร็จ',
     noPermission: 'ไม่มีสิทธิ์',
     noOrders: 'ไม่มีออเดอร์',
+    todaySettled: 'ออเดอร์ที่ชำระแล้ววันนี้',
+    noTodaySettled: 'ไม่มีออเดอร์ที่ชำระแล้ววันนี้',
+    noDishes: 'ไม่มีเมนู',
 
 
 
@@ -3279,6 +3291,9 @@ const LANGUAGES = {
     refundSuccess: 'សងប្រាក់វិញជោគជ័យ',
     noPermission: 'គ្មានសិទ្ធិ',
     noOrders: 'គ្មានការកម្មង់',
+    todaySettled: 'ការបញ្ជាទិញដែលបានទូទាត់ថ្ងៃនេះ',
+    noTodaySettled: 'គ្មានការបញ្ជាទិញដែលបានទូទាត់ថ្ងៃនេះ',
+    noDishes: 'គ្មានមុខម្ហូប',
 
 
   },
