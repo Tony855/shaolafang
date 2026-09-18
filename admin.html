@@ -2002,8 +2002,6 @@
                 if (method === 'DELETE') return await SLF.api.del(path, options);
                 return await SLF.api._request(method, path, options);
             } catch (e) {
-                // 304 不抛错（admin.html 原有逻辑）
-                if (e.status === 304) return {};
                 throw e;
             }
         }
