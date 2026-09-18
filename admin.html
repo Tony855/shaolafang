@@ -2597,18 +2597,18 @@
 
         async function loadDisplaySettings() {
             try {
-                const r = await fetch('/api/admin/display-settings', { headers: { 'Authorization': 'Bearer ' + adminToken } });
-                const d = await r.json();
-                if (r.ok) {
+                const d = await SLF.api.get('/admin/display-settings');
+
+                if (d) {
                     dualCurrencyEnabled = !!d.enabled;
                     secondaryCurrencyCode = d.secondaryCurrencyCode || 'USD';
                     $('#dualCurrencyEnabled').checked = dualCurrencyEnabled;
                     $('#dualCurrencySelect').value = secondaryCurrencyCode;
                 }
-                const configRes = await fetch('/api/public/config', { headers: { 'Authorization': 'Bearer ' + adminToken } });
-                if (configRes.ok) {
-                    const config = await configRes.json();
-                    currenciesCache = config.currencies || [];
+                const config = await SLF.api.get('/public/config');
+
+
+                if (config) {
                     defaultCurrencyObj = config.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' };
                 }
             } catch (e) {
@@ -2618,9 +2618,9 @@
 
         async function loadNotificationSettings() {
             try {
-                const r = await fetch('/api/admin/notification-settings', { headers: { 'Authorization': 'Bearer ' + adminToken } });
-                const d = await r.json();
-                if (r.ok) {
+                const d = await SLF.api.get('/admin/notification-settings');
+
+                if (d) {
                     $('#newOrderSoundEnabled').checked = !!d.enabled;
                 }
             } catch (e) {
@@ -3147,14 +3147,14 @@
 
         $('#saveDisplaySettingsBtn').onclick = async function() {
             try {
-                const r = await fetch('/api/admin/display-settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-                    body: JSON.stringify({
-                        enabled: $('#dualCurrencyEnabled').checked,
-                        secondaryCurrencyCode: $('#dualCurrencySelect').value
-                    })
+                const d = await SLF.api.post('/admin/display-settings', {
+                    enabled: document.getElementById('dualCurrencyEnabled').checked,
+                    secondaryCurrencyCode: document.getElementById('dualCurrencySelect').value
                 });
+
+
+
+
                 const d = await r.json().catch(() => ({}));
                 if (!r.ok) throw new Error(d.error || tAdmin('displaySettingsSaveFailed'));
                 toast('✅ ' + tAdmin('displaySettingsSaved'));
@@ -3165,12 +3165,12 @@
 
         $('#saveNotifySettingsBtn').onclick = async function() {
             try {
-                const r = await fetch('/api/admin/notification-settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-                    body: JSON.stringify({ enabled: $('#newOrderSoundEnabled').checked })
+                const d = await SLF.api.post('/admin/notification-settings', {
+                    enabled: document.getElementById('newOrderSoundEnabled').checked
                 });
-                const d = await r.json().catch(() => ({}));
+
+
+
                 if (!r.ok) throw new Error(d.error || tAdmin('notifySettingsSaveFailed'));
                 toast('✅ ' + tAdmin('notifySettingsSaved'));
                 await loadNotificationSettings();
@@ -3181,12 +3181,12 @@
             showPasswordModal(tAdmin('resetDataPasswordMsg'), function(password) {
                 showConfirm(tAdmin('resetDataConfirmMsg'), async function() {
                     try {
-                        const res = await fetch('/api/admin/reset-data', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken },
-                            body: JSON.stringify({ password })
-                        });
-                        const data = await res.json().catch(() => ({}));
+                        const data = await SLF.api.post('/admin/reset-data', { password });
+
+
+
+
+
                         if (!res.ok) throw new Error(data.error || tAdmin('resetFailed'));
                         toast('✅ ' + tAdmin('resetSuccess'));
                         await loadOrders();
