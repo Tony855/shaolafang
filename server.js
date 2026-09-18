@@ -407,6 +407,7 @@ async function withTransaction(work) {
 const DEFAULT_MENU_CATEGORIES = ['招牌烧腊', '烧腊', '面食', '卤菜', '快餐', '早茶', '烧腊加料', '饮料'];
 // 下单冷却记录：key为sessionToken或桌号，value为上次下单时间戳
 const orderSubmissionCooldown = new Map();
+const orderSubmissionCooldownRedis = redisClient && REDIS_URL ? redisClient : null;
 
 // 获取下单间隔时间（秒），从数据库读取，默认30秒
 async function getOrderCooldownMs() {
