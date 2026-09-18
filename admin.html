@@ -4047,7 +4047,7 @@
                         <div>
                             <div style="font-weight:700;font-size:16px;">🪑 ${esc(r.table_name)} · ${esc(r.customer_name)}</div>
                             <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">
-                                📅 ${esc(r.reservation_time)} · 👥 ${r.guests}人 · 📞 ${esc(r.phone || tAdmin('noPhone'))}
+                                📅 ${esc(r.reservation_time)} · 👥 ${r.guests} ${tAdmin('guestsUnit') || ''} · 📞 ${esc(r.phone || tAdmin('noPhone'))}
                             </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:8px;">
@@ -4540,4 +4540,5 @@
                 save: 'រក្សាទុក',
                 saveSuccess: 'រក្សាទុកបានជោគជ័យ', saveFailed: 'រក្សាទុកបរាជ័យ',
                 enabled: 'បើក', disabled: 'បិទ',
+
 
