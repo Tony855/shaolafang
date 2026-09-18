@@ -743,8 +743,12 @@
         this._cleanupFns.push(options.onCleanup);
       }
 
-      /* 5. 页面卸载时清理 */
-      global.addEventListener('beforeunload', () => this.cleanup());
+      /* 5. 页面卸载时清理（先移除旧的监听器，防止重复注册） */
+      if (this._beforeUnloadHandler) {
+        global.removeEventListener('beforeunload', this._beforeUnloadHandler);
+      }
+      this._beforeUnloadHandler = () => this.cleanup();
+      global.addEventListener('beforeunload', this._beforeUnloadHandler);
 
       log.info('page.boot: 页面启动完成');
     },
