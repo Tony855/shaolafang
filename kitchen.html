@@ -424,12 +424,12 @@
     }
 
     async function api(path, opt = {}) {
-      const headers = new Headers(opt.headers || {});
-      if (token) headers.set('X-Waiter-Token', token);
-      const res = await fetch('/api' + path, { ...opt, headers });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || t('networkError'));
-      return data;
+      const method = (opt.method || 'GET').toUpperCase();
+      if (method === 'GET') return SLF.api.get(path, opt);
+      if (method === 'POST') return SLF.api.post(path, opt.body, opt);
+      if (method === 'PUT') return SLF.api.put(path, opt.body, opt);
+      if (method === 'DELETE') return SLF.api.del(path, opt);
+      return SLF.api._request(method, path, opt);
     }
 
     function applyLoginLanguage() {

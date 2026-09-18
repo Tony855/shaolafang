@@ -1242,15 +1242,14 @@ function switchModule(mod) {
   if (mod === 'logs') { if (currentLogTab === 'audit') loadAuditLogs(); else loadLoginLogs(); }
 }
 
-// API 请求
+// API 请求（统一使用 SLF.api，保留 api() 函数名兼容现有调用）
 async function api(path, options = {}) {
-  const headers = new Headers(options.headers || {});
-  headers.set('Authorization', 'Bearer ' + token);
-  if (options.body) headers.set('Content-Type', 'application/json');
-  const res = await fetch(API + path, { ...options, headers });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || t('requestFailed'));
-  return data;
+  const method = (options.method || 'GET').toUpperCase();
+  if (method === 'GET') return SLF.api.get(path, options);
+  if (method === 'POST') return SLF.api.post(path, options.body, options);
+  if (method === 'PUT') return SLF.api.put(path, options.body, options);
+  if (method === 'DELETE') return SLF.api.del(path, options);
+  return SLF.api._request(method, path, options);
 }
 
 // 日期格式化

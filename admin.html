@@ -1981,18 +1981,21 @@
         // API 请求
         // ================================================================
         async function api(path, options = {}) {
-            const headers = new Headers(options.headers || {});
-            if (adminToken) headers.set('Authorization', 'Bearer ' + adminToken);
-            headers.set('X-Store-Id', SLF.store.rawGetSession('adminStoreId') || '1');
-            let body = options.body;
-            if (body && typeof body === 'object' && !(body instanceof FormData)) {
-                headers.set('Content-Type', 'application/json');
-                body = JSON.stringify(body);
+            // 确保 storeId 键名统一（SLF.api 从 storeId 读取）
+            const adminStoreId = SLF.store.rawGetSession('adminStoreId');
+            if (adminStoreId) SLF.store.rawSet('storeId', adminStoreId);
+            try {
+                const method = (options.method || 'GET').toUpperCase();
+                if (method === 'GET') return await SLF.api.get(path, options);
+                if (method === 'POST') return await SLF.api.post(path, options.body, options);
+                if (method === 'PUT') return await SLF.api.put(path, options.body, options);
+                if (method === 'DELETE') return await SLF.api.del(path, options);
+                return await SLF.api._request(method, path, options);
+            } catch (e) {
+                // 304 不抛错（admin.html 原有逻辑）
+                if (e.status === 304) return {};
+                throw e;
             }
-            const r = await fetch(API + path, { ...options, headers, body, cache: 'no-store' });
-            const data = await r.json().catch(() => ({}));
-            if (!r.ok && r.status !== 304) throw new Error(data.error || tAdmin('operationFailed'));
-            return data;
         }
 
         // ================================================================

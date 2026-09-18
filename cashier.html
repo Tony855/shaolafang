@@ -420,17 +420,15 @@
     }
 
     async function api(url, options = {}) {
-      const token = SLF.store.rawGet('cashierToken');
-      const storeId = SLF.store.rawGet('cashierStoreId') || '1';
-      const headers = {
-        'Content-Type': 'application/json',
-        'X-Cashier-Token': token || '',
-        'X-Store-Id': storeId
-      };
-      const res = await fetch('/api' + url, { ...options, headers });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '请求失败');
-      return data;
+      // 确保 storeId 键名统一（SLF.api 从 storeId 读取）
+      const cashierStoreId = SLF.store.rawGet('cashierStoreId');
+      if (cashierStoreId) SLF.store.rawSet('storeId', cashierStoreId);
+      const method = (options.method || 'GET').toUpperCase();
+      if (method === 'GET') return SLF.api.get(url, options);
+      if (method === 'POST') return SLF.api.post(url, options.body, options);
+      if (method === 'PUT') return SLF.api.put(url, options.body, options);
+      if (method === 'DELETE') return SLF.api.del(url, options);
+      return SLF.api._request(method, url, options);
     }
 
     async function loadOrders() {
