@@ -1224,9 +1224,9 @@
         async function fetchMenu() {
             try {
                 if (!await checkBackend()) throw new Error('后端未连接');
-                const res = await fetch(`${API_BASE}/menu?store_id=${state.storeId || 1}`);
-                if (!res.ok) throw new Error('菜单加载失败');
-                const data = await res.json();
+                const data = await SLF.api.get(`/menu?store_id=${state.storeId || 1}`);
+
+
                 // 🔥 只有拿到有效数组才覆盖，避免把好数据冲掉
                 if (Array.isArray(data)) {
                     state.menu = data;
@@ -1248,9 +1248,9 @@
 
         async function fetchStoreConfig() {
             try {
-                const res = await fetch(`${API_BASE}/public/config?store_id=${state.storeId || 1}`);
-                if (!res.ok) throw new Error('货币配置加载失败');
-                const config = await res.json();
+                const config = await SLF.api.get(`/public/config?store_id=${state.storeId || 1}`);
+
+
                 state.currencies = Array.isArray(config.currencies) ? config.currencies : [];
                 state.defaultCurrency = config.defaultCurrency || state.defaultCurrency;
                 state.dualCurrency = config.dualCurrency || { enabled: false, currency: null };
