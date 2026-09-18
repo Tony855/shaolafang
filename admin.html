@@ -1818,8 +1818,8 @@
 
         SLF.i18n.init(SLF.store.rawGet('adminLang') || 'zh', ADMIN_LABELS);
 
-        const categoryText = c => (LANGUAGES[adminLang] && LANGUAGES[adminLang].categories && LANGUAGES[adminLang]
-            .categories[c]) || c;
+        const categoryText = c => SLF.i18n.t('categories.' + c) || c;
+
         const currencyNameText = (name, code) => {
             const map = {
                 en: { USD: 'US Dollar', CNY: 'Chinese Yuan', VND: 'Vietnamese Dong', THB: 'Thai Baht',
@@ -4534,4 +4534,6 @@
     </script>
 </body>
 </html>
+
+
 

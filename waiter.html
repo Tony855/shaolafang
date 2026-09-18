@@ -1189,7 +1189,7 @@
         toast('✅ ' + t('settleOrder'));
         await load();
       } catch (e) {
-        const msg = e.message.includes('未完成菜品') ? (t('incompleteItemsError') || (LANGUAGES[waiterLang] && LANGUAGES[waiterLang].incompleteItemsError) || '还有未完成的菜品') : e.message;
+        const msg = e.message.includes('未完成菜品') ? (t('incompleteItemsError') || '还有未完成的菜品') : e.message;
         toast('❌ ' + msg);
       }
     });
@@ -1723,3 +1723,4 @@
 </script>
 </body>
 </html>
+
