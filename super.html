@@ -1838,8 +1838,7 @@ if (token) showApp();
     showPasswordModal(t('enterPasswordVerify'), function(password) {
       showConfirm(t('confirmResetData'), async function() {
         try {
-          const data = await SLF.api.post('/super/reset-data', { password });
-          if (!data.success) throw new Error(data.error || t('resetFailed'));
+          await SLF.api.post('/super/reset-data', { password });
           toast('✅ ' + t('orderDataReset'), 'success');
         } catch (e) {
           toast('❌ ' + t('resetFailed') + ': ' + e.message, 'error');
