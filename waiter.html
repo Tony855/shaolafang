@@ -1200,7 +1200,7 @@
     try {
       const [overview, menuRes, configRes] = await Promise.all([
         api('/waiter/overview'),
-        SLF.api.get('/menu'),
+        SLF.api.get('/menu?store_id=' + (overview.waiter?.store_id || 1)),
         SLF.api.get('/public/config')
       ]);
       detectNewWaiterOrders(overview.orders || []);
