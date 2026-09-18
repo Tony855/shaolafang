@@ -1907,6 +1907,7 @@
 
         // 统一使用SLF.i18n翻译系统，tAdmin和L为别名，esc使用core.js提供的全局函数
         const tAdmin = (k, params) => SLF.i18n.t(k, params);
+        const L = tAdmin;
 
         // 同一桌可能被多位顾客先后扫码下单：按桌号 + session_token 分组，
         // 给每一组分配一个短标签（客1/客2...），方便后台区分是同一位顾客的多笔订单
