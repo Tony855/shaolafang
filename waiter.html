@@ -279,6 +279,9 @@
       border-bottom: 1px dashed var(--gray-2);
     }
     .bill-items .dish-name{ min-width:0; color: var(--gray-6); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .order-detail-item{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0; gap:10px; }
+    .order-detail-item .dish-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .order-detail-item .item-price{ color:#e74c3c; flex-shrink:0; }
     .line-amount{ text-align:right; color: var(--gray-5); }
     .bill-items .line .item-status,
     .bill-items .line .item-toggle{ justify-self:center; text-align:center; white-space:nowrap; }
@@ -1424,9 +1427,9 @@
       <div style="border-top:1px solid #eee;padding-top:12px;margin-bottom:12px;">
         <div style="font-weight:700;margin-bottom:10px;">${t('dishes')}</div>
         ${(order.items || []).map((item, i) => `
-          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;">
-            <span>${esc(item.emoji) || '🍽️'} ${esc(item.name)} x${item.quantity}</span>
-            <span style="color:#e74c3c;">${formatPrimary((Number(item.price) || 0) * item.quantity)}</span>
+          <div class="order-detail-item">
+            <span class="dish-name">${esc(item.emoji) || '🍽️'} ${esc(item.name)} x${item.quantity}</span>
+            <span class="item-price">${formatPrimary((Number(item.price) || 0) * item.quantity)}</span>
           </div>
         `).join('')}
       </div>
