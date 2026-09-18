@@ -1173,8 +1173,7 @@ async function doLogin() {
       username, password
     });
 
-
-    if (!res.ok) throw new Error(data.error || t('loginFailed'));
+    if (!data.ok) throw new Error(data.error || t('loginFailed'));
     token = data.token;
     SLF.store.rawSet('superToken', token);
     SLF.store.rawSet('superAdmin', JSON.stringify(data.admin));
@@ -1833,13 +1832,8 @@ if (token) showApp();
     showPasswordModal(t('enterPasswordVerify'), function(password) {
       showConfirm(t('confirmResetData'), async function() {
         try {
-          const res = await SLF.api.post('/super/reset-data', { password });
-
-
-
-
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || t('resetFailed'));
+          const data = await SLF.api.post('/super/reset-data', { password });
+          if (!data.ok) throw new Error(data.error || t('resetFailed'));
           toast('✅ ' + t('orderDataReset'), 'success');
         } catch (e) {
           toast('❌ ' + t('resetFailed') + ': ' + e.message, 'error');
