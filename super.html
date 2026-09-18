@@ -897,6 +897,13 @@ function changeSuperLang(lang) {
   SLF.store.rawSet('superLang', lang);
   SLF.store.rawSet('lang', lang);
   applyI18n();
+  // 重新渲染动态内容
+  if (typeof loadDashboard === 'function') loadDashboard();
+  if (typeof loadMerchants === 'function') loadMerchants();
+  if (typeof loadStores === 'function') loadStores();
+  if (typeof loadLoginLogs === 'function') loadLoginLogs();
+  if (typeof loadAuditLogs === 'function') loadAuditLogs();
+  if (typeof loadGlobalSettings === 'function') loadGlobalSettings();
 }
 
 function applyI18n() {
