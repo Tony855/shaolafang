@@ -1009,7 +1009,7 @@ async function initDatabase() {
   }
 
   // 为 merchant_admins 表添加权限字段（兼容旧表）
-  const adminPermFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs'];
+  const adminPermFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'];
   for (const field of adminPermFields) {
     try {
       await runAsync(`ALTER TABLE merchant_admins ADD COLUMN ${field} TINYINT NOT NULL DEFAULT 1`);
@@ -1855,7 +1855,8 @@ app.post('/api/admin/login', async (req, res) => {
         can_manage_currency: isPrimary || admin.can_manage_currency ? 1 : 0,
         can_manage_printer: isPrimary || admin.can_manage_printer ? 1 : 0,
         can_manage_admin: isPrimary || admin.can_manage_admin ? 1 : 0,
-        can_view_logs: isPrimary || admin.can_view_logs ? 1 : 0
+        can_view_logs: isPrimary || admin.can_view_logs ? 1 : 0,
+        can_manage_cashier: isPrimary || admin.can_manage_cashier ? 1 : 0
       }
     });
   } catch (e) {
@@ -1919,27 +1920,42 @@ app.post('/api/super/login', async (req, res) => {
 // ===== 超级管理员认证中间件 =====
 async function requireSuperAdmin(req, res, next) {
   try {
+    // 1) 优先从 Authorization: Bearer 读取
+    let token = '';
     const auth = req.headers['authorization'] || '';
-    const token = auth.replace('Bearer ', '');
+    if (auth) token = auth.replace(/^Bearer\s+/i, '').trim();
+
+    // 2) 兼容前端 core.js 的 X-Super-Token 头
+    //    core.js 把 superToken 放进 X-Super-Token，而不是 Authorization，
+    //    这里必须一并识别，否则所有 /api/super/* 认证接口都会 401。
+    if (!token && req.headers['x-super-token']) {
+      token = String(req.headers['x-super-token']).trim();
+    }
+
     if (!token) return res.status(401).json({ error: '未登录' });
-    // 检查session是否存在且未过期
+
+    // 3) 检查 session 是否存在且未过期
     const session = await getAsync('SELECT * FROM super_sessions WHERE token=?', [token]);
     if (!session) return res.status(401).json({ error: '登录已过期，请重新登录' });
     if (new Date(session.expires_at).getTime() <= Date.now()) {
       await runAsync('DELETE FROM super_sessions WHERE token=?', [token]).catch(() => {});
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
-    // 滑动过期：每次请求刷新过期时间
+
+    // 4) 滑动过期：每次请求刷新过期时间
     const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_idle_timeout'");
     const timeoutMinutes = parseInt(timeoutSetting?.value || '60', 10);
     const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
     runAsync('UPDATE super_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
+
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE id=?', [session.super_admin_id]);
     if (!superAdmin) return res.status(401).json({ error: '登录已过期' });
+
     req.superAdmin = superAdmin;
     req.superSessionToken = token;
     next();
   } catch (e) {
+    console.error('requireSuperAdmin 认证异常:', e.message);
     res.status(401).json({ error: '认证失败' });
   }
 }
