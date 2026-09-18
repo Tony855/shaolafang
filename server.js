@@ -3083,9 +3083,6 @@ app.get('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const table = await assertTableExists(req.body.table, req.storeId || 1);
-    const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, req.storeId || 1]);
-    const storeId = tableStore?.store_id || 1;
     // 支持两种认证方式：Authorization Bearer token（管理员）和 X-Admin-Key（旧版兼容）
     const adminAuth = await authenticateAdmin(req);
     const adminKey = req.get('X-Admin-Key');
@@ -3108,19 +3105,25 @@ app.post('/api/orders', async (req, res) => {
     const waiter = await getWaiterFromRequest(req);
     const isWaiter = Boolean(waiter && waiter.can_order);
     if (waiter && !waiter.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
-    if (isWaiter && waiter.store_id !== storeId) return res.status(403).json({ error: '不能为其他店铺的桌号下单' });
     let sessionToken = null;
     let sessionStoreId = null;
+    let table;
     if (!isAdmin && !isWaiter) {
       const token = req.body.sessionToken || null;
       if (!token) return res.status(401).json({ error: '请重新扫码后再下单' });
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [token]);
       if (!session) return res.status(401).json({ error: '请重新扫码后再下单' });
       if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '二维码已过期，请重新扫码' });
+      table = await assertTableExists(req.body.table, session.store_id || 1);
       if (session.table_name !== table) return res.status(403).json({ error: '扫码桌号与下单桌号不一致' });
       sessionStoreId = session.store_id || 1;
       sessionToken = token;
+    } else {
+      table = await assertTableExists(req.body.table, req.storeId || 1);
     }
+    const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, sessionStoreId || req.storeId || 1]);
+    const storeId = tableStore?.store_id || sessionStoreId || req.storeId || 1;
+    if (isWaiter && waiter.store_id !== storeId) return res.status(403).json({ error: '不能为其他店铺的桌号下单' });
     // 确定最终的storeId：优先使用session中的store_id，其次使用桌号查询的store_id
     const finalStoreId = sessionStoreId || storeId;
     const cooldownKey = sessionToken || table;
