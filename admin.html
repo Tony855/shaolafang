@@ -3185,8 +3185,7 @@
             showPasswordModal(tAdmin('resetDataPasswordMsg'), function(password) {
                 showConfirm(tAdmin('resetDataConfirmMsg'), async function() {
                     try {
-                        const data = await SLF.api.post('/admin/reset-data', { password });
-                        if (!data.success) throw new Error(data.error || tAdmin('resetFailed'));
+                        await SLF.api.post('/admin/reset-data', { password });
                         toast('✅ ' + tAdmin('resetSuccess'));
                         await loadOrders();
                         await loadTables();
