@@ -1122,7 +1122,6 @@ function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').classList.remove('show');
 }
-const API = '/api';
 let token = SLF.store.rawGet('superToken') || '';
 let currentModule = 'dashboard';
 let idleTimer = null;

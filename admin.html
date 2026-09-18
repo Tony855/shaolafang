@@ -1847,8 +1847,7 @@
         // ================================================================
         // 全局状态与工具
         // ================================================================
-        const API = '/api';
-        const $ = s => document.querySelector(s);
+                const $ = s => document.querySelector(s);
         let adminToken = SLF.store.rawGetSession('adminToken') || '';
         let adminId = parseInt(SLF.store.rawGetSession('adminId') || '0', 10);
         let adminIsPrimary = SLF.store.rawGetSession('adminIsPrimary') === '1';
