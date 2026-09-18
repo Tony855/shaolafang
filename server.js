@@ -1,4 +1,5 @@
 ﻿const express = require('express');
+const { AsyncLocalStorage } = require('async_hooks');
 
 // 全球通用日期时间格式 YYYY-MM-DD HH:mm:ss
 function formatGlobalDateTime(date) {
@@ -364,22 +365,23 @@ const poolConfig = {
 let pool = mysql.createPool(poolConfig);
 
 // ---------- 数据库辅助函数 ----------
-let _currentDb = null;
+// 使用 AsyncLocalStorage 实现事务上下文传递，避免全局变量导致的并发安全问题
+const transactionStorage = new AsyncLocalStorage();
 
 async function runAsync(sql, params) {
-  const db = _currentDb || pool;
+  const db = transactionStorage.getStore() || pool;
   const [result] = await db.execute(sql, params);
   return { lastID: result.insertId, changes: result.affectedRows };
 }
 
 async function getAsync(sql, params) {
-  const db = _currentDb || pool;
+  const db = transactionStorage.getStore() || pool;
   const [rows] = await db.execute(sql, params);
   return rows[0] || null;
 }
 
 async function allAsync(sql, params) {
-  const db = _currentDb || pool;
+  const db = transactionStorage.getStore() || pool;
   const [rows] = await db.execute(sql, params);
   return rows;
 }
@@ -387,17 +389,15 @@ async function allAsync(sql, params) {
 async function withTransaction(work) {
   const conn = await pool.getConnection();
   await conn.query('START TRANSACTION');
-  const prevDb = _currentDb;
-  _currentDb = conn;
   try {
-    const result = await work();
+    // 使用 AsyncLocalStorage 传递事务连接，避免并发请求互相覆盖
+    const result = await transactionStorage.run(conn, work);
     await conn.query('COMMIT');
     return result;
   } catch (e) {
     await conn.query('ROLLBACK');
     throw e;
   } finally {
-    _currentDb = prevDb;
     conn.release();
   }
 }
@@ -1794,12 +1794,14 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
     }
     const admin = await getAsync('SELECT * FROM merchant_admins WHERE username=? AND active=1', [username]);
-    if (!admin) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '用户名不存在']);
+    if (!admin) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '用户名不存在']);
       recordLoginAttempt(username, 'merchant_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     const isValid = verifyPassword(password, admin.password_hash);
-    if (!isValid) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '密码错误']);
+    if (!isValid) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '密码错误']);
       recordLoginAttempt(username, 'merchant_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
@@ -1869,12 +1871,14 @@ app.post('/api/super/login', async (req, res) => {
       }
     }
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE username=?', [username]);
-    if (!superAdmin) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '用户名不存在']);
+    if (!superAdmin) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '用户名不存在']);
       recordLoginAttempt(username, 'super_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     const isValid = verifyPassword(password, superAdmin.password_hash);
-    if (!isValid) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
+    if (!isValid) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     // 登录成功，重置登录尝试计数
@@ -2368,11 +2372,13 @@ app.post('/api/waiter/login', async (req, res) => {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
     }
     const waiter = await getAsync('SELECT * FROM waiters WHERE username=? AND active=1', [String(username).trim()]);
-    if (!waiter) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'waiter', '账号不存在']);
+    if (!waiter) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'waiter', '账号不存在']);
       recordLoginAttempt(username, 'waiter');
       return res.status(401).json({ error: '服务员账号或密码错误' });
     }
-    if (!verifyPassword(password, waiter.password_hash)) {      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 0, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '密码错误']);
+    if (!verifyPassword(password, waiter.password_hash)) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 0, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '密码错误']);
       recordLoginAttempt(username, 'waiter');
       return res.status(401).json({ error: '服务员账号或密码错误' });
     }
