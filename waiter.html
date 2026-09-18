@@ -1080,7 +1080,8 @@
   function resetWaiterIdle() {
     clearTimeout(waiterIdleTimer);
     if (SLF.store.rawGet('waiterRemember') !== '1' && state.token) {
-      waiterIdleTimer = setTimeout(logoutWaiter, 20 * 60 * 1000);
+      const idleTimeout = (configRes?.waiter_idle_timeout || 20) * 60 * 1000;
+      waiterIdleTimer = setTimeout(logoutWaiter, idleTimeout);
     }
   }
   ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt => document.addEventListener(evt, resetWaiterIdle, { passive: true }));
@@ -1198,8 +1199,8 @@
   async function load() {
     if (!state.token) { logoutWaiter(); return; }
     try {
-      const [overview, menuRes, configRes] = await Promise.all([
-        api('/waiter/overview'),
+      const overview = await api('/waiter/overview');
+      const [menuRes, configRes] = await Promise.all([
         SLF.api.get('/menu?store_id=' + (overview.waiter?.store_id || 1)),
         SLF.api.get('/public/config')
       ]);
@@ -1314,7 +1315,9 @@
         <button onclick="handleCall('${c.id}')" style="background:#27ae60;color:#fff;border:0;padding:6px 14px;border-radius:6px;cursor:pointer;">${t('handled')}</button>
       </div>`;
     }).join('');
-    const modal = document.createElement('div');
+    let modal = document.getElementById('callNotifyModal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'callNotifyModal';
     modal.innerHTML = `<div class="modal-card" style="max-width:400px;">
@@ -1536,6 +1539,7 @@
 
   function closeOrderSelect() {
     $('#orderSelectModal').classList.remove('open');
+    state.currentTable = null;
   }
 
   function closeModal() {
