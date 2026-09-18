@@ -3473,7 +3473,10 @@
                 await loadStores();
                 await loadDisplaySettings();
                 await loadNotificationSettings();
-                await Promise.all([loadMenus(), loadTables(), loadOrders(), loadLoginLogs(), loadAdmins(), loadAuditLogs()]);
+                const loadTasks = [loadMenus(), loadTables(), loadOrders(), loadLoginLogs()];
+                if (hasPermission('can_manage_admin')) loadTasks.push(loadAdmins());
+                if (hasPermission('can_view_logs')) loadTasks.push(loadAuditLogs());
+                await Promise.all(loadTasks);
                 // 刷新当前模块视图
                 const currentModule = getCurrentModule();
                 if (currentModule) switchAdminModule(currentModule);
