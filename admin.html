@@ -2647,10 +2647,10 @@
         // ================================================================
         // 操作函数
         // ================================================================
-        window.openCategoryModal = function() { $('#categoryModal').classList.add('open');
+        function openCategoryModal() { $('#categoryModal').classList.add('open');
             loadMenuCategories(); };
-        window.closeCategoryModal = function() { $('#categoryModal').classList.remove('open'); };
-        window.addCategory = async function() {
+        function closeCategoryModal() { $('#categoryModal').classList.remove('open'); };
+        async function addCategory() {
             const name = $('#newCategoryName').value.trim();
             if (!name) { toast('❌ ' + tAdmin('tableNameRequired')); return; }
             try {
@@ -2662,18 +2662,18 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
         let editingCategoryId = null;
-        window.editCategory = function(id, oldName) {
+        function editCategory(id, oldName) {
             editingCategoryId = id;
             $('#editCategoryName').value = oldName;
             $('#categoryEditModalTitle').textContent = tAdmin('editCategory');
             $('#categoryEditModal').classList.add('open');
             setTimeout(() => $('#editCategoryName').focus(), 100);
         };
-        window.closeCategoryEditModal = function() {
+        function closeCategoryEditModal() {
             $('#categoryEditModal').classList.remove('open');
             editingCategoryId = null;
         };
-        window.saveCategoryEdit = async function() {
+        async function saveCategoryEdit() {
             const name = $('#editCategoryName').value.trim();
             if (!name) { toast(`⚠️ ${tAdmin('nameRequired')}`); return; }
             try {
@@ -2685,7 +2685,7 @@
                 toast('✅ ' + tAdmin('updated'));
             } catch (e) { toast('❌ ' + e.message); }
         };
-        window.deleteCategory = function(id) {
+        function deleteCategory(id) {
             showConfirm(tAdmin('confirmDelete'), async function() {
                 try {
                     await api('/menu-categories/' + id, { method: 'DELETE' });
@@ -2697,7 +2697,7 @@
         };
         $('#addCategoryBtn').onclick = window.addCategory;
 
-        window.openDishModal = function() {
+        function openDishModal() {
             editingMenuId = null;
             $('#menuForm').reset();
             $('#menuEmoji').value = '🍖';
@@ -2710,9 +2710,9 @@
                 currenciesCache[0].code;
             $('#dishModal').classList.add('open');
         };
-        window.closeDishModal = function() { $('#dishModal').classList.remove('open');
+        function closeDishModal() { $('#dishModal').classList.remove('open');
             cancelMenuEdit(); };
-        window.editMenu = function(id) {
+        function editMenu(id) {
             const current = menusCache.find(x => x.id === id);
             if (!current) return;
             editingMenuId = id;
@@ -2733,7 +2733,7 @@
             $('#menuCancelButton').hidden = false;
             $('#dishModal').classList.add('open');
         };
-        window.cancelMenuEdit = function() {
+        function cancelMenuEdit() {
             editingMenuId = null;
             $('#menuForm').reset();
             $('#menuEmoji').value = '🍖';
@@ -2743,7 +2743,7 @@
             if (currenciesCache.length) $('#menuCurrency').value = currenciesCache.find(c => c.is_default)?.code ||
                 currenciesCache[0].code;
         };
-        window.removeMenu = function(id) {
+        function removeMenu(id) {
             showConfirm(tAdmin('confirmDelete'), async function() {
                 try {
                     await api('/menu/' + id, { method: 'DELETE' });
@@ -2752,7 +2752,7 @@
                 } catch (e) { toast('❌ ' + e.message); }
             });
         };
-        window.toggleMenuStatus = async function(id, active) {
+        async function toggleMenuStatus(id, active) {
             try {
                 await api('/menu/' + id + '/status', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: { active } });
@@ -2790,7 +2790,7 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
 
-        window.removeTable = function(id) {
+        function removeTable(id) {
             showConfirm(tAdmin('confirmDelete'), async function() {
                 try {
                     await api('/tables/' + id, { method: 'DELETE' });
@@ -2799,8 +2799,8 @@
                 } catch (e) { toast('❌ ' + e.message); }
             });
         };
-        window.editTable = async function(id) { openTableForm(id); };
-        window.openTableForm = function(id) {
+        async function editTable(id) { openTableForm(id); };
+        function openTableForm(id) {
             const current = tablesCache.find(t => t.id === id);
             if (!current) return;
             editingTableId = id;
@@ -2809,7 +2809,7 @@
             $('#editTableStatus').value = current.status || 'available';
             $('#tableModal').classList.add('open');
         };
-        window.closeTableForm = function() { $('#tableModal').classList.remove('open'); };
+        function closeTableForm() { $('#tableModal').classList.remove('open'); };
         $('#tableSaveBtn').onclick = async function() {
             const name = $('#editTableName').value.trim();
             const status = $('#editTableStatus').value;
@@ -2833,13 +2833,13 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
 
-        window.searchOrders = function() {
+        function searchOrders() {
             orderTableFilter = $('#orderTableSearch').value.trim();
             loadOrders();
         };
         document.getElementById('orderTableSearch').addEventListener('keydown', e => { if (e.key === 'Enter')
                 searchOrders(); });
-        window.toggleItemStatus = async function(id, index) {
+        async function toggleItemStatus(id, index) {
             try {
                 const order = ordersCache.find(o => o.id === id);
                 if (!order || !order.items[index]) return;
@@ -2853,13 +2853,13 @@
                 toast(`✅ ${tAdmin('dishStatusUpdated')}`);
             } catch (e) { toast('❌ ' + e.message); }
         };
-        window.confirmSettleOrder = function(id) {
+        function confirmSettleOrder(id) {
             showConfirm(tAdmin('settleOrderConfirm'), () => statusOrder(id, 'done'), tAdmin('settleOrder'));
         };
-        window.confirmCancelOrder = function(id) {
+        function confirmCancelOrder(id) {
             showConfirm(tAdmin('cancelOrderConfirm'), () => statusOrder(id, 'canceled'), tAdmin('cancelOrder'));
         };
-        window.statusOrder = async function(id, status) {
+        async function statusOrder(id, status) {
             try {
                 await api('/orders/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: { status } });
@@ -2870,7 +2870,7 @@
                 toast('❌ ' + msg);
             }
         };
-        window.removeOrder = function(id) {
+        function removeOrder(id) {
             showPasswordModal(tAdmin('passwordTitle'), async function(password) {
                 try {
                     await api('/orders/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -2880,7 +2880,7 @@
                 } catch (e) { toast('❌ ' + e.message); }
             });
         };
-        window.openOrderForm = function() {
+        function openOrderForm() {
             editingOrderId = null;
             editingOrderStatus = 'pending';
             $('#orderModalTitle').textContent = tAdmin('addOrder');
@@ -2892,10 +2892,10 @@
             updateOrderTotal();
             $('#orderModal').classList.add('open');
         };
-        window.closeOrderForm = function() { $('#orderModal').classList.remove('open'); };
-        window.removeOrderItem = function(btn) { btn.closest('.order-item-line').remove();
+        function closeOrderForm() { $('#orderModal').classList.remove('open'); };
+        function removeOrderItem(btn) { btn.closest('.order-item-line').remove();
             updateOrderTotal(); };
-        window.updateOrderTotal = function() {
+        function updateOrderTotal() {
             let total = 0;
             document.querySelectorAll('#orderItems .order-item-line').forEach(row => {
                 const id = +row.querySelector('select').value;
@@ -2905,7 +2905,7 @@
             });
             $('#orderFormTotal').textContent = formatMoney(total);
         };
-        window.addOrderItem = function(selectedId, quantity) {
+        function addOrderItem(selectedId, quantity) {
             const line = document.createElement('div');
             line.className = 'order-item-line';
             line.innerHTML = `
@@ -2921,7 +2921,7 @@
             $('#orderItems').appendChild(line);
             updateOrderTotal();
         };
-        window.addLockedOrderItem = function(item) {
+        function addLockedOrderItem(item) {
             const line = document.createElement('div');
             line.className = 'order-item-line locked';
             line.dataset.status = 'done';
@@ -2933,7 +2933,7 @@
             $('#orderItems').appendChild(line);
             updateOrderTotal();
         };
-        window.editOrder = async function(id) {
+        async function editOrder(id) {
             try {
                 let o = ordersCache.find(x => x.id === id);
                 if (!o) o = await api('/orders/' + id);
@@ -2978,7 +2978,7 @@
         };
         document.getElementById('addOrderItemBtn').onclick = function() { addOrderItem(); };
 
-        window.editCurrency = async function(id) {
+        async function editCurrency(id) {
             const data = await api('/currencies');
             const c = data.find(x => x.id === id);
             if (!c) return;
@@ -2992,11 +2992,11 @@
             $('#currencyEditModal').classList.add('open');
         };
         let editingCurrencyId = null;
-        window.closeCurrencyEdit = function() {
+        function closeCurrencyEdit() {
             $('#currencyEditModal').classList.remove('open');
             editingCurrencyId = null;
         };
-        window.saveCurrencyEdit = async function() {
+        async function saveCurrencyEdit() {
             const id = editingCurrencyId;
             if (!id) return;
             const name = $('#editCurrencyName').value.trim();
@@ -3010,7 +3010,7 @@
                 toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('updated'));
             } catch (e) { toast('❌ ' + e.message); }
         };
-        window.setDefaultCurrency = async function(id) {
+        async function setDefaultCurrency(id) {
             const c = currenciesCache.find(x => x.id === id);
             try {
                 await api('/currencies/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -3019,7 +3019,7 @@
                 toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('updated'));
             } catch (e) { toast('❌ ' + e.message); }
         };
-        window.removeCurrency = function(id) {
+        function removeCurrency(id) {
             showConfirm(tAdmin('confirmDelete'), async function() {
                 try {
                     await api('/currencies/' + id, { method: 'DELETE' });
@@ -3047,7 +3047,7 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
 
-        window.updateWaiterPerm = async function(id, key, val) {
+        async function updateWaiterPerm(id, key, val) {
             try {
                 await api('/admin/waiters/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: { [key]: val } });
@@ -3055,7 +3055,7 @@
             } catch (e) { toast('❌ ' + e.message);
                 loadWaiters(); }
         };
-        window.deleteWaiter = function(id) {
+        function deleteWaiter(id) {
             showConfirm(tAdmin('confirmDelete'), async function() {
                 try {
                     await api('/admin/waiters/' + id, { method: 'DELETE' });
@@ -3097,7 +3097,7 @@
             }
         };
 
-        window.deleteStore = function(id) {
+        function deleteStore(id) {
             showConfirm(tAdmin('confirmDelete'), async function() {
                 try {
                     await api('/admin/stores/' + id, { method: 'DELETE' });
@@ -3106,7 +3106,7 @@
                 } catch (e) { toast('❌ ' + e.message); }
             });
         };
-        window.copyStoreMenu = function(storeId) {
+        function copyStoreMenu(storeId) {
             showConfirm(tAdmin('confirmCopyMenu'), async function() {
                 try {
                     const res = await api('/admin/stores/' + storeId + '/copy-menu', { method: 'POST' });
@@ -3153,7 +3153,7 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
 
-        window.showQr = async function(id) {
+        async function showQr(id) {
             try {
                 // 使用独立的/qr-print路由，服务端渲染，避免在admin.html中内嵌大段HTML模板
                 const lang = SLF.store.rawGet('adminLang') || 'zh';
@@ -3200,7 +3200,7 @@
         // ================================================================
         // 新增：服务员编辑功能
         // ================================================================
-        window.openWaiterEdit = async function(id) {
+        async function openWaiterEdit(id) {
             try {
                 const waiter = await api('/admin/waiters');
                 const target = waiter.find(w => w.id === id);
@@ -3222,7 +3222,7 @@
             }
         };
 
-        window.closeWaiterEdit = function() {
+        function closeWaiterEdit() {
             $('#waiterEditModal').classList.remove('open');
         };
 
@@ -3258,7 +3258,7 @@
         // ================================================================
         // 新增：店铺编辑功能
         // ================================================================
-        window.openStoreEdit = async function(id) {
+        async function openStoreEdit(id) {
             try {
                 const stores = await api('/admin/stores');
                 const target = stores.find(s => s.id === id);
@@ -3280,7 +3280,7 @@
             }
         };
 
-        window.closeStoreEdit = function() {
+        function closeStoreEdit() {
             $('#storeEditModal').classList.remove('open');
         };
 
@@ -3860,7 +3860,7 @@
             if (e.target === this) hideConfirm();
         });
 
-        window.logoutAdmin = function() {
+        function logoutAdmin() {
             showConfirm(tAdmin('confirmLogout') || '确认退出登录吗？', function() {
                 try { stopAdminCallPolling(); } catch(e) {}
                 try { stopAutoPrintPoll(); } catch(e) {}
