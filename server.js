@@ -2122,12 +2122,12 @@ app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
     const usedMem = totalMem - freeMem;
     const memUsage = ((usedMem / totalMem) * 100).toFixed(1);
 
-    // 磁盘使用率（执行 df 命令，取根分区）
+    // 磁盘使用率（使用 fs.statfs，跨平台兼容）
     let diskUsage = 0, diskTotal = 0, diskUsed = 0;
     try {
-      const dfOutput = execSync('df -B1 / | tail -1', { encoding: 'utf8' }).trim().split(/\s+/);
-      diskTotal = parseInt(dfOutput[1]) || 0;
-      diskUsed = parseInt(dfOutput[2]) || 0;
+      const stats = fs.statfsSync('/');
+      diskTotal = stats.blocks * stats.bsize;
+      diskUsed = (stats.blocks - stats.bfree) * stats.bsize;
       diskUsage = diskTotal > 0 ? ((diskUsed / diskTotal) * 100).toFixed(1) : 0;
     } catch (e) { diskUsage = 0; }
 
