@@ -1128,6 +1128,9 @@ async function initDatabase() {
   const allTables = await allAsync('SELECT name, store_id FROM tables');
   for (const t of allTables) await syncTableStatus(t.name, t.store_id);
 
+  // 标记数据库迁移已完成
+  await runAsync("INSERT INTO settings (`key`, value) VALUES ('db_migration_completed', '1') ON DUPLICATE KEY UPDATE value='1'");
+  console.log('  ✓ 数据库迁移完成');
 }
 
 // ---------- ESC/POS 小票打印工具 ----------
