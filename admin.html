@@ -2245,6 +2245,7 @@
 
         // 打开新增管理员弹窗
         function openAddAdminModal() {
+            if (!hasPermission('can_manage_admin')) { toast('❌ ' + tAdmin('noPermission')); return; }
             document.getElementById('addAdminUsername').value = '';
             document.getElementById('addAdminPassword').value = '';
             document.getElementById('addAdminDisplayName').value = '';
@@ -2347,6 +2348,7 @@
         let editingCashierId = null;
 
         function openAddCashierModal() {
+            if (!hasPermission('can_manage_cashier')) { toast('❌ ' + tAdmin('noPermission')); return; }
             editingCashierId = null;
             document.getElementById('cashierModalTitle').textContent = tAdmin('addCashier');
             document.getElementById('cashierUsername').value = '';
