@@ -1259,7 +1259,7 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=20260918"></script>
+    <script src="languages.min.js?v=20260918c"></script>
     <script src="assets/core.js"></script>
     <script>
         // ================================================================
@@ -1273,7 +1273,7 @@
 
         SLF.i18n.init(SLF.store.rawGet('adminLang') || 'zh');
 
-        const categoryText = c => SLF.i18n.t('categories.' + c) || c;
+        const categoryText = c => { const cat = (typeof LANGUAGES !== 'undefined' && LANGUAGES[SLF.i18n.lang] && LANGUAGES[SLF.i18n.lang].categories) || {}; return cat[c] || c; };
 
         const currencyNameText = (name, code) => {
             const map = {
@@ -3003,6 +3003,7 @@
             $('#adminInfoPhoneLabel').textContent = tAdmin('adminInfoPhone');
             $('#adminInfoStatusLabel').textContent = tAdmin('adminInfoStatus');
             $('#adminInfoCreatedLabel').textContent = tAdmin('adminInfoCreated');
+            $('#adminInfoLogoutBtn').textContent = tAdmin('logout');
             // 营业报表汇总翻译
             $('#todayRevenueLabel').textContent = tAdmin('todayRevenue');
             $('#monthRevenueLabel').textContent = tAdmin('monthRevenue');
@@ -3207,6 +3208,15 @@
             }
         
         }
+        $('#adminLang').onchange = async function() {
+            adminLang = this.value;
+            SLF.store.rawSet('adminLang', adminLang);
+            await loadAdminLanguage(adminLang);
+            applyAdminLanguage();
+            if (typeof loadAdminInfo === 'function') loadAdminInfo();
+            const auditLogsPanel = document.getElementById('auditLogsPanel');
+            if (auditLogsPanel && auditLogsPanel.style.display !== 'none') { loadAuditLogs(); }
+        };
         $('#adminStoreSelect').onchange = function() {
             SLF.store.rawSetSession('adminStoreId', this.value);
             updateSidebarStore();
@@ -3308,14 +3318,15 @@
             try {
                 const data = await api('/admin/info');
                 if (data.admin) {
-                    $('#adminDisplayName').textContent = data.admin.username || '账户';
+                    $('#adminDisplayName').textContent = data.admin.username || tAdmin('account');
                     $('#adminInfoUsername').textContent = data.admin.username || '-';
                     $('#adminInfoMerchant').textContent = data.merchant?.name || '-';
                     $('#adminInfoCode').textContent = data.merchant?.code || '-';
                     $('#adminInfoStoreCount').textContent = (data.storeCount || 0) + ' / ' + (data.merchant?.max_stores || 0);
-                    $('#adminInfoContact').textContent = data.merchant?.contact_name || '-';
+                    const _contact = (data.merchant?.contact_name || '').trim();
+                    $('#adminInfoContact').textContent = _contact === '管理员' ? tAdmin('admin') : (_contact || '-');
                     $('#adminInfoPhone').textContent = data.merchant?.contact_phone || '-';
-                    $('#adminInfoStatus').textContent = data.merchant?.status ? '正常' : '已禁用';
+                    $('#adminInfoStatus').textContent = data.merchant?.status ? tAdmin('storeActive') : tAdmin('storeDisabled');
                     $('#adminInfoStatus').style.color = data.merchant?.status ? '#2ecc71' : '#e74c3c';
                     $('#adminInfoStatus').style.fontWeight = '600';
                     $('#adminInfoCreated').textContent = data.merchant?.created_at ? SLF.utils.formatDateTime(data.merchant.created_at) : (data.admin.created_at ? SLF.utils.formatDateTime(data.admin.created_at) : '-');
