@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -409,7 +409,7 @@
           const data = await SLF.api.post('/cashier/login', { username, password });
           localStorage.setItem('cashierToken', data.token);
           localStorage.setItem('cashierStoreId', String(data.storeId || 1));
-          localStorage.setItem('cashierInfo', JSON.stringify(data.cashier || {}));
+          localStorage.setItem('cashierInfo', JSON.stringify({ ...data.cashier, storeName: data.storeName }));
           window.location.href = '/cashier';
         } catch (e) {
           showErrorModal(translateError(e.message));

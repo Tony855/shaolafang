@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 
 // 全球通用日期时间格式 YYYY-MM-DD HH:mm:ss
 function formatGlobalDateTime(date) {
@@ -1405,6 +1405,7 @@ function formatOrder(row) {
   return {
     id: row.id,
     table: row.table_name,
+    table_name: row.table_name,
     items,
     total: row.total,
     status: row.status,
