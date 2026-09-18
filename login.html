@@ -242,6 +242,7 @@
         <select id="loginType" class="login-type-select">
           <option value="admin">👔 管理员</option>
           <option value="waiter">🧑‍🍳 服务员</option>
+          <option value="cashier">💰 收银员</option>
         </select>
       </div>
 
@@ -284,6 +285,8 @@
     const typeParam = urlParams.get('type');
     if (typeParam === 'waiter') {
       loginType = 'waiter';
+    } else if (typeParam === 'cashier') {
+      loginType = 'cashier';
     }
 
     // 全局翻译函数（避免在每个函数中重复定义）
@@ -299,6 +302,7 @@
       $('#loginTypeLabel').textContent = t('loginType') || '登录类型';
       $('#loginType option[value="admin"]').textContent = '👔 ' + t('admin');
       $('#loginType option[value="waiter"]').textContent = '🧑‍🍳 ' + t('waiter');
+      $('#loginType option[value="cashier"]').textContent = '💰 ' + (t('cashier') || '收银员');
 
       // 用户名输入框
       $('#username').placeholder = t('username');
@@ -309,6 +313,11 @@
         $('#loginDesc').textContent = t('adminLoginDesc') || '请输入管理员用户名和密码';
         $('#username').placeholder = t('adminUsername') || '管理员用户名';
         $('#password').placeholder = t('adminPassword');
+      } else if (loginType === 'cashier') {
+        $('#loginTitle').textContent = t('cashierLogin') || '收银员登录';
+        $('#loginDesc').textContent = t('cashierLoginDesc') || '请输入收银员账号和密码';
+        $('#username').placeholder = t('cashierUsername') || '收银员账号';
+        $('#password').placeholder = t('cashierPassword') || '密码';
       } else {
         $('#loginTitle').textContent = t('waiterLogin');
         $('#loginDesc').textContent = t('waiterLoginDesc');
@@ -385,6 +394,22 @@
           sessionStorage.setItem('adminIsPrimary', data.isPrimary ? '1' : '0');
           sessionStorage.setItem('adminPermissions', JSON.stringify(data.permissions || {}));
           window.location.href = '/admin';
+        } catch (e) {
+          showErrorModal(translateError(e.message));
+        }
+      } else if (loginType === 'cashier') {
+        // 收银员登录
+        const username = $('#username').value.trim();
+        if (!username) {
+          showErrorModal(t('enterUsername'));
+          return;
+        }
+        try {
+          const data = await SLF.api.post('/cashier/login', { username, password });
+          localStorage.setItem('cashierToken', data.token);
+          localStorage.setItem('cashierStoreId', String(data.storeId || 1));
+          localStorage.setItem('cashierInfo', JSON.stringify(data.cashier || {}));
+          window.location.href = '/cashier';
         } catch (e) {
           showErrorModal(translateError(e.message));
         }

@@ -246,6 +246,10 @@ app.get('/super', (req, res) => {
   res.sendFile(path.join(__dirname, 'super.html'));
 });
 
+app.get('/cashier', (req, res) => {
+  res.sendFile(path.join(__dirname, 'cashier.html'));
+});
+
 // ---------- 二维码打印页面（独立路由，服务端渲染） ----------
 app.get('/qr-print', async (req, res) => {
   try {
@@ -838,6 +842,19 @@ async function initDatabase() {
       waiter_id INT NOT NULL,
       token VARCHAR(255) UNIQUE NOT NULL,
       expires_at VARCHAR(50) NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS cashier_sessions (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      cashier_id BIGINT NOT NULL,
+      store_id INT NOT NULL DEFAULT 1,
+      merchant_id INT NOT NULL DEFAULT 1,
+      token VARCHAR(255) UNIQUE NOT NULL,
+      expires_at VARCHAR(50) NOT NULL,
+      INDEX idx_token (token),
+      INDEX idx_cashier (cashier_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
@@ -1447,6 +1464,22 @@ async function getWaiterFromRequest(req) {
   const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
   if (!session || new Date(session.expires_at).getTime() <= Date.now()) return null;
   return await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
+}
+
+
+// 从请求中获取收银员信息
+async function getCashierFromRequest(req) {
+  const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
+  if (!session || new Date(session.expires_at).getTime() <= Date.now()) return null;
+  const cashiersData = await getAsync('SELECT value FROM settings WHERE `key` = ?', ['cashiers_' + session.store_id]);
+  if (!cashiersData) return null;
+  let cashiers = [];
+  try { cashiers = JSON.parse(cashiersData.value); } catch (e) { return null; }
+  const cashier = cashiers.find(c => String(c.id) === String(session.cashier_id) && c.active);
+  if (!cashier) return null;
+  return { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
 }
 
 // 共用管理员认证逻辑：返回 { adminId, merchantId, storeId, sessionToken } 或 null
@@ -2351,6 +2384,176 @@ app.post('/api/waiter/login', async (req, res) => {
     await runAsync('INSERT INTO waiter_sessions (waiter_id, token, expires_at) VALUES (?, ?, ?)', [waiter.id, token, expiresAt]);
     const store = await getAsync('SELECT name FROM stores WHERE id=?', [waiter.store_id || 1]);
     res.json({ token, storeId: waiter.store_id || 1, storeName: store?.name || '', waiter: { id: waiter.id, username: waiter.username, display_name: waiter.display_name, can_order: waiter.can_order, can_mark_item: waiter.can_mark_item, can_complete_order: waiter.can_complete_order, store_id: waiter.store_id } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ----- 收银员登录 -----
+app.post('/api/cashier/login', async (req, res) => {
+  try {
+    const { username, password, storeId } = req.body || {};
+    if (!username || !password) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username || '', 'cashier', '请输入账号和密码']);
+      return res.status(400).json({ error: '请输入收银员账号和密码' });
+    }
+    // 登录限流检查
+    const lockStatus = await isLoginLocked(username, 'cashier');
+    if (lockStatus.locked) {
+      return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
+    }
+    // 遍历所有店铺查找收银员（不依赖前端传递的storeId）
+    const allCashierSettings = await allAsync("SELECT `key`, value FROM settings WHERE `key` LIKE 'cashiers_%'");
+    let cashier = null;
+    let targetStoreId = storeId || 1;
+    for (const row of allCashierSettings) {
+      try {
+        const list = JSON.parse(row.value);
+        const found = list.find(c => c.username === String(username).trim() && c.active);
+        if (found) {
+          cashier = found;
+          targetStoreId = parseInt(row.key.replace('cashiers_', ''), 10) || 1;
+          break;
+        }
+      } catch (e) { continue; }
+    }
+    if (!cashier) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'cashier', '账号不存在']);
+      recordLoginAttempt(username, 'cashier');
+      return res.status(401).json({ error: '收银员账号或密码错误' });
+    }
+    if (!verifyPassword(password, cashier.password_hash)) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'cashier', '密码错误']);
+      recordLoginAttempt(username, 'cashier');
+      return res.status(401).json({ error: '收银员账号或密码错误' });
+    }
+    resetLoginAttempts(username, 'cashier');
+    // 获取商户ID
+    const store = await getAsync('SELECT merchant_id, name FROM stores WHERE id=?', [targetStoreId]);
+    const merchantId = store?.merchant_id || 1;
+    await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, merchantId, 'cashier', '收银员登录成功']);
+    const token = crypto.randomBytes(24).toString('base64url');
+    const cashierTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'cashier_session_timeout'");
+    const cashierTimeoutHours = parseInt(cashierTimeoutSetting?.value || '12', 10);
+    const expiresAt = new Date(Date.now() + cashierTimeoutHours * 60 * 60 * 1000).toISOString();
+    await runAsync('INSERT INTO cashier_sessions (cashier_id, store_id, merchant_id, token, expires_at) VALUES (?, ?, ?, ?, ?)', [cashier.id, targetStoreId, merchantId, token, expiresAt]);
+    res.json({
+      token,
+      storeId: targetStoreId,
+      storeName: store?.name || '',
+      cashier: {
+        id: cashier.id,
+        username: cashier.username,
+        display_name: cashier.display_name,
+        permissions: cashier.permissions || {}
+      }
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银员登出 -----
+app.post('/api/cashier/logout', async (req, res) => {
+  try {
+    const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
+    if (token) {
+      await runAsync('DELETE FROM cashier_sessions WHERE token=?', [token]).catch(() => {});
+    }
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银员订单列表 -----
+app.get('/api/cashier/orders', requireCashier, async (req, res) => {
+  try {
+    const rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND status != 'canceled' ORDER BY createdAt DESC", [req.storeId]);
+    res.json({ orders: rows.map(formatOrder) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银员订单详情 -----
+app.get('/api/cashier/orders/:id', requireCashier, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+    res.json(formatOrder(order));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银员结算订单 -----
+app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
+  try {
+    // 权限检查
+    if (!req.cashier.permissions?.can_settle) {
+      return res.status(403).json({ error: '没有结算订单权限' });
+    }
+    const id = parseInt(req.params.id);
+    const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+    if (order.status === 'done') return res.status(400).json({ error: '订单已结算' });
+    if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
+    await runAsync("UPDATE orders SET status='done', updatedAt=? WHERE id=?", [new Date().toISOString(), id]);
+    await syncTableStatus(order.table_name, req.storeId);
+    // 记录操作日志
+    await runAsync('INSERT INTO audit_logs (admin_id, merchant_id, store_id, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.cashier.id, req.merchantId, req.storeId, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
+    res.json({ success: true, message: '结算成功' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银员取消订单 -----
+app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
+  try {
+    // 权限检查
+    if (!req.cashier.permissions?.can_cancel) {
+      return res.status(403).json({ error: '没有取消订单权限' });
+    }
+    const id = parseInt(req.params.id);
+    const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+    if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
+    if (order.status === 'done') return res.status(400).json({ error: '已结算订单不能取消，请使用退款' });
+    await runAsync("UPDATE orders SET status='canceled', updatedAt=? WHERE id=?", [new Date().toISOString(), id]);
+    await syncTableStatus(order.table_name, req.storeId);
+    // 记录操作日志
+    await runAsync('INSERT INTO audit_logs (admin_id, merchant_id, store_id, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.cashier.id, req.merchantId, req.storeId, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), new Date().toISOString()]);
+    res.json({ success: true, message: '取消成功' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银员退款 -----
+app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
+  try {
+    // 权限检查
+    if (!req.cashier.permissions?.can_refund) {
+      return res.status(403).json({ error: '没有退款权限' });
+    }
+    const id = parseInt(req.params.id);
+    const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+    if (order.status !== 'done') return res.status(400).json({ error: '只有已结算订单才能退款' });
+    await runAsync("UPDATE orders SET status='refunded', updatedAt=? WHERE id=?", [new Date().toISOString(), id]);
+    // 记录操作日志
+    await runAsync('INSERT INTO audit_logs (admin_id, merchant_id, store_id, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [req.cashier.id, req.merchantId, req.storeId, 'refund_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
+    res.json({ success: true, message: '退款成功' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银员今日报表 -----
+app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
+  try {
+    // 权限检查
+    if (!req.cashier.permissions?.can_view_report) {
+      return res.status(403).json({ error: '没有查看报表权限' });
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const settledOrders = await allAsync("SELECT * FROM orders WHERE store_id=? AND status='done' AND DATE(createdAt)=? ORDER BY createdAt DESC", [req.storeId, today]);
+    const totalRevenue = settledOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+    res.json({
+      date: today,
+      orderCount: settledOrders.length,
+      totalRevenue: totalRevenue.toFixed(2),
+      avgOrderValue: settledOrders.length > 0 ? (totalRevenue / settledOrders.length).toFixed(2) : '0.00',
+      orders: settledOrders.map(formatOrder)
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3675,6 +3878,19 @@ app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_mana
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 收银员鉴权中间件
+async function requireCashier(req, res, next) {
+  try {
+    const cashier = await getCashierFromRequest(req);
+    if (!cashier) return res.status(401).json({ error: '请先登录收银员账号' });
+    req.cashier = cashier;
+    req.storeId = cashier.store_id || 1;
+    req.merchantId = cashier.merchant_id || 1;
+    next();
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+}
 
 // ----- 收银员管理（存储在 settings 表，不修改数据库结构） -----
 async function getCashiers(storeId) {
