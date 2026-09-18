@@ -2281,6 +2281,7 @@
         }
 
         async function submitAddAdmin() {
+            if (!hasPermission('can_manage_admin')) { toast('❌ ' + tAdmin('noPermission')); return; }
             const username = $('#addAdminUsername').value.trim();
             const password = $('#addAdminPassword').value;
             const display_name = $('#addAdminDisplayName').value.trim();
