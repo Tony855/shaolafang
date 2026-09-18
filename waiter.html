@@ -1424,9 +1424,9 @@
       <div style="border-top:1px solid #eee;padding-top:12px;margin-bottom:12px;">
         <div style="font-weight:700;margin-bottom:10px;">${t('dishes')}</div>
         ${(order.items || []).map((item, i) => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;gap:10px;">
-            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(item.emoji) || '🍽️'} ${esc(item.name)} x${item.quantity}</span>
-            <span style="color:#e74c3c;flex-shrink:0;">${formatPrimary((Number(item.price) || 0) * item.quantity)}</span>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+            <span>${esc(item.emoji) || '🍽️'} ${esc(item.name)} x${item.quantity}</span>
+            <span style="color:#e74c3c;">${formatPrimary((Number(item.price) || 0) * item.quantity)}</span>
           </div>
         `).join('')}
       </div>
@@ -1682,47 +1682,11 @@
     waiterLang = lang;
     SLF.store.rawSet('waiterLang', lang);
     SLF.store.rawSet('lang', lang);
-  
-    // 1) 确保目标语言的基础字典可用
-    //    languages.min.js 已同步加载所有语言，通常直接复制即可
-    if (!SLF.i18n.dicts[lang]) {
-      if (window.LANGUAGES && window.LANGUAGES[lang]) {
-        SLF.i18n.dicts[lang] = { ...window.LANGUAGES[lang] };
-      } else {
-        await SLF.i18n.loadLanguage(lang);
-      }
-    }
-  
-    // 2) 合并 waiter 专用字典（覆盖基础字典中的同名 key）
-    //    这一步之前遗漏了，导致切到非初始语言时 waiter 特有文案显示 key
-    if (WAITER_TEXT && WAITER_TEXT[lang]) {
-      SLF.i18n.dicts[lang] = {
-        ...(SLF.i18n.dicts[lang] || {}),
-        ...WAITER_TEXT[lang]
-      };
-    }
-  
-    // 3) 切换 i18n 当前语言（★ 关键修复）
-    SLF.i18n.lang = lang;
-  
-    // 4) 重新渲染页面
     if (state.token) {
-      applyWaiterLanguage();   // 顶部标题、按钮文案
-      renderTables();          // 桌号卡片（空闲/占用、订单块）
-      // 若点餐弹窗正开着，刷新里面的分类和菜品名称
-      const orderModal = document.getElementById('orderModal');
-      if (orderModal && orderModal.classList.contains('open')) {
-        renderCategories();
-        renderDishes();
-      }
-      // 若订单历史/详情弹窗打开，刷新
-      const historyModal = document.getElementById('orderHistoryModal');
-      if (historyModal && historyModal.style.display === 'flex') {
-        loadOrderHistory();
-      }
+      applyWaiterLanguage();
     }
   }
-  
+
   document.getElementById('waiterLang').addEventListener('change', async function () {
     await setLanguage(this.value);
   });
