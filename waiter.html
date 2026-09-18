@@ -1201,8 +1201,8 @@
     try {
       const [overview, menuRes, configRes] = await Promise.all([
         api('/waiter/overview'),
-        fetch(API + '/menu').then(r => r.json()),
-        fetch(API + '/public/config').then(r => r.json())
+        SLF.api.get('/menu'),
+        SLF.api.get('/public/config')
       ]);
       detectNewWaiterOrders(overview.orders || []);
       state.tables = overview.tables;
@@ -1253,7 +1253,7 @@
       return;
     }
     try {
-      const info = await fetch(API + '/public/store-info?store_id=' + storeId).then(r => r.json());
+      const info = await SLF.api.get('/public/store-info?store_id=' + storeId);
       if (info && info.name) {
         state.storeId = storeId;
         state.storeName = info.name;

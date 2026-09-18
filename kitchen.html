@@ -388,8 +388,8 @@
     // 催单提示音（急促的四声）
     async function loadSoundSetting() {
       try {
-        const res = await fetch('/api/public/config');
-        const data = await res.json();
+        const data = await SLF.api.get('/public/config');
+
         if (typeof data.newOrderSoundEnabled === 'boolean') audio.setEnabled(data.newOrderSoundEnabled);
       } catch (e) {}
     }
@@ -576,9 +576,9 @@
     async function pollUrges() {
       if (document.hidden) return;
       try {
-        const res = await fetch('/api/waiter-calls', { headers: { 'X-Waiter-Token': token } });
-        if (!res.ok) return;
-        const calls = await res.json();
+        const calls = await SLF.api.get('/waiter-calls', { headers: { 'X-Waiter-Token': token } });
+
+
         pendingUrges = (calls || []).filter(c => c.type === 'urge');
         const btn = document.getElementById('urgeNotificationBtn');
         const count = document.getElementById('urgeNotificationCount');
@@ -627,7 +627,7 @@
     $('#urgeModal').onclick=function(e){if(e.target===this)hideUrgeModal();};
     async function handleUrge(id) {
       try {
-        await fetch('/api/waiter-calls/' + id + '/handle', { method: 'PUT', headers: { 'X-Waiter-Token': token } });
+        await SLF.api.put('/waiter-calls/' + id + '/handle', null, { headers: { 'X-Waiter-Token': token } });
         hideUrgeModal();
         showToast(t('handled'), 'success');
         pollUrges();

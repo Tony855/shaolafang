@@ -565,10 +565,10 @@
       showConfirm(t('logout'), t('confirmLogout'), function() {
         const token = SLF.store.rawGet('cashierToken');
         if (token) {
-          fetch('/api/cashier/logout', {
-            method: 'POST',
-            headers: { 'X-Cashier-Token': token, 'Content-Type': 'application/json' }
-          }).catch(() => {});
+          SLF.api.post('/cashier/logout', null, { headers: { 'X-Cashier-Token': token } }).catch(() => {});
+
+
+
         }
         SLF.store.rawRemove('cashierToken');
         SLF.store.rawRemove('cashierStoreId');
