@@ -582,6 +582,7 @@
       currentLang = lang;
       SLF.store.rawSet('cashierLang', lang);
       SLF.store.rawSet('lang', lang);
+      SLF.i18n.init(lang, CASHIER_LABELS);
       applyLang();
       renderOrders();
       loadOrders();
