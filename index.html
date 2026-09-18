@@ -1299,9 +1299,9 @@
                     } catch (_) {}
                 }
                 if (sessionParam) {
-                    const sessionRes = await fetch(`${API_BASE}/public/table-session/${encodeURIComponent(sessionParam)}/info`);
-                    if (!sessionRes.ok) throw new Error('会话已失效，请重新扫码');
-                    const info = await sessionRes.json();
+                    const info = await SLF.api.get(`/public/table-session/${encodeURIComponent(sessionParam)}/info`);
+
+
                     state.table = info.table;
                     state.storeId = info.storeId || 1;
                     state.scanToken = '';
@@ -1311,9 +1311,9 @@
                     await fetchMenu();
                     menuAlreadyFetched = true;
                 } else if (token) {
-                    const tokenRes = await fetch(`${API_BASE}/public/table-token/${encodeURIComponent(token)}`);
-                    if (!tokenRes.ok) throw new Error('无效桌码');
-                    const session = await tokenRes.json();
+                    const session = await SLF.api.get(`/public/table-token/${encodeURIComponent(token)}`);
+
+
                     state.table = session.table;
                     state.storeId = session.storeId || 1;
                     state.scanToken = token;
@@ -1382,9 +1382,9 @@
                 return;
             }
             try {
-                const res = await fetch(`${API_BASE}/public/table-session/${encodeURIComponent(state.scanSessionToken)}/orders`);
-                if (!res.ok) throw new Error('订单加载失败');
-                const data = await res.json();
+                const data = await SLF.api.get(`/public/table-session/${encodeURIComponent(state.scanSessionToken)}/orders`);
+
+
 
                 const orderStatusMap = {
                     'pending': t('orderPending') || '未结算',
