@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
   <title>收银台</title>
   <script>
-    try { if (window.SLF && SLF.store.rawGet('cashierToken')) document.documentElement.setAttribute('data-cashier-session', '1'); } catch(e) {}
+    try { if (localStorage.getItem('cashierToken')) document.documentElement.setAttribute('data-cashier-session', '1'); } catch(e) {}
   </script>
   <link rel="stylesheet" href="assets/common.css">
   <style>
@@ -150,7 +150,6 @@
     .stat-item{ text-align: center; }
     .stat-value{ font-size: 18px; font-weight: 700; color: var(--primary); }
     .stat-label{ font-size: 11px; color: var(--gray-4); }
-    /* 统一弹窗样式 - 深色主题（与admin.html一致） */
     .modal-overlay{
       position: fixed; inset: 0;
       background: rgba(0,0,0,0.55); z-index: 300; display: none;
@@ -233,7 +232,6 @@
       <button class="btn btn-primary" style="width:100%;background:linear-gradient(135deg,#f76b46,#df4d32);border:0;border-radius:8px;padding:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;" id="loginBtn" onclick="goLogin()">重新登录</button>
     </div>
   </div>
-  </div>
 
   <!-- 主内容 -->
   <div class="app-content">
@@ -263,18 +261,14 @@
     </div>
 
     <div class="content">
-      <!-- 订单列表 -->
       <div id="ordersView">
         <div id="orderList"></div>
       </div>
-
-      <!-- 报表 -->
       <div id="reportView" style="display:none;">
         <div id="reportContent"></div>
       </div>
     </div>
 
-    <!-- 底部统计栏 -->
     <div class="bottom-bar">
       <div class="stat-item">
         <div class="stat-value" id="pendingCount">0</div>
@@ -332,7 +326,6 @@
     let orders = [];
     let currentTab = 'orders';
 
-    // 本地翻译字典（补充 languages.js 中缺失的 key）
     const CASHIER_LABELS = {
       zh: { dishes: '道菜' },
       en: { dishes: 'dishes' },
@@ -341,10 +334,8 @@
       km: { dishes: 'មុខម្ហូប' },
     };
 
-    // 初始化统一 i18n（CASHIER_LABELS 定义后执行）
     SLF.i18n.init(currentLang, CASHIER_LABELS);
 
-    // 统一使用 SLF.i18n 翻译系统
     function t(key, params) {
       return SLF.i18n.t(key, params);
     }
@@ -372,6 +363,7 @@
         SLF.store.rawRemove('cashierToken');
         SLF.store.rawRemove('cashierStoreId');
         SLF.store.rawRemove('cashierInfo');
+        SLF.store.rawRemove('storeId');
         window.location.href = '/login?type=cashier';
       }, { type: 'warning', icon: '🚪' });
     }
@@ -381,8 +373,8 @@
       SLF.store.rawSet('cashierLang', lang);
       SLF.store.rawSet('lang', lang);
       applyLang();
-      renderOrders(); // 先同步重绘订单列表
-      loadOrders(); // 再异步加载最新数据
+      renderOrders();
+      loadOrders();
       if (currentTab === 'report') loadReport();
     }
 
@@ -430,7 +422,7 @@
         renderOrders();
         updateBottomStats();
       } catch (e) {
-        if (e.message.includes('请先登录')) {
+        if (e.message.includes('请先登录') || e.message.includes('登录已过期')) {
           SLF.store.rawRemove('cashierToken');
           window.location.href = '/login?type=cashier';
         } else {
@@ -439,7 +431,7 @@
       }
     }
 
-    // 根据 session_token 分组生成客户标签（客1/客2...），无 session_token 的为服务员代下单
+    // 根据 session_token 分组生成客户标签
     function buildSessionLabels(orderList) {
       const labels = new Map();
       const tableGroups = {};
@@ -661,6 +653,8 @@
         const info = JSON.parse(SLF.store.rawGet('cashierInfo') || '{}');
         cashierInfo = info;
         const storeId = SLF.store.rawGet('cashierStoreId') || '1';
+        // 同步 storeId 到统一的 key，供 SLF.api 使用
+        SLF.store.rawSet('storeId', storeId);
         document.getElementById('storeName').textContent = cashierInfo.storeName || ('店铺 #' + storeId);
         await loadOrders();
         setInterval(loadOrders, 15000);
