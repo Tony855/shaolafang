@@ -1025,7 +1025,9 @@ const SUPER_LOCAL_I18N = {
 
 
 // 初始化统一 i18n（SUPER_LOCAL_I18N 定义后执行）
-SLF.i18n.init(currentLang, SUPER_LOCAL_I18N);
+(async () => {
+  await SLF.i18n.init(currentLang, SUPER_LOCAL_I18N);
+})();
 
 function t(key, params) {
   return SLF.i18n.t(key, params);
