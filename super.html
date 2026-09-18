@@ -1536,6 +1536,7 @@ function switchSettingsTab(tab) {
   Object.keys(tabs).forEach(t => {
     const tabEl = document.getElementById(tabs[t]);
     const panelEl = document.getElementById(panels[t]);
+    if (!tabEl || !panelEl) return;
     if (t === tab) {
       tabEl.style.background = 'rgba(232,93,58,.15)';
       tabEl.style.color = '#e85d3a';
