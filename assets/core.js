@@ -34,7 +34,7 @@
 
     _format(level, args) {
       const time = new Date().toISOString().substr(11, 8);
-      return `[${time}] [SLF.${level}]`, args;
+      return [`[${time}] [SLF.${level}]`, ...args];
     },
 
     info(...args) {
