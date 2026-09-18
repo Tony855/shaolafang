@@ -352,7 +352,9 @@
       };
 
       if (options.body !== undefined) {
-        config.body = options.body instanceof FormData ? options.body : JSON.stringify(options.body);
+        config.body = options.body instanceof FormData 
+          ? options.body 
+          : (typeof options.body === 'string' ? options.body : JSON.stringify(options.body));
       }
 
       try {
