@@ -1758,8 +1758,7 @@ if (token) showApp();
     try {
       const text = await selectedBackupFile.text();
       const data = JSON.parse(text);
-      const result = await SLF.api.post('/super/backup/import', data);
-      if (!result.ok) throw new Error(result.error || t('importFailed'));
+      await SLF.api.post('/super/backup/import', data);
       toast('✅ ' + t('backupImported'), 'success');
       setTimeout(() => location.reload(), 1500);
     } catch (e) {
