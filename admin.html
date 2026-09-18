@@ -3161,14 +3161,10 @@
 
         $('#saveDisplaySettingsBtn').onclick = async function() {
             try {
-                const d = await SLF.api.post('/admin/display-settings', {
+                await SLF.api.post('/admin/display-settings', {
                     enabled: document.getElementById('dualCurrencyEnabled').checked,
                     secondaryCurrencyCode: document.getElementById('dualCurrencySelect').value
                 });
-
-
-
-
                 toast('✅ ' + tAdmin('displaySettingsSaved'));
                 await loadDisplaySettings();
                 await loadMenus();
