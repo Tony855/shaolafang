@@ -1672,7 +1672,7 @@
                 }
                 return `
                     <div class="menu-item" data-id="${item.id}">
-                        <div class="img-wrap">${imgHtml}${item.category === '热销' ? '<span class="tag">🔥</span>' : ''}</div>
+                        <div class="img-wrap">${imgHtml}${item.category === t('hotCategory') ? '<span class="tag">🔥</span>' : ''}</div>
                         <div class="info">
                             <div class="name">${name}</div>
                             <div class="desc">${desc || ''}</div>
