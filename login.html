@@ -332,10 +332,10 @@
     $('#langSelect').addEventListener('change', async () => {
       lang = $('#langSelect').value;
       // 同步保存所有角色的语言设置，确保登录后各页面使用相同语言
-      localStorage.setItem('lang', lang);
-      localStorage.setItem('adminLang', lang);
-      localStorage.setItem('waiterLang', lang);
-      localStorage.setItem('kitchenLang', lang);
+      SLF.store.rawSet('lang', lang);
+      SLF.store.rawSet('adminLang', lang);
+      SLF.store.rawSet('waiterLang', lang);
+      SLF.store.rawSet('kitchenLang', lang);
       if (lang !== 'zh') await SLF.i18n.loadLanguage(lang);
       SLF.i18n.setLang(lang);
       apply();
@@ -388,12 +388,12 @@
         }
         try {
           const data = await SLF.api.post('/admin/login', { username, password });
-          sessionStorage.setItem('adminToken', data.token);
-          sessionStorage.setItem('adminMerchantId', data.merchantId);
-          sessionStorage.setItem('adminMerchantName', data.merchantName);
-          sessionStorage.setItem('adminId', data.adminId || '');
-          sessionStorage.setItem('adminIsPrimary', data.isPrimary ? '1' : '0');
-          sessionStorage.setItem('adminPermissions', JSON.stringify(data.permissions || {}));
+          SLF.store.rawSetSession('adminToken', data.token);
+          SLF.store.rawSetSession('adminMerchantId', data.merchantId);
+          SLF.store.rawSetSession('adminMerchantName', data.merchantName);
+          SLF.store.rawSetSession('adminId', data.adminId || '');
+          SLF.store.rawSetSession('adminIsPrimary', data.isPrimary ? '1' : '0');
+          SLF.store.rawSetSession('adminPermissions', JSON.stringify(data.permissions || {}));
           window.location.href = '/admin';
         } catch (e) {
           showErrorModal(translateError(e.message));
@@ -407,9 +407,9 @@
         }
         try {
           const data = await SLF.api.post('/cashier/login', { username, password });
-          localStorage.setItem('cashierToken', data.token);
-          localStorage.setItem('cashierStoreId', String(data.storeId || 1));
-          localStorage.setItem('cashierInfo', JSON.stringify({ ...data.cashier, storeName: data.storeName }));
+          SLF.store.rawSet('cashierToken', data.token);
+          SLF.store.rawSet('cashierStoreId', String(data.storeId || 1));
+          SLF.store.rawSet('cashierInfo', JSON.stringify({ ...data.cashier, storeName: data.storeName }));
           window.location.href = '/cashier';
         } catch (e) {
           showErrorModal(translateError(e.message));
@@ -423,8 +423,8 @@
         }
         try {
           const data = await SLF.api.post('/waiter/login', { username, password });
-          localStorage.setItem('waiterToken', data.token);
-          localStorage.setItem('storeId', String(data.storeId || 1));
+          SLF.store.rawSet('waiterToken', data.token);
+          SLF.store.rawSet('storeId', String(data.storeId || 1));
           window.location.href = '/waiter';
         } catch (e) {
           showErrorModal(translateError(e.message));

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
   <title>收银台</title>
   <script>
-    if (localStorage.getItem('cashierToken')) {
+    if (SLF.store.rawGet('cashierToken')) {
       document.documentElement.setAttribute('data-cashier-session', '1');
     }
   </script>
@@ -386,8 +386,8 @@
 
     function changeLang(lang) {
       currentLang = lang;
-      localStorage.setItem('cashierLang', lang);
-      localStorage.setItem('lang', lang);
+      SLF.store.rawSet('cashierLang', lang);
+      SLF.store.rawSet('lang', lang);
       applyLang();
       renderOrders(); // 先同步重绘订单列表
       loadOrders(); // 再异步加载最新数据

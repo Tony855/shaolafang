@@ -9,7 +9,7 @@
   // 页面渲染前立即检查登录状态，避免登录框闪现
   (function() {
     try {
-      if (localStorage.getItem('kitchenToken')) {
+      if (SLF.store.rawGet('kitchenToken')) {
         document.documentElement.setAttribute('data-authed', 'true');
       }
     } catch(e) {}

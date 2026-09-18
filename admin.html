@@ -1837,15 +1837,15 @@
         // ================================================================
         const API = '/api';
         const $ = s => document.querySelector(s);
-        let adminToken = sessionStorage.getItem('adminToken') || '';
-        let adminId = parseInt(sessionStorage.getItem('adminId') || '0', 10);
-        let adminIsPrimary = sessionStorage.getItem('adminIsPrimary') === '1';
+        let adminToken = SLF.store.rawGetSession('adminToken') || '';
+        let adminId = parseInt(SLF.store.rawGetSession('adminId') || '0', 10);
+        let adminIsPrimary = SLF.store.rawGetSession('adminIsPrimary') === '1';
         let adminPermissions = {};
-        try { adminPermissions = JSON.parse(sessionStorage.getItem('adminPermissions') || '{}'); } catch(e) {}
+        try { adminPermissions = JSON.parse(SLF.store.rawGetSession('adminPermissions') || '{}'); } catch(e) {}
         // 权限检查：主管理员拥有所有权限
         function hasPermission(permKey) {
             // 旧登录状态（sessionStorage中无adminIsPrimary）默认显示所有按钮，避免误隐藏
-            if (sessionStorage.getItem('adminIsPrimary') === null) return true;
+            if (SLF.store.rawGetSession('adminIsPrimary') === null) return true;
             if (adminIsPrimary) return true;
             return adminPermissions && adminPermissions[permKey] ? true : false;
         }
@@ -1983,7 +1983,7 @@
         async function api(path, options = {}) {
             const headers = new Headers(options.headers || {});
             if (adminToken) headers.set('Authorization', 'Bearer ' + adminToken);
-            headers.set('X-Store-Id', sessionStorage.getItem('adminStoreId') || '1');
+            headers.set('X-Store-Id', SLF.store.rawGetSession('adminStoreId') || '1');
             let body = options.body;
             if (body && typeof body === 'object' && !(body instanceof FormData)) {
                 headers.set('Content-Type', 'application/json');
@@ -2563,12 +2563,12 @@
                     waiterSelect.innerHTML = optionsHtml;
                     editWaiterStore.innerHTML = optionsHtml;
                     window._adminStores = rows;
-                    const savedId = sessionStorage.getItem('adminStoreId') || '1';
+                    const savedId = SLF.store.rawGetSession('adminStoreId') || '1';
                     if (rows.some(r => String(r.id) === savedId)) {
                         adminSelect.value = savedId;
                     } else {
                         adminSelect.value = rows[0].id;
-                        sessionStorage.setItem('adminStoreId', String(rows[0].id));
+                        SLF.store.rawSetSession('adminStoreId', String(rows[0].id));
                     }
                     waiterSelect.value = rows[0].id;
                     updateSidebarStore();
@@ -3764,7 +3764,7 @@
             }
         };
         $('#adminStoreSelect').onchange = function() {
-            sessionStorage.setItem('adminStoreId', this.value);
+            SLF.store.rawSetSession('adminStoreId', this.value);
             updateSidebarStore();
             refresh();
         };
@@ -3779,7 +3779,7 @@
             if (adminIdleTimer) clearTimeout(adminIdleTimer);
             adminIdleTimer = setTimeout(() => {
                 adminToken = '';
-                sessionStorage.removeItem('adminToken');
+                SLF.store.rawRemoveSession('adminToken');
                 window.location.href = '/login';
             }, ADMIN_IDLE_TIMEOUT_MS);
         }
@@ -3852,7 +3852,7 @@
                 try { stopAdminCallPolling(); } catch(e) {}
                 try { stopAutoPrintPoll(); } catch(e) {}
                 adminToken = '';
-                sessionStorage.removeItem('adminToken');
+                SLF.store.rawRemoveSession('adminToken');
                 window.location.href = '/login';
             });
         };
@@ -3948,7 +3948,7 @@
             // 根据权限隐藏管理员管理
             // 只有明确无权限（isPrimary=false 且 can_manage_admin=0）时才隐藏
             // 旧登录状态（sessionStorage中无权限信息）默认显示，避免误隐藏
-            const hasPermInfo = sessionStorage.getItem('adminIsPrimary') !== null;
+            const hasPermInfo = SLF.store.rawGetSession('adminIsPrimary') !== null;
             if (hasPermInfo && !adminIsPrimary && !adminPermissions.can_manage_admin) {
                 const adminManageCard = document.getElementById('adminManageCard');
                 if (adminManageCard) adminManageCard.style.display = 'none';
@@ -3956,7 +3956,7 @@
                 if (adminsModule) adminsModule.style.display = 'none';
             }
             refresh().catch(() => {
-                sessionStorage.removeItem('adminToken');
+                SLF.store.rawRemoveSession('adminToken');
                 window.location.href = '/login';
             });
             // 应用所有菜单和按钮的权限控制
@@ -4503,7 +4503,7 @@
         }
 
         function exportData(type) {
-            const adminTokenLocal = sessionStorage.getItem('adminToken') || '';
+            const adminTokenLocal = SLF.store.rawGetSession('adminToken') || '';
             const url = '/api/admin/export/' + type;
             // 使用 fetch 下载，带上 admin key
             fetch(url, { headers: { 'Authorization': 'Bearer ' + adminToken } })

@@ -1183,8 +1183,8 @@ async function doLogin() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t('loginFailed'));
     token = data.token;
-    localStorage.setItem('superToken', token);
-    localStorage.setItem('superAdmin', JSON.stringify(data.admin));
+    SLF.store.rawSet('superToken', token);
+    SLF.store.rawSet('superAdmin', JSON.stringify(data.admin));
     showApp();
   } catch (e) {
     showError(e.message);
