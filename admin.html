@@ -2468,6 +2468,11 @@
             return details;
         }
         async function loadAuditLogs() {
+            // 检查权限，如果没有权限就不调用 API
+            if (!hasPermission('can_view_logs')) {
+                $('#auditLogs').innerHTML = '<div class="empty-hint">' + tAdmin('noPermission') + '</div>';
+                return;
+            }
             try {
                 const logs = await api('/admin/audit-logs');
                 $('#auditLogs').innerHTML = logs.length ?
