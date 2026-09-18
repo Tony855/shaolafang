@@ -85,7 +85,8 @@
 
     set(key, value) {
       try {
-        const strValue = typeof value === 'string' ? value : JSON.stringify(value);
+        // 统一 JSON 序列化，确保字符串、数字、布尔值等类型都能正确还原
+        const strValue = JSON.stringify(value);
         localStorage.setItem(this._key(key), strValue);
         return true;
       } catch (e) {
