@@ -4432,7 +4432,7 @@
         //  营业报表与数据导出
         // ================================================================
         async function loadDailyReport() {
-            const date = $('#reportDate').value || new Date().toISOString().slice(0, 10);
+            const date = ($('#reportDate') && $('#reportDate').value) || new Date().toISOString().slice(0, 10);
             try {
                 const data = await api('/admin/reports/daily?date=' + date);
                 const s = data.summary;
