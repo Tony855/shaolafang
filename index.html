@@ -1333,6 +1333,7 @@
                     state.scanToken = '';
                     state.scanSessionToken = '';
                     state.scanExpiresAt = '';
+                state.storeId = 1;
                 }
                 tableDisplay.textContent = state.table || t('notScanned');
                 tableInfo.title = state.table ? `${t('table')}: ${state.table}` : t('scanToBind');
@@ -1348,6 +1349,7 @@
                 state.scanToken = '';
                 state.scanSessionToken = '';
                 state.scanExpiresAt = '';
+                state.storeId = 1;
                 tableDisplay.textContent = t('notScanned');
                 tableInfo.title = t('scanToBind');
                 document.getElementById('customerOrderBtn').hidden = true;
