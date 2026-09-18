@@ -1137,8 +1137,8 @@ function resetIdleTimer() {
 async function startIdleCheck() {
   if (idleTimer) clearInterval(idleTimer);
   try {
-    const res = await fetch(API + '/super/settings', { headers: { 'Authorization': 'Bearer ' + token } });
-    const settings = await res.json();
+    const settings = await SLF.api.get('/super/settings');
+
     const timeoutMin = settings.super_idle_timeout || 30;
     const timeoutMs = timeoutMin * 60 * 1000;
     idleTimer = setInterval(() => {
@@ -1169,11 +1169,11 @@ async function doLogin() {
   const password = document.getElementById('loginPassword').value;
   if (!username || !password) { showError(t('pleaseEnterCredentials')); return; }
   try {
-    const res = await fetch(API + '/super/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+    const data = await SLF.api.post('/super/login', {
+      username, password
     });
-    const data = await res.json();
+
+
     if (!res.ok) throw new Error(data.error || t('loginFailed'));
     token = data.token;
     SLF.store.rawSet('superToken', token);
@@ -1752,11 +1752,11 @@ if (token) showApp();
     try {
       const text = await selectedBackupFile.text();
       const data = JSON.parse(text);
-      const res = await fetch('/api/super/backup/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify(data)
-      });
+      const json = await SLF.api.post('/super/backup/import', data);
+
+
+
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || t('importFailed'));
       toast('✅ ' + t('backupImported'), 'success');
@@ -1838,11 +1838,11 @@ if (token) showApp();
     showPasswordModal(t('enterPasswordVerify'), function(password) {
       showConfirm(t('confirmResetData'), async function() {
         try {
-          const res = await fetch('/api/super/reset-data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ password })
-          });
+          const res = await SLF.api.post('/super/reset-data', { password });
+
+
+
+
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || t('resetFailed'));
           toast('✅ ' + t('orderDataReset'), 'success');
