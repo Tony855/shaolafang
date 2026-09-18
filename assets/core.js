@@ -152,6 +152,34 @@
         return false;
       }
     },
+
+    /* 直接访问原始 sessionStorage（用于 adminToken 等需要关闭浏览器即失效的场景） */
+    rawGetSession(key, defaultValue = null) {
+      try {
+        const value = sessionStorage.getItem(key);
+        return value === null ? defaultValue : value;
+      } catch (e) {
+        return defaultValue;
+      }
+    },
+
+    rawSetSession(key, value) {
+      try {
+        sessionStorage.setItem(key, value);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+
+    rawRemoveSession(key) {
+      try {
+        sessionStorage.removeItem(key);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
   };
 
   /* ============================================================
@@ -290,10 +318,12 @@
       const waiterToken = store.rawGet(CONFIG.STORAGE_KEYS.waiterToken) ||
                           store.rawGet(CONFIG.STORAGE_KEYS.kitchenToken);
       const superToken = store.rawGet(CONFIG.STORAGE_KEYS.superToken);
+      const cashierToken = store.rawGet(CONFIG.STORAGE_KEYS.cashierToken);
 
       if (adminToken) headers['Authorization'] = 'Bearer ' + adminToken;
       if (waiterToken) headers['X-Waiter-Token'] = waiterToken;
       if (superToken) headers['X-Super-Token'] = superToken;
+      if (cashierToken) headers['X-Cashier-Token'] = cashierToken;
 
       const storeId = store.rawGet(CONFIG.STORAGE_KEYS.storeId);
       if (storeId) headers['X-Store-Id'] = storeId;
