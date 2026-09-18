@@ -1856,9 +1856,8 @@
         try { adminPermissions = JSON.parse(SLF.store.rawGetSession('adminPermissions') || '{}'); } catch(e) {}
         // 权限检查：主管理员拥有所有权限
         function hasPermission(permKey) {
-            // 旧登录状态（sessionStorage中无adminIsPrimary）默认显示所有按钮，避免误隐藏
-            if (SLF.store.rawGetSession('adminIsPrimary') === null) return true;
-            if (adminIsPrimary) return true;
+            // 旧登录状态（sessionStorage中无adminIsPrimary）默认隐藏，避免误显示
+            if (SLF.store.rawGetSession('adminIsPrimary') === null) return false;
             return adminPermissions && adminPermissions[permKey] ? true : false;
         }
 
@@ -2401,7 +2400,7 @@
                           '<div class="sub">' + (c.active?'<span style="color:#43e97b">' + tAdmin('cashierEnabled') + '</span>':'<span style="color:#f5576c">' + tAdmin('cashierDisabled') + '</span>') + ' · ' + (perms.join(' / ') || tAdmin('noPermission')) + '</div>' +
                         '</div>' +
                         '<div class="actions">' +
-                          '<button class="edit-btn" onclick="editCashier(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">✏️ ' + L('edit') + '</button>' +
+                          '<button class="edit-btn" onclick="editCashierById(' + c.id + ')">✏️ ' + L('edit') + '</button>' +
                           '<button class="danger" onclick="deleteCashier(' + c.id + ', \'' + esc(c.username) + '\')">' + L('delete') + '</button>' +
                         '</div>' +
                       '</div>';
