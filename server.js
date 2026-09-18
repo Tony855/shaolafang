@@ -1390,15 +1390,18 @@ async function printToNetworkPrinter(data, ip, port) {
 // ---------- 辅助函数 ----------
 function formatOrder(row) {
   let items = row.items;
+  let dataCorrupted = false;
   if (typeof items === 'string') {
     try {
       items = JSON.parse(items);
     } catch (_) {
       console.warn(`订单 ${row.id} 的 items 解析失败，原始内容:`, items);
       items = [];
+      dataCorrupted = true;
     }
   } else if (!Array.isArray(items)) {
     items = [];
+    dataCorrupted = true;
   }
   for (const item of items) {
     if (!item.itemStatus) item.itemStatus = 'pending';
@@ -1412,7 +1415,8 @@ function formatOrder(row) {
     status: row.status,
     createdAt: row.createdAt,
     sessionToken: row.session_token || '',
-    note: row.note || ''
+    note: row.note || '',
+    dataCorrupted
   };
 }
 
