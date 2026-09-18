@@ -1582,7 +1582,11 @@ async function requireAdminKey(req, res, next) {
     req.adminId = result.adminId;
     req.merchantId = result.merchantId;
     req.adminSessionToken = result.sessionToken;
-    req.storeId = result.storeId;
+    req.storeId = result.storeId || 0;
+    // 安全检查：storeId 为 0 或 undefined 时拒绝访问，防止越权访问其他商户数据
+    if (!req.storeId) {
+      return res.status(401).json({ error: '未选择有效店铺，请重新登录' });
+    }
     // 加载管理员权限信息
     try {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [result.adminId]);
