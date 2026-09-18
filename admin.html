@@ -2361,7 +2361,10 @@
             document.getElementById('cashierModal').classList.add('open');
         }
 
-        function editCashier(cashier) {
+        let allCashiers = [];
+        function editCashier(cashierId) {
+            const cashier = allCashiers.find(c => c.id === cashierId);
+            if (!cashier) return;
             editingCashierId = cashier.id;
             document.getElementById('cashierModalTitle').textContent = tAdmin('editCashier');
             document.getElementById('cashierUsername').value = cashier.username;
@@ -2386,6 +2389,7 @@
             try {
                 const data = await api('/admin/cashiers');
                 const cashiers = data.cashiers || [];
+                allCashiers = cashiers;
                 $('#cashierList').innerHTML = cashiers.length ?
                     cashiers.map(c => {
                         const perms = [];
@@ -2399,7 +2403,7 @@
                           '<div class="sub">' + (c.active?'<span style="color:#43e97b">' + tAdmin('cashierEnabled') + '</span>':'<span style="color:#f5576c">' + tAdmin('cashierDisabled') + '</span>') + ' · ' + (perms.join(' / ') || tAdmin('noPermission')) + '</div>' +
                         '</div>' +
                         '<div class="actions">' +
-                          '<button class="edit-btn" onclick="editCashierById(' + c.id + ')">✏️ ' + L('edit') + '</button>' +
+                          '<button class="edit-btn" onclick="editCashier(' + c.id + ')">✏️ ' + L('edit') + '</button>' +
                           '<button class="danger" onclick="deleteCashier(' + c.id + ', \'' + esc(c.username) + '\')">' + L('delete') + '</button>' +
                         '</div>' +
                       '</div>';
