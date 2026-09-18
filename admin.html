@@ -2653,7 +2653,7 @@
             if (!name) { toast('❌ ' + tAdmin('tableNameRequired')); return; }
             try {
                 await api('/menu-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name }) });
+                    body: { name } });
                 $('#newCategoryName').value = '';
                 await loadMenuCategories();
                 toast('✅ ' + tAdmin('added'));
@@ -2676,7 +2676,7 @@
             if (!name) { toast(`⚠️ ${tAdmin('nameRequired')}`); return; }
             try {
                 await api('/menu-categories/' + editingCategoryId, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name }) });
+                    body: { name } });
                 closeCategoryEditModal();
                 await loadMenuCategories();
                 await loadMenus();
@@ -2753,7 +2753,7 @@
         window.toggleMenuStatus = async function(id, active) {
             try {
                 await api('/menu/' + id + '/status', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ active }) });
+                    body: { active } });
                 await loadMenus();
                 toast('✅ ' + (active ? tAdmin('listed') : tAdmin('unlisted')));
             } catch (e) { toast('❌ ' + e.message); }
@@ -2814,7 +2814,7 @@
             if (!name) { toast('❌ ' + tAdmin('tableNameRequired')); return; }
             try {
                 await api('/tables/' + editingTableId, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, status }) });
+                    body: { name, status } });
                 closeTableForm();
                 await loadTables();
                 toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('updated'));
@@ -2824,7 +2824,7 @@
             e.preventDefault();
             try {
                 await api('/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: $('#tableName').value.trim() }) });
+                    body: { name: $('#tableName').value.trim() } });
                 e.target.reset();
                 await loadTables();
                 toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('added'));
@@ -2845,7 +2845,7 @@
                 await api('/orders/' + id + '/items/' + index, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ itemStatus: 'done' })
+                    body: { itemStatus: 'done' }
                 });
                 await loadOrders();
                 toast(`✅ ${tAdmin('dishStatusUpdated')}`);
@@ -2860,7 +2860,7 @@
         window.statusOrder = async function(id, status) {
             try {
                 await api('/orders/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status }) });
+                    body: { status } });
                 await loadOrders();
                 toast('✅ ' + tAdmin('orderManage') + ' ' + tAdmin('updated'));
             } catch (e) {
@@ -2872,7 +2872,7 @@
             showPasswordModal(tAdmin('passwordTitle'), async function(password) {
                 try {
                     await api('/orders/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ password }) });
+                        body: { password } });
                     await loadOrders();
                     toast('✅ ' + tAdmin('deleted'));
                 } catch (e) { toast('❌ ' + e.message); }
@@ -3002,7 +3002,7 @@
             const rate = parseFloat($('#editCurrencyRate').value) || 1;
             try {
                 await api('/currencies/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, symbol, rate }) });
+                    body: { name, symbol, rate } });
                 closeCurrencyEdit();
                 await loadCurrencies();
                 toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('updated'));
@@ -3012,7 +3012,7 @@
             const c = currenciesCache.find(x => x.id === id);
             try {
                 await api('/currencies/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...c, is_default: true }) });
+                    body: { ...c, is_default: true } });
                 await loadCurrencies();
                 toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('updated'));
             } catch (e) { toast('❌ ' + e.message); }
@@ -3032,12 +3032,12 @@
                 await api('/currencies', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                    body: {
                         code: $('#currencyCode').value,
                         symbol: $('#currencySymbol').value,
                         name: $('#currencyName').value,
                         rate: +$('#currencyRate').value
-                    })
+                    }
                 });
                 e.target.reset();
                 await loadCurrencies();
@@ -3048,7 +3048,7 @@
         window.updateWaiterPerm = async function(id, key, val) {
             try {
                 await api('/admin/waiters/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ [key]: val }) });
+                    body: { [key]: val } });
                 toast('✅ ' + tAdmin('updated'));
             } catch (e) { toast('❌ ' + e.message);
                 loadWaiters(); }
@@ -3075,7 +3075,7 @@
                 await api('/admin/waiters', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                    body: {
                         username,
                         password,
                         display_name,
@@ -3083,7 +3083,7 @@
                         can_mark_item: 1,
                         can_complete_order: 1,
                         store_id
-                    })
+                    }
                 });
                 $('#waiterUsernameInput').value = '';
                 $('#waiterPasswordInput').value = '';
@@ -3125,7 +3125,7 @@
                 await api('/admin/stores', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, code, address })
+                    body: { name, code, address }
                 });
                 $('#storeNameInput').value = '';
                 $('#storeCodeInput').value = '';
@@ -3141,10 +3141,10 @@
                 await api('/admin/change-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                    body: {
                         oldPassword: $('#oldPassword').value,
                         newPassword: $('#newPassword').value
-                    })
+                    }
                 });
                 e.target.reset();
                 toast('✅ ' + tAdmin('passwordTitle') + ' ' + tAdmin('updated'));
@@ -3304,7 +3304,7 @@
                 await api('/admin/stores/' + id, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, code, address, active, qr_languages: qrLanguages })
+                    body: { name, code, address, active, qr_languages: qrLanguages }
                 });
                 closeStoreEdit();
                 await loadStores();
@@ -4012,7 +4012,7 @@
                     await api('/menu-categories/sort', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ids: newOrder })
+                        body: { ids: newOrder }
                     });
                     toast(`✅ ${tAdmin('categorySortUpdated')}`);
                     await loadMenuCategories();
@@ -4070,7 +4070,7 @@
                 await api('/admin/reservations/' + id, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status })
+                    body: { status }
                 });
                 toast(tAdmin('reservationUpdated'));
                 loadReservations();
@@ -4201,7 +4201,7 @@
                         const data = await api('/orders/' + order.id + '/print', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({})
+                            body: {}
                         });
                         if (data.printData) {
                             printViaBrowser(data.printData, order.id);
@@ -4263,7 +4263,7 @@
                 await api('/admin/printers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                    body: {
                         name,
                         type: $('#printerType').value,
                         ip_address: $('#printerIp').value.trim(),
@@ -4271,7 +4271,7 @@
                         paper_width: parseInt($('#printerWidth').value) || 58,
                         brand: $('#printerBrand').value,
                         is_default: $('#printerDefault').checked
-                    })
+                    }
                 });
                 toast(tAdmin('printerAdded'));
                 $('#printerName').value = '';
@@ -4288,7 +4288,7 @@
                 await api('/admin/printers/test', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ printer_id: id })
+                    body: { printer_id: id }
                 });
                 toast(tAdmin('testPrintSent'));
             } catch (err) {
@@ -4322,7 +4322,7 @@
                 await api('/admin/printers/' + id, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                    body: {
                         name,
                         type: $('#editPrinterType').value,
                         ip_address: $('#editPrinterIp').value.trim(),
@@ -4330,7 +4330,7 @@
                         paper_width: parseInt($('#editPrinterWidth').value) || 58,
                         brand: $('#editPrinterBrand').value,
                         is_default: $('#editPrinterDefault').checked
-                    })
+                    }
                 });
                 toast(tAdmin('saveSuccess') || '保存成功');
                 closePrinterEdit();
@@ -4345,7 +4345,7 @@
                 await api('/admin/printers/' + id, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ active })
+                    body: { active }
                 });
                 loadPrinters();
             } catch (err) {
@@ -4358,7 +4358,7 @@
                 await api('/admin/printers/' + id, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ is_default: true })
+                    body: { is_default: true }
                 });
                 toast(tAdmin('setAsDefaultPrinter'));
                 loadPrinters();
@@ -4385,7 +4385,7 @@
                 const data = await api('/orders/' + orderId + '/print', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
+                    body: {}
                 });
                 if (data.printed) {
                     toast(tAdmin('orderPrinted'));
