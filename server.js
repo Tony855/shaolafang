@@ -1426,7 +1426,10 @@ async function normalizeOrderItems(items, storeId) {
     }
     const menuItem = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [menuId, storeId || 1]);
     if (!menuItem) throw new Error(`菜品不存在（ID: ${menuId}）`);
-    const currency = await getAsync('SELECT code, rate FROM currencies WHERE code=? AND merchant_id=(SELECT merchant_id FROM stores WHERE id=?)', [menuItem.currency_code || 'USD', menuItem.store_id || 1]);
+        // 先检查店铺是否存在，防止跨商户货币混用
+    const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [menuItem.store_id || 1]);
+    if (!store) throw new Error(`菜品所属店铺不存在（ID: ${menuItem.store_id}）`);
+    const currency = await getAsync('SELECT code, rate FROM currencies WHERE code=? AND merchant_id=?', [menuItem.currency_code || 'USD', store.merchant_id]);
     if (!currency || !(Number(currency.rate) > 0)) throw new Error(`菜品货币无效（${menuItem.currency_code || 'CNY'}）`);
     normalized.push({
       id: menuItem.id,
