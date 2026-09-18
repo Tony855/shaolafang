@@ -370,15 +370,12 @@
     const audio = SLF.audio || { unlock: () => {}, setEnabled: () => {}, playNewOrderChime: () => {}, playUrgeChime: () => {} };
     const utils = SLF.utils || { esc: s => String(s ?? ''), formatTime: d => new Date(d).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) };
     let lang = SLF.store.rawGet('kitchenLang') || 'zh';
-    // i18n 统一使用 window.LANGUAGES（来自 languages.min.js）
-    // 统一翻译函数：先查 window.LANGUAGES，最后返回 key
-    function t(key) {
-      try {
-        if (window.LANGUAGES && window.LANGUAGES[lang] && window.LANGUAGES[lang][key]) {
-          return window.LANGUAGES[lang][key];
-        }
-      } catch (e) {}
-      return key;
+    // 初始化统一 i18n（kitchen 无本地字典，直接用 languages.min.js）
+    SLF.i18n.init(lang);
+
+    // 统一使用 SLF.i18n 翻译系统
+    function t(key, params) {
+      return SLF.i18n.t(key, params);
     }
 
     let token = SLF.store.rawGet('kitchenToken') || '';

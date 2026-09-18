@@ -334,27 +334,21 @@
     let orders = [];
     let currentTab = 'orders';
 
-    function t(key) {
-      // 本地翻译字典（补充 languages.js 中缺失的 key）
-      const localTranslations = {
-        zh: { dishes: '道菜' },
-        en: { dishes: 'dishes' },
-        vi: { dishes: 'món' },
-        th: { dishes: 'เมนู' },
-        km: { dishes: 'មុខម្ហូប' },
-      };
-      // 先检查本地翻译字典
-      if (localTranslations[currentLang] && localTranslations[currentLang][key]) {
-        return localTranslations[currentLang][key];
-      }
-      // 检查当前语言的翻译，不回退到中文
-      try {
-        if (window.LANGUAGES && window.LANGUAGES[currentLang] && window.LANGUAGES[currentLang][key]) {
-          return window.LANGUAGES[currentLang][key];
-        }
-      } catch (e) {}
-      // 没有翻译时直接返回 key
-      return key;
+    // 本地翻译字典（补充 languages.js 中缺失的 key）
+    const CASHIER_LABELS = {
+      zh: { dishes: '道菜' },
+      en: { dishes: 'dishes' },
+      vi: { dishes: 'món' },
+      th: { dishes: 'เมนู' },
+      km: { dishes: 'មុខម្ហូប' },
+    };
+
+    // 初始化统一 i18n（CASHIER_LABELS 定义后执行）
+    SLF.i18n.init(currentLang, CASHIER_LABELS);
+
+    // 统一使用 SLF.i18n 翻译系统
+    function t(key, params) {
+      return SLF.i18n.t(key, params);
     }
 
     function toast(msg) {

@@ -1023,19 +1023,12 @@ const SUPER_LOCAL_I18N = {
   },
 };
 
-function t(key) {
-  // 先检查本地翻译字典
-  if (SUPER_LOCAL_I18N[currentLang] && SUPER_LOCAL_I18N[currentLang][key]) {
-    return SUPER_LOCAL_I18N[currentLang][key];
-  }
-  // 再检查 window.LANGUAGES（来自 languages.min.js）
-  try {
-    if (window.LANGUAGES && window.LANGUAGES[currentLang] && window.LANGUAGES[currentLang][key]) {
-      return window.LANGUAGES[currentLang][key];
-    }
-  } catch (e) {}
-  // 没有翻译时直接返回 key
-  return key;
+
+// 初始化统一 i18n（SUPER_LOCAL_I18N 定义后执行）
+SLF.i18n.init(currentLang, SUPER_LOCAL_I18N);
+
+function t(key, params) {
+  return SLF.i18n.t(key, params);
 }
 
 function changeSuperLang(lang) {
