@@ -2082,8 +2082,8 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
     const merchantCount = await getAsync('SELECT COUNT(*) as count FROM merchants');
     const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores');
     const orderCount = await getAsync('SELECT COUNT(*) as count FROM orders');
-    const todayOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE DATE(createdAt)=CURDATE()");
-    const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE DATE(createdAt)=CURDATE() AND status='done'");
+    const todayOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE()");
+    const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE() AND status='done'");
     // 在线客户端：当前未过期的扫码会话数
     const now = new Date().toISOString();
     const onlineClients = await getAsync('SELECT COUNT(*) as count FROM scan_sessions WHERE expires_at > ?', [now]);
@@ -2570,7 +2570,7 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
       return res.status(403).json({ error: '没有查看报表权限' });
     }
     const today = new Date().toISOString().split('T')[0];
-    const settledOrders = await allAsync("SELECT * FROM orders WHERE store_id=? AND status='done' AND DATE(createdAt)=? ORDER BY createdAt DESC", [req.storeId, today]);
+    const settledOrders = await allAsync("SELECT * FROM orders WHERE store_id=? AND status='done' AND SUBSTRING(createdAt, 1, 10)=? ORDER BY createdAt DESC", [req.storeId, today]);
     const totalRevenue = settledOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
     res.json({
       date: today,
