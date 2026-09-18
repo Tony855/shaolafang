@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -314,9 +314,27 @@ select:focus {
   transform: translateY(0);
 }
 
+
+/* 语言选择器 */
+.lang-select {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+.lang-select option { color: #333; }
+.login-lang-select {
+  width: 100%;
+  margin-top: 12px;
+  text-align: center;
+}
 </style>
-  <script src="languages.min.js"></script>
-  <script src="assets/common.js"></script>
+  <script src="languages.min.js?v=20260918"></script>
+  <script src="assets/core.js"></script>
 </head>
 <body>
 
@@ -346,6 +364,15 @@ select:focus {
       <input type="password" id="loginPassword" placeholder="请输入密码">
     </div>
     <button class="login-btn" onclick="doLogin()">登 录</button>
+    <div class="form-group">
+      <select class="lang-select login-lang-select" id="loginLangSelect" onchange="changeSuperLang(this.value)">
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+        <option value="vi">Tiếng Việt</option>
+        <option value="th">ไทย</option>
+        <option value="km">ខ្មែរ</option>
+      </select>
+    </div>
   </div>
 </div>
 
@@ -385,6 +412,13 @@ select:focus {
       <h1 id="pageTitle">仪表盘</h1>
       <div class="user-info">
         <span id="adminName">超级管理员</span>
+        <select class="lang-select" id="adminLangSelect" onchange="changeSuperLang(this.value)">
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+          <option value="vi">Tiếng Việt</option>
+          <option value="th">ไทย</option>
+          <option value="km">ខ្មែរ</option>
+        </select>
         <button class="logout-btn" onclick="logout()">退出登录</button>
       </div>
     </div>
@@ -837,22 +871,178 @@ select:focus {
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== i18n 多语言支持 =====
-let currentLang = localStorage.getItem('superLang') || 'zh';
-let i18nData = {};
+// ===== i18n 多语言支持（统一使用 window.LANGUAGES）=====
+let currentLang = SLF.store.rawGet('superLang') || SLF.store.rawGet('lang') || 'zh';
 
-async function initI18n() {
-  try {
-    const res = await fetch('/api/i18n/' + currentLang + '?t=' + Date.now());
-    i18nData = await res.json();
-  } catch (e) {
-    i18nData = {};
-  }
-  applyI18n();
-}
+// 本地翻译字典（补充 languages.js 中缺失的 key）
+const SUPER_LOCAL_I18N = {
+  zh: {
+    superAdmin: '超级管理员', dashboard: '仪表盘', merchantManage: '商户管理',
+    storeOverview: '门店总览', logs: '日志', systemSettings: '系统设置',
+    totalMerchants: '商户总数', totalStores: '门店总数', totalOrders: '订单总数',
+    todayRevenue: '今日营业额', todayOrders: '今日订单', logout: '退出登录',
+    login: '登录', username: '用户名', password: '密码',
+    loginFailed: '登录失败', loginError: '用户名或密码错误',
+    confirm: '确定', cancel: '取消', edit: '编辑', delete: '删除',
+    enable: '启用', disable: '禁用', status: '状态', actions: '操作',
+    merchantName: '商户名称', contact: '联系人', phone: '电话',
+    storeName: '门店名称', storeCount: '门店数量', orderCount: '订单数量',
+    revenue: '营收', createdAt: '创建时间', search: '搜索',
+    addMerchant: '添加商户', addStore: '添加门店', save: '保存',
+    merchantCode: '商户编码',
+    loginLogs: '登录日志', operationLogs: '操作审计',
+    clearLogs: '清理日志', autoClearLogs: '自动清理日志',
+    loginLimit: '登录限流', maxFailAttempts: '最大失败次数',
+    lockDuration: '锁定时长(分钟)', sessionTimeout: '会话超时(分钟)',
+    saveSettings: '保存设置', settingsSaved: '设置已保存',
+    onlineClients: '在线客户端', scanSessions: '扫码会话',
+    serverLoad: '服务器负载', cpuUsage: 'CPU使用率', memoryUsage: '内存使用率',
+    diskUsage: '磁盘使用率', uptime: '运行时间',
+    backup: '备份', restore: '恢复', export: '导出', import: '导入',
+    backupData: '备份数据', restoreData: '恢复数据',
+    confirmDelete: '确认删除？', confirmDisable: '确认禁用？',
+    confirmEnable: '确认启用？', deleteSuccess: '删除成功',
+    disableSuccess: '禁用成功', enableSuccess: '启用成功',
+    noData: '暂无数据', loading: '加载中...',
+  },
+  en: {
+    superAdmin: 'Super Admin', dashboard: 'Dashboard', merchantManage: 'Merchants',
+    storeOverview: 'Stores', logs: 'Logs', systemSettings: 'Settings',
+    totalMerchants: 'Total Merchants', totalStores: 'Total Stores', totalOrders: 'Total Orders',
+    todayRevenue: 'Today Revenue', todayOrders: 'Today Orders', logout: 'Logout',
+    login: 'Login', username: 'Username', password: 'Password',
+    loginFailed: 'Login Failed', loginError: 'Invalid username or password',
+    confirm: 'OK', cancel: 'Cancel', edit: 'Edit', delete: 'Delete',
+    enable: 'Enable', disable: 'Disable', status: 'Status', actions: 'Actions',
+    merchantName: 'Merchant', contact: 'Contact', phone: 'Phone',
+    storeName: 'Store', storeCount: 'Stores', orderCount: 'Orders',
+    revenue: 'Revenue', createdAt: 'Created', search: 'Search',
+    addMerchant: 'Add Merchant', addStore: 'Add Store', save: 'Save',
+    merchantCode: 'Code',
+    loginLogs: 'Login Logs', operationLogs: 'Audit Logs',
+    clearLogs: 'Clear Logs', autoClearLogs: 'Auto Clear Logs',
+    loginLimit: 'Login Limit', maxFailAttempts: 'Max Fail Attempts',
+    lockDuration: 'Lock Duration (min)', sessionTimeout: 'Session Timeout (min)',
+    saveSettings: 'Save Settings', settingsSaved: 'Settings Saved',
+    onlineClients: 'Online Clients', scanSessions: 'Scan Sessions',
+    serverLoad: 'Server Load', cpuUsage: 'CPU Usage', memoryUsage: 'Memory Usage',
+    diskUsage: 'Disk Usage', uptime: 'Uptime',
+    backup: 'Backup', restore: 'Restore', export: 'Export', import: 'Import',
+    backupData: 'Backup Data', restoreData: 'Restore Data',
+    confirmDelete: 'Confirm delete?', confirmDisable: 'Confirm disable?',
+    confirmEnable: 'Confirm enable?', deleteSuccess: 'Deleted',
+    disableSuccess: 'Disabled', enableSuccess: 'Enabled',
+    noData: 'No Data', loading: 'Loading...',
+  },
+  vi: {
+    superAdmin: 'Quản trị cấp cao', dashboard: 'Bảng điều khiển', merchantManage: 'Quản lý thương nhân',
+    storeOverview: 'Tổng quan cửa hàng', logs: 'Nhật ký', systemSettings: 'Cài đặt hệ thống',
+    totalMerchants: 'Tổng thương nhân', totalStores: 'Tổng cửa hàng', totalOrders: 'Tổng đơn hàng',
+    todayRevenue: 'Doanh thu hôm nay', todayOrders: 'Đơn hôm nay', logout: 'Đăng xuất',
+    login: 'Đăng nhập', username: 'Tài khoản', password: 'Mật khẩu',
+    loginFailed: 'Đăng nhập thất bại', loginError: 'Sai tài khoản hoặc mật khẩu',
+    confirm: 'Xác nhận', cancel: 'Hủy', edit: 'Sửa', delete: 'Xóa',
+    enable: 'Bật', disable: 'Tắt', status: 'Trạng thái', actions: 'Thao tác',
+    merchantName: 'Thương nhân', contact: 'Liên hệ', phone: 'Điện thoại',
+    storeName: 'Cửa hàng', storeCount: 'Cửa hàng', orderCount: 'Đơn hàng',
+    revenue: 'Doanh thu', createdAt: 'Ngày tạo', search: 'Tìm kiếm',
+    addMerchant: 'Thêm thương nhân', addStore: 'Thêm cửa hàng', save: 'Lưu',
+    merchantCode: 'Mã',
+    loginLogs: 'Nhật ký đăng nhập', operationLogs: 'Kiểm toán',
+    clearLogs: 'Xóa nhật ký', autoClearLogs: 'Tự động xóa',
+    loginLimit: 'Giới hạn đăng nhập', maxFailAttempts: 'Số lần thất bại tối đa',
+    lockDuration: 'Thời gian khóa (phút)', sessionTimeout: 'Hết phiên (phút)',
+    saveSettings: 'Lưu cài đặt', settingsSaved: 'Đã lưu',
+    onlineClients: 'Khách trực tuyến', scanSessions: 'Phiên quét mã',
+    serverLoad: 'Tải máy chủ', cpuUsage: 'CPU', memoryUsage: 'Bộ nhớ',
+    diskUsage: 'Ổ đĩa', uptime: 'Thời gian chạy',
+    backup: 'Sao lưu', restore: 'Khôi phục', export: 'Xuất', import: 'Nhập',
+    backupData: 'Sao lưu dữ liệu', restoreData: 'Khôi phục dữ liệu',
+    confirmDelete: 'Xác nhận xóa?', confirmDisable: 'Xác nhận tắt?',
+    confirmEnable: 'Xác nhận bật?', deleteSuccess: 'Đã xóa',
+    disableSuccess: 'Đã tắt', enableSuccess: 'Đã bật',
+    noData: 'Không có dữ liệu', loading: 'Đang tải...',
+  },
+  th: {
+    superAdmin: 'ผู้ดูแลระดับสูง', dashboard: 'แดชบอร์ด', merchantManage: 'จัดการพ่อค้า',
+    storeOverview: 'ภาพรวมร้านค้า', logs: 'บันทึก', systemSettings: 'ตั้งค่าระบบ',
+    totalMerchants: 'พ่อค้าทั้งหมด', totalStores: 'ร้านค้าทั้งหมด', totalOrders: 'ออเดอร์ทั้งหมด',
+    todayRevenue: 'รายวันนี้', todayOrders: 'ออเดอร์วันนี้', logout: 'ออกจากระบบ',
+    login: 'เข้าสู่ระบบ', username: 'ชื่อผู้ใช้', password: 'รหัสผ่าน',
+    loginFailed: 'เข้าสู่ระบบล้มเหลว', loginError: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
+    confirm: 'ยืนยัน', cancel: 'ยกเลิก', edit: 'แก้ไข', delete: 'ลบ',
+    enable: 'เปิด', disable: 'ปิด', status: 'สถานะ', actions: 'การดำเนินการ',
+    merchantName: 'พ่อค้า', contact: 'ผู้ติดต่อ', phone: 'โทรศัพท์',
+    storeName: 'ร้านค้า', storeCount: 'ร้านค้า', orderCount: 'ออเดอร์',
+    revenue: 'รายได้', createdAt: 'วันที่สร้าง', search: 'ค้นหา',
+    addMerchant: 'เพิ่มพ่อค้า', addStore: 'เพิ่มร้านค้า', save: 'บันทึก',
+    merchantCode: 'รหัส',
+    loginLogs: 'บันทึกการเข้าสู่ระบบ', operationLogs: 'ตรวจสอบ',
+    clearLogs: 'ล้างบันทึก', autoClearLogs: 'ล้างอัตโนมัติ',
+    loginLimit: 'จำกัดการเข้าสู่ระบบ', maxFailAttempts: 'ความล้มเหลวสูงสุด',
+    lockDuration: 'ระยะเวลาล็อก (นาที)', sessionTimeout: 'หมดเวลา (นาที)',
+    saveSettings: 'บันทึกการตั้งค่า', settingsSaved: 'บันทึกแล้ว',
+    onlineClients: 'ลูกค้าออนไลน์', scanSessions: 'เซสชันสแกน',
+    serverLoad: 'โหลดเซิร์ฟเวอร์', cpuUsage: 'CPU', memoryUsage: 'หน่วยความจำ',
+    diskUsage: 'ดิสก์', uptime: 'เวลาทำงาน',
+    backup: 'สำรอง', restore: 'กู้คืน', export: 'ส่งออก', import: 'นำเข้า',
+    backupData: 'สำรองข้อมูล', restoreData: 'กู้คืนข้อมูล',
+    confirmDelete: 'ยืนยันการลบ?', confirmDisable: 'ยืนยันการปิด?',
+    confirmEnable: 'ยืนยันการเปิด?', deleteSuccess: 'ลบแล้ว',
+    disableSuccess: 'ปิดแล้ว', enableSuccess: 'เปิดแล้ว',
+    noData: 'ไม่มีข้อมูล', loading: 'กำลังโหลด...',
+  },
+  km: {
+    superAdmin: 'អ្នកគ្រប់គ្រងខ្ពស់', dashboard: 'ផ្ទាំងត្រួតពិនិត្យ', merchantManage: 'គ្រប់គ្រងអ្នកជួញដូរ',
+    storeOverview: 'ទិដ្ឋភាពហាង', logs: 'កំណត់ហេតុ', systemSettings: 'ការកំណត់ប្រព័ន្ធ',
+    totalMerchants: 'អ្នកជួញដូរសរុប', totalStores: 'ហាងសរុប', totalOrders: 'ការបញ្ជាទិញសរុប',
+    todayRevenue: 'ចំណូលថ្ងៃនេះ', todayOrders: 'ការបញ្ជាទិញថ្ងៃនេះ', logout: 'ចាកចេញ',
+    login: 'ចូល', username: 'ឈ្មោះអ្នកប្រើ', password: 'ពាក្យសម្ងាត់',
+    loginFailed: 'ចូលបរាជ័យ', loginError: 'ឈ្មោះអ្នកប្រើ ឬ ពាក្យសម្ងាត់ខុស',
+    confirm: 'យល់ព្រម', cancel: 'បោះបង់', edit: 'កែ', delete: 'លុប',
+    enable: 'បើក', disable: 'បិទ', status: 'ស្ថានភាព', actions: 'សកម្មភាព',
+    merchantName: 'អ្នកជួញដូរ', contact: 'ទំនាក់ទំនង', phone: 'ទូរស័ព្ទ',
+    storeName: 'ហាង', storeCount: 'ហាង', orderCount: 'ការបញ្ជាទិញ',
+    revenue: 'ចំណូល', createdAt: 'ថ្ងៃបង្កើត', search: 'ស្វែងរក',
+    addMerchant: 'បន្ថែមអ្នកជួញដូរ', addStore: 'បន្ថែមហាង', save: 'រក្សាទុក',
+    merchantCode: 'កូដ',
+    loginLogs: 'កំណត់ហេតុចូល', operationLogs: 'សវនាការ',
+    clearLogs: 'សម្អាតកំណត់ហេតុ', autoClearLogs: 'សម្អាតស្វ័យប្រវត្តិ',
+    loginLimit: 'កំណត់ការចូល', maxFailAttempts: 'ការបរាជ័យអតិបរមា',
+    lockDuration: 'រយៈពេលចាក់សោ (នាទី)', sessionTimeout: 'ហួសពេល (នាទី)',
+    saveSettings: 'រក្សាទុកការកំណត់', settingsSaved: 'បានរក្សាទុក',
+    onlineClients: 'អតិថិជនអនឡាញ់', scanSessions: 'សម័យស្កេន',
+    serverLoad: 'បន្ទុកម៉ាស៊ីនមេ', cpuUsage: 'CPU', memoryUsage: 'អង្គចងចាំ',
+    diskUsage: 'ថាស', uptime: 'ពេលវេលាដំណើរការ',
+    backup: 'បម្រុងទុក', restore: 'ស្ដារ', export: 'នាំចេញ', import: 'នាំចូល',
+    backupData: 'បម្រុងទុកទិន្នន័យ', restoreData: 'ស្ដារទិន្នន័យ',
+    confirmDelete: 'បញ្ជាក់ការលុប?', confirmDisable: 'បញ្ជាក់ការបិទ?',
+    confirmEnable: 'បញ្ជាក់ការបើក?', deleteSuccess: 'បានលុប',
+    disableSuccess: 'បានបិទ', enableSuccess: 'បានបើក',
+    noData: 'គ្មានទិន្នន័យ', loading: 'កំពុងផ្ទុក...',
+  },
+};
 
 function t(key) {
-  return i18nData[key] || key;
+  // 先检查本地翻译字典
+  if (SUPER_LOCAL_I18N[currentLang] && SUPER_LOCAL_I18N[currentLang][key]) {
+    return SUPER_LOCAL_I18N[currentLang][key];
+  }
+  // 再检查 window.LANGUAGES（来自 languages.min.js）
+  try {
+    if (window.LANGUAGES && window.LANGUAGES[currentLang] && window.LANGUAGES[currentLang][key]) {
+      return window.LANGUAGES[currentLang][key];
+    }
+  } catch (e) {}
+  // 没有翻译时直接返回 key
+  return key;
+}
+
+function changeSuperLang(lang) {
+  currentLang = lang;
+  SLF.store.rawSet('superLang', lang);
+  SLF.store.rawSet('lang', lang);
+  applyI18n();
 }
 
 function applyI18n() {
@@ -865,14 +1055,53 @@ function applyI18n() {
   // 更新静态文案
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    if (i18nData[key]) el.textContent = i18nData[key];
+    const translated = t(key);
+    if (translated !== key) el.textContent = translated;
   });
   
   // 更新placeholder
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
-    if (i18nData[key]) el.placeholder = i18nData[key];
+    const translated = t(key);
+    if (translated !== key) el.placeholder = translated;
   });
+  
+  // 更新侧边导航
+  const navTexts = {
+    dashboard: t('dashboard'),
+    merchants: t('merchantManage'),
+    stores: t('storeOverview'),
+    logs: t('logs'),
+    settings: t('systemSettings'),
+  };
+  document.querySelectorAll('.nav-item').forEach(item => {
+    const module = item.getAttribute('data-module');
+    if (module && navTexts[module]) {
+      const span = item.querySelector('span:last-child');
+      if (span && span.id !== 'navLogsText') span.textContent = navTexts[module];
+    }
+  });
+  const navLogsText = document.getElementById('navLogsText');
+  if (navLogsText) navLogsText.textContent = t('logs');
+  
+  // 更新登录页
+  const loginTitle = document.querySelector('.login-card h1');
+  if (loginTitle) loginTitle.textContent = '🔐 ' + t('superAdmin');
+  const loginLabels = document.querySelectorAll('.login-card .form-group label');
+  if (loginLabels[0]) loginLabels[0].textContent = t('username');
+  if (loginLabels[1]) loginLabels[1].textContent = t('password');
+  const loginUsername = document.getElementById('loginUsername');
+  if (loginUsername) loginUsername.placeholder = t('username');
+  const loginPassword = document.getElementById('loginPassword');
+  if (loginPassword) loginPassword.placeholder = t('password');
+  const loginBtn = document.querySelector('.login-btn');
+  if (loginBtn) loginBtn.textContent = t('login');
+  
+  // 更新顶部栏
+  const adminName = document.getElementById('adminName');
+  if (adminName) adminName.textContent = t('superAdmin');
+  const logoutBtns = document.querySelectorAll('.logout-btn');
+  logoutBtns.forEach(btn => btn.textContent = t('logout'));
   
   // 更新当前页面标题
   if (typeof currentModule !== 'undefined' && currentModule) {
@@ -880,6 +1109,14 @@ function applyI18n() {
     const titleEl = document.getElementById('pageTitle');
     if (titleEl && titles[currentModule]) titleEl.textContent = titles[currentModule];
   }
+  
+  // 更新错误弹窗
+  const errorModalTitle = document.getElementById('errorModalTitle');
+  if (errorModalTitle) errorModalTitle.textContent = t('loginFailed');
+  const errorModalMessage = document.getElementById('errorModalMessage');
+  if (errorModalMessage) errorModalMessage.textContent = t('loginError');
+  const errorModalBtn = document.querySelector('.error-modal-btn');
+  if (errorModalBtn) errorModalBtn.textContent = t('confirm');
 }
 
 // 移动端侧边栏切换
@@ -893,7 +1130,7 @@ function closeSidebar() {
   document.getElementById('sidebarOverlay').classList.remove('show');
 }
 const API = '/api';
-let token = localStorage.getItem('superToken') || '';
+let token = SLF.store.rawGet('superToken') || '';
 let currentModule = 'dashboard';
 let idleTimer = null;
 let lastActivity = Date.now();
@@ -914,8 +1151,8 @@ async function startIdleCheck() {
     idleTimer = setInterval(() => {
       if (Date.now() - lastActivity > timeoutMs) {
         clearInterval(idleTimer);
-        localStorage.removeItem('superToken');
-        localStorage.removeItem('superAdmin');
+        SLF.store.rawRemove('superToken');
+        SLF.store.rawRemove('superAdmin');
         location.reload();
       }
     }, 10000);
@@ -925,8 +1162,8 @@ async function startIdleCheck() {
     idleTimer = setInterval(() => {
       if (Date.now() - lastActivity > timeoutMs) {
         clearInterval(idleTimer);
-        localStorage.removeItem('superToken');
-        localStorage.removeItem('superAdmin');
+        SLF.store.rawRemove('superToken');
+        SLF.store.rawRemove('superAdmin');
         location.reload();
       }
     }, 10000);
@@ -967,10 +1204,10 @@ document.getElementById('errorModal').addEventListener('click', function(e) {
 });
 
 function showApp() {
-  initI18n();
+  applyI18n();
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  const admin = JSON.parse(localStorage.getItem('superAdmin') || '{}');
+  const admin = JSON.parse(SLF.store.rawGet('superAdmin') || '{}');
   document.getElementById('adminName').textContent = admin.display_name || t('superAdmin');
   lastActivity = Date.now();
   startIdleCheck();
@@ -984,8 +1221,8 @@ function showApp() {
 async function logout() {
   if (idleTimer) clearInterval(idleTimer);
   try { await api('/super/logout', { method: 'POST' }); } catch (e) {}
-  localStorage.removeItem('superToken');
-  localStorage.removeItem('superAdmin');
+  SLF.store.rawRemove('superToken');
+  SLF.store.rawRemove('superAdmin');
   location.reload();
 }
 
@@ -1470,7 +1707,7 @@ function toast(msg, type = '') {
 document.getElementById('loginPassword').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
 
 // 初始化i18n
-initI18n();
+applyI18n();
 // 自动登录
 if (token) showApp();
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -1260,7 +1260,7 @@
 
     <!-- ===== JavaScript ===== -->
     <script src="languages.min.js?v=20260914c"></script>
-    <script src="assets/common.js?v=20260914c"></script>
+    <script src="assets/core.js"></script>
     <script>
         // ================================================================
         // 多语言配置与辅助工具
@@ -1816,7 +1816,7 @@
             if (ADMIN_LABELS[lang]) Object.assign(ADMIN_LABELS[lang], CASHIER_LABELS[lang]);
         }
 
-        SLF.i18n.init(localStorage.getItem('adminLang') || 'zh', ADMIN_LABELS);
+        SLF.i18n.init(SLF.store.rawGet('adminLang') || 'zh', ADMIN_LABELS);
 
         const categoryText = c => (LANGUAGES[adminLang] && LANGUAGES[adminLang].categories && LANGUAGES[adminLang]
             .categories[c]) || c;
@@ -1889,7 +1889,7 @@
         let editingOrderStatus = 'pending';
         let editingTableId = null;
         let orderTableFilter = '';
-        let adminLang = localStorage.getItem('adminLang') || 'zh';
+        let adminLang = SLF.store.rawGet('adminLang') || 'zh';
         // 动态加载指定语言的翻译
         async function loadAdminLanguage(lang) {
             // 直接使用全局LANGUAGES（languages.min.js已包含完整5种语言）
@@ -1905,7 +1905,7 @@
         let secondaryCurrencyCode = 'USD';
         let defaultCurrencyObj = null;
 
-        // 统一使用SLF.i18n翻译系统，tAdmin和L为别名，esc使用common.js提供的全局函数
+        // 统一使用SLF.i18n翻译系统，tAdmin和L为别名，esc使用core.js提供的全局函数
         const tAdmin = (k, params) => SLF.i18n.t(k, params);
         const L = (k, params) => SLF.i18n.t(k, params);
 
@@ -3132,7 +3132,7 @@
         window.showQr = async function(id) {
             try {
                 // 使用独立的/qr-print路由，服务端渲染，避免在admin.html中内嵌大段HTML模板
-                const lang = localStorage.getItem('adminLang') || 'zh';
+                const lang = SLF.store.rawGet('adminLang') || 'zh';
                 window.open('/qr-print?tableId=' + id + '&lang=' + lang, '_blank');
             } catch (e) { toast('❌ ' + e.message); }
         };
@@ -3754,7 +3754,7 @@
         $('#adminLang').value = adminLang;
         $('#adminLang').onchange = async function() {
             adminLang = this.value;
-            localStorage.setItem('adminLang', adminLang);
+            SLF.store.rawSet('adminLang', adminLang);
             await loadAdminLanguage(adminLang);
             applyAdminLanguage();
             // 如果当前在操作日志标签，重新加载以应用新语言
@@ -4160,7 +4160,7 @@
         // ================================================================
         function toggleAutoPrint() {
             const enabled = document.getElementById('autoPrintToggle').checked;
-            localStorage.setItem('autoPrintEnabled', enabled ? '1' : '0');
+            SLF.store.rawSet('autoPrintEnabled', enabled ? '1' : '0');
             toast(enabled ? (tAdmin('autoPrintEnabled') || '已开启自动打印') : (tAdmin('autoPrintDisabled') || '已关闭自动打印'));
             if (enabled) {
                 startAutoPrintPoll();
@@ -4206,7 +4206,7 @@
             }
         }
         document.addEventListener('DOMContentLoaded', function() {
-            const saved = localStorage.getItem('autoPrintEnabled');
+            const saved = SLF.store.rawGet('autoPrintEnabled');
             const toggle = document.getElementById('autoPrintToggle');
             if (toggle) toggle.checked = saved === '1';
             if (saved === '1') {

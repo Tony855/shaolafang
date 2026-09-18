@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -362,25 +362,26 @@
     </div>
   </div>
 
-  <script src="languages.min.js"></script>
-  <script src="assets/common.js"></script>
+  <script src="languages.min.js?v=20260918"></script>
+  <script src="assets/core.js"></script>
   <script>
     const $ = s => document.querySelector(s);
-    // 安全兜底：兼容旧版 common.js 没有 SLF.audio 的情况
+    // 安全兜底：兼容旧版 core.js 没有 SLF.audio 的情况
     const audio = SLF.audio || { unlock: () => {}, setEnabled: () => {}, playNewOrderChime: () => {}, playUrgeChime: () => {} };
-    let lang = localStorage.getItem('kitchenLang') || 'zh';
-    // 预加载非中文语言数据，确保初始化时字典完整
-    if (lang !== 'zh') {
-      loadKitchenLanguage(lang).then(() => {
-        SLF.i18n.init(lang);
-        applyLoginLanguage();
-        applyMainLanguage();
-      });
+    const utils = SLF.utils || { esc: s => String(s ?? ''), formatTime: d => new Date(d).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) };
+    let lang = SLF.store.rawGet('kitchenLang') || 'zh';
+    // i18n 统一使用 window.LANGUAGES（来自 languages.min.js）
+    // 统一翻译函数：先查 window.LANGUAGES，最后返回 key
+    function t(key) {
+      try {
+        if (window.LANGUAGES && window.LANGUAGES[lang] && window.LANGUAGES[lang][key]) {
+          return window.LANGUAGES[lang][key];
+        }
+      } catch (e) {}
+      return key;
     }
-    SLF.i18n.init(lang);
-    const kt = k => SLF.i18n.t(k);
 
-    let token = localStorage.getItem('kitchenToken') || '';
+    let token = SLF.store.rawGet('kitchenToken') || '';
     let waiter = null;
     let pollTimer = null;
     let clockTimer = null;
@@ -406,7 +407,7 @@
           audio.playNewOrderChime();
           // 视觉提醒：Toast提示新订单
           const tableNames = newOrders.map(o => o.table_name).join('、');
-          showToast('🔔 ' + kt('newOrderArrived') + '：' + tableNames, 'success', 4000);
+          showToast('🔔 ' + t('newOrderArrived') + '：' + tableNames, 'success', 4000);
         }
       }
       knownOrderIds = pendingIds;
@@ -427,50 +428,32 @@
       if (token) headers.set('X-Waiter-Token', token);
       const res = await fetch('/api' + path, { ...opt, headers });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || kt('networkError'));
+      if (!res.ok) throw new Error(data.error || t('networkError'));
       return data;
     }
 
     function applyLoginLanguage() {
-      $('#loginTitle').textContent = kt('kitchenLogin');
-      $('#loginDesc').textContent = kt('kitchenLoginDesc');
-      $('#username').placeholder = kt('username');
-      $('#password').placeholder = kt('password');
-      $('#loginBtn').textContent = kt('login');
+      $('#loginTitle').textContent = t('kitchenLogin');
+      $('#loginDesc').textContent = t('kitchenLoginDesc');
+      $('#username').placeholder = t('username');
+      $('#password').placeholder = t('password');
+      $('#loginBtn').textContent = t('login');
       $('#langSelect').value = lang;
     }
 
     function applyMainLanguage() {
-      $('#pageTitle').textContent = kt('kitchenDisplay');
-      $('#updatedLabel').textContent = kt('updatedAt');
-      $('#fullscreenLabel').textContent = document.fullscreenElement ? kt('exitFullscreen') : kt('fullscreen');
-      $('#logoutLabel').textContent = kt('logout');
+      $('#pageTitle').textContent = t('kitchenDisplay');
+      $('#updatedLabel').textContent = t('updatedAt');
+      $('#fullscreenLabel').textContent = document.fullscreenElement ? t('exitFullscreen') : t('fullscreen');
+      $('#logoutLabel').textContent = t('logout');
       $('#langSelectMain').value = lang;
     }
 
-    async function loadKitchenLanguage(lang) {
-      if (LANGUAGES[lang] && LANGUAGES[lang]._loaded) return true;
-      try {
-        const cached = localStorage.getItem('i18n_' + lang);
-        if (cached) { LANGUAGES[lang] = { ...JSON.parse(cached), _loaded: true }; return true; }
-      } catch (e) {}
-      try {
-        const res = await fetch('/api/i18n/' + lang);
-        if (res.ok) {
-          const data = await res.json();
-          LANGUAGES[lang] = { ...data, _loaded: true };
-          try { localStorage.setItem('i18n_' + lang, JSON.stringify(data)); } catch (e) {}
-          return true;
-        }
-      } catch (e) {}
-      return false;
-    }
-    async function setLang(next) {
+    // 语言数据已包含在 languages.min.js 中，无需动态加载
+    function setLang(next) {
       lang = next;
-      if (lang !== 'zh') await loadKitchenLanguage(lang);
-      localStorage.setItem('kitchenLang', lang);
-      // 重新初始化i18n，将新加载的LANGUAGES字典合并到SLF.i18n.dicts中
-      SLF.i18n.init(lang);
+      SLF.store.rawSet('kitchenLang', lang);
+      SLF.store.rawSet('lang', lang);
       applyLoginLanguage();
       applyMainLanguage();
       renderTickets(lastOrders);
@@ -480,8 +463,8 @@
 
     function timeAgoLabel(createdAt) {
       const mins = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000));
-      if (mins < 1) return { text: kt('justNow'), level: 'ok' };
-      const text = `${mins} ${kt('minutesAgo')}`;
+      if (mins < 1) return { text: t('justNow'), level: 'ok' };
+      const text = `${mins} ${t('minutesAgo')}`;
       if (mins >= 15) return { text, level: 'danger' };
       if (mins >= 8) return { text, level: 'warn' };
       return { text, level: 'ok' };
@@ -499,7 +482,7 @@
       $('#countBadge').textContent = pending.length;
 
       if (pending.length === 0) {
-        grid.innerHTML = `<div class="empty-state" id="emptyState">${kt('noPendingOrders')}</div>`;
+        grid.innerHTML = `<div class="empty-state" id="emptyState">${t('noPendingOrders')}</div>`;
         return;
       }
 
@@ -514,27 +497,27 @@
           const canMark = waiter && waiter.can_mark_item;
           let action = '';
           if (isDone) {
-            action = `<span class="done-badge">✓ ${kt('itemDone')}</span>`;
+            action = `<span class="done-badge">✓ ${t('itemDone')}</span>`;
           } else if (canMark) {
-            action = `<button class="mark-btn" onclick="markItemDone(${o.id},${idx})">${kt('markDone')}</button>`;
+            action = `<button class="mark-btn" onclick="markItemDone(${o.id},${idx})">${t('markDone')}</button>`;
           }
           return `
             <div class="item-row ${isDone ? 'done' : ''}">
               <span class="qty">×${item.quantity}</span>
-              <span class="emoji">${SLF.utils.esc(item.emoji || '🍽️')}</span>
-              <span class="name">${SLF.utils.esc(item.name)}</span>
-              <span class="unit">${SLF.utils.esc(item.unit || '')}</span>
+              <span class="emoji">${utils.esc(item.emoji || '🍽️')}</span>
+              <span class="name">${utils.esc(item.name)}</span>
+              <span class="unit">${utils.esc(item.unit || '')}</span>
               ${action}
             </div>`;
         }).join('');
 
-        const noteHtml = o.note ? `<div class="ticket-note"><strong>${kt('orderNoteDisplay')}：</strong>${SLF.utils.esc(o.note)}</div>` : '';
-        const readyTag = allDone ? `<div class="ticket-ready-tag">✅ ${kt('readyToServe')}</div>` : '';
+        const noteHtml = o.note ? `<div class="ticket-note"><strong>${t('orderNoteDisplay')}：</strong>${utils.esc(o.note)}</div>` : '';
+        const readyTag = allDone ? `<div class="ticket-ready-tag">✅ ${t('readyToServe')}</div>` : '';
 
         return `
           <div class="ticket ${ticketClass}">
             <div class="ticket-head">
-              <span class="table-name">🪑 ${SLF.utils.esc(o.table)}</span>
+              <span class="table-name">🪑 ${utils.esc(o.table)}</span>
               <span class="order-id ${ticketClass}">#${o.id}</span>
             </div>
             <div class="ticket-time ${timeClass}">🕒 ${time.text}</div>
@@ -554,7 +537,7 @@
         });
         await loadOrders();
       } catch (e) {
-        showToast('❌ ' + (e.message || kt('networkError')), 'error');
+        showToast('❌ ' + (e.message || t('networkError')), 'error');
       }
     };
 
@@ -573,13 +556,13 @@
         detectNewOrders(data.orders || []);
         renderTickets(data.orders || []);
         $('#statusDot').classList.remove('off');
-        $('#updatedTime').textContent = SLF.utils.formatTime(new Date());
+        $('#updatedTime').textContent = utils.formatTime(new Date());
       } catch (e) {
         $('#statusDot').classList.add('off');
         if (/请先登录|无操作权限|401/.test(e.message || '')) {
           logout(false);
         } else {
-          showToast('❌ ' + (e.message || kt('networkError')), 'error');
+          showToast('❌ ' + (e.message || t('networkError')), 'error');
         }
       }
     }
@@ -605,7 +588,7 @@
           if (hasNew) {
             audio.playUrgeChime();
             const newUrge = pendingUrges.find(c => !knownUrgeIds.has(c.id));
-            if (newUrge) showToast('⚡ ' + newUrge.table_name + ' ' + kt('urgeOrder'));
+            if (newUrge) showToast('⚡ ' + newUrge.table_name + ' ' + t('urgeOrder'));
           }
           knownUrgeIds = new Set(pendingUrges.map(c => c.id));
         } else {
@@ -624,15 +607,15 @@
       urgePollTimer = null;
     }
     function showUrgeNotifications() {
-      if (pendingUrges.length === 0) { showToast(kt('noUrges')); return; }
-      $('#urgeModalTitle').textContent = kt('urgeOrder') + ' (' + pendingUrges.length + ')';
+      if (pendingUrges.length === 0) { showToast(t('noUrges')); return; }
+      $('#urgeModalTitle').textContent = t('urgeOrder') + ' (' + pendingUrges.length + ')';
       const list = pendingUrges.map(c => `
         <div class="urge-item">
           <div class="urge-item-info">
-            <div class="urge-item-table">⚡ ${SLF.utils.esc(c.table_name)} ${kt('urgeOrder')}</div>
+            <div class="urge-item-table">⚡ ${utils.esc(c.table_name)} ${t('urgeOrder')}</div>
             <div class="urge-item-msg">${c.message || ''}</div>
           </div>
-          <button class="urge-item-btn" onclick="handleUrge('${c.id}')">${kt('handled')}</button>
+          <button class="urge-item-btn" onclick="handleUrge('${c.id}')">${t('handled')}</button>
         </div>
       `).join('');
       $('#urgeList').innerHTML = list;
@@ -644,9 +627,9 @@
       try {
         await fetch('/api/waiter-calls/' + id + '/handle', { method: 'PUT', headers: { 'X-Waiter-Token': token } });
         hideUrgeModal();
-        showToast(kt('handled'), 'success');
+        showToast(t('handled'), 'success');
         pollUrges();
-      } catch (e) { showToast(kt('handleFailed') + ': ' + e.message, 'error'); }
+      } catch (e) { showToast(t('handleFailed') + ': ' + e.message, 'error'); }
     }
 
     function startPolling() {
@@ -683,16 +666,16 @@
       audio.unlock();
       const username = $('#username').value.trim();
       const password = $('#password').value.trim();
-      if (!username || !password) { $('#loginError').textContent = kt('pleaseLogin'); return; }
+      if (!username || !password) { $('#loginError').textContent = t('pleaseLogin'); return; }
       try {
         const data = await SLF.api.post('/waiter/login', { username, password });
         token = data.token;
         waiter = data.waiter;
-        localStorage.setItem('kitchenToken', token);
+        SLF.store.rawSet('kitchenToken', token);
         $('#loginError').textContent = '';
         showKitchenApp();
       } catch (e) {
-        $('#loginError').textContent = e.message || kt('loginError');
+        $('#loginError').textContent = e.message || t('loginError');
       }
     }
     $('#loginBtn').addEventListener('click', doLogin);
@@ -701,14 +684,14 @@
 
     let confirmCallback=null;
     function showConfirm(message,callback,title,icon){
-      $('#confirmTitle').textContent=title||kt('confirmTitle')||'确认操作';
+      $('#confirmTitle').textContent=title||t('confirmTitle')||'确认操作';
       $('#confirmMessage').textContent=message;
       $('.confirm-icon').textContent=icon||'⚠️';
       confirmCallback=callback;
       $('#confirmModal').classList.add('open');
       // 更新按钮文本
-      $('#confirmCancelBtn').textContent=kt('cancel')||'取消';
-      $('#confirmOkBtn').textContent=kt('confirm')||'确定';
+      $('#confirmCancelBtn').textContent=t('cancel')||'取消';
+      $('#confirmOkBtn').textContent=t('confirm')||'确定';
     }
     function hideConfirm(){$('#confirmModal').classList.remove('open');confirmCallback=null;}
     $('#confirmCancelBtn').onclick=hideConfirm;
@@ -716,10 +699,10 @@
     $('#confirmModal').onclick=function(e){if(e.target===this)hideConfirm();};
 
     function logout(confirmFirst = true) {
-      if (confirmFirst) { showConfirm(kt('confirmLogout'), function(){ logout(false); }); return; }
+      if (confirmFirst) { showConfirm(t('confirmLogout'), function(){ logout(false); }); return; }
       token = '';
       waiter = null;
-      localStorage.removeItem('kitchenToken');
+      SLF.store.rawRemove('kitchenToken');
       showLoginScreen();
     }
     $('#logoutBtn').addEventListener('click', () => logout(true));
@@ -733,7 +716,7 @@
       }
     });
     document.addEventListener('fullscreenchange', () => {
-      $('#fullscreenLabel').textContent = document.fullscreenElement ? kt('exitFullscreen') : kt('fullscreen');
+      $('#fullscreenLabel').textContent = document.fullscreenElement ? t('exitFullscreen') : t('fullscreen');
     });
 
     // 音频解锁：任何用户交互都解锁音频上下文

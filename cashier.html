@@ -77,24 +77,58 @@
     .tab.active{ color: var(--primary); border-bottom-color: var(--primary); }
     .content{ padding: 16px; }
     .order-card{
-      background: #fff; border-radius: var(--radius); padding: 14px;
-      margin-bottom: 12px; box-shadow: var(--shadow);
-      border-left: 4px solid var(--primary);
+      background: #fff; border-radius: 12px; padding: 14px 16px;
+      margin-bottom: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      border-left: 4px solid var(--primary); transition: all 0.2s;
     }
+    .order-card:hover{ box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-1px); }
     .order-card.status-done{ border-left-color: #43e97b; }
     .order-card.status-canceled{ border-left-color: #f5576c; opacity: 0.7; }
     .order-card.status-refunded{ border-left-color: #ffa726; opacity: 0.7; }
-    .order-header{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .order-table{ font-size: 16px; font-weight: 700; color: var(--gray-6); }
+    .order-header{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+    .order-table{ display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--gray-6); flex-wrap: wrap; }
+    .order-table-icon{
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff; font-size: 14px; flex-shrink: 0;
+    }
+    .order-table-name{ font-size: 16px; font-weight: 700; color: var(--gray-6); }
+    .order-id-badge{
+      display: inline-flex; align-items: center;
+      background: #f0f2ff; color: #667eea;
+      font-size: 12px; font-weight: 700; padding: 2px 8px;
+      border-radius: 6px; flex-shrink: 0;
+    }
+    .customer-tag{
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #fff3e0; color: #e65100;
+      font-size: 12px; font-weight: 600; padding: 2px 8px;
+      border-radius: 6px; flex-shrink: 0;
+    }
+    .customer-tag.staff{ background: #e8f5e9; color: #2e7d32; }
     .order-status{
-      font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 600;
+      font-size: 12px; padding: 4px 12px; border-radius: 12px; font-weight: 600;
+      flex-shrink: 0; white-space: nowrap;
     }
     .order-status.pending{ background: #fff3cd; color: #856404; }
     .order-status.done{ background: #d4edda; color: #155724; }
     .order-status.canceled{ background: #f8d7da; color: #721c24; }
     .order-status.refunded{ background: #ffe0b2; color: #e65100; }
-    .order-info{ font-size: 13px; color: var(--gray-4); margin-bottom: 6px; }
-    .order-dishes{ font-size: 13px; color: var(--gray-5); margin-bottom: 8px; }
+    .order-info{ font-size: 13px; color: var(--gray-4); margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+    .order-dishes{ font-size: 13px; color: var(--gray-5); margin-bottom: 10px; line-height: 1.5; }
+    .order-dish-row{
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 4px 8px; border-bottom: 1px dashed var(--gray-2); font-size: 13px;
+      border-radius: 4px;
+    }
+    .order-dish-row:nth-child(odd){ background: rgba(102,126,234,0.05); }
+    .order-dish-row:nth-child(even){ background: transparent; }
+    .order-dish-row:last-child{ border-bottom: none; }
+    .order-dish-left{ display: flex; align-items: center; flex: 1; }
+    .order-dish-name{ color: var(--gray-6); flex: 1; }
+    .order-dish-qty{ color: var(--primary); font-weight: 700; margin-left: 12px; min-width: 40px; text-align: right; }
+    .order-dish-price{ color: var(--gray-5); font-weight: 600; margin-left: 12px; min-width: 60px; text-align: right; }
     .order-footer{ display: flex; justify-content: space-between; align-items: center; }
     .order-total{ font-size: 18px; font-weight: 700; color: var(--primary); }
     .order-actions{ display: flex; gap: 8px; }
@@ -142,12 +176,15 @@
     .modal-section{ margin-bottom: 16px; }
     .modal-section-title{ font-size: 14px; font-weight: 600; color: #aaa; margin-bottom: 8px; }
     .dish-item{
-      display: flex; justify-content: space-between; padding: 8px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 14px;
+      display: flex; justify-content: space-between; align-items: center; padding: 8px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 14px; border-radius: 4px;
     }
-    .dish-item .dish-name{ color: #e0e0e0; }
-    .dish-item .dish-qty{ color: #999; margin: 0 8px; }
-    .dish-item .dish-price{ color: #ffd93d; font-weight: 600; }
+    .dish-item:nth-child(odd){ background: rgba(255,255,255,0.04); }
+    .dish-item:nth-child(even){ background: transparent; }
+    .dish-item .dish-left{ display: flex; align-items: center; flex: 1; }
+    .dish-item .dish-name{ color: #e0e0e0; flex: 1; }
+    .dish-item .dish-qty{ color: #999; margin-left: 12px; min-width: 40px; text-align: right; }
+    .dish-item .dish-price{ color: #ffd93d; font-weight: 600; margin-left: 12px; min-width: 60px; text-align: right; }
     .modal-total{
       display: flex; justify-content: space-between; padding: 14px 0 4px;
       border-top: 2px solid rgba(255,255,255,0.12); font-size: 16px; font-weight: 700; color: #fff;
@@ -273,38 +310,51 @@
     </div>
   </div>
 
+  <!-- 自定义确认弹窗 -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal" style="max-width:360px;text-align:center;">
+      <button class="modal-close" onclick="hideConfirm()">✕</button>
+      <div style="font-size:48px;margin-bottom:12px;" id="confirmIcon">⚠️</div>
+      <div class="modal-title" id="confirmTitle" style="padding-right:0;">确认操作</div>
+      <p style="color:#aaa;margin-bottom:20px;font-size:14px;" id="confirmMessage">确定要执行此操作吗？</p>
+      <div class="modal-actions" style="justify-content:center;">
+        <button class="btn" onclick="hideConfirm()" id="confirmCancelBtn">取消</button>
+        <button class="btn btn-primary" onclick="executeConfirm()" id="confirmOkBtn">确定</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
-  <script src="languages.min.js"></script>
-  <script src="assets/common.js"></script>
+  <script src="languages.min.js?v=20260918"></script>
+  <script src="assets/core.js"></script>
   <script>
-    let currentLang = localStorage.getItem('cashierLang') || localStorage.getItem('lang') || 'zh';
+    let currentLang = SLF.store.rawGet('cashierLang') || SLF.store.rawGet('lang') || 'zh';
     let cashierInfo = null;
     let orders = [];
     let currentTab = 'orders';
 
     function t(key) {
+      // 本地翻译字典（补充 languages.js 中缺失的 key）
+      const localTranslations = {
+        zh: { dishes: '道菜' },
+        en: { dishes: 'dishes' },
+        vi: { dishes: 'món' },
+        th: { dishes: 'เมนู' },
+        km: { dishes: 'មុខម្ហូប' },
+      };
+      // 先检查本地翻译字典
+      if (localTranslations[currentLang] && localTranslations[currentLang][key]) {
+        return localTranslations[currentLang][key];
+      }
+      // 检查当前语言的翻译，不回退到中文
       try {
         if (window.LANGUAGES && window.LANGUAGES[currentLang] && window.LANGUAGES[currentLang][key]) {
           return window.LANGUAGES[currentLang][key];
         }
-        if (window.LANGUAGES && window.LANGUAGES.zh && window.LANGUAGES.zh[key]) {
-          return window.LANGUAGES.zh[key];
-        }
       } catch (e) {}
-      const defaults = {
-        cashier: '收银员', cashierLogin: '收银员登录', cashierLoginDesc: '请输入收银员用户名和密码',
-        orderList: '订单列表', report: '报表', pendingSettlement: '待结算', settled: '已结算',
-        canceled: '已取消', refunded: '已退款', settleOrder: '结算订单', cancelOrder: '取消订单',
-        refundOrder: '退款', orderDetail: '订单详情', dishList: '菜品清单', total: '合计',
-        todayRevenue: '今日营业额', orderCount: '订单数', avgOrderValue: '客单价',
-        pendingCount: '待结算', todayCount: '今日订单', confirmSettle: '确认结算该订单？',
-        confirmCancel: '确认取消该订单？', confirmRefund: '确认退款该订单？',
-        settleSuccess: '结算成功', cancelSuccess: '取消成功', refundSuccess: '退款成功',
-        noPermission: '无权限', noOrders: '暂无订单', loading: '加载中...',
-        logout: '退出登录', confirmLogout: '确认退出登录？'
-      };
-      return defaults[key] || key;
+      // 没有翻译时直接返回 key
+      return key;
     }
 
     function toast(msg) {
@@ -319,19 +369,19 @@
     }
 
     function logout() {
-      if (confirm(t('confirmLogout'))) {
-        const token = localStorage.getItem('cashierToken');
+      showConfirm(t('logout'), t('confirmLogout'), function() {
+        const token = SLF.store.rawGet('cashierToken');
         if (token) {
           fetch('/api/cashier/logout', {
             method: 'POST',
             headers: { 'X-Cashier-Token': token, 'Content-Type': 'application/json' }
           }).catch(() => {});
         }
-        localStorage.removeItem('cashierToken');
-        localStorage.removeItem('cashierStoreId');
-        localStorage.removeItem('cashierInfo');
+        SLF.store.rawRemove('cashierToken');
+        SLF.store.rawRemove('cashierStoreId');
+        SLF.store.rawRemove('cashierInfo');
         window.location.href = '/login?type=cashier';
-      }
+      }, { type: 'warning', icon: '🚪' });
     }
 
     function changeLang(lang) {
@@ -339,7 +389,8 @@
       localStorage.setItem('cashierLang', lang);
       localStorage.setItem('lang', lang);
       applyLang();
-      loadOrders();
+      renderOrders(); // 先同步重绘订单列表
+      loadOrders(); // 再异步加载最新数据
       if (currentTab === 'report') loadReport();
     }
 
@@ -369,8 +420,8 @@
     }
 
     async function api(url, options = {}) {
-      const token = localStorage.getItem('cashierToken');
-      const storeId = localStorage.getItem('cashierStoreId') || '1';
+      const token = SLF.store.rawGet('cashierToken');
+      const storeId = SLF.store.rawGet('cashierStoreId') || '1';
       const headers = {
         'Content-Type': 'application/json',
         'X-Cashier-Token': token || '',
@@ -390,7 +441,7 @@
         updateBottomStats();
       } catch (e) {
         if (e.message.includes('请先登录')) {
-          localStorage.removeItem('cashierToken');
+          SLF.store.rawRemove('cashierToken');
           window.location.href = '/login?type=cashier';
         } else {
           toast('❌ ' + e.message);
@@ -431,18 +482,31 @@
       container.innerHTML = orders.map(order => {
         const statusClass = order.status === 'done' ? 'done' : order.status === 'canceled' ? 'canceled' : order.status === 'refunded' ? 'refunded' : 'pending';
         const statusText = order.status === 'done' ? t('settled') : order.status === 'canceled' ? t('canceled') : order.status === 'refunded' ? t('refunded') : t('pendingSettlement');
-        const dishes = (order.items || []).map(i => i.name + '×' + i.quantity).join('、');
+        const dishesHTML = (order.items || []).map(i =>
+          '<div class="order-dish-row">' +
+            '<div class="order-dish-left">' +
+              '<span class="order-dish-name">' + i.name + '</span>' +
+              '<span class="order-dish-qty">×' + i.quantity + '</span>' +
+            '</div>' +
+            '<span class="order-dish-price">$' + (parseFloat(i.price || 0) * i.quantity).toFixed(2) + '</span>' +
+          '</div>'
+        ).join('');
         const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending';
         const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
         const canRefund = cashierInfo?.permissions?.can_refund && order.status === 'done';
         const customerLabel = customerLabels.get(order.id) || '';
         return '<div class="order-card status-' + statusClass + '" onclick="showOrderDetail(' + order.id + ')">' +
           '<div class="order-header">' +
-            '<span class="order-table">📋 ' + (order.table_name || '-') + ' · #' + order.id + (customerLabel ? ' · ' + customerLabel : '') + '</span>' +
+            '<span class="order-table">' +
+              '<span class="order-table-icon">🪑</span>' +
+              '<span class="order-table-name">' + (order.table_name || '-') + '</span>' +
+              '<span class="order-id-badge">#' + order.id + '</span>' +
+              (customerLabel ? '<span class="customer-tag' + (customerLabel === t('staffOrder') ? ' staff' : '') + '">👤 ' + customerLabel + '</span>' : '') +
+            '</span>' +
             '<span class="order-status ' + statusClass + '">' + statusText + '</span>' +
           '</div>' +
-          '<div class="order-info">🕐 ' + formatTime(order.createdAt) + ' · ' + (order.items?.length || 0) + '道菜</div>' +
-          '<div class="order-dishes">' + (dishes || '-') + '</div>' +
+          '<div class="order-info">🕐 ' + formatTime(order.createdAt) + ' · ' + (order.items?.length || 0) + t('dishes') + '</div>' +
+          '<div class="order-dishes">' + (dishesHTML || '<div style="color:var(--gray-4);">无菜品</div>') + '</div>' +
           '<div class="order-footer">' +
             '<span class="order-total">$' + (parseFloat(order.total || 0).toFixed(2)) + '</span>' +
             '<div class="order-actions" onclick="event.stopPropagation()">' +
@@ -472,8 +536,10 @@
       document.getElementById('detailTitle').textContent = t('orderDetail') + ' #' + order.id + (detailCustomerLabel ? ' · ' + detailCustomerLabel : '');
       document.getElementById('detailDishes').innerHTML = (order.items || []).map(item =>
         '<div class="dish-item">' +
-          '<span class="dish-name">' + item.name + '</span>' +
-          '<span class="dish-qty">×' + item.quantity + '</span>' +
+          '<div class="dish-left">' +
+            '<span class="dish-name">' + item.name + '</span>' +
+            '<span class="dish-qty">×' + item.quantity + '</span>' +
+          '</div>' +
           '<span class="dish-price">$' + (parseFloat(item.price || 0) * item.quantity).toFixed(2) + '</span>' +
         '</div>'
       ).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">无菜品</div>';
@@ -493,40 +559,73 @@
       document.getElementById('orderDetailModal').classList.remove('show');
     }
 
-    async function settleOrder(id) {
-      if (!confirm(t('confirmSettle'))) return;
-      try {
-        await api('/cashier/orders/' + id + '/settle', { method: 'PUT' });
-        toast('✅ ' + t('settleSuccess'));
-        closeOrderDetail();
-        loadOrders();
-      } catch (e) {
-        toast('❌ ' + e.message);
+    // 自定义确认弹窗
+    let confirmCallback = null;
+    function showConfirm(title, message, callback, options = {}) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmMessage').textContent = message;
+      document.getElementById('confirmIcon').textContent = options.icon || '⚠️';
+      document.getElementById('confirmOkBtn').textContent = options.okText || t('confirm');
+      document.getElementById('confirmCancelBtn').textContent = options.cancelText || t('cancel');
+      if (options.type === 'danger') {
+        document.getElementById('confirmOkBtn').className = 'btn btn-danger';
+      } else if (options.type === 'warning') {
+        document.getElementById('confirmOkBtn').className = 'btn btn-warning';
+      } else {
+        document.getElementById('confirmOkBtn').className = 'btn btn-primary';
       }
+      confirmCallback = callback;
+      document.getElementById('confirmModal').classList.add('show');
+    }
+    function hideConfirm() {
+      document.getElementById('confirmModal').classList.remove('show');
+      confirmCallback = null;
+    }
+    function executeConfirm() {
+      if (confirmCallback) {
+        const cb = confirmCallback;
+        hideConfirm();
+        cb();
+      }
+    }
+
+    async function settleOrder(id) {
+      showConfirm(t('settleOrder'), t('confirmSettle'), async function() {
+        try {
+          await api('/cashier/orders/' + id + '/settle', { method: 'PUT' });
+          toast('✅ ' + t('settleSuccess'));
+          closeOrderDetail();
+          loadOrders();
+        } catch (e) {
+          toast('❌ ' + e.message);
+        }
+      }, { type: 'primary', icon: '💰' });
     }
 
     async function cancelOrder(id) {
-      if (!confirm(t('confirmCancel'))) return;
-      try {
-        await api('/cashier/orders/' + id + '/cancel', { method: 'PUT' });
-        toast('✅ ' + t('cancelSuccess'));
-        closeOrderDetail();
-        loadOrders();
-      } catch (e) {
-        toast('❌ ' + e.message);
-      }
+      showConfirm(t('cancelOrder'), t('confirmCancel'), async function() {
+        try {
+          await api('/cashier/orders/' + id + '/cancel', { method: 'PUT' });
+          toast('✅ ' + t('cancelSuccess'));
+          closeOrderDetail();
+          loadOrders();
+        } catch (e) {
+          toast('❌ ' + e.message);
+        }
+      }, { type: 'warning', icon: '⚠️' });
     }
 
     async function refundOrder(id) {
-      if (!confirm(t('confirmRefund'))) return;
-      try {
-        await api('/cashier/orders/' + id + '/refund', { method: 'PUT' });
-        toast('✅ ' + t('refundSuccess'));
-        closeOrderDetail();
-        loadOrders();
-      } catch (e) {
-        toast('❌ ' + e.message);
-      }
+      showConfirm(t('refundOrder'), t('confirmRefund'), async function() {
+        try {
+          await api('/cashier/orders/' + id + '/refund', { method: 'PUT' });
+          toast('✅ ' + t('refundSuccess'));
+          closeOrderDetail();
+          loadOrders();
+        } catch (e) {
+          toast('❌ ' + e.message);
+        }
+      }, { type: 'danger', icon: '💸' });
     }
 
     async function loadReport() {
@@ -563,15 +662,15 @@
 
     async function init() {
       applyLang();
-      const token = localStorage.getItem('cashierToken');
+      const token = SLF.store.rawGet('cashierToken');
       if (!token) {
         document.documentElement.removeAttribute('data-cashier-session');
         return;
       }
       try {
-        const info = JSON.parse(localStorage.getItem('cashierInfo') || '{}');
+        const info = JSON.parse(SLF.store.rawGet('cashierInfo') || '{}');
         cashierInfo = info;
-        const storeId = localStorage.getItem('cashierStoreId') || '1';
+        const storeId = SLF.store.rawGet('cashierStoreId') || '1';
         document.getElementById('storeName').textContent = cashierInfo.storeName || ('店铺 #' + storeId);
         await loadOrders();
         setInterval(loadOrders, 15000);
@@ -582,6 +681,10 @@
 
     document.getElementById('orderDetailModal').addEventListener('click', function(e) {
       if (e.target === this) closeOrderDetail();
+    });
+
+    document.getElementById('confirmModal').addEventListener('click', function(e) {
+      if (e.target === this) hideConfirm();
     });
 
     init();
