@@ -3189,12 +3189,7 @@
                 showConfirm(tAdmin('resetDataConfirmMsg'), async function() {
                     try {
                         const data = await SLF.api.post('/admin/reset-data', { password });
-
-
                         if (!data.ok) throw new Error(data.error || tAdmin('resetFailed'));
-
-
-                        if (!res.ok) throw new Error(data.error || tAdmin('resetFailed'));
                         toast('✅ ' + tAdmin('resetSuccess'));
                         await loadOrders();
                         await loadTables();
