@@ -1494,10 +1494,18 @@ async function resetPassword(id) {
 }
 
 async function changeSuperPassword() {
-  const pwd = document.getElementById('newSuperPassword').value;
-  if (!pwd) { toast(t('pleaseEnterNewPassword'), 'error'); return; }
+  const oldPwd = document.getElementById('oldSuperPassword').value;
+  const newPwd = document.getElementById('newSuperPassword').value;
+  if (!oldPwd || !newPwd) { toast(t('pleaseEnterCredentials'), 'error'); return; }
+  if (newPwd.length < 6) { toast(t('passwordMin6'), 'error'); return; }
   try {
-    toast(t('featureInDevelopment'), 'success');
+    await SLF.api.post('/super/change-password', {
+      oldPassword: oldPwd,
+      newPassword: newPwd
+    });
+    toast(t('passwordChangedSuccess'), 'success');
+    document.getElementById('oldSuperPassword').value = '';
+    document.getElementById('newSuperPassword').value = '';
   } catch (e) { toast(e.message, 'error'); }
 }
 
