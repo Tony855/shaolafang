@@ -1183,8 +1183,8 @@ async function doLogin() {
 }
 
 function showError(msg, title) {
-  document.getElementById('errorModalTitle').textContent = title || '登录失败';
-  document.getElementById('errorModalMessage').textContent = msg || '用户名或密码错误';
+  document.getElementById('errorModalTitle').textContent = title || t('loginFailed');
+  document.getElementById('errorModalMessage').textContent = msg || t('invalidCredentials');
   document.getElementById('errorModal').classList.add('open');
 }
 function hideErrorModal() {
