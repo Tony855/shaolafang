@@ -406,8 +406,7 @@ async function withTransaction(work) {
 // 菜品初始化仅在首次安装时执行，无需版本号
 const DEFAULT_MENU_CATEGORIES = ['招牌烧腊', '烧腊', '面食', '卤菜', '快餐', '早茶', '烧腊加料', '饮料'];
 // 下单冷却记录：key为sessionToken或桌号，value为上次下单时间戳
-const orderSubmissionCooldown = new Map();
-const orderSubmissionCooldownRedis = redisClient && REDIS_URL ? redisClient : null;
+// 使用 checkAndSetCooldown 统一处理冷却时间，支持 Redis
 
 // 获取下单间隔时间（秒），从数据库读取，默认30秒
 async function getOrderCooldownMs() {
@@ -421,9 +420,7 @@ async function getOrderCooldownMs() {
 }
 setInterval(() => {
   const cutoff = Date.now() - 3600 * 1000; // 清理1小时前的记录
-  for (const [key, ts] of orderSubmissionCooldown) {
-    if (ts < cutoff) orderSubmissionCooldown.delete(key);
-  }
+  // 冷却时间由 cache 模块统一管理
 }, 10 * 60 * 1000);
 
 const createTableToken = () => crypto.randomBytes(12).toString('base64url');
@@ -3126,15 +3123,10 @@ app.post('/api/orders', async (req, res) => {
     const finalStoreId = sessionStoreId || storeId;
     const cooldownKey = sessionToken || table;
     const now = Date.now();
-    const canSubmit = await checkAndSetCooldown(cooldownKey, 3000);
+    const cooldownMs = await getOrderCooldownMs();
+    const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs || 3000);
     if (!canSubmit) {
       return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
-    }
-    const cooldownMs = await getOrderCooldownMs();
-    const lastSubmission = orderSubmissionCooldown.get(cooldownKey) || 0;
-    if (cooldownMs > 0 && now - lastSubmission < cooldownMs) {
-      const waitSec = Math.ceil((cooldownMs - (now - lastSubmission)) / 1000);
-      return res.status(429).json({ error: `下单过于频繁，请等待${waitSec}秒后再试` });
     }
     const items = await normalizeOrderItems(req.body.items, finalStoreId);
     const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
@@ -3145,7 +3137,6 @@ app.post('/api/orders', async (req, res) => {
     for (const item of items) {
       if (Number(item.quantity) > maxQty) return res.status(400).json({ error: `单个菜品数量不能超过${maxQty}份` });
     }
-    orderSubmissionCooldown.set(cooldownKey, now);
     const calculatedTotal = items.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
     const itemsJson = JSON.stringify(items);
     const createdAt = new Date().toISOString();
