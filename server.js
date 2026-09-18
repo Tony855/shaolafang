@@ -1467,7 +1467,11 @@ async function assertTableExists(table, storeId) {
 async function verifyLegacyAdminPassword(inputPwd) {
   const row = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
   if (!row) return false;
-  return row.value === hashPassword(inputPwd);
+  const crypto = require('crypto');
+  const expected = Buffer.from(row.value, 'utf8');
+  const actual = Buffer.from(hashPassword(inputPwd), 'utf8');
+  if (expected.length !== actual.length) return false;
+  return crypto.timingSafeEqual(expected, actual);
 }
 
 async function getWaiterFromRequest(req) {
