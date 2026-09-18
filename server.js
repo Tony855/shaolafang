@@ -4126,7 +4126,6 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
     await runAsync('DELETE FROM orders');
     await runAsync('ALTER TABLE orders AUTO_INCREMENT = 1');
     await runAsync('DELETE FROM waiter_calls');
-    await runAsync('ALTER TABLE waiter_calls AUTO_INCREMENT = 1');
     await runAsync('DELETE FROM scan_sessions');
     await runAsync('ALTER TABLE scan_sessions AUTO_INCREMENT = 1');
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_all_data', 'system', null, '重置所有订单数据', getClientIp(req));
