@@ -1024,9 +1024,14 @@ const SUPER_LOCAL_I18N = {
 };
 
 
-// 初始化统一 i18n（SUPER_LOCAL_I18N 定义后执行）
-(async () => {
-  await SLF.i18n.init(currentLang, SUPER_LOCAL_I18N);
+/// 初始化统一 i18n（SUPER_LOCAL_I18N 定义后执行）
+// 用 IIFE 包裹以便 await，确保字典就绪后再渲染
+(async function initSuperI18n() {
+  try {
+    await SLF.i18n.init(currentLang, SUPER_LOCAL_I18N);
+  } catch (e) {
+    console.warn('super.html i18n 初始化失败:', e);
+  }
 })();
 
 function t(key, params) {
@@ -1168,25 +1173,30 @@ async function startIdleCheck() {
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
-  if (!username || !password) { showError(t('pleaseEnterCredentials')); return; }
+  if (!username || !password) {
+    showError(t('pleaseEnterCredentials'));
+    return;
+  }
   try {
-    const data = await SLF.api.post('/super/login', {
-      username, password
-    });
-
-    if (!data.success) throw new Error(data.error || t('loginFailed'));
+    // SLF.api 成功时返回响应体对象；非 2xx 时已抛错，无需再检查 res.ok
+    const data = await SLF.api.post('/super/login', { username, password });
+    if (!data || !data.token) {
+      throw new Error((data && data.error) || t('loginFailed'));
+    }
     token = data.token;
     SLF.store.rawSet('superToken', token);
-    SLF.store.rawSet('superAdmin', JSON.stringify(data.admin));
+    SLF.store.rawSet('superAdmin', JSON.stringify(data.admin || {}));
     showApp();
   } catch (e) {
-    showError(e.message);
+    showError(e.message || t('loginError'));
   }
 }
 
 function showError(msg, title) {
-  document.getElementById('errorModalTitle').textContent = title || t('loginFailed');
-  document.getElementById('errorModalMessage').textContent = msg || t('invalidCredentials');
+  document.getElementById('errorModalTitle').textContent =
+    title || t('loginFailed') || '登录失败';
+  document.getElementById('errorModalMessage').textContent =
+    msg || t('loginError') || '登录失败，请重试';
   document.getElementById('errorModal').classList.add('open');
 }
 function hideErrorModal() {
@@ -1495,19 +1505,31 @@ async function resetPassword(id) {
 }
 
 async function changeSuperPassword() {
-  const oldPwd = document.getElementById('oldSuperPassword').value;
   const newPwd = document.getElementById('newSuperPassword').value;
-  if (!oldPwd || !newPwd) { toast(t('pleaseEnterCredentials'), 'error'); return; }
-  if (newPwd.length < 6) { toast(t('passwordMin6'), 'error'); return; }
+  if (!newPwd) {
+    toast(t('pleaseEnterNewPassword'), 'error');
+    return;
+  }
+  if (newPwd.length < 6) {
+    toast('❌ ' + (t('passwordMin6') || '密码至少6位'), 'error');
+    return;
+  }
+  // 后端 /api/super/change-password 需要旧密码
+  const oldPwd = prompt(t('enterOldPassword') || '请输入旧密码');
+  if (!oldPwd) return;
   try {
-    await SLF.api.post('/super/change-password', {
+    const data = await SLF.api.post('/super/change-password', {
       oldPassword: oldPwd,
       newPassword: newPwd
     });
-    toast(t('passwordChangedSuccess'), 'success');
-    document.getElementById('oldSuperPassword').value = '';
+    if (!data || !data.success) {
+      throw new Error((data && data.error) || t('saveFailed'));
+    }
+    toast('✅ ' + (t('passwordChanged') || '密码已更新'), 'success');
     document.getElementById('newSuperPassword').value = '';
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) {
+    toast('❌ ' + e.message, 'error');
+  }
 }
 
 // 加载全局设置
@@ -1760,7 +1782,11 @@ if (token) showApp();
     try {
       const text = await selectedBackupFile.text();
       const data = JSON.parse(text);
-      await SLF.api.post('/super/backup/import', data);
+      // SLF.api 失败时抛错，成功时返回响应体
+      const result = await SLF.api.post('/super/backup/import', data);
+      if (!result || !result.success) {
+        throw new Error((result && result.error) || t('importFailed'));
+      }
       toast('✅ ' + t('backupImported'), 'success');
       setTimeout(() => location.reload(), 1500);
     } catch (e) {
@@ -1840,7 +1866,11 @@ if (token) showApp();
     showPasswordModal(t('enterPasswordVerify'), function(password) {
       showConfirm(t('confirmResetData'), async function() {
         try {
-          await SLF.api.post('/super/reset-data', { password });
+          // SLF.api 成功返回响应体，失败已抛错
+          const data = await SLF.api.post('/super/reset-data', { password });
+          if (!data || !data.success) {
+            throw new Error((data && data.error) || t('resetFailed'));
+          }
           toast('✅ ' + t('orderDataReset'), 'success');
         } catch (e) {
           toast('❌ ' + t('resetFailed') + ': ' + e.message, 'error');

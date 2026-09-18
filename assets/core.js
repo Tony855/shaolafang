@@ -34,6 +34,7 @@
 
     _format(level, args) {
       const time = new Date().toISOString().substr(11, 8);
+      // 注意：必须返回数组（原代码用逗号运算符，导致时间戳被丢弃）
       return [`[${time}] [SLF.${level}]`, ...args];
     },
 
@@ -315,20 +316,33 @@
     /* 获取认证头 */
     _getAuthHeaders() {
       const headers = {};
-      const adminToken = sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminToken);
-      const waiterToken = store.rawGet(CONFIG.STORAGE_KEYS.waiterToken) ||
-                          store.rawGet(CONFIG.STORAGE_KEYS.kitchenToken);
-      const superToken = store.rawGet(CONFIG.STORAGE_KEYS.superToken);
+    
+      // 当前页面路径判断
+      const path = (typeof window !== 'undefined' && window.location)
+        ? window.location.pathname
+        : '';
+      const isSuperPage = path.startsWith('/super');
+    
+      const adminToken   = sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminToken);
+      const superToken   = store.rawGet(CONFIG.STORAGE_KEYS.superToken);
+      const waiterToken  = store.rawGet(CONFIG.STORAGE_KEYS.waiterToken) ||
+                           store.rawGet(CONFIG.STORAGE_KEYS.kitchenToken);
       const cashierToken = store.rawGet(CONFIG.STORAGE_KEYS.cashierToken);
-
-      if (adminToken) headers['Authorization'] = 'Bearer ' + adminToken;
-      if (waiterToken) headers['X-Waiter-Token'] = waiterToken;
-      if (superToken) headers['X-Super-Token'] = superToken;
-      if (cashierToken) headers['X-Cashier-Token'] = cashierToken;
-
+    
+      // /super 页面：超管 token 直接放 Authorization，避免与 adminToken 冲突
+      if (isSuperPage && superToken) {
+        headers['Authorization'] = 'Bearer ' + superToken;
+      } else {
+        // 其他页面：保持原逻辑
+        if (adminToken)  headers['Authorization']   = 'Bearer ' + adminToken;
+        if (superToken)  headers['X-Super-Token']   = superToken;
+      }
+      if (waiterToken)  headers['X-Waiter-Token']   = waiterToken;
+      if (cashierToken) headers['X-Cashier-Token']  = cashierToken;
+    
       const storeId = store.rawGet(CONFIG.STORAGE_KEYS.storeId);
       if (storeId) headers['X-Store-Id'] = storeId;
-
+    
       return headers;
     },
 
