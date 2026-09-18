@@ -2517,7 +2517,7 @@
                     rows.map(w => `<div class="admin-card">
                     <div class="info">
                       <div class="title">${esc(w.display_name)} · ${esc(w.username)}</div>
-                      <div class="sub">${w.active?tAdmin('enabled'):tAdmin('disabled')} · 店铺：${storeMap[w.store_id] || tAdmin('mainStore')}</div>
+                      <div class="sub">${w.active?tAdmin('enabled'):tAdmin('disabled')} · ${tAdmin('storeLabel') || '店铺'}：${storeMap[w.store_id] || tAdmin('mainStore')}</div>
                       <div class="perms">
                         <label><input type="checkbox" ${w.can_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_order',this.checked)"> ${tAdmin('placeOrder')}</label>
                         <label><input type="checkbox" ${w.can_mark_item?'checked':''} onchange="updateWaiterPerm(${w.id},'can_mark_item',this.checked)"> ${tAdmin('serveDish')}</label>
