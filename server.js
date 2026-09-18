@@ -1113,6 +1113,8 @@ async function initDatabase() {
   else if (secondaryCurrency.value === 'CNY') await runAsync("UPDATE settings SET value='USD' WHERE `key`='secondary_currency_code'");
   const newOrderSound = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
   if (!newOrderSound) await runAsync("INSERT INTO settings (`key`, value) VALUES ('new_order_sound_enabled', '1')");
+  const adminPassword = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
+  if (!adminPassword) await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_password', ?)", [hashPassword('admin123')]);
 
   // 确保双货币设置为默认值（启用双币，第二货币为KHR）
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '1') ON DUPLICATE KEY UPDATE value='1'");
@@ -4024,7 +4026,7 @@ app.post('/api/admin/change-password', requireAdminKey, async (req, res) => {
     const isValid = await verifyLegacyAdminPassword(oldPassword);
     if (!isValid) return res.status(401).json({ error: '旧密码错误' });
     const hash = hashPassword(newPassword);
-    await runAsync("UPDATE settings SET value = ? WHERE `key` = 'admin_password'", [hash]);
+    await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_password', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)", [hash]);
     res.json({ success: true, message: '密码已更新' });
   } catch (e) {
     res.status(500).json({ error: e.message });
