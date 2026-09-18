@@ -3653,7 +3653,7 @@
             const newAdminDisplayNamePh = $('#newAdminDisplayName'); if (newAdminDisplayNamePh) newAdminDisplayNamePh.placeholder = tAdmin('adminDisplayName');
             const addAdminBtnText = $('#addAdminBtnText'); if (addAdminBtnText) addAdminBtnText.textContent = tAdmin('addAdminBtn');
             const adminsPanelTitle = $('#adminsPanelTitle'); if (adminsPanelTitle) adminsPanelTitle.textContent = '👤 ' + tAdmin('adminManageTitle');
-            if ($('#module-admins') && $('#module-admins').classList.contains('active')) loadAdmins();
+            // loadAdmins() 已移到 if (!$('#dashboard').hidden) 块里，避免未登录时触发 401 请求
             $('#changePasswordCardTitle').textContent = '🔐 ' + tAdmin('changePassword');
             $('#oldPasswordLabel').textContent = tAdmin('oldPassword');
             $('#newPasswordLabel').textContent = tAdmin('newPasswordShort');
