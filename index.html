@@ -1189,9 +1189,9 @@
 
         async function fetchCategoryOrder() {
             try {
-                const res = await fetch(`/api/public/categories?store_id=${state.storeId || 1}`);
-                if (!res.ok) throw new Error('获取分类顺序失败');
-                const data = await res.json();
+                const data = await SLF.api.get(`/public/categories?store_id=${state.storeId || 1}`);
+
+
                 state.categoryOrder = Array.isArray(data) ? data.map(c => c.name) : [];
             } catch (e) {
                 console.warn('分类顺序加载失败，使用默认排序', e);
@@ -1201,9 +1201,9 @@
 
         async function fetchStoreInfo() {
             try {
-                const res = await fetch(`${API_BASE}/public/store-info?store_id=${state.storeId || 1}`);
-                if (!res.ok) throw new Error('店铺信息加载失败');
-                state.currentStore = await res.json();
+                state.currentStore = await SLF.api.get(`/public/store-info?store_id=${state.storeId || 1}`);
+
+
                 updateStoreNameDisplay();
             } catch (e) {
                 console.warn('加载店铺信息失败:', e);
