@@ -1053,6 +1053,25 @@
             return { name, desc };
         }
 
+        let state = {
+            cart: {},
+            currentCategory: ALL_CATEGORY,   // 🔥 哨兵值，不依赖 i18n
+            searchKeyword: '',
+            orders: [],
+            menu: [],
+            tables: [],
+            table: '',
+            storeId: 1,
+            isAdmin: false,
+            scanToken: '',
+            scanSessionToken: '',
+            scanExpiresAt: '',
+            currencies: [],
+            defaultCurrency: { code: 'USD', symbol: '$', rate: 1 },
+            dualCurrency: { enabled: false, currency: null },
+            categoryOrder: [],
+            currentStore: null
+        };
         // 货币基础工具（防御性：currencies 未初始化时返回默认值）
         function toBaseCurrency(price, currencyCode) {
             const list = Array.isArray(state.currencies) ? state.currencies : [];
@@ -1094,25 +1113,6 @@
         // ============================================================
         //  状态
         // ============================================================
-        let state = {
-            cart: {},
-            currentCategory: ALL_CATEGORY,   // 🔥 哨兵值，不依赖 i18n
-            searchKeyword: '',
-            orders: [],
-            menu: [],
-            tables: [],
-            table: '',
-            storeId: 1,
-            isAdmin: false,
-            scanToken: '',
-            scanSessionToken: '',
-            scanExpiresAt: '',
-            currencies: [],
-            defaultCurrency: { code: 'USD', symbol: '$', rate: 1 },
-            dualCurrency: { enabled: false, currency: null },
-            categoryOrder: [],
-            currentStore: null
-        };
         let isBackendOnline = false;
         let orderSearchKeyword = '';
         let configLoaded = false;   // 🔥 标记配置是否已成功加载
