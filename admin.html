@@ -3358,6 +3358,8 @@
             else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); loadDailyReport(); loadReportSummary(); }
             else if (module === 'admins') loadAdmins();
             else if (module === 'cashiers') loadCashiers();
+            // 切换模块时重新应用权限，防止 DOM 重新渲染后按钮复活
+            applyPermissions();
         }
 
         // 移动端侧边栏控制
