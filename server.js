@@ -899,6 +899,14 @@ async function initDatabase() {
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
 
+
+  // 兼容旧版 orders 表：添加 order_no 字段
+  try {
+    await runAsync('ALTER TABLE orders ADD COLUMN order_no VARCHAR(20) DEFAULT NULL');
+    await runAsync('ALTER TABLE orders ADD UNIQUE INDEX idx_order_no (order_no)');
+  } catch (e) {
+    if (!/duplicate column|Duplicate key/i.test(e.message || '')) throw e;
+  }
   await runAsync(`
     CREATE TABLE IF NOT EXISTS settings (
       \`key\` VARCHAR(255) PRIMARY KEY,
@@ -1092,6 +1100,18 @@ async function initDatabase() {
       await runAsync('INSERT INTO tables (name, status, store_id) VALUES (?, ?, ?)', [tableName, 'available', defaultStoreId]);
     }
     console.log('  + 已创建默认桌号：A01-A05, B01-B05');
+    console.log('  + 已创建默认桌号：A01-A05, B01-B05');
+
+    // 创建默认服务员
+    const waiterHash = hashPassword('123456');
+    await runAsync('INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, active, store_id) VALUES (?, ?, ?, 1, 1, 1, 1, ?)',
+      ['waiter', waiterHash, '服务员A', defaultStoreId]);
+    console.log('  + 已创建默认服务员：waiter / 123456');
+
+    // 创建默认收银员
+    await runAsync('INSERT INTO cashier_sessions (username, password_hash, display_name, store_id) VALUES (?, ?, ?, ?)',
+      ['cashier', waiterHash, '收银员', defaultStoreId]);
+    console.log('  + 已创建默认收银员：cashier / 123456');
   }
 
   // 迁移：stores表添加qr_languages字段（二维码显示语言，逗号分隔，如zh,en,km）
@@ -1115,6 +1135,29 @@ async function initDatabase() {
   if (!newOrderSound) await runAsync("INSERT INTO settings (`key`, value) VALUES ('new_order_sound_enabled', '1')");
   const adminPassword = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
   if (!adminPassword) await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_password', ?)", [hashPassword('admin123')]);
+  // Order number prefix and system settings defaults
+  const prefixDefaults = {
+    'order_prefix_normal': '11',
+    'order_prefix_refund': '01',
+    'order_prefix_discount': '21',
+    'order_prefix_vip': '61',
+    'kitchen_auto_hide_minutes': '30',
+    'qr_session_timeout': '45',
+    'order_interval_seconds': '8',
+    'waiter_refresh_interval': '5',
+    'login_max_attempts': '5',
+    'login_lock_minutes': '5',
+    'call_limit_enabled': '1',
+    'call_limit_max': '3',
+    'call_limit_window_minutes': '10',
+    'call_limit_cooldown_minutes': '5',
+    'log_retention_days': '90',
+    'auto_clean_log_enabled': '1'
+  };
+  for (const [key, value] of Object.entries(prefixDefaults)) {
+    await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=value", [key, value]);
+  }
+  console.log('  + System settings defaults initialized');
 
   // 确保双货币设置为默认值（启用双币，第二货币为KHR）
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '1') ON DUPLICATE KEY UPDATE value='1'");

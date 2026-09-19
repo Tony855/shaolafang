@@ -2329,6 +2329,7 @@
         function filterOrders() {
             orderTableFilter = $('#orderTableSearch').value.trim();
             renderOrders();
+            loadOrders();
         }
         async function toggleItemStatus(id, index) {
             try {

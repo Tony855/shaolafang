@@ -493,7 +493,7 @@
       if (searchVal) {
         filtered = filtered.filter(o =>
           (o.table_name || '').toLowerCase().includes(searchVal) ||
-          String(o.id).includes(searchVal)
+          String(o.order_no || o.id).includes(searchVal)
         );
       }
       if (!filtered.length) {
@@ -790,4 +790,4 @@
     init();
   </script>
 </body>
-</html>
+</html>
