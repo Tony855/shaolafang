@@ -597,12 +597,12 @@
     else alert('{{copyFailed}}');
   }
   function showCopiedState(input) {
-    const orig = input.placeholder;
-    input.placeholder = '{{copied}}';
+    const orig = input.value;
+    input.value = '{{copied}} ✓';
     input.style.borderColor = '#27ae60';
     input.style.backgroundColor = '#e8f5e9';
     setTimeout(function() {
-      input.placeholder = orig;
+      input.value = orig;
       input.style.borderColor = '';
       input.style.backgroundColor = '';
     }, 2000);

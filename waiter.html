@@ -214,6 +214,7 @@
       gap: 18px;
     }
     .table-card{
+      position: relative;
       background: #fff;
       border-radius: var(--radius);
       padding: 20px;
@@ -891,7 +892,7 @@
   </div>
 </div>
 
-<!-- ===== 确认模态框 ===== -->
+<!-- ===== 转移桌号模态框 ===== --><div class="modal" id="transferModal"><div class="modal-card" style="max-width:400px;"><div class="modal-head"><h2 id="transferTitle">↔</h2><button class="close" onclick="closeTransferModal()">✕</button></div><div style="padding:10px 0;"><div style="margin-bottom:10px;font-weight:600;" id="transferFromLabel"></div><label style="display:block;font-size:13px;color:#666;margin-bottom:6px;" id="transferToLabel"></label><select id="transferTargetSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:14px;"></select></div><div style="display:flex;gap:10px;margin-top:16px;"><button class="confirm-cancel" onclick="closeTransferModal()" id="transferCancelBtn" style="flex:1;padding:10px;border:0;border-radius:8px;"></button><button class="confirm-ok" onclick="confirmTransfer()" id="transferConfirmBtn" style="flex:1;padding:10px;border:0;border-radius:8px;background:var(--primary);color:#fff;"></button></div></div></div><!-- ===== 确认模态框 ===== -->
 <div class="modal confirm-modal" id="confirmModal">
   <div class="modal-card confirm-card">
     <div class="confirm-icon">⚠️</div>
@@ -1455,14 +1456,56 @@
   }
 
   // ----- 桌号渲染 -----
+  
+  // ----- 转移桌号 -----
+  let transferFromTable = null;
+  window.showTransferModal = function(tableName) {
+    transferFromTable = tableName;
+    const active = state.orders.filter(o => o.table === tableName && o.status === 'pending');
+    if (!active.length) { toast(t('noPending')); return; }
+    document.getElementById('transferTitle').textContent = '↔ ' + t('transferOrder');
+    document.getElementById('transferToLabel').textContent = t('transferTo');
+    document.getElementById('transferCancelBtn').textContent = t('cancel');
+    document.getElementById('transferConfirmBtn').textContent = t('confirm');
+    document.getElementById('transferFromLabel').textContent = t('transferFrom') + ': ' + tableName + ' (' + active.length + ' ' + t('order') + ')';
+    const select = document.getElementById('transferTargetSelect');
+    const others = state.tables.filter(x => x.name !== tableName);
+    select.innerHTML = others.map(x => '<option value="' + esc(x.name) + '">' + esc(x.name) + '</option>').join('');
+    document.getElementById('transferModal').classList.add('open');
+  };
+  window.closeTransferModal = function() {
+    document.getElementById('transferModal').classList.remove('open');
+    transferFromTable = null;
+  };
+  window.confirmTransfer = async function() {
+    if (!transferFromTable) return;
+    const target = document.getElementById('transferTargetSelect').value;
+    const orderIds = state.orders.filter(o => o.table === transferFromTable && o.status === 'pending').map(o => o.id);
+    try {
+      for (const id of orderIds) {
+        await api('/orders/' + id + '/transfer', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ target_table: target }) });
+      }
+      toast('✅ ' + t('transferSuccess'));
+      closeTransferModal();
+      await load();
+    } catch(e) { toast('❌ ' + e.message); }
+  };
+
   function renderTables() {
     $('#tableGrid').innerHTML = state.tables.map(table => {
-      const hasActiveOrder = state.orders.some(o => o.table === table.name && o.status === 'pending');
+      const hasActiveOrder = state.orders.some(o => o.table === table.name && o.status === 'pending');console.log('table:', table.name, 'hasActiveOrder:', hasActiveOrder);
       const statusClass = hasActiveOrder ? 'occupied' : 'available';
       const statusText = hasActiveOrder ? t('occupied') : t('available');
-      return `<div class="table-card" onclick="openModal('${esc(table.name)}')"><div class="name">🍽️ ${esc(table.name)} <span class="status ${statusClass}">${statusText}</span></div><div class="bill">${bill(table)}</div></div>`;
+      const transferBtn = hasActiveOrder ? `<div style="position:absolute;top:14px;right:14px;"><button data-table='${esc(table.name)}' class='transfer-btn' style="width:44px;height:44px;border-radius:50%;background:#fff;border:2px solid rgba(232,74,42,0.4);color:var(--primary);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:10;transition:all 0.2s;" onmouseover="this.style.background='var(--primary)';this.style.color='#fff';this.style.transform='scale(1.1)'" onmouseout="this.style.background='#fff';this.style.color='var(--primary)';this.style.transform='scale(1)'" title="${t('transferOrder')}">↔</button></div>` : '';
+      return `<div class="table-card" onclick="openModal('${esc(table.name)}')">${transferBtn}<div class="name">🍽️ ${esc(table.name)} <span class="status ${statusClass}">${statusText}</span></div><div class="bill">${bill(table)}</div></div>`;
     }).join('') || `<div style="color:#c8c8d0">${t('noTables')}</div>`;
     $('#submitBtn').style.display = state.waiter && state.waiter.can_order ? 'block' : 'none';
+    document.querySelectorAll('.transfer-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        window.showTransferModal(this.dataset.table);
+      });
+    });
   }
 
   // ----- 点餐弹窗 -----

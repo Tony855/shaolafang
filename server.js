@@ -3065,6 +3065,33 @@ app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), 
   }
 });
 
+
+// ----- 转移订单到其他桌 -----
+app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
+  try {
+    const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    const orderId = parseInt(req.params.id, 10);
+    const targetTable = (req.body?.target_table || '').trim();
+    if (!targetTable) return res.status(400).json({ error: '请选择目标桌号' });
+    const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, storeId]);
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+    if (order.status !== 'pending') return res.status(400).json({ error: '仅未结算订单可转移' });
+    if (order.table_name === targetTable) return res.status(400).json({ error: '目标桌与当前桌相同' });
+    const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=?', [targetTable, storeId]);
+    if (!target) return res.status(404).json({ error: '目标桌不存在' });
+    const oldTable = order.table_name;
+    await runAsync('UPDATE orders SET table_name=? WHERE id=?', [targetTable, orderId]);
+    await syncTableStatus(oldTable, storeId);
+    await syncTableStatus(targetTable, storeId);
+    const actorType = req.waiter ? 'waiter' : 'admin';
+    const actorName = req.waiter ? req.waiter.display_name : 'admin';
+    const logParams = [actorType, 0, actorName, 'transfer_order', JSON.stringify({ order_id: orderId, from: oldTable, to: targetTable }), getClientIp(req) || 'unknown', new Date().toISOString()];
+    console.log('[TRANSFER LOG]', JSON.stringify(logParams));
+    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', logParams);
+    res.json({ success: true, from: oldTable, to: targetTable });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
