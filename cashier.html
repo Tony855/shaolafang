@@ -89,21 +89,21 @@
     .order-table{ display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--gray-6); flex-wrap: wrap; }
     .order-table-icon{
       display: inline-flex; align-items: center; justify-content: center;
-      width: 28px; height: 28px; border-radius: 8px;
+      width: 32px; height: 32px; border-radius: 8px;
       background: linear-gradient(135deg, #667eea, #764ba2);
       color: #fff; font-size: 14px; flex-shrink: 0;
     }
-    .order-table-name{ font-size: 16px; font-weight: 700; color: var(--gray-6); }
+    .order-table-name{ font-size: 20px; font-weight: 700; color: var(--gray-6); }
     .order-id-badge{
       display: inline-flex; align-items: center;
       background: #f0f2ff; color: #667eea;
-      font-size: 12px; font-weight: 700; padding: 2px 8px;
+      font-size: 14px; font-weight: 700; padding: 3px 10px;
       border-radius: 6px; flex-shrink: 0;
     }
     .customer-tag{
       display: inline-flex; align-items: center; gap: 4px;
       background: #fff3e0; color: #e65100;
-      font-size: 12px; font-weight: 600; padding: 2px 8px;
+      font-size: 14px; font-weight: 600; padding: 3px 10px;
       border-radius: 6px; flex-shrink: 0;
     }
     .customer-tag.staff{ background: #e8f5e9; color: #2e7d32; }
@@ -265,6 +265,22 @@
 
     <div class="content">
       <div id="ordersView">
+      <div style="margin-bottom:12px;display:flex;gap:8px;">
+        <input type="text" id="searchInput" oninput="filterByTable()" style="flex:1;padding:10px 14px;border:1px solid var(--gray-2);border-radius:10px;font-size:14px;outline:none;" placeholder="">
+      </div>
+      <div id="batchBar" style="display:none;position:sticky;bottom:0;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 16px;border-radius:12px;z-index:100;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:14px;">
+            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" style="width:16px;height:16px;cursor:pointer;accent-color:#fff;">
+            <span id="selectAllLabel"></span>
+          </label>
+          <span id="batchCount">0</span> <span id="selectedLabel"></span> · <b id="batchTotal">$0.00</b>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button id="printBtn" onclick="batchPrint()" style="padding:8px 16px;background:rgba(255,255,255,0.25);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;">🖨</button>
+          <button id="batchSettleBtn" onclick="batchSettle()" style="padding:8px 20px;background:#fff;color:#667eea;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;"></button>
+        </div>
+      </div>
         <div id="orderList"></div>
       </div>
       <div id="reportView" style="display:none;">
@@ -321,7 +337,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="languages.min.js?v=20260918g"></script>
+  <script src="languages.min.js?v=20260919e"></script>
   <script src="assets/core.js"></script>
   <script>
     let currentLang = SLF.store.rawGet('cashierLang') || SLF.store.rawGet('lang') || 'zh';
@@ -380,6 +396,11 @@
       document.getElementById('langSelect').value = currentLang;
       document.getElementById('pageTitle').textContent = t('cashier') + t('orderList');
       document.getElementById('tabPending').textContent = t('pendingOrders');
+      document.getElementById('selectedLabel').textContent = t('itemsSelected');
+      document.getElementById('selectAllLabel').textContent = t('selectAll');
+      document.getElementById('searchInput').placeholder = '🔍 ' + t('searchPlaceholder');
+      document.getElementById('printBtn').textContent = '🖨 ' + t('print');
+      document.getElementById('batchSettleBtn').textContent = t('batchSettleTitle');
       document.getElementById('tabSettled').textContent = t('settledOrders');
       document.getElementById('tabReport').textContent = t('report');
       document.getElementById('pendingLabel').textContent = t('pendingCount');
@@ -465,9 +486,16 @@
         container.innerHTML = '<div class="empty-hint"><div class="empty-icon">📋</div>' + t('noOrders') + '</div>';
         return;
       }
-      const filtered = (currentTab === 'settled')
+      const searchVal = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+      let filtered = (currentTab === 'settled')
         ? orders.filter(o => o.status !== 'pending')
         : orders.filter(o => o.status === 'pending');
+      if (searchVal) {
+        filtered = filtered.filter(o =>
+          (o.table_name || '').toLowerCase().includes(searchVal) ||
+          String(o.id).includes(searchVal)
+        );
+      }
       if (!filtered.length) {
         container.innerHTML = '<div class="empty-hint"><div class="empty-icon">📋</div>' + t('noOrders') + '</div>';
         return;
@@ -489,8 +517,12 @@
         const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
         const canRefund = cashierInfo?.permissions?.can_refund && order.status === 'done';
         const customerLabel = customerLabels.get(order.id) || '';
+        const checked = selectedIds.has(order.id) ? 'checked' : '';
+        const checkbox = (currentTab === 'pending')
+          ? '<input type="checkbox" style="width:20px;height:20px;cursor:pointer;accent-color:#667eea;" ' + checked + ' onclick="event.stopPropagation();toggleSelect(' + order.id + ')">'
+          : '';
         return '<div class="order-card status-' + statusClass + '" onclick="showOrderDetail(' + order.id + ')">' +
-          '<div class="order-header">' +
+          '<div class="order-header" style="display:flex;align-items:center;gap:8px;">' + checkbox +
             '<span class="order-table">' +
               '<span class="order-table-icon">🪑</span>' +
               '<span class="order-table-name">' + (order.table_name || '-') + '</span>' +
@@ -500,12 +532,12 @@
             '<span class="order-status ' + statusClass + '">' + statusText + '</span>' +
           '</div>' +
           '<div class="order-info">🕐 ' + formatTime(order.createdAt) + ' · ' + (order.items?.length || 0) + t('dishes') + '</div>' +
-          '<div class="order-dishes">' + (dishesHTML || '<div style="color:var(--gray-4);">无菜品</div>') + '</div>' +
+          '<div class="order-dishes">' + (dishesHTML || '<div style="color:var(--gray-4);">' + t('noDishes') + '</div>') + '</div>' +
           '<div class="order-footer">' +
             '<span class="order-total">$' + (parseFloat(order.total || 0).toFixed(2)) + '</span>' +
             '<div class="order-actions" onclick="event.stopPropagation()">' +
-              (canSettle ? '<button class="btn btn-primary" onclick="settleOrder(' + order.id + ')">' + t('settleOrder') + '</button>' : '') +
-              (canCancel ? '<button class="btn btn-warning" onclick="cancelOrder(' + order.id + ')">' + t('cancelOrder') + '</button>' : '') +
+              (canSettle ? '<button class="btn btn-primary" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'settle'" + ')">' + t('settleOrder') + '</button>' : '') +
+              (canCancel ? '<button class="btn btn-warning" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'cancel'" + ')">' + t('cancelOrder') + '</button>' : '') +
               (canRefund ? '<button class="btn btn-danger" onclick="refundOrder(' + order.id + ')">' + t('refundOrder') + '</button>' : '') +
             '</div>' +
           '</div>' +
@@ -523,7 +555,7 @@
       document.getElementById('todayRevenue').textContent = '$' + revenue.toFixed(2);
     }
 
-    function showOrderDetail(id) {
+    function showOrderDetail(id, action) {
       const order = orders.find(o => o.id === id);
       if (!order) return;
       const detailCustomerLabel = buildSessionLabels([order]).get(order.id) || '';
@@ -536,18 +568,47 @@
           '</div>' +
           '<span class="dish-price">$' + (parseFloat(item.price || 0) * item.quantity).toFixed(2) + '</span>' +
         '</div>'
-      ).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">无菜品</div>';
+      ).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">' + t('noDishes') + '</div>';
       document.getElementById('detailTotal').textContent = '$' + (parseFloat(order.total || 0).toFixed(2));
       const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending';
       const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
       const canRefund = cashierInfo?.permissions?.can_refund && order.status === 'done';
+      const showSettle = canSettle && (!action || action === 'settle');
+      const showCancel = canCancel && (!action || action === 'cancel');
       document.getElementById('detailActions').innerHTML =
         '<button class="btn btn-secondary" onclick="closeOrderDetail()">' + t('close') + '</button>' +
-        (canSettle ? '<button class="btn btn-primary" onclick="settleOrder(' + order.id + ')">' + t('settleOrder') + '</button>' : '') +
-        (canCancel ? '<button class="btn btn-warning" onclick="cancelOrder(' + order.id + ')">' + t('cancelOrder') + '</button>' : '') +
+        (showSettle ? '<button class="btn btn-primary" onclick="settleOrder(' + order.id + ')">' + t('settleNow') + '</button>' : '') +
+        (showCancel ? '<button class="btn btn-warning" onclick="cancelOrder(' + order.id + ')">' + t('cancelNow') + '</button>' : '') +
         (canRefund ? '<button class="btn btn-danger" onclick="refundOrder(' + order.id + ')">' + t('refundOrder') + '</button>' : '');
       document.getElementById('orderDetailModal').classList.add('show');
     }
+
+    async function settleOrder(id) {
+      showConfirm(t('settleOrder'), t('confirmSettle'), async function() {
+        try {
+          await api('/cashier/orders/' + id + '/settle', { method: 'PUT' });
+          toast('✅ ' + t('settleSuccess'));
+          closeOrderDetail();
+          loadOrders();
+        } catch (e) {
+          toast('❌ ' + e.message);
+        }
+      }, { type: 'primary', icon: '💰', okText: t('confirmSettle'), cancelText: t('back') });
+    }
+
+    async function cancelOrder(id) {
+      showConfirm(t('cancelOrder'), t('confirmCancel'), async function() {
+        try {
+          await api('/cashier/orders/' + id + '/cancel', { method: 'PUT' });
+          toast('✅ ' + t('cancelSuccess'));
+          closeOrderDetail();
+          loadOrders();
+        } catch (e) {
+          toast('❌ ' + e.message);
+        }
+      }, { type: 'warning', icon: '⚠️', okText: t('confirmCancel'), cancelText: t('back') });
+    }
+
 
     function closeOrderDetail() {
       document.getElementById('orderDetailModal').classList.remove('show');
@@ -557,7 +618,7 @@
     let confirmCallback = null;
     function showConfirm(title, message, callback, options = {}) {
       document.getElementById('confirmTitle').textContent = title;
-      document.getElementById('confirmMessage').textContent = message;
+      document.getElementById('confirmMessage').innerHTML = message;
       document.getElementById('confirmIcon').textContent = options.icon || '⚠️';
       document.getElementById('confirmOkBtn').textContent = options.okText || t('confirm');
       document.getElementById('confirmCancelBtn').textContent = options.cancelText || t('cancel');
@@ -583,30 +644,73 @@
       }
     }
 
-    async function settleOrder(id) {
-      showConfirm(t('settleOrder'), t('confirmSettle'), async function() {
+    let selectedIds = new Set();
+    function toggleSelect(id) {
+      if (selectedIds.has(id)) selectedIds.delete(id);
+      else selectedIds.add(id);
+      updateBatchBar();
+    }
+    function updateBatchBar() {
+      const bar = document.getElementById('batchBar');
+      const count = selectedIds.size;
+      document.getElementById('batchCount').textContent = count;
+      if (count > 0) {
+        const total = orders.filter(o => selectedIds.has(o.id)).reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+        document.getElementById('batchTotal').textContent = '$' + total.toFixed(2);
+        bar.style.display = 'flex';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+    function filterByTable() { renderOrders(); }
+    function toggleSelectAll() {
+      const cb = document.getElementById('selectAll');
+      const pending = orders.filter(o => o.status === 'pending');
+      if (cb.checked) {
+        pending.forEach(o => selectedIds.add(o.id));
+      } else {
+        selectedIds.clear();
+      }
+      renderOrders();
+      updateBatchBar();
+    }
+    async function batchSettle() {
+      if (!selectedIds.size) return;
+      const ids = [...selectedIds];
+      const selectedOrders = orders.filter(o => selectedIds.has(o.id));
+      const total = selectedOrders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+      const tables = [...new Set(selectedOrders.map(o => o.table_name))].join(', ');
+      let html = '<div style="text-align:left;max-height:300px;overflow-y:auto;">';
+      html += '<div style="margin-bottom:8px;color:#666;">' + t('table') + ': <b>' + tables + '</b> · ' + selectedOrders.length + ' ' + t('orders') + '</div>';
+      selectedOrders.forEach(o => {
+        html += '<div style="background:#f8f9fa;border-radius:8px;padding:8px;margin-bottom:6px;">';
+        html += '<div style="font-weight:700;margin-bottom:4px;">#' + o.id + ' · ' + (o.table_name || '-') + '</div>';
+        (o.items || []).forEach(i => {
+          html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#555;"><span>' + i.name + ' x' + i.quantity + '</span><span>$' + (parseFloat(i.price || 0) * i.quantity).toFixed(2) + '</span></div>';
+        });
+        html += '<div style="text-align:right;font-weight:700;color:#333;margin-top:4px;">$' + (parseFloat(o.total || 0)).toFixed(2) + '</div>';
+        html += '</div>';
+      });
+      html += '<div style="text-align:right;font-weight:700;font-size:16px;color:#667eea;margin-top:8px;">' + t('total') + ': $' + total.toFixed(2) + '</div>';
+      html += '</div>';
+      showConfirm(t('batchSettleTitle'), html, async function() {
         try {
-          await api('/cashier/orders/' + id + '/settle', { method: 'PUT' });
+          await api('/cashier/orders/batch-settle', { method: 'PUT', body: { order_ids: ids } });
           toast('✅ ' + t('settleSuccess'));
-          closeOrderDetail();
-          loadOrders();
-        } catch (e) {
-          toast('❌ ' + e.message);
-        }
-      }, { type: 'primary', icon: '💰' });
+          selectedIds.clear();
+          await loadOrders();
+          if (currentTab === 'pending') renderOrders();
+          updateBatchBar();
+        } catch (e) { toast('❌ ' + e.message); }
+      }, { type: 'primary', icon: '💰', okText: t('settleNow'), cancelText: t('back') });
     }
 
-    async function cancelOrder(id) {
-      showConfirm(t('cancelOrder'), t('confirmCancel'), async function() {
-        try {
-          await api('/cashier/orders/' + id + '/cancel', { method: 'PUT' });
-          toast('✅ ' + t('cancelSuccess'));
-          closeOrderDetail();
-          loadOrders();
-        } catch (e) {
-          toast('❌ ' + e.message);
-        }
-      }, { type: 'warning', icon: '⚠️' });
+    async function batchPrint() {
+      if (!selectedIds.size) return;
+      try {
+        await api('/cashier/orders/batch-print', { method: 'POST', body: { order_ids: [...selectedIds] } });
+        toast('✅ 打印指令已发送');
+      } catch (e) { toast('❌ ' + e.message); }
     }
 
     async function refundOrder(id) {
@@ -634,9 +738,9 @@
               '<div class="report-stat"><div class="report-stat-value">$' + data.avgOrderValue + '</div><div class="report-stat-label">' + t('avgOrderValue') + '</div></div>' +
             '</div>' +
           '</div>' +
-          (data.orders && data.orders.length ? '<div class="modal-section-title" style="margin-bottom:8px;">今日已结算订单</div>' + data.orders.map(o =>
+          (data.orders && data.orders.length ? '<div class="modal-section-title" style="margin-bottom:8px;">' + t('settledOrdersTitle') + '</div>' + data.orders.map(o =>
             '<div class="dish-item"><span class="dish-name">📋 ' + (o.table_name || '-') + ' · ' + formatTime(o.createdAt) + '</span><span class="dish-price">$' + (parseFloat(o.total || 0).toFixed(2)) + '</span></div>'
-          ).join('') : '<div class="empty-hint">今日暂无已结算订单</div>');
+          ).join('') : '<div class="empty-hint">' + t('noSettledToday') + '</div>');
       } catch (e) {
         if (e.message.includes('没有')) {
           document.getElementById('reportContent').innerHTML = '<div class="empty-hint"><div class="empty-icon">🔒</div>' + t('noPermission') + '</div>';
@@ -667,7 +771,7 @@
         const storeId = SLF.store.rawGet('cashierStoreId') || '1';
         // 同步 storeId 到统一的 key，供 SLF.api 使用
         SLF.store.rawSet('storeId', storeId);
-        document.getElementById('storeName').textContent = cashierInfo.storeName || ('店铺 #' + storeId);
+        document.getElementById('storeName').textContent = cashierInfo.storeName || t('store') + ' #' + storeId;
         await loadOrders();
         setInterval(loadOrders, 15000);
       } catch (e) {
@@ -686,4 +790,4 @@
     init();
   </script>
 </body>
-</html>
+</html>

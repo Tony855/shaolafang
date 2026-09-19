@@ -1330,6 +1330,48 @@ function buildReceipt(order, store, printer) {
   return pos.build();
 }
 
+// 生成合并小票（多订单合并一张）
+function buildBatchReceipt(orders, store, printer) {
+  const width = printer?.paper_width || 58;
+  const pos = new EscPosBuilder(width);
+  const tableName = orders[0]?.table_name || '';
+  const total = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+  pos.init();
+  pos.align(1); pos.big(true);
+  pos.line(store?.name || 'FoodFlow');
+  pos.big(false); pos.newline();
+  if (store?.address) { pos.font(1); pos.line(store.address); pos.font(0); }
+  pos.separator('='); pos.newline();
+  pos.align(0);
+  pos.twoColumn('桌号:', tableName);
+  pos.twoColumn('订单数:', String(orders.length));
+  pos.twoColumn('时间:', formatGlobalDateTime(new Date().toISOString()));
+  pos.separator();
+  const mergedItems = {};
+  for (const o of orders) {
+    const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+    for (const item of items) {
+      const key = item.name;
+      if (!mergedItems[key]) mergedItems[key] = { ...item };
+      else mergedItems[key].quantity += item.quantity;
+    }
+  }
+  pos.line('菜品清单');
+  pos.separator('-');
+  for (const item of Object.values(mergedItems)) {
+    const name = item.name.length > 16 ? item.name.slice(0, 15) + '..' : item.name;
+    pos.twoColumn((item.emoji || '') + name + ' x' + item.quantity, '$' + ((Number(item.base_price) || Number(item.price) || 0) * item.quantity).toFixed(2));
+  }
+  pos.separator();
+  pos.align(2); pos.bold(true);
+  pos.line('合计: $' + total.toFixed(2));
+  pos.bold(false); pos.newline();
+  pos.align(1);
+  pos.line('谢谢惠顾，欢迎再次光临！');
+  pos.newline(2); pos.cut(1);
+  return pos.build();
+}
+
 // 生成后厨小票（只显示待做菜品）
 function buildKitchenTicket(order, store, printer) {
   const width = printer?.paper_width || 58;
@@ -2524,6 +2566,64 @@ app.get('/api/cashier/orders/:id', requireCashier, async (req, res) => {
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     res.json(formatOrder(order));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银员批量结算（勾选多订单一起结） -----
+app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => {
+  try {
+    if (!req.cashier.permissions?.can_settle) return res.status(403).json({ error: '没有结算订单权限' });
+    const orderIds = (req.body?.order_ids || []).map(id => parseInt(id)).filter(id => !isNaN(id));
+    if (!orderIds.length) return res.status(400).json({ error: '请选择要结算的订单' });
+    const placeholders = orderIds.map(() => '?').join(',');
+    const orders = await allAsync('SELECT * FROM orders WHERE id IN (' + placeholders + ') AND store_id=? AND status=\'pending\'', [...orderIds, req.storeId]);
+    if (!orders.length) return res.status(400).json({ error: '没有可结算的待处理订单' });
+    const now = new Date().toISOString();
+    const totalAmount = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+    const tableNames = [...new Set(orders.map(o => o.table_name))];
+    for (const order of orders) {
+      await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=?", [now, order.id]);
+      await syncTableStatus(order.table_name, req.storeId);
+    }
+    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ['cashier', 0, req.cashier.username, 'batch_settle', JSON.stringify({ order_ids: orders.map(o => o.id), tables: tableNames, count: orders.length, total: totalAmount.toFixed(2) }), getClientIp(req), now]);
+    let printed = false, printError = null;
+    const autoPrintRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", ['auto_print_receipt_' + req.storeId]);
+    if (autoPrintRow && autoPrintRow.value === '1') {
+      try {
+        const printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [req.storeId]);
+        const store = await getAsync('SELECT * FROM stores WHERE id=?', [req.storeId]);
+        if (printer && printer.type === 'network' && printer.ip_address) {
+          const printData = buildBatchReceipt(orders, store, printer);
+          await printToNetworkPrinter(printData, printer.ip_address, printer.port);
+          printed = true;
+        }
+      } catch (pe) { printError = pe.message; }
+    }
+    res.json({ success: true, settled: orders.length, total: totalAmount.toFixed(2), printed, printError });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银员批量打印合并小票 -----
+app.post('/api/cashier/orders/batch-print', requireCashier, async (req, res) => {
+  try {
+    const orderIds = (req.body?.order_ids || []).map(id => parseInt(id)).filter(id => !isNaN(id));
+    if (!orderIds.length) return res.status(400).json({ error: '请选择要打印的订单' });
+    const placeholders = orderIds.map(() => '?').join(',');
+    const orders = await allAsync('SELECT * FROM orders WHERE id IN (' + placeholders + ') AND store_id=?', [...orderIds, req.storeId]);
+    if (!orders.length) return res.status(404).json({ error: '订单不存在' });
+    const printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [req.storeId]);
+    const store = await getAsync('SELECT * FROM stores WHERE id=?', [req.storeId]);
+    const printData = buildBatchReceipt(orders, store, printer);
+    if (printer && printer.type === 'network' && printer.ip_address) {
+      try {
+        await printToNetworkPrinter(printData, printer.ip_address, printer.port);
+        return res.json({ success: true, printed: true, printer: printer.name });
+      } catch (e) {
+        return res.status(502).json({ success: false, error: e.message, printData: printData.toString('base64') });
+      }
+    }
+    res.json({ success: true, printed: false, printData: printData.toString('base64') });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
