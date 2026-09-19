@@ -1274,7 +1274,7 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=20260919c"></script>
+    <script src="languages.min.js?v=20260919f"></script>
     <script src="assets/core.js"></script>
     <script>
         // ================================================================
@@ -3121,7 +3121,11 @@
             const adminsPanelTitle = $('#adminsPanelTitle'); if (adminsPanelTitle) adminsPanelTitle.textContent = '👤 ' + tAdmin('adminManageTitle');
             // loadAdmins() 已移到 if (!$('#dashboard').hidden) 块里，避免未登录时触发 401 请求
             $('#changePasswordCardTitle').textContent = '🔐 ' + tAdmin('changePassword');
-            $('#oldPasswordLabel').textContent = tAdmin('oldPassword');
+            const _cmTitle = $('#cashierManageCardTitle'); if (_cmTitle) _cmTitle.textContent = '💰 ' + tAdmin('cashierManage');
+            const _cmDesc = $('#cashierManageDesc'); if (_cmDesc) _cmDesc.textContent = tAdmin('cashierManageDesc');
+            const _cmBtn = $('#enterCashierManageBtn'); if (_cmBtn) _cmBtn.textContent = tAdmin('enterCashierManage');
+            const _cpTitle = $('#cashiersPanelTitle'); if (_cpTitle) _cpTitle.textContent = '💰 ' + tAdmin('cashierManage');
+            const _acBtn = $('#addCashierBtnText'); if (_acBtn) _acBtn.textContent = tAdmin('addCashier');
             $('#newPasswordLabel').textContent = tAdmin('newPasswordShort');
             $('#oldPassword').placeholder = tAdmin('oldPassword');
             $('#newPassword').placeholder = tAdmin('newPassword');
