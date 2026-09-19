@@ -340,6 +340,56 @@ else
     log_warn "Nginx 代理状态: HTTP $NGINX_CODE"
 fi
 
+
+# ===== 12. 配置防火墙 =====
+echo ""
+log_info "配置防火墙..."
+if command -v ufw &> /dev/null; then
+    ufw --force allow OpenSSH 2>/dev/null || true
+    ufw --force allow 80/tcp 2>/dev/null || true
+    ufw --force allow 443/tcp 2>/dev/null || true
+    ufw --force enable 2>/dev/null || true
+    log_success "防火墙已配置（SSH/HTTP/HTTPS）"
+else
+    log_warn "ufw 未安装，跳过防火墙配置"
+fi
+
+# ===== 13. 配置自动备份 =====
+echo ""
+log_info "配置自动备份..."
+BACKUP_SCRIPT="$APP_DIR/backups/auto-backup.sh"
+cat > "$BACKUP_SCRIPT" << EOF
+#!/bin/bash
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="$APP_DIR/backups"
+mkdir -p "$BACKUP_DIR"
+mysqldump -u foodflow -p'$DB_RANDOM_PASSWORD' $DEFAULT_DB_NAME > "$BACKUP_DIR/db_$DATE.sql" 2>/dev/null
+gzip "$BACKUP_DIR/db_$DATE.sql"
+find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +7 -delete
+EOF
+chmod +x "$BACKUP_SCRIPT"
+(crontab -l 2>/dev/null | grep -v "auto-backup.sh"; echo "0 3 * * * $BACKUP_SCRIPT") | crontab -
+log_success "自动备份已配置（每日凌晨3点，保留7天）"
+
+# ===== 14. 配置日志轮转 =====
+echo ""
+log_info "配置日志轮转..."
+cat > /etc/logrotate.d/foodflow << EOF
+$APP_DIR/logs/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0644 root root
+    postrotate
+        systemctl reload foodflow 2>/dev/null || true
+    endscript
+}
+EOF
+log_success "日志轮转已配置（保留14天）"
+
 # ===== 完成 =====
 echo ""
 echo "=========================================="
@@ -366,7 +416,9 @@ echo "  外网: http://$(hostname -I | awk '{print $1}')"
 echo ""
 echo "默认账号:"
 echo "  超级管理员: superadmin / super123"
-echo "  商户管理员: admin / admin123"
+echo "  商户管理员: admin / 123456"
+echo "  服务员:     waiter / 123456"
+echo "  收银员:     cashier / 123456"
 echo ""
 log_warn "重要提示："
 echo "  1. 数据库已自动配置，密码保存在 $ENV_FILE（权限600）"

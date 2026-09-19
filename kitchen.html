@@ -368,7 +368,7 @@
     </div>
   </div>
 
-  <script src="languages.min.js?v=20260918f"></script>
+  <script src="languages.min.js?v=20260919a"></script>
   <script src="assets/core.js"></script>
   <script>
     const $ = s => document.querySelector(s);
@@ -390,7 +390,7 @@
     let clockTimer = null;
     let knownOrderIds = null;
     let kitchenAutoHideMinutes = 10;
-    let hiddenOrderIds = new Set(JSON.parse(localStorage.getItem('kitchenHiddenOrders') || '[]'));
+    let hiddenOrderIds = new Set(JSON.parse(SLF.store.rawGet('kitchenHiddenOrders') || '[]'));
     const allDoneSince = {};
 
     // 新订单提示音
@@ -550,7 +550,7 @@
 
     window.serveOrder = function(orderId) {
       hiddenOrderIds.add(orderId);
-      try { localStorage.setItem('kitchenHiddenOrders', JSON.stringify([...hiddenOrderIds])); } catch(e) {}
+      try { SLF.store.rawSet('kitchenHiddenOrders', JSON.stringify([...hiddenOrderIds])); } catch(e) {}
       renderTickets(lastOrders);
     };
 
