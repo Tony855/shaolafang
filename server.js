@@ -2542,7 +2542,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
     await syncTableStatus(order.table_name, req.storeId);
     // 记录操作日志
-    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', req.cashier.id, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
+    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     res.json({ success: true, message: '结算成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2562,7 +2562,7 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     await runAsync("UPDATE orders SET status='canceled', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
     await syncTableStatus(order.table_name, req.storeId);
     // 记录操作日志
-    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', req.cashier.id, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), new Date().toISOString()]);
+    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), new Date().toISOString()]);
     res.json({ success: true, message: '取消成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2580,7 +2580,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     if (order.status !== 'done') return res.status(400).json({ error: '只有已结算订单才能退款' });
     await runAsync("UPDATE orders SET status='refunded', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
     // 记录操作日志
-    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', req.cashier.id, req.cashier.username, 'refund_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
+    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'refund_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     res.json({ success: true, message: '退款成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

@@ -73,6 +73,8 @@
       transition: all 0.2s;
     }
     .tab.active{ color: var(--primary); border-bottom-color: var(--primary); }
+    .tab[data-tab="settled"].active{ color: #27ae60; border-bottom-color: #27ae60; }
+    .tab[data-tab="report"].active{ color: #6c5ce7; border-bottom-color: #6c5ce7; }
     .content{ padding: 16px; }
     .order-card{
       background: #fff; border-radius: 12px; padding: 14px 16px;
@@ -256,7 +258,8 @@
     </header>
 
     <div class="tabs">
-      <div class="tab active" data-tab="orders" onclick="switchTab('orders')" id="tabOrders">订单列表</div>
+      <div class="tab active" data-tab="pending" onclick="switchTab('pending')" id="tabPending">未结订单</div>
+      <div class="tab" data-tab="settled" onclick="switchTab('settled')" id="tabSettled">已结订单</div>
       <div class="tab" data-tab="report" onclick="switchTab('report')" id="tabReport"></div>
     </div>
 
@@ -318,13 +321,13 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="languages.min.js?v=20260918"></script>
+  <script src="languages.min.js?v=20260918g"></script>
   <script src="assets/core.js"></script>
   <script>
     let currentLang = SLF.store.rawGet('cashierLang') || SLF.store.rawGet('lang') || 'zh';
     let cashierInfo = null;
     let orders = [];
-    let currentTab = 'orders';
+    let currentTab = 'pending';
 
     
 
@@ -376,7 +379,8 @@
     function applyLang() {
       document.getElementById('langSelect').value = currentLang;
       document.getElementById('pageTitle').textContent = t('cashier') + t('orderList');
-      document.getElementById('tabOrders').textContent = t('orderList');
+      document.getElementById('tabPending').textContent = t('pendingOrders');
+      document.getElementById('tabSettled').textContent = t('settledOrders');
       document.getElementById('tabReport').textContent = t('report');
       document.getElementById('pendingLabel').textContent = t('pendingCount');
       document.getElementById('todayLabel').textContent = t('todayCount');
@@ -397,8 +401,10 @@
       currentTab = tab;
       document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
       document.querySelector('.tab[data-tab="' + tab + '"]').classList.add('active');
-      document.getElementById('ordersView').style.display = tab === 'orders' ? 'block' : 'none';
+      const showOrders = (tab === 'pending' || tab === 'settled');
+      document.getElementById('ordersView').style.display = showOrders ? 'block' : 'none';
       document.getElementById('reportView').style.display = tab === 'report' ? 'block' : 'none';
+      if (showOrders) renderOrders();
       if (tab === 'report') loadReport();
     }
 
@@ -459,8 +465,15 @@
         container.innerHTML = '<div class="empty-hint"><div class="empty-icon">📋</div>' + t('noOrders') + '</div>';
         return;
       }
-      const customerLabels = buildSessionLabels(orders);
-      container.innerHTML = orders.map(order => {
+      const filtered = (currentTab === 'settled')
+        ? orders.filter(o => o.status !== 'pending')
+        : orders.filter(o => o.status === 'pending');
+      if (!filtered.length) {
+        container.innerHTML = '<div class="empty-hint"><div class="empty-icon">📋</div>' + t('noOrders') + '</div>';
+        return;
+      }
+      const customerLabels = buildSessionLabels(filtered);
+      container.innerHTML = filtered.map(order => {
         const statusClass = order.status === 'done' ? 'done' : order.status === 'canceled' ? 'canceled' : order.status === 'refunded' ? 'refunded' : 'pending';
         const statusText = order.status === 'done' ? t('settled') : order.status === 'canceled' ? t('canceled') : order.status === 'refunded' ? t('refunded') : t('pendingSettlement');
         const dishesHTML = (order.items || []).map(i =>
