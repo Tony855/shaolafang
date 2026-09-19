@@ -132,7 +132,7 @@
     background: rgba(255,176,32,.14); color: var(--primary-2);
     border-radius: 10px; padding: 8px 10px; font-size: 14px; line-height: 1.5;
   }
-  .ticket-items { display: flex; flex-direction: column; gap: 8px; }
+  .ticket-items { display: flex; flex-direction: column; gap: 8px; flex: 1; }
   .item-row {
     display: flex; align-items: center; gap: 10px; padding: 8px 10px;
     border-radius: 10px; background: rgba(255,255,255,.04);
@@ -156,6 +156,10 @@
     display: flex; gap: 8px; margin-top: 10px; padding-top: 10px;
     border-top: 1px solid var(--border);
   }
+  .ticket-serve-btn { align-self: stretch; background: linear-gradient(135deg,#27ae60,#2ecc71); color: #fff;
+    font-size: 14px; font-weight: 700; padding: 10px 0; border: 0; border-radius: 10px;
+    cursor: pointer; margin-top: auto; box-shadow: 0 4px 12px rgba(46,204,113,.3); } box-shadow: 0 4px 12px rgba(46,204,113,.3); }
+  .ticket-serve-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(46,204,113,.4); }
   .ticket-actions button {
     flex: 1; padding: 8px 0; border: 0; border-radius: 8px;
     font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .2s;
@@ -383,6 +387,9 @@
     let pollTimer = null;
     let clockTimer = null;
     let knownOrderIds = null;
+    let kitchenAutoHideMinutes = 10;
+    let hiddenOrderIds = new Set(JSON.parse(localStorage.getItem('kitchenHiddenOrders') || '[]'));
+    const allDoneSince = {};
 
     // 新订单提示音
     // 催单提示音（急促的四声）
@@ -391,6 +398,7 @@
         const data = await SLF.api.get('/public/config');
 
         if (typeof data.newOrderSoundEnabled === 'boolean') audio.setEnabled(data.newOrderSoundEnabled);
+        if (typeof data.kitchen_auto_hide_minutes === 'number') kitchenAutoHideMinutes = data.kitchen_auto_hide_minutes;
       } catch (e) {}
     }
     function detectNewOrders(orders) {
@@ -474,8 +482,20 @@
     function renderTickets(orders) {
       lastOrders = orders || [];
       const grid = $('#ticketGrid');
+      const now = Date.now();
       const pending = lastOrders
         .filter(o => o.status === 'pending')
+        .filter(o => !hiddenOrderIds.has(o.id))
+        .filter(o => {
+          const allDone = o.items.length > 0 && o.items.every(it => it.itemStatus === 'done');
+          if (allDone) {
+            if (!allDoneSince[o.id]) allDoneSince[o.id] = now;
+            if (kitchenAutoHideMinutes > 0 && now - allDoneSince[o.id] > kitchenAutoHideMinutes * 60 * 1000) return false;
+          } else {
+            delete allDoneSince[o.id];
+          }
+          return true;
+        })
         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
       $('#countBadge').textContent = pending.length;
@@ -511,7 +531,7 @@
         }).join('');
 
         const noteHtml = o.note ? `<div class="ticket-note"><strong>${t('orderNoteDisplay')}：</strong>${utils.esc(o.note)}</div>` : '';
-        const readyTag = allDone ? `<div class="ticket-ready-tag">✅ ${t('readyToServe')}</div>` : '';
+        const readyTag = allDone ? `<button class="ticket-serve-btn" onclick="serveOrder(${o.id})">✅ ${t('servedDone')}</button>` : '';
 
         return `
           <div class="ticket ${ticketClass}">
@@ -526,6 +546,12 @@
           </div>`;
       }).join('');
     }
+
+    window.serveOrder = function(orderId) {
+      hiddenOrderIds.add(orderId);
+      try { localStorage.setItem('kitchenHiddenOrders', JSON.stringify([...hiddenOrderIds])); } catch(e) {}
+      renderTickets(lastOrders);
+    };
 
     let isMarking = false; // 防止竞态条件
     window.markItemDone = async function(orderId, index) {

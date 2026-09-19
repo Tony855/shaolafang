@@ -1076,10 +1076,11 @@
 
   // ----- 空闲超时 -----
   let waiterIdleTimer = null;
+  let waiterIdleTimeoutMin = 20;
   function resetWaiterIdle() {
     clearTimeout(waiterIdleTimer);
     if (SLF.store.rawGet('waiterRemember') !== '1' && state.token) {
-      const idleTimeout = (configRes?.waiter_idle_timeout || 20) * 60 * 1000;
+      const idleTimeout = waiterIdleTimeoutMin * 60 * 1000;
       waiterIdleTimer = setTimeout(logoutWaiter, idleTimeout);
     }
   }
@@ -1213,6 +1214,7 @@
       state.dualCurrency = configRes.dualCurrency || { enabled: false, currency: null };
       if (typeof configRes.newOrderSoundEnabled === 'boolean' && SLF.audio) SLF.audio.setEnabled(configRes.newOrderSoundEnabled);
       startWaiterAutoRefresh(configRes.waiter_refresh_interval || 8);
+      waiterIdleTimeoutMin = configRes.waiter_idle_timeout || 20;
       if (state.dualCurrency.enabled && !state.dualCurrency.currency) {
         const defaultSec = state.currencies.find(c => c.code === 'USD') || state.currencies[0];
         if (defaultSec) state.dualCurrency.currency = defaultSec;

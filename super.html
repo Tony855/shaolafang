@@ -671,6 +671,11 @@ select:focus {
           <input type="number" id="waiterRefreshInterval" min="3" max="300" placeholder="如：8">
           <small style="color:#666;">服务员端页面自动刷新订单数据的间隔时间，范围3-300秒</small>
         </div>
+        <div class="form-group">
+          <label>后厨订单自动隐藏时间（分钟）</label>
+          <input type="number" id="kitchenAutoHideMinutes" min="0" max="120" placeholder="如：10">
+          <small style="color:#666;">后厨菜品全部出餐后，订单自动从屏幕隐藏的时间。设为0则不自动隐藏，需手动点"出餐完成"</small>
+        </div>
         </div>
       </div>
       <!-- 下单限制设置面板 -->
@@ -1404,6 +1409,7 @@ async function loadGlobalSettings() {
     document.getElementById('waiterSessionTimeout').value = settings.waiter_session_timeout || 12;
     document.getElementById('orderIntervalSeconds').value = settings.order_interval_seconds || 30;
     document.getElementById('waiterRefreshInterval').value = settings.waiter_refresh_interval || 8;
+    document.getElementById('kitchenAutoHideMinutes').value = settings.kitchen_auto_hide_minutes || 10;
     document.getElementById('maxOrderItems').value = settings.max_order_items || 50;
     document.getElementById('maxItemQuantity').value = settings.max_item_quantity || 100;
     document.getElementById('maxOrderNoteLength').value = settings.max_order_note_length || 200;
@@ -1474,7 +1480,7 @@ async function saveGlobalSettings() {
     if (!callLimitMax || callLimitMax < 1 || callLimitMax > 20) { toast('最大呼叫次数 1-20', 'error'); return; }
     if (!callLimitWindow || callLimitWindow < 1 || callLimitWindow > 60) { toast('时间窗口 1-60分钟', 'error'); return; }
     if (!callLimitCooldown || callLimitCooldown < 1 || callLimitCooldown > 120) { toast('冷却时间 1-120分钟', 'error'); return; }
-    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength, login_max_attempts: loginMaxAttempts, login_lock_minutes: loginLockMinutes, super_ip_whitelist: superIpWhitelist, call_limit_enabled: callLimitEnabled, call_limit_max: callLimitMax, call_limit_window_minutes: callLimitWindow, call_limit_cooldown_minutes: callLimitCooldown, auto_clean_log_enabled: document.getElementById('autoCleanLogEnabled').value === '1', log_retention_days: parseInt(document.getElementById('logRetentionDays').value, 10) || 30, clean_login_log: document.getElementById('cleanLoginLog').value === '1', clean_audit_log: document.getElementById('cleanAuditLog').value === '1' }) });
+    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength, login_max_attempts: loginMaxAttempts, login_lock_minutes: loginLockMinutes, super_ip_whitelist: superIpWhitelist, call_limit_enabled: callLimitEnabled, call_limit_max: callLimitMax, call_limit_window_minutes: callLimitWindow, call_limit_cooldown_minutes: callLimitCooldown, auto_clean_log_enabled: document.getElementById('autoCleanLogEnabled').value === '1', log_retention_days: parseInt(document.getElementById('logRetentionDays').value, 10) || 30, clean_login_log: document.getElementById('cleanLoginLog').value === '1', clean_audit_log: document.getElementById('cleanAuditLog').value === '1', kitchen_auto_hide_minutes: parseInt(document.getElementById('kitchenAutoHideMinutes').value, 10) || 0 }) });
     toast(t('settingsSaved'), 'success');
   } catch (e) { toast(t('saveFailed') + ': ' + e.message, 'error'); }
 }

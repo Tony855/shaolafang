@@ -1758,6 +1758,7 @@ app.get('/api/public/config', async (req, res) => {
     const secondaryCurrency = currencies.find(c => c.code === secondaryRow?.value) || null;
     const soundRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_new_order_sound_enabled`]) || await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
     const refreshRow = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_refresh_interval'");
+    const hideRow = await getAsync("SELECT value FROM settings WHERE `key` = 'kitchen_auto_hide_minutes'");
     const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
     const maxQtyRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_item_quantity'");
     const maxNoteRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_note_length'");
@@ -1767,6 +1768,7 @@ app.get('/api/public/config', async (req, res) => {
       dualCurrency: { enabled: dualRow?.value === '1', currency: secondaryCurrency },
       newOrderSoundEnabled: soundRow ? soundRow.value === '1' : true,
       waiter_refresh_interval: parseInt(refreshRow?.value || '8', 10),
+      kitchen_auto_hide_minutes: parseInt(hideRow?.value || '10', 10),
       max_order_items: parseInt(maxItemsRow?.value || '50', 10),
       max_item_quantity: parseInt(maxQtyRow?.value || '100', 10),
       max_order_note_length: parseInt(maxNoteRow?.value || '200', 10)
@@ -2224,7 +2226,7 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
 // 超级管理员获取全局设置
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist', 'call_limit_enabled', 'call_limit_max', 'call_limit_window_minutes', 'call_limit_cooldown_minutes', 'auto_clean_log_enabled', 'log_retention_days', 'clean_login_log', 'clean_audit_log')");
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist', 'call_limit_enabled', 'call_limit_max', 'call_limit_window_minutes', 'call_limit_cooldown_minutes', 'auto_clean_log_enabled', 'log_retention_days', 'clean_login_log', 'clean_audit_log', 'kitchen_auto_hide_minutes')");
     const settings = {};
     rows.forEach(r => { settings[r.key] = r.value; });
     res.json({
@@ -2248,6 +2250,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
       log_retention_days: parseInt(settings.log_retention_days || '30', 10),
       clean_login_log: (settings.clean_login_log || '1') !== '0',
       clean_audit_log: (settings.clean_audit_log || '1') !== '0',
+      kitchen_auto_hide_minutes: parseInt(settings.kitchen_auto_hide_minutes || '10', 10),
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2255,7 +2258,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 // 超级管理员更新全局设置
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { super_idle_timeout, admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes, auto_clean_log_enabled, log_retention_days, clean_login_log, clean_audit_log } = req.body || {};
+    const { super_idle_timeout, admin_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes, auto_clean_log_enabled, log_retention_days, clean_login_log, clean_audit_log, kitchen_auto_hide_minutes } = req.body || {};
     if (super_idle_timeout !== undefined) {
       const mins = Math.max(1, Math.min(1440, parseInt(super_idle_timeout, 10) || 60));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
@@ -2330,6 +2333,10 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     }
     if (clean_audit_log !== undefined) {
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('clean_audit_log', ?) ON DUPLICATE KEY UPDATE value=?", [clean_audit_log ? '1' : '0', clean_audit_log ? '1' : '0']);
+    if (kitchen_auto_hide_minutes !== undefined) {
+      const mins = Math.max(0, Math.min(120, parseInt(kitchen_auto_hide_minutes, 10) || 10));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('kitchen_auto_hide_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
     }
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_settings', 'settings', null,
       '更新系统全局设置', getClientIp(req));
