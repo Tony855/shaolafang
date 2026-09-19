@@ -572,28 +572,29 @@
   }
   function copyUrl() {
     const input = document.getElementById('urlInput');
-    const btn = document.querySelector('.copy-btn');
-    if (!input || !btn) return;
-    input.select();
-    input.setSelectionRange(0, 99999);
-    let success = false;
-    try {
-      success = document.execCommand('copy');
-    } catch(e) {
-      success = false;
-    }
-    if (!success && navigator.clipboard) {
-      navigator.clipboard.writeText(input.value).then(function() {
-        showCopiedState(btn);
-      }).catch(function() {
-        alert('{{copyFailed}}');
-      });
-    } else if (success) {
-      showCopiedState(btn);
+    if (!input) return;
+    const text = input.value;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopiedState(input);
+      }).catch(function() { fallbackCopy(text, input); });
     } else {
-      alert('{{copyFailed}}');
+      fallbackCopy(text, input);
     }
-    window.getSelection().removeAllRanges();
+  }
+  function fallbackCopy(text, input) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+    if (ok) showCopiedState(input);
+    else alert('{{copyFailed}}');
   }
   function showCopiedState(input) {
     const orig = input.placeholder;
@@ -604,6 +605,7 @@
       input.placeholder = orig;
       input.style.borderColor = '';
       input.style.backgroundColor = '';
-  </script>
+    }, 2000);
+  }
 </body>
 </html>
