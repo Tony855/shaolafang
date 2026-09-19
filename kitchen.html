@@ -362,7 +362,7 @@
     </div>
   </div>
 
-  <script src="languages.min.js?v=20260918"></script>
+  <script src="languages.min.js?v=20260918d"></script>
   <script src="assets/core.js"></script>
   <script>
     const $ = s => document.querySelector(s);
@@ -449,6 +449,7 @@
     // 语言数据已包含在 languages.min.js 中，无需动态加载
     function setLang(next) {
       lang = next;
+      SLF.i18n.lang = next;
       SLF.store.rawSet('kitchenLang', lang);
       SLF.store.rawSet('lang', lang);
       applyLoginLanguage();

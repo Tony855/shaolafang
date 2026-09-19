@@ -918,7 +918,7 @@
   </div>
 </div>
 
-<script src="languages.min.js?v=20260918"></script>
+<script src="languages.min.js?v=20260918d"></script>
 <script src="assets/core.js"></script>
 <script>
   // 安全兜底：确保 SLF.audio 存在
@@ -1677,10 +1677,12 @@
   // ----- 语言切换 -----
   async function setLanguage(lang) {
     waiterLang = lang;
+    SLF.i18n.lang = lang;
     SLF.store.rawSet('waiterLang', lang);
     SLF.store.rawSet('lang', lang);
     if (state.token) {
       applyWaiterLanguage();
+      if (state.menu) renderDishes();
     }
   }
 
