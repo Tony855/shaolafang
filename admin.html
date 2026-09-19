@@ -455,9 +455,8 @@
                     <div class="summary-card pending"><span id="pendingLabel">未完成订单</span><strong id="pendingOrderCount">0</strong><small id="pendingOrderAmount">$0.00</small></div>
                     <div class="summary-card done"><span id="doneLabel">已结算订单</span><strong id="doneOrderCount">0</strong><small id="doneOrderAmount">$0.00</small></div>
                 </div>
-                <div class="order-toolbar">
-                    <input id="orderTableSearch" placeholder="输入订单号查询">
-                    <button id="searchOrdersBtn" onclick="searchOrders()">查询</button>
+                <div class="order-toolbar" style="display:flex;gap:8px;margin-bottom:12px;">
+                    <input type="text" id="orderTableSearch" placeholder="🔍 请输入桌号或订单号查询" oninput="filterOrders()" style="flex:1;padding:10px 14px;border:1px solid var(--gray-2);border-radius:10px;font-size:14px;outline:none;">
                     <button id="openOrderBtn" onclick="openOrderForm()">➕ 新增订单</button>
                 </div>
                 <div id="orders"></div>
@@ -518,7 +517,7 @@
             <section class="panel module-panel" id="module-calls">
                 <h2 id="callsPanelTitle">🔔 顾客呼叫</h2>
                 <div style="margin-bottom:12px;">
-                    <button id="refreshCallsBtn" onclick="loadWaiterCalls()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">🔄 ${tAdmin('refresh')}</button>
+                    <button id="refreshCallsBtn" onclick="loadWaiterCalls()" style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">🔄 <span id="refreshCallsLabel"></span></button>
                 </div>
                 <div id="waiterCallsList"></div>
             </section>
@@ -1233,15 +1232,15 @@
     <div class="order-modal confirm-modal" id="transferModal">
         <div class="order-modal-card confirm-card" style="max-width:400px;">
             <button class="modal-close" onclick="closeTransferModal()">✕</button>
-            <h3>↔ <span data-i18n="transferOrder"></span></h3>
+            <h3 id="transferTitle">↔</h3>
             <div style="margin:15px 0;text-align:left;">
                 <div style="margin-bottom:10px;font-weight:600;" id="transferFromLabel"></div>
-                <label style="display:block;font-size:13px;color:#666;margin-bottom:6px;" data-i18n="transferTo"></label>
+                <label style="display:block;font-size:13px;color:#666;margin-bottom:6px;" id="transferToLabel"></label>
                 <select id="transferTargetSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;"></select>
             </div>
             <div style="display:flex;gap:10px;">
-                <button onclick="closeTransferModal()" style="flex:1;padding:10px;border:0;border-radius:8px;background:#f0f0f0;cursor:pointer;" data-i18n="cancel"></button>
-                <button onclick="confirmTransfer()" style="flex:1;padding:10px;border:0;border-radius:8px;background:#9b59b6;color:#fff;cursor:pointer;" data-i18n="confirm"></button>
+                <button onclick="closeTransferModal()" id="transferCancelBtn" style="flex:1;padding:10px;border:0;border-radius:8px;background:#f0f0f0;cursor:pointer;"></button>
+                <button onclick="confirmTransfer()" id="transferConfirmBtn" style="flex:1;padding:10px;border:0;border-radius:8px;background:#9b59b6;color:#fff;cursor:pointer;"></button>
             </div>
         </div>
     </div>
@@ -1275,7 +1274,7 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=20260918c"></script>
+    <script src="languages.min.js?v=20260919c"></script>
     <script src="assets/core.js"></script>
     <script>
         // ================================================================
@@ -1559,7 +1558,7 @@
             const orders = await api('/orders');
             ordersCache = orders;
             let filtered = orders;
-            if (orderTableFilter) filtered = orders.filter(o => String(o.id).includes(orderTableFilter));
+            if (orderTableFilter) { const q = orderTableFilter.toLowerCase(); filtered = orders.filter(o => (o.table_name||o.table||'').toLowerCase().includes(q) || String(o.id).includes(q)); }
             const statusText = { pending: L('orderPending'), done: L('orderDone'), canceled: L('canceled') };
             const sessionLabels = buildSessionLabels(filtered);
             $('#orders').innerHTML = filtered.map(o => `
@@ -2291,12 +2290,10 @@
             } catch (e) { toast('❌ ' + e.message); }
         };
 
-        function searchOrders() {
+        function filterOrders() {
             orderTableFilter = $('#orderTableSearch').value.trim();
-            loadOrders();
-        };
-        document.getElementById('orderTableSearch').addEventListener('keydown', e => { if (e.key === 'Enter')
-                searchOrders(); });
+            renderOrders();
+        }
         async function toggleItemStatus(id, index) {
             try {
                 const order = ordersCache.find(o => o.id === id);
@@ -2311,7 +2308,7 @@
                 toast(`✅ ${tAdmin('dishStatusUpdated')}`);
             } catch (e) { toast('❌ ' + e.message); }
         };
-        let transferOrderId=null;async function showTransferModal(orderId, fromTable){transferOrderId=orderId;document.getElementById('transferFromLabel').textContent=tAdmin('transferFrom')+': '+fromTable;const select=document.getElementById('transferTargetSelect');try{const res=await SLF.api.get('/tables');const others=(res.tables||res||[]).filter(x=>x.name!==fromTable);select.innerHTML=others.map(x=>'<option value="'+esc(x.name)+'">'+esc(x.name)+'</option>').join('');document.getElementById('transferModal').classList.add('open');}catch(e){toast("❌ "+e.message);}}function closeTransferModal(){document.getElementById('transferModal').classList.remove('open');transferOrderId=null;}async function confirmTransfer(){if(!transferOrderId)return;const target=document.getElementById('transferTargetSelect').value;try{await SLF.api.post('/orders/'+transferOrderId+'/transfer',{target_table:target});toast('✅ '+tAdmin('transferSuccess'));closeTransferModal();loadOrders();}catch(e){toast("❌ "+e.message);}}function confirmSettleOrder(id) {
+        let transferOrderId=null;let transferFromTable='';async function showTransferModal(orderId, fromTable){transferFromTable=fromTable;transferOrderId=orderId;document.getElementById('transferTitle').textContent='↔ '+tAdmin('transferOrder');document.getElementById('transferToLabel').textContent=tAdmin('transferTo');document.getElementById('transferCancelBtn').textContent=tAdmin('cancel');document.getElementById('transferConfirmBtn').textContent=tAdmin('confirm');document.getElementById('transferFromLabel').textContent=tAdmin('transferFrom')+': '+fromTable;const select=document.getElementById('transferTargetSelect');try{const res=await SLF.api.get('/tables');const others=(res.tables||res||[]).filter(x=>x.name!==fromTable);select.innerHTML=others.map(x=>'<option value="'+esc(x.name)+'">'+esc(x.name)+'</option>').join('');document.getElementById('transferModal').classList.add('open');}catch(e){toast("❌ "+e.message);}}function closeTransferModal(){document.getElementById('transferModal').classList.remove('open');transferOrderId=null;}async function confirmTransfer(){if(!transferOrderId)return;const target=document.getElementById('transferTargetSelect').value;showConfirm(tAdmin('transferConfirmMsg')+' '+transferFromTable+' → '+target,async function(){try{const res=await SLF.api.post('/orders/'+transferOrderId+'/transfer',{target_table:target});if(res&&res.targetHasOrders){toast('⚠️ '+tAdmin('targetHasOrders'));}toast('✅ '+tAdmin('transferSuccess'));closeTransferModal();loadOrders();}catch(e){toast("❌ "+e.message);}});}function confirmSettleOrder(id) {
             showConfirm(tAdmin('settleOrderConfirm'), () => statusOrder(id, 'done'), tAdmin('settleOrder'));
         };
         function confirmCancelOrder(id) {
@@ -3081,8 +3078,8 @@
             $('#addTableBtn').textContent = tAdmin('addTable');
             $('#orderPanelTitle').textContent = tAdmin('orderManage');
             $('#openOrderBtn').textContent = tAdmin('addOrder');
-            $('#orderTableSearch').placeholder = tAdmin('orderSearchPlaceholder');
-            $('#searchOrdersBtn').textContent = tAdmin('search');
+            
+            const _soBtn = $('#searchOrdersBtn'); if (_soBtn) _soBtn.textContent = tAdmin('search');
             $('#pendingLabel').textContent = tAdmin('pendingOrders');
             $('#doneLabel').textContent = tAdmin('completedOrders');
             $('#currencyPanelTitle').textContent = tAdmin('currencyManageTitle');
@@ -3228,8 +3225,11 @@
             adminLang = this.value;
             SLF.store.rawSet('adminLang', adminLang);
             await loadAdminLanguage(adminLang);
+            SLF.i18n.lang = adminLang;
             applyAdminLanguage();
             if (typeof loadAdminInfo === 'function') loadAdminInfo();
+            const currentModule = getCurrentModule();
+            if (currentModule) switchAdminModule(currentModule);
             const auditLogsPanel = document.getElementById('auditLogsPanel');
             if (auditLogsPanel && auditLogsPanel.style.display !== 'none') { loadAuditLogs(); }
         };

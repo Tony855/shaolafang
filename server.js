@@ -649,7 +649,7 @@ async function rebaseCurrencyToUSDOnce() {
 async function syncTableStatus(tableName, storeId) {
   const table = await getAsync('SELECT id, status FROM tables WHERE name=? AND store_id=?', [tableName, storeId || 1]);
   if (!table) return;
-  const active = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [tableName, storeId || 1]);
+  const active = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status=\"pending\"", [tableName, storeId || 1]);
   if (active.count > 0) {
     if (table.status !== 'occupied') {
       await runAsync('UPDATE tables SET status=? WHERE id=?', ['occupied', table.id]);
@@ -3080,6 +3080,8 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=?', [targetTable, storeId]);
     if (!target) return res.status(404).json({ error: '目标桌不存在' });
     const oldTable = order.table_name;
+    // 检查目标桌是否有未结订单
+    const targetPending = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [targetTable, storeId]);
     await runAsync('UPDATE orders SET table_name=? WHERE id=?', [targetTable, orderId]);
     await syncTableStatus(oldTable, storeId);
     await syncTableStatus(targetTable, storeId);
@@ -3088,7 +3090,7 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     const logParams = [actorType, 0, actorName, 'transfer_order', JSON.stringify({ order_id: orderId, from: oldTable, to: targetTable }), getClientIp(req) || 'unknown', new Date().toISOString()];
     console.log('[TRANSFER LOG]', JSON.stringify(logParams));
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', logParams);
-    res.json({ success: true, from: oldTable, to: targetTable });
+    res.json({ success: true, from: oldTable, to: targetTable, targetHasOrders: targetPending ? targetPending.cnt > 0 : false });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3172,7 +3174,7 @@ app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'
     if (newName !== existing.name) {
       // 桌号改名后，同步更新该桌尚未结算的订单的桌号，避免改名后订单与桌号对不上；
       // 已结算的历史订单保留原桌号，便于对账。
-      await runAsync("UPDATE orders SET table_name=? WHERE table_name=? AND store_id=? AND status='pending'", [newName, existing.name, req.storeId]);
+      await runAsync("UPDATE orders SET table_name=? WHERE table_name=? AND store_id=? AND status=\"pending\"", [newName, existing.name, req.storeId]);
     }
     const updated = await getAsync('SELECT * FROM tables WHERE id = ?', [id]);
     res.json(updated);
@@ -3584,7 +3586,7 @@ app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_m
     if (status === 'canceled' || status === 'completed') {
       const table = await getAsync('SELECT id, status FROM tables WHERE name=? AND store_id=?', [reservation.table_name, req.storeId]);
       if (table && table.status === 'reserved') {
-        const active = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [reservation.table_name, req.storeId]);
+        const active = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status=\"pending\"", [reservation.table_name, req.storeId]);
         if (active.count === 0) await runAsync('UPDATE tables SET status=? WHERE id=?', ['available', table.id]);
       }
     }

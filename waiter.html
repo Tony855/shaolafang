@@ -1481,14 +1481,20 @@
     if (!transferFromTable) return;
     const target = document.getElementById('transferTargetSelect').value;
     const orderIds = state.orders.filter(o => o.table === transferFromTable && o.status === 'pending').map(o => o.id);
-    try {
-      for (const id of orderIds) {
-        await api('/orders/' + id + '/transfer', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ target_table: target }) });
-      }
-      toast('✅ ' + t('transferSuccess'));
-      closeTransferModal();
-      await load();
-    } catch(e) { toast('❌ ' + e.message); }
+    // 二次确认
+    showConfirm(t('transferConfirmMsg') + ' ' + transferFromTable + ' → ' + target, async function() {
+      try {
+        for (const id of orderIds) {
+          const res = await api('/orders/' + id + '/transfer', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ target_table: target }) });
+          if (res && res.targetHasOrders) {
+            toast('⚠️ ' + t('targetHasOrders'));
+          }
+        }
+        toast('✅ ' + t('transferSuccess'));
+        closeTransferModal();
+        await load();
+      } catch(e) { toast('❌ ' + e.message); }
+    });
   };
 
   function renderTables() {
