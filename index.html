@@ -1443,7 +1443,7 @@
                             <div class="order-header">
                                 <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex:1;">
                                     <span class="order-id">
-                                        <span class="order-id-hash">#</span>${order.id}
+                                        <span class="order-id-hash">#</span>${order.order_no || ("#"+order.id)}
                                     </span>
                                     <span style="font-size:12px;color:#888;white-space:nowrap;">🕒 ${timeStr}</span>
                                 </div>
@@ -1894,7 +1894,7 @@
                     updateUI();
                     renderMenu();
                     closeDrawer();
-                    showToast(`✅ ${t('submitOrder')} ${t('success')}! #${data.orderId}`);
+                    showToast(`✅ ${t('submitOrder')} ${t('success')}! ${data.orderNo || ("#"+data.orderId)}`);
                     openOrderSuccessNotice();
                 } else {
                     showToast('❌ ' + (data.error || t('orderFailed')));

@@ -821,6 +821,19 @@
                     <button id="enterCashierManageBtn" onclick="switchAdminModule('cashiers')" style="background: linear-gradient(135deg,#f6d365,#fda085); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入收银员管理</button>
                 </div>
 
+                <!-- 订单号前缀配置 -->
+                <div class="settings-card" id="orderPrefixCard">
+                    <h3 class="settings-card-title" id="orderPrefixTitle">🔢 订单号前缀配置</h3>
+                    <p style="color:#999;margin-bottom:16px;font-size:14px;" id="orderPrefixDesc">订单号格式：前缀(2位) + 年月日(6位) + 序号(5位)，如 1125091900001</p>
+                    <div class="settings-form-grid">
+                        <div class="form-group"><label id="prefixNormalLabel">普通消费前缀</label><input id="prefixNormal" maxlength="2" style="width:80px;"></div>
+                        <div class="form-group"><label id="prefixRefundLabel">退款单前缀</label><input id="prefixRefund" maxlength="2" style="width:80px;"></div>
+                        <div class="form-group"><label id="prefixDiscountLabel">打折消费前缀</label><input id="prefixDiscount" maxlength="2" style="width:80px;"></div>
+                        <div class="form-group"><label id="prefixVipLabel">VIP消费前缀</label><input id="prefixVip" maxlength="2" style="width:80px;"></div>
+                    </div>
+                    <button class="primary" onclick="saveOrderPrefixes()" style="margin-top:12px;" id="savePrefixBtn">保存</button>
+                </div>
+
                 <!-- 修改密码卡片 -->
                 <div class="settings-card">
                     <h3 id="changePasswordCardTitle" class="settings-card-title">🔐 修改密码</h3>
@@ -1274,7 +1287,7 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=20260919f"></script>
+    <script src="languages.min.js?v=20260919g"></script>
     <script src="assets/core.js"></script>
     <script>
         // ================================================================
@@ -1558,12 +1571,12 @@
             const orders = await api('/orders');
             ordersCache = orders;
             let filtered = orders;
-            if (orderTableFilter) { const q = orderTableFilter.toLowerCase(); filtered = orders.filter(o => (o.table_name||o.table||'').toLowerCase().includes(q) || String(o.id).includes(q)); }
+            if (orderTableFilter) { const q = orderTableFilter.toLowerCase(); filtered = orders.filter(o => (o.table_name||o.table||'').toLowerCase().includes(q) || String(o.id).includes(q) || String(o.order_no||'').includes(q)); }
             const statusText = { pending: L('orderPending'), done: L('orderDone'), canceled: L('canceled') };
             const sessionLabels = buildSessionLabels(filtered);
             $('#orders').innerHTML = filtered.map(o => `
                 <div class="order-item-admin">
-                  <div class="top"><span class="table-info"><strong>#${o.id}</strong> · ${tAdmin('table')||L('table')} ${esc(o.table)}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
+                  <div class="top"><span class="table-info"><strong>${esc(o.order_no||'#'+o.id)}</strong> · ${tAdmin('table')||L('table')} ${esc(o.table)}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
                   ${o.note ? `<div class="order-note" style="margin:8px 0;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.2);font-size:13px;color:#f0c040;line-height:1.5;"><strong style="color:#ffd93d;">${esc(L('orderNoteDisplay')||tAdmin('note'))}：</strong>${esc(o.note)}</div>` : ''}
                   <div class="items">${o.items.map((item,index) => `
                     <div class="dish-line">
@@ -2089,6 +2102,29 @@
             }
         }
 
+
+        async function loadOrderPrefixes() {
+            try {
+                const d = await SLF.api.get('/admin/order-prefixes');
+                $('#prefixNormal').value = d.order_prefix_normal || '11';
+                $('#prefixRefund').value = d.order_prefix_refund || '01';
+                $('#prefixDiscount').value = d.order_prefix_discount || '21';
+                $('#prefixVip').value = d.order_prefix_vip || '61';
+            } catch(e) {}
+        }
+        async function saveOrderPrefixes() {
+            try {
+                await SLF.api.post('/admin/order-prefixes', {
+                    normal: $('#prefixNormal').value,
+                    refund: $('#prefixRefund').value,
+                    discount: $('#prefixDiscount').value,
+                    vip: $('#prefixVip').value
+                });
+                SLF.toast(L('saveSuccess') || '淇濆瓨鎴愬姛');
+            } catch(e) {
+                SLF.toast(L('operationFailed') || '淇濆瓨澶辫触');
+            }
+        }
         async function loadNotificationSettings() {
             try {
                 const d = await SLF.api.get('/admin/notification-settings');
@@ -2395,7 +2431,7 @@
                 if (!o) return;
                 editingOrderId = id;
                 editingOrderStatus = o.status || 'pending';
-                $('#orderModalTitle').textContent = tAdmin('orderManage') + ' #' + id;
+                $('#orderModalTitle').textContent = tAdmin('orderManage') + ' ' + (o.order_no || ('#'+id));
                 $('#orderTable').value = o.table;
                 $('#orderTable').disabled = true;
                 $('#orderItems').innerHTML = '';
@@ -2624,6 +2660,7 @@
                 });
                 toast('✅ ' + tAdmin('displaySettingsSaved'));
                 await loadDisplaySettings();
+                await loadOrderPrefixes();
                 await loadMenus();
             } catch (e) { toast('❌ ' + e.message); }
         };
@@ -2929,6 +2966,7 @@
                 await loadMenuCategories();
                 await loadStores();
                 await loadDisplaySettings();
+                await loadOrderPrefixes();
                 await loadNotificationSettings();
                 const loadTasks = [loadMenus(), loadTables(), loadOrders(), loadLoginLogs()];
                 if (hasPermission('can_manage_admin')) loadTasks.push(loadAdmins());
@@ -3125,6 +3163,13 @@
             const _cmDesc = $('#cashierManageDesc'); if (_cmDesc) _cmDesc.textContent = tAdmin('cashierManageDesc');
             const _cmBtn = $('#enterCashierManageBtn'); if (_cmBtn) _cmBtn.textContent = tAdmin('enterCashierManage');
             const _cpTitle = $('#cashiersPanelTitle'); if (_cpTitle) _cpTitle.textContent = '💰 ' + tAdmin('cashierManage');
+            const _opTitle = $('#orderPrefixTitle'); if (_opTitle) _opTitle.textContent = '🔢 ' + tAdmin('orderPrefixTitle');
+            const _opDesc = $('#orderPrefixDesc'); if (_opDesc) _opDesc.textContent = tAdmin('orderPrefixDesc');
+            const _pnLabel = $('#prefixNormalLabel'); if (_pnLabel) _pnLabel.textContent = tAdmin('prefixNormalLabel');
+            const _prLabel = $('#prefixRefundLabel'); if (_prLabel) _prLabel.textContent = tAdmin('prefixRefundLabel');
+            const _pdLabel = $('#prefixDiscountLabel'); if (_pdLabel) _pdLabel.textContent = tAdmin('prefixDiscountLabel');
+            const _pvLabel = $('#prefixVipLabel'); if (_pvLabel) _pvLabel.textContent = tAdmin('prefixVipLabel');
+            const _spBtn = $('#savePrefixBtn'); if (_spBtn) _spBtn.textContent = tAdmin('savePrefixBtn');
             const _acBtn = $('#addCashierBtnText'); if (_acBtn) _acBtn.textContent = tAdmin('addCashier');
             $('#newPasswordLabel').textContent = tAdmin('newPasswordShort');
             $('#oldPassword').placeholder = tAdmin('oldPassword');

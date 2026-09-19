@@ -526,7 +526,7 @@
             '<span class="order-table">' +
               '<span class="order-table-icon">🪑</span>' +
               '<span class="order-table-name">' + (order.table_name || '-') + '</span>' +
-              '<span class="order-id-badge">#' + order.id + '</span>' +
+              '<span class="order-id-badge">' + (order.order_no || ('#' + order.id)) + '</span>' +
               (customerLabel ? '<span class="customer-tag' + (customerLabel === t('staffOrder') ? ' staff' : '') + '">👤 ' + customerLabel + '</span>' : '') +
             '</span>' +
             '<span class="order-status ' + statusClass + '">' + statusText + '</span>' +
@@ -559,7 +559,7 @@
       const order = orders.find(o => o.id === id);
       if (!order) return;
       const detailCustomerLabel = buildSessionLabels([order]).get(order.id) || '';
-      document.getElementById('detailTitle').textContent = t('orderDetail') + ' #' + order.id + (detailCustomerLabel ? ' · ' + detailCustomerLabel : '');
+      document.getElementById('detailTitle').textContent = t('orderDetail') + ' ' + (order.order_no || ('#' + order.id)) + (detailCustomerLabel ? ' · ' + detailCustomerLabel : '');
       document.getElementById('detailDishes').innerHTML = (order.items || []).map(item =>
         '<div class="dish-item">' +
           '<div class="dish-left">' +
@@ -684,7 +684,7 @@
       html += '<div style="margin-bottom:8px;color:#666;">' + t('table') + ': <b>' + tables + '</b> · ' + selectedOrders.length + ' ' + t('orders') + '</div>';
       selectedOrders.forEach(o => {
         html += '<div style="background:#f8f9fa;border-radius:8px;padding:8px;margin-bottom:6px;">';
-        html += '<div style="font-weight:700;margin-bottom:4px;">#' + o.id + ' · ' + (o.table_name || '-') + '</div>';
+        html += '<div style="font-weight:700;margin-bottom:4px;">' + (o.order_no || ('#'+o.id)) + ' · ' + (o.table_name || '-') + '</div>';
         (o.items || []).forEach(i => {
           html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#555;"><span>' + i.name + ' x' + i.quantity + '</span><span>$' + (parseFloat(i.price || 0) * i.quantity).toFixed(2) + '</span></div>';
         });

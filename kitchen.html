@@ -109,6 +109,8 @@
     padding: 16px; display: flex; flex-direction: column; gap: 10px; border-left: 5px solid var(--primary);
   }
   .ticket.warn { border-left-color: var(--warn); }
+  .ticket.urgent { border-left-color: #ff8c00; }
+  .ticket.urgent .order-id { background: rgba(255,140,0,.2); color: #ff8c00; }
   .ticket.danger { border-left-color: var(--danger); animation: pulseBorder 1.6s infinite; }
   .ticket.ready { border-left-color: var(--ok); }
   @keyframes pulseBorder {
@@ -472,12 +474,11 @@
       const mins = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000));
       if (mins < 1) return { text: t('justNow'), level: 'ok' };
       const text = `${mins} ${t('minutesAgo')}`;
-      if (mins >= 15) return { text, level: 'danger' };
-      if (mins >= 8) return { text, level: 'warn' };
+      if (mins >= 20) return { text, level: 'danger' };
+      if (mins >= 10) return { text, level: 'urgent' };
+      if (mins >= 5) return { text, level: 'warn' };
       return { text, level: 'ok' };
     }
-
-    let lastOrders = [];
 
     function renderTickets(orders) {
       lastOrders = orders || [];
@@ -496,7 +497,7 @@
           }
           return true;
         })
-        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       $('#countBadge').textContent = pending.length;
 
@@ -508,8 +509,8 @@
       grid.innerHTML = pending.map(o => {
         const time = timeAgoLabel(o.createdAt);
         const allDone = o.items.length > 0 && o.items.every(it => it.itemStatus === 'done');
-        const ticketClass = allDone ? 'ready' : (time.level === 'danger' ? 'danger' : (time.level === 'warn' ? 'warn' : ''));
-        const timeClass = time.level === 'danger' ? 'danger' : (time.level === 'warn' ? 'warn' : '');
+        const ticketClass = allDone ? 'ready' : (time.level === 'danger' ? 'danger' : (time.level === 'urgent' ? 'urgent' : (time.level === 'warn' ? 'warn' : '')));
+        const timeClass = time.level === 'danger' ? 'danger' : (time.level === 'urgent' ? 'urgent' : (time.level === 'warn' ? 'warn' : ''));
 
         const itemsHtml = o.items.map((item, idx) => {
           const isDone = item.itemStatus === 'done';
@@ -537,7 +538,7 @@
           <div class="ticket ${ticketClass}">
             <div class="ticket-head">
               <span class="table-name">🪑 ${utils.esc(o.table)}</span>
-              <span class="order-id ${ticketClass}">#${o.id}</span>
+              <span class="order-id ${ticketClass}">${o.order_no || ("#"+o.id)}</span>
             </div>
             <div class="ticket-time ${timeClass}">🕒 ${time.text}</div>
             ${noteHtml}

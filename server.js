@@ -1453,6 +1453,7 @@ function formatOrder(row) {
   return {
     id: row.id,
     table: row.table_name,
+    order_no: row.order_no || '',
     table_name: row.table_name,
     items,
     total: row.total,
@@ -3302,9 +3303,17 @@ app.post('/api/orders', async (req, res) => {
     const maxNoteRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_note_length'");
     const maxNoteLen = parseInt(maxNoteRow?.value || '200', 10);
     if (note.length > maxNoteLen) note = note.slice(0, maxNoteLen);
+    // 生成订单号：前缀(2位) + YYMMDD + 5位当日序号
+    const prefixRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_prefix_normal'");
+    const orderPrefix = (prefixRow?.value || '11').padStart(2, '0').slice(-2);
+    const yyddmm = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const todayPrefix = orderPrefix + yyddmm;
+    const maxSeqRow = await getAsync("SELECT MAX(CAST(SUBSTRING(order_no, 9) AS UNSIGNED)) as maxseq FROM orders WHERE order_no LIKE CONCAT(?, '%')", [todayPrefix]);
+    const seq = String((maxSeqRow?.maxseq || 0) + 1).padStart(5, '0');
+    const orderNo = todayPrefix + seq;
     const result = await runAsync(
-      'INSERT INTO orders (table_name, items, total, status, createdAt, session_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, finalStoreId, note]
+      'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, finalStoreId, note]
     );
     // 二维码无操作过期：下单后重置session过期时间（从下单时间开始重新计算）
     if (sessionToken) {
@@ -3347,7 +3356,7 @@ app.post('/api/orders', async (req, res) => {
       console.error('[AutoPrint] Error:', autoPrintErr.message);
     }
 
-    const responseData = { success: true, orderId: newRow.id, order: formatOrder(newRow) };
+    const responseData = { success: true, orderId: newRow.id, orderNo: newRow.order_no || '', order: formatOrder(newRow) };
     if (sessionToken) {
       const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
       if (updatedSession) responseData.newExpiresAt = updatedSession.expires_at;
