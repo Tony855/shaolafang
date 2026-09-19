@@ -961,7 +961,7 @@
         </div>
     </div>
 
-    <script src="languages.min.js?v=20260918"></script>
+    <script src="languages.min.js?v=20260918f"></script>
     <script src="assets/core.js"></script>
     <script>
         // ============================================================
@@ -1495,13 +1495,13 @@
                                 if (allDone) {
                                     return `<div style="margin-top:12px;text-align:center;">
                                         <button disabled style="background:#ccc;color:#999;border:0;padding:10px 24px;border-radius:20px;font-size:14px;font-weight:600;cursor:not-allowed;box-shadow:none;">
-                                            ⏰ 催单
+                                            ⏰ ${t('urgeOrder')}
                                         </button>
                                     </div>`;
                                 }
                                 return `<div style="margin-top:12px;text-align:center;">
                                     <button onclick="urgeOrder(${order.id})" style="background:linear-gradient(135deg,#e85d3a,#f39c12);color:#fff;border:0;padding:10px 24px;border-radius:20px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(232,93,58,.3);">
-                                        ⏰ 催单
+                                        ⏰ ${t('urgeOrder')}
                                     </button>
                                 </div>`;
                             })()}

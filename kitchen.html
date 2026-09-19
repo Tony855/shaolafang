@@ -355,14 +355,14 @@
   <div class="modal urge-modal" id="urgeModal">
     <div class="modal-card urge-card">
       <div class="urge-header">
-        <div class="urge-title">⚡ <span id="urgeModalTitle">催单通知</span></div>
+        <div class="urge-title">⚡ <span id="urgeModalTitle"></span></div>
         <button class="urge-close" onclick="hideUrgeModal()">✕</button>
       </div>
       <div class="urge-list" id="urgeList"></div>
     </div>
   </div>
 
-  <script src="languages.min.js?v=20260918d"></script>
+  <script src="languages.min.js?v=20260918f"></script>
   <script src="assets/core.js"></script>
   <script>
     const $ = s => document.querySelector(s);
@@ -444,6 +444,7 @@
       $('#fullscreenLabel').textContent = document.fullscreenElement ? t('exitFullscreen') : t('fullscreen');
       $('#logoutLabel').textContent = t('logout');
       $('#langSelectMain').value = lang;
+      $('#urgeModalTitle').textContent = t('urgeNotifications');
     }
 
     // 语言数据已包含在 languages.min.js 中，无需动态加载

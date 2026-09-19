@@ -913,12 +913,12 @@
     </div>
     <div id="orderSelectList" style="max-height:400px;overflow-y:auto;"></div>
     <div style="padding:12px 0 0;border-top:1px solid var(--gray-2);margin-top:8px;">
-      <button class="submit-btn" style="width:100%;" onclick="createNewOrderFromSelect()">➕ 创建新订单</button>
+      <button class="submit-btn" id="createNewOrderBtn" style="width:100%;" onclick="createNewOrderFromSelect()">➕ ${t('createNewOrder')}</button>
     </div>
   </div>
 </div>
 
-<script src="languages.min.js?v=20260918d"></script>
+<script src="languages.min.js?v=20260918f"></script>
 <script src="assets/core.js"></script>
 <script>
   // 安全兜底：确保 SLF.audio 存在
@@ -1019,6 +1019,8 @@
     const historyBtn = $('#orderHistoryBtn');
     if (historyBtn) historyBtn.title = t('orderHistory');
     renderTables();
+    const _newBtn = document.getElementById('createNewOrderBtn');
+    if (_newBtn) _newBtn.textContent = '\u2795 ' + t('createNewOrder');
   }
 
   let confirmCallback = null;

@@ -949,7 +949,9 @@ const LANGUAGES = {
     loadReportFailed: '加载报表失败',
     exportSuccess: '导出成功',
     auditAction: { create_admin: '创建管理员', update_admin: '更新管理员', delete_admin: '删除管理员', create_menu: '创建菜品', update_menu: '更新菜品', delete_menu: '删除菜品', create_category: '创建分类', update_category: '更新分类', delete_category: '删除分类', create_table: '创建桌号', update_table: '更新桌号', delete_table: '删除桌号', create_store: '创建店铺', update_store: '更新店铺', delete_store: '删除店铺', create_waiter: '创建服务员', update_waiter: '更新服务员', delete_waiter: '删除服务员', create_currency: '创建货币', update_currency: '更新货币', delete_currency: '删除货币', settle_order: '结算订单', cancel_order: '取消订单', reset_data: '重置数据', change_password: '修改密码', login: '登录', logout: '退出登录' },
-},
+    createNewOrder: '创建新订单',
+    urgeNotifications: '催单通知'
+  },
 
   en: {
     code: 'en',
@@ -1893,7 +1895,9 @@ const LANGUAGES = {
     loadReportFailed: 'Failed to load report',
     exportSuccess: 'Export successful',
     auditAction: { create_admin: 'Create Admin', update_admin: 'Update Admin', delete_admin: 'Delete Admin', create_menu: 'Create Dish', update_menu: 'Update Dish', delete_menu: 'Delete Dish', create_category: 'Create Category', update_category: 'Update Category', delete_category: 'Delete Category', create_table: 'Create Table', update_table: 'Update Table', delete_table: 'Delete Table', create_store: 'Create Store', update_store: 'Update Store', delete_store: 'Delete Store', create_waiter: 'Create Waiter', update_waiter: 'Update Waiter', delete_waiter: 'Delete Waiter', create_currency: 'Create Currency', update_currency: 'Update Currency', delete_currency: 'Delete Currency', settle_order: 'Settle Order', cancel_order: 'Cancel Order', reset_data: 'Reset Data', change_password: 'Change Password', login: 'Login', logout: 'Logout' },
-},
+    createNewOrder: 'New Order',
+    urgeNotifications: 'Urge Notifications'
+  },
 
   vi: {
     code: 'vi',
@@ -2876,7 +2880,9 @@ const LANGUAGES = {
     addAdminUsernameLabel: 'Tên đăng nhập',
     addAdminPasswordLabel: 'Mật khẩu (tối thiểu 6 ký tự)',
     addAdminDisplayNameLabel: 'Tên hiển thị',
-},
+    createNewOrder: 'Tạo đơn mới',
+    urgeNotifications: 'Thông báo nhắc nhở'
+  },
 
   th: {
     code: 'th',
@@ -3859,7 +3865,9 @@ const LANGUAGES = {
     addAdminUsernameLabel: 'ชื่อผู้ใช้',
     addAdminPasswordLabel: 'รหัสผ่าน (อย่างน้อย 6 ตัว)',
     addAdminDisplayNameLabel: 'ชื่อที่แสดง',
-},
+    createNewOrder: 'สั่งใหม่',
+    urgeNotifications: 'แจ้งเตือนเร่งอาหาร'
+  },
 
   km: {
     code: 'km',
@@ -4837,6 +4845,8 @@ const LANGUAGES = {
     loadReportFailed: 'Failed to load report',
     exportSuccess: 'Export successful',
     auditAction: { create_admin: 'បង្កើតអ្នកគ្រប់គ្រង', update_admin: 'ធ្វើបច្ចុប្បន្នភាពអ្នកគ្រប់គ្រង', delete_admin: 'លុបអ្នកគ្រប់គ្រង', create_menu: 'បង្កើតមុខម្ហូប', update_menu: 'ធ្វើបច្ចុប្បន្នភាពមុខម្ហូប', delete_menu: 'លុបមុខម្ហូប', create_category: 'បង្កើតប្រភេទ', update_category: 'ធ្វើបច្ចុប្បន្នភាពប្រភេទ', delete_category: 'លុបប្រភេទ', create_table: 'បង្កើតតុ', update_table: 'ធ្វើបច្ចុប្បន្នភាពតុ', delete_table: 'លុបតុ', create_store: 'បង្កើតហាង', update_store: 'ធ្វើបច្ចុប្បន្នភាពហាង', delete_store: 'លុបហាង', create_waiter: 'បង្កើតបុគ្គលិក', update_waiter: 'ធ្វើបច្ចុប្បន្នភាពបុគ្គលិក', delete_waiter: 'លុបបុគ្គលិក', create_currency: 'បង្កើតរូបិយប័ណ្ណ', update_currency: 'ធ្វើបច្ចុប្បន្នភាពរូបិយប័ណ្ណ', delete_currency: 'លុបរូបិយប័ណ្ណ', settle_order: 'បង់ប្រាក់', cancel_order: 'បោះបង់ការបញ្ជាទិញ', reset_data: 'កំណត់ទិន្នន័យឡើងវិញ', change_password: 'ប្តូរពាក្យសម្ងាត់', login: 'ចូល', logout: 'ចាកចេញ' },
+    createNewOrder: 'បញ្ជាទិញថ្មី',
+    urgeNotifications: 'ការជូនដំណឹងបញ្ជូន',
     addAdminModalTitle: 'បន្ថែមអ្នកគ្រប់គ្រង',
     addAdminUsernameLabel: 'ឈ្មោះគណនី',
     addAdminPasswordLabel: 'ពាក្យសម្ងាត់ (យ៉ាងតិច 6 តួ)',
