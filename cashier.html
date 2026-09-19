@@ -268,7 +268,7 @@
       <div style="margin-bottom:12px;display:flex;gap:8px;">
         <input type="text" id="searchInput" oninput="filterByTable()" style="flex:1;padding:10px 14px;border:1px solid var(--gray-2);border-radius:10px;font-size:14px;outline:none;" placeholder="">
       </div>
-      <div id="batchBar" style="display:none;position:sticky;bottom:0;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 16px;border-radius:12px;z-index:100;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div id="batchBar" style="display:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 16px;border-radius:12px;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:14px;">
             <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" style="width:16px;height:16px;cursor:pointer;accent-color:#fff;">
@@ -337,7 +337,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="languages.min.js?v=20260919a"></script>
+  <script src="languages.min.js?v=20260919c"></script>
   <script src="assets/core.js"></script>
   <script>
     let currentLang = SLF.store.rawGet('cashierLang') || SLF.store.rawGet('lang') || 'zh';
@@ -681,7 +681,7 @@
       const selectedOrders = orders.filter(o => selectedIds.has(o.id));
       // Check all items done
       const notReady = selectedOrders.filter(o => !(o.items || []).every(i => i.itemStatus === 'done'));
-      if (notReady.length) { toast('⚠️ ' + t('batchNotReady') + ' ' + notReady.map(o => o.table_name || ('#'+o.id)).join(', ')); return; }
+      if (notReady.length) { toast('⚠️ ' + t('batchNotReady') + ' ' + notReady.map(o => o.order_no || ('#'+o.id)).join(', ')); return; }
       const total = selectedOrders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
       const tables = [...new Set(selectedOrders.map(o => o.table_name))].join(', ');
       let html = '<div style="text-align:left;max-height:300px;overflow-y:auto;">';
