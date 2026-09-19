@@ -679,6 +679,9 @@
       if (!selectedIds.size) return;
       const ids = [...selectedIds];
       const selectedOrders = orders.filter(o => selectedIds.has(o.id));
+      // Check all items done
+      const notReady = selectedOrders.filter(o => !(o.items || []).every(i => i.itemStatus === 'done'));
+      if (notReady.length) { toast('⚠️ ' + t('batchNotReady') + ' ' + notReady.map(o => o.table_name || ('#'+o.id)).join(', ')); return; }
       const total = selectedOrders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
       const tables = [...new Set(selectedOrders.map(o => o.table_name))].join(', ');
       let html = '<div style="text-align:left;max-height:300px;overflow-y:auto;">';
