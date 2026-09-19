@@ -513,7 +513,8 @@
             '<span class="order-dish-price">$' + (parseFloat(i.price || 0) * i.quantity).toFixed(2) + '</span>' +
           '</div>'
         ).join('');
-        const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending';
+        const allItemsDone = (order.items || []).every(i => i.itemStatus === 'done');
+        const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending' && allItemsDone;
         const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
         const canRefund = cashierInfo?.permissions?.can_refund && order.status === 'done';
         const customerLabel = customerLabels.get(order.id) || '';
@@ -536,7 +537,7 @@
           '<div class="order-footer">' +
             '<span class="order-total">$' + (parseFloat(order.total || 0).toFixed(2)) + '</span>' +
             '<div class="order-actions" onclick="event.stopPropagation()">' +
-              (canSettle ? '<button class="btn btn-primary" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'settle'" + ')">' + t('settleOrder') + '</button>' : '') +
+              ((cashierInfo?.permissions?.can_settle && order.status === 'pending') ? (canSettle ? '<button class="btn btn-primary" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'settle'" + ')">' + t('settleOrder') + '</button>' : '<button class="btn btn-primary" disabled style="opacity:0.5;cursor:not-allowed;" title="' + t('itemsNotReady') + '">' + t('settleOrder') + '</button>') : '') +
               (canCancel ? '<button class="btn btn-warning" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'cancel'" + ')">' + t('cancelOrder') + '</button>' : '') +
               (canRefund ? '<button class="btn btn-danger" onclick="refundOrder(' + order.id + ')">' + t('refundOrder') + '</button>' : '') +
             '</div>' +
@@ -570,7 +571,7 @@
         '</div>'
       ).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">' + t('noDishes') + '</div>';
       document.getElementById('detailTotal').textContent = '$' + (parseFloat(order.total || 0).toFixed(2));
-      const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending';
+      const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending' && (order.items||[]).every(i => i.itemStatus === 'done');
       const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
       const canRefund = cashierInfo?.permissions?.can_refund && order.status === 'done';
       const showSettle = canSettle && (!action || action === 'settle');
