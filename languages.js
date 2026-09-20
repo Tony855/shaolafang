@@ -2025,6 +2025,8 @@ const LANGUAGES = {
     loginError: 'Đăng nhập thất bại, vui lòng thử lại',
     loginLocation: 'Địa điểm',
     loginName: 'Tên người dùng',
+    ip: 'IP',
+    backToStores: 'Quay lại quản lý cửa hàng',
     pleaseLogin: 'Vui lòng nhập tài khoản và mật khẩu',
     confirmLogout: 'Đăng xuất?',
 
@@ -3041,6 +3043,8 @@ const LANGUAGES = {
     loginError: 'เข้าสู่ระบบล้มเหลว โปรดลองอีกครั้ง',
     loginLocation: 'สถานที่',
     loginName: 'ชื่อผู้ใช้',
+    ip: 'IP',
+    backToStores: 'กลับไปจัดการร้าน',
     pleaseLogin: 'กรุณากรอกบัญชีและรหัสผ่าน',
     confirmLogout: 'ออกจากระบบหรือไม่?',
 
@@ -4057,6 +4061,8 @@ const LANGUAGES = {
     loginError: 'ការចូលបរាជ័យ សូមព្យាយាមម្តងទៀត',
     loginLocation: 'ទីតាំង',
     loginName: 'ឈ្មោះអ្នកប្រើ',
+    ip: 'IP',
+    backToStores: 'ត្រឡប់ទៅគ្រប់គ្រងហាង',
     pleaseLogin: 'សូមបញ្ចូលគណនីនិងពាក្យសម្ងាត់',
     confirmLogout: 'ចាកចេញ?',
 

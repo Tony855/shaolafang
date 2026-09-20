@@ -122,20 +122,6 @@ async function checkAndSetCooldown(key, cooldownMs) {
   await cache.set('cooldown:' + key, now, Math.ceil(cooldownMs / 1000) + 1);
   return true;
 }
-// 登录失败限流
-async function getLoginAttempt(key) {
-  const val = await cache.get('login:' + key);
-  return val || { count: 0, lockUntil: 0 };
-}
-async function incrementLoginAttempt(key) {
-  const attempt = await getLoginAttempt(key);
-  attempt.count += 1;
-  await cache.set('login:' + key, attempt, 24 * 3600);
-  return attempt;
-}
-async function clearLoginAttempt(key) {
-  await cache.del('login:' + key);
-}
 // ---------- 获取真实客户端IP（兼容Nginx反向代理） ----------
 function getClientIp(req) {
   const xff = req.headers['x-forwarded-for'];
@@ -498,94 +484,6 @@ function readMenuCatalog() {
 }
 
 // ---------- 数据库初始化 ----------
-async function initializeMenuCatalog() {
-  // 仅在首次安装（菜品表为空）时初始化，之后不覆盖用户的修改
-  const menuCount = await getAsync('SELECT COUNT(*) AS count FROM menus');
-  if (menuCount && menuCount.count > 0) return;
-
-  const catalog = readMenuCatalog();
-  await withTransaction(async () => {
-    // 从菜品数据中提取唯一分类并创建（仅在分类表为空时）
-    const catCount = await getAsync('SELECT COUNT(*) AS count FROM menu_categories');
-    if (!catCount || catCount.count === 0) {
-      const categories = [...new Set(catalog.map(item => item.category).filter(Boolean))];
-      for (let i = 0; i < categories.length; i++) {
-        await runAsync(
-          'INSERT INTO menu_categories (name, sort) VALUES (?, ?)',
-          [categories[i], i + 1]
-        );
-      }
-    }
-
-    // 插入菜品（包含所有必要字段）
-    for (const item of catalog) {
-      await runAsync(
-        `INSERT INTO menus (name, emoji, price, category, \`desc\`, image, currency_code, name_en, desc_en, active, unit, show_dual, secondary_currency_code, store_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          item.name,
-          item.emoji || '🍽️',
-          Number(item.price) || 0,
-          item.category || '其他',
-          item.desc || '',
-          item.image || '',
-          'USD',
-          item.name_en || '',
-          item.desc_en || '',
-          0,
-          item.unit || '份',
-          1,
-          'KHR',
-          1
-        ]
-      );
-    }
-  });
-
-}
-
-async function migrateLegacyJsonOnce() {
-  const migrated = await getAsync("SELECT value FROM settings WHERE `key` = 'legacy_json_migrated_v1'");
-  if (migrated) return;
-
-  await withTransaction(async () => {
-    // 导入 menu.json
-    for (const item of readLegacyData('menu.json')) {
-      if (!Number.isInteger(Number(item.id))) continue;
-      const exists = await getAsync('SELECT id FROM menus WHERE id = ?', [Number(item.id)]);
-      if (!exists) {
-        await runAsync(
-          'INSERT INTO menus (id, name, emoji, price, category, `desc`, image) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [Number(item.id), item.name, item.emoji || '🍽️', Number(item.price) || 0, item.category || '其他', item.desc || '', item.image || '']
-        );
-      }
-    }
-    // 导入 tables.json
-    for (const table of readLegacyData('tables.json')) {
-      if (!Number.isInteger(Number(table.id))) continue;
-      const exists = await getAsync('SELECT id FROM tables WHERE id = ?', [Number(table.id)]);
-      if (!exists) {
-        await runAsync('INSERT INTO tables (id, name, status) VALUES (?, ?, ?)', [Number(table.id), table.name, table.status || 'available']);
-      }
-    }
-    // 导入 orders.json
-    for (const order of readLegacyData('orders.json')) {
-      if (!Number.isInteger(Number(order.id)) || !order.table || !Array.isArray(order.items)) continue;
-      const exists = await getAsync('SELECT id FROM orders WHERE id = ?', [Number(order.id)]);
-      if (!exists) {
-        const total = order.items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
-        await runAsync(
-          'INSERT INTO orders (id, table_name, items, total, status, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
-          [Number(order.id), order.table, JSON.stringify(order.items), total, order.status || 'pending', order.createdAt || new Date().toISOString()]
-        );
-      }
-    }
-    await runAsync(
-      "INSERT INTO settings (`key`, value) VALUES ('legacy_json_migrated_v1', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)",
-      [new Date().toISOString()]
-    );
-  });
-}
 
 async function ensureOrderTables() {
   const missingTables = await allAsync(`
@@ -2622,6 +2520,8 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     const placeholders = orderIds.map(() => '?').join(',');
     const orders = await allAsync('SELECT * FROM orders WHERE id IN (' + placeholders + ') AND store_id=? AND status=\'pending\'', [...orderIds, req.storeId]);
     if (!orders.length) return res.status(400).json({ error: '没有可结算的待处理订单' });
+    // Check all items done for each order
+    for (const o of orders) { try { const items = JSON.parse(o.items || '[]'); if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 存在未完成菜品，无法结算' }); } catch(e) { return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 数据异常' }); } }
     const now = new Date().toISOString();
     const totalAmount = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
     const tableNames = [...new Set(orders.map(o => o.table_name))];
@@ -2683,6 +2583,8 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status === 'done') return res.status(400).json({ error: '订单已结算' });
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
+    // Check all items done
+    try { const items = JSON.parse(order.items || '[]'); if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '存在未完成菜品，无法结算' }); } catch(e) { return res.status(400).json({ error: '订单数据异常' }); }
     await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
     await syncTableStatus(order.table_name, req.storeId);
     // 记录操作日志
