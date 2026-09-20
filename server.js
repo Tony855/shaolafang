@@ -4364,7 +4364,7 @@ app.get('/api/public/table-session/:token/orders', async (req, res) => {
       const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
       runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
     }
-    const rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, session.store_id || 1, req.params.token]);
+    const rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, session.store_id || 1, req.params.token]);
     res.json({ table: session.table_name, orders: rows.map(formatOrder) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

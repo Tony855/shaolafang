@@ -322,13 +322,14 @@
         ? window.location.pathname
         : '';
       const isSuperPage = path.startsWith('/super');
-    
+      const isCustomerPage = path === '/' || path.endsWith('/index.html');
+
       const adminToken   = sessionStorage.getItem(CONFIG.STORAGE_KEYS.adminToken);
       const superToken   = store.rawGet(CONFIG.STORAGE_KEYS.superToken);
       const waiterToken  = store.rawGet(CONFIG.STORAGE_KEYS.waiterToken) ||
                            store.rawGet(CONFIG.STORAGE_KEYS.kitchenToken);
       const cashierToken = store.rawGet(CONFIG.STORAGE_KEYS.cashierToken);
-    
+
       // /super 页面：超管 token 直接放 Authorization，避免与 adminToken 冲突
       if (isSuperPage && superToken) {
         headers['Authorization'] = 'Bearer ' + superToken;
@@ -337,8 +338,11 @@
         if (adminToken)  headers['Authorization']   = 'Bearer ' + adminToken;
         if (superToken)  headers['X-Super-Token']   = superToken;
       }
-      if (waiterToken)  headers['X-Waiter-Token']   = waiterToken;
-      if (cashierToken) headers['X-Cashier-Token']  = cashierToken;
+      // 客户端页面不带服务员/收银员 token，避免后端误判为员工下单
+      if (!isCustomerPage) {
+        if (waiterToken)  headers['X-Waiter-Token']   = waiterToken;
+        if (cashierToken) headers['X-Cashier-Token']  = cashierToken;
+      }
     
       const storeId = store.rawGet(CONFIG.STORAGE_KEYS.storeId);
       if (storeId) headers['X-Store-Id'] = storeId;
