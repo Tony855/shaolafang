@@ -1621,6 +1621,27 @@ async function requireAdminOrWaiter(req, res, next) {
     req.isAdmin = true;
     req.adminSessionToken = adminResult.sessionToken;
     req.storeId = adminResult.storeId;
+    // 加载管理员权限信息（与 requireAdminKey 一致）
+    try {
+      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [adminResult.adminId]);
+      if (admin) {
+        const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [adminResult.merchantId]);
+        req.isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
+        req.adminPermissions = {
+          can_manage_menu: req.isPrimaryAdmin || admin.can_manage_menu ? 1 : 0,
+          can_manage_table: req.isPrimaryAdmin || admin.can_manage_table ? 1 : 0,
+          can_manage_order: req.isPrimaryAdmin || admin.can_manage_order ? 1 : 0,
+          can_delete_order: req.isPrimaryAdmin || admin.can_delete_order ? 1 : 0,
+          can_edit_order: req.isPrimaryAdmin || admin.can_edit_order ? 1 : 0,
+          can_manage_store: req.isPrimaryAdmin || admin.can_manage_store ? 1 : 0,
+          can_manage_waiter: req.isPrimaryAdmin || admin.can_manage_waiter ? 1 : 0,
+          can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
+          can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
+          can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
+          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
+        };
+      }
+    } catch (e) { console.warn('加载管理员权限失败:', e.message); }
     return next();
   }
   // 服务员 token 认证

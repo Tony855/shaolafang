@@ -826,12 +826,12 @@
                     <h3 class="settings-card-title" id="orderPrefixTitle">🔢 订单号前缀配置</h3>
                     <p style="color:#999;margin-bottom:16px;font-size:14px;" id="orderPrefixDesc">订单号格式：前缀(2位) + 年月日(6位) + 序号(5位)，如 1125091900001</p>
                     <div class="settings-form-grid">
-                        <div class="form-group"><label id="prefixNormalLabel">普通消费前缀</label><input id="prefixNormal" maxlength="2" style="width:80px;"></div>
-                        <div class="form-group"><label id="prefixRefundLabel">退款单前缀</label><input id="prefixRefund" maxlength="2" style="width:80px;"></div>
-                        <div class="form-group"><label id="prefixDiscountLabel">打折消费前缀</label><input id="prefixDiscount" maxlength="2" style="width:80px;"></div>
-                        <div class="form-group"><label id="prefixVipLabel">VIP消费前缀</label><input id="prefixVip" maxlength="2" style="width:80px;"></div>
+                        <div class="form-group"><label id="prefixNormalLabel">普通消费前缀</label><input id="prefixNormal" maxlength="2" style="width:80px;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;"></div>
+                        <div class="form-group"><label id="prefixRefundLabel">退款单前缀</label><input id="prefixRefund" maxlength="2" style="width:80px;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;"></div>
+                        <div class="form-group"><label id="prefixDiscountLabel">打折消费前缀</label><input id="prefixDiscount" maxlength="2" style="width:80px;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;"></div>
+                        <div class="form-group"><label id="prefixVipLabel">VIP消费前缀</label><input id="prefixVip" maxlength="2" style="width:80px;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;"></div>
                     </div>
-                    <button class="primary" onclick="saveOrderPrefixes()" style="margin-top:12px;" id="savePrefixBtn">保存</button>
+                    <button onclick="saveOrderPrefixes()" style="margin-top:12px;padding:10px 24px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;" id="savePrefixBtn">保存</button>
                 </div>
 
                 <!-- 修改密码卡片 -->
@@ -2328,7 +2328,6 @@
 
         function filterOrders() {
             orderTableFilter = $('#orderTableSearch').value.trim();
-            renderOrders();
             loadOrders();
         }
         async function toggleItemStatus(id, index) {
