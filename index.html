@@ -1259,7 +1259,7 @@
                 return menuAlreadyFetched;
             }
             try {
-                const res = await apiCall('GET', `${API_BASE}/tables`);
+                const res = await SLF.api.get('/tables');
                 state.tables = res || [];
                 const query = new URLSearchParams(window.location.search);
                 let token = query.get('token');
