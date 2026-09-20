@@ -464,24 +464,6 @@ async function isLoginLocked(username, type) {
   return { locked: false, maxAttempts, lockMinutes };
 }
 
-// ---------- 读取 data/ 目录 JSON 文件 ----------
-function readLegacyData(filename) {
-  const filePath = path.join(__dirname, 'data', filename);
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.warn(`无法读取旧数据文件 ${filename}:`, error.message);
-    return [];
-  }
-}
-
-function readMenuCatalog() {
-  const catalog = readLegacyData('roast-meat-menu.json');
-  if (catalog.length === 0) throw new Error('烧腊菜单初始化文件为空或无法读取');
-  return catalog;
-}
 
 // ---------- 数据库初始化 ----------
 

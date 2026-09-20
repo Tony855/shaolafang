@@ -1154,28 +1154,6 @@
         // ============================================================
         const API_BASE = '/api';
 
-        async function apiCall(method, url, data, isFormData = false) {
-            try {
-                const opts = { method };
-                if (isFormData) {
-                    opts.body = data;
-                } else {
-                    opts.headers = { 'Content-Type': 'application/json' };
-                    if (data) opts.body = JSON.stringify(data);
-                }
-                opts.headers = opts.headers || {};
-                opts.headers['X-Store-Id'] = String(state.storeId || 1);
-                const res = await fetch(url, opts);
-                if (!res.ok) {
-                    const body = await res.json().catch(() => ({}));
-                    throw new Error(body.error || `HTTP ${res.status}`);
-                }
-                return await res.json();
-            } catch (e) {
-                console.warn('API调用失败:', e);
-                throw e;
-            }
-        }
 
         async function checkBackend() {
             try {
@@ -1880,13 +1858,7 @@
                 note: noteInput ? noteInput.value.trim().slice(0, 200) : '',
             };
             try {
-                const res = await fetch(`${API_BASE}/orders`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(orderData)
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || t('orderFailed'));
+                const data = await SLF.api.post('/orders', orderData);
                 if (data.success) {
                     state.cart = {};
                     if (noteInput) noteInput.value = '';
@@ -2116,15 +2088,10 @@
                 return;
             }
             try {
-                const res = await fetch('/api/public/call-waiter', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        table: state.table,
-                        sessionToken: state.scanSessionToken || ''
-                    })
+                const data = await SLF.api.post('/public/call-waiter', {
+                    table: state.table,
+                    sessionToken: state.scanSessionToken || ''
                 });
-                const data = await res.json();
                 if (res.status === 429) {
                     const mins = data.cooldownMinutes || 10;
                     startCallCooldown(mins);
@@ -2140,11 +2107,7 @@
 
         async function urgeOrder(orderId) {
             try {
-                const res = await fetch('/api/orders/' + orderId + '/urge', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await res.json();
+                const data = await SLF.api.post('/orders/' + orderId + '/urge', {});
                 if (data.success) {
                     showToast(`✅ ${t('notifiedKitchen')}`, 2500);
                 } else {

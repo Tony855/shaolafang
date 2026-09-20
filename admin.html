@@ -1301,7 +1301,7 @@
 
         SLF.i18n.init(SLF.store.rawGet('adminLang') || 'zh');
 
-        const categoryText = c => { const cat = (typeof LANGUAGES !== 'undefined' && LANGUAGES[SLF.i18n.lang] && LANGUAGES[SLF.i18n.lang].categories) || {}; return cat[c] || c; };
+        const categoryText = c => { const cat = (SLF.i18n.dicts[SLF.i18n.lang] && SLF.i18n.dicts[SLF.i18n.lang].categories) || {}; return cat[c] || c; };
 
         const currencyNameText = (name, code) => {
             const map = {
