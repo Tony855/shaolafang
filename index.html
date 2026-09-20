@@ -1157,8 +1157,8 @@
 
         async function checkBackend() {
             try {
-                const res = await fetch(`${API_BASE}/menu`, { method: 'HEAD' });
-                isBackendOnline = res.ok;
+                await SLF.api.get('/menu');
+                isBackendOnline = true;
             } catch {
                 isBackendOnline = false;
             }
