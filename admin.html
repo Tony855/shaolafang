@@ -1011,7 +1011,7 @@
                         <div class="permission-row" style="padding:0;">
                             <div class="permission-text">
                                 <span class="permission-title" id="cashierActiveLabel">启用账号</span>
-                                <span class="permission-sub">启用后可登录收银台</span>
+                                <span class="permission-sub" id="cashierActiveSub">启用后可登录收银台</span>
                             </div>
                             <label class="store-switch"><input type="checkbox" id="cashierActive" checked><span class="store-switch-slider"></span></label>
                         </div>
@@ -1022,28 +1022,28 @@
                             <div class="permission-row">
                                 <div class="permission-text">
                                     <span class="permission-title" id="cashierCanSettleLabel">结算订单</span>
-                                    <span class="permission-sub">允许结算顾客订单</span>
+                                    <span class="permission-sub" id="cashierCanSettleSub">允许结算顾客订单</span>
                                 </div>
                                 <label class="store-switch"><input type="checkbox" id="cashierCanSettle" checked><span class="store-switch-slider"></span></label>
                             </div>
                             <div class="permission-row">
                                 <div class="permission-text">
                                     <span class="permission-title" id="cashierCanCancelLabel">取消订单</span>
-                                    <span class="permission-sub">允许取消未结算订单</span>
+                                    <span class="permission-sub" id="cashierCanCancelSub">允许取消未结算订单</span>
                                 </div>
                                 <label class="store-switch"><input type="checkbox" id="cashierCanCancel" checked><span class="store-switch-slider"></span></label>
                             </div>
                             <div class="permission-row">
                                 <div class="permission-text">
                                     <span class="permission-title" id="cashierCanRefundLabel">退款</span>
-                                    <span class="permission-sub">允许已结算订单退款</span>
+                                    <span class="permission-sub" id="cashierCanRefundSub">允许已结算订单退款</span>
                                 </div>
                                 <label class="store-switch"><input type="checkbox" id="cashierCanRefund"><span class="store-switch-slider"></span></label>
                             </div>
                             <div class="permission-row">
                                 <div class="permission-text">
                                     <span class="permission-title" id="cashierCanViewReportLabel">查看报表</span>
-                                    <span class="permission-sub">允许查看营业数据报表</span>
+                                    <span class="permission-sub" id="cashierCanViewReportSub">允许查看营业数据报表</span>
                                 </div>
                                 <label class="store-switch"><input type="checkbox" id="cashierCanViewReport" checked><span class="store-switch-slider"></span></label>
                             </div>
@@ -3264,6 +3264,17 @@
             const _cp = $('#cashierPermTitle'); if (_cp) _cp.textContent = tAdmin('permissionConfig');
             const _cud = $('#cashierUsername'); if (_cud) _cud.placeholder = tAdmin('cashierUsernamePlaceholder');
             const _cnd = $('#cashierName'); if (_cnd) _cnd.placeholder = tAdmin('cashierDisplayNamePlaceholder');
+            const _cpl = $('#cashierPasswordLabel'); if (_cpl) _cpl.textContent = tAdmin('passwordEditHint');
+            const _cpp = $('#cashierPassword'); if (_cpp) _cpp.placeholder = tAdmin('leaveBlankToKeep');
+            const _cas = $('#cashierActiveSub'); if (_cas) _cas.textContent = tAdmin('activeDesc');
+            const _css = $('#cashierCanSettleSub'); if (_css) _css.textContent = tAdmin('canSettleDesc');
+            const _ccs = $('#cashierCanCancelSub'); if (_ccs) _ccs.textContent = tAdmin('canCancelDesc');
+            const _crs = $('#cashierCanRefundSub'); if (_crs) _crs.textContent = tAdmin('canRefundDesc');
+            const _cvs = $('#cashierCanViewReportSub'); if (_cvs) _cvs.textContent = tAdmin('canViewReportDesc');
+            const _csl = $('#cashierCanSettleLabel'); if (_csl) _csl.textContent = tAdmin('settleOrder');
+            const _ccl = $('#cashierCanCancelLabel'); if (_ccl) _ccl.textContent = tAdmin('cancelOrder');
+            const _crl = $('#cashierCanRefundLabel'); if (_crl) _crl.textContent = tAdmin('refund');
+            const _cvl = $('#cashierCanViewReportLabel'); if (_cvl) _cvl.textContent = tAdmin('viewReport');
             // 编辑管理员弹窗
             const _ae = $('#editAdminActiveTitle'); if (_ae) _ae.textContent = tAdmin('accountActive');
             $('#exportMenuBtn').textContent = tAdmin('exportMenuCsv');
