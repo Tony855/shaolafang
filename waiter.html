@@ -898,6 +898,7 @@
     <div class="confirm-icon">⚠️</div>
     <div class="confirm-title" id="confirmTitle">确认操作</div>
     <div class="confirm-message" id="confirmMessage">确定要执行此操作吗？</div>
+    <input type="number" id="confirmInput" min="1" value="1" style="display:none;width:100%;padding:10px;margin:10px 0;border-radius:10px;border:1px solid #ddd;background:#fff;font-size:16px;box-sizing:border-box;">
     <div class="confirm-buttons">
       <button class="confirm-cancel" id="confirmCancelBtn">取消</button>
       <button class="confirm-ok" id="confirmOkBtn">确定</button>
@@ -919,7 +920,7 @@
   </div>
 </div>
 
-<script src="languages.min.js?v=20260919c"></script>
+<script src="languages.min.js?v=20260921b"></script>
 <script src="assets/core.js"></script>
 <script>
   // 安全兜底：确保 SLF.audio 存在
@@ -1034,6 +1035,7 @@
   }
   function hideConfirm() {
     $('#confirmModal').classList.remove('open');
+    $('#confirmInput').style.display = 'none';
     confirmCallback = null;
   }
   $('#confirmCancelBtn').onclick = hideConfirm;
@@ -1160,8 +1162,9 @@
         let priceDisplay = prices.primary;
         if (prices.secondary) priceDisplay += ` (${prices.secondary})`;
         const returnedHtml = i.returnedQty > 0 ? `<span class="item-status returned" style="background:#95a5a6;">${t('returned')} ${i.returnedQty}</span>` : '';
-        const returnBtn = i.itemStatus === 'done' && Number(i.quantity) > Number(i.returnedQty || 0) ? `<button class="item-toggle return-btn" onclick="event.stopPropagation();returnWaiterItem(${o.id},${idx})" style="background:#e74c3c;">${t('returnDish')}</button>` : '';
-        return `<div class="line"><span class="dish-name">${esc(i.name)} ×${i.quantity}${i.returnedQty > 0 ? ' <small style="color:#95a5a6;">(' + t('returned') + ' ' + i.returnedQty + ')</small>' : ''}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus === 'done' ? `<span class="item-status done">${t('completed')}</span>` + returnBtn + returnedHtml : (state.waiter && state.waiter.can_mark_item ? `<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${t('pending')}</button>` : '')}</div>`;
+        const isSelected = state.selectedItem && state.selectedItem.orderId === o.id && state.selectedItem.index === idx;
+        const returnBtn = i.itemStatus === 'done' && Number(i.quantity) > 1 && Number(i.quantity) > Number(i.returnedQty || 0) && isSelected ? `<button class="item-toggle return-btn" onclick="event.stopPropagation();returnWaiterItem(${o.id},${idx})" style="background:#e74c3c;color:#fff;">${t('returnDish')}</button>` : '';
+        return `<div class="line" onclick="event.stopPropagation();toggleSelectedItem(${o.id},${idx})" style="cursor:pointer;${isSelected ? 'background:rgba(52,152,219,0.12);border-radius:8px;padding:4px;' : ''}"><span class="dish-name">${esc(i.name)} ×${i.quantity}${i.returnedQty > 0 ? ' <small style="color:#95a5a6;">(' + t('returned') + ' ' + i.returnedQty + ')</small>' : ''}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus === 'done' ? `<span class="item-status done">${t('completed')}</span>` + returnBtn + returnedHtml : (state.waiter && state.waiter.can_mark_item ? `<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${t('pending')}</button>` : '')}</div>`;
       }).join('');
       const timeLabel = o.createdAt ? SLF.utils.formatDateTime(o.createdAt) : '';
       const badgeLabel = sessionLabels.get(o.id);
@@ -1185,6 +1188,22 @@
     } catch (e) { toast('❌ ' + e.message); }
   }
 
+  function toggleSelectedItem(orderId, index) {
+    if (state.selectedItem && state.selectedItem.orderId === orderId && state.selectedItem.index === index) {
+      state.selectedItem = null;
+    } else {
+      state.selectedItem = { orderId, index };
+    }
+    renderTables();
+  }
+  // 点击任意其他位置取消选中
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.line') && !e.target.closest('.return-btn') && state.selectedItem) {
+      state.selectedItem = null;
+      renderTables();
+    }
+  });
+
   async function returnWaiterItem(id, index) {
     try {
       const order = state.orders.find(o => o.id === id);
@@ -1194,13 +1213,18 @@
       const returned = Number(item.returnedQty || 0);
       const maxReturn = qty - returned;
       if (maxReturn <= 0) { toast('❌ ' + t('noMoreToReturn')); return; }
-      const input = prompt(t('returnQuantityPrompt') + ' (1-' + maxReturn + ')', '1');
-      if (input === null) return;
-      const returnQty = parseInt(input) || 0;
-      if (returnQty < 1 || returnQty > maxReturn) { toast('❌ ' + t('invalidReturnQty')); return; }
-      await api(`/orders/${id}/items/${index}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnQty: returned + returnQty }) });
-      toast('✅ ' + t('returnSuccess'));
-      await load();
+      const input = $('#confirmInput');
+      input.style.display = 'block';
+      input.max = maxReturn;
+      input.value = 1;
+      showConfirm(t('returnQuantityPrompt') + ' (1-' + maxReturn + ')', async function () {
+        const returnQty = parseInt(input.value) || 0;
+        if (returnQty < 1 || returnQty > maxReturn) { toast('❌ ' + t('invalidReturnQty')); return; }
+        await api(`/orders/${id}/items/${index}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnQty: returned + returnQty }) });
+        input.style.display = 'none';
+        toast('✅ ' + t('returnSuccess'));
+        await load();
+      }, t('returnDish'));
     } catch (e) { toast('❌ ' + e.message); }
   }
 

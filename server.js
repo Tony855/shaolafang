@@ -3271,12 +3271,21 @@ app.post('/api/orders', async (req, res) => {
     const maxNoteRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_note_length'");
     const maxNoteLen = parseInt(maxNoteRow?.value || '200', 10);
     if (note.length > maxNoteLen) note = note.slice(0, maxNoteLen);
-    // 生成订单号：前缀(2位) + YYMMDD + 5位当日序号
+    // 生成订单号：前缀(2位) + YYMMDD + 5位序号
     const prefixRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_prefix_normal'");
     const orderPrefix = (prefixRow?.value || '11').padStart(2, '0').slice(-2);
     const yyddmm = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const todayPrefix = orderPrefix + yyddmm;
-    const maxSeqRow = await getAsync("SELECT MAX(CAST(SUBSTRING(order_no, 9) AS UNSIGNED)) as maxseq FROM orders WHERE order_no LIKE CONCAT(?, '%')", [todayPrefix]);
+    // 是否每天重置序号（默认每天重置）
+    const resetRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_no_daily_reset'");
+    const dailyReset = (resetRow?.value || '1') === '1';
+    let maxSeqRow;
+    if (dailyReset) {
+      maxSeqRow = await getAsync("SELECT MAX(CAST(SUBSTRING(order_no, 9) AS UNSIGNED)) as maxseq FROM orders WHERE order_no LIKE CONCAT(?, '%')", [todayPrefix]);
+    } else {
+      // 序号不每天重置：取全局最大序号
+      maxSeqRow = await getAsync("SELECT MAX(CAST(SUBSTRING(order_no, 9) AS UNSIGNED)) as maxseq FROM orders WHERE order_no IS NOT NULL AND order_no != ''");
+    }
     const seq = String((maxSeqRow?.maxseq || 0) + 1).padStart(5, '0');
     const orderNo = todayPrefix + seq;
     const result = await runAsync(
@@ -3699,6 +3708,44 @@ app.get('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
     const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${storeId}`]);
     const enabled = row ? (row.value === '1' || row.value === 'true') : true; // 默认开启
     res.json({ enabled: enabled });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 订单号前缀配置 - 读取
+app.get('/api/admin/order-prefixes', requireAdminKey, async (req, res) => {
+  try {
+    const keys = ['order_prefix_normal', 'order_prefix_refund', 'order_prefix_discount', 'order_prefix_vip', 'order_no_daily_reset'];
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN (?)", [keys]);
+    const result = {};
+    for (const r of rows) result[r.key] = r.value;
+    result.order_prefix_normal = result.order_prefix_normal || '11';
+    result.order_prefix_refund = result.order_prefix_refund || '01';
+    result.order_prefix_discount = result.order_prefix_discount || '21';
+    result.order_prefix_vip = result.order_prefix_vip || '61';
+    result.order_no_daily_reset = result.order_no_daily_reset || '1';
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 订单号前缀配置 - 保存
+app.post('/api/admin/order-prefixes', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
+  try {
+    const { normal, refund, discount, vip, daily_reset } = req.body || {};
+    const pairs = [
+      ['order_prefix_normal', (normal || '11').padStart(2, '0').slice(-2)],
+      ['order_prefix_refund', (refund || '01').padStart(2, '0').slice(-2)],
+      ['order_prefix_discount', (discount || '21').padStart(2, '0').slice(-2)],
+      ['order_prefix_vip', (vip || '61').padStart(2, '0').slice(-2)],
+      ['order_no_daily_reset', daily_reset === '0' ? '0' : '1']
+    ];
+    for (const [k, v] of pairs) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [k, v]);
+    }
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
