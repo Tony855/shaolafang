@@ -1289,6 +1289,14 @@
     <!-- ===== JavaScript ===== -->
     <script src="languages.min.js?v=20260921e"></script>
     <script src="assets/core.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const adminSocket = io({ query: { storeId: (SLF.store.rawGet('storeId') || 1) } });
+  adminSocket.on('order:new', () => { if (typeof loadOrders === 'function') loadOrders(); });
+  adminSocket.on('item:updated', () => { if (typeof loadOrders === 'function') loadOrders(); });
+  adminSocket.on('order:settled', () => { if (typeof loadOrders === 'function') loadOrders(); });
+  adminSocket.on('order:transfer', () => { if (typeof loadOrders === 'function') loadOrders(); });
+</script>
     <script>
         // ================================================================
         // 多语言配置与辅助工具

@@ -339,6 +339,14 @@
 
   <script src="languages.min.js?v=20260921e"></script>
   <script src="assets/core.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const cashierSocket = io({ query: { storeId: (SLF.store.rawGet('storeId') || 1) } });
+  cashierSocket.on('order:new', () => { if (typeof loadOrders === 'function') loadOrders(); });
+  cashierSocket.on('item:updated', () => { if (typeof loadOrders === 'function') loadOrders(); });
+  cashierSocket.on('order:settled', () => { if (typeof loadOrders === 'function') loadOrders(); });
+  cashierSocket.on('order:transfer', () => { if (typeof loadOrders === 'function') loadOrders(); });
+</script>
   <script>
     let currentLang = SLF.store.rawGet('cashierLang') || SLF.store.rawGet('lang') || 'zh';
     let cashierInfo = null;
