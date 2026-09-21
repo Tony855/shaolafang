@@ -922,6 +922,17 @@
 
 <script src="languages.min.js?v=20260921e"></script>
 <script src="assets/core.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const waiterSocket = io({ query: { storeId: (SLF.store.rawGet('storeId') || 1) } });
+  waiterSocket.on('order:new', (order) => {
+    console.log('[SOCKET] new order:', order.id);
+    if (typeof load === 'function') load();
+  });
+  waiterSocket.on('item:updated', () => { if (typeof load === 'function') load(); });
+  waiterSocket.on('order:settled', () => { if (typeof load === 'function') load(); });
+  waiterSocket.on('order:transfer', () => { if (typeof load === 'function') load(); });
+</script>
 <script>
   // 安全兜底：确保 SLF.audio 存在
   if (typeof SLF === 'undefined' || !SLF.audio) {

@@ -47,6 +47,21 @@ const { execSync } = require('child_process');
 const app = express();
 // 信任Nginx反向代理，使 req.ip 返回真实客户端IP而非 127.0.0.1
 app.set('trust proxy', true);
+
+// Socket.io 实时推送
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require('socket.io');
+const io = new Server(server, {
+  cors: { origin: '*' },
+  pingInterval: 10000,
+  pingTimeout: 5000
+});
+io.on('connection', (socket) => {
+  const storeId = socket.handshake.query.storeId || 1;
+  socket.join('kitchen-' + storeId);
+  socket.join('waiter-' + storeId);
+});
 const PORT = Number(process.env.PORT || 3000);
 
 
@@ -2592,6 +2607,8 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     await syncTableStatus(order.table_name, req.storeId);
     // 记录操作日志
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
+    io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
+    io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     res.json({ success: true, message: '结算成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3039,6 +3056,8 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     const logParams = [actorType, 0, actorName, 'transfer_order', JSON.stringify({ order_id: orderId, from: oldTable, to: targetTable }), getClientIp(req) || 'unknown', new Date().toISOString()];
     console.log('[TRANSFER LOG]', JSON.stringify(logParams));
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', logParams);
+    io.to('waiter-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
+    io.to('kitchen-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
     res.json({ success: true, from: oldTable, to: targetTable, targetHasOrders: targetPending ? targetPending.cnt > 0 : false });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -3110,10 +3129,12 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     const nextStatus = req.body.itemStatus === 'done' ? 'done' : 'pending';
     items[index].itemStatus = nextStatus;
     await runAsync('UPDATE orders SET items=? WHERE id=?', [JSON.stringify(items), id]);
-    
-    // 7. 返回更新后的订单
     const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
-    res.json(formatOrder(updatedRow));
+    const updatedOrder = formatOrder(updatedRow);
+    // Socket.io 推送
+    io.to('kitchen-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
+    io.to('waiter-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
+    res.json(updatedOrder);
     
   } catch (e) {
     console.error('切换菜品状态失败:', e);
@@ -3341,7 +3362,11 @@ app.post('/api/orders', async (req, res) => {
       console.error('[AutoPrint] Error:', autoPrintErr.message);
     }
 
-    const responseData = { success: true, orderId: newRow.id, orderNo: newRow.order_no || '', order: formatOrder(newRow) };
+    // Socket.io 实时推送给后厨和服务员
+    const orderData = formatOrder(newRow);
+    io.to('kitchen-' + (newRow.store_id || 1)).emit('order:new', orderData);
+    io.to('waiter-' + (newRow.store_id || 1)).emit('order:new', orderData);
+    const responseData = { success: true, orderId: newRow.id, orderNo: newRow.order_no || '', order: orderData };
     if (sessionToken) {
       const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
       if (updatedSession) responseData.newExpiresAt = updatedSession.expires_at;
@@ -3998,6 +4023,8 @@ app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
       [callId, order.table_name, 'urge', `订单 #${id} 顾客催单`, 'pending', order.store_id || 1, new Date().toISOString()]
     );
 
+    io.to('kitchen-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
+    io.to('waiter-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
     res.json({ success: true, message: '已通知后厨，请稍候' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -4512,7 +4539,7 @@ initDatabase().then(async () => {
   }
   // 初始化Redis（双服务器部署时用于共享状态）
   await initRedis();
-  app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
 
     console.log(`📁 数据库: MySQL (${poolConfig.database})`);
 
