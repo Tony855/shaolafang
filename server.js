@@ -3081,12 +3081,32 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
       });
     }
     
-    // 5. 检查是否已完成
+    // 5. 退菜操作（按数量退回）
+    if (req.body.returnQty !== undefined && req.body.returnQty !== null) {
+      const returnQty = parseInt(req.body.returnQty) || 0;
+      const qty = Number(items[index].quantity) || 1;
+      if (returnQty < 0 || returnQty > qty) {
+        return res.status(400).json({ error: '退回数量无效' });
+      }
+      items[index].returnedQty = returnQty;
+      // 重算订单总价
+      const newTotal = items.reduce((sum, it) => {
+        const price = Number(it.base_price || it.price) || 0;
+        const q = Number(it.quantity) || 0;
+        const rq = Number(it.returnedQty) || 0;
+        return sum + price * (q - rq);
+      }, 0);
+      await runAsync('UPDATE orders SET items=?, total=? WHERE id=?', [JSON.stringify(items), newTotal, id]);
+      const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
+      return res.json(formatOrder(updatedRow));
+    }
+
+    // 6. 检查是否已完成
     if (items[index].itemStatus === 'done' && req.body.itemStatus !== 'done') {
       return res.status(409).json({ error: '已完成菜品不能改回制作中' });
     }
     
-    // 6. 更新状态
+    // 7. 更新状态
     const nextStatus = req.body.itemStatus === 'done' ? 'done' : 'pending';
     items[index].itemStatus = nextStatus;
     await runAsync('UPDATE orders SET items=? WHERE id=?', [JSON.stringify(items), id]);

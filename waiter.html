@@ -1159,7 +1159,9 @@
         const prices = getMenuPrices(i);
         let priceDisplay = prices.primary;
         if (prices.secondary) priceDisplay += ` (${prices.secondary})`;
-        return `<div class="line"><span class="dish-name">${esc(i.name)} ×${i.quantity}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus === 'done' ? `<span class="item-status done">${t('completed')}</span>` : (state.waiter && state.waiter.can_mark_item ? `<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${t('pending')}</button>` : '')}</div>`;
+        const returnedHtml = i.returnedQty > 0 ? `<span class="item-status returned" style="background:#95a5a6;">${t('returned')} ${i.returnedQty}</span>` : '';
+        const returnBtn = i.itemStatus === 'done' && Number(i.quantity) > Number(i.returnedQty || 0) ? `<button class="item-toggle return-btn" onclick="event.stopPropagation();returnWaiterItem(${o.id},${idx})" style="background:#e74c3c;">${t('returnDish')}</button>` : '';
+        return `<div class="line"><span class="dish-name">${esc(i.name)} ×${i.quantity}${i.returnedQty > 0 ? ' <small style="color:#95a5a6;">(' + t('returned') + ' ' + i.returnedQty + ')</small>' : ''}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus === 'done' ? `<span class="item-status done">${t('completed')}</span>` + returnBtn + returnedHtml : (state.waiter && state.waiter.can_mark_item ? `<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${t('pending')}</button>` : '')}</div>`;
       }).join('');
       const timeLabel = o.createdAt ? SLF.utils.formatDateTime(o.createdAt) : '';
       const badgeLabel = sessionLabels.get(o.id);
@@ -1179,6 +1181,25 @@
       const next = order.items[index].itemStatus === 'done' ? 'pending' : 'done';
       await api(`/orders/${id}/items/${index}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemStatus: next }) });
       toast('✅ ' + t('orderUpdated'));
+      await load();
+    } catch (e) { toast('❌ ' + e.message); }
+  }
+
+  async function returnWaiterItem(id, index) {
+    try {
+      const order = state.orders.find(o => o.id === id);
+      if (!order || !order.items[index]) return;
+      const item = order.items[index];
+      const qty = Number(item.quantity) || 1;
+      const returned = Number(item.returnedQty || 0);
+      const maxReturn = qty - returned;
+      if (maxReturn <= 0) { toast('❌ ' + t('noMoreToReturn')); return; }
+      const input = prompt(t('returnQuantityPrompt') + ' (1-' + maxReturn + ')', '1');
+      if (input === null) return;
+      const returnQty = parseInt(input) || 0;
+      if (returnQty < 1 || returnQty > maxReturn) { toast('❌ ' + t('invalidReturnQty')); return; }
+      await api(`/orders/${id}/items/${index}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnQty: returned + returnQty }) });
+      toast('✅ ' + t('returnSuccess'));
       await load();
     } catch (e) { toast('❌ ' + e.message); }
   }
