@@ -1405,7 +1405,7 @@
                     const orderStatusClass = statusClassMap[order.status] || 'pending';
 
                     const orderTotalBase = order.items.reduce((sum, item) => {
-                        return sum + toBaseCurrency(item.price, item.currency_code) * item.quantity;
+                        return sum + toBaseCurrency(item.price, item.currency_code) * (item.quantity - (item.returnedQty || 0));
                     }, 0);
                     const orderPrimaryTotal = formatPrimary(orderTotalBase);
                     let orderSecondaryTotal = '';
@@ -1434,7 +1434,7 @@
                         const itemStatusText = itemStatusMap[item.itemStatus] || itemStatusMap['pending'];
                         const itemStatusClass = statusClassMap[item.itemStatus] || 'pending';
 
-                        const itemTotalBase = toBaseCurrency(item.price, item.currency_code) * item.quantity;
+                        const itemTotalBase = toBaseCurrency(item.price, item.currency_code) * (item.quantity - (item.returnedQty || 0));
                         const itemPrimaryTotal = formatPrimary(itemTotalBase);
                         let itemSecondaryTotal = '';
                         if (state.dualCurrency.enabled && item.secondary_currency_code) {
@@ -1780,7 +1780,7 @@
                 const prices = getMenuPrices(item);
                 let priceDisplay = prices.primary;
                 if (prices.secondary) priceDisplay += ` (${prices.secondary})`;
-                const totalBase = toBaseCurrency(item.price, item.currency_code) * item.quantity;
+                const totalBase = toBaseCurrency(item.price, item.currency_code) * (item.quantity - (item.returnedQty || 0));
                 const primaryTotal = formatPrimary(totalBase);
                 let secondaryTotal = '';
                 if (state.dualCurrency.enabled && item.secondary_currency_code) {

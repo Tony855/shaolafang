@@ -1287,7 +1287,7 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=20260919c"></script>
+    <script src="languages.min.js?v=20260921d"></script>
     <script src="assets/core.js"></script>
     <script>
         // ================================================================
@@ -3257,6 +3257,15 @@
             $('#queryReportBtn').textContent = tAdmin('query');
             $('#exportOrdersBtn').textContent = tAdmin('exportOrdersCsv');
             $('#exportSalesBtn').textContent = tAdmin('exportSalesCsv');
+            // 收银员编辑弹窗
+            const _cu = $('#cashierUsernameLabel'); if (_cu) _cu.textContent = tAdmin('cashierUsername');
+            const _cn = $('#cashierNameLabel'); if (_cn) _cn.textContent = tAdmin('cashierDisplayName');
+            const _ca = $('#cashierActiveLabel'); if (_ca) _ca.textContent = tAdmin('accountActive');
+            const _cp = $('#cashierPermTitle'); if (_cp) _cp.textContent = tAdmin('permissionConfig');
+            const _cud = $('#cashierUsername'); if (_cud) _cud.placeholder = tAdmin('cashierUsernamePlaceholder');
+            const _cnd = $('#cashierName'); if (_cnd) _cnd.placeholder = tAdmin('cashierDisplayNamePlaceholder');
+            // 编辑管理员弹窗
+            const _ae = $('#editAdminActiveTitle'); if (_ae) _ae.textContent = tAdmin('accountActive');
             $('#exportMenuBtn').textContent = tAdmin('exportMenuCsv');
             if (!$('#dashboard').hidden) {
                 loadMenuCategories();
