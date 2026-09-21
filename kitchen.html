@@ -523,7 +523,7 @@
           }
           return `
             <div class="item-row ${isDone ? 'done' : ''}">
-              <span class="qty">×${item.quantity}</span>${item.returnedQty > 0 ? `<span style="color:#e74c3c;font-size:12px;"> (退${item.returnedQty})</span>` : ''}
+              <span class="qty">×${item.quantity}</span>${item.returnedQty > 0 ? `<span style="color:#e74c3c;font-size:12px;"> (${t('returned')} ${item.returnedQty})</span>` : ''}
               <span class="emoji">${utils.esc(item.emoji || '🍽️')}</span>
               <span class="name">${utils.esc(item.name)}</span>
               <span class="unit">${utils.esc(item.unit || '')}</span>
