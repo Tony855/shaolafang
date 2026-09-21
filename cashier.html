@@ -509,6 +509,7 @@
             '<div class="order-dish-left">' +
               '<span class="order-dish-name">' + i.name + '</span>' +
               '<span class="order-dish-qty">×' + i.quantity + '</span>' +
+              (i.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:12px;"> (退' + i.returnedQty + ')</span>' : '') +
             '</div>' +
             '<span class="order-dish-price">$' + (parseFloat(i.price || 0) * i.quantity).toFixed(2) + '</span>' +
           '</div>'
@@ -566,6 +567,7 @@
           '<div class="dish-left">' +
             '<span class="dish-name">' + item.name + '</span>' +
             '<span class="dish-qty">×' + item.quantity + '</span>' +
+            (item.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:12px;"> (退' + item.returnedQty + ')</span>' : '') +
           '</div>' +
           '<span class="dish-price">$' + (parseFloat(item.price || 0) * item.quantity).toFixed(2) + '</span>' +
         '</div>'

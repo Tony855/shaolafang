@@ -1453,6 +1453,7 @@
                                     <span class="item-emoji">${emoji}</span>
                                     <span class="item-label">${name}</span>
                                     <span class="item-qty-mark">× ${item.quantity}</span>
+                                    ${item.returnedQty > 0 ? `<span style="color:#e74c3c;font-size:12px;"> (${t('returned')} ${item.returnedQty})</span>` : ''}
                                 </span>
                                 <span class="item-price">${itemTotalDisplay}</span>
                                 <span class="item-status-label ${itemStatusClass}">${itemStatusText}</span>
@@ -1521,6 +1522,7 @@
                             <span class="item-emoji">${esc(item.emoji) || '🍽️'}</span>
                             <span class="item-label">${name}</span>
                             <span class="item-qty-mark">× ${item.quantity}</span>
+                            ${item.returnedQty > 0 ? `<span style="color:#e74c3c;font-size:12px;"> (${t('returned')} ${item.returnedQty})</span>` : ''}
                         </span>
                         <span class="item-price">${priceDisplay}</span>
                     </div>
