@@ -3276,14 +3276,22 @@ app.post('/api/orders', async (req, res) => {
     const orderPrefix = (prefixRow?.value || '11').padStart(2, '0').slice(-2);
     const yyddmm = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const todayPrefix = orderPrefix + yyddmm;
-    // 是否每天重置序号（默认每天重置）
-    const resetRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_no_daily_reset'");
-    const dailyReset = (resetRow?.value || '1') === '1';
+    // 序号重置周期：daily(每天) / monthly(每月) / yearly(每年) / never(不重置)
+    const resetRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_no_reset_period'");
+    const resetPeriod = resetRow?.value || 'daily';
+    let seqFilter = '';
+    if (resetPeriod === 'daily') {
+      seqFilter = todayPrefix;
+    } else if (resetPeriod === 'monthly') {
+      seqFilter = orderPrefix + yyddmm.slice(0, 4); // prefix + YYMM
+    } else if (resetPeriod === 'yearly') {
+      seqFilter = orderPrefix + yyddmm.slice(0, 2); // prefix + YY
+    }
     let maxSeqRow;
-    if (dailyReset) {
-      maxSeqRow = await getAsync("SELECT MAX(CAST(SUBSTRING(order_no, 9) AS UNSIGNED)) as maxseq FROM orders WHERE order_no LIKE CONCAT(?, '%')", [todayPrefix]);
+    if (seqFilter) {
+      maxSeqRow = await getAsync("SELECT MAX(CAST(SUBSTRING(order_no, 9) AS UNSIGNED)) as maxseq FROM orders WHERE order_no LIKE CONCAT(?, '%')", [seqFilter]);
     } else {
-      // 序号不每天重置：取全局最大序号
+      // never：全局最大序号
       maxSeqRow = await getAsync("SELECT MAX(CAST(SUBSTRING(order_no, 9) AS UNSIGNED)) as maxseq FROM orders WHERE order_no IS NOT NULL AND order_no != ''");
     }
     const seq = String((maxSeqRow?.maxseq || 0) + 1).padStart(5, '0');
@@ -3716,7 +3724,7 @@ app.get('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
 // 订单号前缀配置 - 读取
 app.get('/api/admin/order-prefixes', requireAdminKey, async (req, res) => {
   try {
-    const keys = ['order_prefix_normal', 'order_prefix_refund', 'order_prefix_discount', 'order_prefix_vip', 'order_no_daily_reset'];
+    const keys = ['order_prefix_normal', 'order_prefix_refund', 'order_prefix_discount', 'order_prefix_vip', 'order_no_reset_period'];
     const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN (?)", [keys]);
     const result = {};
     for (const r of rows) result[r.key] = r.value;
@@ -3724,7 +3732,7 @@ app.get('/api/admin/order-prefixes', requireAdminKey, async (req, res) => {
     result.order_prefix_refund = result.order_prefix_refund || '01';
     result.order_prefix_discount = result.order_prefix_discount || '21';
     result.order_prefix_vip = result.order_prefix_vip || '61';
-    result.order_no_daily_reset = result.order_no_daily_reset || '1';
+    result.order_no_reset_period = result.order_no_reset_period || 'daily';
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -3740,7 +3748,7 @@ app.post('/api/admin/order-prefixes', requireAdminKey, requirePermission('can_ma
       ['order_prefix_refund', (refund || '01').padStart(2, '0').slice(-2)],
       ['order_prefix_discount', (discount || '21').padStart(2, '0').slice(-2)],
       ['order_prefix_vip', (vip || '61').padStart(2, '0').slice(-2)],
-      ['order_no_daily_reset', daily_reset === '0' ? '0' : '1']
+      ['order_no_reset_period', ['daily','monthly','yearly','never'].includes(daily_reset) ? daily_reset : 'daily']
     ];
     for (const [k, v] of pairs) {
       await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [k, v]);
