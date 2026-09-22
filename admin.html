@@ -1249,11 +1249,11 @@
             <div style="margin:15px 0;text-align:left;">
                 <div style="margin-bottom:10px;font-weight:600;" id="transferFromLabel"></div>
                 <label style="display:block;font-size:13px;color:#666;margin-bottom:6px;" id="transferToLabel"></label>
-                <select id="transferTargetSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;"></select>
+                <select id="transferTargetSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.25);color:#fff;"></select>
             </div>
-            <div style="display:flex;gap:10px;">
-                <button onclick="closeTransferModal()" id="transferCancelBtn" style="flex:1;padding:10px;border:0;border-radius:8px;background:#f0f0f0;cursor:pointer;"></button>
-                <button onclick="confirmTransfer()" id="transferConfirmBtn" style="flex:1;padding:10px;border:0;border-radius:8px;background:#9b59b6;color:#fff;cursor:pointer;"></button>
+            <div class="order-modal-actions">
+                <button onclick="closeTransferModal()" id="transferCancelBtn" class="secondary"></button>
+                <button onclick="confirmTransfer()" id="transferConfirmBtn" class="primary"></button>
             </div>
         </div>
     </div>
