@@ -398,9 +398,6 @@
         const token = SLF.store.rawGet('cashierToken');
         if (token) {
           SLF.api.post('/cashier/logout', null, { headers: { 'X-Cashier-Token': token } }).catch(() => {});
-
-
-
         }
         SLF.store.rawRemove('cashierToken');
         SLF.store.rawRemove('cashierStoreId');
@@ -409,6 +406,27 @@
         window.location.href = '/login?type=cashier';
       }, { type: 'warning', icon: '🚪' });
     }
+
+    // 空闲超时（默认30分钟无操作自动退出）
+    let cashierIdleTimer = null;
+    let cashierIdleTimeoutMin = 30;
+    SLF.api.get('/public/global-config').then(cfg => { if (cfg.cashier_idle_timeout) { cashierIdleTimeoutMin = cfg.cashier_idle_timeout; resetCashierIdle(); } }).catch(()=>{});
+    function resetCashierIdle() {
+      clearTimeout(cashierIdleTimer);
+      if (SLF.store.rawGet('cashierToken')) {
+        cashierIdleTimer = setTimeout(() => {
+          SLF.store.rawRemove('cashierToken');
+          SLF.store.rawRemove('cashierStoreId');
+          SLF.store.rawRemove('cashierInfo');
+          SLF.store.rawRemove('storeId');
+          window.location.href = '/login?type=cashier';
+        }, cashierIdleTimeoutMin * 60 * 1000);
+      }
+    }
+    ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt =>
+      document.addEventListener(evt, resetCashierIdle, { passive: true })
+    );
+    resetCashierIdle();
 
     function changeLang(lang) {
       currentLang = lang;

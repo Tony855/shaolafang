@@ -388,6 +388,26 @@
           const error = new Error((data && data.error) || `请求失败 (${res.status})`);
           error.status = res.status;
           error.data = data;
+          // 401 统一跳转登录页
+          if (res.status === 401) {
+            const page = location.pathname;
+            if (!page.startsWith('/login')) {
+              const type = page.replace(/^\//, '').split('/')[0];
+              const redirect = type && !['admin', 'cashier', 'waiter', 'kitchen', 'super'].includes(type)
+                ? '/login'
+                : '/login?type=' + type;
+              // 清除 token 并立即跳转
+              try {
+                localStorage.removeItem('adminToken');
+                localStorage.removeItem('cashierToken');
+                localStorage.removeItem('waiterToken');
+                localStorage.removeItem('kitchenToken');
+                localStorage.removeItem('superToken');
+                sessionStorage.removeItem('adminToken');
+              } catch(e) {}
+              location.replace(redirect);
+            }
+          }
           throw error;
         }
         return data;
