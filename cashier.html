@@ -495,11 +495,11 @@
         tableGroups[key].push(o);
       });
       Object.values(tableGroups).forEach(group => {
-        const distinctTokens = [...new Set(group.map(o => o.sessionToken).filter(Boolean))];
-        const tokenToIndex = new Map(distinctTokens.map((t, i) => [t, i + 1]));
+        const distinctCt = [...new Set(group.map(o => o.customerToken).filter(Boolean))];
+        const tokenToIndex = new Map(distinctCt.map((t, i) => [t, i + 1]));
         group.forEach(o => {
           if (o.sessionToken) {
-            labels.set(o.id, t('customer') + tokenToIndex.get(o.sessionToken));
+            labels.set(o.id, t('customer') + tokenToIndex.get(o.customerToken));
           } else {
             labels.set(o.id, t('staffOrder'));
           }

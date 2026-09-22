@@ -900,6 +900,9 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // 为 orders 表添加 customer_token（兼容旧表）
+  try { await runAsync(`ALTER TABLE orders ADD COLUMN customer_token VARCHAR(255) DEFAULT ''`); } catch (e) { if (!/duplicate column/i.test(e.message || '')) console.log('  ! customer_token:', e.message); }
+
   // 为现有表添加 merchant_id 字段（兼容旧表）
   const tablesToAlter = ['stores', 'menus', 'tables', 'orders', 'waiters', 'printers', 'waiter_calls', 'reservations', 'scan_sessions', 'currencies', 'menu_categories'];
   for (const tbl of tablesToAlter) {
@@ -1398,6 +1401,7 @@ function formatOrder(row) {
     status: row.status,
     createdAt: row.createdAt,
     sessionToken: row.session_token || '',
+    customerToken: row.customer_token || '',
     note: row.note || '',
     dataCorrupted
   };
@@ -3327,10 +3331,12 @@ app.post('/api/orders', async (req, res) => {
     const isWaiter = Boolean(waiter && waiter.can_order);
     if (waiter && !waiter.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
     let sessionToken = null;
+    let customerToken = '';
     let sessionStoreId = null;
     let table;
     if (!isAdmin && !isWaiter) {
       const token = req.body.sessionToken || null;
+      customerToken = req.body.customerToken || '';
       if (!token) return res.status(401).json({ error: '请重新扫码后再下单' });
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [token]);
       if (!session) return res.status(401).json({ error: '请重新扫码后再下单' });
@@ -3397,8 +3403,8 @@ app.post('/api/orders', async (req, res) => {
     const seq = String((maxSeqRow?.maxseq || 0) + 1).padStart(5, '0');
     const orderNo = todayPrefix + seq;
     const result = await runAsync(
-      'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, finalStoreId, note]
+      'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, customerToken, finalStoreId, note]
     );
     // 二维码无操作过期：下单后重置session过期时间（从下单时间开始重新计算）
     if (sessionToken) {
@@ -4561,7 +4567,8 @@ app.get('/api/public/table-token/:token', async (req, res) => {
       ? new Date(Date.now() + qrTimeoutMinutes * 60 * 1000).toISOString()
       : new Date('9999-12-31T23:59:59Z').toISOString();
     await runAsync('INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)', [table.name, sessionToken, expiresAt, new Date().toISOString(), table.store_id || 1]);
-    res.json({ table: table.name, storeId: table.store_id || 1, sessionToken, expiresAt });
+    const customerToken = crypto.randomBytes(16).toString('base64url');
+    res.json({ table: table.name, storeId: table.store_id || 1, sessionToken, customerToken, expiresAt });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -4577,7 +4584,13 @@ app.get('/api/public/table-session/:token/orders', async (req, res) => {
       const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
       runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
     }
-    const rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, session.store_id || 1, req.params.token]);
+    const customerToken = req.query.ct || '';
+    let rows;
+    if (customerToken) {
+      rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND customer_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, session.store_id || 1, customerToken]);
+    } else {
+      rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, session.store_id || 1, req.params.token]);
+    }
     res.json({ table: session.table_name, orders: rows.map(formatOrder) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

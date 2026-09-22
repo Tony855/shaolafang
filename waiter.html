@@ -1218,11 +1218,11 @@
       const tb = b.createdAt ? (new Date(b.createdAt).getTime() || 0) : 0;
       return ta - tb;
     });
-    const distinctTokens = [...new Set(sorted.filter(o => o.sessionToken).map(o => o.sessionToken))];
+    const distinctCt = [...new Set(sorted.filter(o => o.customerToken).map(o => o.customerToken))];
     const labels = new Map();
-    const tokenToIndex = new Map(distinctTokens.map((t, i) => [t, i + 1]));
+    const ctToIndex = new Map(distinctCt.map((ct, i) => [ct, i + 1]));
     for (const o of sorted) {
-      labels.set(o.id, o.sessionToken ? `${t('customer')}${tokenToIndex.get(o.sessionToken)}` : t('staffOrder'));
+      labels.set(o.id, o.customerToken ? `${t('customer')}${ctToIndex.get(o.customerToken)}` : (o.sessionToken ? `${t('customer')}1` : t('staffOrder')));
     }
     return labels;
   }

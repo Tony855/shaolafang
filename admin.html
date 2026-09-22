@@ -1409,11 +1409,11 @@
             const labels = new Map();
             for (const [, tableOrders] of byTable) {
                 const sorted = [...tableOrders].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-                const distinctTokens = [...new Set(sorted.filter(o => o.sessionToken).map(o => o.sessionToken))];
-                const tokenToIndex = new Map(distinctTokens.map((t, i) => [t, i + 1]));
+                const distinctCt = [...new Set(sorted.filter(o => o.customerToken).map(o => o.customerToken))];
+                const tokenToIndex = new Map(distinctCt.map((t, i) => [t, i + 1]));
                 for (const o of sorted) {
                     if (o.sessionToken) {
-                        labels.set(o.id, `${tAdmin('customer')}${tokenToIndex.get(o.sessionToken)}`);
+                        labels.set(o.id, `${tAdmin('customer')}${tokenToIndex.get(o.customerToken)}`);
                     } else if (sorted.some(x => x.sessionToken)) {
                         // 只有当同桌存在扫码客户订单时，才给代下单订单标注"服务员/Admin下单"
                         labels.set(o.id, tAdmin('staffOrder'));

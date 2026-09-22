@@ -1354,6 +1354,8 @@
                     state.scanToken = token;
                     state.scanSessionToken = session.sessionToken;
                     state.scanExpiresAt = session.expiresAt;
+                    if (SLF.store.rawGet('customer_token')) { state.customerToken = SLF.store.rawGet('customer_token'); }
+                    else if (session.customerToken) { state.customerToken = session.customerToken; SLF.store.rawSet('customer_token', session.customerToken); }
                     try {
                         const url = new URL(window.location.href);
                         url.searchParams.delete('token');
@@ -1417,7 +1419,8 @@
                 return;
             }
             try {
-                const data = await SLF.api.get(`/public/table-session/${encodeURIComponent(state.scanSessionToken)}/orders`);
+                const ct = state.customerToken || SLF.store.rawGet('customer_token') || '';
+                const data = await SLF.api.get(`/public/table-session/${encodeURIComponent(state.scanSessionToken)}/orders` + (ct ? `?ct=${encodeURIComponent(ct)}` : ''));
 
 
 
@@ -1913,6 +1916,7 @@
             const orderData = {
                 table: state.table,
                 sessionToken: state.scanSessionToken,
+                customerToken: state.customerToken || SLF.store.rawGet('customer_token') || '',
                 items: items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, emoji: i.emoji,
                     show_dual: i.show_dual || 0, secondary_currency_code: i.secondary_currency_code || '', unit: i
                         .unit || '份' })),
