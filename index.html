@@ -1,6 +1,7 @@
 ﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<link rel="icon" href="data:,">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FoodFlow · QR Ordering System</title>
@@ -669,7 +670,7 @@
             box-shadow: 0 10px 28px rgba(200, 65, 30, .22);
             border-radius: 0 0 22px 22px
         }
-        body { padding-top: 64px }
+        body { padding-top: 39px }
         .header-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis }
         .header-right { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; flex-wrap: wrap; flex-shrink: 0 }
         .header .table-info, .header .status-badge, #customerOrderBtn, .header-right select { white-space: nowrap }
@@ -768,7 +769,7 @@
         #orderSuccessModal .form-actions .btn-save { padding: 9px 40px; border-radius: 30px; }
 
         @media (max-width: 768px) {
-            .header { padding: 8px 12px 10px; gap: 8px; flex-wrap: wrap; align-content: flex-start; }
+			.header { padding: 8px 12px 10px; gap: 8px; flex-wrap: wrap; align-content: flex-start; }
             .header .header-logo { order: 0; width: 100%; text-align: center; justify-content: center; font-size: 20px !important; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.15); }
             .header .header-logo i { font-size: 20px !important; }
             .header .header-left { order: 1; flex: 1; min-width: 0; gap: 6px; }
@@ -780,7 +781,7 @@
             .category-tabs { position: fixed !important; top: 97px !important; left: 0 !important; right: 0 !important; display: flex !important; align-items: center; padding: 8px 10px !important; gap: 8px; z-index: 90 !important; }
             .cats-scroll { flex: 1; width: 100%; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
             .cats-scroll::-webkit-scrollbar { display: none; }
-            .main-content { padding-top: 149px !important; }
+            .main-content { padding-top: 145px !important; }
             .header-right button, .lang-btn-wrap {
                 width: 34px !important; height: 34px !important;
                 min-width: 34px !important; max-width: 34px !important;
@@ -794,7 +795,7 @@
             .header-right button * { line-height: 1 !important; }
         }
         @media (max-width: 480px) {
-            .store-name-badge { max-width: none !important; }
+			.store-name-badge { max-width: none !important; }
             .table-info { max-width: 100px !important; }
             .header-logo { font-size: 16px !important; }
             .header-logo i { font-size: 16px !important; }

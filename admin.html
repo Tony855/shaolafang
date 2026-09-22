@@ -1,6 +1,7 @@
 ﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<link rel="icon" href="data:,">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>FoodFlow · Admin Dashboard</title>
@@ -2396,6 +2397,7 @@
             } catch (e) {
                 const msg = e.message.includes('未完成菜品') ? (L('incompleteItemsError') || e.message) : e.message;
                 toast('❌ ' + msg);
+                throw e;
             }
         };
         function removeOrder(id) {

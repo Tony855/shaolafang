@@ -3130,6 +3130,8 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     await runAsync('UPDATE orders SET table_name=?, session_token=? WHERE id=?', [targetTable, newToken, orderId]);
     await syncTableStatus(oldTable, storeId);
     await syncTableStatus(targetTable, storeId);
+    // 清空原桌所有未过期的扫码 session
+    await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ?', [oldTable, storeId, new Date().toISOString()]);
     const actorType = req.waiter ? 'waiter' : 'admin';
     const actorName = req.waiter ? req.waiter.display_name : 'admin';
     const logParams = [actorType, 0, actorName, 'transfer_order', JSON.stringify({ order_id: orderId, from: oldTable, to: targetTable }), getClientIp(req) || 'unknown', new Date().toISOString()];
