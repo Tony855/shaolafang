@@ -33,18 +33,23 @@ fi
 # 设置非交互模式，避免 apt 安装时弹出键盘布局等交互界面
 export DEBIAN_FRONTEND=noninteractive
 
-# ===== 获取当前目录 =====
+# ===== 默认安装路径 /var/www/foodflow =====
+DEFAULT_DIR="/var/www/foodflow"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-log_info "应用目录: $APP_DIR"
 
-# ===== 首次安装：如果没有 server.js，自动 clone =====
+# 如果当前目录没有 server.js，则安装到默认路径
 if [ ! -f "$APP_DIR/server.js" ]; then
-    log_info "未找到 server.js，自动拉取仓库..."
-    cd ~
-    git clone https://Tony855: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@github.com/Tony855/shaolafang.git shaolafang-main
-    APP_DIR="$HOME/shaolafang-main"
+    APP_DIR="$DEFAULT_DIR"
+    log_info "未找到 server.js，安装到默认路径: $APP_DIR"
+    mkdir -p "$APP_DIR"
     cd "$APP_DIR"
-    log_success "代码已拉取到 $APP_DIR"
+    if [ ! -f server.js ]; then
+        log_info "拉取仓库到 $APP_DIR..."
+        git clone https://Tony855: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@github.com/Tony855/shaolafang.git .
+    fi
+    log_success "代码已就位: $APP_DIR"
+else
+    log_info "应用目录: $APP_DIR"
 fi
 
 # ===== 检查核心文件 =====
@@ -135,7 +140,11 @@ echo ""
 log_info "创建必要目录..."
 mkdir -p "$APP_DIR"/{uploads,backups,logs}
 mkdir -p /etc/foodflow
-log_success "目录创建完成"
+# 给 www-data 读取权限（Nginx 需要）
+chown -R root:www-data "$APP_DIR"
+chmod -R 755 "$APP_DIR"
+chmod -R 775 "$APP_DIR/uploads"
+log_success "目录创建完成，权限已配置"
 
 # ===== 7. 自动配置数据库和环境变量 =====
 echo ""
@@ -221,7 +230,7 @@ DB_USER=foodflow
 DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
 REDIS_URL=
-UPLOAD_DIR=./uploads
+UPLOAD_DIR=/var/www/foodflow/uploads
 RUN_SCHEDULED_TASKS=true
 JWT_SECRET=$JWT_RANDOM_SECRET
 QR_DOMAIN=

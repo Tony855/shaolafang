@@ -975,8 +975,6 @@ async function initDatabase() {
 
     // 创建默认菜品
     const defaultMenus = [
-      ['招牌烧腊饭', '🍱', 8.5, '热销', '招牌烧腊配米饭', '份'],
-      ['蜜汁叉烧饭', '🍖', 9.0, '热销', '蜜汁叉烧配米饭', '份'],
       ['白切鸡饭', '🍗', 7.5, '主食', '白切鸡配米饭', '份'],
       ['排骨饭', '🍖', 8.0, '主食', '红烧排骨配米饭', '份'],
       ['春卷', '🥟', 3.5, '小吃', '酥脆春卷', '份'],
@@ -2957,7 +2955,7 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
     let image = req.file ? req.file.filename : current.image;
     if (req.file && current.image) {
-      const oldPath = path.join(__dirname, 'uploads', current.image);
+      const oldPath = path.join(UPLOAD_DIR, current.image);
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
     }
     await runAsync(
@@ -2977,7 +2975,7 @@ app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'
     const item = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!item) return res.status(404).json({ error: '菜品不存在' });
     if (item.image) {
-      const imgPath = path.join(__dirname, 'uploads', item.image);
+      const imgPath = path.join(UPLOAD_DIR, item.image);
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
     await runAsync('DELETE FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
