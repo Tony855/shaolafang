@@ -3106,7 +3106,24 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     const oldTable = order.table_name;
     // 检查目标桌是否有未结订单
     const targetPending = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [targetTable, storeId]);
-    await runAsync('UPDATE orders SET table_name=? WHERE id=?', [targetTable, orderId]);
+    // 查出目标桌当前活跃的扫码 session；没有就自动创建一个
+    const nowIso = new Date().toISOString();
+    const targetSession = await getAsync(
+      "SELECT token FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
+      [targetTable, storeId, nowIso]
+    );
+    let newToken;
+    if (targetSession) {
+      newToken = targetSession.token;
+    } else {
+      newToken = 'auto_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      const exp = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      await runAsync(
+        'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)',
+        [targetTable, newToken, exp, nowIso, storeId]
+      );
+    }
+    await runAsync('UPDATE orders SET table_name=?, session_token=? WHERE id=?', [targetTable, newToken, orderId]);
     await syncTableStatus(oldTable, storeId);
     await syncTableStatus(targetTable, storeId);
     const actorType = req.waiter ? 'waiter' : 'admin';
