@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>服务员点餐</title>
   <script>
     // 在样式和正文渲染之前同步判断登录态，避免刷新页面时登录窗口先闪现一下再消失
@@ -68,6 +71,21 @@
       opacity: 0; transition: opacity 0.3s; pointer-events: none;
     }
     .toast.show{ opacity: 1; }
+    html, body {
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: auto;
+    }
+    body {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    #mainContent {
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
     header{
       position: sticky; top: 0; z-index: 100;
       background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
@@ -75,28 +93,27 @@
       padding: 12px 20px;
       display: flex;
       align-items: center;
-      justify-content: flex-start;
-      gap: 0;
+      justify-content: space-between;
+      gap: 10px;
       box-shadow: 0 10px 28px rgba(200, 65, 30, .22);
       border-radius: 0 0 22px 22px;
     }
     header .header-title{
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
       font-size: 20px; font-weight: 700;
       display: flex; align-items: center; gap: 8px;
       white-space: nowrap;
+      flex-shrink: 0;
     }
     header .header-left{
       display: flex; align-items: center; gap: 10px;
       min-width: 0;
-      margin-left: auto;
+      flex: 1;
+      justify-content: center;
     }
     header .header-right{
       display: flex; align-items: center; gap: 10px;
       flex-wrap: wrap;
-      margin-left: 10px;
+      flex-shrink: 0;
     }
     header .waiter-name{
       background: rgba(255,255,255,0.2);
@@ -841,6 +858,7 @@
         <option value="km">ភាសាខ្មែរ</option>
       </select>
     </div>
+    <button class="header-btn exit-fs-btn" onclick="toggleFullscreen()" title="全屏">⛶</button>
     <button class="header-btn icon-btn logout-btn" id="logoutBtn" title="退出登录">🚪</button>
   </div>
 </header>
@@ -931,22 +949,47 @@
 <script src="assets/core.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-  // 三连击屏幕切换全屏
+  // 禁止下拉刷新和窗口移动
+  document.addEventListener('touchmove', function(e) {
+    if (e.target.closest('#mainContent') === null) e.preventDefault();
+  }, { passive: false });
+  document.body.addEventListener('touchstart', function(e) {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+
+  // 三连击屏幕切换全屏（iPad 兼容 touch）
   let _tripleClickTimer = null, _clickCount = 0;
-  document.addEventListener('click', function(e) {
+  window.toggleFullscreen = function() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      // iOS PWA 提示
+      if (window.navigator.standalone) {
+        alert('已在全屏模式（主屏幕打开）。若需退出，请从底部向上滑动返回。');
+      } else {
+        document.documentElement.requestFullscreen().catch(e => alert('请用"添加到主屏幕"打开以获得全屏体验'));
+      }
+    }
+  };
+  function _handleTap() {
     _clickCount++;
     if (_clickCount === 3) {
       _clickCount = 0;
       clearTimeout(_tripleClickTimer);
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(()=>{});
+        const el = document.documentElement;
+        const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+        if (req) req.call(el).catch(()=>{});
       } else {
-        document.exitFullscreen();
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) exit.call(document);
       }
     }
     clearTimeout(_tripleClickTimer);
-    _tripleClickTimer = setTimeout(() => { _clickCount = 0; }, 500);
-  });
+    _tripleClickTimer = setTimeout(() => { _clickCount = 0; }, 600);
+  }
+  document.addEventListener('touchend', _handleTap, { passive: true });
+  document.addEventListener('click', _handleTap);
 
   const waiterSocket = io({ query: { storeId: (SLF.store.rawGet('storeId') || 1) } });
   waiterSocket.on('order:new', (order) => {
@@ -1190,12 +1233,14 @@
     const totalDisplay = formatMoney(totalBase);
     const sessionLabels = buildSessionLabels(active);
     const blocks = active.slice(0, 5).map(o => {
-      const orderTotalBase = (o.items || []).reduce((s, item) => s + toBaseCurrency(item.price, item.currency_code) * item.quantity, 0);
+      const orderTotalBase = (o.items || []).reduce((s, item) => s + toBaseCurrency(item.price, item.currency_code) * (item.quantity - (item.returnedQty || 0)), 0);
       const orderTotalDisplay = formatMoney(orderTotalBase);
       const lines = (o.items || []).map((i, idx) => {
-        const prices = getMenuPrices(i);
-        let priceDisplay = prices.primary;
-        if (prices.secondary) priceDisplay += ` (${prices.secondary})`;
+        const qty = Number(i.quantity || 1) - Number(i.returnedQty || 0);
+        const unitPrices = getMenuPrices(i);
+        const basePrice = toBaseCurrency(i.price, i.currency_code);
+        const subBase = basePrice * qty;
+        let priceDisplay = `<span style="color:#e67e22;font-size:12px;">@${unitPrices.primary}</span> <b>${formatMoney(subBase, false)}</b>`;
         const returnedHtml = i.returnedQty > 0 ? `<span class="item-status returned" style="background:#95a5a6;">${t('returned')} ${i.returnedQty}</span>` : '';
         const isSelected = state.selectedItem && state.selectedItem.orderId === o.id && state.selectedItem.index === idx;
         const returnBtn = i.itemStatus === 'done' && Number(i.quantity) > 1 && Number(i.quantity) > Number(i.returnedQty || 0) && isSelected ? `<button class="item-toggle return-btn" onclick="event.stopPropagation();returnWaiterItem(${o.id},${idx})" style="background:#e74c3c;color:#fff;">${t('returnDish')}</button>` : '';
@@ -1249,17 +1294,17 @@
       const maxReturn = qty - returned;
       if (maxReturn <= 0) { toast('❌ ' + t('noMoreToReturn')); return; }
       const input = $('#confirmInput');
-      input.style.display = 'block';
-      input.max = maxReturn;
-      input.value = 1;
       showConfirm(t('returnQuantityPrompt') + ' (1-' + maxReturn + ')', async function () {
         const returnQty = parseInt(input.value) || 0;
         if (returnQty < 1 || returnQty > maxReturn) { toast('❌ ' + t('invalidReturnQty')); return; }
         await api(`/orders/${id}/items/${index}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnQty: returned + returnQty }) });
-        input.style.display = 'none';
         toast('✅ ' + t('returnSuccess'));
         await load();
       }, t('returnDish'));
+      input.style.display = 'block';
+      input.max = maxReturn;
+      input.value = 1;
+      input.focus();
     } catch (e) { toast('❌ ' + e.message); }
   }
 

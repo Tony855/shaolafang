@@ -125,10 +125,11 @@
     .order-dish-row:nth-child(odd){ background: rgba(102,126,234,0.05); }
     .order-dish-row:nth-child(even){ background: transparent; }
     .order-dish-row:last-child{ border-bottom: none; }
-    .order-dish-left{ display: flex; align-items: center; flex: 1; }
-    .order-dish-name{ color: var(--gray-6); flex: 1; }
-    .order-dish-qty{ color: var(--primary); font-weight: 700; margin-left: 12px; min-width: 40px; text-align: right; }
-    .order-dish-price{ color: var(--gray-5); font-weight: 600; margin-left: 12px; min-width: 60px; text-align: right; }
+    .order-dish-left{ display: flex; align-items: center; flex: 1; min-width: 0; }
+    .order-dish-name{ color: var(--gray-6); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .order-dish-qty{ color: var(--primary); font-weight: 700; margin-left: 12px; width: 45px; text-align: right; flex-shrink: 0; }
+    .order-dish-unit{ color: #e67e22; font-size: 13px; margin-left: 8px; min-width: 60px; text-align: right; flex-shrink: 0; font-weight: 600; }
+    .order-dish-price{ color: var(--gray-5); font-weight: 600; margin-left: 12px; width: 70px; text-align: right; flex-shrink: 0; }
     .order-footer{ display: flex; justify-content: space-between; align-items: center; }
     .order-total{ font-size: 18px; font-weight: 700; color: var(--primary); }
     .order-actions{ display: flex; gap: 8px; }
@@ -181,9 +182,10 @@
     .dish-item:nth-child(odd){ background: rgba(255,255,255,0.04); }
     .dish-item:nth-child(even){ background: transparent; }
     .dish-item .dish-left{ display: flex; align-items: center; flex: 1; }
-    .dish-item .dish-name{ color: #e0e0e0; flex: 1; }
-    .dish-item .dish-qty{ color: #999; margin-left: 12px; min-width: 40px; text-align: right; }
-    .dish-item .dish-price{ color: #ffd93d; font-weight: 600; margin-left: 12px; min-width: 60px; text-align: right; }
+    .dish-item .dish-name{ color: #e0e0e0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dish-item .dish-qty{ color: #999; margin-left: 12px; width: 45px; text-align: right; flex-shrink: 0; }
+    .dish-item .dish-unit{ color: #999; font-size: 12px; margin-left: 6px; width: 55px; text-align: right; flex-shrink: 0; }
+    .dish-item .dish-price{ color: #ffd93d; font-weight: 600; margin-left: 12px; width: 70px; text-align: right; flex-shrink: 0; }
     .modal-total{
       display: flex; justify-content: space-between; padding: 14px 0 4px;
       border-top: 2px solid rgba(255,255,255,0.12); font-size: 16px; font-weight: 700; color: #fff;
@@ -337,8 +339,8 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="languages.min.js?v=20260921e"></script>
-  <script src="assets/core.js"></script>
+  <script src="languages.min.js?v=20260922b"></script>
+  <script src="assets/core.js?v=20260922b"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
   const cashierSocket = io({ query: { storeId: (SLF.store.rawGet('storeId') || 1) } });
@@ -360,6 +362,23 @@
     function t(key, params) {
       return SLF.i18n.t(key, params);
       return SLF.i18n.t(key, params);
+    }
+
+    let currencies = [];
+    let defaultCurrency = { symbol: '$', rate: 1, code: 'USD' };
+    let dualCurrency = { enabled: false, currency: null };
+
+    function formatPrimary(amount) {
+      return defaultCurrency.symbol + (Number(amount || 0) * Number(defaultCurrency.rate || 1)).toFixed(2);
+    }
+    function formatSecondary(amount) {
+      if (!dualCurrency.enabled || !dualCurrency.currency) return '';
+      const secValue = (Number(amount || 0) / (defaultCurrency.rate || 1)) * Number(dualCurrency.currency.rate || 1);
+      return dualCurrency.currency.symbol + secValue.toFixed(2);
+    }
+    function formatMoney(amount) {
+      const sec = formatSecondary(amount);
+      return sec ? formatPrimary(amount) + ' (' + sec + ')' : formatPrimary(amount);
     }
 
     function toast(msg) {
@@ -518,9 +537,10 @@
             '<div class="order-dish-left">' +
               '<span class="order-dish-name">' + i.name + '</span>' +
               '<span class="order-dish-qty">×' + i.quantity + '</span>' +
-              (i.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:12px;"> (' + t('returned') + ' ' + i.returnedQty + ')</span>' : '') +
+              '<span class="order-dish-unit">@' + formatPrimary(i.price) + '</span>' +
+              (i.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:11px;">(' + t('returned') + i.returnedQty + ')</span>' : '') +
             '</div>' +
-            '<span class="order-dish-price">$' + (parseFloat(i.price || 0) * i.quantity).toFixed(2) + '</span>' +
+            '<span class="order-dish-price">' + formatMoney(i.price * (i.quantity - (i.returnedQty || 0))) + '</span>' +
           '</div>'
         ).join('');
         const allItemsDone = (order.items || []).every(i => i.itemStatus === 'done');
@@ -545,7 +565,7 @@
           '<div class="order-info">🕐 ' + formatTime(order.createdAt) + ' · ' + (order.items?.length || 0) + t('dishes') + '</div>' +
           '<div class="order-dishes">' + (dishesHTML || '<div style="color:var(--gray-4);">' + t('noDishes') + '</div>') + '</div>' +
           '<div class="order-footer">' +
-            '<span class="order-total">$' + (parseFloat(order.total || 0).toFixed(2)) + '</span>' +
+            '<span class="order-total">' + formatMoney(order.total) + '</span>' +
             '<div class="order-actions" onclick="event.stopPropagation()">' +
               ((cashierInfo?.permissions?.can_settle && order.status === 'pending') ? (canSettle ? '<button class="btn btn-primary" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'settle'" + ')">' + t('settleOrder') + '</button>' : '<button class="btn btn-primary" disabled style="opacity:0.5;cursor:not-allowed;" title="' + t('itemsNotReady') + '">' + t('settleOrder') + '</button>') : '') +
               (canCancel ? '<button class="btn btn-warning" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'cancel'" + ')">' + t('cancelOrder') + '</button>' : '') +
@@ -563,7 +583,7 @@
       const revenue = todayOrders.filter(o => o.status === 'done').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
       document.getElementById('pendingCount').textContent = pending;
       document.getElementById('todayCount').textContent = todayOrders.length;
-      document.getElementById('todayRevenue').textContent = '$' + revenue.toFixed(2);
+      document.getElementById('todayRevenue').textContent = formatMoney(revenue);
     }
 
     function showOrderDetail(id, action) {
@@ -576,12 +596,13 @@
           '<div class="dish-left">' +
             '<span class="dish-name">' + item.name + '</span>' +
             '<span class="dish-qty">×' + item.quantity + '</span>' +
-            (item.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:12px;"> (' + t('returned') + ' ' + item.returnedQty + ')</span>' : '') +
+            '<span class="dish-unit">@' + formatPrimary(item.price) + '</span>' +
+            (item.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:11px;">(' + t('returned') + item.returnedQty + ')</span>' : '') +
           '</div>' +
-          '<span class="dish-price">$' + (parseFloat(item.price || 0) * item.quantity).toFixed(2) + '</span>' +
+          '<span class="dish-price">' + formatMoney(item.price * (item.quantity - (item.returnedQty || 0))) + '</span>' +
         '</div>'
       ).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">' + t('noDishes') + '</div>';
-      document.getElementById('detailTotal').textContent = '$' + (parseFloat(order.total || 0).toFixed(2));
+      document.getElementById('detailTotal').textContent = formatMoney(order.total);
       const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending' && (order.items||[]).every(i => i.itemStatus === 'done');
       const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
       const canRefund = cashierInfo?.permissions?.can_refund && order.status === 'done';
@@ -668,7 +689,7 @@
       document.getElementById('batchCount').textContent = count;
       if (count > 0) {
         const total = orders.filter(o => selectedIds.has(o.id)).reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
-        document.getElementById('batchTotal').textContent = '$' + total.toFixed(2);
+        document.getElementById('batchTotal').textContent = formatMoney(total);
         bar.style.display = 'flex';
       } else {
         bar.style.display = 'none';
@@ -701,12 +722,12 @@
         html += '<div style="background:#f8f9fa;border-radius:8px;padding:8px;margin-bottom:6px;">';
         html += '<div style="font-weight:700;margin-bottom:4px;">' + (o.order_no || ('#'+o.id)) + ' · ' + (o.table_name || '-') + '</div>';
         (o.items || []).forEach(i => {
-          html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#555;"><span>' + i.name + ' x' + i.quantity + '</span><span>$' + (parseFloat(i.price || 0) * i.quantity).toFixed(2) + '</span></div>';
+          html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#555;"><span>' + i.name + ' x' + i.quantity + ' <span style="color:#999;font-size:11px;">@' + formatPrimary(i.price) + '</span></span><span>' + formatMoney(i.price * (i.quantity - (i.returnedQty || 0))) + '</span></div>';
         });
-        html += '<div style="text-align:right;font-weight:700;color:#333;margin-top:4px;">$' + (parseFloat(o.total || 0)).toFixed(2) + '</div>';
+        html += '<div style="text-align:right;font-weight:700;color:#333;margin-top:4px;">' + formatMoney(o.total) + '</div>';
         html += '</div>';
       });
-      html += '<div style="text-align:right;font-weight:700;font-size:16px;color:#667eea;margin-top:8px;">' + t('total') + ': $' + total.toFixed(2) + '</div>';
+      html += '<div style="text-align:right;font-weight:700;font-size:16px;color:#667eea;margin-top:8px;">' + t('total') + ': ' + formatMoney(total) + '</div>';
       html += '</div>';
       showConfirm(t('batchSettleTitle'), html, async function() {
         try {
@@ -787,6 +808,12 @@
         // 同步 storeId 到统一的 key，供 SLF.api 使用
         SLF.store.rawSet('storeId', storeId);
         document.getElementById('storeName').textContent = cashierInfo.storeName || t('store') + ' #' + storeId;
+        try {
+          const cfg = await SLF.api.get('/public/config?store_id=' + (SLF.store.rawGet('storeId') || 1));
+          currencies = cfg.currencies || [];
+          defaultCurrency = cfg.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' };
+          dualCurrency = cfg.dualCurrency || { enabled: false, currency: null };
+        } catch(e) { console.error('currency load failed', e); }
         await loadOrders();
         setInterval(loadOrders, 15000);
       } catch (e) {
