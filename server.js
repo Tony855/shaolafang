@@ -2124,6 +2124,64 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 超级管理员：按门店综合统计
+app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
+  try {
+    const now = new Date().toISOString();
+    const today = new Date().toISOString().split('T')[0];
+    const rows = await allAsync(`
+      SELECT s.id AS store_id, s.name AS store_name, m.name AS merchant_name,
+        (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id) AS total_orders,
+        (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=?) AS today_orders,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=? AND o.status='done') AS today_revenue,
+        (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id) AS total_sessions,
+        (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id AND ss.expires_at>?) AS online_count
+      FROM stores s
+      LEFT JOIN merchants m ON m.id=s.merchant_id
+      ORDER BY s.id
+    `, [today, today, now]);
+    res.json({ stores: rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 超级管理员：按门店统计在线扫码会话
+app.get('/api/super/online-sessions', requireSuperAdmin, async (req, res) => {
+  try {
+    const now = new Date().toISOString();
+    const rows = await allAsync(`
+      SELECT s.id AS store_id, s.name AS store_name, m.name AS merchant_name,
+             COUNT(ss.token) AS online_count,
+             COUNT(CASE WHEN o.id IS NOT NULL AND o.status='pending' THEN 1 END) AS pending_orders
+      FROM stores s
+      LEFT JOIN merchants m ON m.id = s.merchant_id
+      LEFT JOIN scan_sessions ss ON ss.store_id = s.id AND ss.expires_at > ?
+      LEFT JOIN orders o ON o.table_name = ss.table_name AND o.store_id = s.id AND o.status = 'pending'
+      GROUP BY s.id, s.name, m.name
+      ORDER BY online_count DESC, s.id
+    `, [now]);
+    res.json({ sessions: rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 超级管理员：某门店在线会话详情
+app.get('/api/super/online-sessions/:storeId', requireSuperAdmin, async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId, 10);
+    const now = new Date().toISOString();
+    const store = await getAsync('SELECT s.*, m.name AS merchant_name FROM stores s LEFT JOIN merchants m ON m.id=s.merchant_id WHERE s.id=?', [storeId]);
+    if (!store) return res.status(404).json({ error: '门店不存在' });
+    const sessions = await allAsync(`
+      SELECT ss.table_name, ss.token, ss.created_at, ss.expires_at,
+             (SELECT o.order_no FROM orders o WHERE o.table_name=ss.table_name AND o.store_id=ss.store_id AND o.status='pending' ORDER BY o.id DESC LIMIT 1) AS active_order_no,
+             (SELECT o.total FROM orders o WHERE o.table_name=ss.table_name AND o.store_id=ss.store_id AND o.status='pending' ORDER BY o.id DESC LIMIT 1) AS active_order_total
+      FROM scan_sessions ss
+      WHERE ss.store_id=? AND ss.expires_at > ?
+      ORDER BY ss.created_at DESC
+    `, [storeId, now]);
+    res.json({ store: { id: store.id, name: store.name, merchant_name: store.merchant_name }, sessions });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 超级管理员：服务器负载监控
 app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
   try {
@@ -3932,13 +3990,14 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
       LIMIT 10
     `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
 
-    // 小时分布
+    // 时段分布：按选定日期，每10分钟一个桶
     const hourlyStats = await allAsync(`
-      SELECT HOUR(createdAt) AS hour, COUNT(*) AS orders, SUM(total) AS revenue
+      SELECT CONCAT(LPAD(HOUR(createdAt),2,'0'), ':', LPAD(FLOOR(MINUTE(createdAt)/10)*10, 2, '0')) AS time_bucket,
+             COUNT(*) AS orders, SUM(total) AS revenue
       FROM orders
-      WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt <= ?
-      GROUP BY HOUR(createdAt)
-      ORDER BY hour
+      WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt < ?
+      GROUP BY time_bucket
+      ORDER BY time_bucket
     `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
 
     res.json({

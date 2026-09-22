@@ -333,7 +333,7 @@ select:focus {
   text-align: center;
 }
 </style>
-  <script src="languages.min.js?v=20260921e"></script>
+  <script src="languages.min.js?v=20260922a"></script>
   <script src="assets/core.js"></script>
 </head>
 <body>
@@ -440,28 +440,28 @@ select:focus {
             <div class="value" id="statStores">0</div>
           </div>
         </div>
-        <div class="stat-card stat-orders">
+        <div class="stat-card stat-orders" style="cursor:pointer;" onclick="showStoreBreakdown('orders')">
           <div class="stat-icon">📋</div>
           <div class="stat-content">
             <div class="label" data-i18n="totalOrders">订单总数</div>
             <div class="value" id="statOrders">0</div>
           </div>
         </div>
-        <div class="stat-card stat-revenue">
+        <div class="stat-card stat-revenue" style="cursor:pointer;" onclick="showStoreBreakdown('revenue')">
           <div class="stat-icon">💰</div>
           <div class="stat-content">
             <div class="label" data-i18n="todayRevenue">今日营业额</div>
             <div class="value" id="statRevenue">$0</div>
           </div>
         </div>
-        <div class="stat-card stat-online">
+        <div class="stat-card stat-online" id="cardOnlineClients" style="cursor:pointer;" onclick="showOnlineSessions()">
           <div class="stat-icon">🟢</div>
           <div class="stat-content">
             <div class="label" data-i18n="onlineClients">在线客户端</div>
             <div class="value" id="statOnlineClients">0</div>
           </div>
         </div>
-        <div class="stat-card stat-scan">
+        <div class="stat-card stat-scan" style="cursor:pointer;" onclick="showStoreBreakdown('sessions')">
           <div class="stat-icon">📱</div>
           <div class="stat-content">
             <div class="label" data-i18n="scanSessions">扫码连接数</div>
@@ -1799,6 +1799,129 @@ if (token) showApp();
   }, true);
 })();
 
+</script>
+
+<div class="modal" id="onlineSessionsModal">
+  <div class="modal-card" style="max-width:700px;">
+    <h3><span id="osModalTitle">在线客户端</span><span class="modal-close" onclick="closeOnlineSessions()">✕</span></h3>
+    <div id="osModalBody" style="color:#ccc;font-size:14px;"></div>
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeOnlineSessions()">关闭</button>
+    </div>
+  </div>
+</div>
+<script>
+
+async function showStoreBreakdown(type) {
+  const titles = {
+    orders: '订单总数（按门店）',
+    revenue: '今日营业额（按门店）',
+    sessions: '扫码会话（按门店）'
+  };
+  document.getElementById('osModalTitle').textContent = titles[type] || '门店统计';
+  document.getElementById('osModalBody').innerHTML = '<p>加载中...</p>';
+  document.getElementById('onlineSessionsModal').style.display = 'flex';
+  try {
+    const r = await fetch('/api/super/store-breakdown', { headers: { 'X-Super-Token': SLF.store.rawGet('superToken') || '' } });
+    const d = await r.json();
+    if (!d.stores || !d.stores.length) {
+      document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">暂无门店</p>';
+      return;
+    }
+    let cols = {
+      orders: ['门店', '商户', '总订单', '今日订单'],
+      revenue: ['门店', '商户', '今日营业额', '今日订单'],
+      sessions: ['门店', '商户', '累计扫码', '当前在线']
+    };
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:14px;color:#ddd;">';
+    html += '<tr style="background:rgba(255,255,255,0.08);color:#888;">';
+    cols[type].forEach(h => html += '<th style="padding:10px 12px;text-align:left;font-weight:600;">' + h + '</th>');
+    html += '</tr>';
+    d.stores.forEach(s => {
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">';
+      if (type === 'orders') {
+        html += '<td style="padding:12px;font-weight:600;">' + (s.store_name||'-') + '</td>'
+          + '<td style="padding:12px;color:#666;">' + (s.merchant_name||'-') + '</td>'
+          + '<td style="padding:12px;text-align:center;">' + s.total_orders + '</td>'
+          + '<td style="padding:12px;text-align:center;">' + s.today_orders + '</td>';
+      } else if (type === 'revenue') {
+        html += '<td style="padding:12px;font-weight:600;">' + (s.store_name||'-') + '</td>'
+          + '<td style="padding:12px;color:#666;">' + (s.merchant_name||'-') + '</td>'
+          + '<td style="padding:12px;text-align:center;color:#27ae60;font-weight:600;">$' + Number(s.today_revenue||0).toFixed(2) + '</td>'
+          + '<td style="padding:12px;text-align:center;">' + s.today_orders + '</td>';
+      } else {
+        html += '<td style="padding:12px;font-weight:600;">' + (s.store_name||'-') + '</td>'
+          + '<td style="padding:12px;color:#666;">' + (s.merchant_name||'-') + '</td>'
+          + '<td style="padding:12px;text-align:center;">' + s.total_sessions + '</td>'
+          + '<td style="padding:12px;text-align:center;color:#27ae60;">' + s.online_count + '</td>';
+      }
+      html += '</tr>';
+    });
+    html += '</table>';
+    document.getElementById('osModalBody').innerHTML = html;
+  } catch(e) {
+    document.getElementById('osModalBody').innerHTML = '<p style="color:red;">' + e.message + '</p>';
+  }
+}
+
+async function showOnlineSessions() {
+  document.getElementById('osModalTitle').textContent = '在线客户端（按门店）';
+  document.getElementById('osModalBody').innerHTML = '<p>加载中...</p>';
+  document.getElementById('onlineSessionsModal').style.display = 'flex';
+  try {
+    const r = await fetch('/api/super/online-sessions', { headers: { 'X-Super-Token': SLF.store.rawGet('superToken') || '' } });
+    const d = await r.json();
+    if (!d.sessions || !d.sessions.length) {
+      document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">暂无在线客户端</p>';
+      return;
+    }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:14px;color:#ddd;">';
+    html += '<tr style="background:rgba(255,255,255,0.08);color:#888;"><th style="padding:10px 12px;text-align:left;font-weight:600;">门店</th><th style="padding:10px 12px;text-align:left;font-weight:600;">商户</th><th style="padding:10px 12px;text-align:center;font-weight:600;">在线桌号</th><th style="padding:10px 12px;text-align:center;font-weight:600;">待结订单</th><th style="padding:10px 12px;"></th></tr>';
+    d.sessions.forEach(s => {
+      html += '<tr style="border-bottom:1px solid #eee;">'
+        + '<td style="padding:12px;">' + (s.store_name||'-') + '</td>'
+        + '<td style="padding:12px;color:#666;">' + (s.merchant_name||'-') + '</td>'
+        + '<td style="padding:12px;text-align:center;font-weight:600;color:#27ae60;">' + s.online_count + '</td>'
+        + '<td style="padding:12px;text-align:center;">' + s.pending_orders + '</td>'
+        + '<td style="padding:12px;text-align:right;"><button onclick="showStoreSessions(' + s.store_id + ',\'' + (s.store_name||'').replace(/'/g,'') + '\')" style="padding:6px 14px;border:none;border-radius:8px;background:#667eea;color:#fff;cursor:pointer;font-size:12px;font-weight:600;">详情</button></td>'
+        + '</tr>';
+    });
+    html += '</table>';
+    document.getElementById('osModalBody').innerHTML = html;
+  } catch(e) {
+    document.getElementById('osModalBody').innerHTML = '<p style="color:red;">' + e.message + '</p>';
+  }
+}
+async function showStoreSessions(storeId, storeName) {
+  document.getElementById('osModalTitle').textContent = '在线会话 - ' + storeName;
+  document.getElementById('osModalBody').innerHTML = '<p>加载中...</p>';
+  try {
+    const r = await fetch('/api/super/online-sessions/' + storeId, { headers: { 'X-Super-Token': SLF.store.rawGet('superToken') || '' } });
+    const d = await r.json();
+    if (!d.sessions || !d.sessions.length) {
+      document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">该店暂无在线会话</p>';
+      return;
+    }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+    html += '<tr style="background:rgba(255,255,255,0.08);color:#888;"><th style="padding:10px 12px;text-align:left;font-weight:600;">桌号</th><th style="padding:10px 12px;text-align:left;font-weight:600;">进店时间</th><th style="padding:10px 12px;text-align:left;font-weight:600;">过期时间</th><th style="padding:10px 12px;text-align:left;font-weight:600;">当前订单</th><th style="padding:10px 12px;text-align:right;font-weight:600;">金额</th></tr>';
+    d.sessions.forEach(s => {
+      html += '<tr style="border-bottom:1px solid #eee;">'
+        + '<td style="padding:10px;font-weight:600;">' + (s.table_name||'-') + '</td>'
+        + '<td style="padding:10px;">' + (s.created_at ? new Date(s.created_at).toLocaleString() : '-') + '</td>'
+        + '<td style="padding:10px;color:#999;">' + (s.expires_at ? new Date(s.expires_at).toLocaleString() : '-') + '</td>'
+        + '<td style="padding:10px;">' + (s.active_order_no || '—') + '</td>'
+        + '<td style="padding:10px;text-align:right;">' + (s.active_order_total ? '$' + Number(s.active_order_total).toFixed(2) : '-') + '</td>'
+        + '</tr>';
+    });
+    html += '</table>';
+    document.getElementById('osModalBody').innerHTML = html;
+  } catch(e) {
+    document.getElementById('osModalBody').innerHTML = '<p style="color:red;">' + e.message + '</p>';
+  }
+}
+function closeOnlineSessions() {
+  document.getElementById('onlineSessionsModal').style.display = 'none';
+}
 </script>
 </body>
 </html>

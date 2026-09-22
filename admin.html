@@ -688,7 +688,7 @@
                 </div>
                 <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                     <label id="reportDateLabel" style="color:#ccc;">日期:</label>
-                    <input type="date" id="reportDate" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
+                    <input type="date" id="reportDate" onchange="loadDailyReport()" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
                     <button id="queryReportBtn" onclick="loadDailyReport()" style="background:#e85d3a;color:#fff;border:0;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">查询</button>
                     <button id="exportOrdersBtn" onclick="exportData('orders')" style="background:#3498db;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出订单CSV</button>
                     <button id="exportSalesBtn" onclick="exportData('sales')" style="background:#2ecc71;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出销量CSV</button>
@@ -2355,9 +2355,35 @@
                 toast(`✅ ${tAdmin('dishStatusUpdated')}`);
             } catch (e) { toast('❌ ' + e.message); }
         };
-        let transferOrderId=null;let transferFromTable='';async function showTransferModal(orderId, fromTable){transferFromTable=fromTable;transferOrderId=orderId;document.getElementById('transferTitle').textContent='↔ '+tAdmin('transferOrder');document.getElementById('transferToLabel').textContent=tAdmin('transferTo');document.getElementById('transferCancelBtn').textContent=tAdmin('cancel');document.getElementById('transferConfirmBtn').textContent=tAdmin('confirm');document.getElementById('transferFromLabel').textContent=tAdmin('transferFrom')+': '+fromTable;const select=document.getElementById('transferTargetSelect');try{const res=await SLF.api.get('/tables');const others=(res.tables||res||[]).filter(x=>x.name!==fromTable);select.innerHTML=others.map(x=>'<option value="'+esc(x.name)+'">'+esc(x.name)+'</option>').join('');document.getElementById('transferModal').classList.add('open');}catch(e){toast("❌ "+e.message);}}function closeTransferModal(){document.getElementById('transferModal').classList.remove('open');transferOrderId=null;}async function confirmTransfer(){if(!transferOrderId)return;const target=document.getElementById('transferTargetSelect').value;showConfirm(tAdmin('transferConfirmMsg')+' '+transferFromTable+' → '+target,async function(){try{const res=await SLF.api.post('/orders/'+transferOrderId+'/transfer',{target_table:target});if(res&&res.targetHasOrders){toast('⚠️ '+tAdmin('targetHasOrders'));}toast('✅ '+tAdmin('transferSuccess'));closeTransferModal();loadOrders();}catch(e){toast("❌ "+e.message);}});}function confirmSettleOrder(id) {
-            showConfirm(tAdmin('settleOrderConfirm'), () => statusOrder(id, 'done'), tAdmin('settleOrder'));
-        };
+        let transferOrderId=null;let transferFromTable='';async function showTransferModal(orderId, fromTable){transferFromTable=fromTable;transferOrderId=orderId;document.getElementById('transferTitle').textContent='↔ '+tAdmin('transferOrder');document.getElementById('transferToLabel').textContent=tAdmin('transferTo');document.getElementById('transferCancelBtn').textContent=tAdmin('cancel');document.getElementById('transferConfirmBtn').textContent=tAdmin('confirm');document.getElementById('transferFromLabel').textContent=tAdmin('transferFrom')+': '+fromTable;const select=document.getElementById('transferTargetSelect');try{const res=await SLF.api.get('/tables');const others=(res.tables||res||[]).filter(x=>x.name!==fromTable);select.innerHTML=others.map(x=>'<option value="'+esc(x.name)+'">'+esc(x.name)+'</option>').join('');document.getElementById('transferModal').classList.add('open');}catch(e){toast("❌ "+e.message);}}function closeTransferModal(){document.getElementById('transferModal').classList.remove('open');transferOrderId=null;}async function confirmTransfer(){if(!transferOrderId)return;const target=document.getElementById('transferTargetSelect').value;showConfirm(tAdmin('transferConfirmMsg')+' '+transferFromTable+' → '+target,async function(){try{const res=await SLF.api.post('/orders/'+transferOrderId+'/transfer',{target_table:target});if(res&&res.targetHasOrders){toast('⚠️ '+tAdmin('targetHasOrders'));}toast('✅ '+tAdmin('transferSuccess'));closeTransferModal();loadOrders();}catch(e){toast("❌ "+e.message);}});}let settleOrderId = null;
+        async function confirmSettleOrder(id) {
+            settleOrderId = id;
+            try {
+                const res = await SLF.api.get('/orders/' + id);
+                const o = res.order || res;
+                const items = (o.items || []).map(i => {
+                    const qty = Number(i.quantity||0) - Number(i.returnedQty||0);
+                    return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);">'
+                        + '<span>' + esc(i.name) + ' ×' + i.quantity + ' <span style="color:#e67e22;font-size:12px;">@' + formatMoney(toBasePrice(i)) + '</span></span>'
+                        + '<span style="font-weight:600;">' + formatMoney(toBasePrice(i) * qty) + '</span></div>';
+                }).join('');
+                document.getElementById('settleDetailBody').innerHTML =
+                    '<div style="margin-bottom:12px;color:#888;font-size:13px;">' + (o.order_no||('#'+id)) + ' · ' + esc(o.table_name||'-') + '</div>'
+                    + items
+                    + '<div style="margin-top:12px;text-align:right;font-size:16px;font-weight:700;">' + tAdmin('total') + ': ' + formatMoney(o.total) + '</div>';
+                document.getElementById('settleDetailModal').classList.add('open');
+            } catch(e) { toast('❌ ' + e.message); }
+        }
+        function closeSettleDetail() {
+            document.getElementById('settleDetailModal').classList.remove('open');
+            settleOrderId = null;
+        }
+        async function doSettleOrder() {
+            if (!settleOrderId) return;
+            const id = settleOrderId;
+            closeSettleDetail();
+            try { await statusOrder(id, 'done'); toast('✅ ' + tAdmin('settleOrder')); } catch(e) { toast('❌ ' + e.message); }
+        }
         function confirmCancelOrder(id) {
             showConfirm(tAdmin('cancelOrderConfirm'), () => statusOrder(id, 'canceled'), tAdmin('cancelOrder'));
         };
@@ -3965,7 +3991,6 @@
                 <div class="center">${tAdmin('order')} #${orderId}</div>
                 <div class="separator"></div>
                 <p>${tAdmin('printerConnectHint')}</p>
-                </body></html>
             `);
             printWindow.document.close();
         }
@@ -4005,6 +4030,23 @@
                     </div>
                 `;
 
+                // 小时分布
+                if (data.hourlyStats && data.hourlyStats.length > 0) {
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">⏰ ${tAdmin('hourlyDistribution')} <span style="font-size:12px;color:#888;font-weight:400;">(${data.date})</span></h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
+                    const maxOrders = Math.max(...data.hourlyStats.map(h => h.orders), 1);
+                    for (const h of data.hourlyStats) {
+                        const pct = (h.orders / maxOrders * 100).toFixed(0);
+                        html += `<div style="display:flex;align-items:center;gap:10px;margin:6px 0;">
+                            <span style="width:60px;color:#c8c8d0;font-size:13px;">${h.time_bucket}</span>
+                            <div style="flex:1;background:rgba(255,255,255,.1);border-radius:6px;height:20px;overflow:hidden;">
+                                <div style="width:${pct}%;background:linear-gradient(90deg,#e85d3a,#f39c12);height:100%;border-radius:6px;"></div>
+                            </div>
+                            <span style="width:70px;text-align:right;font-size:13px;color:#fff;font-weight:600;">${h.orders}${tAdmin('orderUnit')} $${Number(h.revenue).toFixed(0)}</span>
+                        </div>`;
+                    }
+                    html += `</div>`;
+                }
+
                 // 桌台收入
                 if (data.tableRevenue && data.tableRevenue.length > 0) {
                     html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🏪 ${tAdmin('revenueByTable')}</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;">`;
@@ -4028,23 +4070,6 @@
                             <span style="font-weight:700;color:#ffd93d;font-size:14px;">${d.quantity || 0} ${tAdmin('portion')}</span>
                         </div>`;
                     });
-                    html += `</div>`;
-                }
-
-                // 小时分布
-                if (data.hourlyStats && data.hourlyStats.length > 0) {
-                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">⏰ ${tAdmin('hourlyDistribution')}</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
-                    const maxOrders = Math.max(...data.hourlyStats.map(h => h.orders), 1);
-                    for (const h of data.hourlyStats) {
-                        const pct = (h.orders / maxOrders * 100).toFixed(0);
-                        html += `<div style="display:flex;align-items:center;gap:10px;margin:6px 0;">
-                            <span style="width:50px;color:#c8c8d0;font-size:13px;">${String(h.hour).padStart(2, '0')}:00</span>
-                            <div style="flex:1;background:rgba(255,255,255,.1);border-radius:6px;height:20px;overflow:hidden;">
-                                <div style="width:${pct}%;background:linear-gradient(90deg,#e85d3a,#f39c12);height:100%;border-radius:6px;"></div>
-                            </div>
-                            <span style="width:70px;text-align:right;font-size:13px;color:#fff;font-weight:600;">${h.orders}${tAdmin('orderUnit')} $${Number(h.revenue).toFixed(0)}</span>
-                        </div>`;
-                    }
                     html += `</div>`;
                 }
 
@@ -4074,5 +4099,16 @@
                 .catch(err => toast(tAdmin('exportFailed') + ': ' + err.message));
         }
     </script>
+
+<div class="order-modal" id="settleDetailModal">
+  <div class="order-modal-card" style="max-width:500px;">
+    <h2 id="settleDetailTitle">💰 结算订单</h2>
+    <div id="settleDetailBody" style="max-height:50vh;overflow-y:auto;color:#ddd;"></div>
+    <div class="order-modal-actions">
+      <button onclick="closeSettleDetail()" class="secondary">取消</button>
+      <button onclick="doSettleOrder()" class="primary">确定结算</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
