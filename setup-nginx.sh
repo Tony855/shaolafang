@@ -49,7 +49,7 @@ if [ -f .env ]; then
 fi
 
 DOMAIN="${DOMAIN:-${QR_DOMAIN:-}}"
-EMAIL="${EMAIL:-admin@example.com}"
+EMAIL="${EMAIL:-v2wallid@gmail.com}"
 BACKEND_PORT="${PORT:-3000}"
 
 # 后端端口不能是80/443
