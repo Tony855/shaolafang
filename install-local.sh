@@ -37,14 +37,24 @@ export DEBIAN_FRONTEND=noninteractive
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 log_info "应用目录: $APP_DIR"
 
+# ===== 首次安装：如果没有 server.js，自动 clone =====
+if [ ! -f "$APP_DIR/server.js" ]; then
+    log_info "未找到 server.js，自动拉取仓库..."
+    cd ~
+    git clone https://Tony855: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@github.com/Tony855/shaolafang.git shaolafang-main
+    APP_DIR="$HOME/shaolafang-main"
+    cd "$APP_DIR"
+    log_success "代码已拉取到 $APP_DIR"
+fi
+
 # ===== 检查核心文件 =====
 if [ ! -f "$APP_DIR/server.js" ]; then
-    log_error "当前目录未找到 server.js，请确认在项目根目录下运行"
+    log_error "当前目录未找到 server.js"
     exit 1
 fi
 
 if [ ! -f "$APP_DIR/package.json" ]; then
-    log_error "当前目录未找到 package.json，请确认在项目根目录下运行"
+    log_error "当前目录未找到 package.json"
     exit 1
 fi
 

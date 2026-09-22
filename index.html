@@ -72,7 +72,7 @@
         .header-logo { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
         .header-logo i { font-size: 22px; }
         .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .header-right select, .header-right button {
+        .header-right button {
             background: rgba(255, 255, 255, 0.2);
             border: none;
             color: #fff;
@@ -87,6 +87,24 @@
             display: flex;
             align-items: center;
             gap: 4px;
+        }
+        .header-right select {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255,255,255,.25);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            height: 32px;
+            max-width: 120px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .header-right select option {
+            color: #333;
+            background: #fff;
         }
         .header-right select option { color: #333; background: #fff; }
         .header-right button:hover, .header-right select:hover { background: rgba(255, 255, 255, 0.35); }
