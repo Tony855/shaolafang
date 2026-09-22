@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
@@ -72,7 +72,7 @@
         .header-logo { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
         .header-logo i { font-size: 22px; }
         .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .header-right button {
+        .header-right select, .header-right button {
             background: rgba(255, 255, 255, 0.2);
             border: none;
             color: #fff;
@@ -87,24 +87,6 @@
             display: flex;
             align-items: center;
             gap: 4px;
-        }
-        .header-right select {
-            background: #fff;
-            border: 1px solid #ddd;
-            color: #333;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            height: 32px;
-            max-width: 120px;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .header-right select option {
-            color: #333;
-            background: #fff;
         }
         .header-right select option { color: #333; background: #fff; }
         .header-right button:hover, .header-right select:hover { background: rgba(255, 255, 255, 0.35); }
@@ -691,10 +673,9 @@
         .header-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis }
         .header-right { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; flex-wrap: wrap; flex-shrink: 0 }
         .header .table-info, .header .status-badge, #customerOrderBtn, .header-right select { white-space: nowrap }
-        .header-right select { min-width: 92px }
         .header-logo { font-size: 24px }
         .table-info { background: rgba(255, 255, 255, .22); border: 1px solid rgba(255, 255, 255, .22); padding: 5px 15px; border-radius: 999px; font-weight: 700 }
-        .header-right select, .header-right button { background: rgba(255, 255, 255, .2); border: 1px solid rgba(255, 255, 255, .16); border-radius: 999px; height: 34px; font-weight: 600 }
+        .header-right button { background: rgba(255, 255, 255, .2); border: 1px solid rgba(255, 255, 255, .16); border-radius: 999px; height: 34px; font-weight: 600 }
         .category-tabs { background: rgba(255, 255, 255, .94); backdrop-filter: blur(14px); top: 76px; padding: 10px 12px 8px; border-bottom: 1px solid rgba(0, 0, 0, .04) }
         .category-tab { background: #f3f4f8; color: #666; border-radius: 999px; padding: 6px 16px; box-shadow: none }
         .category-tab.active { background: linear-gradient(135deg, #ff8a4c, #e84a2a); color: #fff; box-shadow: 0 8px 18px rgba(232, 74, 42, .25) }
@@ -743,7 +724,7 @@
         .main-content, .table-orders, .category-tabs, .header { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)) }
         .cart-bar { padding-bottom: max(12px, env(safe-area-inset-bottom)) }
         .cart-drawer { padding-bottom: env(safe-area-inset-bottom) }
-        button, .add-btn, .category-tab, .header-right select, .checkout-btn, .submit-btn, .close-btn { min-height: 42px }
+        button, .add-btn, .category-tab, .checkout-btn, .submit-btn, .close-btn { min-height: 42px }
         .cart-drawer .cart-item .item-qty button { width: 32px; height: 32px; min-height: 0; flex: 0 0 32px; border-radius: 50%; font-size: 14px }
         .cart-drawer .cart-item .item-remove { width: 32px; height: 32px; min-height: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #fff1f1 }
         .menu-item .info .add-btn { min-height: 0 !important; width: 32px !important; height: 32px !important; flex: 0 0 32px; border-radius: 50% !important; }
@@ -751,7 +732,7 @@
             .header-logo { font-size: 19px }
             .header-logo i { font-size: 18px }
             .table-info { font-size: 11px; padding: 4px 10px }
-            .header-right select, .header-right button { font-size: 11px; padding: 0 9px; height: 32px }
+            .header-right button { font-size: 11px; padding: 0 9px; height: 32px }
             .menu-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px }
             .menu-item .img-wrap { height: 96px }
             .menu-item .info .name { font-size: 13px }
@@ -795,7 +776,7 @@
             .store-name-badge { max-width: none !important; padding: 3px 10px !important; font-size: 12px !important; }
             .table-info { max-width: 120px !important; padding: 3px 10px !important; font-size: 12px !important; }
             .header-right { gap: 6px; }
-            .header-right button, .header-right select { height: 30px !important; padding: 0 10px !important; font-size: 12px !important; }
+            .header-right button { height: 30px !important; padding: 0 10px !important; font-size: 12px !important; }
             .category-tabs { position: fixed !important; top: 97px !important; left: 0 !important; right: 0 !important; display: flex !important; align-items: center; padding: 8px 10px !important; gap: 8px; z-index: 90 !important; }
             .cats-scroll { flex: 1; width: 100%; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
             .cats-scroll::-webkit-scrollbar { display: none; }
@@ -808,18 +789,9 @@
                 display: inline-flex !important; align-items: center !important; justify-content: center !important;
                 flex-shrink: 0 !important; padding: 0 !important; margin: 0 !important;
                 font-size: 16px !important; line-height: 1 !important;
-                box-sizing: border-box !important; overflow: hidden !important; vertical-align: middle !important;
+                box-sizing: border-box !important; vertical-align: middle !important;
             }
             .header-right button * { line-height: 1 !important; }
-            .lang-btn-wrap { position: relative; }
-            .lang-btn-wrap .lang-icon { font-size: 16px; pointer-events: none; line-height: 1; }
-            .lang-btn-wrap select {
-                position: absolute !important; top: 0 !important; left: 0 !important;
-                width: 100% !important; height: 100% !important;
-                opacity: 0 !important; cursor: pointer !important;
-                border: none !important; background: transparent !important;
-                padding: 0 !important; margin: 0 !important;
-            }
         }
         @media (max-width: 480px) {
             .store-name-badge { max-width: none !important; }
@@ -840,6 +812,10 @@
             .cats-scroll { display: contents !important; }
             .main-content { padding-top: 12px !important; }
         }
+
+        /* ============================================================
+           🔥 方案 B：语言选择自定义下拉按钮样式
+           ============================================================ */
         .lang-btn-wrap {
             width: 34px !important; height: 34px !important;
             min-width: 34px !important; max-width: 34px !important;
@@ -847,19 +823,71 @@
             border-radius: 50% !important; background: rgba(255,255,255,0.2) !important;
             display: inline-flex !important; align-items: center !important; justify-content: center !important;
             flex-shrink: 0 !important; padding: 0 !important; margin: 0 !important;
-            box-sizing: border-box !important; overflow: hidden !important;
+            box-sizing: border-box !important;
             position: relative !important; vertical-align: middle !important;
+            border: 1px solid rgba(255,255,255,0.16) !important;
+            color: #fff !important;
+            cursor: pointer;
+            overflow: hidden;
         }
-        .lang-btn-wrap .lang-icon { display: inline !important; font-size: 16px !important; line-height: 1 !important; pointer-events: none !important; }
-        .lang-btn-wrap select {
-            position: absolute !important; top: 0 !important; left: 0 !important;
-            width: 100% !important; height: 100% !important;
-            opacity: 0 !important; cursor: pointer !important;
-            border: none !important; background: transparent !important;
-            color: transparent !important; padding: 0 !important; margin: 0 !important;
-            font-size: 0 !important;
+        .lang-btn-wrap:active { background: rgba(255,255,255,0.35) !important; }
+        .lang-btn-wrap .lang-icon {
+            display: inline-block !important;
+            font-size: 16px !important;
+            line-height: 1 !important;
+            pointer-events: none !important;
         }
-        .lang-btn-wrap select option { color: #333 !important; font-size: 14px !important; }
+
+        /* 下拉面板：放在 body 末尾，fixed 定位，不会被 header 的 overflow 或圆角裁剪 */
+        .lang-menu {
+            position: fixed;
+            z-index: 1200;
+            min-width: 170px;
+            max-width: 240px;
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 12px 40px rgba(20, 20, 40, 0.22), 0 2px 8px rgba(20, 20, 40, 0.08);
+            padding: 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            -webkit-tap-highlight-color: transparent;
+            font-family: inherit;
+        }
+        .lang-menu[hidden] { display: none !important; }
+        .lang-menu button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 14px;
+            border: 0;
+            background: transparent;
+            color: #333;
+            font-size: 15px;
+            font-weight: 500;
+            text-align: left;
+            border-radius: 10px;
+            cursor: pointer;
+            line-height: 1.4;
+            min-height: 40px;
+            transition: background 0.15s ease;
+            font-family: inherit;
+        }
+        .lang-menu button:hover { background: #f4f5f9; }
+        .lang-menu button:active { background: #eceef4; }
+        .lang-menu button.active {
+            background: linear-gradient(135deg, #fff2ec, #ffe6db);
+            color: var(--primary-dark);
+            font-weight: 700;
+        }
+        .lang-menu button.active::after {
+            content: '✓';
+            margin-left: auto;
+            color: var(--primary);
+            font-weight: 700;
+        }
     </style>
     <link rel="stylesheet" href="assets/common.css">
 </head>
@@ -874,16 +902,10 @@
         <div class="header-right">
             <button id="callWaiterBtn" onclick="showCallWaiterConfirm()" hidden title="呼叫服务员">🔔</button>
             <button id="customerOrderBtn" onclick="openCustomerOrders()" hidden title="订单详情">🧾</button>
-            <div class="lang-btn-wrap">
+            <!-- 🔥 方案 B：语言选择按钮（自定义下拉） -->
+            <button type="button" class="lang-btn-wrap" id="langBtn" title="Language / 语言" aria-haspopup="listbox" aria-expanded="false">
                 <span class="lang-icon">🌐</span>
-                <select id="langSelect" style="max-width:60px;font-weight:700;">
-                    <option value="zh">中</option>
-                    <option value="en">EN</option>
-                    <option value="vi">VI</option>
-                    <option value="th">TH</option>
-                    <option value="km">KM</option>
-                </select>
-            </div>
+            </button>
         </div>
     </header>
 
@@ -979,6 +1001,15 @@
         </div>
     </div>
 
+    <!-- ===== 🔥 语言选择下拉面板（放在 body 末尾，独立于 header） ===== -->
+    <div class="lang-menu" id="langMenu" role="listbox" aria-label="Language" hidden>
+        <button type="button" data-lang="zh" role="option">🇨🇳 中文</button>
+        <button type="button" data-lang="en" role="option">🇬🇧 English</button>
+        <button type="button" data-lang="vi" role="option">🇻🇳 Tiếng Việt</button>
+        <button type="button" data-lang="th" role="option">🇹🇭 ภาษาไทย</button>
+        <button type="button" data-lang="km" role="option">🇰🇭 ភាសាខ្មែរ</button>
+    </div>
+
     <script src="languages.min.js?v=20260921e"></script>
     <script src="assets/core.js"></script>
 <script src="/socket.io/socket.io.js"></script>
@@ -989,13 +1020,10 @@
 </script>
     <script>
         // ============================================================
-        // 🔥 修复版本说明：
-        // 1. init() 执行顺序调整：先配置+菜单，最后 applyLanguage()
-        // 2. fetchStoreConfig() 加 try-catch，失败不阻断
-        // 3. applyLanguage() 内部容错，字典/菜单未就绪时不炸
-        // 4. state.currentCategory 改用哨兵值 '__ALL__'
-        // 5. fetchTables() 失败时清空 state.table 并提示
-        // 6. 所有 render/format 函数对 state.menu/currencies 做防御
+        // 🔥 方案 B：语言选择改用自定义下拉
+        // 1. 删除 langSelect 相关逻辑，改用 #langBtn + #langMenu
+        // 2. currentLang 由顶部 IIFE 直接初始化，applyLanguage 不再从 select 读值
+        // 3. 新增 switchLanguage / positionLangMenu / updateLangMenuActive
         // ============================================================
 
         // 常量：分类"全部"的哨兵值，不依赖 i18n
@@ -1159,7 +1187,10 @@
         const toastEl = $('#toast');
         const tableDisplay = $('#tableDisplay');
         const tableInfo = $('#tableInfo');
-        const langSelect = $('#langSelect');
+
+        // 🔥 方案 B：语言选择相关 DOM
+        const langBtn = $('#langBtn');
+        const langMenu = $('#langMenu');
 
         const orderSearchInput = $('#orderSearchInput');
         const storeNameDisplay = $('#storeNameDisplay');
@@ -1908,10 +1939,58 @@
         }
 
         // ============================================================
-        //  语言切换
+        //  🔥 方案 B：语言切换
         // ============================================================
+        // 让菜单中当前语言高亮
+        function updateLangMenuActive() {
+            if (!langMenu) return;
+            langMenu.querySelectorAll('button[data-lang]').forEach(b => {
+                b.classList.toggle('active', b.dataset.lang === currentLang);
+                b.setAttribute('aria-selected', b.dataset.lang === currentLang ? 'true' : 'false');
+            });
+        }
+
+        // 计算下拉面板位置（fixed 定位，相对视口）
+        function positionLangMenu() {
+            if (!langBtn || !langMenu) return;
+            const r = langBtn.getBoundingClientRect();
+            const menuRect = langMenu.getBoundingClientRect();
+            const menuWidth = menuRect.width || 180;
+            const vw = window.innerWidth || document.documentElement.clientWidth;
+            let right = vw - r.right;
+            // 防止右侧超出
+            if (right < 8) right = 8;
+            langMenu.style.top = (r.bottom + 8) + 'px';
+            langMenu.style.right = right + 'px';
+            langMenu.style.left = 'auto';
+        }
+
+        function openLangMenu() {
+            if (!langMenu) return;
+            updateLangMenuActive();
+            langMenu.hidden = false;
+            if (langBtn) langBtn.setAttribute('aria-expanded', 'true');
+            // 先显示再定位，确保能拿到宽度
+            positionLangMenu();
+        }
+
+        function closeLangMenu() {
+            if (!langMenu) return;
+            langMenu.hidden = true;
+            if (langBtn) langBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        // 切换到指定语言（由菜单按钮调用）
+        async function switchLanguage(lang) {
+            if (!['zh','en','vi','th','km'].includes(lang)) return;
+            if (lang === currentLang) return;
+            currentLang = lang;
+            await applyLanguage();
+            updateLangMenuActive();
+        }
+
+        // 应用语言（不再从 <select> 读值，currentLang 已提前设置）
         async function applyLanguage() {
-            currentLang = langSelect.value;
             SLF.store.rawSet('preferredLang', currentLang);
             try {
                 await loadLanguageData(currentLang);
@@ -1979,30 +2058,11 @@
                 });
             } catch (e) {}
 
-            const savedLang = SLF.store.rawGet('preferredLang');
-            if (savedLang && ['zh','en','vi','th','km'].includes(savedLang)) {
-                langSelect.value = savedLang;
-            } else {
-                const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
-                if (sys.startsWith('zh')) langSelect.value = 'zh';
-                else if (sys.startsWith('vi')) langSelect.value = 'vi';
-                else if (sys.startsWith('th')) langSelect.value = 'th';
-                else if (sys.startsWith('km')) langSelect.value = 'km';
-                else if (sys.startsWith('en')) langSelect.value = 'en';
-                else langSelect.value = 'zh';
-            }
+            // 🔥 方案 B：currentLang 已经在文件顶部初始化，此处只需更新菜单高亮
+            updateLangMenuActive();
 
             // ============================================================
-            // 🔥 关键修复：先加载配置和菜单，再应用语言
-            //   之前顺序是 applyLanguage → fetchStoreConfig，导致首次
-            //   renderMenu 时 currencies 尚未初始化，且 applyLanguage 里
-            //   的 renderMenu 会把空菜单渲染出去。现在改为：
-            //   1. 加载货币/店铺配置（失败也继续）
-            //   2. 检查后端
-            //   3. 加载分类顺序、店铺信息
-            //   4. 处理扫码 session（内部会 fetchMenu）
-            //   5. 若未在扫码流程中拉过菜单，则补拉一次
-            //   6. 最后 applyLanguage（此时字典、菜单、配置都就绪）
+            // 顺序：先加载配置和菜单，再应用语言
             // ============================================================
             await fetchStoreConfig();       // 失败也不抛，使用默认值
             await checkBackend();
@@ -2022,7 +2082,48 @@
             document.getElementById('closeDrawer').addEventListener('click', closeDrawer);
             document.getElementById('checkoutBtn').addEventListener('click', openOrderConfirm);
             document.getElementById('submitOrderBtn').addEventListener('click', openOrderConfirm);
-            langSelect.addEventListener('change', applyLanguage);
+
+            // 🔥 方案 B：语言选择事件绑定
+            if (langBtn && langMenu) {
+                // 点击按钮：开/关面板
+                langBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (langMenu.hidden) {
+                        openLangMenu();
+                    } else {
+                        closeLangMenu();
+                    }
+                });
+                // 点击菜单项：切换语言
+                langMenu.querySelectorAll('button[data-lang]').forEach(b => {
+                    b.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const lang = b.dataset.lang;
+                        closeLangMenu();
+                        await switchLanguage(lang);
+                    });
+                });
+                // 点击页面其他区域关闭面板
+                document.addEventListener('click', (e) => {
+                    if (langMenu.hidden) return;
+                    if (langBtn.contains(e.target)) return;
+                    if (langMenu.contains(e.target)) return;
+                    closeLangMenu();
+                });
+                // 视口变化时重新定位或关闭
+                window.addEventListener('resize', () => {
+                    if (!langMenu.hidden) positionLangMenu();
+                });
+                window.addEventListener('orientationchange', () => {
+                    if (!langMenu.hidden) positionLangMenu();
+                });
+                // 页面滚动时（尤其移动端），关闭面板避免错位
+                window.addEventListener('scroll', () => {
+                    if (!langMenu.hidden) closeLangMenu();
+                }, true);
+            }
 
             const customerOrderCloseBtnEl = document.getElementById('customerOrderCloseBtn');
             if (customerOrderCloseBtnEl) {
@@ -2058,6 +2159,7 @@
                     closeCustomerOrders();
                     closeOrderConfirm();
                     closeOrderSuccessNotice();
+                    closeLangMenu();
                 }
             });
         }
@@ -2168,4 +2270,3 @@
     </script>
 </body>
 </html>
-
