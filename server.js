@@ -3108,6 +3108,10 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
         return res.status(400).json({ error: '退回数量无效' });
       }
       items[index].returnedQty = returnQty;
+      // 扣减销量统计
+      if (items[index].id) {
+        await runAsync('UPDATE menus SET sales_count = GREATEST(0, sales_count - ?) WHERE id = ?', [returnQty, items[index].id]);
+      }
       // 重算订单总价
       const newTotal = items.reduce((sum, it) => {
         const price = Number(it.base_price || it.price) || 0;
@@ -3915,13 +3919,15 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
     // 菜品销量排行（当日）
     const dishRanking = await allAsync(`
       SELECT m.name, m.emoji,
-             SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)) AS quantity
+             SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
+               - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS quantity
       FROM orders o
       JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
         ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
       JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
       WHERE o.store_id=? AND o.status='done' AND o.createdAt >= ? AND o.createdAt <= ?
       GROUP BY m.id, m.name, m.emoji
+      HAVING quantity > 0
       ORDER BY quantity DESC
       LIMIT 10
     `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
@@ -3971,10 +3977,18 @@ app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
     `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
 
     const topDishes = await allAsync(`
-      SELECT id, name, emoji, sales_count, price, category
-      FROM menus WHERE store_id=? AND active=1 AND sales_count > 0
+      SELECT m.id, m.name, m.emoji, m.price, m.category,
+             SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
+               - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS sales_count
+      FROM orders o
+      JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
+        ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
+      JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
+      WHERE o.store_id=? AND o.status='done' AND o.createdAt >= ? AND o.createdAt <= ?
+      GROUP BY m.id, m.name, m.emoji, m.price, m.category
+      HAVING sales_count > 0
       ORDER BY sales_count DESC LIMIT 10
-    `, [req.storeId]);
+    `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
 
     res.json({
       today: { revenue: Number(todayStats?.revenue || 0), orders: todayStats?.orders || 0 },

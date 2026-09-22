@@ -982,6 +982,7 @@
 
         // 常量：分类"全部"的哨兵值，不依赖 i18n
         const ALL_CATEGORY = '__ALL__';
+        const HOT_CATEGORY = '__HOT__';
 
         // 初始化统一 i18n - 自动检测顾客手机终端语言
         (function() {
@@ -1045,6 +1046,7 @@
 
         function getCategoryTranslation(cat) {
             if (cat === ALL_CATEGORY) return t('all');
+            if (cat === HOT_CATEGORY) return '🔥 ' + t('hotSelling');
             const result = t('categories');
             if (result && typeof result === 'object' && result[cat]) {
                 return result[cat];
@@ -1607,7 +1609,7 @@
                 return aIdx - bIdx || a.localeCompare(b, 'zh-CN');
             });
             // 🔥 使用哨兵值 ALL_CATEGORY，显示名通过 getCategoryTranslation 翻译
-            const cats = [ALL_CATEGORY, ...sorted];
+            const cats = [ALL_CATEGORY, HOT_CATEGORY, ...sorted];
             const catsScroll = document.getElementById('catsScroll');
             if (catsScroll) {
                 catsScroll.innerHTML = cats.map(c => {
@@ -1628,7 +1630,10 @@
         function renderMenu() {
             let filtered = state.menu;
             // 🔥 用哨兵值判断"全部"
-            if (state.currentCategory !== ALL_CATEGORY) {
+            if (state.currentCategory === HOT_CATEGORY) {
+                filtered = state.menu.filter(function(i){ return (Number(i.sales_count) || 0) > 0; })
+                    .sort(function(a,b){ return (Number(b.sales_count) || 0) - (Number(a.sales_count) || 0); });
+            } else if (state.currentCategory !== ALL_CATEGORY) {
                 filtered = filtered.filter(i => i.category === state.currentCategory);
             }
             const keyword = state.searchKeyword.trim().toLowerCase();
@@ -1640,8 +1645,6 @@
                     return name.includes(keyword) || desc.includes(keyword);
                 });
             }
-            // 按销量排序
-            filtered = [...filtered].sort((a, b) => (Number(b.sales_count) || 0) - (Number(a.sales_count) || 0));
             if (filtered.length === 0) {
                 menuGrid.innerHTML = `<div class="empty-state"><i class="fas fa-utensils"></i><p>${t('noDishes')}</p></div>`;
                 updateUI();
