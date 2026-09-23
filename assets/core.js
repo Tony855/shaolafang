@@ -1,7 +1,7 @@
 ﻿/* ============================================================
    FoodFlow 点餐系统 - 核心库 (core.js)
    统一 SLF 命名空间，所有页面只调用 SLF.*
-   模块：i18n / api / dom / audio / store / log / page / utils
+   模块：i18n / api / audio / store / log / page / utils（DOM/UI 见 modules/ui.js）
    ============================================================ */
 
 (function (global) {
@@ -432,103 +432,6 @@
   };
 
   /* ============================================================
-     SLF.dom - 统一 DOM 工具模块
-     ============================================================ */
-  const dom = {
-    /* HTML 转义 */
-    esc(str) {
-      return String(str ?? '').replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[c]));
-    },
-
-    /* 查询单个元素 */
-    $(selector, parent = document) {
-      return parent.querySelector(selector);
-    },
-
-    /* 查询多个元素 */
-    $$(selector, parent = document) {
-      return Array.from(parent.querySelectorAll(selector));
-    },
-
-    /* 设置文本内容（自动转义） */
-    setText(selector, text, parent) {
-      const el = this.$(selector, parent);
-      if (el) el.textContent = text;
-      return el;
-    },
-
-    /* 设置 HTML 内容（不转义，谨慎使用） */
-    setHTML(selector, html, parent) {
-      const el = this.$(selector, parent);
-      if (el) el.innerHTML = html;
-      return el;
-    },
-
-    /* 设置标题 */
-    setTitle(title) {
-      document.title = title;
-    },
-
-    /* 添加类名 */
-    addClass(selector, className, parent) {
-      const el = this.$(selector, parent);
-      if (el) el.classList.add(className);
-      return el;
-    },
-
-    /* 移除类名 */
-    removeClass(selector, className, parent) {
-      const el = this.$(selector, parent);
-      if (el) el.classList.remove(className);
-      return el;
-    },
-
-    /* 切换类名 */
-    toggleClass(selector, className, parent) {
-      const el = this.$(selector, parent);
-      if (el) el.classList.toggle(className);
-      return el;
-    },
-
-    /* 显示元素 */
-    show(selector, parent) {
-      return this.removeClass(selector, 'hidden', parent);
-    },
-
-    /* 隐藏元素 */
-    hide(selector, parent) {
-      return this.addClass(selector, 'hidden', parent);
-    },
-
-    /* 创建元素 */
-    create(tag, attrs = {}, children = []) {
-      const el = document.createElement(tag);
-      Object.keys(attrs).forEach(key => {
-        if (key === 'className') el.className = attrs[key];
-        else if (key === 'style') el.style.cssText = attrs[key];
-        else if (key.startsWith('on') && typeof attrs[key] === 'function') {
-          el.addEventListener(key.slice(2).toLowerCase(), attrs[key]);
-        }
-        else el.setAttribute(key, attrs[key]);
-      });
-      children.forEach(child => {
-        if (typeof child === 'string') el.appendChild(document.createTextNode(child));
-        else if (child instanceof Node) el.appendChild(child);
-      });
-      return el;
-    },
-
-    /* 清空元素内容 */
-    empty(selector, parent) {
-      const el = this.$(selector, parent);
-      if (el) el.innerHTML = '';
-      return el;
-    },
-  };
-
-  /* ============================================================
      SLF.audio - 统一音频模块（防御式）
      ============================================================ */
   const audio = {
@@ -837,7 +740,6 @@
     CONFIG,
     i18n,
     api,
-    dom,
     audio,
     store,
     log,

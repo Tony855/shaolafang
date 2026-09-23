@@ -1,0 +1,2614 @@
+/*
+ * FoodFlow · admin 页面逻辑（由内联脚本抽出，onclick 函数挂 window）
+ */
+(function(){
+'use strict';
+        // 全局状态
+        const $ = s => document.querySelector(s);
+        let adminToken = SLF.store.rawGetSession('adminToken') || '';
+        let adminId = parseInt(SLF.store.rawGetSession('adminId') || '0', 10);
+        let adminIsPrimary = SLF.store.rawGetSession('adminIsPrimary') === '1';
+        let adminPermissions = {};
+        try { adminPermissions = JSON.parse(SLF.store.rawGetSession('adminPermissions') || '{}'); } catch (e) {}
+
+        // 权限检查：默认有权限，只有明确为 0 才视为无权限
+        function hasPermission(permKey) {
+            // 未设置任何权限信息时（旧登录状态），默认显示，避免误隐藏
+            if (SLF.store.rawGetSession('adminIsPrimary') === null && Object.keys(adminPermissions).length === 0) {
+                return true;
+            }
+            if (adminIsPrimary) return true;
+            // 权限字段未定义时视为有权限（兼容旧数据）
+            if (adminPermissions[permKey] === undefined) return true;
+            return !!adminPermissions[permKey];
+        }
+
+        function applyPermissions() {
+            document.querySelectorAll('.nav-item[data-perm]').forEach(item => {
+                const perm = item.dataset.perm;
+                item.style.display = (perm && !hasPermission(perm)) ? 'none' : '';
+            });
+            document.querySelectorAll('.store-sub-btn[data-perm]').forEach(btn => {
+                const perm = btn.dataset.perm;
+                btn.style.display = (perm && !hasPermission(perm)) ? 'none' : '';
+            });
+            const addBtnMap = {
+                openDishModalBtn: 'can_manage_menu',
+                addTableBtn: 'can_manage_table',
+                addCurrencyBtn: 'can_manage_currency',
+                addPrinterBtn: 'can_manage_printer',
+                addWaiterBtn: 'can_manage_waiter',
+                addStoreBtn: 'can_manage_store'
+            };
+            for (const [btnId, perm] of Object.entries(addBtnMap)) {
+                const btn = document.getElementById(btnId);
+                if (btn) btn.style.display = hasPermission(perm) ? '' : 'none';
+            }
+            const adminManageCard = document.getElementById('adminManageCard');
+            if (adminManageCard) adminManageCard.style.display = hasPermission('can_manage_admin') ? '' : 'none';
+        }
+
+        let menusCache = [];
+        let tablesCache = [];
+        let ordersCache = [];
+        let printedOrders = new Set();
+        let autoPrintPollTimer = null;
+        let currenciesCache = [];
+        let categoriesCache = [];
+        let editingMenuId = null;
+        let editingOrderId = null;
+        let editingOrderStatus = 'pending';
+        let editingTableId = null;
+        let orderTableFilter = '';
+        let adminLang = SLF.store.rawGet('adminLang') || 'zh';
+
+        async function loadAdminLanguage(lang) {
+            const globalDict = (typeof LANGUAGES !== 'undefined' && LANGUAGES[lang]) || {};
+            SLF.i18n.dicts[lang] = { ...globalDict, _loaded: true };
+            SLF.i18n.lang = lang;
+            adminLang = lang;
+            return true;
+        }
+
+        let dualCurrencyEnabled = false;
+        let secondaryCurrencyCode = 'USD';
+        let defaultCurrencyObj = null;
+
+        const tAdmin = (k, params) => SLF.i18n.t(k, params);
+        const L = tAdmin;
+
+        function buildSessionLabels(orders) {
+            const byTable = new Map();
+            for (const o of orders) {
+                if (!byTable.has(o.table)) byTable.set(o.table, []);
+                byTable.get(o.table).push(o);
+            }
+            const labels = new Map();
+            for (const [, tableOrders] of byTable) {
+                const sorted = [...tableOrders].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                const tokenToIndex = SLF.customerGroup.buildIndex(sorted);
+                for (const o of sorted) {
+                    if (o.sessionToken) {
+                        labels.set(o.id, `${tAdmin('customer')}${tokenToIndex.get(o.customerToken)}`);
+                    } else if (sorted.some(x => x.sessionToken)) {
+                        labels.set(o.id, tAdmin('staffOrder'));
+                    }
+                }
+            }
+            return labels;
+        }
+
+
+        function dualAmountSuffix(base) {
+            if (!dualCurrencyEnabled || !secondaryCurrencyCode) return '';
+            const sec = SLF.money.secondary(base, secondaryCurrencyCode);
+            return sec ? ` (${sec})` : '';
+        }
+
+        async function api(path, options = {}) {
+            const adminStoreId = SLF.store.rawGetSession('adminStoreId');
+            if (adminStoreId) SLF.store.rawSet('storeId', adminStoreId);
+            const method = (options.method || 'GET').toUpperCase();
+            if (method === 'GET') return await SLF.api.get(path, options);
+            if (method === 'POST') return await SLF.api.post(path, options.body, options);
+            if (method === 'PUT') return await SLF.api.put(path, options.body, options);
+            if (method === 'DELETE') return await SLF.api.del(path, options);
+            return await SLF.api._request(method, path, options);
+        }
+
+        async function loadMenus() {
+            menusCache = await api('/admin/menu');
+            const categoryFilter = $('#menuCategoryFilter') ? $('#menuCategoryFilter').value : 'all';
+            let filtered = categoryFilter === 'all' ? menusCache : menusCache.filter(m => m.category === categoryFilter);
+            const sortBy = $('#menuSortBy') ? $('#menuSortBy').value : 'default';
+            if (sortBy === 'name_asc') filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+            else if (sortBy === 'name_desc') filtered = [...filtered].sort((a, b) => b.name.localeCompare(a.name, 'zh'));
+            else if (sortBy === 'price_asc') filtered = [...filtered].sort((a, b) => Number(a.price) - Number(b.price));
+            else if (sortBy === 'price_desc') filtered = [...filtered].sort((a, b) => Number(b.price) - Number(a.price));
+            $('#menus').innerHTML = filtered.length ?
+                `<div class="menu-list">${filtered.map(m => {
+                  let priceDisplay = SLF.money.primary(SLF.money.toBase(m.price, (m.currency_code||'USD')));
+                  if (dualCurrencyEnabled && m.secondary_currency_code) {
+                    const base = SLF.money.toBase(m.price, m.currency_code || 'USD');
+                    const sec = SLF.money.secondary(base, m.secondary_currency_code);
+                    if (sec) priceDisplay += ` (${sec})`;
+                  }
+                  return `<div class="menu-item-admin ${m.active ? '' : 'inactive'}">
+                    <div class="menu-thumb">${m.image ? `<img src="/uploads/${esc(m.image)}?v=${Date.now()}">` : esc(m.emoji || '🍽️')}</div>
+                    <div class="menu-info">
+                      <div class="name-row"><span class="name">${esc(m.name)}</span><span class="price">${priceDisplay}</span></div>
+                      <div class="meta">${esc(categoryText(m.category))}${m.desc ? ` · ${esc(m.desc)}` : ''}</div>
+                    </div>
+                    <div class="menu-actions">
+                      ${hasPermission('can_manage_menu') ? '<button onclick="toggleMenuStatus(' + m.id + ',' + (m.active?0:1) + ')">' + (m.active ? tAdmin('unlistDish') : tAdmin('listDish')) + '</button>' : ''}
+                      ${hasPermission('can_manage_menu') ? '<button class="edit-btn" onclick="editMenu(' + m.id + ')">✏️ ' + L('edit') + '</button>' : ''}
+                      ${hasPermission('can_manage_menu') ? '<button class="danger" onclick="removeMenu(' + m.id + ')">' + L('delete') + '</button>' : ''}
+                    </div>
+                  </div>`;
+                }).join('')}</div>` :
+                `<div class="empty-hint">${tAdmin('noDishes')}</div>`;
+        }
+
+        const categoryText = c => { const cat = (SLF.i18n.dicts[SLF.i18n.lang] && SLF.i18n.dicts[SLF.i18n.lang].categories) || {}; return cat[c] || c; };
+
+        async function loadMenuCategories() {
+            categoriesCache = await api('/menu-categories');
+            populateMenuCategorySelect();
+            renderCategoryList();
+        }
+
+        function populateMenuCategorySelect() {
+            const select = $('#menuCategory');
+            select.innerHTML = categoriesCache.map(c => `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
+            const filterSelect = $('#menuCategoryFilter');
+            if (filterSelect) {
+                const currentValue = filterSelect.value;
+                filterSelect.innerHTML = '<option value="all">📋 ' + tAdmin('allCategories') + '</option>' +
+                    categoriesCache.map(c => `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
+                filterSelect.value = currentValue || 'all';
+            }
+        }
+
+        function renderCategoryList() {
+            const box = $('#categoryList');
+            box.innerHTML = categoriesCache.length ?
+                categoriesCache.map(c => `<div class="category-row" draggable="true" data-id="${c.id}">
+              <span class="name">${esc(categoryText(c.name))}</span>
+              <div class="actions"><button onclick="editCategory(${c.id},'${esc(c.name)}')">${L('edit')}</button><button class="danger" onclick="deleteCategory(${c.id})">${L('delete')}</button></div>
+            </div>`).join('') :
+                `<div class="empty-hint">${tAdmin('noData')}</div>`;
+        }
+
+        async function loadTables() {
+            tablesCache = await api('/tables');
+            tablesCache.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true, sensitivity: 'base' }));
+            const statusText = { available: L('available'), occupied: L('occupied'), reserved: L('reserved') };
+            $('#tables').innerHTML = tablesCache.map(t => {
+                const hasPending = ordersCache.some(o => o.table === t.name && o.status === 'pending');
+                const dynamic = hasPending ? 'occupied' : (t.status === 'reserved' ? 'reserved' : 'available');
+                return `<div class="row">
+                  <div><b>${esc(t.name)}</b><small><span class="table-status ${dynamic}">${statusText[dynamic] || dynamic}</span></small></div>
+                  <div class="actions">
+                    ${hasPermission('can_manage_table') ? '<button onclick="editTable(' + t.id + ')">' + L('edit') + '</button>' : ''}
+                    <button onclick="showQr(${t.id})">${tAdmin('qr')}</button>
+                    ${hasPermission('can_manage_table') ? '<button class="danger" onclick="removeTable(' + t.id + ')">' + L('delete') + '</button>' : ''}
+                  </div>
+                </div>`;
+            }).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
+            $('#orderTable').innerHTML = tablesCache.map(t => `<option>${esc(t.name)}</option>`).join('');
+        }
+
+        async function loadOrders() {
+            const orders = await api('/orders');
+            ordersCache = orders;
+            let filtered = orders;
+            if (orderTableFilter) {
+                const q = orderTableFilter.toLowerCase();
+                filtered = orders.filter(o => (o.table_name||o.table||'').toLowerCase().includes(q) || String(o.id).includes(q) || String(o.order_no||'').includes(q));
+            }
+            const statusText = { pending: L('orderPending'), done: L('orderDone'), canceled: L('canceled') };
+            const sessionLabels = buildSessionLabels(filtered);
+            $('#orders').innerHTML = filtered.map(o => `
+                <div class="order-item-admin">
+                  <div class="top"><span class="table-info"><strong>${esc(o.order_no||'#'+o.id)}</strong> · ${tAdmin('table')||L('table')} ${esc(o.table)}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
+                  ${o.note ? `<div class="order-note" style="margin:8px 0;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.2);font-size:13px;color:#f0c040;line-height:1.5;"><strong style="color:#ffd93d;">${esc(L('orderNoteDisplay')||tAdmin('note'))}：</strong>${esc(o.note)}</div>` : ''}
+                  <div class="items">${o.items.map((item,index) => `
+                    <div class="dish-line" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                      <span class="dish-name">${esc(item.name)} ×${item.quantity} <span style="color:#e67e22;font-size:12px;">@${SLF.money.primary(SLF.money.toBase(item.price, (item.currency_code||'USD')))}</span>${item.returnedQty > 0 ? ` <small style="color:#e74c3c;">${tAdmin('returned') || '已退回'} ${item.returnedQty}</small>` : ''}</span>
+                      <span style="font-weight:600;white-space:nowrap;">${SLF.money.primary(SLF.money.toBase(item.price, (item.currency_code||'USD')) * (item.quantity - (item.returnedQty || 0)))}${dualAmountSuffix(SLF.money.toBase(item.price, (item.currency_code||'USD')) * (item.quantity - (item.returnedQty || 0)))}</span>
+                      ${item.itemStatus==='done' ? `<span class="item-status done">${L('itemDone')}</span>` : (o.status==='pending' ? `<button class="item-toggle" onclick="toggleItemStatus(${o.id},${index})">${L('pending')}</button>` : '')}
+                    </div>
+                  `).join('')}</div>
+                  <div class="bottom">
+                    <span class="time">${SLF.utils.formatDateTime(o.createdAt)}</span>
+                    <span class="total">${SLF.money.primary(o.total)}${dualAmountSuffix(o.total)}</span>
+                    <div class="actions">
+                      ${o.status==='done' || o.status==='canceled' ? '' : (hasPermission('can_edit_order') ? `<button class="edit" onclick="editOrder(${o.id})">${L('edit')}</button>` : '')}
+                      <button onclick="printOrder(${o.id})" style="background:#3498db;">🖨️ ${tAdmin('print')}</button>
+                      ${o.status==='pending' ? `<button class="settle-order-btn" onclick="confirmSettleOrder(${o.id})">💰 ${tAdmin('settleOrder')}</button><button onclick="showTransferModal(${o.id},'${o.table_name}')" style="background:#9b59b6;">↔ ${tAdmin('transferOrder')}</button>${hasPermission('can_delete_order') ? `<button class="cancel-order-btn" onclick="confirmCancelOrder(${o.id})">🗑️ ${tAdmin('cancelOrder')}</button>` : ''}` : ''}
+                      ${hasPermission('can_delete_order') ? `<button class="danger" onclick="removeOrder(${o.id})">${L('delete')}</button>` : ''}
+                    </div>
+                  </div>
+                </div>
+              `).join('') || `<div class="empty-hint">${tAdmin('noOrders')}</div>`;
+            updateOrderSummary();
+            if (tablesCache.length) loadTables();
+        }
+
+        async function loadCurrencies() {
+            currenciesCache = await api('/currencies');
+            const defaultCode = currenciesCache.find(c => c.is_default)?.code || currenciesCache[0]?.code || 'USD';
+            $('#menuCurrency').innerHTML = currenciesCache.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)} · ${esc(currencyNameText(c.name,c.code))}</option>`).join('');
+            $('#dualCurrencySelect').innerHTML = currenciesCache.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');
+            $('#menuSecondaryCurrency').innerHTML = currenciesCache.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');
+            if (!editingMenuId) $('#menuCurrency').value = defaultCode;
+            $('#currencies').innerHTML = currenciesCache.map(c => `
+                <div class="row">
+                  <div><b>${esc(c.code)} ${esc(c.symbol)}</b><small>${esc(currencyNameText(c.name,c.code))} · ${tAdmin('currencyRateLabel')} ${esc(c.rate)}${c.is_default ? ` · ${tAdmin('default')}` : ''}</small></div>
+                  <div class="actions">
+                    ${c.is_default ? '' : `<button onclick="setDefaultCurrency(${c.id})">${tAdmin('setDefault')}</button>`}
+                    ${hasPermission('can_manage_currency') ? '<button onclick="editCurrency(' + c.id + ')">' + L('edit') + '</button>' : ''}
+                    ${hasPermission('can_manage_currency') ? '<button class="danger" onclick="removeCurrency(' + c.id + ')">' + L('delete') + '</button>' : ''}
+                  </div>
+                </div>
+              `).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
+        }
+
+        function currencyNameText(name, code) {
+            const map = {
+                en: { USD: 'US Dollar', CNY: 'Chinese Yuan', VND: 'Vietnamese Dong', THB: 'Thai Baht', KHR: 'Cambodian Riel' },
+                vi: { USD: 'Đô la Mỹ', CNY: 'Nhân dân tệ', VND: 'Đồng', THB: 'Bạt Thái', KHR: 'Riel' },
+                th: { USD: 'ดอลลาร์สหรัฐ', CNY: 'หยวนจีน', VND: 'ดองเวียดนาม', THB: 'บาทไทย', KHR: 'เรียลกัมพูชา' },
+                km: { USD: 'ដុល្លារអាមេរិក', CNY: 'យ័នចិន', VND: 'ដុងវៀតណាម', THB: 'បាតថៃ', KHR: 'រៀលខ្មែរ' },
+                zh: { USD: '美元', CNY: '人民币', VND: '越南盾', THB: '泰铢', KHR: '柬埔寨瑞尔' }
+            };
+            return (map[adminLang] && map[adminLang][code]) || name;
+        }
+
+        function translateLoginMessage(msg) {
+            if (!msg) return '';
+            if (msg.includes('商户管理员登录成功')) { const username = msg.split(':')[1] || ''; return tAdmin('merchantAdminLogin') + ': ' + username.trim(); }
+            if (msg.includes('超级管理员登录成功')) { const username = msg.split(':')[1] || ''; return tAdmin('superAdminLogin') + ': ' + username.trim(); }
+            if (msg.includes('用户名不存在')) return tAdmin('usernameNotExist');
+            if (msg.includes('密码错误')) return tAdmin('wrongPassword');
+            if (msg.includes('请输入用户名和密码')) return tAdmin('pleaseEnterCredentials');
+            return msg;
+        }
+
+        async function loadLoginLogs() {
+            try {
+                const logs = await api('/admin/login-logs');
+                $('#loginLogs').innerHTML = logs.length ?
+                    logs.map(log => `<div class="row"><div><b>${SLF.utils.formatDateTime(log.createdAt)}</b><small>${esc(log.ip||'-')} · ${esc(translateLoginMessage(log.message))}</small></div><span class="badge ${log.success?'done':'canceled'}">${log.success ? tAdmin('loginSuccess') : tAdmin('loginFailed')}</span></div>`).join('') :
+                    `<div class="empty-hint">${tAdmin('noData')}</div>`;
+            } catch (e) {
+                $('#loginLogs').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
+            }
+        }
+
+        // ===== 管理员管理 =====
+        const ADMIN_PERMISSIONS = [
+            { key: 'can_manage_menu', labelKey: 'permMenu', icon: '🍽️', group: 'permGroupOps' },
+            { key: 'can_manage_table', labelKey: 'permTable', icon: '🪑', group: 'permGroupOps' },
+            { key: 'can_manage_order', labelKey: 'permOrder', icon: '📋', group: 'permGroupOps' },
+            { key: 'can_delete_order', labelKey: 'permDeleteOrder', icon: '🗑️', group: 'permGroupOps' },
+            { key: 'can_edit_order', labelKey: 'permEditOrder', icon: '✏️', group: 'permGroupOps' },
+            { key: 'can_manage_store', labelKey: 'permStore', icon: '🏪', group: 'permGroupBase' },
+            { key: 'can_manage_waiter', labelKey: 'permWaiter', icon: '👥', group: 'permGroupBase' },
+            { key: 'can_manage_currency', labelKey: 'permCurrency', icon: '💱', group: 'permGroupBase' },
+            { key: 'can_manage_printer', labelKey: 'permPrinter', icon: '🖨️', group: 'permGroupBase' },
+            { key: 'can_manage_cashier', labelKey: 'permCashier', icon: '💳', group: 'permGroupBase' },
+            { key: 'can_manage_admin', labelKey: 'permAdmin', icon: '👤', group: 'permGroupSystem' },
+            { key: 'can_view_logs', labelKey: 'permLogs', icon: '📝', group: 'permGroupSystem' }
+        ];
+
+        function renderAdminPermissions(containerId, permissions, disabled) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const groups = {};
+            ADMIN_PERMISSIONS.forEach(p => {
+                if (!groups[p.group]) groups[p.group] = [];
+                groups[p.group].push(p);
+            });
+            let html = '';
+            for (const [groupKey, perms] of Object.entries(groups)) {
+                html += `<div class="admin-perm-group">
+                    <div class="admin-perm-group-title">${tAdmin(groupKey)}</div>
+                    <div class="admin-perm-items">`;
+                perms.forEach(p => {
+                    const checked = permissions && permissions[p.key] ? 'checked' : '';
+                    const dis = disabled ? 'disabled' : '';
+                    html += `<label class="admin-perm-item ${disabled ? 'disabled' : ''}">
+                        <span class="admin-perm-icon">${p.icon}</span>
+                        <span class="admin-perm-label">${tAdmin(p.labelKey)}</span>
+                        <label class="store-switch">
+                            <input type="checkbox" class="admin-perm-checkbox" data-key="${p.key}" ${checked} ${dis}>
+                            <span class="store-switch-slider"></span>
+                        </label>
+                    </label>`;
+                });
+                html += `</div></div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function collectAdminPermissions(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return {};
+            const perms = {};
+            container.querySelectorAll('.admin-perm-checkbox').forEach(cb => {
+                perms[cb.dataset.key] = cb.checked ? 1 : 0;
+            });
+            return perms;
+        }
+
+        function openAddAdminModal() {
+            if (!hasPermission('can_manage_admin')) { SLF.ui.toast('❌ ' + tAdmin('noPermission')); return; }
+            document.getElementById('addAdminUsername').value = '';
+            document.getElementById('addAdminPassword').value = '';
+            document.getElementById('addAdminDisplayName').value = '';
+            const defaultPerms = {};
+            ADMIN_PERMISSIONS.forEach(p => { defaultPerms[p.key] = p.key === 'can_manage_admin' ? 0 : 1; });
+            renderAdminPermissions('addAdminPermissions', defaultPerms, false);
+            document.getElementById('adminAddModal').classList.add('open');
+        }
+        function closeAddAdminModal() { document.getElementById('adminAddModal').classList.remove('open'); }
+
+        async function loadAdmins() {
+            try {
+                const rows = await api('/admin/admins');
+                $('#adminList').innerHTML = rows.length ?
+                    rows.map(a => `<div class="admin-card">
+                    <div class="info">
+                      <div class="title">${esc(a.display_name)} · ${esc(a.username)}${a.id === adminId ? ' ' + tAdmin('currentAdmin') : ''}</div>
+                      <div class="sub">${a.active?'<span style="color:#43e97b">' + tAdmin('adminActive') + '</span>':'<span style="color:#f5576c">' + tAdmin('adminInactive') + '</span>'} · ${tAdmin('lastLogin')} ${a.last_login_at ? SLF.utils.formatDateTime(a.last_login_at) : tAdmin('neverLogin')}</div>
+                    </div>
+                    <div class="actions">
+                      ${hasPermission('can_manage_admin') ? `<button class="edit-btn" onclick="editAdmin(${a.id}, '${esc(a.username)}', '${esc(a.display_name)}', ${a.active}, {can_manage_menu:${a.can_manage_menu},can_manage_table:${a.can_manage_table},can_manage_order:${a.can_manage_order},can_delete_order:${a.can_delete_order},can_edit_order:${a.can_edit_order},can_manage_store:${a.can_manage_store},can_manage_waiter:${a.can_manage_waiter},can_manage_currency:${a.can_manage_currency},can_manage_printer:${a.can_manage_printer},can_manage_cashier:${a.can_manage_cashier},can_manage_admin:${a.can_manage_admin},can_view_logs:${a.can_view_logs}}, ${a.is_primary})">✏️ ${tAdmin('editAdminBtn')}</button>` : ''}
+                      ${hasPermission('can_manage_admin') ? `<button class="danger" onclick="deleteAdmin(${a.id}, '${esc(a.username)}')" ${a.id === adminId ? 'disabled style="opacity:.4;cursor:not-allowed;"' : ''}>${tAdmin('deleteAdminBtn')}</button>` : ''}
+                    </div>
+                  </div>`).join('') :
+                    `<div class="empty-hint">${tAdmin('noAdmins')}</div>`;
+            } catch (e) {
+                $('#adminList').innerHTML = `<div class="empty-hint">${tAdmin('loadFailed')}</div>`;
+            }
+        }
+
+        async function submitAddAdmin() {
+            if (!hasPermission('can_manage_admin')) { SLF.ui.toast('❌ ' + tAdmin('noPermission')); return; }
+            const username = $('#addAdminUsername').value.trim();
+            const password = $('#addAdminPassword').value;
+            const display_name = $('#addAdminDisplayName').value.trim();
+            if (!username || !password || !display_name) { SLF.ui.toast(tAdmin('fillAllFields')); return; }
+            if (password.length < 6) { SLF.ui.toast(tAdmin('passwordMin6')); return; }
+            const permissions = collectAdminPermissions('addAdminPermissions');
+            try {
+                await api('/admin/admins', { method: 'POST', body: { username, password, display_name, active: 1, permissions } });
+                closeAddAdminModal();
+                SLF.ui.toast('✅ ' + tAdmin('adminAdded'));
+                loadAdmins();
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+
+        function editAdmin(id, username, displayName, active, permissions, isPrimary) {
+            document.getElementById('editAdminId').value = id;
+            document.getElementById('editAdminUsername').value = username || '';
+            document.getElementById('editAdminDisplayName').value = displayName || '';
+            document.getElementById('editAdminPassword').value = '';
+            document.getElementById('editAdminActive').checked = active ? true : false;
+            renderAdminPermissions('editAdminPermissions', permissions, isPrimary);
+            document.getElementById('editAdminPermNotice').style.display = isPrimary ? 'block' : 'none';
+            document.getElementById('adminEditModal').classList.add('open');
+        }
+        function closeAdminEdit() { document.getElementById('adminEditModal').classList.remove('open'); }
+        function saveAdminEdit() {
+            const id = document.getElementById('editAdminId').value;
+            const displayName = document.getElementById('editAdminDisplayName').value.trim();
+            const password = document.getElementById('editAdminPassword').value;
+            const active = document.getElementById('editAdminActive').checked ? 1 : 0;
+            if (!displayName) { SLF.ui.toast('❌ 请输入显示名称'); return; }
+            if (password && password.length < 6) { SLF.ui.toast('❌ 密码至少6位'); return; }
+            const body = { display_name: displayName, active };
+            if (password) body.password = password;
+            const notice = document.getElementById('editAdminPermNotice');
+            if (!notice || notice.style.display !== 'block') {
+                body.permissions = collectAdminPermissions('editAdminPermissions');
+            }
+            api('/admin/admins/' + id, { method: 'PUT', body }).then(() => {
+                SLF.ui.toast('✅ ' + tAdmin('adminUpdated'));
+                closeAdminEdit();
+                loadAdmins();
+            }).catch(e => SLF.ui.toast('❌ ' + e.message));
+        }
+
+        function deleteAdmin(id, username) {
+            showConfirm(tAdmin('deleteAdminConfirm').replace('{username}', username), function() {
+                api('/admin/admins/' + id, { method: 'DELETE' }).then(() => {
+                    SLF.ui.toast('✅ ' + tAdmin('adminDeleted'));
+                    loadAdmins();
+                }).catch(e => SLF.ui.toast('❌ ' + e.message));
+            }, tAdmin('deleteAdminBtn'));
+        }
+
+        // ===== 收银员管理 =====
+        let editingCashierId = null;
+        let allCashiers = [];
+
+        function openAddCashierModal() {
+            if (!hasPermission('can_manage_cashier')) { SLF.ui.toast('❌ ' + tAdmin('noPermission')); return; }
+            editingCashierId = null;
+            document.getElementById('cashierModalTitle').textContent = tAdmin('addCashier');
+            document.getElementById('cashierUsername').value = '';
+            document.getElementById('cashierUsername').disabled = false;
+            document.getElementById('cashierName').value = '';
+            document.getElementById('cashierPassword').value = '';
+            document.getElementById('cashierPassword').placeholder = '至少6位';
+            document.getElementById('cashierActive').checked = true;
+            document.getElementById('cashierCanSettle').checked = true;
+            document.getElementById('cashierCanCancel').checked = true;
+            document.getElementById('cashierCanRefund').checked = false;
+            document.getElementById('cashierCanViewReport').checked = true;
+            document.getElementById('cashierModal').classList.add('open');
+        }
+
+        function editCashier(cashierId) {
+            const cashier = allCashiers.find(c => c.id === cashierId);
+            if (!cashier) return;
+            editingCashierId = cashier.id;
+            document.getElementById('cashierModalTitle').textContent = tAdmin('editCashier');
+            document.getElementById('cashierUsername').value = cashier.username;
+            document.getElementById('cashierUsername').disabled = true;
+            document.getElementById('cashierName').value = cashier.display_name;
+            document.getElementById('cashierPassword').value = '';
+            document.getElementById('cashierPassword').placeholder = '留空则不修改密码';
+            document.getElementById('cashierActive').checked = cashier.active !== false;
+            document.getElementById('cashierCanSettle').checked = cashier.permissions?.can_settle !== false;
+            document.getElementById('cashierCanCancel').checked = cashier.permissions?.can_cancel !== false;
+            document.getElementById('cashierCanRefund').checked = cashier.permissions?.can_refund === true;
+            document.getElementById('cashierCanViewReport').checked = cashier.permissions?.can_view_report !== false;
+            document.getElementById('cashierModal').classList.add('open');
+        }
+
+        function closeCashierModal() {
+            document.getElementById('cashierModal').classList.remove('open');
+            editingCashierId = null;
+        }
+
+        async function loadCashiers() {
+            try {
+                const data = await api('/admin/cashiers');
+                const cashiers = data.cashiers || [];
+                allCashiers = cashiers;
+                $('#cashierList').innerHTML = cashiers.length ?
+                    cashiers.map(c => {
+                        const perms = [];
+                        if (c.permissions?.can_settle) perms.push(tAdmin('canSettle'));
+                        if (c.permissions?.can_cancel) perms.push(tAdmin('canCancel'));
+                        if (c.permissions?.can_refund) perms.push(tAdmin('canRefund'));
+                        if (c.permissions?.can_view_report) perms.push(tAdmin('canViewReport'));
+                        return '<div class="admin-card">' +
+                        '<div class="info">' +
+                          '<div class="title">' + esc(c.display_name) + ' · ' + esc(c.username) + '</div>' +
+                          '<div class="sub">' + (c.active?'<span style="color:#43e97b">' + tAdmin('cashierEnabled') + '</span>':'<span style="color:#f5576c">' + tAdmin('cashierDisabled') + '</span>') + ' · ' + (perms.join(' / ') || tAdmin('noPermission')) + '</div>' +
+                        '</div>' +
+                        '<div class="actions">' +
+                          '<button class="edit-btn" onclick="editCashier(' + c.id + ')">✏️ ' + L('edit') + '</button>' +
+                          '<button class="danger" onclick="deleteCashier(' + c.id + ', \'' + esc(c.username) + '\')">' + L('delete') + '</button>' +
+                        '</div>' +
+                      '</div>';
+                    }).join('') :
+                    '<div class="empty-hint">' + tAdmin('noCashiers') + '</div>';
+            } catch (e) {
+                $('#cashierList').innerHTML = '<div class="empty-hint">' + tAdmin('loadFailed') + '</div>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const cashierForm = document.getElementById('cashierForm');
+            if (cashierForm) {
+                cashierForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const username = document.getElementById('cashierUsername').value.trim();
+                    const display_name = document.getElementById('cashierName').value.trim();
+                    const password = document.getElementById('cashierPassword').value;
+                    const active = document.getElementById('cashierActive').checked;
+                    const permissions = {
+                        can_settle: document.getElementById('cashierCanSettle').checked,
+                        can_cancel: document.getElementById('cashierCanCancel').checked,
+                        can_refund: document.getElementById('cashierCanRefund').checked,
+                        can_view_report: document.getElementById('cashierCanViewReport').checked
+                    };
+                    if (!username || !display_name) { SLF.ui.toast('❌ ' + tAdmin('fillAllFields')); return; }
+                    if (!editingCashierId && !password) { SLF.ui.toast('❌ ' + tAdmin('passwordMin6')); return; }
+                    if (password && password.length < 6) { SLF.ui.toast('❌ ' + tAdmin('passwordMin6')); return; }
+                    try {
+                        if (editingCashierId) {
+                            const body = { display_name, active, permissions };
+                            if (password) body.password = password;
+                            await api('/admin/cashiers/' + editingCashierId, { method: 'PUT', body });
+                            SLF.ui.toast('✅ ' + tAdmin('cashierUpdated'));
+                        } else {
+                            await api('/admin/cashiers', { method: 'POST', body: { username, password, display_name, active, permissions } });
+                            SLF.ui.toast('✅ ' + tAdmin('cashierAdded'));
+                        }
+                        closeCashierModal();
+                        loadCashiers();
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                });
+            }
+        });
+
+        function deleteCashier(id, username) {
+            showConfirm(tAdmin('deleteCashierConfirm').replace('{username}', username), function() {
+                api('/admin/cashiers/' + id, { method: 'DELETE' }).then(() => {
+                    SLF.ui.toast('✅ ' + tAdmin('cashierDeleted'));
+                    loadCashiers();
+                }).catch(e => SLF.ui.toast('❌ ' + e.message));
+            }, tAdmin('deleteCashier'));
+        }
+
+        function switchMenuTab(tab) {
+            $('#menuTabDish').classList.toggle('active', tab === 'dish');
+            $('#dishPanel').style.display = tab === 'dish' ? 'block' : 'none';
+        }
+
+        // ===== 操作日志 =====
+        function translateAuditAction(action) {
+            const labels = tAdmin('auditAction');
+            return (labels && labels[action]) || action;
+        }
+        function parseAuditObject(details) {
+            if (!details) return '';
+            const colonIdx = details.indexOf(':');
+            if (colonIdx > 0) return details.substring(colonIdx + 1).trim();
+            return details;
+        }
+
+        async function loadAuditLogs() {
+            if (!hasPermission('can_view_logs')) {
+                $('#auditLogs').innerHTML = '<div class="empty-hint">' + tAdmin('noPermission') + '</div>';
+                return;
+            }
+            try {
+                const logs = await api('/admin/audit-logs');
+                $('#auditLogs').innerHTML = logs.length ?
+                    logs.map(log => `<div class="row"><div><b>${SLF.utils.formatDateTime(log.created_at)}</b><small>${esc(log.actor_username || '-')} · ${translateAuditAction(log.action)}${parseAuditObject(log.details) ? ' · ' + esc(parseAuditObject(log.details)) : ''}</small></div><span class="badge">${esc(log.ip || '-')}</span></div>`).join('') :
+                    `<div class="empty-hint">${tAdmin('noAuditLogs')}</div>`;
+            } catch (e) {
+                $('#auditLogs').innerHTML = `<div class="empty-hint">${tAdmin('loadFailed')}</div>`;
+            }
+        }
+
+        function switchLogTab(tab) {
+            $('#logTabLogin').classList.toggle('active', tab === 'login');
+            $('#logTabAudit').classList.toggle('active', tab === 'audit');
+            $('#loginLogsPanel').style.display = tab === 'login' ? 'block' : 'none';
+            $('#auditLogsPanel').style.display = tab === 'audit' ? 'block' : 'none';
+            if (tab === 'audit') loadAuditLogs();
+        }
+
+        async function loadWaiters() {
+            try {
+                const rows = await api('/admin/waiters');
+                const stores = await api('/admin/stores');
+                const storeMap = {};
+                stores.forEach(s => storeMap[s.id] = s.name);
+                $('#waiterList').innerHTML = rows.length ?
+                    rows.map(w => `<div class="admin-card">
+                    <div class="info">
+                      <div class="title">${esc(w.display_name)} · ${esc(w.username)}</div>
+                      <div class="sub">${w.active?tAdmin('enabled'):tAdmin('disabled')} · ${tAdmin('storeLabel') || '店铺'}：${storeMap[w.store_id] || tAdmin('mainStore')}</div>
+                      <div class="perms">
+                        <label><input type="checkbox" ${w.can_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_order',this.checked)"> ${tAdmin('placeOrder')}</label>
+                        <label><input type="checkbox" ${w.can_mark_item?'checked':''} onchange="updateWaiterPerm(${w.id},'can_mark_item',this.checked)"> ${tAdmin('serveDish')}</label>
+                        <label><input type="checkbox" ${w.can_complete_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_complete_order',this.checked)"> ${tAdmin('completeOrder')}</label>
+                      </div>
+                    </div>
+                    <div class="actions">
+                      <button class="edit-btn" onclick="openWaiterEdit(${w.id})">✏️ ${L('edit')}</button>
+                      ${hasPermission('can_manage_waiter') ? '<button class="danger" onclick="deleteWaiter(' + w.id + ')">' + L('delete') + '</button>' : ''}
+                    </div>
+                  </div>`).join('') :
+                    `<div class="empty-hint">${tAdmin('noData')}</div>`;
+            } catch (e) {
+                console.error(tAdmin('loadWaiterFailed') + ':', e);
+                $('#waiterList').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
+            }
+        }
+
+        function updateSidebarStore() {
+            const select = document.getElementById('adminStoreSelect');
+            const nameEl = document.getElementById('sidebarStoreName');
+            const codeEl = document.getElementById('sidebarStoreCode');
+            if (!select || !nameEl) return;
+            const opt = select.options[select.selectedIndex];
+            if (opt && opt.value) {
+                nameEl.textContent = opt.text;
+                const storeId = opt.value;
+                if (window._adminStores && window._adminStores.length) {
+                    const s = window._adminStores.find(x => String(x.id) === String(storeId));
+                    if (s && s.code) codeEl.textContent = s.code;
+                    else codeEl.textContent = '';
+                } else {
+                    codeEl.textContent = '';
+                }
+            } else {
+                nameEl.textContent = '未选择店铺';
+                codeEl.textContent = '';
+            }
+        }
+
+        async function loadStores() {
+            try {
+                const rows = await api('/admin/stores');
+                $('#storeList').innerHTML = rows.length ?
+                    rows.map(s => `<div class="admin-card">
+                    <div class="info"><div class="title">${esc(s.name)}</div><div class="sub">${esc(s.code||'')} ${esc(s.address||'')}</div></div>
+                    <div class="actions">
+                      <button class="edit-btn" onclick="openStoreEdit(${s.id})">✏️ ${L('edit')}</button>
+                      <button class="copy" onclick="copyStoreMenu(${s.id})">📋 ${tAdmin('copyMainStoreMenu')}</button>
+                      ${hasPermission('can_manage_store') ? '<button class="danger" onclick="deleteStore(' + s.id + ')">' + L('delete') + '</button>' : ''}
+                    </div>
+                  </div>`).join('') :
+                    `<div class="empty-hint">${tAdmin('noData')}</div>`;
+
+                const adminSelect = $('#adminStoreSelect');
+                const waiterSelect = $('#waiterStoreSelect');
+                const editWaiterStore = $('#editWaiterStore');
+                if (rows.length) {
+                    const optionsHtml = rows.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+                    adminSelect.innerHTML = optionsHtml;
+                    waiterSelect.innerHTML = optionsHtml;
+                    editWaiterStore.innerHTML = optionsHtml;
+                    window._adminStores = rows;
+                    const savedId = SLF.store.rawGetSession('adminStoreId') || '1';
+                    if (rows.some(r => String(r.id) === savedId)) adminSelect.value = savedId;
+                    else {
+                        adminSelect.value = rows[0].id;
+                        SLF.store.rawSetSession('adminStoreId', String(rows[0].id));
+                    }
+                    waiterSelect.value = rows[0].id;
+                    updateSidebarStore();
+                } else {
+                    adminSelect.innerHTML = `<option value="">${tAdmin('noStoreCheckDb')}</option>`;
+                    waiterSelect.innerHTML = `<option value="">${tAdmin('noStore')}</option>`;
+                    editWaiterStore.innerHTML = `<option value="">${tAdmin('noStore')}</option>`;
+                }
+            } catch (e) {
+                console.error(tAdmin('loadStoreFailed') + ':', e);
+                SLF.ui.toast(`❌ ${tAdmin('loadStoreFailed')}: ` + e.message);
+                $('#storeList').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
+                $('#adminStoreSelect').innerHTML = `<option value="">${tAdmin('loadFailedRefresh')}</option>`;
+                $('#waiterStoreSelect').innerHTML = `<option value="">${tAdmin('loadFailed')}</option>`;
+                $('#editWaiterStore').innerHTML = `<option value="">${tAdmin('loadFailed')}</option>`;
+            }
+        }
+
+        async function loadDisplaySettings() {
+            try {
+                const d = await SLF.api.get('/admin/display-settings');
+                if (d) {
+                    dualCurrencyEnabled = !!d.enabled;
+                    secondaryCurrencyCode = d.secondaryCurrencyCode || 'USD';
+                    $('#dualCurrencyEnabled').checked = dualCurrencyEnabled;
+                    $('#dualCurrencySelect').value = secondaryCurrencyCode;
+                }
+                const config = await SLF.api.get('/public/config');
+                if (config) defaultCurrencyObj = config.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' };
+                SLF.money.configure({ currencies: currenciesCache, defaultCurrency: defaultCurrencyObj, dualCurrency: { enabled: dualCurrencyEnabled, currency: secondaryCurrencyCode ? { code: secondaryCurrencyCode } : null } });
+            } catch (e) { console.warn('加载货币配置失败', e); }
+        }
+
+        async function loadOrderPrefixes() {
+            try {
+                const d = await SLF.api.get('/admin/order-prefixes');
+                $('#prefixNormal').value = d.order_prefix_normal || '11';
+                $('#prefixRefund').value = d.order_prefix_refund || '01';
+                $('#prefixDiscount').value = d.order_prefix_discount || '21';
+                $('#prefixVip').value = d.order_prefix_vip || '61';
+                // orderNoResetPeriod DOM 不存在，已移除
+            } catch (e) {}
+        }
+        async function saveOrderPrefixes() {
+            try {
+                await SLF.api.post('/admin/order-prefixes', {
+                    normal: $('#prefixNormal').value,
+                    refund: $('#prefixRefund').value,
+                    discount: $('#prefixDiscount').value,
+                    vip: $('#prefixVip').value,
+                    daily_reset: 'daily'
+                });
+                SLF.ui.toast(L('saveSuccess') || '保存成功');
+            } catch (e) {
+                SLF.ui.toast(L('operationFailed') || '保存失败');
+            }
+        }
+        async function loadNotificationSettings() {
+            try {
+                const d = await SLF.api.get('/admin/notification-settings');
+                if (d) $('#newOrderSoundEnabled').checked = !!d.enabled;
+            } catch (e) { console.warn('加载提示音设置失败', e); }
+        }
+
+        // ===== 操作函数 =====
+        function openCategoryModal() { $('#categoryModal').classList.add('open'); loadMenuCategories(); }
+        function closeCategoryModal() { $('#categoryModal').classList.remove('open'); }
+
+        async function addCategory() {
+            const name = $('#newCategoryName').value.trim();
+            if (!name) { SLF.ui.toast('❌ ' + tAdmin('tableNameRequired')); return; }
+            try {
+                await api('/menu-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name } });
+                $('#newCategoryName').value = '';
+                await loadMenuCategories();
+                SLF.ui.toast('✅ ' + tAdmin('added'));
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+
+        let editingCategoryId = null;
+        function editCategory(id, oldName) {
+            editingCategoryId = id;
+            $('#editCategoryName').value = oldName;
+            $('#categoryEditModalTitle').textContent = tAdmin('editCategory');
+            $('#categoryEditModal').classList.add('open');
+            setTimeout(() => $('#editCategoryName').focus(), 100);
+        }
+        function closeCategoryEditModal() { $('#categoryEditModal').classList.remove('open'); editingCategoryId = null; }
+
+        async function saveCategoryEdit() {
+            const name = $('#editCategoryName').value.trim();
+            if (!name) { SLF.ui.toast(`⚠️ ${tAdmin('nameRequired')}`); return; }
+            try {
+                await api('/menu-categories/' + editingCategoryId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name } });
+                closeCategoryEditModal();
+                await loadMenuCategories();
+                await loadMenus();
+                SLF.ui.toast('✅ ' + tAdmin('updated'));
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+
+        function deleteCategory(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/menu-categories/' + id, { method: 'DELETE' });
+                    await loadMenuCategories();
+                    await loadMenus();
+                    SLF.ui.toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const addCategoryBtn = document.getElementById('addCategoryBtn');
+            if (addCategoryBtn) addCategoryBtn.onclick = addCategory;
+        });
+
+        function openDishModal() {
+            editingMenuId = null;
+            $('#menuForm').reset();
+            $('#menuEmoji').value = '🍖';
+            $('#menuSecondaryCurrency').value = '';
+            $('#dishModalTitle').textContent = tAdmin('addDish');
+            $('#menuSaveButton').textContent = tAdmin('addDish');
+            $('#menuCancelButton').hidden = true;
+            populateMenuCategorySelect();
+            if (currenciesCache.length) {
+                const defaultCode = currenciesCache.find(c => c.is_default)?.code || currenciesCache[0].code;
+                $('#menuCurrency').value = defaultCode;
+            }
+            $('#dishModal').classList.add('open');
+        }
+
+        function closeDishModal() { $('#dishModal').classList.remove('open'); cancelMenuEdit(); }
+
+        function editMenu(id) {
+            const current = menusCache.find(x => x.id === id);
+            if (!current) return;
+            editingMenuId = id;
+            populateMenuCategorySelect();
+            $('#menuName').value = current.name;
+            $('#menuNameEn').value = current.name_en || '';
+            $('#menuPrice').value = current.price;
+            $('#menuCategory').value = current.category;
+            $('#menuCurrency').value = current.currency_code || 'USD';
+            $('#menuUnit').value = current.unit || tAdmin('portion');
+            $('#menuSecondaryCurrency').value = current.secondary_currency_code || '';
+            $('#menuEmoji').value = current.emoji || '';
+            $('#menuDesc').value = current.desc || '';
+            $('#menuDescEn').value = current.desc_en || '';
+            $('#menuImageFile').value = '';
+            $('#dishModalTitle').textContent = tAdmin('menuManage') + ' #' + id;
+            $('#menuSaveButton').textContent = L('save');
+            $('#menuCancelButton').hidden = false;
+            $('#dishModal').classList.add('open');
+        }
+
+        function cancelMenuEdit() {
+            editingMenuId = null;
+            $('#menuForm').reset();
+            $('#menuEmoji').value = '🍖';
+            $('#dishModalTitle').textContent = tAdmin('addDish');
+            $('#menuSaveButton').textContent = tAdmin('addDish');
+            $('#menuCancelButton').hidden = true;
+            if (currenciesCache.length) {
+                const defaultCode = currenciesCache.find(c => c.is_default)?.code || currenciesCache[0].code;
+                $('#menuCurrency').value = defaultCode;
+            }
+        }
+
+        function removeMenu(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/menu/' + id, { method: 'DELETE' });
+                    await loadMenus();
+                    SLF.ui.toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+            });
+        }
+
+        async function toggleMenuStatus(id, active) {
+            try {
+                await api('/menu/' + id + '/status', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { active } });
+                await loadMenus();
+                SLF.ui.toast('✅ ' + (active ? tAdmin('listed') : tAdmin('unlisted')));
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuForm = document.getElementById('menuForm');
+            if (menuForm) {
+                menuForm.onsubmit = async function(e) {
+                    e.preventDefault();
+                    try {
+                        const isEditing = Boolean(editingMenuId);
+                        const form = new FormData();
+                        [
+                            ['name', 'menuName'], ['name_en', 'menuNameEn'], ['price', 'menuPrice'],
+                            ['category', 'menuCategory'], ['currency_code', 'menuCurrency'],
+                            ['emoji', 'menuEmoji'], ['desc', 'menuDesc'], ['desc_en', 'menuDescEn'],
+                            ['unit', 'menuUnit'], ['secondary_currency_code', 'menuSecondaryCurrency']
+                        ].forEach(([k, id]) => {
+                            const el = $('#' + id);
+                            form.append(k, el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value);
+                        });
+                        form.append('show_dual', $('#menuSecondaryCurrency').value ? '1' : '0');
+                        const file = $('#menuImageFile').files[0];
+                        if (file) {
+                            try {
+                                const dataUrl = await new Promise((res, rej) => {
+                                    const fr = new FileReader();
+                                    fr.onload = () => res(fr.result);
+                                    fr.onerror = rej;
+                                    fr.readAsDataURL(file);
+                                });
+                                const img = await new Promise((res, rej) => {
+                                    const i = new Image();
+                                    i.onload = () => res(i);
+                                    i.onerror = rej;
+                                    i.src = dataUrl;
+                                });
+                                const canvas = document.createElement('canvas');
+                                const max = 800;
+                                const scale = Math.min(1, max / Math.max(img.width, img.height));
+                                canvas.width = Math.round(img.width * scale);
+                                canvas.height = Math.round(img.height * scale);
+                                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                                const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
+                                form.append('image', blob, 'menu_' + Date.now() + '.jpg');
+                            } catch (e) {
+                                console.warn('图片压缩失败，使用原图', e);
+                                form.append('image', file);
+                            }
+                        }
+                        await api(isEditing ? '/menu/' + editingMenuId : '/menu', { method: isEditing ? 'PUT' : 'POST', body: form });
+                        closeDishModal();
+                        await loadMenuCategories();
+                        await loadMenus();
+                        SLF.ui.toast('✅ ' + tAdmin('menuManage') + ' ' + (isEditing ? tAdmin('updated') : tAdmin('added')));
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+        });
+
+        function removeTable(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/tables/' + id, { method: 'DELETE' });
+                    await loadTables();
+                    SLF.ui.toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+            });
+        }
+        async function editTable(id) { openTableForm(id); }
+
+        function openTableForm(id) {
+            const current = tablesCache.find(t => t.id === id);
+            if (!current) return;
+            editingTableId = id;
+            $('#tableModalTitle').textContent = tAdmin('editTableTitle') + ' #' + id;
+            $('#editTableName').value = current.name;
+            $('#editTableStatus').value = current.status || 'available';
+            $('#tableModal').classList.add('open');
+        }
+        function closeTableForm() { $('#tableModal').classList.remove('open'); }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const tableSaveBtn = document.getElementById('tableSaveBtn');
+            if (tableSaveBtn) {
+                tableSaveBtn.onclick = async function() {
+                    const name = $('#editTableName').value.trim();
+                    const status = $('#editTableStatus').value;
+                    if (!name) { SLF.ui.toast('❌ ' + tAdmin('tableNameRequired')); return; }
+                    try {
+                        await api('/tables/' + editingTableId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name, status } });
+                        closeTableForm();
+                        await loadTables();
+                        SLF.ui.toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('updated'));
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+            const tableForm = document.getElementById('tableForm');
+            if (tableForm) {
+                tableForm.onsubmit = async function(e) {
+                    e.preventDefault();
+                    try {
+                        await api('/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name: $('#tableName').value.trim() } });
+                        e.target.reset();
+                        await loadTables();
+                        SLF.ui.toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('added'));
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+        });
+
+        function filterOrders() {
+            orderTableFilter = $('#orderTableSearch').value.trim();
+            loadOrders();
+        }
+
+        async function toggleItemStatus(id, index) {
+            try {
+                const order = ordersCache.find(o => o.id === id);
+                if (!order || !order.items[index]) return;
+                if (order.items[index].itemStatus === 'done') { SLF.ui.toast(`❌ ${tAdmin('cannotRevertDone')}`); return; }
+                await api('/orders/' + id + '/items/' + index, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { itemStatus: 'done' } });
+                await loadOrders();
+                SLF.ui.toast(`✅ ${tAdmin('dishStatusUpdated')}`);
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+
+        let transferOrderId = null;
+        let transferFromTable = '';
+        async function showTransferModal(orderId, fromTable) {
+            transferFromTable = fromTable;
+            transferOrderId = orderId;
+            document.getElementById('transferTitle').textContent = '↔ ' + tAdmin('transferOrder');
+            document.getElementById('transferToLabel').textContent = tAdmin('transferTo');
+            document.getElementById('transferCancelBtn').textContent = tAdmin('cancel');
+            document.getElementById('transferConfirmBtn').textContent = tAdmin('confirm');
+            document.getElementById('transferFromLabel').textContent = tAdmin('transferFrom') + ': ' + fromTable;
+            const select = document.getElementById('transferTargetSelect');
+            try {
+                const res = await SLF.api.get('/tables');
+                const others = (res.tables || res || []).filter(x => x.name !== fromTable);
+                select.innerHTML = others.map(x => '<option value="' + esc(x.name) + '">' + esc(x.name) + '</option>').join('');
+                document.getElementById('transferModal').classList.add('open');
+            } catch (e) { SLF.ui.toast("❌ " + e.message); }
+        }
+        function closeTransferModal() {
+            document.getElementById('transferModal').classList.remove('open');
+            transferOrderId = null;
+        }
+        async function confirmTransfer() {
+            if (!transferOrderId) return;
+            const target = document.getElementById('transferTargetSelect').value;
+            showConfirm(tAdmin('transferConfirmMsg') + ' ' + transferFromTable + ' → ' + target, async function() {
+                try {
+                    const res = await SLF.api.post('/orders/' + transferOrderId + '/transfer', { target_table: target });
+                    if (res && res.targetHasOrders) SLF.ui.toast('⚠️ ' + tAdmin('targetHasOrders'));
+                    SLF.ui.toast('✅ ' + tAdmin('transferSuccess'));
+                    closeTransferModal();
+                    loadOrders();
+                } catch (e) { SLF.ui.toast("❌ " + e.message); }
+            });
+        }
+
+        let settleOrderId = null;
+        async function confirmSettleOrder(id) {
+            settleOrderId = id;
+            try {
+                const res = await SLF.api.get('/orders/' + id);
+                const o = res.order || res;
+                const items = (o.items || []).map(i => {
+                    const qty = Number(i.quantity||0) - Number(i.returnedQty||0);
+                    return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);">'
+                        + '<span>' + esc(i.name) + ' ×' + i.quantity + ' <span style="color:#e67e22;font-size:12px;">@' + SLF.money.primary(SLF.money.toBase(i.price, (i.currency_code||'USD'))) + '</span></span>'
+                        + '<span style="font-weight:600;">' + SLF.money.primary(SLF.money.toBase(i.price, (i.currency_code||'USD')) * qty) + '</span></div>';
+                }).join('');
+                document.getElementById('settleDetailBody').innerHTML =
+                    '<div style="margin-bottom:12px;color:#888;font-size:13px;">' + (o.order_no||('#'+id)) + ' · ' + esc(o.table_name||'-') + '</div>'
+                    + items
+                    + '<div style="margin-top:12px;text-align:right;font-size:16px;font-weight:700;">' + tAdmin('total') + ': ' + SLF.money.primary(o.total) + '</div>';
+                document.getElementById('settleDetailModal').classList.add('open');
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+        function closeSettleDetail() {
+            document.getElementById('settleDetailModal').classList.remove('open');
+            settleOrderId = null;
+        }
+        async function doSettleOrder() {
+            if (!settleOrderId) return;
+            const id = settleOrderId;
+            closeSettleDetail();
+            try { await statusOrder(id, 'done'); SLF.ui.toast('✅ ' + tAdmin('settleOrder')); } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+        function confirmCancelOrder(id) {
+            showConfirm(tAdmin('cancelOrderConfirm'), () => statusOrder(id, 'canceled'), tAdmin('cancelOrder'));
+        }
+        async function statusOrder(id, status) {
+            try {
+                await api('/orders/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { status } });
+                await loadOrders();
+                SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + tAdmin('updated'));
+            } catch (e) {
+                const msg = e.message.includes('未完成菜品') ? (L('incompleteItemsError') || e.message) : e.message;
+                SLF.ui.toast('❌ ' + msg);
+                throw e;
+            }
+        }
+        function removeOrder(id) {
+            showPasswordModal(tAdmin('passwordTitle'), async function(password) {
+                try {
+                    await api('/orders/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: { password } });
+                    await loadOrders();
+                    SLF.ui.toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+            });
+        }
+
+        function openOrderForm() {
+            editingOrderId = null;
+            editingOrderStatus = 'pending';
+            $('#orderModalTitle').textContent = tAdmin('addOrder');
+            $('#orderTable').disabled = false;
+            if (tablesCache.length) $('#orderTable').value = tablesCache[0].name;
+            $('#orderItems').innerHTML = '';
+            $('#orderNoteField').value = '';
+            addOrderItem();
+            updateOrderTotal();
+            $('#orderModal').classList.add('open');
+        }
+        function closeOrderForm() { $('#orderModal').classList.remove('open'); }
+        function removeOrderItem(btn) { btn.closest('.order-item-line').remove(); updateOrderTotal(); }
+        function updateOrderTotal() {
+            let total = 0;
+            document.querySelectorAll('#orderItems .order-item-line').forEach(row => {
+                const id = +row.querySelector('select').value;
+                const qty = +row.querySelector('input').value || 0;
+                const menu = menusCache.find(m => m.id === id);
+                if (menu && qty > 0) total += SLF.money.toBase(menu.price, (menu.currency_code||'USD')) * qty;
+            });
+            $('#orderFormTotal').textContent = SLF.money.primary(total);
+        }
+        function addOrderItem(selectedId, quantity) {
+            const line = document.createElement('div');
+            line.className = 'order-item-line';
+            line.innerHTML = `
+                <select>${menusCache.map(m => `<option value="${m.id}">${esc(m.emoji||'🍽️')} ${esc(m.name)} · ${SLF.money.primary(SLF.money.toBase(m.price, (m.currency_code||'USD')))}</option>`).join('')}</select>
+                <input type="number" min="1" step="1" value="${quantity||1}">
+                <button onclick="removeOrderItem(this)">✕</button>
+            `;
+            if (selectedId) line.querySelector('select').value = selectedId;
+            line.querySelectorAll('select,input').forEach(el => {
+                el.addEventListener('input', updateOrderTotal);
+                el.addEventListener('change', updateOrderTotal);
+            });
+            $('#orderItems').appendChild(line);
+            updateOrderTotal();
+        }
+        function addLockedOrderItem(item) {
+            const line = document.createElement('div');
+            line.className = 'order-item-line locked';
+            line.dataset.status = 'done';
+            line.innerHTML = `
+                <select disabled><option value="${item.id}" selected>${esc(item.name)}</option></select>
+                <input type="number" value="${item.quantity}" disabled>
+                <span class="item-status done">${L('itemDone')}</span>
+            `;
+            $('#orderItems').appendChild(line);
+            updateOrderTotal();
+        }
+
+        async function editOrder(id) {
+            try {
+                let o = ordersCache.find(x => x.id === id);
+                if (!o) o = await api('/orders/' + id);
+                if (!o) return;
+                editingOrderId = id;
+                editingOrderStatus = o.status || 'pending';
+                $('#orderModalTitle').textContent = tAdmin('orderManage') + ' ' + (o.order_no || ('#'+id));
+                $('#orderTable').value = o.table;
+                $('#orderTable').disabled = true;
+                $('#orderItems').innerHTML = '';
+                o.items.forEach(item => {
+                    if (item.itemStatus === 'done') addLockedOrderItem(item);
+                    else addOrderItem(item.id, item.quantity);
+                });
+                $('#orderNoteField').value = o.note || '';
+                updateOrderTotal();
+                $('#orderModal').classList.add('open');
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const orderSaveBtn = document.getElementById('orderSaveBtn');
+            if (orderSaveBtn) {
+                orderSaveBtn.onclick = async function() {
+                    const rows = [...document.querySelectorAll('#orderItems .order-item-line')];
+                    const items = [];
+                    rows.forEach(row => {
+                        const id = +row.querySelector('select').value;
+                        const quantity = +row.querySelector('input').value;
+                        const itemStatus = row.dataset.status === 'done' ? 'done' : 'pending';
+                        if (id && quantity > 0) items.push({ id, quantity, itemStatus });
+                    });
+                    try {
+                        const noteValue = $('#orderNoteField').value.trim().slice(0, 200);
+                        const payload = editingOrderId ? { items, status: editingOrderStatus, note: noteValue } : { table: $('#orderTable').value, items, note: noteValue };
+                        await api(editingOrderId ? '/orders/' + editingOrderId : '/orders', {
+                            method: editingOrderId ? 'PUT' : 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        closeOrderForm();
+                        await loadOrders();
+                        SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + (editingOrderId ? tAdmin('updated') : tAdmin('added')));
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+            const addOrderItemBtn = document.getElementById('addOrderItemBtn');
+            if (addOrderItemBtn) addOrderItemBtn.onclick = function() { addOrderItem(); };
+        });
+
+        let editingCurrencyId = null;
+        async function editCurrency(id) {
+            const data = await api('/currencies');
+            const c = data.find(x => x.id === id);
+            if (!c) return;
+            editingCurrencyId = id;
+            $('#editCurrencyId').value = id;
+            $('#editCurrencyCode').value = c.code || '';
+            $('#editCurrencyName').value = c.name || '';
+            $('#editCurrencySymbol').value = c.symbol || '';
+            $('#editCurrencyRate').value = c.rate || 1;
+            $('#currencyEditTitle').textContent = tAdmin('editCurrency') + ' - ' + (c.code || '');
+            $('#currencyEditModal').classList.add('open');
+        }
+        function closeCurrencyEdit() { $('#currencyEditModal').classList.remove('open'); editingCurrencyId = null; }
+        async function saveCurrencyEdit() {
+            const id = editingCurrencyId;
+            if (!id) return;
+            const name = $('#editCurrencyName').value.trim();
+            const symbol = $('#editCurrencySymbol').value.trim();
+            const rate = parseFloat($('#editCurrencyRate').value) || 1;
+            try {
+                await api('/currencies/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name, symbol, rate } });
+                closeCurrencyEdit();
+                await loadCurrencies();
+                SLF.ui.toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('updated'));
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+        async function setDefaultCurrency(id) {
+            const c = currenciesCache.find(x => x.id === id);
+            try {
+                await api('/currencies/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { ...c, is_default: true } });
+                await loadCurrencies();
+                SLF.ui.toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('updated'));
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+        function removeCurrency(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/currencies/' + id, { method: 'DELETE' });
+                    await loadCurrencies();
+                    SLF.ui.toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const currencyForm = document.getElementById('currencyForm');
+            if (currencyForm) {
+                currencyForm.onsubmit = async function(e) {
+                    e.preventDefault();
+                    try {
+                        await api('/currencies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+                            code: $('#currencyCode').value,
+                            symbol: $('#currencySymbol').value,
+                            name: $('#currencyName').value,
+                            rate: +$('#currencyRate').value
+                        }});
+                        e.target.reset();
+                        await loadCurrencies();
+                        SLF.ui.toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('added'));
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+        });
+
+        async function updateWaiterPerm(id, key, val) {
+            try {
+                await api('/admin/waiters/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { [key]: val } });
+                SLF.ui.toast('✅ ' + tAdmin('updated'));
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); loadWaiters(); }
+        }
+        function deleteWaiter(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/admin/waiters/' + id, { method: 'DELETE' });
+                    loadWaiters();
+                    SLF.ui.toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const addWaiterBtn = document.getElementById('addWaiterBtn');
+            if (addWaiterBtn) {
+                addWaiterBtn.onclick = async function() {
+                    const username = $('#waiterUsernameInput').value.trim();
+                    const password = $('#waiterPasswordInput').value;
+                    const display_name = $('#waiterNameInput').value.trim();
+                    const store_id = parseInt($('#waiterStoreSelect').value) || 1;
+                    if (!username || !password || !display_name) { SLF.ui.toast(`❌ ${tAdmin('waiterInfoRequired')}`); return; }
+                    try {
+                        await api('/admin/waiters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { username, password, display_name, can_order: 1, can_mark_item: 1, can_complete_order: 1, store_id } });
+                        $('#waiterUsernameInput').value = '';
+                        $('#waiterPasswordInput').value = '';
+                        $('#waiterNameInput').value = '';
+                        loadWaiters();
+                        SLF.ui.toast('✅ ' + tAdmin('added'));
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+        });
+
+        function deleteStore(id) {
+            showConfirm(tAdmin('confirmDelete'), async function() {
+                try {
+                    await api('/admin/stores/' + id, { method: 'DELETE' });
+                    loadStores();
+                    SLF.ui.toast('✅ ' + tAdmin('deleted'));
+                } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+            });
+        }
+        function copyStoreMenu(storeId) {
+            showConfirm(tAdmin('confirmCopyMenu'), async function() {
+                try {
+                    const res = await api('/admin/stores/' + storeId + '/copy-menu', { method: 'POST' });
+                    SLF.ui.toast('✅ ' + res.message);
+                    loadStores();
+                    if (document.getElementById('module-menu').classList.contains('active')) loadMenus();
+                } catch (e) { SLF.ui.toast(`❌ ${tAdmin('copyFailed')}: ` + e.message); }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const addStoreBtn = document.getElementById('addStoreBtn');
+            if (addStoreBtn) {
+                addStoreBtn.onclick = async function() {
+                    const name = $('#storeNameInput').value.trim();
+                    const code = $('#storeCodeInput').value.trim();
+                    const address = $('#storeAddressInput').value.trim();
+                    if (!name) { SLF.ui.toast(`❌ ${tAdmin('enterStoreName')}`); return; }
+                    try {
+                        await api('/admin/stores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name, code, address } });
+                        $('#storeNameInput').value = '';
+                        $('#storeCodeInput').value = '';
+                        $('#storeAddressInput').value = '';
+                        loadStores();
+                        SLF.ui.toast('✅ ' + tAdmin('added'));
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+            const passwordForm = document.getElementById('passwordForm');
+            if (passwordForm) {
+                passwordForm.onsubmit = async function(e) {
+                    e.preventDefault();
+                    try {
+                        await api('/admin/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+                            oldPassword: $('#oldPassword').value,
+                            newPassword: $('#newPassword').value
+                        }});
+                        e.target.reset();
+                        SLF.ui.toast('✅ ' + tAdmin('passwordTitle') + ' ' + tAdmin('updated'));
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+        });
+
+        async function showQr(id) {
+            try {
+                const lang = SLF.store.rawGet('adminLang') || 'zh';
+                window.open('/qr-print?tableId=' + id + '&lang=' + lang, '_blank');
+            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const saveDisplaySettingsBtn = document.getElementById('saveDisplaySettingsBtn');
+            if (saveDisplaySettingsBtn) {
+                saveDisplaySettingsBtn.onclick = async function() {
+                    try {
+                        await SLF.api.post('/admin/display-settings', {
+                            enabled: document.getElementById('dualCurrencyEnabled').checked,
+                            secondaryCurrencyCode: document.getElementById('dualCurrencySelect').value
+                        });
+                        SLF.ui.toast('✅ ' + tAdmin('displaySettingsSaved'));
+                        await loadDisplaySettings();
+                        await loadOrderPrefixes();
+                        await loadMenus();
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+            const saveNotifySettingsBtn = document.getElementById('saveNotifySettingsBtn');
+            if (saveNotifySettingsBtn) {
+                saveNotifySettingsBtn.onclick = async function() {
+                    try {
+                        await SLF.api.post('/admin/notification-settings', { enabled: document.getElementById('newOrderSoundEnabled').checked });
+                        SLF.ui.toast('✅ ' + tAdmin('notifySettingsSaved'));
+                        await loadNotificationSettings();
+                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                };
+            }
+            const resetDataBtn = document.getElementById('resetDataBtn');
+            if (resetDataBtn) {
+                resetDataBtn.onclick = function() {
+                    showPasswordModal(tAdmin('resetDataPasswordMsg'), function(password) {
+                        showConfirm(tAdmin('resetDataConfirmMsg'), async function() {
+                            try {
+                                await SLF.api.post('/admin/reset-data', { password });
+                                SLF.ui.toast('✅ ' + tAdmin('resetSuccess'));
+                                await loadOrders();
+                                await loadTables();
+                                await loadLoginLogs();
+                            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+                        }, tAdmin('resetDataConfirmTitle'));
+                    }, tAdmin('resetDataPasswordTitle'));
+                };
+            }
+        });
+
+        // ===== 服务员编辑功能 =====
+        async function openWaiterEdit(id) {
+            try {
+                const waiter = await api('/admin/waiters');
+                const target = waiter.find(w => w.id === id);
+                if (!target) { SLF.ui.toast(`❌ ${tAdmin('waiterNotFound')}`); return; }
+                $('#editWaiterId').value = target.id;
+                $('#editWaiterUsername').value = target.username;
+                $('#editWaiterPassword').value = '';
+                $('#editWaiterDisplayName').value = target.display_name;
+                const stores = await api('/admin/stores');
+                const select = $('#editWaiterStore');
+                select.innerHTML = stores.map(s => `<option value="${s.id}" ${s.id === target.store_id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+                $('#editWaiterCanOrder').checked = !!target.can_order;
+                $('#editWaiterCanMarkItem').checked = !!target.can_mark_item;
+                $('#editWaiterCanCompleteOrder').checked = !!target.can_complete_order;
+                $('#waiterEditTitle').textContent = '🧑‍🍳 ' + tAdmin('editWaiter') + ' #' + id;
+                $('#waiterEditModal').classList.add('open');
+            } catch (e) { SLF.ui.toast(`❌ ${tAdmin('loadWaiterFailed')}: ` + e.message); }
+        }
+        function closeWaiterEdit() { $('#waiterEditModal').classList.remove('open'); }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const saveWaiterEditBtn = document.getElementById('saveWaiterEditBtn');
+            if (saveWaiterEditBtn) {
+                saveWaiterEditBtn.onclick = async function() {
+                    const id = parseInt($('#editWaiterId').value);
+                    const username = $('#editWaiterUsername').value.trim();
+                    const display_name = $('#editWaiterDisplayName').value.trim();
+                    const store_id = parseInt($('#editWaiterStore').value);
+                    const password = $('#editWaiterPassword').value.trim();
+                    const can_order = $('#editWaiterCanOrder').checked ? 1 : 0;
+                    const can_mark_item = $('#editWaiterCanMarkItem').checked ? 1 : 0;
+                    const can_complete_order = $('#editWaiterCanCompleteOrder').checked ? 1 : 0;
+                    if (!username || !display_name) { SLF.ui.toast(`❌ ${tAdmin('usernameAndNameRequired')}`); return; }
+                    try {
+                        const payload = { username, display_name, store_id, can_order, can_mark_item, can_complete_order };
+                        if (password) payload.password = password;
+                        await api('/admin/waiters/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                        closeWaiterEdit();
+                        await loadWaiters();
+                        SLF.ui.toast(`✅ ${tAdmin('waiterUpdated')}`);
+                    } catch (e) { SLF.ui.toast(`❌ ${tAdmin('updateFailed')}: ` + e.message); }
+                };
+            }
+        });
+
+        // ===== 店铺编辑功能 =====
+        async function openStoreEdit(id) {
+            try {
+                const stores = await api('/admin/stores');
+                const target = stores.find(s => s.id === id);
+                if (!target) { SLF.ui.toast(`❌ ${tAdmin('storeNotFound')}`); return; }
+                $('#editStoreId').value = target.id;
+                $('#editStoreName').value = target.name;
+                $('#editStoreCode').value = target.code || '';
+                $('#editStoreAddress').value = target.address || '';
+                $('#editStoreActive').checked = !!target.active;
+                const qrLangs = (target.qr_languages || '').split(',').map(s => s.trim()).filter(Boolean);
+                document.querySelectorAll('#qrLangSelector input[type="checkbox"]').forEach(cb => { cb.checked = qrLangs.includes(cb.value); });
+                $('#storeEditTitle').textContent = '🏪 ' + tAdmin('editStore') + ' #' + id;
+                $('#storeEditModal').classList.add('open');
+            } catch (e) { SLF.ui.toast(`❌ ${tAdmin('loadStoreFailed')}: ` + e.message); }
+        }
+        function closeStoreEdit() { $('#storeEditModal').classList.remove('open'); }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const editStoreActive = document.getElementById('editStoreActive');
+            if (editStoreActive) {
+                editStoreActive.addEventListener('change', function() {
+                    const statusText = this.checked ? tAdmin('storeActive') : tAdmin('storeDisabled');
+                    document.getElementById('storeEditStatusText').textContent = statusText;
+                });
+            }
+            const saveStoreEditBtn = document.getElementById('saveStoreEditBtn');
+            if (saveStoreEditBtn) {
+                saveStoreEditBtn.onclick = async function() {
+                    const id = parseInt($('#editStoreId').value);
+                    const name = $('#editStoreName').value.trim();
+                    const code = $('#editStoreCode').value.trim();
+                    const address = $('#editStoreAddress').value.trim();
+                    const active = $('#editStoreActive').checked ? 1 : 0;
+                    const qrLanguages = Array.from(document.querySelectorAll('#qrLangSelector input[type="checkbox"]:checked')).map(cb => cb.value).join(',');
+                    if (!name) { SLF.ui.toast(`❌ ${tAdmin('storeNameRequired')}`); return; }
+                    try {
+                        await api('/admin/stores/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name, code, address, active, qr_languages: qrLanguages } });
+                        closeStoreEdit();
+                        await loadStores();
+                        SLF.ui.toast(`✅ ${tAdmin('storeUpdated')}`);
+                    } catch (e) { SLF.ui.toast(`❌ ${tAdmin('updateFailed')}: ` + e.message); }
+                };
+            }
+            document.querySelectorAll('.edit-modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) this.classList.remove('open');
+                });
+            });
+        });
+
+        function updateOrderSummary() {
+            const pending = ordersCache.filter(o => o.status === 'pending');
+            const done = ordersCache.filter(o => o.status === 'done');
+            const pendingAmount = pending.reduce((s, o) => s + Number(o.total || 0), 0);
+            const doneAmount = done.reduce((s, o) => s + Number(o.total || 0), 0);
+            $('#pendingOrderCount').textContent = pending.length;
+            $('#pendingOrderAmount').textContent = SLF.money.primary(pendingAmount);
+            $('#doneOrderCount').textContent = done.length;
+            $('#doneOrderAmount').textContent = SLF.money.primary(doneAmount);
+        }
+
+        function getCurrentModule() {
+            const activeNav = document.querySelector('.nav-item.active');
+            return activeNav ? activeNav.dataset.module : 'menu';
+        }
+
+        function switchAdminModule(module) {
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.module === module));
+            document.querySelectorAll('.module-panel').forEach(p => p.classList.toggle('active', p.id === 'module-' + module));
+            if (module === 'orders') loadOrders();
+            else if (module === 'tables') loadTables();
+            else if (module === 'menu') loadMenus();
+            else if (module === 'currencies') loadCurrencies();
+            else if (module === 'logs') loadLoginLogs();
+            else if (module === 'waiters') loadWaiters();
+            else if (module === 'stores') loadStores();
+            else if (module === 'reservations') loadReservations();
+            else if (module === 'calls') loadWaiterCalls();
+            else if (module === 'printers') loadPrinters();
+            else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); loadDailyReport(); loadReportSummary(); }
+            else if (module === 'admins') loadAdmins();
+            else if (module === 'cashiers') loadCashiers();
+            applyPermissions();
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('adminSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
+            document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+        }
+        function closeSidebar() {
+            const sidebar = document.getElementById('adminSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // 汉堡按钮拖动
+        (function() {
+            const btn = document.getElementById('hamburgerBtn');
+            if (!btn) return;
+            let isDragging = false;
+            let startX, startY, startLeft, startTop;
+            let hasMoved = false;
+            function getPos(e) {
+                if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                return { x: e.clientX, y: e.clientY };
+            }
+            function onStart(e) {
+                if (window.innerWidth > 1024) return;
+                isDragging = true;
+                hasMoved = false;
+                const pos = getPos(e);
+                startX = pos.x; startY = pos.y;
+                const rect = btn.getBoundingClientRect();
+                startLeft = rect.left; startTop = rect.top;
+                btn.classList.add('dragging');
+                btn.style.transition = 'none';
+            }
+            function onMove(e) {
+                if (!isDragging) return;
+                const pos = getPos(e);
+                const dx = pos.x - startX, dy = pos.y - startY;
+                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) { hasMoved = true; e.preventDefault(); }
+                let newLeft = Math.max(0, Math.min(window.innerWidth - btn.offsetWidth, startLeft + dx));
+                let newTop = Math.max(0, Math.min(window.innerHeight - btn.offsetHeight, startTop + dy));
+                btn.style.left = newLeft + 'px';
+                btn.style.top = newTop + 'px';
+                e.preventDefault();
+            }
+            function onEnd() {
+                if (!isDragging) return;
+                isDragging = false;
+                btn.classList.remove('dragging');
+                btn.style.transition = '';
+                if (hasMoved) {
+                    const rect = btn.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    if (centerX < window.innerWidth / 2) btn.style.left = '8px';
+                    else btn.style.left = (window.innerWidth - btn.offsetWidth - 8) + 'px';
+                    if (rect.top < 60) btn.style.top = '8px';
+                    else if (rect.bottom > window.innerHeight - 60) btn.style.top = (window.innerHeight - btn.offsetHeight - 8) + 'px';
+                } else {
+                    toggleSidebar();
+                }
+            }
+            btn.addEventListener('mousedown', onStart);
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+            btn.addEventListener('touchstart', onStart, { passive: false });
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onEnd);
+        })();
+
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const module = this.dataset.module;
+                switchAdminModule(module);
+                if (window.innerWidth <= 1024) closeSidebar();
+            });
+        });
+
+        async function refresh() {
+            try {
+                await loadCurrencies();
+                await loadMenuCategories();
+                await loadStores();
+                await loadDisplaySettings();
+                await loadOrderPrefixes();
+                await loadNotificationSettings();
+                const loadTasks = [loadMenus(), loadTables(), loadOrders(), loadLoginLogs()];
+                if (hasPermission('can_manage_admin')) loadTasks.push(loadAdmins());
+                if (hasPermission('can_view_logs')) loadTasks.push(loadAuditLogs());
+                await Promise.all(loadTasks);
+                const currentModule = getCurrentModule();
+                if (currentModule) switchAdminModule(currentModule);
+            } catch (e) {
+                SLF.ui.toast('❌ ' + e.message);
+                throw e;
+            }
+        }
+
+        function applyAdminLanguage() {
+            document.title = tAdmin('headerTitle');
+            $('#adminHeaderTitle').textContent = tAdmin('headerTitle');
+            $('#adminLang').value = adminLang;
+            const dishText = $('#menuTabDishText'); if (dishText) dishText.textContent = tAdmin('dishManagement');
+            const loginLogText = $('#logTabLoginText'); if (loginLogText) loginLogText.textContent = tAdmin('loginLogs');
+            const auditLogText = $('#logTabAuditText'); if (auditLogText) auditLogText.textContent = tAdmin('auditLogs');
+            const categoryBtnText = $('#categoryBtnText'); if (categoryBtnText) categoryBtnText.textContent = tAdmin('menuCategory');
+            $('#logoutBtn').textContent = tAdmin('logout');
+            $('#confirmCancelBtn').textContent = L('cancel') || '取消';
+            // 服务员编辑模态框翻译
+            $('#waiterEditUsernameLabel').textContent = tAdmin('waiterUsername');
+            $('#waiterEditPasswordLabel').textContent = tAdmin('waiterPassword') + '（留空不修改）';
+            $('#waiterEditDisplayNameLabel').textContent = tAdmin('waiterDisplayName');
+            $('#waiterEditStoreLabel').textContent = tAdmin('waiterStore');
+            $('#waiterEditPermissionLabel').textContent = tAdmin('waiterPermission');
+            $('#permOrderLabel').textContent = tAdmin('permOrder');
+            $('#permOrderDesc').textContent = tAdmin('permOrderDesc');
+            $('#permMarkItemLabel').textContent = tAdmin('permMarkItem');
+            $('#permMarkItemDesc').textContent = tAdmin('permMarkItemDesc');
+            $('#permCompleteLabel').textContent = tAdmin('permCompleteOrder');
+            $('#permCompleteDesc').textContent = tAdmin('permCompleteDesc');
+            $('#editWaiterUsername').placeholder = tAdmin('waiterUsernamePlaceholder');
+            $('#editWaiterPassword').placeholder = tAdmin('waiterPasswordPlaceholder');
+            $('#editWaiterDisplayName').placeholder = tAdmin('waiterNamePlaceholder');
+            $('#waiterEditCancelBtn').textContent = L('cancel') || '取消';
+            $('#saveWaiterEditBtn').textContent = L('save') || '保存';
+            // 店铺编辑模态框翻译
+            $('#storeEditNameLabel').textContent = tAdmin('storeName');
+            $('#storeEditCodeLabel').textContent = tAdmin('storeCode');
+            $('#storeEditAddressLabel').textContent = tAdmin('storeAddress');
+            $('#storeEditQrLangLabel').textContent = tAdmin('qrDisplayLanguages');
+            $('#storeEditStatusLabel').textContent = tAdmin('storeStatus');
+            $('#editStoreName').placeholder = tAdmin('storeNamePlaceholder');
+            $('#editStoreCode').placeholder = tAdmin('storeCodePlaceholder');
+            $('#editStoreAddress').placeholder = tAdmin('storeAddressPlaceholder');
+            $('#storeEditCancelBtn').textContent = L('cancel') || '取消';
+            $('#saveStoreEditBtn').textContent = L('save') || '保存';
+            const editStoreActive = document.getElementById('editStoreActive');
+            if (editStoreActive) {
+                const statusText = editStoreActive.checked ? tAdmin('storeActive') : tAdmin('storeDisabled');
+                $('#storeEditStatusText').textContent = statusText;
+            }
+            $('#confirmOkBtn').textContent = L('confirm') || '确定';
+            $('#confirmTitle').textContent = L('confirmTitle') || '确认操作';
+            $('#passwordModalTitle').textContent = tAdmin('passwordModalTitle') || '请输入密码';
+            $('#passwordModalMessage').textContent = tAdmin('passwordModalMessage') || '请输入管理员密码以确认操作';
+            $('#passwordModalInput').placeholder = tAdmin('passwordModalPlaceholder') || '请输入密码';
+            $('#passwordCancelBtn').textContent = L('cancel') || '取消';
+            $('#passwordOkBtn').textContent = L('confirm') || '确定';
+            $('#editAdminTitle').textContent = '👤 ' + tAdmin('editAdminTitle');
+            $('#editAdminUsernameLabel').textContent = tAdmin('editAdminUsernameLabel');
+            $('#editAdminDisplayNameLabel').textContent = tAdmin('editAdminDisplayNameLabel');
+            $('#editAdminDisplayName').placeholder = tAdmin('editAdminDisplayNamePlaceholder');
+            $('#editAdminPasswordLabel').textContent = tAdmin('editAdminPasswordLabel');
+            $('#editAdminPassword').placeholder = tAdmin('editAdminPasswordPlaceholder');
+            $('#editAdminStatusLabel').textContent = tAdmin('editAdminStatusLabel');
+            $('#editAdminActiveTitle').textContent = tAdmin('editAdminActiveTitle');
+            $('#editAdminActiveDesc').textContent = tAdmin('editAdminActiveDesc');
+            $('#editAdminPermNotice').textContent = tAdmin('editAdminPermNotice');
+            $('#editAdminCancelBtn').textContent = L('cancel') || '取消';
+            $('#saveAdminEditBtn').textContent = L('save') || '保存';
+            $('#adminInfoTitle').textContent = tAdmin('adminInfoTitle');
+            $('#adminInfoUsernameLabel').textContent = tAdmin('adminInfoUsername');
+            $('#adminInfoMerchantLabel').textContent = tAdmin('adminInfoMerchant');
+            $('#adminInfoCodeLabel').textContent = tAdmin('adminInfoCode') || '商户编码';
+            $('#adminInfoStoreCountLabel').textContent = tAdmin('adminInfoStoreCount');
+            $('#adminInfoContactLabel').textContent = tAdmin('adminInfoContact');
+            $('#adminInfoPhoneLabel').textContent = tAdmin('adminInfoPhone');
+            $('#adminInfoStatusLabel').textContent = tAdmin('adminInfoStatus');
+            $('#adminInfoCreatedLabel').textContent = tAdmin('adminInfoCreated');
+            $('#adminInfoLogoutBtn').textContent = tAdmin('logout');
+            $('#todayRevenueLabel').textContent = tAdmin('todayRevenue');
+            $('#monthRevenueLabel').textContent = tAdmin('monthRevenue');
+            $('#hotDishesTitle').textContent = tAdmin('hotDishesTitle');
+            document.querySelectorAll('[data-i18n-nav]').forEach(el => {
+                const map = {
+                    menu: L('menuManage'), tables: L('tablesManage'), orders: L('orderManage'),
+                    currencies: tAdmin('currencyManageTitle'), reservations: tAdmin('reservationManage'),
+                    calls: tAdmin('callWaiterManage') || '顾客消息', printers: tAdmin('printerManage'),
+                    reports: tAdmin('reportManage'), logs: tAdmin('logsTitle'),
+                    waiters: tAdmin('waitersManage'), stores: tAdmin('storesManage'),
+                    storeSettings: tAdmin('storeSettingsNav'), systemSettings: tAdmin('systemSettings')
+                };
+                el.textContent = map[el.dataset.i18nNav] || el.textContent;
+            });
+            $('#menuFormTitle').textContent = tAdmin('menuManage');
+            $('#openDishModalBtn').textContent = tAdmin('addDish');
+            const sortSelect = $('#menuSortBy');
+            if (sortSelect) {
+                const currentValue = sortSelect.value;
+                sortSelect.innerHTML = `
+                    <option value="default">🔄 ${tAdmin('defaultSort')}</option>
+                    <option value="name_asc">🔤 ${tAdmin('nameAsc')}</option>
+                    <option value="name_desc">🔤 ${tAdmin('nameDesc')}</option>
+                    <option value="price_asc">💰 ${tAdmin('priceAsc')}</option>
+                    <option value="price_desc">💰 ${tAdmin('priceDesc')}</option>
+                `;
+                sortSelect.value = currentValue;
+            }
+            $('#dishModalTitle').textContent = editingMenuId ? tAdmin('menuManage') + ' #' + editingMenuId : tAdmin('addDish');
+            $('#categoryModalTitle').textContent = tAdmin('dishCategoryManage');
+            $('#newCategoryName').placeholder = tAdmin('newCategory');
+            $('#addCategoryBtn').textContent = tAdmin('addCategory');
+            $('#closeCategoryBtn').textContent = tAdmin('close');
+            $('#menuName').placeholder = tAdmin('dishName');
+            $('#menuNameEn').placeholder = tAdmin('nameEn');
+            $('#menuPrice').placeholder = tAdmin('price');
+            $('#menuUnit').placeholder = tAdmin('unit');
+            $('#menuEmoji').placeholder = tAdmin('icon');
+            $('#menuDesc').placeholder = tAdmin('desc');
+            $('#menuDescEn').placeholder = tAdmin('descEn');
+            $('#currencyDualLabel').textContent = tAdmin('dualCurrency');
+            $('#menuSecondaryCurrencyLabel').textContent = tAdmin('secondaryCurrency');
+            $('#menuSaveButton').textContent = editingMenuId ? L('save') : tAdmin('addDish');
+            $('#menuCancelButton').textContent = tAdmin('cancelEdit');
+            populateMenuCategorySelect();
+            $('#tablePanelTitle').textContent = tAdmin('tableManageTitle');
+            $('#tableName').placeholder = tAdmin('tableName');
+            $('#addTableBtn').textContent = tAdmin('addTable');
+            $('#orderPanelTitle').textContent = tAdmin('orderManage');
+            $('#openOrderBtn').textContent = tAdmin('addOrder');
+            $('#pendingLabel').textContent = tAdmin('pendingOrders');
+            $('#doneLabel').textContent = tAdmin('completedOrders');
+            $('#currencyPanelTitle').textContent = tAdmin('currencyManageTitle');
+            $('#currencyCode').placeholder = tAdmin('currencyCode');
+            $('#currencySymbol').placeholder = tAdmin('currencySymbol');
+            $('#currencyName').placeholder = tAdmin('currencyName');
+            $('#currencyRate').placeholder = tAdmin('currencyRateLabel');
+            $('#addCurrencyBtn').textContent = tAdmin('addCurrency');
+            $('#currencyCodeLabel').textContent = tAdmin('currencyCodeLabel');
+            $('#currencySymbolLabel').textContent = tAdmin('currencySymbolLabel');
+            $('#currencyNameLabel').textContent = tAdmin('currencyName');
+            $('#currencyRateLabel').textContent = tAdmin('currencyRateLabel');
+            $('#logsPanelTitle').textContent = tAdmin('logsTitle');
+            $('#waitersPanelTitle').textContent = tAdmin('waitersManage');
+            $('#storesPanelTitle').textContent = tAdmin('storesManage');
+            $('#storeNameInput').placeholder = tAdmin('storeName');
+            $('#storeCodeInput').placeholder = tAdmin('storeCode');
+            $('#storeAddressInput').placeholder = tAdmin('storeAddress');
+            $('#addStoreBtn').textContent = tAdmin('addStore');
+            $('#storeNameLabel').textContent = tAdmin('storeName');
+            $('#storeCodeLabel').textContent = tAdmin('storeCode');
+            $('#storeAddressLabel').textContent = tAdmin('storeAddress');
+            $('#waiterUsernameInput').placeholder = tAdmin('waiterUsername');
+            $('#waiterPasswordInput').placeholder = tAdmin('waiterPassword');
+            $('#waiterNameInput').placeholder = tAdmin('waiterDisplayName');
+            $('#addWaiterBtn').textContent = tAdmin('addWaiter');
+            $('#waiterUsernameLabel').textContent = tAdmin('waiterUsername');
+            $('#waiterPasswordLabel').textContent = tAdmin('waiterPassword');
+            $('#waiterNameLabel').textContent = tAdmin('waiterDisplayName');
+            $('#waiterStoreLabel').textContent = tAdmin('waiterStore');
+            $('#passwordPanelTitle').textContent = tAdmin('systemSettings');
+            $('#changePasswordCardTitle').textContent = '🔐 ' + tAdmin('changePassword');
+            $('#newPasswordLabel').textContent = tAdmin('newPasswordShort');
+            $('#oldPassword').placeholder = tAdmin('oldPassword');
+            $('#newPassword').placeholder = tAdmin('newPassword');
+            $('#changePasswordBtn').textContent = tAdmin('changePassword');
+            $('#notifyPanelTitle').textContent = tAdmin('notifyTitle');
+            $('#newOrderSoundLabel').textContent = tAdmin('newOrderSoundLabel');
+            $('#saveNotifySettingsBtn').textContent = tAdmin('saveNotifySettings');
+            $('#resetDataCardTitle').textContent = tAdmin('resetDataCardTitle');
+            $('#resetDataDesc').textContent = tAdmin('resetDataDesc');
+            $('#resetDataBtn').textContent = tAdmin('resetDataBtn');
+            $('#orderTableLabel').textContent = tAdmin('tableField');
+            $('#orderDishListLabel').textContent = tAdmin('dishList');
+            $('#addOrderItemBtn').textContent = tAdmin('addDishLine');
+            $('#orderTotalLabel').textContent = tAdmin('total');
+            $('#orderNoteFieldLabel').textContent = L('orderNoteDisplay') || '备注';
+            $('#orderNoteField').placeholder = L('orderNotePlaceholder') || '';
+            $('#orderCancelBtn').textContent = L('cancel');
+            $('#orderSaveBtn').textContent = tAdmin('saveOrder');
+            $('#tableNameLabel').textContent = tAdmin('tableNameLabel');
+            $('#tableStatusLabel').textContent = tAdmin('statusLabel');
+            $('#tableCancelBtn').textContent = L('cancel');
+            $('#tableSaveBtn').textContent = tAdmin('save');
+            const tableStatusOptions = $('#editTableStatus').options;
+            tableStatusOptions[0].text = L('available');
+            tableStatusOptions[1].text = L('occupied');
+            tableStatusOptions[2].text = L('reserved');
+            $('#currencyEditTitle').textContent = tAdmin('editCurrency');
+            $('#currencyEditCodeLabel').textContent = tAdmin('currencyCodeLabel');
+            $('#currencyEditNameLabel').textContent = tAdmin('currencyName');
+            $('#currencyEditSymbolLabel').textContent = tAdmin('currencySymbolLabel');
+            $('#currencyEditRateLabel').textContent = tAdmin('currencyRateLabel');
+            $('#currencyCancelBtn').textContent = L('cancel');
+            $('#currencySaveBtn').textContent = L('save');
+            $('#saveDisplaySettingsBtn').textContent = tAdmin('saveDisplaySettings');
+            $('#addAdminModalTitle').textContent = tAdmin('addAdminModalTitle');
+            $('#addAdminUsernameLabel').textContent = tAdmin('addAdminUsernameLabel');
+            $('#addAdminPasswordLabel').textContent = tAdmin('addAdminPasswordLabel');
+            $('#addAdminDisplayNameLabel').textContent = tAdmin('addAdminDisplayNameLabel');
+            $('#addAdminPermissionsLabel').textContent = tAdmin('addAdminPermissionsLabel');
+            $('#editAdminPermissionsLabel').textContent = tAdmin('editAdminPermissionsLabel');
+            $('#reservationsPanelTitle').textContent = '📅 ' + tAdmin('reservationManage');
+            $('#callsPanelTitle').textContent = '🔔 ' + tAdmin('callWaiterManage');
+            $('#refreshCallsBtn').textContent = tAdmin('refreshCalls');
+            $('#printersPanelTitle').textContent = '🖨️ ' + tAdmin('printerManage');
+            $('#printerNameLabel').textContent = tAdmin('printerName');
+            $('#printerTypeLabel').textContent = tAdmin('connectionType');
+            $('#printerIpLabel').textContent = tAdmin('ipAddress');
+            $('#printerPortLabel').textContent = tAdmin('port');
+            $('#printerWidthLabel').textContent = tAdmin('paperWidth');
+            $('#printerBrandLabel').textContent = tAdmin('brand');
+            $('#printerName').placeholder = tAdmin('printerNamePlaceholder');
+            $('#printerIp').placeholder = tAdmin('ipPlaceholder');
+            $('#printerDefaultLabel').textContent = tAdmin('setAsDefault');
+            $('#autoPrintTitle').textContent = tAdmin('autoPrintTitle') || '自动打印小票';
+            $('#autoPrintDesc').textContent = tAdmin('autoPrintDesc') || '开启后，新订单创建时自动打印小票到默认打印机';
+            $('#addPrinterBtn').textContent = tAdmin('addPrinter');
+            const printerTypeOptions = $('#printerType').options;
+            printerTypeOptions[0].text = tAdmin('networkPrinter');
+            printerTypeOptions[1].text = tAdmin('usbPrinter');
+            printerTypeOptions[2].text = tAdmin('bluetoothPrinter');
+            const printerWidthOptions = $('#printerWidth').options;
+            printerWidthOptions[0].text = tAdmin('paper58mm');
+            printerWidthOptions[1].text = tAdmin('paper80mm');
+            const printerBrandOptions = $('#printerBrand').options;
+            printerBrandOptions[0].text = tAdmin('genericEscPos');
+            printerBrandOptions[1].text = tAdmin('epson');
+            printerBrandOptions[2].text = tAdmin('star');
+            printerBrandOptions[3].text = tAdmin('bixolon');
+            printerBrandOptions[4].text = tAdmin('jiabo');
+            printerBrandOptions[5].text = tAdmin('xprinter');
+            printerBrandOptions[6].text = tAdmin('rongta');
+            printerBrandOptions[7].text = tAdmin('hoin');
+            $('#reportsPanelTitle').textContent = '📊 ' + tAdmin('reportManage');
+            $('#reportDateLabel').textContent = tAdmin('date') + ':';
+            $('#queryReportBtn').textContent = tAdmin('query');
+            $('#exportOrdersBtn').textContent = tAdmin('exportOrdersCsv');
+            $('#exportSalesBtn').textContent = tAdmin('exportSalesCsv');
+            $('#exportMenuBtn').textContent = tAdmin('exportMenuCsv');
+            $('#adminsPanelTitle').textContent = '👤 ' + tAdmin('adminManageTitle');
+            $('#addAdminBtnText').textContent = tAdmin('addAdminBtn');
+            $('#cashiersPanelTitle').textContent = '💰 ' + tAdmin('cashierManage');
+            $('#addCashierBtnText').textContent = tAdmin('addCashier');
+            // 收银员编辑弹窗
+            const _cu = $('#cashierUsernameLabel'); if (_cu) _cu.textContent = tAdmin('cashierUsername');
+            const _cn = $('#cashierNameLabel'); if (_cn) _cn.textContent = tAdmin('cashierDisplayName');
+            const _ca = $('#cashierActiveLabel'); if (_ca) _ca.textContent = tAdmin('accountActive');
+            const _cp = $('#cashierPermTitle'); if (_cp) _cp.textContent = tAdmin('permissionConfig');
+            const _cud = $('#cashierUsername'); if (_cud) _cud.placeholder = tAdmin('cashierUsernamePlaceholder');
+            const _cnd = $('#cashierName'); if (_cnd) _cnd.placeholder = tAdmin('cashierDisplayNamePlaceholder');
+            const _cpl = $('#cashierPasswordLabel'); if (_cpl) _cpl.textContent = tAdmin('passwordEditHint');
+            const _cpp = $('#cashierPassword'); if (_cpp) _cpp.placeholder = tAdmin('leaveBlankToKeep');
+            const _cas = $('#cashierActiveSub'); if (_cas) _cas.textContent = tAdmin('activeDesc');
+            const _css = $('#cashierCanSettleSub'); if (_css) _css.textContent = tAdmin('canSettleDesc');
+            const _ccs = $('#cashierCanCancelSub'); if (_ccs) _ccs.textContent = tAdmin('canCancelDesc');
+            const _crs = $('#cashierCanRefundSub'); if (_crs) _crs.textContent = tAdmin('canRefundDesc');
+            const _cvs = $('#cashierCanViewReportSub'); if (_cvs) _cvs.textContent = tAdmin('canViewReportDesc');
+            const _csl = $('#cashierCanSettleLabel'); if (_csl) _csl.textContent = tAdmin('settleOrder');
+            const _ccl = $('#cashierCanCancelLabel'); if (_ccl) _ccl.textContent = tAdmin('cancelOrder');
+            const _crl = $('#cashierCanRefundLabel'); if (_crl) _crl.textContent = tAdmin('refund');
+            const _cvl = $('#cashierCanViewReportLabel'); if (_cvl) _cvl.textContent = tAdmin('viewReport');
+            $('#adminManageCardTitle').textContent = '👤 ' + tAdmin('adminManageTitle');
+            $('#adminManageDesc').textContent = tAdmin('adminManageDesc');
+            $('#enterAdminManageBtn').textContent = tAdmin('enterAdminManage');
+            $('#cashierManageCardTitle').textContent = '💰 ' + tAdmin('cashierManage');
+            $('#cashierManageDesc').textContent = tAdmin('cashierManageDesc');
+            $('#enterCashierManageBtn').textContent = tAdmin('enterCashierManage');
+            $('#orderPrefixTitle').textContent = '🔢 ' + tAdmin('orderPrefixTitle');
+            $('#orderPrefixDesc').textContent = tAdmin('orderPrefixDesc');
+            $('#prefixNormalLabel').textContent = tAdmin('prefixNormalLabel');
+            $('#prefixRefundLabel').textContent = tAdmin('prefixRefundLabel');
+            $('#prefixDiscountLabel').textContent = tAdmin('prefixDiscountLabel');
+            $('#prefixVipLabel').textContent = tAdmin('prefixVipLabel');
+            $('#savePrefixBtn').textContent = tAdmin('savePrefixBtn');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            $('#adminLang').onchange = async function() {
+                adminLang = this.value;
+                SLF.store.rawSet('adminLang', adminLang);
+                await loadAdminLanguage(adminLang);
+                SLF.i18n.lang = adminLang;
+                applyAdminLanguage();
+                if (typeof loadAdminInfo === 'function') loadAdminInfo();
+                const currentModule = getCurrentModule();
+                if (currentModule) switchAdminModule(currentModule);
+                const auditLogsPanel = document.getElementById('auditLogsPanel');
+                if (auditLogsPanel && auditLogsPanel.style.display !== 'none') loadAuditLogs();
+            };
+            $('#adminStoreSelect').onchange = function() {
+                SLF.store.rawSetSession('adminStoreId', this.value);
+                updateSidebarStore();
+                refresh();
+            };
+        });
+
+        // 空闲超时
+        let ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+        let adminIdleTimer = null;
+        function resetAdminIdleTimer() {
+            if (adminIdleTimer) clearTimeout(adminIdleTimer);
+            adminIdleTimer = setTimeout(() => {
+                adminToken = '';
+                SLF.store.rawRemoveSession('adminToken');
+                window.location.href = '/login';
+            }, ADMIN_IDLE_TIMEOUT_MS);
+        }
+        ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt =>
+            document.addEventListener(evt, resetAdminIdleTimer, { passive: true })
+        );
+
+        // 确认弹窗
+        let confirmCallback = null;
+        let confirmCancelCallback = null;
+        function showConfirm(message, callback, title, cancelCallback) {
+            document.getElementById('confirmTitle').textContent = title || tAdmin('confirmTitle') || '确认操作';
+            document.getElementById('confirmMessage').textContent = message;
+            confirmCallback = callback;
+            confirmCancelCallback = cancelCallback || null;
+            document.getElementById('confirmModal').classList.add('open');
+        }
+        function hideConfirm() {
+            document.getElementById('confirmModal').classList.remove('open');
+            if (confirmCancelCallback) {
+                const cb = confirmCancelCallback;
+                confirmCallback = null;
+                confirmCancelCallback = null;
+                cb();
+            } else {
+                confirmCallback = null;
+            }
+        }
+        function executeConfirm() {
+            if (confirmCallback) confirmCallback();
+            hideConfirm();
+        }
+
+        // 密码输入弹窗
+        let passwordCallback = null;
+        function showPasswordModal(message, callback, title) {
+            document.getElementById('passwordModalTitle').textContent = title || tAdmin('passwordModalTitle') || '请输入密码';
+            document.getElementById('passwordModalMessage').textContent = message || tAdmin('passwordModalMessage') || '请输入管理员密码以确认操作';
+            document.getElementById('passwordModalInput').placeholder = tAdmin('passwordModalPlaceholder') || '请输入密码';
+            document.getElementById('passwordModalInput').value = '';
+            passwordCallback = callback;
+            document.getElementById('passwordModal').classList.add('open');
+            setTimeout(() => document.getElementById('passwordModalInput').focus(), 100);
+        }
+        function hidePasswordModal() {
+            document.getElementById('passwordModal').classList.remove('open');
+            passwordCallback = null;
+        }
+        function executePasswordModal() {
+            const password = document.getElementById('passwordModalInput').value;
+            if (!password) { SLF.ui.toast('❌ ' + (tAdmin('passwordModalPlaceholder') || '请输入密码')); return; }
+            if (passwordCallback) passwordCallback(password);
+            hidePasswordModal();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const pwdInput = document.getElementById('passwordModalInput');
+            if (pwdInput) {
+                pwdInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') executePasswordModal();
+                });
+            }
+            const confirmModal = document.getElementById('confirmModal');
+            if (confirmModal) {
+                confirmModal.addEventListener('click', function(e) {
+                    if (e.target === this) hideConfirm();
+                });
+            }
+        });
+
+        function logoutAdmin() {
+            showConfirm(tAdmin('confirmLogout') || '确认退出登录吗？', function() {
+                try { stopAdminCallPolling(); } catch(e) {}
+                try { stopAutoPrintPoll(); } catch(e) {}
+                adminToken = '';
+                SLF.store.rawRemoveSession('adminToken');
+                window.location.href = '/login';
+            });
+        }
+
+        async function loadAdminInfo() {
+            try {
+                const data = await api('/admin/info');
+                if (data.admin) {
+                    $('#adminDisplayName').textContent = data.admin.username || tAdmin('account');
+                    $('#adminInfoUsername').textContent = data.admin.username || '-';
+                    $('#adminInfoMerchant').textContent = data.merchant?.name || '-';
+                    $('#adminInfoCode').textContent = data.merchant?.code || '-';
+                    $('#adminInfoStoreCount').textContent = (data.storeCount || 0) + ' / ' + (data.merchant?.max_stores || 0);
+                    const _contact = (data.merchant?.contact_name || '').trim();
+                    $('#adminInfoContact').textContent = _contact === '管理员' ? tAdmin('admin') : (_contact || '-');
+                    $('#adminInfoPhone').textContent = data.merchant?.contact_phone || '-';
+                    $('#adminInfoStatus').textContent = data.merchant?.status ? tAdmin('storeActive') : tAdmin('storeDisabled');
+                    $('#adminInfoStatus').style.color = data.merchant?.status ? '#2ecc71' : '#e74c3c';
+                    $('#adminInfoStatus').style.fontWeight = '600';
+                    $('#adminInfoCreated').textContent = data.merchant?.created_at ? SLF.utils.formatDateTime(data.merchant.created_at) : (data.admin.created_at ? SLF.utils.formatDateTime(data.admin.created_at) : '-');
+                }
+            } catch (e) { console.warn('加载账户信息失败', e); }
+        }
+        function showAdminInfo() {
+            document.getElementById('adminInfoModal').classList.add('open');
+        }
+        function hideAdminInfo() {
+            document.getElementById('adminInfoModal').classList.remove('open');
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const adminInfoModal = document.getElementById('adminInfoModal');
+            if (adminInfoModal) {
+                adminInfoModal.addEventListener('click', function(e) {
+                    if (e.target === this) hideAdminInfo();
+                });
+            }
+        });
+
+        async function loadReportSummary() {
+            try {
+                const data = await api('/admin/reports/summary');
+                $('#todayRevenueAmount').textContent = SLF.money.primary(data.today.revenue);
+                $('#todayRevenueOrders').textContent = data.today.orders + ' ' + tAdmin('ordersCount');
+                $('#monthRevenueAmount').textContent = SLF.money.primary(data.month.revenue);
+                $('#monthRevenueOrders').textContent = data.month.orders + ' ' + tAdmin('ordersCount');
+                const list = $('#hotDishesList');
+                if (data.topDishes && data.topDishes.length > 0) {
+                    list.innerHTML = data.topDishes.map((d, i) => {
+                        const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-other';
+                        const rankText = i < 3 ? ['🥇','🥈','🥉'][i] : (i + 1);
+                        return `<div class="hot-dish-item">
+                            <div class="hot-dish-rank ${rankClass}">${rankText}</div>
+                            <span class="hot-dish-emoji">${d.emoji || '🍽️'}</span>
+                            <span class="hot-dish-name">${esc(d.name)}</span>
+                            <span class="hot-dish-sales">${d.sales_count}</span>
+                        </div>`;
+                    }).join('');
+                } else {
+                    list.innerHTML = `<div style="text-align:center;color:#9c9cb2;padding:20px;font-size:13px;">${tAdmin('noHotDishes') || '暂无热销数据'}</div>`;
+                }
+            } catch (e) { console.warn('加载营业汇总失败', e); }
+        }
+
+        // 初始化
+        let adminCallPollTimer = null;
+        (async function() {
+            if (adminLang !== 'zh') await loadAdminLanguage(adminLang);
+            applyAdminLanguage();
+        })();
+
+        if (adminToken) {
+            $('#dashboard').hidden = false;
+            $('#logoutBtn').hidden = false;
+            $('#adminNameBtn').hidden = false;
+            loadAdminInfo();
+            loadStores();
+            SLF.api.get('/public/global-config').then(cfg => {
+                if (cfg.admin_idle_timeout && cfg.admin_idle_timeout > 0) {
+                    ADMIN_IDLE_TIMEOUT_MS = cfg.admin_idle_timeout * 60 * 1000;
+                    resetAdminIdleTimer();
+                    console.log('[空闲超时] 已加载配置:', cfg.admin_idle_timeout, '分钟');
+                }
+            }).catch(err => console.warn('[空闲超时] 加载配置失败:', err.message));
+            resetAdminIdleTimer();
+            refresh().catch(() => {
+                SLF.store.rawRemoveSession('adminToken');
+                window.location.href = '/login';
+            });
+            applyPermissions();
+            startAdminCallPolling();
+        } else {
+            window.location.href = '/login';
+        }
+
+        // 分类拖拽排序
+        let draggedCategoryRow = null;
+        document.addEventListener('dragstart', (e) => {
+            const row = e.target.closest('.category-row');
+            if (row) {
+                draggedCategoryRow = row;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', row.dataset.id);
+                row.style.opacity = '0.5';
+            }
+        });
+        document.addEventListener('dragend', (e) => {
+            const row = e.target.closest('.category-row');
+            if (row) row.style.opacity = '';
+        });
+        document.addEventListener('dragover', (e) => e.preventDefault());
+        document.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            const targetRow = e.target.closest('.category-row');
+            if (targetRow && draggedCategoryRow && targetRow !== draggedCategoryRow) {
+                const container = document.getElementById('categoryList');
+                const children = Array.from(container.children);
+                const dragIndex = children.indexOf(draggedCategoryRow);
+                const targetIndex = children.indexOf(targetRow);
+                if (dragIndex < targetIndex) {
+                    container.insertBefore(draggedCategoryRow, targetRow.nextSibling);
+                } else {
+                    container.insertBefore(draggedCategoryRow, targetRow);
+                }
+                const newOrder = Array.from(container.querySelectorAll('.category-row')).map(row => parseInt(row.dataset.id));
+                try {
+                    await api('/menu-categories/sort', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { ids: newOrder } });
+                    SLF.ui.toast(`✅ ${tAdmin('categorySortUpdated')}`);
+                    await loadMenuCategories();
+                } catch (err) {
+                    SLF.ui.toast(`❌ ${tAdmin('updateFailed')}: ` + err.message);
+                    await loadMenuCategories();
+                }
+            }
+            if (draggedCategoryRow) {
+                draggedCategoryRow.style.opacity = '';
+                draggedCategoryRow = null;
+            }
+        });
+
+        // 预约管理
+        async function loadReservations() {
+            try {
+                const data = await api('/admin/reservations');
+                const container = $('#reservationsList');
+                if (!data || data.length === 0) {
+                    container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noReservations')}</div>`;
+                    return;
+                }
+                const statusMap = { pending: tAdmin('reservationPending'), confirmed: tAdmin('reservationConfirmed'), canceled: tAdmin('reservationCanceled'), completed: tAdmin('reservationCompleted') };
+                const statusColor = { pending: '#ffb020', confirmed: '#2ecc71', canceled: '#999', completed: '#3498db' };
+                container.innerHTML = data.map(r => `
+                    <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                        <div>
+                            <div style="font-weight:700;font-size:16px;">🪑 ${esc(r.table_name)} · ${esc(r.customer_name)}</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">📅 ${esc(r.reservation_time)} · 👥 ${r.guests} ${tAdmin('guestsUnit') || ''} · 📞 ${esc(r.phone || tAdmin('noPhone'))}</div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${statusColor[r.status] || '#999'}22;color:${statusColor[r.status] || '#999'};">${statusMap[r.status] || r.status}</span>
+                            ${r.status === 'pending' ? `
+                                <button onclick="updateReservation(${r.id}, 'confirmed')" style="background:#2ecc71;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('confirm')}</button>
+                                <button onclick="updateReservation(${r.id}, 'canceled')" style="background:#e74c3c;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('cancel')}</button>
+                            ` : ''}
+                            ${r.status === 'confirmed' ? `<button onclick="updateReservation(${r.id}, 'completed')" style="background:#3498db;color:#fff;border:0;padding:6px 14px;border-radius:8px;cursor:pointer;">${tAdmin('complete')}</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                SLF.ui.toast(tAdmin('loadReservationsFailed') + ': ' + err.message);
+            }
+        }
+
+        async function updateReservation(id, status) {
+            try {
+                await api('/admin/reservations/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { status } });
+                SLF.ui.toast(tAdmin('reservationUpdated'));
+                loadReservations();
+            } catch (err) {
+                SLF.ui.toast(tAdmin('updateFailed') + ': ' + err.message);
+            }
+        }
+
+        // 呼叫服务员
+        let knownAdminCallIds = new Set();
+        async function pollAdminCalls() {
+            if (document.hidden) return;
+            try {
+                const calls = await api('/waiter-calls');
+                const badge = document.getElementById('callsBadge');
+                if (calls && calls.length > 0) {
+                    badge.style.display = 'inline-block';
+                    badge.textContent = calls.length;
+                    let hasNew = false;
+                    for (const c of calls) { if (!knownAdminCallIds.has(c.id)) { hasNew = true; break; } }
+                    if (hasNew) {
+                        try {
+                            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            const now = ctx.currentTime;
+                            [[0, 1000], [0.2, 1400], [0.4, 1000]].forEach(([t, freq]) => {
+                                const osc = ctx.createOscillator();
+                                const gain = ctx.createGain();
+                                osc.connect(gain); gain.connect(ctx.destination);
+                                osc.frequency.value = freq; osc.type = 'sine';
+                                gain.gain.setValueAtTime(0.0001, now + t);
+                                gain.gain.exponentialRampToValueAtTime(0.4, now + t + 0.02);
+                                gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.25);
+                                osc.start(now + t); osc.stop(now + t + 0.3);
+                            });
+                        } catch (e) {}
+                        const newCall = calls.find(c => !knownAdminCallIds.has(c.id));
+                        if (newCall) {
+                            const typeText = newCall.type === 'urge' ? tAdmin('urgeOrder') : tAdmin('callWaiter');
+                            SLF.ui.toast('🔔 ' + newCall.table_name + ' ' + typeText);
+                        }
+                    }
+                    knownAdminCallIds = new Set(calls.map(c => c.id));
+                } else {
+                    badge.style.display = 'none';
+                    knownAdminCallIds.clear();
+                }
+            } catch (e) { /* 静默失败 */ }
+        }
+        function startAdminCallPolling() {
+            stopAdminCallPolling();
+            adminCallPollTimer = setInterval(pollAdminCalls, 5000);
+            pollAdminCalls();
+        }
+        function stopAdminCallPolling() {
+            if (adminCallPollTimer) clearInterval(adminCallPollTimer);
+            adminCallPollTimer = null;
+        }
+
+        async function loadWaiterCalls() {
+            try {
+                const data = await api('/waiter-calls');
+                const container = $('#waiterCallsList');
+                if (!data || data.length === 0) {
+                    container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noCalls')}</div>`;
+                    return;
+                }
+                container.innerHTML = data.map(c => {
+                    // 按类型区分显示
+                    const isUrge = c.type === 'urge';
+                    const icon = isUrge ? '⚡' : '🔔';
+                    const label = isUrge
+                        ? (tAdmin('urgeOrder') || '催单')
+                        : (tAdmin('callWaiter') || '呼叫');
+                    const bg = isUrge
+                        ? 'rgba(231,76,60,.12)'
+                        : 'rgba(255,176,32,.1)';
+                    const border = isUrge
+                        ? 'rgba(231,76,60,.35)'
+                        : 'rgba(255,176,32,.3)';
+                    const btnBg = isUrge ? '#e74c3c' : '#ff7a45';
+                    return `
+                        <div style="background:${bg};border:1px solid ${border};border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-weight:700;font-size:16px;color:#fff;">${icon} ${tAdmin('table')} ${esc(c.table_name)} ${label}</div>
+                                <div style="color:#b8b8c8;font-size:13px;margin-top:4px;">${esc(c.created_at)}${c.message ? ' · ' + esc(c.message) : ''}</div>
+                            </div>
+                            <button onclick="handleWaiterCall('${c.id}')" style="background:${btnBg};color:#fff;border:0;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;">${tAdmin('handled')}</button>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                SLF.ui.toast(`${tAdmin('loadCallsFailed')}: ` + err.message);
+            }
+        }
+
+        async function handleWaiterCall(id) {
+            try {
+                await api('/waiter-calls/' + id + '/handle', { method: 'PUT' });
+                SLF.ui.toast(tAdmin('handled'));
+                loadWaiterCalls();
+            } catch (err) {
+                SLF.ui.toast(tAdmin('handleFailed') + ': ' + err.message);
+            }
+        }
+
+        // 打印机管理
+        function toggleAutoPrint() {
+            const enabled = document.getElementById('autoPrintToggle').checked;
+            SLF.store.rawSet('autoPrintEnabled', enabled ? '1' : '0');
+            SLF.ui.toast(enabled ? (tAdmin('autoPrintEnabled') || '已开启自动打印') : (tAdmin('autoPrintDisabled') || '已关闭自动打印'));
+            if (enabled) startAutoPrintPoll();
+            else stopAutoPrintPoll();
+        }
+        function startAutoPrintPoll() {
+            if (autoPrintPollTimer) return;
+            if (ordersCache.length) ordersCache.forEach(o => printedOrders.add(o.id));
+            autoPrintPollTimer = setInterval(checkNewOrdersAndPrint, 15000);
+        }
+        function stopAutoPrintPoll() {
+            if (autoPrintPollTimer) { clearInterval(autoPrintPollTimer); autoPrintPollTimer = null; }
+        }
+        async function checkNewOrdersAndPrint() {
+            try {
+                const orders = await api('/orders');
+                const newOrders = orders.filter(o => o.status === 'pending' && !printedOrders.has(o.id));
+                for (const order of newOrders) {
+                    printedOrders.add(order.id);
+                    try {
+                        const data = await api('/orders/' + order.id + '/print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {} });
+                        if (data.printData) printViaBrowser(data.printData, order.id);
+                    } catch (e) { console.error('自动打印失败:', e); }
+                }
+            } catch (e) { console.error('检查新订单失败:', e); }
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const saved = SLF.store.rawGet('autoPrintEnabled');
+            const toggle = document.getElementById('autoPrintToggle');
+            if (toggle) toggle.checked = saved === '1';
+            if (saved === '1') setTimeout(startAutoPrintPoll, 3000);
+        });
+
+        async function loadPrinters() {
+            try {
+                const data = await api('/admin/printers');
+                window._adminPrinters = data;
+                const container = $('#printersList');
+                if (!data || data.length === 0) {
+                    container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noPrinterHint')}</div>`;
+                    return;
+                }
+                const typeMap = { network: tAdmin('networkPrinter'), usb: 'USB', bluetooth: tAdmin('bluetoothPrinter') };
+                container.innerHTML = data.map(p => `
+                    <div class="admin-card">
+                        <div class="info">
+                            <div class="title">🖨️ ${esc(p.name)} ${p.is_default ? `<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>` : ''}</div>
+                            <div class="sub">${typeMap[p.type] || esc(p.type)} · ${esc(p.brand)} · ${esc(p.paper_width)}mm${p.ip_address ? ' · ' + esc(p.ip_address) + ':' + esc(p.port) : ''} · ${p.active ? '<span style="color:#2ecc71;font-weight:600;">' + tAdmin('enabled') + '</span>' : '<span style="color:#e74c3c;">' + tAdmin('disabled') + '</span>'}</div>
+                        </div>
+                        <div class="actions">
+                            ${hasPermission('can_manage_printer') ? '<button class="copy" onclick="testPrinter(' + p.id + ')">' + tAdmin('testPrint') + '</button>' : ''}
+                            <button class="edit-btn" onclick="openPrinterEdit(${p.id})">${L('edit')}</button>
+                            <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})">${p.active ? tAdmin('disabled') : tAdmin('enabled')}</button>
+                            ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})">${tAdmin('setDefaultPrinter')}</button>` : ''}
+                            ${hasPermission('can_manage_printer') ? '<button class="danger" onclick="deletePrinter(' + p.id + ')">' + L('delete') + '</button>' : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) { SLF.ui.toast(`${tAdmin('loadPrinterFailed')}: ` + err.message); }
+        }
+
+        async function addPrinter() {
+            const name = $('#printerName').value.trim();
+            if (!name) { SLF.ui.toast(tAdmin('printerNameRequired')); return; }
+            try {
+                await api('/admin/printers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+                    name, type: $('#printerType').value, ip_address: $('#printerIp').value.trim(),
+                    port: parseInt($('#printerPort').value) || 9100, paper_width: parseInt($('#printerWidth').value) || 58,
+                    brand: $('#printerBrand').value, is_default: $('#printerDefault').checked
+                }});
+                SLF.ui.toast(tAdmin('printerAdded'));
+                $('#printerName').value = '';
+                $('#printerIp').value = '';
+                $('#printerDefault').checked = false;
+                loadPrinters();
+            } catch (err) { SLF.ui.toast(tAdmin('addFailed') + ': ' + err.message); }
+        }
+
+        async function testPrinter(id) {
+            try {
+                await api('/admin/printers/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { printer_id: id } });
+                SLF.ui.toast(tAdmin('testPrintSent'));
+            } catch (err) { SLF.ui.toast(tAdmin('printFailed') + ': ' + err.message); }
+        }
+
+        function openPrinterEdit(id) {
+            const printers = window._adminPrinters || [];
+            const p = printers.find(x => x.id === id);
+            if (!p) return;
+            $('#editPrinterId').value = p.id;
+            $('#editPrinterName').value = p.name || '';
+            $('#editPrinterType').value = p.type || 'network';
+            $('#editPrinterIp').value = p.ip_address || '';
+            $('#editPrinterPort').value = p.port || 9100;
+            $('#editPrinterWidth').value = p.paper_width || 58;
+            $('#editPrinterBrand').value = p.brand || 'generic';
+            $('#editPrinterDefault').checked = !!p.is_default;
+            $('#printerEditModal').classList.add('open');
+        }
+        function closePrinterEdit() { $('#printerEditModal').classList.remove('open'); }
+        async function savePrinterEdit() {
+            const id = parseInt($('#editPrinterId').value);
+            const name = $('#editPrinterName').value.trim();
+            if (!name) { SLF.ui.toast(tAdmin('printerNameRequired')); return; }
+            try {
+                await api('/admin/printers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: {
+                    name, type: $('#editPrinterType').value, ip_address: $('#editPrinterIp').value.trim(),
+                    port: parseInt($('#editPrinterPort').value) || 9100, paper_width: parseInt($('#editPrinterWidth').value) || 58,
+                    brand: $('#editPrinterBrand').value, is_default: $('#editPrinterDefault').checked
+                }});
+                SLF.ui.toast(tAdmin('saveSuccess') || '保存成功');
+                closePrinterEdit();
+                loadPrinters();
+            } catch (err) { SLF.ui.toast(tAdmin('saveFailed') + ': ' + err.message); }
+        }
+
+        async function togglePrinter(id, active) {
+            try {
+                await api('/admin/printers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { active } });
+                loadPrinters();
+            } catch (err) { SLF.ui.toast(tAdmin('operationFailed') + ': ' + err.message); }
+        }
+
+        async function setDefaultPrinter(id) {
+            try {
+                await api('/admin/printers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { is_default: true } });
+                SLF.ui.toast(tAdmin('setAsDefaultPrinter'));
+                loadPrinters();
+            } catch (err) { SLF.ui.toast(tAdmin('operationFailed') + ': ' + err.message); }
+        }
+
+        function deletePrinter(id) {
+            showConfirm(tAdmin('confirmDeletePrinter'), async function() {
+                try {
+                    await api('/admin/printers/' + id, { method: 'DELETE' });
+                    SLF.ui.toast('打印机已删除');
+                    loadPrinters();
+                } catch (err) { SLF.ui.toast(`${tAdmin('deleteFailed')}: ` + err.message); }
+            });
+        }
+
+        async function printOrder(orderId) {
+            try {
+                const data = await api('/orders/' + orderId + '/print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {} });
+                if (data.printed) SLF.ui.toast(tAdmin('orderPrinted'));
+                else if (data.printData) { SLF.ui.toast(tAdmin('openingBrowserPrint')); printViaBrowser(data.printData, orderId); }
+            } catch (err) { SLF.ui.toast(tAdmin('printFailed') + ': ' + err.message); }
+        }
+
+        function printViaBrowser(base64Data, orderId) {
+            const printWindow = window.open('', '_blank', 'width=300,height=600');
+            if (!printWindow) { SLF.ui.toast(tAdmin('allowPopupToPrint')); return; }
+            printWindow.document.write(`
+                <html><head><title>${tAdmin('order')} #${orderId} ${tAdmin('print')}</title>
+                <style>body { font-family: monospace; font-size: 12px; padding: 10px; width: 280px; } .center { text-align: center; } .bold { font-weight: bold; } .big { font-size: 16px; font-weight: bold; } .separator { border-top: 1px dashed #000; margin: 8px 0; } .row { display: flex; justify-content: space-between; }</style>
+                </head>
+                <body onload="window.print();setTimeout(()=>window.close(),500);">
+                <div class="center big">${tAdmin('brandName')}</div>
+                <div class="center">${tAdmin('order')} #${orderId}</div>
+                <div class="separator"></div>
+                <p>${tAdmin('printerConnectHint')}</p>
+            `);
+            printWindow.document.close();
+        }
+
+        async function loadDailyReport() {
+            const date = ($('#reportDate') && $('#reportDate').value) || new Date().toISOString().slice(0, 10);
+            try {
+                const data = await api('/admin/reports/daily?date=' + date);
+                const s = data.summary;
+                const container = $('#reportContent');
+                let html = `
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
+                        <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                            <div style="font-size:28px;font-weight:700;color:#e85d3a;">${s.totalOrders}</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('totalOrders')}</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                            <div style="font-size:28px;font-weight:700;color:#2ecc71;">${s.completedOrders}</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('completed')}</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                            <div style="font-size:28px;font-weight:700;color:#e74c3c;">${s.canceledOrders}</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('canceled')}</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                            <div style="font-size:28px;font-weight:700;color:#f1c40f;">$${Number(s.totalRevenue).toFixed(2)}</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('totalRevenue')}</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                            <div style="font-size:28px;font-weight:700;color:#3498db;">$${Number(s.avgOrderValue).toFixed(2)}</div>
+                            <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('avgOrderValue')}</div>
+                        </div>
+                    </div>
+                `;
+                if (data.hourlyStats && data.hourlyStats.length > 0) {
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">⏰ ${tAdmin('hourlyDistribution')} <span style="font-size:12px;color:#888;font-weight:400;">(${data.date})</span></h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
+                    const maxOrders = Math.max(...data.hourlyStats.map(h => h.orders), 1);
+                    for (const h of data.hourlyStats) {
+                        const pct = (h.orders / maxOrders * 100).toFixed(0);
+                        html += `<div style="display:flex;align-items:center;gap:10px;margin:6px 0;"><span style="width:60px;color:#c8c8d0;font-size:13px;">${h.time_bucket}</span><div style="flex:1;background:rgba(255,255,255,.1);border-radius:6px;height:20px;overflow:hidden;"><div style="width:${pct}%;background:linear-gradient(90deg,#e85d3a,#f39c12);height:100%;border-radius:6px;"></div></div><span style="width:70px;text-align:right;font-size:13px;color:#fff;font-weight:600;">${h.orders}${tAdmin('orderUnit')} $${Number(h.revenue).toFixed(0)}</span></div>`;
+                    }
+                    html += `</div>`;
+                }
+                if (data.tableRevenue && data.tableRevenue.length > 0) {
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🏪 ${tAdmin('revenueByTable')}</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;">`;
+                    for (const t of data.tableRevenue) {
+                        html += `<div style="background:linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;text-align:center;"><div style="font-weight:700;color:#fff;font-size:15px;">${esc(t.table_name)}</div><div style="color:#2ecc71;font-size:20px;font-weight:700;margin-top:6px;">$${Number(t.revenue).toFixed(2)}</div><div style="color:#c8c8d0;font-size:12px;margin-top:2px;">${t.orders} ${tAdmin('orderUnit')}</div></div>`;
+                    }
+                    html += `</div>`;
+                }
+                if (data.dishRanking && data.dishRanking.length > 0) {
+                    html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🔥 ${tAdmin('topDishes')}</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:20px;">`;
+                    data.dishRanking.forEach((d, i) => {
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+                        html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);align-items:center;"><span style="color:#fff;font-weight:600;font-size:14px;">${medal} ${d.emoji || ''} ${esc(d.name)}</span><span style="font-weight:700;color:#ffd93d;font-size:14px;">${d.quantity || 0} ${tAdmin('portion')}</span></div>`;
+                    });
+                    html += `</div>`;
+                }
+                container.innerHTML = html;
+            } catch (err) { SLF.ui.toast(`${tAdmin('loadReportFailed')}: ` + err.message); }
+        }
+
+        // 修复：exportData 引用未定义变量 adminToken
+        function exportData(type) {
+            const adminTokenLocal = SLF.store.rawGetSession('adminToken') || '';
+            const url = '/api/admin/export/' + type;
+            fetch(url, { headers: { 'Authorization': 'Bearer ' + adminTokenLocal } })
+                .then(res => {
+                    if (!res.ok) throw new Error(tAdmin('exportFailed'));
+                    return res.blob();
+                })
+                .then(blob => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = type + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                    SLF.ui.toast(tAdmin('exportSuccess'));
+                })
+                .catch(err => SLF.ui.toast(tAdmin('exportFailed') + ': ' + err.message));
+        }
+
+        // Socket 事件（带 token 与防抖）
+        if (typeof io === 'function') {
+            const adminSocket = io({
+                query: {
+                    storeId: SLF.store.rawGet('storeId') || 1,
+                    token: SLF.store.rawGetSession('adminToken') || ''
+                }
+            });
+            let socketDebounce = null;
+            function debouncedLoadOrders() {
+                clearTimeout(socketDebounce);
+                socketDebounce = setTimeout(() => {
+                    if (typeof loadOrders === 'function') loadOrders();
+                }, 300);
+            }
+            adminSocket.on('order:new', debouncedLoadOrders);
+            adminSocket.on('item:updated', debouncedLoadOrders);
+            adminSocket.on('order:settled', debouncedLoadOrders);
+            adminSocket.on('order:transfer', debouncedLoadOrders);
+            adminSocket.on('connect_error', (err) => {
+                console.warn('adminSocket connect_error:', err.message);
+            });
+            window.addEventListener('beforeunload', () => {
+                try { adminSocket.disconnect(); } catch (_) {}
+            });
+        }
+    try { window.addPrinter = addPrinter; } catch(err) {}
+    try { window.closeAddAdminModal = closeAddAdminModal; } catch(err) {}
+    try { window.closeAdminEdit = closeAdminEdit; } catch(err) {}
+    try { window.closeCashierModal = closeCashierModal; } catch(err) {}
+    try { window.closeCategoryEditModal = closeCategoryEditModal; } catch(err) {}
+    try { window.closeCategoryModal = closeCategoryModal; } catch(err) {}
+    try { window.closeCurrencyEdit = closeCurrencyEdit; } catch(err) {}
+    try { window.closeDishModal = closeDishModal; } catch(err) {}
+    try { window.closeOrderForm = closeOrderForm; } catch(err) {}
+    try { window.closePrinterEdit = closePrinterEdit; } catch(err) {}
+    try { window.closeSettleDetail = closeSettleDetail; } catch(err) {}
+    try { window.closeSidebar = closeSidebar; } catch(err) {}
+    try { window.closeStoreEdit = closeStoreEdit; } catch(err) {}
+    try { window.closeTableForm = closeTableForm; } catch(err) {}
+    try { window.closeTransferModal = closeTransferModal; } catch(err) {}
+    try { window.closeWaiterEdit = closeWaiterEdit; } catch(err) {}
+    try { window.confirmCancelOrder = confirmCancelOrder; } catch(err) {}
+    try { window.confirmSettleOrder = confirmSettleOrder; } catch(err) {}
+    try { window.confirmTransfer = confirmTransfer; } catch(err) {}
+    try { window.copyStoreMenu = copyStoreMenu; } catch(err) {}
+    try { window.deleteAdmin = deleteAdmin; } catch(err) {}
+    try { window.deleteCashier = deleteCashier; } catch(err) {}
+    try { window.deleteCategory = deleteCategory; } catch(err) {}
+    try { window.deletePrinter = deletePrinter; } catch(err) {}
+    try { window.deleteStore = deleteStore; } catch(err) {}
+    try { window.deleteWaiter = deleteWaiter; } catch(err) {}
+    try { window.doSettleOrder = doSettleOrder; } catch(err) {}
+    try { window.editAdmin = editAdmin; } catch(err) {}
+    try { window.editCashier = editCashier; } catch(err) {}
+    try { window.editCategory = editCategory; } catch(err) {}
+    try { window.editCurrency = editCurrency; } catch(err) {}
+    try { window.editMenu = editMenu; } catch(err) {}
+    try { window.editOrder = editOrder; } catch(err) {}
+    try { window.editTable = editTable; } catch(err) {}
+    try { window.esc = esc; } catch(err) {}
+    try { window.executeConfirm = executeConfirm; } catch(err) {}
+    try { window.executePasswordModal = executePasswordModal; } catch(err) {}
+    try { window.exportData = exportData; } catch(err) {}
+    try { window.handleWaiterCall = handleWaiterCall; } catch(err) {}
+    try { window.hideAdminInfo = hideAdminInfo; } catch(err) {}
+    try { window.hideConfirm = hideConfirm; } catch(err) {}
+    try { window.hidePasswordModal = hidePasswordModal; } catch(err) {}
+    try { window.loadDailyReport = loadDailyReport; } catch(err) {}
+    try { window.loadWaiterCalls = loadWaiterCalls; } catch(err) {}
+    try { window.logoutAdmin = logoutAdmin; } catch(err) {}
+    try { window.openAddAdminModal = openAddAdminModal; } catch(err) {}
+    try { window.openAddCashierModal = openAddCashierModal; } catch(err) {}
+    try { window.openCategoryModal = openCategoryModal; } catch(err) {}
+    try { window.openDishModal = openDishModal; } catch(err) {}
+    try { window.openOrderForm = openOrderForm; } catch(err) {}
+    try { window.openPrinterEdit = openPrinterEdit; } catch(err) {}
+    try { window.openStoreEdit = openStoreEdit; } catch(err) {}
+    try { window.openWaiterEdit = openWaiterEdit; } catch(err) {}
+    try { window.printOrder = printOrder; } catch(err) {}
+    try { window.removeCurrency = removeCurrency; } catch(err) {}
+    try { window.removeMenu = removeMenu; } catch(err) {}
+    try { window.removeOrder = removeOrder; } catch(err) {}
+    try { window.removeOrderItem = removeOrderItem; } catch(err) {}
+    try { window.removeTable = removeTable; } catch(err) {}
+    try { window.saveAdminEdit = saveAdminEdit; } catch(err) {}
+    try { window.saveCategoryEdit = saveCategoryEdit; } catch(err) {}
+    try { window.saveCurrencyEdit = saveCurrencyEdit; } catch(err) {}
+    try { window.saveOrderPrefixes = saveOrderPrefixes; } catch(err) {}
+    try { window.savePrinterEdit = savePrinterEdit; } catch(err) {}
+    try { window.setDefaultCurrency = setDefaultCurrency; } catch(err) {}
+    try { window.setDefaultPrinter = setDefaultPrinter; } catch(err) {}
+    try { window.showAdminInfo = showAdminInfo; } catch(err) {}
+    try { window.showQr = showQr; } catch(err) {}
+    try { window.showTransferModal = showTransferModal; } catch(err) {}
+    try { window.submitAddAdmin = submitAddAdmin; } catch(err) {}
+    try { window.switchAdminModule = switchAdminModule; } catch(err) {}
+    try { window.switchLogTab = switchLogTab; } catch(err) {}
+    try { window.switchMenuTab = switchMenuTab; } catch(err) {}
+    try { window.testPrinter = testPrinter; } catch(err) {}
+    try { window.toggleItemStatus = toggleItemStatus; } catch(err) {}
+    try { window.toggleMenuStatus = toggleMenuStatus; } catch(err) {}
+    try { window.togglePrinter = togglePrinter; } catch(err) {}
+    try { window.toggleSidebar = toggleSidebar; } catch(err) {}
+    try { window.updateReservation = updateReservation; } catch(err) {}
+})();

@@ -166,6 +166,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/assets', express.static(path.join(__dirname, 'assets'), { dotfiles: 'deny', index: false }));
+app.use('/pages', express.static(path.join(__dirname, 'pages'), { dotfiles: 'deny', index: false }));
 app.use('/uploads', express.static(UPLOAD_DIR, { dotfiles: 'deny', index: false }));
 
 app.get('/languages.js', (req, res) => {
