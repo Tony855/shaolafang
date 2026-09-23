@@ -1898,20 +1898,14 @@
             };
         });
 
-        // 空闲超时
-        let ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-        let adminIdleTimer = null;
-        function resetAdminIdleTimer() {
-            if (adminIdleTimer) clearTimeout(adminIdleTimer);
-            adminIdleTimer = setTimeout(() => {
-                adminToken = '';
-                SLF.store.rawRemoveSession('adminToken');
-                window.location.href = '/login';
-            }, ADMIN_IDLE_TIMEOUT_MS);
+        // 空闲超时（统一 SLF.idle）
+        let adminIdleTimeoutMin = 30;
+        function adminIdleLogout() {
+            adminToken = '';
+            SLF.store.rawRemoveSession('adminToken');
+            window.location.href = '/login';
         }
-        ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt =>
-            document.addEventListener(evt, resetAdminIdleTimer, { passive: true })
-        );
+        SLF.idle.start({ timeoutMin: adminIdleTimeoutMin, onTimeout: adminIdleLogout });
 
         // 确认弹窗
         let confirmCallback = null;
@@ -2060,12 +2054,9 @@
             loadStores();
             SLF.api.get('/public/global-config').then(cfg => {
                 if (cfg.admin_idle_timeout && cfg.admin_idle_timeout > 0) {
-                    ADMIN_IDLE_TIMEOUT_MS = cfg.admin_idle_timeout * 60 * 1000;
-                    resetAdminIdleTimer();
-                    console.log('[空闲超时] 已加载配置:', cfg.admin_idle_timeout, '分钟');
+                    SLF.idle.update(cfg.admin_idle_timeout, adminIdleLogout);
                 }
             }).catch(err => console.warn('[空闲超时] 加载配置失败:', err.message));
-            resetAdminIdleTimer();
             refresh().catch(() => {
                 SLF.store.rawRemoveSession('adminToken');
                 window.location.href = '/login';
