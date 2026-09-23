@@ -6,10 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build:lang": "node build-languages.js",
-    "check:lang": "node assets/check-lang.js",
-    "check:lang:strict": "node assets/check-lang.js --strict",
-    "prebuild:lang": "node assets/check-lang.js"
+    "build:lang": "node scripts/build-languages.js",
+    "check:lang": "node scripts/check-lang.js",
+    "check:lang:strict": "node scripts/check-lang.js --strict"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
