@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # ============================================================
 # FoodFlow 点餐系统 - 一键安装脚本
 # 支持：单台部署 / 2台服务器部署 / 多台服务器集群部署
@@ -110,6 +110,16 @@ check_system() {
 # 部署模式选择菜单
 # ============================================================
 select_deploy_mode() {
+    # 命令行参数预选：bash install.sh [standard|enterprise|enterprise-ultimate]
+    if [ -n "$1" ]; then
+        case "$1" in
+            standard) DEPLOY_MODE="standard"; DEPLOY_NAME="标准版 - 单台部署"; return ;;
+            enterprise) DEPLOY_MODE="enterprise"; DEPLOY_NAME="企业版 - 2台服务器部署"; return ;;
+            enterprise-ultimate) DEPLOY_MODE="enterprise-ultimate"; DEPLOY_NAME="企业旗舰版 - 多台服务器集群部署"; return ;;
+            *) log_error "未知部署模式：$1（可选 standard/enterprise/enterprise-ultimate）"; exit 1 ;;
+        esac
+    fi
+
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
     echo -e "${CYAN}${BOLD}  请选择部署模式：${NC}"
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
@@ -169,6 +179,14 @@ select_node_role() {
     if [ "$DEPLOY_MODE" == "standard" ]; then
         NODE_ROLE="single"
         return
+    fi
+
+    # 命令行参数预选第二参数：bash install.sh enterprise [master|slave]
+    if [ -n "$2" ]; then
+        case "$2" in
+            master|slave) NODE_ROLE="$2"; return ;;
+            *) log_error "未知节点角色：$2（可选 master/slave）"; exit 1 ;;
+        esac
     fi
 
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
@@ -350,6 +368,7 @@ show_post_install_guide() {
         echo "     商户后台：https://your-domain.com/admin"
         echo "     服务员端：https://your-domain.com/waiter"
         echo "     后厨端：  https://your-domain.com/kitchen"
+        echo "     超管后台：https://your-domain.com/super（默认 superadmin/super123，请尽快修改）"
         echo ""
     else
         echo "  1. 在所有应用服务器节点上编辑环境变量："
@@ -412,10 +431,10 @@ main() {
     fi
 
     # 选择部署模式
-    select_deploy_mode
+    select_deploy_mode "$1"
 
     # 选择节点角色（集群部署）
-    select_node_role
+    select_node_role "$2"
 
     # 确认安装配置
     confirm_installation
