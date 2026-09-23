@@ -449,35 +449,37 @@ async function saveMerchant() {
   } catch (e) { SLF.ui.toast(e.message, 'error'); }
 }
 
-async function deleteMerchant(id) {
-  if (!confirm(t('confirmDeleteMerchant', null, '确认删除该商户？'))) return;
-  try {
-    await api('/super/merchants/' + id, { method: 'DELETE' });
-    SLF.ui.toast(t('merchantDeleted', null, '商户已删除'), 'success');
-    loadMerchants();
-  } catch (e) { SLF.ui.toast(e.message, 'error'); }
+function deleteMerchant(id) {
+  showConfirm(t('confirmDeleteMerchant', null, '确认删除该商户？'), async function() {
+    try {
+      await api('/super/merchants/' + id, { method: 'DELETE' });
+      SLF.ui.toast(t('merchantDeleted', null, '商户已删除'), 'success');
+      loadMerchants();
+    } catch (e) { SLF.ui.toast(e.message, 'error'); }
+  });
 }
 
-async function resetPassword(id) {
-  if (!confirm(t('confirmResetPassword', null, '确认重置该商户管理员密码为 admin123？'))) return;
-  try {
-    await api('/super/merchants/' + id + '/reset-password', { method: 'POST', body: JSON.stringify({}) });
-    SLF.ui.toast(t('passwordReset', null, '密码已重置'), 'success');
-  } catch (e) { SLF.ui.toast(e.message, 'error'); }
+function resetPassword(id) {
+  showConfirm(t('confirmResetPassword', null, '确认重置该商户管理员密码为 admin123？'), async function() {
+    try {
+      await api('/super/merchants/' + id + '/reset-password', { method: 'POST', body: JSON.stringify({}) });
+      SLF.ui.toast(t('passwordReset', null, '密码已重置'), 'success');
+    } catch (e) { SLF.ui.toast(e.message, 'error'); }
+  });
 }
 
-async function changeSuperPassword() {
+function changeSuperPassword() {
   const newPwd = document.getElementById('newSuperPassword').value;
   if (!newPwd) { SLF.ui.toast(t('pleaseEnterNewPassword', null, '请输入新密码（至少6位）'), 'error'); return; }
   if (newPwd.length < 6) { SLF.ui.toast('❌ 密码至少6位', 'error'); return; }
-  const oldPwd = prompt(t('enterOldPassword', null, '请输入旧密码'));
-  if (!oldPwd) return;
-  try {
-    const data = await SLF.api.post('/super/change-password', { oldPassword: oldPwd, newPassword: newPwd });
-    if (!data || !data.success) throw new Error((data && data.error) || t('saveFailed', null, '保存失败'));
-    SLF.ui.toast('✅ ' + t('passwordChanged', null, '密码已更新'), 'success');
-    document.getElementById('newSuperPassword').value = '';
-  } catch (e) { SLF.ui.toast('❌ ' + e.message, 'error'); }
+  showPasswordModal(t('enterOldPassword', null, '请输入旧密码'), async function(oldPwd) {
+    try {
+      const data = await SLF.api.post('/super/change-password', { oldPassword: oldPwd, newPassword: newPwd });
+      if (!data || !data.success) throw new Error((data && data.error) || t('saveFailed', null, '保存失败'));
+      SLF.ui.toast('✅ ' + t('passwordChanged', null, '密码已更新'), 'success');
+      document.getElementById('newSuperPassword').value = '';
+    } catch (e) { SLF.ui.toast('❌ ' + e.message, 'error'); }
+  });
 }
 
 async function loadGlobalSettings() {
@@ -773,17 +775,18 @@ async function importBackup() {
     SLF.ui.toast('⚠️ ' + t('pleaseSelectBackupFile', null, '请选择备份文件'), 'error');
     return;
   }
-  if (!confirm(t('confirmImportBackup', null, '确认导入备份？当前数据将被覆盖'))) return;
-  try {
-    const text = await selectedBackupFile.text();
-    const data = JSON.parse(text);
-    const result = await SLF.api.post('/super/backup/import', data);
-    if (!result || !result.success) throw new Error((result && result.error) || t('importFailed', null, '导入失败'));
-    SLF.ui.toast('✅ ' + t('backupImported', null, '备份已导入'), 'success');
-    setTimeout(() => location.reload(), 1500);
-  } catch (e) {
-    SLF.ui.toast('❌ ' + t('importFailed', null, '导入失败') + ': ' + e.message, 'error');
-  }
+  showConfirm(t('confirmImportBackup', null, '确认导入备份？当前数据将被覆盖'), async function() {
+    try {
+      const text = await selectedBackupFile.text();
+      const data = JSON.parse(text);
+      const result = await SLF.api.post('/super/backup/import', data);
+      if (!result || !result.success) throw new Error((result && result.error) || t('importFailed', null, '导入失败'));
+      SLF.ui.toast('✅ ' + t('backupImported', null, '备份已导入'), 'success');
+      setTimeout(() => location.reload(), 1500);
+    } catch (e) {
+      SLF.ui.toast('❌ ' + t('importFailed', null, '导入失败') + ': ' + e.message, 'error');
+    }
+  });
 }
 window.importBackup = importBackup;
 

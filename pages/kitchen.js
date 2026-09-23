@@ -402,22 +402,12 @@
     }
     $('#logoutBtn').addEventListener('click', () => logout(true));
 
-    // 空闲超时
-    let kitchenIdleTimer = null;
+    // 空闲超时（统一 SLF.idle）
     let kitchenIdleTimeoutMin = 120;
+    SLF.idle.start({ timeoutMin: kitchenIdleTimeoutMin, onTimeout: function(){ logout(false); } });
     SLF.api.get('/public/global-config').then(cfg => {
-      if (cfg.kitchen_idle_timeout) { kitchenIdleTimeoutMin = cfg.kitchen_idle_timeout; resetKitchenIdle(); }
+      if (cfg.kitchen_idle_timeout) SLF.idle.update(cfg.kitchen_idle_timeout, function(){ logout(false); });
     }).catch(() => {});
-    function resetKitchenIdle() {
-      clearTimeout(kitchenIdleTimer);
-      if (SLF.store.rawGet('kitchenToken')) {
-        kitchenIdleTimer = setTimeout(() => logout(false), kitchenIdleTimeoutMin * 60 * 1000);
-      }
-    }
-    ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt =>
-      document.addEventListener(evt, resetKitchenIdle, { passive: true })
-    );
-    resetKitchenIdle();
 
     $('#fullscreenBtn').addEventListener('click', () => {
       audio.unlock();

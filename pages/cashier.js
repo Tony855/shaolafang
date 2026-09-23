@@ -56,28 +56,19 @@
       }, { type: 'warning', icon: '🚪' });
     }
 
-    // 空闲超时
-    let cashierIdleTimer = null;
+    // 空闲超时（统一 SLF.idle）
     let cashierIdleTimeoutMin = 30;
-    SLF.api.get('/public/global-config').then(cfg => {
-      if (cfg.cashier_idle_timeout) { cashierIdleTimeoutMin = cfg.cashier_idle_timeout; resetCashierIdle(); }
-    }).catch(() => {});
-    function resetCashierIdle() {
-      clearTimeout(cashierIdleTimer);
-      if (SLF.store.rawGet('cashierToken')) {
-        cashierIdleTimer = setTimeout(() => {
-          SLF.store.rawRemove('cashierToken');
-          SLF.store.rawRemove('cashierStoreId');
-          SLF.store.rawRemove('cashierInfo');
-          SLF.store.rawRemove('storeId');
-          window.location.href = '/login?type=cashier';
-        }, cashierIdleTimeoutMin * 60 * 1000);
-      }
+    function cashierIdleLogout() {
+      SLF.store.rawRemove('cashierToken');
+      SLF.store.rawRemove('cashierStoreId');
+      SLF.store.rawRemove('cashierInfo');
+      SLF.store.rawRemove('storeId');
+      window.location.href = '/login?type=cashier';
     }
-    ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt =>
-      document.addEventListener(evt, resetCashierIdle, { passive: true })
-    );
-    resetCashierIdle();
+    SLF.idle.start({ timeoutMin: cashierIdleTimeoutMin, onTimeout: cashierIdleLogout });
+    SLF.api.get('/public/global-config').then(cfg => {
+      if (cfg.cashier_idle_timeout) SLF.idle.update(cfg.cashier_idle_timeout, cashierIdleLogout);
+    }).catch(() => {});
 
     function changeLang(lang) {
       currentLang = lang;

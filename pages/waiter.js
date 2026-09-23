@@ -29,9 +29,9 @@
       document.exitFullscreen();
     } else {
       if (window.navigator.standalone) {
-        alert('已在全屏模式（主屏幕打开）。若需退出，请从底部向上滑动返回。');
+        SLF.ui.toast('已在全屏模式（主屏幕打开）。若需退出，请从底部向上滑动返回。');
       } else {
-        document.documentElement.requestFullscreen().catch(e => alert('请用"添加到主屏幕"打开以获得全屏体验'));
+        document.documentElement.requestFullscreen().catch(e => SLF.ui.toast('请用"添加到主屏幕"打开以获得全屏体验'));
       }
     }
   };
@@ -157,12 +157,6 @@
       else result = await SLF.api._request(method, path, opt);
       return result;
     } catch (e) {
-      if (e.status === 401) {
-        state.token = '';
-        SLF.store.rawRemove('waiterToken');
-        window.location.href = '/login?type=waiter';
-        throw new Error('登录已过期，请重新登录');
-      }
       throw e;
     }
   }
@@ -176,20 +170,11 @@
     document.documentElement.removeAttribute('data-waiter-session');
     knownWaiterOrderIds = null;
     stopWaiterAutoRefresh();
-    if (waiterIdleTimer) { clearTimeout(waiterIdleTimer); waiterIdleTimer = null; }
+    SLF.idle.stop();
     window.location.href = '/login?type=waiter';
   }
 
-  let waiterIdleTimer = null;
   let waiterIdleTimeoutMin = 20;
-  function resetWaiterIdle() {
-    clearTimeout(waiterIdleTimer);
-    if (SLF.store.rawGet('waiterRemember') !== '1' && state.token) {
-      const idleTimeout = waiterIdleTimeoutMin * 60 * 1000;
-      waiterIdleTimer = setTimeout(logoutWaiter, idleTimeout);
-    }
-  }
-  ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt => document.addEventListener(evt, resetWaiterIdle, { passive: true }));
 
   $('#logoutBtn').onclick = function () { showConfirm(t('confirmLogout', null, '确认退出登录？'), logoutWaiter); };
 
@@ -321,6 +306,7 @@
       if (typeof configRes.newOrderSoundEnabled === 'boolean' && SLF.audio) SLF.audio.setEnabled(configRes.newOrderSoundEnabled);
       startWaiterAutoRefresh(configRes.waiter_refresh_interval || 8);
       waiterIdleTimeoutMin = configRes.waiter_idle_timeout || 20;
+      SLF.idle.start({ timeoutMin: waiterIdleTimeoutMin, onTimeout: logoutWaiter, rememberKey: 'waiterRemember' });
       if (state.dualCurrency.enabled && !state.dualCurrency.currency) {
         const defaultSec = state.currencies.find(c => c.code === 'USD') || state.currencies[0];
         if (defaultSec) state.dualCurrency.currency = defaultSec;
