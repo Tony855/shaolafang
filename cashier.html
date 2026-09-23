@@ -1,15 +1,15 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <link rel="icon" href="data:,">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
-  <title>收银台</title>
-  <script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
+<title>收银台</title>
+<script>
     try { if (localStorage.getItem('cashierToken')) document.documentElement.setAttribute('data-cashier-session', '1'); } catch(e) {}
-  </script>
-  <link rel="stylesheet" href="assets/common.css">
-  <style>
+</script>
+<link rel="stylesheet" href="assets/common.css">
+<style>
     :root{
       --primary: #667eea;
       --primary-light: #764ba2;
@@ -198,17 +198,11 @@
       color: #fff; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;
     }
     .modal-actions .btn:hover{ background: #5a5a80; }
-    .modal-actions .btn.btn-primary{
-      background: linear-gradient(135deg, #f76b46, #df4d32); font-weight: 700;
-    }
+    .modal-actions .btn.btn-primary{ background: linear-gradient(135deg, #f76b46, #df4d32); font-weight: 700; }
     .modal-actions .btn.btn-primary:hover{ background: linear-gradient(135deg, #ff7a55, #e85a3f); }
-    .modal-actions .btn.btn-warning{
-      background: linear-gradient(135deg, #f5a623, #e8941a); font-weight: 700;
-    }
+    .modal-actions .btn.btn-warning{ background: linear-gradient(135deg, #f5a623, #e8941a); font-weight: 700; }
     .modal-actions .btn.btn-warning:hover{ background: linear-gradient(135deg, #ffb535, #f5a020); }
-    .modal-actions .btn.btn-danger{
-      background: linear-gradient(135deg, #e74c3c, #c0392b); font-weight: 700;
-    }
+    .modal-actions .btn.btn-danger{ background: linear-gradient(135deg, #e74c3c, #c0392b); font-weight: 700; }
     .modal-actions .btn.btn-danger:hover{ background: linear-gradient(135deg, #ff5c4a, #d64535); }
     .empty-hint{ text-align: center; padding: 40px 20px; color: var(--gray-4); }
     .empty-icon{ font-size: 48px; margin-bottom: 12px; }
@@ -225,7 +219,7 @@
     .login-modal{ display: none; }
     html:not([data-cashier-session="1"]) .login-modal{ display: flex; }
     html:not([data-cashier-session="1"]) .app-content{ display: none; }
-  </style>
+</style>
 </head>
 <body>
   <!-- 登录提示 -->
@@ -238,7 +232,6 @@
     </div>
   </div>
 
-  <!-- 主内容 -->
   <div class="app-content">
     <header>
       <div class="header-left">
@@ -307,7 +300,6 @@
     </div>
   </div>
 
-  <!-- 订单详情弹窗 -->
   <div class="modal-overlay" id="orderDetailModal">
     <div class="modal">
       <button class="modal-close" onclick="closeOrderDetail()">✕</button>
@@ -324,7 +316,6 @@
     </div>
   </div>
 
-  <!-- 自定义确认弹窗 -->
   <div class="modal-overlay" id="confirmModal">
     <div class="modal" style="max-width:360px;text-align:center;">
       <button class="modal-close" onclick="hideConfirm()">✕</button>
@@ -342,32 +333,33 @@
 
   <script src="languages.min.js?v=20260922b"></script>
   <script src="assets/core.js?v=20260922b"></script>
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  const cashierSocket = io({ query: { storeId: (SLF.store.rawGet('storeId') || 1) } });
-  cashierSocket.on('order:new', () => { if (typeof loadOrders === 'function') loadOrders(); });
-  cashierSocket.on('item:updated', () => { if (typeof loadOrders === 'function') loadOrders(); });
-  cashierSocket.on('order:settled', () => { if (typeof loadOrders === 'function') loadOrders(); });
-  cashierSocket.on('order:transfer', () => { if (typeof loadOrders === 'function') loadOrders(); });
-</script>
+  <script src="/socket.io/socket.io.js"></script>
   <script>
+    // 全局状态
     let currentLang = SLF.store.rawGet('cashierLang') || SLF.store.rawGet('lang') || 'zh';
     let cashierInfo = null;
     let orders = [];
     let currentTab = 'pending';
-
-    
-
-    SLF.i18n.init(currentLang);
-
-    function t(key, params) {
-      return SLF.i18n.t(key, params);
-      return SLF.i18n.t(key, params);
-    }
-
     let currencies = [];
     let defaultCurrency = { symbol: '$', rate: 1, code: 'USD' };
     let dualCurrency = { enabled: false, currency: null };
+    let refreshInterval = 15;
+    let refreshTimer = null;
+
+    SLF.i18n.init(currentLang);
+
+    // 修复：删除重复的 return
+    function t(key, params) {
+      return SLF.i18n.t(key, params);
+    }
+
+    // 修复：新增 toBaseCurrency
+    function toBaseCurrency(price, currencyCode) {
+      if (!currencyCode) return Number(price || 0);
+      const curr = currencies.find(c => c.code === currencyCode);
+      if (!curr || !curr.rate) return Number(price || 0);
+      return Number(price || 0) / Number(curr.rate);
+    }
 
     function formatPrimary(amount) {
       return defaultCurrency.symbol + (Number(amount || 0) * Number(defaultCurrency.rate || 1)).toFixed(2);
@@ -380,6 +372,21 @@
     function formatMoney(amount) {
       const sec = formatSecondary(amount);
       return sec ? formatPrimary(amount) + ' (' + sec + ')' : formatPrimary(amount);
+    }
+
+    // 修复：统一的菜品价格（base）计算
+    function itemBasePrice(item) {
+      return toBaseCurrency(item.price, item.currency_code);
+    }
+    function itemLineTotal(item) {
+      const qty = Number(item.quantity || 0) - Number(item.returnedQty || 0);
+      return itemBasePrice(item) * qty;
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
     }
 
     function toast(msg) {
@@ -407,10 +414,12 @@
       }, { type: 'warning', icon: '🚪' });
     }
 
-    // 空闲超时（默认30分钟无操作自动退出）
+    // 空闲超时
     let cashierIdleTimer = null;
     let cashierIdleTimeoutMin = 30;
-    SLF.api.get('/public/global-config').then(cfg => { if (cfg.cashier_idle_timeout) { cashierIdleTimeoutMin = cfg.cashier_idle_timeout; resetCashierIdle(); } }).catch(()=>{});
+    SLF.api.get('/public/global-config').then(cfg => {
+      if (cfg.cashier_idle_timeout) { cashierIdleTimeoutMin = cfg.cashier_idle_timeout; resetCashierIdle(); }
+    }).catch(() => {});
     function resetCashierIdle() {
       clearTimeout(cashierIdleTimer);
       if (SLF.store.rawGet('cashierToken')) {
@@ -477,7 +486,6 @@
     }
 
     async function api(url, options = {}) {
-      // 确保 storeId 键名统一（SLF.api 从 storeId 读取）
       const cashierStoreId = SLF.store.rawGet('cashierStoreId');
       if (cashierStoreId) SLF.store.rawSet('storeId', cashierStoreId);
       const method = (options.method || 'GET').toUpperCase();
@@ -504,7 +512,7 @@
       }
     }
 
-    // 根据 session_token 分组生成客户标签
+    // 根据 customer_token 分组生成客户标签
     function buildSessionLabels(orderList) {
       const labels = new Map();
       const tableGroups = {};
@@ -551,17 +559,19 @@
       container.innerHTML = filtered.map(order => {
         const statusClass = order.status === 'done' ? 'done' : order.status === 'canceled' ? 'canceled' : order.status === 'refunded' ? 'refunded' : 'pending';
         const statusText = order.status === 'done' ? t('settled') : order.status === 'canceled' ? t('canceled') : order.status === 'refunded' ? t('refunded') : t('pendingSettlement');
-        const dishesHTML = (order.items || []).map(i =>
-          '<div class="order-dish-row">' +
+        const dishesHTML = (order.items || []).map(i => {
+          const unitBase = itemBasePrice(i);
+          const lineBase = itemLineTotal(i);
+          return '<div class="order-dish-row">' +
             '<div class="order-dish-left">' +
-              '<span class="order-dish-name">' + i.name + '</span>' +
+              '<span class="order-dish-name">' + esc(i.name) + '</span>' +
               '<span class="order-dish-qty">×' + i.quantity + '</span>' +
-              '<span class="order-dish-unit">@' + formatPrimary(i.price) + '</span>' +
-              (i.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:11px;">(' + t('returned') + i.returnedQty + ')</span>' : '') +
+              '<span class="order-dish-unit">@' + formatPrimary(unitBase) + '</span>' +
+              (i.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:11px;">(' + t('returned') + ' ' + i.returnedQty + ')</span>' : '') +
             '</div>' +
-            '<span class="order-dish-price">' + formatMoney(i.price * (i.quantity - (i.returnedQty || 0))) + '</span>' +
-          '</div>'
-        ).join('');
+            '<span class="order-dish-price">' + formatMoney(lineBase) + '</span>' +
+          '</div>';
+        }).join('');
         const allItemsDone = (order.items || []).every(i => i.itemStatus === 'done');
         const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending' && allItemsDone;
         const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
@@ -575,16 +585,16 @@
           '<div class="order-header" style="display:flex;align-items:center;gap:8px;">' + checkbox +
             '<span class="order-table">' +
               '<span class="order-table-icon">🪑</span>' +
-              '<span class="order-table-name">' + (order.table_name || '-') + '</span>' +
-              '<span class="order-id-badge">' + (order.order_no || ('#' + order.id)) + '</span>' +
-              (customerLabel ? '<span class="customer-tag' + (customerLabel === t('staffOrder') ? ' staff' : '') + '">👤 ' + customerLabel + '</span>' : '') +
+              '<span class="order-table-name">' + esc(order.table_name || '-') + '</span>' +
+              '<span class="order-id-badge">' + esc(order.order_no || ('#' + order.id)) + '</span>' +
+              (customerLabel ? '<span class="customer-tag' + (customerLabel === t('staffOrder') ? ' staff' : '') + '">👤 ' + esc(customerLabel) + '</span>' : '') +
             '</span>' +
-            '<span class="order-status ' + statusClass + '">' + statusText + '</span>' +
+            '<span class="order-status ' + statusClass + '">' + esc(statusText) + '</span>' +
           '</div>' +
           '<div class="order-info">🕐 ' + formatTime(order.createdAt) + ' · ' + (order.items?.length || 0) + t('dishes') + '</div>' +
           '<div class="order-dishes">' + (dishesHTML || '<div style="color:var(--gray-4);">' + t('noDishes') + '</div>') + '</div>' +
           '<div class="order-footer">' +
-            '<span class="order-total">' + formatMoney(order.total) + '</span>' +
+            '<span class="order-total">' + formatMoney(Number(order.total) || 0) + '</span>' +
             '<div class="order-actions" onclick="event.stopPropagation()">' +
               ((cashierInfo?.permissions?.can_settle && order.status === 'pending') ? (canSettle ? '<button class="btn btn-primary" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'settle'" + ')">' + t('settleOrder') + '</button>' : '<button class="btn btn-primary" disabled style="opacity:0.5;cursor:not-allowed;" title="' + t('itemsNotReady') + '">' + t('settleOrder') + '</button>') : '') +
               (canCancel ? '<button class="btn btn-warning" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'cancel'" + ')">' + t('cancelOrder') + '</button>' : '') +
@@ -599,10 +609,11 @@
       const pending = orders.filter(o => o.status === 'pending').length;
       const today = new Date().toISOString().split('T')[0];
       const todayOrders = orders.filter(o => (o.createdAt || '').startsWith(today));
-      const revenue = todayOrders.filter(o => o.status === 'done').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+      const revenueBase = todayOrders.filter(o => o.status === 'done').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
       document.getElementById('pendingCount').textContent = pending;
       document.getElementById('todayCount').textContent = todayOrders.length;
-      document.getElementById('todayRevenue').textContent = formatMoney(revenue);
+      // 修复：revenue 用 formatMoney 而不是硬编码 $
+      document.getElementById('todayRevenue').textContent = formatMoney(revenueBase);
     }
 
     function showOrderDetail(id, action) {
@@ -610,19 +621,21 @@
       if (!order) return;
       const detailCustomerLabel = buildSessionLabels([order]).get(order.id) || '';
       document.getElementById('detailTitle').textContent = t('orderDetail') + ' ' + (order.order_no || ('#' + order.id)) + (detailCustomerLabel ? ' · ' + detailCustomerLabel : '');
-      document.getElementById('detailDishes').innerHTML = (order.items || []).map(item =>
-        '<div class="dish-item">' +
+      document.getElementById('detailDishes').innerHTML = (order.items || []).map(item => {
+        const unitBase = itemBasePrice(item);
+        const lineBase = itemLineTotal(item);
+        return '<div class="dish-item">' +
           '<div class="dish-left">' +
-            '<span class="dish-name">' + item.name + '</span>' +
+            '<span class="dish-name">' + esc(item.name) + '</span>' +
             '<span class="dish-qty">×' + item.quantity + '</span>' +
-            '<span class="dish-unit">@' + formatPrimary(item.price) + '</span>' +
-            (item.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:11px;">(' + t('returned') + item.returnedQty + ')</span>' : '') +
+            '<span class="dish-unit">@' + formatPrimary(unitBase) + '</span>' +
+            (item.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:11px;">(' + t('returned') + ' ' + item.returnedQty + ')</span>' : '') +
           '</div>' +
-          '<span class="dish-price">' + formatMoney(item.price * (item.quantity - (item.returnedQty || 0))) + '</span>' +
-        '</div>'
-      ).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">' + t('noDishes') + '</div>';
-      document.getElementById('detailTotal').textContent = formatMoney(order.total);
-      const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending' && (order.items||[]).every(i => i.itemStatus === 'done');
+          '<span class="dish-price">' + formatMoney(lineBase) + '</span>' +
+        '</div>';
+      }).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">' + t('noDishes') + '</div>';
+      document.getElementById('detailTotal').textContent = formatMoney(Number(order.total) || 0);
+      const canSettle = cashierInfo?.permissions?.can_settle && order.status === 'pending' && (order.items || []).every(i => i.itemStatus === 'done');
       const canCancel = cashierInfo?.permissions?.can_cancel && order.status === 'pending';
       const canRefund = cashierInfo?.permissions?.can_refund && order.status === 'done';
       const showSettle = canSettle && (!action || action === 'settle');
@@ -660,7 +673,6 @@
         }
       }, { type: 'warning', icon: '⚠️', okText: t('confirmCancel'), cancelText: t('back') });
     }
-
 
     function closeOrderDetail() {
       document.getElementById('orderDetailModal').classList.remove('show');
@@ -730,20 +742,19 @@
       if (!selectedIds.size) return;
       const ids = [...selectedIds];
       const selectedOrders = orders.filter(o => selectedIds.has(o.id));
-      // Check all items done
       const notReady = selectedOrders.filter(o => !(o.items || []).every(i => i.itemStatus === 'done'));
-      if (notReady.length) { toast('⚠️ ' + t('batchNotReady') + ' ' + notReady.map(o => o.order_no || ('#'+o.id)).join(', ')); return; }
+      if (notReady.length) { toast('⚠️ ' + t('batchNotReady') + ' ' + notReady.map(o => o.order_no || ('#' + o.id)).join(', ')); return; }
       const total = selectedOrders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
       const tables = [...new Set(selectedOrders.map(o => o.table_name))].join(', ');
       let html = '<div style="text-align:left;max-height:300px;overflow-y:auto;">';
-      html += '<div style="margin-bottom:8px;color:#666;">' + t('table') + ': <b>' + tables + '</b> · ' + selectedOrders.length + ' ' + t('orders') + '</div>';
+      html += '<div style="margin-bottom:8px;color:#666;">' + t('table') + ': <b>' + esc(tables) + '</b> · ' + selectedOrders.length + ' ' + t('orders') + '</div>';
       selectedOrders.forEach(o => {
         html += '<div style="background:#f8f9fa;border-radius:8px;padding:8px;margin-bottom:6px;">';
-        html += '<div style="font-weight:700;margin-bottom:4px;">' + (o.order_no || ('#'+o.id)) + ' · ' + (o.table_name || '-') + '</div>';
+        html += '<div style="font-weight:700;margin-bottom:4px;">' + esc(o.order_no || ('#' + o.id)) + ' · ' + esc(o.table_name || '-') + '</div>';
         (o.items || []).forEach(i => {
-          html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#555;"><span>' + i.name + ' x' + i.quantity + ' <span style="color:#999;font-size:11px;">@' + formatPrimary(i.price) + '</span></span><span>' + formatMoney(i.price * (i.quantity - (i.returnedQty || 0))) + '</span></div>';
+          html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#555;"><span>' + esc(i.name) + ' x' + i.quantity + ' <span style="color:#999;font-size:11px;">@' + formatPrimary(itemBasePrice(i)) + '</span></span><span>' + formatMoney(itemLineTotal(i)) + '</span></div>';
         });
-        html += '<div style="text-align:right;font-weight:700;color:#333;margin-top:4px;">' + formatMoney(o.total) + '</div>';
+        html += '<div style="text-align:right;font-weight:700;color:#333;margin-top:4px;">' + formatMoney(Number(o.total) || 0) + '</div>';
         html += '</div>';
       });
       html += '<div style="text-align:right;font-weight:700;font-size:16px;color:#667eea;margin-top:8px;">' + t('total') + ': ' + formatMoney(total) + '</div>';
@@ -764,7 +775,7 @@
       if (!selectedIds.size) return;
       try {
         await api('/cashier/orders/batch-print', { method: 'POST', body: { order_ids: [...selectedIds] } });
-        toast('✅ 打印指令已发送');
+        toast('✅ ' + t('print') + ' OK');
       } catch (e) { toast('❌ ' + e.message); }
     }
 
@@ -784,17 +795,20 @@
     async function loadReport() {
       try {
         const data = await api('/cashier/report/today');
+        // 修复：使用 formatMoney 而不是硬编码 $
+        const totalRevenueDisplay = formatMoney(Number(data.totalRevenue) || 0);
+        const avgDisplay = formatMoney(Number(data.avgOrderValue) || 0);
         document.getElementById('reportContent').innerHTML =
           '<div class="report-card">' +
             '<div class="report-title">' + t('todayRevenue') + '</div>' +
-            '<div class="report-amount">$' + data.totalRevenue + '</div>' +
+            '<div class="report-amount">' + totalRevenueDisplay + '</div>' +
             '<div class="report-stats">' +
               '<div class="report-stat"><div class="report-stat-value">' + data.orderCount + '</div><div class="report-stat-label">' + t('orderCount') + '</div></div>' +
-              '<div class="report-stat"><div class="report-stat-value">$' + data.avgOrderValue + '</div><div class="report-stat-label">' + t('avgOrderValue') + '</div></div>' +
+              '<div class="report-stat"><div class="report-stat-value">' + avgDisplay + '</div><div class="report-stat-label">' + t('avgOrderValue') + '</div></div>' +
             '</div>' +
           '</div>' +
           (data.orders && data.orders.length ? '<div class="modal-section-title" style="margin-bottom:8px;">' + t('settledOrdersTitle') + '</div>' + data.orders.map(o =>
-            '<div class="dish-item"><span class="dish-name">📋 ' + (o.table_name || '-') + ' · ' + formatTime(o.createdAt) + '</span><span class="dish-price">$' + (parseFloat(o.total || 0).toFixed(2)) + '</span></div>'
+            '<div class="dish-item"><span class="dish-name">📋 ' + esc(o.table_name || '-') + ' · ' + formatTime(o.createdAt) + '</span><span class="dish-price">' + formatMoney(Number(o.total) || 0) + '</span></div>'
           ).join('') : '<div class="empty-hint">' + t('noSettledToday') + '</div>');
       } catch (e) {
         if (e.message.includes('没有')) {
@@ -824,7 +838,6 @@
         const info = JSON.parse(SLF.store.rawGet('cashierInfo') || '{}');
         cashierInfo = info;
         const storeId = SLF.store.rawGet('cashierStoreId') || '1';
-        // 同步 storeId 到统一的 key，供 SLF.api 使用
         SLF.store.rawSet('storeId', storeId);
         document.getElementById('storeName').textContent = cashierInfo.storeName || t('store') + ' #' + storeId;
         try {
@@ -832,9 +845,14 @@
           currencies = cfg.currencies || [];
           defaultCurrency = cfg.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' };
           dualCurrency = cfg.dualCurrency || { enabled: false, currency: null };
-        } catch(e) { console.error('currency load failed', e); }
+          // 修复：使用配置的刷新间隔
+          const ri = parseInt(cfg.waiter_refresh_interval, 10);
+          if (!isNaN(ri) && ri >= 3) refreshInterval = ri;
+        } catch (e) { console.error('currency load failed', e); }
         await loadOrders();
-        setInterval(loadOrders, 15000);
+        // 修复：使用配置的刷新间隔
+        if (refreshTimer) clearInterval(refreshTimer);
+        refreshTimer = setInterval(loadOrders, refreshInterval * 1000);
       } catch (e) {
         console.error(e);
       }
@@ -847,6 +865,29 @@
     document.getElementById('confirmModal').addEventListener('click', function(e) {
       if (e.target === this) hideConfirm();
     });
+
+    // Socket（传 cashierToken）
+    if (typeof io === 'function') {
+      const cashierSocket = io({
+        query: {
+          storeId: SLF.store.rawGet('storeId') || 1,
+          token: SLF.store.rawGet('cashierToken') || ''
+        }
+      });
+      let socketDebounce = null;
+      function debouncedLoadOrders() {
+        clearTimeout(socketDebounce);
+        socketDebounce = setTimeout(() => { if (typeof loadOrders === 'function') loadOrders(); }, 300);
+      }
+      cashierSocket.on('order:new', debouncedLoadOrders);
+      cashierSocket.on('item:updated', debouncedLoadOrders);
+      cashierSocket.on('order:settled', debouncedLoadOrders);
+      cashierSocket.on('order:transfer', debouncedLoadOrders);
+      cashierSocket.on('connect_error', (err) => { console.warn('cashierSocket connect_error:', err.message); });
+      window.addEventListener('beforeunload', () => {
+        try { cashierSocket.disconnect(); } catch (_) {}
+      });
+    }
 
     init();
   </script>

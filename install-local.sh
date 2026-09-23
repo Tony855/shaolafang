@@ -12,6 +12,12 @@
 
 set -e
 
+# 安全检查：如果当前目录的历史里有已泄露的 token 模式，警告
+if git log --all --oneline 2>/dev/null | grep -q "ghp_"; then
+    log_warn "⚠️  检测到 git 历史中可能存在已泄露的 GitHub Token（ghp_...）"
+    log_warn "    请确认已在 GitHub 侧撤销该 Token，并考虑用 git-filter-repo 重写历史"
+fi
+  
 # ===== 颜色输出 =====
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -45,7 +51,31 @@ if [ ! -f "$APP_DIR/server.js" ]; then
     cd "$APP_DIR"
     if [ ! -f server.js ]; then
         log_info "拉取仓库到 $APP_DIR..."
-        git clone https://Tony855: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@github.com/Tony855/shaolafang.git .
+    
+        # 优先使用 SSH（推荐，无需 token）
+        # 若必须使用 HTTPS，通过环境变量 GITHUB_TOKEN 注入，切勿硬编码
+        REPO_URL=""
+        if git ls-remote git@github.com:Tony855/shaolafang.git HEAD >/dev/null 2>&1; then
+            REPO_URL="git@github.com:Tony855/shaolafang.git"
+            log_info "使用 SSH 方式拉取"
+        elif [ -n "$GITHUB_TOKEN" ]; then
+            REPO_URL="https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git"
+            log_info "使用 HTTPS + GITHUB_TOKEN 拉取"
+        else
+            log_error "无法拉取仓库：SSH 未配置且未提供 GITHUB_TOKEN 环境变量"
+            log_error "解决方案二选一："
+            log_error "  1) 配置 SSH 密钥：ssh-keygen -t ed25519 && cat ~/.ssh/id_ed25519.pub 添加到 GitHub"
+            log_error "  2) 运行脚本时携带 token：sudo GITHUB_TOKEN=ghp_xxx bash install-local.sh"
+            exit 1
+        fi
+    
+        git clone "$REPO_URL" .
+        # clone 后立刻从 git 配置里剥离 token（防止写入 .git/config）
+        if [ -n "$GITHUB_TOKEN" ]; then
+            git remote set-url origin https://github.com/Tony855/shaolafang.git
+            # 关闭凭证缓存，避免 token 落到磁盘
+            git config --unset credential.helper 2>/dev/null || true
+        fi
     fi
     log_success "代码已就位: $APP_DIR"
 else
@@ -444,7 +474,7 @@ echo "  外网: http://$(hostname -I | awk '{print $1}')"
 echo ""
 echo "默认账号:"
 echo "  超级管理员: superadmin / super123"
-echo "  商户管理员: admin / 123456"
+echo "  商户管理员: admin / admin123"
 echo "  服务员:     waiter / 123456"
 echo "  收银员:     cashier / 123456"
 echo ""

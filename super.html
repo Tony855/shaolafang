@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <link rel="icon" href="data:,">
@@ -9,7 +9,6 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f1a; color: #fff; min-height: 100vh; }
 
-/* 登录页 */
 .login-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
 .login-card { background: rgba(255,255,255,.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 40px; width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
 .login-card h1 { text-align: center; font-size: 24px; margin-bottom: 8px; background: linear-gradient(135deg, #e85d3a, #ffd93d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -23,7 +22,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(232,93,58,.3); }
 .login-error { color: #e74c3c; font-size: 13px; text-align: center; margin-top: 12px; min-height: 18px; }
 
-/* 主后台 */
 .app { display: none; }
 .sidebar { position: fixed; left: 0; top: 0; width: 240px; height: 100vh; background: #1a1a2e; border-right: 1px solid rgba(255,255,255,.06); padding: 20px 0; z-index: 100; }
 .sidebar-brand { padding: 0 20px 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.06); margin-bottom: 10px; }
@@ -38,7 +36,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .top-bar .user-info span { color: #aaa; }
 .logout-btn { background: rgba(231,76,60,.15); color: #e74c3c; border: 0; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
 
-/* 统计卡片 */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .stat-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 20px; display: flex; align-items: center; gap: 14px; transition: all .3s; }
 .stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.15); background: rgba(255,255,255,.06); }
@@ -54,7 +51,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .stat-card .unit { font-size: 14px; color: #888; margin-left: 4px; }
 .stats-today { grid-template-columns: 1fr; }
 
-/* 服务器监控 */
 .server-monitor { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .server-gauge-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 20px; text-align: center; }
 .gauge-ring { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 12px; background: conic-gradient(var(--primary, #e85d3a) calc(var(--pct, 0) * 1%), rgba(255,255,255,.1) 0); display: flex; align-items: center; justify-content: center; position: relative; transition: background 0.5s ease; }
@@ -78,12 +74,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   .server-monitor { grid-template-columns: 1fr; }
 }
 
-/* 面板 */
 .panel { display: none; }
 .panel.active { display: block; }
 .section-title { font-size: 18px; margin-bottom: 20px; color: #fff; }
 
-/* 表格 */
 .data-table { width: 100%; border-collapse: separate; border-spacing: 0; background: rgba(255,255,255,.02); border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,.06); }
 .data-table th { background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03)); padding: 14px 16px; text-align: left; color: #fff; font-size: 13px; font-weight: 700; border-bottom: 2px solid rgba(232,93,58,.3); letter-spacing: .3px; }
 .data-table td { padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.04); color: #e0e0e0; font-size: 14px; }
@@ -99,17 +93,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .action-btn.warning { background: linear-gradient(135deg, #f5a623, #e8941a); color: #fff; box-shadow: 0 2px 8px rgba(245,166,35,.3); }
 .action-btn.danger { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; box-shadow: 0 2px 8px rgba(231,76,60,.3); }
 
-/* 按钮 */
 .btn-primary { background: linear-gradient(135deg, #e85d3a, #e84a2a); color: #fff; border: 0; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
 .btn-primary:hover { transform: translateY(-1px); }
 
-/* 模态框 */
 .table-scroll { scrollbar-width: none; -ms-overflow-style: none; }
 .table-scroll::-webkit-scrollbar { display: none; }
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px; box-sizing: border-box; }
 .modal.open { display: flex; }
-.modal-card { background: linear-gradient(180deg, #1e1e35 0%, #16162a 100%); border-radius: 16px; padding: 22px 24px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 20px 60px rgba(0,0,0,.5); scrollbar-width: none; -ms-overflow-style: none; box-sizing: border-box; }
-.modal-card::-webkit-scrollbar { display: none; }
+.modal-card { background: linear-gradient(180deg, #1e1e35 0%, #16162a 100%); border-radius: 16px; padding: 22px 24px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 20px 60px rgba(0,0,0,.5); box-sizing: border-box; }
 .modal-card h3 { margin-bottom: 20px; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
 .modal-card h3 .modal-close { font-size: 20px; color: #888; cursor: pointer; font-weight: 400; padding: 4px 10px; border-radius: 6px; transition: all .2s; }
 .modal-card h3 .modal-close:hover { background: rgba(255,255,255,.1); color: #fff; }
@@ -120,22 +111,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .modal-actions .confirm { background: linear-gradient(135deg, #e85d3a, #e84a2a); color: #fff; box-shadow: 0 4px 15px rgba(232,93,58,.3); }
 .modal-actions .confirm:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(232,93,58,.4); }
 
-/* Toast */
-.toast { position: fixed; top: 20px; right: 20px; background: #1a1a2e; color: #fff; padding: 14px 24px; border-radius: 10px; z-index: 9999; opacity: 0; transform: translateX(100%); transition: all .3s; border-left: 4px solid #e85d3a; }
+.toast { position: fixed; top: 20px; right: 20px; background: #1a1a2e; color: #fff; padding: 14px 24px; border-radius: 10px; z-index: 9999; opacity: 0; transform: translateX(100%); transition: all .3s; border-left: 4px solid #e85d3a; max-width: 360px; word-break: break-word; }
 .toast.show { opacity: 1; transform: translateX(0); }
 .toast.success { border-left-color: #2ecc71; }
 .toast.error { border-left-color: #e74c3c; }
 
-/* 移动端菜单按钮 */
 .mobile-menu-btn { display: none; position: fixed; top: 6px; left: 6px; z-index: 300; width: 36px; height: 36px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); color: #fff; font-size: 18px; cursor: pointer; padding: 0; border-radius: 10px; transition: background .2s, transform .2s; align-items: center; justify-content: center; }
 .mobile-menu-btn:hover { background: rgba(255,255,255,.15); }
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99; }
 .sidebar-overlay.show { display: block; }
-
-/* 移动端顶部导航栏 */
 .super-top { display: none; }
 
-/* 移动端适配 */
 @media (max-width: 1024px) {
   .mobile-menu-btn { display: flex; align-items: center; justify-content: center; }
   .super-top { display: flex; position: fixed; top: 0; left: 0; right: 0; z-index: 200; height: 48px; min-height: 48px; padding: 0 10px 0 52px; align-items: center; justify-content: space-between; gap: 8px; background: linear-gradient(180deg, #1a1a2e 0%, #16162a 100%); border-bottom: 1px solid rgba(255,255,255,.08); box-shadow: 0 4px 20px rgba(0,0,0,.3); }
@@ -144,7 +130,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   .super-top .logout-btn { padding: 5px 10px; font-size: 11px; border-radius: 8px; }
   .sidebar { transform: translateX(-100%); transition: transform .3s ease; width: 240px; top: 48px; height: calc(100vh - 48px); z-index: 150; }
   .sidebar.open { transform: translateX(0); }
-  .sidebar-brand, .nav-item span { display: block; }
   .main { margin-left: 0; padding: 56px 16px 20px; }
   .top-bar { display: none; }
   .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -160,23 +145,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   .data-table .status-badge { padding: 3px 8px; font-size: 11px; }
   .data-table .action-btn { padding: 5px 8px; font-size: 11px; }
   .modal { padding: 16px; align-items: center; justify-content: center; background: rgba(0,0,0,.6); }
-  .modal-card { padding: 22px 20px; margin: 0; border-radius: 18px; max-width: 420px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid rgba(255,255,255,.1); border-top: none; }
+  .modal-card { padding: 22px 20px; margin: 0; border-radius: 18px; max-width: 420px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid rgba(255,255,255,.1); }
   .modal-card h3 { font-size: 17px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,.08); display: flex; justify-content: space-between; align-items: center; color: #fff; }
-  .modal-card h3 .modal-close { font-size: 18px; color: #888; cursor: pointer; font-weight: 400; padding: 4px 8px; border-radius: 6px; transition: all .2s; }
-  .modal-card h3 .modal-close:hover { background: rgba(255,255,255,.1); color: #fff; }
   .form-group { margin-bottom: 14px; }
   .form-group label { font-size: 12px; margin-bottom: 6px; color: #999; }
   .form-group input { padding: 12px 14px; font-size: 14px; border-radius: 12px; }
   .modal-actions { flex-direction: row; gap: 10px; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.06); }
   .modal-actions button { flex: 1; padding: 13px; font-size: 14px; border-radius: 12px; }
-  .toast { left: 16px; right: 16px; top: 16px; transform: translateY(-120%); }
+  .toast { left: 16px; right: 16px; top: 16px; transform: translateY(-120%); max-width: none; }
   .toast.show { transform: translateY(0); }
   .section-title { font-size: 16px; }
   .btn-primary { padding: 10px 16px; font-size: 14px; }
   .action-btn { padding: 8px 10px; font-size: 11px; margin-right: 4px; margin-bottom: 4px; }
 }
 
-/* 平板及手机适配 768px */
 @media (max-width: 768px) {
   .super-top { padding: 0 8px 0 48px; height: 44px; min-height: 44px; }
   .super-top .brand { font-size: 13px; max-width: 140px; }
@@ -193,10 +175,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   .form-group { margin-bottom: 14px; }
   .form-group input { padding: 12px 14px; font-size: 14px; }
   .login-btn { padding: 12px; font-size: 15px; }
-  .top-bar h1 { font-size: 18px; }
-  .top-bar .user-info span { font-size: 13px; }
-  .logout-btn { padding: 7px 12px; font-size: 13px; }
-  /* 移动端表格 - 保持表格样式，支持横向滚动 */
   .data-table { min-width: 700px; }
   .data-table th, .data-table td { padding: 10px 12px; font-size: 12px; white-space: nowrap; }
   .data-table .action-btn { padding: 5px 10px; font-size: 11px; margin-right: 4px; }
@@ -208,12 +186,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   .form-group input { padding: 11px 12px; font-size: 13px; border-radius: 10px; }
   .modal-actions { gap: 8px; margin-top: 18px; padding-top: 14px; }
   .modal-actions button { padding: 12px; font-size: 13px; border-radius: 10px; }
-  .sidebar { width: 240px; }
-  .nav-item { padding: 14px 20px; }
-  .sidebar-brand { font-size: 16px; padding: 0 20px 16px; }
 }
 
-/* 超小屏适配 480px */
 @media (max-width: 480px) {
   .login-card { padding: 20px 14px; }
   .login-card h1 { font-size: 18px; }
@@ -224,7 +198,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   .action-btn { padding: 6px 8px; font-size: 10px; }
 }
 
-/* 横屏适配 */
 @media (max-height: 500px) and (orientation: landscape) {
   .login-page { padding: 20px 0; }
   .login-card { padding: 20px 24px; }
@@ -233,117 +206,33 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   .sidebar { overflow-y: auto; }
   .nav-item { padding: 10px 20px; }
 }
-/* 下拉选择框样式 */
-select {
-  color: #fff !important;
-  background-color: #1a1a2e !important;
-}
-select option {
-  background-color: #1a1a2e !important;
-  color: #fff !important;
-  padding: 8px 12px;
-}
-select:focus {
-  outline: none;
-  border-color: #e85d3a !important;
-}
+select { color: #fff !important; background-color: #1a1a2e !important; }
+select option { background-color: #1a1a2e !important; color: #fff !important; padding: 8px 12px; }
+select:focus { outline: none; border-color: #e85d3a !important; }
 
-/* 登录错误弹窗 */
-.error-modal {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity .3s ease, visibility .3s ease;
-}
-.error-modal.open {
-  opacity: 1;
-  visibility: visible;
-}
-.error-modal-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 32px 28px 24px;
-  max-width: 360px;
-  width: 90%;
-  text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-  animation: errorPop .3s ease;
-}
-@keyframes errorPop {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-.error-modal-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-}
-.error-modal-card h2 {
-  font-size: 20px;
-  color: #1a1a2e;
-  margin: 0 0 12px 0;
-}
-.error-modal-message {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 24px;
-  word-break: break-all;
-}
-.error-modal-btn {
-  width: 100%;
-  padding: 12px;
-  background: linear-gradient(135deg, #e85d3a, #ff8a4c);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.error-modal-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(232,93,58,0.4);
-}
-.error-modal-btn:active {
-  transform: translateY(0);
-}
+.error-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; visibility: hidden; transition: opacity .3s ease, visibility .3s ease; }
+.error-modal.open { opacity: 1; visibility: visible; }
+.error-modal-card { background: #fff; border-radius: 16px; padding: 32px 28px 24px; max-width: 360px; width: 90%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: errorPop .3s ease; }
+@keyframes errorPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.error-modal-icon { font-size: 48px; margin-bottom: 16px; }
+.error-modal-card h2 { font-size: 20px; color: #1a1a2e; margin: 0 0 12px 0; }
+.error-modal-message { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 24px; word-break: break-all; }
+.error-modal-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #e85d3a, #ff8a4c); color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.error-modal-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(232,93,58,0.4); }
+.error-modal-btn:active { transform: translateY(0); }
 
-
-/* 语言选择器 */
-.lang-select {
-  background: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.15);
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  cursor: pointer;
-  outline: none;
-}
+.lang-select { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; outline: none; }
 .lang-select option { color: #333; }
-.login-lang-select {
-  width: 100%;
-  margin-top: 12px;
-  text-align: center;
-}
+.login-lang-select { width: 100%; margin-top: 12px; text-align: center; }
 </style>
-  <script src="languages.min.js?v=20260922a"></script>
-  <script src="assets/core.js"></script>
+<script src="languages.min.js?v=20260923c"></script>
+<script src="assets/core.js"></script>
 </head>
 <body>
 
-<!-- 移动端菜单按钮 -->
 <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleSidebar()">☰</button>
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-<!-- 移动端顶部导航栏 -->
 <header class="super-top" id="superTop">
   <div class="brand">🍽️ FoodFlow · Super</div>
   <div class="top-right">
@@ -351,7 +240,6 @@ select:focus {
   </div>
 </header>
 
-<!-- 登录页 -->
 <div class="login-page" id="loginPage">
   <div class="login-card">
     <h1>🔐 超级管理员</h1>
@@ -377,7 +265,6 @@ select:focus {
   </div>
 </div>
 
-<!-- 登录错误弹窗 -->
 <div class="error-modal" id="errorModal">
   <div class="error-modal-card">
     <div class="error-modal-icon">❌</div>
@@ -387,25 +274,14 @@ select:focus {
   </div>
 </div>
 
-<!-- 主后台 -->
 <div class="app" id="app">
   <div class="sidebar" id="sidebar">
     <div class="sidebar-brand">🍽️ FoodFlow</div>
-    <div class="nav-item active" data-module="dashboard" onclick="closeSidebar();switchModule('dashboard')">
-      <span class="icon">📊</span><span>仪表盘</span>
-    </div>
-    <div class="nav-item" data-module="merchants" onclick="closeSidebar();switchModule('merchants')">
-      <span class="icon">🏢</span><span>商户管理</span>
-    </div>
-    <div class="nav-item" data-module="stores" onclick="closeSidebar();switchModule('stores')">
-      <span class="icon">🏪</span><span>门店总览</span>
-    </div>
-    <div class="nav-item" data-module="logs" onclick="closeSidebar();switchModule('logs')">
-      <span class="icon">📋</span><span id="navLogsText">日志</span>
-    </div>
-    <div class="nav-item" data-module="settings" onclick="closeSidebar();switchModule('settings')">
-      <span class="icon">⚙️</span><span>系统设置</span>
-    </div>
+    <div class="nav-item active" data-module="dashboard" onclick="closeSidebar();switchModule('dashboard')"><span class="icon">📊</span><span>仪表盘</span></div>
+    <div class="nav-item" data-module="merchants" onclick="closeSidebar();switchModule('merchants')"><span class="icon">🏢</span><span>商户管理</span></div>
+    <div class="nav-item" data-module="stores" onclick="closeSidebar();switchModule('stores')"><span class="icon">🏪</span><span>门店总览</span></div>
+    <div class="nav-item" data-module="logs" onclick="closeSidebar();switchModule('logs')"><span class="icon">📋</span><span id="navLogsText">日志</span></div>
+    <div class="nav-item" data-module="settings" onclick="closeSidebar();switchModule('settings')"><span class="icon">⚙️</span><span>系统设置</span></div>
   </div>
 
   <div class="main">
@@ -427,86 +303,29 @@ select:focus {
     <!-- 仪表盘 -->
     <div class="panel active" id="panel-dashboard">
       <div class="stats-grid">
-        <div class="stat-card stat-merchants">
-          <div class="stat-icon">🏪</div>
-          <div class="stat-content">
-            <div class="label" data-i18n="totalMerchants">商户总数</div>
-            <div class="value" id="statMerchants">0</div>
-          </div>
-        </div>
-        <div class="stat-card stat-stores">
-          <div class="stat-icon">🏬</div>
-          <div class="stat-content">
-            <div class="label" data-i18n="totalStores">门店总数</div>
-            <div class="value" id="statStores">0</div>
-          </div>
-        </div>
-        <div class="stat-card stat-orders" style="cursor:pointer;" onclick="showStoreBreakdown('orders')">
-          <div class="stat-icon">📋</div>
-          <div class="stat-content">
-            <div class="label" data-i18n="totalOrders">订单总数</div>
-            <div class="value" id="statOrders">0</div>
-          </div>
-        </div>
-        <div class="stat-card stat-revenue" style="cursor:pointer;" onclick="showStoreBreakdown('revenue')">
-          <div class="stat-icon">💰</div>
-          <div class="stat-content">
-            <div class="label" data-i18n="todayRevenue">今日营业额</div>
-            <div class="value" id="statRevenue">$0</div>
-          </div>
-        </div>
-        <div class="stat-card stat-online" id="cardOnlineClients" style="cursor:pointer;" onclick="showOnlineSessions()">
-          <div class="stat-icon">🟢</div>
-          <div class="stat-content">
-            <div class="label" data-i18n="onlineClients">在线客户端</div>
-            <div class="value" id="statOnlineClients">0</div>
-          </div>
-        </div>
-        <div class="stat-card stat-scan" style="cursor:pointer;" onclick="showStoreBreakdown('sessions')">
-          <div class="stat-icon">📱</div>
-          <div class="stat-content">
-            <div class="label" data-i18n="scanSessions">扫码连接数</div>
-            <div class="value" id="statScanSessions">0</div>
-          </div>
-        </div>
+        <div class="stat-card stat-merchants"><div class="stat-icon">🏪</div><div class="stat-content"><div class="label" data-i18n="totalMerchants">商户总数</div><div class="value" id="statMerchants">0</div></div></div>
+        <div class="stat-card stat-stores"><div class="stat-icon">🏬</div><div class="stat-content"><div class="label" data-i18n="totalStores">门店总数</div><div class="value" id="statStores">0</div></div></div>
+        <div class="stat-card stat-orders" style="cursor:pointer;" onclick="showStoreBreakdown('orders')"><div class="stat-icon">📋</div><div class="stat-content"><div class="label" data-i18n="totalOrders">订单总数</div><div class="value" id="statOrders">0</div></div></div>
+        <div class="stat-card stat-revenue" style="cursor:pointer;" onclick="showStoreBreakdown('revenue')"><div class="stat-icon">💰</div><div class="stat-content"><div class="label" data-i18n="todayRevenue">今日营业额</div><div class="value" id="statRevenue">$0</div></div></div>
+        <div class="stat-card stat-online" id="cardOnlineClients" style="cursor:pointer;" onclick="showOnlineSessions()"><div class="stat-icon">🟢</div><div class="stat-content"><div class="label" data-i18n="onlineClients">在线客户端</div><div class="value" id="statOnlineClients">0</div></div></div>
+        <div class="stat-card stat-scan" style="cursor:pointer;" onclick="showStoreBreakdown('sessions')"><div class="stat-icon">📱</div><div class="stat-content"><div class="label" data-i18n="scanSessions">扫码连接数</div><div class="value" id="statScanSessions">0</div></div></div>
       </div>
       <div class="section-title">今日数据</div>
       <div class="stats-grid stats-today">
-        <div class="stat-card stat-today">
-          <div class="stat-icon">📊</div>
-          <div class="stat-content">
-            <div class="label" data-i18n="todayOrders">今日订单</div>
-            <div class="value" id="statTodayOrders">0</div>
-          </div>
-        </div>
+        <div class="stat-card stat-today"><div class="stat-icon">📊</div><div class="stat-content"><div class="label" data-i18n="todayOrders">今日订单</div><div class="value" id="statTodayOrders">0</div></div></div>
       </div>
       <div class="section-title" data-i18n="serverStatus">服务器状态</div>
       <div class="server-monitor">
         <div class="server-gauge-card">
-          <div class="gauge-ring" id="cpuGauge" style="--pct:0">
-            <div class="gauge-inner">
-              <div class="gauge-value" id="cpuValue">0%</div>
-              <div class="gauge-label" data-i18n="cpuUsage">CPU使用率</div>
-            </div>
-          </div>
+          <div class="gauge-ring" id="cpuGauge" style="--pct:0"><div class="gauge-inner"><div class="gauge-value" id="cpuValue">0%</div><div class="gauge-label" data-i18n="cpuUsage">CPU使用率</div></div></div>
           <div class="gauge-sub" id="cpuCores">- 核心</div>
         </div>
         <div class="server-gauge-card">
-          <div class="gauge-ring" id="memGauge" style="--pct:0">
-            <div class="gauge-inner">
-              <div class="gauge-value" id="memValue">0%</div>
-              <div class="gauge-label" data-i18n="memUsage">内存使用率</div>
-            </div>
-          </div>
+          <div class="gauge-ring" id="memGauge" style="--pct:0"><div class="gauge-inner"><div class="gauge-value" id="memValue">0%</div><div class="gauge-label" data-i18n="memUsage">内存使用率</div></div></div>
           <div class="gauge-sub" id="memDetail">- / -</div>
         </div>
         <div class="server-gauge-card">
-          <div class="gauge-ring" id="diskGauge" style="--pct:0">
-            <div class="gauge-inner">
-              <div class="gauge-value" id="diskValue">0%</div>
-              <div class="gauge-label" data-i18n="diskUsage">磁盘使用率</div>
-            </div>
-          </div>
+          <div class="gauge-ring" id="diskGauge" style="--pct:0"><div class="gauge-inner"><div class="gauge-value" id="diskValue">0%</div><div class="gauge-label" data-i18n="diskUsage">磁盘使用率</div></div></div>
           <div class="gauge-sub" id="diskDetail">- / -</div>
         </div>
         <div class="server-info-card">
@@ -548,18 +367,16 @@ select:focus {
       </div>
     </div>
 
-    <!-- 日志（登录日志+操作审计） -->
+    <!-- 日志 -->
     <div class="panel" id="panel-logs">
       <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
         <span id="logsPanelTitle">📋 日志</span>
-        <button onclick="refreshCurrentLog()" style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;transition:all .2s;box-shadow:0 2px 8px rgba(102,126,234,.3);" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(102,126,234,.4)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(102,126,234,.3)'">🔄 刷新</button>
+        <button onclick="refreshCurrentLog()" style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;transition:all .2s;">🔄 刷新</button>
       </div>
-      <!-- 标签页切换 -->
       <div style="display:flex;gap:10px;margin-bottom:16px;">
-        <button id="logTabLogin" onclick="switchSuperLogTab('login')" style="flex:1;max-width:200px;padding:10px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">🕒 登录日志</button>
-        <button id="logTabAudit" onclick="switchSuperLogTab('audit')" style="flex:1;max-width:200px;padding:10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;">📝 操作审计</button>
+        <button id="logTabLogin" onclick="switchSuperLogTab('login')" style="flex:1;max-width:200px;padding:10px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;">🕒 登录日志</button>
+        <button id="logTabAudit" onclick="switchSuperLogTab('audit')" style="flex:1;max-width:200px;padding:10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">📝 操作审计</button>
       </div>
-      <!-- 登录日志面板 -->
       <div id="superLoginLogsPanel">
         <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;">
           <select id="logFilterType" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
@@ -574,23 +391,20 @@ select:focus {
           </select>
         </div>
         <div style="overflow-x:auto;">
-        <table class="data-table">
-          <thead>
-            <tr><th>ID</th><th data-i18n="loginTime">登录时间</th><th data-i18n="loginName">登录名</th><th data-i18n="belongMerchant">所属商户</th><th data-i18n="loginIp">登录IP</th><th data-i18n="loginLocation">登录地点</th><th data-i18n="loginType">登录类型</th><th data-i18n="status">状态</th><th data-i18n="remark">备注</th></tr>
-          </thead>
-          <tbody id="loginLogList"></tbody>
-        </table>
+          <table class="data-table">
+            <thead>
+              <tr><th>ID</th><th data-i18n="loginTime">登录时间</th><th data-i18n="loginName">登录名</th><th data-i18n="belongMerchant">所属商户</th><th data-i18n="loginIp">登录IP</th><th data-i18n="loginLocation">登录地点</th><th data-i18n="loginType">登录类型</th><th data-i18n="status">状态</th><th data-i18n="remark">备注</th></tr>
+            </thead>
+            <tbody id="loginLogList"></tbody>
+          </table>
         </div>
       </div>
-      <!-- 操作审计面板 -->
       <div id="superAuditLogsPanel" style="display:none;">
         <div style="overflow-x:auto;">
-        <table class="data-table">
-          <thead>
-            <tr><th>ID</th><th>时间</th><th>操作者</th><th>操作类型</th><th>目标</th><th>详情</th><th>IP</th></tr>
-          </thead>
-          <tbody id="auditLogsBody"></tbody>
-        </table>
+          <table class="data-table">
+            <thead><tr><th>ID</th><th>时间</th><th>操作者</th><th>操作类型</th><th>目标</th><th>详情</th><th>IP</th></tr></thead>
+            <tbody id="auditLogsBody"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -600,16 +414,11 @@ select:focus {
       <div class="section-title">系统设置</div>
       <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
         <p style="color:#888;margin-bottom:16px;">超级管理员账号信息</p>
-        <div class="form-group">
-          <label>用户名</label>
-          <input type="text" value="superadmin" disabled style="opacity:.5;">
-        </div>
-        <div class="form-group">
-          <label data-i18n="newPassword">新密码</label>
-          <input type="password" id="newSuperPassword" placeholder="留空则不修改">
-        </div>
+        <div class="form-group"><label>用户名</label><input type="text" value="superadmin" disabled style="opacity:.5;"></div>
+        <div class="form-group"><label data-i18n="newPassword">新密码</label><input type="password" id="newSuperPassword" placeholder="留空则不修改"></div>
         <button class="btn-primary" onclick="changeSuperPassword()" data-i18n="saveChanges">保存修改</button>
       </div>
+
       <div class="section-title" style="margin-top:8px;">数据备份</div>
       <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
         <p style="color:#888;margin-bottom:16px;">全量数据备份（包含所有商户、门店、菜品、订单等数据）</p>
@@ -635,175 +444,93 @@ select:focus {
         </div>
         <div id="lastBackupInfo" style="color:#666;margin-top:12px;font-size:13px;"></div>
       </div>
-      <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.2);border-radius:12px;padding:24px;">
+
+      <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.2);border-radius:12px;padding:24px;margin-bottom:20px;">
         <p style="color:#e74c3c;margin-bottom:16px;font-weight:600;">⚠️ 危险操作</p>
         <p style="color:#aaa;margin-bottom:16px;font-size:13px;">重置将清空所有订单、呼叫记录和扫码会话，菜品、商户、门店等基础数据保留。</p>
         <button class="btn-primary" onclick="resetData()" style="background:linear-gradient(135deg,#e74c3c,#c0392b);">🗑️ 重置订单数据</button>
       </div>
-      <!-- 标签页切换按钮 -->
+
       <div style="display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;">
-        <button id="tabTimeout" onclick="switchSettingsTab('timeout')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="globalTimeoutSettings">⏱️ 全局超时设置</button>
-        <button id="tabOrder" onclick="switchSettingsTab('order')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="orderLimitSettings">📦 下单限制设置</button>
-        <button id="tabSecurity" onclick="switchSettingsTab('security')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="securitySettingsTab">🔒 安全设置</button>
-        <button id="tabCallLimit" onclick="switchSettingsTab('callLimit')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="callLimitSettingsTab">🔔 呼叫限制设置</button>
-        <button id="tabLog" onclick="switchSettingsTab('log')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;" data-i18n="logSettingsTab">📋 日志设置</button>
+        <button id="tabTimeout" onclick="switchSettingsTab('timeout')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;">⏱️ 全局超时设置</button>
+        <button id="tabOrder" onclick="switchSettingsTab('order')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">📦 下单限制设置</button>
+        <button id="tabSecurity" onclick="switchSettingsTab('security')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">🔒 安全设置</button>
+        <button id="tabCallLimit" onclick="switchSettingsTab('callLimit')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">🔔 呼叫限制设置</button>
+        <button id="tabLog" onclick="switchSettingsTab('log')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">📋 日志设置</button>
       </div>
-      <!-- 全局超时设置面板 -->
+
       <div id="timeoutSettings">
         <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
-            <p style="color:#888;margin-bottom:16px;">业务超时与刷新配置</p>
-        <div class="form-group">
-          <label>二维码链接有效时间（分钟）</label>
-          <input type="number" id="qrSessionTimeout" min="0" max="1440" placeholder="如：45，0=永不过期">
-          <small style="color:#666;">顾客扫码后 session_token 的有效时间，范围0-1440分钟，0=永不过期，活跃使用自动续期</small>
-        </div>
-        <div class="form-group">
-          <label>服务员登录有效期（小时）</label>
-          <input type="number" id="waiterSessionTimeout" min="1" max="168" placeholder="如：12">
-          <small style="color:#666;">服务员登录后 session 的初始有效时间，范围1-168小时，活跃使用自动续期</small>
-        </div>
-        <div class="form-group">
-          <label>前端下单间隔时间（秒）</label>
-          <input type="number" id="orderIntervalSeconds" min="0" max="3600" placeholder="如：30">
-          <small style="color:#666;">同一桌号/顾客两次下单的最小间隔时间，范围0-3600秒，设为0则不限制</small>
-        </div>
-        <div class="form-group">
-          <label>服务员端自动刷新间隔（秒）</label>
-          <input type="number" id="waiterRefreshInterval" min="3" max="300" placeholder="如：8">
-          <small style="color:#666;">服务员端页面自动刷新订单数据的间隔时间，范围3-300秒</small>
-        </div>
-        <div class="form-group">
-          <label>后厨订单自动隐藏时间（分钟）</label>
-          <input type="number" id="kitchenAutoHideMinutes" min="0" max="120" placeholder="如：10">
-          <small style="color:#666;">后厨菜品全部出餐后，订单自动从屏幕隐藏的时间。设为0则不自动隐藏，需手动点"出餐完成"</small>
-        </div>
+          <p style="color:#888;margin-bottom:16px;">业务超时与刷新配置</p>
+          <div class="form-group"><label>二维码链接有效时间（分钟）</label><input type="number" id="qrSessionTimeout" min="0" max="1440" placeholder="如：45，0=永不过期"><small style="color:#666;">顾客扫码后 session_token 的有效时间，范围0-1440分钟，0=永不过期</small></div>
+          <div class="form-group"><label>服务员登录有效期（小时）</label><input type="number" id="waiterSessionTimeout" min="1" max="168" placeholder="如：12"><small style="color:#666;">服务员登录后 session 的初始有效时间，范围1-168小时</small></div>
+          <div class="form-group"><label>前端下单间隔时间（秒）</label><input type="number" id="orderIntervalSeconds" min="0" max="3600" placeholder="如：30"><small style="color:#666;">同一桌号/顾客两次下单的最小间隔时间，范围0-3600秒</small></div>
+          <div class="form-group"><label>服务员端自动刷新间隔（秒）</label><input type="number" id="waiterRefreshInterval" min="3" max="300" placeholder="如：8"><small style="color:#666;">服务员端页面自动刷新订单数据的间隔时间，范围3-300秒</small></div>
+          <div class="form-group"><label>后厨订单自动隐藏时间（分钟）</label><input type="number" id="kitchenAutoHideMinutes" min="0" max="120" placeholder="如：10"><small style="color:#666;">后厨菜品全部出餐后，订单自动从屏幕隐藏的时间</small></div>
         </div>
       </div>
-      <!-- 下单限制设置面板 -->
       <div id="orderSettings" style="display:none;">
         <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
-            <p style="color:#888;margin-bottom:16px;">顾客下单相关的数量与长度限制</p>
-        <div class="form-group">
-          <label>单次下单菜品种类上限</label>
-          <input type="number" id="maxOrderItems" min="1" max="200" placeholder="如：50">
-          <small style="color:#666;">单次订单最多可包含的菜品种类数，范围1-200种</small>
-        </div>
-        <div class="form-group">
-          <label>单个菜品数量上限（份）</label>
-          <input type="number" id="maxItemQuantity" min="1" max="999" placeholder="如：100">
-          <small style="color:#666;">单个菜品单次下单的最大份数，范围1-999份</small>
-        </div>
-        <div class="form-group">
-          <label>订单备注最大长度（字符）</label>
-          <input type="number" id="maxOrderNoteLength" min="10" max="1000" placeholder="如：200">
-          <small style="color:#666;">顾客订单备注的最大字符数，范围10-1000字符</small>
-        </div>
+          <p style="color:#888;margin-bottom:16px;">顾客下单相关的数量与长度限制</p>
+          <div class="form-group"><label>单次下单菜品种类上限</label><input type="number" id="maxOrderItems" min="1" max="200" placeholder="如：50"><small style="color:#666;">单次订单最多可包含的菜品种类数</small></div>
+          <div class="form-group"><label>单个菜品数量上限（份）</label><input type="number" id="maxItemQuantity" min="1" max="999" placeholder="如：100"><small style="color:#666;">单个菜品单次下单的最大份数</small></div>
+          <div class="form-group"><label>订单备注最大长度（字符）</label><input type="number" id="maxOrderNoteLength" min="10" max="1000" placeholder="如：200"><small style="color:#666;">顾客订单备注的最大字符数</small></div>
         </div>
       </div>
-      <!-- 安全设置面板 -->
       <div id="securitySettings" style="display:none;">
         <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
-            <p style="color:#888;margin-bottom:16px;">账号安全与访问控制</p>
-        <div class="form-group">
-          <label>超级管理员无操作超时时间（分钟）</label>
-          <input type="number" id="superIdleTimeout" min="1" max="1440" placeholder="如：60">
-          <small style="color:#666;">超级管理员后台无任何操作后自动退出登录的时间，范围1-1440分钟</small>
-        </div>
-        <div class="form-group">
-          <label>商户后台无操作超时时间（分钟）</label>
-          <input type="number" id="adminIdleTimeout" min="1" max="1440" placeholder="如：30">
-          <small style="color:#666;">商户后台无任何操作后自动退出登录的时间，范围1-1440分钟</small>
-        </div>
-        <div class="form-group">
-          <label>收银员端无操作超时时间（分钟）</label>
-          <input type="number" id="cashierIdleTimeout" min="1" max="1440" placeholder="如：30">
-          <small style="color:#666;">收银员端无任何操作后自动退出登录的时间，范围1-1440分钟</small>
-        </div>
-        <div class="form-group">
-          <label>后厨端无操作超时时间（分钟）</label>
-          <input type="number" id="kitchenIdleTimeout" min="1" max="1440" placeholder="如：120">
-          <small style="color:#666;">后厨端无任何操作后自动退出登录的时间，范围1-1440分钟</small>
-        </div>
-        <div class="form-group">
-          <label>登录失败最大尝试次数</label>
-          <input type="number" id="loginMaxAttempts" min="1" max="20" placeholder="如：5">
-          <small style="color:#666;">同一账号连续登录失败达到此次数后锁定账号，范围1-20次</small>
-        </div>
-        <div class="form-group">
-          <label>账号锁定时间（分钟）</label>
-          <input type="number" id="loginLockMinutes" min="1" max="1440" placeholder="如：15">
-          <small style="color:#666;">登录失败次数超限后账号锁定的时间，范围1-1440分钟</small>
-        </div>
-        <div class="form-group">
-          <label>超级管理员IP白名单</label>
-          <input type="text" id="superIpWhitelist" placeholder="如：192.168.1.1,10.0.0.1，留空则不限制">
-          <small style="color:#666;">仅允许这些IP地址登录超级管理员后台，多个IP用英文逗号分隔，留空表示不限制</small>
-        </div>
+          <p style="color:#888;margin-bottom:16px;">账号安全与访问控制</p>
+          <div class="form-group"><label>超级管理员无操作超时时间（分钟）</label><input type="number" id="superIdleTimeout" min="1" max="1440" placeholder="如：60"><small style="color:#666;">超级管理员后台无操作后自动退出登录的时间</small></div>
+          <div class="form-group"><label>商户后台无操作超时时间（分钟）</label><input type="number" id="adminIdleTimeout" min="1" max="1440" placeholder="如：30"></div>
+          <div class="form-group"><label>收银员端无操作超时时间（分钟）</label><input type="number" id="cashierIdleTimeout" min="1" max="1440" placeholder="如：30"></div>
+          <div class="form-group"><label>后厨端无操作超时时间（分钟）</label><input type="number" id="kitchenIdleTimeout" min="1" max="1440" placeholder="如：120"></div>
+          <div class="form-group"><label>登录失败最大尝试次数</label><input type="number" id="loginMaxAttempts" min="1" max="20" placeholder="如：5"></div>
+          <div class="form-group"><label>账号锁定时间（分钟）</label><input type="number" id="loginLockMinutes" min="1" max="1440" placeholder="如：15"></div>
+          <div class="form-group"><label>超级管理员IP白名单</label><input type="text" id="superIpWhitelist" placeholder="如：192.168.1.1,10.0.0.1，留空则不限制"></div>
         </div>
       </div>
-      <!-- 呼叫限制设置面板 -->
       <div id="callLimitSettings" style="display:none;">
         <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
-            <p style="color:#888;margin-bottom:16px;">顾客呼叫服务员次数限制，防止恶意骚扰</p>
-        <div class="form-group">
-          <label>启用呼叫次数限制</label>
-          <select id="callLimitEnabled" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
-            <option value="1">启用</option>
-            <option value="0">禁用</option>
-          </select>
-          <small style="color:#666;">启用后，顾客在时间窗口内呼叫次数达到上限后将进入冷却期</small>
-        </div>
-        <div class="form-group">
-          <label>时间窗口内最大呼叫次数</label>
-          <input type="number" id="callLimitMax" min="1" max="20" placeholder="如：3">
-          <small style="color:#666;">在时间窗口内最多允许呼叫的次数，范围1-20次</small>
-        </div>
-        <div class="form-group">
-          <label>统计时间窗口（分钟）</label>
-          <input type="number" id="callLimitWindowMinutes" min="1" max="60" placeholder="如：5">
-          <small style="color:#666;">统计呼叫次数的时间范围，范围1-60分钟</small>
-        </div>
-        <div class="form-group">
-          <label>超限后冷却时间（分钟）</label>
-          <input type="number" id="callLimitCooldownMinutes" min="1" max="120" placeholder="如：10">
-          <small style="color:#666;">呼叫次数超限后禁止呼叫的时长，范围1-120分钟</small>
-        </div>
+          <p style="color:#888;margin-bottom:16px;">顾客呼叫服务员次数限制，防止恶意骚扰</p>
+          <div class="form-group">
+            <label>启用呼叫次数限制</label>
+            <select id="callLimitEnabled" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+              <option value="1">启用</option>
+              <option value="0">禁用</option>
+            </select>
+          </div>
+          <div class="form-group"><label>时间窗口内最大呼叫次数</label><input type="number" id="callLimitMax" min="1" max="20" placeholder="如：3"></div>
+          <div class="form-group"><label>统计时间窗口（分钟）</label><input type="number" id="callLimitWindowMinutes" min="1" max="60" placeholder="如：5"></div>
+          <div class="form-group"><label>超限后冷却时间（分钟）</label><input type="number" id="callLimitCooldownMinutes" min="1" max="120" placeholder="如：10"></div>
         </div>
       </div>
-      <!-- 日志设置面板 -->
       <div id="logSettings" style="display:none;">
         <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
-            <p style="color:#888;margin-bottom:16px;">系统日志自动清理配置，防止日志数据过大影响性能</p>
-        <div class="form-group">
-          <label data-i18n="autoCleanLogEnabled">启用自动清理日志</label>
-          <select id="autoCleanLogEnabled" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
-            <option value="1" data-i18n="enabled">启用</option>
-            <option value="0" data-i18n="disabled">禁用</option>
-          </select>
-          <small style="color:#666;" data-i18n="autoCleanLogDesc">启用后，系统每天自动清理超过保留天数的登录日志和操作审计日志</small>
-        </div>
-        <div class="form-group">
-          <label data-i18n="logRetentionDays">日志保留天数</label>
-          <input type="number" id="logRetentionDays" min="1" max="365" placeholder="如：30">
-          <small style="color:#666;" data-i18n="logRetentionDaysDesc">超过此天数的日志将被自动清理，范围1-365天</small>
-        </div>
-        <div class="form-group">
-          <label data-i18n="cleanLoginLog">清理登录日志</label>
-          <select id="cleanLoginLog" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
-            <option value="1" data-i18n="yes">是</option>
-            <option value="0" data-i18n="no">否</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label data-i18n="cleanAuditLog">清理操作审计日志</label>
-          <select id="cleanAuditLog" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
-            <option value="1" data-i18n="yes">是</option>
-            <option value="0" data-i18n="no">否</option>
-          </select>
-        </div>
+          <p style="color:#888;margin-bottom:16px;">系统日志自动清理配置</p>
+          <div class="form-group">
+            <label>启用自动清理日志</label>
+            <select id="autoCleanLogEnabled" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+              <option value="1">启用</option>
+              <option value="0">禁用</option>
+            </select>
+          </div>
+          <div class="form-group"><label>日志保留天数</label><input type="number" id="logRetentionDays" min="1" max="365" placeholder="如：30"></div>
+          <div class="form-group">
+            <label>清理登录日志</label>
+            <select id="cleanLoginLog" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+              <option value="1">是</option>
+              <option value="0">否</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>清理操作审计日志</label>
+            <select id="cleanAuditLog" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+              <option value="1">是</option>
+              <option value="0">否</option>
+            </select>
+          </div>
         </div>
       </div>
-      <!-- 统一保存按钮 -->
       <div style="margin-top:20px;text-align:right;">
         <button class="btn-primary" onclick="saveGlobalSettings()" style="padding:12px 32px;font-size:14px;">💾 保存全局设置</button>
       </div>
@@ -811,40 +538,17 @@ select:focus {
   </div>
 </div>
 
-<!-- 新增/编辑商户模态框 -->
 <div class="modal" id="merchantModal">
   <div class="modal-card">
     <h3 id="merchantModalTitle">新增商户<span class="modal-close" onclick="closeMerchantModal()">✕</span></h3>
     <input type="hidden" id="editMerchantId">
-    <div class="form-group">
-      <label data-i18n="merchantName">商户名称 *</label>
-      <input type="text" id="merchantName" placeholder="e.g. FoodFlow">
-    </div>
-    <div class="form-group">
-      <label data-i18n="merchantCode">商户编码</label>
-      <input type="text" id="merchantCode" placeholder="留空自动生成，创建后不可修改">
-      <small style="color:#666;">自定义商户唯一编码，留空则自动生成，创建后不可修改</small>
-    </div>
-    <div class="form-group">
-      <label data-i18n="merchantUsername">商户账号 *</label>
-      <input type="text" id="merchantUsername" placeholder="商户管理员登录账号">
-    </div>
-    <div class="form-group">
-      <label data-i18n="loginPassword">登录密码</label>
-      <input type="text" id="merchantPassword" placeholder="留空则自动生成8位随机密码">
-    </div>
-    <div class="form-group">
-      <label data-i18n="contactPerson">联系人</label>
-      <input type="text" id="merchantContact" placeholder="联系人姓名">
-    </div>
-    <div class="form-group">
-      <label data-i18n="contactPhone">联系电话</label>
-      <input type="text" id="merchantPhone" placeholder="联系电话">
-    </div>
-    <div class="form-group">
-      <label data-i18n="maxStores">最大门店数</label>
-      <input type="number" id="merchantMaxStores" value="1" min="1">
-    </div>
+    <div class="form-group"><label>商户名称 *</label><input type="text" id="merchantName" placeholder="e.g. FoodFlow"></div>
+    <div class="form-group"><label>商户编码</label><input type="text" id="merchantCode" placeholder="留空自动生成，创建后不可修改"><small style="color:#666;">自定义商户唯一编码，创建后不可修改</small></div>
+    <div class="form-group"><label>商户账号 *</label><input type="text" id="merchantUsername" placeholder="商户管理员登录账号"></div>
+    <div class="form-group"><label>登录密码</label><input type="text" id="merchantPassword" placeholder="留空则自动生成8位随机密码"></div>
+    <div class="form-group"><label>联系人</label><input type="text" id="merchantContact" placeholder="联系人姓名"></div>
+    <div class="form-group"><label>联系电话</label><input type="text" id="merchantPhone" placeholder="联系电话"></div>
+    <div class="form-group"><label>最大门店数</label><input type="number" id="merchantMaxStores" value="1" min="1"></div>
     <div class="form-group">
       <label>状态</label>
       <select id="merchantStatus" style="width:100%;padding:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;">
@@ -852,60 +556,62 @@ select:focus {
         <option value="0">禁用</option>
       </select>
     </div>
-    <div class="modal-actions">
-      <button class="cancel" onclick="closeMerchantModal()">取消</button>
-      <button class="confirm" onclick="saveMerchant()">保存</button>
-    </div>
+    <div class="modal-actions"><button class="cancel" onclick="closeMerchantModal()">取消</button><button class="confirm" onclick="saveMerchant()">保存</button></div>
   </div>
 </div>
 
-<!-- 确认弹窗 -->
 <div class="modal" id="confirmModal">
   <div class="modal-card">
-    <h3 id="confirmModalTitle" data-i18n="confirmOperation">确认操作</h3>
+    <h3 id="confirmModalTitle">确认操作</h3>
     <p id="confirmModalMessage" style="color:#aaa;line-height:1.6;margin-bottom:8px;">确定要执行此操作吗？</p>
-    <div class="modal-actions">
-      <button class="cancel" onclick="hideConfirm()">取消</button>
-      <button class="confirm" id="confirmModalBtn" style="background:linear-gradient(135deg,#e74c3c,#c0392b);">确认</button>
-    </div>
+    <div class="modal-actions"><button class="cancel" onclick="hideConfirm()">取消</button><button class="confirm" id="confirmModalBtn" style="background:linear-gradient(135deg,#e74c3c,#c0392b);">确认</button></div>
   </div>
 </div>
 
-<!-- 密码输入弹窗 -->
 <div class="modal" id="passwordModal">
   <div class="modal-card">
-    <h3 id="passwordModalTitle" data-i18n="verifyPassword">验证密码</h3>
+    <h3 id="passwordModalTitle">验证密码</h3>
     <p id="passwordModalMessage" style="color:#aaa;line-height:1.6;margin-bottom:16px;">请输入密码以验证身份</p>
     <input type="password" id="passwordModalInput" placeholder="请输入密码" style="width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;margin-bottom:8px;">
-    <div class="modal-actions">
-      <button class="cancel" onclick="hidePasswordModal()">取消</button>
-      <button class="confirm" onclick="executePasswordModal()">确认</button>
-    </div>
+    <div class="modal-actions"><button class="cancel" onclick="hidePasswordModal()">取消</button><button class="confirm" onclick="executePasswordModal()">确认</button></div>
+  </div>
+</div>
+
+<div class="modal" id="onlineSessionsModal">
+  <div class="modal-card" style="max-width:700px;">
+    <h3><span id="osModalTitle">在线客户端</span><span class="modal-close" onclick="closeOnlineSessions()">✕</span></h3>
+    <div id="osModalBody" style="color:#ccc;font-size:14px;"></div>
+    <div class="modal-actions"><button class="cancel" onclick="closeOnlineSessions()">关闭</button></div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== i18n 多语言支持（统一使用 window.LANGUAGES）=====
+// ===== i18n =====
 let currentLang = SLF.store.rawGet('superLang') || SLF.store.rawGet('lang') || 'zh';
 
-// 本地翻译字典（补充 languages.js 中缺失的 key）
+SLF.i18n.init(currentLang);
 
-
-
-/// 初始化统一 i18n
-// 用 IIFE 包裹以便 await，确保字典就绪后再渲染
-(async function initSuperI18n() {
+function t(key, params, fallback) {
   try {
-    await SLF.i18n.init(currentLang);
+    if (!SLF || !SLF.i18n || typeof SLF.i18n.t !== 'function') {
+      return fallback !== undefined ? fallback : key;
+    }
+    const v = SLF.i18n.t(key, params);
+    if (v === undefined || v === null || v === key) {
+      return fallback !== undefined ? fallback : key;
+    }
+    return v;
   } catch (e) {
-    console.warn('super.html i18n 初始化失败:', e);
+    return fallback !== undefined ? fallback : key;
   }
-})();
+}
 
-function t(key, params) {
-  return SLF.i18n.t(key, params);
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
 }
 
 function changeSuperLang(lang) {
@@ -914,46 +620,37 @@ function changeSuperLang(lang) {
   SLF.store.rawSet('superLang', lang);
   SLF.store.rawSet('lang', lang);
   applyI18n();
-  // 仅在已登录状态下刷新动态内容，避免未登录时调 API 报 401
-  const authed = SLF.store.rawGet('superAdminToken') || SLF.store.rawGet('superToken');
+  const authed = SLF.store.rawGet('superToken') || SLF.store.rawGet('superAdminToken');
   if (authed) {
-    if (typeof loadDashboard === 'function') loadDashboard();
-    if (typeof loadMerchants === 'function') loadMerchants();
-    if (typeof loadStores === 'function') loadStores();
-    if (typeof loadLoginLogs === 'function') loadLoginLogs();
-    if (typeof loadAuditLogs === 'function') loadAuditLogs();
-    if (typeof loadGlobalSettings === 'function') loadGlobalSettings();
+    const cur = currentModule;
+    if (cur) switchModule(cur);
   }
 }
 
 function applyI18n() {
-  // 更新语言选择器
   const loginSel = document.getElementById('loginLangSelect');
   if (loginSel) loginSel.value = currentLang;
   const adminSel = document.getElementById('adminLangSelect');
   if (adminSel) adminSel.value = currentLang;
-  
-  // 更新静态文案
+
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    const translated = t(key);
-    if (translated !== key) el.textContent = translated;
+    const translated = t(key, null, el.textContent);
+    if (translated && translated !== key) el.textContent = translated;
   });
-  
-  // 更新placeholder
+
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
-    const translated = t(key);
-    if (translated !== key) el.placeholder = translated;
+    const translated = t(key, null, el.placeholder);
+    if (translated && translated !== key) el.placeholder = translated;
   });
-  
-  // 更新侧边导航
+
   const navTexts = {
-    dashboard: t('dashboard'),
-    merchants: t('merchantManage'),
-    stores: t('storeOverview'),
-    logs: t('logs'),
-    settings: t('systemSettings'),
+    dashboard: t('dashboard', null, '仪表盘'),
+    merchants: t('merchantManage', null, '商户管理'),
+    stores: t('storeOverview', null, '门店总览'),
+    logs: t('logs', null, '日志'),
+    settings: t('systemSettings', null, '系统设置'),
   };
   document.querySelectorAll('.nav-item').forEach(item => {
     const module = item.getAttribute('data-module');
@@ -963,126 +660,109 @@ function applyI18n() {
     }
   });
   const navLogsText = document.getElementById('navLogsText');
-  if (navLogsText) navLogsText.textContent = t('logs');
-  
-  // 更新登录页
+  if (navLogsText) navLogsText.textContent = t('logs', null, '日志');
+
   const loginTitle = document.querySelector('.login-card h1');
-  if (loginTitle) loginTitle.textContent = '🔐 ' + t('superAdmin');
+  if (loginTitle) loginTitle.textContent = '🔐 ' + t('superAdmin', null, '超级管理员');
   const loginLabels = document.querySelectorAll('.login-card .form-group label');
-  if (loginLabels[0]) loginLabels[0].textContent = t('username');
-  if (loginLabels[1]) loginLabels[1].textContent = t('password');
+  if (loginLabels && loginLabels[0]) loginLabels[0].textContent = t('username', null, '用户名');
+  if (loginLabels && loginLabels[1]) loginLabels[1].textContent = t('password', null, '密码');
   const loginUsername = document.getElementById('loginUsername');
-  if (loginUsername) loginUsername.placeholder = t('username');
+  if (loginUsername) loginUsername.placeholder = t('username', null, '请输入用户名');
   const loginPassword = document.getElementById('loginPassword');
-  if (loginPassword) loginPassword.placeholder = t('password');
+  if (loginPassword) loginPassword.placeholder = t('password', null, '请输入密码');
   const loginBtn = document.querySelector('.login-btn');
-  if (loginBtn) loginBtn.textContent = t('login');
-  
-  // 更新顶部栏
+  if (loginBtn) loginBtn.textContent = t('login', null, '登录');
+
   const adminName = document.getElementById('adminName');
-  if (adminName) adminName.textContent = t('superAdmin');
-  const logoutBtns = document.querySelectorAll('.logout-btn');
-  logoutBtns.forEach(btn => btn.textContent = t('logout'));
-  
-  // 更新当前页面标题
-  if (typeof currentModule !== 'undefined' && currentModule) {
-    const titles = { dashboard: t('dashboard'), merchants: t('merchantManage'), stores: t('storeOverview'), logs: t('logs'), settings: t('systemSettings') };
-    const titleEl = document.getElementById('pageTitle');
-    if (titleEl && titles[currentModule]) titleEl.textContent = titles[currentModule];
+  if (adminName) adminName.textContent = t('superAdmin', null, '超级管理员');
+  document.querySelectorAll('.logout-btn').forEach(btn => btn.textContent = t('logout', null, '退出登录'));
+
+  const titleEl = document.getElementById('pageTitle');
+  if (titleEl && currentModule) {
+    const titles = {
+      dashboard: t('dashboard', null, '仪表盘'),
+      merchants: t('merchantManage', null, '商户管理'),
+      stores: t('storeOverview', null, '门店总览'),
+      logs: t('logs', null, '日志'),
+      settings: t('systemSettings', null, '系统设置')
+    };
+    if (titles[currentModule]) titleEl.textContent = titles[currentModule];
   }
-  
-  // 更新错误弹窗
+
   const errorModalTitle = document.getElementById('errorModalTitle');
-  if (errorModalTitle) errorModalTitle.textContent = t('loginFailed');
+  if (errorModalTitle) errorModalTitle.textContent = t('loginFailed', null, '登录失败');
   const errorModalMessage = document.getElementById('errorModalMessage');
-  if (errorModalMessage) errorModalMessage.textContent = t('loginError');
+  if (errorModalMessage) errorModalMessage.textContent = t('loginError', null, '登录失败，请重试');
   const errorModalBtn = document.querySelector('.error-modal-btn');
-  if (errorModalBtn) errorModalBtn.textContent = t('confirm');
+  if (errorModalBtn) errorModalBtn.textContent = t('confirm', null, '确定');
 }
 
-// 移动端侧边栏切换
+// 移动端侧边栏
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebarOverlay').classList.toggle('show');
 }
-// 点击导航项后关闭侧边栏（移动端）
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').classList.remove('show');
 }
+
 let token = SLF.store.rawGet('superToken') || '';
 let currentModule = 'dashboard';
 let idleTimer = null;
 let lastActivity = Date.now();
 
-// 重置活动时间（用户有操作时调用）
-function resetIdleTimer() {
-  lastActivity = Date.now();
-}
+function resetIdleTimer() { lastActivity = Date.now(); }
 
-// 启动无操作超时检测
 async function startIdleCheck() {
   if (idleTimer) clearInterval(idleTimer);
+  let timeoutMin = 30;
   try {
     const settings = await SLF.api.get('/super/settings');
-
-    const timeoutMin = settings.super_idle_timeout || 30;
-    const timeoutMs = timeoutMin * 60 * 1000;
-    idleTimer = setInterval(() => {
-      if (Date.now() - lastActivity > timeoutMs) {
-        clearInterval(idleTimer);
-        SLF.store.rawRemove('superToken');
-        SLF.store.rawRemove('superAdmin');
-        location.reload();
-      }
-    }, 10000);
-  } catch(e) {
-    // 获取设置失败，使用默认30分钟
-    const timeoutMs = 30 * 60 * 1000;
-    idleTimer = setInterval(() => {
-      if (Date.now() - lastActivity > timeoutMs) {
-        clearInterval(idleTimer);
-        SLF.store.rawRemove('superToken');
-        SLF.store.rawRemove('superAdmin');
-        location.reload();
-      }
-    }, 10000);
-  }
+    timeoutMin = settings.super_idle_timeout || 30;
+  } catch (e) {}
+  const timeoutMs = timeoutMin * 60 * 1000;
+  idleTimer = setInterval(() => {
+    if (Date.now() - lastActivity > timeoutMs) {
+      clearInterval(idleTimer);
+      SLF.store.rawRemove('superToken');
+      SLF.store.rawRemove('superAdmin');
+      location.reload();
+    }
+  }, 10000);
 }
 
-// 登录
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
   if (!username || !password) {
-    showError(t('pleaseEnterCredentials'));
+    showError(t('pleaseEnterCredentials', null, '请输入用户名和密码'));
     return;
   }
   try {
-    // SLF.api 成功时返回响应体对象；非 2xx 时已抛错，无需再检查 res.ok
     const data = await SLF.api.post('/super/login', { username, password });
     if (!data || !data.token) {
-      throw new Error((data && data.error) || t('loginFailed'));
+      throw new Error((data && data.error) || t('loginFailed', null, '登录失败'));
     }
     token = data.token;
     SLF.store.rawSet('superToken', token);
     SLF.store.rawSet('superAdmin', JSON.stringify(data.admin || {}));
     showApp();
   } catch (e) {
-    showError(e.message || t('loginError'));
+    showError(e.message || t('loginError', null, '登录失败，请重试'));
   }
 }
 
 function showError(msg, title) {
-  document.getElementById('errorModalTitle').textContent =
-    title || t('loginFailed') || '登录失败';
-  document.getElementById('errorModalMessage').textContent =
-    msg || t('loginError') || '登录失败，请重试';
+  document.getElementById('errorModalTitle').textContent = title || t('loginFailed', null, '登录失败');
+  document.getElementById('errorModalMessage').textContent = msg || t('loginError', null, '登录失败，请重试');
   document.getElementById('errorModal').classList.add('open');
 }
 function hideErrorModal() {
   document.getElementById('errorModal').classList.remove('open');
 }
+window.hideErrorModal = hideErrorModal;
 document.getElementById('errorModal').addEventListener('click', function(e) {
   if (e.target === this) hideErrorModal();
 });
@@ -1092,10 +772,9 @@ function showApp() {
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   const admin = JSON.parse(SLF.store.rawGet('superAdmin') || '{}');
-  document.getElementById('adminName').textContent = admin.display_name || t('superAdmin');
+  document.getElementById('adminName').textContent = admin.display_name || t('superAdmin', null, '超级管理员');
   lastActivity = Date.now();
   startIdleCheck();
-  // 监听用户活动
   ['click', 'keydown', 'mousemove', 'scroll'].forEach(evt => {
     document.addEventListener(evt, resetIdleTimer, { passive: true });
   });
@@ -1110,23 +789,31 @@ async function logout() {
   location.reload();
 }
 
-// 模块切换
 function switchModule(mod) {
   currentModule = mod;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === mod));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + mod));
-  const titles = { dashboard: t('dashboard'), merchants: t('merchantManage'), stores: t('storeOverview'), logs: t('logs'), settings: t('systemSettings') };
+  const titles = {
+    dashboard: t('dashboard', null, '仪表盘'),
+    merchants: t('merchantManage', null, '商户管理'),
+    stores: t('storeOverview', null, '门店总览'),
+    logs: t('logs', null, '日志'),
+    settings: t('systemSettings', null, '系统设置')
+  };
   document.getElementById('pageTitle').textContent = titles[mod] || '';
   if (mod === 'dashboard') loadDashboard();
   if (mod === 'merchants') loadMerchants();
   if (mod === 'stores') loadStores();
-  if (mod === 'logs') loadLoginLogs();
-  if (mod === 'settings') loadGlobalSettings();
-  if (mod === 'settings') loadBackupSettings();
-  if (mod === 'logs') { if (currentLogTab === 'audit') loadAuditLogs(); else loadLoginLogs(); }
+  if (mod === 'logs') {
+    if (currentLogTab === 'audit') loadAuditLogs();
+    else loadLoginLogs();
+  }
+  if (mod === 'settings') {
+    loadGlobalSettings();
+    loadBackupSettings();
+  }
 }
 
-// API 请求（统一使用 SLF.api，保留 api() 函数名兼容现有调用）
 async function api(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   if (method === 'GET') return SLF.api.get(path, options);
@@ -1136,7 +823,6 @@ async function api(path, options = {}) {
   return SLF.api._request(method, path, options);
 }
 
-// 日期格式化
 function formatDateTime(dateStr) {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
@@ -1145,7 +831,6 @@ function formatDateTime(dateStr) {
   return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
 
-// 仪表盘
 async function loadDashboard() {
   try {
     const stats = await api('/super/stats');
@@ -1156,12 +841,10 @@ async function loadDashboard() {
     document.getElementById('statRevenue').textContent = '$' + Number(stats.todayRevenue).toFixed(2);
     document.getElementById('statOnlineClients').textContent = stats.onlineClients || 0;
     document.getElementById('statScanSessions').textContent = stats.totalScanSessions || 0;
-    // 加载服务器状态
     loadServerStats();
   } catch (e) { toast(e.message, 'error'); }
 }
 
-// 格式化字节大小
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -1170,32 +853,26 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-// 加载服务器状态
 async function loadServerStats() {
   try {
     const data = await api('/super/server-stats');
-    // CPU
     document.getElementById('cpuValue').textContent = data.cpu.usage + '%';
     document.getElementById('cpuGauge').style.setProperty('--pct', data.cpu.usage);
     document.getElementById('cpuCores').textContent = data.cpu.cores + ' 核心';
-    // 内存
     document.getElementById('memValue').textContent = data.memory.usage + '%';
     document.getElementById('memGauge').style.setProperty('--pct', data.memory.usage);
     document.getElementById('memDetail').textContent = formatBytes(data.memory.used) + ' / ' + formatBytes(data.memory.total);
-    // 磁盘
     document.getElementById('diskValue').textContent = data.disk.usage + '%';
     document.getElementById('diskGauge').style.setProperty('--pct', data.disk.usage);
     document.getElementById('diskDetail').textContent = formatBytes(data.disk.used) + ' / ' + formatBytes(data.disk.total);
-    // 系统信息
     document.getElementById('serverHostname').textContent = data.system.hostname;
     document.getElementById('serverUptime').textContent = data.system.uptimeFormatted;
     document.getElementById('serverLoadAvg').textContent = data.system.loadAvg.join(' / ');
     document.getElementById('serverNodeVersion').textContent = data.system.nodeVersion;
     document.getElementById('serverProcessMem').textContent = formatBytes(data.memory.processRss);
-  } catch (e) { /* 服务器状态加载失败不影响主界面 */ }
+  } catch (e) {}
 }
 
-// 商户列表
 async function loadMerchants() {
   try {
     const list = await api('/super/merchants');
@@ -1203,11 +880,11 @@ async function loadMerchants() {
       <tr>
         <td data-label="商户名称" style="font-weight:700;color:#fff;font-size:15px;">${esc(m.name)}</td>
         <td data-label="商户编码"><span style="display:inline-block;background:rgba(255,217,61,.12);color:#ffd93d;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;">${esc(m.code)}</span></td>
-        <td data-label="商户账号"><span style="display:inline-block;background:rgba(102,204,255,.1);color:#66ccff;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;">${m.admin_username || '-'}</span></td>
+        <td data-label="商户账号"><span style="display:inline-block;background:rgba(102,204,255,.1);color:#66ccff;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;">${esc(m.admin_username) || '-'}</span></td>
         <td data-label="联系人" style="color:#ccc;">${esc(m.contact_name) || '-'}</td>
         <td data-label="联系电话" style="color:#999;font-family:monospace;font-size:13px;">${esc(m.contact_phone) || '-'}</td>
         <td data-label="门店数"><span style="color:#aaa;">${m.store_count}</span><span style="color:#666;"> / </span><span style="color:#ffd93d;font-weight:600;">${m.max_stores}</span></td>
-        <td data-label="状态"><span class="status-badge ${m.status === 1 ? 'status-active' : 'status-disabled'}">${m.status === 1 ? t('enabled') : t('disabled')}</span></td>
+        <td data-label="状态"><span class="status-badge ${m.status === 1 ? 'status-active' : 'status-disabled'}">${m.status === 1 ? t('enabled', null, '启用') : t('disabled', null, '禁用')}</span></td>
         <td>
           <button class="action-btn primary" onclick="editMerchant(${m.id})">编辑</button>
           <button class="action-btn warning" onclick="resetPassword(${m.id})">重置密码</button>
@@ -1218,29 +895,23 @@ async function loadMerchants() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-// 登录日志消息翻译
 function translateLoginMessage(msg) {
   if (!msg) return '';
-  if (msg.includes('商户管理员登录成功')) {
-    const username = msg.split(':')[1] || '';
-    return t('merchantAdminLogin') + ': ' + username.trim();
-  }
-  if (msg.includes('超级管理员登录成功')) {
-    const username = msg.split(':')[1] || '';
-    return t('superAdminLogin') + ': ' + username.trim();
-  }
-  if (msg.includes(t('usernameNotExist'))) return t('usernameNotExist');
-  if (msg.includes(t('passwordError'))) return t('passwordError');
-  if (msg.includes(t('pleaseEnterCredentials'))) return t('pleaseEnterCredentials');
+  if (msg.includes('商户管理员登录成功')) { const username = msg.split(':')[1] || ''; return t('merchantAdminLogin', null, '商户管理员登录') + ': ' + username.trim(); }
+  if (msg.includes('超级管理员登录成功')) { const username = msg.split(':')[1] || ''; return t('superAdminLogin', null, '超级管理员登录') + ': ' + username.trim(); }
+  if (msg.includes('用户名不存在')) return t('usernameNotExist', null, '用户名不存在');
+  if (msg.includes('密码错误')) return t('passwordError', null, '密码错误');
+  if (msg.includes('请输入用户名和密码')) return t('pleaseEnterCredentials', null, '请输入用户名和密码');
   return msg;
 }
 
-// 登录日志
 async function loadLoginLogs() {
   try {
     const logs = await api('/super/login-logs?limit=200');
-    const filterType = document.getElementById('logFilterType').value;
-    const filterStatus = document.getElementById('logFilterStatus').value;
+    const filterTypeEl = document.getElementById('logFilterType');
+    const filterStatusEl = document.getElementById('logFilterStatus');
+    const filterType = filterTypeEl ? filterTypeEl.value : 'all';
+    const filterStatus = filterStatusEl ? filterStatusEl.value : 'all';
     let filtered = logs;
     if (filterType !== 'all') filtered = filtered.filter(l => l.login_type === filterType);
     if (filterStatus === 'success') filtered = filtered.filter(l => l.success === 1);
@@ -1252,9 +923,7 @@ async function loadLoginLogs() {
     }
     tbody.innerHTML = filtered.map(l => {
       const time = l.createdAt ? formatDateTime(l.createdAt) : '-';
-      const statusBadge = l.success === 1
-        ? '<span style="color:#2ecc71;font-weight:600;">✅ 成功</span>'
-        : '<span style="color:#e74c3c;font-weight:600;">❌ 失败</span>';
+      const statusBadge = l.success === 1 ? '<span style="color:#2ecc71;font-weight:600;">✅ 成功</span>' : '<span style="color:#e74c3c;font-weight:600;">❌ 失败</span>';
       const typeBadge = l.login_type === 'super_admin'
         ? '<span style="background:rgba(102,126,234,.2);color:#667eea;padding:2px 8px;border-radius:4px;font-size:11px;">超级管理员</span>'
         : '<span style="background:rgba(232,93,58,.2);color:#e85d3a;padding:2px 8px;border-radius:4px;font-size:11px;">商户管理员</span>';
@@ -1267,15 +936,14 @@ async function loadLoginLogs() {
         <td data-label="登录地点" style="color:#999;font-size:13px;">${esc(l.location) || '-'}</td>
         <td data-label="登录类型">${typeBadge}</td>
         <td data-label="状态">${statusBadge}</td>
-        <td data-label="备注" style="color:#888;font-size:12px;">${translateLoginMessage(l.message)}</td>
+        <td data-label="备注" style="color:#888;font-size:12px;">${esc(translateLoginMessage(l.message))}</td>
       </tr>`;
     }).join('');
   } catch (e) {
-    document.getElementById('loginLogList').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#e74c3c;padding:40px;">加载失败: ' + e.message + '</td></tr>';
+    document.getElementById('loginLogList').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#e74c3c;padding:40px;">加载失败: ' + esc(e.message) + '</td></tr>';
   }
 }
 
-// 门店总览
 async function loadStores() {
   try {
     const stores = await api('/super/stores');
@@ -1284,18 +952,17 @@ async function loadStores() {
       <tr>
         <td data-label="门店ID"><span style="display:inline-block;background:rgba(255,217,61,.12);color:#ffd93d;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;">#${s.id}</span></td>
         <td data-label="门店名称" style="font-weight:600;color:#fff;">${esc(s.name)}</td>
-        <td data-label="所属商户" style="color:#ccc;">${esc(s.merchant_name) || t('unknown')}</td>
+        <td data-label="所属商户" style="color:#ccc;">${esc(s.merchant_name) || t('unknown', null, '未知')}</td>
         <td data-label="编码"><code style="color:#66ccff;font-family:monospace;font-size:13px;">${esc(s.code) || '-'}</code></td>
         <td data-label="地址" style="color:#999;font-size:13px;">${esc(s.address) || '-'}</td>
-        <td data-label="状态"><span class="status-badge ${s.active ? 'status-active' : 'status-disabled'}">${s.active ? t('enabled') : t('disabled')}</span></td>
+        <td data-label="状态"><span class="status-badge ${s.active ? 'status-active' : 'status-disabled'}">${s.active ? t('enabled', null, '启用') : t('disabled', null, '禁用')}</span></td>
       </tr>
     `).join('');
   } catch (e) { toast(e.message, 'error'); }
 }
 
-// 新增商户
 function showAddMerchant() {
-  document.getElementById('merchantModalTitle').textContent = t('addMerchantTitle');
+  document.getElementById('merchantModalTitle').innerHTML = '新增商户<span class="modal-close" onclick="closeMerchantModal()">✕</span>';
   document.getElementById('editMerchantId').value = '';
   document.getElementById('merchantName').value = '';
   document.getElementById('merchantCode').value = '';
@@ -1313,13 +980,12 @@ function showAddMerchant() {
   document.getElementById('merchantModal').classList.add('open');
 }
 
-// 编辑商户
 async function editMerchant(id) {
   try {
     const list = await api('/super/merchants');
     const m = list.find(x => x.id === id);
     if (!m) return;
-    document.getElementById('merchantModalTitle').textContent = t('editMerchantTitle');
+    document.getElementById('merchantModalTitle').innerHTML = '编辑商户<span class="modal-close" onclick="closeMerchantModal()">✕</span>';
     document.getElementById('editMerchantId').value = m.id;
     document.getElementById('merchantName').value = m.name;
     document.getElementById('merchantCode').value = m.code;
@@ -1339,7 +1005,7 @@ async function editMerchant(id) {
 }
 
 function closeMerchantModal() { document.getElementById('merchantModal').classList.remove('open'); }
-
+window.closeMerchantModal = closeMerchantModal;
 
 async function saveMerchant() {
   const id = document.getElementById('editMerchantId').value;
@@ -1353,12 +1019,12 @@ async function saveMerchant() {
     max_stores: parseInt(document.getElementById('merchantMaxStores').value) || 1,
     status: parseInt(document.getElementById('merchantStatus').value)
   };
-  if (!data.name) { toast(t('merchantNameRequired'), 'error'); return; }
-  if (!data.username) { toast(t('accountRequired'), 'error'); return; }
+  if (!data.name) { toast(t('merchantNameRequired', null, '商户名称必填'), 'error'); return; }
+  if (!data.username) { toast(t('accountRequired', null, '请输入账号'), 'error'); return; }
   try {
     if (id) {
       await api('/super/merchants/' + id, { method: 'PUT', body: JSON.stringify(data) });
-      toast(t('merchantUpdated'), 'success');
+      toast(t('merchantUpdated', null, '商户已更新'), 'success');
     } else {
       const result = await api('/super/merchants', { method: 'POST', body: JSON.stringify(data) });
       toast(`商户已创建，登录账号：${result.adminUsername}，初始密码：${result.defaultPassword}`, 'success');
@@ -1369,89 +1035,74 @@ async function saveMerchant() {
 }
 
 async function deleteMerchant(id) {
-  if (!confirm(t('confirmDeleteMerchant'))) return;
+  if (!confirm(t('confirmDeleteMerchant', null, '确认删除该商户？'))) return;
   try {
     await api('/super/merchants/' + id, { method: 'DELETE' });
-    toast(t('merchantDeleted'), 'success');
+    toast(t('merchantDeleted', null, '商户已删除'), 'success');
     loadMerchants();
   } catch (e) { toast(e.message, 'error'); }
 }
 
 async function resetPassword(id) {
-  if (!confirm(t('confirmResetPassword'))) return;
+  if (!confirm(t('confirmResetPassword', null, '确认重置该商户管理员密码为 admin123？'))) return;
   try {
     await api('/super/merchants/' + id + '/reset-password', { method: 'POST', body: JSON.stringify({}) });
-    toast(t('passwordReset'), 'success');
+    toast(t('passwordReset', null, '密码已重置'), 'success');
   } catch (e) { toast(e.message, 'error'); }
 }
 
 async function changeSuperPassword() {
   const newPwd = document.getElementById('newSuperPassword').value;
-  if (!newPwd) {
-    toast(t('pleaseEnterNewPassword'), 'error');
-    return;
-  }
-  if (newPwd.length < 6) {
-    toast('❌ ' + (t('passwordMin6') || '密码至少6位'), 'error');
-    return;
-  }
-  // 后端 /api/super/change-password 需要旧密码
-  const oldPwd = prompt(t('enterOldPassword') || '请输入旧密码');
+  if (!newPwd) { toast(t('pleaseEnterNewPassword', null, '请输入新密码（至少6位）'), 'error'); return; }
+  if (newPwd.length < 6) { toast('❌ 密码至少6位', 'error'); return; }
+  const oldPwd = prompt(t('enterOldPassword', null, '请输入旧密码'));
   if (!oldPwd) return;
   try {
-    const data = await SLF.api.post('/super/change-password', {
-      oldPassword: oldPwd,
-      newPassword: newPwd
-    });
-    if (!data || !data.success) {
-      throw new Error((data && data.error) || t('saveFailed'));
-    }
-    toast('✅ ' + (t('passwordChanged') || '密码已更新'), 'success');
+    const data = await SLF.api.post('/super/change-password', { oldPassword: oldPwd, newPassword: newPwd });
+    if (!data || !data.success) throw new Error((data && data.error) || t('saveFailed', null, '保存失败'));
+    toast('✅ ' + t('passwordChanged', null, '密码已更新'), 'success');
     document.getElementById('newSuperPassword').value = '';
-  } catch (e) {
-    toast('❌ ' + e.message, 'error');
-  }
+  } catch (e) { toast('❌ ' + e.message, 'error'); }
 }
 
-// 加载全局设置
 async function loadGlobalSettings() {
   try {
     const settings = await api('/super/settings');
-    document.getElementById('superIdleTimeout').value = settings.super_idle_timeout || 30;
-    document.getElementById('adminIdleTimeout').value = settings.admin_idle_timeout || 5;
-    document.getElementById('cashierIdleTimeout').value = settings.cashier_idle_timeout || 30;
-    document.getElementById('kitchenIdleTimeout').value = settings.kitchen_idle_timeout || 120;
-    document.getElementById('qrSessionTimeout').value = (settings.qr_session_timeout !== undefined && settings.qr_session_timeout !== null) ? settings.qr_session_timeout : 45;
-    document.getElementById('waiterSessionTimeout').value = settings.waiter_session_timeout || 12;
-    document.getElementById('orderIntervalSeconds').value = settings.order_interval_seconds || 30;
-    document.getElementById('waiterRefreshInterval').value = settings.waiter_refresh_interval || 8;
-    document.getElementById('kitchenAutoHideMinutes').value = settings.kitchen_auto_hide_minutes || 10;
-    document.getElementById('maxOrderItems').value = settings.max_order_items || 50;
-    document.getElementById('maxItemQuantity').value = settings.max_item_quantity || 100;
-    document.getElementById('maxOrderNoteLength').value = settings.max_order_note_length || 200;
-    document.getElementById('loginMaxAttempts').value = settings.login_max_attempts || 5;
-    document.getElementById('loginLockMinutes').value = settings.login_lock_minutes || 15;
-    document.getElementById('superIpWhitelist').value = settings.super_ip_whitelist || '';
-    document.getElementById('callLimitEnabled').value = settings.call_limit_enabled ? '1' : '0';
-    document.getElementById('callLimitMax').value = settings.call_limit_max || 3;
-    document.getElementById('callLimitWindowMinutes').value = settings.call_limit_window_minutes || 5;
-    document.getElementById('callLimitCooldownMinutes').value = settings.call_limit_cooldown_minutes || 10;
-    document.getElementById('autoCleanLogEnabled').value = settings.auto_clean_log_enabled ? '1' : '0';
-    document.getElementById('logRetentionDays').value = settings.log_retention_days || 30;
-    document.getElementById('cleanLoginLog').value = settings.clean_login_log ? '1' : '0';
-    document.getElementById('cleanAuditLog').value = settings.clean_audit_log ? '1' : '0';
-  } catch (e) { toast(t('loadFailed') + ': ' + e.message, 'error'); }
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    setVal('superIdleTimeout', settings.super_idle_timeout || 60);
+    setVal('adminIdleTimeout', settings.admin_idle_timeout || 30);
+    setVal('cashierIdleTimeout', settings.cashier_idle_timeout || 30);
+    setVal('kitchenIdleTimeout', settings.kitchen_idle_timeout || 120);
+    setVal('qrSessionTimeout', (settings.qr_session_timeout !== undefined && settings.qr_session_timeout !== null) ? settings.qr_session_timeout : 45);
+    setVal('waiterSessionTimeout', settings.waiter_session_timeout || 12);
+    setVal('orderIntervalSeconds', settings.order_interval_seconds || 30);
+    setVal('waiterRefreshInterval', settings.waiter_refresh_interval || 8);
+    setVal('kitchenAutoHideMinutes', settings.kitchen_auto_hide_minutes || 10);
+    setVal('maxOrderItems', settings.max_order_items || 50);
+    setVal('maxItemQuantity', settings.max_item_quantity || 100);
+    setVal('maxOrderNoteLength', settings.max_order_note_length || 200);
+    setVal('loginMaxAttempts', settings.login_max_attempts || 5);
+    setVal('loginLockMinutes', settings.login_lock_minutes || 15);
+    setVal('superIpWhitelist', settings.super_ip_whitelist || '');
+    setVal('callLimitEnabled', settings.call_limit_enabled ? '1' : '0');
+    setVal('callLimitMax', settings.call_limit_max || 3);
+    setVal('callLimitWindowMinutes', settings.call_limit_window_minutes || 5);
+    setVal('callLimitCooldownMinutes', settings.call_limit_cooldown_minutes || 10);
+    setVal('autoCleanLogEnabled', settings.auto_clean_log_enabled ? '1' : '0');
+    setVal('logRetentionDays', settings.log_retention_days || 30);
+    setVal('cleanLoginLog', settings.clean_login_log ? '1' : '0');
+    setVal('cleanAuditLog', settings.clean_audit_log ? '1' : '0');
+  } catch (e) { toast(t('loadFailed', null, '加载失败') + ': ' + e.message, 'error'); }
 }
 
-// 保存全局设置
 function switchSettingsTab(tab) {
   const tabs = { timeout: 'tabTimeout', order: 'tabOrder', security: 'tabSecurity', callLimit: 'tabCallLimit', log: 'tabLog' };
   const panels = { timeout: 'timeoutSettings', order: 'orderSettings', security: 'securitySettings', callLimit: 'callLimitSettings', log: 'logSettings' };
-  Object.keys(tabs).forEach(t => {
-    const tabEl = document.getElementById(tabs[t]);
-    const panelEl = document.getElementById(panels[t]);
+  Object.keys(tabs).forEach(t_ => {
+    const tabEl = document.getElementById(tabs[t_]);
+    const panelEl = document.getElementById(panels[t_]);
     if (!tabEl || !panelEl) return;
-    if (t === tab) {
+    if (t_ === tab) {
       tabEl.style.background = 'rgba(232,93,58,.15)';
       tabEl.style.color = '#e85d3a';
       tabEl.style.borderColor = 'rgba(232,93,58,.4)';
@@ -1466,63 +1117,87 @@ function switchSettingsTab(tab) {
 }
 
 async function saveGlobalSettings() {
-  const idleTimeout = parseInt(document.getElementById('adminIdleTimeout').value, 10);
-  const qrTimeout = parseInt(document.getElementById('qrSessionTimeout').value, 10);
-  const orderInterval = parseInt(document.getElementById('orderIntervalSeconds').value, 10);
-  const waiterRefresh = parseInt(document.getElementById('waiterRefreshInterval').value, 10);
-  if (!idleTimeout || idleTimeout < 1 || idleTimeout > 1440) { toast(t('adminIdleTimeout') + ' 1-1440', 'error'); return; }
-  if (isNaN(qrTimeout) || qrTimeout < 0 || qrTimeout > 1440) { toast(t('qrSessionTimeout') + ' 0-1440', 'error'); return; }
-  if (isNaN(orderInterval) || orderInterval < 0 || orderInterval > 3600) { toast(t('orderInterval') + ' 0-3600', 'error'); return; }
-  if (!waiterRefresh || waiterRefresh < 3 || waiterRefresh > 300) { toast(t('waiterRefreshInterval') + ' 3-300', 'error'); return; }
-  const maxOrderItems = parseInt(document.getElementById('maxOrderItems').value, 10);
-  const maxItemQuantity = parseInt(document.getElementById('maxItemQuantity').value, 10);
-  const maxOrderNoteLength = parseInt(document.getElementById('maxOrderNoteLength').value, 10);
-  if (!maxOrderItems || maxOrderItems < 1 || maxOrderItems > 200) { toast(t('maxOrderItems') + ' 1-200', 'error'); return; }
-  if (!maxItemQuantity || maxItemQuantity < 1 || maxItemQuantity > 999) { toast(t('maxItemQuantity') + ' 1-999', 'error'); return; }
-  if (!maxOrderNoteLength || maxOrderNoteLength < 10 || maxOrderNoteLength > 1000) { toast(t('maxOrderNoteLength') + ' 10-1000', 'error'); return; }
+  const getInt = (id) => parseInt(document.getElementById(id).value, 10);
+  // 前置校验
+  const superIdleTimeout = getInt('superIdleTimeout');
+  if (!superIdleTimeout || superIdleTimeout < 1 || superIdleTimeout > 1440) { toast('超管超时 1-1440', 'error'); return; }
+  const adminIdleTimeout = getInt('adminIdleTimeout');
+  if (!adminIdleTimeout || adminIdleTimeout < 1 || adminIdleTimeout > 1440) { toast('商户超时 1-1440', 'error'); return; }
+  const qrTimeout = getInt('qrSessionTimeout');
+  if (isNaN(qrTimeout) || qrTimeout < 0 || qrTimeout > 1440) { toast('QR超时 0-1440', 'error'); return; }
+  const orderInterval = getInt('orderIntervalSeconds');
+  if (isNaN(orderInterval) || orderInterval < 0 || orderInterval > 3600) { toast('下单间隔 0-3600', 'error'); return; }
+  const waiterRefresh = getInt('waiterRefreshInterval');
+  if (!waiterRefresh || waiterRefresh < 3 || waiterRefresh > 300) { toast('服务员刷新 3-300', 'error'); return; }
+  const maxOrderItems = getInt('maxOrderItems');
+  if (!maxOrderItems || maxOrderItems < 1 || maxOrderItems > 200) { toast('品种上限 1-200', 'error'); return; }
+  const maxItemQuantity = getInt('maxItemQuantity');
+  if (!maxItemQuantity || maxItemQuantity < 1 || maxItemQuantity > 999) { toast('单品上限 1-999', 'error'); return; }
+  const maxOrderNoteLength = getInt('maxOrderNoteLength');
+  if (!maxOrderNoteLength || maxOrderNoteLength < 10 || maxOrderNoteLength > 1000) { toast('备注长度 10-1000', 'error'); return; }
+  const waiterSessionTimeout = getInt('waiterSessionTimeout') || 12;
+  const loginMaxAttempts = getInt('loginMaxAttempts');
+  if (!loginMaxAttempts || loginMaxAttempts < 1 || loginMaxAttempts > 20) { toast('登录尝试 1-20', 'error'); return; }
+  const loginLockMinutes = getInt('loginLockMinutes');
+  if (!loginLockMinutes || loginLockMinutes < 1 || loginLockMinutes > 1440) { toast('锁定时长 1-1440', 'error'); return; }
+  const superIpWhitelist = document.getElementById('superIpWhitelist').value.trim();
+  const callLimitEnabled = document.getElementById('callLimitEnabled').value === '1';
+  const callLimitMax = getInt('callLimitMax');
+  if (!callLimitMax || callLimitMax < 1 || callLimitMax > 20) { toast('最大呼叫次数 1-20', 'error'); return; }
+  const callLimitWindow = getInt('callLimitWindowMinutes');
+  if (!callLimitWindow || callLimitWindow < 1 || callLimitWindow > 60) { toast('时间窗口 1-60分钟', 'error'); return; }
+  const callLimitCooldown = getInt('callLimitCooldownMinutes');
+  if (!callLimitCooldown || callLimitCooldown < 1 || callLimitCooldown > 120) { toast('冷却时间 1-120分钟', 'error'); return; }
+
   try {
-    const waiterSessionTimeout = parseInt(document.getElementById('waiterSessionTimeout').value) || 12;
-    const superIdleTimeout = parseInt(document.getElementById('superIdleTimeout').value);
-    if (!superIdleTimeout || superIdleTimeout < 1 || superIdleTimeout > 1440) { toast(t('superIdleTimeout') + ' 1-1440', 'error'); return; }
-    const loginMaxAttempts = parseInt(document.getElementById('loginMaxAttempts').value, 10);
-    const loginLockMinutes = parseInt(document.getElementById('loginLockMinutes').value, 10);
-    const superIpWhitelist = document.getElementById('superIpWhitelist').value.trim();
-    if (!loginMaxAttempts || loginMaxAttempts < 1 || loginMaxAttempts > 20) { toast(t('loginMaxAttempts') + ' 1-20', 'error'); return; }
-    if (!loginLockMinutes || loginLockMinutes < 1 || loginLockMinutes > 1440) { toast(t('loginLockMinutes') + ' 1-1440', 'error'); return; }
-    const callLimitEnabled = document.getElementById('callLimitEnabled').value === '1';
-    const callLimitMax = parseInt(document.getElementById('callLimitMax').value, 10);
-    const callLimitWindow = parseInt(document.getElementById('callLimitWindowMinutes').value, 10);
-    const callLimitCooldown = parseInt(document.getElementById('callLimitCooldownMinutes').value, 10);
-    if (!callLimitMax || callLimitMax < 1 || callLimitMax > 20) { toast('最大呼叫次数 1-20', 'error'); return; }
-    if (!callLimitWindow || callLimitWindow < 1 || callLimitWindow > 60) { toast('时间窗口 1-60分钟', 'error'); return; }
-    if (!callLimitCooldown || callLimitCooldown < 1 || callLimitCooldown > 120) { toast('冷却时间 1-120分钟', 'error'); return; }
-    await api('/super/settings', { method: 'PUT', body: JSON.stringify({ super_idle_timeout: superIdleTimeout, admin_idle_timeout: idleTimeout, cashier_idle_timeout: parseInt(document.getElementById('cashierIdleTimeout').value, 10) || 30, kitchen_idle_timeout: parseInt(document.getElementById('kitchenIdleTimeout').value, 10) || 120, qr_session_timeout: qrTimeout, waiter_session_timeout: waiterSessionTimeout, order_interval_seconds: orderInterval, waiter_refresh_interval: waiterRefresh, max_order_items: maxOrderItems, max_item_quantity: maxItemQuantity, max_order_note_length: maxOrderNoteLength, login_max_attempts: loginMaxAttempts, login_lock_minutes: loginLockMinutes, super_ip_whitelist: superIpWhitelist, call_limit_enabled: callLimitEnabled, call_limit_max: callLimitMax, call_limit_window_minutes: callLimitWindow, call_limit_cooldown_minutes: callLimitCooldown, auto_clean_log_enabled: document.getElementById('autoCleanLogEnabled').value === '1', log_retention_days: parseInt(document.getElementById('logRetentionDays').value, 10) || 30, clean_login_log: document.getElementById('cleanLoginLog').value === '1', clean_audit_log: document.getElementById('cleanAuditLog').value === '1', kitchen_auto_hide_minutes: parseInt(document.getElementById('kitchenAutoHideMinutes').value, 10) || 0 }) });
-    toast(t('settingsSaved'), 'success');
-  } catch (e) { toast(t('saveFailed') + ': ' + e.message, 'error'); }
+    await api('/super/settings', { method: 'PUT', body: JSON.stringify({
+      super_idle_timeout: superIdleTimeout,
+      admin_idle_timeout: adminIdleTimeout,
+      cashier_idle_timeout: getInt('cashierIdleTimeout') || 30,
+      kitchen_idle_timeout: getInt('kitchenIdleTimeout') || 120,
+      qr_session_timeout: qrTimeout,
+      waiter_session_timeout: waiterSessionTimeout,
+      order_interval_seconds: orderInterval,
+      waiter_refresh_interval: waiterRefresh,
+      max_order_items: maxOrderItems,
+      max_item_quantity: maxItemQuantity,
+      max_order_note_length: maxOrderNoteLength,
+      login_max_attempts: loginMaxAttempts,
+      login_lock_minutes: loginLockMinutes,
+      super_ip_whitelist: superIpWhitelist,
+      call_limit_enabled: callLimitEnabled,
+      call_limit_max: callLimitMax,
+      call_limit_window_minutes: callLimitWindow,
+      call_limit_cooldown_minutes: callLimitCooldown,
+      auto_clean_log_enabled: document.getElementById('autoCleanLogEnabled').value === '1',
+      log_retention_days: getInt('logRetentionDays') || 30,
+      clean_login_log: document.getElementById('cleanLoginLog').value === '1',
+      clean_audit_log: document.getElementById('cleanAuditLog').value === '1',
+      kitchen_auto_hide_minutes: getInt('kitchenAutoHideMinutes') || 0
+    })});
+    toast(t('settingsSaved', null, '设置已保存'), 'success');
+  } catch (e) { toast(t('saveFailed', null, '保存失败') + ': ' + e.message, 'error'); }
 }
 
-// 当前日志标签页
 let currentLogTab = 'login';
-// 切换超级管理员日志标签页
 function switchSuperLogTab(tab) {
-    currentLogTab = tab;
-    document.getElementById('logTabLogin').style.background = tab === 'login' ? 'rgba(232,93,58,.15)' : 'rgba(255,255,255,.04)';
-    document.getElementById('logTabLogin').style.color = tab === 'login' ? '#e85d3a' : '#aaa';
-    document.getElementById('logTabLogin').style.borderColor = tab === 'login' ? 'rgba(232,93,58,.4)' : 'rgba(255,255,255,.1)';
-    document.getElementById('logTabAudit').style.background = tab === 'audit' ? 'rgba(232,93,58,.15)' : 'rgba(255,255,255,.04)';
-    document.getElementById('logTabAudit').style.color = tab === 'audit' ? '#e85d3a' : '#aaa';
-    document.getElementById('logTabAudit').style.borderColor = tab === 'audit' ? 'rgba(232,93,58,.4)' : 'rgba(255,255,255,.1)';
-    document.getElementById('superLoginLogsPanel').style.display = tab === 'login' ? 'block' : 'none';
-    document.getElementById('superAuditLogsPanel').style.display = tab === 'audit' ? 'block' : 'none';
-    if (tab === 'audit') loadAuditLogs();
-    else loadLoginLogs();
+  currentLogTab = tab;
+  document.getElementById('logTabLogin').style.background = tab === 'login' ? 'rgba(232,93,58,.15)' : 'rgba(255,255,255,.04)';
+  document.getElementById('logTabLogin').style.color = tab === 'login' ? '#e85d3a' : '#aaa';
+  document.getElementById('logTabLogin').style.borderColor = tab === 'login' ? 'rgba(232,93,58,.4)' : 'rgba(255,255,255,.1)';
+  document.getElementById('logTabAudit').style.background = tab === 'audit' ? 'rgba(232,93,58,.15)' : 'rgba(255,255,255,.04)';
+  document.getElementById('logTabAudit').style.color = tab === 'audit' ? '#e85d3a' : '#aaa';
+  document.getElementById('logTabAudit').style.borderColor = tab === 'audit' ? 'rgba(232,93,58,.4)' : 'rgba(255,255,255,.1)';
+  document.getElementById('superLoginLogsPanel').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('superAuditLogsPanel').style.display = tab === 'audit' ? 'block' : 'none';
+  if (tab === 'audit') loadAuditLogs();
+  else loadLoginLogs();
 }
-// 刷新当前日志
 function refreshCurrentLog() {
-    if (currentLogTab === 'audit') loadAuditLogs();
-    else loadLoginLogs();
+  if (currentLogTab === 'audit') loadAuditLogs();
+  else loadLoginLogs();
 }
-// 加载操作审计日志
+
 async function loadAuditLogs() {
   try {
     const logs = await api('/super/audit-logs');
@@ -1531,78 +1206,46 @@ async function loadAuditLogs() {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#666;">暂无操作记录</td></tr>';
       return;
     }
-    // 操作类型映射（同时支持下划线和驼峰格式，兼容历史数据）
     const actionNames = {
-      'create_merchant': '创建商户', 'createMerchant': '创建商户',
-      'update_merchant': '编辑商户', 'updateMerchant': '编辑商户',
-      'delete_merchant': '删除商户', 'deleteMerchant': '删除商户',
-      'reset_merchant_password': '重置商户密码', 'resetMerchantPassword': '重置商户密码',
-      'create_store': '创建店铺', 'createStore': '创建店铺',
-      'update_store': '编辑店铺', 'updateStore': '编辑店铺',
-      'delete_store': '删除店铺', 'deleteStore': '删除店铺',
-      'create_menu': '创建菜品', 'createMenu': '创建菜品',
-      'update_menu': '编辑菜品', 'updateMenu': '编辑菜品',
-      'delete_menu': '删除菜品', 'deleteMenu': '删除菜品',
-      'create_category': '创建分类', 'createCategory': '创建分类',
-      'update_category': '编辑分类', 'updateCategory': '编辑分类',
-      'delete_category': '删除分类', 'deleteCategory': '删除分类',
-      'create_admin': '创建管理员', 'createAdmin': '创建管理员',
-      'update_admin': '编辑管理员', 'updateAdmin': '编辑管理员',
-      'delete_admin': '删除管理员', 'deleteAdmin': '删除管理员',
-      'create_waiter': '创建服务员', 'createWaiter': '创建服务员',
-      'update_waiter': '编辑服务员', 'updateWaiter': '编辑服务员',
-      'delete_waiter': '删除服务员', 'deleteWaiter': '删除服务员',
-      'create_table': '创建桌号', 'createTable': '创建桌号',
-      'update_table': '编辑桌号', 'updateTable': '编辑桌号',
-      'delete_table': '删除桌号', 'deleteTable': '删除桌号',
-      'create_currency': '创建货币', 'createCurrency': '创建货币',
-      'update_currency': '编辑货币', 'updateCurrency': '编辑货币',
-      'delete_currency': '删除货币', 'deleteCurrency': '删除货币',
-      'settle_order': '结算订单', 'settleOrder': '结算订单',
-      'cancel_order': '取消订单', 'cancelOrder': '取消订单',
-      'reset_data': '重置数据', 'resetData': '重置数据',
-      'change_password': '修改密码', 'changePassword': '修改密码',
-      'update_settings': '更新设置', 'updateSettings': '更新设置',
-      'reset_all_data': '重置所有数据', 'resetAllData': '重置所有数据',
-      'login': '登录', 'logout': '登出',
-      'backup': '数据备份', 'import_backup': '导入备份', 'importBackup': '导入备份'
+      'create_merchant': '创建商户', 'update_merchant': '编辑商户', 'delete_merchant': '删除商户',
+      'reset_merchant_password': '重置商户密码', 'create_store': '创建店铺', 'update_store': '编辑店铺',
+      'delete_store': '删除店铺', 'settle_order': '结算订单', 'cancel_order': '取消订单',
+      'reset_data': '重置数据', 'change_password': '修改密码', 'update_settings': '更新设置',
+      'reset_all_data': '重置所有数据', 'login': '登录', 'logout': '登出',
+      'backup': '数据备份', 'import_backup': '导入备份'
     };
-    // 目标类型中文映射
     const targetTypeNames = {
-      'merchant': '商户', 'merchant_admin': '管理员', 'store': '店铺',
-      'menu': '菜品', 'category': '分类', 'waiter': '服务员',
-      'table': '桌号', 'currency': '货币', 'order': '订单',
-      'settings': '设置', 'system': '系统', 'super_admin': '超级管理员'
+      'merchant': '商户', 'merchant_admin': '管理员', 'store': '店铺', 'menu': '菜品',
+      'category': '分类', 'waiter': '服务员', 'table': '桌号', 'currency': '货币',
+      'order': '订单', 'settings': '设置', 'system': '系统', 'super_admin': '超级管理员'
     };
     tbody.innerHTML = logs.map(log => {
       const action = actionNames[log.action] || log.action;
       const targetTypeName = targetTypeNames[log.target_type] || log.target_type;
       const target = log.target_type ? `${targetTypeName}${log.target_id ? ' #' + log.target_id : ''}` : '-';
-      // 详情列：如果是JSON则解析为友好文本
       let details = log.details || '-';
       try {
         if (typeof details === 'string' && (details.startsWith('{') || details.startsWith('['))) {
           const obj = JSON.parse(details);
           details = Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join(', ');
         }
-      } catch (e) { /* 不是JSON，保持原文 */ }
+      } catch (e) {}
       const displayDetails = details.length > 60 ? details.substring(0, 60) + '...' : details;
       return `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
         <td style="padding:10px;color:#666;">${log.id}</td>
         <td style="padding:10px;color:#aaa;">${formatDateTime(log.created_at)}</td>
-        <td style="padding:10px;color:#fff;">${log.actor_username || '-'}</td>
-        <td style="padding:10px;"><span style="background:rgba(232,93,58,.15);color:#e85d3a;padding:3px 8px;border-radius:4px;font-size:12px;">${action}</span></td>
-        <td style="padding:10px;color:#aaa;">${target}</td>
-        <td style="padding:10px;color:#888;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${log.details || ''}">${displayDetails}</td>
+        <td style="padding:10px;color:#fff;">${esc(log.actor_username) || '-'}</td>
+        <td style="padding:10px;"><span style="background:rgba(232,93,58,.15);color:#e85d3a;padding:3px 8px;border-radius:4px;font-size:12px;">${esc(action)}</span></td>
+        <td style="padding:10px;color:#aaa;">${esc(target)}</td>
+        <td style="padding:10px;color:#888;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(log.details || '')}">${esc(displayDetails)}</td>
         <td style="padding:10px;color:#888;">${esc(log.ip) || '-'}</td>
       </tr>`;
     }).join('');
   } catch (e) {
-    document.getElementById('auditLogsBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#e74c3c;">加载失败: ' + e.message + '</td></tr>';
+    document.getElementById('auditLogsBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#e74c3c;">加载失败: ' + esc(e.message) + '</td></tr>';
   }
 }
 
-// Toast
 function toast(msg, type = '') {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -1610,159 +1253,159 @@ function toast(msg, type = '') {
   setTimeout(() => el.classList.remove('show'), 3000);
 }
 
-// 回车登录
+// 通用确认弹窗
+let confirmCallback = null;
+function showConfirm(message, callback, title) {
+  document.getElementById('confirmModalTitle').textContent = title || t('confirmOperation', null, '确认操作');
+  document.getElementById('confirmModalMessage').textContent = message;
+  confirmCallback = callback;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function hideConfirm() {
+  document.getElementById('confirmModal').classList.remove('open');
+  confirmCallback = null;
+}
+window.hideConfirm = hideConfirm;
+document.getElementById('confirmModalBtn').onclick = function() {
+  if (confirmCallback) confirmCallback();
+  hideConfirm();
+};
+document.getElementById('confirmModal').addEventListener('click', function(e) {
+  if (e.target === this) hideConfirm();
+});
+
+// 密码输入弹窗
+let passwordCallback = null;
+function showPasswordModal(message, callback, title) {
+  document.getElementById('passwordModalTitle').textContent = title || t('verifyPassword', null, '验证密码');
+  document.getElementById('passwordModalMessage').textContent = message || t('enterPasswordVerify', null, '请输入密码以验证身份');
+  document.getElementById('passwordModalInput').value = '';
+  passwordCallback = callback;
+  document.getElementById('passwordModal').classList.add('open');
+  setTimeout(() => document.getElementById('passwordModalInput').focus(), 100);
+}
+function hidePasswordModal() {
+  document.getElementById('passwordModal').classList.remove('open');
+  passwordCallback = null;
+}
+window.hidePasswordModal = hidePasswordModal;
+function executePasswordModal() {
+  const password = document.getElementById('passwordModalInput').value;
+  if (!password) { toast(t('enterPassword', null, '请输入密码'), 'error'); return; }
+  if (passwordCallback) passwordCallback(password);
+  hidePasswordModal();
+}
+document.getElementById('passwordModalInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') executePasswordModal();
+});
+document.getElementById('passwordModal').addEventListener('click', function(e) {
+  if (e.target === this) hidePasswordModal();
+});
+
+function resetData() {
+  showPasswordModal(t('enterPasswordVerify', null, '请再次输入密码'), function(password) {
+    showConfirm(t('confirmResetData', null, '确认重置所有订单数据？此操作不可恢复'), async function() {
+      try {
+        const data = await SLF.api.post('/super/reset-data', { password });
+        if (!data || !data.success) throw new Error((data && data.error) || t('resetFailed', null, '重置失败'));
+        toast('✅ ' + t('orderDataReset', null, '订单数据已重置'), 'success');
+      } catch (e) {
+        toast('❌ ' + t('resetFailed', null, '重置失败') + ': ' + e.message, 'error');
+      }
+    }, t('confirmResetDataTitle', null, '重置数据确认'));
+  }, t('verifySuperPassword', null, '请输入超级管理员密码验证'));
+}
+
+// ===== 数据备份 =====
+let selectedBackupFile = null;
+
+async function loadBackupSettings() {
+  try {
+    const data = await api('/super/backup/settings');
+    const sel = document.getElementById('backupIntervalSelect');
+    if (sel) sel.value = String(data.intervalHours || 24);
+    if (data.lastBackupAt) {
+      const info = document.getElementById('lastBackupInfo');
+      if (info) info.textContent = t('lastBackupTime', null, '上次备份时间') + ': ' + formatDateTime(data.lastBackupAt);
+    }
+  } catch (e) { console.error('加载备份设置失败', e); }
+}
+
+async function exportBackup() {
+  try {
+    const res = await fetch('/api/super/backup/export', {
+      headers: { 'X-Super-Token': token, 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error(t('exportFailed', null, '导出失败'));
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'foodflow-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('✅ ' + t('backupExported', null, '备份已导出'), 'success');
+  } catch (e) {
+    toast('❌ ' + t('exportFailed', null, '导出失败') + ': ' + e.message, 'error');
+  }
+}
+window.exportBackup = exportBackup;
+
+function onBackupFileSelected(input) {
+  if (input.files && input.files[0]) {
+    selectedBackupFile = input.files[0];
+    document.getElementById('backupFileName').textContent = selectedBackupFile.name;
+  }
+}
+window.onBackupFileSelected = onBackupFileSelected;
+
+async function importBackup() {
+  if (!selectedBackupFile) {
+    toast('⚠️ ' + t('pleaseSelectBackupFile', null, '请选择备份文件'), 'error');
+    return;
+  }
+  if (!confirm(t('confirmImportBackup', null, '确认导入备份？当前数据将被覆盖'))) return;
+  try {
+    const text = await selectedBackupFile.text();
+    const data = JSON.parse(text);
+    const result = await SLF.api.post('/super/backup/import', data);
+    if (!result || !result.success) throw new Error((result && result.error) || t('importFailed', null, '导入失败'));
+    toast('✅ ' + t('backupImported', null, '备份已导入'), 'success');
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    toast('❌ ' + t('importFailed', null, '导入失败') + ': ' + e.message, 'error');
+  }
+}
+window.importBackup = importBackup;
+
+async function saveBackupSettings() {
+  try {
+    const intervalHours = document.getElementById('backupIntervalSelect').value;
+    await api('/super/backup/settings', { method: 'PUT', body: JSON.stringify({ intervalHours }) });
+    toast('✅ ' + t('backupSettingsSaved', null, '备份设置已保存'), 'success');
+  } catch (e) {
+    toast('❌ ' + t('saveFailed', null, '保存失败'), 'error');
+  }
+}
+window.saveBackupSettings = saveBackupSettings;
+
+async function backupNow() {
+  try {
+    await api('/super/backup/now', { method: 'POST' });
+    toast('✅ ' + t('backupGenerated', null, '备份已生成'), 'success');
+    loadBackupSettings();
+  } catch (e) {
+    toast('❌ ' + t('backupFailed', null, '备份失败'), 'error');
+  }
+}
+window.backupNow = backupNow;
+
+// 登录回车
 document.getElementById('loginPassword').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
 
-// 初始化i18n
+// 初始化
 applyI18n();
-// 自动登录
 if (token) showApp();
-
-  // ========== 数据备份功能 ==========
-  let selectedBackupFile = null;
-
-  async function loadBackupSettings() {
-    try {
-      const data = await api('/super/backup/settings');
-      document.getElementById('backupIntervalSelect').value = String(data.intervalHours || 24);
-      if (data.lastBackupAt) {
-        document.getElementById('lastBackupInfo').textContent = t('lastBackupTime') + formatDateTime(data.lastBackupAt);
-      }
-    } catch (e) {
-      console.error('加载备份设置失败', e);
-    }
-  }
-
-  async function exportBackup() {
-    try {
-      const res = await fetch('/api/super/backup/export', { headers: { 'Authorization': 'Bearer ' + token } });
-      if (!res.ok) throw new Error(t('exportFailed'));
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'foodflow-backup-' + new Date().toISOString().slice(0,10) + '.json';
-      a.click();
-      URL.revokeObjectURL(url);
-      toast('✅ ' + t('backupExported'), 'success');
-    } catch (e) {
-      toast('❌ ' + t('exportFailed') + ': ' + e.message, 'error');
-    }
-  }
-
-  function onBackupFileSelected(input) {
-    if (input.files && input.files[0]) {
-      selectedBackupFile = input.files[0];
-      document.getElementById('backupFileName').textContent = selectedBackupFile.name;
-    }
-  }
-
-  async function importBackup() {
-    if (!selectedBackupFile) {
-      toast('⚠️ ' + t('pleaseSelectBackupFile'), 'error');
-      return;
-    }
-    if (!confirm(t('confirmImportBackup'))) return;
-    try {
-      const text = await selectedBackupFile.text();
-      const data = JSON.parse(text);
-      // SLF.api 失败时抛错，成功时返回响应体
-      const result = await SLF.api.post('/super/backup/import', data);
-      if (!result || !result.success) {
-        throw new Error((result && result.error) || t('importFailed'));
-      }
-      toast('✅ ' + t('backupImported'), 'success');
-      setTimeout(() => location.reload(), 1500);
-    } catch (e) {
-      toast('❌ ' + t('importFailed') + ': ' + e.message, 'error');
-    }
-  }
-
-  async function saveBackupSettings() {
-    try {
-      const intervalHours = document.getElementById('backupIntervalSelect').value;
-      await api('/super/backup/settings', { method: 'PUT', body: JSON.stringify({ intervalHours }) });
-      toast('✅ ' + t('backupSettingsSaved'), 'success');
-    } catch (e) {
-      toast('❌ ' + t('saveFailed'), 'error');
-    }
-  }
-
-  async function backupNow() {
-    try {
-      await api('/super/backup/now', { method: 'POST' });
-      toast('✅ ' + t('backupGenerated'), 'success');
-      loadBackupSettings();
-    } catch (e) {
-      toast('❌ ' + t('backupFailed'), 'error');
-    }
-  }
-
-  // 通用确认弹窗
-  let confirmCallback = null;
-  function showConfirm(message, callback, title) {
-    document.getElementById('confirmModalTitle').textContent = title || t('confirmOperation');
-    document.getElementById('confirmModalMessage').textContent = message;
-    confirmCallback = callback;
-    document.getElementById('confirmModal').classList.add('open');
-  }
-  function hideConfirm() {
-    document.getElementById('confirmModal').classList.remove('open');
-    confirmCallback = null;
-  }
-  document.getElementById('confirmModalBtn').onclick = function() {
-    if (confirmCallback) confirmCallback();
-    hideConfirm();
-  };
-  document.getElementById('confirmModal').addEventListener('click', function(e) {
-    if (e.target === this) hideConfirm();
-  });
-
-  // 密码输入弹窗
-  let passwordCallback = null;
-  function showPasswordModal(message, callback, title) {
-    document.getElementById('passwordModalTitle').textContent = title || t('verifyPassword');
-    document.getElementById('passwordModalMessage').textContent = message || t('enterPasswordVerify');
-    document.getElementById('passwordModalInput').value = '';
-    passwordCallback = callback;
-    document.getElementById('passwordModal').classList.add('open');
-    setTimeout(() => document.getElementById('passwordModalInput').focus(), 100);
-  }
-  function hidePasswordModal() {
-    document.getElementById('passwordModal').classList.remove('open');
-    passwordCallback = null;
-  }
-  function executePasswordModal() {
-    const password = document.getElementById('passwordModalInput').value;
-    if (!password) { toast(t('enterPassword'), 'error'); return; }
-    if (passwordCallback) passwordCallback(password);
-    hidePasswordModal();
-  }
-  document.getElementById('passwordModalInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') executePasswordModal();
-  });
-  document.getElementById('passwordModal').addEventListener('click', function(e) {
-    if (e.target === this) hidePasswordModal();
-  });
-
-  // 重置数据：密码验证 → 二次确认 → 执行
-  function resetData() {
-    showPasswordModal(t('enterPasswordVerify'), function(password) {
-      showConfirm(t('confirmResetData'), async function() {
-        try {
-          // SLF.api 成功返回响应体，失败已抛错
-          const data = await SLF.api.post('/super/reset-data', { password });
-          if (!data || !data.success) {
-            throw new Error((data && data.error) || t('resetFailed'));
-          }
-          toast('✅ ' + t('orderDataReset'), 'success');
-        } catch (e) {
-          toast('❌ ' + t('resetFailed') + ': ' + e.message, 'error');
-        }
-      }, t('confirmResetDataTitle'));
-    }, t('verifySuperPassword'));
-  }
-
 
 // 汉堡按钮拖动+磁吸
 (function() {
@@ -1790,18 +1433,11 @@ if (token) showApp();
     if (!isDragging) return;
     isDragging = false;
     btn.style.transition = 'left .3s, top .3s';
-    // 磁吸到最近边缘
     const rect = btn.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
-    if (centerX < window.innerWidth / 2) {
-      btn.style.left = '6px';
-    } else {
-      btn.style.left = (window.innerWidth - btn.offsetWidth - 6) + 'px';
-    }
-    // 垂直方向保持在导航栏区域
-    if (rect.top < 60) {
-      btn.style.top = '6px';
-    }
+    if (centerX < window.innerWidth / 2) btn.style.left = '6px';
+    else btn.style.left = (window.innerWidth - btn.offsetWidth - 6) + 'px';
+    if (rect.top < 60) btn.style.top = '6px';
   }
   btn.addEventListener('mousedown', onStart);
   btn.addEventListener('touchstart', onStart, {passive: false});
@@ -1809,25 +1445,14 @@ if (token) showApp();
   document.addEventListener('touchmove', onMove, {passive: false});
   document.addEventListener('mouseup', onEnd);
   document.addEventListener('touchend', onEnd);
-  // 点击时如果没移动才触发toggle
   btn.addEventListener('click', function(e) {
     if (moved) { e.stopPropagation(); e.preventDefault(); }
   }, true);
 })();
-
 </script>
 
-<div class="modal" id="onlineSessionsModal">
-  <div class="modal-card" style="max-width:700px;">
-    <h3><span id="osModalTitle">在线客户端</span><span class="modal-close" onclick="closeOnlineSessions()">✕</span></h3>
-    <div id="osModalBody" style="color:#ccc;font-size:14px;"></div>
-    <div class="modal-actions">
-      <button class="cancel" onclick="closeOnlineSessions()">关闭</button>
-    </div>
-  </div>
-</div>
 <script>
-
+// ===== 在线会话/门店统计弹窗 =====
 async function showStoreBreakdown(type) {
   const titles = {
     orders: '订单总数（按门店）',
@@ -1835,16 +1460,17 @@ async function showStoreBreakdown(type) {
     sessions: '扫码会话（按门店）'
   };
   document.getElementById('osModalTitle').textContent = titles[type] || '门店统计';
-  document.getElementById('osModalBody').innerHTML = '<p>加载中...</p>';
+  document.getElementById('osModalBody').innerHTML = '<p style="color:#888;">加载中...</p>';
   document.getElementById('onlineSessionsModal').style.display = 'flex';
   try {
-    const r = await fetch('/api/super/store-breakdown', { headers: { 'X-Super-Token': SLF.store.rawGet('superToken') || '' } });
-    const d = await r.json();
-    if (!d.stores || !d.stores.length) {
+    const d = await SLF.api.get('/super/store-breakdown');
+    // 修复：接口返回的是 { stores: [...] }
+    const stores = (d && d.stores) || [];
+    if (!stores.length) {
       document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">暂无门店</p>';
       return;
     }
-    let cols = {
+    const cols = {
       orders: ['门店', '商户', '总订单', '今日订单'],
       revenue: ['门店', '商户', '今日营业额', '今日订单'],
       sessions: ['门店', '商户', '累计扫码', '当前在线']
@@ -1853,91 +1479,97 @@ async function showStoreBreakdown(type) {
     html += '<tr style="background:rgba(255,255,255,0.08);color:#888;">';
     cols[type].forEach(h => html += '<th style="padding:10px 12px;text-align:left;font-weight:600;">' + h + '</th>');
     html += '</tr>';
-    d.stores.forEach(s => {
+    stores.forEach(s => {
       html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">';
       if (type === 'orders') {
-        html += '<td style="padding:12px;font-weight:600;">' + (s.store_name||'-') + '</td>'
-          + '<td style="padding:12px;color:#666;">' + (s.merchant_name||'-') + '</td>'
-          + '<td style="padding:12px;text-align:center;">' + s.total_orders + '</td>'
-          + '<td style="padding:12px;text-align:center;">' + s.today_orders + '</td>';
+        html += '<td style="padding:12px;font-weight:600;">' + esc(s.store_name||'-') + '</td>'
+          + '<td style="padding:12px;color:#888;">' + esc(s.merchant_name||'-') + '</td>'
+          + '<td style="padding:12px;text-align:center;">' + (s.total_orders||0) + '</td>'
+          + '<td style="padding:12px;text-align:center;">' + (s.today_orders||0) + '</td>';
       } else if (type === 'revenue') {
-        html += '<td style="padding:12px;font-weight:600;">' + (s.store_name||'-') + '</td>'
-          + '<td style="padding:12px;color:#666;">' + (s.merchant_name||'-') + '</td>'
+        html += '<td style="padding:12px;font-weight:600;">' + esc(s.store_name||'-') + '</td>'
+          + '<td style="padding:12px;color:#888;">' + esc(s.merchant_name||'-') + '</td>'
           + '<td style="padding:12px;text-align:center;color:#27ae60;font-weight:600;">$' + Number(s.today_revenue||0).toFixed(2) + '</td>'
-          + '<td style="padding:12px;text-align:center;">' + s.today_orders + '</td>';
+          + '<td style="padding:12px;text-align:center;">' + (s.today_orders||0) + '</td>';
       } else {
-        html += '<td style="padding:12px;font-weight:600;">' + (s.store_name||'-') + '</td>'
-          + '<td style="padding:12px;color:#666;">' + (s.merchant_name||'-') + '</td>'
-          + '<td style="padding:12px;text-align:center;">' + s.total_sessions + '</td>'
-          + '<td style="padding:12px;text-align:center;color:#27ae60;">' + s.online_count + '</td>';
+        html += '<td style="padding:12px;font-weight:600;">' + esc(s.store_name||'-') + '</td>'
+          + '<td style="padding:12px;color:#888;">' + esc(s.merchant_name||'-') + '</td>'
+          + '<td style="padding:12px;text-align:center;">' + (s.total_sessions||0) + '</td>'
+          + '<td style="padding:12px;text-align:center;color:#27ae60;">' + (s.online_count||0) + '</td>';
       }
       html += '</tr>';
     });
     html += '</table>';
     document.getElementById('osModalBody').innerHTML = html;
-  } catch(e) {
-    document.getElementById('osModalBody').innerHTML = '<p style="color:red;">' + e.message + '</p>';
+  } catch (e) {
+    document.getElementById('osModalBody').innerHTML = '<p style="color:#e74c3c;">' + esc(e.message) + '</p>';
   }
 }
+window.showStoreBreakdown = showStoreBreakdown;
 
 async function showOnlineSessions() {
   document.getElementById('osModalTitle').textContent = '在线客户端（按门店）';
-  document.getElementById('osModalBody').innerHTML = '<p>加载中...</p>';
+  document.getElementById('osModalBody').innerHTML = '<p style="color:#888;">加载中...</p>';
   document.getElementById('onlineSessionsModal').style.display = 'flex';
   try {
-    const r = await fetch('/api/super/online-sessions', { headers: { 'X-Super-Token': SLF.store.rawGet('superToken') || '' } });
-    const d = await r.json();
-    if (!d.sessions || !d.sessions.length) {
+    const d = await SLF.api.get('/super/online-sessions');
+    const sessions = (d && d.sessions) || [];
+    if (!sessions.length) {
       document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">暂无在线客户端</p>';
       return;
     }
     let html = '<table style="width:100%;border-collapse:collapse;font-size:14px;color:#ddd;">';
     html += '<tr style="background:rgba(255,255,255,0.08);color:#888;"><th style="padding:10px 12px;text-align:left;font-weight:600;">门店</th><th style="padding:10px 12px;text-align:left;font-weight:600;">商户</th><th style="padding:10px 12px;text-align:center;font-weight:600;">在线桌号</th><th style="padding:10px 12px;text-align:center;font-weight:600;">待结订单</th><th style="padding:10px 12px;"></th></tr>';
-    d.sessions.forEach(s => {
-      html += '<tr style="border-bottom:1px solid #eee;">'
-        + '<td style="padding:12px;">' + (s.store_name||'-') + '</td>'
-        + '<td style="padding:12px;color:#666;">' + (s.merchant_name||'-') + '</td>'
-        + '<td style="padding:12px;text-align:center;font-weight:600;color:#27ae60;">' + s.online_count + '</td>'
-        + '<td style="padding:12px;text-align:center;">' + s.pending_orders + '</td>'
-        + '<td style="padding:12px;text-align:right;"><button onclick="showStoreSessions(' + s.store_id + ',\'' + (s.store_name||'').replace(/'/g,'') + '\')" style="padding:6px 14px;border:none;border-radius:8px;background:#667eea;color:#fff;cursor:pointer;font-size:12px;font-weight:600;">详情</button></td>'
+    sessions.forEach(s => {
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">'
+        + '<td style="padding:12px;">' + esc(s.store_name||'-') + '</td>'
+        + '<td style="padding:12px;color:#888;">' + esc(s.merchant_name||'-') + '</td>'
+        + '<td style="padding:12px;text-align:center;font-weight:600;color:#27ae60;">' + (s.online_count||0) + '</td>'
+        + '<td style="padding:12px;text-align:center;">' + (s.pending_orders||0) + '</td>'
+        + '<td style="padding:12px;text-align:right;"><button onclick="showStoreSessions(' + s.store_id + ',\'' + esc(s.store_name||'').replace(/'/g,"") + '\')" style="padding:6px 14px;border:none;border-radius:8px;background:#667eea;color:#fff;cursor:pointer;font-size:12px;font-weight:600;">详情</button></td>'
         + '</tr>';
     });
     html += '</table>';
     document.getElementById('osModalBody').innerHTML = html;
-  } catch(e) {
-    document.getElementById('osModalBody').innerHTML = '<p style="color:red;">' + e.message + '</p>';
+  } catch (e) {
+    document.getElementById('osModalBody').innerHTML = '<p style="color:#e74c3c;">' + esc(e.message) + '</p>';
   }
 }
+window.showOnlineSessions = showOnlineSessions;
+
 async function showStoreSessions(storeId, storeName) {
   document.getElementById('osModalTitle').textContent = '在线会话 - ' + storeName;
-  document.getElementById('osModalBody').innerHTML = '<p>加载中...</p>';
+  document.getElementById('osModalBody').innerHTML = '<p style="color:#888;">加载中...</p>';
   try {
-    const r = await fetch('/api/super/online-sessions/' + storeId, { headers: { 'X-Super-Token': SLF.store.rawGet('superToken') || '' } });
-    const d = await r.json();
-    if (!d.sessions || !d.sessions.length) {
+    const d = await SLF.api.get('/super/online-sessions/' + storeId);
+    const sessions = (d && d.sessions) || [];
+    if (!sessions.length) {
       document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">该店暂无在线会话</p>';
       return;
     }
-    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;color:#ddd;">';
     html += '<tr style="background:rgba(255,255,255,0.08);color:#888;"><th style="padding:10px 12px;text-align:left;font-weight:600;">桌号</th><th style="padding:10px 12px;text-align:left;font-weight:600;">进店时间</th><th style="padding:10px 12px;text-align:left;font-weight:600;">过期时间</th><th style="padding:10px 12px;text-align:left;font-weight:600;">当前订单</th><th style="padding:10px 12px;text-align:right;font-weight:600;">金额</th></tr>';
-    d.sessions.forEach(s => {
-      html += '<tr style="border-bottom:1px solid #eee;">'
-        + '<td style="padding:10px;font-weight:600;">' + (s.table_name||'-') + '</td>'
+    sessions.forEach(s => {
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">'
+        + '<td style="padding:10px;font-weight:600;">' + esc(s.table_name||'-') + '</td>'
         + '<td style="padding:10px;">' + (s.created_at ? new Date(s.created_at).toLocaleString() : '-') + '</td>'
         + '<td style="padding:10px;color:#999;">' + (s.expires_at ? new Date(s.expires_at).toLocaleString() : '-') + '</td>'
-        + '<td style="padding:10px;">' + (s.active_order_no || '—') + '</td>'
+        + '<td style="padding:10px;">' + esc(s.active_order_no || '—') + '</td>'
         + '<td style="padding:10px;text-align:right;">' + (s.active_order_total ? '$' + Number(s.active_order_total).toFixed(2) : '-') + '</td>'
         + '</tr>';
     });
     html += '</table>';
     document.getElementById('osModalBody').innerHTML = html;
-  } catch(e) {
-    document.getElementById('osModalBody').innerHTML = '<p style="color:red;">' + e.message + '</p>';
+  } catch (e) {
+    document.getElementById('osModalBody').innerHTML = '<p style="color:#e74c3c;">' + esc(e.message) + '</p>';
   }
 }
+window.showStoreSessions = showStoreSessions;
+
 function closeOnlineSessions() {
   document.getElementById('onlineSessionsModal').style.display = 'none';
 }
+window.closeOnlineSessions = closeOnlineSessions;
 </script>
 </body>
 </html>

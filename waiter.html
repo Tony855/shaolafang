@@ -1,21 +1,20 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <link rel="icon" href="data:,">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="mobile-web-app-capable" content="yes">
-  <title>服务员点餐</title>
-  <script>
-    // 在样式和正文渲染之前同步判断登录态，避免刷新页面时登录窗口先闪现一下再消失
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>服务员点餐</title>
+<script>
+    // 同步判断登录态，避免刷新时登录窗口闪现
     if (localStorage.getItem('waiterToken')) {
-      document.documentElement.setAttribute('data-waiter-session', '1');
+        document.documentElement.setAttribute('data-waiter-session', '1');
     }
-  </script>
-  <style>
-    /* ===== CSS 变量 ===== */
+</script>
+<style>
     :root{
       --primary: #e84a2a;
       --primary-light: #ff6b4a;
@@ -42,28 +41,8 @@
       background: linear-gradient(145deg, #fff5f0 0%, #fde8dd 100%);
       position: relative;
     }
-    body::before{
-      content: '';
-      position: fixed;
-      top: -20%;
-      right: -10%;
-      width: 60%;
-      height: 80%;
-      background: radial-gradient(circle, rgba(232,74,42,0.10) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
-    body::after{
-      content: '';
-      position: fixed;
-      bottom: -20%;
-      left: -10%;
-      width: 50%;
-      height: 70%;
-      background: radial-gradient(circle, rgba(255,140,76,0.08) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
+    body::before{ content: ''; position: fixed; top: -20%; right: -10%; width: 60%; height: 80%; background: radial-gradient(circle, rgba(232,74,42,0.10) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+    body::after{ content: ''; position: fixed; bottom: -20%; left: -10%; width: 50%; height: 70%; background: radial-gradient(circle, rgba(255,140,76,0.08) 0%, transparent 70%); pointer-events: none; z-index: 0; }
     .toast{
       position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
@@ -72,21 +51,9 @@
       opacity: 0; transition: opacity 0.3s; pointer-events: none;
     }
     .toast.show{ opacity: 1; }
-    html, body {
-      overscroll-behavior: none;
-      -webkit-overflow-scrolling: auto;
-    }
-    body {
-      position: fixed;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
-    #mainContent {
-      height: 100%;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
+    html, body { overscroll-behavior: none; -webkit-overflow-scrolling: auto; }
+    body { position: fixed; width: 100%; height: 100%; overflow: hidden; }
+    #mainContent { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     header{
       position: sticky; top: 0; z-index: 100;
       background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
@@ -99,727 +66,129 @@
       box-shadow: 0 10px 28px rgba(200, 65, 30, .22);
       border-radius: 0 0 22px 22px;
     }
-    header .header-title{
-      font-size: 20px; font-weight: 700;
-      display: flex; align-items: center; gap: 8px;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    header .header-left{
-      display: flex; align-items: center; gap: 10px;
-      min-width: 0;
-      flex: 1;
-      justify-content: center;
-    }
-    header .header-right{
-      display: flex; align-items: center; gap: 10px;
-      flex-wrap: wrap;
-      flex-shrink: 0;
-    }
-    header .waiter-name{
-      background: rgba(255,255,255,0.2);
-      padding: 4px 14px;
-      border-radius: 30px;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    header .store-name{
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.25);
-      padding: 4px 14px;
-      border-radius: 30px;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    header .header-btn{
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.25);
-      color: #fff;
-      padding: 5px 14px;
-      border-radius: 30px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    header .header-btn:hover{
-      background: rgba(255,255,255,0.3);
-    }
-    header .icon-btn{
-      width: 34px;
-      height: 34px;
-      min-width: 34px;
-      padding: 0;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      line-height: 1;
-      position: relative;
-    }
-    header .call-notification-btn #callNotificationCount{
-      position: absolute;
-      top: -4px;
-      right: -4px;
-      background: #ff3b30;
-      color: #fff;
-      font-size: 10px;
-      font-weight: 700;
-      min-width: 16px;
-      height: 16px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 4px;
-      line-height: 1;
-    }
-    header .call-notification-btn{
-      position: relative;
-      background: #ff7a45;
-      color: #fff;
-      border: 0;
-      padding: 5px 14px;
-      border-radius: 30px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 13px;
-    }
-    .lang-btn-wrap{
-      width: 34px; height: 34px;
-      min-width: 34px; max-width: 34px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      padding: 0; margin: 0;
-      box-sizing: border-box;
-      overflow: hidden;
-      position: relative;
-    }
-    .lang-btn-wrap .lang-icon{
-      font-size: 16px;
-      line-height: 1;
-      pointer-events: none;
-    }
-    .lang-btn-wrap select{
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      color: transparent;
-      padding: 0;
-      margin: 0;
-      width: 100%;
-      height: 100%;
-    }
+    header .header-title{ font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; }
+    header .header-left{ display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; justify-content: center; }
+    header .header-right{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+    header .waiter-name{ background: rgba(255,255,255,0.2); padding: 4px 14px; border-radius: 30px; font-weight: 600; font-size: 14px; }
+    header .store-name{ background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); padding: 4px 14px; border-radius: 30px; font-weight: 600; font-size: 14px; }
+    header .header-btn{ background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #fff; padding: 5px 14px; border-radius: 30px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    header .header-btn:hover{ background: rgba(255,255,255,0.3); }
+    header .icon-btn{ width: 34px; height: 34px; min-width: 34px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; position: relative; }
+    header .call-notification-btn #callNotificationCount{ position: absolute; top: -4px; right: -4px; background: #ff3b30; color: #fff; font-size: 10px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; line-height: 1; }
+    header .call-notification-btn{ position: relative; background: #ff7a45; color: #fff; border: 0; padding: 5px 14px; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 13px; }
+    .lang-btn-wrap{ width: 34px; height: 34px; min-width: 34px; max-width: 34px; border-radius: 50%; background: rgba(255,255,255,0.2); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; margin: 0; box-sizing: border-box; overflow: hidden; position: relative; }
+    .lang-btn-wrap .lang-icon{ font-size: 16px; line-height: 1; pointer-events: none; }
+    .lang-btn-wrap select{ position: absolute; inset: 0; opacity: 0; cursor: pointer; border: none; background: transparent; color: transparent; padding: 0; margin: 0; width: 100%; height: 100%; }
     header select option{ color: var(--gray-6); background: #fff; }
-    main{
-      max-width: 1000px;
-      margin: 20px auto;
-      padding: 0 16px;
-      position: relative;
-      z-index: 1;
-    }
-    .table-grid{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 18px;
-    }
-    .table-card{
-      position: relative;
-      background: #fff;
-      border-radius: var(--radius);
-      padding: 20px;
-      box-shadow: var(--shadow);
-      border: 1px solid rgba(0,0,0,0.04);
-      cursor: pointer;
-      transition: var(--transition);
-    }
-    .table-card:hover{
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-hover);
-    }
-    .table-card .name{
-      font-size: 22px; font-weight: 700;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .table-card .name .status{
-      margin-top: 0;
-      font-size: 12px;
-      padding: 2px 10px;
-      font-weight: 500;
-    }
-    .table-card .status{
-      display: inline-block;
-      margin-top: 4px;
-      padding: 2px 14px;
-      border-radius: 30px;
-      font-size: 12px;
-      font-weight: 600;
-    }
+    main{ max-width: 1000px; margin: 20px auto; padding: 0 16px; position: relative; z-index: 1; }
+    .table-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+    .table-card{ position: relative; background: #fff; border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,0.04); cursor: pointer; transition: var(--transition); }
+    .table-card:hover{ transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+    .table-card .name{ font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .table-card .name .status{ margin-top: 0; font-size: 12px; padding: 2px 10px; font-weight: 500; }
+    .table-card .status{ display: inline-block; margin-top: 4px; padding: 2px 14px; border-radius: 30px; font-size: 12px; font-weight: 600; }
     .status.available{ background: #e3f5e3; color: #1d7a3e; }
     .status.occupied{ background: #fff0e0; color: #b85c2a; }
     .status.reserved{ background: #e3edfc; color: #2a5fb8; }
-    .table-card .bill{
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid var(--gray-2);
-      font-size: 14px;
-    }
-    .table-card .amount{
-      font-weight: 700;
-      color: var(--primary);
-      font-size: 16px;
-    }
-    .bill-items{
-      margin-top: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 13px;
-      max-height: 120px;
-      overflow-y: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
+    .table-card .bill{ margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--gray-2); font-size: 14px; }
+    .table-card .amount{ font-weight: 700; color: var(--primary); font-size: 16px; }
+    .bill-items{ margin-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; max-height: 120px; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
     .bill-items::-webkit-scrollbar{ display: none; }
-    .bill-items .line{
-      display: grid;
-      grid-template-columns: 1fr 64px 72px;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 0;
-      border-bottom: 1px dashed var(--gray-2);
-    }
+    .bill-items .line{ display: grid; grid-template-columns: 1fr 64px 72px; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px dashed var(--gray-2); }
     .bill-items .dish-name{ min-width:0; color: var(--gray-6); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .order-detail-item{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0; gap:10px; }
     .order-detail-item .dish-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .order-detail-item .item-price{ color:#e74c3c; flex-shrink:0; }
     .line-amount{ text-align:right; color: var(--gray-5); }
-    .bill-items .line .item-status,
-    .bill-items .line .item-toggle{ justify-self:center; text-align:center; white-space:nowrap; }
-    .item-status{
-      padding: 2px 10px;
-      border-radius: 30px;
-      font-size: 11px;
-      font-weight: 600;
-      background: rgba(250, 140, 22, .15);
-      color: #fa8c16;
-    }
+    .bill-items .line .item-status, .bill-items .line .item-toggle{ justify-self:center; text-align:center; white-space:nowrap; }
+    .item-status{ padding: 2px 10px; border-radius: 30px; font-size: 11px; font-weight: 600; background: rgba(250, 140, 22, .15); color: #fa8c16; }
     .item-status.done{ background: rgba(82, 196, 26, .15); color: #52c41a; }
-    .item-toggle{
-      border: 0;
-      padding: 3px 12px;
-      border-radius: 30px;
-      font-size: 12px;
-      font-weight: 600;
-      background: rgba(250, 140, 22, .15);
-      color: #fa8c16;
-      cursor: pointer;
-      transition: var(--transition);
-    }
+    .item-toggle{ border: 0; padding: 3px 12px; border-radius: 30px; font-size: 12px; font-weight: 600; background: rgba(250, 140, 22, .15); color: #fa8c16; cursor: pointer; transition: var(--transition); }
     .item-toggle.done{ background: rgba(82, 196, 26, .15); color: #52c41a; }
-    .order-block{
-      margin-top: 10px;
-      padding-top: 8px;
-      border-top: 1px dashed var(--gray-2);
-    }
-    .order-head{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .order-head .order-meta{
-      font-weight: 400;
-      font-size: 12px;
-      color: #c8c8d0;
-    }
-    .session-badge{
-      display: inline-block;
-      padding: 1px 8px;
-      border-radius: 999px;
-      background: rgba(123, 104, 238, .15);
-      color: #7b68ee;
-      font-size: 11px;
-      font-weight: 700;
-      margin-left: 4px;
-    }
-    .order-head button{
-      background: #e3f5e3;
-      border: 1px solid #b7dbb7;
-      color: #1d7a3e;
-      border-radius: 30px;
-      padding: 2px 12px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: var(--transition);
-    }
+    .order-block{ margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--gray-2); }
+    .order-head{ display: flex; justify-content: space-between; align-items: center; font-weight: 600; margin-bottom: 4px; }
+    .order-head .order-meta{ font-weight: 400; font-size: 12px; color: #c8c8d0; }
+    .session-badge{ display: inline-block; padding: 1px 8px; border-radius: 999px; background: rgba(123, 104, 238, .15); color: #7b68ee; font-size: 11px; font-weight: 700; margin-left: 4px; }
+    .order-head button{ background: #e3f5e3; border: 1px solid #b7dbb7; color: #1d7a3e; border-radius: 30px; padding: 2px 12px; font-size: 12px; cursor: pointer; transition: var(--transition); }
     .order-head button:hover{ background: #c8eac8; }
-    .modal{
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.4);
-      backdrop-filter: blur(4px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-      padding: 16px;
-    }
+    .modal{ position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
     .modal.open{ display: flex; }
     html[data-waiter-session] .login-modal.open{ display: none; }
-    .modal-card{
-      background: #fff;
-      border-radius: var(--radius);
-      max-width: 920px;
-      width: 100%;
-      max-height: 90vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-      padding: 24px;
-    }
-    .modal-head{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--gray-2);
-      flex-shrink: 0;
-    }
-    .modal-head h2{
-      font-size: 20px;
-      font-weight: 700;
-      margin: 0;
-    }
-    .close{
-      background: var(--gray-2);
-      border: 0;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      font-size: 18px;
-      cursor: pointer;
-      transition: var(--transition);
-    }
+    .modal-card{ background: #fff; border-radius: var(--radius); max-width: 920px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.2); padding: 24px; }
+    .modal-head{ display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 1px solid var(--gray-2); flex-shrink: 0; }
+    .modal-head h2{ font-size: 20px; font-weight: 700; margin: 0; }
+    .close{ background: var(--gray-2); border: 0; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; transition: var(--transition); }
     .close:hover{ background: var(--gray-3); }
-    .confirm-modal .confirm-card{
-      max-width: 380px;
-      padding: 32px 28px 28px;
-      text-align: center;
-      border-radius: 20px;
-    }
+    .confirm-modal .confirm-card{ max-width: 380px; padding: 32px 28px 28px; text-align: center; border-radius: 20px; }
     .confirm-icon{ font-size: 48px; margin-bottom: 16px; }
     .confirm-title{ font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 10px; }
     .confirm-message{ font-size: 15px; color: #666; line-height: 1.6; margin-bottom: 24px; }
     .confirm-buttons{ display: flex; gap: 12px; justify-content: center; }
-    .confirm-cancel, .confirm-ok{
-      flex: 1; padding: 12px 24px; border: 0; border-radius: 12px;
-      font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
-    }
+    .confirm-cancel, .confirm-ok{ flex: 1; padding: 12px 24px; border: 0; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
     .confirm-cancel{ background: #f0f0f5; color: #666; }
     .confirm-cancel:hover{ background: #e4e4ec; }
     .confirm-ok{ background: linear-gradient(135deg, #e85d3a, #e84a2a); color: #fff; }
     .confirm-ok:hover{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(232,93,58,0.3); }
-    .login-modal .modal-card{
-      max-width: 420px;
-      padding: 32px 28px 28px;
-      background: rgba(255,255,255,0.92);
-      backdrop-filter: blur(12px);
-      border-radius: 28px;
-      border: 1px solid rgba(255,255,255,0.3);
-      box-shadow: 0 30px 80px rgba(0,0,0,0.15);
-      position: relative;
-      z-index: 1;
-    }
-    .login-modal .modal-head{
-      border-bottom: none;
-      padding-bottom: 8px;
-    }
-    .login-modal .modal-head h2{
-      font-size: 26px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .login-modal .modal-head h2 .brand-icon{
-      font-size: 32px;
-    }
-    .login-modal .form-group{
-      margin-bottom: 14px;
-    }
-    .login-modal .form-group input{
-      width: 100%;
-      height: 48px;
-      padding: 0 16px;
-      border-radius: var(--radius-sm);
-      border: 1.5px solid var(--gray-3);
-      font-size: 15px;
-      transition: var(--transition);
-      background: rgba(255,255,255,0.8);
-    }
-    .login-modal .form-group input:focus{
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 4px rgba(232,74,42,0.12);
-      background: #fff;
-    }
-    .login-modal .form-group label{
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--gray-5);
-      cursor: pointer;
-    }
-    .login-modal .form-group label input[type="checkbox"]{
-      width: 18px;
-      height: 18px;
-      accent-color: var(--primary);
-    }
-    .login-modal .history-users{
-      margin: 6px 0 12px;
-    }
-    .login-modal .history-users .label{
-      font-size: 13px;
-      color: var(--gray-4);
-      margin-bottom: 6px;
-    }
-    .login-modal .history-users .user-badge{
-      display: inline-block;
-      background: rgba(255,255,255,0.7);
-      border: 1px solid var(--gray-3);
-      border-radius: 30px;
-      padding: 4px 18px;
-      margin: 3px 6px 3px 0;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--gray-6);
-      cursor: pointer;
-      transition: var(--transition);
-    }
-    .login-modal .history-users .user-badge:hover{
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-    }
-    .login-btn{
-      width: 100%;
-      height: 50px;
-      border: 0;
-      border-radius: var(--radius-sm);
-      background: var(--primary);
-      color: #fff;
-      font-size: 18px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: var(--transition);
-      margin-top: 4px;
-    }
+    .login-modal .modal-card{ max-width: 420px; padding: 32px 28px 28px; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-radius: 28px; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 30px 80px rgba(0,0,0,0.15); position: relative; z-index: 1; }
+    .login-modal .modal-head{ border-bottom: none; padding-bottom: 8px; }
+    .login-modal .modal-head h2{ font-size: 26px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+    .login-modal .modal-head h2 .brand-icon{ font-size: 32px; }
+    .login-modal .form-group{ margin-bottom: 14px; }
+    .login-modal .form-group input{ width: 100%; height: 48px; padding: 0 16px; border-radius: var(--radius-sm); border: 1.5px solid var(--gray-3); font-size: 15px; transition: var(--transition); background: rgba(255,255,255,0.8); }
+    .login-modal .form-group input:focus{ outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(232,74,42,0.12); background: #fff; }
+    .login-modal .form-group label{ display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--gray-5); cursor: pointer; }
+    .login-modal .form-group label input[type="checkbox"]{ width: 18px; height: 18px; accent-color: var(--primary); }
+    .login-btn{ width: 100%; height: 50px; border: 0; border-radius: var(--radius-sm); background: var(--primary); color: #fff; font-size: 18px; font-weight: 700; cursor: pointer; transition: var(--transition); margin-top: 4px; }
     .login-btn:hover{ background: var(--primary-dark); transform: translateY(-1px); }
     .login-btn:active{ transform: scale(0.97); }
-    .login-error{
-      color: var(--primary);
-      margin-top: 10px;
-      font-size: 14px;
-      text-align: center;
-      min-height: 22px;
-    }
-    .login-sub{
-      text-align: center;
-      color: var(--gray-4);
-      font-size: 13px;
-      margin-top: 12px;
-    }
-    .login-lang-select{
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 8px;
-    }
-    .login-lang-select select{
-      background: #fff;
-      border: 2px solid var(--primary);
-      border-radius: 12px;
-      padding: 8px 16px;
-      font-size: 14px;
-      color: var(--gray-7);
-      cursor: pointer;
-      outline: none;
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 36px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-    .login-lang-select select:focus{
-      border-color: var(--primary);
-    }
-    .current-table{
-      background: var(--primary-bg);
-      border: 1px solid #f5d5c8;
-      color: var(--primary-dark);
-      font-weight: 600;
-      padding: 8px 14px;
-      border-radius: var(--radius-sm);
-      font-size: 15px;
-      flex: 1;
-    }
-    .modal-head .current-table{
-      margin-bottom: 0;
-      background: transparent;
-      border: none;
-      padding: 0;
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--gray-6);
-    }
-    .selected-items{
-      flex-shrink: 0;
-      background: var(--gray-1);
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-      max-height: 110px;
-      overflow-y: auto;
-      margin-bottom: 12px;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
+    .login-error{ color: var(--primary); margin-top: 10px; font-size: 14px; text-align: center; min-height: 22px; }
+    .current-table{ background: var(--primary-bg); border: 1px solid #f5d5c8; color: var(--primary-dark); font-weight: 600; padding: 8px 14px; border-radius: var(--radius-sm); font-size: 15px; flex: 1; }
+    .modal-head .current-table{ margin-bottom: 0; background: transparent; border: none; padding: 0; font-size: 18px; font-weight: 700; color: var(--gray-6); }
+    .selected-items{ flex-shrink: 0; background: var(--gray-1); border-radius: var(--radius-sm); padding: 12px 14px; max-height: 110px; overflow-y: auto; margin-bottom: 12px; scrollbar-width: none; -ms-overflow-style: none; }
     .selected-items::-webkit-scrollbar{ display: none; }
-    .selected-items .title{
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: var(--gray-5);
-    }
-    .selected-item{
-      display: grid;
-      grid-template-columns: 1fr auto auto auto;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--gray-2);
-    }
+    .selected-items .title{ font-weight: 600; margin-bottom: 8px; color: var(--gray-5); }
+    .selected-item{ display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--gray-2); }
     .selected-item:last-child{ border-bottom: 0; }
-    .selected-item .sel-name{
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .item-status.new{
-      background: var(--primary-bg);
-      color: var(--primary);
-      padding: 1px 6px;
-      border-radius: 8px;
-      font-size: 10px;
-      font-weight: 600;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .selected-item .sel-price{
-      color: var(--gray-5);
-      font-size: 13px;
-      white-space: nowrap;
-    }
+    .selected-item .sel-name{ min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+    .item-status.new{ background: var(--primary-bg); color: var(--primary); padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+    .selected-item .sel-price{ color: var(--gray-5); font-size: 13px; white-space: nowrap; }
     .selected-item .qty{ gap: 4px; }
     .selected-item .qty button{ width: 26px; height: 26px; font-size: 14px; }
     .selected-item .qty span{ min-width: 18px; font-size: 13px; }
-    .selected-item .remove-btn{
-      background: #fee8e6;
-      border: 0;
-      color: var(--primary);
-      padding: 2px 10px;
-      border-radius: 30px;
-      font-size: 12px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: var(--transition);
-    }
+    .selected-item .remove-btn{ background: #fee8e6; border: 0; color: var(--primary); padding: 2px 10px; border-radius: 30px; font-size: 12px; cursor: pointer; white-space: nowrap; transition: var(--transition); }
     .selected-item .remove-btn:hover{ background: #fdd5d0; }
-    .dish-categories{
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 8px 0;
-      margin-bottom: 8px;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-      flex-shrink: 0;
-    }
+    .dish-categories{ display: flex; gap: 8px; overflow-x: auto; padding: 8px 0; margin-bottom: 8px; scrollbar-width: none; -ms-overflow-style: none; flex-shrink: 0; }
     .dish-categories::-webkit-scrollbar{ display: none; }
-    .dish-categories .cat-btn{
-      padding: 6px 14px;
-      border-radius: 20px;
-      border: 1px solid var(--gray-3);
-      background: #fff;
-      font-size: 13px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s;
-      flex-shrink: 0;
-    }
-    .dish-categories .cat-btn:hover{
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-    .dish-categories .cat-btn.active{
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-      font-weight: 600;
-    }
-    .dish-list{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 14px;
-      flex: 1;
-      overflow-y: auto;
-      padding: 6px 2px 12px 0;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
+    .dish-categories .cat-btn{ padding: 6px 14px; border-radius: 20px; border: 1px solid var(--gray-3); background: #fff; font-size: 13px; cursor: pointer; white-space: nowrap; transition: all 0.2s; flex-shrink: 0; }
+    .dish-categories .cat-btn:hover{ border-color: var(--primary); color: var(--primary); }
+    .dish-categories .cat-btn.active{ background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+    .dish-list{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; flex: 1; overflow-y: auto; padding: 6px 2px 12px 0; scrollbar-width: none; -ms-overflow-style: none; }
     .dish-list::-webkit-scrollbar{ display: none; }
-    .dish-item{
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: var(--gray-1);
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-      border: 1px solid var(--gray-2);
-      transition: var(--transition);
-    }
+    .dish-item{ display: flex; align-items: center; gap: 12px; background: var(--gray-1); border-radius: var(--radius-sm); padding: 12px 14px; border: 1px solid var(--gray-2); transition: var(--transition); }
     .dish-item:hover{ background: #fff; border-color: var(--gray-3); }
-    .dish-thumb{
-      width: 56px;
-      height: 56px;
-      border-radius: var(--radius-sm);
-      background: var(--gray-2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
+    .dish-thumb{ width: 56px; height: 56px; border-radius: var(--radius-sm); background: var(--gray-2); display: flex; align-items: center; justify-content: center; font-size: 28px; overflow: hidden; flex-shrink: 0; }
     .dish-thumb img{ width:100%; height:100%; object-fit:cover; }
     .dish-item .info{ flex:1; min-width:0; }
     .dish-item .info .name{ font-weight:600; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .dish-item .info .price{ color: var(--primary); font-size:14px; font-weight:500; }
     .price-secondary{ font-size:12px; color: var(--gray-4); margin-left:4px; }
-    .qty{
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
-      white-space: nowrap;
-    }
-    .qty button{
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 1px solid var(--gray-3);
-      background: #fff;
-      font-size: 16px;
-      cursor: pointer;
-      transition: var(--transition);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .qty{ display: flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap; }
+    .qty button{ width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--gray-3); background: #fff; font-size: 16px; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; }
     .qty button:hover{ border-color: var(--primary); color: var(--primary); }
-    .qty span{
-      min-width: 24px;
-      text-align: center;
-      font-weight: 600;
-    }
-    .footer{
-      flex-shrink: 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 16px;
-      margin-top: 12px;
-      border-top: 1px solid var(--gray-2);
-    }
-    .footer .total{
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--primary);
-    }
-    .submit-btn{
-      background: var(--primary);
-      border: 0;
-      color: #fff;
-      padding: 10px 28px;
-      border-radius: 30px;
-      font-weight: 600;
-      font-size: 15px;
-      cursor: pointer;
-      transition: var(--transition);
-    }
+    .qty span{ min-width: 24px; text-align: center; font-weight: 600; }
+    .footer{ flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding-top: 16px; margin-top: 12px; border-top: 1px solid var(--gray-2); }
+    .footer .total{ font-size: 22px; font-weight: 700; color: var(--primary); }
+    .submit-btn{ background: var(--primary); border: 0; color: #fff; padding: 10px 28px; border-radius: 30px; font-weight: 600; font-size: 15px; cursor: pointer; transition: var(--transition); }
     .submit-btn:hover{ background: var(--primary-dark); transform: translateY(-2px); }
     .submit-btn:active{ transform: scale(0.97); }
     @media (max-width: 600px) {
-      header{
-        padding: 10px 14px; gap: 8px;
-        display: flex !important;
-        flex-wrap: wrap !important;
-      }
-      header .header-title{
-        position: static !important;
-        transform: none !important;
-        order: 0;
-        width: 100%;
-        text-align: center;
-        justify-content: center;
-        font-size: 17px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid rgba(255,255,255,0.15);
-      }
-      header .header-right{
-        order: 2;
-        margin-left: 0 !important;
-        flex: 1;
-        justify-content: flex-end;
-        flex-wrap: nowrap !important;
-        gap: 6px !important;
-      }
-      header .header-left{
-        order: 1;
-        margin-left: 0 !important;
-        gap: 6px !important;
-      }
-      header .header-btn{
-        padding: 4px 10px !important;
-        font-size: 12px !important;
-      }
-      header .icon-btn{
-        width: 30px !important;
-        height: 30px !important;
-        min-width: 30px !important;
-        font-size: 14px !important;
-      }
-      header .waiter-name,
-      header .store-name{
-        padding: 3px 10px !important;
-        font-size: 12px !important;
-      }
+      header{ padding: 10px 14px; gap: 8px; display: flex !important; flex-wrap: wrap !important; }
+      header .header-title{ position: static !important; transform: none !important; order: 0; width: 100%; text-align: center; justify-content: center; font-size: 17px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.15); }
+      header .header-right{ order: 2; margin-left: 0 !important; flex: 1; justify-content: flex-end; flex-wrap: nowrap !important; gap: 6px !important; }
+      header .header-left{ order: 1; margin-left: 0 !important; gap: 6px !important; }
+      header .header-btn{ padding: 4px 10px !important; font-size: 12px !important; }
+      header .icon-btn{ width: 30px !important; height: 30px !important; min-width: 30px !important; font-size: 14px !important; }
+      header .waiter-name, header .store-name{ padding: 3px 10px !important; font-size: 12px !important; }
       .login-modal .modal-card{ padding: 24px 18px 20px; }
       .dish-list{ grid-template-columns: 1fr; }
       .table-grid{ grid-template-columns: 1fr; }
@@ -827,11 +196,9 @@
     @media (max-width: 480px) {
       .selected-item{ grid-template-columns: 1fr auto auto; row-gap: 4px; }
       .selected-item .sel-price{ grid-column: 1 / 2; font-size: 12px; }
-      .auto-refresh-toggle span:not(.title){ display: none; }
-      .auto-refresh-toggle{ padding: 5px 10px; }
     }
-  </style>
-  <link rel="stylesheet" href="assets/common.css">
+</style>
+<link rel="stylesheet" href="assets/common.css">
 </head>
 <body>
 <div class="toast" id="toast"></div>
@@ -846,9 +213,7 @@
     <button class="call-notification-btn icon-btn" id="callNotificationBtn" onclick="showCallNotifications()" style="display:none;" title="呼叫通知">
       🔔 <span id="callNotificationCount">0</span>
     </button>
-    <button class="header-btn icon-btn" onclick="showOrderHistory()" id="orderHistoryBtn" title="订单历史">
-      📋
-    </button>
+    <button class="header-btn icon-btn" onclick="showOrderHistory()" id="orderHistoryBtn" title="订单历史">📋</button>
     <div class="lang-btn-wrap">
       <span class="lang-icon">🌐</span>
       <select id="waiterLang">
@@ -868,7 +233,7 @@
   <div class="table-grid" id="tableGrid"></div>
 </main>
 
-<!-- ===== 订单历史模态框 ===== -->
+<!-- 订单历史模态框 -->
 <div class="modal" id="orderHistoryModal">
   <div class="modal-card" style="max-width:700px;max-height:85vh;">
     <div class="modal-head">
@@ -890,7 +255,7 @@
   </div>
 </div>
 
-<!-- ===== 订单详情模态框 ===== -->
+<!-- 订单详情模态框 -->
 <div class="modal" id="orderDetailModal">
   <div class="modal-card" style="max-width:500px;max-height:85vh;">
     <div class="modal-head">
@@ -901,7 +266,7 @@
   </div>
 </div>
 
-<!-- ===== 点餐模态框 ===== -->
+<!-- 点餐模态框 -->
 <div class="modal" id="orderModal">
   <div class="modal-card">
     <div class="modal-head">
@@ -918,7 +283,26 @@
   </div>
 </div>
 
-<!-- ===== 转移桌号模态框 ===== --><div class="modal" id="transferModal"><div class="modal-card" style="max-width:400px;"><div class="modal-head"><h2 id="transferTitle">↔</h2><button class="close" onclick="closeTransferModal()">✕</button></div><div style="padding:10px 0;"><div style="margin-bottom:10px;font-weight:600;" id="transferFromLabel"></div><label style="display:block;font-size:13px;color:#666;margin-bottom:6px;" id="transferToLabel"></label><select id="transferTargetSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:14px;"></select></div><div style="display:flex;gap:10px;margin-top:16px;"><button class="confirm-cancel" onclick="closeTransferModal()" id="transferCancelBtn" style="flex:1;padding:10px;border:0;border-radius:8px;"></button><button class="confirm-ok" onclick="confirmTransfer()" id="transferConfirmBtn" style="flex:1;padding:10px;border:0;border-radius:8px;background:var(--primary);color:#fff;"></button></div></div></div><!-- ===== 确认模态框 ===== -->
+<!-- 转移桌号模态框 -->
+<div class="modal" id="transferModal">
+  <div class="modal-card" style="max-width:400px;">
+    <div class="modal-head">
+      <h2 id="transferTitle">↔</h2>
+      <button class="close" onclick="closeTransferModal()">✕</button>
+    </div>
+    <div style="padding:10px 0;">
+      <div style="margin-bottom:10px;font-weight:600;" id="transferFromLabel"></div>
+      <label style="display:block;font-size:13px;color:#666;margin-bottom:6px;" id="transferToLabel"></label>
+      <select id="transferTargetSelect" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:14px;"></select>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="confirm-cancel" onclick="closeTransferModal()" id="transferCancelBtn" style="flex:1;padding:10px;border:0;border-radius:8px;"></button>
+      <button class="confirm-ok" onclick="confirmTransfer()" id="transferConfirmBtn" style="flex:1;padding:10px;border:0;border-radius:8px;background:var(--primary);color:#fff;"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 确认模态框 -->
 <div class="modal confirm-modal" id="confirmModal">
   <div class="modal-card confirm-card">
     <div class="confirm-icon">⚠️</div>
@@ -932,7 +316,7 @@
   </div>
 </div>
 
-<!-- ===== 订单选择模态框 ===== -->
+<!-- 订单选择模态框 -->
 <div class="modal" id="orderSelectModal">
   <div class="modal-card" style="max-width:400px;">
     <div class="modal-head">
@@ -941,7 +325,7 @@
     </div>
     <div id="orderSelectList" style="max-height:400px;overflow-y:auto;"></div>
     <div style="padding:12px 0 0;border-top:1px solid var(--gray-2);margin-top:8px;">
-      <button class="submit-btn" id="createNewOrderBtn" style="width:100%;" onclick="createNewOrderFromSelect()">➕ ${t('createNewOrder')}</button>
+      <button class="submit-btn" id="createNewOrderBtn" style="width:100%;" onclick="createNewOrderFromSelect()">➕</button>
     </div>
   </div>
 </div>
@@ -958,13 +342,12 @@
     if (e.touches.length > 1) e.preventDefault();
   }, { passive: false });
 
-  // 三连击屏幕切换全屏（iPad 兼容 touch）
+  // 三连击切换全屏
   let _tripleClickTimer = null, _clickCount = 0;
   window.toggleFullscreen = function() {
     if (document.fullscreenElement) {
       document.exitFullscreen();
     } else {
-      // iOS PWA 提示
       if (window.navigator.standalone) {
         alert('已在全屏模式（主屏幕打开）。若需退出，请从底部向上滑动返回。');
       } else {
@@ -991,18 +374,9 @@
   }
   document.addEventListener('touchend', _handleTap, { passive: true });
   document.addEventListener('click', _handleTap);
-
-  const waiterSocket = io({ query: { storeId: (SLF.store.rawGet('storeId') || 1) } });
-  waiterSocket.on('order:new', (order) => {
-    console.log('[SOCKET] new order:', order.id);
-    if (typeof load === 'function') load();
-  });
-  waiterSocket.on('item:updated', () => { if (typeof load === 'function') load(); });
-  waiterSocket.on('order:settled', () => { if (typeof load === 'function') load(); });
-  waiterSocket.on('order:transfer', () => { if (typeof load === 'function') load(); });
 </script>
 <script>
-  // 安全兜底：确保 SLF.audio 存在
+  // 安全兜底
   if (typeof SLF === 'undefined' || !SLF.audio) {
     window.SLF = window.SLF || {};
     SLF.audio = {
@@ -1015,47 +389,7 @@
     };
   }
 
-  // ================================================================
-  //  工具函数（双币支持）
-  // ================================================================
-  function toBaseCurrency(price, currencyCode) {
-    const currency = state.currencies.find(c => c.code === currencyCode) || { rate: 1 };
-    return Number(price || 0) / Number(currency.rate || 1);
-  }
-
-  function formatPrimary(amount) {
-    const c = state.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' };
-    return `${c.symbol}${(Number(amount || 0) * Number(c.rate || 1)).toFixed(2)}`;
-  }
-
-  function formatDisplay(amount) {
-    const c = state.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' };
-    return `${c.symbol}${(Number(amount || 0)).toFixed(2)}`;
-  }
-
-  function formatSecondary(amount, secondaryCode) {
-    if (!secondaryCode) return '';
-    const secCurr = state.currencies.find(c => c.code === secondaryCode);
-    if (!secCurr) return '';
-    const defaultRate = (state.defaultCurrency && state.defaultCurrency.rate) || 1;
-    const secValue = (Number(amount || 0) / defaultRate) * Number(secCurr.rate || 1);
-    return `${secCurr.symbol}${secValue.toFixed(2)}`;
-  }
-
-  function getMenuPrices(item) {
-    const base = toBaseCurrency(item.price, item.currency_code);
-    const primary = formatPrimary(base);
-    let secondary = '';
-    if (state.dualCurrency.enabled && item.secondary_currency_code) {
-      secondary = formatSecondary(base, item.secondary_currency_code);
-    }
-    return { primary, secondary };
-  }
-
-  // ================================================================
-  //  核心状态与API
-  // ================================================================
-    const $ = s => document.querySelector(s);
+  const $ = s => document.querySelector(s);
 
   const state = {
     tables: [],
@@ -1074,40 +408,93 @@
     storeId: null,
     storeName: '',
     currentCategory: 'all',
+    selectedItem: null       // 修复：新增字段
   };
 
-  
-
   let waiterLang = SLF.store.rawGet('waiterLang') || 'zh';
-
-  // 初始化统一 i18n
   SLF.i18n.init(waiterLang);
-  function t(key, params) {
-    return SLF.i18n.t(key, params);
+
+  // t(key, params, fallback)
+  function t(key, params, fallback) {
+    try {
+      if (!SLF || !SLF.i18n || typeof SLF.i18n.t !== 'function') {
+        return fallback !== undefined ? fallback : key;
+      }
+      const v = SLF.i18n.t(key, params);
+      if (v === undefined || v === null || v === key) return fallback !== undefined ? fallback : key;
+      return v;
+    } catch (e) {
+      return fallback !== undefined ? fallback : key;
+    }
   }
 
-  function escNote(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+  const escNote = esc;
+
+  // 双币工具
+  function toBaseCurrency(price, currencyCode) {
+    const currency = state.currencies.find(c => c.code === currencyCode) || { rate: 1 };
+    return Number(price || 0) / Number(currency.rate || 1);
+  }
+
+  function formatPrimary(amount) {
+    const c = state.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' };
+    return `${c.symbol}${(Number(amount || 0) * Number(c.rate || 1)).toFixed(2)}`;
+  }
+
+  function formatSecondary(amount, secondaryCode) {
+    if (!secondaryCode) return '';
+    const secCurr = state.currencies.find(c => c.code === secondaryCode);
+    if (!secCurr) return '';
+    const defaultRate = (state.defaultCurrency && state.defaultCurrency.rate) || 1;
+    const secValue = (Number(amount || 0) / defaultRate) * Number(secCurr.rate || 1);
+    return `${secCurr.symbol}${secValue.toFixed(2)}`;
+  }
+
+  function formatMoney(amount, showSecondary = true) {
+    const primary = formatPrimary(amount);
+    let secondary = '';
+    if (showSecondary && state.dualCurrency.enabled && state.dualCurrency.currency) {
+      secondary = formatSecondary(amount, state.dualCurrency.currency.code);
+    }
+    return secondary ? `${primary} (${secondary})` : primary;
+  }
+
+  // 修复：移除语义错误的 formatDisplay
+  // 之前的 formatDisplay 直接 Number(amount).toFixed(2) 输出主符号但无 rate 转换 → 已经用 formatPrimary 替代
+
+  function getMenuPrices(item) {
+    const base = toBaseCurrency(item.price, item.currency_code);
+    const primary = formatPrimary(base);
+    let secondary = '';
+    if (state.dualCurrency.enabled && item.secondary_currency_code) {
+      secondary = formatSecondary(base, item.secondary_currency_code);
+    }
+    return { primary, secondary };
+  }
 
   function applyWaiterLanguage() {
-    $('#waiterTitle').textContent = t('title');
-    $('#logoutBtn').title = t('logout');
-    $('#waiterLang').value = waiterLang;
-    if (!state.currentTable) { $('#currentTableBadge').textContent = t('currentTable') + ': '; }
-    $('#submitBtn').textContent = t('submitOrder');
-    $('#confirmCancelBtn').textContent = t('cancel');
-    $('#confirmOkBtn').textContent = t('confirm');
-    const historyBtn = $('#orderHistoryBtn');
-    if (historyBtn) historyBtn.title = t('orderHistory');
+    const titleEl = $('#waiterTitle'); if (titleEl) titleEl.textContent = t('title', null, '🍴 FoodFlow');
+    const logoutEl = $('#logoutBtn'); if (logoutEl) logoutEl.title = t('logout', null, '退出');
+    const langEl = $('#waiterLang'); if (langEl) langEl.value = waiterLang;
+    if (!state.currentTable) { const badge = $('#currentTableBadge'); if (badge) badge.textContent = t('currentTable', null, '当前桌号') + ': '; }
+    const submitBtn = $('#submitBtn'); if (submitBtn) submitBtn.textContent = t('submitOrder', null, '提交订单');
+    const confirmCancelBtn = $('#confirmCancelBtn'); if (confirmCancelBtn) confirmCancelBtn.textContent = t('cancel', null, '取消');
+    const confirmOkBtn = $('#confirmOkBtn'); if (confirmOkBtn) confirmOkBtn.textContent = t('confirm', null, '确定');
+    const historyBtn = $('#orderHistoryBtn'); if (historyBtn) historyBtn.title = t('orderHistory', null, '订单历史');
     renderTables();
     const _newBtn = document.getElementById('createNewOrderBtn');
-    if (_newBtn) _newBtn.textContent = '\u2795 ' + t('createNewOrder');
+    if (_newBtn) _newBtn.textContent = '➕ ' + t('createNewOrder', null, '创建新订单');
   }
 
   let confirmCallback = null;
   function showConfirm(message, callback, title) {
     if ($('#confirmModal').classList.contains('open')) return;
-    $('#confirmTitle').textContent = title || t('confirmTitle');
+    $('#confirmTitle').textContent = title || t('confirmTitle', null, '确认操作');
     $('#confirmMessage').textContent = message;
     confirmCallback = callback;
     $('#confirmModal').classList.add('open');
@@ -1142,7 +529,6 @@
     }
   }
 
-  // ----- 退出登录 -----
   let knownWaiterOrderIds = null;
   function logoutWaiter() {
     stopCallPolling();
@@ -1156,7 +542,6 @@
     window.location.href = '/login?type=waiter';
   }
 
-  // ----- 空闲超时 -----
   let waiterIdleTimer = null;
   let waiterIdleTimeoutMin = 20;
   function resetWaiterIdle() {
@@ -1168,10 +553,8 @@
   }
   ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach(evt => document.addEventListener(evt, resetWaiterIdle, { passive: true }));
 
-  // ----- 退出按钮 -----
-  $('#logoutBtn').onclick = function () { showConfirm(t('confirmLogout'), logoutWaiter); };
+  $('#logoutBtn').onclick = function () { showConfirm(t('confirmLogout', null, '确认退出登录？'), logoutWaiter); };
 
-  // ----- Toast -----
   function toast(m) {
     const n = $('#toast');
     n.textContent = m;
@@ -1179,17 +562,6 @@
     setTimeout(() => n.classList.remove('show'), 1800);
   }
 
-  // ----- 金额格式化 -----
-  function formatMoney(amount, showSecondary = true) {
-    const primary = formatPrimary(amount);
-    let secondary = '';
-    if (showSecondary && state.dualCurrency.enabled && state.dualCurrency.currency) {
-      secondary = formatSecondary(amount, state.dualCurrency.currency.code);
-    }
-    return secondary ? `${primary} (${secondary})` : primary;
-  }
-
-  // 根据客人标签返回对应颜色
   function getCustomerColor(label) {
     const colors = [
       { bg: 'rgba(123, 104, 238, .15)', color: '#7b68ee' },
@@ -1206,10 +578,7 @@
       { bg: 'rgba(41, 128, 185, .15)', color: '#2980b9' },
     ];
     const match = label.match(/\d+/);
-    if (match) {
-      const idx = (parseInt(match[0]) - 1) % colors.length;
-      return colors[idx];
-    }
+    if (match) return colors[(parseInt(match[0]) - 1) % colors.length];
     return { bg: 'rgba(149, 165, 166, .15)', color: '#95a5a6' };
   }
 
@@ -1223,7 +592,7 @@
     const labels = new Map();
     const ctToIndex = new Map(distinctCt.map((ct, i) => [ct, i + 1]));
     for (const o of sorted) {
-      labels.set(o.id, o.customerToken ? `${t('customer')}${ctToIndex.get(o.customerToken)}` : (o.sessionToken ? `${t('customer')}1` : t('staffOrder')));
+      labels.set(o.id, o.customerToken ? `${t('customer', null, '客')}${ctToIndex.get(o.customerToken)}` : (o.sessionToken ? `${t('customer', null, '客')}1` : t('staffOrder', null, '服务员下单')));
     }
     return labels;
   }
@@ -1242,20 +611,20 @@
         const basePrice = toBaseCurrency(i.price, i.currency_code);
         const subBase = basePrice * qty;
         let priceDisplay = `<span style="color:#e67e22;font-size:12px;">@${unitPrices.primary}</span> <b>${formatMoney(subBase, false)}</b>`;
-        const returnedHtml = i.returnedQty > 0 ? `<span class="item-status returned" style="background:#95a5a6;">${t('returned')} ${i.returnedQty}</span>` : '';
+        const returnedHtml = i.returnedQty > 0 ? `<span class="item-status returned" style="background:#95a5a6;">${t('returned', null, '已退')} ${i.returnedQty}</span>` : '';
         const isSelected = state.selectedItem && state.selectedItem.orderId === o.id && state.selectedItem.index === idx;
-        const returnBtn = i.itemStatus === 'done' && Number(i.quantity) > 1 && Number(i.quantity) > Number(i.returnedQty || 0) && isSelected ? `<button class="item-toggle return-btn" onclick="event.stopPropagation();returnWaiterItem(${o.id},${idx})" style="background:#e74c3c;color:#fff;">${t('returnDish')}</button>` : '';
-        return `<div class="line" onclick="event.stopPropagation();toggleSelectedItem(${o.id},${idx})" style="cursor:pointer;${isSelected ? 'background:rgba(52,152,219,0.12);border-radius:8px;padding:4px;' : ''}"><span class="dish-name">${esc(i.name)} ×${i.quantity}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus === 'done' ? `<span class="item-status done">${t('completed')}</span>` + returnBtn + returnedHtml : (state.waiter && state.waiter.can_mark_item ? `<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${t('pending')}</button>` : '')}</div>`;
+        const returnBtn = i.itemStatus === 'done' && Number(i.quantity) > 1 && Number(i.quantity) > Number(i.returnedQty || 0) && isSelected ? `<button class="item-toggle return-btn" onclick="event.stopPropagation();returnWaiterItem(${o.id},${idx})" style="background:#e74c3c;color:#fff;">${t('returnDish', null, '退菜')}</button>` : '';
+        return `<div class="line" onclick="event.stopPropagation();toggleSelectedItem(${o.id},${idx})" style="cursor:pointer;${isSelected ? 'background:rgba(52,152,219,0.12);border-radius:8px;padding:4px;' : ''}"><span class="dish-name">${esc(i.name)} ×${i.quantity}</span><span class="line-amount">${priceDisplay}</span>${i.itemStatus === 'done' ? `<span class="item-status done">${t('completed', null, '已完成')}</span>` + returnBtn + returnedHtml : (state.waiter && state.waiter.can_mark_item ? `<button class="item-toggle" onclick="event.stopPropagation();toggleWaiterItem(${o.id},${idx})">${t('pending', null, '制作中')}</button>` : '')}</div>`;
       }).join('');
       const timeLabel = o.createdAt ? SLF.utils.formatDateTime(o.createdAt) : '';
       const badgeLabel = sessionLabels.get(o.id);
       const badgeColor = badgeLabel ? getCustomerColor(badgeLabel) : null;
       const badge = badgeLabel ? `<span class="session-badge" style="background:${badgeColor.bg};color:${badgeColor.color};">${badgeLabel}</span>` : '';
-      const noteHtml = o.note ? `<div class="order-note" style="margin:4px 0 6px;padding:6px 8px;border-radius:6px;background:rgba(255,193,7,.15);font-size:12px;color:#c98a1f;line-height:1.4;"><strong>${t('orderNoteDisplay')}：</strong>${escNote(o.note)}</div>` : '';
-      const orderSettleBtn = (state.waiter && state.waiter.can_complete_order) ? `<button onclick="event.stopPropagation();completeWaiterOrder(${o.id})" style="background:var(--primary);color:#fff;border:none;padding:5px 14px;border-radius:16px;font-size:12px;cursor:pointer;font-weight:600;flex-shrink:0;">${t('settleOrder')}</button>` : '';
-      return `<div class="order-block"><div class="order-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>${o.order_no || ("#"+o.id)} · ${t('orderPending')}${badge}<span class="order-meta"> · ${timeLabel}</span></span>${orderSettleBtn}</div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
+      const noteHtml = o.note ? `<div class="order-note" style="margin:4px 0 6px;padding:6px 8px;border-radius:6px;background:rgba(255,193,7,.15);font-size:12px;color:#c98a1f;line-height:1.4;"><strong>${t('orderNoteDisplay', null, '备注')}：</strong>${escNote(o.note)}</div>` : '';
+      const orderSettleBtn = (state.waiter && state.waiter.can_complete_order) ? `<button onclick="event.stopPropagation();completeWaiterOrder(${o.id})" style="background:var(--primary);color:#fff;border:none;padding:5px 14px;border-radius:16px;font-size:12px;cursor:pointer;font-weight:600;flex-shrink:0;">${t('settleOrder', null, '结算')}</button>` : '';
+      return `<div class="order-block"><div class="order-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>${o.order_no || ("#"+o.id)} · ${t('orderPending', null, '未结算')}${badge}<span class="order-meta"> · ${timeLabel}</span></span>${orderSettleBtn}</div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
     }).join('');
-    return active.length ? `<div class="amount" style="display:flex;align-items:center;justify-content:space-between;">${active.length} ${t('order')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${t('noCustomerOrder')}</div>`;
+    return active.length ? `<div class="amount" style="display:flex;align-items:center;justify-content:space-between;">${active.length} ${t('order', null, '订单')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${t('noCustomerOrder', null, '暂无顾客下单')}</div>`;
   }
 
   async function toggleWaiterItem(id, index) {
@@ -1264,7 +633,7 @@
       if (!order || !order.items[index]) return;
       const next = order.items[index].itemStatus === 'done' ? 'pending' : 'done';
       await api(`/orders/${id}/items/${index}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemStatus: next }) });
-      toast('✅ ' + t('orderUpdated'));
+      toast('✅ ' + t('orderUpdated', null, '订单已更新'));
       await load();
     } catch (e) { toast('❌ ' + e.message); }
   }
@@ -1277,7 +646,6 @@
     }
     renderTables();
   }
-  // 点击任意其他位置取消选中
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.line') && !e.target.closest('.return-btn') && state.selectedItem) {
       state.selectedItem = null;
@@ -1293,15 +661,15 @@
       const qty = Number(item.quantity) || 1;
       const returned = Number(item.returnedQty || 0);
       const maxReturn = qty - returned;
-      if (maxReturn <= 0) { toast('❌ ' + t('noMoreToReturn')); return; }
+      if (maxReturn <= 0) { toast('❌ ' + t('noMoreToReturn', null, '已全部退回')); return; }
       const input = $('#confirmInput');
-      showConfirm(t('returnQuantityPrompt') + ' (1-' + maxReturn + ')', async function () {
+      showConfirm(t('returnQuantityPrompt', null, '请输入退回数量') + ' (1-' + maxReturn + ')', async function () {
         const returnQty = parseInt(input.value) || 0;
-        if (returnQty < 1 || returnQty > maxReturn) { toast('❌ ' + t('invalidReturnQty')); return; }
+        if (returnQty < 1 || returnQty > maxReturn) { toast('❌ ' + t('invalidReturnQty', null, '退回数量无效')); return; }
         await api(`/orders/${id}/items/${index}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnQty: returned + returnQty }) });
-        toast('✅ ' + t('returnSuccess'));
+        toast('✅ ' + t('returnSuccess', null, '退菜成功'));
         await load();
-      }, t('returnDish'));
+      }, t('returnDish', null, '退菜'));
       input.style.display = 'block';
       input.max = maxReturn;
       input.value = 1;
@@ -1310,19 +678,18 @@
   }
 
   async function completeWaiterOrder(id) {
-    showConfirm(t('confirmComplete'), async function () {
+    showConfirm(t('confirmComplete', null, '确认结算该订单？'), async function () {
       try {
         await api(`/orders/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'done' }) });
-        toast('✅ ' + t('settleOrder'));
+        toast('✅ ' + t('settleOrder', null, '已结算'));
         await load();
       } catch (e) {
-        const msg = e.message.includes('未完成菜品') ? (t('incompleteItemsError')) : e.message;
+        const msg = e.message.includes('未完成菜品') ? (t('incompleteItemsError', null, e.message)) : e.message;
         toast('❌ ' + msg);
       }
     });
   }
 
-  // ----- 加载数据 -----
   async function load() {
     if (!state.token) { logoutWaiter(); return; }
     try {
@@ -1357,7 +724,6 @@
     }
   }
 
-  // ----- 新订单提示音 -----
   function detectNewWaiterOrders(orders) {
     const pendingIds = new Set((orders || []).filter(o => o.status === 'pending').map(o => o.id));
     if (knownWaiterOrderIds !== null) {
@@ -1372,7 +738,6 @@
     document.addEventListener(evt, () => { if (SLF.audio) SLF.audio.unlock(); }, { passive: true });
   });
 
-  // ----- 服务员所属店铺 -----
   async function loadStoreInfo(storeId) {
     if (!storeId) return;
     if (state.storeId === storeId && state.storeName) {
@@ -1391,7 +756,7 @@
     } catch (e) { /* 静默忽略 */ }
   }
 
-  // ----- 呼叫/催单实时通知 -----
+  // 呼叫/催单实时通知
   let knownCallIds = new Set();
   let callPollTimer = null;
   let pendingCalls = [];
@@ -1412,8 +777,10 @@
           if (SLF.audio) SLF.audio.playCallChime();
           const newCall = pendingCalls.find(c => !knownCallIds.has(c.id));
           if (newCall) {
-            const typeText = newCall.type === 'urge' ? t('urgeOrder') : t('callWaiter');
-            toast(`🔔 ${newCall.table_name} ${typeText}`);
+              const isUrge = newCall.type === 'urge';
+              const icon = isUrge ? '⚡' : '🔔';
+              const label = isUrge ? t('urgeOrder', null, '催单') : t('callWaiter', null, '呼叫');
+              toast(`${icon} ${newCall.table_name} ${label}`);
           }
         }
         knownCallIds = new Set(pendingCalls.map(c => c.id));
@@ -1435,48 +802,55 @@
   }
 
   function showCallNotifications() {
-    if (pendingCalls.length === 0) { toast(t('noCalls')); return; }
-    const list = pendingCalls.map(c => {
-      const typeText = c.type === 'urge' ? t('urgeOrder') : t('callWaiter');
-      return `<div style="background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.3);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
-        <div><div style="font-weight:700;">🔔 ${esc(c.table_name)} ${typeText}</div><div style="color:#999;font-size:12px;margin-top:2px;">${esc(c.created_at) || ''}</div></div>
-        <button onclick="handleCall('${c.id}')" style="background:#27ae60;color:#fff;border:0;padding:6px 14px;border-radius:6px;cursor:pointer;">${t('handled')}</button>
+      if (pendingCalls.length === 0) { toast(t('noCalls', null, '暂无呼叫')); return; }
+      const list = pendingCalls.map(c => {
+          const isUrge = c.type === 'urge';
+          const icon = isUrge ? '⚡' : '🔔';
+          const label = isUrge ? t('urgeOrder', null, '催单') : t('callWaiter', null, '呼叫');
+          const bg = isUrge ? 'rgba(231,76,60,.1)' : 'rgba(255,176,32,.1)';
+          const border = isUrge ? 'rgba(231,76,60,.3)' : 'rgba(255,176,32,.3)';
+          return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                  <div style="font-weight:700;">${icon} ${esc(c.table_name)} ${label}</div>
+                  <div style="color:#999;font-size:12px;margin-top:2px;">${esc(c.created_at) || ''}${c.message ? ' · ' + esc(c.message) : ''}</div>
+              </div>
+              <button onclick="handleCall('${c.id}')" style="background:#27ae60;color:#fff;border:0;padding:6px 14px;border-radius:6px;cursor:pointer;">${t('handled', null, '已处理')}</button>
+          </div>`;
+      }).join('');
+      let modal = document.getElementById('callNotifyModal');
+      if (modal) modal.remove();
+      modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.id = 'callNotifyModal';
+      modal.innerHTML = `<div class="modal-card" style="max-width:400px;">
+        <div class="modal-head"><h2>🔔 ${t('callWaiter', null, '顾客呼叫')} / ⚡ ${t('urgeOrder', null, '催单')}</h2><button class="close" onclick="document.getElementById('callNotifyModal').remove()">✕</button></div>
+        <div class="modal-body">${list}</div>
       </div>`;
-    }).join('');
-    let modal = document.getElementById('callNotifyModal');
-    if (modal) modal.remove();
-    modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'callNotifyModal';
-    modal.innerHTML = `<div class="modal-card" style="max-width:400px;">
-      <div class="modal-head"><h2>🔔 ${t('callWaiter')}</h2><button class="close" onclick="document.getElementById('callNotifyModal').remove()">✕</button></div>
-      <div class="modal-body">${list}</div>
-    </div>`;
-    modal.style.display = 'flex';
-    document.body.appendChild(modal);
+      modal.style.display = 'flex';
+      document.body.appendChild(modal);
   }
 
   async function handleCall(id) {
     try {
       await api('/waiter-calls/' + id + '/handle', { method: 'PUT' });
-      toast(t('handled'));
+      toast(t('handled', null, '已处理'));
       const modal = document.getElementById('callNotifyModal');
       if (modal) modal.remove();
       pollCalls();
-    } catch (e) { toast(t('handleFailed') + ': ' + e.message); }
+    } catch (e) { toast(t('handleFailed', null, '处理失败') + ': ' + e.message); }
   }
 
-  // ----- 订单历史 -----
+  // 订单历史
   let historyOrders = [];
 
   function showOrderHistory() {
     document.getElementById('orderHistoryModal').style.display = 'flex';
-    document.getElementById('orderHistoryTitle').textContent = '📋 ' + t('orderHistory');
+    document.getElementById('orderHistoryTitle').textContent = '📋 ' + t('orderHistory', null, '订单历史');
     const statusSelect = document.getElementById('historyStatusFilter');
-    statusSelect.options[0].text = t('allStatus');
-    statusSelect.options[1].text = t('pending');
-    statusSelect.options[2].text = t('completed');
-    statusSelect.options[3].text = t('canceled');
+    statusSelect.options[0].text = t('allStatus', null, '全部状态');
+    statusSelect.options[1].text = t('pending', null, '制作中');
+    statusSelect.options[2].text = t('completed', null, '已完成');
+    statusSelect.options[3].text = t('canceled', null, '已取消');
     loadOrderHistory();
   }
   function hideOrderHistory() {
@@ -1504,20 +878,20 @@
       }
       const container = document.getElementById('orderHistoryList');
       if (filtered.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">' + t('noOrders') + '</div>';
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">' + t('noOrders', null, '暂无订单') + '</div>';
         return;
       }
-      const statusMap = { pending: t('pending'), done: t('completed'), canceled: t('canceled') };
+      const statusMap = { pending: t('pending', null, '制作中'), done: t('completed', null, '已完成'), canceled: t('canceled', null, '已取消') };
       container.innerHTML = filtered.map(o => `
-        <div onclick="showOrderDetail(${o.id})" style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+        <div onclick="showOrderDetail(${o.id})" style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .2s;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div style="font-weight:700;font-size:15px;">${o.order_no || ("#"+o.id)} ${t('table')} ${esc(o.table) || '-'}</div>
+            <div style="font-weight:700;font-size:15px;">${esc(o.order_no || ("#"+o.id))} ${t('table', null, '桌号')} ${esc(o.table) || '-'}</div>
             <span style="background:${o.status === 'done' ? '#27ae60' : o.status === 'canceled' ? '#95a5a6' : '#f39c12'};color:#fff;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;">${statusMap[o.status] || o.status}</span>
           </div>
           <div style="color:#666;font-size:13px;">${SLF.utils.formatDateTime(o.createdAt)}</div>
           <div style="display:flex;justify-content:space-between;margin-top:8px;">
-            <span style="color:#888;font-size:13px;">${(o.items || []).length} ${t('dishes')}</span>
-            <span style="font-weight:700;color:#e74c3c;">${formatDisplay(o.total)}</span>
+            <span style="color:#888;font-size:13px;">${(o.items || []).length} ${t('dishes', null, '道菜品')}</span>
+            <span style="font-weight:700;color:#e74c3c;">${formatPrimary(o.total)}</span>
           </div>
         </div>
       `).join('');
@@ -1531,27 +905,18 @@
     if (!order) return;
     const modal = document.getElementById('orderDetailModal');
     const content = document.getElementById('orderDetailContent');
-    document.getElementById('orderDetailTitle').textContent = t('order') + ' #' + id;
-    const statusMap = { pending: t('pending'), done: t('completed'), canceled: t('canceled') };
+    document.getElementById('orderDetailTitle').textContent = t('order', null, '订单') + ' #' + id;
+    const statusMap = { pending: t('pending', null, '制作中'), done: t('completed', null, '已完成'), canceled: t('canceled', null, '已取消') };
     content.innerHTML = `
       <div style="margin-bottom:15px;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-          <span style="color:#666;">${t('table')}</span>
-          <span style="font-weight:600;">${esc(order.table) || '-'}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-          <span style="color:#666;">${t('status')}</span>
-          <span style="font-weight:600;">${statusMap[order.status] || order.status}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-          <span style="color:#666;">${t('orderTime')}</span>
-          <span>${SLF.utils.formatDateTime(order.createdAt)}</span>
-        </div>
-        ${order.note ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('note')}</span><span>${esc(order.note)}</span></div>` : ''}
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('table', null, '桌号')}</span><span style="font-weight:600;">${esc(order.table) || '-'}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('status', null, '状态')}</span><span style="font-weight:600;">${statusMap[order.status] || order.status}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('orderTime', null, '下单时间')}</span><span>${SLF.utils.formatDateTime(order.createdAt)}</span></div>
+        ${order.note ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('note', null, '备注')}</span><span>${esc(order.note)}</span></div>` : ''}
       </div>
       <div style="border-top:1px solid #eee;padding-top:12px;margin-bottom:12px;">
-        <div style="font-weight:700;margin-bottom:10px;">${t('dishes')}</div>
-        ${(order.items || []).map((item, i) => `
+        <div style="font-weight:700;margin-bottom:10px;">${t('dishes', null, '菜品')}</div>
+        ${(order.items || []).map((item) => `
           <div class="order-detail-item">
             <span class="dish-name">${esc(item.emoji) || '🍽️'} ${esc(item.name)} x${item.quantity}</span>
             <span class="item-price">${formatPrimary((Number(item.price) || 0) * item.quantity)}</span>
@@ -1559,8 +924,8 @@
         `).join('')}
       </div>
       <div style="border-top:2px solid #333;padding-top:12px;display:flex;justify-content:space-between;font-size:18px;font-weight:700;">
-        <span>${t('total')}</span>
-        <span style="color:#e74c3c;">${formatDisplay(order.total)}</span>
+        <span>${t('total', null, '合计')}</span>
+        <span style="color:#e74c3c;">${formatPrimary(order.total)}</span>
       </div>
     `;
     modal.style.display = 'flex';
@@ -1569,7 +934,7 @@
     document.getElementById('orderDetailModal').style.display = 'none';
   }
 
-  // ----- 自动刷新 -----
+  // 自动刷新
   let waiterAutoRefreshTimer = null;
   function startWaiterAutoRefresh(intervalSec) {
     stopWaiterAutoRefresh();
@@ -1581,19 +946,17 @@
     waiterAutoRefreshTimer = null;
   }
 
-  // ----- 桌号渲染 -----
-  
-  // ----- 转移桌号 -----
+  // 转移桌号
   let transferFromTable = null;
   window.showTransferModal = function(tableName) {
     transferFromTable = tableName;
     const active = state.orders.filter(o => o.table === tableName && o.status === 'pending');
-    if (!active.length) { toast(t('noPending')); return; }
-    document.getElementById('transferTitle').textContent = '↔ ' + t('transferOrder');
-    document.getElementById('transferToLabel').textContent = t('transferTo');
-    document.getElementById('transferCancelBtn').textContent = t('cancel');
-    document.getElementById('transferConfirmBtn').textContent = t('confirm');
-    document.getElementById('transferFromLabel').textContent = t('transferFrom') + ': ' + tableName + ' (' + active.length + ' ' + t('order') + ')';
+    if (!active.length) { toast(t('noPending', null, '暂无未结算订单')); return; }
+    document.getElementById('transferTitle').textContent = '↔ ' + t('transferOrder', null, '转移');
+    document.getElementById('transferToLabel').textContent = t('transferTo', null, '转移到');
+    document.getElementById('transferCancelBtn').textContent = t('cancel', null, '取消');
+    document.getElementById('transferConfirmBtn').textContent = t('confirm', null, '确定');
+    document.getElementById('transferFromLabel').textContent = t('transferFrom', null, '当前桌') + ': ' + tableName + ' (' + active.length + ' ' + t('order', null, '订单') + ')';
     const select = document.getElementById('transferTargetSelect');
     const others = state.tables.filter(x => x.name !== tableName);
     select.innerHTML = others.map(x => '<option value="' + esc(x.name) + '">' + esc(x.name) + '</option>').join('');
@@ -1607,16 +970,13 @@
     if (!transferFromTable) return;
     const target = document.getElementById('transferTargetSelect').value;
     const orderIds = state.orders.filter(o => o.table === transferFromTable && o.status === 'pending').map(o => o.id);
-    // 二次确认
-    showConfirm(t('transferConfirmMsg') + ' ' + transferFromTable + ' → ' + target, async function() {
+    showConfirm(t('transferConfirmMsg', null, '确认转移') + ' ' + transferFromTable + ' → ' + target, async function() {
       try {
         for (const id of orderIds) {
           const res = await api('/orders/' + id + '/transfer', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ target_table: target }) });
-          if (res && res.targetHasOrders) {
-            toast('⚠️ ' + t('targetHasOrders'));
-          }
+          if (res && res.targetHasOrders) toast('⚠️ ' + t('targetHasOrders', null, '目标桌已有订单'));
         }
-        toast('✅ ' + t('transferSuccess'));
+        toast('✅ ' + t('transferSuccess', null, '转移成功'));
         closeTransferModal();
         await load();
       } catch(e) { toast('❌ ' + e.message); }
@@ -1625,12 +985,12 @@
 
   function renderTables() {
     $('#tableGrid').innerHTML = state.tables.map(table => {
-      const hasActiveOrder = state.orders.some(o => o.table === table.name && o.status === 'pending');console.log('table:', table.name, 'hasActiveOrder:', hasActiveOrder);
+      const hasActiveOrder = state.orders.some(o => o.table === table.name && o.status === 'pending');
       const statusClass = hasActiveOrder ? 'occupied' : 'available';
-      const statusText = hasActiveOrder ? t('occupied') : t('available');
-      const transferBtn = hasActiveOrder ? `<div style="position:absolute;top:14px;right:14px;"><button data-table='${esc(table.name)}' class='transfer-btn' style="width:44px;height:44px;border-radius:50%;background:#fff;border:2px solid rgba(232,74,42,0.4);color:var(--primary);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:10;transition:all 0.2s;" onmouseover="this.style.background='var(--primary)';this.style.color='#fff';this.style.transform='scale(1.1)'" onmouseout="this.style.background='#fff';this.style.color='var(--primary)';this.style.transform='scale(1)'" title="${t('transferOrder')}">↔</button></div>` : '';
+      const statusText = hasActiveOrder ? t('occupied', null, '已占') : t('available', null, '空闲');
+      const transferBtn = hasActiveOrder ? `<div style="position:absolute;top:14px;right:14px;"><button data-table='${esc(table.name)}' class='transfer-btn' style="width:44px;height:44px;border-radius:50%;background:#fff;border:2px solid rgba(232,74,42,0.4);color:var(--primary);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:10;transition:all 0.2s;" title="${t('transferOrder', null, '转移')}">↔</button></div>` : '';
       return `<div class="table-card" onclick="openModal('${esc(table.name)}')">${transferBtn}<div class="name">🍽️ ${esc(table.name)} <span class="status ${statusClass}">${statusText}</span></div><div class="bill">${bill(table)}</div></div>`;
-    }).join('') || `<div style="color:#c8c8d0">${t('noTables')}</div>`;
+    }).join('') || `<div style="color:#c8c8d0">${t('noTables', null, '暂无桌号')}</div>`;
     $('#submitBtn').style.display = state.waiter && state.waiter.can_order ? 'block' : 'none';
     document.querySelectorAll('.transfer-btn').forEach(btn => {
       btn.addEventListener('click', function(e) {
@@ -1640,7 +1000,6 @@
     });
   }
 
-  // ----- 点餐弹窗 -----
   function openModal(table) {
     state.currentTable = table;
     const tableOrders = state.orders.filter(o => o.table === table && o.status === 'pending');
@@ -1667,7 +1026,7 @@
         state.cartMeta[itemId] = menuItem || i;
       });
     }
-    let tableLabel = t('currentTable') + '：' + table;
+    let tableLabel = t('currentTable', null, '当前桌号') + '：' + table;
     if (order && order.sessionToken) {
       const tableOrders = state.orders.filter(o => o.table === table && o.status === 'pending');
       const labels = buildSessionLabels(tableOrders);
@@ -1678,23 +1037,23 @@
       }
     }
     $('#currentTableBadge').innerHTML = tableLabel;
-    $('#submitBtn').textContent = order ? t('saveChanges') : t('submitOrder');
+    $('#submitBtn').textContent = order ? t('saveChanges', null, '保存修改') : t('submitOrder', null, '提交订单');
     renderDishes();
     $('#orderModal').classList.add('open');
   }
 
   function showOrderSelect(tableOrders) {
-    $('#orderSelectTitle').textContent = t('currentTable') + '：' + state.currentTable + ' - ' + t('selectOrder');
+    $('#orderSelectTitle').textContent = t('currentTable', null, '当前桌号') + '：' + state.currentTable + ' - ' + t('selectOrder', null, '选择订单');
     const labels = buildSessionLabels(tableOrders);
     const listEl = $('#orderSelectList');
     let html = '';
     tableOrders.forEach((order, idx) => {
-      const customerLabel = labels.get(order.id) || (t('order') + (idx + 1));
+      const customerLabel = labels.get(order.id) || (t('order', null, '订单') + (idx + 1));
       const itemCount = order.items ? order.items.length : 0;
       const timeStr = order.createdAt ? new Date(order.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
       html += '<div class="order-select-item" onclick="selectOrder(' + order.id + ')" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid var(--gray-2);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .2s;">';
-      html += '<div><div style="font-weight:600;font-size:15px;">' + customerLabel + '</div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + itemCount + ' ' + t('dishes') + ' · ' + timeStr + '</div></div>';
-      html += '<div style="font-weight:700;color:var(--primary);">' + formatDisplay(order.total || 0) + '</div>';
+      html += '<div><div style="font-weight:600;font-size:15px;">' + esc(customerLabel) + '</div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + itemCount + ' ' + t('dishes', null, '道菜品') + ' · ' + timeStr + '</div></div>';
+      html += '<div style="font-weight:700;color:var(--primary);">' + formatPrimary(order.total || 0) + '</div>';
       html += '</div>';
     });
     listEl.innerHTML = html;
@@ -1704,14 +1063,14 @@
   function selectOrder(orderId) {
     const order = state.orders.find(o => o.id === orderId);
     if (!order) return;
-    const t = state.currentTable;
+    const t_ = state.currentTable;
     closeOrderSelect();
-    openOrderEditor(t, order);
+    openOrderEditor(t_, order);
   }
   function createNewOrderFromSelect() {
-    const t = state.currentTable;
+    const t_ = state.currentTable;
     closeOrderSelect();
-    openOrderEditor(t, null);
+    openOrderEditor(t_, null);
   }
   function closeOrderSelect() {
     $('#orderSelectModal').classList.remove('open');
@@ -1725,15 +1084,13 @@
     state.cartMeta = {};
     state.editingOrderId = null;
     state.lockedItems = [];
-    $('#submitBtn').textContent = t('submitOrder');
+    $('#submitBtn').textContent = t('submitOrder', null, '提交订单');
   }
 
   function renderSelected() {
     const items = Object.entries(state.cart).filter(([id, q]) => q > 0).map(([id, q]) => {
       let m = state.menu.find(x => (x.id == id || x.id === +id || x.name === id)) || state.cartMeta[id];
-      if (!m) {
-        m = state.menu.find(x => state.cartMeta[id] && (x.id == state.cartMeta[id].id || x.name === state.cartMeta[id].name));
-      }
+      if (!m) m = state.menu.find(x => state.cartMeta[id] && (x.id == state.cartMeta[id].id || x.name === state.cartMeta[id].name));
       return m ? { m, q, id } : null;
     }).filter(Boolean);
 
@@ -1741,9 +1098,9 @@
       const prices = getMenuPrices(x.m);
       let priceDisplay = prices.primary;
       if (prices.secondary) priceDisplay += ' (' + prices.secondary + ')';
-      const statusLabel = '<span class="item-status new">' + t('newItem') + '</span>';
+      const statusLabel = '<span class="item-status new">' + t('newItem', null, '新下单') + '</span>';
       const itemId = x.m.id || x.id;
-      return '<div class="selected-item"><span class="sel-name">' + esc(x.m.name) + ' ' + statusLabel + '</span><span class="sel-price">' + priceDisplay + '</span><div class="qty"><button onclick="changeQty(' + itemId + ',-1)">−</button><span>' + x.q + '</span><button onclick="changeQty(' + itemId + ',1)">+</button></div><button class="remove-btn" onclick="removeItem(' + itemId + ')">' + t('remove') + '</button></div>';
+      return '<div class="selected-item"><span class="sel-name">' + esc(x.m.name) + ' ' + statusLabel + '</span><span class="sel-price">' + priceDisplay + '</span><div class="qty"><button onclick="changeQty(' + itemId + ',-1)">−</button><span>' + x.q + '</span><button onclick="changeQty(' + itemId + ',1)">+</button></div><button class="remove-btn" onclick="removeItem(' + itemId + ')">' + t('remove', null, '移除') + '</button></div>';
     }).join('') : '';
 
     let doneHtml = '';
@@ -1752,32 +1109,29 @@
         const prices = getMenuPrices(i);
         let priceDisplay = prices.primary;
         if (prices.secondary) priceDisplay += ' (' + prices.secondary + ')';
-        return '<div class="selected-item" style="opacity:.55;pointer-events:none;"><span class="sel-name">' + esc(i.name) + ' <span class="item-status done">' + t('dishServed') + '</span></span><span class="sel-price">' + priceDisplay + '</span><div class="qty"><span>×' + (i.quantity || 1) + '</span></div></div>';
+        return '<div class="selected-item" style="opacity:.55;pointer-events:none;"><span class="sel-name">' + esc(i.name) + ' <span class="item-status done">' + t('dishServed', null, '已上菜') + '</span></span><span class="sel-price">' + priceDisplay + '</span><div class="qty"><span>×' + (i.quantity || 1) + '</span></div></div>';
       }).join('');
     }
-    const emptyHtml = (!items.length && !state.lockedItems.length) ? '<div style="color:#c8c8d0">' + t('emptySelected') + '</div>' : '';
-    $('#selectedItems').innerHTML = '<div class="title">' + t('selectedDishes') + '</div>' + cartHtml + doneHtml + emptyHtml;
+    const emptyHtml = (!items.length && !state.lockedItems.length) ? '<div style="color:#c8c8d0">' + t('emptySelected', null, '尚未选择菜品') + '</div>' : '';
+    $('#selectedItems').innerHTML = '<div class="title">' + t('selectedDishes', null, '已选菜品') + '</div>' + cartHtml + doneHtml + emptyHtml;
   }
 
-  // 菜品分类名称翻译映射
-  const CATEGORY_TRANS = {
-    zh: { '招牌烧腊': '招牌烧腊', '烧腊饭': '烧腊饭', '烧腊加料': '烧腊加料', '饮料': '饮料', '快餐': '快餐', '卤菜': '卤菜', '早茶': '早茶', '面食': '面食', '主食': '主食', '小吃': '小吃', '甜点': '甜点', '汤类': '汤类', '凉菜': '凉菜', '热菜': '热菜' },
-    en: { '招牌烧腊': 'Roast Meats', '烧腊饭': 'Rice Meals', '烧腊加料': 'Add-ons', '饮料': 'Drinks', '快餐': 'Fast Food', '卤菜': 'Braised', '早茶': 'Dim Sum', '面食': 'Noodles', '主食': 'Staples', '小吃': 'Snacks', '甜点': 'Desserts', '汤类': 'Soups', '凉菜': 'Cold Dishes', '热菜': 'Hot Dishes' },
-    vi: { '招牌烧腊': 'Thịt nướng', '烧腊饭': 'Cơm', '烧腊加料': 'Thêm món', '饮料': 'Đồ uống', '快餐': 'Đồ ăn nhanh', '卤菜': 'Lẩu', '早茶': 'Trà sớm', '面食': 'Mì', '主食': 'Món chính', '小吃': 'Đồ ăn nhẹ', '甜点': 'Tráng miệng', '汤类': 'Canh', '凉菜': 'Món lạnh', '热菜': 'Món nóng' },
-    th: { '招牌烧腊': 'เนื้อย่าง', '烧腊饭': 'ข้าว', '烧腊加料': 'เพิ่มเติม', '饮料': 'เครื่องดื่ม', '快餐': 'อาหารจานด่วน', '卤菜': 'ตุ๋น', '早茶': 'ติ่มซำ', '面食': 'ก๋วยเตี๋ยว', '主食': 'อาหารหลัก', '小吃': 'ของว่าง', '甜点': 'ของหวาน', '汤类': 'ซุป', '凉菜': 'อาหารเย็น', '热菜': 'อาหารร้อน' },
-    km: { '招牌烧腊': 'សាច់អាំង', '烧腊饭': 'បាយ', '烧腊加料': 'បន្ថែម', '饮料': 'ភេសជ្ជៈ', '快餐': 'អាហាររហ័ស', '卤菜': 'ស្ងោរ', '早茶': 'តែព្រឹក', '面食': 'គុយទាវ', '主食': 'ម្ហូបចម្បង', '小吃': 'អាហារសម្រន់', '甜点': 'បង្អែម', '汤类': 'ស៊ុប', '凉菜': 'ម្ហូបត្រជាក់', '热菜': 'ម្ហូបក្តៅ' }
-  };
-
   function transCategory(cat) {
-    return (CATEGORY_TRANS[waiterLang] && CATEGORY_TRANS[waiterLang][cat]) || cat;
+      const lang = SLF.i18n.lang;
+      // 1. 优先查 SLF.i18n.dicts[lang]
+      const localDict = (SLF.i18n.dicts[lang] && SLF.i18n.dicts[lang].categories) || {};
+      if (localDict[cat]) return localDict[cat];
+      // 2. 兜底查 window.LANGUAGES[lang]
+      const globalDict = (window.LANGUAGES && window.LANGUAGES[lang] && window.LANGUAGES[lang].categories) || {};
+      return globalDict[cat] || cat;
   }
 
   function renderCategories() {
     const categories = ['all', ...new Set(state.menu.map(m => m.category).filter(Boolean))];
     const catHtml = categories.map(cat => {
-      const label = cat === 'all' ? t('allCategories') : transCategory(cat);
+      const label = cat === 'all' ? t('allCategories', null, '全部') : transCategory(cat);
       const active = state.currentCategory === cat ? 'active' : '';
-      return `<button class="cat-btn ${active}" onclick="setDishCategory('${cat}')">${label}</button>`;
+      return `<button class="cat-btn ${active}" onclick="setDishCategory('${esc(cat)}')">${esc(label)}</button>`;
     }).join('');
     $('#dishCategories').innerHTML = catHtml;
   }
@@ -1799,7 +1153,7 @@
       let priceDisplay = prices.primary;
       if (prices.secondary) priceDisplay += ` <span class="price-secondary">(${prices.secondary})</span>`;
       const qtyHtml = `<button onclick="changeQty(${m.id},-1)">−</button><span>${cartQty}</span><button onclick="changeQty(${m.id},1)">+</button>`;
-      return `<div class="dish-item"><div class="dish-thumb">${m.image ? `<img src="/uploads/${esc(m.image)}" alt="${esc(m.name)}">` : esc(m.emoji) || '🍽️'}</div><div class="info"><div class="name">${esc(m.name)}</div><div class="price">${priceDisplay}/${esc(m.unit) || t('unit')}</div></div><div class="qty">${qtyHtml}</div></div>`;
+      return `<div class="dish-item"><div class="dish-thumb">${m.image ? `<img src="/uploads/${esc(m.image)}" alt="${esc(m.name)}">` : esc(m.emoji) || '🍽️'}</div><div class="info"><div class="name">${esc(m.name)}</div><div class="price">${priceDisplay}/${esc(m.unit) || t('unit', null, '份')}</div></div><div class="qty">${qtyHtml}</div></div>`;
     }).join('');
     renderSelected();
     updateTotal();
@@ -1830,22 +1184,22 @@
   }
 
   $('#submitBtn').onclick = async function () {
-    if (!state.currentTable) { toast(t('noTables')); return; }
-    showConfirm(t('confirmSubmit'), async function () {
+    if (!state.currentTable) { toast(t('noTables', null, '暂无桌号')); return; }
+    showConfirm(t('confirmSubmit', null, '确认提交此订单？'), async function () {
       const cartItems = Object.entries(state.cart).filter(([id, q]) => q > 0).map(([id, q]) => {
         const m = state.menu.find(x => x.id === +id);
-        return { id: m.id, name: m.name, price: m.price, quantity: q, emoji: m.emoji, itemStatus: 'pending', show_dual: m.show_dual || 0, secondary_currency_code: m.secondary_currency_code || '', unit: m.unit || t('unit') };
+        return { id: m.id, name: m.name, price: m.price, quantity: q, emoji: m.emoji, itemStatus: 'pending', show_dual: m.show_dual || 0, secondary_currency_code: m.secondary_currency_code || '', unit: m.unit || t('unit', null, '份') };
       });
-      const lockedItems = state.lockedItems.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, emoji: i.emoji, itemStatus: 'done', show_dual: i.show_dual || 0, secondary_currency_code: i.secondary_currency_code || '', unit: i.unit || t('unit') }));
+      const lockedItems = state.lockedItems.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, emoji: i.emoji, itemStatus: 'done', show_dual: i.show_dual || 0, secondary_currency_code: i.secondary_currency_code || '', unit: i.unit || t('unit', null, '份') }));
       const items = [...lockedItems, ...cartItems];
-      if (!items.length) { toast(t('selectDish')); return; }
+      if (!items.length) { toast(t('selectDish', null, '请先选择菜品')); return; }
       try {
         if (state.editingOrderId) {
           await api('/orders/' + state.editingOrderId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
-          toast('✅ ' + t('orderUpdated'));
+          toast('✅ ' + t('orderUpdated', null, '订单已更新'));
         } else {
           const res = await api('/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table: state.currentTable, items }) });
-          toast(`✅ ${state.currentTable} ${t('orderSubmitted')} ${res.orderNo || ("#"+res.orderId)}`);
+          toast(`✅ ${state.currentTable} ${t('orderSubmitted', null, '订单已提交')} ${res.orderNo || ("#"+res.orderId)}`);
         }
         closeModal();
         await load();
@@ -1853,23 +1207,27 @@
     });
   };
 
-  // ----- 语言切换 -----
   async function setLanguage(lang) {
-    waiterLang = lang;
-    SLF.i18n.lang = lang;
-    SLF.store.rawSet('waiterLang', lang);
-    SLF.store.rawSet('lang', lang);
-    if (state.token) {
-      applyWaiterLanguage();
-      if (state.menu) renderDishes();
-    }
+      waiterLang = lang;
+      SLF.i18n.lang = lang;
+  
+      // 确保目标语言的字典已加载到 SLF.i18n.dicts
+      if (!SLF.i18n.dicts[lang] && window.LANGUAGES && window.LANGUAGES[lang]) {
+          SLF.i18n.dicts[lang] = { ...window.LANGUAGES[lang] };
+      }
+  
+      SLF.store.rawSet('waiterLang', lang);
+      SLF.store.rawSet('lang', lang);
+      if (state.token) {
+          applyWaiterLanguage();
+          if (state.menu) renderDishes();
+      }
   }
 
   document.getElementById('waiterLang').addEventListener('change', async function () {
     await setLanguage(this.value);
   });
 
-  // ----- 初始化 -----
   const savedLang = SLF.store.rawGet('waiterLang') || 'zh';
   waiterLang = savedLang;
 
@@ -1884,7 +1242,7 @@
             logoutWaiter();
           } else {
             console.error('加载失败:', e);
-            toast(t('loadFailed'));
+            toast(t('loadFailed', null, '加载失败'));
           }
         });
       } else {
@@ -1901,8 +1259,29 @@
   } else {
     initWaiterPage();
   }
+
+  // Socket（传 waiterToken）
+  if (typeof io === 'function') {
+    const waiterSocket = io({
+      query: {
+        storeId: SLF.store.rawGet('storeId') || 1,
+        token: SLF.store.rawGet('waiterToken') || ''
+      }
+    });
+    let socketDebounce = null;
+    function debouncedLoad() {
+      clearTimeout(socketDebounce);
+      socketDebounce = setTimeout(() => { if (typeof load === 'function') load(); }, 300);
+    }
+    waiterSocket.on('order:new', debouncedLoad);
+    waiterSocket.on('item:updated', debouncedLoad);
+    waiterSocket.on('order:settled', debouncedLoad);
+    waiterSocket.on('order:transfer', debouncedLoad);
+    waiterSocket.on('connect_error', (err) => { console.warn('waiterSocket connect_error:', err.message); });
+    window.addEventListener('beforeunload', () => {
+      try { waiterSocket.disconnect(); } catch (_) {}
+    });
+  }
 </script>
 </body>
 </html>
-
-

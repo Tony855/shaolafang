@@ -22,13 +22,10 @@ const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const net = require('net');
 let redis = null;
-try { redis = require('redis'); } catch(e) { /* redis可选，未安装时回退到内存Map */ }
+try { redis = require('redis'); } catch(e) { /* redis可选 */ }
 const os = require('os');
-const { execSync } = require('child_process');
 
 // ---------- 统一配置加载（.env） ----------
-// 轻量内置解析，不引入 dotenv 依赖。若已存在同名环境变量（如 systemd
-// EnvironmentFile 注入的），则以环境变量为准，.env 只作为本地开发的兜底。
 (function loadDotEnv() {
   const envPath = path.join(__dirname, '.env');
   if (!fs.existsSync(envPath)) return;
@@ -45,10 +42,9 @@ const { execSync } = require('child_process');
 })();
 
 const app = express();
-// 信任Nginx反向代理，使 req.ip 返回真实客户端IP而非 127.0.0.1
 app.set('trust proxy', true);
 
-// Socket.io 实时推送
+// Socket.io
 const http = require('http');
 const server = http.createServer(app);
 const { Server } = require('socket.io');
@@ -57,23 +53,14 @@ const io = new Server(server, {
   pingInterval: 10000,
   pingTimeout: 5000
 });
-io.on('connection', (socket) => {
-  const storeId = socket.handshake.query.storeId || 1;
-  socket.join('kitchen-' + storeId);
-  socket.join('waiter-' + storeId);
-});
+
 const PORT = Number(process.env.PORT || 3000);
 
-
-// ===== 双服务器部署配置 =====
-// 上传目录：可通过环境变量配置，双服务器时挂载NFS到同一目录
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
-// 定时任务：只在一台服务器上设置 RUN_SCHEDULED_TASKS=true，避免重复执行
 const RUN_SCHEDULED_TASKS = process.env.RUN_SCHEDULED_TASKS === 'true';
-// Redis连接：双服务器时配置 REDIS_URL，共享防重复下单和登录限流状态
 const REDIS_URL = process.env.REDIS_URL || null;
 
-// ===== 通用缓存层：有Redis用Redis，无Redis回退到内存Map =====
+// ===== Redis 缓存层 =====
 let redisClient = null;
 let redisReady = false;
 async function initRedis() {
@@ -118,7 +105,7 @@ const cache = {
   },
   async set(key, value, ttlSeconds) {
     if (redisReady) {
-      if (ttlSeconds) await redisClient.setEx(key, ttlSeconds, JSON.stringify(value));
+      if (ttlSeconds > 0) await redisClient.setEx(key, ttlSeconds, JSON.stringify(value));
       else await redisClient.set(key, JSON.stringify(value));
     } else {
       memoryCache.set(key, value, ttlSeconds);
@@ -129,7 +116,6 @@ const cache = {
     else memoryCache.delete(key);
   }
 };
-// 防重复下单冷却
 async function checkAndSetCooldown(key, cooldownMs) {
   const last = await cache.get('cooldown:' + key);
   const now = Date.now();
@@ -137,7 +123,8 @@ async function checkAndSetCooldown(key, cooldownMs) {
   await cache.set('cooldown:' + key, now, Math.ceil(cooldownMs / 1000) + 1);
   return true;
 }
-// ---------- 获取真实客户端IP（兼容Nginx反向代理） ----------
+
+// ---------- 获取真实客户端IP ----------
 function getClientIp(req) {
   const xff = req.headers['x-forwarded-for'];
   if (xff) {
@@ -178,10 +165,9 @@ async function getLocationByIp(ip) {
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
-// 静态文件服务：只暴露必要的目录，防止 server.js、.env 等敏感文件被直接下载
 app.use('/assets', express.static(path.join(__dirname, 'assets'), { dotfiles: 'deny', index: false }));
 app.use('/uploads', express.static(UPLOAD_DIR, { dotfiles: 'deny', index: false }));
-// languages.js 是前端多语言翻译文件，单独提供路由
+
 app.get('/languages.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'languages.js'));
 });
@@ -190,8 +176,7 @@ app.get('/languages.min.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'languages.min.js'));
 });
 
-// 动态加载指定语言的翻译（方案二：按需加载，减少初始体积）
-// 返回压缩后的JSON，只包含当前语言，不暴露全部5种语言
+// i18n 按需加载
 const i18nCache = {};
 app.get('/api/i18n/:lang', (req, res) => {
   const lang = req.params.lang;
@@ -199,22 +184,15 @@ app.get('/api/i18n/:lang', (req, res) => {
   if (!validLangs.includes(lang)) {
     return res.status(400).json({ error: 'Unsupported language' });
   }
-  // 内存缓存，避免每次读取文件
-  if (i18nCache[lang]) {
-    return res.json(i18nCache[lang]);
-  }
+  if (i18nCache[lang]) return res.json(i18nCache[lang]);
   try {
-    // 读取languages.js，提取指定语言
     const langContent = fs.readFileSync(path.join(__dirname, 'languages.js'), 'utf-8');
-    // 简单解析：提取 LANGUAGES = { ... } 中的指定语言部分
-    // 使用eval在沙箱中执行（仅用于提取数据）
     const sandbox = { module: {}, exports: {} };
     const vm = require('vm');
     const context = vm.createContext(sandbox);
     vm.runInContext(langContent + '; this._result = LANGUAGES["' + lang + '"];', context);
     const dict = sandbox._result || {};
     i18nCache[lang] = dict;
-    // 设置缓存头
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.json(dict);
   } catch (e) {
@@ -223,47 +201,33 @@ app.get('/api/i18n/:lang', (req, res) => {
   }
 });
 
-// 根路径返回点餐首页
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+// 页面路由
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get(['/login', '/manage'], (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
+app.get(['/index', '/home', '/order'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/waiter', (req, res) => res.sendFile(path.join(__dirname, 'waiter.html')));
+app.get('/kitchen', (req, res) => res.sendFile(path.join(__dirname, 'kitchen.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.get('/super', (req, res) => res.sendFile(path.join(__dirname, 'super.html')));
+app.get('/cashier', (req, res) => res.sendFile(path.join(__dirname, 'cashier.html')));
 
-// 伪静态入口
-app.get(['/login', '/manage'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'login.html'));
-});
-app.get(['/index', '/home', '/order'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-app.get('/waiter', (req, res) => {
-  res.sendFile(path.join(__dirname, 'waiter.html'));
-});
-app.get('/kitchen', (req, res) => {
-  res.sendFile(path.join(__dirname, 'kitchen.html'));
-});
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
-});
-app.get('/super', (req, res) => {
-  res.sendFile(path.join(__dirname, 'super.html'));
-});
+app.get('/login.html', (req, res) => res.redirect('/login'));
+app.get('/admin.html', (req, res) => res.redirect('/admin'));
+app.get('/kitchen.html', (req, res) => res.redirect('/kitchen'));
+app.get('/super.html', (req, res) => res.redirect('/super'));
+app.get('/waiter.html', (req, res) => res.redirect('/waiter'));
+app.get('/index.html', (req, res) => res.redirect('/'));
 
-app.get('/cashier', (req, res) => {
-  res.sendFile(path.join(__dirname, 'cashier.html'));
-});
-
-// ---------- 二维码打印页面（独立路由，服务端渲染） ----------
+// 二维码打印
 app.get('/qr-print', async (req, res) => {
   try {
     const tableId = parseInt(req.query.tableId || '0', 10);
     const lang = ['zh', 'en', 'vi', 'th', 'km'].includes(req.query.lang) ? req.query.lang : 'zh';
     if (!tableId) return res.status(400).send('Invalid tableId');
-
     const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ?', [tableId]);
     if (!table) return res.status(404).send('Table not found');
     const store = await getAsync('SELECT name, qr_languages FROM stores WHERE id = ?', [table.store_id || 1]);
     const storeName = store?.name || 'FoodFlow';
-    // 解析商户配置的二维码显示语言，未配置则默认只显示中文
     let displayLangs = ['zh'];
     if (store?.qr_languages) {
       const configured = store.qr_languages.split(',').map(s => s.trim()).filter(s => ['zh','en','vi','th','km'].includes(s));
@@ -271,21 +235,17 @@ app.get('/qr-print', async (req, res) => {
     }
     const url = `${req.protocol}://${req.get('host')}/?token=${encodeURIComponent(table.qr_token)}`;
     const qrDataUrl = await QRCode.toDataURL(url);
-
-    // 翻译映射（服务端简单翻译，避免依赖前端i18n）
     const i18nMap = {
       zh: { table: '桌号', qrCode: '二维码', scanToOrder: '扫码点餐', download: '下载', print: '打印', orderingQrCode: '点餐二维码', copy: '复制', copied: '已复制', copyLink: '复制链接', copyFailed: '复制失败，请手动复制' },
       en: { table: 'Table', qrCode: 'QR Code', scanToOrder: 'Scan to Order', download: 'Download', print: 'Print', orderingQrCode: 'Ordering QR Code', copy: 'Copy', copied: 'Copied', copyLink: 'Copy Link', copyFailed: 'Copy failed, please copy manually' },
-      vi: { table: 'Bàn', qrCode: 'Mã QR', scanToOrder: 'Quét mã để đặt hàng', download: 'Tải xuống', print: 'In', orderingQrCode: 'Mã QR đặt hàng', copy: 'Sao chép', copied: 'Đã sao chép', copyLink: 'Sao chép liên kết', copyFailed: 'Sao chép thất bại, vui lòng sao chép thủ công' },
-      th: { table: 'โต๊ะ', qrCode: 'คิวอาร์โค้ด', scanToOrder: 'สแกนเพื่อสั่งอาหาร', download: 'ดาวน์โหลด', print: 'พิมพ์', orderingQrCode: 'คิวอาร์โค้ดสั่งอาหาร', copy: 'คัดลอก', copied: 'คัดลอกแล้ว', copyLink: 'คัดลอกลิงก์', copyFailed: 'คัดลอกล้มเหลว โปรดคัดลอกด้วยตัวเอง' },
-      km: { table: 'តុ', qrCode: 'QR Code', scanToOrder: 'ស្កេនដើម្បីបញ្ជាទិញ', download: 'ទាញយក', print: 'បោះពុម្ព', orderingQrCode: 'កូដ QR បញ្ជាទិញ', copy: 'ចម្លង', copied: 'បានចម្លង', copyLink: 'ចម្លងតំណ', copyFailed: 'ការចម្លងបរាជ័យ សូមចម្លងដោយដៃ' }
+      vi: { table: 'Bàn', qrCode: 'Mã QR', scanToOrder: 'Quét mã để đặt hàng', download: 'Tải xuống', print: 'In', orderingQrCode: 'Mã QR đặt hàng', copy: 'Sao chép', copied: 'Đã sao chép', copyLink: 'Sao chép liên kết', copyFailed: 'Sao chép thất bại' },
+      th: { table: 'โต๊ะ', qrCode: 'คิวอาร์โค้ด', scanToOrder: 'สแกนเพื่อสั่งอาหาร', download: 'ดาวน์โหลด', print: 'พิมพ์', orderingQrCode: 'คิวอาร์โค้ดสั่งอาหาร', copy: 'คัดลอก', copied: 'คัดลอกแล้ว', copyLink: 'คัดลอกลิงก์', copyFailed: 'คัดลอกล้มเหลว' },
+      km: { table: 'តុ', qrCode: 'QR Code', scanToOrder: 'ស្កេនដើម្បីបញ្ជាទិញ', download: 'ទាញយក', print: 'បោះពុម្ព', orderingQrCode: 'កូដ QR បញ្ជាទិញ', copy: 'ចម្លង', copied: 'បានចម្លង', copyLink: 'ចម្លងតំណ', copyFailed: 'ការចម្លងបរាជ័យ' }
     };
     const t = i18nMap[lang] || i18nMap.zh;
-
-    // 读取模板文件
-    const template = fs.readFileSync(path.join(__dirname, 'views', 'qr-print.html'), 'utf-8');
-
-    // 替换变量
+    const templatePath = path.join(__dirname, 'views', 'qr-print.html');
+    if (!fs.existsSync(templatePath)) return res.status(500).send('QR template missing');
+    const template = fs.readFileSync(templatePath, 'utf-8');
     const html = template
       .replace(/{{lang}}/g, lang)
       .replace(/{{table}}/g, table.name)
@@ -309,7 +269,6 @@ app.get('/qr-print', async (req, res) => {
       .replace(/{{scanToOrderJson}}/g, JSON.stringify(displayLangs.map(l => (i18nMap[l] || i18nMap.zh).scanToOrder)))
       .replace(/{{qrCodeJson}}/g, JSON.stringify(t.qrCode))
       .replace(/{{qrDataUrlJson}}/g, JSON.stringify(qrDataUrl));
-
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (e) {
@@ -317,13 +276,6 @@ app.get('/qr-print', async (req, res) => {
     res.status(500).send('Failed to generate QR print page');
   }
 });
-
-app.get('/login.html', (req, res) => res.redirect('/login'));
-app.get('/admin.html', (req, res) => res.redirect('/admin'));
-app.get('/kitchen.html', (req, res) => res.redirect('/kitchen'));
-app.get('/super.html', (req, res) => res.redirect('/super'));
-app.get('/waiter.html', (req, res) => res.redirect('/waiter'));
-app.get('/index.html', (req, res) => res.redirect('/'));
 
 // ---------- 文件上传 ----------
 const storage = multer.diskStorage({
@@ -338,14 +290,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 限制5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extName = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimeType = allowedTypes.test(file.mimetype);
-    if (extName && mimeType) {
-      return cb(null, true);
-    }
+    if (extName && mimeType) return cb(null, true);
     cb(new Error('只允许上传图片文件（JPG/PNG/GIF/WEBP）'));
   }
 });
@@ -366,7 +316,6 @@ const poolConfig = {
 let pool = mysql.createPool(poolConfig);
 
 // ---------- 数据库辅助函数 ----------
-// 使用 AsyncLocalStorage 实现事务上下文传递，避免全局变量导致的并发安全问题
 const transactionStorage = new AsyncLocalStorage();
 
 async function runAsync(sql, params) {
@@ -391,7 +340,6 @@ async function withTransaction(work) {
   const conn = await pool.getConnection();
   await conn.query('START TRANSACTION');
   try {
-    // 使用 AsyncLocalStorage 传递事务连接，避免并发请求互相覆盖
     const result = await transactionStorage.run(conn, work);
     await conn.query('COMMIT');
     return result;
@@ -404,12 +352,6 @@ async function withTransaction(work) {
 }
 
 // ---------- 常量 ----------
-// 菜品初始化仅在首次安装时执行，无需版本号
-const DEFAULT_MENU_CATEGORIES = ['招牌烧腊', '烧腊', '面食', '卤菜', '快餐', '早茶', '烧腊加料', '饮料'];
-// 下单冷却记录：key为sessionToken或桌号，value为上次下单时间戳
-// 使用 checkAndSetCooldown 统一处理冷却时间，支持 Redis
-
-// 获取下单间隔时间（秒），从数据库读取，默认30秒
 async function getOrderCooldownMs() {
   try {
     const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'order_interval_seconds'");
@@ -419,23 +361,18 @@ async function getOrderCooldownMs() {
     return 30 * 1000;
   }
 }
-setInterval(() => {
-  const cutoff = Date.now() - 3600 * 1000; // 清理1小时前的记录
-  // 冷却时间由 cache 模块统一管理
-}, 10 * 60 * 1000);
 
 const createTableToken = () => crypto.randomBytes(12).toString('base64url');
-// 密码哈希：使用bcrypt（新密码），兼容旧的SHA256
+
 function hashPassword(pwd) {
   return bcrypt.hashSync(pwd, 10);
 }
-// 验证密码：自动检测bcrypt或旧SHA256
+
 function verifyPassword(pwd, hash) {
   if (!hash) return false;
   if (hash.startsWith('$2')) {
     return bcrypt.compareSync(pwd, hash);
   }
-  // 兼容旧的SHA256哈希
   return crypto.createHash('sha256').update(pwd).digest('hex') === hash;
 }
 
@@ -479,9 +416,69 @@ async function isLoginLocked(username, type) {
   return { locked: false, maxAttempts, lockMinutes };
 }
 
+// ============================================================
+//  默认凭据集中定义 + 首次初始化凭据文件
+// ============================================================
+const DEFAULT_CREDENTIALS = {
+  superAdmin: {
+    username:    process.env.INIT_SUPER_USERNAME   || 'superadmin',
+    password:    process.env.INIT_SUPER_PASSWORD   || 'super123',
+    displayName: '超级管理员',
+  },
+  merchantAdmin: {
+    username:    process.env.INIT_ADMIN_USERNAME   || 'admin',
+    password:    process.env.INIT_ADMIN_PASSWORD   || 'admin123',
+    displayName: 'FoodFlow管理员',
+  },
+  waiter: {
+    username:    process.env.INIT_WAITER_USERNAME  || 'waiter',
+    password:    process.env.INIT_WAITER_PASSWORD  || '123456',
+    displayName: '服务员A',
+  },
+  cashier: {
+    username:    process.env.INIT_CASHIER_USERNAME || 'cashier',
+    password:    process.env.INIT_CASHIER_PASSWORD || '123456',
+    displayName: '收银员',
+  },
+};
+
+async function writeInitialCredentialsFile(credentials) {
+  const file = process.env.INIT_CRED_FILE || '/etc/foodflow/initial-credentials.txt';
+  try {
+    await fs.promises.mkdir(path.dirname(file), { recursive: true });
+    const content = Object.entries(credentials)
+      .map(([k, v]) => `${k}: ${v.username} / ${v.password}`)
+      .join('\n') + '\n';
+    await fs.promises.writeFile(file, content, { mode: 0o600 });
+    console.log(`  + 初始凭据已写入 ${file}（权限 600）`);
+  } catch (e) {
+    console.warn(`  ! 无法写入凭据文件 ${file}: ${e.message}（不影响服务启动）`);
+  }
+}
+
+// ============================================================
+//  订单号分配（并发安全，依赖调用者在事务上下文中）
+// ============================================================
+async function allocateOrderNo(todayPrefix) {
+  const now = new Date().toISOString();
+  await runAsync(
+    'INSERT INTO order_sequences (prefix, current_value, updated_at) VALUES (?, 0, ?) ' +
+    'ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)',
+    [todayPrefix, now]
+  );
+  const row = await getAsync(
+    'SELECT current_value FROM order_sequences WHERE prefix = ? FOR UPDATE',
+    [todayPrefix]
+  );
+  const next = (row?.current_value || 0) + 1;
+  await runAsync(
+    'UPDATE order_sequences SET current_value = ?, updated_at = ? WHERE prefix = ?',
+    [next, now, todayPrefix]
+  );
+  return todayPrefix + String(next).padStart(5, '0');
+}
 
 // ---------- 数据库初始化 ----------
-
 async function ensureOrderTables() {
   const missingTables = await allAsync(`
     SELECT DISTINCT o.table_name AS name
@@ -516,15 +513,10 @@ async function rebaseCurrencyToUSDOnce() {
     }
     await runAsync('UPDATE currencies SET is_default=0');
     await runAsync("UPDATE currencies SET is_default=1 WHERE code='USD'");
-
     const orders = await allAsync('SELECT id, items, total FROM orders');
     for (const order of orders) {
       let items;
-      try {
-        items = JSON.parse(order.items || '[]');
-      } catch (_) {
-        items = [];
-      }
+      try { items = JSON.parse(order.items || '[]'); } catch (_) { items = []; }
       for (const item of items) {
         if (typeof item.base_price === 'number') item.base_price = Number(item.base_price) * oldUsdRate;
       }
@@ -533,7 +525,6 @@ async function rebaseCurrencyToUSDOnce() {
         [JSON.stringify(items), Number(order.total) * oldUsdRate, order.id]
       );
     }
-
     await runAsync(
       "INSERT INTO settings (`key`, value) VALUES ('currency_base_usd_v1', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)",
       [new Date().toISOString()]
@@ -555,12 +546,10 @@ async function syncTableStatus(tableName, storeId) {
 }
 
 async function initDatabase() {
-  // 确保数据库存在
   try {
     await pool.getConnection();
   } catch (err) {
     if (err.code === 'ER_BAD_DB_ERROR') {
-
       const tempPool = mysql.createPool({
         host: poolConfig.host,
         user: poolConfig.user,
@@ -580,7 +569,7 @@ async function initDatabase() {
     }
   }
 
-  // 创建表
+  // 基础表结构
   await runAsync(`
     CREATE TABLE IF NOT EXISTS menus (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -601,12 +590,10 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  // 迁移 menus 表，添加 sales_count 字段（兼容旧数据库）
   const menusColumns = await allAsync('SHOW COLUMNS FROM menus');
   const menusColNames = menusColumns.map(c => c.Field);
   if (!menusColNames.includes('sales_count')) {
     await runAsync('ALTER TABLE menus ADD COLUMN sales_count INT NOT NULL DEFAULT 0');
-
   }
 
   await runAsync(`
@@ -642,27 +629,21 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  // 迁移 login_logs 表，添加缺失字段（兼容旧数据库）
   const loginLogsColumns = await allAsync('SHOW COLUMNS FROM login_logs');
   const loginLogsColNames = loginLogsColumns.map(c => c.Field);
   if (!loginLogsColNames.includes('username')) {
     await runAsync('ALTER TABLE login_logs ADD COLUMN username VARCHAR(100) DEFAULT NULL');
-
   }
   if (!loginLogsColNames.includes('location')) {
     await runAsync('ALTER TABLE login_logs ADD COLUMN location VARCHAR(255) DEFAULT NULL');
-
   }
   if (!loginLogsColNames.includes('merchant_id')) {
     await runAsync('ALTER TABLE login_logs ADD COLUMN merchant_id INT DEFAULT NULL');
-
   }
   if (!loginLogsColNames.includes('login_type')) {
     await runAsync('ALTER TABLE login_logs ADD COLUMN login_type VARCHAR(50) DEFAULT NULL');
-
   }
 
-  // 商户管理员会话表
   await runAsync(`
     CREATE TABLE IF NOT EXISTS admin_sessions (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -675,7 +656,6 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  // 超级管理员会话表
   await runAsync(`
     CREATE TABLE IF NOT EXISTS super_sessions (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -688,7 +668,6 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  // 操作审计日志表
   await runAsync(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -784,28 +763,40 @@ async function initDatabase() {
       createdAt VARCHAR(50) NOT NULL,
       session_token VARCHAR(255),
       store_id INT NOT NULL DEFAULT 1,
-      note VARCHAR(200) DEFAULT ''
+      note VARCHAR(200) DEFAULT '',
+      customer_token VARCHAR(255) DEFAULT ''
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
-  // 兼容已存在的旧版 orders 表（没有 note 列时自动补上，已存在则忽略报错）
   try {
     await runAsync("ALTER TABLE orders ADD COLUMN note VARCHAR(200) DEFAULT ''");
   } catch (e) {
     if (!/duplicate column/i.test(e.message || '')) throw e;
   }
-
-
-  // 兼容旧版 orders 表：添加 order_no 字段
   try {
     await runAsync('ALTER TABLE orders ADD COLUMN order_no VARCHAR(20) DEFAULT NULL');
     await runAsync('ALTER TABLE orders ADD UNIQUE INDEX idx_order_no (order_no)');
   } catch (e) {
     if (!/duplicate column|Duplicate key/i.test(e.message || '')) throw e;
   }
+  try {
+    await runAsync(`ALTER TABLE orders ADD COLUMN customer_token VARCHAR(255) DEFAULT ''`);
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) console.log('  ! customer_token:', e.message);
+  }
+
   await runAsync(`
     CREATE TABLE IF NOT EXISTS settings (
       \`key\` VARCHAR(255) PRIMARY KEY,
       value TEXT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // ====== 订单号序号表（新增，PR #2） ======
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS order_sequences (
+      prefix VARCHAR(32) NOT NULL PRIMARY KEY,
+      current_value INT UNSIGNED NOT NULL DEFAULT 0,
+      updated_at VARCHAR(50) NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
@@ -824,9 +815,8 @@ async function initDatabase() {
       INDEX idx_store_status (store_id, status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
-  // 兼容旧表：添加缺失字段
-  try { await runAsync('ALTER TABLE waiter_calls ADD COLUMN type VARCHAR(20) DEFAULT "call"'); } catch (e) { /* 字段已存在 */ }
-  try { await runAsync('ALTER TABLE waiter_calls ADD COLUMN message VARCHAR(255)'); } catch (e) { /* 字段已存在 */ }
+  try { await runAsync('ALTER TABLE waiter_calls ADD COLUMN type VARCHAR(20) DEFAULT "call"'); } catch (e) { /* 已存在 */ }
+  try { await runAsync('ALTER TABLE waiter_calls ADD COLUMN message VARCHAR(255)'); } catch (e) { /* 已存在 */ }
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS reservations (
@@ -859,7 +849,6 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  // ===== 超级管理员系统 =====
   await runAsync(`
     CREATE TABLE IF NOT EXISTS merchants (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -900,21 +889,17 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  // 为 orders 表添加 customer_token（兼容旧表）
-  try { await runAsync(`ALTER TABLE orders ADD COLUMN customer_token VARCHAR(255) DEFAULT ''`); } catch (e) { if (!/duplicate column/i.test(e.message || '')) console.log('  ! customer_token:', e.message); }
-
-  // 为现有表添加 merchant_id 字段（兼容旧表）
+  // 添加 merchant_id 字段（兼容旧表）
   const tablesToAlter = ['stores', 'menus', 'tables', 'orders', 'waiters', 'printers', 'waiter_calls', 'reservations', 'scan_sessions', 'currencies', 'menu_categories'];
   for (const tbl of tablesToAlter) {
     try {
       await runAsync(`ALTER TABLE ${tbl} ADD COLUMN merchant_id INT NOT NULL DEFAULT 1`);
-
     } catch (e) {
       if (!/duplicate column/i.test(e.message || '')) console.log(`  ! ${tbl}: ${e.message}`);
     }
   }
 
-  // 为 merchant_admins 表添加权限字段（兼容旧表）
+  // 商户管理员权限字段
   const adminPermFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'];
   for (const field of adminPermFields) {
     try {
@@ -924,16 +909,23 @@ async function initDatabase() {
     }
   }
 
-  // 初始化基础数据：超级管理员 + 默认商户 + 店铺 + 菜品 + 桌号
-  // 创建唯一超级管理员
+  // ===== 初始化基础数据 =====
+  const initialCredentials = {};
+
+  // 超级管理员
   const superAdminCount = await getAsync('SELECT COUNT(*) AS count FROM super_admins');
   if (superAdminCount.count === 0) {
-    const superHash = hashPassword('super123');
-    await runAsync("INSERT INTO super_admins (username, password_hash, display_name) VALUES (?, ?, ?)", ['superadmin', superHash, '超级管理员']);
-    console.log('  + 已创建超级管理员：superadmin / super123');
+    const c = DEFAULT_CREDENTIALS.superAdmin;
+    const superHash = hashPassword(c.password);
+    await runAsync(
+      "INSERT INTO super_admins (username, password_hash, display_name) VALUES (?, ?, ?)",
+      [c.username, superHash, c.displayName]
+    );
+    console.log(`  + 已创建超级管理员：${c.username} / ${c.password}`);
+    initialCredentials.superAdmin = c;
   }
 
-  // 创建默认商户（仅首次安装时）
+  // 默认商户
   const merchantCount = await getAsync('SELECT COUNT(*) AS count FROM merchants');
   if (merchantCount.count === 0) {
     const defaultMerchantCode = 'FF0001';
@@ -942,19 +934,23 @@ async function initDatabase() {
     const defaultMerchantId = (await getAsync('SELECT id FROM merchants WHERE code=?', [defaultMerchantCode])).id;
     console.log('  + 已创建默认商户：FoodFlow (id=' + defaultMerchantId + ')');
 
-    // 创建商户管理员
-    const adminHash = hashPassword('admin123');
-    await runAsync("INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)",
-      [defaultMerchantId, 'admin', adminHash, 'FoodFlow管理员']);
-    console.log('  + 已创建商户管理员：admin / admin123');
+    // 商户管理员
+    const ac = DEFAULT_CREDENTIALS.merchantAdmin;
+    const adminHash = hashPassword(ac.password);
+    await runAsync(
+      "INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)",
+      [defaultMerchantId, ac.username, adminHash, ac.displayName]
+    );
+    console.log(`  + 已创建商户管理员：${ac.username} / ${ac.password}`);
+    initialCredentials.merchantAdmin = ac;
 
-    // 创建默认店铺
+    // 默认店铺
     await runAsync("INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)",
       [defaultMerchantId, 'FoodFlow总店', 'ff-main', '']);
     const defaultStoreId = (await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [defaultMerchantId])).id;
     console.log('  + 已创建默认店铺：FoodFlow总店 (id=' + defaultStoreId + ')');
 
-    // 创建默认货币
+    // 默认货币
     for (const currency of [
       ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
       ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
@@ -964,17 +960,17 @@ async function initDatabase() {
     }
     console.log('  + 已创建默认货币：USD/CNY/VND/THB/KHR');
 
-    // 创建默认菜品分类
-    const categories = [
-      ['热销', 0], ['主食', 1], ['小吃', 2], ['饮料', 3], ['甜点', 4]
-    ];
+    // 默认分类
+    const categories = [['热销', 0], ['主食', 1], ['小吃', 2], ['饮料', 3], ['甜点', 4]];
     for (const [catName, sort] of categories) {
       await runAsync('INSERT INTO menu_categories (name, sort, store_id) VALUES (?, ?, ?)', [catName, sort, defaultStoreId]);
     }
     console.log('  + 已创建默认菜品分类：热销/主食/小吃/饮料/甜点');
 
-    // 创建默认菜品
+    // 默认菜品
     const defaultMenus = [
+      ['招牌烧腊饭', '🍱', 8.5, '热销', '招牌烧腊配米饭', '份'],
+      ['蜜汁叉烧饭', '🍖', 9.0, '热销', '蜜汁叉烧配米饭', '份'],
       ['白切鸡饭', '🍗', 7.5, '主食', '白切鸡配米饭', '份'],
       ['排骨饭', '🍖', 8.0, '主食', '红烧排骨配米饭', '份'],
       ['春卷', '🥟', 3.5, '小吃', '酥脆春卷', '份'],
@@ -990,27 +986,29 @@ async function initDatabase() {
     }
     console.log('  + 已创建默认菜品：10道示例菜品');
 
-    // 创建默认桌号
+    // 默认桌号
     const defaultTables = ['A01', 'A02', 'A03', 'A04', 'A05', 'B01', 'B02', 'B03', 'B04', 'B05'];
     for (const tableName of defaultTables) {
       await runAsync('INSERT INTO tables (name, status, store_id) VALUES (?, ?, ?)', [tableName, 'available', defaultStoreId]);
     }
     console.log('  + 已创建默认桌号：A01-A05, B01-B05');
-    console.log('  + 已创建默认桌号：A01-A05, B01-B05');
 
-    // 创建默认服务员
-    const waiterHash = hashPassword('123456');
-    await runAsync('INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, active, store_id) VALUES (?, ?, ?, 1, 1, 1, 1, ?)',
-      ['waiter', waiterHash, '服务员A', defaultStoreId]);
-    console.log('  + 已创建默认服务员：waiter / 123456');
+    // 默认服务员
+    const wc = DEFAULT_CREDENTIALS.waiter;
+    const waiterHash = hashPassword(wc.password);
+    await runAsync(
+      'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, active, store_id) VALUES (?, ?, ?, 1, 1, 1, 1, ?)',
+      [wc.username, waiterHash, wc.displayName, defaultStoreId]
+    );
+    console.log(`  + 已创建默认服务员：${wc.username} / ${wc.password}`);
+    initialCredentials.waiter = wc;
 
-    // 创建默认收银员
-    await runAsync('INSERT INTO cashier_sessions (username, password_hash, display_name, store_id) VALUES (?, ?, ?, ?)',
-      ['cashier', waiterHash, '收银员', defaultStoreId]);
-    console.log('  + 已创建默认收银员：cashier / 123456');
+    // 说明：默认收银员不再预置。
+    // cashier_sessions 只存登录 session，收银员账号本身存在 settings 表的
+    // cashiers_<storeId> JSON 中，由管理员在后台「收银员管理」添加。
   }
 
-  // 迁移：stores表添加qr_languages字段（二维码显示语言，逗号分隔，如zh,en,km）
+  // 迁移：qr_languages
   try {
     const cols = await pool.query('SHOW COLUMNS FROM stores LIKE ?', ['qr_languages']);
     if (!cols[0] || cols[0].length === 0) {
@@ -1019,7 +1017,7 @@ async function initDatabase() {
     }
   } catch (e) { console.log('  stores qr_languages 迁移跳过:', e.message); }
 
-  // 全局设置（不依赖商户）
+  // 全局设置默认值
   const backupInterval = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
   if (!backupInterval) await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_interval_hours', '24')");
   const dualCurrency = await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
@@ -1031,7 +1029,7 @@ async function initDatabase() {
   if (!newOrderSound) await runAsync("INSERT INTO settings (`key`, value) VALUES ('new_order_sound_enabled', '1')");
   const adminPassword = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
   if (!adminPassword) await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_password', ?)", [hashPassword('admin123')]);
-  // Order number prefix and system settings defaults
+
   const prefixDefaults = {
     'order_prefix_normal': '11',
     'order_prefix_refund': '01',
@@ -1048,14 +1046,16 @@ async function initDatabase() {
     'call_limit_window_minutes': '10',
     'call_limit_cooldown_minutes': '5',
     'log_retention_days': '90',
-    'auto_clean_log_enabled': '1'
+    'auto_clean_log_enabled': '1',
+    'max_order_items': '50',
+    'max_item_quantity': '100',
+    'max_order_note_length': '200'
   };
   for (const [key, value] of Object.entries(prefixDefaults)) {
     await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=value", [key, value]);
   }
   console.log('  + System settings defaults initialized');
 
-  // 确保双货币设置为默认值（启用双币，第二货币为KHR）
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '1') ON DUPLICATE KEY UPDATE value='1'");
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('secondary_currency_code', 'KHR') ON DUPLICATE KEY UPDATE value='KHR'");
 
@@ -1066,181 +1066,85 @@ async function initDatabase() {
   const allTables = await allAsync('SELECT name, store_id FROM tables');
   for (const t of allTables) await syncTableStatus(t.name, t.store_id);
 
-  // 标记数据库迁移已完成
+  // 写入初始凭据文件
+  if (Object.keys(initialCredentials).length > 0) {
+    await writeInitialCredentialsFile(initialCredentials);
+  }
+
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('db_migration_completed', '1') ON DUPLICATE KEY UPDATE value='1'");
   console.log('  ✓ 数据库迁移完成');
 }
 
-// ---------- ESC/POS 小票打印工具 ----------
-// 兼容多品牌的 ESC/POS 命令生成器
+// ---------- ESC/POS 打印工具 ----------
 class EscPosBuilder {
   constructor(paperWidth) {
     this.width = paperWidth || 58;
     this.charsPerLine = this.width === 80 ? 48 : 32;
     this.buffer = Buffer.alloc(0);
   }
-
-  _append(bytes) {
-    this.buffer = Buffer.concat([this.buffer, Buffer.from(bytes)]);
-    return this;
-  }
-
-  // 初始化打印机
-  init() {
-    return this._append([0x1b, 0x40]);
-  }
-
-  // 设置对齐方式：0=左, 1=中, 2=右
-  align(n) {
-    return this._append([0x1b, 0x61, n]);
-  }
-
-  // 设置字体：0=标准, 1=压缩
-  font(n) {
-    return this._append([0x1b, 0x4d, n]);
-  }
-
-  // 加粗
-  bold(on) {
-    return this._append([0x1b, 0x45, on ? 1 : 0]);
-  }
-
-  // 双倍高度
-  doubleHeight(on) {
-    return this._append([0x1b, 0x21, on ? 0x10 : 0x00]);
-  }
-
-  // 双倍宽度
-  doubleWidth(on) {
-    return this._append([0x1b, 0x21, on ? 0x20 : 0x00]);
-  }
-
-  // 大字体（宽高都双倍）
-  big(on) {
-    return this._append([0x1b, 0x21, on ? 0x30 : 0x00]);
-  }
-
-  // 下划线
-  underline(on) {
-    return this._append([0x1b, 0x2d, on ? 1 : 0]);
-  }
-
-  // 打印文本（自动处理中文编码）
-  text(str) {
-    // 中文使用 GBK 编码，大多数热敏打印机支持
-    // 这里先用 UTF-8，打印机通常会自动处理
-    const buf = Buffer.from(str, 'utf8');
-    return this._append(buf);
-  }
-
-  // 打印一行文本
-  line(str) {
-    return this.text(str || '').newline();
-  }
-
-  // 换行
-  newline(n = 1) {
-    for (let i = 0; i < n; i++) this._append([0x0a]);
-    return this;
-  }
-
-  // 走纸
-  feed(n = 3) {
-    return this._append([0x1b, 0x4a, n]);
-  }
-
-  // 切纸
-  cut(mode = 1) {
-    // mode: 0=半切, 1=全切
-    this.feed(3);
-    return this._append([0x1d, 0x56, mode ? 1 : 0]);
-  }
-
-  // 打印分隔线
-  separator(char = '-') {
-    const line = char.repeat(this.charsPerLine);
-    return this.line(line);
-  }
-
-  // 两列文本（左对齐 + 右对齐）
+  _append(bytes) { this.buffer = Buffer.concat([this.buffer, Buffer.from(bytes)]); return this; }
+  init() { return this._append([0x1b, 0x40]); }
+  align(n) { return this._append([0x1b, 0x61, n]); }
+  font(n) { return this._append([0x1b, 0x4d, n]); }
+  bold(on) { return this._append([0x1b, 0x45, on ? 1 : 0]); }
+  doubleHeight(on) { return this._append([0x1b, 0x21, on ? 0x10 : 0x00]); }
+  doubleWidth(on) { return this._append([0x1b, 0x21, on ? 0x20 : 0x00]); }
+  big(on) { return this._append([0x1b, 0x21, on ? 0x30 : 0x00]); }
+  underline(on) { return this._append([0x1b, 0x2d, on ? 1 : 0]); }
+  text(str) { return this._append(Buffer.from(str, 'utf8')); }
+  line(str) { return this.text(str || '').newline(); }
+  newline(n = 1) { for (let i = 0; i < n; i++) this._append([0x0a]); return this; }
+  feed(n = 3) { return this._append([0x1b, 0x4a, n]); }
+  cut(mode = 1) { this.feed(3); return this._append([0x1d, 0x56, mode ? 1 : 0]); }
+  separator(char = '-') { return this.line(char.repeat(this.charsPerLine)); }
   twoColumn(left, right) {
     const leftStr = String(left || '');
     const rightStr = String(right || '');
-    // 中文字符占2个宽度，简单处理
     const leftWidth = [...leftStr].reduce((sum, c) => sum + (/[\u4e00-\u9fa5]/.test(c) ? 2 : 1), 0);
     const rightWidth = [...rightStr].reduce((sum, c) => sum + (/[\u4e00-\u9fa5]/.test(c) ? 2 : 1), 0);
     const spaces = Math.max(1, this.charsPerLine - leftWidth - rightWidth);
     return this.line(leftStr + ' '.repeat(spaces) + rightStr);
   }
-
-  // 打印条形码
   barcode(code, type = 2) {
-    // type: 2=UPC-A, 3=UPC-E, 4=EAN13, 5=EAN8, 73=CODE128
     this._append([0x1d, 0x6b, type]);
     this._append(Buffer.from(code, 'ascii'));
     this._append([0x00]);
     return this;
   }
-
-  // 打印二维码
   qrCode(text) {
     const data = Buffer.from(text, 'utf8');
     const len = data.length + 3;
     const pL = len & 0xff;
     const pH = (len >> 8) & 0xff;
-    // 设置二维码大小
     this._append([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, 0x08]);
-    // 选择二维码模型
     this._append([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x41, 0x32, 0x00]);
-    // 存储数据
     this._append([0x1d, 0x28, 0x6b, pL, pH, 0x31, 0x50, 0x30]);
     this._append(data);
-    // 打印二维码
     this._append([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30]);
     return this;
   }
-
-  // 打开钱箱
-  cashDrawer() {
-    return this._append([0x1b, 0x70, 0x00, 0x40, 0xff]);
-  }
-
-  // 获取最终打印数据
-  build() {
-    return this.buffer;
-  }
+  cashDrawer() { return this._append([0x1b, 0x70, 0x00, 0x40, 0xff]); }
+  build() { return this.buffer; }
 }
 
-// 生成订单小票内容
 function buildReceipt(order, store, printer) {
   const width = printer?.paper_width || 58;
   const pos = new EscPosBuilder(width);
-
   pos.init();
-  pos.align(1); // 居中
+  pos.align(1);
   pos.big(true);
   pos.line(store?.name || 'FoodFlow');
   pos.big(false);
   pos.newline();
-
-  if (store?.address) {
-    pos.font(1); // 压缩字体
-    pos.line(store.address);
-    pos.font(0);
-  }
+  if (store?.address) { pos.font(1); pos.line(store.address); pos.font(0); }
   pos.separator('=');
   pos.newline();
-
-  pos.align(0); // 左对齐
+  pos.align(0);
   pos.twoColumn('订单号:', `#${order.id}`);
   pos.twoColumn('桌号:', order.table);
   pos.twoColumn('时间:', formatGlobalDateTime(order.createdAt));
-  if (order.note) {
-    pos.line(`备注: ${order.note}`);
-  }
+  if (order.note) pos.line(`备注: ${order.note}`);
   pos.separator();
-
-  // 菜品列表
   pos.line('菜品');
   pos.separator('-');
   for (const item of order.items) {
@@ -1248,28 +1152,19 @@ function buildReceipt(order, store, printer) {
     pos.twoColumn(`${item.emoji || ''}${name} x${item.quantity}`, `$${((Number(item.base_price) || Number(item.price) || 0) * item.quantity).toFixed(2)}`);
   }
   pos.separator();
-
-  pos.align(2); // 右对齐
+  pos.align(2);
   pos.bold(true);
   pos.line(`合计: $${Number(order.total).toFixed(2)}`);
   pos.bold(false);
   pos.newline();
-
-  pos.align(1); // 居中
+  pos.align(1);
   pos.line('谢谢惠顾，欢迎再次光临！');
   pos.newline(2);
-
-  // 打印订单二维码（可选）
-  try {
-    pos.qrCode(`order:${order.id}`);
-    pos.newline();
-  } catch (e) { /* 二维码打印失败不影响主流程 */ }
-
-  pos.cut(1); // 全切
+  try { pos.qrCode(`order:${order.id}`); pos.newline(); } catch (e) {}
+  pos.cut(1);
   return pos.build();
 }
 
-// 生成合并小票（多订单合并一张）
 function buildBatchReceipt(orders, store, printer) {
   const width = printer?.paper_width || 58;
   const pos = new EscPosBuilder(width);
@@ -1311,11 +1206,9 @@ function buildBatchReceipt(orders, store, printer) {
   return pos.build();
 }
 
-// 生成后厨小票（只显示待做菜品）
 function buildKitchenTicket(order, store, printer) {
   const width = printer?.paper_width || 58;
   const pos = new EscPosBuilder(width);
-
   pos.init();
   pos.align(1);
   pos.big(true);
@@ -1323,16 +1216,12 @@ function buildKitchenTicket(order, store, printer) {
   pos.big(false);
   pos.newline();
   pos.separator('=');
-
   pos.align(0);
   pos.twoColumn('桌号:', order.table);
   pos.twoColumn('订单号:', `#${order.id}`);
   pos.twoColumn('时间:', formatGlobalTime(order.createdAt));
-  if (order.note) {
-    pos.line(`备注: ${order.note}`);
-  }
+  if (order.note) pos.line(`备注: ${order.note}`);
   pos.separator();
-
   const pendingItems = order.items.filter(i => i.itemStatus !== 'done');
   for (const item of pendingItems) {
     pos.bold(true);
@@ -1344,27 +1233,16 @@ function buildKitchenTicket(order, store, printer) {
   return pos.build();
 }
 
-// 网络打印（通过 IP + 端口）
 async function printToNetworkPrinter(data, ip, port) {
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
     const timeout = 10000;
-
     socket.setTimeout(timeout);
-    socket.on('timeout', () => {
-      socket.destroy();
-      reject(new Error('打印机连接超时'));
-    });
-    socket.on('error', (err) => {
-      reject(new Error(`打印机连接失败: ${err.message}`));
-    });
-
+    socket.on('timeout', () => { socket.destroy(); reject(new Error('打印机连接超时')); });
+    socket.on('error', (err) => { reject(new Error(`打印机连接失败: ${err.message}`)); });
     socket.connect(port || 9100, ip, () => {
       socket.write(data, () => {
-        setTimeout(() => {
-          socket.destroy();
-          resolve(true);
-        }, 500);
+        setTimeout(() => { socket.destroy(); resolve(true); }, 500);
       });
     });
   });
@@ -1375,16 +1253,12 @@ function formatOrder(row) {
   let items = row.items;
   let dataCorrupted = false;
   if (typeof items === 'string') {
-    try {
-      items = JSON.parse(items);
-    } catch (_) {
+    try { items = JSON.parse(items); } catch (_) {
       console.warn(`订单 ${row.id} 的 items 解析失败，原始内容:`, items);
-      items = [];
-      dataCorrupted = true;
+      items = []; dataCorrupted = true;
     }
   } else if (!Array.isArray(items)) {
-    items = [];
-    dataCorrupted = true;
+    items = []; dataCorrupted = true;
   }
   for (const item of items) {
     if (!item.itemStatus) item.itemStatus = 'pending';
@@ -1416,7 +1290,6 @@ async function normalizeOrderItems(items, storeId) {
     }
     const menuItem = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [menuId, storeId || 1]);
     if (!menuItem) throw new Error(`菜品不存在（ID: ${menuId}）`);
-        // 先检查店铺是否存在，防止跨商户货币混用
     const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [menuItem.store_id || 1]);
     if (!store) throw new Error(`菜品所属店铺不存在（ID: ${menuItem.store_id}）`);
     const currency = await getAsync('SELECT code, rate FROM currencies WHERE code=? AND merchant_id=?', [menuItem.currency_code || 'USD', store.merchant_id]);
@@ -1448,12 +1321,8 @@ async function assertTableExists(table, storeId) {
 
 async function verifyLegacyAdminPassword(inputPwd) {
   const row = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
-  if (!row) return false;
-  const crypto = require('crypto');
-  const expected = Buffer.from(row.value, 'utf8');
-  const actual = Buffer.from(hashPassword(inputPwd), 'utf8');
-  if (expected.length !== actual.length) return false;
-  return crypto.timingSafeEqual(expected, actual);
+  if (!row || !row.value) return false;
+  return verifyPassword(inputPwd, row.value);
 }
 
 async function getWaiterFromRequest(req) {
@@ -1464,8 +1333,6 @@ async function getWaiterFromRequest(req) {
   return await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
 }
 
-
-// 从请求中获取收银员信息
 async function getCashierFromRequest(req) {
   const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
@@ -1480,12 +1347,10 @@ async function getCashierFromRequest(req) {
   return { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
 }
 
-// 共用管理员认证逻辑：返回 { adminId, merchantId, storeId, sessionToken } 或 null
 async function authenticateAdmin(req) {
   const authHeader = req.get('Authorization') || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
   if (token) {
-    // 优先检查新的session token
     const session = await getAsync('SELECT * FROM admin_sessions WHERE token=?', [token]);
     if (session) {
       if (new Date(session.expires_at).getTime() <= Date.now()) {
@@ -1496,40 +1361,29 @@ async function authenticateAdmin(req) {
       if (admin) {
         const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
         if (merchant) {
-          // 验证X-Store-Id对应的店铺是否属于当前商户，防止越权访问其他商户店铺
           let requestedStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
           let validStoreId = null;
           if (requestedStoreId > 0) {
             const storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
-            if (storeCheck) {
-              validStoreId = requestedStoreId;
-            } else {
-              // 请求的店铺不属于当前商户，使用该商户的第一个店铺
+            if (storeCheck) validStoreId = requestedStoreId;
+            else {
               const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
               if (!firstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
               validStoreId = firstStore.id;
             }
           } else {
-            // 未指定店铺，使用该商户的第一个店铺
             const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
             if (!firstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
             validStoreId = firstStore.id;
           }
-          // 滑动过期
           const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
           const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
           const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
           runAsync('UPDATE admin_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
-          return {
-            adminId: admin.id,
-            merchantId: admin.merchant_id,
-            storeId: validStoreId,
-            sessionToken: token
-          };
+          return { adminId: admin.id, merchantId: admin.merchant_id, storeId: validStoreId, sessionToken: token };
         }
       }
     }
-    // 兼容旧的base64 token（无过期）
     try {
       const payload = JSON.parse(Buffer.from(token, 'base64').toString());
       if (payload.adminId) {
@@ -1541,9 +1395,8 @@ async function authenticateAdmin(req) {
             let legacyValidStoreId = null;
             if (legacyStoreId > 0) {
               const legacyStoreCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [legacyStoreId, admin.merchant_id]);
-              if (legacyStoreCheck) {
-                legacyValidStoreId = legacyStoreId;
-              } else {
+              if (legacyStoreCheck) legacyValidStoreId = legacyStoreId;
+              else {
                 const legacyFirstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
                 if (!legacyFirstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
                 legacyValidStoreId = legacyFirstStore.id;
@@ -1553,17 +1406,12 @@ async function authenticateAdmin(req) {
               if (!legacyFirstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
               legacyValidStoreId = legacyFirstStore.id;
             }
-            return {
-              adminId: admin.id,
-              merchantId: admin.merchant_id,
-              storeId: legacyValidStoreId
-            };
+            return { adminId: admin.id, merchantId: admin.merchant_id, storeId: legacyValidStoreId };
           }
         }
       }
     } catch (e) { /* 不是旧格式token */ }
   }
-  // 兼容旧的 X-Admin-Key 认证
   const providedKey = req.get('X-Admin-Key');
   const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
   if (providedKey && setting && providedKey === setting.value) {
@@ -1580,11 +1428,9 @@ async function requireAdminKey(req, res, next) {
     req.merchantId = result.merchantId;
     req.adminSessionToken = result.sessionToken;
     req.storeId = result.storeId || 0;
-    // 安全检查：storeId 为 0 或 undefined 时拒绝访问，防止越权访问其他商户数据
     if (!req.storeId) {
       return res.status(401).json({ error: '未选择有效店铺，请重新登录' });
     }
-    // 加载管理员权限信息
     try {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [result.adminId]);
       if (admin) {
@@ -1610,7 +1456,6 @@ async function requireAdminKey(req, res, next) {
   return res.status(401).json({ error: '未登录或登录已过期' });
 }
 
-// 权限校验中间件工厂
 function requirePermission(permKey) {
   return function(req, res, next) {
     if (req.isPrimaryAdmin || (req.adminPermissions && req.adminPermissions[permKey])) {
@@ -1620,7 +1465,6 @@ function requirePermission(permKey) {
   };
 }
 
-// 操作审计日志记录
 async function logAudit(actorType, actorId, actorUsername, action, targetType, targetId, details, ip) {
   try {
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -1629,7 +1473,6 @@ async function logAudit(actorType, actorId, actorUsername, action, targetType, t
 }
 
 async function requireAdminOrWaiter(req, res, next) {
-  // 先尝试管理员认证
   const adminResult = await authenticateAdmin(req);
   if (adminResult && adminResult.error) return res.status(401).json({ error: adminResult.error });
   if (adminResult) {
@@ -1638,7 +1481,6 @@ async function requireAdminOrWaiter(req, res, next) {
     req.isAdmin = true;
     req.adminSessionToken = adminResult.sessionToken;
     req.storeId = adminResult.storeId;
-    // 加载管理员权限信息（与 requireAdminKey 一致）
     try {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [adminResult.adminId]);
       if (admin) {
@@ -1661,7 +1503,6 @@ async function requireAdminOrWaiter(req, res, next) {
     } catch (e) { console.warn('加载管理员权限失败:', e.message); }
     return next();
   }
-  // 服务员 token 认证
   const authHeader = req.get('Authorization') || '';
   const bearerToken = authHeader.replace(/^Bearer\s+/i, '');
   const token = req.get('X-Waiter-Token') || bearerToken;
@@ -1673,7 +1514,6 @@ async function requireAdminOrWaiter(req, res, next) {
         req.waiter = waiter;
         req.waiterStoreId = waiter.store_id || 1;
         req.isAdmin = false;
-        // 滑动过期：距离过期小于1小时时自动续期（活跃用户不会掉线）
         const expiresTime = new Date(session.expires_at).getTime();
         if (expiresTime - Date.now() < 60 * 60 * 1000) {
           const wTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
@@ -1690,7 +1530,6 @@ async function requireAdminOrWaiter(req, res, next) {
 
 // ---------- 自动备份 ----------
 async function collectBackupData() {
-  // 注意：admin_sessions、super_sessions 为会话临时表，故意不纳入备份，恢复后需重新登录
   const tables = ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
   const data = { exportedAt: new Date().toISOString(), tables: {} };
   for (const table of tables) {
@@ -1706,7 +1545,6 @@ async function autoBackupDatabase() {
   const filename = path.join(backupDir, `auto-${new Date().toISOString().slice(0,10)}.json`);
   fs.writeFileSync(filename, JSON.stringify(data, null, 2));
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('last_backup_at', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [new Date().toISOString()]);
-
 }
 
 async function maybeAutoBackup() {
@@ -1719,25 +1557,40 @@ async function maybeAutoBackup() {
   }
 }
 
-// 自动清理过期日志
+// 自动清理日志（已修复字段名：login_logs.createdAt 是驼峰）
 async function autoCleanLogs() {
   try {
     const enabledRow = await getAsync("SELECT value FROM settings WHERE `key` = 'auto_clean_log_enabled'");
-    if (!enabledRow || enabledRow.value !== '1' && enabledRow.value !== 'true') return;
+    if (!enabledRow || (enabledRow.value !== '1' && enabledRow.value !== 'true')) return;
+
     const daysRow = await getAsync("SELECT value FROM settings WHERE `key` = 'log_retention_days'");
     const retentionDays = parseInt(daysRow?.value || '30', 10);
     const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+
     const cleanLoginRow = await getAsync("SELECT value FROM settings WHERE `key` = 'clean_login_log'");
     const cleanAuditRow = await getAsync("SELECT value FROM settings WHERE `key` = 'clean_audit_log'");
+
     let cleaned = 0;
+
+    // login_logs 的时间字段是 createdAt（驼峰）
     if (!cleanLoginRow || cleanLoginRow.value === '1' || cleanLoginRow.value === 'true') {
-      const result = await runAsync('DELETE FROM login_logs WHERE created_at < ?', [cutoff]);
-      cleaned += result.affectedRows || 0;
+      try {
+        const result = await runAsync('DELETE FROM login_logs WHERE createdAt < ?', [cutoff]);
+        cleaned += result.affectedRows || 0;
+      } catch (e) {
+        console.warn('清理登录日志失败:', e.message);
+      }
     }
+
     if (!cleanAuditRow || cleanAuditRow.value === '1' || cleanAuditRow.value === 'true') {
-      const result = await runAsync('DELETE FROM audit_logs WHERE created_at < ?', [cutoff]);
-      cleaned += result.affectedRows || 0;
+      try {
+        const result = await runAsync('DELETE FROM audit_logs WHERE created_at < ?', [cutoff]);
+        cleaned += result.affectedRows || 0;
+      } catch (e) {
+        console.warn('清理审计日志失败:', e.message);
+      }
     }
+
     if (cleaned > 0) {
       console.log(`🧹 自动清理日志: 删除 ${cleaned} 条过期日志（保留 ${retentionDays} 天）`);
     }
@@ -1746,36 +1599,84 @@ async function autoCleanLogs() {
   }
 }
 
-// ================================================================
+// ============================================================
 //  路由
-// ================================================================
+// ============================================================
 
 // ----- 公开接口 -----
+
 app.get('/api/public/config', async (req, res) => {
   try {
     const storeId = parseInt(req.query.store_id || '1', 10);
     const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [storeId]);
     const merchantId = store?.merchant_id || 1;
-    const currencies = await allAsync('SELECT code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code', [merchantId]);
-    const dualRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_dual_currency_enabled`]) || await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
-    const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_secondary_currency_code`]) || await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
+
+    const currencies = await allAsync(
+      'SELECT code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code',
+      [merchantId]
+    );
+
+    const dualRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_dual_currency_enabled`])
+                 || await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
+    const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_secondary_currency_code`])
+                      || await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
     const secondaryCurrency = currencies.find(c => c.code === secondaryRow?.value) || null;
-    const soundRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_new_order_sound_enabled`]) || await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
-    const refreshRow = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_refresh_interval'");
-    const hideRow = await getAsync("SELECT value FROM settings WHERE `key` = 'kitchen_auto_hide_minutes'");
-    const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
-    const maxQtyRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_item_quantity'");
-    const maxNoteRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_note_length'");
+
+    const soundRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_new_order_sound_enabled`])
+                  || await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
+
+    // 一次性读取所有 constraints 相关 setting
+    const keys = [
+      'waiter_refresh_interval',
+      'kitchen_auto_hide_minutes',
+      'max_order_items',
+      'max_item_quantity',
+      'max_order_note_length',
+      'order_interval_seconds',
+      'call_limit_enabled',
+      'call_limit_max',
+      'call_limit_window_minutes',
+      'call_limit_cooldown_minutes',
+    ];
+    const placeholders = keys.map(() => '?').join(',');
+    const rows = await allAsync(
+      `SELECT \`key\`, value FROM settings WHERE \`key\` IN (${placeholders})`,
+      keys
+    );
+    const s = {};
+    rows.forEach(r => { s[r.key] = r.value; });
+
+    // 结构化约束对象（前端唯一权威来源）
+    const constraints = {
+      order: {
+        maxItemTypes:   parseInt(s.max_order_items || '50', 10),
+        maxPerItem:     parseInt(s.max_item_quantity || '100', 10),
+        maxNoteLength:  parseInt(s.max_order_note_length || '200', 10),
+        minIntervalSec: parseInt(s.order_interval_seconds || '30', 10),
+      },
+      call: {
+        enabled:         (s.call_limit_enabled || '1') !== '0',
+        maxPerWindow:    parseInt(s.call_limit_max || '3', 10),
+        windowMinutes:   parseInt(s.call_limit_window_minutes || '5', 10),
+        cooldownMinutes: parseInt(s.call_limit_cooldown_minutes || '10', 10),
+      },
+    };
+
     res.json({
       currencies,
       defaultCurrency: currencies.find(c => c.is_default) || currencies[0] || { code: 'USD', symbol: '$', rate: 1 },
       dualCurrency: { enabled: dualRow?.value === '1', currency: secondaryCurrency },
       newOrderSoundEnabled: soundRow ? soundRow.value === '1' : true,
-      waiter_refresh_interval: parseInt(refreshRow?.value || '8', 10),
-      kitchen_auto_hide_minutes: parseInt(hideRow?.value || '10', 10),
-      max_order_items: parseInt(maxItemsRow?.value || '50', 10),
-      max_item_quantity: parseInt(maxQtyRow?.value || '100', 10),
-      max_order_note_length: parseInt(maxNoteRow?.value || '200', 10)
+
+      // 统一约束对象
+      constraints,
+
+      // 兼容旧前端：保留扁平字段
+      waiter_refresh_interval:   parseInt(s.waiter_refresh_interval || '8', 10),
+      kitchen_auto_hide_minutes: parseInt(s.kitchen_auto_hide_minutes || '10', 10),
+      max_order_items:           constraints.order.maxItemTypes,
+      max_item_quantity:         constraints.order.maxPerItem,
+      max_order_note_length:     constraints.order.maxNoteLength,
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1786,9 +1687,7 @@ app.get('/api/public/store-info', async (req, res) => {
     const store = await getAsync('SELECT id, name, address FROM stores WHERE id=? AND active=1', [storeId]);
     if (!store) return res.status(404).json({ error: '店铺不存在' });
     res.json(store);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/public/categories', async (req, res) => {
@@ -1796,15 +1695,12 @@ app.get('/api/public/categories', async (req, res) => {
     const storeId = parseInt(req.query.store_id || '1', 10);
     const rows = await allAsync('SELECT id, name, sort FROM menu_categories WHERE store_id=? ORDER BY sort', [storeId]);
     res.json(rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'ordering-system', timestamp: new Date().toISOString() }));
 
-// ----- 管理员登录 -----
-// ===== 商户管理员登录（用户名+密码）=====
+// ----- 商户管理员登录 -----
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
@@ -1812,7 +1708,6 @@ app.post('/api/admin/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username || '', 'merchant_admin', '请输入用户名和密码']);
       return res.status(400).json({ error: '请输入用户名和密码' });
     }
-    // 登录限流检查
     const lockStatus = await isLoginLocked(username, 'merchant_admin');
     if (lockStatus.locked) {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
@@ -1829,24 +1724,20 @@ app.post('/api/admin/login', async (req, res) => {
       recordLoginAttempt(username, 'merchant_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
-    // 检查商户状态
     const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [admin.merchant_id]);
     if (!merchant || merchant.status !== 1) {
       return res.status(403).json({ error: '商户账号已被禁用，请联系超级管理员' });
     }
-    // 登录成功，重置登录尝试计数
     resetLoginAttempts(username, 'merchant_admin');
     await runAsync('UPDATE merchant_admins SET last_login_at=NOW() WHERE id=?', [admin.id]);
     const clientIp = getClientIp(req);
     const location = await getLocationByIp(clientIp);
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, location, admin.merchant_id, 'merchant_admin', '商户管理员登录成功: ' + username]);
-    // 生成token并创建session记录
     const token = crypto.randomBytes(32).toString('hex');
     const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
     const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
     const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
     await runAsync('INSERT INTO admin_sessions (admin_id, token, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [admin.id, token, expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
-    // 查询该商户的第一个管理员ID（主管理员，拥有全部权限）
     const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
     const isPrimary = primaryAdmin && primaryAdmin.id === admin.id;
     res.json({ success: true, token, merchantId: admin.merchant_id, merchantName: merchant.name, adminId: admin.id, username: admin.username, displayName: admin.display_name, isPrimary,
@@ -1871,7 +1762,6 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
-
 // ===== 超级管理员登录 =====
 app.post('/api/super/login', async (req, res) => {
   try {
@@ -1880,12 +1770,10 @@ app.post('/api/super/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username || '', 'super_admin', '请输入用户名和密码']);
       return res.status(400).json({ error: '请输入用户名和密码' });
     }
-    // 登录限流检查
     const lockStatus = await isLoginLocked(username, 'super_admin');
     if (lockStatus.locked) {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
     }
-    // IP白名单检查
     const ipWhitelistSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_ip_whitelist'");
     const clientIp = getClientIp(req);
     if (ipWhitelistSetting && ipWhitelistSetting.value && ipWhitelistSetting.value.trim()) {
@@ -1906,12 +1794,10 @@ app.post('/api/super/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
       return res.status(401).json({ error: '用户名或密码错误' });
     }
-    // 登录成功，重置登录尝试计数
     resetLoginAttempts(username, 'super_admin');
     await runAsync('UPDATE super_admins SET last_login_at=NOW() WHERE id=?', [superAdmin.id]);
     const superLocation = await getLocationByIp(clientIp);
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, superLocation, 'super_admin', '超级管理员登录成功: ' + username]);
-    // 生成token并创建session记录
     const token = crypto.randomBytes(32).toString('hex');
     const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_idle_timeout'");
     const timeoutMinutes = parseInt(timeoutSetting?.value || '60', 10);
@@ -1926,37 +1812,25 @@ app.post('/api/super/login', async (req, res) => {
 // ===== 超级管理员认证中间件 =====
 async function requireSuperAdmin(req, res, next) {
   try {
-    // 1) 优先从 Authorization: Bearer 读取
     let token = '';
     const auth = req.headers['authorization'] || '';
     if (auth) token = auth.replace(/^Bearer\s+/i, '').trim();
-
-    // 2) 兼容前端 core.js 的 X-Super-Token 头
-    //    core.js 把 superToken 放进 X-Super-Token，而不是 Authorization，
-    //    这里必须一并识别，否则所有 /api/super/* 认证接口都会 401。
     if (!token && req.headers['x-super-token']) {
       token = String(req.headers['x-super-token']).trim();
     }
-
     if (!token) return res.status(401).json({ error: '未登录' });
-
-    // 3) 检查 session 是否存在且未过期
     const session = await getAsync('SELECT * FROM super_sessions WHERE token=?', [token]);
     if (!session) return res.status(401).json({ error: '登录已过期，请重新登录' });
     if (new Date(session.expires_at).getTime() <= Date.now()) {
       await runAsync('DELETE FROM super_sessions WHERE token=?', [token]).catch(() => {});
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
-
-    // 4) 滑动过期：每次请求刷新过期时间
     const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_idle_timeout'");
     const timeoutMinutes = parseInt(timeoutSetting?.value || '60', 10);
     const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
     runAsync('UPDATE super_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
-
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE id=?', [session.super_admin_id]);
     if (!superAdmin) return res.status(401).json({ error: '登录已过期' });
-
     req.superAdmin = superAdmin;
     req.superSessionToken = token;
     next();
@@ -1984,22 +1858,17 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     if (!name) return res.status(400).json({ error: '商户名称必填' });
     if (!username || !username.trim()) return res.status(400).json({ error: '登录账号必填' });
     const adminUsername = username.trim();
-    // 检查用户名是否已存在
     const userExists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [adminUsername]);
     if (userExists) return res.status(400).json({ error: '登录账号已存在' });
-    // 商户编码：用户自定义或自动生成
     let merchantCode = (code && code.trim()) ? code.trim() : '';
     if (merchantCode) {
-      // 检查自定义编码是否已存在
       const codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [merchantCode]);
       if (codeExists) return res.status(400).json({ error: '商户编码已存在' });
     } else {
-      // 自动生成商户编码：年份2位+月份2位+4位序号（每月重置），如 26090001
       const now = new Date();
       const yy = String(now.getFullYear()).slice(-2);
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const monthPrefix = yy + mm;
-      // 查询当月已有商户数，序号从1开始递增
       const monthCountRow = await getAsync("SELECT COUNT(*) AS cnt FROM merchants WHERE code LIKE ?", [monthPrefix + '%']);
       let seq = monthCountRow.cnt + 1;
       let generatedCode, codeExists;
@@ -2012,7 +1881,6 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     }
     const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status) VALUES (?, ?, ?, ?, ?, 1)', [name, merchantCode, contact_name || '', contact_phone || '', max_stores || 1]);
     const newMerchantId = result.lastID;
-    // 密码为空则自动生成8位随机密码
     let adminPassword = (password && password.trim()) ? password.trim() : '';
     if (!adminPassword) {
       const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -2020,12 +1888,10 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     }
     const adminHash = hashPassword(adminPassword);
     await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
-    // 为新商户初始化默认货币
     for (const currency of [
       ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
       ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
     ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
-    // 自动创建默认店铺（确保商户登录后有自己的店铺，避免越权访问其他商户数据）
     const defaultStoreName = name + '总店';
     const defaultStoreCode = merchantCode.toLowerCase() + '-main';
     await runAsync('INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)', [newMerchantId, defaultStoreName, defaultStoreCode, '']);
@@ -2038,18 +1904,14 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
     const { name, username, password, contact_name, contact_phone, max_stores, status } = req.body || {};
-    // 注意：商户编码(code)不允许修改，此处忽略该字段
     await runAsync('UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=? WHERE id=?', [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, req.params.id]);
-    // 查询该商户的主管理员（id最小的），只更新主管理员账号，避免覆盖商户后台创建的其他子管理员
     const primaryAdmin = await getAsync('SELECT id, username FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.params.id]);
     if (primaryAdmin) {
-      // 更新登录账号（仅当提供了新账号且与当前值不同时）
       if (username && username.trim() && username.trim() !== primaryAdmin.username) {
         const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=? AND id<>?', [username.trim(), primaryAdmin.id]);
         if (exists) return res.status(400).json({ error: '登录账号已被使用' });
         await runAsync('UPDATE merchant_admins SET username=? WHERE id=?', [username.trim(), primaryAdmin.id]);
       }
-      // 更新主管理员密码（如果提供了非空密码）
       if (password && password.trim()) {
         const hash = hashPassword(password.trim());
         await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=?', [hash, primaryAdmin.id]);
@@ -2084,7 +1946,6 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 重置商户管理员密码
 app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (req, res) => {
   try {
     const { password } = req.body || {};
@@ -2098,7 +1959,7 @@ app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (re
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员仪表盘统计
+// 超管仪表盘统计
 app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
   try {
     const merchantCount = await getAsync('SELECT COUNT(*) as count FROM merchants');
@@ -2106,12 +1967,9 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
     const orderCount = await getAsync('SELECT COUNT(*) as count FROM orders');
     const todayOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE()");
     const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE() AND status='done'");
-    // 在线客户端：当前未过期的扫码会话数
     const now = new Date().toISOString();
     const onlineClients = await getAsync('SELECT COUNT(*) as count FROM scan_sessions WHERE expires_at > ?', [now]);
-    // 累计扫码连接总数
     const totalScanSessions = await getAsync('SELECT COUNT(*) as count FROM scan_sessions');
-    // 今日新增扫码连接数
     const todayScanSessions = await getAsync("SELECT COUNT(*) as count FROM scan_sessions WHERE DATE(created_at)=CURDATE()");
     res.json({
       merchantCount: merchantCount.count,
@@ -2126,7 +1984,7 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员：按门店综合统计
+// 超管：按门店综合统计
 app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
   try {
     const now = new Date().toISOString();
@@ -2146,7 +2004,6 @@ app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员：按门店统计在线扫码会话
 app.get('/api/super/online-sessions', requireSuperAdmin, async (req, res) => {
   try {
     const now = new Date().toISOString();
@@ -2165,7 +2022,6 @@ app.get('/api/super/online-sessions', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员：某门店在线会话详情
 app.get('/api/super/online-sessions/:storeId', requireSuperAdmin, async (req, res) => {
   try {
     const storeId = parseInt(req.params.storeId, 10);
@@ -2184,19 +2040,14 @@ app.get('/api/super/online-sessions/:storeId', requireSuperAdmin, async (req, re
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员：服务器负载监控
 app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
   try {
-    // CPU 使用率：两次采样计算差值
     function getCpuTimes() {
       const cpus = os.cpus();
       let user = 0, nice = 0, sys = 0, idle = 0, irq = 0;
       for (const cpu of cpus) {
-        user += cpu.times.user;
-        nice += cpu.times.nice;
-        sys += cpu.times.sys;
-        idle += cpu.times.idle;
-        irq += cpu.times.irq;
+        user += cpu.times.user; nice += cpu.times.nice; sys += cpu.times.sys;
+        idle += cpu.times.idle; irq += cpu.times.irq;
       }
       return { user, nice, sys, idle, irq, total: user + nice + sys + idle + irq };
     }
@@ -2206,14 +2057,10 @@ app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
     const idleDiff = end.idle - start.idle;
     const totalDiff = end.total - start.total;
     const cpuUsage = totalDiff > 0 ? ((1 - idleDiff / totalDiff) * 100).toFixed(1) : 0;
-
-    // 内存
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
     const memUsage = ((usedMem / totalMem) * 100).toFixed(1);
-
-    // 磁盘使用率（使用 fs.statfs，跨平台兼容）
     let diskUsage = 0, diskTotal = 0, diskUsed = 0;
     try {
       const stats = fs.statfsSync('/');
@@ -2221,44 +2068,21 @@ app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
       diskUsed = (stats.blocks - stats.bfree) * stats.bsize;
       diskUsage = diskTotal > 0 ? ((diskUsed / diskTotal) * 100).toFixed(1) : 0;
     } catch (e) { diskUsage = 0; }
-
-    // 系统运行时间
     const uptimeSeconds = os.uptime();
     const uptimeDays = Math.floor(uptimeSeconds / 86400);
     const uptimeHours = Math.floor((uptimeSeconds % 86400) / 3600);
     const uptimeMins = Math.floor((uptimeSeconds % 3600) / 60);
-
-    // Node.js 进程内存
     const processMem = process.memoryUsage();
-
-    // 负载均衡
     const loadAvg = os.loadavg();
-
     res.json({
-      cpu: {
-        usage: parseFloat(cpuUsage),
-        cores: os.cpus().length,
-        model: os.cpus()[0]?.model || 'Unknown'
-      },
+      cpu: { usage: parseFloat(cpuUsage), cores: os.cpus().length, model: os.cpus()[0]?.model || 'Unknown' },
       memory: {
-        total: totalMem,
-        used: usedMem,
-        free: freeMem,
-        usage: parseFloat(memUsage),
-        processRss: processMem.rss,
-        processHeapUsed: processMem.heapUsed,
-        processHeapTotal: processMem.heapTotal
+        total: totalMem, used: usedMem, free: freeMem, usage: parseFloat(memUsage),
+        processRss: processMem.rss, processHeapUsed: processMem.heapUsed, processHeapTotal: processMem.heapTotal
       },
-      disk: {
-        total: diskTotal,
-        used: diskUsed,
-        free: diskTotal - diskUsed,
-        usage: parseFloat(diskUsage)
-      },
+      disk: { total: diskTotal, used: diskUsed, free: diskTotal - diskUsed, usage: parseFloat(diskUsage) },
       system: {
-        hostname: os.hostname(),
-        platform: os.platform(),
-        arch: os.arch(),
+        hostname: os.hostname(), platform: os.platform(), arch: os.arch(),
         uptime: uptimeSeconds,
         uptimeFormatted: `${uptimeDays}天 ${uptimeHours}时 ${uptimeMins}分`,
         loadAvg: loadAvg.map(v => v.toFixed(2)),
@@ -2268,7 +2092,6 @@ app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员：所有门店总览
 app.get('/api/super/stores', requireSuperAdmin, async (req, res) => {
   try {
     const stores = await allAsync('SELECT s.*, m.name as merchant_name FROM stores s LEFT JOIN merchants m ON s.merchant_id = m.id ORDER BY s.id');
@@ -2276,7 +2099,6 @@ app.get('/api/super/stores', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员：所有登录日志
 app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 200;
@@ -2285,7 +2107,6 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员获取全局设置
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
     const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'cashier_idle_timeout', 'kitchen_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist', 'call_limit_enabled', 'call_limit_max', 'call_limit_window_minutes', 'call_limit_cooldown_minutes', 'auto_clean_log_enabled', 'log_retention_days', 'clean_login_log', 'clean_audit_log', 'kitchen_auto_hide_minutes')");
@@ -2319,7 +2140,6 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员更新全局设置
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
     const { super_idle_timeout, admin_idle_timeout, cashier_idle_timeout, kitchen_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes, auto_clean_log_enabled, log_retention_days, clean_login_log, clean_audit_log, kitchen_auto_hide_minutes } = req.body || {};
@@ -2405,10 +2225,10 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     }
     if (clean_audit_log !== undefined) {
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('clean_audit_log', ?) ON DUPLICATE KEY UPDATE value=?", [clean_audit_log ? '1' : '0', clean_audit_log ? '1' : '0']);
+    }
     if (kitchen_auto_hide_minutes !== undefined) {
       const mins = Math.max(0, Math.min(120, parseInt(kitchen_auto_hide_minutes, 10) || 10));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('kitchen_auto_hide_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
-    }
     }
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_settings', 'settings', null,
       '更新系统全局设置', getClientIp(req));
@@ -2416,7 +2236,6 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员：操作审计日志
 app.get('/api/super/audit-logs', requireSuperAdmin, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 200;
@@ -2425,7 +2244,6 @@ app.get('/api/super/audit-logs', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员登出
 app.post('/api/super/logout', requireSuperAdmin, async (req, res) => {
   try {
     if (req.superSessionToken) {
@@ -2435,7 +2253,6 @@ app.post('/api/super/logout', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 超级管理员修改密码
 app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body || {};
@@ -2451,7 +2268,6 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 商户管理员登出
 app.post('/api/admin/logout', requireAdminKey, async (req, res) => {
   try {
     if (req.adminSessionToken) {
@@ -2466,9 +2282,7 @@ app.get('/api/admin/login-logs', requireAdminKey, async (req, res) => {
     const merchantId = req.merchantId || 1;
     const rows = await allAsync('SELECT * FROM login_logs WHERE merchant_id = ? ORDER BY id DESC LIMIT 200', [merchantId]);
     res.json(rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ----- 服务员登录 -----
@@ -2479,7 +2293,6 @@ app.post('/api/waiter/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username || '', 'waiter', '请输入账号和密码']);
       return res.status(400).json({ error: '请输入服务员账号和密码' });
     }
-    // 登录限流检查
     const lockStatus = await isLoginLocked(username, 'waiter');
     if (lockStatus.locked) {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
@@ -2507,7 +2320,6 @@ app.post('/api/waiter/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-
 // ----- 收银员登录 -----
 app.post('/api/cashier/login', async (req, res) => {
   try {
@@ -2516,12 +2328,10 @@ app.post('/api/cashier/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username || '', 'cashier', '请输入账号和密码']);
       return res.status(400).json({ error: '请输入收银员账号和密码' });
     }
-    // 登录限流检查
     const lockStatus = await isLoginLocked(username, 'cashier');
     if (lockStatus.locked) {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
     }
-    // 遍历所有店铺查找收银员（不依赖前端传递的storeId）
     const allCashierSettings = await allAsync("SELECT `key`, value FROM settings WHERE `key` LIKE 'cashiers_%'");
     let cashier = null;
     let targetStoreId = storeId || 1;
@@ -2547,7 +2357,6 @@ app.post('/api/cashier/login', async (req, res) => {
       return res.status(401).json({ error: '收银员账号或密码错误' });
     }
     resetLoginAttempts(username, 'cashier');
-    // 获取商户ID
     const store = await getAsync('SELECT merchant_id, name FROM stores WHERE id=?', [targetStoreId]);
     const merchantId = store?.merchant_id || 1;
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, merchantId, 'cashier', '收银员登录成功']);
@@ -2581,6 +2390,20 @@ app.post('/api/cashier/logout', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 收银员鉴权中间件
+async function requireCashier(req, res, next) {
+  try {
+    const cashier = await getCashierFromRequest(req);
+    if (!cashier) return res.status(401).json({ error: '请先登录收银员账号' });
+    req.cashier = cashier;
+    req.storeId = cashier.store_id || 1;
+    req.merchantId = cashier.merchant_id || 1;
+    next();
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+}
+
 // ----- 收银员订单列表 -----
 app.get('/api/cashier/orders', requireCashier, async (req, res) => {
   try {
@@ -2589,7 +2412,6 @@ app.get('/api/cashier/orders', requireCashier, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 收银员订单详情 -----
 app.get('/api/cashier/orders/:id', requireCashier, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -2599,7 +2421,6 @@ app.get('/api/cashier/orders/:id', requireCashier, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 收银员批量结算（勾选多订单一起结） -----
 app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => {
   try {
     if (!req.cashier.permissions?.can_settle) return res.status(403).json({ error: '没有结算订单权限' });
@@ -2608,8 +2429,12 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     const placeholders = orderIds.map(() => '?').join(',');
     const orders = await allAsync('SELECT * FROM orders WHERE id IN (' + placeholders + ') AND store_id=? AND status=\'pending\'', [...orderIds, req.storeId]);
     if (!orders.length) return res.status(400).json({ error: '没有可结算的待处理订单' });
-    // Check all items done for each order
-    for (const o of orders) { try { const items = JSON.parse(o.items || '[]'); if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 存在未完成菜品，无法结算' }); } catch(e) { return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 数据异常' }); } }
+    for (const o of orders) {
+      try {
+        const items = JSON.parse(o.items || '[]');
+        if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 存在未完成菜品，无法结算' });
+      } catch(e) { return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 数据异常' }); }
+    }
     const now = new Date().toISOString();
     const totalAmount = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
     const tableNames = [...new Set(orders.map(o => o.table_name))];
@@ -2636,7 +2461,6 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 收银员批量打印合并小票 -----
 app.post('/api/cashier/orders/batch-print', requireCashier, async (req, res) => {
   try {
     const orderIds = (req.body?.order_ids || []).map(id => parseInt(id)).filter(id => !isNaN(id));
@@ -2659,10 +2483,8 @@ app.post('/api/cashier/orders/batch-print', requireCashier, async (req, res) => 
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 收银员结算订单 -----
 app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
   try {
-    // 权限检查
     if (!req.cashier.permissions?.can_settle) {
       return res.status(403).json({ error: '没有结算订单权限' });
     }
@@ -2671,11 +2493,12 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status === 'done') return res.status(400).json({ error: '订单已结算' });
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
-    // Check all items done
-    try { const items = JSON.parse(order.items || '[]'); if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '存在未完成菜品，无法结算' }); } catch(e) { return res.status(400).json({ error: '订单数据异常' }); }
+    try {
+      const items = JSON.parse(order.items || '[]');
+      if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '存在未完成菜品，无法结算' });
+    } catch(e) { return res.status(400).json({ error: '订单数据异常' }); }
     await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
     await syncTableStatus(order.table_name, req.storeId);
-    // 记录操作日志
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
@@ -2683,10 +2506,8 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 收银员取消订单 -----
 app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
   try {
-    // 权限检查
     if (!req.cashier.permissions?.can_cancel) {
       return res.status(403).json({ error: '没有取消订单权限' });
     }
@@ -2697,16 +2518,13 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     if (order.status === 'done') return res.status(400).json({ error: '已结算订单不能取消，请使用退款' });
     await runAsync("UPDATE orders SET status='canceled', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
     await syncTableStatus(order.table_name, req.storeId);
-    // 记录操作日志
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), new Date().toISOString()]);
     res.json({ success: true, message: '取消成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 收银员退款 -----
 app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
   try {
-    // 权限检查
     if (!req.cashier.permissions?.can_refund) {
       return res.status(403).json({ error: '没有退款权限' });
     }
@@ -2715,16 +2533,13 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status !== 'done') return res.status(400).json({ error: '只有已结算订单才能退款' });
     await runAsync("UPDATE orders SET status='refunded', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
-    // 记录操作日志
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'refund_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     res.json({ success: true, message: '退款成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 收银员今日报表 -----
 app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
   try {
-    // 权限检查
     if (!req.cashier.permissions?.can_view_report) {
       return res.status(403).json({ error: '没有查看报表权限' });
     }
@@ -2756,7 +2571,7 @@ app.get('/api/waiter/overview', async (req, res) => {
   }
 });
 
-// ----- 服务员管理（管理员）-----
+// ----- 服务员管理 -----
 app.get('/api/admin/waiters', requireAdminKey, async (req, res) => {
   try {
     const rows = await allAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE store_id=? ORDER BY id', [req.storeId]);
@@ -2818,7 +2633,6 @@ app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_sto
   try {
     const { name, code, address } = req.body || {};
     if (!name) return res.status(400).json({ error: '店铺名称必填' });
-    // 门店数量限制校验
     const merchantId = req.merchantId || 1;
     const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [merchantId]);
     const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores WHERE merchant_id=?', [merchantId]);
@@ -2855,10 +2669,8 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
 app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const targetStoreId = parseInt(req.params.id);
-    // 校验目标店铺属于当前商户
     const targetStore = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
     if (!targetStore) return res.status(404).json({ error: '店铺不存在' });
-    // 源店铺：当前商户的第一个店铺（总店）
     const sourceStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.merchantId]);
     if (!sourceStore) return res.status(400).json({ error: '未找到源店铺' });
     const sourceStoreId = sourceStore.id;
@@ -3101,8 +2913,7 @@ app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), 
   }
 });
 
-
-// ----- 转移订单到其他桌 -----
+// ----- 转移订单 -----
 app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
   try {
     const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
@@ -3116,9 +2927,7 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=?', [targetTable, storeId]);
     if (!target) return res.status(404).json({ error: '目标桌不存在' });
     const oldTable = order.table_name;
-    // 检查目标桌是否有未结订单
     const targetPending = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [targetTable, storeId]);
-    // 查出目标桌当前活跃的扫码 session；没有就自动创建一个
     const nowIso = new Date().toISOString();
     const targetSession = await getAsync(
       "SELECT token FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
@@ -3138,7 +2947,6 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     await runAsync('UPDATE orders SET table_name=?, session_token=? WHERE id=?', [targetTable, newToken, orderId]);
     await syncTableStatus(oldTable, storeId);
     await syncTableStatus(targetTable, storeId);
-    // 清空原桌所有未过期的扫码 session
     await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ?', [oldTable, storeId, new Date().toISOString()]);
     const actorType = req.waiter ? 'waiter' : 'admin';
     const actorName = req.waiter ? req.waiter.display_name : 'admin';
@@ -3155,41 +2963,24 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
   try {
     const id = parseInt(req.params.id);
     const index = parseInt(req.params.index);
-    
-    // 1. 查询订单
     const row = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
     if (!row) return res.status(404).json({ error: '订单不存在' });
-    
-    // 2. 权限检查
     const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
     if (row.store_id !== orderStoreId) return res.status(403).json({ error: '无权操作此订单' });
     if (!req.isAdmin && req.waiter && !req.waiter.can_mark_item) return res.status(403).json({ error: '该服务员没有标记菜品权限' });
     if (row.status === 'done') return res.status(409).json({ error: '已结算订单不能修改菜品状态' });
-    
-    // 3. 解析 items（与 formatOrder 一致）
     let items = row.items;
     if (typeof items === 'string') {
-      try {
-        items = JSON.parse(items);
-      } catch (e) {
-        console.error(`订单 ${id} 的 items 解析失败:`, items, e);
-        items = [];
-      }
+      try { items = JSON.parse(items); } catch (e) { console.error(`订单 ${id} 的 items 解析失败:`, items, e); items = []; }
     } else if (!Array.isArray(items)) {
       items = [];
     }
-    
-    // 4. 校验序号
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: `该订单暂无菜品，无法切换状态（订单ID: ${id}）` });
     }
     if (index < 0 || index >= items.length) {
-      return res.status(400).json({ 
-        error: `菜品序号无效，当前共 ${items.length} 道菜品，请求序号 ${index}（从0开始）`
-      });
+      return res.status(400).json({ error: `菜品序号无效，当前共 ${items.length} 道菜品，请求序号 ${index}（从0开始）` });
     }
-    
-    // 5. 退菜操作（按数量退回）
     if (req.body.returnQty !== undefined && req.body.returnQty !== null) {
       const returnQty = parseInt(req.body.returnQty) || 0;
       const qty = Number(items[index].quantity) || 1;
@@ -3197,11 +2988,9 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
         return res.status(400).json({ error: '退回数量无效' });
       }
       items[index].returnedQty = returnQty;
-      // 扣减销量统计
       if (items[index].id) {
         await runAsync('UPDATE menus SET sales_count = GREATEST(0, sales_count - ?) WHERE id = ?', [returnQty, items[index].id]);
       }
-      // 重算订单总价
       const newTotal = items.reduce((sum, it) => {
         const price = Number(it.base_price || it.price) || 0;
         const q = Number(it.quantity) || 0;
@@ -3212,23 +3001,17 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
       const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
       return res.json(formatOrder(updatedRow));
     }
-
-    // 6. 检查是否已完成
     if (items[index].itemStatus === 'done' && req.body.itemStatus !== 'done') {
       return res.status(409).json({ error: '已完成菜品不能改回制作中' });
     }
-    
-    // 7. 更新状态
     const nextStatus = req.body.itemStatus === 'done' ? 'done' : 'pending';
     items[index].itemStatus = nextStatus;
     await runAsync('UPDATE orders SET items=? WHERE id=?', [JSON.stringify(items), id]);
     const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
     const updatedOrder = formatOrder(updatedRow);
-    // Socket.io 推送
     io.to('kitchen-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     io.to('waiter-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     res.json(updatedOrder);
-    
   } catch (e) {
     console.error('切换菜品状态失败:', e);
     res.status(500).json({ error: e.message });
@@ -3255,8 +3038,6 @@ app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'
       throw e;
     }
     if (newName !== existing.name) {
-      // 桌号改名后，同步更新该桌尚未结算的订单的桌号，避免改名后订单与桌号对不上；
-      // 已结算的历史订单保留原桌号，便于对账。
       await runAsync("UPDATE orders SET table_name=? WHERE table_name=? AND store_id=? AND status=\"pending\"", [newName, existing.name, req.storeId]);
     }
     const updated = await getAsync('SELECT * FROM tables WHERE id = ?', [id]);
@@ -3280,7 +3061,7 @@ app.delete('/api/tables/:id', requireAdminKey, requirePermission('can_manage_tab
   }
 });
 
-// ----- 订单 -----
+// ----- 订单列表 -----
 app.get('/api/orders', requireAdminOrWaiter, async (req, res) => {
   try {
     let storeId;
@@ -3316,9 +3097,12 @@ app.get('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   }
 });
 
+// ============================================================
+//  POST /api/orders（事务包裹 + 订单号序列化 + 结构化错误码）
+// ============================================================
 app.post('/api/orders', async (req, res) => {
   try {
-    // 支持两种认证方式：Authorization Bearer token（管理员）和 X-Admin-Key（旧版兼容）
+    // ---------- 1. 认证 ----------
     const adminAuth = await authenticateAdmin(req);
     const adminKey = req.get('X-Admin-Key');
     const keySetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
@@ -3327,7 +3111,6 @@ app.post('/api/orders', async (req, res) => {
       req.adminId = adminAuth.adminId;
       req.merchantId = adminAuth.merchantId;
       req.storeId = adminAuth.storeId;
-      // 管理员下单权限检查（主管理员除外）
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [req.adminId]);
       if (admin) {
         const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.merchantId]);
@@ -3340,6 +3123,8 @@ app.post('/api/orders', async (req, res) => {
     const waiter = await getWaiterFromRequest(req);
     const isWaiter = Boolean(waiter && waiter.can_order);
     if (waiter && !waiter.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
+
+    // ---------- 2. 会话/桌号校验 ----------
     let sessionToken = null;
     let customerToken = '';
     let sessionStoreId = null;
@@ -3361,85 +3146,109 @@ app.post('/api/orders', async (req, res) => {
     const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, sessionStoreId || req.storeId || 1]);
     const storeId = tableStore?.store_id || sessionStoreId || req.storeId || 1;
     if (isWaiter && waiter.store_id !== storeId) return res.status(403).json({ error: '不能为其他店铺的桌号下单' });
-    // 确定最终的storeId：优先使用session中的store_id，其次使用桌号查询的store_id
     const finalStoreId = sessionStoreId || storeId;
+
+    // ---------- 3. 冷却检查 ----------
     const cooldownKey = sessionToken || table;
-    const now = Date.now();
     const cooldownMs = await getOrderCooldownMs();
     const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs || 3000);
     if (!canSubmit) {
       return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
     }
+
+    // ---------- 4. 菜品规范化与上限校验 ----------
     const items = await normalizeOrderItems(req.body.items, finalStoreId);
+
     const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
     const maxItems = parseInt(maxItemsRow?.value || '50', 10);
-    if (items.length > maxItems) return res.status(400).json({ error: `单次下单菜品数量不能超过${maxItems}种` });
+    if (items.length > maxItems) {
+      return res.status(400).json({
+        error: `单次下单菜品数量不能超过${maxItems}种`,
+        code: 'ORDER_ITEM_TYPES_EXCEEDED',
+        limit: maxItems,
+        actual: items.length,
+      });
+    }
+
     const maxQtyRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_item_quantity'");
     const maxQty = parseInt(maxQtyRow?.value || '100', 10);
     for (const item of items) {
-      if (Number(item.quantity) > maxQty) return res.status(400).json({ error: `单个菜品数量不能超过${maxQty}份` });
+      if (Number(item.quantity) > maxQty) {
+        return res.status(400).json({
+          error: `单个菜品数量不能超过${maxQty}份`,
+          code: 'ITEM_QTY_EXCEEDED',
+          limit: maxQty,
+          actual: Number(item.quantity),
+          itemId: item.id,
+          itemName: item.name,
+        });
+      }
     }
+
     const calculatedTotal = items.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
     const itemsJson = JSON.stringify(items);
     const createdAt = new Date().toISOString();
-    // 顾客备注：仅接受字符串，去除首尾空白，限制长度，防止异常输入
+
+    // ---------- 5. 备注处理 ----------
     let note = typeof req.body.note === 'string' ? req.body.note.trim() : '';
     const maxNoteRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_note_length'");
     const maxNoteLen = parseInt(maxNoteRow?.value || '200', 10);
     if (note.length > maxNoteLen) note = note.slice(0, maxNoteLen);
-    // 生成订单号：前缀(2位) + YYMMDD + 5位序号
+
+    // ---------- 6. 计算订单号前缀 ----------
     const prefixRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_prefix_normal'");
     const orderPrefix = (prefixRow?.value || '11').padStart(2, '0').slice(-2);
     const yyddmm = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const todayPrefix = orderPrefix + yyddmm;
-    // 序号重置周期：daily(每天) / monthly(每月) / yearly(每年) / never(不重置)
     const resetRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_no_reset_period'");
     const resetPeriod = resetRow?.value || 'daily';
-    let seqFilter = '';
-    if (resetPeriod === 'daily') {
-      seqFilter = todayPrefix;
-    } else if (resetPeriod === 'monthly') {
-      seqFilter = orderPrefix + yyddmm.slice(0, 4); // prefix + YYMM
-    } else if (resetPeriod === 'yearly') {
-      seqFilter = orderPrefix + yyddmm.slice(0, 2); // prefix + YY
-    }
-    let maxSeqRow;
-    if (seqFilter) {
-      maxSeqRow = await getAsync("SELECT MAX(CAST(SUBSTRING(order_no, 9) AS UNSIGNED)) as maxseq FROM orders WHERE order_no LIKE CONCAT(?, '%')", [seqFilter]);
-    } else {
-      // never：全局最大序号
-      maxSeqRow = await getAsync("SELECT MAX(CAST(SUBSTRING(order_no, 9) AS UNSIGNED)) as maxseq FROM orders WHERE order_no IS NOT NULL AND order_no != ''");
-    }
-    const seq = String((maxSeqRow?.maxseq || 0) + 1).padStart(5, '0');
-    const orderNo = todayPrefix + seq;
-    const result = await runAsync(
-      'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, customerToken, finalStoreId, note]
-    );
-    // 二维码无操作过期：下单后重置session过期时间（从下单时间开始重新计算）
-    if (sessionToken) {
-      try {
-        const qrTimeoutRow = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
-        const qrTimeoutMins = parseInt(qrTimeoutRow?.value || '45', 10);
-        if (qrTimeoutMins > 0) {
-          const newExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
-          await runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newExpires, sessionToken]);
+    let seqPrefix = todayPrefix;
+    if (resetPeriod === 'monthly') seqPrefix = orderPrefix + yyddmm.slice(0, 4);
+    else if (resetPeriod === 'yearly') seqPrefix = orderPrefix + yyddmm.slice(0, 2);
+    else if (resetPeriod === 'never') seqPrefix = orderPrefix + 'global';
+
+    // ---------- 7. 事务：分配订单号 + 写订单 + 更新销量 + 更新桌台 + 重置会话 ----------
+    let createdOrder;
+    try {
+      createdOrder = await withTransaction(async () => {
+        const orderNo = await allocateOrderNo(seqPrefix);
+        const result = await runAsync(
+          'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, customerToken, finalStoreId, note]
+        );
+        for (const item of items) {
+          if (item.id) {
+            await runAsync(
+              'UPDATE menus SET sales_count = sales_count + ? WHERE id = ? AND store_id = ?',
+              [Number(item.quantity) || 1, item.id, finalStoreId]
+            );
+          }
         }
-      } catch (e) {}
-    }
-    // 更新菜品销量
-    for (const item of items) {
-      if (item.id) {
-        await runAsync('UPDATE menus SET sales_count = sales_count + ? WHERE id = ? AND store_id = ?', [Number(item.quantity) || 1, item.id, finalStoreId]);
+        await syncTableStatus(table, finalStoreId);
+        if (sessionToken) {
+          const qrTimeoutRow = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
+          const qrTimeoutMins = parseInt(qrTimeoutRow?.value || '45', 10);
+          if (qrTimeoutMins > 0) {
+            const newExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
+            await runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newExpires, sessionToken]);
+          }
+        }
+        return { orderId: result.lastID, orderNo };
+      });
+    } catch (e) {
+      if (e && e.code === 'ER_DUP_ENTRY' && String(e.message).includes('idx_order_no')) {
+        console.error('[order] order_no 唯一约束冲突，可能序列化表被手动修改:', e.message);
+        return res.status(409).json({ error: '订单号冲突，请重试', code: 'ORDER_NO_CONFLICT' });
       }
+      throw e;
     }
-    const newRow = await getAsync('SELECT * FROM orders WHERE id = ?', [result.lastID]);
-    await syncTableStatus(table, finalStoreId);
-    // 返回新的session过期时间，供前端同步
-    // 自动打印小票
+
+    // ---------- 8. 事务外：查询 + 打印 + Socket ----------
+    const newRow = await getAsync('SELECT * FROM orders WHERE id = ?', [createdOrder.orderId]);
+
     try {
       const autoPrintRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${finalStoreId}`]);
-      const autoPrintEnabled = !autoPrintRow || autoPrintRow.value === '1' || autoPrintRow.value === 'true'; // 默认开启
+      const autoPrintEnabled = !autoPrintRow || autoPrintRow.value === '1' || autoPrintRow.value === 'true';
       if (autoPrintEnabled) {
         const defaultPrinter = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [finalStoreId]);
         if (defaultPrinter && defaultPrinter.type === 'network' && defaultPrinter.ip_address) {
@@ -3447,7 +3256,6 @@ app.post('/api/orders', async (req, res) => {
           const printData = buildReceipt(newRow, storeInfo, defaultPrinter);
           try {
             await printToNetworkPrinter(printData, defaultPrinter.ip_address, defaultPrinter.port);
-
           } catch (printErr) {
             console.error(`[AutoPrint] Failed to print order #${newRow.id}:`, printErr.message);
           }
@@ -3457,17 +3265,25 @@ app.post('/api/orders', async (req, res) => {
       console.error('[AutoPrint] Error:', autoPrintErr.message);
     }
 
-    // Socket.io 实时推送给后厨和服务员
     const orderData = formatOrder(newRow);
     io.to('kitchen-' + (newRow.store_id || 1)).emit('order:new', orderData);
     io.to('waiter-' + (newRow.store_id || 1)).emit('order:new', orderData);
-    const responseData = { success: true, orderId: newRow.id, orderNo: newRow.order_no || '', order: orderData };
+    io.to('cashier-' + (newRow.store_id || 1)).emit('order:new', orderData);
+    io.to('public-store-' + (newRow.store_id || 1)).emit('order:new', orderData);
+
+    const responseData = {
+      success: true,
+      orderId: newRow.id,
+      orderNo: newRow.order_no || '',
+      order: orderData
+    };
     if (sessionToken) {
       const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
       if (updatedSession) responseData.newExpiresAt = updatedSession.expires_at;
     }
     res.status(201).json(responseData);
   } catch (e) {
+    console.error('[POST /api/orders] 错误:', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -3480,20 +3296,15 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
     if (existing.status === 'done') return res.status(409).json({ error: '已完成订单不能编辑' });
-    // 管理员修改订单需要 can_edit_order 权限
     if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_edit_order)) {
       return res.status(403).json({ error: '无权修改订单' });
     }
-
-    // 解析现有 items（与 formatOrder 一致）
     let currentItems = existing.items;
     if (typeof currentItems === 'string') {
       try { currentItems = JSON.parse(currentItems); } catch (_) { currentItems = []; }
     } else if (!Array.isArray(currentItems)) {
       currentItems = [];
     }
-
-    // 如果请求中没有 items，则保留当前 items；否则使用新的（需要规范化和验证）
     let newItems = [];
     if (items === undefined || items === null) {
       newItems = currentItems;
@@ -3504,9 +3315,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       if (items.length === 0) {
         newItems = [];
       } else {
-        // 规范化新 items（从菜单中获取最新价格等信息）
         newItems = await normalizeOrderItems(items, orderStoreId);
-        // 保留原有的 itemStatus（如果前端传了）
         for (let i = 0; i < newItems.length; i++) {
           if (items[i] && (items[i].itemStatus === 'done' || items[i].itemStatus === 'pending')) {
             newItems[i].itemStatus = items[i].itemStatus;
@@ -3514,11 +3323,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         }
       }
     }
-
-    // 计算总价
     const calculatedTotal = newItems.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
-
-    // 如果状态要改为 done，检查服务员权限和是否所有菜品都已完成
     if (status === 'done') {
       if (!req.isAdmin && req.waiter && !req.waiter.can_complete_order) {
         return res.status(403).json({ error: '该服务员没有结算订单权限' });
@@ -3527,29 +3332,19 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         return res.status(409).json({ error: '存在未完成菜品，请先完成或删除该菜品后再结算订单' });
       }
     }
-
-    // 处理桌号更新
     const nextTable = table === undefined ? existing.table_name : await assertTableExists(table, orderStoreId);
-
-    // 序列化 items 为 JSON 字符串存储
     const itemsJson = JSON.stringify(newItems);
-
-    // 处理备注更新（未传则保留原值）
     let nextNote = existing.note || '';
     if (typeof note === 'string') {
       nextNote = note.trim().slice(0, 200);
     }
-
-    // 更新订单
     await runAsync(
       'UPDATE orders SET table_name=?, items=?, total=?, status=?, note=? WHERE id=?',
       [nextTable, itemsJson, calculatedTotal, status || existing.status, nextNote, id]
     );
-
     const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
     await syncTableStatus(nextTable, orderStoreId);
     if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
-
     res.json(formatOrder(updatedRow));
   } catch (e) {
     console.error('更新订单失败:', e);
@@ -3561,8 +3356,12 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
   try {
     const id = req.params.id;
     const { password } = req.body || {};
-    if (!password || !(await verifyLegacyAdminPassword(password))) {
-      return res.status(401).json({ error: '管理员密码验证失败' });
+    if (!password) {
+      return res.status(400).json({ error: '请输入管理员密码' });
+    }
+    const currentAdmin = await getAsync('SELECT password_hash FROM merchant_admins WHERE id=?', [req.adminId]);
+    if (!currentAdmin || !verifyPassword(password, currentAdmin.password_hash)) {
+      return res.status(401).json({ error: '密码错误' });
     }
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
@@ -3575,12 +3374,11 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
   }
 });
 
-// ----- 呼叫服务员（含次数限制） -----
+// ----- 呼叫服务员 -----
 app.post('/api/public/call-waiter', async (req, res) => {
   try {
     const { table, sessionToken } = req.body || {};
     if (!table) return res.status(400).json({ error: '桌号不能为空' });
-    // 通过 sessionToken 获取 store_id，无 token 时兜底为 1
     let callStoreId = req.storeId || 1;
     if (sessionToken) {
       const session = await getAsync('SELECT store_id FROM scan_sessions WHERE token=?', [sessionToken]);
@@ -3588,7 +3386,6 @@ app.post('/api/public/call-waiter', async (req, res) => {
     }
     const tableRow = await getAsync('SELECT id, store_id FROM tables WHERE name=? AND store_id=?', [table, callStoreId]);
     if (!tableRow) return res.status(404).json({ error: '桌号不存在' });
-    // 读取呼叫限制配置
     const limitRows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('call_limit_enabled','call_limit_max','call_limit_window_minutes','call_limit_cooldown_minutes')");
     const limitCfg = {};
     limitRows.forEach(r => { limitCfg[r.key] = r.value; });
@@ -3597,7 +3394,6 @@ app.post('/api/public/call-waiter', async (req, res) => {
     const windowMinutes = parseInt(limitCfg.call_limit_window_minutes || '5', 10);
     const cooldownMinutes = parseInt(limitCfg.call_limit_cooldown_minutes || '10', 10);
     if (limitEnabled) {
-      // 查询时间窗口内该桌号的呼叫次数
       const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
       const countRow = await getAsync(
         "SELECT COUNT(*) AS cnt FROM waiter_calls WHERE table_name=? AND store_id=? AND (type='call' OR type='' OR type IS NULL) AND created_at >= ?",
@@ -3605,7 +3401,6 @@ app.post('/api/public/call-waiter', async (req, res) => {
       );
       const callCount = countRow?.cnt || 0;
       if (callCount >= maxCalls) {
-        // 查询最后一次呼叫时间，计算剩余冷却时间
         const lastCall = await getAsync(
           "SELECT created_at FROM waiter_calls WHERE table_name=? AND store_id=? AND (type='call' OR type='' OR type IS NULL) ORDER BY created_at DESC LIMIT 1",
           [table, tableRow.store_id]
@@ -3627,7 +3422,6 @@ app.post('/api/public/call-waiter', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 获取呼叫列表（服务员/管理员） -----
 app.get('/api/waiter-calls', requireAdminOrWaiter, async (req, res) => {
   try {
     const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
@@ -3639,7 +3433,6 @@ app.get('/api/waiter-calls', requireAdminOrWaiter, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 处理呼叫 -----
 app.put('/api/waiter-calls/:id/handle', requireAdminOrWaiter, async (req, res) => {
   try {
     const id = req.params.id;
@@ -3655,7 +3448,7 @@ app.put('/api/waiter-calls/:id/handle', requireAdminOrWaiter, async (req, res) =
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 桌台预约 -----
+// ----- 预约 -----
 app.post('/api/public/reservations', async (req, res) => {
   try {
     const { table, customerName, phone, reservationTime, guests } = req.body || {};
@@ -3673,7 +3466,6 @@ app.post('/api/public/reservations', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 获取预约列表 -----
 app.get('/api/admin/reservations', requireAdminKey, async (req, res) => {
   try {
     const storeId = req.storeId || 1;
@@ -3685,7 +3477,6 @@ app.get('/api/admin/reservations', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 更新预约状态 -----
 app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -3696,7 +3487,6 @@ app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_m
       return res.status(400).json({ error: '无效的预约状态' });
     }
     await runAsync('UPDATE reservations SET status=? WHERE id=? AND store_id=?', [status, id, req.storeId]);
-    // 如果预约取消或完成，且桌台仍为 reserved，恢复为 available
     if (status === 'canceled' || status === 'completed') {
       const table = await getAsync('SELECT id, status FROM tables WHERE name=? AND store_id=?', [reservation.table_name, req.storeId]);
       if (table && table.status === 'reserved') {
@@ -3708,7 +3498,7 @@ app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_m
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 订单打印数据 -----
+// ----- 订单打印 -----
 app.get('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) => {
   try {
     const row = await getAsync('SELECT * FROM orders WHERE id = ?', [req.params.id]);
@@ -3771,7 +3561,6 @@ app.delete('/api/admin/printers/:id', requireAdminKey, requirePermission('can_ma
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 执行打印 -----
 app.post('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) => {
   try {
     const id = req.params.id;
@@ -3787,10 +3576,7 @@ app.post('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) =
     } else {
       printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [row.store_id || 1]);
     }
-
     const printData = buildReceipt(order, store, printer);
-
-    // 如果指定了网络打印机，直接发送打印
     if (printer && printer.type === 'network' && printer.ip_address) {
       try {
         await printToNetworkPrinter(printData, printer.ip_address, printer.port);
@@ -3799,13 +3585,10 @@ app.post('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) =
         return res.status(502).json({ success: false, error: e.message, printData: printData.toString('base64') });
       }
     }
-
-    // 否则返回打印数据，由前端处理（浏览器打印/WebUSB）
     res.json({ success: true, printed: false, printData: printData.toString('base64'), message: '请使用前端打印' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 后厨打印 -----
 app.post('/api/orders/:id(\\d+)/print-kitchen', requireAdminOrWaiter, async (req, res) => {
   try {
     const id = req.params.id;
@@ -3815,7 +3598,6 @@ app.post('/api/orders/:id(\\d+)/print-kitchen', requireAdminOrWaiter, async (req
     const store = await getAsync('SELECT name, address FROM stores WHERE id=?', [row.store_id || 1]);
     const printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [row.store_id || 1]);
     const printData = buildKitchenTicket(order, store, printer);
-
     if (printer && printer.type === 'network' && printer.ip_address) {
       try {
         await printToNetworkPrinter(printData, printer.ip_address, printer.port);
@@ -3828,20 +3610,17 @@ app.post('/api/orders/:id(\\d+)/print-kitchen', requireAdminOrWaiter, async (req
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 测试打印 -----
-// 自动打印设置 - 获取
 app.get('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
   try {
     const storeId = req.storeId || 1;
     const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${storeId}`]);
-    const enabled = row ? (row.value === '1' || row.value === 'true') : true; // 默认开启
+    const enabled = row ? (row.value === '1' || row.value === 'true') : true;
     res.json({ enabled: enabled });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// 订单号前缀配置 - 读取
 app.get('/api/admin/order-prefixes', requireAdminKey, async (req, res) => {
   try {
     const keys = ['order_prefix_normal', 'order_prefix_refund', 'order_prefix_discount', 'order_prefix_vip', 'order_no_reset_period'];
@@ -3859,7 +3638,6 @@ app.get('/api/admin/order-prefixes', requireAdminKey, async (req, res) => {
   }
 });
 
-// 订单号前缀配置 - 保存
 app.post('/api/admin/order-prefixes', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const { normal, refund, discount, vip, daily_reset } = req.body || {};
@@ -3879,7 +3657,6 @@ app.post('/api/admin/order-prefixes', requireAdminKey, requirePermission('can_ma
   }
 });
 
-// 自动打印设置 - 保存
 app.post('/api/admin/settings/auto-print', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
   try {
     const storeId = req.storeId || 1;
@@ -3921,18 +3698,16 @@ app.post('/api/admin/printers/test', requireAdminKey, requirePermission('can_man
     pos.line('如果您看到此内容，说明打印机正常工作！');
     pos.newline(2);
     pos.cut(1);
-
     await printToNetworkPrinter(pos.build(), printer.ip_address, printer.port);
     res.json({ success: true, message: '测试打印已发送' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 数据导出（CSV） -----
+// ----- 数据导出 -----
 app.get('/api/admin/export/:type', requireAdminKey, async (req, res) => {
   try {
     const type = req.params.type;
     let rows = [], filename = '', headers = [];
-
     if (type === 'orders') {
       rows = await allAsync('SELECT * FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000', [req.storeId]);
       filename = `orders_${new Date().toISOString().slice(0,10)}.csv`;
@@ -3942,7 +3717,6 @@ app.get('/api/admin/export/:type', requireAdminKey, async (req, res) => {
       filename = `menu_${new Date().toISOString().slice(0,10)}.csv`;
       headers = ['ID','名称','英文名','价格','货币','分类','单位','状态'];
     } else if (type === 'sales') {
-      // 销量统计
       rows = await allAsync(`
         SELECT m.id, m.name, m.price, SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)) AS total_qty,
                SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS DECIMAL(10,2)) * m.price) AS total_revenue
@@ -3959,8 +3733,6 @@ app.get('/api/admin/export/:type', requireAdminKey, async (req, res) => {
     } else {
       return res.status(400).json({ error: '不支持的导出类型' });
     }
-
-    // 生成 CSV
     const csvRows = [headers.join(',')];
     for (const row of rows) {
       if (type === 'orders') {
@@ -3971,8 +3743,7 @@ app.get('/api/admin/export/:type', requireAdminKey, async (req, res) => {
         csvRows.push([row.id, `"${row.name}"`, row.price, row.total_qty || 0, row.total_revenue || 0].join(','));
       }
     }
-    const csv = '\uFEFF' + csvRows.join('\n'); // BOM for Excel
-
+    const csv = '\uFEFF' + csvRows.join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
@@ -3985,8 +3756,6 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
     const date = req.query.date || new Date().toISOString().slice(0, 10);
     const startOfDay = new Date(date + 'T00:00:00.000Z');
     const endOfDay = new Date(date + 'T23:59:59.999Z');
-
-    // 当日订单统计
     const orderStats = await getAsync(`
       SELECT
         COUNT(*) AS total_orders,
@@ -3997,8 +3766,6 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
       FROM orders
       WHERE store_id=? AND createdAt >= ? AND createdAt <= ?
     `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
-
-    // 各桌台收入
     const tableRevenue = await allAsync(`
       SELECT table_name, COUNT(*) AS orders, SUM(total) AS revenue
       FROM orders
@@ -4006,8 +3773,6 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
       GROUP BY table_name
       ORDER BY revenue DESC
     `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
-
-    // 菜品销量排行（当日）
     const dishRanking = await allAsync(`
       SELECT m.name, m.emoji,
              SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
@@ -4022,8 +3787,6 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
       ORDER BY quantity DESC
       LIMIT 10
     `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
-
-    // 时段分布：按选定日期，每10分钟一个桶
     const hourlyStats = await allAsync(`
       SELECT CONCAT(LPAD(HOUR(createdAt),2,'0'), ':', LPAD(FLOOR(MINUTE(createdAt)/10)*10, 2, '0')) AS time_bucket,
              COUNT(*) AS orders, SUM(total) AS revenue
@@ -4032,7 +3795,6 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
       GROUP BY time_bucket
       ORDER BY time_bucket
     `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
-
     res.json({
       date,
       summary: {
@@ -4049,7 +3811,6 @@ app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 营业汇总：今日营业额、本月营业额、热销菜品排行
 app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
   try {
     const now = new Date();
@@ -4057,17 +3818,14 @@ app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-
     const todayStats = await getAsync(`
       SELECT COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
       FROM orders WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt <= ?
     `, [req.storeId, todayStart.toISOString(), todayEnd.toISOString()]);
-
     const monthStats = await getAsync(`
       SELECT COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
       FROM orders WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt <= ?
     `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
-
     const topDishes = await allAsync(`
       SELECT m.id, m.name, m.emoji, m.price, m.category,
              SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
@@ -4081,7 +3839,6 @@ app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
       HAVING sales_count > 0
       ORDER BY sales_count DESC LIMIT 10
     `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
-
     res.json({
       today: { revenue: Number(todayStats?.revenue || 0), orders: todayStats?.orders || 0 },
       month: { revenue: Number(monthStats?.revenue || 0), orders: monthStats?.orders || 0 },
@@ -4090,7 +3847,6 @@ app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 账户信息（只读）
 app.get('/api/admin/info', requireAdminKey, async (req, res) => {
   try {
     const admin = await getAsync('SELECT id, username, display_name, merchant_id, created_at, last_login_at, active FROM merchant_admins WHERE id=?', [req.adminId]);
@@ -4100,35 +3856,35 @@ app.get('/api/admin/info', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 获取全局配置（包含超时设置）
 app.get('/api/public/global-config', async (req, res) => {
   try {
     const idleSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
     const qrSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
     const intervalSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'order_interval_seconds'");
+    const cashierIdle = await getAsync("SELECT value FROM settings WHERE `key` = 'cashier_idle_timeout'");
+    const kitchenIdle = await getAsync("SELECT value FROM settings WHERE `key` = 'kitchen_idle_timeout'");
     res.json({
       admin_idle_timeout: parseInt(idleSetting?.value || '30', 10),
       qr_session_timeout: parseInt(qrSetting?.value || '45', 10),
       order_interval_seconds: parseInt(intervalSetting?.value || '30', 10),
+      cashier_idle_timeout: parseInt(cashierIdle?.value || '30', 10),
+      kitchen_idle_timeout: parseInt(kitchenIdle?.value || '120', 10),
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 催单（顾客催单） -----
+// ----- 催单 -----
 app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
   try {
     const id = req.params.id;
     const order = await getAsync('SELECT * FROM orders WHERE id=?', [id]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status !== 'pending') return res.status(400).json({ error: '订单已完成或已取消' });
-
-    // 记录催单（使用 waiter_calls 表，type=urge）
     const callId = crypto.randomBytes(16).toString('hex');
     await runAsync(
       'INSERT INTO waiter_calls (id, table_name, type, message, status, store_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [callId, order.table_name, 'urge', `订单 #${id} 顾客催单`, 'pending', order.store_id || 1, new Date().toISOString()]
     );
-
     io.to('kitchen-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
     io.to('waiter-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
     res.json({ success: true, message: '已通知后厨，请稍候' });
@@ -4154,7 +3910,7 @@ app.post('/api/admin/admins', requireAdminKey, requirePermission('can_manage_adm
       'INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name, active) VALUES (?, ?, ?, ?, ?)',
       [req.merchantId, String(username).trim(), hashPassword(password), display_name, active ? 1 : 0]
     );
-    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_admin', 'merchant_admin', result.lastID, `创建管理员: ${username}`, req.ip);
+    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_admin', 'merchant_admin', result.lastID, `创建管理员: ${username}`, getClientIp(req));
     res.status(201).json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=?', [result.lastID]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -4177,7 +3933,6 @@ app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_
       if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
       fields.push('password_hash=?'); values.push(hashPassword(password));
     }
-    // 处理权限字段
     if (permissions && typeof permissions === 'object') {
       const permFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs'];
       for (const field of permFields) {
@@ -4192,7 +3947,7 @@ app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_
       values.push(req.merchantId);
       await runAsync(`UPDATE merchant_admins SET ${fields.join(',')} WHERE id=? AND merchant_id=?`, values);
     }
-    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_admin', 'merchant_admin', id, `更新管理员: ${admin.username}`, req.ip);
+    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_admin', 'merchant_admin', id, `更新管理员: ${admin.username}`, getClientIp(req));
     res.json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -4208,26 +3963,12 @@ app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_mana
     }
     if (!admin) return res.status(404).json({ error: '管理员不存在' });
     await runAsync('DELETE FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
-    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_admin', 'merchant_admin', id, `删除管理员: ${admin.username}`, req.ip);
+    await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_admin', 'merchant_admin', id, `删除管理员: ${admin.username}`, getClientIp(req));
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 收银员鉴权中间件
-async function requireCashier(req, res, next) {
-  try {
-    const cashier = await getCashierFromRequest(req);
-    if (!cashier) return res.status(401).json({ error: '请先登录收银员账号' });
-    req.cashier = cashier;
-    req.storeId = cashier.store_id || 1;
-    req.merchantId = cashier.merchant_id || 1;
-    next();
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-}
-
-// ----- 收银员管理（存储在 settings 表，不修改数据库结构） -----
+// ----- 收银员管理 -----
 async function getCashiers(storeId) {
   const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", ['cashiers_' + storeId]);
   if (!row || !row.value) return [];
@@ -4242,7 +3983,6 @@ async function saveCashiers(storeId, cashiers) {
   }
 }
 
-// 获取收银员列表
 app.get('/api/admin/cashiers', requireAdminKey, async (req, res) => {
   try {
     const cashiers = await getCashiers(req.storeId);
@@ -4251,7 +3991,6 @@ app.get('/api/admin/cashiers', requireAdminKey, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 添加收银员
 app.post('/api/admin/cashiers', requireAdminKey, async (req, res) => {
   try {
     const { username, password, display_name, permissions, active } = req.body || {};
@@ -4275,12 +4014,11 @@ app.post('/api/admin/cashiers', requireAdminKey, async (req, res) => {
     };
     cashiers.push(newCashier);
     await saveCashiers(req.storeId, cashiers);
-    await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_cashier', 'cashier', newCashier.id, '创建收银员: ' + username, req.ip);
+    await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_cashier', 'cashier', newCashier.id, '创建收银员: ' + username, getClientIp(req));
     res.status(201).json({ success: true, cashier: { id: newCashier.id, username: newCashier.username, display_name: newCashier.display_name, active: newCashier.active, permissions: newCashier.permissions, created_at: newCashier.created_at } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 编辑收银员
 app.put('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -4301,12 +4039,11 @@ app.put('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
       if (permissions.can_view_report !== undefined) cashiers[idx].permissions.can_view_report = permissions.can_view_report !== false;
     }
     await saveCashiers(req.storeId, cashiers);
-    await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_cashier', 'cashier', id, '更新收银员: ' + cashiers[idx].username, req.ip);
+    await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_cashier', 'cashier', id, '更新收银员: ' + cashiers[idx].username, getClientIp(req));
     res.json({ success: true, cashier: { id: cashiers[idx].id, username: cashiers[idx].username, display_name: cashiers[idx].display_name, active: cashiers[idx].active, permissions: cashiers[idx].permissions, created_at: cashiers[idx].created_at } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 删除收银员
 app.delete('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -4316,7 +4053,7 @@ app.delete('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
     const username = cashiers[idx].username;
     cashiers.splice(idx, 1);
     await saveCashiers(req.storeId, cashiers);
-    await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_cashier', 'cashier', id, '删除收银员: ' + username, req.ip);
+    await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_cashier', 'cashier', id, '删除收银员: ' + username, getClientIp(req));
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -4337,12 +4074,22 @@ app.post('/api/admin/change-password', requireAdminKey, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
     if (!oldPassword || !newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: '请提供旧密码和新密码' });
+      return res.status(400).json({ error: '请提供旧密码和新密码（新密码至少6位）' });
     }
-    const isValid = await verifyLegacyAdminPassword(oldPassword);
-    if (!isValid) return res.status(401).json({ error: '旧密码错误' });
+
+    // 验证当前登录管理员的密码，并只修改自己的密码
+    const admin = await getAsync('SELECT id, username, password_hash FROM merchant_admins WHERE id=?', [req.adminId]);
+    if (!admin) {
+      return res.status(401).json({ error: '管理员不存在' });
+    }
+    if (!verifyPassword(oldPassword, admin.password_hash)) {
+      return res.status(401).json({ error: '旧密码错误' });
+    }
+
     const hash = hashPassword(newPassword);
-    await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_password', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)", [hash]);
+    await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=?', [hash, req.adminId]);
+    await logAudit('merchant_admin', req.adminId, admin.username, 'change_password', 'merchant_admin', req.adminId, '修改管理员密码', getClientIp(req));
+
     res.json({ success: true, message: '密码已更新' });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -4355,12 +4102,10 @@ app.post('/api/admin/reset-data', requireAdminKey, requirePermission('can_manage
     if (!password) return res.status(400).json({ error: '请输入管理员密码' });
     const merchantId = req.merchantId;
     if (!merchantId) return res.status(400).json({ error: '商户信息缺失' });
-    // 验证当前商户管理员密码
     const admin = await getAsync('SELECT password_hash FROM merchant_admins WHERE id=?', [req.adminId]);
     if (!admin || !verifyPassword(password, admin.password_hash)) {
       return res.status(401).json({ error: '密码错误，重置失败' });
     }
-    // 只重置当前商户的订单相关数据
     await runAsync('DELETE FROM orders WHERE merchant_id = ?', [merchantId]);
     await runAsync('DELETE FROM waiter_calls WHERE merchant_id = ?', [merchantId]);
     await runAsync('DELETE FROM scan_sessions WHERE merchant_id = ?', [merchantId]);
@@ -4370,7 +4115,6 @@ app.post('/api/admin/reset-data', requireAdminKey, requirePermission('can_manage
     res.status(500).json({ error: e.message });
   }
 });
-
 
 // ----- 超级管理员数据备份与恢复 -----
 app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
@@ -4389,7 +4133,6 @@ app.post('/api/super/backup/import', requireSuperAdmin, async (req, res) => {
     const data = req.body;
     if (!data || !data.tables || typeof data.tables !== 'object') return res.status(400).json({ error: '备份文件格式无效' });
     await withTransaction(async () => {
-      // 注意：admin_sessions、super_sessions 为会话临时表，故意不纳入恢复，恢复后需重新登录
       for (const table of ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins']) {
         const rows = Array.isArray(data.tables[table]) ? data.tables[table] : [];
         await runAsync(`DELETE FROM \`${table}\``);
@@ -4437,7 +4180,6 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: '请提供超级管理员密码' });
-    // 验证超级管理员密码（使用verifyPassword兼容bcrypt和旧SHA256）
     if (!verifyPassword(password, req.superAdmin.password_hash)) {
       return res.status(401).json({ error: '密码错误，重置失败' });
     }
@@ -4518,7 +4260,7 @@ app.post('/api/admin/display-settings', requireAdminKey, requirePermission('can_
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 新订单提示音设置（总开关） -----
+// ----- 新订单提示音设置 -----
 app.get('/api/admin/notification-settings', requireAdminKey, async (req, res) => {
   try {
     const mid = req.merchantId || 1;
@@ -4572,7 +4314,6 @@ app.get('/api/public/table-token/:token', async (req, res) => {
     const sessionToken = crypto.randomBytes(24).toString('base64url');
     const qrTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
     const qrTimeoutMinutes = parseInt(qrTimeoutSetting?.value || '45', 10);
-    // 0表示永不过期，设置为year 9999
     const expiresAt = qrTimeoutMinutes > 0
       ? new Date(Date.now() + qrTimeoutMinutes * 60 * 1000).toISOString()
       : new Date('9999-12-31T23:59:59Z').toISOString();
@@ -4587,7 +4328,6 @@ app.get('/api/public/table-session/:token/orders', async (req, res) => {
     const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [req.params.token]);
     if (!session) return res.status(404).json({ error: '扫码会话不存在，请重新扫码' });
     if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '二维码已过期，请重新扫码' });
-    // 二维码无操作过期：每次有效请求都重置过期时间（最后一次操作后N分钟过期）
     const qrTimeoutS = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
     const qrTimeoutMins = parseInt(qrTimeoutS?.value || '45', 10);
     if (qrTimeoutMins > 0) {
@@ -4610,7 +4350,6 @@ app.get('/api/public/table-session/:token/info', async (req, res) => {
     const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [req.params.token]);
     if (!session) return res.status(404).json({ error: '会话不存在' });
     if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '会话已过期' });
-    // 二维码无操作过期：每次有效请求都重置过期时间（最后一次操作后N分钟过期）
     const qrTimeoutS2 = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
     const qrTimeoutMins2 = parseInt(qrTimeoutS2?.value || '45', 10);
     let expiresAt2 = session.expires_at;
@@ -4630,16 +4369,97 @@ app.delete('/api/public/table-session/:token', async (req, res) => {
 });
 
 // ---------- 全局错误处理 ----------
-// API 404
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API 接口不存在', path: req.path });
 });
 
-// 全局错误处理中间件
 app.use((err, req, res, next) => {
   console.error('未处理的错误:', err);
   if (res.headersSent) return next(err);
   res.status(500).json({ error: '服务器内部错误', message: err.message });
+});
+
+// ============================================================
+//  Socket.io 握手鉴权
+// ============================================================
+io.use(async (socket, next) => {
+  try {
+    const token = (socket.handshake.query.token || '').trim();
+    const requestedStoreId = parseInt(socket.handshake.query.storeId, 10) || 1;
+
+    // 无 token：视为顾客端，允许连接但只能进公共房间
+    if (!token) {
+      socket.data.role = 'public';
+      socket.data.storeId = requestedStoreId;
+      return next();
+    }
+
+    // 1) 服务员/后厨（共用 waiter_sessions）
+    const waiterSession = await getAsync('SELECT waiter_id FROM waiter_sessions WHERE token=?', [token]);
+    if (waiterSession) {
+      const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [waiterSession.waiter_id]);
+      if (waiter) {
+        socket.data.role = 'waiter';
+        socket.data.storeId = waiter.store_id || 1;
+        socket.data.waiterId = waiter.id;
+        return next();
+      }
+    }
+
+    // 2) 收银员
+    const cashierSession = await getAsync('SELECT cashier_id, store_id FROM cashier_sessions WHERE token=?', [token]);
+    if (cashierSession) {
+      socket.data.role = 'cashier';
+      socket.data.storeId = cashierSession.store_id || 1;
+      socket.data.cashierId = cashierSession.cashier_id;
+      return next();
+    }
+
+    // 3) 管理员
+    const adminSession = await getAsync('SELECT admin_id FROM admin_sessions WHERE token=?', [token]);
+    if (adminSession) {
+      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [adminSession.admin_id]);
+      if (admin) {
+        socket.data.role = 'admin';
+        socket.data.adminId = admin.id;
+        socket.data.merchantId = admin.merchant_id;
+        const storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
+        if (storeCheck) {
+          socket.data.storeId = requestedStoreId;
+        } else {
+          const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+          socket.data.storeId = firstStore?.id || 1;
+        }
+        return next();
+      }
+    }
+
+    // 有 token 但查不到对应会话
+    return next(new Error('unauthorized: token invalid or expired'));
+  } catch (e) {
+    console.error('[socket] auth error:', e);
+    return next(new Error('auth failed'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const { role, storeId } = socket.data;
+  console.log(`[socket] connected role=${role} store=${storeId} id=${socket.id}`);
+
+  if (role === 'waiter') {
+    socket.join('waiter-' + storeId);
+    socket.join('kitchen-' + storeId);
+  } else if (role === 'cashier') {
+    socket.join('cashier-' + storeId);
+  } else if (role === 'admin') {
+    socket.join('waiter-' + storeId);
+    socket.join('kitchen-' + storeId);
+    socket.join('cashier-' + storeId);
+  } else if (role === 'public') {
+    socket.join('public-store-' + storeId);
+  }
+
+  socket.on('disconnect', () => { /* 可选日志 */ });
 });
 
 // ---------- 启动 ----------
@@ -4647,23 +4467,17 @@ const isInitOnly = process.argv.includes('--init-only');
 
 initDatabase().then(async () => {
   if (isInitOnly) {
-
     process.exit(0);
   }
-  // 初始化Redis（双服务器部署时用于共享状态）
   await initRedis();
   server.listen(PORT, '0.0.0.0', () => {
-
     console.log(`📁 数据库: MySQL (${poolConfig.database})`);
-
-    // 定时任务：只在 RUN_SCHEDULED_TASKS=true 的服务器上执行，避免双服务器重复执行
     if (RUN_SCHEDULED_TASKS) {
       console.log('⏰ 定时任务已启用（自动备份、日志清理）');
       maybeAutoBackup().catch(err => console.error('自动备份失败:', err.message));
       setInterval(() => {
         maybeAutoBackup().catch(err => console.error('自动备份失败:', err.message));
       }, 5 * 60 * 1000);
-      // 每天检查一次是否需要清理日志
       autoCleanLogs().catch(err => console.error('日志清理失败:', err.message));
       setInterval(() => {
         autoCleanLogs().catch(err => console.error('日志清理失败:', err.message));
@@ -4681,7 +4495,6 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => pool.end().then(() => process.exit(0)));
 }
 
-// 未捕获异常处理，防止服务器崩溃
 process.on('uncaughtException', (err) => {
   console.error('未捕获的异常:', err);
 });
