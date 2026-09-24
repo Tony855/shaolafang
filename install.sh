@@ -598,16 +598,14 @@ EOF
         log_warn "应用响应状态: HTTP $HTTP_CODE"
     fi
 
-    # ===== 15. 配置防火墙 =====
+    # ===== 15. 防火墙提示（不自动启用，避免把自己锁在外面）=====
     echo ""
-    log_info "配置防火墙..."
-    if command -v ufw &> /dev/null; then
-        ufw --force allow OpenSSH 2>/dev/null || true
-        ufw --force allow 80/tcp 2>/dev/null || true
-        ufw --force allow 443/tcp 2>/dev/null || true
-        ufw --force enable 2>/dev/null || true
-        log_success "防火墙已配置（SSH/HTTP/HTTPS）"
-    fi
+    log_warn "如果需要配置防火墙，请手动执行："
+    echo "  sudo ufw allow OpenSSH"
+    echo "  sudo ufw allow 80/tcp"
+    echo "  sudo ufw allow 443/tcp"
+    echo "  sudo ufw enable"
+    log_info "防火墙未自动启用，避免误锁 SSH 连接"
 
     echo ""
     log_success "标准版单台部署完成！"
