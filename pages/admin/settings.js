@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
         await loadDisplaySettings();
         await loadOrderPrefixes();
         if (window.loadMenus) await window.loadMenus();
+        SLF.ui.toast('✅ ' + tAdmin('displaySettingsSaved'));
       } catch (e) { SLF.ui.toast('❌ ' + e.message); }
     };
   }
