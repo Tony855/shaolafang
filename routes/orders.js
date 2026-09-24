@@ -468,6 +468,10 @@ app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
       [targetTable, newToken, fromTable, storeId]
     );
 
+    if (result.affectedRows === 0) {
+      return res.status(400).json({ error: '当前桌没有未结算订单可以转移' });
+    }
+
     // 删除源桌的旧 session
     await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ?', [fromTable, storeId, nowIso]);
 
