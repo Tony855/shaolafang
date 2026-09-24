@@ -7,12 +7,12 @@
 const ctx = window.SLF.admin;
 if (!ctx) return;
 
-const { $, api, tAdmin, esc, hasPermission, L, setTables, ordersCache, buildSessionLabels } = ctx;
+const { $, api, tAdmin, esc, hasPermission, L, ordersCache, buildSessionLabels } = ctx;
 
 async function loadTables() {
   const list = await api('/tables');
   list.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true, sensitivity: 'base' }));
-  setTables(list);
+  ctx.setTables(list);
   const statusText = { available: L('available'), occupied: L('occupied'), reserved: L('reserved') };
   $('#tables').innerHTML = list.map(t => {
     const pendingOrders = ordersCache();
@@ -44,9 +44,10 @@ function editTable(id) { openTableForm(id); }
 
 function openTableForm(id) {
   const tables = ctx.tablesCache();
-  const t = tables.find(x => x.id === id);
-  $('#tableId').value = t ? t.id : '';
-  $('#tableName').value = t ? t.name : '';
+  const t = tables.find(x => String(x.id) === String(id));
+  editingTableId = t ? t.id : null;
+  $('#editTableName').value = t ? t.name : '';
+  $('#editTableStatus').value = t ? t.status : 'available';
   $('#tableModal').classList.add('open');
 }
 
@@ -54,7 +55,7 @@ function closeTableForm() { $('#tableModal').classList.remove('open'); }
 
 async function showQr(id) {
   const tables = ctx.tablesCache();
-  const t = tables.find(x => x.id === id);
+  const t = tables.find(x => String(x.id) === String(id));
   if (!t) return;
   window.open('/qr-print?tableId=' + id, '_blank');
 }

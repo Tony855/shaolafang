@@ -921,7 +921,13 @@
         setSecondaryCurrencyCode: (v) => secondaryCurrencyCode = v,
         setDefaultCurrencyObj: (v) => defaultCurrencyObj = v,
         buildSessionLabels,
-        showConfirm
+        showConfirm,
+        showPasswordModal
       });
+      window.hideConfirm = hideConfirm;
+      window.executeConfirm = executeConfirm;
+      window.hidePasswordModal = hidePasswordModal;
+      window.executePasswordModal = executePasswordModal;
+      window.switchMenuTab = switchMenuTab;
     } catch(err) {}
 })();

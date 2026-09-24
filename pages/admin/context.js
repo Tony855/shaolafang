@@ -6,13 +6,11 @@ window.SLF.admin = {
   // 这些值会在 admin.js 加载后被替换
   $: (sel) => document.querySelector(sel),
   api: async (path, opts = {}) => {
-    if (opts.method && opts.method !== 'GET') {
-      return SLF.api.request(path, { method: opts.method, body: opts.body });
-    }
-    return SLF.api.get(path);
+    const method = (opts.method || 'GET').toUpperCase();
+    return SLF.api._request(method, path, { body: opts.body });
   },
-  tAdmin: (key) => key,
-  L: (key) => key,
+  tAdmin: (key) => (SLF.i18n && SLF.i18n.t ? SLF.i18n.t(key) : key),
+  L: (key) => (SLF.i18n && SLF.i18n.t ? SLF.i18n.t(key) : key),
   esc: (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
   hasPermission: () => true,
   applyPermissions: () => {},

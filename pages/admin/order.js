@@ -7,7 +7,7 @@
 const ctx = window.SLF.admin;
 if (!ctx) return;
 
-const { $, api, tAdmin, esc, hasPermission, L, setOrders, buildSessionLabels } = ctx;
+const { $, api, tAdmin, esc, hasPermission, L, buildSessionLabels } = ctx;
 
 let orderTableFilter = '';
 
@@ -18,7 +18,7 @@ function setOrderFilter(q) {
 
 async function loadOrders() {
   const orders = await api('/orders');
-  setOrders(orders);
+  ctx.setOrders(orders);
   let filtered = orders;
   if (orderTableFilter) {
     const q = orderTableFilter.toLowerCase();
@@ -60,7 +60,7 @@ let settleOrderId = null;
 async function toggleItemStatus(id, index) {
   try {
     const orders = ctx.ordersCache();
-    const order = orders.find(o => o.id === id);
+    const order = orders.find(o => String(o.id) === String(id));
     if (!order || !order.items[index]) return;
     if (order.items[index].itemStatus === 'done') { SLF.ui.toast(`❌ ${tAdmin('cannotRevertDone')}`); return; }
     await api('/orders/' + id + '/items/' + index, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { itemStatus: 'done' } });
@@ -179,7 +179,7 @@ function updateOrderTotal() {
     const id = +row.querySelector('select').value;
     const qty = +row.querySelector('input').value || 0;
     const menus = ctx.menusCache();
-    const menu = menus.find(m => m.id === id);
+    const menu = menus.find(m => String(m.id) === String(id));
     if (menu && qty > 0) total += SLF.money.toBase(menu.price, (menu.currency_code||'USD')) * qty;
   });
   $('#orderFormTotal').textContent = SLF.money.primary(total);
@@ -217,7 +217,7 @@ function addLockedOrderItem(item) {
 async function editOrder(id) {
   try {
     let orders = ctx.ordersCache();
-    let o = orders.find(x => x.id === id);
+    let o = orders.find(x => String(x.id) === String(id));
     if (!o) o = await api('/orders/' + id);
     if (!o) return;
     editingOrderId = id;
@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       if (!items.length) { SLF.ui.toast('❌ ' + tAdmin('noItems')); return; }
       try {
-        await api('/orders', { method: editingOrderId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+        await api(editingOrderId ? '/orders/' + editingOrderId : '/orders', { method: editingOrderId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: {
           table: $('#orderTable').value,
           note: $('#orderNoteField').value.trim(),
           items

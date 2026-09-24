@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    FoodFlow 点餐系统 - 核心库 (core.js)
    统一 SLF 命名空间，所有页面只调用 SLF.*
    模块：i18n / api / audio / store / log / page / utils（DOM/UI 见 modules/ui.js）
@@ -368,7 +368,7 @@
         credentials: 'same-origin',
       };
 
-      if (options.body !== undefined) {
+      if (options.body !== undefined && options.body !== null) {
         config.body = options.body instanceof FormData 
           ? options.body 
           : (typeof options.body === 'string' ? options.body : JSON.stringify(options.body));

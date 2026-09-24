@@ -30,7 +30,7 @@ function openAddCashierModal() {
 }
 
 function editCashier(cashierId) {
-  const cashier = allCashiers.find(c => c.id === cashierId);
+  const cashier = allCashiers.find(c => String(c.id) === String(cashierId));
   if (!cashier) return;
   editingCashierId = cashier.id;
   document.getElementById('cashierModalTitle').textContent = tAdmin('editCashier');

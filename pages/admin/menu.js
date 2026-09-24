@@ -7,7 +7,7 @@
 const ctx = window.SLF.admin;
 if (!ctx) return;
 
-const { $, api, tAdmin, esc, hasPermission, L, setMenus, setCategories, dualCurrencyEnabled, secondaryCurrencyCode } = ctx;
+const { $, api, tAdmin, esc, hasPermission, L, dualCurrencyEnabled, secondaryCurrencyCode } = ctx;
 
 const categoryText = c => {
   const cat = (SLF.i18n.dicts[SLF.i18n.lang] && SLF.i18n.dicts[SLF.i18n.lang].categories) || {};
@@ -16,7 +16,7 @@ const categoryText = c => {
 
 async function loadMenus() {
   const list = await api('/admin/menu');
-  setMenus(list);
+  ctx.setMenus(list);
   const categoryFilter = $('#menuCategoryFilter') ? $('#menuCategoryFilter').value : 'all';
   let filtered = categoryFilter === 'all' ? list : list.filter(m => m.category === categoryFilter);
   const sortBy = $('#menuSortBy') ? $('#menuSortBy').value : 'default';
@@ -50,7 +50,7 @@ async function loadMenus() {
 
 async function loadMenuCategories() {
   const list = await api('/menu-categories');
-  setCategories(list);
+  ctx.setCategories(list);
   populateMenuCategorySelect();
   renderCategoryList();
 }
@@ -149,7 +149,7 @@ function closeDishModal() { $('#dishModal').classList.remove('open'); cancelMenu
 
 function editMenu(id) {
   const menus = ctx.menusCache();
-  const current = menus.find(x => x.id === id);
+  const current = menus.find(x => String(x.id) === String(id));
   if (!current) return;
   editingMenuId = id;
   populateMenuCategorySelect();

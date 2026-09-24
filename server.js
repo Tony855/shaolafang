@@ -1,4 +1,4 @@
-﻿const { requireSuperAdmin } = require('./server/middleware/auth.js');
+const { requireSuperAdmin } = require('./server/middleware/auth.js');
 const { requireCashier } = require('./server/middleware/auth.js');
 const express = require('express');
 const { AsyncLocalStorage } = require('async_hooks');
@@ -1538,7 +1538,7 @@ require('./routes/cashier.js')(app, { getAsync, runAsync, allAsync, isLoginLocke
 
 // ----- 服务员概览 -----
 // ----- 订单核心路由 -----
-require('./routes/orders.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, printToNetworkPrinter });
+require('./routes/orders.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, printToNetworkPrinter, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction });
 
 // ----- 订单打印 -----
 // ----- 打印机+打印路由 -----

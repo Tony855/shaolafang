@@ -101,7 +101,7 @@ function copyStoreMenu(storeId) {
 async function openStoreEdit(id) {
   try {
     const stores = await api('/admin/stores');
-    const target = stores.find(s => s.id === id);
+    const target = stores.find(s => String(s.id) === String(id));
     if (!target) { SLF.ui.toast(`❌ ${tAdmin('storeNotFound')}`); return; }
     $('#editStoreId').value = target.id;
     $('#editStoreName').value = target.name;

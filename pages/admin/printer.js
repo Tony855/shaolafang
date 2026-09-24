@@ -63,7 +63,7 @@ async function testPrinter(id) {
 
 function openPrinterEdit(id) {
   const printers = window._adminPrinters || [];
-  const p = printers.find(x => x.id === id);
+  const p = printers.find(x => String(x.id) === String(id));
   if (!p) return;
   $('#editPrinterId').value = p.id;
   $('#editPrinterName').value = p.name || '';

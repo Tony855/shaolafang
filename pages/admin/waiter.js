@@ -58,7 +58,7 @@ function deleteWaiter(id) {
 async function openWaiterEdit(id) {
   try {
     const waiter = await api('/admin/waiters');
-    const target = waiter.find(w => w.id === id);
+    const target = waiter.find(w => String(w.id) === String(id));
     if (!target) { SLF.ui.toast(`❌ ${tAdmin('waiterNotFound')}`); return; }
     $('#editWaiterId').value = target.id;
     $('#editWaiterUsername').value = target.username;

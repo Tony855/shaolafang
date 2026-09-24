@@ -43,7 +43,7 @@ async function loadCurrencies() {
 
 async function editCurrency(id) {
   const data = await api('/currencies');
-  const c = data.find(x => x.id === id);
+  const c = data.find(x => String(x.id) === String(id));
   if (!c) return;
   editingCurrencyId = id;
   $('#editCurrencyId').value = id;
@@ -73,7 +73,7 @@ async function saveCurrencyEdit() {
 
 async function setDefaultCurrency(id) {
   const data = await api('/currencies');
-  const c = data.find(x => x.id === id);
+  const c = data.find(x => String(x.id) === String(id));
   try {
     await api('/currencies/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { ...c, is_default: true } });
     await loadCurrencies();
