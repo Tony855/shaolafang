@@ -119,24 +119,8 @@
         // ===== 菜品+分类（已移到 pages/admin/menu.js）=====
 
 
-        async function loadTables() {
-            tablesCache = await api('/tables');
-            tablesCache.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true, sensitivity: 'base' }));
-            const statusText = { available: L('available'), occupied: L('occupied'), reserved: L('reserved') };
-            $('#tables').innerHTML = tablesCache.map(t => {
-                const hasPending = ordersCache.some(o => o.table === t.name && o.status === 'pending');
-                const dynamic = hasPending ? 'occupied' : (t.status === 'reserved' ? 'reserved' : 'available');
-                return `<div class="row">
-                  <div><b>${esc(t.name)}</b><small><span class="table-status ${dynamic}">${statusText[dynamic] || dynamic}</span></small></div>
-                  <div class="actions">
-                    ${hasPermission('can_manage_table') ? '<button onclick="editTable(' + t.id + ')">' + L('edit') + '</button>' : ''}
-                    <button onclick="showQr(${t.id})">${tAdmin('qr')}</button>
-                    ${hasPermission('can_manage_table') ? '<button class="danger" onclick="removeTable(' + t.id + ')">' + L('delete') + '</button>' : ''}
-                  </div>
-                </div>`;
-            }).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
-            $('#orderTable').innerHTML = tablesCache.map(t => `<option>${esc(t.name)}</option>`).join('');
-        }
+        // ===== 桌台管理（已移到 pages/admin/table.js）=====
+
 
         async function loadOrders() {
             const orders = await api('/orders');
@@ -172,7 +156,7 @@
                 </div>
               `).join('') || `<div class="empty-hint">${tAdmin('noOrders')}</div>`;
             updateOrderSummary();
-            if (tablesCache.length) loadTables();
+            if (tablesCache.length) window.loadTables();
         }
 
         // ===== 货币管理（已移到 pages/admin/currency.js）=====
@@ -515,27 +499,7 @@
             }
         });
 
-        function removeTable(id) {
-            showConfirm(tAdmin('confirmDelete'), async function() {
-                try {
-                    await api('/tables/' + id, { method: 'DELETE' });
-                    await loadTables();
-                    SLF.ui.toast('✅ ' + tAdmin('deleted'));
-                } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-            });
-        }
-        async function editTable(id) { openTableForm(id); }
-
-        function openTableForm(id) {
-            const current = tablesCache.find(t => t.id === id);
-            if (!current) return;
-            editingTableId = id;
-            $('#tableModalTitle').textContent = tAdmin('editTableTitle') + ' #' + id;
-            $('#editTableName').value = current.name;
-            $('#editTableStatus').value = current.status || 'available';
-            $('#tableModal').classList.add('open');
-        }
-        function closeTableForm() { $('#tableModal').classList.remove('open'); }
+        // (removeTable/editTable/openTableForm/closeTableForm 已移到 table.js)
 
         document.addEventListener('DOMContentLoaded', function() {
             const tableSaveBtn = document.getElementById('tableSaveBtn');
@@ -546,8 +510,8 @@
                     if (!name) { SLF.ui.toast('❌ ' + tAdmin('tableNameRequired')); return; }
                     try {
                         await api('/tables/' + editingTableId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name, status } });
-                        closeTableForm();
-                        await loadTables();
+                        window.closeTableForm();
+                        await window.loadTables();
                         SLF.ui.toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('updated'));
                     } catch (e) { SLF.ui.toast('❌ ' + e.message); }
                 };
@@ -559,7 +523,7 @@
                     try {
                         await api('/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name: $('#tableName').value.trim() } });
                         e.target.reset();
-                        await loadTables();
+                        await window.loadTables();
                         SLF.ui.toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('added'));
                     } catch (e) { SLF.ui.toast('❌ ' + e.message); }
                 };
@@ -853,12 +817,7 @@
             }
         });
 
-        async function showQr(id) {
-            try {
-                const lang = SLF.store.rawGet('adminLang') || 'zh';
-                window.open('/qr-print?tableId=' + id + '&lang=' + lang, '_blank');
-            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-        }
+        // (showQr 已移到 table.js)
 
         document.addEventListener('DOMContentLoaded', function() {
             const saveDisplaySettingsBtn = document.getElementById('saveDisplaySettingsBtn');
@@ -895,7 +854,7 @@
                                 await SLF.api.post('/admin/reset-data', { password });
                                 SLF.ui.toast('✅ ' + tAdmin('resetSuccess'));
                                 await loadOrders();
-                                await loadTables();
+                                await window.loadTables();
                                 await loadLoginLogs();
                             } catch (e) { SLF.ui.toast('❌ ' + e.message); }
                         }, tAdmin('resetDataConfirmTitle'));
@@ -988,7 +947,7 @@
             document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.module === module));
             document.querySelectorAll('.module-panel').forEach(p => p.classList.toggle('active', p.id === 'module-' + module));
             if (module === 'orders') loadOrders();
-            else if (module === 'tables') loadTables();
+            else if (module === 'tables') window.loadTables();
             else if (module === 'menu') window.loadMenus();
             else if (module === 'currencies') window.loadCurrencies();
             else if (module === 'logs') loadLoginLogs();
@@ -1091,7 +1050,7 @@
                 await loadDisplaySettings();
                 await loadOrderPrefixes();
                 await loadNotificationSettings();
-                const loadTasks = [window.loadMenus(), loadTables(), loadOrders(), loadLoginLogs()];
+                const loadTasks = [window.loadMenus(), window.loadTables(), loadOrders(), loadLoginLogs()];
                 if (hasPermission('can_manage_admin')) loadTasks.push(window.loadAdmins());
                 if (hasPermission('can_view_logs')) loadTasks.push(loadAuditLogs());
                 await Promise.all(loadTasks);
