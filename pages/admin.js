@@ -369,38 +369,8 @@
         // ===== 店铺编辑功能（已移到 store.js）=====
 
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const editStoreActive = document.getElementById('editStoreActive');
-            if (editStoreActive) {
-                editStoreActive.addEventListener('change', function() {
-                    const statusText = this.checked ? tAdmin('storeActive') : tAdmin('storeDisabled');
-                    document.getElementById('storeEditStatusText').textContent = statusText;
-                });
-            }
-            const saveStoreEditBtn = document.getElementById('saveStoreEditBtn');
-            if (saveStoreEditBtn) {
-                saveStoreEditBtn.onclick = async function() {
-                    const id = parseInt($('#editStoreId').value);
-                    const name = $('#editStoreName').value.trim();
-                    const code = $('#editStoreCode').value.trim();
-                    const address = $('#editStoreAddress').value.trim();
-                    const active = $('#editStoreActive').checked ? 1 : 0;
-                    const qrLanguages = Array.from(document.querySelectorAll('#qrLangSelector input[type="checkbox"]:checked')).map(cb => cb.value).join(',');
-                    if (!name) { SLF.ui.toast(`❌ ${tAdmin('storeNameRequired')}`); return; }
-                    try {
-                        await api('/admin/stores/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name, code, address, active, qr_languages: qrLanguages } });
-                        closeStoreEdit();
-                        await window.loadStores();
-                        SLF.ui.toast(`✅ ${tAdmin('storeUpdated')}`);
-                    } catch (e) { SLF.ui.toast(`❌ ${tAdmin('updateFailed')}: ` + e.message); }
-                };
-            }
-            document.querySelectorAll('.edit-modal').forEach(modal => {
-                modal.addEventListener('click', function(e) {
-                    if (e.target === this) this.classList.remove('open');
-                });
-            });
-        });
+        // ===== 店铺编辑表单（已移到 store.js）=====
+
 
         function updateOrderSummary() {
             const pending = ordersCache.filter(o => o.status === 'pending');

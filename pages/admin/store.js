@@ -135,6 +135,30 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (e) { SLF.ui.toast('❌ ' + e.message); }
     };
   }
+  const editStoreActive = document.getElementById('editStoreActive');
+  if (editStoreActive) {
+    editStoreActive.addEventListener('change', function() {
+      const statusText = this.checked ? tAdmin('storeActive') : tAdmin('storeDisabled');
+      document.getElementById('storeEditStatusText').textContent = statusText;
+    });
+  }
+  const saveStoreEditBtn = document.getElementById('saveStoreEditBtn');
+  if (saveStoreEditBtn) {
+    saveStoreEditBtn.onclick = async function() {
+      const id = parseInt($('#editStoreId').value);
+      const name = $('#editStoreName').value.trim();
+      const code = $('#editStoreCode').value.trim();
+      const address = $('#editStoreAddress').value.trim();
+      const active = $('#editStoreActive').checked ? 1 : 0;
+      if (!name) { SLF.ui.toast(`❌ ${tAdmin('enterStoreName')}`); return; }
+      try {
+        await api('/admin/stores/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name, code, address, active } });
+        closeStoreEdit();
+        loadStores();
+        SLF.ui.toast('✅ ' + tAdmin('updated'));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
 });
 
 // 挂到 window
