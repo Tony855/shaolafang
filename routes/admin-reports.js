@@ -2,7 +2,7 @@
    routes/admin-reports.js — 报表 + 管理员信息
    ============================================================ */
 module.exports = function(app, deps) {
-  const { getAsync, allAsync, requireAdminKey } = deps;
+  const { getAsync, allAsync, requireAdminKey, authenticateAdmin } = deps;
 
   app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
     try {

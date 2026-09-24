@@ -81,7 +81,7 @@ function switchAdminModule(module) {
   if (module === 'admins') { if (window.loadAdmins) window.loadAdmins(); }
   if (module === 'cashiers') { if (window.loadCashiers) window.loadCashiers(); }
   if (module === 'printers') { if (window.loadPrinters) window.loadPrinters(); }
-  if (module === 'reports') { if (window.loadDailyReport) window.loadDailyReport(); }
+  if (module === 'reports') { if (window.loadReportSummary) window.loadReportSummary(); if (window.loadDailyReport) window.loadDailyReport(); }
   if (module === 'calls') { if (window.loadWaiterCalls) window.loadWaiterCalls(); }
   if (module === 'logs') { if (window.loadLoginLogs) window.loadLoginLogs(); if (window.loadAuditLogs) window.loadAuditLogs(); }
 }

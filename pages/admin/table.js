@@ -13,10 +13,11 @@ async function loadTables() {
   const list = await api('/tables');
   list.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true, sensitivity: 'base' }));
   ctx.setTables(list);
+  // 同时获取未结算订单，计算桌号状态
+  const orders = await api('/orders?status=pending');
   const statusText = { available: L('available'), occupied: L('occupied'), reserved: L('reserved') };
   $('#tables').innerHTML = list.map(t => {
-    const pendingOrders = ordersCache();
-    const hasPending = pendingOrders.some(o => o.table === t.name && o.status === 'pending');
+    const hasPending = orders.some(o => o.table === t.name && o.status === 'pending');
     const dynamic = hasPending ? 'occupied' : (t.status === 'reserved' ? 'reserved' : 'available');
     return `<div class="row">
       <div><b>${esc(t.name)}</b><small><span class="table-status ${dynamic}">${statusText[dynamic] || dynamic}</span></small></div>

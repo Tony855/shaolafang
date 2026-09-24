@@ -929,5 +929,7 @@
       window.hidePasswordModal = hidePasswordModal;
       window.executePasswordModal = executePasswordModal;
       window.switchMenuTab = switchMenuTab;
+      window.loadReportSummary = loadReportSummary;
+      window.applyAdminLanguage = applyAdminLanguage;
     } catch(err) {}
 })();
