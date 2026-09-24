@@ -1,0 +1,486 @@
+/* ============================================================
+   routes/super.js — 超级管理员路由
+   ============================================================ */
+const crypto = require('crypto');
+const os = require('os');
+const fs = require('fs');
+
+module.exports = function(app, deps) {
+  const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, requireAdminKey } = deps;
+
+app.post('/api/super/login', async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username || '', 'super_admin', '请输入用户名和密码']);
+      return res.status(400).json({ error: '请输入用户名和密码' });
+    }
+    const lockStatus = await isLoginLocked(username, 'super_admin');
+    if (lockStatus.locked) {
+      return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
+    }
+    const ipWhitelistSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_ip_whitelist'");
+    const clientIp = getClientIp(req);
+    if (ipWhitelistSetting && ipWhitelistSetting.value && ipWhitelistSetting.value.trim()) {
+      const whitelist = ipWhitelistSetting.value.split(',').map(ip => ip.trim()).filter(Boolean);
+      if (whitelist.length > 0 && !whitelist.includes(clientIp)) {
+        await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', 'IP不在白名单内']);
+        return res.status(403).json({ error: '当前IP不允许登录超级管理员后台' });
+      }
+    }
+    const superAdmin = await getAsync('SELECT * FROM super_admins WHERE username=?', [username]);
+    if (!superAdmin) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '用户名不存在']);
+      recordLoginAttempt(username, 'super_admin');
+      return res.status(401).json({ error: '用户名或密码错误' });
+    }
+    const isValid = verifyPassword(password, superAdmin.password_hash);
+    if (!isValid) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
+      return res.status(401).json({ error: '用户名或密码错误' });
+    }
+    resetLoginAttempts(username, 'super_admin');
+    await runAsync('UPDATE super_admins SET last_login_at=NOW() WHERE id=?', [superAdmin.id]);
+    const superLocation = await getLocationByIp(clientIp);
+    await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, superLocation, 'super_admin', '超级管理员登录成功: ' + username]);
+    const token = crypto.randomBytes(32).toString('hex');
+    const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_idle_timeout'");
+    const timeoutMinutes = parseInt(timeoutSetting?.value || '60', 10);
+    const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
+    await runAsync('INSERT INTO super_sessions (super_admin_id, token, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [superAdmin.id, token, expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
+    res.json({ success: true, token, admin: { id: superAdmin.id, username: superAdmin.username, display_name: superAdmin.display_name } });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
+// ===== 商户管理 CRUD =====
+app.get('/api/super/merchants', requireSuperAdmin, async (req, res) => {
+  try {
+    const rows = await allAsync(`SELECT m.*, 
+      (SELECT COUNT(*) FROM stores WHERE merchant_id=m.id) as store_count,
+      (SELECT username FROM merchant_admins WHERE merchant_id=m.id LIMIT 1) as admin_username,
+      (SELECT display_name FROM merchant_admins WHERE merchant_id=m.id LIMIT 1) as admin_display_name
+      FROM merchants m ORDER BY m.code ASC`);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
+  try {
+    const { name, code, username, password, contact_name, contact_phone, max_stores } = req.body || {};
+    if (!name) return res.status(400).json({ error: '商户名称必填' });
+    if (!username || !username.trim()) return res.status(400).json({ error: '登录账号必填' });
+    const adminUsername = username.trim();
+    const userExists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [adminUsername]);
+    if (userExists) return res.status(400).json({ error: '登录账号已存在' });
+    let merchantCode = (code && code.trim()) ? code.trim() : '';
+    if (merchantCode) {
+      const codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [merchantCode]);
+      if (codeExists) return res.status(400).json({ error: '商户编码已存在' });
+    } else {
+      const now = new Date();
+      const yy = String(now.getFullYear()).slice(-2);
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const monthPrefix = yy + mm;
+      const monthCountRow = await getAsync("SELECT COUNT(*) AS cnt FROM merchants WHERE code LIKE ?", [monthPrefix + '%']);
+      let seq = monthCountRow.cnt + 1;
+      let generatedCode, codeExists;
+      do {
+        generatedCode = monthPrefix + String(seq).padStart(4, '0');
+        codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [generatedCode]);
+        if (codeExists) seq++;
+      } while (codeExists);
+      merchantCode = generatedCode;
+    }
+    const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status) VALUES (?, ?, ?, ?, ?, 1)', [name, merchantCode, contact_name || '', contact_phone || '', max_stores || 1]);
+    const newMerchantId = result.lastID;
+    let adminPassword = (password && password.trim()) ? password.trim() : '';
+    if (!adminPassword) {
+      const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      for (let i = 0; i < 8; i++) adminPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const adminHash = hashPassword(adminPassword);
+    await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
+    for (const currency of [
+      ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
+      ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
+    ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
+    const defaultStoreName = name + '总店';
+    const defaultStoreCode = merchantCode.toLowerCase() + '-main';
+    await runAsync('INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)', [newMerchantId, defaultStoreName, defaultStoreCode, '']);
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
+      `创建商户「${name}」(编码: ${merchantCode}, 账号: ${adminUsername})`, getClientIp(req));
+    res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
+  try {
+    const { name, username, password, contact_name, contact_phone, max_stores, status } = req.body || {};
+    await runAsync('UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=? WHERE id=?', [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, req.params.id]);
+    const primaryAdmin = await getAsync('SELECT id, username FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.params.id]);
+    if (primaryAdmin) {
+      if (username && username.trim() && username.trim() !== primaryAdmin.username) {
+        const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=? AND id<>?', [username.trim(), primaryAdmin.id]);
+        if (exists) return res.status(400).json({ error: '登录账号已被使用' });
+        await runAsync('UPDATE merchant_admins SET username=? WHERE id=?', [username.trim(), primaryAdmin.id]);
+      }
+      if (password && password.trim()) {
+        const hash = hashPassword(password.trim());
+        await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=?', [hash, primaryAdmin.id]);
+      }
+    }
+    const updatedMerchant = await getAsync('SELECT name, code FROM merchants WHERE id=?', [req.params.id]);
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_merchant', 'merchant', req.params.id,
+      `编辑商户「${updatedMerchant?.name || '未知'}」的信息`, getClientIp(req));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
+  try {
+    if (req.params.id === '1') return res.status(400).json({ error: '不能删除默认商户' });
+    const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [req.params.id]);
+    const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.params.id])).map(s => s.id);
+    await runAsync('DELETE FROM merchants WHERE id=?', [req.params.id]);
+    await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [req.params.id]);
+    await runAsync('DELETE FROM stores WHERE merchant_id=?', [req.params.id]);
+    await runAsync('DELETE FROM currencies WHERE merchant_id=?', [req.params.id]);
+    await runAsync('DELETE FROM login_logs WHERE merchant_id=?', [req.params.id]);
+    if (storeIds.length > 0) {
+      const placeholders = storeIds.map(() => '?').join(',');
+      for (const tbl of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
+        await runAsync(`DELETE FROM \`${tbl}\` WHERE store_id IN (${placeholders})`, storeIds);
+      }
+    }
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'delete_merchant', 'merchant', req.params.id,
+      `删除商户「${merchant?.name || '未知'}」(编码: ${merchant?.code || '-'})`, getClientIp(req));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (req, res) => {
+  try {
+    const { password } = req.body || {};
+    const newPwd = password || 'admin123';
+    const hash = hashPassword(newPwd);
+    await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
+    const merchantForLog = await getAsync('SELECT name, code FROM merchants WHERE id=?', [req.params.id]);
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', req.params.id,
+      `重置商户「${merchantForLog?.name || '未知'}」的管理员密码`, getClientIp(req));
+    res.json({ success: true, newPassword: newPwd });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 超管仪表盘统计
+app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
+  try {
+    const merchantCount = await getAsync('SELECT COUNT(*) as count FROM merchants');
+    const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores');
+    const orderCount = await getAsync('SELECT COUNT(*) as count FROM orders');
+    const todayOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE()");
+    const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE() AND status='done'");
+    const now = new Date().toISOString();
+    const onlineClients = await getAsync('SELECT COUNT(*) as count FROM scan_sessions WHERE expires_at > ?', [now]);
+    const totalScanSessions = await getAsync('SELECT COUNT(*) as count FROM scan_sessions');
+    const todayScanSessions = await getAsync("SELECT COUNT(*) as count FROM scan_sessions WHERE DATE(created_at)=CURDATE()");
+    res.json({
+      merchantCount: merchantCount.count,
+      storeCount: storeCount.count,
+      orderCount: orderCount.count,
+      todayOrders: todayOrders.count,
+      todayRevenue: Number(todayRevenue.total) || 0,
+      onlineClients: onlineClients.count,
+      totalScanSessions: totalScanSessions.count,
+      todayScanSessions: todayScanSessions.count
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 超管：按门店综合统计
+app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
+  try {
+    const now = new Date().toISOString();
+    const today = new Date().toISOString().split('T')[0];
+    const rows = await allAsync(`
+      SELECT s.id AS store_id, s.name AS store_name, m.name AS merchant_name,
+        (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id) AS total_orders,
+        (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=?) AS today_orders,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=? AND o.status='done') AS today_revenue,
+        (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id) AS total_sessions,
+        (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id AND ss.expires_at>?) AS online_count
+      FROM stores s
+      LEFT JOIN merchants m ON m.id=s.merchant_id
+      ORDER BY s.id
+    `, [today, today, now]);
+    res.json({ stores: rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/super/online-sessions', requireSuperAdmin, async (req, res) => {
+  try {
+    const now = new Date().toISOString();
+    const rows = await allAsync(`
+      SELECT s.id AS store_id, s.name AS store_name, m.name AS merchant_name,
+             COUNT(ss.token) AS online_count,
+             COUNT(CASE WHEN o.id IS NOT NULL AND o.status='pending' THEN 1 END) AS pending_orders
+      FROM stores s
+      LEFT JOIN merchants m ON m.id = s.merchant_id
+      LEFT JOIN scan_sessions ss ON ss.store_id = s.id AND ss.expires_at > ?
+      LEFT JOIN orders o ON o.table_name = ss.table_name AND o.store_id = s.id AND o.status = 'pending'
+      GROUP BY s.id, s.name, m.name
+      ORDER BY online_count DESC, s.id
+    `, [now]);
+    res.json({ sessions: rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/super/online-sessions/:storeId', requireSuperAdmin, async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.storeId, 10);
+    const now = new Date().toISOString();
+    const store = await getAsync('SELECT s.*, m.name AS merchant_name FROM stores s LEFT JOIN merchants m ON m.id=s.merchant_id WHERE s.id=?', [storeId]);
+    if (!store) return res.status(404).json({ error: '门店不存在' });
+    const sessions = await allAsync(`
+      SELECT ss.table_name, ss.token, ss.created_at, ss.expires_at,
+             (SELECT o.order_no FROM orders o WHERE o.table_name=ss.table_name AND o.store_id=ss.store_id AND o.status='pending' ORDER BY o.id DESC LIMIT 1) AS active_order_no,
+             (SELECT o.total FROM orders o WHERE o.table_name=ss.table_name AND o.store_id=ss.store_id AND o.status='pending' ORDER BY o.id DESC LIMIT 1) AS active_order_total
+      FROM scan_sessions ss
+      WHERE ss.store_id=? AND ss.expires_at > ?
+      ORDER BY ss.created_at DESC
+    `, [storeId, now]);
+    res.json({ store: { id: store.id, name: store.name, merchant_name: store.merchant_name }, sessions });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
+  try {
+    function getCpuTimes() {
+      const cpus = os.cpus();
+      let user = 0, nice = 0, sys = 0, idle = 0, irq = 0;
+      for (const cpu of cpus) {
+        user += cpu.times.user; nice += cpu.times.nice; sys += cpu.times.sys;
+        idle += cpu.times.idle; irq += cpu.times.irq;
+      }
+      return { user, nice, sys, idle, irq, total: user + nice + sys + idle + irq };
+    }
+    const start = getCpuTimes();
+    await new Promise(r => setTimeout(r, 300));
+    const end = getCpuTimes();
+    const idleDiff = end.idle - start.idle;
+    const totalDiff = end.total - start.total;
+    const cpuUsage = totalDiff > 0 ? ((1 - idleDiff / totalDiff) * 100).toFixed(1) : 0;
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const memUsage = ((usedMem / totalMem) * 100).toFixed(1);
+    let diskUsage = 0, diskTotal = 0, diskUsed = 0;
+    try {
+      const stats = fs.statfsSync('/');
+      diskTotal = stats.blocks * stats.bsize;
+      diskUsed = (stats.blocks - stats.bfree) * stats.bsize;
+      diskUsage = diskTotal > 0 ? ((diskUsed / diskTotal) * 100).toFixed(1) : 0;
+    } catch (e) { diskUsage = 0; }
+    const uptimeSeconds = os.uptime();
+    const uptimeDays = Math.floor(uptimeSeconds / 86400);
+    const uptimeHours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const uptimeMins = Math.floor((uptimeSeconds % 3600) / 60);
+    const processMem = process.memoryUsage();
+    const loadAvg = os.loadavg();
+    res.json({
+      cpu: { usage: parseFloat(cpuUsage), cores: os.cpus().length, model: os.cpus()[0]?.model || 'Unknown' },
+      memory: {
+        total: totalMem, used: usedMem, free: freeMem, usage: parseFloat(memUsage),
+        processRss: processMem.rss, processHeapUsed: processMem.heapUsed, processHeapTotal: processMem.heapTotal
+      },
+      disk: { total: diskTotal, used: diskUsed, free: diskTotal - diskUsed, usage: parseFloat(diskUsage) },
+      system: {
+        hostname: os.hostname(), platform: os.platform(), arch: os.arch(),
+        uptime: uptimeSeconds,
+        uptimeFormatted: `${uptimeDays}天 ${uptimeHours}时 ${uptimeMins}分`,
+        loadAvg: loadAvg.map(v => v.toFixed(2)),
+        nodeVersion: process.version
+      }
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/super/stores', requireSuperAdmin, async (req, res) => {
+  try {
+    const stores = await allAsync('SELECT s.*, m.name as merchant_name FROM stores s LEFT JOIN merchants m ON s.merchant_id = m.id ORDER BY s.id');
+    res.json(stores);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 200;
+    const logs = await allAsync('SELECT l.*, m.name as merchant_name FROM login_logs l LEFT JOIN merchants m ON l.merchant_id = m.id ORDER BY l.id DESC LIMIT ?', [limit]);
+    res.json(logs);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
+  try {
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'cashier_idle_timeout', 'kitchen_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist', 'call_limit_enabled', 'call_limit_max', 'call_limit_window_minutes', 'call_limit_cooldown_minutes', 'auto_clean_log_enabled', 'log_retention_days', 'clean_login_log', 'clean_audit_log', 'kitchen_auto_hide_minutes')");
+    const settings = {};
+    rows.forEach(r => { settings[r.key] = r.value; });
+    res.json({
+      super_idle_timeout: parseInt(settings.super_idle_timeout || '60', 10),
+      admin_idle_timeout: parseInt(settings.admin_idle_timeout || '30', 10),
+      cashier_idle_timeout: parseInt(settings.cashier_idle_timeout || '30', 10),
+      kitchen_idle_timeout: parseInt(settings.kitchen_idle_timeout || '120', 10),
+      qr_session_timeout: parseInt(settings.qr_session_timeout || '45', 10),
+      waiter_session_timeout: parseInt(settings.waiter_session_timeout || '12', 10),
+      order_interval_seconds: parseInt(settings.order_interval_seconds || '30', 10),
+      waiter_refresh_interval: parseInt(settings.waiter_refresh_interval || '8', 10),
+      max_order_items: parseInt(settings.max_order_items || '50', 10),
+      max_item_quantity: parseInt(settings.max_item_quantity || '100', 10),
+      max_order_note_length: parseInt(settings.max_order_note_length || '200', 10),
+      login_max_attempts: parseInt(settings.login_max_attempts || '5', 10),
+      login_lock_minutes: parseInt(settings.login_lock_minutes || '15', 10),
+      super_ip_whitelist: settings.super_ip_whitelist || '',
+      call_limit_enabled: (settings.call_limit_enabled || '1') !== '0',
+      call_limit_max: parseInt(settings.call_limit_max || '3', 10),
+      call_limit_window_minutes: parseInt(settings.call_limit_window_minutes || '5', 10),
+      call_limit_cooldown_minutes: parseInt(settings.call_limit_cooldown_minutes || '10', 10),
+      auto_clean_log_enabled: (settings.auto_clean_log_enabled || '0') !== '0',
+      log_retention_days: parseInt(settings.log_retention_days || '30', 10),
+      clean_login_log: (settings.clean_login_log || '1') !== '0',
+      clean_audit_log: (settings.clean_audit_log || '1') !== '0',
+      kitchen_auto_hide_minutes: parseInt(settings.kitchen_auto_hide_minutes || '10', 10),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
+  try {
+    const { super_idle_timeout, admin_idle_timeout, cashier_idle_timeout, kitchen_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes, auto_clean_log_enabled, log_retention_days, clean_login_log, clean_audit_log, kitchen_auto_hide_minutes } = req.body || {};
+    if (super_idle_timeout !== undefined) {
+      const mins = Math.max(1, Math.min(1440, parseInt(super_idle_timeout, 10) || 60));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    if (admin_idle_timeout !== undefined) {
+      const mins = Math.max(1, Math.min(1440, parseInt(admin_idle_timeout, 10) || 30));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    if (qr_session_timeout !== undefined) {
+      const mins = Math.max(0, Math.min(1440, parseInt(qr_session_timeout, 10) || 0));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('qr_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    if (cashier_idle_timeout !== undefined) {
+      const mins = Math.max(1, Math.min(1440, parseInt(cashier_idle_timeout, 10) || 30));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('cashier_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    if (kitchen_idle_timeout !== undefined) {
+      const mins = Math.max(1, Math.min(1440, parseInt(kitchen_idle_timeout, 10) || 120));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('kitchen_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    if (waiter_session_timeout !== undefined) {
+      const hours = Math.max(1, Math.min(168, parseInt(waiter_session_timeout, 10) || 12));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('waiter_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(hours), String(hours)]);
+    }
+    if (order_interval_seconds !== undefined) {
+      const secs = Math.max(0, Math.min(3600, parseInt(order_interval_seconds, 10) || 30));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('order_interval_seconds', ?) ON DUPLICATE KEY UPDATE value=?", [String(secs), String(secs)]);
+    }
+    if (waiter_refresh_interval !== undefined) {
+      const secs = Math.max(3, Math.min(300, parseInt(waiter_refresh_interval, 10) || 8));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('waiter_refresh_interval', ?) ON DUPLICATE KEY UPDATE value=?", [String(secs), String(secs)]);
+    }
+    if (max_order_items !== undefined) {
+      const val = Math.max(1, Math.min(200, parseInt(max_order_items, 10) || 50));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('max_order_items', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (max_item_quantity !== undefined) {
+      const val = Math.max(1, Math.min(999, parseInt(max_item_quantity, 10) || 100));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('max_item_quantity', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (max_order_note_length !== undefined) {
+      const val = Math.max(10, Math.min(1000, parseInt(max_order_note_length, 10) || 200));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('max_order_note_length', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (login_max_attempts !== undefined) {
+      const val = Math.max(1, Math.min(20, parseInt(login_max_attempts, 10) || 5));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('login_max_attempts', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (login_lock_minutes !== undefined) {
+      const val = Math.max(1, Math.min(1440, parseInt(login_lock_minutes, 10) || 15));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('login_lock_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (super_ip_whitelist !== undefined) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_ip_whitelist', ?) ON DUPLICATE KEY UPDATE value=?", [String(super_ip_whitelist || ''), String(super_ip_whitelist || '')]);
+    }
+    if (call_limit_enabled !== undefined) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_enabled', ?) ON DUPLICATE KEY UPDATE value=?", [call_limit_enabled ? '1' : '0', call_limit_enabled ? '1' : '0']);
+    }
+    if (call_limit_max !== undefined) {
+      const val = Math.max(1, Math.min(20, parseInt(call_limit_max, 10) || 3));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_max', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (call_limit_window_minutes !== undefined) {
+      const val = Math.max(1, Math.min(60, parseInt(call_limit_window_minutes, 10) || 5));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_window_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (call_limit_cooldown_minutes !== undefined) {
+      const val = Math.max(1, Math.min(120, parseInt(call_limit_cooldown_minutes, 10) || 10));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('call_limit_cooldown_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (auto_clean_log_enabled !== undefined) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('auto_clean_log_enabled', ?) ON DUPLICATE KEY UPDATE value=?", [auto_clean_log_enabled ? '1' : '0', auto_clean_log_enabled ? '1' : '0']);
+    }
+    if (log_retention_days !== undefined) {
+      const val = Math.max(1, Math.min(365, parseInt(log_retention_days, 10) || 30));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('log_retention_days', ?) ON DUPLICATE KEY UPDATE value=?", [String(val), String(val)]);
+    }
+    if (clean_login_log !== undefined) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('clean_login_log', ?) ON DUPLICATE KEY UPDATE value=?", [clean_login_log ? '1' : '0', clean_login_log ? '1' : '0']);
+    }
+    if (clean_audit_log !== undefined) {
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('clean_audit_log', ?) ON DUPLICATE KEY UPDATE value=?", [clean_audit_log ? '1' : '0', clean_audit_log ? '1' : '0']);
+    }
+    if (kitchen_auto_hide_minutes !== undefined) {
+      const mins = Math.max(0, Math.min(120, parseInt(kitchen_auto_hide_minutes, 10) || 10));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('kitchen_auto_hide_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
+    }
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_settings', 'settings', null,
+      '更新系统全局设置', getClientIp(req));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/super/audit-logs', requireSuperAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 200;
+    const logs = await allAsync('SELECT * FROM audit_logs ORDER BY id DESC LIMIT ?', [limit]);
+    res.json(logs);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/super/logout', requireSuperAdmin, async (req, res) => {
+  try {
+    if (req.superSessionToken) {
+      await runAsync('DELETE FROM super_sessions WHERE token=?', [req.superSessionToken]).catch(() => {});
+    }
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body || {};
+    if (!oldPassword || !newPassword) return res.status(400).json({ error: '请输入旧密码和新密码' });
+    if (newPassword.length < 6) return res.status(400).json({ error: '新密码至少6位' });
+    if (!verifyPassword(oldPassword, req.superAdmin.password_hash)) {
+      return res.status(401).json({ error: '旧密码错误' });
+    }
+    const hash = hashPassword(newPassword);
+    await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+};
