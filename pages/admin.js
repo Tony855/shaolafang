@@ -230,27 +230,8 @@
 
 
         // (deleteStore/copyStoreMenu 已移到 store.js)
-        document.addEventListener('DOMContentLoaded', function() {
-            const addStoreBtn = document.getElementById('addStoreBtn');
-            if (addStoreBtn) {
-                addStoreBtn.onclick = async function() {
-                    const name = $('#storeNameInput').value.trim();
-                    const code = $('#storeCodeInput').value.trim();
-                    const address = $('#storeAddressInput').value.trim();
-                    if (!name) { SLF.ui.toast(`❌ ${tAdmin('enterStoreName')}`); return; }
-                    try {
-                        await api('/admin/stores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name, code, address } });
-                        $('#storeNameInput').value = '';
-                        $('#storeCodeInput').value = '';
-                        $('#storeAddressInput').value = '';
-                        window.loadStores();
-                        SLF.ui.toast('✅ ' + tAdmin('added'));
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                };
-            }
-        // ===== 密码修改表单（已移到 shared.js）=====
+        // ===== 店铺表单提交（已移到 store.js）=====
 
-        });
 
         // (showQr 已移到 table.js)
 
