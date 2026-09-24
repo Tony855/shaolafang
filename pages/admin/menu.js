@@ -489,11 +489,14 @@ document.getElementById('importFile').addEventListener('change', function(e) {
 
 async function confirmImport() {
   if (importItems.length === 0) return;
+  if (!confirm('确认导入 ' + importItems.length + ' 条菜品？\n重复的同名菜品将自动覆盖更新！')) {
+    return;
+  }
   var btn = document.getElementById('confirmImportBtn');
   btn.disabled = true;
   btn.textContent = '导入中...';
   try {
-    var result = await window.SLF.api.post('/admin/menu/batch', { items: importItems });
+    var result = await window.SLF.api.post('/menu/batch', { items: importItems });
     var html = '<div style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px;">' +
       '✅ 成功导入 ' + result.success + ' 条';
     if (result.failed > 0) html += '，失败 ' + result.failed + ' 条';
@@ -502,7 +505,7 @@ async function confirmImport() {
       html += '<div style="margin-top: 5px; font-size: 12px; color: #c62828;">' + result.errors.slice(0, 5).join('<br>') + '</div>';
     }
     document.getElementById('importResult').innerHTML = html;
-    await window.SLF.admin.loadMenus();
+    setTimeout(() => location.reload(), 1500);
   } catch (e) {
     document.getElementById('importResult').innerHTML = '<div style="background: #ffebee; color: #c62828; padding: 10px; border-radius: 6px;">❌ 导入失败：' + e.message + '</div>';
   } finally {

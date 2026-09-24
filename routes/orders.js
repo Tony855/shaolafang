@@ -223,24 +223,44 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
           errors.push(`第 ${i+1} 行：名称和价格必填`);
           continue;
         }
-        await runAsync(
-          'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [
-            item.name, 
-            item.emoji || '🍽️', 
-            parseFloat(item.price), 
-            item.category || '其他', 
-            item.desc || '', 
-            '', 
-            item.currency_code || 'USD', 
-            item.name_en || '', 
-            item.desc_en || '', 
-            item.unit || '份', 
-            item.show_dual ? 1 : 0, 
-            item.secondary_currency_code || '', 
-            req.storeId || 1
-          ]
-        );
+        const existing = await getAsync('SELECT id FROM menus WHERE name = ? AND store_id = ?', [item.name, req.storeId || 1]);
+        if (existing) {
+          await runAsync(
+            'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ? WHERE id = ?',
+            [
+              item.emoji || '🍽️',
+              parseFloat(item.price),
+              item.category || '其他',
+              item.desc || '',
+              item.currency_code || 'USD',
+              item.name_en || '',
+              item.desc_en || '',
+              item.unit || '份',
+              item.show_dual ? 1 : 0,
+              item.secondary_currency_code || '',
+              existing.id
+            ]
+          );
+        } else {
+          await runAsync(
+            'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              item.name,
+              item.emoji || '🍽️',
+              parseFloat(item.price),
+              item.category || '其他',
+              item.desc || '',
+              '',
+              item.currency_code || 'USD',
+              item.name_en || '',
+              item.desc_en || '',
+              item.unit || '份',
+              item.show_dual ? 1 : 0,
+              item.secondary_currency_code || '',
+              req.storeId || 1
+            ]
+          );
+        }
         success++;
       } catch (e) {
         failed++;
