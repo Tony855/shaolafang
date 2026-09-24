@@ -444,10 +444,32 @@ app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
     const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=?', [targetTable, storeId]);
     if (!target) return res.status(404).json({ error: '目标桌不存在' });
 
-    const result = await runAsync(
-      "UPDATE orders SET table_name=? WHERE table_name=? AND store_id=? AND status='pending'",
-      [targetTable, fromTable, storeId]
+    const nowIso = new Date().toISOString();
+    // 查目标桌的有效 session
+    const targetSession = await getAsync(
+      "SELECT token FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
+      [targetTable, storeId, nowIso]
     );
+    let newToken;
+    if (targetSession) {
+      newToken = targetSession.token;
+    } else {
+      newToken = 'auto_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      const exp = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      await runAsync(
+        'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)',
+        [targetTable, newToken, exp, nowIso, storeId]
+      );
+    }
+
+    // 一次性把所有未结算订单的 table_name 和 session_token 都改过来
+    const result = await runAsync(
+      "UPDATE orders SET table_name=?, session_token=? WHERE table_name=? AND store_id=? AND status='pending'",
+      [targetTable, newToken, fromTable, storeId]
+    );
+
+    // 删除源桌的旧 session
+    await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ?', [fromTable, storeId, nowIso]);
 
     await syncTableStatus(fromTable, storeId);
     await syncTableStatus(targetTable, storeId);
