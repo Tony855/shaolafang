@@ -126,6 +126,26 @@ document.addEventListener('DOMContentLoaded', function() {
       }, tAdmin('resetDataPasswordTitle'));
     };
   }
+  const adminLang = document.getElementById('adminLang');
+  if (adminLang) {
+    adminLang.onchange = async function() {
+      const lang = this.value;
+      SLF.store.rawSet('adminLang', lang);
+      SLF.i18n.lang = lang;
+      if (window.applyAdminLanguage) window.applyAdminLanguage();
+      if (window.loadAdminInfo) window.loadAdminInfo();
+      const navItem = document.querySelector('.nav-item.active');
+      if (navItem && window.switchAdminModule) window.switchAdminModule(navItem.dataset.module);
+    };
+  }
+  const adminStoreSelect = document.getElementById('adminStoreSelect');
+  if (adminStoreSelect) {
+    adminStoreSelect.onchange = function() {
+      SLF.store.rawSetSession('adminStoreId', this.value);
+      if (window.updateSidebarStore) window.updateSidebarStore();
+      if (window.refresh) window.refresh();
+    };
+  }
 });
 
 // 挂到 window

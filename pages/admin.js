@@ -754,25 +754,8 @@
             $('#savePrefixBtn').textContent = tAdmin('savePrefixBtn');
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            $('#adminLang').onchange = async function() {
-                adminLang = this.value;
-                SLF.store.rawSet('adminLang', adminLang);
-                await loadAdminLanguage(adminLang);
-                SLF.i18n.lang = adminLang;
-                applyAdminLanguage();
-                if (typeof loadAdminInfo === 'function') loadAdminInfo();
-                const currentModule = getCurrentModule();
-                if (currentModule) switchAdminModule(currentModule);
-                const auditLogsPanel = document.getElementById('auditLogsPanel');
-                if (auditLogsPanel && auditLogsPanel.style.display !== 'none') loadAuditLogs();
-            };
-            $('#adminStoreSelect').onchange = function() {
-                SLF.store.rawSetSession('adminStoreId', this.value);
-                window.updateSidebarStore();
-                refresh();
-            };
-        });
+        // ===== 语言切换和店铺切换（已移到 shared.js）=====
+
 
         // 空闲超时（统一 SLF.idle）
         let adminIdleTimeoutMin = 30;
