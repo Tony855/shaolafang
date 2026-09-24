@@ -105,6 +105,14 @@
             constraints: null
         };
 
+        // 页面初始化时自动生成唯一customer_token
+        if (!SLF.store.rawGet('customer_token')) {
+            state.customerToken = 'ct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            SLF.store.rawSet('customer_token', state.customerToken);
+        } else {
+            state.customerToken = SLF.store.rawGet('customer_token');
+        }
+
         let isBackendOnline = false;
 
         // ============================================================
