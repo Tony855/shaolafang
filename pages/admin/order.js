@@ -53,8 +53,120 @@ async function loadOrders() {
   if (ctx.tablesCache().length && window.loadTables) window.loadTables();
 }
 
+let transferOrderId = null;
+let transferFromTable = '';
+let settleOrderId = null;
+
+async function toggleItemStatus(id, index) {
+  try {
+    const orders = ctx.ordersCache();
+    const order = orders.find(o => o.id === id);
+    if (!order || !order.items[index]) return;
+    if (order.items[index].itemStatus === 'done') { SLF.ui.toast(`❌ ${tAdmin('cannotRevertDone')}`); return; }
+    await api('/orders/' + id + '/items/' + index, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { itemStatus: 'done' } });
+    await loadOrders();
+    SLF.ui.toast(`✅ ${tAdmin('dishStatusUpdated')}`);
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+
+async function showTransferModal(orderId, fromTable) {
+  transferFromTable = fromTable;
+  transferOrderId = orderId;
+  document.getElementById('transferTitle').textContent = '↔ ' + tAdmin('transferOrder');
+  document.getElementById('transferToLabel').textContent = tAdmin('transferTo');
+  document.getElementById('transferCancelBtn').textContent = tAdmin('cancel');
+  document.getElementById('transferConfirmBtn').textContent = tAdmin('confirm');
+  document.getElementById('transferFromLabel').textContent = tAdmin('transferFrom') + ': ' + fromTable;
+  const select = document.getElementById('transferTargetSelect');
+  try {
+    const res = await SLF.api.get('/tables');
+    const others = (res.tables || res || []).filter(x => x.name !== fromTable);
+    select.innerHTML = others.map(x => '<option value="' + esc(x.name) + '">' + esc(x.name) + '</option>').join('');
+    document.getElementById('transferModal').classList.add('open');
+  } catch (e) { SLF.ui.toast("❌ " + e.message); }
+}
+function closeTransferModal() {
+  document.getElementById('transferModal').classList.remove('open');
+  transferOrderId = null;
+}
+async function confirmTransfer() {
+  if (!transferOrderId) return;
+  const target = document.getElementById('transferTargetSelect').value;
+  ctx.showConfirm(tAdmin('transferConfirmMsg') + ' ' + transferFromTable + ' → ' + target, async function() {
+    try {
+      const res = await SLF.api.post('/orders/' + transferOrderId + '/transfer', { target_table: target });
+      if (res && res.targetHasOrders) SLF.ui.toast('⚠️ ' + tAdmin('targetHasOrders'));
+      SLF.ui.toast('✅ ' + tAdmin('transferSuccess'));
+      closeTransferModal();
+      loadOrders();
+    } catch (e) { SLF.ui.toast("❌ " + e.message); }
+  });
+}
+
+async function confirmSettleOrder(id) {
+  settleOrderId = id;
+  try {
+    const res = await SLF.api.get('/orders/' + id);
+    const o = res.order || res;
+    const items = (o.items || []).map(i => {
+      const qty = Number(i.quantity||0) - Number(i.returnedQty||0);
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);">'
+        + '<span>' + esc(i.name) + ' ×' + i.quantity + ' <span style="color:#e67e22;font-size:12px;">@' + SLF.money.primary(SLF.money.toBase(i.price, (i.currency_code||'USD'))) + '</span></span>'
+        + '<span style="font-weight:600;">' + SLF.money.primary(SLF.money.toBase(i.price, (i.currency_code||'USD')) * qty) + '</span></div>';
+    }).join('');
+    document.getElementById('settleDetailBody').innerHTML =
+      '<div style="margin-bottom:12px;color:#888;font-size:13px;">' + (o.order_no||('#'+id)) + ' · ' + esc(o.table_name||'-') + '</div>'
+      + items
+      + '<div style="margin-top:12px;text-align:right;font-size:16px;font-weight:700;">' + tAdmin('total') + ': ' + SLF.money.primary(o.total) + '</div>';
+    document.getElementById('settleDetailModal').classList.add('open');
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+function closeSettleDetail() {
+  document.getElementById('settleDetailModal').classList.remove('open');
+  settleOrderId = null;
+}
+async function doSettleOrder() {
+  if (!settleOrderId) return;
+  const id = settleOrderId;
+  closeSettleDetail();
+  try { await statusOrder(id, 'done'); SLF.ui.toast('✅ ' + tAdmin('settleOrder')); } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+function confirmCancelOrder(id) {
+  ctx.showConfirm(tAdmin('cancelOrderConfirm'), () => statusOrder(id, 'canceled'), tAdmin('cancelOrder'));
+}
+async function statusOrder(id, status) {
+  try {
+    await api('/orders/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { status } });
+    await loadOrders();
+    SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + tAdmin('updated'));
+  } catch (e) {
+    const msg = e.message.includes('未完成菜品') ? (L('incompleteItemsError') || e.message) : e.message;
+    SLF.ui.toast('❌ ' + msg);
+    throw e;
+  }
+}
+function removeOrder(id) {
+  ctx.showPasswordModal(tAdmin('passwordTitle'), async function(password) {
+    try {
+      await api('/orders/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: { password } });
+      await loadOrders();
+      SLF.ui.toast('✅ ' + tAdmin('deleted'));
+    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+  });
+}
+
 // 挂到 window
 window.loadOrders = loadOrders;
 window.setOrderFilter = setOrderFilter;
+window.toggleItemStatus = toggleItemStatus;
+window.showTransferModal = showTransferModal;
+window.closeTransferModal = closeTransferModal;
+window.confirmTransfer = confirmTransfer;
+window.confirmSettleOrder = confirmSettleOrder;
+window.closeSettleDetail = closeSettleDetail;
+window.doSettleOrder = doSettleOrder;
+window.confirmCancelOrder = confirmCancelOrder;
+window.statusOrder = statusOrder;
+window.removeOrder = removeOrder;
 
 })();
