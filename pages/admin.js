@@ -302,25 +302,8 @@
         });
 
         // (editCurrency/saveCurrencyEdit/setDefaultCurrency/removeCurrency 已移到 currency.js)
-        document.addEventListener('DOMContentLoaded', function() {
-            const currencyForm = document.getElementById('currencyForm');
-            if (currencyForm) {
-                currencyForm.onsubmit = async function(e) {
-                    e.preventDefault();
-                    try {
-                        await api('/currencies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
-                            code: $('#currencyCode').value,
-                            symbol: $('#currencySymbol').value,
-                            name: $('#currencyName').value,
-                            rate: +$('#currencyRate').value
-                        }});
-                        e.target.reset();
-                        await window.window.loadCurrencies();
-                        SLF.ui.toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('added'));
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                };
-            }
-        });
+        // ===== 货币表单提交（已移到 currency.js）=====
+
 
         // (updateWaiterPerm/deleteWaiter 已移到 waiter.js)
         document.addEventListener('DOMContentLoaded', function() {

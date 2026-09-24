@@ -91,6 +91,26 @@ function removeCurrency(id) {
   });
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+  const currencyForm = document.getElementById('currencyForm');
+  if (currencyForm) {
+    currencyForm.onsubmit = async function(e) {
+      e.preventDefault();
+      try {
+        await api('/currencies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+          code: $('#currencyCode').value,
+          symbol: $('#currencySymbol').value,
+          name: $('#currencyName').value,
+          rate: +$('#currencyRate').value
+        }});
+        e.target.reset();
+        await loadCurrencies();
+        SLF.ui.toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('added'));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+});
+
 // 挂到 window
 window.loadCurrencies = loadCurrencies;
 window.currencyNameText = currencyNameText;
