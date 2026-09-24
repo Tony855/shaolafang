@@ -306,6 +306,10 @@
                     } else if (SLF.store.rawGet('customer_token')) {
                         state.customerToken = SLF.store.rawGet('customer_token');
                     }
+                    if (!state.customerToken) {
+                        state.customerToken = 'ct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        SLF.store.rawSet('customer_token', state.customerToken);
+                    }
                     await fetchStoreInfo();
                     await fetchMenu();
                     menuAlreadyFetched = true;
@@ -321,6 +325,10 @@
                         SLF.store.rawSet('customer_token', session.customerToken);
                     } else if (SLF.store.rawGet('customer_token')) {
                         state.customerToken = SLF.store.rawGet('customer_token');
+                    }
+                    if (!state.customerToken) {
+                        state.customerToken = 'ct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        SLF.store.rawSet('customer_token', state.customerToken);
                     }
                     try {
                         const url = new URL(window.location.href);
