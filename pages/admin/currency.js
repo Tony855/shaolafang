@@ -24,7 +24,20 @@ function currencyNameText(name, code) {
 
 async function loadCurrencies() {
   const list = await api('/currencies');
-  const defaultCode = list.find(c => c.is_default)?.code || list[0]?.code || 'USD';
+  if (window.SLF.admin.setCurrencies) window.SLF.admin.setCurrencies(list);
+  const defaultCurrency = list.find(c => c.is_default) || list[0] || null;
+  // 配置 SLF.money
+  if (typeof SLF !== 'undefined' && SLF.money) {
+    SLF.money.configure({
+      currencies: list,
+      defaultCurrency: defaultCurrency,
+      dualCurrency: {
+        enabled: (window.SLF.admin.dualCurrencyEnabled ? window.SLF.admin.dualCurrencyEnabled() : false),
+        currency: (window.SLF.admin.secondaryCurrencyCode ? window.SLF.admin.secondaryCurrencyCode() : '') ? { code: (window.SLF.admin.secondaryCurrencyCode ? window.SLF.admin.secondaryCurrencyCode() : '') } : null
+      }
+    });
+  }
+  const defaultCode = defaultCurrency?.code || 'USD';
   $('#menuCurrency').innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)} · ${esc(currencyNameText(c.name,c.code))}</option>`).join('');
   $('#dualCurrencySelect').innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');
   $('#menuSecondaryCurrency').innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');

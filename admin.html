@@ -412,6 +412,24 @@
                     <button id="enterCashierManageBtn" onclick="switchAdminModule('cashiers')" style="background: linear-gradient(135deg,#f6d365,#fda085); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入收银员管理</button>
                 </div>
 
+                <div class="settings-card" id="waiterManageCard">
+                    <h3 class="settings-card-title" id="waiterManageCardTitle">🍽️ 服务员管理</h3>
+                    <p id="waiterManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理服务员账号，支持添加、编辑、删除服务员</p>
+                    <button id="enterWaiterManageBtn" onclick="switchAdminModule('waiters')" style="background: linear-gradient(135deg,#a8edea,#fed6e3); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入服务员管理</button>
+                </div>
+
+                <div class="settings-card" id="currencySettingsCard">
+                    <h3 class="settings-card-title" id="currencySettingsTitle">💱 货币设置</h3>
+                    <p id="currencySettingsDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">配置货币类型、汇率和双币显示</p>
+                    <button id="enterCurrencySettingsBtn" onclick="switchAdminModule('currencies')" style="background: linear-gradient(135deg,#ffecd2,#fcb69f); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入货币设置</button>
+                </div>
+
+                <div class="settings-card" id="printerSettingsCard">
+                    <h3 class="settings-card-title" id="printerSettingsTitle">🖨️ 打印机设置</h3>
+                    <p id="printerSettingsDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">配置打印机、打印路由和自动打印</p>
+                    <button id="enterPrinterSettingsBtn" onclick="switchAdminModule('printers')" style="background: linear-gradient(135deg,#a1c4fd,#c2e9fb); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入打印机设置</button>
+                </div>
+
                 <div class="settings-card" id="orderPrefixCard">
                     <h3 class="settings-card-title" id="orderPrefixTitle">🔢 订单号前缀配置</h3>
                     <p style="color:#999;margin-bottom:16px;font-size:14px;" id="orderPrefixDesc">订单号格式：前缀(2位) + 年月日(6位) + 序号(5位)，如 1125091900001</p>

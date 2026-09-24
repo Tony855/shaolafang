@@ -206,7 +206,7 @@
         const unitPrices = SLF.money.menuPrice(i);
         const basePrice = SLF.money.toBase(i.price, i.currency_code);
         const subBase = basePrice * qty;
-        let priceDisplay = `<span style="color:#e67e22;font-size:12px;">@${unitPrices.primary}</span> <b>${SLF.money.format(subBase, {showSecondary:false})}</b>`;
+        let priceDisplay = `<span style="color:#e67e22;font-size:12px;">@${unitPrices.primary}${unitPrices.secondary ? ' <span style="color:#999;font-size:10px;">(' + unitPrices.secondary + ')</span>' : ''}</span> <b>${SLF.money.format(subBase, { secondaryCode: i.secondary_currency_code })}</b>`;
         const returnedHtml = i.returnedQty > 0 ? `<span class="item-status returned" style="background:#95a5a6;">${t('returned', null, '已退')} ${i.returnedQty}</span>` : '';
         const isSelected = state.selectedItem && state.selectedItem.orderId === o.id && state.selectedItem.index === idx;
         const returnBtn = i.itemStatus === 'done' && Number(i.quantity) > 1 && Number(i.quantity) > Number(i.returnedQty || 0) && isSelected ? `<button class="item-toggle return-btn" onclick="event.stopPropagation();returnWaiterItem(${o.id},${idx})" style="background:#e74c3c;color:#fff;">${t('returnDish', null, '退菜')}</button>` : '';
@@ -489,7 +489,7 @@
           <div style="color:#666;font-size:13px;">${SLF.utils.formatDateTime(o.createdAt)}</div>
           <div style="display:flex;justify-content:space-between;margin-top:8px;">
             <span style="color:#888;font-size:13px;">${(o.items || []).length} ${t('dishes', null, '道菜品')}</span>
-            <span style="font-weight:700;color:#e74c3c;">${SLF.money.primary(o.total)}</span>
+            <span style="font-weight:700;color:#e74c3c;">${SLF.money.format(o.total)}</span>
           </div>
         </div>
       `).join('');
@@ -517,13 +517,13 @@
         ${(order.items || []).map((item) => `
           <div class="order-detail-item">
             <span class="dish-name">${esc(item.emoji) || '🍽️'} ${esc(item.name)} x${item.quantity}</span>
-            <span class="item-price">${SLF.money.primary((Number(item.price) || 0) * item.quantity)}</span>
+            <span class="item-price">${SLF.money.format((Number(item.price) || 0) * item.quantity, { secondaryCode: item.secondary_currency_code })}</span>
           </div>
         `).join('')}
       </div>
       <div style="border-top:2px solid #333;padding-top:12px;display:flex;justify-content:space-between;font-size:18px;font-weight:700;">
         <span>${t('total', null, '合计')}</span>
-        <span style="color:#e74c3c;">${SLF.money.primary(order.total)}</span>
+        <span style="color:#e74c3c;">${SLF.money.format(order.total)}</span>
       </div>
     `;
     modal.style.display = 'flex';
@@ -651,7 +651,7 @@
       const timeStr = order.createdAt ? new Date(order.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
       html += '<div class="order-select-item" onclick="selectOrder(' + order.id + ')" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid var(--gray-2);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .2s;">';
       html += '<div><div style="font-weight:600;font-size:15px;">' + esc(customerLabel) + '</div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + itemCount + ' ' + t('dishes', null, '道菜品') + ' · ' + timeStr + '</div></div>';
-      html += '<div style="font-weight:700;color:var(--primary);">' + SLF.money.primary(order.total || 0) + '</div>';
+      html += '<div style="font-weight:700;color:var(--primary);">' + SLF.money.format(order.total || 0) + '</div>';
       html += '</div>';
     });
     listEl.innerHTML = html;

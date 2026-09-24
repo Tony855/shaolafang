@@ -201,7 +201,8 @@ document.addEventListener('DOMContentLoaded', function() {
     adminLang.onchange = async function() {
       const lang = this.value;
       SLF.store.rawSet('adminLang', lang);
-      SLF.i18n.lang = lang;
+      // 先加载语言字典
+      if (window.loadAdminLanguage) await window.loadAdminLanguage(lang);
       if (window.applyAdminLanguage) window.applyAdminLanguage();
       if (window.loadAdminInfo) window.loadAdminInfo();
       const navItem = document.querySelector('.nav-item.active');

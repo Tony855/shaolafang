@@ -914,6 +914,7 @@
         setCategories: (v) => categoriesCache = v,
         setTables: (v) => tablesCache = v,
         setOrders: (v) => ordersCache = v,
+        setCurrencies: (v) => currenciesCache = v,
         dualCurrencyEnabled: () => dualCurrencyEnabled,
         secondaryCurrencyCode: () => secondaryCurrencyCode,
         defaultCurrencyObj: () => defaultCurrencyObj,
@@ -931,5 +932,6 @@
       window.switchMenuTab = switchMenuTab;
       window.loadReportSummary = loadReportSummary;
       window.applyAdminLanguage = applyAdminLanguage;
+      window.loadAdminLanguage = loadAdminLanguage;
     } catch(err) {}
 })();
