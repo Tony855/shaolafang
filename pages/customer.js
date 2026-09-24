@@ -465,6 +465,7 @@
                                     <span class="order-id">
                                         <span class="order-id-hash">#</span>${esc(order.order_no || ("#" + order.id))}
                                     </span>
+                                    ${order.table_name ? `<span style="font-size:12px;padding:2px 6px;border-radius:4px;background:${order.table_name===state.tableName?'#e8f5e9':'#f5f5f5'};color:${order.table_name===state.tableName?'#2e7d32':'#666'};">🏷️ ${esc(order.table_name)}</span>` : ''}
                                     <span style="font-size:12px;color:#888;white-space:nowrap;">🕒 ${esc(timeStr)}</span>
                                 </div>
                                 <span class="order-status-badge ${orderStatusClass}">${esc(orderStatusText)}</span>
