@@ -108,4 +108,50 @@ module.exports = function(app, deps) {
       res.json({ admin, merchant, storeCount: storeCount?.count || 0 });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
+
+  app.get('/api/admin/export/:type', requireAdminKey, async (req, res) => {
+    try {
+      const type = req.params.type;
+      let rows = [], filename = '', headers = [];
+      if (type === 'orders') {
+        rows = await allAsync('SELECT * FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000', [req.storeId]);
+        filename = `orders_${new Date().toISOString().slice(0,10)}.csv`;
+        headers = ['订单号','桌号','状态','金额','备注','下单时间'];
+      } else if (type === 'menu') {
+        rows = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [req.storeId]);
+        filename = `menu_${new Date().toISOString().slice(0,10)}.csv`;
+        headers = ['ID','名称','英文名','价格','货币','分类','单位','状态'];
+      } else if (type === 'sales') {
+        rows = await allAsync(`
+          SELECT m.id, m.name, m.price, SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)) AS total_qty,
+                 SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS DECIMAL(10,2)) * m.price) AS total_revenue
+          FROM orders o
+          JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
+            ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
+          JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
+          WHERE o.store_id=? AND o.status = 'done'
+          GROUP BY m.id, m.name, m.price
+          ORDER BY total_qty DESC
+        `, [req.storeId]);
+        filename = `sales_${new Date().toISOString().slice(0,10)}.csv`;
+        headers = ['菜品ID','菜品名称','单价','销量','销售额'];
+      } else {
+        return res.status(400).json({ error: '不支持的导出类型' });
+      }
+      const csvRows = [headers.join(',')];
+      for (const row of rows) {
+        if (type === 'orders') {
+          csvRows.push([row.id, row.table_name, row.status, row.total, `"${(row.note||'').replace(/"/g,'""')}"`, row.createdAt].join(','));
+        } else if (type === 'menu') {
+          csvRows.push([row.id, `"${row.name}"`, `"${row.name_en||''}"`, row.price, row.currency_code, `"${row.category||''}"`, row.unit, row.active].join(','));
+        } else if (type === 'sales') {
+          csvRows.push([row.id, `"${row.name}"`, row.price, row.total_qty || 0, row.total_revenue || 0].join(','));
+        }
+      }
+      const csv = '\uFEFF' + csvRows.join('\n');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(csv);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
 };

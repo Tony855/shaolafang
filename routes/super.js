@@ -6,7 +6,7 @@ const os = require('os');
 const fs = require('fs');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, requireAdminKey } = deps;
+  const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, collectBackupData, autoBackupDatabase, withTransaction } = deps;
 
 app.post('/api/super/login', async (req, res) => {
   try {
@@ -480,6 +480,78 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
     await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
     res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
+  try {
+    const data = await collectBackupData();
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="foodflow-full-backup-${new Date().toISOString().slice(0,10)}.json"`);
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/super/backup/import', requireSuperAdmin, async (req, res) => {
+  try {
+    const data = req.body;
+    if (!data || !data.tables || typeof data.tables !== 'object') return res.status(400).json({ error: '备份文件格式无效' });
+    await withTransaction(async () => {
+      for (const table of ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins']) {
+        const rows = Array.isArray(data.tables[table]) ? data.tables[table] : [];
+        await runAsync(`DELETE FROM \`${table}\``);
+        for (const row of rows) {
+          const keys = Object.keys(row).filter(k => !['id'].includes(k));
+          const placeholders = keys.map(() => '?').join(', ');
+          const values = keys.map(k => row[k]);
+          if (keys.length) {
+            await runAsync(`INSERT INTO \`${table}\` (${keys.map(k => `\`${k}\``).join(', ')}) VALUES (${placeholders})`, values);
+          }
+        }
+      }
+    });
+    res.json({ success: true, message: '备份已导入' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/super/backup/settings', requireSuperAdmin, async (req, res) => {
+  try {
+    const intervalRow = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
+    const lastBackupRow = await getAsync("SELECT value FROM settings WHERE `key` = 'last_backup_at'");
+    res.json({ intervalHours: parseInt(intervalRow?.value || '24', 10), lastBackupAt: lastBackupRow?.value || null });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/super/backup/settings', requireSuperAdmin, async (req, res) => {
+  try {
+    const { intervalHours } = req.body || {};
+    const hours = Math.max(1, Math.min(168, parseInt(intervalHours, 10) || 24));
+    await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_interval_hours', ?) ON DUPLICATE KEY UPDATE value=?", [String(hours), String(hours)]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/super/backup/now', requireSuperAdmin, async (req, res) => {
+  try {
+    await autoBackupDatabase();
+    res.json({ success: true, message: '备份已生成' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: '请提供超级管理员密码' });
+    if (!verifyPassword(password, req.superAdmin.password_hash)) {
+      return res.status(401).json({ error: '密码错误，重置失败' });
+    }
+    await runAsync('DELETE FROM orders');
+    await runAsync('ALTER TABLE orders AUTO_INCREMENT = 1');
+    await runAsync('DELETE FROM waiter_calls');
+    await runAsync('DELETE FROM scan_sessions');
+    await runAsync('ALTER TABLE scan_sessions AUTO_INCREMENT = 1');
+    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_all_data', 'system', null, '重置所有订单数据', getClientIp(req));
+    res.json({ success: true, message: '所有订单数据已重置' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
