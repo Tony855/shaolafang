@@ -117,6 +117,26 @@ async function openStoreEdit(id) {
 
 function closeStoreEdit() { $('#storeEditModal').classList.remove('open'); }
 
+document.addEventListener('DOMContentLoaded', function() {
+  const addStoreBtn = document.getElementById('addStoreBtn');
+  if (addStoreBtn) {
+    addStoreBtn.onclick = async function() {
+      const name = $('#storeNameInput').value.trim();
+      const code = $('#storeCodeInput').value.trim();
+      const address = $('#storeAddressInput').value.trim();
+      if (!name) { SLF.ui.toast(`❌ ${tAdmin('enterStoreName')}`); return; }
+      try {
+        await api('/admin/stores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name, code, address } });
+        $('#storeNameInput').value = '';
+        $('#storeCodeInput').value = '';
+        $('#storeAddressInput').value = '';
+        loadStores();
+        SLF.ui.toast('✅ ' + tAdmin('added'));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+});
+
 // 挂到 window
 window.loadStores = loadStores;
 window.updateSidebarStore = updateSidebarStore;
