@@ -242,13 +242,15 @@ document.addEventListener('DOMContentLoaded', function() {
             if (h > maxH) { w = w * maxH / h; h = maxH; }
             canvas.width = w; canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            form.set('image', canvas.toDataURL('image/jpeg', 0.85));
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+            form.set('image', blob, 'menu_' + Date.now() + '.jpg');
           } catch (imgErr) { console.warn('图片压缩失败:', imgErr); }
         }
-        await api(isEditing ? '/menu/' + editingMenuId : '/menu', {
-          method: isEditing ? 'PUT' : 'POST',
-          body: form
-        });
+        if (isEditing) {
+          await SLF.api.put('/menu/' + editingMenuId, form);
+        } else {
+          await SLF.api.post('/menu', form);
+        }
         closeDishModal();
         await loadMenus();
         SLF.ui.toast('✅ ' + tAdmin('saved'));
