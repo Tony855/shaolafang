@@ -37,6 +37,9 @@ APP_DIR="/var/www/foodflow"          # 应用安装目录
 CONFIG_DIR="/etc/foodflow"           # 配置文件目录
 SERVICE_NAME="foodflow"              # systemd 服务名
 
+# 版本选择（main = 最新开发版，或者填 tag 版本号比如 v1.0.0）
+VERSION="main"                       # 要安装的版本（main 或 tag）
+
 # 域名和邮箱（用于 SSL 证书，留空则不配置 HTTPS）
 DOMAIN="foodflow.v2net.cc"           # 你的域名，比如 foodflow.example.com
 EMAIL="your@email.com"               # 你的邮箱，用于证书续期提醒
@@ -306,11 +309,19 @@ install_single() {
         cd "$DEPLOY_TARGET"
         git pull origin main || log_warn "git pull 失败，继续使用现有代码"
         log_success "代码更新完成"
-    else
-        # 首次部署但当前目录不是 git：直接复制
+    elif [ -f "$SCRIPT_DIR/server.js" ]; then
+        # 当前目录有代码（但不是 git）：直接复制
         log_info "复制代码到 $DEPLOY_TARGET..."
         cp -r "$SCRIPT_DIR"/* "$DEPLOY_TARGET/" 2>/dev/null || true
         log_success "代码复制完成"
+    else
+        # 当前目录没有代码：自动从 GitHub 克隆
+        log_info "当前目录未找到代码，自动从 GitHub 克隆..."
+        git clone --branch "$VERSION" https://github.com/Tony855/shaolafang.git "$DEPLOY_TARGET" || {
+            log_error "代码克隆失败，请手动上传代码到 $DEPLOY_TARGET"
+            exit 1
+        }
+        log_success "代码克隆完成"
     fi
 
     # 创建必要的子目录
@@ -726,13 +737,6 @@ main() {
 
     # 检查系统环境
     check_system
-
-    # 早期检查 deploy 目录是否完整
-    if [ ! -d "$DEPLOY_DIR" ]; then
-        log_error "未找到 deploy 目录：$DEPLOY_DIR"
-        log_info "请确保从项目根目录运行此脚本，且 deploy 目录完整"
-        exit 1
-    fi
 
     # 选择部署模式
     select_deploy_mode "$1"
