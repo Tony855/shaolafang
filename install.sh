@@ -435,7 +435,14 @@ install_single() {
 
     # ===== 9. 配置数据库 =====
     echo ""
-    log_info "自动配置数据库..."
+    # 检查是否已安装过：如果 .env 存在，说明是更新模式，跳过数据库重建
+    if [ -f "/.env" ]; then
+        log_info "检测到已安装（.env 存在），跳过数据库重建，保留所有数据！"
+        SKIP_DB_INIT=1
+    else
+        log_info "自动配置数据库（首次安装）..."
+        SKIP_DB_INIT=0
+    fi
     DEFAULT_DB_NAME="ordering_system"
     log_info "数据库名: $DEFAULT_DB_NAME"
 
@@ -458,6 +465,7 @@ install_single() {
         exit 1
     fi
 
+    if [ "$SKIP_DB_INIT" -eq 0 ]; then
     log_info "创建数据库..."
     $MYSQL_CMD -e "DROP DATABASE IF EXISTS \`$DEFAULT_DB_NAME\`;"
     $MYSQL_CMD -e "CREATE DATABASE \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -470,6 +478,9 @@ install_single() {
     $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'localhost';"
     $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'127.0.0.1';"
     $MYSQL_CMD -e "FLUSH PRIVILEGES;"
+    else
+        log_info "跳过数据库用户创建（已存在）"
+    fi
 
     log_info "验证数据库连接..."
     cat > "$APP_DIR/db-test.js" << EOF
