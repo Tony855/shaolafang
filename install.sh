@@ -420,7 +420,7 @@ install_single() {
     # ===== 7. 安装 npm 依赖 =====
     echo ""
     log_info "安装 Node.js 依赖..."
-    npm install --production --no-audit --no-fund
+    npm install --omit=dev --no-audit --no-fund
     log_success "依赖安装完成"
 
     # ===== 8. 创建必要目录 =====
