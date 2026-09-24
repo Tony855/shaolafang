@@ -335,31 +335,8 @@
         // (showQr 已移到 table.js)
 
         document.addEventListener('DOMContentLoaded', function() {
-            const saveDisplaySettingsBtn = document.getElementById('saveDisplaySettingsBtn');
-            if (saveDisplaySettingsBtn) {
-                saveDisplaySettingsBtn.onclick = async function() {
-                    try {
-                        await SLF.api.post('/admin/display-settings', {
-                            enabled: document.getElementById('dualCurrencyEnabled').checked,
-                            secondaryCurrencyCode: document.getElementById('dualCurrencySelect').value
-                        });
-                        SLF.ui.toast('✅ ' + tAdmin('displaySettingsSaved'));
-                        await loadDisplaySettings();
-                        await loadOrderPrefixes();
-                        await window.loadMenus();
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                };
-            }
-            const saveNotifySettingsBtn = document.getElementById('saveNotifySettingsBtn');
-            if (saveNotifySettingsBtn) {
-                saveNotifySettingsBtn.onclick = async function() {
-                    try {
-                        await SLF.api.post('/admin/notification-settings', { enabled: document.getElementById('newOrderSoundEnabled').checked });
-                        SLF.ui.toast('✅ ' + tAdmin('notifySettingsSaved'));
-                        await loadNotificationSettings();
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                };
-            }
+        // ===== 显示设置表单（已移到 settings.js）=====
+
             const resetDataBtn = document.getElementById('resetDataBtn');
             if (resetDataBtn) {
                 resetDataBtn.onclick = function() {
