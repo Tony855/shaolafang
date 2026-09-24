@@ -332,120 +332,8 @@
 
         // ===== 收银员管理 =====
         let editingCashierId = null;
-        let allCashiers = [];
+        // ===== 收银员管理（已移到 pages/admin/cashier-mgr.js）=====
 
-        function openAddCashierModal() {
-            if (!hasPermission('can_manage_cashier')) { SLF.ui.toast('❌ ' + tAdmin('noPermission')); return; }
-            editingCashierId = null;
-            document.getElementById('cashierModalTitle').textContent = tAdmin('addCashier');
-            document.getElementById('cashierUsername').value = '';
-            document.getElementById('cashierUsername').disabled = false;
-            document.getElementById('cashierName').value = '';
-            document.getElementById('cashierPassword').value = '';
-            document.getElementById('cashierPassword').placeholder = '至少6位';
-            document.getElementById('cashierActive').checked = true;
-            document.getElementById('cashierCanSettle').checked = true;
-            document.getElementById('cashierCanCancel').checked = true;
-            document.getElementById('cashierCanRefund').checked = false;
-            document.getElementById('cashierCanViewReport').checked = true;
-            document.getElementById('cashierModal').classList.add('open');
-        }
-
-        function editCashier(cashierId) {
-            const cashier = allCashiers.find(c => c.id === cashierId);
-            if (!cashier) return;
-            editingCashierId = cashier.id;
-            document.getElementById('cashierModalTitle').textContent = tAdmin('editCashier');
-            document.getElementById('cashierUsername').value = cashier.username;
-            document.getElementById('cashierUsername').disabled = true;
-            document.getElementById('cashierName').value = cashier.display_name;
-            document.getElementById('cashierPassword').value = '';
-            document.getElementById('cashierPassword').placeholder = '留空则不修改密码';
-            document.getElementById('cashierActive').checked = cashier.active !== false;
-            document.getElementById('cashierCanSettle').checked = cashier.permissions?.can_settle !== false;
-            document.getElementById('cashierCanCancel').checked = cashier.permissions?.can_cancel !== false;
-            document.getElementById('cashierCanRefund').checked = cashier.permissions?.can_refund === true;
-            document.getElementById('cashierCanViewReport').checked = cashier.permissions?.can_view_report !== false;
-            document.getElementById('cashierModal').classList.add('open');
-        }
-
-        function closeCashierModal() {
-            document.getElementById('cashierModal').classList.remove('open');
-            editingCashierId = null;
-        }
-
-        async function loadCashiers() {
-            try {
-                const data = await api('/admin/cashiers');
-                const cashiers = data.cashiers || [];
-                allCashiers = cashiers;
-                $('#cashierList').innerHTML = cashiers.length ?
-                    cashiers.map(c => {
-                        const perms = [];
-                        if (c.permissions?.can_settle) perms.push(tAdmin('canSettle'));
-                        if (c.permissions?.can_cancel) perms.push(tAdmin('canCancel'));
-                        if (c.permissions?.can_refund) perms.push(tAdmin('canRefund'));
-                        if (c.permissions?.can_view_report) perms.push(tAdmin('canViewReport'));
-                        return '<div class="admin-card">' +
-                        '<div class="info">' +
-                          '<div class="title">' + esc(c.display_name) + ' · ' + esc(c.username) + '</div>' +
-                          '<div class="sub">' + (c.active?'<span style="color:#43e97b">' + tAdmin('cashierEnabled') + '</span>':'<span style="color:#f5576c">' + tAdmin('cashierDisabled') + '</span>') + ' · ' + (perms.join(' / ') || tAdmin('noPermission')) + '</div>' +
-                        '</div>' +
-                        '<div class="actions">' +
-                          '<button class="edit-btn" onclick="editCashier(' + c.id + ')">✏️ ' + L('edit') + '</button>' +
-                          '<button class="danger" onclick="deleteCashier(' + c.id + ', \'' + esc(c.username) + '\')">' + L('delete') + '</button>' +
-                        '</div>' +
-                      '</div>';
-                    }).join('') :
-                    '<div class="empty-hint">' + tAdmin('noCashiers') + '</div>';
-            } catch (e) {
-                $('#cashierList').innerHTML = '<div class="empty-hint">' + tAdmin('loadFailed') + '</div>';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const cashierForm = document.getElementById('cashierForm');
-            if (cashierForm) {
-                cashierForm.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    const username = document.getElementById('cashierUsername').value.trim();
-                    const display_name = document.getElementById('cashierName').value.trim();
-                    const password = document.getElementById('cashierPassword').value;
-                    const active = document.getElementById('cashierActive').checked;
-                    const permissions = {
-                        can_settle: document.getElementById('cashierCanSettle').checked,
-                        can_cancel: document.getElementById('cashierCanCancel').checked,
-                        can_refund: document.getElementById('cashierCanRefund').checked,
-                        can_view_report: document.getElementById('cashierCanViewReport').checked
-                    };
-                    if (!username || !display_name) { SLF.ui.toast('❌ ' + tAdmin('fillAllFields')); return; }
-                    if (!editingCashierId && !password) { SLF.ui.toast('❌ ' + tAdmin('passwordMin6')); return; }
-                    if (password && password.length < 6) { SLF.ui.toast('❌ ' + tAdmin('passwordMin6')); return; }
-                    try {
-                        if (editingCashierId) {
-                            const body = { display_name, active, permissions };
-                            if (password) body.password = password;
-                            await api('/admin/cashiers/' + editingCashierId, { method: 'PUT', body });
-                            SLF.ui.toast('✅ ' + tAdmin('cashierUpdated'));
-                        } else {
-                            await api('/admin/cashiers', { method: 'POST', body: { username, password, display_name, active, permissions } });
-                            SLF.ui.toast('✅ ' + tAdmin('cashierAdded'));
-                        }
-                        closeCashierModal();
-                        loadCashiers();
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                });
-            }
-        });
-
-        function deleteCashier(id, username) {
-            showConfirm(tAdmin('deleteCashierConfirm').replace('{username}', username), function() {
-                api('/admin/cashiers/' + id, { method: 'DELETE' }).then(() => {
-                    SLF.ui.toast('✅ ' + tAdmin('cashierDeleted'));
-                    loadCashiers();
-                }).catch(e => SLF.ui.toast('❌ ' + e.message));
-            }, tAdmin('deleteCashier'));
-        }
 
         function switchMenuTab(tab) {
             $('#menuTabDish').classList.toggle('active', tab === 'dish');
@@ -1171,7 +1059,7 @@
             else if (module === 'printers') loadPrinters();
             else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); loadDailyReport(); loadReportSummary(); }
             else if (module === 'admins') window.loadAdmins();
-            else if (module === 'cashiers') loadCashiers();
+            else if (module === 'cashiers') window.loadCashiers();
             applyPermissions();
         }
 
