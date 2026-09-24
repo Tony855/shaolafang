@@ -541,7 +541,7 @@ app.post('/api/tables/:tableName/transfer-all', requireAdminOrWaiter, async (req
     // 批量转移所有订单
     const orderIds = orders.map(o => o.id);
     const placeholders = orderIds.map(() => '?').join(',');
-    await runAsync(UPDATE orders SET table_name=?, session_token=? WHERE id IN (), [targetTable, newToken, ...orderIds]);
+    await runAsync("UPDATE orders SET table_name=?, session_token=? WHERE id IN ()", [targetTable, newToken, ...orderIds]);
     
     await syncTableStatus(oldTable, storeId);
     await syncTableStatus(targetTable, storeId);
