@@ -432,6 +432,33 @@ app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), 
   }
 });
 
+// ----- 整桌转移：把整个桌的所有未结算订单转到目标桌 -----
+app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
+  try {
+    const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    const fromTable = (req.body?.from_table || '').trim();
+    const targetTable = (req.body?.target_table || '').trim();
+    if (!fromTable || !targetTable) return res.status(400).json({ error: '请选择源桌和目标桌' });
+    if (fromTable === targetTable) return res.status(400).json({ error: '目标桌与当前桌相同' });
+
+    const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=?', [targetTable, storeId]);
+    if (!target) return res.status(404).json({ error: '目标桌不存在' });
+
+    const result = await runAsync(
+      "UPDATE orders SET table_name=? WHERE table_name=? AND store_id=? AND status='pending'",
+      [targetTable, fromTable, storeId]
+    );
+
+    await syncTableStatus(fromTable, storeId);
+    await syncTableStatus(targetTable, storeId);
+
+    io.to('waiter-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: result.affectedRows });
+    io.to('kitchen-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: result.affectedRows });
+
+    res.json({ success: true, from: fromTable, to: targetTable, count: result.affectedRows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ----- 转移订单 -----
 app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
   try {
@@ -475,6 +502,55 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     io.to('waiter-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
     io.to('kitchen-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
     res.json({ success: true, from: oldTable, to: targetTable, targetHasOrders: targetPending ? targetPending.cnt > 0 : false });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 整桌转移：把某桌所有未结算订单全部转到目标桌 -----
+app.post('/api/tables/:tableName/transfer-all', requireAdminOrWaiter, async (req, res) => {
+  try {
+    const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    const oldTable = req.params.tableName;
+    const targetTable = (req.body?.target_table || '').trim();
+    if (!targetTable) return res.status(400).json({ error: '请选择目标桌号' });
+    if (oldTable === targetTable) return res.status(400).json({ error: '目标桌与当前桌相同' });
+    
+    const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=?', [targetTable, storeId]);
+    if (!target) return res.status(404).json({ error: '目标桌不存在' });
+    
+    // 查这个桌所有未结算订单
+    const orders = await allAsync("SELECT id FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [oldTable, storeId]);
+    if (orders.length === 0) return res.status(400).json({ error: '当前桌没有未结算订单' });
+    
+    const nowIso = new Date().toISOString();
+    const targetSession = await getAsync(
+      "SELECT token FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
+      [targetTable, storeId, nowIso]
+    );
+    let newToken;
+    if (targetSession) {
+      newToken = targetSession.token;
+    } else {
+      newToken = 'auto_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      const exp = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      await runAsync(
+        'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)',
+        [targetTable, newToken, exp, nowIso, storeId]
+      );
+    }
+    
+    // 批量转移所有订单
+    const orderIds = orders.map(o => o.id);
+    const placeholders = orderIds.map(() => '?').join(',');
+    await runAsync(UPDATE orders SET table_name=?, session_token=? WHERE id IN (), [targetTable, newToken, ...orderIds]);
+    
+    await syncTableStatus(oldTable, storeId);
+    await syncTableStatus(targetTable, storeId);
+    await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ?', [oldTable, storeId, new Date().toISOString()]);
+    
+    io.to('waiter-' + storeId).emit('order:transfer-all', { from: oldTable, to: targetTable, count: orders.length });
+    io.to('kitchen-' + storeId).emit('order:transfer-all', { from: oldTable, to: targetTable, count: orders.length });
+    
+    res.json({ success: true, from: oldTable, to: targetTable, count: orders.length });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

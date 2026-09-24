@@ -567,14 +567,11 @@
   window.confirmTransfer = async function() {
     if (!transferFromTable) return;
     const target = document.getElementById('transferTargetSelect').value;
-    const orderIds = state.orders.filter(o => o.table === transferFromTable && o.status === 'pending').map(o => o.id);
     showConfirm(t('transferConfirmMsg', null, '确认转移') + ' ' + transferFromTable + ' → ' + target, async function() {
       try {
-        for (const id of orderIds) {
-          const res = await api('/orders/' + id + '/transfer', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ target_table: target }) });
-          if (res && res.targetHasOrders) SLF.ui.toast('⚠️ ' + t('targetHasOrders', null, '目标桌已有订单'));
-        }
-        SLF.ui.toast('✅ ' + t('transferSuccess', null, '转移成功'));
+        const res = await api('/tables/move', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ from_table: transferFromTable, target_table: target }) });
+        if (res && res.count > 0) SLF.ui.toast('✅ ' + t('transferSuccess', null, '转移成功') + ' (' + res.count + ' 单)');
+        else SLF.ui.toast('ℹ️ 当前桌没有未结算订单');
         closeTransferModal();
         await load();
       } catch(e) { SLF.ui.toast('❌ ' + e.message); }
