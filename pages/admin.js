@@ -2587,7 +2587,8 @@
         dualCurrencyEnabled: () => dualCurrencyEnabled,
         secondaryCurrencyCode: () => secondaryCurrencyCode,
         defaultCurrencyObj: () => defaultCurrencyObj,
-        buildSessionLabels
+        buildSessionLabels,
+        showConfirm
       };
     } catch(err) {}
 })();
