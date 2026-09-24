@@ -679,8 +679,8 @@ install_cluster() {
     echo "  节点角色：$NODE_ROLE"
     echo "  应用目录：$APP_DIR"
     echo "  环境变量：$CONFIG_DIR/.env"
-    echo "  服务管理：systemctl [start|stop|restart|status] foodflow"
-    echo "  查看日志：journalctl -u foodflow -f"
+    echo "  服务管理：systemctl [start|stop|restart|status] $SERVICE_NAME"
+    echo "  查看日志：journalctl -u $SERVICE_NAME -f"
     echo ""
 
     if [ "$NODE_ROLE" == "master" ]; then
@@ -756,7 +756,7 @@ show_post_install_guide() {
     echo "  常用命令："
     echo "    查看服务状态：sudo systemctl status foodflow"
     echo "    重启服务：    sudo systemctl restart foodflow"
-    echo "    查看日志：    sudo journalctl -u foodflow -f"
+    echo "    查看日志：    sudo journalctl -u $SERVICE_NAME -f"
     echo "    查看最近日志：sudo journalctl -u foodflow -n 100 --no-pager"
     echo ""
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
