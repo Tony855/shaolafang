@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
       rows.forEach(row => {
         const id = +row.querySelector('select').value;
         const qty = +row.querySelector('input').value || 0;
-        if (id && qty > 0) items.push({ menu_id: id, quantity: qty });
+        if (id && qty > 0) items.push({ id: id, quantity: qty });
       });
       if (!items.length) { SLF.ui.toast('❌ ' + tAdmin('noItems')); return; }
       try {
