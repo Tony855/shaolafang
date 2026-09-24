@@ -12,20 +12,21 @@ const { $, tAdmin, L } = ctx;
 async function loadDisplaySettings() {
   try {
     const d = await SLF.api.get('/admin/display-settings');
+    const admin = window.SLF.admin;
     if (d) {
-      ctx.setDualCurrency && ctx.setDualCurrency(!!d.enabled);
-      ctx.setSecondaryCurrencyCode && ctx.setSecondaryCurrencyCode(d.secondaryCurrencyCode || 'USD');
-      $('#dualCurrencyEnabled').checked = ctx.dualCurrencyEnabled();
-      $('#dualCurrencySelect').value = ctx.secondaryCurrencyCode();
+      admin.setDualCurrency && admin.setDualCurrency(!!d.enabled);
+      admin.setSecondaryCurrencyCode && admin.setSecondaryCurrencyCode(d.secondaryCurrencyCode || 'USD');
+      $('#dualCurrencyEnabled').checked = admin.dualCurrencyEnabled();
+      $('#dualCurrencySelect').value = admin.secondaryCurrencyCode();
     }
     const config = await SLF.api.get('/public/config');
     if (config) {
-      ctx.setDefaultCurrencyObj && ctx.setDefaultCurrencyObj(config.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' });
+      admin.setDefaultCurrencyObj && admin.setDefaultCurrencyObj(config.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' });
     }
     SLF.money.configure({
-      currencies: ctx.currenciesCache(),
-      defaultCurrency: ctx.defaultCurrencyObj(),
-      dualCurrency: { enabled: ctx.dualCurrencyEnabled(), currency: ctx.secondaryCurrencyCode() ? { code: ctx.secondaryCurrencyCode() } : null }
+      currencies: admin.currenciesCache(),
+      defaultCurrency: admin.defaultCurrencyObj(),
+      dualCurrency: { enabled: admin.dualCurrencyEnabled(), currency: admin.secondaryCurrencyCode() ? { code: admin.secondaryCurrencyCode() } : null }
     });
   } catch (e) { console.warn('加载货币配置失败', e); }
 }

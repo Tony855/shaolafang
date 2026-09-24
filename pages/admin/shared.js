@@ -75,7 +75,7 @@ function switchAdminModule(module) {
   if (module === 'menu') { if (window.loadMenus) window.loadMenus(); if (window.loadMenuCategories) window.loadMenuCategories(); }
   if (module === 'tables') { if (window.loadTables) window.loadTables(); }
   if (module === 'orders') { if (window.loadOrders) window.loadOrders(); }
-  if (module === 'currencies') { if (window.loadCurrencies) window.loadCurrencies(); }
+  if (module === 'currencies') { if (window.loadCurrencies) window.loadCurrencies(); if (window.loadDisplaySettings) window.loadDisplaySettings(); }
   if (module === 'stores') { if (window.loadStores) window.loadStores(); }
   if (module === 'waiters') { if (window.loadWaiters) window.loadWaiters(); }
   if (module === 'admins') { if (window.loadAdmins) window.loadAdmins(); }
