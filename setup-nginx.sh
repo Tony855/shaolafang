@@ -289,12 +289,16 @@ else
     log_warn "后端服务状态: HTTP $BACKEND_CODE"
 fi
 
-# 检查 Nginx
-NGINX_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 http://127.0.0.1/ 2>/dev/null || echo "000")
+# 检查 Nginx（如果配置了 SSL，用 https 访问并跳过证书验证）
+if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "_" ]; then
+    NGINX_CODE=$(curl -s -k -o /dev/null -w "%{http_code}" --connect-timeout 5 https://127.0.0.1/ 2>/dev/null || echo "000")
+else
+    NGINX_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 http://127.0.0.1/ 2>/dev/null || echo "000")
+fi
 if [ "$NGINX_CODE" = "200" ] || [ "$NGINX_CODE" = "302" ] || [ "$NGINX_CODE" = "301" ]; then
     log_success "Nginx 代理正常 (HTTP $NGINX_CODE)"
 else
-    log_warn "Nginx 代理状态: HTTP $NGINX_CODE"
+    log_warn "Nginx 代理状态: HTTP $NGINX_CODE（如果已配置 HTTPS 属于正常现象，用域名访问测试即可）"
 fi
 
 # ===== 完成 =====
