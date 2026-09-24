@@ -119,7 +119,34 @@ function deletePrinter(id) {
   });
 }
 
+async function printOrder(orderId) {
+  try {
+    const data = await api('/orders/' + orderId + '/print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {} });
+    if (data.printed) SLF.ui.toast(tAdmin('orderPrinted'));
+    else if (data.printData) { SLF.ui.toast(tAdmin('openingBrowserPrint')); printViaBrowser(data.printData, orderId); }
+  } catch (err) { SLF.ui.toast(tAdmin('printFailed') + ': ' + err.message); }
+}
+
+function printViaBrowser(base64Data, orderId) {
+  const printWindow = window.open('', '_blank', 'width=300,height=600');
+  if (!printWindow) { SLF.ui.toast(tAdmin('allowPopupToPrint')); return; }
+  printWindow.document.write(
+    '<html><head><title>' + tAdmin('order') + ' #' + orderId + ' ' + tAdmin('print') + '</title>' +
+    '<style>body { font-family: monospace; font-size: 12px; padding: 10px; width: 280px; } .center { text-align: center; } .bold { font-weight: bold; } .big { font-size: 16px; font-weight: bold; } .separator { border-top: 1px dashed #000; margin: 8px 0; } .row { display: flex; justify-content: space-between; }</style>' +
+    '</head>' +
+    '<body onload="window.print();setTimeout(()=>window.close(),500);">' +
+    '<div class="center big">' + tAdmin('brandName') + '</div>' +
+    '<div class="center">' + tAdmin('order') + ' #' + orderId + '</div>' +
+    '<div class="separator"></div>' +
+    '<p>' + tAdmin('printerConnectHint') + '</p>' +
+    '</body></html>'
+  );
+  printWindow.document.close();
+}
+
 // 挂到 window
+window.printOrder = printOrder;
+window.printViaBrowser = printViaBrowser;
 window.loadPrinters = loadPrinters;
 window.addPrinter = addPrinter;
 window.testPrinter = testPrinter;
