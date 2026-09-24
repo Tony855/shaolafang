@@ -257,34 +257,8 @@
 
         // (removeTable/editTable/openTableForm/closeTableForm 已移到 table.js)
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const tableSaveBtn = document.getElementById('tableSaveBtn');
-            if (tableSaveBtn) {
-                tableSaveBtn.onclick = async function() {
-                    const name = $('#editTableName').value.trim();
-                    const status = $('#editTableStatus').value;
-                    if (!name) { SLF.ui.toast('❌ ' + tAdmin('tableNameRequired')); return; }
-                    try {
-                        await api('/tables/' + editingTableId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name, status } });
-                        window.closeTableForm();
-                        await window.loadTables();
-                        SLF.ui.toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('updated'));
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                };
-            }
-            const tableForm = document.getElementById('tableForm');
-            if (tableForm) {
-                tableForm.onsubmit = async function(e) {
-                    e.preventDefault();
-                    try {
-                        await api('/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name: $('#tableName').value.trim() } });
-                        e.target.reset();
-                        await window.loadTables();
-                        SLF.ui.toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('added'));
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                };
-            }
-        });
+        // ===== 桌台表单提交（已移到 table.js）=====
+
 
         function filterOrders() {
             orderTableFilter = $('#orderTableSearch').value.trim();
