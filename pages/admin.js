@@ -192,51 +192,8 @@
         // ===== 店铺管理（已移到 pages/admin/store.js）=====
 
 
-        async function loadDisplaySettings() {
-            try {
-                const d = await SLF.api.get('/admin/display-settings');
-                if (d) {
-                    dualCurrencyEnabled = !!d.enabled;
-                    secondaryCurrencyCode = d.secondaryCurrencyCode || 'USD';
-                    $('#dualCurrencyEnabled').checked = dualCurrencyEnabled;
-                    $('#dualCurrencySelect').value = secondaryCurrencyCode;
-                }
-                const config = await SLF.api.get('/public/config');
-                if (config) defaultCurrencyObj = config.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' };
-                SLF.money.configure({ currencies: currenciesCache, defaultCurrency: defaultCurrencyObj, dualCurrency: { enabled: dualCurrencyEnabled, currency: secondaryCurrencyCode ? { code: secondaryCurrencyCode } : null } });
-            } catch (e) { console.warn('加载货币配置失败', e); }
-        }
+        // ===== 显示设置（已移到 pages/admin/settings.js）=====
 
-        async function loadOrderPrefixes() {
-            try {
-                const d = await SLF.api.get('/admin/order-prefixes');
-                $('#prefixNormal').value = d.order_prefix_normal || '11';
-                $('#prefixRefund').value = d.order_prefix_refund || '01';
-                $('#prefixDiscount').value = d.order_prefix_discount || '21';
-                $('#prefixVip').value = d.order_prefix_vip || '61';
-                // orderNoResetPeriod DOM 不存在，已移除
-            } catch (e) {}
-        }
-        async function saveOrderPrefixes() {
-            try {
-                await SLF.api.post('/admin/order-prefixes', {
-                    normal: $('#prefixNormal').value,
-                    refund: $('#prefixRefund').value,
-                    discount: $('#prefixDiscount').value,
-                    vip: $('#prefixVip').value,
-                    daily_reset: 'daily'
-                });
-                SLF.ui.toast(L('saveSuccess') || '保存成功');
-            } catch (e) {
-                SLF.ui.toast(L('operationFailed') || '保存失败');
-            }
-        }
-        async function loadNotificationSettings() {
-            try {
-                const d = await SLF.api.get('/admin/notification-settings');
-                if (d) $('#newOrderSoundEnabled').checked = !!d.enabled;
-            } catch (e) { console.warn('加载提示音设置失败', e); }
-        }
 
         // ===== 操作函数 =====
         // ===== 菜品编辑（已移到 pages/admin/menu.js）=====
@@ -1461,6 +1418,9 @@
         dualCurrencyEnabled: () => dualCurrencyEnabled,
         secondaryCurrencyCode: () => secondaryCurrencyCode,
         defaultCurrencyObj: () => defaultCurrencyObj,
+        setDualCurrency: (v) => dualCurrencyEnabled = v,
+        setSecondaryCurrencyCode: (v) => secondaryCurrencyCode = v,
+        setDefaultCurrencyObj: (v) => defaultCurrencyObj = v,
         buildSessionLabels,
         showConfirm
       };

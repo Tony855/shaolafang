@@ -1,0 +1,69 @@
+/*
+ * pages/admin/settings.js — 显示设置模块
+ */
+(function(){
+'use strict';
+
+const ctx = window.SLF.admin;
+if (!ctx) return;
+
+const { $, tAdmin, L } = ctx;
+
+async function loadDisplaySettings() {
+  try {
+    const d = await SLF.api.get('/admin/display-settings');
+    if (d) {
+      ctx.setDualCurrency && ctx.setDualCurrency(!!d.enabled);
+      ctx.setSecondaryCurrencyCode && ctx.setSecondaryCurrencyCode(d.secondaryCurrencyCode || 'USD');
+      $('#dualCurrencyEnabled').checked = ctx.dualCurrencyEnabled();
+      $('#dualCurrencySelect').value = ctx.secondaryCurrencyCode();
+    }
+    const config = await SLF.api.get('/public/config');
+    if (config) {
+      ctx.setDefaultCurrencyObj && ctx.setDefaultCurrencyObj(config.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' });
+    }
+    SLF.money.configure({
+      currencies: ctx.currenciesCache(),
+      defaultCurrency: ctx.defaultCurrencyObj(),
+      dualCurrency: { enabled: ctx.dualCurrencyEnabled(), currency: ctx.secondaryCurrencyCode() ? { code: ctx.secondaryCurrencyCode() } : null }
+    });
+  } catch (e) { console.warn('加载货币配置失败', e); }
+}
+
+async function loadOrderPrefixes() {
+  try {
+    const d = await SLF.api.get('/admin/order-prefixes');
+    $('#prefixNormal').value = d.order_prefix_normal || '11';
+    $('#prefixRefund').value = d.order_prefix_refund || '01';
+    $('#prefixDiscount').value = d.order_prefix_discount || '21';
+    $('#prefixVip').value = d.order_prefix_vip || '61';
+  } catch (e) {}
+}
+async function saveOrderPrefixes() {
+  try {
+    await SLF.api.post('/admin/order-prefixes', {
+      normal: $('#prefixNormal').value,
+      refund: $('#prefixRefund').value,
+      discount: $('#prefixDiscount').value,
+      vip: $('#prefixVip').value,
+      daily_reset: 'daily'
+    });
+    SLF.ui.toast(L('saveSuccess') || '保存成功');
+  } catch (e) {
+    SLF.ui.toast(L('operationFailed') || '保存失败');
+  }
+}
+async function loadNotificationSettings() {
+  try {
+    const d = await SLF.api.get('/admin/notification-settings');
+    if (d) $('#newOrderSoundEnabled').checked = !!d.enabled;
+  } catch (e) { console.warn('加载提示音设置失败', e); }
+}
+
+// 挂到 window
+window.loadDisplaySettings = loadDisplaySettings;
+window.loadOrderPrefixes = loadOrderPrefixes;
+window.saveOrderPrefixes = saveOrderPrefixes;
+window.loadNotificationSettings = loadNotificationSettings;
+
+})();
