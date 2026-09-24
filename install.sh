@@ -307,7 +307,12 @@ install_single() {
         # 已部署过：git pull 更新
         log_info "检测到已部署，执行 git pull 更新..."
         cd "$DEPLOY_TARGET"
-        git pull origin main || log_warn "git pull 失败，继续使用现有代码"
+        # 如果有 GITHUB_TOKEN，用带 token 的地址 pull
+        if [ -n "$GITHUB_TOKEN" ]; then
+            git pull "https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git" main || log_warn "git pull 失败，继续使用现有代码"
+        else
+            git pull origin main || log_warn "git pull 失败，继续使用现有代码"
+        fi
         log_success "代码更新完成"
     elif [ -f "$SCRIPT_DIR/server.js" ]; then
         # 当前目录有代码（但不是 git）：直接复制
