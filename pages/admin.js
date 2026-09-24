@@ -328,20 +328,8 @@
                     } catch (e) { SLF.ui.toast('❌ ' + e.message); }
                 };
             }
-            const passwordForm = document.getElementById('passwordForm');
-            if (passwordForm) {
-                passwordForm.onsubmit = async function(e) {
-                    e.preventDefault();
-                    try {
-                        await api('/admin/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
-                            oldPassword: $('#oldPassword').value,
-                            newPassword: $('#newPassword').value
-                        }});
-                        e.target.reset();
-                        SLF.ui.toast('✅ ' + tAdmin('passwordTitle') + ' ' + tAdmin('updated'));
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                };
-            }
+        // ===== 密码修改表单（已移到 shared.js）=====
+
         });
 
         // (showQr 已移到 table.js)
