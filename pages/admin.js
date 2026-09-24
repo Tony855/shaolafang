@@ -116,68 +116,8 @@
             return await SLF.api._request(method, path, options);
         }
 
-        async function loadMenus() {
-            menusCache = await api('/admin/menu');
-            const categoryFilter = $('#menuCategoryFilter') ? $('#menuCategoryFilter').value : 'all';
-            let filtered = categoryFilter === 'all' ? menusCache : menusCache.filter(m => m.category === categoryFilter);
-            const sortBy = $('#menuSortBy') ? $('#menuSortBy').value : 'default';
-            if (sortBy === 'name_asc') filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'zh'));
-            else if (sortBy === 'name_desc') filtered = [...filtered].sort((a, b) => b.name.localeCompare(a.name, 'zh'));
-            else if (sortBy === 'price_asc') filtered = [...filtered].sort((a, b) => Number(a.price) - Number(b.price));
-            else if (sortBy === 'price_desc') filtered = [...filtered].sort((a, b) => Number(b.price) - Number(a.price));
-            $('#menus').innerHTML = filtered.length ?
-                `<div class="menu-list">${filtered.map(m => {
-                  let priceDisplay = SLF.money.primary(SLF.money.toBase(m.price, (m.currency_code||'USD')));
-                  if (dualCurrencyEnabled && m.secondary_currency_code) {
-                    const base = SLF.money.toBase(m.price, m.currency_code || 'USD');
-                    const sec = SLF.money.secondary(base, m.secondary_currency_code);
-                    if (sec) priceDisplay += ` (${sec})`;
-                  }
-                  return `<div class="menu-item-admin ${m.active ? '' : 'inactive'}">
-                    <div class="menu-thumb">${m.image ? `<img src="/uploads/${esc(m.image)}?v=${Date.now()}">` : esc(m.emoji || '🍽️')}</div>
-                    <div class="menu-info">
-                      <div class="name-row"><span class="name">${esc(m.name)}</span><span class="price">${priceDisplay}</span></div>
-                      <div class="meta">${esc(categoryText(m.category))}${m.desc ? ` · ${esc(m.desc)}` : ''}</div>
-                    </div>
-                    <div class="menu-actions">
-                      ${hasPermission('can_manage_menu') ? '<button onclick="toggleMenuStatus(' + m.id + ',' + (m.active?0:1) + ')">' + (m.active ? tAdmin('unlistDish') : tAdmin('listDish')) + '</button>' : ''}
-                      ${hasPermission('can_manage_menu') ? '<button class="edit-btn" onclick="editMenu(' + m.id + ')">✏️ ' + L('edit') + '</button>' : ''}
-                      ${hasPermission('can_manage_menu') ? '<button class="danger" onclick="removeMenu(' + m.id + ')">' + L('delete') + '</button>' : ''}
-                    </div>
-                  </div>`;
-                }).join('')}</div>` :
-                `<div class="empty-hint">${tAdmin('noDishes')}</div>`;
-        }
+        // ===== 菜品+分类（已移到 pages/admin/menu.js）=====
 
-        const categoryText = c => { const cat = (SLF.i18n.dicts[SLF.i18n.lang] && SLF.i18n.dicts[SLF.i18n.lang].categories) || {}; return cat[c] || c; };
-
-        async function loadMenuCategories() {
-            categoriesCache = await api('/menu-categories');
-            populateMenuCategorySelect();
-            renderCategoryList();
-        }
-
-        function populateMenuCategorySelect() {
-            const select = $('#menuCategory');
-            select.innerHTML = categoriesCache.map(c => `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
-            const filterSelect = $('#menuCategoryFilter');
-            if (filterSelect) {
-                const currentValue = filterSelect.value;
-                filterSelect.innerHTML = '<option value="all">📋 ' + tAdmin('allCategories') + '</option>' +
-                    categoriesCache.map(c => `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
-                filterSelect.value = currentValue || 'all';
-            }
-        }
-
-        function renderCategoryList() {
-            const box = $('#categoryList');
-            box.innerHTML = categoriesCache.length ?
-                categoriesCache.map(c => `<div class="category-row" draggable="true" data-id="${c.id}">
-              <span class="name">${esc(categoryText(c.name))}</span>
-              <div class="actions"><button onclick="editCategory(${c.id},'${esc(c.name)}')">${L('edit')}</button><button class="danger" onclick="deleteCategory(${c.id})">${L('delete')}</button></div>
-            </div>`).join('') :
-                `<div class="empty-hint">${tAdmin('noData')}</div>`;
-        }
 
         async function loadTables() {
             tablesCache = await api('/tables');
@@ -396,7 +336,7 @@
         }
 
         // ===== 操作函数 =====
-        function openCategoryModal() { $('#categoryModal').classList.add('open'); loadMenuCategories(); }
+        function openCategoryModal() { $('#categoryModal').classList.add('open'); window.loadMenuCategories(); }
         function closeCategoryModal() { $('#categoryModal').classList.remove('open'); }
 
         async function addCategory() {
@@ -405,7 +345,7 @@
             try {
                 await api('/menu-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name } });
                 $('#newCategoryName').value = '';
-                await loadMenuCategories();
+                await window.loadMenuCategories();
                 SLF.ui.toast('✅ ' + tAdmin('added'));
             } catch (e) { SLF.ui.toast('❌ ' + e.message); }
         }
@@ -426,8 +366,8 @@
             try {
                 await api('/menu-categories/' + editingCategoryId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name } });
                 closeCategoryEditModal();
-                await loadMenuCategories();
-                await loadMenus();
+                await window.loadMenuCategories();
+                await window.loadMenus();
                 SLF.ui.toast('✅ ' + tAdmin('updated'));
             } catch (e) { SLF.ui.toast('❌ ' + e.message); }
         }
@@ -436,8 +376,8 @@
             showConfirm(tAdmin('confirmDelete'), async function() {
                 try {
                     await api('/menu-categories/' + id, { method: 'DELETE' });
-                    await loadMenuCategories();
-                    await loadMenus();
+                    await window.loadMenuCategories();
+                    await window.loadMenus();
                     SLF.ui.toast('✅ ' + tAdmin('deleted'));
                 } catch (e) { SLF.ui.toast('❌ ' + e.message); }
             });
@@ -456,7 +396,7 @@
             $('#dishModalTitle').textContent = tAdmin('addDish');
             $('#menuSaveButton').textContent = tAdmin('addDish');
             $('#menuCancelButton').hidden = true;
-            populateMenuCategorySelect();
+            window.populateMenuCategorySelect();
             if (currenciesCache.length) {
                 const defaultCode = currenciesCache.find(c => c.is_default)?.code || currenciesCache[0].code;
                 $('#menuCurrency').value = defaultCode;
@@ -470,7 +410,7 @@
             const current = menusCache.find(x => x.id === id);
             if (!current) return;
             editingMenuId = id;
-            populateMenuCategorySelect();
+            window.populateMenuCategorySelect();
             $('#menuName').value = current.name;
             $('#menuNameEn').value = current.name_en || '';
             $('#menuPrice').value = current.price;
@@ -505,7 +445,7 @@
             showConfirm(tAdmin('confirmDelete'), async function() {
                 try {
                     await api('/menu/' + id, { method: 'DELETE' });
-                    await loadMenus();
+                    await window.loadMenus();
                     SLF.ui.toast('✅ ' + tAdmin('deleted'));
                 } catch (e) { SLF.ui.toast('❌ ' + e.message); }
             });
@@ -514,7 +454,7 @@
         async function toggleMenuStatus(id, active) {
             try {
                 await api('/menu/' + id + '/status', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { active } });
-                await loadMenus();
+                await window.loadMenus();
                 SLF.ui.toast('✅ ' + (active ? tAdmin('listed') : tAdmin('unlisted')));
             } catch (e) { SLF.ui.toast('❌ ' + e.message); }
         }
@@ -567,8 +507,8 @@
                         }
                         await api(isEditing ? '/menu/' + editingMenuId : '/menu', { method: isEditing ? 'PUT' : 'POST', body: form });
                         closeDishModal();
-                        await loadMenuCategories();
-                        await loadMenus();
+                        await window.loadMenuCategories();
+                        await window.loadMenus();
                         SLF.ui.toast('✅ ' + tAdmin('menuManage') + ' ' + (isEditing ? tAdmin('updated') : tAdmin('added')));
                     } catch (e) { SLF.ui.toast('❌ ' + e.message); }
                 };
@@ -932,7 +872,7 @@
                         SLF.ui.toast('✅ ' + tAdmin('displaySettingsSaved'));
                         await loadDisplaySettings();
                         await loadOrderPrefixes();
-                        await loadMenus();
+                        await window.loadMenus();
                     } catch (e) { SLF.ui.toast('❌ ' + e.message); }
                 };
             }
@@ -1049,7 +989,7 @@
             document.querySelectorAll('.module-panel').forEach(p => p.classList.toggle('active', p.id === 'module-' + module));
             if (module === 'orders') loadOrders();
             else if (module === 'tables') loadTables();
-            else if (module === 'menu') loadMenus();
+            else if (module === 'menu') window.loadMenus();
             else if (module === 'currencies') window.loadCurrencies();
             else if (module === 'logs') loadLoginLogs();
             else if (module === 'waiters') window.loadWaiters();
@@ -1146,12 +1086,12 @@
         async function refresh() {
             try {
                 await window.window.loadCurrencies();
-                await loadMenuCategories();
+                await window.loadMenuCategories();
                 await window.loadStores();
                 await loadDisplaySettings();
                 await loadOrderPrefixes();
                 await loadNotificationSettings();
-                const loadTasks = [loadMenus(), loadTables(), loadOrders(), loadLoginLogs()];
+                const loadTasks = [window.loadMenus(), loadTables(), loadOrders(), loadLoginLogs()];
                 if (hasPermission('can_manage_admin')) loadTasks.push(window.loadAdmins());
                 if (hasPermission('can_view_logs')) loadTasks.push(loadAuditLogs());
                 await Promise.all(loadTasks);
@@ -1279,7 +1219,7 @@
             $('#menuSecondaryCurrencyLabel').textContent = tAdmin('secondaryCurrency');
             $('#menuSaveButton').textContent = editingMenuId ? L('save') : tAdmin('addDish');
             $('#menuCancelButton').textContent = tAdmin('cancelEdit');
-            populateMenuCategorySelect();
+            window.populateMenuCategorySelect();
             $('#tablePanelTitle').textContent = tAdmin('tableManageTitle');
             $('#tableName').placeholder = tAdmin('tableName');
             $('#addTableBtn').textContent = tAdmin('addTable');
@@ -1654,10 +1594,10 @@
                 try {
                     await api('/menu-categories/sort', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { ids: newOrder } });
                     SLF.ui.toast(`✅ ${tAdmin('categorySortUpdated')}`);
-                    await loadMenuCategories();
+                    await window.loadMenuCategories();
                 } catch (err) {
                     SLF.ui.toast(`❌ ${tAdmin('updateFailed')}: ` + err.message);
-                    await loadMenuCategories();
+                    await window.loadMenuCategories();
                 }
             }
             if (draggedCategoryRow) {
@@ -1945,6 +1885,10 @@
         ordersCache: () => ordersCache,
         currenciesCache: () => currenciesCache,
         categoriesCache: () => categoriesCache,
+        setMenus: (v) => menusCache = v,
+        setCategories: (v) => categoriesCache = v,
+        setTables: (v) => tablesCache = v,
+        setOrders: (v) => ordersCache = v,
         dualCurrencyEnabled: () => dualCurrencyEnabled,
         secondaryCurrencyCode: () => secondaryCurrencyCode,
         defaultCurrencyObj: () => defaultCurrencyObj,
