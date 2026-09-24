@@ -28,7 +28,7 @@
     #passwordForm button { height: 42px; font-size: 14px; padding: 0 14px; border-radius: 10px; border: 0; cursor: pointer; font-weight: 700; }
     #storeList .admin-card .actions button.copy { background: rgba(24, 144, 255, .15); border-color: rgba(24, 144, 255, .25); color: #69c0ff; }
 
-    .hamburger-btn { display: none; position: fixed; top: 6px; left: 6px; z-index: 300; width: 36px; height: 36px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); color: #fff; font-size: 18px; cursor: pointer; padding: 0; border-radius: 10px; transition: background .2s, transform .2s; align-items: center; justify-content: center; }
+    .hamburger-btn { display: none; position: fixed; top: 6px; left: 6px; z-index: 1000; width: 36px; height: 36px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); color: #fff; font-size: 18px; cursor: pointer; padding: 0; border-radius: 10px; transition: background .2s, transform .2s; align-items: center; justify-content: center; }
     .hamburger-btn:hover { background: rgba(255,255,255,.1); }
     .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 149; opacity: 0; transition: opacity .3s ease; }
     .sidebar-overlay.show { display: block; opacity: 1; }
@@ -698,15 +698,16 @@
 
     <!-- ===== JavaScript ===== -->
     <script src="languages.min.js?v=20260921e"></script>
-    <script src="assets/core.js?v=20260923"></script>
-  <script src="assets/modules/ui.js?v=20260923"></script>
-  <script src="assets/modules/money.js?v=20260923"></script>
-  <script src="assets/modules/order-status.js?v=20260923"></script>
-  <script src="assets/modules/customer-group.js?v=20260923"></script>
-  <script src="assets/modules/role.js?v=20260923"></script>
-  <script src="assets/modules/idle.js?v=20260923"></script>
+    <script src="assets/core.js?v=20260924g"></script>
+  <script src="assets/modules/ui.js?v=20260924g"></script>
+  <script src="assets/modules/money.js?v=20260924g"></script>
+  <script src="assets/modules/order-status.js?v=20260924g"></script>
+  <script src="assets/modules/customer-group.js?v=20260924g"></script>
+  <script src="assets/modules/role.js?v=20260924g"></script>
+  <script src="assets/modules/idle.js?v=20260924g"></script>
     <script src="/socket.io/socket.io.js"></script>
-<script src="pages/admin.js?v=20260923"></script>
+<script src="pages/admin/context.js?v=20260924"></script>
+<script src="pages/admin/settings.js?v=20260924"></script>
 <script src="pages/admin/logs.js?v=20260924"></script>
 <script src="pages/admin/waiter.js?v=20260924"></script>
 <script src="pages/admin/currency.js?v=20260924"></script>
@@ -719,6 +720,6 @@
 <script src="pages/admin/table.js?v=20260924"></script>
 <script src="pages/admin/order.js?v=20260924"></script>
 <script src="pages/admin/shared.js?v=20260924"></script>
-<script src="pages/admin/settings.js?v=20260924"></script>
+<script src="pages/admin.js?v=20260924g"></script>
 </body>
 </html>

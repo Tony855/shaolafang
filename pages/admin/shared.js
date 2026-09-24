@@ -44,8 +44,28 @@ function updateOrderSummary() {
   if (el) el.textContent = `${pending.length} ${tAdmin('pendingOrders') || '待处理'} · ${SLF.money.primary(total)}`;
 }
 
+function closeSidebar() {
+  const sidebar = document.getElementById("adminSidebar");
+  if (sidebar) sidebar.classList.remove("open");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (overlay) overlay.classList.remove("show");
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('adminSidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (!sidebar) return;
+  sidebar.classList.toggle('open');
+  if (overlay) overlay.classList.toggle('show');
+}
+
+function getCurrentModule() {
+  const activeNav = document.querySelector(".nav-item.active");
+  return activeNav ? activeNav.dataset.module : null;
+}
+
 function switchAdminModule(module) {
-  document.querySelectorAll('.admin-module').forEach(m => m.classList.remove('active'));
+  document.querySelectorAll('.module-panel').forEach(m => m.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const panel = document.getElementById('module-' + module);
   if (panel) panel.classList.add('active');
@@ -66,10 +86,6 @@ function switchAdminModule(module) {
   if (module === 'logs') { if (window.loadLoginLogs) window.loadLoginLogs(); if (window.loadAuditLogs) window.loadAuditLogs(); }
 }
 
-function toggleSidebar() {
-  document.body.classList.toggle('sidebar-collapsed');
-}
-
 // 汉堡按钮拖动
 (function() {
   const btn = document.getElementById('hamburgerBtn');
@@ -82,7 +98,6 @@ function toggleSidebar() {
     return { x: e.clientX, y: e.clientY };
   }
   function onStart(e) {
-    if (window.innerWidth > 1024) return;
     isDragging = true;
     hasMoved = false;
     const pos = getPos(e);
@@ -115,8 +130,6 @@ function toggleSidebar() {
       else btn.style.left = (window.innerWidth - btn.offsetWidth - 8) + 'px';
       if (rect.top < 60) btn.style.top = '8px';
       else if (rect.bottom > window.innerHeight - 60) btn.style.top = (window.innerHeight - btn.offsetHeight - 8) + 'px';
-    } else {
-      toggleSidebar();
     }
   }
   btn.addEventListener('mousedown', onStart);
@@ -229,7 +242,9 @@ window.translateLoginMessage = translateLoginMessage;
 window.loadLoginLogs = loadLoginLogs;
 window.updateOrderSummary = updateOrderSummary;
 window.switchAdminModule = switchAdminModule;
+window.getCurrentModule = getCurrentModule;
 window.toggleSidebar = toggleSidebar;
+window.closeSidebar = closeSidebar;
 window.logoutAdmin = logoutAdmin;
 window.showAdminInfo = showAdminInfo;
 window.hideAdminInfo = hideAdminInfo;

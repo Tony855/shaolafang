@@ -27,7 +27,7 @@ async function loadMenus() {
   $('#menus').innerHTML = filtered.length ?
     `<div class="menu-list">${filtered.map(m => {
       let priceDisplay = SLF.money.primary(SLF.money.toBase(m.price, (m.currency_code||'USD')));
-      if (dualCurrencyEnabled() && m.secondary_currency_code) {
+      if (dualCurrencyEnabled && m.secondary_currency_code) {
         const base = SLF.money.toBase(m.price, m.currency_code || 'USD');
         const sec = SLF.money.secondary(base, m.secondary_currency_code);
         if (sec) priceDisplay += ` (${sec})`;

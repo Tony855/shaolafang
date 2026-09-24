@@ -1,4 +1,4 @@
-/*
+﻿/*
  * pages/admin/admin-mgr.js — 管理员管理模块
  */
 (function(){
@@ -29,7 +29,7 @@ async function loadAdmins() {
   }
 }
 
-function collectAdminPermissions(prefix) {
+function collectPermissionsFromPrefix(prefix) {
   const perms = {};
   document.querySelectorAll('#' + prefix + ' input[type="checkbox"]').forEach(cb => {
     perms[cb.dataset.perm] = cb.checked ? 1 : 0;
@@ -37,7 +37,7 @@ function collectAdminPermissions(prefix) {
   return perms;
 }
 
-function renderAdminPermissions(prefix, permissions, isPrimary) {
+function updateAdminPermissions(prefix, permissions, isPrimary) {
   document.querySelectorAll('#' + prefix + ' input[type="checkbox"]').forEach(cb => {
     cb.checked = permissions && permissions[cb.dataset.perm] ? true : false;
     cb.disabled = isPrimary ? true : false;
@@ -49,7 +49,7 @@ function openAddAdminModal() {
   $('#addAdminUsername').value = '';
   $('#addAdminPassword').value = '';
   $('#addAdminDisplayName').value = '';
-  renderAdminPermissions('addAdminPermissions', {}, false);
+  updateAdminPermissions('addAdminPermissions', {}, false);
   $('#addAdminModal').classList.add('open');
 }
 
@@ -62,7 +62,7 @@ async function submitAddAdmin() {
   const display_name = $('#addAdminDisplayName').value.trim();
   if (!username || !password || !display_name) { SLF.ui.toast(tAdmin('fillAllFields')); return; }
   if (password.length < 6) { SLF.ui.toast(tAdmin('passwordMin6')); return; }
-  const permissions = collectAdminPermissions('addAdminPermissions');
+  const permissions = collectPermissionsFromPrefix('addAdminPermissions');
   try {
     await api('/admin/admins', { method: 'POST', body: { username, password, display_name, active: 1, permissions } });
     closeAddAdminModal();
@@ -77,7 +77,7 @@ function editAdmin(id, username, displayName, active, permissions, isPrimary) {
   document.getElementById('editAdminDisplayName').value = displayName || '';
   document.getElementById('editAdminPassword').value = '';
   document.getElementById('editAdminActive').checked = active ? true : false;
-  renderAdminPermissions('editAdminPermissions', permissions, isPrimary);
+  updateAdminPermissions('editAdminPermissions', permissions, isPrimary);
   document.getElementById('editAdminPermNotice').style.display = isPrimary ? 'block' : 'none';
   document.getElementById('adminEditModal').classList.add('open');
 }
@@ -95,7 +95,7 @@ function saveAdminEdit() {
   if (password) body.password = password;
   const notice = document.getElementById('editAdminPermNotice');
   if (!notice || notice.style.display !== 'block') {
-    body.permissions = collectAdminPermissions('editAdminPermissions');
+    body.permissions = collectPermissionsFromPrefix('editAdminPermissions');
   }
   api('/admin/admins/' + id, { method: 'PUT', body }).then(() => {
     SLF.ui.toast('✅ ' + tAdmin('adminUpdated'));
@@ -115,8 +115,8 @@ function deleteAdmin(id, username) {
 
 // 挂到 window
 window.loadAdmins = loadAdmins;
-window.collectAdminPermissions = collectAdminPermissions;
-window.renderAdminPermissions = renderAdminPermissions;
+window.collectPermissionsFromPrefix = collectPermissionsFromPrefix;
+window.updateAdminPermissions = updateAdminPermissions;
 window.openAddAdminModal = openAddAdminModal;
 window.closeAddAdminModal = closeAddAdminModal;
 window.submitAddAdmin = submitAddAdmin;

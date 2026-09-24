@@ -4,6 +4,12 @@
 (function(){
 'use strict';
         // 全局状态
+        const api = async (path, opts = {}) => {
+            if (opts.method && opts.method !== 'GET') {
+                return SLF.api.request(path, { method: opts.method, body: opts.body });
+            }
+            return SLF.api.get(path);
+        };
         const $ = s => document.querySelector(s);
         let adminToken = SLF.store.rawGetSession('adminToken') || '';
         let adminId = parseInt(SLF.store.rawGetSession('adminId') || '0', 10);
@@ -158,18 +164,6 @@
             return perms;
         }
 
-        function openAddAdminModal() {
-            if (!hasPermission('can_manage_admin')) { SLF.ui.toast('❌ ' + tAdmin('noPermission')); return; }
-            document.getElementById('addAdminUsername').value = '';
-            document.getElementById('addAdminPassword').value = '';
-            document.getElementById('addAdminDisplayName').value = '';
-            const defaultPerms = {};
-            ADMIN_PERMISSIONS.forEach(p => { defaultPerms[p.key] = p.key === 'can_manage_admin' ? 0 : 1; });
-            renderAdminPermissions('addAdminPermissions', defaultPerms, false);
-            document.getElementById('adminAddModal').classList.add('open');
-        }
-        function closeAddAdminModal() { document.getElementById('adminAddModal').classList.remove('open'); }
-
         // ===== 管理员管理（已移到 pages/admin/admin-mgr.js）=====
 
 
@@ -260,14 +254,14 @@
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', function() {
                 const module = this.dataset.module;
-                switchAdminModule(module);
-                if (window.innerWidth <= 1024) closeSidebar();
+                window.switchAdminModule(module);
+                if (window.innerWidth <= 1024) window.closeSidebar();
             });
         });
 
         async function refresh() {
             try {
-                await window.window.loadCurrencies();
+                await window.loadCurrencies();
                 await window.loadMenuCategories();
                 await window.loadStores();
                 await loadDisplaySettings();
@@ -277,7 +271,7 @@
                 if (hasPermission('can_manage_admin')) loadTasks.push(window.loadAdmins());
                 if (hasPermission('can_view_logs')) loadTasks.push(loadAuditLogs());
                 await Promise.all(loadTasks);
-                const currentModule = getCurrentModule();
+                const currentModule = window.getCurrentModule();
                 if (currentModule) switchAdminModule(currentModule);
             } catch (e) {
                 SLF.ui.toast('❌ ' + e.message);
@@ -677,12 +671,12 @@
 
         // 初始化
         let adminCallPollTimer = null;
+
         (async function() {
             if (adminLang !== 'zh') await loadAdminLanguage(adminLang);
             applyAdminLanguage();
-        })();
 
-        if (adminToken) {
+            console.log("adminToken:", adminToken); if (adminToken) {
             $('#dashboard').hidden = false;
             $('#logoutBtn').hidden = false;
             $('#adminNameBtn').hidden = false;
@@ -693,15 +687,16 @@
                     SLF.idle.update(cfg.admin_idle_timeout, adminIdleLogout);
                 }
             }).catch(err => console.warn('[空闲超时] 加载配置失败:', err.message));
-            refresh().catch(() => {
-                SLF.store.rawRemoveSession('adminToken');
-                window.location.href = '/login';
-            });
+            refresh().catch((err) => { console.error("refresh failed:", err); SLF.store.rawRemoveSession("adminToken"); window.location.href = "/login"; });
+
+
+
             applyPermissions();
             startAdminCallPolling();
-        } else {
-            window.location.href = '/login';
-        }
+            } else {
+                window.location.href = '/login';
+            }
+        })();
 
         // 分类拖拽排序
         let draggedCategoryRow = null;
@@ -902,88 +897,9 @@
             });
         }
     try { window.addPrinter = addPrinter; } catch(err) {}
-    try { window.closeAddAdminModal = closeAddAdminModal; } catch(err) {}
-    try { window.closeAdminEdit = closeAdminEdit; } catch(err) {}
-    try { window.closeCashierModal = closeCashierModal; } catch(err) {}
-    try { window.closeCategoryEditModal = closeCategoryEditModal; } catch(err) {}
-    try { window.closeCategoryModal = closeCategoryModal; } catch(err) {}
-    try { window.closeCurrencyEdit = closeCurrencyEdit; } catch(err) {}
-    try { window.closeDishModal = closeDishModal; } catch(err) {}
-    try { window.closeOrderForm = closeOrderForm; } catch(err) {}
-    try { window.closePrinterEdit = closePrinterEdit; } catch(err) {}
-    try { window.closeSettleDetail = closeSettleDetail; } catch(err) {}
-    try { window.closeSidebar = closeSidebar; } catch(err) {}
-    try { window.closeStoreEdit = closeStoreEdit; } catch(err) {}
-    try { window.closeTableForm = closeTableForm; } catch(err) {}
-    try { window.closeTransferModal = closeTransferModal; } catch(err) {}
-    try { window.closeWaiterEdit = closeWaiterEdit; } catch(err) {}
-    try { window.confirmCancelOrder = confirmCancelOrder; } catch(err) {}
-    try { window.confirmSettleOrder = confirmSettleOrder; } catch(err) {}
-    try { window.confirmTransfer = confirmTransfer; } catch(err) {}
-    try { window.copyStoreMenu = copyStoreMenu; } catch(err) {}
-    try { window.deleteAdmin = deleteAdmin; } catch(err) {}
-    try { window.deleteCashier = deleteCashier; } catch(err) {}
-    try { window.deleteCategory = deleteCategory; } catch(err) {}
-    try { window.deletePrinter = deletePrinter; } catch(err) {}
-    try { window.deleteStore = deleteStore; } catch(err) {}
-    try { window.deleteWaiter = deleteWaiter; } catch(err) {}
-    try { window.doSettleOrder = doSettleOrder; } catch(err) {}
-    try { window.editAdmin = editAdmin; } catch(err) {}
-    try { window.editCashier = editCashier; } catch(err) {}
-    try { window.editCategory = editCategory; } catch(err) {}
-    try { window.editCurrency = editCurrency; } catch(err) {}
-    try { window.editMenu = editMenu; } catch(err) {}
-    try { window.editOrder = editOrder; } catch(err) {}
-    try { window.editTable = editTable; } catch(err) {}
-    try { window.esc = esc; } catch(err) {}
-    try { window.executeConfirm = executeConfirm; } catch(err) {}
-    try { window.executePasswordModal = executePasswordModal; } catch(err) {}
-    try { window.exportData = exportData; } catch(err) {}
-    try { window.handleWaiterCall = handleWaiterCall; } catch(err) {}
-    try { window.hideAdminInfo = hideAdminInfo; } catch(err) {}
-    try { window.hideConfirm = hideConfirm; } catch(err) {}
-    try { window.hidePasswordModal = hidePasswordModal; } catch(err) {}
-    try { window.loadDailyReport = loadDailyReport; } catch(err) {}
-    try { window.loadWaiterCalls = loadWaiterCalls; } catch(err) {}
-    try { window.logoutAdmin = logoutAdmin; } catch(err) {}
-    try { window.openAddAdminModal = openAddAdminModal; } catch(err) {}
-    try { window.openAddCashierModal = openAddCashierModal; } catch(err) {}
-    try { window.openCategoryModal = openCategoryModal; } catch(err) {}
-    try { window.openDishModal = openDishModal; } catch(err) {}
-    try { window.openOrderForm = openOrderForm; } catch(err) {}
-    try { window.openPrinterEdit = openPrinterEdit; } catch(err) {}
-    try { window.openStoreEdit = openStoreEdit; } catch(err) {}
-    try { window.openWaiterEdit = openWaiterEdit; } catch(err) {}
-    try { window.printOrder = printOrder; } catch(err) {}
-    try { window.removeCurrency = removeCurrency; } catch(err) {}
-    try { window.removeMenu = removeMenu; } catch(err) {}
-    try { window.removeOrder = removeOrder; } catch(err) {}
-    try { window.removeOrderItem = removeOrderItem; } catch(err) {}
-    try { window.removeTable = removeTable; } catch(err) {}
-    try { window.saveAdminEdit = saveAdminEdit; } catch(err) {}
-    try { window.saveCategoryEdit = saveCategoryEdit; } catch(err) {}
-    try { window.saveCurrencyEdit = saveCurrencyEdit; } catch(err) {}
-    try { window.saveOrderPrefixes = saveOrderPrefixes; } catch(err) {}
-    try { window.savePrinterEdit = savePrinterEdit; } catch(err) {}
-    try { window.setDefaultCurrency = setDefaultCurrency; } catch(err) {}
-    try { window.setDefaultPrinter = setDefaultPrinter; } catch(err) {}
-    try { window.showAdminInfo = showAdminInfo; } catch(err) {}
-    try { window.showQr = showQr; } catch(err) {}
-    try { window.showTransferModal = showTransferModal; } catch(err) {}
-    try { window.submitAddAdmin = submitAddAdmin; } catch(err) {}
-    try { window.switchAdminModule = switchAdminModule; } catch(err) {}
-    try { window.switchLogTab = switchLogTab; } catch(err) {}
-    try { window.switchMenuTab = switchMenuTab; } catch(err) {}
-    try { window.testPrinter = testPrinter; } catch(err) {}
-    try { window.toggleItemStatus = toggleItemStatus; } catch(err) {}
-    try { window.toggleMenuStatus = toggleMenuStatus; } catch(err) {}
-    try { window.togglePrinter = togglePrinter; } catch(err) {}
-    try { window.toggleSidebar = toggleSidebar; } catch(err) {}
-    try { window.updateReservation = updateReservation; } catch(err) {}
-
     // ===== 共享上下文（供后续拆分模块使用）=====
     try {
-      window.SLF.admin = {
+      Object.assign(window.SLF.admin, {
         $, api, tAdmin, L, esc, hasPermission, applyPermissions,
         get adminToken() { return adminToken; },
         get adminId() { return adminId; },
@@ -1006,6 +922,6 @@
         setDefaultCurrencyObj: (v) => defaultCurrencyObj = v,
         buildSessionLabels,
         showConfirm
-      };
+      });
     } catch(err) {}
 })();

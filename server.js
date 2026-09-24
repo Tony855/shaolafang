@@ -1,4 +1,4 @@
-const { requireSuperAdmin } = require('./server/middleware/auth.js');
+﻿const { requireSuperAdmin } = require('./server/middleware/auth.js');
 const { requireCashier } = require('./server/middleware/auth.js');
 const express = require('express');
 const { AsyncLocalStorage } = require('async_hooks');
@@ -1519,7 +1519,7 @@ require('./routes/public.js')(app, { getAsync, allAsync, runAsync });
 
 // ----- 商户管理员登录 -----
 // ----- 管理员登录 -----
-require('./routes/auth.js')(app, { getAsync, runAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireAdminKey });
+require('./routes/auth.js')(app, { getAsync, runAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, getLocationByIp, requireAdminKey });
 
 
 // ===== 超级管理员登录 =====
