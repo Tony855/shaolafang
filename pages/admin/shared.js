@@ -110,6 +110,22 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (e) { SLF.ui.toast('❌ ' + e.message); }
     };
   }
+  const resetDataBtn = document.getElementById('resetDataBtn');
+  if (resetDataBtn) {
+    resetDataBtn.onclick = function() {
+      ctx.showPasswordModal(tAdmin('resetDataPasswordMsg'), function(password) {
+        ctx.showConfirm(tAdmin('resetDataConfirmMsg'), async function() {
+          try {
+            await SLF.api.post('/admin/reset-data', { password });
+            SLF.ui.toast('✅ ' + tAdmin('resetSuccess'));
+            if (window.loadOrders) await window.loadOrders();
+            if (window.loadTables) await window.loadTables();
+            if (window.loadLoginLogs) await window.loadLoginLogs();
+          } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }, tAdmin('resetDataConfirmTitle'));
+      }, tAdmin('resetDataPasswordTitle'));
+    };
+  }
 });
 
 // 挂到 window
