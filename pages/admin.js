@@ -337,79 +337,8 @@
         // ===== 订单操作（已移到 pages/admin/order.js）=====
 
 
-        function openOrderForm() {
-            editingOrderId = null;
-            editingOrderStatus = 'pending';
-            $('#orderModalTitle').textContent = tAdmin('addOrder');
-            $('#orderTable').disabled = false;
-            if (tablesCache.length) $('#orderTable').value = tablesCache[0].name;
-            $('#orderItems').innerHTML = '';
-            $('#orderNoteField').value = '';
-            addOrderItem();
-            updateOrderTotal();
-            $('#orderModal').classList.add('open');
-        }
-        function closeOrderForm() { $('#orderModal').classList.remove('open'); }
-        function removeOrderItem(btn) { btn.closest('.order-item-line').remove(); updateOrderTotal(); }
-        function updateOrderTotal() {
-            let total = 0;
-            document.querySelectorAll('#orderItems .order-item-line').forEach(row => {
-                const id = +row.querySelector('select').value;
-                const qty = +row.querySelector('input').value || 0;
-                const menu = menusCache.find(m => m.id === id);
-                if (menu && qty > 0) total += SLF.money.toBase(menu.price, (menu.currency_code||'USD')) * qty;
-            });
-            $('#orderFormTotal').textContent = SLF.money.primary(total);
-        }
-        function addOrderItem(selectedId, quantity) {
-            const line = document.createElement('div');
-            line.className = 'order-item-line';
-            line.innerHTML = `
-                <select>${menusCache.map(m => `<option value="${m.id}">${esc(m.emoji||'🍽️')} ${esc(m.name)} · ${SLF.money.primary(SLF.money.toBase(m.price, (m.currency_code||'USD')))}</option>`).join('')}</select>
-                <input type="number" min="1" step="1" value="${quantity||1}">
-                <button onclick="removeOrderItem(this)">✕</button>
-            `;
-            if (selectedId) line.querySelector('select').value = selectedId;
-            line.querySelectorAll('select,input').forEach(el => {
-                el.addEventListener('input', updateOrderTotal);
-                el.addEventListener('change', updateOrderTotal);
-            });
-            $('#orderItems').appendChild(line);
-            updateOrderTotal();
-        }
-        function addLockedOrderItem(item) {
-            const line = document.createElement('div');
-            line.className = 'order-item-line locked';
-            line.dataset.status = 'done';
-            line.innerHTML = `
-                <select disabled><option value="${item.id}" selected>${esc(item.name)}</option></select>
-                <input type="number" value="${item.quantity}" disabled>
-                <span class="item-status done">${L('itemDone')}</span>
-            `;
-            $('#orderItems').appendChild(line);
-            updateOrderTotal();
-        }
+        // ===== 订单编辑表单（已移到 pages/admin/order.js）=====
 
-        async function editOrder(id) {
-            try {
-                let o = ordersCache.find(x => x.id === id);
-                if (!o) o = await api('/orders/' + id);
-                if (!o) return;
-                editingOrderId = id;
-                editingOrderStatus = o.status || 'pending';
-                $('#orderModalTitle').textContent = tAdmin('orderManage') + ' ' + (o.order_no || ('#'+id));
-                $('#orderTable').value = o.table;
-                $('#orderTable').disabled = true;
-                $('#orderItems').innerHTML = '';
-                o.items.forEach(item => {
-                    if (item.itemStatus === 'done') addLockedOrderItem(item);
-                    else addOrderItem(item.id, item.quantity);
-                });
-                $('#orderNoteField').value = o.note || '';
-                updateOrderTotal();
-                $('#orderModal').classList.add('open');
-            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-        }
 
         document.addEventListener('DOMContentLoaded', function() {
             const orderSaveBtn = document.getElementById('orderSaveBtn');
