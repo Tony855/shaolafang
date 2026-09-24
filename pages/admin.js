@@ -218,35 +218,8 @@
         // ===== 订单编辑表单（已移到 pages/admin/order.js）=====
 
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const orderSaveBtn = document.getElementById('orderSaveBtn');
-            if (orderSaveBtn) {
-                orderSaveBtn.onclick = async function() {
-                    const rows = [...document.querySelectorAll('#orderItems .order-item-line')];
-                    const items = [];
-                    rows.forEach(row => {
-                        const id = +row.querySelector('select').value;
-                        const quantity = +row.querySelector('input').value;
-                        const itemStatus = row.dataset.status === 'done' ? 'done' : 'pending';
-                        if (id && quantity > 0) items.push({ id, quantity, itemStatus });
-                    });
-                    try {
-                        const noteValue = $('#orderNoteField').value.trim().slice(0, 200);
-                        const payload = editingOrderId ? { items, status: editingOrderStatus, note: noteValue } : { table: $('#orderTable').value, items, note: noteValue };
-                        await api(editingOrderId ? '/orders/' + editingOrderId : '/orders', {
-                            method: editingOrderId ? 'PUT' : 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                        closeOrderForm();
-                        await window.loadOrders();
-                        SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + (editingOrderId ? tAdmin('updated') : tAdmin('added')));
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                };
-            }
-            const addOrderItemBtn = document.getElementById('addOrderItemBtn');
-            if (addOrderItemBtn) addOrderItemBtn.onclick = function() { addOrderItem(); };
-        });
+        // ===== 订单表单提交（已移到 order.js）=====
+
 
         // (editCurrency/saveCurrencyEdit/setDefaultCurrency/removeCurrency 已移到 currency.js)
         // ===== 货币表单提交（已移到 currency.js）=====
