@@ -199,61 +199,8 @@
         // ===== 菜品编辑（已移到 pages/admin/menu.js）=====
 
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const menuForm = document.getElementById('menuForm');
-            if (menuForm) {
-                menuForm.onsubmit = async function(e) {
-                    e.preventDefault();
-                    try {
-                        const isEditing = Boolean(editingMenuId);
-                        const form = new FormData();
-                        [
-                            ['name', 'menuName'], ['name_en', 'menuNameEn'], ['price', 'menuPrice'],
-                            ['category', 'menuCategory'], ['currency_code', 'menuCurrency'],
-                            ['emoji', 'menuEmoji'], ['desc', 'menuDesc'], ['desc_en', 'menuDescEn'],
-                            ['unit', 'menuUnit'], ['secondary_currency_code', 'menuSecondaryCurrency']
-                        ].forEach(([k, id]) => {
-                            const el = $('#' + id);
-                            form.append(k, el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value);
-                        });
-                        form.append('show_dual', $('#menuSecondaryCurrency').value ? '1' : '0');
-                        const file = $('#menuImageFile').files[0];
-                        if (file) {
-                            try {
-                                const dataUrl = await new Promise((res, rej) => {
-                                    const fr = new FileReader();
-                                    fr.onload = () => res(fr.result);
-                                    fr.onerror = rej;
-                                    fr.readAsDataURL(file);
-                                });
-                                const img = await new Promise((res, rej) => {
-                                    const i = new Image();
-                                    i.onload = () => res(i);
-                                    i.onerror = rej;
-                                    i.src = dataUrl;
-                                });
-                                const canvas = document.createElement('canvas');
-                                const max = 800;
-                                const scale = Math.min(1, max / Math.max(img.width, img.height));
-                                canvas.width = Math.round(img.width * scale);
-                                canvas.height = Math.round(img.height * scale);
-                                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                                const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
-                                form.append('image', blob, 'menu_' + Date.now() + '.jpg');
-                            } catch (e) {
-                                console.warn('图片压缩失败，使用原图', e);
-                                form.append('image', file);
-                            }
-                        }
-                        await api(isEditing ? '/menu/' + editingMenuId : '/menu', { method: isEditing ? 'PUT' : 'POST', body: form });
-                        closeDishModal();
-                        await window.loadMenuCategories();
-                        await window.loadMenus();
-                        SLF.ui.toast('✅ ' + tAdmin('menuManage') + ' ' + (isEditing ? tAdmin('updated') : tAdmin('added')));
-                    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                };
-            }
-        });
+        // ===== 菜品表单提交（已移到 menu.js）=====
+
 
         // (removeTable/editTable/openTableForm/closeTableForm 已移到 table.js)
 

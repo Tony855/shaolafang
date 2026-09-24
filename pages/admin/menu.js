@@ -202,6 +202,61 @@ async function toggleMenuStatus(id, active) {
   } catch (e) { SLF.ui.toast('❌ ' + e.message); }
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+  const menuForm = document.getElementById('menuForm');
+  if (menuForm) {
+    menuForm.onsubmit = async function(e) {
+      e.preventDefault();
+      try {
+        const isEditing = Boolean(editingMenuId);
+        const form = new FormData();
+        [
+          ['name', 'menuName'], ['name_en', 'menuNameEn'], ['price', 'menuPrice'],
+          ['category', 'menuCategory'], ['currency_code', 'menuCurrency'],
+          ['emoji', 'menuEmoji'], ['desc', 'menuDesc'], ['desc_en', 'menuDescEn'],
+          ['unit', 'menuUnit'], ['secondary_currency_code', 'menuSecondaryCurrency']
+        ].forEach(([k, id]) => {
+          const el = $('#' + id);
+          form.append(k, el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value);
+        });
+        form.append('show_dual', $('#menuSecondaryCurrency').value ? '1' : '0');
+        const file = $('#menuImageFile').files[0];
+        if (file) {
+          try {
+            const dataUrl = await new Promise((res, rej) => {
+              const fr = new FileReader();
+              fr.onload = () => res(fr.result);
+              fr.onerror = rej;
+              fr.readAsDataURL(file);
+            });
+            const img = await new Promise((res, rej) => {
+              const im = new Image();
+              im.onload = () => res(im);
+              im.onerror = rej;
+              im.src = dataUrl;
+            });
+            const canvas = document.createElement('canvas');
+            const maxW = 800, maxH = 800;
+            let w = img.width, h = img.height;
+            if (w > maxW) { h = h * maxW / w; w = maxW; }
+            if (h > maxH) { w = w * maxH / h; h = maxH; }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            form.set('image', canvas.toDataURL('image/jpeg', 0.85));
+          } catch (imgErr) { console.warn('图片压缩失败:', imgErr); }
+        }
+        await api(isEditing ? '/menu/' + editingMenuId : '/menu', {
+          method: isEditing ? 'PUT' : 'POST',
+          body: form
+        });
+        closeDishModal();
+        await loadMenus();
+        SLF.ui.toast('✅ ' + tAdmin('saved'));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+});
+
 // 挂到 window
 window.loadMenus = loadMenus;
 window.loadMenuCategories = loadMenuCategories;
