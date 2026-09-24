@@ -99,55 +99,8 @@
         }
 
 
-        function dualAmountSuffix(base) {
-            if (!dualCurrencyEnabled || !secondaryCurrencyCode) return '';
-            const sec = SLF.money.secondary(base, secondaryCurrencyCode);
-            return sec ? ` (${sec})` : '';
-        }
+        // ===== 共享工具（已移到 pages/admin/shared.js）=====
 
-        async function api(path, options = {}) {
-            const adminStoreId = SLF.store.rawGetSession('adminStoreId');
-            if (adminStoreId) SLF.store.rawSet('storeId', adminStoreId);
-            const method = (options.method || 'GET').toUpperCase();
-            if (method === 'GET') return await SLF.api.get(path, options);
-            if (method === 'POST') return await SLF.api.post(path, options.body, options);
-            if (method === 'PUT') return await SLF.api.put(path, options.body, options);
-            if (method === 'DELETE') return await SLF.api.del(path, options);
-            return await SLF.api._request(method, path, options);
-        }
-
-        // ===== 菜品+分类（已移到 pages/admin/menu.js）=====
-
-
-        // ===== 桌台管理（已移到 pages/admin/table.js）=====
-
-
-        // ===== 订单核心（已移到 pages/admin/order.js）=====
-
-
-        // ===== 货币管理（已移到 pages/admin/currency.js）=====
-
-
-        function translateLoginMessage(msg) {
-            if (!msg) return '';
-            if (msg.includes('商户管理员登录成功')) { const username = msg.split(':')[1] || ''; return tAdmin('merchantAdminLogin') + ': ' + username.trim(); }
-            if (msg.includes('超级管理员登录成功')) { const username = msg.split(':')[1] || ''; return tAdmin('superAdminLogin') + ': ' + username.trim(); }
-            if (msg.includes('用户名不存在')) return tAdmin('usernameNotExist');
-            if (msg.includes('密码错误')) return tAdmin('wrongPassword');
-            if (msg.includes('请输入用户名和密码')) return tAdmin('pleaseEnterCredentials');
-            return msg;
-        }
-
-        async function loadLoginLogs() {
-            try {
-                const logs = await api('/admin/login-logs');
-                $('#loginLogs').innerHTML = logs.length ?
-                    logs.map(log => `<div class="row"><div><b>${SLF.utils.formatDateTime(log.createdAt)}</b><small>${esc(log.ip||'-')} · ${esc(translateLoginMessage(log.message))}</small></div><span class="badge ${log.success?'done':'canceled'}">${log.success ? tAdmin('loginSuccess') : tAdmin('loginFailed')}</span></div>`).join('') :
-                    `<div class="empty-hint">${tAdmin('noData')}</div>`;
-            } catch (e) {
-                $('#loginLogs').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
-            }
-        }
 
         // ===== 管理员管理 =====
         const ADMIN_PERMISSIONS = [
