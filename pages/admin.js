@@ -341,30 +341,8 @@
         // ===== 服务员编辑功能（已移到 waiter.js）=====
 
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const saveWaiterEditBtn = document.getElementById('saveWaiterEditBtn');
-            if (saveWaiterEditBtn) {
-                saveWaiterEditBtn.onclick = async function() {
-                    const id = parseInt($('#editWaiterId').value);
-                    const username = $('#editWaiterUsername').value.trim();
-                    const display_name = $('#editWaiterDisplayName').value.trim();
-                    const store_id = parseInt($('#editWaiterStore').value);
-                    const password = $('#editWaiterPassword').value.trim();
-                    const can_order = $('#editWaiterCanOrder').checked ? 1 : 0;
-                    const can_mark_item = $('#editWaiterCanMarkItem').checked ? 1 : 0;
-                    const can_complete_order = $('#editWaiterCanCompleteOrder').checked ? 1 : 0;
-                    if (!username || !display_name) { SLF.ui.toast(`❌ ${tAdmin('usernameAndNameRequired')}`); return; }
-                    try {
-                        const payload = { username, display_name, store_id, can_order, can_mark_item, can_complete_order };
-                        if (password) payload.password = password;
-                        await api('/admin/waiters/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                        closeWaiterEdit();
-                        await window.loadWaiters();
-                        SLF.ui.toast(`✅ ${tAdmin('waiterUpdated')}`);
-                    } catch (e) { SLF.ui.toast(`❌ ${tAdmin('updateFailed')}: ` + e.message); }
-                };
-            }
-        });
+        // ===== 服务员编辑表单（已移到 waiter.js）=====
+
 
         // ===== 店铺编辑功能（已移到 store.js）=====
 

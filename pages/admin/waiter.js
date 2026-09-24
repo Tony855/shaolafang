@@ -96,25 +96,26 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (e) { SLF.ui.toast('❌ ' + e.message); }
     };
   }
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-  const addWaiterBtn = document.getElementById('addWaiterBtn');
-  if (addWaiterBtn) {
-    addWaiterBtn.onclick = async function() {
-      const username = $('#waiterUsernameInput').value.trim();
-      const password = $('#waiterPasswordInput').value;
-      const display_name = $('#waiterNameInput').value.trim();
-      const store_id = parseInt($('#waiterStoreSelect').value) || 1;
-      if (!username || !password || !display_name) { SLF.ui.toast(`❌ ${tAdmin('waiterInfoRequired')}`); return; }
+  const saveWaiterEditBtn = document.getElementById('saveWaiterEditBtn');
+  if (saveWaiterEditBtn) {
+    saveWaiterEditBtn.onclick = async function() {
+      const id = parseInt($('#editWaiterId').value);
+      const username = $('#editWaiterUsername').value.trim();
+      const display_name = $('#editWaiterDisplayName').value.trim();
+      const store_id = parseInt($('#editWaiterStore').value);
+      const password = $('#editWaiterPassword').value.trim();
+      const can_order = $('#editWaiterCanOrder').checked ? 1 : 0;
+      const can_mark_item = $('#editWaiterCanMarkItem').checked ? 1 : 0;
+      const can_complete_order = $('#editWaiterCanCompleteOrder').checked ? 1 : 0;
+      if (!username || !display_name) { SLF.ui.toast(`❌ ${tAdmin('usernameAndNameRequired')}`); return; }
       try {
-        await api('/admin/waiters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { username, password, display_name, can_order: 1, can_mark_item: 1, can_complete_order: 1, store_id } });
-        $('#waiterUsernameInput').value = '';
-        $('#waiterPasswordInput').value = '';
-        $('#waiterNameInput').value = '';
+        const payload = { username, display_name, store_id, can_order, can_mark_item, can_complete_order };
+        if (password) payload.password = password;
+        await api('/admin/waiters/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload });
+        closeWaiterEdit();
         loadWaiters();
-        SLF.ui.toast('✅ ' + tAdmin('added'));
-      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        SLF.ui.toast(`✅ ${tAdmin('waiterUpdated')}`);
+      } catch (e) { SLF.ui.toast(`❌ ${tAdmin('updateFailed')}: ` + e.message); }
     };
   }
 });
