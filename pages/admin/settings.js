@@ -60,6 +60,33 @@ async function loadNotificationSettings() {
   } catch (e) { console.warn('加载提示音设置失败', e); }
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+  const saveDisplaySettingsBtn = document.getElementById('saveDisplaySettingsBtn');
+  if (saveDisplaySettingsBtn) {
+    saveDisplaySettingsBtn.onclick = async function() {
+      try {
+        await SLF.api.post('/admin/display-settings', {
+          enabled: $('#dualCurrencyEnabled').checked,
+          secondaryCurrencyCode: $('#dualCurrencySelect').value
+        });
+        await loadDisplaySettings();
+        await loadOrderPrefixes();
+        if (window.loadMenus) await window.loadMenus();
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+  const saveNotifySettingsBtn = document.getElementById('saveNotifySettingsBtn');
+  if (saveNotifySettingsBtn) {
+    saveNotifySettingsBtn.onclick = async function() {
+      try {
+        await SLF.api.post('/admin/notification-settings', { enabled: document.getElementById('newOrderSoundEnabled').checked });
+        SLF.ui.toast('✅ ' + tAdmin('notifySettingsSaved'));
+        await loadNotificationSettings();
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+});
+
 // 挂到 window
 window.loadDisplaySettings = loadDisplaySettings;
 window.loadOrderPrefixes = loadOrderPrefixes;
