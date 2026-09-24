@@ -42,7 +42,7 @@ GIT_VERSION="main"                       # 要安装的 git 版本（main 或 ta
 
 # 域名和邮箱（用于 SSL 证书，留空则不配置 HTTPS）
 DOMAIN="foodflow.v2net.cc"           # 你的域名，比如 foodflow.example.com
-EMAIL="your@email.com"               # 你的邮箱，用于证书续期提醒
+EMAIL="v2wallid@gmail.com"               # 你的邮箱，用于证书续期提醒
 
 # ============================================================
 # 显示横幅
@@ -545,6 +545,10 @@ EOF
     # ===== 12. 配置 Nginx 和 SSL =====
     echo ""
     log_info "配置 Nginx 反向代理和 SSL..."
+    
+    # 删除 Nginx 默认站点，避免冲突
+    rm -f /etc/nginx/sites-enabled/default
+
     if [ -f "$APP_DIR/setup-nginx.sh" ]; then
         DOMAIN="$DOMAIN" EMAIL="$EMAIL" bash setup-nginx.sh || log_warn "Nginx 配置失败"
     else
