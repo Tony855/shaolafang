@@ -70,6 +70,63 @@ function toggleSidebar() {
   document.body.classList.toggle('sidebar-collapsed');
 }
 
+// 汉堡按钮拖动
+(function() {
+  const btn = document.getElementById('hamburgerBtn');
+  if (!btn) return;
+  let isDragging = false;
+  let startX, startY, startLeft, startTop;
+  let hasMoved = false;
+  function getPos(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+  function onStart(e) {
+    if (window.innerWidth > 1024) return;
+    isDragging = true;
+    hasMoved = false;
+    const pos = getPos(e);
+    startX = pos.x; startY = pos.y;
+    const rect = btn.getBoundingClientRect();
+    startLeft = rect.left; startTop = rect.top;
+    btn.classList.add('dragging');
+    btn.style.transition = 'none';
+  }
+  function onMove(e) {
+    if (!isDragging) return;
+    const pos = getPos(e);
+    const dx = pos.x - startX, dy = pos.y - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) { hasMoved = true; e.preventDefault(); }
+    let newLeft = Math.max(0, Math.min(window.innerWidth - btn.offsetWidth, startLeft + dx));
+    let newTop = Math.max(0, Math.min(window.innerHeight - btn.offsetHeight, startTop + dy));
+    btn.style.left = newLeft + 'px';
+    btn.style.top = newTop + 'px';
+    e.preventDefault();
+  }
+  function onEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    btn.classList.remove('dragging');
+    btn.style.transition = '';
+    if (hasMoved) {
+      const rect = btn.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      if (centerX < window.innerWidth / 2) btn.style.left = '8px';
+      else btn.style.left = (window.innerWidth - btn.offsetWidth - 8) + 'px';
+      if (rect.top < 60) btn.style.top = '8px';
+      else if (rect.bottom > window.innerHeight - 60) btn.style.top = (window.innerHeight - btn.offsetHeight - 8) + 'px';
+    } else {
+      toggleSidebar();
+    }
+  }
+  btn.addEventListener('mousedown', onStart);
+  btn.addEventListener('touchstart', onStart);
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove);
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchend', onEnd);
+})();
+
 function logoutAdmin() {
   SLF.store.rawRemoveSession('adminToken');
   SLF.store.rawRemoveSession('adminId');

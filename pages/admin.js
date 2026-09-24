@@ -254,62 +254,8 @@
         // ===== updateOrderSummary/getCurrentModule/switchAdminModule/toggleSidebar/closeSidebar（已移到 shared.js）=====
 
 
-        // 汉堡按钮拖动
-        (function() {
-            const btn = document.getElementById('hamburgerBtn');
-            if (!btn) return;
-            let isDragging = false;
-            let startX, startY, startLeft, startTop;
-            let hasMoved = false;
-            function getPos(e) {
-                if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                return { x: e.clientX, y: e.clientY };
-            }
-            function onStart(e) {
-                if (window.innerWidth > 1024) return;
-                isDragging = true;
-                hasMoved = false;
-                const pos = getPos(e);
-                startX = pos.x; startY = pos.y;
-                const rect = btn.getBoundingClientRect();
-                startLeft = rect.left; startTop = rect.top;
-                btn.classList.add('dragging');
-                btn.style.transition = 'none';
-            }
-            function onMove(e) {
-                if (!isDragging) return;
-                const pos = getPos(e);
-                const dx = pos.x - startX, dy = pos.y - startY;
-                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) { hasMoved = true; e.preventDefault(); }
-                let newLeft = Math.max(0, Math.min(window.innerWidth - btn.offsetWidth, startLeft + dx));
-                let newTop = Math.max(0, Math.min(window.innerHeight - btn.offsetHeight, startTop + dy));
-                btn.style.left = newLeft + 'px';
-                btn.style.top = newTop + 'px';
-                e.preventDefault();
-            }
-            function onEnd() {
-                if (!isDragging) return;
-                isDragging = false;
-                btn.classList.remove('dragging');
-                btn.style.transition = '';
-                if (hasMoved) {
-                    const rect = btn.getBoundingClientRect();
-                    const centerX = rect.left + rect.width / 2;
-                    if (centerX < window.innerWidth / 2) btn.style.left = '8px';
-                    else btn.style.left = (window.innerWidth - btn.offsetWidth - 8) + 'px';
-                    if (rect.top < 60) btn.style.top = '8px';
-                    else if (rect.bottom > window.innerHeight - 60) btn.style.top = (window.innerHeight - btn.offsetHeight - 8) + 'px';
-                } else {
-                    toggleSidebar();
-                }
-            }
-            btn.addEventListener('mousedown', onStart);
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onEnd);
-            btn.addEventListener('touchstart', onStart, { passive: false });
-            document.addEventListener('touchmove', onMove, { passive: false });
-            document.addEventListener('touchend', onEnd);
-        })();
+        // ===== 汉堡按钮拖动（已移到 shared.js）=====
+
 
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', function() {
