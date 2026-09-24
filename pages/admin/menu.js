@@ -277,4 +277,92 @@ window.cancelMenuEdit = cancelMenuEdit;
 window.removeMenu = removeMenu;
 window.toggleMenuStatus = toggleMenuStatus;
 
+// ===== 批量导入 =====
+let importItems = [];
+
+function openImportModal() {
+  document.getElementById('importModal').hidden = false;
+  document.getElementById('importFile').value = '';
+  document.getElementById('importPreview').innerHTML = '';
+  document.getElementById('importResult').innerHTML = '';
+  document.getElementById('confirmImportBtn').disabled = true;
+}
+
+function closeImportModal() {
+  document.getElementById('importModal').hidden = true;
+  importItems = [];
+}
+
+// 简单 CSV 解析
+function parseCSV(text) {
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim());
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+    const item = {};
+    headers.forEach((h, idx) => { item[h] = values[idx] || ''; });
+    result.push(item);
+  }
+  return result;
+}
+
+document.getElementById('importFile').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      importItems = parseCSV(ev.target.result);
+      if (importItems.length === 0) {
+        document.getElementById('importPreview').innerHTML = '<div style="color: #ff6b6b;">没有解析到有效数据</div>';
+        document.getElementById('confirmImportBtn').disabled = true;
+        return;
+      }
+      // 预览
+      document.getElementById('importPreview').innerHTML = '<div style="color: #4caf50;">解析到 ' + importItems.length + ' 条数据：</div>' +
+        importItems.slice(0, 10).map((item, i) => 
+          '<div style="padding: 3px 0; border-bottom: 1px solid #eee;">' + (i+1) + '. ' + esc(item.name) + ' - $' + item.price + ' (' + item.category + ')</div>'
+        ).join('') + (importItems.length > 10 ? '<div style="color: #888; padding: 5px 0;">... 共 ' + importItems.length + ' 条</div>' : '');
+      document.getElementById('confirmImportBtn').disabled = false;
+    } catch (err) {
+      document.getElementById('importPreview').innerHTML = '<div style="color: #ff6b6b;">解析失败：' + err.message + '</div>';
+      document.getElementById('confirmImportBtn').disabled = true;
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+async function confirmImport() {
+  if (importItems.length === 0) return;
+  document.getElementById('confirmImportBtn').disabled = true;
+  document.getElementById('confirmImportBtn').textContent = '导入中...';
+  try {
+    const result = await api('/admin/menu/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: importItems })
+    });
+    let html = '<div style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px;">' +
+      '✅ 成功导入 ' + result.success + ' 条';
+    if (result.failed > 0) html += '，失败 ' + result.failed + ' 条';
+    html += '</div>';
+    if (result.errors && result.errors.length) {
+      html += '<div style="margin-top: 5px; font-size: 12px; color: #c62828;">' + result.errors.slice(0, 5).join('<br>') + '</div>';
+    }
+    document.getElementById('importResult').innerHTML = html;
+    await loadMenus();
+  } catch (e) {
+    document.getElementById('importResult').innerHTML = '<div style="background: #ffebee; color: #c62828; padding: 10px; border-radius: 6px;">❌ 导入失败：' + e.message + '</div>';
+  } finally {
+    document.getElementById('confirmImportBtn').disabled = false;
+    document.getElementById('confirmImportBtn').textContent = '开始导入';
+  }
+}
+
+window.openImportModal = openImportModal;
+window.closeImportModal = closeImportModal;
+window.confirmImport = confirmImport;
+
 })();

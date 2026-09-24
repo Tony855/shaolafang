@@ -205,6 +205,55 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
   }
 });
 
+// 批量导入菜品
+app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
+  try {
+    const items = req.body.items;
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: '导入数据不能为空' });
+    
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      try {
+        if (!item.name || !item.price) {
+          failed++;
+          errors.push(`第 ${i+1} 行：名称和价格必填`);
+          continue;
+        }
+        await runAsync(
+          'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            item.name, 
+            item.emoji || '🍽️', 
+            parseFloat(item.price), 
+            item.category || '其他', 
+            item.desc || '', 
+            '', 
+            item.currency_code || 'USD', 
+            item.name_en || '', 
+            item.desc_en || '', 
+            item.unit || '份', 
+            item.show_dual ? 1 : 0, 
+            item.secondary_currency_code || '', 
+            req.storeId || 1
+          ]
+        );
+        success++;
+      } catch (e) {
+        failed++;
+        errors.push(`第 ${i+1} 行：${e.message}`);
+      }
+    }
+    
+    res.json({ success, failed, errors });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), upload.single('image'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);

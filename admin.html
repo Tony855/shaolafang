@@ -179,6 +179,7 @@
                 <div id="dishPanel">
                     <div class="menu-toolbar">
                         <button id="openDishModalBtn" onclick="openDishModal()">➕ 新增菜品</button>
+                        <button id="importMenuBtn" onclick="openImportModal()">📥 批量导入</button>
                         <select id="menuCategoryFilter" class="menu-filter-select" onchange="loadMenus()"><option value="all">📋 全部分类</option></select>
                         <select id="menuSortBy" class="menu-filter-select" onchange="loadMenus()">
                             <option value="default">🔄 默认排序</option>
@@ -726,7 +727,25 @@
     <script src="/socket.io/socket.io.js"></script>
 <script src="pages/admin/context.js?v=20260924debug40"></script>
 <script src="pages/admin/settings.js?v=20260924debug40"></script>
-<script src="pages/admin/logs.js?v=20260924debug40"></script>
+<!-- 批量导入弹窗 -->
+<div class="modal-overlay" id="importModal" hidden>
+    <div class="modal" style="max-width: 600px;">
+        <h3>📥 批量导入菜品</h3>
+        <p style="color: #888; margin: 10px 0;">选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en</p>
+        <p style="color: #888; margin: 10px 0;">
+            <a href="data:text/csv;charset=utf-8,%EF%BB%BFname%2Ccategory%2Cprice%2Cemoji%2Cdesc%2Cname_en%2Cdesc_en%0A%E7%BA%A2%E7%83%A7%E8%82%89%2C%E8%8F%9C%E8%8F%9C%2C12%2C%F0%9F%8D%96%2C%E7%BB%8F%E5%85%B8%E7%BA%A2%E7%83%A7%2CBraised%20Pork%2CClassic%20braised%0A%E6%B8%85%E8%91%A1%E9%9D%92%E8%8F%9C%2C%E7%B4%A0%E8%8F%9C%2C6%2C%F0%9F%A5%AC%2C%E6%B8%85%E7%82%92%E6%97%B6%E8%96%AC%2CVegetables%2CSeasonal%20greens" download="menu_template.csv" style="color: #4a9eff;">📥 下载模板</a>
+        </p>
+        <input type="file" id="importFile" accept=".csv" style="margin: 15px 0; padding: 10px; border: 1px dashed #ccc; width: 100%; box-sizing: border-box;">
+        <div id="importPreview" style="max-height: 200px; overflow-y: auto; margin: 10px 0; font-size: 13px;"></div>
+        <div id="importResult" style="margin: 10px 0; padding: 10px; border-radius: 6px;"></div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+            <button onclick="closeImportModal()">取消</button>
+            <button id="confirmImportBtn" onclick="confirmImport()" disabled style="background: #4a9eff; color: white;">开始导入</button>
+        </div>
+    </div>
+</div>
+
+<script src="pages/admin/logs.js?v='20260924debug40"></script>
 <script src="pages/admin/waiter.js?v=20260924debug40"></script>
 <script src="pages/admin/currency.js?v=20260924debug40"></script>
 <script src="pages/admin/store.js?v=20260924debug40"></script>
