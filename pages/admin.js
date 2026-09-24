@@ -1056,7 +1056,7 @@
             else if (module === 'stores') window.loadStores();
             else if (module === 'reservations') loadReservations();
             else if (module === 'calls') loadWaiterCalls();
-            else if (module === 'printers') loadPrinters();
+            else if (module === 'printers') window.loadPrinters();
             else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); loadDailyReport(); loadReportSummary(); }
             else if (module === 'admins') window.loadAdmins();
             else if (module === 'cashiers') window.loadCashiers();
@@ -1841,113 +1841,8 @@
             if (saved === '1') setTimeout(startAutoPrintPoll, 3000);
         });
 
-        async function loadPrinters() {
-            try {
-                const data = await api('/admin/printers');
-                window._adminPrinters = data;
-                const container = $('#printersList');
-                if (!data || data.length === 0) {
-                    container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noPrinterHint')}</div>`;
-                    return;
-                }
-                const typeMap = { network: tAdmin('networkPrinter'), usb: 'USB', bluetooth: tAdmin('bluetoothPrinter') };
-                container.innerHTML = data.map(p => `
-                    <div class="admin-card">
-                        <div class="info">
-                            <div class="title">🖨️ ${esc(p.name)} ${p.is_default ? `<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>` : ''}</div>
-                            <div class="sub">${typeMap[p.type] || esc(p.type)} · ${esc(p.brand)} · ${esc(p.paper_width)}mm${p.ip_address ? ' · ' + esc(p.ip_address) + ':' + esc(p.port) : ''} · ${p.active ? '<span style="color:#2ecc71;font-weight:600;">' + tAdmin('enabled') + '</span>' : '<span style="color:#e74c3c;">' + tAdmin('disabled') + '</span>'}</div>
-                        </div>
-                        <div class="actions">
-                            ${hasPermission('can_manage_printer') ? '<button class="copy" onclick="testPrinter(' + p.id + ')">' + tAdmin('testPrint') + '</button>' : ''}
-                            <button class="edit-btn" onclick="openPrinterEdit(${p.id})">${L('edit')}</button>
-                            <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})">${p.active ? tAdmin('disabled') : tAdmin('enabled')}</button>
-                            ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})">${tAdmin('setDefaultPrinter')}</button>` : ''}
-                            ${hasPermission('can_manage_printer') ? '<button class="danger" onclick="deletePrinter(' + p.id + ')">' + L('delete') + '</button>' : ''}
-                        </div>
-                    </div>
-                `).join('');
-            } catch (err) { SLF.ui.toast(`${tAdmin('loadPrinterFailed')}: ` + err.message); }
-        }
+        // ===== 打印机管理（已移到 pages/admin/printer.js）=====
 
-        async function addPrinter() {
-            const name = $('#printerName').value.trim();
-            if (!name) { SLF.ui.toast(tAdmin('printerNameRequired')); return; }
-            try {
-                await api('/admin/printers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
-                    name, type: $('#printerType').value, ip_address: $('#printerIp').value.trim(),
-                    port: parseInt($('#printerPort').value) || 9100, paper_width: parseInt($('#printerWidth').value) || 58,
-                    brand: $('#printerBrand').value, is_default: $('#printerDefault').checked
-                }});
-                SLF.ui.toast(tAdmin('printerAdded'));
-                $('#printerName').value = '';
-                $('#printerIp').value = '';
-                $('#printerDefault').checked = false;
-                loadPrinters();
-            } catch (err) { SLF.ui.toast(tAdmin('addFailed') + ': ' + err.message); }
-        }
-
-        async function testPrinter(id) {
-            try {
-                await api('/admin/printers/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { printer_id: id } });
-                SLF.ui.toast(tAdmin('testPrintSent'));
-            } catch (err) { SLF.ui.toast(tAdmin('printFailed') + ': ' + err.message); }
-        }
-
-        function openPrinterEdit(id) {
-            const printers = window._adminPrinters || [];
-            const p = printers.find(x => x.id === id);
-            if (!p) return;
-            $('#editPrinterId').value = p.id;
-            $('#editPrinterName').value = p.name || '';
-            $('#editPrinterType').value = p.type || 'network';
-            $('#editPrinterIp').value = p.ip_address || '';
-            $('#editPrinterPort').value = p.port || 9100;
-            $('#editPrinterWidth').value = p.paper_width || 58;
-            $('#editPrinterBrand').value = p.brand || 'generic';
-            $('#editPrinterDefault').checked = !!p.is_default;
-            $('#printerEditModal').classList.add('open');
-        }
-        function closePrinterEdit() { $('#printerEditModal').classList.remove('open'); }
-        async function savePrinterEdit() {
-            const id = parseInt($('#editPrinterId').value);
-            const name = $('#editPrinterName').value.trim();
-            if (!name) { SLF.ui.toast(tAdmin('printerNameRequired')); return; }
-            try {
-                await api('/admin/printers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: {
-                    name, type: $('#editPrinterType').value, ip_address: $('#editPrinterIp').value.trim(),
-                    port: parseInt($('#editPrinterPort').value) || 9100, paper_width: parseInt($('#editPrinterWidth').value) || 58,
-                    brand: $('#editPrinterBrand').value, is_default: $('#editPrinterDefault').checked
-                }});
-                SLF.ui.toast(tAdmin('saveSuccess') || '保存成功');
-                closePrinterEdit();
-                loadPrinters();
-            } catch (err) { SLF.ui.toast(tAdmin('saveFailed') + ': ' + err.message); }
-        }
-
-        async function togglePrinter(id, active) {
-            try {
-                await api('/admin/printers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { active } });
-                loadPrinters();
-            } catch (err) { SLF.ui.toast(tAdmin('operationFailed') + ': ' + err.message); }
-        }
-
-        async function setDefaultPrinter(id) {
-            try {
-                await api('/admin/printers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { is_default: true } });
-                SLF.ui.toast(tAdmin('setAsDefaultPrinter'));
-                loadPrinters();
-            } catch (err) { SLF.ui.toast(tAdmin('operationFailed') + ': ' + err.message); }
-        }
-
-        function deletePrinter(id) {
-            showConfirm(tAdmin('confirmDeletePrinter'), async function() {
-                try {
-                    await api('/admin/printers/' + id, { method: 'DELETE' });
-                    SLF.ui.toast('打印机已删除');
-                    loadPrinters();
-                } catch (err) { SLF.ui.toast(`${tAdmin('deleteFailed')}: ` + err.message); }
-            });
-        }
 
         async function printOrder(orderId) {
             try {
