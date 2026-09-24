@@ -144,6 +144,25 @@ function printViaBrowser(base64Data, orderId) {
   printWindow.document.close();
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+  const saved = SLF.store.rawGet('autoPrintEnabled');
+  const toggle = document.getElementById('autoPrintToggle');
+  if (toggle) {
+    toggle.checked = saved === '1';
+    toggle.addEventListener('change', function() {
+      SLF.store.rawSet('autoPrintEnabled', this.checked ? '1' : '0');
+      if (this.checked) {
+        if (typeof window.startAutoPrintPoll === 'function') window.startAutoPrintPoll();
+      } else {
+        if (typeof window.stopAutoPrintPoll === 'function') window.stopAutoPrintPoll();
+      }
+    });
+  }
+  if (saved === '1' && typeof window.startAutoPrintPoll === 'function') {
+    setTimeout(window.startAutoPrintPoll, 3000);
+  }
+});
+
 // 挂到 window
 window.printOrder = printOrder;
 window.printViaBrowser = printViaBrowser;

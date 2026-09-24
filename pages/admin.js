@@ -1064,12 +1064,8 @@
                 }
             } catch (e) { console.error('检查新订单失败:', e); }
         }
-        document.addEventListener('DOMContentLoaded', function() {
-            const saved = SLF.store.rawGet('autoPrintEnabled');
-            const toggle = document.getElementById('autoPrintToggle');
-            if (toggle) toggle.checked = saved === '1';
-            if (saved === '1') setTimeout(startAutoPrintPoll, 3000);
-        });
+        // ===== 自动打印开关（已移到 printer.js）=====
+
 
         // ===== 打印机管理（已移到 pages/admin/printer.js）=====
 
