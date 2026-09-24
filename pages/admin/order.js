@@ -236,6 +236,34 @@ async function editOrder(id) {
   } catch (e) { SLF.ui.toast('❌ ' + e.message); }
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+  const orderSaveBtn = document.getElementById('orderSaveBtn');
+  if (orderSaveBtn) {
+    orderSaveBtn.onclick = async function() {
+      const rows = [...document.querySelectorAll('#orderItems .order-item-line')];
+      const items = [];
+      rows.forEach(row => {
+        const id = +row.querySelector('select').value;
+        const qty = +row.querySelector('input').value || 0;
+        if (id && qty > 0) items.push({ menu_id: id, quantity: qty });
+      });
+      if (!items.length) { SLF.ui.toast('❌ ' + tAdmin('noItems')); return; }
+      try {
+        await api('/orders', { method: editingOrderId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+          table: $('#orderTable').value,
+          note: $('#orderNoteField').value.trim(),
+          items
+        }});
+        closeOrderForm();
+        await loadOrders();
+        SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + (editingOrderId ? tAdmin('updated') : tAdmin('added')));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+  const addOrderItemBtn = document.getElementById('addOrderItemBtn');
+  if (addOrderItemBtn) addOrderItemBtn.onclick = function() { addOrderItem(); };
+});
+
 // 挂到 window
 window.loadOrders = loadOrders;
 window.setOrderFilter = setOrderFilter;
