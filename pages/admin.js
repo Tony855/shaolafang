@@ -334,26 +334,9 @@
 
         // (showQr 已移到 table.js)
 
-        document.addEventListener('DOMContentLoaded', function() {
         // ===== 显示设置表单（已移到 settings.js）=====
+        // ===== resetDataBtn（已移到 shared.js）=====
 
-            const resetDataBtn = document.getElementById('resetDataBtn');
-            if (resetDataBtn) {
-                resetDataBtn.onclick = function() {
-                    showPasswordModal(tAdmin('resetDataPasswordMsg'), function(password) {
-                        showConfirm(tAdmin('resetDataConfirmMsg'), async function() {
-                            try {
-                                await SLF.api.post('/admin/reset-data', { password });
-                                SLF.ui.toast('✅ ' + tAdmin('resetSuccess'));
-                                await window.loadOrders();
-                                await window.loadTables();
-                                await loadLoginLogs();
-                            } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-                        }, tAdmin('resetDataConfirmTitle'));
-                    }, tAdmin('resetDataPasswordTitle'));
-                };
-            }
-        });
 
         // ===== 服务员编辑功能（已移到 waiter.js）=====
 
