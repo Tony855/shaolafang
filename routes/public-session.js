@@ -62,7 +62,9 @@ module.exports = function(app, deps) {
       let rows;
       if (customerToken) {
         // 只按customer_token + store_id查询，不管订单在哪个桌，都能查到自己的订单
-        rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND customer_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.store_id || 1, customerToken]);
+        // 限定最近7天，避免无限累积历史订单
+        const sevenDaysAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+        rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC", [session.store_id || 1, customerToken, sevenDaysAgo]);
       } else {
         rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, session.store_id || 1, req.params.token]);
       }
