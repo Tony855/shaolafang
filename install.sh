@@ -317,6 +317,15 @@ install_single() {
     else
         # 当前目录没有代码：自动从 GitHub 克隆
         log_info "当前目录未找到代码，自动从 GitHub 克隆..."
+        
+        # 如果目标目录已经存在且不为空，先备份
+        if [ -d "$DEPLOY_TARGET" ] && [ "$(ls -A "$DEPLOY_TARGET" 2>/dev/null)" ]; then
+            BACKUP_DIR="$DEPLOY_TARGET.backup.$(date +%Y%m%d%H%M%S)"
+            log_warn "目标目录已存在，备份到 $BACKUP_DIR"
+            mv "$DEPLOY_TARGET" "$BACKUP_DIR"
+        fi
+        
+        mkdir -p "$DEPLOY_TARGET"
         git clone --branch "$VERSION" https://github.com/Tony855/shaolafang.git "$DEPLOY_TARGET" || {
             log_error "代码克隆失败，请手动上传代码到 $DEPLOY_TARGET"
             exit 1
