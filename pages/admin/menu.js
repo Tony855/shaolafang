@@ -489,9 +489,21 @@ document.getElementById('importFile').addEventListener('change', function(e) {
 
 async function confirmImport() {
   if (importItems.length === 0) return;
-  if (!confirm('确认导入 ' + importItems.length + ' 条菜品？\n重复的同名菜品将自动覆盖更新！')) {
-    return;
-  }
+  // 打开确认弹窗
+  document.getElementById('confirmImportText').textContent = '确认导入 ' + importItems.length + ' 条菜品？重复的同名菜品将自动覆盖更新！';
+  document.getElementById('confirmImportModal').classList.add('open');
+  // 绑定确认按钮
+  document.getElementById('confirmImportYesBtn').onclick = function() {
+    closeConfirmImport();
+    doImport();
+  };
+}
+
+function closeConfirmImport() {
+  document.getElementById('confirmImportModal').classList.remove('open');
+}
+
+async function doImport() {
   var btn = document.getElementById('confirmImportBtn');
   btn.disabled = true;
   btn.textContent = '导入中...';
