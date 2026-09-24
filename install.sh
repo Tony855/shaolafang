@@ -38,7 +38,7 @@ CONFIG_DIR="/etc/foodflow"           # 配置文件目录
 SERVICE_NAME="foodflow"              # systemd 服务名
 
 # 版本选择（main = 最新开发版，或者填 tag 版本号比如 v1.0.0）
-VERSION="main"                       # 要安装的版本（main 或 tag）
+GIT_VERSION="main"                       # 要安装的 git 版本（main 或 tag）
 
 # 域名和邮箱（用于 SSL 证书，留空则不配置 HTTPS）
 DOMAIN="foodflow.v2net.cc"           # 你的域名，比如 foodflow.example.com
@@ -86,7 +86,7 @@ check_system() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         OS_NAME="$NAME"
-        OS_VERSION="$VERSION_ID"
+        OS_VERSION="$GIT_VERSION_ID"
         log_info "操作系统：$OS_NAME $OS_VERSION"
     else
         log_error "无法识别操作系统，支持 Debian 11+ / Ubuntu 20.04+"
@@ -326,25 +326,36 @@ install_single() {
         fi
         
         mkdir -p "$DEPLOY_TARGET"
-        git clone --branch "$VERSION" https://github.com/Tony855/shaolafang.git "$DEPLOY_TARGET" || {
+        
+        # 自动把 GitHub 加到 known_hosts，避免首次连接确认提示
+        mkdir -p ~/.ssh
+        ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+        # 克隆代码：优先 SSH，其次 HTTPS + TOKEN，最后 HTTPS 匿名
+        if git ls-remote git@github.com:Tony855/shaolafang.git HEAD >/dev/null 2>&1; then
+            log_info "使用 SSH 方式克隆..."
+            git clone --branch "$GIT_VERSION" git@github.com:Tony855/shaolafang.git "$DEPLOY_TARGET"
+        elif [ -n "$GITHUB_TOKEN" ]; then
+            log_info "使用 HTTPS + GITHUB_TOKEN 方式克隆..."
+            git clone --branch "$GIT_VERSION" "https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git" "$DEPLOY_TARGET"
+            # 克隆完立刻剥离 token，防止写入 .git/config
+            cd "$DEPLOY_TARGET"
+            git remote set-url origin https://github.com/Tony855/shaolafang.git
+            git config --unset credential.helper 2>/dev/null || true
+        else
+            log_info "使用 HTTPS 方式克隆（需要输入用户名密码）..."
+            git clone --branch "$GIT_VERSION" https://github.com/Tony855/shaolafang.git "$DEPLOY_TARGET"
+        fi
+        
+        if [ $? -ne 0 ]; then
             log_error "代码克隆失败，请手动上传代码到 $DEPLOY_TARGET"
             exit 1
-        }
+        fi
         log_success "代码克隆完成"
     fi
 
     # 创建必要的子目录
     mkdir -p "$DEPLOY_TARGET"/{uploads,backups,logs}
-
-    # ===== 3. 调用 install-local.sh 完成后续安装 =====
-    echo ""
-    log_info "调用 install-local.sh 完成后续安装（数据库、Redis、Node.js、Systemd、Nginx）..."
-    echo ""
-
-    if [ ! -f "$DEPLOY_TARGET/install-local.sh" ]; then
-        log_error "未找到 install-local.sh，请确保代码完整"
-        exit 1
-    fi
 
     cd "$DEPLOY_TARGET"
     APP_DIR="$DEPLOY_TARGET"
