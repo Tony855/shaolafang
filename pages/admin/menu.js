@@ -313,6 +313,22 @@ function openImportModal() {
       cancel: 'បោះបង់',
       startImport: 'ចាប់ផ្តើមនាំចូល',
       importing: 'កំពុងនាំចូល...'
+    },
+    th: {
+      title: '📥 นำเข้าเมนูจำนวนมาก',
+      desc: 'เลือกไฟล์ CSV เพื่อนำเข้ารูปแบบ: name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 ดาวน์โหลดเทมเพลต',
+      cancel: 'ยกเลิก',
+      startImport: 'เริ่มนำเข้า',
+      importing: 'กำลังนำเข้า...'
+    },
+    vi: {
+      title: '📥 Nhập khẩu hàng loạt món ăn',
+      desc: 'Chọn tệp CSV để nhập khẩu. Định dạng: name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 Tải xuống mẫu',
+      cancel: 'Hủy',
+      startImport: 'Bắt đầu nhập',
+      importing: 'Đang nhập...'
     }
   };
   const t = texts[lang] || texts.zh;
@@ -435,6 +451,22 @@ function openImportModal() {
       cancel: 'បោះបង់',
       startImport: 'ចាប់ផ្តើមនាំចូល',
       importing: 'កំពុងនាំចូល...'
+    },
+    th: {
+      title: '📥 นำเข้าเมนูจำนวนมาก',
+      desc: 'เลือกไฟล์ CSV เพื่อนำเข้ารูปแบบ: name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 ดาวน์โหลดเทมเพลต',
+      cancel: 'ยกเลิก',
+      startImport: 'เริ่มนำเข้า',
+      importing: 'กำลังนำเข้า...'
+    },
+    vi: {
+      title: '📥 Nhập khẩu hàng loạt món ăn',
+      desc: 'Chọn tệp CSV để nhập khẩu. Định dạng: name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 Tải xuống mẫu',
+      cancel: 'Hủy',
+      startImport: 'Bắt đầu nhập',
+      importing: 'Đang nhập...'
     }
   };
   const t = texts[lang] || texts.zh;
