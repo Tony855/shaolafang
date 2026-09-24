@@ -167,9 +167,9 @@ async function getLocationByIp(ip) {
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use('/assets', express.static(path.join(__dirname, 'assets'), { dotfiles: 'deny', index: false }));
-app.use('/pages', express.static(path.join(__dirname, 'pages'), { dotfiles: 'deny', index: false }));
-app.use('/uploads', express.static(UPLOAD_DIR, { dotfiles: 'deny', index: false }));
+app.use('/assets', express.static(path.join(__dirname, 'assets'), { dotfiles: 'deny', index: false, setHeaders: (res) => res.setHeader('Cache-Control', 'public, max-age=604800') })); // 7天缓存
+app.use('/pages', express.static(path.join(__dirname, 'pages'), { dotfiles: 'deny', index: false, setHeaders: (res) => res.setHeader('Cache-Control', 'public, max-age=604800') })); // 7天缓存
+app.use('/uploads', express.static(UPLOAD_DIR, { dotfiles: 'deny', index: false, setHeaders: (res) => res.setHeader('Cache-Control', 'public, max-age=2592000') })); // 30天缓存
 
 app.get('/languages.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'languages.js'));
