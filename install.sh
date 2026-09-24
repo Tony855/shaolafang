@@ -436,7 +436,7 @@ install_single() {
     # ===== 9. 配置数据库 =====
     echo ""
     # 检查是否已安装过：如果 .env 存在，说明是更新模式，跳过数据库重建
-    if [ -f "/.env" ]; then
+    if [ -f "$APP_DIR/.env" ]; then
         log_info "检测到已安装（.env 存在），跳过数据库重建，保留所有数据！"
         SKIP_DB_INIT=1
     else
