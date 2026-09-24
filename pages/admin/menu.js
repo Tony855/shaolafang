@@ -281,7 +281,7 @@ window.toggleMenuStatus = toggleMenuStatus;
 let importItems = [];
 
 function openImportModal() {
-  document.getElementById('importModal').hidden = false;
+  document.getElementById('importModal').classList.add('open');
   document.getElementById('importFile').value = '';
   document.getElementById('importPreview').innerHTML = '';
   document.getElementById('importResult').innerHTML = '';
@@ -333,15 +333,15 @@ function openImportModal() {
   };
   const t = texts[lang] || texts.zh;
   
-  document.querySelector('#importModal h3').textContent = t.title;
+  document.querySelector('#importModal h2').textContent = t.title;
   document.querySelector('#importModal p').textContent = t.desc;
   document.querySelector('#importModal p a').textContent = t.downloadTpl;
-  document.querySelector('#importModal button').textContent = t.cancel;
+
   document.getElementById('confirmImportBtn').textContent = t.startImport;
 }
 
 function closeImportModal() {
-  document.getElementById('importModal').hidden = true;
+  document.getElementById('importModal').classList.remove('open');
   importItems = [];
 }
 
@@ -415,106 +415,69 @@ async function confirmImport() {
 
 })();
 
-// ===== 批量导入（放在 IIFE 外面，避免 ctx 未加载时函数不定义）=====
+// ===== 批量导入 =====
 let importItems = [];
 
 function openImportModal() {
-  document.getElementById('importModal').hidden = false;
+  document.getElementById('importModal').classList.add('open');
   document.getElementById('importFile').value = '';
   document.getElementById('importPreview').innerHTML = '';
   document.getElementById('importResult').innerHTML = '';
   document.getElementById('confirmImportBtn').disabled = true;
   
-  // 多语言
-  const lang = SLF.i18n.lang || 'zh';
-  const texts = {
-    zh: {
-      title: '📥 批量导入菜品',
-      desc: '选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en',
-      downloadTpl: '📥 下载模板',
-      cancel: '取消',
-      startImport: '开始导入',
-      importing: '导入中...'
-    },
-    en: {
-      title: '📥 Batch Import Menu',
-      desc: 'Select CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en',
-      downloadTpl: '📥 Download Template',
-      cancel: 'Cancel',
-      startImport: 'Start Import',
-      importing: 'Importing...'
-    },
-    km: {
-      title: '📥 នាំចូលម៉ឺនុយជាដុំ',
-      desc: 'ជ្រើសឯកសារ CSV ដើម្បីនាំចូល. ទ្រង់ទ្រាយ៖ name,category,price,emoji,desc,name_en,desc_en',
-      downloadTpl: '📥 ទាញយកគំរូ',
-      cancel: 'បោះបង់',
-      startImport: 'ចាប់ផ្តើមនាំចូល',
-      importing: 'កំពុងនាំចូល...'
-    },
-    th: {
-      title: '📥 นำเข้าเมนูจำนวนมาก',
-      desc: 'เลือกไฟล์ CSV เพื่อนำเข้ารูปแบบ: name,category,price,emoji,desc,name_en,desc_en',
-      downloadTpl: '📥 ดาวน์โหลดเทมเพลต',
-      cancel: 'ยกเลิก',
-      startImport: 'เริ่มนำเข้า',
-      importing: 'กำลังนำเข้า...'
-    },
-    vi: {
-      title: '📥 Nhập khẩu hàng loạt món ăn',
-      desc: 'Chọn tệp CSV để nhập khẩu. Định dạng: name,category,price,emoji,desc,name_en,desc_en',
-      downloadTpl: '📥 Tải xuống mẫu',
-      cancel: 'Hủy',
-      startImport: 'Bắt đầu nhập',
-      importing: 'Đang nhập...'
-    }
+  var lang = (window.SLF.i18n && SLF.i18n.lang) || 'zh';
+  var texts = {
+    zh: { title: '📥 批量导入菜品', desc: '选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en', downloadTpl: '📥 下载模板', cancel: '取消', startImport: '开始导入', importing: '导入中...' },
+    en: { title: '📥 Batch Import Menu', desc: 'Select CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en', downloadTpl: '📥 Download Template', cancel: 'Cancel', startImport: 'Start Import', importing: 'Importing...' },
+    km: { title: '📥 នាំចូលម៉ឺនុយជាដុំ', desc: 'ជ្រើសឯកសារ CSV ដើម្បីនាំចូល', downloadTpl: '📥 ទាញយកគំរូ', cancel: 'បោះបង់', startImport: 'ចាប់ផ្តើមនាំចូល', importing: 'កំពុងនាំចូល...' },
+    th: { title: '📥 นำเข้าเมนูจำนวนมาก', desc: 'เลือกไฟล์ CSV เพื่อนำเข้า', downloadTpl: '📥 ดาวน์โหลดเทมเพลต', cancel: 'ยกเลิก', startImport: 'เริ่มนำเข้า', importing: 'กำลังนำเข้า...' },
+    vi: { title: '📥 Nhập khẩu hàng loạt món ăn', desc: 'Chọn tệp CSV để nhập khẩu', downloadTpl: '📥 Tải xuống mẫu', cancel: 'Hủy', startImport: 'Bắt đầu nhập', importing: 'Đang nhập...' }
   };
-  const t = texts[lang] || texts.zh;
+  var t = texts[lang] || texts.zh;
   
-  document.querySelector('#importModal h3').textContent = t.title;
+  document.querySelector('#importModal h2').textContent = t.title;
   document.querySelector('#importModal p').textContent = t.desc;
   document.querySelector('#importModal p a').textContent = t.downloadTpl;
-  document.querySelector('#importModal button').textContent = t.cancel;
+
   document.getElementById('confirmImportBtn').textContent = t.startImport;
 }
 
 function closeImportModal() {
-  document.getElementById('importModal').hidden = true;
+  document.getElementById('importModal').classList.remove('open');
   importItems = [];
 }
 
-// 简单 CSV 解析
 function parseCSV(text) {
-  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+  var lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(function(l) { return l.trim(); });
   if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim());
-  const result = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
-    const item = {};
-    headers.forEach((h, idx) => { item[h] = values[idx] || ''; });
+  var headers = lines[0].split(',').map(function(h) { return h.trim(); });
+  var result = [];
+  for (var i = 1; i < lines.length; i++) {
+    var values = lines[i].split(',').map(function(v) { return v.trim(); });
+    var item = {};
+    headers.forEach(function(h, idx) { item[h] = values[idx] || ''; });
     result.push(item);
   }
   return result;
 }
 
 document.getElementById('importFile').addEventListener('change', function(e) {
-  const file = e.target.files[0];
+  var file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
+  var reader = new FileReader();
   reader.onload = function(ev) {
     try {
       importItems = parseCSV(ev.target.result);
+      var preview = document.getElementById('importPreview');
       if (importItems.length === 0) {
-        document.getElementById('importPreview').innerHTML = '<div style="color: #ff6b6b;">没有解析到有效数据</div>';
+        preview.innerHTML = '<div style="color: #ff6b6b;">没有解析到有效数据</div>';
         document.getElementById('confirmImportBtn').disabled = true;
         return;
       }
-      // 预览
-      document.getElementById('importPreview').innerHTML = '<div style="color: #4caf50;">解析到 ' + importItems.length + ' 条数据：</div>' +
-        importItems.slice(0, 10).map((item, i) => 
-          '<div style="padding: 3px 0; border-bottom: 1px solid #eee;">' + (i+1) + '. ' + item.name + ' - $' + item.price + ' (' + item.category + ')</div>'
-        ).join('') + (importItems.length > 10 ? '<div style="color: #888; padding: 5px 0;">... 共 ' + importItems.length + ' 条</div>' : '');
+      preview.innerHTML = '<div style="color: #4caf50;">解析到 ' + importItems.length + ' 条数据：</div>' +
+        importItems.slice(0, 10).map(function(item, i) { 
+          return '<div style="padding: 3px 0; border-bottom: 1px solid #eee;">' + (i+1) + '. ' + item.name + ' - $' + item.price + ' (' + item.category + ')</div>';
+        }).join('') + (importItems.length > 10 ? '<div style="color: #888; padding: 5px 0;">... 共 ' + importItems.length + ' 条</div>' : '');
       document.getElementById('confirmImportBtn').disabled = false;
     } catch (err) {
       document.getElementById('importPreview').innerHTML = '<div style="color: #ff6b6b;">解析失败：' + err.message + '</div>';
@@ -526,11 +489,12 @@ document.getElementById('importFile').addEventListener('change', function(e) {
 
 async function confirmImport() {
   if (importItems.length === 0) return;
-  document.getElementById('confirmImportBtn').disabled = true;
-  document.getElementById('confirmImportBtn').textContent = '导入中...';
+  var btn = document.getElementById('confirmImportBtn');
+  btn.disabled = true;
+  btn.textContent = '导入中...';
   try {
-    const result = await window.SLF.api.post('/admin/menu/batch', { items: importItems });
-    let html = '<div style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px;">' +
+    var result = await window.SLF.api.post('/admin/menu/batch', { items: importItems });
+    var html = '<div style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px;">' +
       '✅ 成功导入 ' + result.success + ' 条';
     if (result.failed > 0) html += '，失败 ' + result.failed + ' 条';
     html += '</div>';
@@ -542,8 +506,8 @@ async function confirmImport() {
   } catch (e) {
     document.getElementById('importResult').innerHTML = '<div style="background: #ffebee; color: #c62828; padding: 10px; border-radius: 6px;">❌ 导入失败：' + e.message + '</div>';
   } finally {
-    document.getElementById('confirmImportBtn').disabled = false;
-    document.getElementById('confirmImportBtn').textContent = '开始导入';
+    btn.disabled = false;
+    btn.textContent = '开始导入';
   }
 }
 
