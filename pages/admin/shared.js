@@ -158,6 +158,12 @@ document.addEventListener('DOMContentLoaded', function() {
       if (e.target === this && window.hideConfirm) window.hideConfirm();
     });
   }
+  const adminInfoModal = document.getElementById('adminInfoModal');
+  if (adminInfoModal) {
+    adminInfoModal.addEventListener('click', function(e) {
+      if (e.target === this && window.hideAdminInfo) window.hideAdminInfo();
+    });
+  }
 });
 
 // 挂到 window

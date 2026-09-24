@@ -847,14 +847,8 @@
             } catch (e) { console.warn('加载账户信息失败', e); }
         }
         // (showAdminInfo/hideAdminInfo 已移到 shared.js)
-        document.addEventListener('DOMContentLoaded', function() {
-            const adminInfoModal = document.getElementById('adminInfoModal');
-            if (adminInfoModal) {
-                adminInfoModal.addEventListener('click', function(e) {
-                    if (e.target === this) hideAdminInfo();
-                });
-            }
-        });
+        // ===== adminInfoModal（已移到 shared.js）=====
+
 
         async function loadReportSummary() {
             try {
