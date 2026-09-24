@@ -8,6 +8,22 @@ const QRCode = require('qrcode');
 module.exports = function registerPageRoutes(app, ctx) {
   const { getAsync } = ctx;
   const ROOT = path.join(__dirname, '..');
+  
+  // 自动生成静态资源版本号（重启服务器即更新）
+  const ASSET_VERSION = Date.now().toString(36);
+  const htmlCache = {};
+  function sendHtml(res, file) {
+    if (htmlCache[file]) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(htmlCache[file]);
+    }
+    let html = fs.readFileSync(path.join(ROOT, file), 'utf-8');
+    // 把所有 ?v=xxx 替换成 ?v=ASSET_VERSION
+    html = html.replace(/\?v=[a-zA-Z0-9_]+/g, '?v=' + ASSET_VERSION);
+    htmlCache[file] = html;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  }
 
   // 静态语言包
   app.get('/languages.js', (req, res) => {
@@ -34,14 +50,14 @@ module.exports = function registerPageRoutes(app, ctx) {
   });
 
   // 页面路由
-  app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
-  app.get(['/login', '/manage'], (req, res) => res.sendFile(path.join(ROOT, 'login.html')));
-  app.get(['/index', '/home', '/order'], (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
-  app.get('/waiter', (req, res) => res.sendFile(path.join(ROOT, 'waiter.html')));
-  app.get('/kitchen', (req, res) => res.sendFile(path.join(ROOT, 'kitchen.html')));
-  app.get('/admin', (req, res) => res.sendFile(path.join(ROOT, 'admin.html')));
-  app.get('/super', (req, res) => res.sendFile(path.join(ROOT, 'super.html')));
-  app.get('/cashier', (req, res) => res.sendFile(path.join(ROOT, 'cashier.html')));
+  app.get('/', (req, res) => sendHtml(res, 'index.html'));
+  app.get(['/login', '/manage'], (req, res) => sendHtml(res, 'login.html'));
+  app.get(['/index', '/home', '/order'], (req, res) => sendHtml(res, 'index.html'));
+  app.get('/waiter', (req, res) => sendHtml(res, 'waiter.html'));
+  app.get('/kitchen', (req, res) => sendHtml(res, 'kitchen.html'));
+  app.get('/admin', (req, res) => sendHtml(res, 'admin.html'));
+  app.get('/super', (req, res) => sendHtml(res, 'super.html'));
+  app.get('/cashier', (req, res) => sendHtml(res, 'cashier.html'));
 
   app.get('/login.html', (req, res) => res.redirect('/login'));
   app.get('/admin.html', (req, res) => res.redirect('/admin'));
