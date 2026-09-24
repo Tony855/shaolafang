@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # ============================================================
 # FoodFlow 点餐系统 - 一键安装脚本
 # 支持：单台部署 / 2台服务器部署 / 多台服务器集群部署
@@ -30,6 +30,16 @@ log_success() { echo -e "${GREEN}${BOLD}[SUCCESS]${NC}${NC} $1"; }
 # 脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$SCRIPT_DIR/deploy"
+
+# ===== 全局配置（安装前只需要改这里）=====
+# 路径配置
+APP_DIR="/var/www/foodflow"          # 应用安装目录
+CONFIG_DIR="/etc/foodflow"           # 配置文件目录
+SERVICE_NAME="foodflow"              # systemd 服务名
+
+# 域名和邮箱（用于 SSL 证书，留空则不配置 HTTPS）
+DOMAIN="foodflow.v2net.cc"           # 你的域名，比如 foodflow.example.com
+EMAIL="your@email.com"               # 你的邮箱，用于证书续期提醒
 
 # ============================================================
 # 显示横幅
@@ -262,33 +272,327 @@ confirm_installation() {
 install_single() {
     log_step "开始单台部署..."
 
-    # 检查deploy目录是否存在
-    if [ ! -d "$DEPLOY_DIR/standard" ]; then
-        log_error "未找到标准版部署配置目录：$DEPLOY_DIR/standard"
-        log_info "请确保 deploy 目录完整"
+    DEPLOY_TARGET="$APP_DIR"
+    log_info "部署目标目录: $DEPLOY_TARGET"
+
+    # ===== 1. 安装基础工具 =====
+    log_info "安装基础工具..."
+    apt-get update -qq
+    apt-get install -y -qq curl wget git rsync
+    log_success "基础工具安装完成"
+
+    # ===== 2. 部署代码到 $APP_DIR =====
+    echo ""
+    log_info "部署代码到 $DEPLOY_TARGET..."
+
+    # 创建目标目录
+    mkdir -p "$DEPLOY_TARGET"
+
+    if [ -d "$SCRIPT_DIR/.git" ]; then
+        # 当前目录有 git：用 rsync 同步代码（排除 .git、node_modules 等）
+        log_info "从当前目录同步代码..."
+        rsync -a --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude 'uploads/*' \
+            --exclude 'backups/*' \
+            --exclude 'logs/*' \
+            --exclude '.env' \
+            "$SCRIPT_DIR/" "$DEPLOY_TARGET/"
+        log_success "代码同步完成"
+    elif [ -d "$DEPLOY_TARGET/.git" ]; then
+        # 已部署过：git pull 更新
+        log_info "检测到已部署，执行 git pull 更新..."
+        cd "$DEPLOY_TARGET"
+        git pull origin main || log_warn "git pull 失败，继续使用现有代码"
+        log_success "代码更新完成"
+    else
+        # 首次部署但当前目录不是 git：直接复制
+        log_info "复制代码到 $DEPLOY_TARGET..."
+        cp -r "$SCRIPT_DIR"/* "$DEPLOY_TARGET/" 2>/dev/null || true
+        log_success "代码复制完成"
+    fi
+
+    # 创建必要的子目录
+    mkdir -p "$DEPLOY_TARGET"/{uploads,backups,logs}
+
+    # ===== 3. 调用 install-local.sh 完成后续安装 =====
+    echo ""
+    log_info "调用 install-local.sh 完成后续安装（数据库、Redis、Node.js、Systemd、Nginx）..."
+    echo ""
+
+    if [ ! -f "$DEPLOY_TARGET/install-local.sh" ]; then
+        log_error "未找到 install-local.sh，请确保代码完整"
         exit 1
     fi
 
-    # 检查部署脚本是否存在
-    if [ ! -f "$DEPLOY_DIR/standard/deploy.sh" ]; then
-        log_error "未找到标准版部署脚本：$DEPLOY_DIR/standard/deploy.sh"
+    cd "$DEPLOY_TARGET"
+    APP_DIR="$DEPLOY_TARGET"
+
+    # ===== 3. 安装系统依赖 =====
+    echo ""
+    log_info "更新系统软件包..."
+    apt-get update -qq
+    apt-get upgrade -y -qq
+    apt-get install -y -qq curl wget git nginx build-essential rsync certbot python3-certbot-nginx dnsutils psmisc ufw
+    log_success "系统软件包更新完成"
+
+    # ===== 4. 安装 MariaDB =====
+    echo ""
+    log_info "检查数据库..."
+    if command -v mariadb &> /dev/null || command -v mysql &> /dev/null; then
+        log_success "MariaDB/MySQL 已安装"
+    else
+        log_info "安装 MariaDB..."
+        apt-get install -y -qq mariadb-server
+        systemctl enable mariadb
+        systemctl start mariadb
+        log_success "MariaDB 安装完成"
+    fi
+    systemctl start mariadb 2>/dev/null || systemctl start mysql 2>/dev/null || true
+
+    # ===== 5. 安装 Redis =====
+    echo ""
+    log_info "检查 Redis..."
+    if command -v redis-server &> /dev/null; then
+        log_success "Redis 已安装"
+    else
+        log_info "安装 Redis..."
+        apt-get install -y -qq redis-server
+        systemctl enable redis-server
+        systemctl start redis
+        log_success "Redis 安装完成"
+    fi
+    systemctl start redis-server 2>/dev/null || true
+
+    # ===== 6. 安装 Node.js 20 LTS =====
+    echo ""
+    log_info "检查 Node.js..."
+    NODE_VERSION=0
+    if command -v node &> /dev/null; then
+        NODE_VERSION=$(node -v 2>/dev/null | cut -d. -f1 | tr -d 'v' || echo 0)
+    fi
+    if [ "$NODE_VERSION" -lt 18 ]; then
+        log_info "安装 Node.js 20 LTS..."
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y -qq nodejs
+        log_success "Node.js 安装完成: $(node -v)"
+    else
+        log_success "Node.js 已安装: $(node -v)"
+    fi
+
+    # ===== 7. 安装 npm 依赖 =====
+    echo ""
+    log_info "安装 Node.js 依赖..."
+    npm install --production --no-audit --no-fund
+    log_success "依赖安装完成"
+
+    # ===== 8. 创建必要目录 =====
+    echo ""
+    log_info "创建必要目录..."
+    mkdir -p "$APP_DIR"/{uploads,backups,logs}
+    mkdir -p "$CONFIG_DIR"
+    chown -R root:www-data "$APP_DIR"
+    chmod -R 755 "$APP_DIR"
+    chmod -R 775 "$APP_DIR/uploads"
+    log_success "目录创建完成，权限已配置"
+
+    # ===== 9. 配置数据库 =====
+    echo ""
+    log_info "自动配置数据库..."
+    DEFAULT_DB_NAME="ordering_system"
+    log_info "数据库名: $DEFAULT_DB_NAME"
+
+    DB_RANDOM_PASSWORD=$(head -c 16 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 16)
+    JWT_RANDOM_SECRET=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
+
+    MYSQL_CMD=""
+    if mariadb -u root -e "SELECT 1" 2>/dev/null; then
+        MYSQL_CMD="mariadb -u root"
+    elif mysql -u root -e "SELECT 1" 2>/dev/null; then
+        MYSQL_CMD="mysql -u root"
+    elif sudo mariadb -u root -e "SELECT 1" 2>/dev/null; then
+        MYSQL_CMD="sudo mariadb -u root"
+    elif sudo mysql -u root -e "SELECT 1" 2>/dev/null; then
+        MYSQL_CMD="sudo mysql -u root"
+    fi
+
+    if [ -z "$MYSQL_CMD" ]; then
+        log_error "无法以 root 身份登录数据库，请检查 MariaDB 是否安装并启动"
         exit 1
     fi
 
-    # 执行单台部署脚本
-    log_info "执行标准版单台部署脚本..."
-    bash "$DEPLOY_DIR/standard/deploy.sh"
+    log_info "创建数据库..."
+    $MYSQL_CMD -e "DROP DATABASE IF EXISTS \`$DEFAULT_DB_NAME\`;"
+    $MYSQL_CMD -e "CREATE DATABASE \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+    log_info "创建数据库用户..."
+    $MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'localhost';"
+    $MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'127.0.0.1';"
+    $MYSQL_CMD -e "CREATE USER 'foodflow'@'localhost' IDENTIFIED BY '$DB_RANDOM_PASSWORD';"
+    $MYSQL_CMD -e "CREATE USER 'foodflow'@'127.0.0.1' IDENTIFIED BY '$DB_RANDOM_PASSWORD';"
+    $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'localhost';"
+    $MYSQL_CMD -e "GRANT ALL PRIVILEGES ON \`$DEFAULT_DB_NAME\`.* TO 'foodflow'@'127.0.0.1';"
+    $MYSQL_CMD -e "FLUSH PRIVILEGES;"
+
+    log_info "验证数据库连接..."
+    cat > "$APP_DIR/db-test.js" << EOF
+const mysql = require('mysql2/promise');
+const conn = mysql.createConnection({
+  host: '127.0.0.1', port: 3306,
+  user: 'foodflow', password: '$DB_RANDOM_PASSWORD',
+  database: '$DEFAULT_DB_NAME',
+  connectTimeout: 5000
+});
+conn.then(c => { console.log('OK'); c.end(); process.exit(0); })
+    .catch(e => { console.log('FAIL:', e.message); process.exit(1); });
+EOF
+
+    if timeout 10 node db-test.js; then
+        log_success "数据库和用户创建成功，连接测试通过"
+    else
+        log_error "数据库连接测试失败，请检查 MariaDB 配置"
+        rm -f "$APP_DIR/db-test.js"
+        exit 1
+    fi
+    rm -f "$APP_DIR/db-test.js"
+
+    # ===== 10. 写入 .env 配置文件 =====
+    echo ""
+    log_info "写入环境变量配置..."
+    ENV_FILE="$APP_DIR/.env"
+    cat > "$ENV_FILE" << EOF
+PORT=3000
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=$DEFAULT_DB_NAME
+DB_USER=foodflow
+DB_PASSWORD=$DB_RANDOM_PASSWORD
+DB_CONNECTION_LIMIT=50
+REDIS_URL=
+UPLOAD_DIR=$APP_DIR/uploads
+RUN_SCHEDULED_TASKS=true
+JWT_SECRET=$JWT_RANDOM_SECRET
+QR_DOMAIN=$DOMAIN
+EOF
+    chmod 600 "$ENV_FILE"
+    log_success ".env 配置文件已生成"
+
+    # ===== 11. 配置 Systemd 服务 =====
+    echo ""
+    log_info "配置 Systemd 服务..."
+    systemctl stop $SERVICE_NAME 2>/dev/null || true
+    systemctl disable $SERVICE_NAME 2>/dev/null || true
+    sleep 1
+    fuser -k 3000/tcp 2>/dev/null || true
+    sleep 1
+
+    NODE_PATH=$(which node)
+    cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
+[Unit]
+Description=FoodFlow QR Ordering System
+After=network.target mariadb.service mysql.service redis.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$APP_DIR
+ExecStart=$NODE_PATH server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable $SERVICE_NAME
+    log_success "Systemd 服务配置完成"
+
+    # ===== 12. 配置 Nginx 和 SSL =====
+    echo ""
+    log_info "配置 Nginx 反向代理和 SSL..."
+    if [ -f "$APP_DIR/setup-nginx.sh" ]; then
+        DOMAIN="$DOMAIN" EMAIL="$EMAIL" bash setup-nginx.sh || log_warn "Nginx 配置失败"
+    else
+        log_warn "未找到 setup-nginx.sh，使用基础 Nginx 配置"
+        cat > /etc/nginx/conf.d/foodflow.conf << EOF
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 20M;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    location /uploads/ {
+        alias $APP_DIR/uploads/;
+        expires 30d;
+    }
+}
+EOF
+        nginx -t && systemctl reload nginx
+    fi
+
+    # ===== 13. 启动服务 =====
+    echo ""
+    log_info "启动 FoodFlow 服务..."
+    systemctl restart $SERVICE_NAME || true
+    sleep 8
+
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        log_success "FoodFlow 服务启动成功！"
+    else
+        log_error "服务启动失败，最近日志："
+        journalctl -u $SERVICE_NAME -n 40 --no-pager
+        exit 1
+    fi
+
+    # ===== 14. 健康检查 =====
+    echo ""
+    log_info "执行健康检查..."
+    sleep 2
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 http://127.0.0.1:3000/ 2>/dev/null || echo "000")
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
+        log_success "应用响应正常 (HTTP $HTTP_CODE)"
+    else
+        log_warn "应用响应状态: HTTP $HTTP_CODE"
+    fi
+
+    # ===== 15. 配置防火墙 =====
+    echo ""
+    log_info "配置防火墙..."
+    if command -v ufw &> /dev/null; then
+        ufw --force allow OpenSSH 2>/dev/null || true
+        ufw --force allow 80/tcp 2>/dev/null || true
+        ufw --force allow 443/tcp 2>/dev/null || true
+        ufw --force enable 2>/dev/null || true
+        log_success "防火墙已配置（SSH/HTTP/HTTPS）"
+    fi
 
     echo ""
     log_success "标准版单台部署完成！"
     echo ""
-    echo "  应用目录：/var/www/foodflow"
-    echo "  环境变量：/etc/foodflow/.env"
-    echo "  服务管理：systemctl [start|stop|restart|status] foodflow"
-    echo "  查看日志：journalctl -u foodflow -f"
+    echo "  应用目录：$DEPLOY_TARGET"
+    echo "  服务管理：systemctl [start|stop|restart|status] $SERVICE_NAME"
+    echo "  查看日志：journalctl -u $SERVICE_NAME -f"
+    if [ -n "$DOMAIN" ]; then
+        echo "  访问地址：https://$DOMAIN"
+    fi
     echo ""
-    log_warn "请编辑 /etc/foodflow/.env 配置数据库密码等信息，然后重启服务"
-    log_warn "建议配置SSL证书：sudo certbot --nginx -d your-domain.com"
+    echo "默认账号:"
+    echo "  超级管理员: superadmin / super123"
+    echo "  商户管理员: admin / admin123"
+    echo ""
+    log_warn "请及时修改默认管理员密码"
 }
 
 # ============================================================
@@ -324,8 +628,8 @@ install_cluster() {
     echo ""
     echo "  部署模式：$DEPLOY_NAME"
     echo "  节点角色：$NODE_ROLE"
-    echo "  应用目录：/var/www/foodflow"
-    echo "  环境变量：/etc/foodflow/.env"
+    echo "  应用目录：$APP_DIR"
+    echo "  环境变量：$CONFIG_DIR/.env"
     echo "  服务管理：systemctl [start|stop|restart|status] foodflow"
     echo "  查看日志：journalctl -u foodflow -f"
     echo ""
@@ -337,7 +641,7 @@ install_cluster() {
     fi
 
     echo ""
-    log_warn "请编辑 /etc/foodflow/.env 配置数据库、Redis、NFS等信息"
+    log_warn "请编辑 $CONFIG_DIR/.env 配置数据库、Redis、NFS等信息"
     log_warn "所有节点的数据库、Redis、NFS配置必须完全相同"
     log_warn "配置Nginx负载均衡：参考 $CLUSTER_DIR/nginx.conf"
 }
@@ -354,7 +658,7 @@ show_post_install_guide() {
 
     if [ "$DEPLOY_MODE" == "standard" ]; then
         echo "  1. 编辑环境变量配置："
-        echo "     sudo nano /etc/foodflow/.env"
+        echo "     sudo nano $CONFIG_DIR/.env"
         echo ""
         echo "  2. 重启服务使配置生效："
         echo "     sudo systemctl restart foodflow"
@@ -372,7 +676,7 @@ show_post_install_guide() {
         echo ""
     else
         echo "  1. 在所有应用服务器节点上编辑环境变量："
-        echo "     sudo nano /etc/foodflow/.env"
+        echo "     sudo nano $CONFIG_DIR/.env"
         echo "     （所有节点的数据库、Redis、NFS配置必须相同）"
         echo ""
         echo "  2. 在所有节点上重启服务："

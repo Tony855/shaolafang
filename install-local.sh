@@ -39,8 +39,10 @@ fi
 # 设置非交互模式，避免 apt 安装时弹出键盘布局等交互界面
 export DEBIAN_FRONTEND=noninteractive
 
-# ===== 默认安装路径 /var/www/foodflow =====
+# ===== 全局路径配置（和 install.sh 保持一致）=====
 DEFAULT_DIR="/var/www/foodflow"
+CONFIG_DIR="/etc/foodflow"
+SERVICE_NAME="foodflow"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 如果当前目录没有 server.js，则安装到默认路径
@@ -169,7 +171,7 @@ log_success "依赖安装完成"
 echo ""
 log_info "创建必要目录..."
 mkdir -p "$APP_DIR"/{uploads,backups,logs}
-mkdir -p /etc/foodflow
+mkdir -p "$CONFIG_DIR"
 # 给 www-data 读取权限（Nginx 需要）
 chown -R root:www-data "$APP_DIR"
 chmod -R 755 "$APP_DIR"
@@ -260,7 +262,7 @@ DB_USER=foodflow
 DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
 REDIS_URL=
-UPLOAD_DIR=/var/www/foodflow/uploads
+UPLOAD_DIR=$APP_DIR/uploads
 RUN_SCHEDULED_TASKS=true
 JWT_SECRET=$JWT_RANDOM_SECRET
 QR_DOMAIN=
@@ -290,7 +292,7 @@ sleep 1
 
 NODE_PATH=$(which node)
 
-cat > /etc/systemd/system/foodflow.service << EOF
+cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
 Description=FoodFlow QR Ordering System
 After=network.target mariadb.service mysql.service redis.service
