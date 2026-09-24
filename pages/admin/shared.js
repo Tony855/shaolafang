@@ -78,6 +78,23 @@ function logoutAdmin() {
   location.href = '/login';
 }
 
+function showAdminInfo() {
+  document.getElementById('adminInfoModal').classList.add('open');
+}
+function hideAdminInfo() {
+  document.getElementById('adminInfoModal').classList.remove('open');
+}
+
+async function updateReservation(id, status) {
+  try {
+    await api('/admin/reservations/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { status } });
+    SLF.ui.toast(tAdmin('reservationUpdated'));
+    if (typeof loadReservations === 'function') loadReservations();
+  } catch (err) {
+    SLF.ui.toast(tAdmin('updateFailed') + ': ' + err.message);
+  }
+}
+
 // 挂到 window
 window.dualAmountSuffix = dualAmountSuffix;
 window.translateLoginMessage = translateLoginMessage;
@@ -86,5 +103,8 @@ window.updateOrderSummary = updateOrderSummary;
 window.switchAdminModule = switchAdminModule;
 window.toggleSidebar = toggleSidebar;
 window.logoutAdmin = logoutAdmin;
+window.showAdminInfo = showAdminInfo;
+window.hideAdminInfo = hideAdminInfo;
+window.updateReservation = updateReservation;
 
 })();

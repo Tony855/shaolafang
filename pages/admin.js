@@ -1040,12 +1040,7 @@
                 }
             } catch (e) { console.warn('加载账户信息失败', e); }
         }
-        function showAdminInfo() {
-            document.getElementById('adminInfoModal').classList.add('open');
-        }
-        function hideAdminInfo() {
-            document.getElementById('adminInfoModal').classList.remove('open');
-        }
+        // (showAdminInfo/hideAdminInfo 已移到 shared.js)
         document.addEventListener('DOMContentLoaded', function() {
             const adminInfoModal = document.getElementById('adminInfoModal');
             if (adminInfoModal) {
@@ -1185,15 +1180,7 @@
             }
         }
 
-        async function updateReservation(id, status) {
-            try {
-                await api('/admin/reservations/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { status } });
-                SLF.ui.toast(tAdmin('reservationUpdated'));
-                loadReservations();
-            } catch (err) {
-                SLF.ui.toast(tAdmin('updateFailed') + ': ' + err.message);
-            }
-        }
+        // (updateReservation 已移到 shared.js)
 
         // 呼叫服务员
         let knownAdminCallIds = new Set();
