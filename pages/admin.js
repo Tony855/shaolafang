@@ -814,20 +814,8 @@
             hidePasswordModal();
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const pwdInput = document.getElementById('passwordModalInput');
-            if (pwdInput) {
-                pwdInput.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') executePasswordModal();
-                });
-            }
-            const confirmModal = document.getElementById('confirmModal');
-            if (confirmModal) {
-                confirmModal.addEventListener('click', function(e) {
-                    if (e.target === this) hideConfirm();
-                });
-            }
-        });
+        // ===== 密码弹窗和确认弹窗（已移到 shared.js）=====
+
 
         function logoutAdmin() {
             showConfirm(tAdmin('confirmLogout') || '确认退出登录吗？', function() {

@@ -146,6 +146,18 @@ document.addEventListener('DOMContentLoaded', function() {
       if (window.refresh) window.refresh();
     };
   }
+  const pwdInput = document.getElementById('passwordModalInput');
+  if (pwdInput) {
+    pwdInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && window.executePasswordModal) window.executePasswordModal();
+    });
+  }
+  const confirmModal = document.getElementById('confirmModal');
+  if (confirmModal) {
+    confirmModal.addEventListener('click', function(e) {
+      if (e.target === this && window.hideConfirm) window.hideConfirm();
+    });
+  }
 });
 
 // 挂到 window
