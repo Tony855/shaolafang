@@ -79,11 +79,147 @@ function renderCategoryList() {
     `<div class="empty-hint">${tAdmin('noData')}</div>`;
 }
 
+let editingMenuId = null;
+let editingCategoryId = null;
+
+function openCategoryModal() { $('#categoryModal').classList.add('open'); loadMenuCategories(); }
+function closeCategoryModal() { $('#categoryModal').classList.remove('open'); }
+
+async function addCategory() {
+  const name = $('#newCategoryName').value.trim();
+  if (!name) { SLF.ui.toast('❌ ' + tAdmin('tableNameRequired')); return; }
+  try {
+    await api('/menu-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name } });
+    $('#newCategoryName').value = '';
+    await loadMenuCategories();
+    SLF.ui.toast('✅ ' + tAdmin('added'));
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+
+function editCategory(id, oldName) {
+  editingCategoryId = id;
+  $('#editCategoryName').value = oldName;
+  $('#categoryEditModalTitle').textContent = tAdmin('editCategory');
+  $('#categoryEditModal').classList.add('open');
+  setTimeout(() => $('#editCategoryName').focus(), 100);
+}
+function closeCategoryEditModal() { $('#categoryEditModal').classList.remove('open'); editingCategoryId = null; }
+
+async function saveCategoryEdit() {
+  const name = $('#editCategoryName').value.trim();
+  if (!name) { SLF.ui.toast(`⚠️ ${tAdmin('nameRequired')}`); return; }
+  try {
+    await api('/menu-categories/' + editingCategoryId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name } });
+    closeCategoryEditModal();
+    await loadMenuCategories();
+    await loadMenus();
+    SLF.ui.toast('✅ ' + tAdmin('updated'));
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+
+function deleteCategory(id) {
+  ctx.showConfirm(tAdmin('confirmDelete'), async function() {
+    try {
+      await api('/menu-categories/' + id, { method: 'DELETE' });
+      await loadMenuCategories();
+      await loadMenus();
+      SLF.ui.toast('✅ ' + tAdmin('deleted'));
+    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+  });
+}
+
+function openDishModal() {
+  editingMenuId = null;
+  $('#menuForm').reset();
+  $('#menuEmoji').value = '🍖';
+  $('#menuSecondaryCurrency').value = '';
+  $('#dishModalTitle').textContent = tAdmin('addDish');
+  $('#menuSaveButton').textContent = tAdmin('addDish');
+  $('#menuCancelButton').hidden = true;
+  populateMenuCategorySelect();
+  const currencies = ctx.currenciesCache();
+  if (currencies.length) {
+    const defaultCode = currencies.find(c => c.is_default)?.code || currencies[0].code;
+    $('#menuCurrency').value = defaultCode;
+  }
+  $('#dishModal').classList.add('open');
+}
+
+function closeDishModal() { $('#dishModal').classList.remove('open'); cancelMenuEdit(); }
+
+function editMenu(id) {
+  const menus = ctx.menusCache();
+  const current = menus.find(x => x.id === id);
+  if (!current) return;
+  editingMenuId = id;
+  populateMenuCategorySelect();
+  $('#menuName').value = current.name;
+  $('#menuNameEn').value = current.name_en || '';
+  $('#menuPrice').value = current.price;
+  $('#menuCategory').value = current.category;
+  $('#menuCurrency').value = current.currency_code || 'USD';
+  $('#menuUnit').value = current.unit || tAdmin('portion');
+  $('#menuSecondaryCurrency').value = current.secondary_currency_code || '';
+  $('#menuEmoji').value = current.emoji || '';
+  $('#menuDesc').value = current.desc || '';
+  $('#menuDescEn').value = current.desc_en || '';
+  $('#menuImageFile').value = '';
+  $('#dishModalTitle').textContent = tAdmin('menuManage') + ' #' + id;
+  $('#menuSaveButton').textContent = L('save');
+  $('#menuCancelButton').hidden = false;
+  $('#dishModal').classList.add('open');
+}
+
+function cancelMenuEdit() {
+  editingMenuId = null;
+  $('#menuForm').reset();
+  $('#menuEmoji').value = '🍖';
+  $('#dishModalTitle').textContent = tAdmin('addDish');
+  $('#menuSaveButton').textContent = tAdmin('addDish');
+  $('#menuCancelButton').hidden = true;
+  const currencies = ctx.currenciesCache();
+  if (currencies.length) {
+    const defaultCode = currencies.find(c => c.is_default)?.code || currencies[0].code;
+    $('#menuCurrency').value = defaultCode;
+  }
+}
+
+function removeMenu(id) {
+  ctx.showConfirm(tAdmin('confirmDelete'), async function() {
+    try {
+      await api('/menu/' + id, { method: 'DELETE' });
+      await loadMenus();
+      SLF.ui.toast('✅ ' + tAdmin('deleted'));
+    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+  });
+}
+
+async function toggleMenuStatus(id, active) {
+  try {
+    await api('/menu/' + id + '/status', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { active } });
+    await loadMenus();
+    SLF.ui.toast('✅ ' + (active ? tAdmin('listed') : tAdmin('unlisted')));
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+
 // 挂到 window
 window.loadMenus = loadMenus;
 window.loadMenuCategories = loadMenuCategories;
 window.categoryText = categoryText;
 window.populateMenuCategorySelect = populateMenuCategorySelect;
 window.renderCategoryList = renderCategoryList;
+window.openCategoryModal = openCategoryModal;
+window.closeCategoryModal = closeCategoryModal;
+window.addCategory = addCategory;
+window.editCategory = editCategory;
+window.closeCategoryEditModal = closeCategoryEditModal;
+window.saveCategoryEdit = saveCategoryEdit;
+window.deleteCategory = deleteCategory;
+window.openDishModal = openDishModal;
+window.closeDishModal = closeDishModal;
+window.editMenu = editMenu;
+window.cancelMenuEdit = cancelMenuEdit;
+window.removeMenu = removeMenu;
+window.toggleMenuStatus = toggleMenuStatus;
 
 })();
