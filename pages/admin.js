@@ -251,55 +251,8 @@
         // ===== 店铺编辑表单（已移到 store.js）=====
 
 
-        function updateOrderSummary() {
-            const pending = ordersCache.filter(o => o.status === 'pending');
-            const done = ordersCache.filter(o => o.status === 'done');
-            const pendingAmount = pending.reduce((s, o) => s + Number(o.total || 0), 0);
-            const doneAmount = done.reduce((s, o) => s + Number(o.total || 0), 0);
-            $('#pendingOrderCount').textContent = pending.length;
-            $('#pendingOrderAmount').textContent = SLF.money.primary(pendingAmount);
-            $('#doneOrderCount').textContent = done.length;
-            $('#doneOrderAmount').textContent = SLF.money.primary(doneAmount);
-        }
+        // ===== updateOrderSummary/getCurrentModule/switchAdminModule/toggleSidebar/closeSidebar（已移到 shared.js）=====
 
-        function getCurrentModule() {
-            const activeNav = document.querySelector('.nav-item.active');
-            return activeNav ? activeNav.dataset.module : 'menu';
-        }
-
-        function switchAdminModule(module) {
-            document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.module === module));
-            document.querySelectorAll('.module-panel').forEach(p => p.classList.toggle('active', p.id === 'module-' + module));
-            if (module === 'orders') window.loadOrders();
-            else if (module === 'tables') window.loadTables();
-            else if (module === 'menu') window.loadMenus();
-            else if (module === 'currencies') window.loadCurrencies();
-            else if (module === 'logs') loadLoginLogs();
-            else if (module === 'waiters') window.loadWaiters();
-            else if (module === 'stores') window.loadStores();
-            else if (module === 'reservations') loadReservations();
-            else if (module === 'calls') window.loadWaiterCalls();
-            else if (module === 'printers') window.loadPrinters();
-            else if (module === 'reports') { $('#reportDate').value = new Date().toISOString().slice(0, 10); window.loadDailyReport(); loadReportSummary(); }
-            else if (module === 'admins') window.loadAdmins();
-            else if (module === 'cashiers') window.loadCashiers();
-            applyPermissions();
-        }
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('adminSidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('show');
-            document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
-        }
-        function closeSidebar() {
-            const sidebar = document.getElementById('adminSidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            sidebar.classList.remove('open');
-            overlay.classList.remove('show');
-            document.body.style.overflow = '';
-        }
 
         // 汉堡按钮拖动
         (function() {
