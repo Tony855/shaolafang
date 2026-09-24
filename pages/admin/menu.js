@@ -286,6 +286,42 @@ function openImportModal() {
   document.getElementById('importPreview').innerHTML = '';
   document.getElementById('importResult').innerHTML = '';
   document.getElementById('confirmImportBtn').disabled = true;
+  
+  // 多语言
+  const lang = SLF.i18n.lang || 'zh';
+  const texts = {
+    zh: {
+      title: '📥 批量导入菜品',
+      desc: '选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 下载模板',
+      cancel: '取消',
+      startImport: '开始导入',
+      importing: '导入中...'
+    },
+    en: {
+      title: '📥 Batch Import Menu',
+      desc: 'Select CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 Download Template',
+      cancel: 'Cancel',
+      startImport: 'Start Import',
+      importing: 'Importing...'
+    },
+    km: {
+      title: '📥 នាំចូលម៉ឺនុយជាដុំ',
+      desc: 'ជ្រើសឯកសារ CSV ដើម្បីនាំចូល. ទ្រង់ទ្រាយ៖ name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 ទាញយកគំរូ',
+      cancel: 'បោះបង់',
+      startImport: 'ចាប់ផ្តើមនាំចូល',
+      importing: 'កំពុងនាំចូល...'
+    }
+  };
+  const t = texts[lang] || texts.zh;
+  
+  document.querySelector('#importModal h3').textContent = t.title;
+  document.querySelector('#importModal p').textContent = t.desc;
+  document.querySelector('#importModal p a').textContent = t.downloadTpl;
+  document.querySelector('#importModal button').textContent = t.cancel;
+  document.getElementById('confirmImportBtn').textContent = t.startImport;
 }
 
 function closeImportModal() {
@@ -372,6 +408,42 @@ function openImportModal() {
   document.getElementById('importPreview').innerHTML = '';
   document.getElementById('importResult').innerHTML = '';
   document.getElementById('confirmImportBtn').disabled = true;
+  
+  // 多语言
+  const lang = SLF.i18n.lang || 'zh';
+  const texts = {
+    zh: {
+      title: '📥 批量导入菜品',
+      desc: '选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 下载模板',
+      cancel: '取消',
+      startImport: '开始导入',
+      importing: '导入中...'
+    },
+    en: {
+      title: '📥 Batch Import Menu',
+      desc: 'Select CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 Download Template',
+      cancel: 'Cancel',
+      startImport: 'Start Import',
+      importing: 'Importing...'
+    },
+    km: {
+      title: '📥 នាំចូលម៉ឺនុយជាដុំ',
+      desc: 'ជ្រើសឯកសារ CSV ដើម្បីនាំចូល. ទ្រង់ទ្រាយ៖ name,category,price,emoji,desc,name_en,desc_en',
+      downloadTpl: '📥 ទាញយកគំរូ',
+      cancel: 'បោះបង់',
+      startImport: 'ចាប់ផ្តើមនាំចូល',
+      importing: 'កំពុងនាំចូល...'
+    }
+  };
+  const t = texts[lang] || texts.zh;
+  
+  document.querySelector('#importModal h3').textContent = t.title;
+  document.querySelector('#importModal p').textContent = t.desc;
+  document.querySelector('#importModal p a').textContent = t.downloadTpl;
+  document.querySelector('#importModal button').textContent = t.cancel;
+  document.getElementById('confirmImportBtn').textContent = t.startImport;
 }
 
 function closeImportModal() {
