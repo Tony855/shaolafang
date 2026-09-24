@@ -77,6 +77,27 @@ async function openWaiterEdit(id) {
 
 function closeWaiterEdit() { $('#waiterEditModal').classList.remove('open'); }
 
+document.addEventListener('DOMContentLoaded', function() {
+  const addWaiterBtn = document.getElementById('addWaiterBtn');
+  if (addWaiterBtn) {
+    addWaiterBtn.onclick = async function() {
+      const username = $('#waiterUsernameInput').value.trim();
+      const password = $('#waiterPasswordInput').value;
+      const display_name = $('#waiterNameInput').value.trim();
+      const store_id = parseInt($('#waiterStoreSelect').value) || 1;
+      if (!username || !password || !display_name) { SLF.ui.toast(`❌ ${tAdmin('waiterInfoRequired')}`); return; }
+      try {
+        await api('/admin/waiters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { username, password, display_name, can_order: 1, can_mark_item: 1, can_complete_order: 1, store_id } });
+        $('#waiterUsernameInput').value = '';
+        $('#waiterPasswordInput').value = '';
+        $('#waiterNameInput').value = '';
+        loadWaiters();
+        SLF.ui.toast('✅ ' + tAdmin('added'));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+});
+
 // 挂到 window
 window.loadWaiters = loadWaiters;
 window.updateWaiterPerm = updateWaiterPerm;
