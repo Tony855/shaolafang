@@ -552,40 +552,8 @@
             $('#dishPanel').style.display = tab === 'dish' ? 'block' : 'none';
         }
 
-        // ===== 操作日志 =====
-        function translateAuditAction(action) {
-            const labels = tAdmin('auditAction');
-            return (labels && labels[action]) || action;
-        }
-        function parseAuditObject(details) {
-            if (!details) return '';
-            const colonIdx = details.indexOf(':');
-            if (colonIdx > 0) return details.substring(colonIdx + 1).trim();
-            return details;
-        }
+        // ===== 操作日志（已移到 pages/admin/logs.js）=====
 
-        async function loadAuditLogs() {
-            if (!hasPermission('can_view_logs')) {
-                $('#auditLogs').innerHTML = '<div class="empty-hint">' + tAdmin('noPermission') + '</div>';
-                return;
-            }
-            try {
-                const logs = await api('/admin/audit-logs');
-                $('#auditLogs').innerHTML = logs.length ?
-                    logs.map(log => `<div class="row"><div><b>${SLF.utils.formatDateTime(log.created_at)}</b><small>${esc(log.actor_username || '-')} · ${translateAuditAction(log.action)}${parseAuditObject(log.details) ? ' · ' + esc(parseAuditObject(log.details)) : ''}</small></div><span class="badge">${esc(log.ip || '-')}</span></div>`).join('') :
-                    `<div class="empty-hint">${tAdmin('noAuditLogs')}</div>`;
-            } catch (e) {
-                $('#auditLogs').innerHTML = `<div class="empty-hint">${tAdmin('loadFailed')}</div>`;
-            }
-        }
-
-        function switchLogTab(tab) {
-            $('#logTabLogin').classList.toggle('active', tab === 'login');
-            $('#logTabAudit').classList.toggle('active', tab === 'audit');
-            $('#loginLogsPanel').style.display = tab === 'login' ? 'block' : 'none';
-            $('#auditLogsPanel').style.display = tab === 'audit' ? 'block' : 'none';
-            if (tab === 'audit') loadAuditLogs();
-        }
 
         async function loadWaiters() {
             try {
@@ -2602,4 +2570,24 @@
     try { window.togglePrinter = togglePrinter; } catch(err) {}
     try { window.toggleSidebar = toggleSidebar; } catch(err) {}
     try { window.updateReservation = updateReservation; } catch(err) {}
+
+    // ===== 共享上下文（供后续拆分模块使用）=====
+    try {
+      window.SLF.admin = {
+        $, api, tAdmin, L, esc, hasPermission, applyPermissions,
+        get adminToken() { return adminToken; },
+        get adminId() { return adminId; },
+        get adminIsPrimary() { return adminIsPrimary; },
+        get adminPermissions() { return adminPermissions; },
+        menusCache: () => menusCache,
+        tablesCache: () => tablesCache,
+        ordersCache: () => ordersCache,
+        currenciesCache: () => currenciesCache,
+        categoriesCache: () => categoriesCache,
+        dualCurrencyEnabled: () => dualCurrencyEnabled,
+        secondaryCurrencyCode: () => secondaryCurrencyCode,
+        defaultCurrencyObj: () => defaultCurrencyObj,
+        buildSessionLabels
+      };
+    } catch(err) {}
 })();
