@@ -55,8 +55,12 @@ module.exports = function(app, deps) {
       const qrTimeoutS = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
       const qrTimeoutMins = parseInt(qrTimeoutS?.value || '45', 10);
       if (qrTimeoutMins > 0) {
-        const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
-        runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
+        // 只有已经有未结算订单的session才自动续期，没下单的到时间就过期
+        const [orderCount] = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND status='pending'", [session.table_name]);
+        if (orderCount && orderCount.cnt > 0) {
+          const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
+          runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
+        }
       }
       const customerToken = req.query.ct || '';
       let rows;
@@ -81,8 +85,12 @@ module.exports = function(app, deps) {
       const qrTimeoutMins2 = parseInt(qrTimeoutS2?.value || '45', 10);
       let expiresAt2 = session.expires_at;
       if (qrTimeoutMins2 > 0) {
-        expiresAt2 = new Date(Date.now() + qrTimeoutMins2 * 60 * 1000).toISOString();
-        runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [expiresAt2, req.params.token]).catch(()=>{});
+        // 只有已经有未结算订单的session才自动续期，没下单的到时间就过期
+        const [orderCount2] = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND status='pending'", [session.table_name]);
+        if (orderCount2 && orderCount2.cnt > 0) {
+          expiresAt2 = new Date(Date.now() + qrTimeoutMins2 * 60 * 1000).toISOString();
+          runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [expiresAt2, req.params.token]).catch(()=>{});
+        }
       }
       res.json({ table: session.table_name, storeId: session.store_id || 1, sessionToken: req.params.token, expiresAt: expiresAt2 });
     } catch (e) { res.status(500).json({ error: e.message }); }
