@@ -38,6 +38,7 @@ async function loadOrderPrefixes() {
     $('#prefixRefund').value = d.order_prefix_refund || '01';
     $('#prefixDiscount').value = d.order_prefix_discount || '21';
     $('#prefixVip').value = d.order_prefix_vip || '61';
+    $('#orderResetPeriod').value = d.order_no_reset_period || 'daily';
   } catch (e) {}
 }
 async function saveOrderPrefixes() {
@@ -47,7 +48,7 @@ async function saveOrderPrefixes() {
       refund: $('#prefixRefund').value,
       discount: $('#prefixDiscount').value,
       vip: $('#prefixVip').value,
-      daily_reset: 'daily'
+      daily_reset: $('#orderResetPeriod').value
     });
     SLF.ui.toast(L('saveSuccess') || '保存成功');
   } catch (e) {
