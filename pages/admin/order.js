@@ -52,6 +52,7 @@ async function loadOrders() {
   if (typeof updateOrderSummary === 'function') updateOrderSummary();
   if (ctx.tablesCache().length && window.loadTables) window.loadTables();
 }
+window.loadOrders = loadOrders;
 
 let transferOrderId = null;
 let transferFromTable = '';

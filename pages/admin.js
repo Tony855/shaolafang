@@ -201,9 +201,9 @@
         // ===== 桌台表单提交（已移到 table.js）=====
 
 
-        function filterOrders() {
+        window.filterOrders = function() {
             window.orderTableFilter = $('#orderTableSearch').value.trim();
-            window.loadOrders();
+            if (window.loadOrders) window.loadOrders();
         }
 
         // ===== 订单操作（已移到 pages/admin/order.js）=====
