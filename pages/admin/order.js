@@ -9,10 +9,10 @@ if (!ctx) return;
 
 const { $, api, tAdmin, esc, hasPermission, L, buildSessionLabels } = ctx;
 
-let orderTableFilter = '';
+window.orderTableFilter = window.orderTableFilter || '';
 
 function setOrderFilter(q) {
-  orderTableFilter = q;
+  window.orderTableFilter = q;
   loadOrders();
 }
 
@@ -20,8 +20,8 @@ async function loadOrders() {
   const orders = await api('/orders');
   ctx.setOrders(orders);
   let filtered = orders;
-  if (orderTableFilter) {
-    const q = orderTableFilter.toLowerCase();
+  if (window.orderTableFilter) {
+    const q = window.orderTableFilter.toLowerCase();
     filtered = orders.filter(o => (o.table_name||o.table||'').toLowerCase().includes(q) || String(o.id).includes(q) || String(o.order_no||'').includes(q));
   }
   const statusText = { pending: L('orderPending'), done: L('orderDone'), canceled: L('canceled') };

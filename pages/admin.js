@@ -202,7 +202,7 @@
 
 
         function filterOrders() {
-            orderTableFilter = $('#orderTableSearch').value.trim();
+            window.orderTableFilter = $('#orderTableSearch').value.trim();
             window.loadOrders();
         }
 
