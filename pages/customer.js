@@ -646,6 +646,8 @@
         // 渲染
         // ============================================================
         function renderCategories() {
+            state.menu = state.menu || [];
+            state.categoryOrder = state.categoryOrder || [];
             const presentCategories = [...new Set(state.menu.map(i => i.category).filter(Boolean))];
             const orderMap = {};
             state.categoryOrder.forEach((cat, idx) => { orderMap[cat] = idx; });
