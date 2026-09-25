@@ -19,7 +19,7 @@ async function allocateOrderNo(todayPrefix) {
     'UPDATE order_sequences SET current_value = ?, updated_at = ? WHERE prefix = ?',
     [next, now, todayPrefix]
   );
-  return todayPrefix + String(next).padStart(5, '0');
+  return todayPrefix + String(next).padStart(2, '0');
 }
 
 async function getOrderCooldownMs() {
