@@ -434,6 +434,7 @@
 
                 let html = '';
                 data.orders.forEach((order) => {
+                    order.items = order.items || [];
                     let timeStr = '未知时间';
                     if (order.createdAt) {
                         try {
