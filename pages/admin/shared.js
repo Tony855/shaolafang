@@ -38,10 +38,20 @@ async function loadLoginLogs() {
 
 function updateOrderSummary() {
   const orders = ctx.ordersCache();
+  // 统计未结算订单
   const pending = orders.filter(o => o.status === 'pending');
-  const total = pending.reduce((sum, o) => sum + Number(o.total || 0), 0);
-  const el = $('#orderSummary');
-  if (el) el.textContent = `${pending.length} ${tAdmin('pendingOrders') || '待处理'} · ${SLF.money.primary(total)}`;
+  const pendingTotal = pending.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const pendingCountEl = document.getElementById('pendingOrderCount');
+  const pendingAmountEl = document.getElementById('pendingOrderAmount');
+  if (pendingCountEl) pendingCountEl.textContent = pending.length;
+  if (pendingAmountEl) pendingAmountEl.textContent = SLF.money.primary(pendingTotal);
+  // 统计已结算订单
+  const done = orders.filter(o => o.status === 'done');
+  const doneTotal = done.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const doneCountEl = document.getElementById('doneOrderCount');
+  const doneAmountEl = document.getElementById('doneOrderAmount');
+  if (doneCountEl) doneCountEl.textContent = done.length;
+  if (doneAmountEl) doneAmountEl.textContent = SLF.money.primary(doneTotal);
 }
 
 function closeSidebar() {
