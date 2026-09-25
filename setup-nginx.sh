@@ -154,6 +154,26 @@ server {
 
     client_max_body_size 20M;
 
+    # HTML文件不缓存，每次都拿最新
+    location ~* \.html$ {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        expires 0;
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+    }
+
+    # CSS、JS缓存7天
+    location ~* \.(css|js)$ {
+        add_header Cache-Control "public, max-age=604800, immutable";
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+    }
+
+    # 图片、字体缓存30天
+    location ~* \.(png|jpg|jpeg|gif|webp|ico|svg|woff|woff2|ttf|eot)$ {
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+    }
+
     location /uploads/ {
         alias $APP_DIR/uploads/;
         expires 30d;
@@ -238,6 +258,26 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     client_max_body_size 20M;
+
+    # HTML文件不缓存，每次都拿最新
+    location ~* \.html$ {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        expires 0;
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+    }
+
+    # CSS、JS缓存7天
+    location ~* \.(css|js)$ {
+        add_header Cache-Control "public, max-age=604800, immutable";
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+    }
+
+    # 图片、字体缓存30天
+    location ~* \.(png|jpg|jpeg|gif|webp|ico|svg|woff|woff2|ttf|eot)$ {
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+    }
 
     location /uploads/ {
         alias $APP_DIR/uploads/;
