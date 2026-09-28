@@ -129,7 +129,7 @@ module.exports = function(app, deps) {
       result.order_prefix_refund = result.order_prefix_refund || '01';
       result.order_prefix_discount = result.order_prefix_discount || '21';
       result.order_prefix_vip = result.order_prefix_vip || '61';
-      result.order_no_reset_period = result.order_no_reset_period || 'daily';
+      result.order_no_reset_period = result.order_no_reset_period || 'never';
       res.json(result);
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

@@ -957,7 +957,8 @@ async function initDatabase() {
     'auto_clean_log_enabled': '1',
     'max_order_items': '50',
     'max_item_quantity': '100',
-    'max_order_note_length': '200'
+    'max_order_note_length': '200',
+    'order_no_reset_period': 'never'
   };
   for (const [key, value] of Object.entries(prefixDefaults)) {
     await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=value", [key, value]);

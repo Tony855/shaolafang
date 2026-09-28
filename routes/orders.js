@@ -774,7 +774,7 @@ app.post('/api/orders', async (req, res) => {
     const yyddmm = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const todayPrefix = orderPrefix + yyddmm;
     const resetRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_no_reset_period'");
-    const resetPeriod = resetRow?.value || 'daily';
+    const resetPeriod = resetRow?.value || 'never';
     let seqPrefix = todayPrefix;
     if (resetPeriod === 'monthly') seqPrefix = orderPrefix + yyddmm.slice(0, 4);
     else if (resetPeriod === 'yearly') seqPrefix = orderPrefix + yyddmm.slice(0, 2);
