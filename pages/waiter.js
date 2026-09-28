@@ -106,6 +106,19 @@
     const confirmCancelBtn = $('#confirmCancelBtn'); if (confirmCancelBtn) confirmCancelBtn.textContent = t('cancel', null, '取消');
     const confirmOkBtn = $('#confirmOkBtn'); if (confirmOkBtn) confirmOkBtn.textContent = t('confirm', null, '确定');
     const historyBtn = $('#orderHistoryBtn'); if (historyBtn) historyBtn.title = t('orderHistory', null, '订单历史');
+
+  // ===== 2026-09-29 补充硬编码 i18n =====
+  // document.title
+  document.title = t('loginTitle', null, '服务员点餐');
+
+  // 呼叫通知按钮 title
+  const _cnb = $('#callNotificationBtn');
+  if (_cnb) _cnb.title = t('callWaiter', null, '呼叫通知');
+
+  // 全屏按钮 title
+  const _fsb = $('#fullscreenBtn');
+  if (_fsb) _fsb.title = t('fullscreen', null, '全屏');
+
     renderTables();
     const _newBtn = document.getElementById('createNewOrderBtn');
     if (_newBtn) _newBtn.textContent = '➕ ' + t('createNewOrder', null, '创建新订单');
