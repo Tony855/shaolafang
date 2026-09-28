@@ -975,8 +975,6 @@ async function initDatabase() {
   }
   console.log('  + System settings defaults initialized');
 
-  await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '1') ON DUPLICATE KEY UPDATE value='1'");
-  await runAsync("INSERT INTO settings (`key`, value) VALUES ('secondary_currency_code', 'KHR') ON DUPLICATE KEY UPDATE value='KHR'");
 
   await rebaseCurrencyToUSDOnce();
   await ensureOrderTables();
