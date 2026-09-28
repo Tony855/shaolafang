@@ -714,5 +714,9 @@
   "orderNoResetDailyFull": "每天重置（从00001开始）",
   "orderNoResetMonthlyFull": "每月重置（从00001开始）",
   "orderNoResetYearlyFull": "每年重置（从00001开始）",
-  "orderNoResetNeverFull": "从不重置（全局累加）"
+  "orderNoResetNeverFull": "从不重置（全局累加）",
+  "importMenuTitle": "📥 批量导入菜品",
+  "importMenuDesc": "选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en",
+  "downloadTemplate": "📥 下载模板",
+  "confirmImportTitle": "确认导入"
 }

@@ -714,5 +714,9 @@
   "orderNoResetDailyFull": "Daily (starts from 00001)",
   "orderNoResetMonthlyFull": "Monthly (starts from 00001)",
   "orderNoResetYearlyFull": "Yearly (starts from 00001)",
-  "orderNoResetNeverFull": "Never (global accumulation)"
+  "orderNoResetNeverFull": "Never (global accumulation)",
+  "importMenuTitle": "📥 Batch Import Menu",
+  "importMenuDesc": "Select a CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en",
+  "downloadTemplate": "📥 Download Template",
+  "confirmImportTitle": "Confirm Import"
 }

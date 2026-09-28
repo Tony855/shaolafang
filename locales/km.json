@@ -714,5 +714,9 @@
   "orderNoResetDailyFull": "រាល់ថ្ងៃ (ចាប់ផ្តើមពី 00001)",
   "orderNoResetMonthlyFull": "រៀងរាល់ខែ (ចាប់ផ្តើមពី 00001)",
   "orderNoResetYearlyFull": "រៀងរាល់ឆ្នាំ (ចាប់ផ្តើមពី 00001)",
-  "orderNoResetNeverFull": "មិនកំណត់ឡើងវិញ (បង្គរជាសកល)"
+  "orderNoResetNeverFull": "មិនកំណត់ឡើងវិញ (បង្គរជាសកល)",
+  "importMenuTitle": "📥 នាំចូលម៉ឺនុយជាដុំ",
+  "importMenuDesc": "ជ្រើសឯកសារ CSV ដើម្បីនាំចូល។ ទម្រង់៖ name,category,price,emoji,desc,name_en,desc_en",
+  "downloadTemplate": "📥 ទាញយកគំរូ",
+  "confirmImportTitle": "បញ្ជាក់ការនាំចូល"
 }

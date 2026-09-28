@@ -721,7 +721,11 @@ const LANGUAGES = {
     "orderNoResetDailyFull": "每天重置（从00001开始）",
     "orderNoResetMonthlyFull": "每月重置（从00001开始）",
     "orderNoResetYearlyFull": "每年重置（从00001开始）",
-    "orderNoResetNeverFull": "从不重置（全局累加）"
+    "orderNoResetNeverFull": "从不重置（全局累加）",
+    "importMenuTitle": "📥 批量导入菜品",
+    "importMenuDesc": "选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en",
+    "downloadTemplate": "📥 下载模板",
+    "confirmImportTitle": "确认导入"
   },
   "en": {
     "code": "Code",
@@ -1439,7 +1443,11 @@ const LANGUAGES = {
     "orderNoResetDailyFull": "Daily (starts from 00001)",
     "orderNoResetMonthlyFull": "Monthly (starts from 00001)",
     "orderNoResetYearlyFull": "Yearly (starts from 00001)",
-    "orderNoResetNeverFull": "Never (global accumulation)"
+    "orderNoResetNeverFull": "Never (global accumulation)",
+    "importMenuTitle": "📥 Batch Import Menu",
+    "importMenuDesc": "Select a CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en",
+    "downloadTemplate": "📥 Download Template",
+    "confirmImportTitle": "Confirm Import"
   },
   "vi": {
     "code": "Mã",
@@ -2157,7 +2165,11 @@ const LANGUAGES = {
     "orderNoResetDailyFull": "Hàng ngày (bắt đầu từ 00001)",
     "orderNoResetMonthlyFull": "Hàng tháng (bắt đầu từ 00001)",
     "orderNoResetYearlyFull": "Hàng năm (bắt đầu từ 00001)",
-    "orderNoResetNeverFull": "Không bao giờ (tích lũy toàn cầu)"
+    "orderNoResetNeverFull": "Không bao giờ (tích lũy toàn cầu)",
+    "importMenuTitle": "📥 Nhập khẩu hàng loạt",
+    "importMenuDesc": "Chọn tệp CSV để nhập. Định dạng: name,category,price,emoji,desc,name_en,desc_en",
+    "downloadTemplate": "📥 Tải xuống mẫu",
+    "confirmImportTitle": "Xác nhận nhập"
   },
   "th": {
     "code": "รหัส",
@@ -2875,7 +2887,11 @@ const LANGUAGES = {
     "orderNoResetDailyFull": "ทุกวัน (เริ่มจาก 00001)",
     "orderNoResetMonthlyFull": "ทุกเดือน (เริ่มจาก 00001)",
     "orderNoResetYearlyFull": "ทุกปี (เริ่มจาก 00001)",
-    "orderNoResetNeverFull": "ไม่รีเซ็ต (สะสมทั่วโลก)"
+    "orderNoResetNeverFull": "ไม่รีเซ็ต (สะสมทั่วโลก)",
+    "importMenuTitle": "📥 นำเข้าเมนูจำนวนมาก",
+    "importMenuDesc": "เลือกไฟล์ CSV นำเข้า รูปแบบ: name,category,price,emoji,desc,name_en,desc_en",
+    "downloadTemplate": "📥 ดาวน์โหลดเทมเพลต",
+    "confirmImportTitle": "ยืนยันนำเข้า"
   },
   "km": {
     "code": "កូដ",
@@ -3593,7 +3609,11 @@ const LANGUAGES = {
     "orderNoResetDailyFull": "រាល់ថ្ងៃ (ចាប់ផ្តើមពី 00001)",
     "orderNoResetMonthlyFull": "រៀងរាល់ខែ (ចាប់ផ្តើមពី 00001)",
     "orderNoResetYearlyFull": "រៀងរាល់ឆ្នាំ (ចាប់ផ្តើមពី 00001)",
-    "orderNoResetNeverFull": "មិនកំណត់ឡើងវិញ (បង្គរជាសកល)"
+    "orderNoResetNeverFull": "មិនកំណត់ឡើងវិញ (បង្គរជាសកល)",
+    "importMenuTitle": "📥 នាំចូលម៉ឺនុយជាដុំ",
+    "importMenuDesc": "ជ្រើសឯកសារ CSV ដើម្បីនាំចូល។ ទម្រង់៖ name,category,price,emoji,desc,name_en,desc_en",
+    "downloadTemplate": "📥 ទាញយកគំរូ",
+    "confirmImportTitle": "បញ្ជាក់ការនាំចូល"
   }
 };
 

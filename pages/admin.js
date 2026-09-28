@@ -606,6 +606,18 @@
             _st('confirmImportBtn', 'confirmImportBtn');
             _st('confirmImportYesBtn', 'confirmImportYesBtn');
 
+            // ===== 2026-09-29 补齐弹窗按钮/标题的 i18n =====
+            _st('addAdminCancelBtn', 'cancel');
+            _st('addAdminSaveBtn', 'save');
+            _st('settleDetailCancelBtn', 'cancel');
+            _st('settleDetailOkBtn', 'settleNow');
+            _st('importModalTitle', 'importMenuTitle');
+            _st('importModalDesc', 'importMenuDesc');
+            _st('downloadTemplateLink', 'downloadTemplate');
+            _st('importModalCancelBtn', 'cancel');
+            _st('confirmImportModalTitle', 'confirmImportTitle');
+            _st('confirmImportModalCancelBtn', 'cancel');
+
             // ===== 2026-09-29 补齐 placeholder 的 i18n =====
             const _ph = (id, key) => { const el = document.getElementById(id); if (el) el.placeholder = tAdmin(key); };
             _ph('tableName', 'tableNamePlaceholder');

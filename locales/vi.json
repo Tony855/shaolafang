@@ -714,5 +714,9 @@
   "orderNoResetDailyFull": "Hàng ngày (bắt đầu từ 00001)",
   "orderNoResetMonthlyFull": "Hàng tháng (bắt đầu từ 00001)",
   "orderNoResetYearlyFull": "Hàng năm (bắt đầu từ 00001)",
-  "orderNoResetNeverFull": "Không bao giờ (tích lũy toàn cầu)"
+  "orderNoResetNeverFull": "Không bao giờ (tích lũy toàn cầu)",
+  "importMenuTitle": "📥 Nhập khẩu hàng loạt",
+  "importMenuDesc": "Chọn tệp CSV để nhập. Định dạng: name,category,price,emoji,desc,name_en,desc_en",
+  "downloadTemplate": "📥 Tải xuống mẫu",
+  "confirmImportTitle": "Xác nhận nhập"
 }

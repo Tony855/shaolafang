@@ -714,5 +714,9 @@
   "orderNoResetDailyFull": "ทุกวัน (เริ่มจาก 00001)",
   "orderNoResetMonthlyFull": "ทุกเดือน (เริ่มจาก 00001)",
   "orderNoResetYearlyFull": "ทุกปี (เริ่มจาก 00001)",
-  "orderNoResetNeverFull": "ไม่รีเซ็ต (สะสมทั่วโลก)"
+  "orderNoResetNeverFull": "ไม่รีเซ็ต (สะสมทั่วโลก)",
+  "importMenuTitle": "📥 นำเข้าเมนูจำนวนมาก",
+  "importMenuDesc": "เลือกไฟล์ CSV นำเข้า รูปแบบ: name,category,price,emoji,desc,name_en,desc_en",
+  "downloadTemplate": "📥 ดาวน์โหลดเทมเพลต",
+  "confirmImportTitle": "ยืนยันนำเข้า"
 }
