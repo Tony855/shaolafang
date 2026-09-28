@@ -30,3 +30,6 @@ Thumbs.db
 *.backup
 *.orig
 *.rej
+
+# --- 本地开发同步脚本 ---
+_sync.sh
