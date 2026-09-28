@@ -699,5 +699,15 @@
   "inputRangeError": "{field}: ช่วง {min}-{max}",
   "fullscreenIosHint": "อยู่ในโหมดเต็มหน้าจอแล้ว (เปิดจากหน้าจอหลัก) ปัดขึ้นจากด้านล่างเพื่อออก",
   "addToHomeScreenHint": "กรุณาใช้ \"เพิ่มไปยังหน้าจอหลัก\" เพื่อประสบการณ์เต็มหน้าจอ",
-  "merchantCreated": "สร้างพ่อค้าแล้ว บัญชี: {username} รหัสผ่าน: {password}"
+  "merchantCreated": "สร้างพ่อค้าแล้ว บัญชี: {username} รหัสผ่าน: {password}",
+  "tableNamePlaceholder": "โต๊ะ (เช่น A06)",
+  "orderSearchInputPlaceholder": "🔍 ค้นหาด้วยโต๊ะหรือเลขคำสั่งซื้อ",
+  "currencyCodePlaceholder": "เช่น CNY",
+  "currencySymbolPlaceholder": "เช่น ¥",
+  "currencyNamePlaceholder": "เช่น หยวนจีน",
+  "storeAddressPlaceholderInput": "ป้อนที่อยู่",
+  "newPasswordHint6": "อย่างน้อย 6 ตัวอักษร",
+  "customerNoteOptional": "หมายเหตุลูกค้า (ไม่บังคับ)",
+  "categoryNamePlaceholder": "ป้อนชื่อหมวดหมู่",
+  "symbolLabel": "สัญลักษณ์"
 }

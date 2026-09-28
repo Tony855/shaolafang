@@ -699,5 +699,15 @@
   "inputRangeError": "{field}: range {min}-{max}",
   "fullscreenIosHint": "Already in fullscreen (opened from home screen). Swipe up from bottom to exit.",
   "addToHomeScreenHint": "Please use \"Add to Home Screen\" for fullscreen experience",
-  "merchantCreated": "Merchant created. Account: {username}, initial password: {password}"
+  "merchantCreated": "Merchant created. Account: {username}, initial password: {password}",
+  "tableNamePlaceholder": "Table (e.g. A06)",
+  "orderSearchInputPlaceholder": "🔍 Search by table or order #",
+  "currencyCodePlaceholder": "e.g. CNY",
+  "currencySymbolPlaceholder": "e.g. ¥",
+  "currencyNamePlaceholder": "e.g. Chinese Yuan",
+  "storeAddressPlaceholderInput": "Enter address",
+  "newPasswordHint6": "At least 6 characters",
+  "customerNoteOptional": "Customer Note (optional)",
+  "categoryNamePlaceholder": "Enter category name",
+  "symbolLabel": "Symbol"
 }

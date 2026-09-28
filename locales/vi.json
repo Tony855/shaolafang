@@ -699,5 +699,15 @@
   "inputRangeError": "{field}: phạm vi {min}-{max}",
   "fullscreenIosHint": "Đã ở chế độ toàn màn hình (mở từ màn hình chính). Vuốt lên từ dưới để thoát.",
   "addToHomeScreenHint": "Vui lòng dùng \"Thêm vào màn hình chính\" để có trải nghiệm toàn màn hình",
-  "merchantCreated": "Đã tạo thương nhân. Tài khoản: {username}, mật khẩu: {password}"
+  "merchantCreated": "Đã tạo thương nhân. Tài khoản: {username}, mật khẩu: {password}",
+  "tableNamePlaceholder": "Bàn (vd A06)",
+  "orderSearchInputPlaceholder": "🔍 Tìm theo bàn hoặc số đơn",
+  "currencyCodePlaceholder": "vd: CNY",
+  "currencySymbolPlaceholder": "vd: ¥",
+  "currencyNamePlaceholder": "vd: Nhân dân tệ",
+  "storeAddressPlaceholderInput": "Nhập địa chỉ",
+  "newPasswordHint6": "Tối thiểu 6 ký tự",
+  "customerNoteOptional": "Ghi chú khách (tùy chọn)",
+  "categoryNamePlaceholder": "Nhập tên danh mục",
+  "symbolLabel": "Ký hiệu"
 }

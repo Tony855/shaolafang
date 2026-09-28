@@ -699,5 +699,15 @@
   "inputRangeError": "{field} 范围 {min}-{max}",
   "fullscreenIosHint": "已在全屏模式（主屏幕打开）。若需退出，请从底部向上滑动返回。",
   "addToHomeScreenHint": "请用\"添加到主屏幕\"打开以获得全屏体验",
-  "merchantCreated": "商户已创建，账号：{username}，初始密码：{password}"
+  "merchantCreated": "商户已创建，账号：{username}，初始密码：{password}",
+  "tableNamePlaceholder": "桌号，例如 A06",
+  "orderSearchInputPlaceholder": "🔍 请输入桌号或订单号查询",
+  "currencyCodePlaceholder": "如：CNY",
+  "currencySymbolPlaceholder": "如：¥",
+  "currencyNamePlaceholder": "如：人民币",
+  "storeAddressPlaceholderInput": "请输入地址",
+  "newPasswordHint6": "至少 6 位",
+  "customerNoteOptional": "顾客备注（选填）",
+  "categoryNamePlaceholder": "请输入分类名称",
+  "symbolLabel": "符号"
 }

@@ -706,7 +706,17 @@ const LANGUAGES = {
     "inputRangeError": "{field} 范围 {min}-{max}",
     "fullscreenIosHint": "已在全屏模式（主屏幕打开）。若需退出，请从底部向上滑动返回。",
     "addToHomeScreenHint": "请用\"添加到主屏幕\"打开以获得全屏体验",
-    "merchantCreated": "商户已创建，账号：{username}，初始密码：{password}"
+    "merchantCreated": "商户已创建，账号：{username}，初始密码：{password}",
+    "tableNamePlaceholder": "桌号，例如 A06",
+    "orderSearchInputPlaceholder": "🔍 请输入桌号或订单号查询",
+    "currencyCodePlaceholder": "如：CNY",
+    "currencySymbolPlaceholder": "如：¥",
+    "currencyNamePlaceholder": "如：人民币",
+    "storeAddressPlaceholderInput": "请输入地址",
+    "newPasswordHint6": "至少 6 位",
+    "customerNoteOptional": "顾客备注（选填）",
+    "categoryNamePlaceholder": "请输入分类名称",
+    "symbolLabel": "符号"
   },
   "en": {
     "code": "Code",
@@ -1409,7 +1419,17 @@ const LANGUAGES = {
     "inputRangeError": "{field}: range {min}-{max}",
     "fullscreenIosHint": "Already in fullscreen (opened from home screen). Swipe up from bottom to exit.",
     "addToHomeScreenHint": "Please use \"Add to Home Screen\" for fullscreen experience",
-    "merchantCreated": "Merchant created. Account: {username}, initial password: {password}"
+    "merchantCreated": "Merchant created. Account: {username}, initial password: {password}",
+    "tableNamePlaceholder": "Table (e.g. A06)",
+    "orderSearchInputPlaceholder": "🔍 Search by table or order #",
+    "currencyCodePlaceholder": "e.g. CNY",
+    "currencySymbolPlaceholder": "e.g. ¥",
+    "currencyNamePlaceholder": "e.g. Chinese Yuan",
+    "storeAddressPlaceholderInput": "Enter address",
+    "newPasswordHint6": "At least 6 characters",
+    "customerNoteOptional": "Customer Note (optional)",
+    "categoryNamePlaceholder": "Enter category name",
+    "symbolLabel": "Symbol"
   },
   "vi": {
     "code": "Mã",
@@ -2112,7 +2132,17 @@ const LANGUAGES = {
     "inputRangeError": "{field}: phạm vi {min}-{max}",
     "fullscreenIosHint": "Đã ở chế độ toàn màn hình (mở từ màn hình chính). Vuốt lên từ dưới để thoát.",
     "addToHomeScreenHint": "Vui lòng dùng \"Thêm vào màn hình chính\" để có trải nghiệm toàn màn hình",
-    "merchantCreated": "Đã tạo thương nhân. Tài khoản: {username}, mật khẩu: {password}"
+    "merchantCreated": "Đã tạo thương nhân. Tài khoản: {username}, mật khẩu: {password}",
+    "tableNamePlaceholder": "Bàn (vd A06)",
+    "orderSearchInputPlaceholder": "🔍 Tìm theo bàn hoặc số đơn",
+    "currencyCodePlaceholder": "vd: CNY",
+    "currencySymbolPlaceholder": "vd: ¥",
+    "currencyNamePlaceholder": "vd: Nhân dân tệ",
+    "storeAddressPlaceholderInput": "Nhập địa chỉ",
+    "newPasswordHint6": "Tối thiểu 6 ký tự",
+    "customerNoteOptional": "Ghi chú khách (tùy chọn)",
+    "categoryNamePlaceholder": "Nhập tên danh mục",
+    "symbolLabel": "Ký hiệu"
   },
   "th": {
     "code": "รหัส",
@@ -2815,7 +2845,17 @@ const LANGUAGES = {
     "inputRangeError": "{field}: ช่วง {min}-{max}",
     "fullscreenIosHint": "อยู่ในโหมดเต็มหน้าจอแล้ว (เปิดจากหน้าจอหลัก) ปัดขึ้นจากด้านล่างเพื่อออก",
     "addToHomeScreenHint": "กรุณาใช้ \"เพิ่มไปยังหน้าจอหลัก\" เพื่อประสบการณ์เต็มหน้าจอ",
-    "merchantCreated": "สร้างพ่อค้าแล้ว บัญชี: {username} รหัสผ่าน: {password}"
+    "merchantCreated": "สร้างพ่อค้าแล้ว บัญชี: {username} รหัสผ่าน: {password}",
+    "tableNamePlaceholder": "โต๊ะ (เช่น A06)",
+    "orderSearchInputPlaceholder": "🔍 ค้นหาด้วยโต๊ะหรือเลขคำสั่งซื้อ",
+    "currencyCodePlaceholder": "เช่น CNY",
+    "currencySymbolPlaceholder": "เช่น ¥",
+    "currencyNamePlaceholder": "เช่น หยวนจีน",
+    "storeAddressPlaceholderInput": "ป้อนที่อยู่",
+    "newPasswordHint6": "อย่างน้อย 6 ตัวอักษร",
+    "customerNoteOptional": "หมายเหตุลูกค้า (ไม่บังคับ)",
+    "categoryNamePlaceholder": "ป้อนชื่อหมวดหมู่",
+    "symbolLabel": "สัญลักษณ์"
   },
   "km": {
     "code": "កូដ",
@@ -3518,7 +3558,17 @@ const LANGUAGES = {
     "inputRangeError": "{field}: ចន្លោះ {min}-{max}",
     "fullscreenIosHint": "ស្ថិតក្នុងរបៀបពេញអេក្រង់ (បើកពីអេក្រង់ដើម)។ អូសឡើងលើពីបាតដើម្បីចាកចេញ។",
     "addToHomeScreenHint": "សូមប្រើ \"បន្ថែមទៅអេក្រង់ដើម\" សម្រាប់បទពិសោធន៍ពេញអេក្រង់",
-    "merchantCreated": "បានបង្កើតពាណិជ្ជករ។ គណនី៖ {username} ពាក្យសម្ងាត់៖ {password}"
+    "merchantCreated": "បានបង្កើតពាណិជ្ជករ។ គណនី៖ {username} ពាក្យសម្ងាត់៖ {password}",
+    "tableNamePlaceholder": "តុ (ឧ. A06)",
+    "orderSearchInputPlaceholder": "🔍 ស្វែងរកតាមតុ ឬលេខបញ្ជាទិញ",
+    "currencyCodePlaceholder": "ឧ. CNY",
+    "currencySymbolPlaceholder": "ឧ. ¥",
+    "currencyNamePlaceholder": "ឧ. យន់ចិន",
+    "storeAddressPlaceholderInput": "បញ្ចូលអាសយដ្ឋាន",
+    "newPasswordHint6": "យ៉ាងហោចណាស់ 6 តួអក្សរ",
+    "customerNoteOptional": "ចំណាំអតិថិជន (ស្រេចចិត្ត)",
+    "categoryNamePlaceholder": "បញ្ចូលឈ្មោះប្រភេទ",
+    "symbolLabel": "និមិត្តសញ្ញា"
   }
 };
 

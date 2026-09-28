@@ -605,6 +605,43 @@
             _st('settleDetailTitle', 'settleOrder');
             _st('confirmImportBtn', 'confirmImportBtn');
             _st('confirmImportYesBtn', 'confirmImportYesBtn');
+
+            // ===== 2026-09-29 补齐 placeholder 的 i18n =====
+            const _ph = (id, key) => { const el = document.getElementById(id); if (el) el.placeholder = tAdmin(key); };
+            _ph('tableName', 'tableNamePlaceholder');
+            _ph('orderTableSearch', 'orderSearchInputPlaceholder');
+            _ph('currencyCode', 'currencyCodePlaceholder');
+            _ph('currencySymbol', 'currencySymbolPlaceholder');
+            _ph('currencyName', 'currencyNamePlaceholder');
+            _ph('currencyRate', 'currencyRateLabel');
+            _ph('printerName', 'printerNamePlaceholder');
+            _ph('printerIp', 'ipPlaceholder');
+            _ph('waiterUsernameInput', 'accountRequired');
+            _ph('waiterPasswordInput', 'enterPassword');
+            _ph('waiterNameInput', 'cashierDisplayNamePlaceholder');
+            _ph('storeNameInput', 'enterStoreName');
+            _ph('storeCodeInput', 'storeCodePlaceholder');
+            _ph('storeAddressInput', 'storeAddressPlaceholderInput');
+            _ph('oldPassword', 'enterOldPassword');
+            _ph('newPassword', 'newPasswordHint6');
+            _ph('menuName', 'dishName');
+            _ph('menuNameEn', 'nameEn');
+            _ph('menuPrice', 'price');
+            _ph('menuUnit', 'unit');
+            _ph('menuEmoji', 'icon');
+            _ph('menuDesc', 'desc');
+            _ph('menuDescEn', 'descEn');
+            _ph('newCategoryName', 'newCategoryName');
+            _ph('orderNoteField', 'customerNoteOptional');
+            _ph('editCategoryName', 'categoryNamePlaceholder');
+            _ph('editCurrencyName', 'currencyName');
+            _ph('editCurrencySymbol', 'symbolLabel');
+            _ph('cashierUsername', 'cashierUsernamePlaceholder');
+            _ph('cashierPassword', 'passwordMin6');
+            _ph('editWaiterPassword', 'waiterPasswordPlaceholder');
+            _ph('editAdminDisplayName', 'editAdminDisplayNamePlaceholder');
+            _ph('editAdminPassword', 'pleaseEnterNewPassword');
+            _ph('editStoreAddress', 'storeAddressPlaceholder');
         }
 
         // ===== 语言切换和店铺切换（已移到 shared.js）=====
