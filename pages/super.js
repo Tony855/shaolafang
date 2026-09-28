@@ -8,21 +8,6 @@ let currentLang = SLF.store.rawGet('superLang') || SLF.store.rawGet('lang') || '
 
 SLF.i18n.init(currentLang);
 
-function t(key, params, fallback) {
-  try {
-    if (!SLF || !SLF.i18n || typeof SLF.i18n.t !== 'function') {
-      return fallback !== undefined ? fallback : key;
-    }
-    const v = SLF.i18n.t(key, params);
-    if (v === undefined || v === null || v === key) {
-      return fallback !== undefined ? fallback : key;
-    }
-    return v;
-  } catch (e) {
-    return fallback !== undefined ? fallback : key;
-  }
-}
-
 function changeSuperLang(lang) {
   currentLang = lang;
   SLF.i18n.lang = lang;
@@ -870,7 +855,6 @@ if (token) showApp();
     try { window.importBackup = importBackup; } catch(err) {}
     try { window.logout = logout; } catch(err) {}
     try { window.refreshCurrentLog = refreshCurrentLog; } catch(err) {}
-    try { window.replace = replace; } catch(err) {}
     try { window.resetData = resetData; } catch(err) {}
     try { window.resetPassword = resetPassword; } catch(err) {}
     try { window.saveBackupSettings = saveBackupSettings; } catch(err) {}
@@ -1022,7 +1006,6 @@ window.closeOnlineSessions = closeOnlineSessions;
     try { window.importBackup = importBackup; } catch(err) {}
     try { window.logout = logout; } catch(err) {}
     try { window.refreshCurrentLog = refreshCurrentLog; } catch(err) {}
-    try { window.replace = replace; } catch(err) {}
     try { window.resetData = resetData; } catch(err) {}
     try { window.resetPassword = resetPassword; } catch(err) {}
     try { window.saveBackupSettings = saveBackupSettings; } catch(err) {}

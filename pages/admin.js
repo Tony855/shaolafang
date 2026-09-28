@@ -80,7 +80,7 @@
         let secondaryCurrencyCode = 'USD';
         let defaultCurrencyObj = null;
 
-        const tAdmin = (k, params) => SLF.i18n.t(k, params);
+        const tAdmin = SLF.t;
         const L = tAdmin;
 
         function buildSessionLabels(orders) {
@@ -955,7 +955,7 @@
                 try { adminSocket.disconnect(); } catch (_) {}
             });
         }
-    try { window.addPrinter = addPrinter; } catch(err) {}
+    try { window.toggleAutoPrint = toggleAutoPrint; } catch(err) {}
     // ===== 共享上下文（供后续拆分模块使用）=====
     try {
       Object.assign(window.SLF.admin, {

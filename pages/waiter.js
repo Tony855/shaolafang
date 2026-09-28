@@ -94,19 +94,6 @@
   SLF.i18n.init(waiterLang);
 
   // t(key, params, fallback)
-  function t(key, params, fallback) {
-    try {
-      if (!SLF || !SLF.i18n || typeof SLF.i18n.t !== 'function') {
-        return fallback !== undefined ? fallback : key;
-      }
-      const v = SLF.i18n.t(key, params);
-      if (v === undefined || v === null || v === key) return fallback !== undefined ? fallback : key;
-      return v;
-    } catch (e) {
-      return fallback !== undefined ? fallback : key;
-    }
-  }
-
   const escNote = esc;
 
 
@@ -876,12 +863,10 @@
     try { window.completeWaiterOrder = completeWaiterOrder; } catch(err) {}
     try { window.confirmTransfer = confirmTransfer; } catch(err) {}
     try { window.createNewOrderFromSelect = createNewOrderFromSelect; } catch(err) {}
-    try { window.getElementById = getElementById; } catch(err) {}
     try { window.handleCall = handleCall; } catch(err) {}
     try { window.hideOrderDetail = hideOrderDetail; } catch(err) {}
     try { window.hideOrderHistory = hideOrderHistory; } catch(err) {}
     try { window.openModal = openModal; } catch(err) {}
-    try { window.remove = remove; } catch(err) {}
     try { window.removeItem = removeItem; } catch(err) {}
     try { window.returnWaiterItem = returnWaiterItem; } catch(err) {}
     try { window.selectOrder = selectOrder; } catch(err) {}
