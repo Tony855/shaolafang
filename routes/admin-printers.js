@@ -123,7 +123,7 @@ module.exports = function(app, deps) {
     try {
       const keys = ['order_prefix_normal', 'order_prefix_refund', 'order_prefix_discount', 'order_prefix_vip', 'order_no_reset_period'];
       const placeholders = keys.map(() => "?").join(",");
-      const rows = await allAsync(`SELECT `key`, value FROM settings WHERE `key` IN (${placeholders})`, keys);
+      const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN (" + placeholders + ")", keys);
       const result = {};
       for (const r of rows) result[r.key] = r.value;
       result.order_prefix_normal = result.order_prefix_normal || '11';
