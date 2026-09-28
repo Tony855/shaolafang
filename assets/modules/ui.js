@@ -238,7 +238,6 @@
   });
 
   // 兼容旧的全局快捷调用
-  global.esc = dom.esc;
 
   SLF.log.info('SLF ui.js 加载完成');
 })(window);

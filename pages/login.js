@@ -16,21 +16,6 @@ const $ = s => document.querySelector(s);
     try { SLF.i18n.init(lang); } catch (e) { console.warn('i18n.init failed:', e); }
 
     // ---- t(key, params, fallback) ----
-    function t(key, params, fallback) {
-      try {
-        if (!SLF || !SLF.i18n || typeof SLF.i18n.t !== 'function') {
-          return fallback !== undefined ? fallback : key;
-        }
-        const v = SLF.i18n.t(key, params);
-        if (v === undefined || v === null || v === key) {
-          return fallback !== undefined ? fallback : key;
-        }
-        return v;
-      } catch (e) {
-        return fallback !== undefined ? fallback : key;
-      }
-    }
-
     // ---- 登录类型 ----
     // 优先级：URL 参数 > 上次保存 > 默认 admin
     let loginType = 'admin';

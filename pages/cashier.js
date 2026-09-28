@@ -17,15 +17,6 @@
     SLF.i18n.init(currentLang);
 
     // 修复：删除重复的 return
-    function t(key, params, fallback) {
-      const v = SLF.i18n.t(key, params);
-      if (v === undefined || v === null || v === key) {
-        return fallback !== undefined ? fallback : key;
-      }
-      return v;
-    }
-
-
     // 修复：统一的菜品价格（base）计算
     function itemBasePrice(item) {
       return SLF.money.toBase(item.price, item.currency_code);

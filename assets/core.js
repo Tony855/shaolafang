@@ -749,10 +749,25 @@
 
   log.info('SLF core.js 加载完成，版本:', CONFIG.VERSION);
 
-  /* ===== 兼容旧代码：提供全局 t 和 esc 快捷方式 ===== */
-  global.t = function (key, params) {
-    return i18n.t(key, params);
-  };
+  /* ===== 统一翻译函数（带 fallback + 防御）===== */
+  function t(key, params, fallback) {
+    try {
+      if (!i18n || typeof i18n.t !== 'function') {
+        return fallback !== undefined ? fallback : key;
+      }
+      const v = i18n.t(key, params);
+      if (v === undefined || v === null || v === key) {
+        return fallback !== undefined ? fallback : key;
+      }
+      return v;
+    } catch (e) {
+      return fallback !== undefined ? fallback : key;
+    }
+  }
+
+  /* 挂到 SLF 与全局 */
+  global.SLF.t = t;
+  global.t = t;
   global.esc = utils.esc;
 
 })(window);
