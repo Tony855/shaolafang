@@ -9,6 +9,17 @@ if (!ctx) return;
 
 const { $, api, tAdmin, esc } = ctx;
 
+// 格式化时间桶：把完整 ISO 时间戳压缩成人类可读的短字符串
+function fmtTimeBucket(tb) {
+  if (!tb) return '';
+  const s = String(tb);
+  // 完整 ISO（含 T）：只保留日期部分 YYYY-MM-DD
+  if (s.includes('T')) return s.slice(0, 10);
+  // YYYY-MM-DDTHH:mm 格式被截断成 HH:mm
+  // 已经是 YYYY-MM / YYYY-MM-DD / HH:mm 等短格式，直接返回
+  return s;
+}
+
 async function loadWaiterCalls() {
   try {
     const data = await api('/waiter-calls');
@@ -49,10 +60,20 @@ async function handleWaiterCall(id) {
   }
 }
 
-async function loadDailyReport() {
-  const date = ($('#reportDate') && $('#reportDate').value) || new Date().toISOString().slice(0, 10);
+async function loadDailyReport(rangeStart, rangeEnd) {
+  // 若传入了范围参数，直接用；否则读取日期输入框（单日查询）
+  let startDate, endDate;
+  if (rangeStart && rangeEnd) {
+    startDate = rangeStart;
+    endDate = rangeEnd;
+  } else {
+    const _now = new Date();
+    const _todayStr = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+    const dateInput = ($('#reportDate') && $('#reportDate').value) || _todayStr;
+    startDate = endDate = dateInput;
+  }
   try {
-    const data = await api('/admin/reports/daily?date=' + date);
+    const data = await api(`/admin/reports/daily?startDate=${startDate}&endDate=${endDate}`);
     const s = data.summary;
     const container = $('#reportContent');
     let html = `
@@ -80,11 +101,13 @@ async function loadDailyReport() {
         </div>
     `;
     if (data.hourlyStats && data.hourlyStats.length > 0) {
-      html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">⏰ ${tAdmin('hourlyDistribution')} <span style="font-size:12px;color:#888;font-weight:400;">(${data.date})</span></h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
+      // 根据粒度显示不同的标题
+      const granLabel = data.granularity === 'year' ? '📅' : data.granularity === 'month' ? '📆' : '⏰';
+      html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">${granLabel} ${tAdmin('hourlyDistribution')} <span style="font-size:12px;color:#888;font-weight:400;">(${data.date})</span></h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
       const maxOrders = Math.max(...data.hourlyStats.map(h => h.orders), 1);
       for (const h of data.hourlyStats) {
         const pct = (h.orders / maxOrders * 100).toFixed(0);
-        html += `<div style="display:flex;align-items:center;gap:10px;margin:6px 0;"><span style="width:60px;color:#c8c8d0;font-size:13px;">${h.time_bucket}</span><div style="flex:1;background:rgba(255,255,255,.1);border-radius:6px;height:20px;overflow:hidden;"><div style="width:${pct}%;background:linear-gradient(90deg,#e85d3a,#f39c12);height:100%;border-radius:6px;"></div></div><span style="width:70px;text-align:right;font-size:13px;color:#fff;font-weight:600;">${h.orders}${tAdmin('orderUnit')} $${Number(h.revenue).toFixed(0)}</span></div>`;
+        html += `<div style="display:flex;align-items:center;gap:10px;margin:6px 0;"><span style="width:88px;color:#c8c8d0;font-size:13px;text-align:right;">${fmtTimeBucket(h.time_bucket)}</span><div style="flex:1;background:rgba(255,255,255,.1);border-radius:6px;height:20px;overflow:hidden;"><div style="width:${pct}%;background:linear-gradient(90deg,#e85d3a,#f39c12);height:100%;border-radius:6px;"></div></div><span style="width:70px;text-align:right;font-size:13px;color:#fff;font-weight:600;">${h.orders}${tAdmin('orderUnit')} $${Number(h.revenue).toFixed(0)}</span></div>`;
       }
       html += `</div>`;
     }
@@ -132,4 +155,75 @@ window.handleWaiterCall = handleWaiterCall;
 window.loadDailyReport = loadDailyReport;
 window.exportData = exportData;
 
+
+// ===== 2026-09-29 快捷日期范围 =====
+(function initQuickRange() {
+  // 本地时间格式化（避免 toISOString 的 UTC 偏移问题）
+  const fmtLocal = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const applyRange = (type) => {
+    const today = new Date();
+    const y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+    let start, end;
+    if (type === 'today') {
+      start = end = fmtLocal(new Date(y, m, d));
+    } else if (type === 'week') {
+      const mon = new Date(y, m, d - ((today.getDay() + 6) % 7));
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      start = fmtLocal(mon); end = fmtLocal(sun);
+    } else if (type === 'month') {
+      start = fmtLocal(new Date(y, m, 1));
+      end = fmtLocal(new Date(y, m + 1, 0));
+    } else if (type === 'year') {
+      start = fmtLocal(new Date(y, 0, 1));
+      end = fmtLocal(new Date(y, 11, 31));
+    }
+    // 更新日期输入框为起始日
+    const dateEl = document.getElementById('reportDate');
+    if (dateEl) dateEl.value = start;
+    if (typeof loadDailyReport === 'function') loadDailyReport(start, end);
+  };
+
+  const initUI = () => {
+    // 默认值（用本地日期）
+    const dateEl = document.getElementById('reportDate');
+    if (dateEl && !dateEl.value) dateEl.value = fmtLocal(new Date());
+
+    // 快捷按钮
+    document.querySelectorAll('[data-range]').forEach(btn => {
+      btn.onclick = () => applyRange(btn.dataset.range);
+    });
+
+    // 语言切换后刷新标签
+    if (SLF.i18n && typeof SLF.i18n.onChange === 'function') {
+      SLF.i18n.onChange(() => applyReportLabels());
+    }
+    applyReportLabels();
+  };
+
+  // 立即执行（无论 DOM 是否已就绪，因为本模块可能在 DOMContentLoaded 之后才加载）
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initUI);
+  } else {
+    initUI();
+  }
+
+  function applyReportLabels() {
+    if (typeof tAdmin !== 'function') return;
+    const setText = (id, key) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = tAdmin(key);
+    };
+    setText('quickTodayBtn', 'quickToday');
+    setText('quickWeekBtn', 'quickWeek');
+    setText('quickMonthBtn', 'quickMonth');
+    setText('quickYearBtn', 'quickYear');
+    setText('reportDateLabel', 'date');
+  }
+})();
 })();
