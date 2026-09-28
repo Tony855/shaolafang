@@ -709,5 +709,10 @@
   "newPasswordHint6": "យ៉ាងហោចណាស់ 6 តួអក្សរ",
   "customerNoteOptional": "ចំណាំអតិថិជន (ស្រេចចិត្ត)",
   "categoryNamePlaceholder": "បញ្ចូលឈ្មោះប្រភេទ",
-  "symbolLabel": "និមិត្តសញ្ញា"
+  "symbolLabel": "និមិត្តសញ្ញា",
+  "menuAllCategoriesOption": "📋 ប្រភេទទាំងអស់",
+  "orderNoResetDailyFull": "រាល់ថ្ងៃ (ចាប់ផ្តើមពី 00001)",
+  "orderNoResetMonthlyFull": "រៀងរាល់ខែ (ចាប់ផ្តើមពី 00001)",
+  "orderNoResetYearlyFull": "រៀងរាល់ឆ្នាំ (ចាប់ផ្តើមពី 00001)",
+  "orderNoResetNeverFull": "មិនកំណត់ឡើងវិញ (បង្គរជាសកល)"
 }

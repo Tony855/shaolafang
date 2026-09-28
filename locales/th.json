@@ -709,5 +709,10 @@
   "newPasswordHint6": "อย่างน้อย 6 ตัวอักษร",
   "customerNoteOptional": "หมายเหตุลูกค้า (ไม่บังคับ)",
   "categoryNamePlaceholder": "ป้อนชื่อหมวดหมู่",
-  "symbolLabel": "สัญลักษณ์"
+  "symbolLabel": "สัญลักษณ์",
+  "menuAllCategoriesOption": "📋 ทุกหมวดหมู่",
+  "orderNoResetDailyFull": "ทุกวัน (เริ่มจาก 00001)",
+  "orderNoResetMonthlyFull": "ทุกเดือน (เริ่มจาก 00001)",
+  "orderNoResetYearlyFull": "ทุกปี (เริ่มจาก 00001)",
+  "orderNoResetNeverFull": "ไม่รีเซ็ต (สะสมทั่วโลก)"
 }

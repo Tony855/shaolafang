@@ -642,6 +642,63 @@
             _ph('editAdminDisplayName', 'editAdminDisplayNamePlaceholder');
             _ph('editAdminPassword', 'pleaseEnterNewPassword');
             _ph('editStoreAddress', 'storeAddressPlaceholder');
+
+            // ===== 2026-09-29 补齐 select option 的 i18n =====
+            const _opt = (selId, idx, key) => {
+              const sel = document.getElementById(selId);
+              if (sel && sel.options[idx]) sel.options[idx].text = tAdmin(key);
+            };
+
+            // 菜单分类筛选：第一项"全部分类"（其余项由 populateMenuCategorySelect 动态处理）
+            _opt('menuCategoryFilter', 0, 'menuAllCategoriesOption');
+
+            // 菜单排序方式（5 项）
+            _opt('menuSortBy', 0, 'defaultSort');
+            _opt('menuSortBy', 1, 'nameAsc');
+            _opt('menuSortBy', 2, 'nameDesc');
+            _opt('menuSortBy', 3, 'priceAsc');
+            _opt('menuSortBy', 4, 'priceDesc');
+
+            // 打印机类型（新增表单 + 编辑表单）
+            _opt('printerType', 0, 'networkPrinter');
+            _opt('printerType', 1, 'usbPrinter');
+            _opt('printerType', 2, 'bluetoothPrinter');
+            _opt('editPrinterType', 0, 'networkPrinter');
+            _opt('editPrinterType', 1, 'usbPrinter');
+            _opt('editPrinterType', 2, 'bluetoothPrinter');
+
+            // 打印机纸宽
+            _opt('printerWidth', 0, 'paper58mm');
+            _opt('printerWidth', 1, 'paper80mm');
+            _opt('editPrinterWidth', 0, 'paper58mm');
+            _opt('editPrinterWidth', 1, 'paper80mm');
+
+            // 打印机品牌（新增表单 8 项）
+            _opt('printerBrand', 0, 'genericEscPos');
+            _opt('printerBrand', 1, 'epson');
+            _opt('printerBrand', 2, 'star');
+            _opt('printerBrand', 3, 'bixolon');
+            _opt('printerBrand', 4, 'jiabo');
+            _opt('printerBrand', 5, 'xprinter');
+            _opt('printerBrand', 6, 'rongta');
+            _opt('printerBrand', 7, 'hoin');
+            // 编辑表单品牌（5 项）
+            _opt('editPrinterBrand', 0, 'genericEscPos');
+            _opt('editPrinterBrand', 1, 'epson');
+            _opt('editPrinterBrand', 2, 'bixolon');
+            _opt('editPrinterBrand', 3, 'rongta');
+            _opt('editPrinterBrand', 4, 'xprinter');
+
+            // 订单号重置周期（4 项）
+            _opt('orderResetPeriod', 0, 'orderNoResetDailyFull');
+            _opt('orderResetPeriod', 1, 'orderNoResetMonthlyFull');
+            _opt('orderResetPeriod', 2, 'orderNoResetYearlyFull');
+            _opt('orderResetPeriod', 3, 'orderNoResetNeverFull');
+
+            // 桌号状态（3 项）
+            _opt('editTableStatus', 0, 'available');
+            _opt('editTableStatus', 1, 'occupied');
+            _opt('editTableStatus', 2, 'reserved');
         }
 
         // ===== 语言切换和店铺切换（已移到 shared.js）=====

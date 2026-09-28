@@ -709,5 +709,10 @@
   "newPasswordHint6": "Tối thiểu 6 ký tự",
   "customerNoteOptional": "Ghi chú khách (tùy chọn)",
   "categoryNamePlaceholder": "Nhập tên danh mục",
-  "symbolLabel": "Ký hiệu"
+  "symbolLabel": "Ký hiệu",
+  "menuAllCategoriesOption": "📋 Tất cả danh mục",
+  "orderNoResetDailyFull": "Hàng ngày (bắt đầu từ 00001)",
+  "orderNoResetMonthlyFull": "Hàng tháng (bắt đầu từ 00001)",
+  "orderNoResetYearlyFull": "Hàng năm (bắt đầu từ 00001)",
+  "orderNoResetNeverFull": "Không bao giờ (tích lũy toàn cầu)"
 }

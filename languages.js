@@ -716,7 +716,12 @@ const LANGUAGES = {
     "newPasswordHint6": "至少 6 位",
     "customerNoteOptional": "顾客备注（选填）",
     "categoryNamePlaceholder": "请输入分类名称",
-    "symbolLabel": "符号"
+    "symbolLabel": "符号",
+    "menuAllCategoriesOption": "📋 全部分类",
+    "orderNoResetDailyFull": "每天重置（从00001开始）",
+    "orderNoResetMonthlyFull": "每月重置（从00001开始）",
+    "orderNoResetYearlyFull": "每年重置（从00001开始）",
+    "orderNoResetNeverFull": "从不重置（全局累加）"
   },
   "en": {
     "code": "Code",
@@ -1429,7 +1434,12 @@ const LANGUAGES = {
     "newPasswordHint6": "At least 6 characters",
     "customerNoteOptional": "Customer Note (optional)",
     "categoryNamePlaceholder": "Enter category name",
-    "symbolLabel": "Symbol"
+    "symbolLabel": "Symbol",
+    "menuAllCategoriesOption": "📋 All Categories",
+    "orderNoResetDailyFull": "Daily (starts from 00001)",
+    "orderNoResetMonthlyFull": "Monthly (starts from 00001)",
+    "orderNoResetYearlyFull": "Yearly (starts from 00001)",
+    "orderNoResetNeverFull": "Never (global accumulation)"
   },
   "vi": {
     "code": "Mã",
@@ -2142,7 +2152,12 @@ const LANGUAGES = {
     "newPasswordHint6": "Tối thiểu 6 ký tự",
     "customerNoteOptional": "Ghi chú khách (tùy chọn)",
     "categoryNamePlaceholder": "Nhập tên danh mục",
-    "symbolLabel": "Ký hiệu"
+    "symbolLabel": "Ký hiệu",
+    "menuAllCategoriesOption": "📋 Tất cả danh mục",
+    "orderNoResetDailyFull": "Hàng ngày (bắt đầu từ 00001)",
+    "orderNoResetMonthlyFull": "Hàng tháng (bắt đầu từ 00001)",
+    "orderNoResetYearlyFull": "Hàng năm (bắt đầu từ 00001)",
+    "orderNoResetNeverFull": "Không bao giờ (tích lũy toàn cầu)"
   },
   "th": {
     "code": "รหัส",
@@ -2855,7 +2870,12 @@ const LANGUAGES = {
     "newPasswordHint6": "อย่างน้อย 6 ตัวอักษร",
     "customerNoteOptional": "หมายเหตุลูกค้า (ไม่บังคับ)",
     "categoryNamePlaceholder": "ป้อนชื่อหมวดหมู่",
-    "symbolLabel": "สัญลักษณ์"
+    "symbolLabel": "สัญลักษณ์",
+    "menuAllCategoriesOption": "📋 ทุกหมวดหมู่",
+    "orderNoResetDailyFull": "ทุกวัน (เริ่มจาก 00001)",
+    "orderNoResetMonthlyFull": "ทุกเดือน (เริ่มจาก 00001)",
+    "orderNoResetYearlyFull": "ทุกปี (เริ่มจาก 00001)",
+    "orderNoResetNeverFull": "ไม่รีเซ็ต (สะสมทั่วโลก)"
   },
   "km": {
     "code": "កូដ",
@@ -3568,7 +3588,12 @@ const LANGUAGES = {
     "newPasswordHint6": "យ៉ាងហោចណាស់ 6 តួអក្សរ",
     "customerNoteOptional": "ចំណាំអតិថិជន (ស្រេចចិត្ត)",
     "categoryNamePlaceholder": "បញ្ចូលឈ្មោះប្រភេទ",
-    "symbolLabel": "និមិត្តសញ្ញា"
+    "symbolLabel": "និមិត្តសញ្ញា",
+    "menuAllCategoriesOption": "📋 ប្រភេទទាំងអស់",
+    "orderNoResetDailyFull": "រាល់ថ្ងៃ (ចាប់ផ្តើមពី 00001)",
+    "orderNoResetMonthlyFull": "រៀងរាល់ខែ (ចាប់ផ្តើមពី 00001)",
+    "orderNoResetYearlyFull": "រៀងរាល់ឆ្នាំ (ចាប់ផ្តើមពី 00001)",
+    "orderNoResetNeverFull": "មិនកំណត់ឡើងវិញ (បង្គរជាសកល)"
   }
 };
 

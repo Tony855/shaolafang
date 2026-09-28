@@ -709,5 +709,10 @@
   "newPasswordHint6": "至少 6 位",
   "customerNoteOptional": "顾客备注（选填）",
   "categoryNamePlaceholder": "请输入分类名称",
-  "symbolLabel": "符号"
+  "symbolLabel": "符号",
+  "menuAllCategoriesOption": "📋 全部分类",
+  "orderNoResetDailyFull": "每天重置（从00001开始）",
+  "orderNoResetMonthlyFull": "每月重置（从00001开始）",
+  "orderNoResetYearlyFull": "每年重置（从00001开始）",
+  "orderNoResetNeverFull": "从不重置（全局累加）"
 }

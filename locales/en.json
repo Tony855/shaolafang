@@ -709,5 +709,10 @@
   "newPasswordHint6": "At least 6 characters",
   "customerNoteOptional": "Customer Note (optional)",
   "categoryNamePlaceholder": "Enter category name",
-  "symbolLabel": "Symbol"
+  "symbolLabel": "Symbol",
+  "menuAllCategoriesOption": "📋 All Categories",
+  "orderNoResetDailyFull": "Daily (starts from 00001)",
+  "orderNoResetMonthlyFull": "Monthly (starts from 00001)",
+  "orderNoResetYearlyFull": "Yearly (starts from 00001)",
+  "orderNoResetNeverFull": "Never (global accumulation)"
 }
