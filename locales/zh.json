@@ -523,7 +523,7 @@
   "waiterTerminal": "服务员点餐终端",
   "ordering": "点餐",
   "print": "打印",
-  "loginToBrand": "Login to FoodFlow",
+  "loginToBrand": "登录 FoodFlow",
   "waiter": "服务员",
   "admin": "管理员",
   "account": "账号",
@@ -681,7 +681,6 @@
   "newCategory": "新分类名称",
   "addCategory": "添加分类",
   "tableManageTitle": "桌号管理",
-  "orderSearchPlaceholder": "输入订单号查询",
   "currencyManageTitle": "货币类型",
   "logsTitle": "日志",
   "dishManagement": "菜品管理",
@@ -915,5 +914,18 @@
     "logout": "退出登录"
   },
   "createNewOrder": "创建新订单",
-  "urgeNotifications": "催单通知"
+  "urgeNotifications": "催单通知",
+  "permMenu": "菜单管理",
+  "permTable": "桌号管理",
+  "permDeleteOrder": "取消/删除订单",
+  "permEditOrder": "编辑订单",
+  "permStore": "门店管理",
+  "permWaiter": "服务员管理",
+  "permCurrency": "货币管理",
+  "permPrinter": "打印机管理",
+  "permAdmin": "管理员管理",
+  "permLogs": "查看日志",
+  "permGroupOps": "运营管理",
+  "permGroupBase": "基础设置",
+  "permGroupSystem": "系统管理"
 }

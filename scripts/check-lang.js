@@ -25,7 +25,23 @@ const LOCALES_DIR = path.join(ROOT, 'locales');
 const EXPECTED_LANGS = ['zh', 'en', 'vi', 'th', 'km'];
 const BASE_LANG = 'zh';
 const STRICT = process.argv.includes('--strict');
+const CHECK_DUP = process.argv.includes('--check-dup');
 const HAS_CHINESE = /[\u4e00-\u9fa5]/;
+
+/* ===== 白名单：这些 key / 值即便跨语言相同也不算问题 ===== */
+const SAME_OK_KEYS = new Set([
+  // 打印机品牌（全球统一写法）
+  'epson', 'bixolon', 'rongta', 'xprinter', 'star', 'jiabo', 'hoin',
+  // 技术术语（无需翻译）
+  'qrCode', 'cpuUsage',
+  // 品牌标识（各类品牌名/口号）
+  'appName', 'appNameFull', 'brand', 'brandName',
+  'adminBrand', 'adminBrandFull', 'loginToBrand', 'headerTitle',
+]);
+const SAME_OK_VALUES = new Set([
+  'EPSON', 'Bixolon', 'Rongta', 'Xprinter', 'Star', 'Gprinter', 'Hoin',
+  'QR Code', 'CPU',
+]);
 
 /* 加载 JSON，文件缺失/语法错误作为硬错误抛出 */
 function loadLocales() {
@@ -91,8 +107,11 @@ function check(L) {
   }
 
   // 4. 跨语言雷同污染（仅顶层字符串，长度>=3，排除品牌/URL）
-  for (const key of baseKeys) {
+  //    默认不检查：品牌名/技术缩写/未翻译都会命中，误报率高
+  //    需要时用 --check-dup 显式启用
+  if (CHECK_DUP) for (const key of baseKeys) {
     if (key.includes('.')) continue;
+    if (SAME_OK_KEYS.has(key)) continue;
     const vals = {};
     for (const lang of EXPECTED_LANGS) {
       const v = L[lang][key];
@@ -103,6 +122,7 @@ function check(L) {
     const langList = Object.keys(vals);
     for (let i = 0; i < langList.length; i++) {
       for (let j = i + 1; j < langList.length; j++) {
+        if (SAME_OK_VALUES.has(vals[langList[i]])) continue;
         if (vals[langList[i]] === vals[langList[j]]) {
           warnings.push(`跨语言雷同: [${langList[i]}.${key}] 与 [${langList[j]}.${key}] → "${vals[langList[i]].slice(0, 20)}"`);
         }
@@ -117,7 +137,8 @@ try {
   const L = loadLocales();
   const { errors, warnings } = check(L);
 
-  console.log('🔎 语言包一致性检查\n');
+  console.log('🔎 语言包一致性检查' + (CHECK_DUP ? '（含跨语言雷同）' : '') + '\n');
+  if (!CHECK_DUP) console.log('   提示：加 --check-dup 可查看跨语言雷同\n');
 
   if (errors.length) {
     console.log(`❌ 错误 (${errors.length}):`);
