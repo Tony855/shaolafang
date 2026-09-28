@@ -23,3 +23,10 @@ Thumbs.db
 *.png
 *.jpg
 *.jpeg
+
+# --- 编辑/重构产生的临时备份 ---
+*.bak
+*.bak-*
+*.backup
+*.orig
+*.rej
