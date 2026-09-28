@@ -531,3 +531,4 @@ async function doImport() {
 window.openImportModal = openImportModal;
 window.closeImportModal = closeImportModal;
 window.confirmImport = confirmImport;
+window.closeConfirmImport = closeConfirmImport;

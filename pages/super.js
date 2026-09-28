@@ -23,12 +23,6 @@ function t(key, params, fallback) {
   }
 }
 
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
-}
-
 function changeSuperLang(lang) {
   currentLang = lang;
   SLF.i18n.lang = lang;
@@ -868,7 +862,6 @@ if (token) showApp();
     try { window.deleteMerchant = deleteMerchant; } catch(err) {}
     try { window.doLogin = doLogin; } catch(err) {}
     try { window.editMerchant = editMerchant; } catch(err) {}
-    try { window.esc = esc; } catch(err) {}
     try { window.executePasswordModal = executePasswordModal; } catch(err) {}
     try { window.exportBackup = exportBackup; } catch(err) {}
     try { window.hideConfirm = hideConfirm; } catch(err) {}
@@ -891,6 +884,8 @@ if (token) showApp();
     try { window.switchSettingsTab = switchSettingsTab; } catch(err) {}
     try { window.switchSuperLogTab = switchSuperLogTab; } catch(err) {}
     try { window.toggleSidebar = toggleSidebar; } catch(err) {}
+    try { window.changeSuperLang = changeSuperLang; } catch(err) {}
+    try { window.loadLoginLogs = loadLoginLogs; } catch(err) {}
 })();
 ;
 // ===== 在线会话/门店统计弹窗 =====
@@ -1019,7 +1014,6 @@ window.closeOnlineSessions = closeOnlineSessions;
     try { window.deleteMerchant = deleteMerchant; } catch(err) {}
     try { window.doLogin = doLogin; } catch(err) {}
     try { window.editMerchant = editMerchant; } catch(err) {}
-    try { window.esc = esc; } catch(err) {}
     try { window.executePasswordModal = executePasswordModal; } catch(err) {}
     try { window.exportBackup = exportBackup; } catch(err) {}
     try { window.hideConfirm = hideConfirm; } catch(err) {}

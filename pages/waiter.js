@@ -107,11 +107,6 @@
     }
   }
 
-  function esc(s) {
-    return String(s ?? '').replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
-  }
   const escNote = esc;
 
 
@@ -881,7 +876,6 @@
     try { window.completeWaiterOrder = completeWaiterOrder; } catch(err) {}
     try { window.confirmTransfer = confirmTransfer; } catch(err) {}
     try { window.createNewOrderFromSelect = createNewOrderFromSelect; } catch(err) {}
-    try { window.esc = esc; } catch(err) {}
     try { window.getElementById = getElementById; } catch(err) {}
     try { window.handleCall = handleCall; } catch(err) {}
     try { window.hideOrderDetail = hideOrderDetail; } catch(err) {}
@@ -898,4 +892,5 @@
     try { window.toggleFullscreen = toggleFullscreen; } catch(err) {}
     try { window.toggleSelectedItem = toggleSelectedItem; } catch(err) {}
     try { window.toggleWaiterItem = toggleWaiterItem; } catch(err) {}
+    try { window.loadOrderHistory = loadOrderHistory; } catch(err) {}
 })();

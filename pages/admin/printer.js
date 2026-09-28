@@ -175,5 +175,6 @@ window.savePrinterEdit = savePrinterEdit;
 window.togglePrinter = togglePrinter;
 window.setDefaultPrinter = setDefaultPrinter;
 window.deletePrinter = deletePrinter;
+window.toggleAutoPrint = toggleAutoPrint;
 
 })();
