@@ -443,7 +443,7 @@ install_single() {
         log_info "自动配置数据库（首次安装）..."
         SKIP_DB_INIT=0
     fi
-    DEFAULT_DB_NAME="ordering_system"
+    DEFAULT_DB_NAME="foodflow_system"
     log_info "数据库名: $DEFAULT_DB_NAME"
 
     DB_RANDOM_PASSWORD=$(head -c 16 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 16)
