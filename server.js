@@ -958,7 +958,17 @@ async function initDatabase() {
     'max_order_items': '50',
     'max_item_quantity': '100',
     'max_order_note_length': '200',
-    'order_no_reset_period': 'never'
+    'order_no_reset_period': 'never',
+    'admin_idle_timeout': '30',
+    'cashier_idle_timeout': '30',
+    'kitchen_idle_timeout': '30',
+    'super_idle_timeout': '30',
+    'waiter_session_timeout': '24',
+    'cashier_session_timeout': '12',
+    'clean_login_log': '0',
+    'clean_audit_log': '0',
+    'super_ip_whitelist': '',
+    'admin_access_key': ''
   };
   for (const [key, value] of Object.entries(prefixDefaults)) {
     await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=value", [key, value]);
