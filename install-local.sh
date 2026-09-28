@@ -183,7 +183,7 @@ echo ""
 log_info "自动配置数据库..."
 
 # 7.1 数据库名（固定，不做不可靠的自动检测）
-DEFAULT_DB_NAME="ordering_system"
+DEFAULT_DB_NAME="foodflow_system"
 log_info "数据库名: $DEFAULT_DB_NAME"
 
 # 7.2 生成随机密码
