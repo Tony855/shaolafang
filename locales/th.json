@@ -927,5 +927,21 @@
   "addAdminPasswordLabel": "รหัสผ่าน (อย่างน้อย 6 ตัว)",
   "addAdminDisplayNameLabel": "ชื่อที่แสดง",
   "createNewOrder": "สั่งใหม่",
-  "urgeNotifications": "แจ้งเตือนเร่งอาหาร"
+  "urgeNotifications": "แจ้งเตือนเร่งอาหาร",
+  "limitItemTypes": "สูงสุด {max} ประเภทต่อออเดอร์",
+  "limitItemQty": "{name}: สูงสุด {max} ที่",
+  "limitNoteLength": "หมายเหตุสูงสุด {max} ตัวอักษร",
+  "loggingIn": "กำลังเข้าสู่ระบบ...",
+  "noItems": "ไม่มีเมนู",
+  "oldPassword": "รหัสผ่านเก่า",
+  "saved": "บันทึกแล้ว",
+  "store": "ร้านค้า",
+  "unknownStore": "ร้านค้าไม่ทราบชื่อ",
+  "calls": "ข้อความลูกค้า",
+  "menu": "เมนู",
+  "orders": "ออเดอร์",
+  "reports": "รายงาน",
+  "reservations": "การจอง",
+  "stores": "ร้านค้า",
+  "tables": "โต๊ะ"
 }

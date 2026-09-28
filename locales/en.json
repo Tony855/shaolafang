@@ -927,5 +927,21 @@
     "logout": "Logout"
   },
   "createNewOrder": "New Order",
-  "urgeNotifications": "Urge Notifications"
+  "urgeNotifications": "Urge Notifications",
+  "limitItemTypes": "Max {max} item types per order",
+  "limitItemQty": "{name}: max {max} portions",
+  "limitNoteLength": "Note max {max} characters",
+  "loggingIn": "Logging in...",
+  "noItems": "No items",
+  "oldPassword": "Old Password",
+  "saved": "Saved",
+  "store": "Store",
+  "unknownStore": "Unknown Store",
+  "calls": "Customer Messages",
+  "menu": "Menu",
+  "orders": "Orders",
+  "reports": "Reports",
+  "reservations": "Reservations",
+  "stores": "Stores",
+  "tables": "Tables"
 }

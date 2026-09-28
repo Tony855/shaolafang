@@ -927,5 +927,21 @@
   "permLogs": "查看日志",
   "permGroupOps": "运营管理",
   "permGroupBase": "基础设置",
-  "permGroupSystem": "系统管理"
+  "permGroupSystem": "系统管理",
+  "limitItemTypes": "最多 {max} 种菜品",
+  "limitItemQty": "{name} 最多 {max} 份",
+  "limitNoteLength": "备注最多 {max} 字",
+  "loggingIn": "登录中...",
+  "noItems": "没有菜品",
+  "oldPassword": "旧密码",
+  "saved": "已保存",
+  "store": "店铺",
+  "unknownStore": "未知店铺",
+  "calls": "顾客消息",
+  "menu": "菜品",
+  "orders": "订单",
+  "reports": "报表",
+  "reservations": "预约",
+  "stores": "店铺",
+  "tables": "桌号"
 }

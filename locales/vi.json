@@ -927,5 +927,21 @@
   "addAdminPasswordLabel": "Mật khẩu (tối thiểu 6 ký tự)",
   "addAdminDisplayNameLabel": "Tên hiển thị",
   "createNewOrder": "Tạo đơn mới",
-  "urgeNotifications": "Thông báo nhắc nhở"
+  "urgeNotifications": "Thông báo nhắc nhở",
+  "limitItemTypes": "Tối đa {max} loại món mỗi đơn",
+  "limitItemQty": "{name}: tối đa {max} phần",
+  "limitNoteLength": "Ghi chú tối đa {max} ký tự",
+  "loggingIn": "Đang đăng nhập...",
+  "noItems": "Không có món",
+  "oldPassword": "Mật khẩu cũ",
+  "saved": "Đã lưu",
+  "store": "Cửa hàng",
+  "unknownStore": "Cửa hàng không xác định",
+  "calls": "Tin nhắn khách hàng",
+  "menu": "Thực đơn",
+  "orders": "Đơn hàng",
+  "reports": "Báo cáo",
+  "reservations": "Đặt chỗ",
+  "stores": "Cửa hàng",
+  "tables": "Bàn"
 }

@@ -927,5 +927,21 @@
   "addAdminModalTitle": "បន្ថែមអ្នកគ្រប់គ្រង",
   "addAdminUsernameLabel": "ឈ្មោះគណនី",
   "addAdminPasswordLabel": "ពាក្យសម្ងាត់ (យ៉ាងតិច 6 តួ)",
-  "addAdminDisplayNameLabel": "ឈ្មោះបង្ហាញ"
+  "addAdminDisplayNameLabel": "ឈ្មោះបង្ហាញ",
+  "limitItemTypes": "អតិបរមា {max} ប្រភេទក្នុងមួយការបញ្ជាទិញ",
+  "limitItemQty": "{name}: អតិបរមា {max} ចំណែក",
+  "limitNoteLength": "ចំណាំអតិបរមា {max} តួអក្សរ",
+  "loggingIn": "កំពុងចូល...",
+  "noItems": "គ្មានមុខម្ហូប",
+  "oldPassword": "ពាក្យសម្ងាត់ចាស់",
+  "saved": "បានរក្សាទុក",
+  "store": "ហាង",
+  "unknownStore": "ហាងមិនស្គាល់",
+  "calls": "សារអតិថិជន",
+  "menu": "ម៉ឺនុយ",
+  "orders": "ការបញ្ជាទិញ",
+  "reports": "របាយការណ៍",
+  "reservations": "ការកក់",
+  "stores": "ហាង",
+  "tables": "តុ"
 }
