@@ -16,7 +16,7 @@
 
     SLF.i18n.init(currentLang);
 
-    // 统一 t()：带 fallback（与其他页面一致）
+    // 修复：删除重复的 return
     function t(key, params, fallback) {
       const v = SLF.i18n.t(key, params);
       if (v === undefined || v === null || v === key) {
@@ -34,6 +34,13 @@
       const qty = Number(item.quantity || 0) - Number(item.returnedQty || 0);
       return itemBasePrice(item) * qty;
     }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
 
     function goLogin() {
       window.location.href = '/login?type=cashier';
@@ -68,14 +75,19 @@
     }).catch(() => {});
 
     async function changeLang(lang) {
-      currentLang = lang;
-      SLF.store.rawSet('cashierLang', lang);
-      SLF.store.rawSet('lang', lang);
-      await SLF.i18n.init(lang);
-      applyLang();
-      renderOrders();
-      loadOrders();
-      if (currentTab === 'report') loadReport();
+      try {
+        currentLang = lang;
+        SLF.store.rawSet('cashierLang', lang);
+        SLF.store.rawSet('lang', lang);
+        await SLF.i18n.init(lang);
+        applyLang();
+        renderOrders();
+        loadOrders();
+        if (currentTab === 'report') loadReport();
+      } catch (e) {
+        console.error('[changeLang] 切换失败:', e);
+        try { SLF.i18n.lang = lang; applyLang(); } catch (_) {}
+      }
     }
 
     function applyLang() {
@@ -104,12 +116,16 @@
       document.getElementById('confirmOkBtn').textContent = t('confirm');
 
       // 刷新 storeName（切语言时同步）
-      if (cashierInfo && cashierInfo.storeName) {
-        document.getElementById('storeName').textContent = cashierInfo.storeName;
-      } else {
-        const storeId = SLF.store.rawGet('cashierStoreId') || '1';
-        document.getElementById('storeName').textContent = t('store') + ' #' + storeId;
+      var _sn = document.getElementById('storeName');
+      if (_sn) {
+        if (cashierInfo && cashierInfo.storeName) {
+          _sn.textContent = cashierInfo.storeName;
+        } else {
+          var _sid = SLF.store.rawGet('cashierStoreId') || '1';
+          _sn.textContent = t('store') + ' #' + _sid;
+        }
       }
+    }
 
     function switchTab(tab) {
       currentTab = tab;
@@ -146,6 +162,8 @@
         } else {
           SLF.ui.toast('❌ ' + e.message);
         }
+      }
+    }
 
     // 根据 customer_token 分组生成客户标签
     function buildSessionLabels(orderList) {
@@ -165,6 +183,7 @@
             labels.set(o.id, t('staffOrder'));
           }
         });
+      });
       return labels;
     }
 
@@ -233,6 +252,7 @@
               (canCancel ? '<button class="btn btn-warning" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'cancel'" + ')">' + t('cancelOrder') + '</button>' : '') +
               (canRefund ? '<button class="btn btn-danger" onclick="refundOrder(' + order.id + ')">' + t('refundOrder') + '</button>' : '') +
             '</div>' +
+          '</div>' +
         '</div>';
       }).join('');
     }
@@ -338,6 +358,7 @@
         hideConfirm();
         cb();
       }
+    }
 
     let selectedIds = new Set();
     function toggleSelect(id) {
@@ -356,6 +377,7 @@
       } else {
         bar.style.display = 'none';
       }
+    }
     function filterByTable() { renderOrders(); }
     function toggleSelectAll() {
       const cb = document.getElementById('selectAll');
@@ -436,6 +458,7 @@
               '<div class="report-stat"><div class="report-stat-value">' + data.orderCount + '</div><div class="report-stat-label">' + t('orderCount') + '</div></div>' +
               '<div class="report-stat"><div class="report-stat-value">' + avgDisplay + '</div><div class="report-stat-label">' + t('avgOrderValue') + '</div></div>' +
             '</div>' +
+          '</div>' +
           (data.orders && data.orders.length ? '<div class="modal-section-title" style="margin-bottom:8px;">' + t('settledOrdersTitle') + '</div>' + data.orders.map(o =>
             '<div class="dish-item"><span class="dish-name">📋 ' + esc(o.table_name || '-') + ' · ' + formatTime(o.createdAt) + '</span><span class="dish-price">' + SLF.money.format(Number(o.total) || 0) + '</span></div>'
           ).join('') : '<div class="empty-hint">' + t('noSettledToday') + '</div>');
@@ -445,6 +468,8 @@
         } else {
           SLF.ui.toast('❌ ' + e.message);
         }
+      }
+    }
 
     function formatTime(iso) {
       if (!iso) return '-';
@@ -484,6 +509,7 @@
       } catch (e) {
         console.error(e);
       }
+    }
 
     document.getElementById('orderDetailModal').addEventListener('click', function(e) {
       if (e.target === this) closeOrderDetail();
@@ -530,7 +556,7 @@
     try { window.showOrderDetail = showOrderDetail; } catch(err) {}
     try { window.switchTab = switchTab; } catch(err) {}
     try { window.toggleSelect = toggleSelect; } catch(err) {}
+    try { window.changeLang = changeLang; } catch(err) {}
     try { window.filterByTable = filterByTable; } catch(err) {}
     try { window.toggleSelectAll = toggleSelectAll; } catch(err) {}
-    try { window.changeLang = changeLang; } catch(err) {}
 })();
