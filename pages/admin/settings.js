@@ -38,7 +38,7 @@ async function loadOrderPrefixes() {
     $('#prefixRefund').value = d.order_prefix_refund || '01';
     $('#prefixDiscount').value = d.order_prefix_discount || '21';
     $('#prefixVip').value = d.order_prefix_vip || '61';
-    $('#orderResetPeriod').value = d.order_no_reset_period || 'daily';
+    $('#orderResetPeriod').value = d.order_no_reset_period || 'never';
   } catch (e) {}
 }
 async function saveOrderPrefixes() {

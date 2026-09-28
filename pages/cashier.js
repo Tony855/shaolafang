@@ -70,11 +70,11 @@
       if (cfg.cashier_idle_timeout) SLF.idle.update(cfg.cashier_idle_timeout, cashierIdleLogout);
     }).catch(() => {});
 
-    function changeLang(lang) {
+    async function changeLang(lang) {
       currentLang = lang;
       SLF.store.rawSet('cashierLang', lang);
       SLF.store.rawSet('lang', lang);
-      SLF.i18n.init(lang);
+      await SLF.i18n.init(lang);
       applyLang();
       renderOrders();
       loadOrders();

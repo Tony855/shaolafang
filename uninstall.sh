@@ -73,7 +73,7 @@ elif mysql -u root -e "SELECT 1" 2>/dev/null; then
 fi
 
 if [ -n "$MYSQL_CMD" ]; then
-    $MYSQL_CMD -e "DROP DATABASE IF EXISTS foodflow_system;" 2>/dev/null || true
+    $MYSQL_CMD -e "DROP DATABASE IF EXISTS ordering_system;" 2>/dev/null || true
     $MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'localhost';" 2>/dev/null || true
     $MYSQL_CMD -e "DROP USER IF EXISTS 'foodflow'@'127.0.0.1';" 2>/dev/null || true
     log_success "数据库和用户已删除"
@@ -96,7 +96,7 @@ echo "  - systemd 服务 foodflow"
 echo "  - Nginx 配置 /etc/nginx/conf.d/foodflow.conf"
 echo "  - 应用目录 /var/www/foodflow*"
 echo "  - 配置目录 /etc/foodflow"
-echo "  - 数据库 foodflow_system"
+echo "  - 数据库 ordering_system"
 echo "  - 数据库用户 foodflow"
 echo "  - 自动备份计划任务"
 echo ""
