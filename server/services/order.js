@@ -2,7 +2,7 @@
    server/services/order.js — 订单辅助函数
    ============================================================ */
 const { getAsync } = require('../db/helpers');
-const { verifyPassword } = require('../middleware/auth');
+const { verifyPassword } = require('../middleware/password');
 
 function formatOrder(row) {
   let items = row.items;

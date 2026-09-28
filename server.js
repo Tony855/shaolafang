@@ -1,5 +1,3 @@
-const { requireSuperAdmin } = require('./server/middleware/auth.js');
-const { requireCashier } = require('./server/middleware/auth.js');
 const express = require('express');
 const { AsyncLocalStorage } = require('async_hooks');
 
@@ -126,43 +124,45 @@ async function checkAndSetCooldown(key, cooldownMs) {
   return true;
 }
 
+// ---------- 模块化引入（从 server/services 引入） ----------
+const { getClientIp, getLocationByIp } = require('./server/services/geo');
+const { hashPassword, verifyPassword } = require('./server/middleware/password');
+const {
+  EscPosBuilder,
+  buildReceipt,
+  buildBatchReceipt,
+  buildKitchenTicket,
+  printToNetworkPrinter,
+} = require('./server/services/printer');
+
+const {
+  formatOrder,
+  normalizeOrderItems,
+  assertTableExists,
+  verifyLegacyAdminPassword,
+} = require('./server/services/order');
+const { getOrderCooldownMs } = require('./server/services/orderNo');
+
+const {
+  collectBackupData,
+  autoBackupDatabase,
+  maybeAutoBackup,
+  autoCleanLogs,
+} = require('./server/services/backup');
+
+const {
+  getWaiterFromRequest,
+  getCashierFromRequest,
+  authenticateAdmin,
+  requireAdminKey,
+  requirePermission,
+  logAudit,
+  requireAdminOrWaiter,
+} = require('./server/middleware/admin-auth');
+const { requireSuperAdmin, requireCashier } = require('./server/middleware/auth');
+
 // ---------- 获取真实客户端IP ----------
-function getClientIp(req) {
-  const xff = req.headers['x-forwarded-for'];
-  if (xff) {
-    const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
-    if (ips.length > 0) return ips[0];
-  }
-  const xri = req.headers['x-real-ip'];
-  if (xri) return xri.trim();
-  return req.ip || req.connection.remoteAddress || 'unknown';
-}
-
 // ---------- IP地理位置查询 ----------
-const ipLocationCache = new Map();
-async function getLocationByIp(ip) {
-  if (!ip || ip === '127.0.0.1' || ip === '::1' || ip === 'unknown') return '本地/内网';
-  if (ipLocationCache.has(ip)) return ipLocationCache.get(ip);
-  try {
-    const http = require('http');
-    const url = 'http://ip-api.com/json/' + ip + '?lang=zh-CN&fields=status,country,regionName,city';
-    const result = await new Promise((resolve, reject) => {
-      http.get(url, { timeout: 3000 }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
-      }).on('error', reject).on('timeout', () => reject(new Error('timeout')));
-    });
-    if (result.status === 'success') {
-      const location = (result.country || '') + ' ' + (result.regionName || '') + ' ' + (result.city || '');
-      const trimmed = location.trim() || '未知';
-      ipLocationCache.set(ip, trimmed);
-      return trimmed;
-    }
-    return '未知';
-  } catch (e) { return '未知'; }
-}
-
 // ---------- 中间件 ----------
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -260,29 +260,7 @@ async function withTransaction(work) {
 }
 
 // ---------- 常量 ----------
-async function getOrderCooldownMs() {
-  try {
-    const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'order_interval_seconds'");
-    const seconds = parseInt(setting?.value || '30', 10);
-    return Math.max(0, Math.min(3600, seconds)) * 1000;
-  } catch (e) {
-    return 30 * 1000;
-  }
-}
-
 const createTableToken = () => crypto.randomBytes(12).toString('base64url');
-
-function hashPassword(pwd) {
-  return bcrypt.hashSync(pwd, 10);
-}
-
-function verifyPassword(pwd, hash) {
-  if (!hash) return false;
-  if (hash.startsWith('$2')) {
-    return bcrypt.compareSync(pwd, hash);
-  }
-  return crypto.createHash('sha256').update(pwd).digest('hex') === hash;
-}
 
 // ---------- 登录限流器 ----------
 const loginAttempts = new Map();
@@ -975,6 +953,8 @@ async function initDatabase() {
   }
   console.log('  + System settings defaults initialized');
 
+  await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '1') ON DUPLICATE KEY UPDATE value='1'");
+  await runAsync("INSERT INTO settings (`key`, value) VALUES ('secondary_currency_code', 'KHR') ON DUPLICATE KEY UPDATE value='KHR'");
 
   await rebaseCurrencyToUSDOnce();
   await ensureOrderTables();
@@ -993,529 +973,9 @@ async function initDatabase() {
 }
 
 // ---------- ESC/POS 打印工具 ----------
-class EscPosBuilder {
-  constructor(paperWidth) {
-    this.width = paperWidth || 58;
-    this.charsPerLine = this.width === 80 ? 48 : 32;
-    this.buffer = Buffer.alloc(0);
-  }
-  _append(bytes) { this.buffer = Buffer.concat([this.buffer, Buffer.from(bytes)]); return this; }
-  init() { return this._append([0x1b, 0x40]); }
-  align(n) { return this._append([0x1b, 0x61, n]); }
-  font(n) { return this._append([0x1b, 0x4d, n]); }
-  bold(on) { return this._append([0x1b, 0x45, on ? 1 : 0]); }
-  doubleHeight(on) { return this._append([0x1b, 0x21, on ? 0x10 : 0x00]); }
-  doubleWidth(on) { return this._append([0x1b, 0x21, on ? 0x20 : 0x00]); }
-  big(on) { return this._append([0x1b, 0x21, on ? 0x30 : 0x00]); }
-  underline(on) { return this._append([0x1b, 0x2d, on ? 1 : 0]); }
-  text(str) { return this._append(Buffer.from(str, 'utf8')); }
-  line(str) { return this.text(str || '').newline(); }
-  newline(n = 1) { for (let i = 0; i < n; i++) this._append([0x0a]); return this; }
-  feed(n = 3) { return this._append([0x1b, 0x4a, n]); }
-  cut(mode = 1) { this.feed(3); return this._append([0x1d, 0x56, mode ? 1 : 0]); }
-  separator(char = '-') { return this.line(char.repeat(this.charsPerLine)); }
-  twoColumn(left, right) {
-    const leftStr = String(left || '');
-    const rightStr = String(right || '');
-    const leftWidth = [...leftStr].reduce((sum, c) => sum + (/[\u4e00-\u9fa5]/.test(c) ? 2 : 1), 0);
-    const rightWidth = [...rightStr].reduce((sum, c) => sum + (/[\u4e00-\u9fa5]/.test(c) ? 2 : 1), 0);
-    const spaces = Math.max(1, this.charsPerLine - leftWidth - rightWidth);
-    return this.line(leftStr + ' '.repeat(spaces) + rightStr);
-  }
-  barcode(code, type = 2) {
-    this._append([0x1d, 0x6b, type]);
-    this._append(Buffer.from(code, 'ascii'));
-    this._append([0x00]);
-    return this;
-  }
-  qrCode(text) {
-    const data = Buffer.from(text, 'utf8');
-    const len = data.length + 3;
-    const pL = len & 0xff;
-    const pH = (len >> 8) & 0xff;
-    this._append([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, 0x08]);
-    this._append([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x41, 0x32, 0x00]);
-    this._append([0x1d, 0x28, 0x6b, pL, pH, 0x31, 0x50, 0x30]);
-    this._append(data);
-    this._append([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30]);
-    return this;
-  }
-  cashDrawer() { return this._append([0x1b, 0x70, 0x00, 0x40, 0xff]); }
-  build() { return this.buffer; }
-}
-
-function buildReceipt(order, store, printer) {
-  const width = printer?.paper_width || 58;
-  const pos = new EscPosBuilder(width);
-  pos.init();
-  pos.align(1);
-  pos.big(true);
-  pos.line(store?.name || 'FoodFlow');
-  pos.big(false);
-  pos.newline();
-  if (store?.address) { pos.font(1); pos.line(store.address); pos.font(0); }
-  pos.separator('=');
-  pos.newline();
-  pos.align(0);
-  pos.twoColumn('订单号:', `#${order.id}`);
-  pos.twoColumn('桌号:', order.table);
-  pos.twoColumn('时间:', formatGlobalDateTime(order.createdAt));
-  if (order.note) pos.line(`备注: ${order.note}`);
-  pos.separator();
-  pos.line('菜品');
-  pos.separator('-');
-  for (const item of order.items) {
-    const name = item.name.length > 16 ? item.name.slice(0, 15) + '..' : item.name;
-    pos.twoColumn(`${item.emoji || ''}${name} x${item.quantity}`, `$${((Number(item.base_price) || Number(item.price) || 0) * item.quantity).toFixed(2)}`);
-  }
-  pos.separator();
-  pos.align(2);
-  pos.bold(true);
-  pos.line(`合计: $${Number(order.total).toFixed(2)}`);
-  pos.bold(false);
-  pos.newline();
-  pos.align(1);
-  pos.line('谢谢惠顾，欢迎再次光临！');
-  pos.newline(2);
-  try { pos.qrCode(`order:${order.id}`); pos.newline(); } catch (e) {}
-  pos.cut(1);
-  return pos.build();
-}
-
-function buildBatchReceipt(orders, store, printer) {
-  const width = printer?.paper_width || 58;
-  const pos = new EscPosBuilder(width);
-  const tableName = orders[0]?.table_name || '';
-  const total = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
-  pos.init();
-  pos.align(1); pos.big(true);
-  pos.line(store?.name || 'FoodFlow');
-  pos.big(false); pos.newline();
-  if (store?.address) { pos.font(1); pos.line(store.address); pos.font(0); }
-  pos.separator('='); pos.newline();
-  pos.align(0);
-  pos.twoColumn('桌号:', tableName);
-  pos.twoColumn('订单数:', String(orders.length));
-  pos.twoColumn('时间:', formatGlobalDateTime(new Date().toISOString()));
-  pos.separator();
-  const mergedItems = {};
-  for (const o of orders) {
-    const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
-    for (const item of items) {
-      const key = item.name;
-      if (!mergedItems[key]) mergedItems[key] = { ...item };
-      else mergedItems[key].quantity += item.quantity;
-    }
-  }
-  pos.line('菜品清单');
-  pos.separator('-');
-  for (const item of Object.values(mergedItems)) {
-    const name = item.name.length > 16 ? item.name.slice(0, 15) + '..' : item.name;
-    pos.twoColumn((item.emoji || '') + name + ' x' + item.quantity, '$' + ((Number(item.base_price) || Number(item.price) || 0) * item.quantity).toFixed(2));
-  }
-  pos.separator();
-  pos.align(2); pos.bold(true);
-  pos.line('合计: $' + total.toFixed(2));
-  pos.bold(false); pos.newline();
-  pos.align(1);
-  pos.line('谢谢惠顾，欢迎再次光临！');
-  pos.newline(2); pos.cut(1);
-  return pos.build();
-}
-
-function buildKitchenTicket(order, store, printer) {
-  const width = printer?.paper_width || 58;
-  const pos = new EscPosBuilder(width);
-  pos.init();
-  pos.align(1);
-  pos.big(true);
-  pos.line('后厨订单');
-  pos.big(false);
-  pos.newline();
-  pos.separator('=');
-  pos.align(0);
-  pos.twoColumn('桌号:', order.table);
-  pos.twoColumn('订单号:', `#${order.id}`);
-  pos.twoColumn('时间:', formatGlobalTime(order.createdAt));
-  if (order.note) pos.line(`备注: ${order.note}`);
-  pos.separator();
-  const pendingItems = order.items.filter(i => i.itemStatus !== 'done');
-  for (const item of pendingItems) {
-    pos.bold(true);
-    pos.line(`${item.emoji || ''} ${item.name} x${item.quantity}`);
-    pos.bold(false);
-  }
-  pos.newline(3);
-  pos.cut(1);
-  return pos.build();
-}
-
-async function printToNetworkPrinter(data, ip, port) {
-  return new Promise((resolve, reject) => {
-    const socket = new net.Socket();
-    const timeout = 10000;
-    socket.setTimeout(timeout);
-    socket.on('timeout', () => { socket.destroy(); reject(new Error('打印机连接超时')); });
-    socket.on('error', (err) => { reject(new Error(`打印机连接失败: ${err.message}`)); });
-    socket.connect(port || 9100, ip, () => {
-      socket.write(data, () => {
-        setTimeout(() => { socket.destroy(); resolve(true); }, 500);
-      });
-    });
-  });
-}
-
 // ---------- 辅助函数 ----------
-function formatOrder(row) {
-  let items = row.items;
-  let dataCorrupted = false;
-  if (typeof items === 'string') {
-    try { items = JSON.parse(items); } catch (_) {
-      console.warn(`订单 ${row.id} 的 items 解析失败，原始内容:`, items);
-      items = []; dataCorrupted = true;
-    }
-  } else if (!Array.isArray(items)) {
-    items = []; dataCorrupted = true;
-  }
-  for (const item of items) {
-    if (!item.itemStatus) item.itemStatus = 'pending';
-  }
-  return {
-    id: row.id,
-    table: row.table_name,
-    order_no: row.order_no || '',
-    table_name: row.table_name,
-    items,
-    total: row.total,
-    status: row.status,
-    createdAt: row.createdAt,
-    sessionToken: row.session_token || '',
-    customerToken: row.customer_token || '',
-    note: row.note || '',
-    dataCorrupted
-  };
-}
-
-async function normalizeOrderItems(items, storeId) {
-  if (!Array.isArray(items) || items.length === 0) throw new Error('订单至少需要一道菜品');
-  const normalized = [];
-  for (const item of items) {
-    const menuId = Number(item.id);
-    const quantity = Number(item.quantity);
-    if (!Number.isInteger(menuId) || !Number.isInteger(quantity) || quantity <= 0) {
-      throw new Error('菜品或数量无效');
-    }
-    const menuItem = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [menuId, storeId || 1]);
-    if (!menuItem) throw new Error(`菜品不存在（ID: ${menuId}）`);
-    const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [menuItem.store_id || 1]);
-    if (!store) throw new Error(`菜品所属店铺不存在（ID: ${menuItem.store_id}）`);
-    const currency = await getAsync('SELECT code, rate FROM currencies WHERE code=? AND merchant_id=?', [menuItem.currency_code || 'USD', store.merchant_id]);
-    if (!currency || !(Number(currency.rate) > 0)) throw new Error(`菜品货币无效（${menuItem.currency_code || 'CNY'}）`);
-    normalized.push({
-      id: menuItem.id,
-      name: menuItem.name,
-      price: menuItem.price,
-      currency_code: currency.code,
-      base_price: Number(menuItem.price) / Number(currency.rate),
-      quantity,
-      emoji: menuItem.emoji || '🍽️',
-      itemStatus: item.itemStatus || 'pending',
-      show_dual: item.show_dual || menuItem.show_dual || (item.secondary_currency_code || menuItem.secondary_currency_code ? 1 : 0),
-      secondary_currency_code: item.secondary_currency_code || menuItem.secondary_currency_code || '',
-      unit: item.unit || menuItem.unit || '份'
-    });
-  }
-  return normalized;
-}
-
-async function assertTableExists(table, storeId) {
-  const normalized = String(table || '').trim();
-  if (!normalized) throw new Error('请选择桌号');
-  const existing = await getAsync('SELECT name FROM tables WHERE name = ? AND store_id = ?', [normalized, storeId || 1]);
-  if (!existing) throw new Error('桌号不存在');
-  return normalized;
-}
-
-async function verifyLegacyAdminPassword(inputPwd) {
-  const row = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
-  if (!row || !row.value) return false;
-  return verifyPassword(inputPwd, row.value);
-}
-
-async function getWaiterFromRequest(req) {
-  const token = req.get('X-Waiter-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
-  if (!token) return null;
-  const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-  if (!session || new Date(session.expires_at).getTime() <= Date.now()) return null;
-  return await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
-}
-
-async function getCashierFromRequest(req) {
-  const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
-  if (!token) return null;
-  const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
-  if (!session || new Date(session.expires_at).getTime() <= Date.now()) return null;
-  const cashiersData = await getAsync('SELECT value FROM settings WHERE `key` = ?', ['cashiers_' + session.store_id]);
-  if (!cashiersData) return null;
-  let cashiers = [];
-  try { cashiers = JSON.parse(cashiersData.value); } catch (e) { return null; }
-  const cashier = cashiers.find(c => String(c.id) === String(session.cashier_id) && c.active);
-  if (!cashier) return null;
-  return { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
-}
-
-async function authenticateAdmin(req) {
-  const authHeader = req.get('Authorization') || '';
-  const token = authHeader.replace(/^Bearer\s+/i, '');
-  if (token) {
-    const session = await getAsync('SELECT * FROM admin_sessions WHERE token=?', [token]);
-    if (session) {
-      if (new Date(session.expires_at).getTime() <= Date.now()) {
-        await runAsync('DELETE FROM admin_sessions WHERE token=?', [token]).catch(() => {});
-        return { error: '登录已过期，请重新登录' };
-      }
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [session.admin_id]);
-      if (admin) {
-        const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
-        if (merchant) {
-          let requestedStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
-          let validStoreId = null;
-          if (requestedStoreId > 0) {
-            const storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
-            if (storeCheck) validStoreId = requestedStoreId;
-            else {
-              const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-              if (!firstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
-              validStoreId = firstStore.id;
-            }
-          } else {
-            const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-            if (!firstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
-            validStoreId = firstStore.id;
-          }
-          const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
-          const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
-          const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
-          runAsync('UPDATE admin_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
-          return { adminId: admin.id, merchantId: admin.merchant_id, storeId: validStoreId, sessionToken: token };
-        }
-      }
-    }
-    try {
-      const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-      if (payload.adminId) {
-        const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [payload.adminId]);
-        if (admin) {
-          const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
-          if (merchant) {
-            let legacyStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
-            let legacyValidStoreId = null;
-            if (legacyStoreId > 0) {
-              const legacyStoreCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [legacyStoreId, admin.merchant_id]);
-              if (legacyStoreCheck) legacyValidStoreId = legacyStoreId;
-              else {
-                const legacyFirstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-                if (!legacyFirstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
-                legacyValidStoreId = legacyFirstStore.id;
-              }
-            } else {
-              const legacyFirstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-              if (!legacyFirstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
-              legacyValidStoreId = legacyFirstStore.id;
-            }
-            return { adminId: admin.id, merchantId: admin.merchant_id, storeId: legacyValidStoreId };
-          }
-        }
-      }
-    } catch (e) { /* 不是旧格式token */ }
-  }
-  const providedKey = req.get('X-Admin-Key');
-  const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
-  if (providedKey && setting && providedKey === setting.value) {
-    return { storeId: parseInt(req.get('X-Store-Id') || '1', 10) };
-  }
-  return null;
-}
-
-async function requireAdminKey(req, res, next) {
-  const result = await authenticateAdmin(req);
-  if (result && result.error) return res.status(401).json({ error: result.error });
-  if (result) {
-    req.adminId = result.adminId;
-    req.merchantId = result.merchantId;
-    req.adminSessionToken = result.sessionToken;
-    req.storeId = result.storeId || 0;
-    if (!req.storeId) {
-      return res.status(401).json({ error: '未选择有效店铺，请重新登录' });
-    }
-    try {
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [result.adminId]);
-      if (admin) {
-        const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [result.merchantId]);
-        req.isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
-        req.adminPermissions = {
-          can_manage_menu: req.isPrimaryAdmin || admin.can_manage_menu ? 1 : 0,
-          can_manage_table: req.isPrimaryAdmin || admin.can_manage_table ? 1 : 0,
-          can_manage_order: req.isPrimaryAdmin || admin.can_manage_order ? 1 : 0,
-          can_delete_order: req.isPrimaryAdmin || admin.can_delete_order ? 1 : 0,
-          can_edit_order: req.isPrimaryAdmin || admin.can_edit_order ? 1 : 0,
-          can_manage_store: req.isPrimaryAdmin || admin.can_manage_store ? 1 : 0,
-          can_manage_waiter: req.isPrimaryAdmin || admin.can_manage_waiter ? 1 : 0,
-          can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
-          can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
-          can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
-        };
-      }
-    } catch (e) { console.warn('加载管理员权限失败:', e.message); }
-    return next();
-  }
-  return res.status(401).json({ error: '未登录或登录已过期' });
-}
-
-function requirePermission(permKey) {
-  return function(req, res, next) {
-    if (req.isPrimaryAdmin || (req.adminPermissions && req.adminPermissions[permKey])) {
-      return next();
-    }
-    return res.status(403).json({ error: '没有操作权限' });
-  };
-}
-
-async function logAudit(actorType, actorId, actorUsername, action, targetType, targetId, details, ip) {
-  try {
-    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [actorType, actorId || null, actorUsername || '', action, targetType || null, targetId || null, details || '', ip || '', new Date().toISOString()]);
-  } catch (e) { console.warn('审计日志记录失败:', e.message); }
-}
-
-async function requireAdminOrWaiter(req, res, next) {
-  const adminResult = await authenticateAdmin(req);
-  if (adminResult && adminResult.error) return res.status(401).json({ error: adminResult.error });
-  if (adminResult) {
-    req.adminId = adminResult.adminId;
-    req.merchantId = adminResult.merchantId;
-    req.isAdmin = true;
-    req.adminSessionToken = adminResult.sessionToken;
-    req.storeId = adminResult.storeId;
-    try {
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [adminResult.adminId]);
-      if (admin) {
-        const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [adminResult.merchantId]);
-        req.isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
-        req.adminPermissions = {
-          can_manage_menu: req.isPrimaryAdmin || admin.can_manage_menu ? 1 : 0,
-          can_manage_table: req.isPrimaryAdmin || admin.can_manage_table ? 1 : 0,
-          can_manage_order: req.isPrimaryAdmin || admin.can_manage_order ? 1 : 0,
-          can_delete_order: req.isPrimaryAdmin || admin.can_delete_order ? 1 : 0,
-          can_edit_order: req.isPrimaryAdmin || admin.can_edit_order ? 1 : 0,
-          can_manage_store: req.isPrimaryAdmin || admin.can_manage_store ? 1 : 0,
-          can_manage_waiter: req.isPrimaryAdmin || admin.can_manage_waiter ? 1 : 0,
-          can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
-          can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
-          can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
-        };
-      }
-    } catch (e) { console.warn('加载管理员权限失败:', e.message); }
-    return next();
-  }
-  const authHeader = req.get('Authorization') || '';
-  const bearerToken = authHeader.replace(/^Bearer\s+/i, '');
-  const token = req.get('X-Waiter-Token') || bearerToken;
-  if (token) {
-    const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-    if (session && new Date(session.expires_at).getTime() > Date.now()) {
-      const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
-      if (waiter) {
-        req.waiter = waiter;
-        req.waiterStoreId = waiter.store_id || 1;
-        req.isAdmin = false;
-        const expiresTime = new Date(session.expires_at).getTime();
-        if (expiresTime - Date.now() < 60 * 60 * 1000) {
-          const wTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
-          const wTimeoutHours = parseInt(wTimeoutSetting?.value || '12', 10);
-          const newExpires = new Date(Date.now() + wTimeoutHours * 60 * 60 * 1000).toISOString();
-          runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(()=>{});
-        }
-        return next();
-      }
-    }
-  }
-  return res.status(401).json({ error: '无操作权限' });
-}
-
 // ---------- 自动备份 ----------
-async function collectBackupData() {
-  const tables = ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
-  const data = { exportedAt: new Date().toISOString(), tables: {} };
-  for (const table of tables) {
-    data.tables[table] = await allAsync(`SELECT * FROM \`${table}\``);
-  }
-  return data;
-}
-
-async function autoBackupDatabase() {
-  const backupDir = path.join(__dirname, 'backups');
-  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-  const data = await collectBackupData();
-  const filename = path.join(backupDir, `auto-${new Date().toISOString().slice(0,10)}.json`);
-  fs.writeFileSync(filename, JSON.stringify(data, null, 2));
-  await runAsync("INSERT INTO settings (`key`, value) VALUES ('last_backup_at', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [new Date().toISOString()]);
-}
-
-async function maybeAutoBackup() {
-  const intervalRow = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
-  const intervalHours = Number(intervalRow?.value || 24);
-  const lastRow = await getAsync("SELECT value FROM settings WHERE `key` = 'last_backup_at'");
-  const lastTime = lastRow ? new Date(lastRow.value).getTime() : 0;
-  if (Date.now() - lastTime >= intervalHours * 60 * 60 * 1000) {
-    await autoBackupDatabase();
-  }
-}
-
 // 自动清理日志（已修复字段名：login_logs.createdAt 是驼峰）
-async function autoCleanLogs() {
-  try {
-    const enabledRow = await getAsync("SELECT value FROM settings WHERE `key` = 'auto_clean_log_enabled'");
-    if (!enabledRow || (enabledRow.value !== '1' && enabledRow.value !== 'true')) return;
-
-    const daysRow = await getAsync("SELECT value FROM settings WHERE `key` = 'log_retention_days'");
-    const retentionDays = parseInt(daysRow?.value || '30', 10);
-    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
-
-    const cleanLoginRow = await getAsync("SELECT value FROM settings WHERE `key` = 'clean_login_log'");
-    const cleanAuditRow = await getAsync("SELECT value FROM settings WHERE `key` = 'clean_audit_log'");
-
-    let cleaned = 0;
-
-    // login_logs 的时间字段是 createdAt（驼峰）
-    if (!cleanLoginRow || cleanLoginRow.value === '1' || cleanLoginRow.value === 'true') {
-      try {
-        const result = await runAsync('DELETE FROM login_logs WHERE createdAt < ?', [cutoff]);
-        cleaned += result.affectedRows || 0;
-      } catch (e) {
-        console.warn('清理登录日志失败:', e.message);
-      }
-    }
-
-    if (!cleanAuditRow || cleanAuditRow.value === '1' || cleanAuditRow.value === 'true') {
-      try {
-        const result = await runAsync('DELETE FROM audit_logs WHERE created_at < ?', [cutoff]);
-        cleaned += result.affectedRows || 0;
-      } catch (e) {
-        console.warn('清理审计日志失败:', e.message);
-      }
-    }
-
-    if (cleaned > 0) {
-      console.log(`🧹 自动清理日志: 删除 ${cleaned} 条过期日志（保留 ${retentionDays} 天）`);
-    }
-  } catch (e) {
-    console.warn('自动清理日志失败:', e.message);
-  }
-}
-
 // ============================================================
 //  路由
 // ============================================================

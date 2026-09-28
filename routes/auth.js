@@ -4,7 +4,7 @@
 const crypto = require('crypto');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, isLoginLocked, recordLoginAttempts, resetLoginAttempts,
+  const { getAsync, runAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts,
           verifyPassword, getClientIp, getLocationByIp, requireAdminKey } = deps;
 
   app.post('/api/admin/login', async (req, res) => {
@@ -19,13 +19,13 @@ module.exports = function(app, deps) {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE username=? AND active=1', [username]);
       if (!admin) {
         await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '用户名不存在']);
-        recordLoginAttempts(username, 'merchant_admin');
+        recordLoginAttempt(username, 'merchant_admin');
         return res.status(401).json({ error: '用户名或密码错误' });
       }
       const isValid = verifyPassword(password, admin.password_hash);
       if (!isValid) {
         await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '密码错误']);
-        recordLoginAttempts(username, 'merchant_admin');
+        recordLoginAttempt(username, 'merchant_admin');
         return res.status(401).json({ error: '用户名或密码错误' });
       }
       const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [admin.merchant_id]);
