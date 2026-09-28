@@ -41,7 +41,7 @@ module.exports = function(app, deps) {
       const expiresAt = qrTimeoutMinutes > 0
         ? new Date(Date.now() + qrTimeoutMinutes * 60 * 1000).toISOString()
         : new Date('9999-12-31T23:59:59Z').toISOString();
-      await runAsync('INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)', [table.name, sessionToken, expiresAt, new Date().toISOString(), table.store_id || 1]);
+      await runAsync('INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))', [table.name, sessionToken, expiresAt, new Date().toISOString(), table.store_id || 1, table.store_id || 1]);
       const customerToken = crypto.randomBytes(16).toString('base64url');
       res.json({ table: table.name, storeId: table.store_id || 1, sessionToken, customerToken, expiresAt });
     } catch (e) { res.status(500).json({ error: e.message }); }

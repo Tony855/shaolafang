@@ -32,8 +32,8 @@ module.exports = function(app, deps) {
       if (order.status !== 'pending') return res.status(400).json({ error: '订单已完成或已取消' });
       const callId = crypto.randomBytes(16).toString('hex');
       await runAsync(
-        'INSERT INTO waiter_calls (id, table_name, type, message, status, store_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [callId, order.table_name, 'urge', `订单 #${id} 顾客催单`, 'pending', order.store_id || 1, new Date().toISOString()]
+        'INSERT INTO waiter_calls (id, table_name, type, message, status, store_id, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+        [callId, order.table_name, 'urge', `订单 #${id} 顾客催单`, 'pending', order.store_id || 1, new Date().toISOString(), order.store_id || 1]
       );
       io.to('kitchen-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
       io.to('waiter-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });

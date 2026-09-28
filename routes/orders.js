@@ -37,8 +37,8 @@ app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_wa
     const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
     if (!store) return res.status(400).json({ error: '店铺不存在' });
     const result = await runAsync(
-      'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, store_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [String(username).trim(), hashPassword(password), display_name, can_order ? 1 : 0, can_mark_item ? 1 : 0, can_complete_order ? 1 : 0, targetStoreId]
+      'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [String(username).trim(), hashPassword(password), display_name, can_order ? 1 : 0, can_mark_item ? 1 : 0, can_complete_order ? 1 : 0, targetStoreId, req.merchantId]
     );
     res.status(201).json(await getAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE id=?', [result.lastID]));
   } catch (e) {
@@ -146,8 +146,8 @@ app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('
         }
       }
       await runAsync(
-        `INSERT INTO menus (name, emoji, price, category, \`desc\`, image, currency_code, name_en, desc_en, active, unit, show_dual, secondary_currency_code, store_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO menus (name, emoji, price, category, \`desc\`, image, currency_code, name_en, desc_en, active, unit, show_dual, secondary_currency_code, store_id, merchant_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           menu.name, menu.emoji, menu.price, menu.category, menu.desc,
           newImage || menu.image,
@@ -157,7 +157,8 @@ app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('
           menu.unit || '份',
           menu.show_dual || 0,
           menu.secondary_currency_code || '',
-          targetStoreId
+          targetStoreId,
+          req.merchantId
         ]
       );
       copiedCount++;
@@ -196,8 +197,8 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
     const image = req.file ? req.file.filename : '';
     const result = await runAsync(
-      'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, emoji || '🍽️', parseFloat(price), category || '其他', desc || '', image, currency_code, name_en || '', desc_en || '', unit || '份', show_dual ? 1 : 0, secondary_currency_code || '', req.storeId || 1]
+      'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, emoji || '🍽️', parseFloat(price), category || '其他', desc || '', image, currency_code, name_en || '', desc_en || '', unit || '份', show_dual ? 1 : 0, secondary_currency_code || '', req.storeId || 1, req.merchantId]
     );
     const newItem = await getAsync('SELECT * FROM menus WHERE id = ?', [result.lastID]);
     res.status(201).json(newItem);
@@ -244,7 +245,7 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
           );
         } else {
           await runAsync(
-            'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
               item.name,
               item.emoji || '🍽️',
@@ -258,7 +259,8 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
               item.unit || '份',
               item.show_dual ? 1 : 0,
               item.secondary_currency_code || '',
-              req.storeId || 1
+              req.storeId || 1,
+              req.merchantId
             ]
           );
         }
@@ -345,7 +347,7 @@ app.post('/api/menu-categories', requireAdminKey, requirePermission('can_manage_
     if (!name) return res.status(400).json({ error: '分类名称必填' });
     const maxSort = await getAsync('SELECT MAX(sort) as max FROM menu_categories WHERE store_id=?', [req.storeId]);
     const nextSort = (maxSort && maxSort.max !== null) ? maxSort.max + 1 : 0;
-    const result = await runAsync('INSERT INTO menu_categories (name, sort, store_id) VALUES (?, ?, ?)', [name, nextSort, req.storeId]);
+    const result = await runAsync('INSERT INTO menu_categories (name, sort, store_id, merchant_id) VALUES (?, ?, ?, ?)', [name, nextSort, req.storeId, req.merchantId]);
     const row = await getAsync('SELECT * FROM menu_categories WHERE id = ? AND store_id = ?', [result.lastID, req.storeId]);
     res.status(201).json(row);
   } catch (e) {
@@ -421,8 +423,8 @@ app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), 
     const { name, status } = req.body;
     if (!name) return res.status(400).json({ error: '桌号名称必填' });
     const result = await runAsync(
-      'INSERT INTO tables (name, status, store_id) VALUES (?, ?, ?)',
-      [name, status || 'available', req.storeId || 1]
+      'INSERT INTO tables (name, status, store_id, merchant_id) VALUES (?, ?, ?, ?)',
+      [name, status || 'available', req.storeId || 1, req.merchantId]
     );
     await runAsync('UPDATE tables SET qr_token=? WHERE id=?', [createTableToken(), result.lastID]);
     const newTable = await getAsync('SELECT * FROM tables WHERE id = ?', [result.lastID]);
@@ -457,8 +459,8 @@ app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
       newToken = 'auto_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
       const exp = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
       await runAsync(
-        'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)',
-        [targetTable, newToken, exp, nowIso, storeId]
+        'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+        [targetTable, newToken, exp, nowIso, storeId, storeId]
       );
     }
 
@@ -512,8 +514,8 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
       newToken = 'auto_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
       const exp = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
       await runAsync(
-        'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id) VALUES (?, ?, ?, ?, ?)',
-        [targetTable, newToken, exp, nowIso, storeId]
+        'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+        [targetTable, newToken, exp, nowIso, storeId, storeId]
       );
     }
     await runAsync('UPDATE orders SET table_name=?, session_token=? WHERE id=?', [targetTable, newToken, orderId]);
@@ -786,8 +788,8 @@ app.post('/api/orders', async (req, res) => {
       createdOrder = await withTransaction(async () => {
         const orderNo = await allocateOrderNo(seqPrefix);
         const result = await runAsync(
-          'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, customerToken, finalStoreId, note]
+          'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+          [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, customerToken, finalStoreId, note, finalStoreId]
         );
         for (const item of items) {
           if (item.id) {
@@ -988,8 +990,8 @@ app.post('/api/public/call-waiter', async (req, res) => {
     }
     const callId = crypto.randomBytes(8).toString('hex');
     await runAsync(
-      'INSERT INTO waiter_calls (id, table_name, store_id, session_token, status, type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [callId, table, tableRow.store_id, sessionToken || '', 'pending', 'call', new Date().toISOString()]
+      'INSERT INTO waiter_calls (id, table_name, store_id, session_token, status, type, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+      [callId, table, tableRow.store_id, sessionToken || '', 'pending', 'call', new Date().toISOString(), tableRow.store_id]
     );
     res.json({ success: true, callId, message: '已通知服务员' });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1031,8 +1033,8 @@ app.post('/api/public/reservations', async (req, res) => {
     const tableRow = await getAsync('SELECT id, store_id, status FROM tables WHERE name=? AND store_id=?', [table, req.storeId || 1]);
     if (!tableRow) return res.status(404).json({ error: '桌号不存在' });
     const result = await runAsync(
-      'INSERT INTO reservations (table_name, store_id, customer_name, phone, reservation_time, guests, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [table, tableRow.store_id, customerName, phone || '', reservationTime, parseInt(guests) || 1, 'pending', new Date().toISOString()]
+      'INSERT INTO reservations (table_name, store_id, customer_name, phone, reservation_time, guests, status, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+      [table, tableRow.store_id, customerName, phone || '', reservationTime, parseInt(guests) || 1, 'pending', new Date().toISOString(), tableRow.store_id]
     );
     await runAsync('UPDATE tables SET status=? WHERE id=?', ['reserved', tableRow.id]);
     res.status(201).json({ success: true, reservationId: result.lastID });

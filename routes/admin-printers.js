@@ -17,8 +17,8 @@ module.exports = function(app, deps) {
       if (!name) return res.status(400).json({ error: '打印机名称必填' });
       if (is_default) await runAsync('UPDATE printers SET is_default=0 WHERE store_id=?', [req.storeId || 1]);
       const result = await runAsync(
-        'INSERT INTO printers (name, type, ip_address, port, paper_width, brand, is_default, active, store_id) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)',
-        [name, type || 'network', ip_address || '', port || 9100, paper_width || 58, brand || 'generic', is_default ? 1 : 0, req.storeId || 1]
+        'INSERT INTO printers (name, type, ip_address, port, paper_width, brand, is_default, active, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)',
+        [name, type || 'network', ip_address || '', port || 9100, paper_width || 58, brand || 'generic', is_default ? 1 : 0, req.storeId || 1, req.merchantId]
       );
       res.status(201).json(await getAsync('SELECT * FROM printers WHERE id=?', [result.lastID]));
     } catch (e) { res.status(500).json({ error: e.message }); }

@@ -367,13 +367,16 @@ async function allocateOrderNo(todayPrefix) {
 // ---------- 数据库初始化 ----------
 async function ensureOrderTables() {
   const missingTables = await allAsync(`
-    SELECT DISTINCT o.table_name AS name
+    SELECT DISTINCT o.table_name AS name, o.store_id AS store_id
     FROM orders o
-    LEFT JOIN tables t ON t.name = o.table_name
+    LEFT JOIN tables t ON t.name = o.table_name AND t.store_id = o.store_id
     WHERE t.id IS NULL
   `);
   for (const table of missingTables) {
-    await runAsync('INSERT INTO tables (name, status) VALUES (?, ?)', [table.name, 'available']);
+    await runAsync(
+      'INSERT INTO tables (name, status, store_id, merchant_id) VALUES (?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+      [table.name, 'available', table.store_id || 1, table.store_id || 1]
+    );
   }
 }
 
@@ -849,7 +852,7 @@ async function initDatabase() {
     // 默认分类
     const categories = [['热销', 0], ['主食', 1], ['小吃', 2], ['饮料', 3], ['甜点', 4]];
     for (const [catName, sort] of categories) {
-      await runAsync('INSERT INTO menu_categories (name, sort, store_id) VALUES (?, ?, ?)', [catName, sort, defaultStoreId]);
+      await runAsync('INSERT INTO menu_categories (name, sort, store_id, merchant_id) VALUES (?, ?, ?, ?)', [catName, sort, defaultStoreId, defaultMerchantId]);
     }
     console.log('  + 已创建默认菜品分类：热销/主食/小吃/饮料/甜点');
 
@@ -867,15 +870,15 @@ async function initDatabase() {
       ['双皮奶', '🥛', 3.0, '甜点', '传统双皮奶', '份']
     ];
     for (const [name, emoji, price, category, desc, unit] of defaultMenus) {
-      await runAsync('INSERT INTO menus (name, emoji, price, category, `desc`, unit, active, store_id, currency_code) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)',
-        [name, emoji, price, category, desc, unit, defaultStoreId, 'USD']);
+      await runAsync('INSERT INTO menus (name, emoji, price, category, `desc`, unit, active, store_id, currency_code, merchant_id) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)',
+        [name, emoji, price, category, desc, unit, defaultStoreId, 'USD', defaultMerchantId]);
     }
     console.log('  + 已创建默认菜品：10道示例菜品');
 
     // 默认桌号
     const defaultTables = ['A01', 'A02', 'A03', 'A04', 'A05', 'B01', 'B02', 'B03', 'B04', 'B05'];
     for (const tableName of defaultTables) {
-      await runAsync('INSERT INTO tables (name, status, store_id) VALUES (?, ?, ?)', [tableName, 'available', defaultStoreId]);
+      await runAsync('INSERT INTO tables (name, status, store_id, merchant_id) VALUES (?, ?, ?, ?)', [tableName, 'available', defaultStoreId, defaultMerchantId]);
     }
     console.log('  + 已创建默认桌号：A01-A05, B01-B05');
 
@@ -883,8 +886,8 @@ async function initDatabase() {
     const wc = DEFAULT_CREDENTIALS.waiter;
     const waiterHash = hashPassword(wc.password);
     await runAsync(
-      'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, active, store_id) VALUES (?, ?, ?, 1, 1, 1, 1, ?)',
-      [wc.username, waiterHash, wc.displayName, defaultStoreId]
+      'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, active, store_id, merchant_id) VALUES (?, ?, ?, 1, 1, 1, 1, ?, ?)',
+      [wc.username, waiterHash, wc.displayName, defaultStoreId, defaultMerchantId]
     );
     console.log(`  + 已创建默认服务员：${wc.username} / ${wc.password}`);
     initialCredentials.waiter = wc;
