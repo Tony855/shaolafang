@@ -89,8 +89,8 @@ function saveAdminEdit() {
   const displayName = document.getElementById('editAdminDisplayName').value.trim();
   const password = document.getElementById('editAdminPassword').value;
   const active = document.getElementById('editAdminActive').checked ? 1 : 0;
-  if (!displayName) { SLF.ui.toast('❌ 请输入显示名称'); return; }
-  if (password && password.length < 6) { SLF.ui.toast('❌ 密码至少6位'); return; }
+  if (!displayName) { SLF.ui.toast('❌ ' + tAdmin('enterDisplayName')); return; }
+  if (password && password.length < 6) { SLF.ui.toast('❌ ' + tAdmin('passwordTooShort')); return; }
   const body = { display_name: displayName, active };
   if (password) body.password = password;
   const notice = document.getElementById('editAdminPermNotice');

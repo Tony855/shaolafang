@@ -203,7 +203,7 @@
                     renderMenu();
                     updateUI();
                 }
-                SLF.ui.toast('⚠️ 无法加载数据库中的菜单，请检查后端服务', 2500);
+                SLF.ui.toast('⚠️ ' + t('loadMenuDbFailed', null, '无法加载数据库中的菜单'), 2500);
             }
         }
 

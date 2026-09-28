@@ -691,5 +691,13 @@
   "enterPrinterSettingsBtn": "ចូលការកំណត់ម៉ាស៊ីនបោះពុម្ព",
   "cashierModalTitle": "💰 បន្ថែមបុគ្គលិកសាងប្រាក់",
   "confirmImportBtn": "ចាប់ផ្តើមនាំចូល",
-  "confirmImportYesBtn": "បញ្ជាក់ការនាំចូល"
+  "confirmImportYesBtn": "បញ្ជាក់ការនាំចូល",
+  "enterDisplayName": "សូមបញ្ចូលឈ្មោះបង្ហាញ",
+  "printerDeleted": "បានលុបម៉ាស៊ីនបោះពុម្ព",
+  "loadMenuDbFailed": "មិនអាចផ្ទុកម៉ឺនុយពីមូលដ្ឋានទិន្នន័យ សូមពិនិត្យ backend",
+  "noUnsettledOrders": "តុនេះគ្មានការបញ្ជាទិញដែលមិនទាន់ទូទាត់",
+  "inputRangeError": "{field}: ចន្លោះ {min}-{max}",
+  "fullscreenIosHint": "ស្ថិតក្នុងរបៀបពេញអេក្រង់ (បើកពីអេក្រង់ដើម)។ អូសឡើងលើពីបាតដើម្បីចាកចេញ។",
+  "addToHomeScreenHint": "សូមប្រើ \"បន្ថែមទៅអេក្រង់ដើម\" សម្រាប់បទពិសោធន៍ពេញអេក្រង់",
+  "merchantCreated": "បានបង្កើតពាណិជ្ជករ។ គណនី៖ {username} ពាក្យសម្ងាត់៖ {password}"
 }

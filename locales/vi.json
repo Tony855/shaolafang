@@ -691,5 +691,13 @@
   "enterPrinterSettingsBtn": "Vào Cài đặt máy in",
   "cashierModalTitle": "💰 Thêm thu ngân",
   "confirmImportBtn": "Bắt đầu nhập",
-  "confirmImportYesBtn": "Xác nhận nhập"
+  "confirmImportYesBtn": "Xác nhận nhập",
+  "enterDisplayName": "Vui lòng nhập tên hiển thị",
+  "printerDeleted": "Đã xóa máy in",
+  "loadMenuDbFailed": "Không thể tải menu từ cơ sở dữ liệu, vui lòng kiểm tra backend",
+  "noUnsettledOrders": "Bàn này không có đơn chưa thanh toán",
+  "inputRangeError": "{field}: phạm vi {min}-{max}",
+  "fullscreenIosHint": "Đã ở chế độ toàn màn hình (mở từ màn hình chính). Vuốt lên từ dưới để thoát.",
+  "addToHomeScreenHint": "Vui lòng dùng \"Thêm vào màn hình chính\" để có trải nghiệm toàn màn hình",
+  "merchantCreated": "Đã tạo thương nhân. Tài khoản: {username}, mật khẩu: {password}"
 }

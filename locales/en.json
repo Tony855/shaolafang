@@ -691,5 +691,13 @@
   "enterPrinterSettingsBtn": "Enter Printer Settings",
   "cashierModalTitle": "💰 Add Cashier",
   "confirmImportBtn": "Start Import",
-  "confirmImportYesBtn": "Confirm Import"
+  "confirmImportYesBtn": "Confirm Import",
+  "enterDisplayName": "Please enter display name",
+  "printerDeleted": "Printer deleted",
+  "loadMenuDbFailed": "Failed to load menu from database, please check backend service",
+  "noUnsettledOrders": "No unsettled orders for this table",
+  "inputRangeError": "{field}: range {min}-{max}",
+  "fullscreenIosHint": "Already in fullscreen (opened from home screen). Swipe up from bottom to exit.",
+  "addToHomeScreenHint": "Please use \"Add to Home Screen\" for fullscreen experience",
+  "merchantCreated": "Merchant created. Account: {username}, initial password: {password}"
 }

@@ -698,7 +698,15 @@ const LANGUAGES = {
     "enterPrinterSettingsBtn": "进入打印机设置",
     "cashierModalTitle": "💰 添加收银员",
     "confirmImportBtn": "开始导入",
-    "confirmImportYesBtn": "确认导入"
+    "confirmImportYesBtn": "确认导入",
+    "enterDisplayName": "请输入显示名称",
+    "printerDeleted": "打印机已删除",
+    "loadMenuDbFailed": "无法加载数据库中的菜单，请检查后端服务",
+    "noUnsettledOrders": "当前桌没有未结算订单",
+    "inputRangeError": "{field} 范围 {min}-{max}",
+    "fullscreenIosHint": "已在全屏模式（主屏幕打开）。若需退出，请从底部向上滑动返回。",
+    "addToHomeScreenHint": "请用\"添加到主屏幕\"打开以获得全屏体验",
+    "merchantCreated": "商户已创建，账号：{username}，初始密码：{password}"
   },
   "en": {
     "code": "Code",
@@ -1393,7 +1401,15 @@ const LANGUAGES = {
     "enterPrinterSettingsBtn": "Enter Printer Settings",
     "cashierModalTitle": "💰 Add Cashier",
     "confirmImportBtn": "Start Import",
-    "confirmImportYesBtn": "Confirm Import"
+    "confirmImportYesBtn": "Confirm Import",
+    "enterDisplayName": "Please enter display name",
+    "printerDeleted": "Printer deleted",
+    "loadMenuDbFailed": "Failed to load menu from database, please check backend service",
+    "noUnsettledOrders": "No unsettled orders for this table",
+    "inputRangeError": "{field}: range {min}-{max}",
+    "fullscreenIosHint": "Already in fullscreen (opened from home screen). Swipe up from bottom to exit.",
+    "addToHomeScreenHint": "Please use \"Add to Home Screen\" for fullscreen experience",
+    "merchantCreated": "Merchant created. Account: {username}, initial password: {password}"
   },
   "vi": {
     "code": "Mã",
@@ -2088,7 +2104,15 @@ const LANGUAGES = {
     "enterPrinterSettingsBtn": "Vào Cài đặt máy in",
     "cashierModalTitle": "💰 Thêm thu ngân",
     "confirmImportBtn": "Bắt đầu nhập",
-    "confirmImportYesBtn": "Xác nhận nhập"
+    "confirmImportYesBtn": "Xác nhận nhập",
+    "enterDisplayName": "Vui lòng nhập tên hiển thị",
+    "printerDeleted": "Đã xóa máy in",
+    "loadMenuDbFailed": "Không thể tải menu từ cơ sở dữ liệu, vui lòng kiểm tra backend",
+    "noUnsettledOrders": "Bàn này không có đơn chưa thanh toán",
+    "inputRangeError": "{field}: phạm vi {min}-{max}",
+    "fullscreenIosHint": "Đã ở chế độ toàn màn hình (mở từ màn hình chính). Vuốt lên từ dưới để thoát.",
+    "addToHomeScreenHint": "Vui lòng dùng \"Thêm vào màn hình chính\" để có trải nghiệm toàn màn hình",
+    "merchantCreated": "Đã tạo thương nhân. Tài khoản: {username}, mật khẩu: {password}"
   },
   "th": {
     "code": "รหัส",
@@ -2783,7 +2807,15 @@ const LANGUAGES = {
     "enterPrinterSettingsBtn": "เข้าตั้งค่าเครื่องพิมพ์",
     "cashierModalTitle": "💰 เพิ่มพนักงานเก็บเงิน",
     "confirmImportBtn": "เริ่มนำเข้า",
-    "confirmImportYesBtn": "ยืนยันนำเข้า"
+    "confirmImportYesBtn": "ยืนยันนำเข้า",
+    "enterDisplayName": "กรุณากรอกชื่อที่แสดง",
+    "printerDeleted": "ลบเครื่องพิมพ์แล้ว",
+    "loadMenuDbFailed": "ไม่สามารถโหลดเมนูจากฐานข้อมูล กรุณาตรวจสอบ backend",
+    "noUnsettledOrders": "โต๊ะนี้ไม่มีออเดอร์ที่ยังไม่ชำระ",
+    "inputRangeError": "{field}: ช่วง {min}-{max}",
+    "fullscreenIosHint": "อยู่ในโหมดเต็มหน้าจอแล้ว (เปิดจากหน้าจอหลัก) ปัดขึ้นจากด้านล่างเพื่อออก",
+    "addToHomeScreenHint": "กรุณาใช้ \"เพิ่มไปยังหน้าจอหลัก\" เพื่อประสบการณ์เต็มหน้าจอ",
+    "merchantCreated": "สร้างพ่อค้าแล้ว บัญชี: {username} รหัสผ่าน: {password}"
   },
   "km": {
     "code": "កូដ",
@@ -3478,7 +3510,15 @@ const LANGUAGES = {
     "enterPrinterSettingsBtn": "ចូលការកំណត់ម៉ាស៊ីនបោះពុម្ព",
     "cashierModalTitle": "💰 បន្ថែមបុគ្គលិកសាងប្រាក់",
     "confirmImportBtn": "ចាប់ផ្តើមនាំចូល",
-    "confirmImportYesBtn": "បញ្ជាក់ការនាំចូល"
+    "confirmImportYesBtn": "បញ្ជាក់ការនាំចូល",
+    "enterDisplayName": "សូមបញ្ចូលឈ្មោះបង្ហាញ",
+    "printerDeleted": "បានលុបម៉ាស៊ីនបោះពុម្ព",
+    "loadMenuDbFailed": "មិនអាចផ្ទុកម៉ឺនុយពីមូលដ្ឋានទិន្នន័យ សូមពិនិត្យ backend",
+    "noUnsettledOrders": "តុនេះគ្មានការបញ្ជាទិញដែលមិនទាន់ទូទាត់",
+    "inputRangeError": "{field}: ចន្លោះ {min}-{max}",
+    "fullscreenIosHint": "ស្ថិតក្នុងរបៀបពេញអេក្រង់ (បើកពីអេក្រង់ដើម)។ អូសឡើងលើពីបាតដើម្បីចាកចេញ។",
+    "addToHomeScreenHint": "សូមប្រើ \"បន្ថែមទៅអេក្រង់ដើម\" សម្រាប់បទពិសោធន៍ពេញអេក្រង់",
+    "merchantCreated": "បានបង្កើតពាណិជ្ជករ។ គណនី៖ {username} ពាក្យសម្ងាត់៖ {password}"
   }
 };
 

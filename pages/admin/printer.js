@@ -113,7 +113,7 @@ function deletePrinter(id) {
   showConfirm(tAdmin('confirmDeletePrinter'), async function() {
     try {
       await api('/admin/printers/' + id, { method: 'DELETE' });
-      SLF.ui.toast('打印机已删除');
+      SLF.ui.toast(tAdmin('printerDeleted'));
       loadPrinters();
     } catch (err) { SLF.ui.toast(`${tAdmin('deleteFailed')}: ` + err.message); }
   });

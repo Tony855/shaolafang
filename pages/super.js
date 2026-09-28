@@ -421,7 +421,7 @@ async function saveMerchant() {
       SLF.ui.toast(t('merchantUpdated', null, '商户已更新'), 'success');
     } else {
       const result = await api('/super/merchants', { method: 'POST', body: JSON.stringify(data) });
-      SLF.ui.toast(`商户已创建，登录账号：${result.adminUsername}，初始密码：${result.defaultPassword}`, 'success');
+      SLF.ui.toast(t('merchantCreated', { username: result.adminUsername, password: result.defaultPassword }, '商户已创建'), 'success');
     }
     closeMerchantModal();
     loadMerchants();
@@ -450,7 +450,7 @@ function resetPassword(id) {
 function changeSuperPassword() {
   const newPwd = document.getElementById('newSuperPassword').value;
   if (!newPwd) { SLF.ui.toast(t('pleaseEnterNewPassword', null, '请输入新密码（至少6位）'), 'error'); return; }
-  if (newPwd.length < 6) { SLF.ui.toast('❌ 密码至少6位', 'error'); return; }
+  if (newPwd.length < 6) { SLF.ui.toast('❌ ' + t('passwordTooShort', null, '密码至少6位'), 'error'); return; }
   showPasswordModal(t('enterOldPassword', null, '请输入旧密码'), async function(oldPwd) {
     try {
       const data = await SLF.api.post('/super/change-password', { oldPassword: oldPwd, newPassword: newPwd });
@@ -516,34 +516,34 @@ async function saveGlobalSettings() {
   const getInt = (id) => parseInt(document.getElementById(id).value, 10);
   // 前置校验
   const superIdleTimeout = getInt('superIdleTimeout');
-  if (!superIdleTimeout || superIdleTimeout < 1 || superIdleTimeout > 1440) { SLF.ui.toast('超管超时 1-1440', 'error'); return; }
+  if (!superIdleTimeout || superIdleTimeout < 1 || superIdleTimeout > 1440) { SLF.ui.toast(t('inputRangeError', { field: t('superIdleTimeout'), min: 1, max: 1440 }), 'error'); return; }
   const adminIdleTimeout = getInt('adminIdleTimeout');
-  if (!adminIdleTimeout || adminIdleTimeout < 1 || adminIdleTimeout > 1440) { SLF.ui.toast('商户超时 1-1440', 'error'); return; }
+  if (!adminIdleTimeout || adminIdleTimeout < 1 || adminIdleTimeout > 1440) { SLF.ui.toast(t('inputRangeError', { field: t('adminIdleTimeout'), min: 1, max: 1440 }), 'error'); return; }
   const qrTimeout = getInt('qrSessionTimeout');
-  if (isNaN(qrTimeout) || qrTimeout < 0 || qrTimeout > 1440) { SLF.ui.toast('QR超时 0-1440', 'error'); return; }
+  if (isNaN(qrTimeout) || qrTimeout < 0 || qrTimeout > 1440) { SLF.ui.toast(t('inputRangeError', { field: t('qrSessionTimeout'), min: 0, max: 1440 }), 'error'); return; }
   const orderInterval = getInt('orderIntervalSeconds');
-  if (isNaN(orderInterval) || orderInterval < 0 || orderInterval > 3600) { SLF.ui.toast('下单间隔 0-3600', 'error'); return; }
+  if (isNaN(orderInterval) || orderInterval < 0 || orderInterval > 3600) { SLF.ui.toast(t('inputRangeError', { field: t('orderInterval'), min: 0, max: 3600 }), 'error'); return; }
   const waiterRefresh = getInt('waiterRefreshInterval');
-  if (!waiterRefresh || waiterRefresh < 3 || waiterRefresh > 300) { SLF.ui.toast('服务员刷新 3-300', 'error'); return; }
+  if (!waiterRefresh || waiterRefresh < 3 || waiterRefresh > 300) { SLF.ui.toast(t('inputRangeError', { field: t('waiterRefreshInterval'), min: 3, max: 300 }), 'error'); return; }
   const maxOrderItems = getInt('maxOrderItems');
-  if (!maxOrderItems || maxOrderItems < 1 || maxOrderItems > 200) { SLF.ui.toast('品种上限 1-200', 'error'); return; }
+  if (!maxOrderItems || maxOrderItems < 1 || maxOrderItems > 200) { SLF.ui.toast(t('inputRangeError', { field: t('maxOrderItems'), min: 1, max: 200 }), 'error'); return; }
   const maxItemQuantity = getInt('maxItemQuantity');
-  if (!maxItemQuantity || maxItemQuantity < 1 || maxItemQuantity > 999) { SLF.ui.toast('单品上限 1-999', 'error'); return; }
+  if (!maxItemQuantity || maxItemQuantity < 1 || maxItemQuantity > 999) { SLF.ui.toast(t('inputRangeError', { field: t('maxItemQuantity'), min: 1, max: 999 }), 'error'); return; }
   const maxOrderNoteLength = getInt('maxOrderNoteLength');
-  if (!maxOrderNoteLength || maxOrderNoteLength < 10 || maxOrderNoteLength > 1000) { SLF.ui.toast('备注长度 10-1000', 'error'); return; }
+  if (!maxOrderNoteLength || maxOrderNoteLength < 10 || maxOrderNoteLength > 1000) { SLF.ui.toast(t('inputRangeError', { field: t('maxOrderNoteLength'), min: 10, max: 1000 }), 'error'); return; }
   const waiterSessionTimeout = getInt('waiterSessionTimeout') || 12;
   const loginMaxAttempts = getInt('loginMaxAttempts');
-  if (!loginMaxAttempts || loginMaxAttempts < 1 || loginMaxAttempts > 20) { SLF.ui.toast('登录尝试 1-20', 'error'); return; }
+  if (!loginMaxAttempts || loginMaxAttempts < 1 || loginMaxAttempts > 20) { SLF.ui.toast(t('inputRangeError', { field: t('loginMaxAttempts'), min: 1, max: 20 }), 'error'); return; }
   const loginLockMinutes = getInt('loginLockMinutes');
-  if (!loginLockMinutes || loginLockMinutes < 1 || loginLockMinutes > 1440) { SLF.ui.toast('锁定时长 1-1440', 'error'); return; }
+  if (!loginLockMinutes || loginLockMinutes < 1 || loginLockMinutes > 1440) { SLF.ui.toast(t('inputRangeError', { field: t('loginLockMinutes'), min: 1, max: 1440 }), 'error'); return; }
   const superIpWhitelist = document.getElementById('superIpWhitelist').value.trim();
   const callLimitEnabled = document.getElementById('callLimitEnabled').value === '1';
   const callLimitMax = getInt('callLimitMax');
-  if (!callLimitMax || callLimitMax < 1 || callLimitMax > 20) { SLF.ui.toast('最大呼叫次数 1-20', 'error'); return; }
+  if (!callLimitMax || callLimitMax < 1 || callLimitMax > 20) { SLF.ui.toast(t('inputRangeError', { field: t('callLimitMax'), min: 1, max: 20 }), 'error'); return; }
   const callLimitWindow = getInt('callLimitWindowMinutes');
-  if (!callLimitWindow || callLimitWindow < 1 || callLimitWindow > 60) { SLF.ui.toast('时间窗口 1-60分钟', 'error'); return; }
+  if (!callLimitWindow || callLimitWindow < 1 || callLimitWindow > 60) { SLF.ui.toast(t('inputRangeError', { field: t('callLimitWindowMinutes'), min: 1, max: 60 }), 'error'); return; }
   const callLimitCooldown = getInt('callLimitCooldownMinutes');
-  if (!callLimitCooldown || callLimitCooldown < 1 || callLimitCooldown > 120) { SLF.ui.toast('冷却时间 1-120分钟', 'error'); return; }
+  if (!callLimitCooldown || callLimitCooldown < 1 || callLimitCooldown > 120) { SLF.ui.toast(t('inputRangeError', { field: t('callLimitCooldownMinutes'), min: 1, max: 120 }), 'error'); return; }
 
   try {
     await api('/super/settings', { method: 'PUT', body: JSON.stringify({

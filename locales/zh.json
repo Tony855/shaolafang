@@ -691,5 +691,13 @@
   "enterPrinterSettingsBtn": "进入打印机设置",
   "cashierModalTitle": "💰 添加收银员",
   "confirmImportBtn": "开始导入",
-  "confirmImportYesBtn": "确认导入"
+  "confirmImportYesBtn": "确认导入",
+  "enterDisplayName": "请输入显示名称",
+  "printerDeleted": "打印机已删除",
+  "loadMenuDbFailed": "无法加载数据库中的菜单，请检查后端服务",
+  "noUnsettledOrders": "当前桌没有未结算订单",
+  "inputRangeError": "{field} 范围 {min}-{max}",
+  "fullscreenIosHint": "已在全屏模式（主屏幕打开）。若需退出，请从底部向上滑动返回。",
+  "addToHomeScreenHint": "请用\"添加到主屏幕\"打开以获得全屏体验",
+  "merchantCreated": "商户已创建，账号：{username}，初始密码：{password}"
 }

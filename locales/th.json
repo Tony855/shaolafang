@@ -691,5 +691,13 @@
   "enterPrinterSettingsBtn": "เข้าตั้งค่าเครื่องพิมพ์",
   "cashierModalTitle": "💰 เพิ่มพนักงานเก็บเงิน",
   "confirmImportBtn": "เริ่มนำเข้า",
-  "confirmImportYesBtn": "ยืนยันนำเข้า"
+  "confirmImportYesBtn": "ยืนยันนำเข้า",
+  "enterDisplayName": "กรุณากรอกชื่อที่แสดง",
+  "printerDeleted": "ลบเครื่องพิมพ์แล้ว",
+  "loadMenuDbFailed": "ไม่สามารถโหลดเมนูจากฐานข้อมูล กรุณาตรวจสอบ backend",
+  "noUnsettledOrders": "โต๊ะนี้ไม่มีออเดอร์ที่ยังไม่ชำระ",
+  "inputRangeError": "{field}: ช่วง {min}-{max}",
+  "fullscreenIosHint": "อยู่ในโหมดเต็มหน้าจอแล้ว (เปิดจากหน้าจอหลัก) ปัดขึ้นจากด้านล่างเพื่อออก",
+  "addToHomeScreenHint": "กรุณาใช้ \"เพิ่มไปยังหน้าจอหลัก\" เพื่อประสบการณ์เต็มหน้าจอ",
+  "merchantCreated": "สร้างพ่อค้าแล้ว บัญชี: {username} รหัสผ่าน: {password}"
 }

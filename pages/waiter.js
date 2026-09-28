@@ -29,9 +29,9 @@
       document.exitFullscreen();
     } else {
       if (window.navigator.standalone) {
-        SLF.ui.toast('已在全屏模式（主屏幕打开）。若需退出，请从底部向上滑动返回。');
+        SLF.ui.toast(t('fullscreenIosHint', null, '已在全屏模式'));
       } else {
-        document.documentElement.requestFullscreen().catch(e => SLF.ui.toast('请用"添加到主屏幕"打开以获得全屏体验'));
+        document.documentElement.requestFullscreen().catch(e => SLF.ui.toast(t('addToHomeScreenHint', null, '请用"添加到主屏幕"打开')));
       }
     }
   };
@@ -553,7 +553,7 @@
       try {
         const res = await api('/tables/move', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ from_table: transferFromTable, target_table: target }) });
         if (res && res.count > 0) SLF.ui.toast('✅ ' + t('transferSuccess', null, '转移成功') + ' (' + res.count + ' 单)');
-        else SLF.ui.toast('ℹ️ 当前桌没有未结算订单');
+        else SLF.ui.toast('ℹ️ ' + t('noUnsettledOrders', null, '当前桌没有未结算订单'));
         closeTransferModal();
         await load();
       } catch(e) { SLF.ui.toast('❌ ' + e.message); }
