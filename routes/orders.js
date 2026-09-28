@@ -3,9 +3,10 @@
    ============================================================ */
 const crypto = require('crypto');
 const fs = require('fs');
+const { hashPassword, verifyPassword } = require('../server/middleware/password');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, printToNetworkPrinter, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
+  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, printToNetworkPrinter, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
 app.get('/api/waiter/overview', async (req, res) => {
   try {
