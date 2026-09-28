@@ -676,5 +676,20 @@
   "reports": "Báo cáo",
   "reservations": "Đặt chỗ",
   "stores": "Cửa hàng",
-  "tables": "Bàn"
+  "tables": "Bàn",
+  "importMenuBtn": "📥 Nhập hàng loạt",
+  "printerEditTitle": "🖨️ Sửa máy in",
+  "printerEditBrandLabel": "Thương hiệu máy in",
+  "waiterManageCardTitle": "🍽️ Quản lý nhân viên",
+  "waiterManageDesc": "Quản lý tài khoản nhân viên: thêm, sửa, xóa",
+  "enterWaiterManage": "Vào Quản lý nhân viên",
+  "currencySettingsTitle": "💱 Cài đặt tiền tệ",
+  "currencySettingsDesc": "Cấu hình loại tiền, tỷ giá và hiển thị đôi tiền tệ",
+  "enterCurrencySettingsBtn": "Vào Cài đặt tiền tệ",
+  "printerSettingsTitle": "🖨️ Cài đặt máy in",
+  "printerSettingsDesc": "Cấu hình máy in, định tuyến in và in tự động",
+  "enterPrinterSettingsBtn": "Vào Cài đặt máy in",
+  "cashierModalTitle": "💰 Thêm thu ngân",
+  "confirmImportBtn": "Bắt đầu nhập",
+  "confirmImportYesBtn": "Xác nhận nhập"
 }

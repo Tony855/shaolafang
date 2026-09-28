@@ -676,5 +676,20 @@
   "reports": "Reports",
   "reservations": "Reservations",
   "stores": "Stores",
-  "tables": "Tables"
+  "tables": "Tables",
+  "importMenuBtn": "📥 Batch Import",
+  "printerEditTitle": "🖨️ Edit Printer",
+  "printerEditBrandLabel": "Printer Brand",
+  "waiterManageCardTitle": "🍽️ Waiter Management",
+  "waiterManageDesc": "Manage waiter accounts: add, edit, delete",
+  "enterWaiterManage": "Enter Waiter Management",
+  "currencySettingsTitle": "💱 Currency Settings",
+  "currencySettingsDesc": "Configure currencies, rates and dual-currency display",
+  "enterCurrencySettingsBtn": "Enter Currency Settings",
+  "printerSettingsTitle": "🖨️ Printer Settings",
+  "printerSettingsDesc": "Configure printers, print routing and auto-print",
+  "enterPrinterSettingsBtn": "Enter Printer Settings",
+  "cashierModalTitle": "💰 Add Cashier",
+  "confirmImportBtn": "Start Import",
+  "confirmImportYesBtn": "Confirm Import"
 }

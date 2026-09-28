@@ -676,5 +676,20 @@
   "reports": "รายงาน",
   "reservations": "การจอง",
   "stores": "ร้านค้า",
-  "tables": "โต๊ะ"
+  "tables": "โต๊ะ",
+  "importMenuBtn": "📥 นำเข้าจำนวนมาก",
+  "printerEditTitle": "🖨️ แก้ไขเครื่องพิมพ์",
+  "printerEditBrandLabel": "ยี่ห้อเครื่องพิมพ์",
+  "waiterManageCardTitle": "🍽️ จัดการพนักงาน",
+  "waiterManageDesc": "จัดการบัญชีพนักงาน: เพิ่ม แก้ไข ลบ",
+  "enterWaiterManage": "เข้าจัดการพนักงาน",
+  "currencySettingsTitle": "💱 ตั้งค่าสกุลเงิน",
+  "currencySettingsDesc": "ตั้งค่าสกุลเงิน อัตราแลกเปลี่ยน และการแสดงสองสกุล",
+  "enterCurrencySettingsBtn": "เข้าตั้งค่าสกุลเงิน",
+  "printerSettingsTitle": "🖨️ ตั้งค่าเครื่องพิมพ์",
+  "printerSettingsDesc": "ตั้งค่าเครื่องพิมพ์ เส้นทางการพิมพ์ และการพิมพ์อัตโนมัติ",
+  "enterPrinterSettingsBtn": "เข้าตั้งค่าเครื่องพิมพ์",
+  "cashierModalTitle": "💰 เพิ่มพนักงานเก็บเงิน",
+  "confirmImportBtn": "เริ่มนำเข้า",
+  "confirmImportYesBtn": "ยืนยันนำเข้า"
 }

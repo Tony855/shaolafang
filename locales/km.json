@@ -676,5 +676,20 @@
   "reports": "របាយការណ៍",
   "reservations": "ការកក់",
   "stores": "ហាង",
-  "tables": "តុ"
+  "tables": "តុ",
+  "importMenuBtn": "📥 នាំចូលជាដុំ",
+  "printerEditTitle": "🖨️ កែសម្រួលម៉ាស៊ីនបោះពុម្ព",
+  "printerEditBrandLabel": "ម៉ាកម៉ាស៊ីនបោះពុម្ព",
+  "waiterManageCardTitle": "🍽️ គ្រប់គ្រងបុគ្គលិក",
+  "waiterManageDesc": "គ្រប់គ្រងគណនីបុគ្គលិក៖ បន្ថែម កែសម្រួល លុប",
+  "enterWaiterManage": "ចូលគ្រប់គ្រងបុគ្គលិក",
+  "currencySettingsTitle": "💱 ការកំណត់រូបិយប័ណ្ណ",
+  "currencySettingsDesc": "កំណត់ប្រភេទរូបិយប័ណ្ណ អត្រា និងការបង្ហាញពីរប្រភេទ",
+  "enterCurrencySettingsBtn": "ចូលការកំណត់រូបិយប័ណ្ណ",
+  "printerSettingsTitle": "🖨️ ការកំណត់ម៉ាស៊ីនបោះពុម្ព",
+  "printerSettingsDesc": "កំណត់ម៉ាស៊ីនបោះពុម្ព ការបញ្ជូន និងការបោះពុម្ពស្វ័យប្រវត្តិ",
+  "enterPrinterSettingsBtn": "ចូលការកំណត់ម៉ាស៊ីនបោះពុម្ព",
+  "cashierModalTitle": "💰 បន្ថែមបុគ្គលិកសាងប្រាក់",
+  "confirmImportBtn": "ចាប់ផ្តើមនាំចូល",
+  "confirmImportYesBtn": "បញ្ជាក់ការនាំចូល"
 }

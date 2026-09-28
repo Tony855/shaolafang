@@ -546,6 +546,65 @@
             $('#prefixDiscountLabel').textContent = tAdmin('prefixDiscountLabel');
             $('#prefixVipLabel').textContent = tAdmin('prefixVipLabel');
             $('#savePrefixBtn').textContent = tAdmin('savePrefixBtn');
+
+            // ===== 补充未覆盖的 UI 元素（2026-09-29 补丁）=====
+            const _st = (id, key) => { const el = document.getElementById(id); if (el) el.textContent = tAdmin(key); };
+            const _sp = (id, key) => { const el = document.getElementById(id); if (el) el.placeholder = tAdmin(key); };
+
+            _st('menuTabDishText', 'menuManage');
+            _st('categoryBtnText', 'menuCategory');
+            _st('importMenuBtn', 'importMenuBtn');
+            _st('printerEditTitle', 'printerEditTitle');
+            _st('printerEditNameLabel', 'printerName');
+            _st('printerEditTypeLabel', 'connectionType');
+            _st('printerEditIpLabel', 'ipAddress');
+            _st('printerEditPortLabel', 'port');
+            _st('printerEditWidthLabel', 'paperWidth');
+            _st('printerEditBrandLabel', 'printerEditBrandLabel');
+            _st('printerEditDefaultLabel', 'setAsDefault');
+            _st('printerEditCancelBtn', 'cancel');
+            _st('printerEditSaveBtn', 'save');
+            _st('logTabLoginText', 'loginLogs');
+            _st('logTabAuditText', 'operationLogs');
+            _st('waiterManageCardTitle', 'waiterManageCardTitle');
+            _st('waiterManageDesc', 'waiterManageDesc');
+            _st('enterWaiterManageBtn', 'enterWaiterManage');
+            _st('currencySettingsTitle', 'currencySettingsTitle');
+            _st('currencySettingsDesc', 'currencySettingsDesc');
+            _st('enterCurrencySettingsBtn', 'enterCurrencySettingsBtn');
+            _st('printerSettingsTitle', 'printerSettingsTitle');
+            _st('printerSettingsDesc', 'printerSettingsDesc');
+            _st('enterPrinterSettingsBtn', 'enterPrinterSettingsBtn');
+            _st('orderResetPeriodLabel', 'orderNoResetPeriod');
+            _st('oldPasswordLabel', 'oldPassword');
+            _st('orderModalTitle', 'addOrder');
+            _st('tableModalTitle', 'editTable');
+            _st('categoryEditModalTitle', 'editCategory');
+            _st('categoryEditNameLabel', 'categoryName');
+            _st('categoryCancelBtn', 'cancel');
+            _st('cashierModalTitle', 'cashierModalTitle');
+            _st('cashierUsernameLabel', 'cashierUsername');
+            _st('cashierNameLabel', 'cashierDisplayName');
+            _st('cashierPasswordLabel', 'passwordEditHint');
+            _st('cashierActiveLabel', 'accountActive');
+            _st('cashierActiveSub', 'activeDesc');
+            _st('cashierPermTitle', 'permissionConfig');
+            _st('cashierCanSettleLabel', 'settleOrder');
+            _st('cashierCanSettleSub', 'canSettleDesc');
+            _st('cashierCanCancelLabel', 'cancelOrder');
+            _st('cashierCanCancelSub', 'canCancelDesc');
+            _st('cashierCanRefundLabel', 'refund');
+            _st('cashierCanRefundSub', 'canRefundDesc');
+            _st('cashierCanViewReportLabel', 'viewReport');
+            _st('cashierCanViewReportSub', 'canViewReportDesc');
+            _st('cashierCancelButton', 'cancel');
+            _st('cashierSaveButton', 'save');
+            _st('waiterEditTitle', 'editWaiter');
+            _st('storeEditTitle', 'editStore');
+            _st('confirmMessage', 'confirmMessage');
+            _st('settleDetailTitle', 'settleOrder');
+            _st('confirmImportBtn', 'confirmImportBtn');
+            _st('confirmImportYesBtn', 'confirmImportYesBtn');
         }
 
         // ===== 语言切换和店铺切换（已移到 shared.js）=====

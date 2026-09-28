@@ -676,5 +676,20 @@
   "reports": "报表",
   "reservations": "预约",
   "stores": "店铺",
-  "tables": "桌号"
+  "tables": "桌号",
+  "importMenuBtn": "📥 批量导入",
+  "printerEditTitle": "🖨️ 编辑打印机",
+  "printerEditBrandLabel": "打印机品牌",
+  "waiterManageCardTitle": "🍽️ 服务员管理",
+  "waiterManageDesc": "管理服务员账号，支持添加、编辑、删除服务员",
+  "enterWaiterManage": "进入服务员管理",
+  "currencySettingsTitle": "💱 货币设置",
+  "currencySettingsDesc": "配置货币类型、汇率和双币显示",
+  "enterCurrencySettingsBtn": "进入货币设置",
+  "printerSettingsTitle": "🖨️ 打印机设置",
+  "printerSettingsDesc": "配置打印机、打印路由和自动打印",
+  "enterPrinterSettingsBtn": "进入打印机设置",
+  "cashierModalTitle": "💰 添加收银员",
+  "confirmImportBtn": "开始导入",
+  "confirmImportYesBtn": "确认导入"
 }
