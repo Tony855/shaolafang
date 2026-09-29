@@ -146,7 +146,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     const totalAmount = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
     const tableNames = [...new Set(orders.map(o => o.table_name))];
     for (const order of orders) {
-      await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=?", [now, order.id]);
+      await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=? AND store_id=?", [now, order.id, req.storeId]);
       await syncTableStatus(order.table_name, req.storeId);
     }
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -156,7 +156,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     if (autoPrintRow && autoPrintRow.value === '1') {
       try {
         const printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [req.storeId]);
-        const store = await getAsync('SELECT * FROM stores WHERE id=?', [req.storeId]);
+        const store = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
         if (printer && printer.type === 'network' && printer.ip_address) {
           const printData = buildBatchReceipt(orders, store, printer);
           await printToNetworkPrinter(printData, printer.ip_address, printer.port);
@@ -176,7 +176,7 @@ app.post('/api/cashier/orders/batch-print', requireCashier, async (req, res) => 
     const orders = await allAsync('SELECT * FROM orders WHERE id IN (' + placeholders + ') AND store_id=?', [...orderIds, req.storeId]);
     if (!orders.length) return res.status(404).json({ error: '订单不存在' });
     const printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [req.storeId]);
-    const store = await getAsync('SELECT * FROM stores WHERE id=?', [req.storeId]);
+    const store = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
     const printData = buildBatchReceipt(orders, store, printer);
     if (printer && printer.type === 'network' && printer.ip_address) {
       try {
@@ -204,7 +204,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
       const items = JSON.parse(order.items || '[]');
       if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '存在未完成菜品，无法结算' });
     } catch(e) { return res.status(400).json({ error: '订单数据异常' }); }
-    await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
+    await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=? AND store_id=?", [new Date().toISOString(), id, req.storeId]);
     await syncTableStatus(order.table_name, req.storeId);
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
@@ -223,7 +223,7 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
     if (order.status === 'done') return res.status(400).json({ error: '已结算订单不能取消，请使用退款' });
-    await runAsync("UPDATE orders SET status='canceled', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
+    await runAsync("UPDATE orders SET status='canceled', createdAt=? WHERE id=? AND store_id=?", [new Date().toISOString(), id, req.storeId]);
     await syncTableStatus(order.table_name, req.storeId);
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), new Date().toISOString()]);
     res.json({ success: true, message: '取消成功' });
@@ -239,7 +239,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status !== 'done') return res.status(400).json({ error: '只有已结算订单才能退款' });
-    await runAsync("UPDATE orders SET status='refunded', createdAt=? WHERE id=?", [new Date().toISOString(), id]);
+    await runAsync("UPDATE orders SET status='refunded', createdAt=? WHERE id=? AND store_id=?", [new Date().toISOString(), id, req.storeId]);
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'refund_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     res.json({ success: true, message: '退款成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
