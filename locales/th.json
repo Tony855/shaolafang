@@ -726,5 +726,7 @@
   "granularityDay": "รายวัน",
   "granularityMonth": "รายเดือน",
   "granularityYear": "รายปี",
-  "reportDateRange": "ช่วง: {start} ~ {end}"
+  "reportDateRange": "ช่วง: {start} ~ {end}",
+  "pleaseSaveFirst": "กรุณาบันทึกออเดอร์ก่อน",
+  "orderNotFound": "ไม่พบออเดอร์"
 }

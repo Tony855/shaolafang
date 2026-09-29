@@ -185,3 +185,12 @@
       .selected-item{ grid-template-columns: 1fr auto auto; row-gap: 4px; }
       .selected-item .sel-price{ grid-column: 1 / 2; font-size: 12px; }
     }
+/* ===== 编辑卡片"结算"按钮 hover（主样式在 HTML inline） ===== */
+.settle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(46, 204, 113, 0.35) !important;
+  filter: brightness(1.05);
+}
+.settle-btn:active {
+  transform: scale(0.97);
+}

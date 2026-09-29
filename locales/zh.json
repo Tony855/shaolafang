@@ -726,5 +726,7 @@
   "granularityDay": "按日",
   "granularityMonth": "按月",
   "granularityYear": "按年",
-  "reportDateRange": "日期范围：{start} ~ {end}"
+  "reportDateRange": "日期范围：{start} ~ {end}",
+  "pleaseSaveFirst": "请先保存订单再结算",
+  "orderNotFound": "订单不存在"
 }

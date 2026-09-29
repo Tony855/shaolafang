@@ -726,5 +726,7 @@
   "granularityDay": "តាមថ្ងៃ",
   "granularityMonth": "តាមខែ",
   "granularityYear": "តាមឆ្នាំ",
-  "reportDateRange": "ចន្លោះ៖ {start} ~ {end}"
+  "reportDateRange": "ចន្លោះ៖ {start} ~ {end}",
+  "pleaseSaveFirst": "សូមរក្សាទុកការបញ្ជាទិញជាមុនសិន",
+  "orderNotFound": "រកមិនឃើញការបញ្ជាទិញ"
 }

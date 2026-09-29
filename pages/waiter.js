@@ -119,6 +119,22 @@
   const _fsb = $('#fullscreenBtn');
   if (_fsb) _fsb.title = t('fullscreen', null, '全屏');
 
+    // ===== 通用 data-i18n 扫描：翻译所有带 data-i18n / data-i18n-title 的元素 =====
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (key) {
+        const translated = t(key, null, el.textContent);
+        if (translated && translated !== key) el.textContent = translated;
+      }
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+      const key = el.getAttribute('data-i18n-title');
+      if (key) {
+        const translated = t(key, null, el.title || '');
+        if (translated && translated !== key) el.title = translated;
+      }
+    });
+
     renderTables();
     const _newBtn = document.getElementById('createNewOrderBtn');
     if (_newBtn) _newBtn.textContent = '➕ ' + t('createNewOrder', null, '创建新订单');
@@ -212,8 +228,8 @@
       const badgeColor = badgeLabel ? SLF.customerGroup.color(badgeLabel) : null;
       const badge = badgeLabel ? `<span class="session-badge" style="background:${badgeColor.bg};color:${badgeColor.color};">${badgeLabel}</span>` : '';
       const noteHtml = o.note ? `<div class="order-note" style="margin:4px 0 6px;padding:6px 8px;border-radius:6px;background:rgba(255,193,7,.15);font-size:12px;color:#c98a1f;line-height:1.4;"><strong>${t('orderNoteDisplay', null, '备注')}：</strong>${escNote(o.note)}</div>` : '';
-      const orderSettleBtn = (state.waiter && state.waiter.can_complete_order) ? `<button onclick="event.stopPropagation();completeWaiterOrder(${o.id})" style="background:var(--primary);color:#fff;border:none;padding:5px 14px;border-radius:16px;font-size:12px;cursor:pointer;font-weight:600;flex-shrink:0;">${t('settleOrder', null, '结算')}</button>` : '';
-      return `<div class="order-block"><div class="order-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>${o.order_no || ("#"+o.id)} · <span style="padding:2px 6px;border-radius:4px;background:#e3f2fd;color:#1976d2;font-size:12px;">🏷️ ${esc(o.table || '-')}</span> · ${t('orderPending', null, '未结算')}${badge}<span class="order-meta"> · ${timeLabel}</span></span>${orderSettleBtn}</div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
+
+      return `<div class="order-block"><div class="order-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>${o.order_no || ("#"+o.id)} · <span style="padding:2px 6px;border-radius:4px;background:#e3f2fd;color:#1976d2;font-size:12px;">🏷️ ${esc(o.table || '-')}</span> · ${t('orderPending', null, '未结算')}${badge}<span class="order-meta"> · ${timeLabel}</span></span></div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
     }).join('');
     return active.length ? `<div class="amount" style="display:flex;align-items:center;justify-content:space-between;">${active.length} ${t('order', null, '订单')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${t('noCustomerOrder', null, '暂无顾客下单')}</div>`;
   }
@@ -266,6 +282,91 @@
       input.value = 1;
       input.focus();
     } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+  }
+
+  // ===== 从编辑卡片点结算：弹订单详情二次确认 =====
+  const _settleConfirmedIds = new Set();   // 已确认过的订单 id，后续同订单不再弹
+
+  function handleSettleFromEditor() {
+    const id = state.editingOrderId;
+    if (!id) { SLF.ui.toast('❌ ' + t('pleaseSaveFirst', null, '请先保存订单再结算')); return; }
+    const order = state.orders.find(o => o.id === id);
+    if (!order) { SLF.ui.toast('❌ ' + t('orderNotFound', null, '订单不存在')); return; }
+
+    // 已确认过：直接结算
+    if (_settleConfirmedIds.has(id)) {
+      doSettleFromEditor(id);
+      return;
+    }
+
+    // 首次确认：展示订单详情
+    const body = document.getElementById('settleConfirmBody');
+    if (body) {
+      let html = '';
+      html += `<div style="margin-bottom:12px;color:#666;font-size:13px;">`;
+      html += `🏷️ ${esc(order.table || '-')} &nbsp; `;
+      html += `<strong style="color:#333;">${esc(order.order_no || ('#' + order.id))}</strong>`;
+      html += `</div>`;
+
+      html += `<div style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;">`;
+      (order.items || []).forEach((it, idx) => {
+        const qty = Number(it.quantity) || 0;
+        const returned = Number(it.returnedQty) || 0;
+        const unitBase = SLF.money.toBase(it.price, it.currency_code);
+        const lineBase = unitBase * (qty - returned);
+        const unitDisplay = SLF.money.primary(unitBase);
+        const lineDisplay = SLF.money.format(lineBase);
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;${idx > 0 ? 'border-top:1px solid #f5f5f5;' : ''}">`;
+        html += `<span style="flex:1;min-width:0;"><span style="margin-right:6px;">${esc(it.emoji || '🍽️')}</span>${esc(it.name)}`;
+        html += `<span style="color:#999;font-size:12px;margin-left:6px;">×${qty}${returned > 0 ? ' (' + t('returned', null, '退') + returned + ')' : ''} @${unitDisplay}</span></span>`;
+        html += `<span style="font-weight:600;color:#e74c3c;white-space:nowrap;">${lineDisplay}</span>`;
+        html += `</div>`;
+      });
+      html += `</div>`;
+
+      const totalBase = (order.items || []).reduce((sum, it) => {
+        const unitBase = SLF.money.toBase(it.price, it.currency_code);
+        const q = Number(it.quantity) || 0;
+        const r = Number(it.returnedQty) || 0;
+        return sum + unitBase * (q - r);
+      }, 0);
+      html += `<div style="margin-top:12px;padding-top:12px;border-top:2px solid #333;display:flex;justify-content:space-between;font-size:16px;font-weight:700;">`;
+      html += `<span>${t('total', null, '合计')}</span><span style="color:#e74c3c;">${SLF.money.format(totalBase)}</span>`;
+      html += `</div>`;
+
+      body.innerHTML = html;
+    }
+    document.getElementById('settleConfirmModal').classList.add('open');
+  }
+
+  function closeSettleConfirm() {
+    document.getElementById('settleConfirmModal').classList.remove('open');
+  }
+
+  async function confirmSettleFromEditor() {
+    const id = state.editingOrderId;
+    closeSettleConfirm();
+    if (!id) return;
+    _settleConfirmedIds.add(id);   // 记住已确认，后续同订单不再弹
+    await doSettleFromEditor(id);
+  }
+
+  async function doSettleFromEditor(id) {
+    try {
+      await api('/orders/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'done' })
+      });
+      SLF.ui.toast('✅ ' + t('settleOrder', null, '已结算'));
+      if (typeof closeModal === 'function') closeModal();
+      await load();
+    } catch (e) {
+      const msg = e.message.includes('未完成菜品')
+        ? (t('incompleteItemsError', null, e.message))
+        : e.message;
+      SLF.ui.toast('❌ ' + msg);
+    }
   }
 
   async function completeWaiterOrder(id) {
@@ -633,7 +734,7 @@
         state.cartMeta[itemId] = menuItem || i;
       });
     }
-    let tableLabel = t('currentTable', null, '当前桌号') + '：' + table;
+    let tableLabel = '<span data-i18n="currentTable">' + t('currentTable', null, '当前桌号') + '</span>：' + table;
     if (order && order.sessionToken) {
       const tableOrders = state.orders.filter(o => o.table === table && o.status === 'pending');
       const labels = buildSessionLabels(tableOrders);
@@ -644,7 +745,15 @@
       }
     }
     $('#currentTableBadge').innerHTML = tableLabel;
-    $('#submitBtn').textContent = order ? t('saveChanges', null, '保存修改') : t('submitOrder', null, '提交订单');
+    state.editingOrderId = order ? order.id : null;
+    $('#submitBtn').textContent = order ? t('submitOrder', null, '提交') : t('submitOrder', null, '提交订单');
+    // 编辑已有未结算订单且服务员有结算权限时，显示"结算"按钮
+    const settleBtn = $('#settleBtn');
+    if (settleBtn) {
+      const canSettle = order && order.status === 'pending' && state.waiter && state.waiter.can_complete_order;
+      settleBtn.textContent = t('settleOrder', null, '结算');
+      settleBtn.style.display = canSettle ? 'inline-block' : 'none';
+    }
     renderDishes();
     $('#orderModal').classList.add('open');
   }
@@ -692,6 +801,8 @@
     state.editingOrderId = null;
     state.lockedItems = [];
     $('#submitBtn').textContent = t('submitOrder', null, '提交订单');
+    const settleBtn = $('#settleBtn');
+    if (settleBtn) settleBtn.style.display = 'none';
   }
 
   function renderSelected() {
@@ -825,6 +936,8 @@
       if (state.token) {
           applyWaiterLanguage();
           if (state.menu) renderDishes();
+          const settleBtn = document.getElementById('settleBtn');
+          if (settleBtn) settleBtn.textContent = t('settleOrder', null, '结算');
       }
   }
 
@@ -936,6 +1049,9 @@
     try { window.closeModal = closeModal; } catch(err) {}
     try { window.closeOrderSelect = closeOrderSelect; } catch(err) {}
     try { window.closeTransferModal = closeTransferModal; } catch(err) {}
+    try { window.handleSettleFromEditor = handleSettleFromEditor; } catch(err) {}
+    try { window.closeSettleConfirm = closeSettleConfirm; } catch(err) {}
+    try { window.confirmSettleFromEditor = confirmSettleFromEditor; } catch(err) {}
     try { window.completeWaiterOrder = completeWaiterOrder; } catch(err) {}
     try { window.confirmTransfer = confirmTransfer; } catch(err) {}
     try { window.createNewOrderFromSelect = createNewOrderFromSelect; } catch(err) {}

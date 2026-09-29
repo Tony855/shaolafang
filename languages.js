@@ -733,7 +733,9 @@ const LANGUAGES = {
     "granularityDay": "按日",
     "granularityMonth": "按月",
     "granularityYear": "按年",
-    "reportDateRange": "日期范围：{start} ~ {end}"
+    "reportDateRange": "日期范围：{start} ~ {end}",
+    "pleaseSaveFirst": "请先保存订单再结算",
+    "orderNotFound": "订单不存在"
   },
   "en": {
     "code": "Code",
@@ -1463,7 +1465,9 @@ const LANGUAGES = {
     "granularityDay": "Daily",
     "granularityMonth": "Monthly",
     "granularityYear": "Yearly",
-    "reportDateRange": "Date range: {start} ~ {end}"
+    "reportDateRange": "Date range: {start} ~ {end}",
+    "pleaseSaveFirst": "Please save the order first",
+    "orderNotFound": "Order not found"
   },
   "vi": {
     "code": "Mã",
@@ -2193,7 +2197,9 @@ const LANGUAGES = {
     "granularityDay": "Theo ngày",
     "granularityMonth": "Theo tháng",
     "granularityYear": "Theo năm",
-    "reportDateRange": "Phạm vi: {start} ~ {end}"
+    "reportDateRange": "Phạm vi: {start} ~ {end}",
+    "pleaseSaveFirst": "Vui lòng lưu đơn hàng trước",
+    "orderNotFound": "Không tìm thấy đơn hàng"
   },
   "th": {
     "code": "รหัส",
@@ -2923,7 +2929,9 @@ const LANGUAGES = {
     "granularityDay": "รายวัน",
     "granularityMonth": "รายเดือน",
     "granularityYear": "รายปี",
-    "reportDateRange": "ช่วง: {start} ~ {end}"
+    "reportDateRange": "ช่วง: {start} ~ {end}",
+    "pleaseSaveFirst": "กรุณาบันทึกออเดอร์ก่อน",
+    "orderNotFound": "ไม่พบออเดอร์"
   },
   "km": {
     "code": "កូដ",
@@ -3653,7 +3661,9 @@ const LANGUAGES = {
     "granularityDay": "តាមថ្ងៃ",
     "granularityMonth": "តាមខែ",
     "granularityYear": "តាមឆ្នាំ",
-    "reportDateRange": "ចន្លោះ៖ {start} ~ {end}"
+    "reportDateRange": "ចន្លោះ៖ {start} ~ {end}",
+    "pleaseSaveFirst": "សូមរក្សាទុកការបញ្ជាទិញជាមុនសិន",
+    "orderNotFound": "រកមិនឃើញការបញ្ជាទិញ"
   }
 };
 

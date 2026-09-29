@@ -726,5 +726,7 @@
   "granularityDay": "Theo ngày",
   "granularityMonth": "Theo tháng",
   "granularityYear": "Theo năm",
-  "reportDateRange": "Phạm vi: {start} ~ {end}"
+  "reportDateRange": "Phạm vi: {start} ~ {end}",
+  "pleaseSaveFirst": "Vui lòng lưu đơn hàng trước",
+  "orderNotFound": "Không tìm thấy đơn hàng"
 }

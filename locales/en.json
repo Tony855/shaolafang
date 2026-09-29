@@ -726,5 +726,7 @@
   "granularityDay": "Daily",
   "granularityMonth": "Monthly",
   "granularityYear": "Yearly",
-  "reportDateRange": "Date range: {start} ~ {end}"
+  "reportDateRange": "Date range: {start} ~ {end}",
+  "pleaseSaveFirst": "Please save the order first",
+  "orderNotFound": "Order not found"
 }
