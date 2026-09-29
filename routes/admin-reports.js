@@ -6,9 +6,20 @@ module.exports = function(app, deps) {
 
   app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
     try {
-      const date = req.query.date || new Date().toISOString().slice(0, 10);
-      const startOfDay = new Date(date + 'T00:00:00.000Z');
-      const endOfDay = new Date(date + 'T23:59:59.999Z');
+      // ===== 支持 startDate/endDate 范围查询，向后兼容 date =====
+      let startDate = req.query.startDate || req.query.date || new Date().toISOString().slice(0, 10);
+      let endDate = req.query.endDate || startDate;
+
+      const startOfDay = new Date(startDate + 'T00:00:00.000Z');
+      const endOfDay = new Date(endDate + 'T23:59:59.999Z');
+      const date = (startDate === endDate) ? startDate : `${startDate} ~ ${endDate}`;
+
+      // 根据范围天数自动判断聚合粒度
+      const daysDiff = Math.max(1, Math.round((endOfDay - startOfDay) / 86400000) + 1);
+      let granularity;
+      if (daysDiff <= 1) granularity = 'day';
+      else if (daysDiff <= 31) granularity = 'month';   // 按天聚合
+      else granularity = 'year';                        // 按月聚合
       const orderStats = await getAsync(`
         SELECT
           COUNT(*) AS total_orders,
@@ -40,16 +51,44 @@ module.exports = function(app, deps) {
         ORDER BY quantity DESC
         LIMIT 10
       `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
-      const hourlyStats = await allAsync(`
-        SELECT CONCAT(LPAD(HOUR(createdAt),2,'0'), ':', LPAD(FLOOR(MINUTE(createdAt)/10)*10, 2, '0')) AS time_bucket,
-               COUNT(*) AS orders, SUM(total) AS revenue
-        FROM orders
-        WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt < ?
-        GROUP BY time_bucket
-        ORDER BY time_bucket
-      `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+      // ===== 时段分布：按粒度动态调整 =====
+      let hourlyStats;
+      if (granularity === 'day') {
+        // 按日：24 小时内每 10 分钟聚合
+        hourlyStats = await allAsync(`
+          SELECT CONCAT(LPAD(HOUR(createdAt),2,'0'), ':', LPAD(FLOOR(MINUTE(createdAt)/10)*10, 2, '0')) AS time_bucket,
+                 COUNT(*) AS orders, SUM(total) AS revenue
+          FROM orders
+          WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt < ?
+          GROUP BY time_bucket
+          ORDER BY time_bucket
+        `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+      } else if (granularity === 'month') {
+        // 按月：每天聚合
+        hourlyStats = await allAsync(`
+          SELECT DATE(createdAt) AS time_bucket,
+                 COUNT(*) AS orders, SUM(total) AS revenue
+          FROM orders
+          WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt < ?
+          GROUP BY time_bucket
+          ORDER BY time_bucket
+        `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+      } else {
+        // 按年：每月聚合
+        hourlyStats = await allAsync(`
+          SELECT DATE_FORMAT(createdAt, '%Y-%m') AS time_bucket,
+                 COUNT(*) AS orders, SUM(total) AS revenue
+          FROM orders
+          WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt < ?
+          GROUP BY time_bucket
+          ORDER BY time_bucket
+        `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+      }
       res.json({
         date,
+        startDate,
+        endDate,
+        granularity,
         summary: {
           totalOrders: orderStats?.total_orders || 0,
           completedOrders: orderStats?.completed_orders || 0,

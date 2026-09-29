@@ -725,7 +725,15 @@ const LANGUAGES = {
     "importMenuTitle": "📥 批量导入菜品",
     "importMenuDesc": "选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en",
     "downloadTemplate": "📥 下载模板",
-    "confirmImportTitle": "确认导入"
+    "confirmImportTitle": "确认导入",
+    "quickToday": "今日",
+    "quickWeek": "本周",
+    "quickMonth": "本月",
+    "quickYear": "本年",
+    "granularityDay": "按日",
+    "granularityMonth": "按月",
+    "granularityYear": "按年",
+    "reportDateRange": "日期范围：{start} ~ {end}"
   },
   "en": {
     "code": "Code",
@@ -1447,7 +1455,15 @@ const LANGUAGES = {
     "importMenuTitle": "📥 Batch Import Menu",
     "importMenuDesc": "Select a CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en",
     "downloadTemplate": "📥 Download Template",
-    "confirmImportTitle": "Confirm Import"
+    "confirmImportTitle": "Confirm Import",
+    "quickToday": "Today",
+    "quickWeek": "This Week",
+    "quickMonth": "This Month",
+    "quickYear": "This Year",
+    "granularityDay": "Daily",
+    "granularityMonth": "Monthly",
+    "granularityYear": "Yearly",
+    "reportDateRange": "Date range: {start} ~ {end}"
   },
   "vi": {
     "code": "Mã",
@@ -2169,7 +2185,15 @@ const LANGUAGES = {
     "importMenuTitle": "📥 Nhập khẩu hàng loạt",
     "importMenuDesc": "Chọn tệp CSV để nhập. Định dạng: name,category,price,emoji,desc,name_en,desc_en",
     "downloadTemplate": "📥 Tải xuống mẫu",
-    "confirmImportTitle": "Xác nhận nhập"
+    "confirmImportTitle": "Xác nhận nhập",
+    "quickToday": "Hôm nay",
+    "quickWeek": "Tuần này",
+    "quickMonth": "Tháng này",
+    "quickYear": "Năm nay",
+    "granularityDay": "Theo ngày",
+    "granularityMonth": "Theo tháng",
+    "granularityYear": "Theo năm",
+    "reportDateRange": "Phạm vi: {start} ~ {end}"
   },
   "th": {
     "code": "รหัส",
@@ -2891,7 +2915,15 @@ const LANGUAGES = {
     "importMenuTitle": "📥 นำเข้าเมนูจำนวนมาก",
     "importMenuDesc": "เลือกไฟล์ CSV นำเข้า รูปแบบ: name,category,price,emoji,desc,name_en,desc_en",
     "downloadTemplate": "📥 ดาวน์โหลดเทมเพลต",
-    "confirmImportTitle": "ยืนยันนำเข้า"
+    "confirmImportTitle": "ยืนยันนำเข้า",
+    "quickToday": "วันนี้",
+    "quickWeek": "สัปดาห์นี้",
+    "quickMonth": "เดือนนี้",
+    "quickYear": "ปีนี้",
+    "granularityDay": "รายวัน",
+    "granularityMonth": "รายเดือน",
+    "granularityYear": "รายปี",
+    "reportDateRange": "ช่วง: {start} ~ {end}"
   },
   "km": {
     "code": "កូដ",
@@ -3613,7 +3645,15 @@ const LANGUAGES = {
     "importMenuTitle": "📥 នាំចូលម៉ឺនុយជាដុំ",
     "importMenuDesc": "ជ្រើសឯកសារ CSV ដើម្បីនាំចូល។ ទម្រង់៖ name,category,price,emoji,desc,name_en,desc_en",
     "downloadTemplate": "📥 ទាញយកគំរូ",
-    "confirmImportTitle": "បញ្ជាក់ការនាំចូល"
+    "confirmImportTitle": "បញ្ជាក់ការនាំចូល",
+    "quickToday": "ថ្ងៃនេះ",
+    "quickWeek": "សប្តាហ៍នេះ",
+    "quickMonth": "ខែនេះ",
+    "quickYear": "ឆ្នាំនេះ",
+    "granularityDay": "តាមថ្ងៃ",
+    "granularityMonth": "តាមខែ",
+    "granularityYear": "តាមឆ្នាំ",
+    "reportDateRange": "ចន្លោះ៖ {start} ~ {end}"
   }
 };
 

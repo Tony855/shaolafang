@@ -718,5 +718,13 @@
   "importMenuTitle": "📥 นำเข้าเมนูจำนวนมาก",
   "importMenuDesc": "เลือกไฟล์ CSV นำเข้า รูปแบบ: name,category,price,emoji,desc,name_en,desc_en",
   "downloadTemplate": "📥 ดาวน์โหลดเทมเพลต",
-  "confirmImportTitle": "ยืนยันนำเข้า"
+  "confirmImportTitle": "ยืนยันนำเข้า",
+  "quickToday": "วันนี้",
+  "quickWeek": "สัปดาห์นี้",
+  "quickMonth": "เดือนนี้",
+  "quickYear": "ปีนี้",
+  "granularityDay": "รายวัน",
+  "granularityMonth": "รายเดือน",
+  "granularityYear": "รายปี",
+  "reportDateRange": "ช่วง: {start} ~ {end}"
 }

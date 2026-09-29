@@ -718,5 +718,13 @@
   "importMenuTitle": "📥 នាំចូលម៉ឺនុយជាដុំ",
   "importMenuDesc": "ជ្រើសឯកសារ CSV ដើម្បីនាំចូល។ ទម្រង់៖ name,category,price,emoji,desc,name_en,desc_en",
   "downloadTemplate": "📥 ទាញយកគំរូ",
-  "confirmImportTitle": "បញ្ជាក់ការនាំចូល"
+  "confirmImportTitle": "បញ្ជាក់ការនាំចូល",
+  "quickToday": "ថ្ងៃនេះ",
+  "quickWeek": "សប្តាហ៍នេះ",
+  "quickMonth": "ខែនេះ",
+  "quickYear": "ឆ្នាំនេះ",
+  "granularityDay": "តាមថ្ងៃ",
+  "granularityMonth": "តាមខែ",
+  "granularityYear": "តាមឆ្នាំ",
+  "reportDateRange": "ចន្លោះ៖ {start} ~ {end}"
 }

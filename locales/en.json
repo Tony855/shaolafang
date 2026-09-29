@@ -718,5 +718,13 @@
   "importMenuTitle": "📥 Batch Import Menu",
   "importMenuDesc": "Select a CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en",
   "downloadTemplate": "📥 Download Template",
-  "confirmImportTitle": "Confirm Import"
+  "confirmImportTitle": "Confirm Import",
+  "quickToday": "Today",
+  "quickWeek": "This Week",
+  "quickMonth": "This Month",
+  "quickYear": "This Year",
+  "granularityDay": "Daily",
+  "granularityMonth": "Monthly",
+  "granularityYear": "Yearly",
+  "reportDateRange": "Date range: {start} ~ {end}"
 }

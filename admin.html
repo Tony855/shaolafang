@@ -231,8 +231,14 @@
                     </div>
                 </div>
                 <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <!-- 快捷按钮 -->
+                    <button data-range="today" id="quickTodayBtn" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">今日</button>
+                    <button data-range="week" id="quickWeekBtn" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本周</button>
+                    <button data-range="month" id="quickMonthBtn" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本月</button>
+                    <button data-range="year" id="quickYearBtn" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本年</button>
+                    <span style="color:rgba(255,255,255,.2);">|</span>
                     <label id="reportDateLabel" style="color:#ccc;">日期:</label>
-                    <input type="date" id="reportDate" onchange="loadDailyReport()" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
+                    <input type="date" id="reportDate" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
                     <button id="queryReportBtn" onclick="loadDailyReport()" style="background:#e85d3a;color:#fff;border:0;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">查询</button>
                     <button id="exportOrdersBtn" onclick="exportData('orders')" style="background:#3498db;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出订单CSV</button>
                     <button id="exportSalesBtn" onclick="exportData('sales')" style="background:#2ecc71;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出销量CSV</button>
