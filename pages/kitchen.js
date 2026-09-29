@@ -257,8 +257,13 @@
         $('#updatedTime').textContent = utils.formatTime(new Date());
       } catch (e) {
         $('#statusDot').classList.add('off');
-        if (/请先登录|无操作权限|401/.test(e.message || '')) {
-          logout(false);
+        if (/请先登录|无操作权限|401|登录已过期/.test(e.message || '')) {
+          // 清除 token，回到本页自带的登录界面（不跳 /login）
+          SLF.store.rawRemove('kitchenToken');
+          SLF.store.rawRemove('waiterToken');
+          token = '';
+          waiter = null;
+          showLoginScreen();
         } else {
           SLF.ui.toast('❌ ' + (e.message || t('networkError', null, '网络错误')), 'error');
         }

@@ -120,9 +120,11 @@ async function startIdleCheck() {
   idleTimer = setInterval(() => {
     if (Date.now() - lastActivity > timeoutMs) {
       clearInterval(idleTimer);
+      idleTimer = null;
       SLF.store.rawRemove('superToken');
       SLF.store.rawRemove('superAdmin');
-      location.reload();
+      token = '';
+      showLoginPage();
     }
   }, 10000);
 }
@@ -176,11 +178,12 @@ function showApp() {
 }
 
 async function logout() {
-  if (idleTimer) clearInterval(idleTimer);
+  if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
   try { await api('/super/logout', { method: 'POST' }); } catch (e) {}
   SLF.store.rawRemove('superToken');
   SLF.store.rawRemove('superAdmin');
-  location.reload();
+  token = '';
+  showLoginPage();
 }
 
 function switchModule(mod) {
@@ -210,11 +213,30 @@ function switchModule(mod) {
 
 async function api(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
-  if (method === 'GET') return SLF.api.get(path, options);
-  if (method === 'POST') return SLF.api.post(path, options.body, options);
-  if (method === 'PUT') return SLF.api.put(path, options.body, options);
-  if (method === 'DELETE') return SLF.api.del(path, options);
-  return SLF.api._request(method, path, options);
+  try {
+    if (method === 'GET') return await SLF.api.get(path, options);
+    if (method === 'POST') return await SLF.api.post(path, options.body, options);
+    if (method === 'PUT') return await SLF.api.put(path, options.body, options);
+    if (method === 'DELETE') return await SLF.api.del(path, options);
+    return await SLF.api._request(method, path, options);
+  } catch (e) {
+    // super 页面 401 → 回本页登录卡片，不跳 /login
+    if (e && (e.status === 401 || /登录已过期|未登录|无操作权限/.test(e.message || ''))) {
+      SLF.store.rawRemove('superToken');
+      SLF.store.rawRemove('superAdmin');
+      token = '';
+      if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
+      showLoginPage();
+    }
+    throw e;
+  }
+}
+
+function showLoginPage() {
+  const lp = document.getElementById('loginPage');
+  const ap = document.getElementById('app');
+  if (lp) lp.style.display = 'flex';
+  if (ap) ap.style.display = 'none';
 }
 
 function formatDateTime(dateStr) {

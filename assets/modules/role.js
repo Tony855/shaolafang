@@ -33,10 +33,15 @@
 
   function loginUrl() {
     var r = current();
+    // kitchen / super 页面自带登录界面，不外跳
+    if (r === 'kitchen' || r === 'super') return null;
     return (r === 'customer') ? '/login' : '/login?type=' + r;
   }
 
-  function goLogin() { global.location.href = loginUrl(); }
+  function goLogin() {
+    var url = loginUrl();
+    if (url) global.location.href = url;
+  }
 
   // 页面入口校验：无 token 直接跳登录
   function require() {

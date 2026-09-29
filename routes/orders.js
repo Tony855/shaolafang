@@ -781,7 +781,7 @@ app.post('/api/orders', async (req, res) => {
     let seqPrefix = todayPrefix;
     if (resetPeriod === 'monthly') seqPrefix = orderPrefix + yyddmm.slice(0, 4);
     else if (resetPeriod === 'yearly') seqPrefix = orderPrefix + yyddmm.slice(0, 2);
-    else if (resetPeriod === 'never') seqPrefix = orderPrefix + 'global';
+    else if (resetPeriod === 'never') seqPrefix = orderPrefix + 'GL';
 
     // ---------- 7. 事务：分配订单号 + 写订单 + 更新销量 + 更新桌台 + 重置会话 ----------
     let createdOrder;

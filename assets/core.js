@@ -392,11 +392,7 @@
           if (res.status === 401) {
             const page = location.pathname;
             if (!page.startsWith('/login')) {
-              const type = page.replace(/^\//, '').split('/')[0];
-              const redirect = type && !['admin', 'cashier', 'waiter', 'kitchen', 'super'].includes(type)
-                ? '/login'
-                : '/login?type=' + type;
-              // 清除 token 并立即跳转
+              // 先清除 token
               try {
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('cashierToken');
@@ -405,7 +401,15 @@
                 localStorage.removeItem('superToken');
                 sessionStorage.removeItem('adminToken');
               } catch(e) {}
-              location.replace(redirect);
+
+              const type = page.replace(/^\//, '').split('/')[0];
+              // kitchen / super 页面自带登录界面，停留在本页，由页面自行处理
+              if (type !== 'kitchen' && type !== 'super') {
+                const redirect = type && !['admin', 'cashier', 'waiter'].includes(type)
+                  ? '/login'
+                  : '/login?type=' + type;
+                location.replace(redirect);
+              }
             }
           }
           throw error;
