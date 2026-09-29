@@ -305,7 +305,7 @@
       let html = '';
       html += `<div style="margin-bottom:12px;color:#666;font-size:13px;">`;
       html += `🏷️ ${esc(order.table || '-')} &nbsp; `;
-      html += `<strong style="color:#333;">${esc(order.order_no || ('#' + order.id))}</strong>`;
+      html += `<span style="font-size:16px;color:#e85d3a;font-weight:700;padding:2px 8px;background:#fff2ec;border-radius:6px;">${esc(order.order_no || ('#' + order.id))}</span>`;
       html += `</div>`;
 
       html += `<div style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;">`;
@@ -735,6 +735,11 @@
       });
     }
     let tableLabel = '<span data-i18n="currentTable">' + t('currentTable', null, '当前桌号') + '</span>：' + table;
+    // 有订单时显示订单号
+    if (order && (order.order_no || order.id)) {
+      const orderNoText = order.order_no || ('#' + order.id);
+      tableLabel += ' <span style="font-size:13px;color:#888;font-weight:500;margin-left:8px;" data-i18n="orderNoPrefix">' + t('order', null, '订单') + '</span> <span style="font-size:16px;color:#e85d3a;font-weight:700;padding:2px 8px;background:#fff2ec;border-radius:6px;">' + esc(orderNoText) + '</span>';
+    }
     if (order && order.sessionToken) {
       const tableOrders = state.orders.filter(o => o.table === table && o.status === 'pending');
       const labels = buildSessionLabels(tableOrders);
