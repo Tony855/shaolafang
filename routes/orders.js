@@ -6,7 +6,7 @@ const fs = require('fs');
 const { hashPassword, verifyPassword } = require('../server/middleware/password');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, printToNetworkPrinter, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
+  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
 app.get('/api/waiter/overview', async (req, res) => {
   try {
@@ -826,18 +826,21 @@ app.post('/api/orders', async (req, res) => {
     const newRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [createdOrder.orderId, finalStoreId]);
 
     try {
-      const autoPrintRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${finalStoreId}`]);
-      const autoPrintEnabled = !autoPrintRow || autoPrintRow.value === '1' || autoPrintRow.value === 'true';
+      // ===== 后厨自动打印（读数据库开关，默认关闭）=====
+      const autoPrintRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_kitchen_${finalStoreId}`]);
+      const autoPrintEnabled = autoPrintRow && (autoPrintRow.value === '1' || autoPrintRow.value === 'true');
       if (autoPrintEnabled) {
-        const defaultPrinter = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [finalStoreId]);
-        if (defaultPrinter && defaultPrinter.type === 'network' && defaultPrinter.ip_address) {
-          const storeInfo = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [finalStoreId, req.merchantId || (await getAsync('SELECT merchant_id FROM stores WHERE id=?', [finalStoreId]))?.merchant_id]);
-          const printData = buildReceipt(newRow, storeInfo, defaultPrinter);
-          try {
-            await printToNetworkPrinter(printData, defaultPrinter.ip_address, defaultPrinter.port);
-          } catch (printErr) {
-            console.error(`[AutoPrint] Failed to print order #${newRow.id}:`, printErr.message);
-          }
+        const storeInfo = await getAsync('SELECT * FROM stores WHERE id=?', [finalStoreId]);
+        const result = await dispatchPrint({
+          order: formatOrder(newRow),
+          type: 'kitchen',
+          store: storeInfo,
+          getAsync,
+        });
+        if (result.printed) {
+          console.log(`[AutoPrint] 后厨单已打印 order #${newRow.id} → ${result.printer}`);
+        } else if (result.error) {
+          console.error(`[AutoPrint] 打印失败 order #${newRow.id}:`, result.error);
         }
       }
     } catch (autoPrintErr) {

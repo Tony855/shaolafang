@@ -4,7 +4,7 @@
 const crypto = require('crypto');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, formatOrder, syncTableStatus, buildBatchReceipt, printToNetworkPrinter, io } = deps;
+  const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io } = deps;
 
 app.post('/api/waiter/login', async (req, res) => {
   try {
@@ -247,6 +247,27 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'refund_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     res.json({ success: true, message: '退款成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== 单个订单打印小票 =====
+app.post('/api/cashier/orders/:id(\\d+)/print', requireCashier, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+    const formattedOrder = formatOrder(order);
+    const store = await getAsync('SELECT name, address, phone FROM stores WHERE id=?', [req.storeId]);
+
+    const result = await dispatchPrint({
+      order: formattedOrder,
+      type: 'receipt',
+      store: store || { name: 'FoodFlow', address: '' },
+      getAsync,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/cashier/report/today', requireCashier, async (req, res) => {

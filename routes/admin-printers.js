@@ -2,7 +2,7 @@
    routes/admin-printers.js — 打印机 CRUD
    ============================================================ */
 module.exports = function(app, deps) {
-  const { getAsync, allAsync, runAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, formatOrder, buildReceipt, buildKitchenTicket, printToNetworkPrinter, EscPosBuilder, formatGlobalDateTime } = deps;
+  const { getAsync, allAsync, runAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, formatOrder, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, EscPosBuilder, formatGlobalDateTime } = deps;
 
   app.get('/api/admin/printers', requireAdminKey, async (req, res) => {
     try {
@@ -67,24 +67,19 @@ module.exports = function(app, deps) {
       const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, printStoreId]);
       if (!row) return res.status(404).json({ error: '订单不存在' });
       const order = formatOrder(row);
-      const store = await getAsync('SELECT name, address FROM stores WHERE id=? AND merchant_id=?', [row.store_id || 1, req.merchantId || 1]);
+      const store = await getAsync('SELECT name, address, phone FROM stores WHERE id=?', [row.store_id || 1]);
+
+      // 可选：指定打印机
+      let printer = null;
       const printerId = req.body?.printer_id;
-      let printer;
       if (printerId) {
         printer = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=? AND active=1', [printerId, row.store_id]);
-      } else {
-        printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [row.store_id || 1]);
       }
-      const printData = buildReceipt(order, store, printer);
-      if (printer && printer.type === 'network' && printer.ip_address) {
-        try {
-          await printToNetworkPrinter(printData, printer.ip_address, printer.port);
-          return res.json({ success: true, printed: true, printer: printer.name });
-        } catch (e) {
-          return res.status(502).json({ success: false, error: e.message, printData: printData.toString('base64') });
-        }
-      }
-      res.json({ success: true, printed: false, printData: printData.toString('base64'), message: '请使用前端打印' });
+
+      const result = await dispatchPrint({
+        order, type: 'receipt', store, printer, getAsync,
+      });
+      res.json(result);
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -95,26 +90,22 @@ module.exports = function(app, deps) {
       const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, printStoreId]);
       if (!row) return res.status(404).json({ error: '订单不存在' });
       const order = formatOrder(row);
-      const store = await getAsync('SELECT name, address FROM stores WHERE id=?', [row.store_id || 1]);
-      const printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [row.store_id || 1]);
-      const printData = buildKitchenTicket(order, store, printer);
-      if (printer && printer.type === 'network' && printer.ip_address) {
-        try {
-          await printToNetworkPrinter(printData, printer.ip_address, printer.port);
-          return res.json({ success: true, printed: true });
-        } catch (e) {
-          return res.status(502).json({ success: false, error: e.message, printData: printData.toString('base64') });
-        }
-      }
-      res.json({ success: true, printed: false, printData: printData.toString('base64') });
+      const store = await getAsync('SELECT name, address, phone FROM stores WHERE id=?', [row.store_id || 1]);
+
+      const result = await dispatchPrint({
+        order, type: 'kitchen', store, getAsync,
+      });
+      res.json(result);
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   app.get('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
     try {
       const storeId = req.storeId || 1;
-      const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${storeId}`]);
-      const enabled = row ? (row.value === '1' || row.value === 'true') : true;
+      const type = req.query.type || 'kitchen';
+      const key = type === 'kitchen' ? `auto_print_kitchen_${storeId}` : `auto_print_receipt_${storeId}`;
+      const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [key]);
+      const enabled = row ? (row.value === '1' || row.value === 'true') : false;
       res.json({ enabled });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -155,8 +146,8 @@ module.exports = function(app, deps) {
   app.post('/api/admin/settings/auto-print', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
       const storeId = req.storeId || 1;
-      const { enabled } = req.body || {};
-      const key = `auto_print_receipt_${storeId}`;
+      const { enabled, type } = req.body || {};
+      const key = type === 'receipt' ? `auto_print_receipt_${storeId}` : `auto_print_kitchen_${storeId}`;
       const existing = await getAsync("SELECT value FROM settings WHERE `key` = ?", [key]);
       if (existing) {
         await runAsync("UPDATE settings SET value = ? WHERE `key` = ?", [enabled ? '1' : '0', key]);

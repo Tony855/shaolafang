@@ -57,8 +57,6 @@
         let menusCache = [];
         let tablesCache = [];
         let ordersCache = [];
-        let printedOrders = new Set();
-        let autoPrintPollTimer = null;
         let currenciesCache = [];
         let categoriesCache = [];
         let editingMenuId = null;
@@ -779,7 +777,6 @@
         function logoutAdmin() {
             showConfirm(tAdmin('confirmLogout') || '确认退出登录吗？', function() {
                 try { stopAdminCallPolling(); } catch(e) {}
-                try { stopAutoPrintPoll(); } catch(e) {}
                 adminToken = '';
                 SLF.store.rawRemoveSession('adminToken');
                 window.location.href = '/login';
@@ -996,34 +993,21 @@
 
 
         // 打印机管理
-        function toggleAutoPrint() {
+        async function toggleAutoPrint() {
             const enabled = document.getElementById('autoPrintToggle').checked;
-            SLF.store.rawSet('autoPrintEnabled', enabled ? '1' : '0');
-            SLF.ui.toast(enabled ? (tAdmin('autoPrintEnabled') || '已开启自动打印') : (tAdmin('autoPrintDisabled') || '已关闭自动打印'));
-            if (enabled) startAutoPrintPoll();
-            else stopAutoPrintPoll();
-        }
-        function startAutoPrintPoll() {
-            if (autoPrintPollTimer) return;
-            if (ordersCache.length) ordersCache.forEach(o => printedOrders.add(o.id));
-            autoPrintPollTimer = setInterval(checkNewOrdersAndPrint, 15000);
-        }
-        function stopAutoPrintPoll() {
-            if (autoPrintPollTimer) { clearInterval(autoPrintPollTimer); autoPrintPollTimer = null; }
-        }
-        async function checkNewOrdersAndPrint() {
             try {
-                const orders = await api('/orders');
-                const newOrders = orders.filter(o => o.status === 'pending' && !printedOrders.has(o.id));
-                for (const order of newOrders) {
-                    printedOrders.add(order.id);
-                    try {
-                        const data = await api('/orders/' + order.id + '/print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {} });
-                        if (data.printData) printViaBrowser(data.printData, order.id);
-                    } catch (e) { console.error('自动打印失败:', e); }
-                }
-            } catch (e) { console.error('检查新订单失败:', e); }
+                await SLF.api.post('/admin/settings/auto-print', {
+                    enabled: enabled,
+                    type: 'kitchen'
+                });
+                SLF.ui.toast(enabled ? (tAdmin('autoPrintEnabled') || '已开启自动打印') : (tAdmin('autoPrintDisabled') || '已关闭自动打印'));
+            } catch (e) {
+                SLF.ui.toast('❌ ' + (e.message || '保存失败'));
+                // 回滚开关
+                document.getElementById('autoPrintToggle').checked = !enabled;
+            }
         }
+        
         // ===== 自动打印开关（已移到 printer.js）=====
 
 
