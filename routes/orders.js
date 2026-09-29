@@ -519,7 +519,7 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
         [targetTable, newToken, exp, nowIso, storeId, storeId]
       );
     }
-    await runAsync('UPDATE orders SET table_name=?, session_token=? WHERE id=?', [targetTable, newToken, orderId]);
+    await runAsync('UPDATE orders SET table_name=?, session_token=? WHERE id=? AND store_id=?', [targetTable, newToken, orderId, storeId]);
     await syncTableStatus(oldTable, storeId);
     await syncTableStatus(targetTable, storeId);
     await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ?', [oldTable, storeId, new Date().toISOString()]);
@@ -539,10 +539,9 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
   try {
     const id = parseInt(req.params.id);
     const index = parseInt(req.params.index);
-    const row = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
-    if (!row) return res.status(404).json({ error: '订单不存在' });
     const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
-    if (row.store_id !== orderStoreId) return res.status(403).json({ error: '无权操作此订单' });
+    const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
+    if (!row) return res.status(404).json({ error: '订单不存在' });
     if (!req.isAdmin && req.waiter && !req.waiter.can_mark_item) return res.status(403).json({ error: '该服务员没有标记菜品权限' });
     if (row.status === 'done') return res.status(409).json({ error: '已结算订单不能修改菜品状态' });
     let items = row.items;
@@ -565,7 +564,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
       }
       items[index].returnedQty = returnQty;
       if (items[index].id) {
-        await runAsync('UPDATE menus SET sales_count = GREATEST(0, sales_count - ?) WHERE id = ?', [returnQty, items[index].id]);
+        await runAsync('UPDATE menus SET sales_count = GREATEST(0, sales_count - ?) WHERE id = ? AND store_id = ?', [returnQty, items[index].id, orderStoreId]);
       }
       const newTotal = items.reduce((sum, it) => {
         const price = Number(it.base_price || it.price) || 0;
@@ -573,8 +572,8 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
         const rq = Number(it.returnedQty) || 0;
         return sum + price * (q - rq);
       }, 0);
-      await runAsync('UPDATE orders SET items=?, total=? WHERE id=?', [JSON.stringify(items), newTotal, id]);
-      const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
+      await runAsync('UPDATE orders SET items=?, total=? WHERE id=? AND store_id=?', [JSON.stringify(items), newTotal, id, orderStoreId]);
+      const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
       return res.json(formatOrder(updatedRow));
     }
     if (items[index].itemStatus === 'done' && req.body.itemStatus !== 'done') {
@@ -582,8 +581,8 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     }
     const nextStatus = req.body.itemStatus === 'done' ? 'done' : 'pending';
     items[index].itemStatus = nextStatus;
-    await runAsync('UPDATE orders SET items=? WHERE id=?', [JSON.stringify(items), id]);
-    const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
+    await runAsync('UPDATE orders SET items=? WHERE id=? AND store_id=?', [JSON.stringify(items), id, orderStoreId]);
+    const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     const updatedOrder = formatOrder(updatedRow);
     io.to('kitchen-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     io.to('waiter-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
