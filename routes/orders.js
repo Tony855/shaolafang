@@ -484,6 +484,7 @@ app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
 
     io.to('waiter-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: result.affectedRows });
     io.to('kitchen-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: result.affectedRows });
+    io.to('cashier-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: result.affectedRows });
 
     res.json({ success: true, from: fromTable, to: targetTable, count: result.affectedRows });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -531,6 +532,7 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', logParams);
     io.to('waiter-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
     io.to('kitchen-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
+    io.to('cashier-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
     res.json({ success: true, from: oldTable, to: targetTable, targetHasOrders: targetPending ? targetPending.cnt > 0 : false });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -587,6 +589,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     const updatedOrder = formatOrder(updatedRow);
     io.to('kitchen-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     io.to('waiter-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
+    io.to('cashier-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     res.json(updatedOrder);
   } catch (e) {
     console.error('切换菜品状态失败:', e);

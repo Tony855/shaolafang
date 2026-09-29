@@ -46,6 +46,19 @@
     return itemBasePrice(item) * qty;
   }
 
+  // 金额 HTML：主货币红色，副货币灰色
+  function moneyHtml(base) {
+    const p = SLF.money.primary(base);
+    const d = SLF.money.dual;
+    let sec = '';
+    if (d && d.enabled && d.currency && d.currency.code) {
+      sec = SLF.money.secondary(base, d.currency.code);
+    }
+    return sec
+      ? `<span class="money-primary">${p}</span> <span class="money-secondary">(${sec})</span>`
+      : `<span class="money-primary">${p}</span>`;
+  }
+
   function goLogin() {
     window.location.href = '/login?type=cashier';
   }
@@ -189,7 +202,7 @@
     }
 
     container.innerHTML = filtered.map(order => {
-      const total = SLF.money.format(Number(order.total) || 0);
+      const total = moneyHtml(Number(order.total) || 0);
       const itemCount = (order.items || []).length;
       const isSelected = order.id === selectedOrderId;
       const sessionLabels = buildSessionLabels([order]);
@@ -282,20 +295,25 @@
       const qty = Number(item.quantity) || 0;
       const returned = Number(item.returnedQty) || 0;
       const lineBase = itemBasePrice(item) * (qty - returned);
+      const isDone = item.itemStatus === 'done';
+      const statusBadge = isDone
+        ? '<span class="pos-dish-status done">✅ ' + (t('done') || '已完成') + '</span>'
+        : '<span class="pos-dish-status pending">⏳ ' + (t('pending') || '制作中') + '</span>';
       return `<div class="pos-detail-item">
         <div class="pos-detail-item-name">
           <span class="emoji">${esc(item.emoji || '🍽️')}</span>
           <span>${esc(item.name)}${returned > 0 ? ` <span style="color:#e74c3c;font-size:12px;">(${t('returned') || '退'} ${returned})</span>` : ''}</span>
+          ${statusBadge}
         </div>
         <div class="pos-detail-item-qty">× ${qty}</div>
-        <div class="pos-detail-item-price">${SLF.money.format(lineBase)}</div>
+        <div class="pos-detail-item-price">${moneyHtml(lineBase)}</div>
       </div>`;
     }).join('') || '<div style="text-align:center;padding:20px;color:#9ca3af;">' + (t('noDishes') || '无菜品') + '</div>';
 
     // 金额
-    const totalDisplay = SLF.money.format(Number(order.total) || 0);
-    document.getElementById('detailTotal').textContent = totalDisplay;
-    document.getElementById('detailDue').textContent = totalDisplay;
+    const totalDisplay = moneyHtml(Number(order.total) || 0);
+    document.getElementById('detailTotal').innerHTML = totalDisplay;
+    document.getElementById('detailDue').innerHTML = totalDisplay;
 
     // 按钮
     const btnsEl = document.getElementById('detailButtons');
@@ -305,7 +323,7 @@
     if (canSettle) {
       btns += `<button class="btn btn-pay" onclick="openPaymentModal(${order.id})">💵 ${t('settleOrder') || '收款'}</button>`;
     } else if (order.status === 'pending') {
-      btns += `<button class="btn btn-pay" disabled title="${t('itemsNotReady') || '菜品未全部完成'}">💵 ${t('settleOrder') || '收款'} (未就绪)</button>`;
+      btns += `<button class="btn btn-pay" disabled title="${t('itemsNotReady') || '菜品未全部完成'}">💵 ${t('settleOrder') || '收款'} (未完成)</button>`;
     }
     btns += `<button class="btn btn-print" onclick="printOrder(${order.id})" title="${t('print') || '打印'}">🖨</button>`;
     if (canCancel) {
@@ -319,7 +337,7 @@
     const todayOrders = orders.filter(o => (o.createdAt || '').startsWith(today));
     const revenueBase = todayOrders.filter(o => o.status === 'done').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
     document.getElementById('todayCount').textContent = todayOrders.length;
-    document.getElementById('todayRevenue').textContent = SLF.money.format(revenueBase);
+    document.getElementById('todayRevenue').innerHTML = moneyHtml(revenueBase);
   }
 
   /* ===== 收款弹窗 ===== */
@@ -329,9 +347,9 @@
     paymentOrderId = orderId;
     payMethod = 'cash';
     const amount = Number(order.total) || 0;
-    document.getElementById('paymentAmount').textContent = SLF.money.format(amount);
+    document.getElementById('paymentAmount').innerHTML = moneyHtml(amount);
     document.getElementById('cashReceived').value = '';
-    document.getElementById('cashChange').textContent = SLF.money.format(0);
+    document.getElementById('cashChange').innerHTML = moneyHtml(0);
     document.querySelectorAll('.payment-method').forEach(btn => btn.classList.toggle('active', btn.dataset.method === 'cash'));
     document.getElementById('cashArea').style.display = 'block';
     renderQuickCash(amount);
@@ -369,7 +387,7 @@
     const received = parseFloat(document.getElementById('cashReceived').value) || 0;
     const due = Number(order.total) || 0;
     const change = Math.max(0, received - due);
-    document.getElementById('cashChange').textContent = SLF.money.format(change);
+    document.getElementById('cashChange').innerHTML = moneyHtml(change);
   }
 
   async function confirmPay() {

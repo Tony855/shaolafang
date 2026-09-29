@@ -782,3 +782,71 @@ body {
 .payment-method.active .pm-icon-aba img {
   filter: brightness(1.1);
 }
+
+/* ============================================================
+   收银台金额颜色统一（2026-09-29）
+   主货币深红、副货币灰色
+   ============================================================ */
+.pos-app .money-primary {
+  color: #e85d3a !important;
+  font-weight: 700;
+}
+.pos-app .money-secondary {
+  color: #999 !important;
+  font-weight: 400;
+  font-size: 0.82em;
+  margin-left: 2px;
+}
+
+/* 详情页的大号应收金额：让主货币更深、更醒目 */
+.pos-amount-due .money-primary {
+  color: #d63c1a !important;
+  font-size: inherit;
+}
+.pos-amount-due .money-secondary {
+  color: #aaa !important;
+  font-size: 0.6em;
+  font-weight: 500;
+}
+
+/* 卡片金额：主副货币都稍微紧凑 */
+.pos-order-card-amount .money-primary {
+  color: #e85d3a !important;
+}
+.pos-order-card-amount .money-secondary {
+  color: #999 !important;
+  font-size: 0.75em;
+}
+
+/* 今日营收 */
+.pos-stat-value .money-primary {
+  color: var(--pos-primary) !important;
+}
+.pos-stat-value .money-secondary {
+  color: #9ca3af !important;
+  font-size: 0.7em;
+}
+
+/* 收银台菜品状态标签 */
+.pos-dish-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.pos-dish-status.done {
+  background: #d4edda;
+  color: #155724;
+}
+.pos-dish-status.pending {
+  background: #fff3cd;
+  color: #856404;
+  animation: pos-pending-pulse 2s ease-in-out infinite;
+}
+@keyframes pos-pending-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
