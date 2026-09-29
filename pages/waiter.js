@@ -855,15 +855,54 @@
         token: SLF.store.rawGet('waiterToken') || ''
       }
     });
-    let socketDebounce = null;
-    function debouncedLoad() {
-      clearTimeout(socketDebounce);
-      socketDebounce = setTimeout(() => { if (typeof load === 'function') load(); }, 300);
+    // ============ Socket 增量更新（避免全量拉取）============
+    function belongsToStore(o) {
+      const sid = SLF.store.rawGet('storeId') || '1';
+      return !o || !o.store_id || String(o.store_id) === String(sid);
     }
-    waiterSocket.on('order:new', debouncedLoad);
-    waiterSocket.on('item:updated', debouncedLoad);
-    waiterSocket.on('order:settled', debouncedLoad);
-    waiterSocket.on('order:transfer', debouncedLoad);
+
+    waiterSocket.on('order:new', (order) => {
+      if (!order || !belongsToStore(order)) return;
+      if (order.status !== 'pending') return;
+      // 本地插入
+      state.orders = state.orders.filter(o => o.id !== order.id);
+      state.orders.unshift(order);
+      // 若当前桌台已打开，不自动重绘（避免打断用户操作）
+      renderTables();
+    });
+
+    waiterSocket.on('item:updated', (payload) => {
+      if (!payload || !payload.order) return;
+      const updated = payload.order;
+      if (!belongsToStore(updated)) return;
+      state.orders = state.orders.map(o => o.id === updated.id ? updated : o);
+      renderTables();
+    });
+
+    waiterSocket.on('order:settled', (payload) => {
+      const id = payload && payload.orderId;
+      if (!id) return;
+      state.orders = state.orders.filter(o => o.id !== id);
+      renderTables();
+    });
+
+    // 转移订单 / 整桌转移：涉及状态重组，仍拉全量
+    let transferDebounce = null;
+    waiterSocket.on('order:transfer', () => {
+      clearTimeout(transferDebounce);
+      transferDebounce = setTimeout(() => { if (typeof load === 'function') load(); }, 300);
+    });
+    waiterSocket.on('table:moved', () => {
+      clearTimeout(transferDebounce);
+      transferDebounce = setTimeout(() => { if (typeof load === 'function') load(); }, 300);
+    });
+
+    // 重连成功后全量刷新一次
+    waiterSocket.on('connect', () => {
+      console.log('[waiter] socket connected');
+      if (typeof load === 'function') load();
+    });
+
     waiterSocket.on('connect_error', (err) => { console.warn('waiterSocket connect_error:', err.message); });
     window.addEventListener('beforeunload', () => {
       try { waiterSocket.disconnect(); } catch (_) {}

@@ -518,15 +518,51 @@
           token: SLF.store.rawGet('cashierToken') || ''
         }
       });
-      let socketDebounce = null;
-      function debouncedLoadOrders() {
-        clearTimeout(socketDebounce);
-        socketDebounce = setTimeout(() => { if (typeof loadOrders === 'function') loadOrders(); }, 300);
+      // ============ Socket 增量更新 ============
+      function belongsToStore(o) {
+        const sid = SLF.store.rawGet('cashierStoreId') || SLF.store.rawGet('storeId') || '1';
+        return !o || !o.store_id || String(o.store_id) === String(sid);
       }
-      cashierSocket.on('order:new', debouncedLoadOrders);
-      cashierSocket.on('item:updated', debouncedLoadOrders);
-      cashierSocket.on('order:settled', debouncedLoadOrders);
-      cashierSocket.on('order:transfer', debouncedLoadOrders);
+
+      cashierSocket.on('order:new', (order) => {
+        if (!order || !belongsToStore(order)) return;
+        if (order.status !== 'pending') return;
+        orders = orders.filter(o => o.id !== order.id);
+        orders.unshift(order);
+        renderOrders();
+        updateBottomStats();
+      });
+
+      cashierSocket.on('item:updated', (payload) => {
+        if (!payload || !payload.order) return;
+        const updated = payload.order;
+        if (!belongsToStore(updated)) return;
+        orders = orders.map(o => o.id === updated.id ? updated : o);
+        renderOrders();
+      });
+
+      cashierSocket.on('order:settled', (payload) => {
+        const id = payload && payload.orderId;
+        if (!id) return;
+        // 若在"未结" tab 且被结算 → 移除
+        const order = orders.find(o => o.id === id);
+        if (order && order.status === 'pending') {
+          order.status = 'done';
+        }
+        if (typeof loadOrders === 'function') loadOrders();
+      });
+
+      let transferDebounce2 = null;
+      cashierSocket.on('order:transfer', () => {
+        clearTimeout(transferDebounce2);
+        transferDebounce2 = setTimeout(() => { if (typeof loadOrders === 'function') loadOrders(); }, 300);
+      });
+
+      cashierSocket.on('connect', () => {
+        console.log('[cashier] socket connected');
+        if (typeof loadOrders === 'function') loadOrders();
+      });
+
       cashierSocket.on('connect_error', (err) => { console.warn('cashierSocket connect_error:', err.message); });
       window.addEventListener('beforeunload', () => {
         try { cashierSocket.disconnect(); } catch (_) {}
