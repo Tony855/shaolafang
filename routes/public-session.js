@@ -56,7 +56,7 @@ module.exports = function(app, deps) {
       const qrTimeoutMins = parseInt(qrTimeoutS?.value || '45', 10);
       if (qrTimeoutMins > 0) {
         // 只有已经有未结算订单的session才自动续期，没下单的到时间就过期
-        const [orderCount] = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND status='pending'", [session.table_name]);
+        const orderCount = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND status='pending'", [session.table_name]);
         if (orderCount && orderCount.cnt > 0) {
           const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
           runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
@@ -86,7 +86,7 @@ module.exports = function(app, deps) {
       let expiresAt2 = session.expires_at;
       if (qrTimeoutMins2 > 0) {
         // 只有已经有未结算订单的session才自动续期，没下单的到时间就过期
-        const [orderCount2] = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND status='pending'", [session.table_name]);
+        const orderCount2 = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND status='pending'", [session.table_name]);
         if (orderCount2 && orderCount2.cnt > 0) {
           expiresAt2 = new Date(Date.now() + qrTimeoutMins2 * 60 * 1000).toISOString();
           runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [expiresAt2, req.params.token]).catch(()=>{});
