@@ -400,7 +400,7 @@
   "refundSuccess": "Refund Success",
   "noPermission": "No Permission",
   "noOrders": "No Orders",
-  "headerTitle": "🍽️ FoodFlow · Admin",
+  "headerTitle": "FoodFlow",
   "monthRevenue": "This Month Revenue",
   "cancelOrderConfirm": "Are you sure you want to cancel this order? This action cannot be undone.",
   "listDish": "List",

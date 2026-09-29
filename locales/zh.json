@@ -400,7 +400,7 @@
   "refundSuccess": "退款成功",
   "noPermission": "无权限",
   "noOrders": "暂无订单",
-  "headerTitle": "🍽️ FoodFlow · Admin",
+  "headerTitle": "FoodFlow",
   "monthRevenue": "本月营业额",
   "cancelOrderConfirm": "确定要取消该订单吗？此操作不可撤销。",
   "listDish": "上架",

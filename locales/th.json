@@ -400,7 +400,7 @@
   "refundSuccess": "คืนเงินสำเร็จ",
   "noPermission": "ไม่มีสิทธิ์",
   "noOrders": "ไม่มีออเดอร์",
-  "headerTitle": "🍖 ผู้ดูแลร้านหมูแดง",
+  "headerTitle": "FoodFlow",
   "monthRevenue": "รายได้เดือนนี้",
   "cancelOrderConfirm": "คุณแน่ใจหรือไม่ว่าต้องการยกเลิกออเดอร์นี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้.",
   "listDish": "แสดงเมนู",
