@@ -229,7 +229,7 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
         const existing = await getAsync('SELECT id FROM menus WHERE name = ? AND store_id = ?', [item.name, req.storeId || 1]);
         if (existing) {
           await runAsync(
-            'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ? WHERE id = ?',
+            'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ? WHERE id = ? AND store_id = ?',
             [
               item.emoji || '🍽️',
               parseFloat(item.price),
@@ -241,7 +241,8 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
               item.unit || '份',
               item.show_dual ? 1 : 0,
               item.secondary_currency_code || '',
-              existing.id
+              existing.id,
+              req.storeId || 1
             ]
           );
         } else {
@@ -296,7 +297,7 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
       'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=? AND store_id=?',
       [name || current.name, emoji || current.emoji, Number.isFinite(Number(price)) ? Number(price) : current.price, category || current.category, desc ?? current.desc, image, nextCurrency, name_en ?? current.name_en ?? '', desc_en ?? current.desc_en ?? '', unit || current.unit || '份', show_dual === undefined ? (current.show_dual || 0) : (show_dual ? 1 : 0), secondary_currency_code ?? current.secondary_currency_code ?? '', id, req.storeId]
     );
-    const updated = await getAsync('SELECT * FROM menus WHERE id = ?', [id]);
+    const updated = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     res.json(updated);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -615,7 +616,7 @@ app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'
     if (newName !== existing.name) {
       await runAsync("UPDATE orders SET table_name=? WHERE table_name=? AND store_id=? AND status=\"pending\"", [newName, existing.name, req.storeId]);
     }
-    const updated = await getAsync('SELECT * FROM tables WHERE id = ?', [id]);
+    const updated = await getAsync('SELECT * FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
     res.json(updated);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -827,7 +828,7 @@ app.post('/api/orders', async (req, res) => {
       if (autoPrintEnabled) {
         const defaultPrinter = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [finalStoreId]);
         if (defaultPrinter && defaultPrinter.type === 'network' && defaultPrinter.ip_address) {
-          const storeInfo = await getAsync('SELECT * FROM stores WHERE id=?', [finalStoreId]);
+          const storeInfo = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [finalStoreId, req.merchantId || (await getAsync('SELECT merchant_id FROM stores WHERE id=?', [finalStoreId]))?.merchant_id]);
           const printData = buildReceipt(newRow, storeInfo, defaultPrinter);
           try {
             await printToNetworkPrinter(printData, defaultPrinter.ip_address, defaultPrinter.port);
@@ -1036,7 +1037,7 @@ app.post('/api/public/reservations', async (req, res) => {
       'INSERT INTO reservations (table_name, store_id, customer_name, phone, reservation_time, guests, status, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
       [table, tableRow.store_id, customerName, phone || '', reservationTime, parseInt(guests) || 1, 'pending', new Date().toISOString(), tableRow.store_id]
     );
-    await runAsync('UPDATE tables SET status=? WHERE id=?', ['reserved', tableRow.id]);
+    await runAsync('UPDATE tables SET status=? WHERE id=? AND store_id=?', ['reserved', tableRow.id, tableRow.store_id || req.storeId || 1]);
     res.status(201).json({ success: true, reservationId: result.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1066,7 +1067,7 @@ app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_m
       const table = await getAsync('SELECT id, status FROM tables WHERE name=? AND store_id=?', [reservation.table_name, req.storeId]);
       if (table && table.status === 'reserved') {
         const active = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status=\"pending\"", [reservation.table_name, req.storeId]);
-        if (active.count === 0) await runAsync('UPDATE tables SET status=? WHERE id=?', ['available', table.id]);
+        if (active.count === 0) await runAsync('UPDATE tables SET status=? WHERE id=? AND store_id=?', ['available', table.id, req.storeId]);
       }
     }
     res.json({ success: true });
