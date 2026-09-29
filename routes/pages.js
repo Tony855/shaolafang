@@ -9,19 +9,11 @@ module.exports = function registerPageRoutes(app, ctx) {
   const { getAsync } = ctx;
   const ROOT = path.join(__dirname, '..');
   
-  // 自动生成静态资源版本号（重启服务器即更新）
-  const ASSET_VERSION = Date.now().toString(36);
-  const htmlCache = {};
+  // 每次请求都读磁盘，不做版本号替换，让 HTML 里写死的 ?v=xxx 直接生效
   function sendHtml(res, file) {
-    if (htmlCache[file]) {
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.send(htmlCache[file]);
-    }
-    let html = fs.readFileSync(path.join(ROOT, file), 'utf-8');
-    // 把所有 ?v=xxx 替换成 ?v=ASSET_VERSION
-    html = html.replace(/\?v=[a-zA-Z0-9_]+/g, '?v=' + ASSET_VERSION);
-    htmlCache[file] = html;
+    const html = fs.readFileSync(path.join(ROOT, file), 'utf-8');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
     res.send(html);
   }
 

@@ -315,9 +315,12 @@ function translateLoginMessage(msg) {
   if (!msg) return '';
   if (msg.includes('商户管理员登录成功')) { const username = msg.split(':')[1] || ''; return t('merchantAdminLogin', null, '商户管理员登录') + ': ' + username.trim(); }
   if (msg.includes('超级管理员登录成功')) { const username = msg.split(':')[1] || ''; return t('superAdminLogin', null, '超级管理员登录') + ': ' + username.trim(); }
-  if (msg.includes('用户名不存在')) return t('usernameNotExist', null, '用户名不存在');
+  if (msg.includes('服务员登录成功')) return t('loginSuccess', null, '登录成功');
+  if (msg.includes('收银员登录成功')) return t('loginSuccess', null, '登录成功');
+  if (msg.includes('用户名不存在') || msg.includes('账号不存在')) return t('usernameNotExist', null, '用户名不存在');
   if (msg.includes('密码错误')) return t('passwordError', null, '密码错误');
   if (msg.includes('请输入用户名和密码')) return t('pleaseEnterCredentials', null, '请输入用户名和密码');
+  if (msg.includes('IP不在白名单内')) return t('noPermission', null, '无权限');
   return msg;
 }
 

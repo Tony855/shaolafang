@@ -19,9 +19,13 @@ function translateLoginMessage(msg) {
   if (!msg) return '';
   if (msg.includes('商户管理员登录成功')) { const username = msg.split(':')[1] || ''; return tAdmin('merchantAdminLogin') + ': ' + username.trim(); }
   if (msg.includes('超级管理员登录成功')) { const username = msg.split(':')[1] || ''; return tAdmin('superAdminLogin') + ': ' + username.trim(); }
+  if (msg.includes('服务员登录成功')) return tAdmin('loginSuccess') || '登录成功';
+  if (msg.includes('收银员登录成功')) return tAdmin('loginSuccess') || '登录成功';
   if (msg.includes('用户名不存在')) return tAdmin('usernameNotExist');
-  if (msg.includes('密码错误')) return tAdmin('wrongPassword');
+  if (msg.includes('密码错误')) return tAdmin('passwordError');
+  if (msg.includes('账号不存在')) return tAdmin('usernameNotExist');
   if (msg.includes('请输入用户名和密码')) return tAdmin('pleaseEnterCredentials');
+  if (msg.includes('IP不在白名单内')) return tAdmin('noPermission') || '无权限';
   return msg;
 }
 
