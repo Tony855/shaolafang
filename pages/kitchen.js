@@ -429,20 +429,80 @@
           token: SLF.store.rawGet('kitchenToken') || ''
         }
       });
-      let socketDebounce = null;
-      function debouncedLoadOrders() {
-        clearTimeout(socketDebounce);
-        socketDebounce = setTimeout(() => { loadOrders(); }, 300);
+
+      // ============ 优化：本地增量更新，避免全量拉取 ============
+
+      // 检查订单是否属于当前 store
+      function belongsToStore(o) {
+        const sid = SLF.store.rawGet('storeId') || '1';
+        return !o || !o.store_id || String(o.store_id) === String(sid);
       }
+
+      // 新订单：直接插入卡片（无需拉全量）
       socket.on('order:new', (order) => {
-        // 新订单立即刷新（不防抖，因为要尽快上屏）
+        if (!order || !belongsToStore(order)) return;
+        if (order.status !== 'pending') return;
+        // 若已存在（重复推送），先移除旧的
+        lastOrders = lastOrders.filter(o => o.id !== order.id);
+        lastOrders.unshift(order);
+        // 触发新订单提醒
+        if (knownOrderIds !== null && !knownOrderIds.has(order.id)) {
+          audio.playNewOrderChime();
+          SLF.ui.toast('🔔 ' + t('newOrderArrived', null, '新订单来了') + '：' + (order.table || '-'), 'success', 4000);
+        }
+        renderTickets(lastOrders);
+      });
+
+      // 菜品更新：替换那一条订单（无需拉全量）
+      socket.on('item:updated', (payload) => {
+        if (!payload || !payload.order) return;
+        const updated = payload.order;
+        if (!belongsToStore(updated)) return;
+        let found = false;
+        lastOrders = lastOrders.map(o => {
+          if (o.id === updated.id) { found = true; return updated; }
+          return o;
+        });
+        if (!found) lastOrders.unshift(updated);
+        renderTickets(lastOrders);
+      });
+
+      // 订单结算：从列表移除（无需拉全量）
+      socket.on('order:settled', (payload) => {
+        const id = payload && payload.orderId;
+        if (!id) return;
+        lastOrders = lastOrders.filter(o => o.id !== id);
+        renderTickets(lastOrders);
+      });
+
+      // 转移订单：涉及状态重组，仍拉全量
+      let transferDebounce = null;
+      socket.on('order:transfer', () => {
+        clearTimeout(transferDebounce);
+        transferDebounce = setTimeout(() => loadOrders(), 300);
+      });
+      socket.on('table:moved', () => {
+        clearTimeout(transferDebounce);
+        transferDebounce = setTimeout(() => loadOrders(), 300);
+      });
+
+      // 催单：提示 + 拉全量（催单只更新 waiter_calls，不影响 order）
+      socket.on('order:urge', (payload) => {
+        // 在催单通知里处理（pollUrges 会拉取）
+      });
+
+      // 连接状态：断开时开启轮询，重连时刷新一次
+      socket.on('connect', () => {
+        console.log('[kitchen] socket connected');
+        // 重连成功 → 立即全量刷新一次（补偿断线期间丢失的事件）
         loadOrders();
       });
-      socket.on('item:updated', debouncedLoadOrders);
-      socket.on('order:urge', debouncedLoadOrders);
-      socket.on('order:settled', debouncedLoadOrders);
-      socket.on('order:transfer', debouncedLoadOrders);
-      socket.on('connect_error', (err) => { console.warn('[kitchen] socket connect_error:', err.message); });
+      socket.on('disconnect', () => {
+        console.warn('[kitchen] socket disconnected, will rely on polling');
+      });
+      socket.on('connect_error', (err) => {
+        console.warn('[kitchen] socket connect_error:', err.message);
+      });
       window.addEventListener('beforeunload', () => {
         try { socket.disconnect(); } catch (_) {}
       });
