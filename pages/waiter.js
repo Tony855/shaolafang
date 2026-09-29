@@ -819,8 +819,8 @@
 
     const cartHtml = items.length ? items.map(x => {
       const prices = SLF.money.menuPrice(x.m);
-      let priceDisplay = prices.primary;
-      if (prices.secondary) priceDisplay += ' (' + prices.secondary + ')';
+      let priceDisplay = '<span class="money-primary">' + prices.primary + '</span>';
+      if (prices.secondary) priceDisplay += ' <span class="money-secondary">(' + prices.secondary + ')</span>';
       const statusLabel = '<span class="item-status new">' + t('newItem', null, '新下单') + '</span>';
       const itemId = x.m.id || x.id;
       return '<div class="selected-item"><span class="sel-name">' + esc(x.m.name) + ' ' + statusLabel + '</span><span class="sel-price">' + priceDisplay + '</span><div class="qty"><button onclick="changeQty(' + itemId + ',-1)">−</button><span>' + x.q + '</span><button onclick="changeQty(' + itemId + ',1)">+</button></div><button class="remove-btn" onclick="removeItem(' + itemId + ')">' + t('remove', null, '移除') + '</button></div>';
@@ -830,8 +830,8 @@
     if (state.lockedItems.length) {
       doneHtml = state.lockedItems.map(i => {
         const prices = SLF.money.menuPrice(i);
-        let priceDisplay = prices.primary;
-        if (prices.secondary) priceDisplay += ' (' + prices.secondary + ')';
+        let priceDisplay = '<span class="money-primary">' + prices.primary + '</span>';
+        if (prices.secondary) priceDisplay += ' <span class="money-secondary">(' + prices.secondary + ')</span>';
         return '<div class="selected-item" style="opacity:.55;pointer-events:none;"><span class="sel-name">' + esc(i.name) + ' <span class="item-status done">' + t('dishServed', null, '已上菜') + '</span></span><span class="sel-price">' + priceDisplay + '</span><div class="qty"><span>×' + (i.quantity || 1) + '</span></div></div>';
       }).join('');
     }
@@ -871,8 +871,8 @@
     $('#dishList').innerHTML = sortedMenu.map(m => {
       const cartQty = state.cart[m.id] || 0;
       const prices = SLF.money.menuPrice(m);
-      let priceDisplay = prices.primary;
-      if (prices.secondary) priceDisplay += ` <span class="price-secondary">(${prices.secondary})</span>`;
+      let priceDisplay = `<span class="money-primary">${prices.primary}</span>`;
+      if (prices.secondary) priceDisplay += ` <span class="money-secondary">(${prices.secondary})</span>`;
       const qtyHtml = `<button onclick="changeQty(${m.id},-1)">−</button><span>${cartQty}</span><button onclick="changeQty(${m.id},1)">+</button>`;
       return `<div class="dish-item"><div class="dish-thumb">${m.image ? `<img src="/uploads/${esc(m.image)}" alt="${esc(m.name)}">` : esc(m.emoji) || '🍽️'}</div><div class="info"><div class="name">${esc(m.name)}</div><div class="price">${priceDisplay}/${esc(m.unit) || t('unit', null, '份')}</div></div><div class="qty">${qtyHtml}</div></div>`;
     }).join('');

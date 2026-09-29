@@ -436,7 +436,7 @@
                         orderSecondaryTotal = SLF.money.secondary(orderTotalBase, state.dualCurrency.currency.code);
                     }
                     const orderTotalDisplay = orderSecondaryTotal
-                        ? `${orderPrimaryTotal} <span class="total-secondary">(${orderSecondaryTotal})</span>`
+                        ? `<span class="money-primary">${orderPrimaryTotal}</span> <span class="money-secondary">(${orderSecondaryTotal})</span>`
                         : orderPrimaryTotal;
 
                     html += `
@@ -467,7 +467,7 @@
                             itemSecondaryTotal = SLF.money.secondary(itemTotalBase, item.secondary_currency_code);
                         }
                         const itemTotalDisplay = itemSecondaryTotal
-                            ? `${itemPrimaryTotal} <span class="price-secondary">(${itemSecondaryTotal})</span>`
+                            ? `<span class="money-primary">${itemPrimaryTotal}</span> <span class="money-secondary">(${itemSecondaryTotal})</span>`
                             : itemPrimaryTotal;
 
                         const emoji = item.emoji || '🍽️';
@@ -551,8 +551,8 @@
                 const trans = getMenuTranslation(item);
                 const name = esc(trans ? trans.name : item.name);
                 const prices = SLF.money.menuPrice(item);
-                let priceDisplay = prices.primary;
-                if (prices.secondary) priceDisplay += ` (${prices.secondary})`;
+                let priceDisplay = `<span class="money-primary">${prices.primary}</span>`;
+                if (prices.secondary) priceDisplay += ` <span class="money-secondary">(${prices.secondary})</span>`;
 
                 rows += `
                     <div class="order-item">
@@ -573,7 +573,7 @@
                 secondaryTotal = SLF.money.secondary(totalBase, state.dualCurrency.currency.code);
             }
             const totalDisplay = secondaryTotal
-                ? `${primaryTotal} <span class="total-secondary">(${secondaryTotal})</span>`
+                ? `<span class="money-primary">${primaryTotal}</span> <span class="money-secondary">(${secondaryTotal})</span>`
                 : primaryTotal;
 
             listEl.innerHTML = `
@@ -681,7 +681,7 @@
                 const prices = SLF.money.menuPrice(item);
                 let priceDisplay = `<span class="price">${prices.primary}</span>`;
                 if (prices.secondary) {
-                    priceDisplay += `<span class="price-secondary">(${prices.secondary})</span>`;
+                    priceDisplay += ` <span class="money-secondary">(${prices.secondary})</span>`;
                 }
                 const isHot = (Number(item.sales_count) || 0) > 0;
                 const hotTag = isHot ? '<span class="tag">🔥</span>' : '';
@@ -854,16 +854,16 @@
             if (state.dualCurrency.enabled && state.dualCurrency.currency) {
                 secondaryTotal = SLF.money.secondary(totalBase, state.dualCurrency.currency.code);
             }
-            const totalDisplay = secondaryTotal ? `${primaryTotal} (${secondaryTotal})` : primaryTotal;
+            const totalDisplay = secondaryTotal ? `<span class="money-primary">${primaryTotal}</span> <span class="money-secondary">(${secondaryTotal})</span>` : `<span class="money-primary">${primaryTotal}</span>`;
 
             cartBadge.textContent = count;
             cartBadge.style.display = count === 0 ? 'none' : 'flex';
-            cartTotal.textContent = totalDisplay;
+            cartTotal.innerHTML = totalDisplay;
 
             const cartBar = document.getElementById('cartBar');
             if (cartBar) cartBar.style.display = count === 0 ? 'none' : 'flex';
 
-            drawerTotal.textContent = totalDisplay;
+            drawerTotal.innerHTML = totalDisplay;
 
             const checkoutBtn = document.getElementById('checkoutBtn');
             if (checkoutBtn) {
@@ -882,8 +882,8 @@
                 const trans = getMenuTranslation(item);
                 const name = esc(trans ? trans.name : item.name);
                 const prices = SLF.money.menuPrice(item);
-                let priceDisplay = prices.primary;
-                if (prices.secondary) priceDisplay += ` (${prices.secondary})`;
+                let priceDisplay = `<span class="money-primary">${prices.primary}</span>`;
+                if (prices.secondary) priceDisplay += ` <span class="money-secondary">(${prices.secondary})</span>`;
 
                 const totalBase = SLF.money.toBase(item.price, item.currency_code) *
                     (item.quantity - (item.returnedQty || 0));

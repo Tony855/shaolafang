@@ -226,7 +226,7 @@
               '<span class="order-dish-unit">@' + SLF.money.primary(unitBase) + '</span>' +
               (i.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:11px;">(' + t('returned') + ' ' + i.returnedQty + ')</span>' : '') +
             '</div>' +
-            '<span class="order-dish-price">' + SLF.money.format(lineBase) + '</span>' +
+            '<span class="order-dish-price money-primary">' + SLF.money.format(lineBase) + '</span>' +
           '</div>';
         }).join('');
         const allItemsDone = SLF.orderStatus.allItemsDone(order);
@@ -251,7 +251,7 @@
           '<div class="order-info">🕐 ' + formatTime(order.createdAt) + ' · ' + (order.items?.length || 0) + t('dishes') + '</div>' +
           '<div class="order-dishes">' + (dishesHTML || '<div style="color:var(--gray-4);">' + t('noDishes') + '</div>') + '</div>' +
           '<div class="order-footer">' +
-            '<span class="order-total">' + SLF.money.format(Number(order.total) || 0) + '</span>' +
+            '<span class="order-total money-primary">' + SLF.money.format(Number(order.total) || 0) + '</span>' +
             '<div class="order-actions" onclick="event.stopPropagation()">' +
               ((cashierInfo?.permissions?.can_settle && order.status === 'pending') ? (canSettle ? '<button class="btn btn-primary" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'settle'" + ')">' + t('settleOrder') + '</button>' : '<button class="btn btn-primary" disabled style="opacity:0.5;cursor:not-allowed;" title="' + t('itemsNotReady') + '">' + t('settleOrder') + '</button>') : '') +
               (canCancel ? '<button class="btn btn-warning" onclick="event.stopPropagation();showOrderDetail(' + order.id + ', ' + "'cancel'" + ')">' + t('cancelOrder') + '</button>' : '') +
@@ -288,7 +288,7 @@
             '<span class="dish-unit">@' + SLF.money.primary(unitBase) + '</span>' +
             (item.returnedQty > 0 ? '<span style="color:#e74c3c;font-size:11px;">(' + t('returned') + ' ' + item.returnedQty + ')</span>' : '') +
           '</div>' +
-          '<span class="dish-price">' + SLF.money.format(lineBase) + '</span>' +
+          '<span class="dish-price money-primary">' + SLF.money.format(lineBase) + '</span>' +
         '</div>';
       }).join('') || '<div style="text-align:center;color:var(--gray-4);padding:20px;">' + t('noDishes') + '</div>';
       document.getElementById('detailTotal').textContent = SLF.money.format(Number(order.total) || 0);
@@ -409,9 +409,9 @@
         html += '<div style="background:#f8f9fa;border-radius:8px;padding:8px;margin-bottom:6px;">';
         html += '<div style="font-weight:700;margin-bottom:4px;">' + esc(o.order_no || ('#' + o.id)) + ' · ' + esc(o.table_name || '-') + '</div>';
         (o.items || []).forEach(i => {
-          html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#555;"><span>' + esc(i.name) + ' x' + i.quantity + ' <span style="color:#999;font-size:11px;">@' + SLF.money.primary(itemBasePrice(i)) + '</span></span><span>' + SLF.money.format(itemLineTotal(i)) + '</span></div>';
+          html += '<div style="display:flex;justify-content:space-between;font-size:13px;color:#555;"><span>' + esc(i.name) + ' x' + i.quantity + ' <span class="money-secondary" style="font-size:11px;">@' + SLF.money.primary(itemBasePrice(i)) + '</span></span><span>' + SLF.money.format(itemLineTotal(i)) + '</span></div>';
         });
-        html += '<div style="text-align:right;font-weight:700;color:#333;margin-top:4px;">' + SLF.money.format(Number(o.total) || 0) + '</div>';
+        html += '<div style="text-align:right;font-weight:700;margin-top:4px;"><span class="money-primary">' + SLF.money.format(Number(o.total) || 0) + '</span></div>';
         html += '</div>';
       });
       html += '<div style="text-align:right;font-weight:700;font-size:16px;color:#667eea;margin-top:8px;">' + t('total') + ': ' + SLF.money.format(total) + '</div>';
