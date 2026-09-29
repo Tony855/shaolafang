@@ -23,20 +23,56 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // ----- 催单 -----
+  // ----- 催单（需要 session 校验 + 限流）-----
   app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
     try {
       const id = req.params.id;
-      const order = await getAsync('SELECT * FROM orders WHERE id=?', [id]);
+      const { sessionToken } = req.body || {};
+
+      // 1. 必须带 sessionToken
+      if (!sessionToken) {
+        return res.status(401).json({ error: '请重新扫码后再催单' });
+      }
+
+      // 2. 验证 session 有效
+      const session = await getAsync('SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
+      if (!session) return res.status(401).json({ error: '扫码会话不存在，请重新扫码' });
+      if (new Date(session.expires_at).getTime() < Date.now()) {
+        return res.status(410).json({ error: '二维码已过期，请重新扫码' });
+      }
+
+      // 3. 订单必须属于该 session 的桌号 + 店铺
+      const order = await getAsync(
+        'SELECT * FROM orders WHERE id=? AND store_id=? AND table_name=?',
+        [id, session.store_id, session.table_name]
+      );
       if (!order) return res.status(404).json({ error: '订单不存在' });
       if (order.status !== 'pending') return res.status(400).json({ error: '订单已完成或已取消' });
+
+      // 4. 催单限流：同一订单 5 分钟内只能催 1 次
+      const URGE_COOLDOWN_MS = 5 * 60 * 1000;
+      const recent = await getAsync(
+        "SELECT created_at FROM waiter_calls WHERE table_name=? AND store_id=? AND type='urge' AND message LIKE ? ORDER BY created_at DESC LIMIT 1",
+        [order.table_name, order.store_id, `%#${id} %`]
+      );
+      if (recent) {
+        const elapsed = Date.now() - new Date(recent.created_at).getTime();
+        if (elapsed < URGE_COOLDOWN_MS) {
+          const remaining = Math.ceil((URGE_COOLDOWN_MS - elapsed) / 60000);
+          return res.status(429).json({ error: `已催单，请${remaining}分钟后再试`, cooldownMinutes: remaining });
+        }
+      }
+
+      // 5. 写入催单记录
       const callId = crypto.randomBytes(16).toString('hex');
       await runAsync(
         'INSERT INTO waiter_calls (id, table_name, type, message, status, store_id, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
         [callId, order.table_name, 'urge', `订单 #${id} 顾客催单`, 'pending', order.store_id || 1, new Date().toISOString(), order.store_id || 1]
       );
+
       io.to('kitchen-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
       io.to('waiter-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
+
       res.json({ success: true, message: '已通知后厨，请稍候' });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
