@@ -1024,24 +1024,6 @@ app.put('/api/waiter-calls/:id/handle', requireAdminOrWaiter, async (req, res) =
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ----- 预约 -----
-app.post('/api/public/reservations', async (req, res) => {
-  try {
-    const { table, customerName, phone, reservationTime, guests } = req.body || {};
-    if (!table || !customerName || !reservationTime) {
-      return res.status(400).json({ error: '桌号、顾客姓名和预约时间必填' });
-    }
-    const tableRow = await getAsync('SELECT id, store_id, status FROM tables WHERE name=? AND store_id=?', [table, req.storeId || 1]);
-    if (!tableRow) return res.status(404).json({ error: '桌号不存在' });
-    const result = await runAsync(
-      'INSERT INTO reservations (table_name, store_id, customer_name, phone, reservation_time, guests, status, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-      [table, tableRow.store_id, customerName, phone || '', reservationTime, parseInt(guests) || 1, 'pending', new Date().toISOString(), tableRow.store_id]
-    );
-    await runAsync('UPDATE tables SET status=? WHERE id=? AND store_id=?', ['reserved', tableRow.id, tableRow.store_id || req.storeId || 1]);
-    res.status(201).json({ success: true, reservationId: result.lastID });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 app.get('/api/admin/reservations', requireAdminKey, async (req, res) => {
   try {
     const storeId = req.storeId || 1;
