@@ -17,6 +17,8 @@
     let waiter = null;
     let pollTimer = null;
     let _socketConnected = false;  // Socket 状态：连接时暂停轮询
+    const _newTicketIds = new Set();      // 需要播放"新订单"动画的订单 id
+    const _updatedTicketIds = new Set();  // 需要播放"更新"动画的订单 id
     let clockTimer = null;
     let knownOrderIds = null;
     let kitchenAutoHideMinutes = 10;
@@ -189,8 +191,9 @@
         const noteHtml = o.note ? `<div class="ticket-note"><strong>${t('orderNoteDisplay', null, '备注')}：</strong>${utils.esc(o.note)}</div>` : '';
         const readyTag = allDone ? `<button class="ticket-serve-btn" onclick="serveOrder(${o.id})">✅ ${t('servedDone', null, '出餐完成')}</button>` : '';
 
+        const extraClass = _newTicketIds.has(o.id) ? ' new-ticket' : (_updatedTicketIds.has(o.id) ? ' updated-ticket' : '');
         return `
-          <div class="ticket ${ticketClass}">
+          <div class="ticket ${ticketClass}${extraClass}" data-order-id="${o.id}">
             <div class="ticket-head">
               <span class="table-name">🪑 ${utils.esc(o.table || '-')}</span>
               <span class="order-id ${ticketClass}">${utils.esc(o.order_no || ("#"+o.id))}</span>
@@ -201,6 +204,18 @@
             ${readyTag}
           </div>`;
       }).join('');
+
+      // 动画播完自动清理标记（下次刷新不再加类）
+      if (_newTicketIds.size > 0) {
+        setTimeout(() => {
+          _newTicketIds.forEach(id => _newTicketIds.delete(id));
+        }, 2000);
+      }
+      if (_updatedTicketIds.size > 0) {
+        setTimeout(() => {
+          _updatedTicketIds.forEach(id => _updatedTicketIds.delete(id));
+        }, 1000);
+      }
     }
 
     window.serveOrder = function(orderId) {
@@ -471,6 +486,7 @@
         if (knownOrderIds !== null && !knownOrderIds.has(order.id)) {
           audio.playNewOrderChime();
           SLF.ui.toast('🔔 ' + t('newOrderArrived', null, '新订单来了') + '：' + (order.table || '-'), 'success', 4000);
+          _newTicketIds.add(order.id);  // 标记动画
         }
         renderTickets(lastOrders);
       });
@@ -486,6 +502,7 @@
           return o;
         });
         if (!found) lastOrders.unshift(updated);
+        if (found) _updatedTicketIds.add(updated.id);  // 标记动画
         renderTickets(lastOrders);
       });
 
