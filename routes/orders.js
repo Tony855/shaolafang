@@ -687,7 +687,7 @@ app.post('/api/orders', async (req, res) => {
       req.adminId = adminAuth.adminId;
       req.merchantId = adminAuth.merchantId;
       req.storeId = adminAuth.storeId;
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [req.adminId]);
+      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId]);
       if (admin) {
         const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.merchantId]);
         const isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
@@ -820,7 +820,7 @@ app.post('/api/orders', async (req, res) => {
     }
 
     // ---------- 8. 事务外：查询 + 打印 + Socket ----------
-    const newRow = await getAsync('SELECT * FROM orders WHERE id = ?', [createdOrder.orderId]);
+    const newRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [createdOrder.orderId, finalStoreId]);
 
     try {
       const autoPrintRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`auto_print_receipt_${finalStoreId}`]);
@@ -915,10 +915,10 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       nextNote = note.trim().slice(0, 200);
     }
     await runAsync(
-      'UPDATE orders SET table_name=?, items=?, total=?, status=?, note=? WHERE id=?',
-      [nextTable, itemsJson, calculatedTotal, status || existing.status, nextNote, id]
+      'UPDATE orders SET table_name=?, items=?, total=?, status=?, note=? WHERE id=? AND store_id=?',
+      [nextTable, itemsJson, calculatedTotal, status || existing.status, nextNote, id, orderStoreId]
     );
-    const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
+    const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     await syncTableStatus(nextTable, orderStoreId);
     if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
     res.json(formatOrder(updatedRow));
