@@ -20,7 +20,7 @@ module.exports = function(app, deps) {
         'INSERT INTO printers (name, type, ip_address, port, paper_width, brand, is_default, active, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)',
         [name, type || 'network', ip_address || '', port || 9100, paper_width || 58, brand || 'generic', is_default ? 1 : 0, req.storeId || 1, req.merchantId]
       );
-      res.status(201).json(await getAsync('SELECT * FROM printers WHERE id=?', [result.lastID]));
+      res.status(201).json(await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [result.lastID, req.storeId || 1]));
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -51,10 +51,9 @@ module.exports = function(app, deps) {
 
   app.get('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) => {
     try {
-      const row = await getAsync('SELECT * FROM orders WHERE id = ?', [req.params.id]);
-      if (!row) return res.status(404).json({ error: '订单不存在' });
       const printStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
-      if (row.store_id !== printStoreId) return res.status(403).json({ error: '无权访问此订单' });
+      const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [req.params.id, printStoreId]);
+      if (!row) return res.status(404).json({ error: '订单不存在' });
       const order = formatOrder(row);
       const store = await getAsync('SELECT name, address FROM stores WHERE id=?', [row.store_id || 1]);
       res.json({ order, store: store || { name: 'FoodFlow', address: '' }, printedAt: new Date().toISOString() });
@@ -92,7 +91,8 @@ module.exports = function(app, deps) {
   app.post('/api/orders/:id(\\d+)/print-kitchen', requireAdminOrWaiter, async (req, res) => {
     try {
       const id = req.params.id;
-      const row = await getAsync('SELECT * FROM orders WHERE id = ?', [id]);
+      const printStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+      const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, printStoreId]);
       if (!row) return res.status(404).json({ error: '订单不存在' });
       const order = formatOrder(row);
       const store = await getAsync('SELECT name, address FROM stores WHERE id=?', [row.store_id || 1]);
@@ -170,7 +170,7 @@ module.exports = function(app, deps) {
   app.post('/api/admin/printers/test', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
       const { printer_id } = req.body || {};
-      const printer = await getAsync('SELECT * FROM printers WHERE id=? AND active=1', [printer_id]);
+      const printer = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=? AND active=1', [printer_id, req.storeId || 1]);
       if (!printer) return res.status(404).json({ error: '打印机不存在或未启用' });
       if (printer.type !== 'network' || !printer.ip_address) {
         return res.status(400).json({ error: '仅支持网络打印机测试' });
