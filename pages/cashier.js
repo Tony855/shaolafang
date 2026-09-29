@@ -13,6 +13,7 @@
     let dualCurrency = { enabled: false, currency: null };
     let refreshInterval = 15;
     let refreshTimer = null;
+    let _socketConnected = false;
 
     SLF.i18n.init(currentLang);
 
@@ -32,6 +33,19 @@
       }[c]));
     }
 
+
+    function updatePollingBySocket(intervalSec) {
+      if (_socketConnected && refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+        console.log('[cashier] socket connected, paused polling');
+      } else if (!_socketConnected && !refreshTimer) {
+        refreshTimer = setInterval(() => {
+          if (!_socketConnected) loadOrders();
+        }, (intervalSec || 15) * 1000);
+        console.log('[cashier] socket disconnected, resumed polling');
+      }
+    }
 
     function goLogin() {
       window.location.href = '/login?type=cashier';
@@ -496,7 +510,11 @@
         await loadOrders();
         // 修复：使用配置的刷新间隔
         if (refreshTimer) clearInterval(refreshTimer);
-        refreshTimer = setInterval(loadOrders, refreshInterval * 1000);
+        if (!_socketConnected) {
+          refreshTimer = setInterval(() => {
+            if (!_socketConnected) loadOrders();
+          }, refreshInterval * 1000);
+        }
       } catch (e) {
         console.error(e);
       }
@@ -560,7 +578,14 @@
 
       cashierSocket.on('connect', () => {
         console.log('[cashier] socket connected');
+        _socketConnected = true;
+        updatePollingBySocket();
         if (typeof loadOrders === 'function') loadOrders();
+      });
+      cashierSocket.on('disconnect', () => {
+        console.warn('[cashier] socket disconnected, will rely on polling');
+        _socketConnected = false;
+        updatePollingBySocket();
       });
 
       cashierSocket.on('connect_error', (err) => { console.warn('cashierSocket connect_error:', err.message); });

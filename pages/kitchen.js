@@ -16,6 +16,7 @@
     let token = SLF.store.rawGet('kitchenToken') || '';
     let waiter = null;
     let pollTimer = null;
+    let _socketConnected = false;  // Socket 状态：连接时暂停轮询
     let clockTimer = null;
     let knownOrderIds = null;
     let kitchenAutoHideMinutes = 10;
@@ -318,9 +319,30 @@
       knownOrderIds = null;
       loadSoundSetting();
       loadOrders();
-      pollTimer = setInterval(loadOrders, 30000);
+      // 只有 socket 未连接时才启动业务轮询
+      if (!_socketConnected) {
+        pollTimer = setInterval(() => {
+          if (_socketConnected) return;  // socket 已恢复，跳过
+          loadOrders();
+        }, 30000);
+      }
       clockTimer = setInterval(() => { renderTickets(lastOrders); }, 30000);
       startUrgePolling();
+    }
+
+    // Socket 连接状态变化时，动态启停业务轮询
+    function updatePollingBySocket() {
+      if (_socketConnected && pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        console.log('[kitchen] socket connected, paused polling');
+      } else if (!_socketConnected && !pollTimer) {
+        pollTimer = setInterval(() => {
+          if (_socketConnected) return;
+          loadOrders();
+        }, 30000);
+        console.log('[kitchen] socket disconnected, resumed polling');
+      }
     }
     function stopPolling() {
       if (pollTimer) clearInterval(pollTimer);
@@ -494,11 +516,15 @@
       // 连接状态：断开时开启轮询，重连时刷新一次
       socket.on('connect', () => {
         console.log('[kitchen] socket connected');
+        _socketConnected = true;
+        updatePollingBySocket();
         // 重连成功 → 立即全量刷新一次（补偿断线期间丢失的事件）
         loadOrders();
       });
       socket.on('disconnect', () => {
         console.warn('[kitchen] socket disconnected, will rely on polling');
+        _socketConnected = false;
+        updatePollingBySocket();
       });
       socket.on('connect_error', (err) => {
         console.warn('[kitchen] socket connect_error:', err.message);

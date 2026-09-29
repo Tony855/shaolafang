@@ -529,10 +529,27 @@
 
   // 自动刷新
   let waiterAutoRefreshTimer = null;
+  let _socketConnected = false;
   function startWaiterAutoRefresh(intervalSec) {
     stopWaiterAutoRefresh();
     const secs = Math.max(3, parseInt(intervalSec, 10) || 8);
-    waiterAutoRefreshTimer = setInterval(() => { if (state.token && !document.hidden) load(); }, secs * 1000);
+    if (_socketConnected) {
+      console.log('[waiter] socket connected, paused polling');
+      return;
+    }
+    waiterAutoRefreshTimer = setInterval(() => {
+      if (state.token && !document.hidden && !_socketConnected) load();
+    }, secs * 1000);
+  }
+
+  function updateWaiterPollingBySocket(intervalSec) {
+    if (_socketConnected && waiterAutoRefreshTimer) {
+      clearInterval(waiterAutoRefreshTimer);
+      waiterAutoRefreshTimer = null;
+      console.log('[waiter] socket connected, paused polling');
+    } else if (!_socketConnected && !waiterAutoRefreshTimer) {
+      startWaiterAutoRefresh(intervalSec || 8);
+    }
   }
   function stopWaiterAutoRefresh() {
     if (waiterAutoRefreshTimer) clearInterval(waiterAutoRefreshTimer);
@@ -900,7 +917,14 @@
     // 重连成功后全量刷新一次
     waiterSocket.on('connect', () => {
       console.log('[waiter] socket connected');
+      _socketConnected = true;
+      updateWaiterPollingBySocket();
       if (typeof load === 'function') load();
+    });
+    waiterSocket.on('disconnect', () => {
+      console.warn('[waiter] socket disconnected, will rely on polling');
+      _socketConnected = false;
+      updateWaiterPollingBySocket();
     });
 
     waiterSocket.on('connect_error', (err) => { console.warn('waiterSocket connect_error:', err.message); });
