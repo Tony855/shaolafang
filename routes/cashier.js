@@ -204,7 +204,11 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
       const items = JSON.parse(order.items || '[]');
       if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '存在未完成菜品，无法结算' });
     } catch(e) { return res.status(400).json({ error: '订单数据异常' }); }
-    await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=? AND store_id=?", [new Date().toISOString(), id, req.storeId]);
+    const { pay_method, cash_received, cash_change } = req.body || {};
+    await runAsync(
+      "UPDATE orders SET status='done', createdAt=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=?",
+      [new Date().toISOString(), pay_method || '', Number(cash_received) || 0, Number(cash_change) || 0, id, req.storeId]
+    );
     await syncTableStatus(order.table_name, req.storeId);
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
