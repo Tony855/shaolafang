@@ -14,8 +14,8 @@
         document.documentElement.setAttribute('data-waiter-session', '1');
     }
 </script>
-<link rel="stylesheet" href="assets/waiter.css?v=1790660801">
-<link rel="stylesheet" href="assets/common.css?v=1790660801">
+<link rel="stylesheet" href="assets/waiter.css?v=1790673200">
+<link rel="stylesheet" href="assets/common.css?v=1790673200">
 </head>
 <body>
 
@@ -46,6 +46,16 @@
 </header>
 
 <main id="mainContent" style="display:none;">
+  <div class="table-toolbar">
+    <input type="text" id="tableSearchInput" class="table-search" 
+           placeholder="🔍 搜索桌号（如 B08）" 
+           autocomplete="off">
+    <div class="table-filter-tabs">
+      <button class="filter-tab active" data-filter="all">全部</button>
+      <button class="filter-tab" data-filter="occupied">已占</button>
+      <button class="filter-tab" data-filter="available">空闲</button>
+    </div>
+  </div>
   <div class="table-grid" id="tableGrid"></div>
 </main>
 
@@ -164,15 +174,15 @@
   </div>
 </div>
 
-<script src="languages.min.js?v=1790660801"></script>
-<script src="assets/core.js?v=1790660801"></script>
-<script src="assets/modules/ui.js?v=1790660801"></script>
-  <script src="assets/modules/money.js?v=1790660801"></script>
-  <script src="assets/modules/order-status.js?v=1790660801"></script>
-  <script src="assets/modules/customer-group.js?v=1790660801"></script>
-  <script src="assets/modules/role.js?v=1790660801"></script>
-  <script src="assets/modules/idle.js?v=1790660801"></script>
+<script src="languages.min.js?v=1790673200"></script>
+<script src="assets/core.js?v=1790673200"></script>
+<script src="assets/modules/ui.js?v=1790673200"></script>
+  <script src="assets/modules/money.js?v=1790673200"></script>
+  <script src="assets/modules/order-status.js?v=1790673200"></script>
+  <script src="assets/modules/customer-group.js?v=1790673200"></script>
+  <script src="assets/modules/role.js?v=1790673200"></script>
+  <script src="assets/modules/idle.js?v=1790673200"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="pages/waiter.js?v=1790660801"></script>
+<script src="pages/waiter.js?v=1790673200"></script>
 </body>
 </html>

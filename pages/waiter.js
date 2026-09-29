@@ -87,7 +87,9 @@
     storeId: null,
     storeName: '',
     currentCategory: 'all',
-    selectedItem: null
+    selectedItem: null,
+    tableSearchQuery: '',
+    tableFilter: 'all'
   };
 
   let waiterLang = SLF.store.rawGet('waiterLang') || 'zh';
@@ -692,13 +694,25 @@
   };
 
   function renderTables() {
-    $('#tableGrid').innerHTML = state.tables.map(table => {
+    // 搜索 + 过滤
+    const q = (state.tableSearchQuery || '').trim().toLowerCase();
+    let tables = state.tables;
+    if (q) {
+      tables = tables.filter(t => String(t.name).toLowerCase().includes(q));
+    }
+    if (state.tableFilter === 'occupied') {
+      tables = tables.filter(t => state.orders.some(o => o.table === t.name && o.status === 'pending'));
+    } else if (state.tableFilter === 'available') {
+      tables = tables.filter(t => !state.orders.some(o => o.table === t.name && o.status === 'pending'));
+    }
+
+    $('#tableGrid').innerHTML = tables.map(table => {
       const hasActiveOrder = state.orders.some(o => o.table === table.name && o.status === 'pending');
       const statusClass = hasActiveOrder ? 'occupied' : 'available';
       const statusText = hasActiveOrder ? t('occupied', null, '已占') : t('available', null, '空闲');
       const transferBtn = hasActiveOrder ? `<div style="position:absolute;top:14px;right:14px;"><button data-table='${esc(table.name)}' class='transfer-btn' style="width:44px;height:44px;border-radius:50%;background:#fff;border:2px solid rgba(232,74,42,0.4);color:var(--primary);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:10;transition:all 0.2s;" title="${t('transferOrder', null, '转移')}">↔</button></div>` : '';
       return `<div class="table-card" onclick="openModal('${esc(table.name)}')">${transferBtn}<div class="name">🍽️ ${esc(table.name)} <span class="status ${statusClass}">${statusText}</span></div><div class="bill">${bill(table)}</div></div>`;
-    }).join('') || `<div style="color:#c8c8d0">${t('noTables', null, '暂无桌号')}</div>`;
+    }).join('') || `<div style="color:#c8c8d0;text-align:center;padding:40px;grid-column:1/-1;">${state.tableSearchQuery || state.tableFilter !== 'all' ? '🔍 ' + t('noData', null, '无匹配结果') : t('noTables', null, '暂无桌号')}</div>`;
     $('#submitBtn').style.display = state.waiter && state.waiter.can_order ? 'block' : 'none';
     document.querySelectorAll('.transfer-btn').forEach(btn => {
       btn.addEventListener('click', function(e) {
@@ -955,6 +969,23 @@
 
   function initWaiterPage() {
     try {
+      // ===== 桌台搜索 + 过滤事件绑定 =====
+      const searchInput = document.getElementById('tableSearchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          state.tableSearchQuery = e.target.value;
+          renderTables();
+        });
+      }
+      document.querySelectorAll('.filter-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.tableFilter = btn.dataset.filter;
+          renderTables();
+        });
+      });
+
       if (state.token) {
         document.getElementById('mainHeader').style.display = 'flex';
         document.getElementById('mainContent').style.display = 'block';
