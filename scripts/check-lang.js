@@ -30,6 +30,8 @@ const HAS_CHINESE = /[\u4e00-\u9fa5]/;
 
 /* ===== 白名单：这些 key / 值即便跨语言相同也不算问题 ===== */
 const SAME_OK_KEYS = new Set([
+  // 品牌标题（5 语言相同）
+  'title',
   // 打印机品牌（全球统一写法）
   'epson', 'bixolon', 'rongta', 'xprinter', 'star', 'jiabo', 'hoin',
   // 技术术语（无需翻译）

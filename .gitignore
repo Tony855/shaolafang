@@ -41,3 +41,38 @@ _sync.sh
 *.orig
 *.backup
 *.bad
+
+# ===== 临时/备份文件（2026-09-30 补充）=====
+*.bak
+*.bak.*
+*.bak-*
+*.bak2.*
+*.bak3.*
+*.bak6.*
+*.bak7.*
+*.bak8.*
+*.fix
+*.fix.*
+*.fix-*
+*.fix2*
+*.tmp
+*.orig
+*.rej
+*.swp
+*~
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# 环境变量
+.env
+.env.*
+!.env.example
+
+# 上传 / 备份 / 凭据
+uploads/*
+!uploads/.gitkeep
+backups/
+initial-credentials.txt
