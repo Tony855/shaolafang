@@ -89,6 +89,27 @@
       return SLF.api._request(method, path, opt);
     }
 
+  function applyDataI18n() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (!key) return;
+      const translated = t(key, null, el.textContent || '');
+      if (translated && translated !== key) el.textContent = translated;
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      if (!key) return;
+      const translated = t(key, null, el.placeholder || '');
+      if (translated && translated !== key) el.placeholder = translated;
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+      const key = el.getAttribute('data-i18n-title');
+      if (!key) return;
+      const translated = t(key, null, el.title || '');
+      if (translated && translated !== key) el.title = translated;
+    });
+  }
+
     function applyLoginLanguage() {
       const el = (id) => document.getElementById(id);
       const set = (id, txt) => { const e = el(id); if (e) e.textContent = txt; };
@@ -98,6 +119,7 @@
       const p = el('password'); if (p) p.placeholder = t('password', null, '密码');
       set('loginBtn', t('login', null, '登录'));
       const ls = el('langSelect'); if (ls) ls.value = lang;
+      applyDataI18n();
     }
 
     function applyMainLanguage() {
@@ -109,6 +131,7 @@
       set('logoutLabel', t('logout', null, '退出登录'));
       const lsm = el('langSelectMain'); if (lsm) lsm.value = lang;
       set('urgeModalTitle', t('urgeNotifications', null, '催单通知'));
+      applyDataI18n();
     }
 
     function setLang(next) {
