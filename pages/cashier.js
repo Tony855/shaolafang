@@ -22,6 +22,7 @@
   // 收款弹窗状态
   let paymentOrderId = null;
   let payMethod = 'cash';
+let refundOrderId = null;
 
   SLF.i18n.init(currentLang);
 
@@ -73,7 +74,6 @@
       SLF.store.rawRemove('cashierStoreId');
       SLF.store.rawRemove('cashierInfo');
       SLF.store.rawRemove('storeId');
-      window.location.href = '/login?type=cashier';
     }, { type: 'warning', icon: '🚪' });
   }
 
@@ -84,7 +84,6 @@
     SLF.store.rawRemove('cashierStoreId');
     SLF.store.rawRemove('cashierInfo');
     SLF.store.rawRemove('storeId');
-    window.location.href = '/login?type=cashier';
   }
   SLF.idle.start({ timeoutMin: cashierIdleTimeoutMin, onTimeout: cashierIdleLogout });
   SLF.api.get('/public/global-config').then(cfg => {
@@ -161,7 +160,6 @@
     } catch (e) {
       if (e.message.includes('请先登录') || e.message.includes('登录已过期')) {
         SLF.store.rawRemove('cashierToken');
-        window.location.href = '/login?type=cashier';
       } else {
         SLF.ui.toast('❌ ' + e.message);
       }
@@ -323,6 +321,7 @@
     const btnsEl = document.getElementById('detailButtons');
     const canSettle = order.status === 'pending' && SLF.orderStatus.allItemsDone(order);
     const canCancel = order.status === 'pending';
+    const canRefund = ['done', 'settled', 'paid', 'completed'].includes(order.status);
     let btns = '';
     if (canSettle) {
       btns += `<button class="btn btn-pay" onclick="openPaymentModal(${order.id})">💵 ${t('settleOrder') || '收款'}</button>`;
@@ -330,6 +329,9 @@
       btns += `<button class="btn btn-pay" disabled title="${t('itemsNotReady') || '菜品未全部完成'}">💵 ${t('settleOrder') || '收款'} (未完成)</button>`;
     }
     btns += `<button class="btn btn-print" onclick="printOrder(${order.id})" title="${t('print') || '打印'}">🖨</button>`;
+    if (canRefund) {
+      btns += `<button class="btn btn-refund" onclick="openRefundModal(${order.id})" title="${t('refund') || '退款'}">💸 ${t('refund') || '退款'}</button>`;
+    }
     if (canCancel) {
       btns += `<button class="btn btn-cancel-order" onclick="cancelOrder(${order.id})" title="${t('cancelOrder') || '取消'}">✕</button>`;
     }
@@ -394,6 +396,26 @@
     document.getElementById('cashChange').innerHTML = moneyHtml(change);
   }
 
+  // ===== 退款 =====
+
+  function refundOrder(id) {
+    const order = orders.find(o => o.id === id);
+    if (!order) return;
+    if (order.status !== 'done') {
+      SLF.ui.toast('⚠️ ' + (t('onlySettledRefund', null, '只有已结算订单才能退款')));
+      return;
+    }
+    refundOrderId = id;
+    document.getElementById('refundAmount').innerHTML = moneyHtml(Number(order.total) || 0);
+    document.getElementById('refundReason').value = '';
+    document.getElementById('refundNote').value = '';
+    document.getElementById('refundModal').classList.add('show');
+  }
+
+
+
+
+
   async function confirmPay() {
     if (!paymentOrderId) return;
     const order = orders.find(o => o.id === paymentOrderId);
@@ -451,6 +473,57 @@
         SLF.ui.toast('❌ ' + e.message);
       }
     }, { type: 'warning', icon: '⚠️' });
+  }
+
+  
+  /* ===== 退款弹窗 ===== */
+  function openRefundModal(orderId) {
+    const order = orders.find(o => String(o.id) === String(orderId));
+    if (!order) { SLF.ui.toast('❌ 未找到订单'); return; }
+    refundOrderId = order.id;
+    const total = Number(order.total) || 0;
+    document.getElementById('refundAmount').innerHTML = moneyHtml(total);
+    const _inp = document.getElementById('refundInput');
+    if (_inp) _inp.value = total.toFixed(2);
+    document.getElementById('refundReason').value = '';
+    document.getElementById('refundModal').classList.add('show');
+    setTimeout(() => { const el = document.getElementById('refundInput'); if (el) el.focus(); }, 100);
+  }
+
+  function closeRefundModal() {
+    document.getElementById('refundModal').classList.remove('show');
+    refundOrderId = null;
+  }
+
+  async function confirmRefund() {
+    if (!refundOrderId) return;
+    const order = orders.find(o => String(o.id) === String(refundOrderId));
+    if (!order) { SLF.ui.toast('❌ 未找到订单'); return; }
+    const reason = document.getElementById('refundReason').value.trim();
+    const total = Number(order.total) || 0;
+    const _inpEl = document.getElementById('refundInput');
+    const amount = _inpEl ? (parseFloat(_inpEl.value) || 0) : total;
+
+    if (amount <= 0) { SLF.ui.toast('❌ 退款金额必须大于 0'); return; }
+    if (amount > total) { SLF.ui.toast('❌ 退款金额不能超过订单金额'); return; }
+
+    const btn = document.getElementById('confirmRefundBtn');
+    btn.disabled = true;
+    try {
+      await api('/cashier/orders/' + refundOrderId + '/refund', {
+        method: 'PUT',
+        body: { amount, reason }
+      });
+      SLF.ui.toast('✅ ' + (t('refundSuccess') || '退款成功'));
+      closeRefundModal();
+      selectedOrderId = null;
+      document.body.classList.remove('pos-detail-open');
+      await loadOrders();
+    } catch (e) {
+      SLF.ui.toast('❌ ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   /* ===== 确认弹窗 ===== */
@@ -536,9 +609,16 @@
   document.getElementById('paymentModal').addEventListener('click', function(e) {
     if (e.target === this) closePaymentModal();
   });
+  document.getElementById('refundModal').addEventListener('click', function(e) {
+    if (e.target === this) closeRefundModal();
+  });
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-      if (document.getElementById('paymentModal').classList.contains('show')) {
+      if (document.getElementById('refundModal') && document.getElementById('refundModal').classList.contains('show')) {
+        closeRefundModal();
+      } else if (document.getElementById('refundModal').classList.contains('show')) {
+        closeRefundModal();
+      } else if (document.getElementById('paymentModal').classList.contains('show')) {
         closePaymentModal();
       } else if (document.getElementById('confirmModal').classList.contains('show')) {
         hideConfirm();
@@ -599,6 +679,9 @@
   window.switchTab = switchTab;
   window.selectOrder = selectOrder;
   window.closeDetail = closeDetail;
+  window.refundOrder = refundOrder;
+  window.closeRefundModal = closeRefundModal;
+  window.confirmRefund = confirmRefund;
   window.openPaymentModal = openPaymentModal;
   window.closePaymentModal = closePaymentModal;
   window.selectPayMethod = selectPayMethod;
@@ -607,6 +690,7 @@
   window.confirmPay = confirmPay;
   window.printOrder = printOrder;
   window.cancelOrder = cancelOrder;
+  window.openRefundModal = openRefundModal;
   window.hideConfirm = hideConfirm;
   window.executeConfirm = executeConfirm;
   window.logout = logout;

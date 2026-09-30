@@ -240,11 +240,31 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       return res.status(403).json({ error: '没有退款权限' });
     }
     const id = parseInt(req.params.id);
+    const { reason, note } = req.body || {};
+    if (!reason) return res.status(400).json({ error: '请选择退款原因' });
+
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status !== 'done') return res.status(400).json({ error: '只有已结算订单才能退款' });
-    await runAsync("UPDATE orders SET status='refunded', createdAt=? WHERE id=? AND store_id=?", [new Date().toISOString(), id, req.storeId]);
-    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'refund_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
+    if (order.status === 'refunded') return res.status(400).json({ error: '订单已退款' });
+
+    const now = new Date().toISOString();
+    await runAsync(
+      "UPDATE orders SET status='refunded', refund_reason=?, refund_note=?, refunded_at=?, refunded_by=? WHERE id=? AND store_id=?",
+      [reason, (note || '').slice(0, 200), now, req.cashier.username || '', id, req.storeId]
+    );
+
+    await runAsync(
+      'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ['cashier', 0, req.cashier.username, 'refund_order',
+       JSON.stringify({ order_id: id, table: order.table_name, total: order.total, reason, note: note || '' }),
+       getClientIp(req), now]
+    );
+
+    // 广播到各端（订单状态变了）
+    io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
+    io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
+
     res.json({ success: true, message: '退款成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

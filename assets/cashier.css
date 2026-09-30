@@ -1159,3 +1159,265 @@ body {
     font-size: 14px;
   }
 }
+
+/* ============================================================
+   退款功能样式（2026-09-30）
+   ============================================================ */
+.btn-refund {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(231,76,60,0.3);
+}
+.btn-refund:hover {
+  box-shadow: 0 6px 20px rgba(231,76,60,0.4);
+}
+.pos-detail-btns .btn-refund {
+  max-width: 60px;
+}
+
+/* 退款表单 */
+.refund-form {
+  padding: 0 4px;
+}
+.refund-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 6px;
+}
+.refund-select,
+.refund-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: all 0.2s;
+  background: #fff;
+  color: #333;
+}
+.refund-select {
+  height: 44px;
+  cursor: pointer;
+}
+.refund-textarea {
+  min-height: 80px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.refund-select:focus,
+.refund-textarea:focus {
+  border-color: var(--pos-primary);
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+}
+
+/* ============================================================
+   退款弹窗样式（2026-09-30 追加）
+   ============================================================ */
+.refund-card {
+  position: relative;
+  background: #fff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 460px;
+  padding: 24px;
+  box-shadow: var(--pos-shadow-lg);
+  animation: paymentIn 0.25s ease;
+}
+.refund-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--pos-text);
+  margin-bottom: 16px;
+  text-align: center;
+}
+.refund-amount {
+  text-align: center;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--pos-border);
+  margin-bottom: 18px;
+}
+.refund-amount-label {
+  font-size: 13px;
+  color: var(--pos-text-dim);
+  margin-bottom: 4px;
+}
+.refund-amount-value {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--pos-danger);
+}
+.refund-input-row,
+.refund-reason-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.refund-reason-row { align-items: flex-start; }
+.refund-input-row label,
+.refund-reason-row label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pos-text-dim);
+  flex-shrink: 0;
+  min-width: 60px;
+  padding-top: 10px;
+}
+.refund-input {
+  flex: 1;
+  height: 42px;
+  padding: 0 12px;
+  border: 1.5px solid var(--pos-border);
+  border-radius: var(--pos-radius-sm);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pos-text);
+  outline: none;
+  font-family: "SF Mono", monospace;
+  text-align: right;
+}
+.refund-input:focus {
+  border-color: var(--pos-primary);
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+}
+.refund-textarea {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1.5px solid var(--pos-border);
+  border-radius: var(--pos-radius-sm);
+  font-size: 14px;
+  color: var(--pos-text);
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+}
+.refund-textarea:focus {
+  border-color: var(--pos-primary);
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+}
+.refund-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+.refund-actions .btn {
+  flex: 1;
+  height: 48px;
+  border-radius: var(--pos-radius-sm);
+  font-size: 15px;
+  font-weight: 700;
+  border: 0;
+  cursor: pointer;
+}
+.btn-danger {
+  background: linear-gradient(135deg, #ff6b6b, #dc2626);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+}
+.btn-danger:hover { box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4); }
+
+/* 详情页"退款"按钮 */
+.pos-detail-btns .btn-refund {
+  background: #fff7ed;
+  color: #c2410c;
+  max-width: 110px;
+  border: 1px solid #fed7aa;
+}
+.pos-detail-btns .btn-refund:hover { background: #ffedd5; }
+
+@media (max-width: 768px) {
+  .refund-card { padding: 18px; max-width: calc(100vw - 24px); }
+  .refund-amount-value { font-size: 26px; }
+  .refund-actions .btn { height: 46px; }
+}
+
+/* ============================================================
+   详情页底部操作栏：永远贴底（2026-09-30）
+   ============================================================ */
+.pos-detail {
+  position: relative;
+}
+
+.pos-detail-btns {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: #fff;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+/* 移动端：fixed 兜底 + 安全区适配 */
+@media (max-width: 768px) {
+  .pos-detail-btns {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  /* 让菜品列表底部留出按钮区高度，防止内容被遮 */
+  .pos-detail .pos-detail-footer {
+    padding-bottom: 100px;
+  }
+}
+
+/* ============================================================
+   终极方案：详情页底部 absolute 贴底（2026-09-30）
+   由于 .pos-detail 有 overflow:hidden，sticky 无效，必须用 absolute
+   ============================================================ */
+.pos-detail {
+  position: relative !important;
+}
+
+/* footer（合计 / 应收）——绝对定位到底部按钮上方 */
+.pos-detail > .pos-detail-footer {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 78px !important;
+  margin: 0 !important;
+  z-index: 20 !important;
+  background: #fafbff !important;
+  border-top: 1px solid #e5e7eb !important;
+}
+
+/* 按钮区 —— 绝对定位到底部 */
+.pos-detail > .pos-detail-btns,
+#detailButtons {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  margin: 0 !important;
+  z-index: 21 !important;
+  background: #fff !important;
+  border-top: 1px solid #e5e7eb !important;
+  box-shadow: 0 -2px 10px rgba(0,0,0,.06) !important;
+}
+
+/* body 底部留白，防止最后一道菜被 footer 遮住 */
+.pos-detail > .pos-detail-body {
+  padding-bottom: 220px !important;
+}
+
+/* 移动端微调 */
+@media (max-width: 768px) {
+  .pos-detail > .pos-detail-footer {
+    bottom: 72px !important;
+    padding: 10px 14px !important;
+  }
+  .pos-detail > .pos-detail-btns,
+  #detailButtons {
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  }
+  .pos-detail > .pos-detail-body {
+    padding-bottom: 200px !important;
+  }
+}

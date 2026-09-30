@@ -9,7 +9,7 @@
   try { if (localStorage.getItem('cashierToken')) document.documentElement.setAttribute('data-cashier-session', '1'); } catch(e) {}
 </script>
 <link rel="stylesheet" href="assets/common.css">
-<link rel="stylesheet" href="assets/cashier.css?v=1790738438">
+<link rel="stylesheet" href="assets/cashier.css?v=1790748960">
 </head>
 <body>
 
@@ -186,6 +186,40 @@
 </div>
 
 <!-- ===== 确认弹窗（复用） ===== -->
+<!-- ===== 退款弹窗 ===== -->
+<div class="modal-overlay" id="refundModal">
+  <div class="payment-card">
+    <button class="modal-close" onclick="closeRefundModal()">✕</button>
+    <h2 class="payment-title">💸 退款订单</h2>
+
+    <div class="payment-amount">
+      <div class="payment-amount-label">退款金额</div>
+      <div class="payment-amount-value" id="refundAmount">$0.00</div>
+    </div>
+
+    <div class="refund-form">
+      <label class="refund-label">退款原因 <span style="color:#e74c3c;">*</span></label>
+      <select id="refundReason" class="refund-select">
+        <option value="">请选择...</option>
+        <option value="customer">顾客要求</option>
+        <option value="dish">菜品问题</option>
+        <option value="service">服务问题</option>
+        <option value="wrong">误操作</option>
+        <option value="other">其他</option>
+      </select>
+
+      <label class="refund-label" style="margin-top:14px;">备注（可选）</label>
+      <textarea id="refundNote" class="refund-textarea" maxlength="200"
+                placeholder="补充说明..."></textarea>
+    </div>
+
+    <div class="payment-actions" style="margin-top:18px;">
+      <button class="btn btn-secondary" onclick="closeRefundModal()">取消</button>
+      <button class="btn btn-primary" id="confirmRefundBtn" onclick="confirmRefund()">确认退款</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="confirmModal">
   <div class="modal" style="max-width:360px;text-align:center;">
     <button class="modal-close" onclick="hideConfirm()">✕</button>
@@ -199,15 +233,15 @@
   </div>
 </div>
 
-<script src="languages.min.js?v=1790738438"></script>
-<script src="assets/core.js?v=1790738438"></script>
-<script src="assets/modules/ui.js?v=1790738438"></script>
-<script src="assets/modules/money.js?v=1790738438"></script>
-<script src="assets/modules/order-status.js?v=1790738438"></script>
-<script src="assets/modules/customer-group.js?v=1790738438"></script>
-<script src="assets/modules/role.js?v=1790738438"></script>
-<script src="assets/modules/idle.js?v=1790738438"></script>
+<script src="languages.min.js?v=1790748960"></script>
+<script src="assets/core.js?v=1790748960"></script>
+<script src="assets/modules/ui.js?v=1790748960"></script>
+<script src="assets/modules/money.js?v=1790748960"></script>
+<script src="assets/modules/order-status.js?v=1790748960"></script>
+<script src="assets/modules/customer-group.js?v=1790748960"></script>
+<script src="assets/modules/role.js?v=1790748960"></script>
+<script src="assets/modules/idle.js?v=1790748960"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="pages/cashier.js?v=1790738438"></script>
+<script src="pages/cashier.js?v=1790748960"></script>
 </body>
 </html>
