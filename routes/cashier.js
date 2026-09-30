@@ -220,6 +220,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
+    io.to('public-store-' + req.storeId).emit('order:settled', { orderId: id });
     res.json({ success: true, message: '结算成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -272,6 +273,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
+    io.to('public-store-' + req.storeId).emit('order:settled', { orderId: id });
 
     res.json({ success: true, message: '退款成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }

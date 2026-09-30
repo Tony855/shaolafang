@@ -590,6 +590,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     io.to('kitchen-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     io.to('waiter-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     io.to('cashier-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
+    io.to('public-store-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     res.json(updatedOrder);
   } catch (e) {
     console.error('切换菜品状态失败:', e);
