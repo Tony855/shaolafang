@@ -10,6 +10,16 @@ if (!ctx) return;
 const { $, api, tAdmin, esc, hasPermission, L, buildSessionLabels } = ctx;
 
 window.orderTableFilter = window.orderTableFilter || '';
+window.orderStatusTab = window.orderStatusTab || 'pending';
+
+function switchOrderTab(tab) {
+  window.orderStatusTab = tab;
+  document.querySelectorAll('#orderTabs .order-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === tab);
+  });
+  loadOrders();
+}
+window.switchOrderTab = switchOrderTab;
 
 function setOrderFilter(q) {
   window.orderTableFilter = q;
@@ -19,7 +29,24 @@ function setOrderFilter(q) {
 async function loadOrders() {
   const orders = await api('/orders');
   ctx.setOrders(orders);
+  // ===== Tab 筛选 =====
+  const tab = window.orderStatusTab || 'pending';
   let filtered = orders;
+  if (tab === 'pending')       filtered = filtered.filter(o => o.status === 'pending');
+  else if (tab === 'settled')  filtered = filtered.filter(o => o.status === 'done' || o.status === 'canceled');
+  else if (tab === 'refunded') filtered = filtered.filter(o => o.status === 'refunded');
+
+  // ===== 计数 =====
+  const _c = {
+    pending:  orders.filter(o => o.status === 'pending').length,
+    settled:  orders.filter(o => o.status === 'done' || o.status === 'canceled').length,
+    refunded: orders.filter(o => o.status === 'refunded').length,
+  };
+  const _setCnt = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+  _setCnt('orderTabPendingCount', _c.pending);
+  _setCnt('orderTabSettledCount', _c.settled);
+  _setCnt('orderTabRefundedCount', _c.refunded);
+
   if (window.orderTableFilter) {
     const q = window.orderTableFilter.toLowerCase();
     filtered = orders.filter(o => (o.table_name||o.table||'').toLowerCase().includes(q) || String(o.id).includes(q) || String(o.order_no||'').includes(q));

@@ -427,6 +427,11 @@
             $('#orderPanelTitle').textContent = tAdmin('orderManage');
             $('#openOrderBtn').textContent = tAdmin('addOrder');
             $('#pendingLabel').textContent = tAdmin('pendingOrders');
+            // 订单管理 3 Tab i18n（与收银端同 key）
+            const _ot = (id, key, fb) => { const el = document.getElementById(id); if (el) el.textContent = tAdmin(key) || fb; };
+            _ot('orderTabPendingText',  'pendingOrders', '未结算订单');
+            _ot('orderTabSettledText',  'settledOrders', '已结订单');
+            _ot('orderTabRefundedText', 'refundOrder',   '退款订单');
             $('#doneLabel').textContent = tAdmin('completedOrders');
             $('#currencyPanelTitle').textContent = tAdmin('currencyManageTitle');
             $('#currencyCode').placeholder = tAdmin('currencyCode');

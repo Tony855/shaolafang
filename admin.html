@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
 <link rel="stylesheet" href="assets/common.css?v=1790737176">
-<link rel="stylesheet" href="assets/admin.css?v=1790737176">
+<link rel="stylesheet" href="assets/admin.css?v=1790792087">
 </head>
 <body>
 
@@ -117,9 +117,22 @@
                     <div class="summary-card pending"><span id="pendingLabel">未完成订单</span><strong id="pendingOrderCount">0</strong><small id="pendingOrderAmount">$0.00</small></div>
                     <div class="summary-card done"><span id="doneLabel">已结算订单</span><strong id="doneOrderCount">0</strong><small id="doneOrderAmount">$0.00</small></div>
                 </div>
-                <div class="order-toolbar" style="display:flex;gap:8px;margin-bottom:12px;">
-                    <input type="text" id="orderTableSearch" placeholder="🔍 请输入桌号或订单号查询" oninput="filterOrders()" style="flex:1;padding:10px 14px;border:1px solid var(--gray-2);border-radius:10px;font-size:14px;outline:none;">
-                    <button id="openOrderBtn" onclick="openOrderForm()">➕ 新增订单</button>
+                <div class="order-tabs-bar">
+                    <div class="order-tabs" id="orderTabs">
+                        <button class="order-tab active" data-tab="pending" onclick="switchOrderTab('pending')" id="orderTabPending">
+                            <span id="orderTabPendingText">未结算</span> <span class="order-tab-count" id="orderTabPendingCount">0</span>
+                        </button>
+                        <button class="order-tab" data-tab="settled" onclick="switchOrderTab('settled')" id="orderTabSettled">
+                            <span id="orderTabSettledText">已结</span> <span class="order-tab-count" id="orderTabSettledCount">0</span>
+                        </button>
+                        <button class="order-tab" data-tab="refunded" onclick="switchOrderTab('refunded')" id="orderTabRefunded">
+                            <span id="orderTabRefundedText">退款订单</span> <span class="order-tab-count" id="orderTabRefundedCount">0</span>
+                        </button>
+                    </div>
+                    <div class="order-toolbar">
+                        <input type="text" id="orderTableSearch" class="order-search-input" placeholder="🔍 请输入桌号或订单号查询" oninput="filterOrders()">
+                        <button id="openOrderBtn" onclick="openOrderForm()">➕ 新增订单</button>
+                    </div>
                 </div>
                 <div id="orders"></div>
             </section>
@@ -698,8 +711,8 @@
 <script src="pages/admin/report.js?v=1790737176"></script>
 <script src="pages/admin/menu.js?v=1790737176"></script>
 <script src="pages/admin/table.js?v=1790737176"></script>
-<script src="pages/admin/order.js?v=1790737176"></script>
+<script src="pages/admin/order.js?v=1790791937"></script>
 <script src="pages/admin/shared.js?v=1790787700"></script>
-<script src="pages/admin.js?v=1790790094"></script>
+<script src="pages/admin.js?v=1790792312"></script>
 </body>
 </html>

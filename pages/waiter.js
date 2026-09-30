@@ -1107,6 +1107,9 @@
       clearTimeout(transferDebounce);
       transferDebounce = setTimeout(() => { if (typeof load === 'function') load(); }, 300);
     });
+    waiterSocket.on('order:urge', () => {
+      if (typeof pollCalls === 'function') pollCalls();
+    });
     waiterSocket.on('table:moved', () => {
       clearTimeout(transferDebounce);
       transferDebounce = setTimeout(() => { if (typeof load === 'function') load(); }, 300);
