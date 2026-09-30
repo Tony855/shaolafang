@@ -225,5 +225,93 @@ window.exportData = exportData;
     setText('quickYearBtn', 'quickYear');
     setText('reportDateLabel', 'date');
   }
+
+// ═══════════════════════════════════════════════════════════
+// 高级导出弹窗（2026-10-01）
+// ═══════════════════════════════════════════════════════════
+function openAdvancedExport() {
+    const today = new Date().toISOString().slice(0, 10);
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    document.getElementById('advExportStart').value = weekAgo;
+    document.getElementById('advExportEnd').value = today;
+    document.getElementById('advancedExportModal').style.display = 'flex';
+}
+
+function closeAdvancedExport() {
+    document.getElementById('advancedExportModal').style.display = 'none';
+}
+
+async function doAdvancedExport() {
+    const start = document.getElementById('advExportStart').value;
+    const end = document.getElementById('advExportEnd').value;
+    const dim = document.getElementById('advExportDim').value;
+    const statuses = Array.from(document.querySelectorAll('.adv-status:checked'))
+        .map(cb => cb.value).join(',');
+
+    if (!start || !end) { SLF.ui.toast('❌ 请选择日期范围'); return; }
+    if (!statuses) { SLF.ui.toast('❌ 请至少选择一个状态'); return; }
+
+    const params = new URLSearchParams({ startDate: start, endDate: end, dimension: dim, statuses });
+    const token = SLF.store.rawGetSession('adminToken') || '';
+    const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '1';
+
+    try {
+        const res = await fetch('/api/admin/export-advanced?' + params.toString(), {
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'X-Store-Id': String(storeId)
+            }
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'HTTP ' + res.status);
+        }
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${dim}_${start}_${end}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        SLF.ui.toast('✅ 已导出');
+        closeAdvancedExport();
+    } catch (e) {
+        SLF.ui.toast('❌ 导出失败: ' + e.message);
+    }
+}
+
+window.openAdvancedExport = openAdvancedExport;
+window.closeAdvancedExport = closeAdvancedExport;
+window.doAdvancedExport = doAdvancedExport;
+
 })();
+})();
+
+// ═══════════════════════════════════════════════════════════
+// advExportBtn 事件委托（2026-10-01）
+// 挂在 document 捕获阶段，不管按钮怎么被 i18n 重建都能命中
+// ═══════════════════════════════════════════════════════════
+(function delegateAdvExport() {
+    document.addEventListener('click', function (e) {
+        // 捕获阶段先判断
+        const btn = e.target && e.target.closest && e.target.closest('#advExportBtn');
+        if (!btn) return;
+
+        // 拦掉其它所有监听（包括 i18n 后重绑的导出 handler）
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        // 打开弹窗
+        try {
+            if (typeof window.openAdvancedExport === 'function') {
+                window.openAdvancedExport();
+            } else if (typeof openAdvancedExport === 'function') {
+                openAdvancedExport();
+            } else {
+                console.error('[delegateAdvExport] openAdvancedExport 未定义');
+            }
+        } catch (err) {
+            console.error('[delegateAdvExport] 打开弹窗失败:', err);
+        }
+        return false;
+    }, true);   // ← true = 捕获阶段，先于一切其他监听
 })();

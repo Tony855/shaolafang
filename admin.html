@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
 <link rel="stylesheet" href="assets/common.css?v=1790737176">
-<link rel="stylesheet" href="assets/admin.css?v=1790794710">
+<link rel="stylesheet" href="assets/admin.css?v=1790795229">
 </head>
 <body>
 
@@ -270,6 +270,7 @@
                     <button id="exportOrdersBtn" onclick="exportData('orders')" style="background:#3498db;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出订单CSV</button>
                     <button id="exportSalesBtn" onclick="exportData('sales')" style="background:#2ecc71;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出销量CSV</button>
                     <button id="exportMenuBtn" onclick="exportData('menu')" style="background:#9b59b6;color:#fff;border:0;padding:8px 16px;border-radius:8px;cursor:pointer;">导出菜单CSV</button>
+                    <button id="advExportBtn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">🔎 <span data-i18n="advExport">高级导出</span></button>
                 </div>
                 <div id="reportContent"></div>
                 <div class="hot-dishes-ranking" id="hotDishesRanking">
@@ -629,7 +630,57 @@
         </div>
     </div>
 
-    <div class="order-modal confirm-modal" id="confirmModal">
+    <div class="order-modal" id="advancedExportModal" style="display:none;">
+        <div class="order-modal-card" style="max-width:520px;">
+            <button class="modal-close" onclick="closeAdvancedExport()">✕</button>
+            <h2>🔎 高级导出</h2>
+
+            <div style="display:flex;gap:12px;margin:16px 0;">
+                <div style="flex:1;">
+                    <label style="font-size:13px;color:#888;display:block;margin-bottom:6px;">起始日期</label>
+                    <input type="date" id="advExportStart" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:13px;color:#888;display:block;margin-bottom:6px;">结束日期</label>
+                    <input type="date" id="advExportEnd" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                </div>
+            </div>
+
+            <div style="margin:16px 0;">
+                <label style="font-size:13px;color:#888;display:block;margin-bottom:8px;">导出维度</label>
+                <select id="advExportDim" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                    <option value="orders">订单明细</option>
+                    <option value="sales">菜品销量</option>
+                    <option value="tables">按桌汇总</option>
+                </select>
+            </div>
+
+            <div style="margin:16px 0;">
+                <label style="font-size:13px;color:#888;display:block;margin-bottom:8px;">订单状态（可多选）</label>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
+                        <input type="checkbox" class="adv-status" value="done" checked> 已结算
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
+                        <input type="checkbox" class="adv-status" value="pending"> 未结算
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
+                        <input type="checkbox" class="adv-status" value="canceled"> 已取消
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
+                        <input type="checkbox" class="adv-status" value="refunded"> 已退款
+                    </label>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button type="button" onclick="closeAdvancedExport()" style="flex:1;padding:12px;background:#555;color:#fff;border:0;border-radius:10px;cursor:pointer;">取消</button>
+                <button type="button" onclick="doAdvancedExport()" style="flex:1;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;border-radius:10px;cursor:pointer;font-weight:600;">📥 下载 CSV</button>
+            </div>
+        </div>
+    </div>
+
+<div class="order-modal confirm-modal" id="confirmModal">
         <div class="order-modal-card confirm-card">
             <button class="modal-close" onclick="hideConfirm()">✕</button>
             <div class="confirm-icon">⚠️</div>
@@ -659,7 +710,7 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=1790750493"></script>
+    <script src="languages.min.js?v=1790795902"></script>
     <script src="assets/core.js?v=1790737176"></script>
   <script src="assets/modules/ui.js?v=1790737176"></script>
   <script src="assets/modules/money.js?v=1790737176"></script>
@@ -708,11 +759,11 @@
 <script src="pages/admin/admin-mgr.js?v=1790737176"></script>
 <script src="pages/admin/cashier-mgr.js?v=1790737176"></script>
 <script src="pages/admin/printer.js?v=1790737176"></script>
-<script src="pages/admin/report.js?v=1790737176"></script>
+<script src="pages/admin/report.js?v=1790796208"></script>
 <script src="pages/admin/menu.js?v=1790737176"></script>
 <script src="pages/admin/table.js?v=1790737176"></script>
 <script src="pages/admin/order.js?v=1790791937"></script>
 <script src="pages/admin/shared.js?v=1790787700"></script>
-<script src="pages/admin.js?v=1790794710"></script>
+<script src="pages/admin.js?v=1790795229"></script>
 </body>
 </html>

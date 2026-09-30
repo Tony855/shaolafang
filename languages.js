@@ -747,7 +747,8 @@ const LANGUAGES = {
     "refundReasonMistake": "误操作",
     "refundNoteOptional": "备注（可选）",
     "refundNotePlaceholder": "补充说明...",
-    "confirmRefundBtn": "确认退款"
+    "confirmRefundBtn": "确认退款",
+    "advExport": "高级导出"
   },
   "en": {
     "code": "Code",
@@ -1491,7 +1492,8 @@ const LANGUAGES = {
     "refundReasonMistake": "Mistake",
     "refundNoteOptional": "Note (optional)",
     "refundNotePlaceholder": "Additional note...",
-    "confirmRefundBtn": "Confirm Refund"
+    "confirmRefundBtn": "Confirm Refund",
+    "advExport": "Advanced Export"
   },
   "vi": {
     "code": "Mã",
@@ -2235,7 +2237,8 @@ const LANGUAGES = {
     "refundReasonMistake": "Thao tác nhầm",
     "refundNoteOptional": "Ghi chú (tùy chọn)",
     "refundNotePlaceholder": "Ghi chú thêm...",
-    "confirmRefundBtn": "Xác nhận hoàn tiền"
+    "confirmRefundBtn": "Xác nhận hoàn tiền",
+    "advExport": "Xuất nâng cao"
   },
   "th": {
     "code": "รหัส",
@@ -2979,7 +2982,8 @@ const LANGUAGES = {
     "refundReasonMistake": "ทำผิดพลาด",
     "refundNoteOptional": "หมายเหตุ (ถ้ามี)",
     "refundNotePlaceholder": "หมายเหตุเพิ่มเติม...",
-    "confirmRefundBtn": "ยืนยันคืนเงิน"
+    "confirmRefundBtn": "ยืนยันคืนเงิน",
+    "advExport": "ส่งออกขั้นสูง"
   },
   "km": {
     "code": "កូដ",
@@ -3723,7 +3727,8 @@ const LANGUAGES = {
     "refundReasonMistake": "កំហុស",
     "refundNoteOptional": "ចំណាំ (ស្រេចចិត្ត)",
     "refundNotePlaceholder": "ចំណាំបន្ថែម...",
-    "confirmRefundBtn": "បញ្ជាក់ការសងប្រាក់"
+    "confirmRefundBtn": "បញ្ជាក់ការសងប្រាក់",
+    "advExport": "នាំចេញកម្រិតខ្ពស់"
   }
 };
 

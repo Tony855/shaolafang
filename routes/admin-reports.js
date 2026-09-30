@@ -194,3 +194,106 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 };
+
+// ═══════════════════════════════════════════════════════════
+// 高级导出：支持日期范围 + 状态 + 支付方式筛选
+// ═══════════════════════════════════════════════════════════
+module.exports.attachAdvancedExport = function(app, deps) {
+  const { getAsync, allAsync, requireAdminKey } = deps;
+
+  app.get('/api/admin/export-advanced', requireAdminKey, async (req, res) => {
+    try {
+      const storeId = req.storeId || 1;
+      const startDate = req.query.startDate || '1970-01-01';
+      const endDate = req.query.endDate || new Date().toISOString().slice(0, 10);
+      const dimension = req.query.dimension || 'orders';     // orders | sales | tables
+      const statuses = (req.query.statuses || 'done').split(',').filter(Boolean);
+      const payMethods = (req.query.payMethods || '').split(',').filter(Boolean);
+
+      const startIso = startDate + 'T00:00:00.000Z';
+      const endIso = endDate + 'T23:59:59.999Z';
+
+      let csv = '';
+      let filename = '';
+
+      if (dimension === 'orders') {
+        // ===== 订单明细 =====
+        const stPlaceholders = statuses.map(() => '?').join(',');
+        const params = [storeId, startIso, endIso, ...statuses];
+        let sql = `SELECT id, order_no, table_name, total, status, pay_method, note, createdAt FROM orders
+                   WHERE store_id=? AND createdAt >= ? AND createdAt <= ? AND status IN (${stPlaceholders})`;
+        if (payMethods.length) {
+          sql += ` AND pay_method IN (${payMethods.map(() => '?').join(',')})`;
+          params.push(...payMethods);
+        }
+        sql += ' ORDER BY createdAt DESC';
+        const rows = await allAsync(sql, params);
+
+        csv = '\uFEFF订单ID,订单号,桌号,金额,状态,支付方式,备注,下单时间\n';
+        for (const r of rows) {
+          csv += [
+            r.id,
+            r.order_no || '',
+            `"${(r.table_name || '').replace(/"/g, '""')}"`,
+            r.total,
+            r.status,
+            r.pay_method || '',
+            `"${(r.note || '').replace(/"/g, '""')}"`,
+            r.createdAt
+          ].join(',') + '\n';
+        }
+        filename = `orders_${startDate}_${endDate}.csv`;
+
+      } else if (dimension === 'sales') {
+        // ===== 菜品销量 =====
+        const stPlaceholders = statuses.map(() => '?').join(',');
+        const rows = await allAsync(`
+          SELECT m.id, m.name, m.category, m.price,
+                 SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
+                   - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS total_qty,
+                 SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS DECIMAL(10,2)) * m.price) AS total_revenue
+          FROM orders o
+          JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4
+                UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
+            ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
+          JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
+          WHERE o.store_id=? AND o.createdAt >= ? AND o.createdAt <= ? AND o.status IN (${stPlaceholders})
+          GROUP BY m.id, m.name, m.category, m.price
+          HAVING total_qty > 0
+          ORDER BY total_qty DESC
+        `, [storeId, startIso, endIso, ...statuses]);
+
+        csv = '\uFEFF菜品ID,菜品名称,分类,单价,销量,销售额\n';
+        for (const r of rows) {
+          csv += [r.id, `"${(r.name || '').replace(/"/g, '""')}"`,
+                  `"${(r.category || '').replace(/"/g, '""')}"`,
+                  r.price, r.total_qty || 0, r.total_revenue || 0].join(',') + '\n';
+        }
+        filename = `sales_${startDate}_${endDate}.csv`;
+
+      } else if (dimension === 'tables') {
+        // ===== 按桌汇总 =====
+        const stPlaceholders = statuses.map(() => '?').join(',');
+        const rows = await allAsync(`
+          SELECT table_name, COUNT(*) AS order_count, SUM(total) AS revenue, AVG(total) AS avg_order
+          FROM orders
+          WHERE store_id=? AND createdAt >= ? AND createdAt <= ? AND status IN (${stPlaceholders})
+          GROUP BY table_name
+          ORDER BY revenue DESC
+        `, [storeId, startIso, endIso, ...statuses]);
+
+        csv = '\uFEFF桌号,订单数,总营收,客单价\n';
+        for (const r of rows) {
+          csv += [r.table_name, r.order_count, r.revenue, Number(r.avg_order || 0).toFixed(2)].join(',') + '\n';
+        }
+        filename = `tables_${startDate}_${endDate}.csv`;
+      } else {
+        return res.status(400).json({ error: '不支持的维度' });
+      }
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(csv);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+};

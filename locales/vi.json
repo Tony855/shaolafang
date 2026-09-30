@@ -740,5 +740,6 @@
   "refundReasonMistake": "Thao tác nhầm",
   "refundNoteOptional": "Ghi chú (tùy chọn)",
   "refundNotePlaceholder": "Ghi chú thêm...",
-  "confirmRefundBtn": "Xác nhận hoàn tiền"
+  "confirmRefundBtn": "Xác nhận hoàn tiền",
+  "advExport": "Xuất nâng cao"
 }

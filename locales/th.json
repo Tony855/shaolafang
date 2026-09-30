@@ -740,5 +740,6 @@
   "refundReasonMistake": "ทำผิดพลาด",
   "refundNoteOptional": "หมายเหตุ (ถ้ามี)",
   "refundNotePlaceholder": "หมายเหตุเพิ่มเติม...",
-  "confirmRefundBtn": "ยืนยันคืนเงิน"
+  "confirmRefundBtn": "ยืนยันคืนเงิน",
+  "advExport": "ส่งออกขั้นสูง"
 }

@@ -1030,7 +1030,11 @@ require('./routes/admin-printers.js')(app, { getAsync, allAsync, runAsync, requi
 
 // ----- 数据导出 -----
 // ----- 报表+导出 -----
-require('./routes/admin-reports.js')(app, { getAsync, allAsync, requireAdminKey, authenticateAdmin });
+const _advExport = require('./routes/admin-reports.js');
+_advExport(app, { getAsync, allAsync, requireAdminKey, authenticateAdmin });
+if (typeof _advExport.attachAdvancedExport === 'function') {
+  _advExport.attachAdvancedExport(app, { getAsync, allAsync, requireAdminKey });
+}
 
 
 // ----- 全局配置+催单+管理员/收银员+重置 -----

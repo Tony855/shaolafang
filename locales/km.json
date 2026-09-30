@@ -740,5 +740,6 @@
   "refundReasonMistake": "កំហុស",
   "refundNoteOptional": "ចំណាំ (ស្រេចចិត្ត)",
   "refundNotePlaceholder": "ចំណាំបន្ថែម...",
-  "confirmRefundBtn": "បញ្ជាក់ការសងប្រាក់"
+  "confirmRefundBtn": "បញ្ជាក់ការសងប្រាក់",
+  "advExport": "នាំចេញកម្រិតខ្ពស់"
 }

@@ -740,5 +740,6 @@
   "refundReasonMistake": "误操作",
   "refundNoteOptional": "备注（可选）",
   "refundNotePlaceholder": "补充说明...",
-  "confirmRefundBtn": "确认退款"
+  "confirmRefundBtn": "确认退款",
+  "advExport": "高级导出"
 }
