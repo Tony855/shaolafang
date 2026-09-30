@@ -75,5 +75,5 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get('/api/health', (req, res) => res.json({ ok: true, service: 'ordering-system', timestamp: new Date().toISOString() }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, service: 'foodflow', timestamp: new Date().toISOString() }));
 };

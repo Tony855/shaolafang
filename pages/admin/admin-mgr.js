@@ -50,10 +50,10 @@ function openAddAdminModal() {
   $('#addAdminPassword').value = '';
   $('#addAdminDisplayName').value = '';
   updateAdminPermissions('addAdminPermissions', {}, false);
-  $('#addAdminModal').classList.add('open');
+  $('#adminAddModal').classList.add('open');
 }
 
-function closeAddAdminModal() { $('#addAdminModal').classList.remove('open'); }
+function closeAddAdminModal() { $('#adminAddModal').classList.remove('open'); }
 
 async function submitAddAdmin() {
   if (!hasPermission('can_manage_admin')) { SLF.ui.toast('❌ ' + tAdmin('noPermission')); return; }

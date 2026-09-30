@@ -27,6 +27,6 @@ module.exports = {
   DB_HOST: process.env.DB_HOST || 'localhost',
   DB_USER: process.env.DB_USER || 'root',
   DB_PASSWORD: process.env.DB_PASSWORD || '',
-  DB_DATABASE: process.env.DB_DATABASE || 'foodflow_system',
+  DB_DATABASE: (() => { const db = process.env.DB_DATABASE; if (!db) { console.error('❌ .env 缺少 DB_DATABASE'); process.exit(1); } return db; })(),
   DB_PORT: Number(process.env.DB_PORT) || 3306,
 };
