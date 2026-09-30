@@ -48,12 +48,12 @@
 <main id="mainContent" style="display:none;">
   <div class="table-toolbar">
     <input type="text" id="tableSearchInput" class="table-search" 
-           placeholder="🔍 搜索桌号（如 B08）" 
+           placeholder="🔍 搜索桌号（如 B08）" data-i18n-placeholder="searchTablePlaceholder" 
            autocomplete="off">
     <div class="table-filter-tabs">
-      <button class="filter-tab active" data-filter="all">全部</button>
-      <button class="filter-tab" data-filter="occupied">已占</button>
-      <button class="filter-tab" data-filter="available">空闲</button>
+      <button class="filter-tab active" data-filter="all" data-i18n="all">全部</button>
+      <button class="filter-tab" data-filter="occupied" data-i18n="occupied">已占</button>
+      <button class="filter-tab" data-filter="available" data-i18n="available">空闲</button>
     </div>
   </div>
   <div class="table-grid" id="tableGrid"></div>
@@ -171,7 +171,7 @@
   </div>
 </div>
 
-<script src="languages.min.js?v=1790750493"></script>
+<script src="languages.min.js?v=1790794018"></script>
 <script src="assets/core.js?v=1790745535"></script>
 <script src="assets/modules/ui.js?v=1790745535"></script>
   <script src="assets/modules/money.js?v=1790745535"></script>
@@ -180,6 +180,6 @@
   <script src="assets/modules/role.js?v=1790745535"></script>
   <script src="assets/modules/idle.js?v=1790745535"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="pages/waiter.js?v=1790792677"></script>
+<script src="pages/waiter.js?v=1790794018"></script>
 </body>
 </html>

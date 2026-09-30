@@ -730,5 +730,15 @@
   "pleaseSaveFirst": "กรุณาบันทึกออเดอร์ก่อน",
   "orderNotFound": "ไม่พบออเดอร์",
   "autoPrintReceiptTitle": "พิมพ์ใบเสร็จอัตโนมัติเมื่อชำระ",
-  "autoPrintReceiptDesc": "เมื่อเปิดใช้งาน ใบเสร็จจะพิมพ์อัตโนมัติเมื่อแคชเชียร์ชำระเงิน"
+  "autoPrintReceiptDesc": "เมื่อเปิดใช้งาน ใบเสร็จจะพิมพ์อัตโนมัติเมื่อแคชเชียร์ชำระเงิน",
+  "searchTablePlaceholder": "🔍 ค้นหาโต๊ะ (เช่น B08)",
+  "dishesPending": "รายการค้าง",
+  "allDone": "เสร็จทั้งหมด",
+  "refundAmount": "ยอดคืนเงิน",
+  "refundReason": "เหตุผลคืนเงิน",
+  "selectReason": "กรุณาเลือก...",
+  "refundReasonMistake": "ทำผิดพลาด",
+  "refundNoteOptional": "หมายเหตุ (ถ้ามี)",
+  "refundNotePlaceholder": "หมายเหตุเพิ่มเติม...",
+  "confirmRefundBtn": "ยืนยันคืนเงิน"
 }

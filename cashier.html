@@ -59,7 +59,7 @@
     <aside class="pos-left">
       <div class="pos-search-wrap">
         <input type="text" id="searchInput" class="pos-search" 
-               placeholder="🔍 搜索桌号 / 订单号" autocomplete="off">
+               placeholder="🔍 搜索桌号 / 订单号" data-i18n-placeholder="searchPlaceholder" autocomplete="off">
       </div>
 
       <div class="pos-tabs">
@@ -105,7 +105,7 @@
             <span class="pos-detail-time" id="detailTime">-</span>
           </div>
           <div class="pos-detail-actions-top">
-            <button class="pos-icon-btn" onclick="closeDetail()" title="关闭">✕</button>
+            <button class="pos-icon-btn" onclick="closeDetail()" title="关闭" data-i18n-title="close">✕</button>
           </div>
         </div>
 
@@ -121,7 +121,7 @@
             <span class="pos-amount-value pos-amount-total" id="detailTotal">$0.00</span>
           </div>
           <div class="pos-amount-row pos-amount-receivable">
-            <span class="pos-amount-label">应收</span>
+            <span class="pos-amount-label" data-i18n="receivable">应收</span>
             <span class="pos-amount-value pos-amount-due" id="detailDue">$0.00</span>
           </div>
         </div>
@@ -140,26 +140,26 @@
     <button class="modal-close" onclick="closePaymentModal()">✕</button>
     <h2 class="payment-title" id="paymentTitle">收款</h2>
     <div class="payment-amount">
-      <div class="payment-amount-label">应收金额</div>
+      <div class="payment-amount-label" data-i18n="receivableAmount">应收金额</div>
       <div class="payment-amount-value" id="paymentAmount">$0.00</div>
     </div>
 
     <div class="payment-methods">
       <button class="payment-method active" data-method="cash" onclick="selectPayMethod('cash')">
         <span class="pm-icon">💵</span>
-        <span class="pm-label">现金</span>
+        <span class="pm-label" data-i18n="cashPay">现金</span>
       </button>
       <button class="payment-method" data-method="wechat" onclick="selectPayMethod('wechat')">
         <span class="pm-icon">💚</span>
-        <span class="pm-label">微信</span>
+        <span class="pm-label" data-i18n="wechatPay">微信</span>
       </button>
       <button class="payment-method" data-method="alipay" onclick="selectPayMethod('alipay')">
         <span class="pm-icon">💙</span>
-        <span class="pm-label">支付宝</span>
+        <span class="pm-label" data-i18n="alipayPay">支付宝</span>
       </button>
       <button class="payment-method" data-method="card" onclick="selectPayMethod('card')">
         <span class="pm-icon">💳</span>
-        <span class="pm-label">刷卡</span>
+        <span class="pm-label" data-i18n="cardPay">刷卡</span>
       </button>
       <button class="payment-method" data-method="aba" onclick="selectPayMethod('aba')">
         <span class="pm-icon pm-icon-aba"><img src="assets/vendor/payment-icons/aba.png" alt="ABA"></span>
@@ -169,21 +169,21 @@
 
     <div class="payment-cash-area" id="cashArea">
       <div class="payment-input-row">
-        <label>实收</label>
+        <label data-i18n="actualReceived">实收</label>
         <input type="number" id="cashReceived" class="payment-input" 
                placeholder="0.00" step="0.01" min="0" 
                oninput="onCashInput()">
       </div>
       <div class="payment-change-row">
-        <span>找零</span>
+        <span data-i18n="changeAmount">找零</span>
         <span class="payment-change-value" id="cashChange">$0.00</span>
       </div>
       <div class="payment-quick-cash" id="quickCash"></div>
     </div>
 
     <div class="payment-actions">
-      <button class="btn btn-secondary" onclick="closePaymentModal()">取消</button>
-      <button class="btn btn-primary" id="confirmPayBtn" onclick="confirmPay()">确认收款</button>
+      <button class="btn btn-secondary" onclick="closePaymentModal()" data-i18n="cancel">取消</button>
+      <button class="btn btn-primary" id="confirmPayBtn" onclick="confirmPay()" data-i18n="confirmPay">确认收款</button>
     </div>
   </div>
 </div>
@@ -193,32 +193,32 @@
 <div class="modal-overlay" id="refundModal">
   <div class="payment-card">
     <button class="modal-close" onclick="closeRefundModal()">✕</button>
-    <h2 class="payment-title">💸 退款订单</h2>
+    <h2 class="payment-title">💸 <span data-i18n="refundOrder">退款订单</span></h2>
 
     <div class="payment-amount">
-      <div class="payment-amount-label">退款金额</div>
+      <div class="payment-amount-label" data-i18n="refundAmount">退款金额</div>
       <div class="payment-amount-value" id="refundAmount">$0.00</div>
     </div>
 
     <div class="refund-form">
-      <label class="refund-label">退款原因 <span style="color:#e74c3c;">*</span></label>
+      <label class="refund-label"><span data-i18n="refundReason">退款原因</span> <span style="color:#e74c3c;">*</span></label>
       <select id="refundReason" class="refund-select">
-        <option value="">请选择...</option>
-        <option value="customer">顾客要求</option>
-        <option value="dish">菜品问题</option>
-        <option value="service">服务问题</option>
-        <option value="wrong">误操作</option>
-        <option value="other">其他</option>
+        <option value="" data-i18n="selectReason">请选择...</option>
+        <option value="customer" data-i18n="refundReasonCustomer">顾客要求</option>
+        <option value="dish" data-i18n="refundReasonDish">菜品问题</option>
+        <option value="service" data-i18n="refundReasonService">服务问题</option>
+        <option value="wrong" data-i18n="refundReasonMistake">误操作</option>
+        <option value="other" data-i18n="refundReasonOther">其他</option>
       </select>
 
-      <label class="refund-label" style="margin-top:14px;">备注（可选）</label>
+      <label class="refund-label" style="margin-top:14px;" data-i18n="refundNoteOptional">备注（可选）</label>
       <textarea id="refundNote" class="refund-textarea" maxlength="200"
-                placeholder="补充说明..."></textarea>
+                placeholder="补充说明..." data-i18n-placeholder="refundNotePlaceholder"></textarea>
     </div>
 
     <div class="payment-actions" style="margin-top:18px;">
-      <button class="btn btn-secondary" onclick="closeRefundModal()">取消</button>
-      <button class="btn btn-primary" id="confirmRefundBtn" onclick="confirmRefund()">确认退款</button>
+      <button class="btn btn-secondary" onclick="closeRefundModal()" data-i18n="cancel">取消</button>
+      <button class="btn btn-primary" id="confirmRefundBtn" onclick="confirmRefund()" data-i18n="confirmRefundBtn">确认退款</button>
     </div>
   </div>
 </div>
@@ -230,13 +230,13 @@
     <div class="modal-title" id="confirmTitle" style="padding-right:0;"></div>
     <p style="color:#aaa;margin-bottom:20px;font-size:14px;" id="confirmMessage"></p>
     <div class="modal-actions" style="justify-content:center;">
-      <button class="btn" onclick="hideConfirm()" id="confirmCancelBtn">取消</button>
-      <button class="btn btn-primary" onclick="executeConfirm()" id="confirmOkBtn">确定</button>
+      <button class="btn" onclick="hideConfirm()" id="confirmCancelBtn" data-i18n="cancel">取消</button>
+      <button class="btn btn-primary" onclick="executeConfirm()" id="confirmOkBtn" data-i18n="confirm">确定</button>
     </div>
   </div>
 </div>
 
-<script src="languages.min.js?v=1790791226"></script>
+<script src="languages.min.js?v=1790794315"></script>
 <script src="assets/core.js?v=1790748960"></script>
 <script src="assets/modules/ui.js?v=1790748960"></script>
 <script src="assets/modules/money.js?v=1790748960"></script>

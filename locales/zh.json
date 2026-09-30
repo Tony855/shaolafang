@@ -730,5 +730,15 @@
   "pleaseSaveFirst": "请先保存订单再结算",
   "orderNotFound": "订单不存在",
   "autoPrintReceiptTitle": "结算自动打印收银小票",
-  "autoPrintReceiptDesc": "开启后，收银员结算时自动打印小票到默认打印机"
+  "autoPrintReceiptDesc": "开启后，收银员结算时自动打印小票到默认打印机",
+  "searchTablePlaceholder": "🔍 搜索桌号（如 B08）",
+  "dishesPending": "道未完成",
+  "allDone": "全部完成",
+  "refundAmount": "退款金额",
+  "refundReason": "退款原因",
+  "selectReason": "请选择...",
+  "refundReasonMistake": "误操作",
+  "refundNoteOptional": "备注（可选）",
+  "refundNotePlaceholder": "补充说明...",
+  "confirmRefundBtn": "确认退款"
 }

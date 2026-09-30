@@ -730,5 +730,15 @@
   "pleaseSaveFirst": "Please save the order first",
   "orderNotFound": "Order not found",
   "autoPrintReceiptTitle": "Auto Print Receipt on Settle",
-  "autoPrintReceiptDesc": "When enabled, receipt auto-prints on cashier settle"
+  "autoPrintReceiptDesc": "When enabled, receipt auto-prints on cashier settle",
+  "searchTablePlaceholder": "🔍 Search table (e.g. B08)",
+  "dishesPending": "items pending",
+  "allDone": "All done",
+  "refundAmount": "Refund Amount",
+  "refundReason": "Refund Reason",
+  "selectReason": "Please select...",
+  "refundReasonMistake": "Mistake",
+  "refundNoteOptional": "Note (optional)",
+  "refundNotePlaceholder": "Additional note...",
+  "confirmRefundBtn": "Confirm Refund"
 }

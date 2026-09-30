@@ -737,7 +737,17 @@ const LANGUAGES = {
     "pleaseSaveFirst": "请先保存订单再结算",
     "orderNotFound": "订单不存在",
     "autoPrintReceiptTitle": "结算自动打印收银小票",
-    "autoPrintReceiptDesc": "开启后，收银员结算时自动打印小票到默认打印机"
+    "autoPrintReceiptDesc": "开启后，收银员结算时自动打印小票到默认打印机",
+    "searchTablePlaceholder": "🔍 搜索桌号（如 B08）",
+    "dishesPending": "道未完成",
+    "allDone": "全部完成",
+    "refundAmount": "退款金额",
+    "refundReason": "退款原因",
+    "selectReason": "请选择...",
+    "refundReasonMistake": "误操作",
+    "refundNoteOptional": "备注（可选）",
+    "refundNotePlaceholder": "补充说明...",
+    "confirmRefundBtn": "确认退款"
   },
   "en": {
     "code": "Code",
@@ -1471,7 +1481,17 @@ const LANGUAGES = {
     "pleaseSaveFirst": "Please save the order first",
     "orderNotFound": "Order not found",
     "autoPrintReceiptTitle": "Auto Print Receipt on Settle",
-    "autoPrintReceiptDesc": "When enabled, receipt auto-prints on cashier settle"
+    "autoPrintReceiptDesc": "When enabled, receipt auto-prints on cashier settle",
+    "searchTablePlaceholder": "🔍 Search table (e.g. B08)",
+    "dishesPending": "items pending",
+    "allDone": "All done",
+    "refundAmount": "Refund Amount",
+    "refundReason": "Refund Reason",
+    "selectReason": "Please select...",
+    "refundReasonMistake": "Mistake",
+    "refundNoteOptional": "Note (optional)",
+    "refundNotePlaceholder": "Additional note...",
+    "confirmRefundBtn": "Confirm Refund"
   },
   "vi": {
     "code": "Mã",
@@ -2205,7 +2225,17 @@ const LANGUAGES = {
     "pleaseSaveFirst": "Vui lòng lưu đơn hàng trước",
     "orderNotFound": "Không tìm thấy đơn hàng",
     "autoPrintReceiptTitle": "In hóa đơn tự động khi thanh toán",
-    "autoPrintReceiptDesc": "Khi bật, hóa đơn tự động in khi thu ngân thanh toán"
+    "autoPrintReceiptDesc": "Khi bật, hóa đơn tự động in khi thu ngân thanh toán",
+    "searchTablePlaceholder": "🔍 Tìm số bàn (vd B08)",
+    "dishesPending": "món chưa xong",
+    "allDone": "Hoàn tất",
+    "refundAmount": "Số tiền hoàn",
+    "refundReason": "Lý do hoàn tiền",
+    "selectReason": "Vui lòng chọn...",
+    "refundReasonMistake": "Thao tác nhầm",
+    "refundNoteOptional": "Ghi chú (tùy chọn)",
+    "refundNotePlaceholder": "Ghi chú thêm...",
+    "confirmRefundBtn": "Xác nhận hoàn tiền"
   },
   "th": {
     "code": "รหัส",
@@ -2939,7 +2969,17 @@ const LANGUAGES = {
     "pleaseSaveFirst": "กรุณาบันทึกออเดอร์ก่อน",
     "orderNotFound": "ไม่พบออเดอร์",
     "autoPrintReceiptTitle": "พิมพ์ใบเสร็จอัตโนมัติเมื่อชำระ",
-    "autoPrintReceiptDesc": "เมื่อเปิดใช้งาน ใบเสร็จจะพิมพ์อัตโนมัติเมื่อแคชเชียร์ชำระเงิน"
+    "autoPrintReceiptDesc": "เมื่อเปิดใช้งาน ใบเสร็จจะพิมพ์อัตโนมัติเมื่อแคชเชียร์ชำระเงิน",
+    "searchTablePlaceholder": "🔍 ค้นหาโต๊ะ (เช่น B08)",
+    "dishesPending": "รายการค้าง",
+    "allDone": "เสร็จทั้งหมด",
+    "refundAmount": "ยอดคืนเงิน",
+    "refundReason": "เหตุผลคืนเงิน",
+    "selectReason": "กรุณาเลือก...",
+    "refundReasonMistake": "ทำผิดพลาด",
+    "refundNoteOptional": "หมายเหตุ (ถ้ามี)",
+    "refundNotePlaceholder": "หมายเหตุเพิ่มเติม...",
+    "confirmRefundBtn": "ยืนยันคืนเงิน"
   },
   "km": {
     "code": "កូដ",
@@ -3673,7 +3713,17 @@ const LANGUAGES = {
     "pleaseSaveFirst": "សូមរក្សាទុកការបញ្ជាទិញជាមុនសិន",
     "orderNotFound": "រកមិនឃើញការបញ្ជាទិញ",
     "autoPrintReceiptTitle": "បោះពុម្ពវិក្កយបត្រស្វ័យប្រវត្តិពេលទូទាត់",
-    "autoPrintReceiptDesc": "នៅពេលបើក វិក្កយបត្រនឹងបោះពុម្ពស្វ័យប្រវត្តិពេលអ្នកគិតលុយទូទាត់"
+    "autoPrintReceiptDesc": "នៅពេលបើក វិក្កយបត្រនឹងបោះពុម្ពស្វ័យប្រវត្តិពេលអ្នកគិតលុយទូទាត់",
+    "searchTablePlaceholder": "🔍 ស្វែងរកលេខតុ (ឧ. B08)",
+    "dishesPending": "មុខមិនទាន់រួច",
+    "allDone": "រួចរាល់ទាំងអស់",
+    "refundAmount": "ចំនួនសងប្រាក់",
+    "refundReason": "មូលហេតុសងប្រាក់",
+    "selectReason": "សូមជ្រើសរើស...",
+    "refundReasonMistake": "កំហុស",
+    "refundNoteOptional": "ចំណាំ (ស្រេចចិត្ត)",
+    "refundNotePlaceholder": "ចំណាំបន្ថែម...",
+    "confirmRefundBtn": "បញ្ជាក់ការសងប្រាក់"
   }
 };
 

@@ -130,6 +130,13 @@
         if (translated && translated !== key) el.textContent = translated;
       }
     });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      if (key) {
+        const translated = t(key, null, el.placeholder || '');
+        if (translated && translated !== key) el.placeholder = translated;
+      }
+    });
     document.querySelectorAll('[data-i18n-title]').forEach(el => {
       const key = el.getAttribute('data-i18n-title');
       if (key) {
@@ -238,8 +245,8 @@
       const isExpanded = state.expandedOrderIds.has(o.id);
       const arrow = isExpanded ? '▼' : '▶';
       const pendingTip = pendingCount > 0
-        ? `<span class="pending-tip">⚠️ ${pendingCount} 道未完成</span>`
-        : `<span class="ready-tip">✅ 全部完成</span>`;
+        ? `<span class="pending-tip">⚠️ ${pendingCount} ${t('dishesPending', null, '道未完成')}</span>`
+        : `<span class="ready-tip">✅ ${t('allDone', null, '全部完成')}</span>`;
 
       return `<div class="order-block ${isExpanded ? 'expanded' : 'collapsed'}">
         <div class="order-head" onclick="event.stopPropagation();toggleOrderExpand(${o.id})" style="cursor:pointer;">

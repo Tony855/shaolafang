@@ -730,5 +730,15 @@
   "pleaseSaveFirst": "សូមរក្សាទុកការបញ្ជាទិញជាមុនសិន",
   "orderNotFound": "រកមិនឃើញការបញ្ជាទិញ",
   "autoPrintReceiptTitle": "បោះពុម្ពវិក្កយបត្រស្វ័យប្រវត្តិពេលទូទាត់",
-  "autoPrintReceiptDesc": "នៅពេលបើក វិក្កយបត្រនឹងបោះពុម្ពស្វ័យប្រវត្តិពេលអ្នកគិតលុយទូទាត់"
+  "autoPrintReceiptDesc": "នៅពេលបើក វិក្កយបត្រនឹងបោះពុម្ពស្វ័យប្រវត្តិពេលអ្នកគិតលុយទូទាត់",
+  "searchTablePlaceholder": "🔍 ស្វែងរកលេខតុ (ឧ. B08)",
+  "dishesPending": "មុខមិនទាន់រួច",
+  "allDone": "រួចរាល់ទាំងអស់",
+  "refundAmount": "ចំនួនសងប្រាក់",
+  "refundReason": "មូលហេតុសងប្រាក់",
+  "selectReason": "សូមជ្រើសរើស...",
+  "refundReasonMistake": "កំហុស",
+  "refundNoteOptional": "ចំណាំ (ស្រេចចិត្ត)",
+  "refundNotePlaceholder": "ចំណាំបន្ថែម...",
+  "confirmRefundBtn": "បញ្ជាក់ការសងប្រាក់"
 }

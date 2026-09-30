@@ -730,5 +730,15 @@
   "pleaseSaveFirst": "Vui lòng lưu đơn hàng trước",
   "orderNotFound": "Không tìm thấy đơn hàng",
   "autoPrintReceiptTitle": "In hóa đơn tự động khi thanh toán",
-  "autoPrintReceiptDesc": "Khi bật, hóa đơn tự động in khi thu ngân thanh toán"
+  "autoPrintReceiptDesc": "Khi bật, hóa đơn tự động in khi thu ngân thanh toán",
+  "searchTablePlaceholder": "🔍 Tìm số bàn (vd B08)",
+  "dishesPending": "món chưa xong",
+  "allDone": "Hoàn tất",
+  "refundAmount": "Số tiền hoàn",
+  "refundReason": "Lý do hoàn tiền",
+  "selectReason": "Vui lòng chọn...",
+  "refundReasonMistake": "Thao tác nhầm",
+  "refundNoteOptional": "Ghi chú (tùy chọn)",
+  "refundNotePlaceholder": "Ghi chú thêm...",
+  "confirmRefundBtn": "Xác nhận hoàn tiền"
 }
