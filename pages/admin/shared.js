@@ -232,7 +232,16 @@ document.addEventListener('DOMContentLoaded', function() {
         try { window._adminSocket.disconnect(); window._adminSocket.connect(); } catch(_) {}
       }
       if (window.updateSidebarStore) window.updateSidebarStore();
-      if (window.refresh) window.refresh();
+      // 重载当前激活模块（switchAdminModule 内部会调用对应 loadXxx）
+      try {
+        const activeNav = document.querySelector('.nav-item.active');
+        const mod = activeNav && activeNav.dataset.module;
+        if (mod && typeof window.switchAdminModule === 'function') {
+          window.switchAdminModule(mod);
+        } else if (typeof window.refresh === 'function') {
+          window.refresh();
+        }
+      } catch(_) {}
     };
   }
   const pwdInput = document.getElementById('passwordModalInput');
