@@ -225,12 +225,16 @@
 
   function selectOrder(id) {
     selectedOrderId = id;
+    // 移动端：切换为详情视图
+    document.body.classList.add('pos-detail-open');
     renderOrders();
     renderDetail();
   }
 
   function closeDetail() {
     selectedOrderId = null;
+    // 移动端：回到列表视图
+    document.body.classList.remove('pos-detail-open');
     renderOrders();
     renderDetail();
   }
@@ -416,6 +420,7 @@
       SLF.ui.toast('✅ ' + (t('settleSuccess') || '收款成功'));
       closePaymentModal();
       selectedOrderId = null;
+      document.body.classList.remove('pos-detail-open');
       await loadOrders();
     } catch (e) {
       SLF.ui.toast('❌ ' + e.message);
@@ -440,6 +445,7 @@
         await api('/cashier/orders/' + orderId + '/cancel', { method: 'PUT' });
         SLF.ui.toast('✅ ' + (t('cancelSuccess') || '已取消'));
         selectedOrderId = null;
+        document.body.classList.remove('pos-detail-open');
         await loadOrders();
       } catch (e) {
         SLF.ui.toast('❌ ' + e.message);

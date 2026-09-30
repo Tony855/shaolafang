@@ -27,8 +27,22 @@
     body::before{ content: ''; position: fixed; top: -20%; right: -10%; width: 60%; height: 80%; background: radial-gradient(circle, rgba(232,74,42,0.10) 0%, transparent 70%); pointer-events: none; z-index: 0; }
     body::after{ content: ''; position: fixed; bottom: -20%; left: -10%; width: 50%; height: 70%; background: radial-gradient(circle, rgba(255,140,76,0.08) 0%, transparent 70%); pointer-events: none; z-index: 0; }
     html, body { overscroll-behavior: none; -webkit-overflow-scrolling: auto; }
-    body { position: fixed; width: 100%; height: 100%; overflow: hidden; }
-    #mainContent { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+    body { 
+      position: fixed; 
+      width: 100%; 
+      height: 100%; 
+      height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #mainContent { 
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto; 
+      -webkit-overflow-scrolling: touch; 
+      overscroll-behavior: contain; 
+    }
     header{
       position: sticky; top: 0; z-index: 100;
       background: linear-gradient(135deg, #ff8a4c 0%, #e84a2a 100%);
@@ -67,8 +81,7 @@
     .status.reserved{ background: #e3edfc; color: #2a5fb8; }
     .table-card .bill{ margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--gray-2); font-size: 14px; }
     .table-card .amount{ font-weight: 700; color: var(--primary); font-size: 16px; }
-    .bill-items{ margin-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; max-height: 120px; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
-    .bill-items::-webkit-scrollbar{ display: none; }
+    .bill-items{ margin-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
     .bill-items .line{ display: grid; grid-template-columns: 1fr 64px 72px; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px dashed var(--gray-2); }
     .bill-items .dish-name{ min-width:0; color: var(--gray-6); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .order-detail-item{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0; gap:10px; }
@@ -206,7 +219,7 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   padding: 12px 16px;
-  margin: -20px -16px 16px;
+  margin: 0 0 16px;
   border-bottom: 1px solid var(--gray-2);
   display: flex;
   gap: 12px;
@@ -274,7 +287,7 @@
 /* 移动端适配 */
 @media (max-width: 600px) {
   .table-toolbar {
-    margin: -16px -16px 12px;
+    margin: 0 -16px 12px;
     padding: 10px 12px;
     gap: 8px;
   }
@@ -285,5 +298,280 @@
   .filter-tab {
     padding: 6px 12px;
     font-size: 12px;
+  }
+}
+
+/* ============================================================
+   订单折叠/展开（2026-09-29）
+   ============================================================ */
+.order-block {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--gray-2);
+}
+.order-block.collapsed .order-head {
+  margin-bottom: 0;
+}
+.order-block.expanded .order-head {
+  margin-bottom: 6px;
+}
+
+.order-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 0 -4px;
+  border-radius: 8px;
+  transition: background 0.15s;
+  user-select: none;
+}
+.order-head:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+.order-head:active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.order-head-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.order-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.order-arrow {
+  color: var(--gray-4);
+  font-size: 10px;
+  width: 12px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.order-no {
+  font-weight: 700;
+  color: var(--gray-6);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.order-dish-count {
+  font-size: 11px;
+  color: var(--gray-4);
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--gray-1);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.order-amount {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.pending-tip {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fa8c16;
+  background: rgba(250, 140, 22, 0.12);
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  animation: pending-pulse 2s ease-in-out infinite;
+}
+.ready-tip {
+  font-size: 11px;
+  font-weight: 600;
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.12);
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+@keyframes pending-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ============================================================
+   移动端布局修复（2026-09-30）
+   ============================================================ */
+@media (max-width: 768px) {
+  /* main 去掉桌面端的 margin/固定宽度 */
+  main {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 12px !important;
+  }
+  /* table-toolbar 移动端不要负 margin，且强制不换行 */
+  .table-toolbar {
+    margin: 0 -12px 12px !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+  }
+  .table-search {
+    height: 36px !important;
+    font-size: 14px !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;       /* 搜索框占据剩余空间 */
+  }
+  .table-filter-tabs {
+    width: auto !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    flex-shrink: 0 !important;
+  }
+  .table-filter-tabs::-webkit-scrollbar { display: none; }
+  .filter-tab {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+  .table-filter-tabs {
+    flex-shrink: 0 !important;
+    flex-wrap: nowrap !important;
+  }
+
+  /* 卡片内容防溢出 */
+  .table-card {
+    padding: 14px !important;
+    overflow: hidden !important;
+  }
+  .table-card .name {
+    font-size: 18px !important;
+    padding-right: 0 !important;
+  }
+  .table-card .name .status {
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+  }
+
+  /* 订单块内容折行 */
+  .order-head {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+  .order-head > span {
+    min-width: 0 !important;
+    flex-wrap: wrap !important;
+  }
+  .order-head .order-meta {
+    font-size: 11px !important;
+  }
+  .bill-items .line {
+    grid-template-columns: 1fr auto !important;
+    gap: 6px !important;
+  }
+  .bill-items .line .item-status,
+  .bill-items .line .item-toggle {
+    grid-column: 1 / -1 !important;
+    justify-self: end !important;
+  }
+
+  /* header 移动端：按钮不换行，横向滚动 */
+  header .header-right {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+  header .header-right::-webkit-scrollbar { display: none; }
+}
+
+/* ============================================================
+   桌台卡片标题行按钮（2026-09-30 · flex 布局）
+   桌号左，按钮右
+   ============================================================ */
+.table-card .name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.table-card .name .name-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.table-card .name .name-left .status {
+  flex-shrink: 0;
+}
+
+.table-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.table-card-actions button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  padding: 0;
+}
+.table-card-actions .new-order-btn {
+  background: linear-gradient(135deg, #52c41a, #2ecc71);
+  color: #fff;
+  font-weight: 700;
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(82,196,26,.35);
+}
+.table-card-actions .new-order-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(82,196,26,.5);
+}
+.table-card-actions .new-order-btn:active {
+  transform: scale(.95);
+}
+.table-card-actions .transfer-btn {
+  background: #fff;
+  border: 2px solid rgba(232,74,42,.4);
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+.table-card-actions .transfer-btn:hover {
+  transform: scale(1.1);
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(232,74,42,.3);
+}
+.table-card-actions .transfer-btn:active {
+  transform: scale(.95);
+}
+
+/* 移动端按钮紧凑 */
+@media (max-width: 600px) {
+  .table-card-actions button {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+  .table-card-actions .new-order-btn {
+    font-size: 18px;
   }
 }

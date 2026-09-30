@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="data:,">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FoodFlow · QR Ordering System</title>
+<link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
+<link rel="stylesheet" href="assets/customer.css?v=1790657539">
+<link rel="stylesheet" href="assets/common.css">
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-logo"><i class="fas fa-utensils"></i> <span id="appName">味享</span></div>
+        <div class="header-left">
+            <span class="store-name-badge" id="storeNameDisplay"><i class="fas fa-store"></i> <span class="badge-text">加载中...</span></span>
+            <span class="table-info" id="tableInfo" title="请扫描桌面二维码绑定桌号"><i class="fas fa-chair"></i> <span class="badge-text" id="tableDisplay">未扫码</span></span>
+        </div>
+        <div class="header-right">
+            <button id="callWaiterBtn" type="button" title="呼叫服务员" hidden>🔔</button>
+            <button id="customerOrderBtn" type="button" title="订单详情" hidden>🧾</button>
+            <button type="button" class="lang-btn-wrap" id="langBtn" title="Language / 语言" aria-haspopup="listbox" aria-expanded="false">
+                <span class="lang-icon">🌐</span>
+            </button>
+        </div>
+    </header>
+
+    <nav class="category-tabs" id="categoryTabs">
+        <div class="cats-scroll" id="catsScroll"></div>
+    </nav>
+
+    <main class="main-content" id="mainContent">
+        <div class="menu-grid" id="menuGrid"></div>
+    </main>
+
+    <div class="cart-bar" id="cartBar" style="display:none;">
+        <div class="cart-left" id="cartToggle">
+            <div class="cart-icon-wrap">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="badge" id="cartBadge">0</span>
+            </div>
+            <div class="cart-summary">
+                <span class="total" id="cartTotal">0.00</span>
+                <span id="cartLabel">购物车</span>
+            </div>
+        </div>
+        <button class="checkout-btn" id="checkoutBtn" disabled><span id="checkoutLabel">去结算</span></button>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <div class="cart-drawer" id="cartDrawer">
+        <div class="drawer-header">
+            <h3><i class="fas fa-shopping-cart" style="color:var(--primary);"></i> <span id="drawerTitle">购物车</span></h3>
+            <button class="close-btn" id="closeDrawer" type="button">✕</button>
+        </div>
+        <div class="drawer-body" id="drawerBody"></div>
+        <div class="drawer-footer">
+            <div class="drawer-total"><span id="totalLabel">合计</span> <strong id="drawerTotal">0.00</strong></div>
+            <button class="submit-btn" id="submitOrderBtn" type="button"><span id="submitLabel">确认下单</span></button>
+        </div>
+    </div>
+
+    <!-- 呼叫服务员确认弹窗 -->
+    <div class="confirm-overlay" id="callWaiterConfirmOverlay">
+        <div class="confirm-card">
+            <div class="confirm-icon">🔔</div>
+            <div class="confirm-title" id="callConfirmTitle">呼叫服务员</div>
+            <div class="confirm-message" id="callConfirmMessage">确认呼叫服务员？</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn cancel" id="callConfirmCancel" type="button">取消</button>
+                <button class="confirm-btn confirm" id="callConfirmOk" type="button">确认呼叫</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顾客订单详情弹窗 -->
+    <div class="order-modal" id="customerOrderModal">
+        <div class="order-modal-card">
+            <h3><i class="fas fa-list-ul"></i> <span id="customerOrderTitle">订单详情</span></h3>
+            <div id="customerOrderDetail" class="order-detail-wrap"></div>
+            <div class="form-actions">
+                <button class="btn-cancel" id="customerOrderCloseBtn" type="button">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 下单二次确认弹窗 -->
+    <div class="order-modal" id="confirmOrderModal">
+        <div class="order-modal-card">
+            <h3><i class="fas fa-clipboard-check"></i> <span id="confirmOrderTitle">去结算</span></h3>
+            <p id="confirmOrderDesc" style="color:#999;font-size:13px;margin:-8px 0 12px;line-height:1.5;">请核对以下菜品和数量，确认无误后提交</p>
+            <div id="confirmOrderList" class="order-detail-wrap"></div>
+            <div class="order-note-wrap" style="margin-top:12px;">
+                <label for="orderNoteInput" id="orderNoteLabel" style="display:block;font-size:13px;color:#999;margin-bottom:6px;">备注（选填）</label>
+                <textarea id="orderNoteInput" maxlength="200" rows="2" placeholder="如：不要香菜、少辣、打包带走…"></textarea>
+            </div>
+            <div class="form-actions">
+                <button class="btn-cancel" id="confirmOrderCancelBtn" type="button">取消</button>
+                <button class="btn-save" id="confirmOrderSubmitBtn" type="button">确认下单</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 下单成功提示弹窗 -->
+    <div class="order-modal" id="orderSuccessModal">
+        <div class="order-modal-card">
+            <div class="success-icon"><i class="fas fa-check"></i></div>
+            <h3 id="orderSuccessTitle">下单成功</h3>
+            <p class="success-msg" id="orderSuccessMsg">请移步到「订单详情」查看订单</p>
+            <div class="success-note">
+                <i class="fas fa-circle-exclamation"></i>
+                <span id="orderSuccessNote">注意：无法自行修改和取消订单，如需修改或取消订单，请联系商户</span>
+            </div>
+            <div class="form-actions">
+                <button class="btn-save" id="orderSuccessCloseBtn" type="button">知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 语言下拉面板 -->
+    <div class="lang-menu" id="langMenu" role="listbox" aria-label="Language" hidden>
+        <button type="button" data-lang="zh" role="option">🇨🇳 中文</button>
+        <button type="button" data-lang="en" role="option">🇬🇧 English</button>
+        <button type="button" data-lang="vi" role="option">🇻🇳 Tiếng Việt</button>
+        <button type="button" data-lang="th" role="option">🇹🇭 ภาษาไทย</button>
+        <button type="button" data-lang="km" role="option">🇰🇭 ភាសាខ្មែរ</button>
+    </div>
+
+    <script src="languages.min.js?v=1790657539"></script>
+    <script src="assets/core.js?v=1790657539"></script>
+  <script src="assets/modules/ui.js?v=1790657539"></script>
+  <script src="assets/modules/money.js?v=1790657539"></script>
+  <script src="assets/modules/order-status.js?v=1790657539"></script>
+  <script src="assets/modules/customer-group.js?v=1790657539"></script>
+  <script src="assets/modules/role.js?v=1790657539"></script>
+  <script src="assets/modules/idle.js?v=1790657539"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="pages/customer.js?v=1790657539"></script>
+</body>
+</html>

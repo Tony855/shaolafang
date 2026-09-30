@@ -1,0 +1,378 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="data:,">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodFlow</title>
+  <link rel="stylesheet" href="assets/super.css?v=1790657539">
+<script src="languages.min.js?v=1790657539"></script>
+<script src="assets/core.js?v=1790657539"></script>
+  <script src="assets/modules/ui.js?v=1790657539"></script>
+  <script src="assets/modules/money.js?v=1790657539"></script>
+  <script src="assets/modules/order-status.js?v=1790657539"></script>
+  <script src="assets/modules/customer-group.js?v=1790657539"></script>
+  <script src="assets/modules/role.js?v=1790657539"></script>
+  <script src="assets/modules/idle.js?v=1790657539"></script>
+</head>
+<body>
+
+<button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleSidebar()">☰</button>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<header class="super-top" id="superTop">
+  <div class="brand">FoodFlow</div>
+  <div class="top-right">
+    <button class="logout-btn" onclick="logout()">退出登录</button>
+  </div>
+</header>
+
+<div class="login-page" id="loginPage">
+  <div class="login-card">
+    <h1>🔐 超级管理员</h1>
+    <p class="subtitle">FoodFlow Merchant Management Platform</p>
+    <div class="form-group">
+      <label>用户名</label>
+      <input type="text" id="loginUsername" placeholder="请输入用户名" value="superadmin">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="loginPassword" placeholder="请输入密码">
+    </div>
+    <button class="login-btn" onclick="doLogin()">登 录</button>
+    <div class="form-group">
+      <select class="lang-select login-lang-select" id="loginLangSelect" onchange="changeSuperLang(this.value)">
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+        <option value="vi">Tiếng Việt</option>
+        <option value="th">ไทย</option>
+        <option value="km">ខ្មែរ</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="error-modal" id="errorModal">
+  <div class="error-modal-card">
+    <div class="error-modal-icon">❌</div>
+    <h2 id="errorModalTitle">登录失败</h2>
+    <div class="error-modal-message" id="errorModalMessage">用户名或密码错误</div>
+    <button class="error-modal-btn" onclick="hideErrorModal()">确定</button>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-brand">🍽️ FoodFlow</div>
+    <div class="nav-item active" data-module="dashboard" onclick="closeSidebar();switchModule('dashboard')"><span class="icon">📊</span><span>仪表盘</span></div>
+    <div class="nav-item" data-module="merchants" onclick="closeSidebar();switchModule('merchants')"><span class="icon">🏢</span><span>商户管理</span></div>
+    <div class="nav-item" data-module="stores" onclick="closeSidebar();switchModule('stores')"><span class="icon">🏪</span><span>门店总览</span></div>
+    <div class="nav-item" data-module="logs" onclick="closeSidebar();switchModule('logs')"><span class="icon">📋</span><span id="navLogsText">日志</span></div>
+    <div class="nav-item" data-module="settings" onclick="closeSidebar();switchModule('settings')"><span class="icon">⚙️</span><span>系统设置</span></div>
+  </div>
+
+  <div class="main">
+    <div class="top-bar">
+      <h1 id="pageTitle">仪表盘</h1>
+      <div class="user-info">
+        <span id="adminName">超级管理员</span>
+        <select class="lang-select" id="adminLangSelect" onchange="changeSuperLang(this.value)">
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+          <option value="vi">Tiếng Việt</option>
+          <option value="th">ไทย</option>
+          <option value="km">ខ្មែរ</option>
+        </select>
+        <button class="logout-btn" onclick="logout()">退出登录</button>
+      </div>
+    </div>
+
+    <!-- 仪表盘 -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card stat-merchants"><div class="stat-icon">🏪</div><div class="stat-content"><div class="label" data-i18n="totalMerchants">商户总数</div><div class="value" id="statMerchants">0</div></div></div>
+        <div class="stat-card stat-stores"><div class="stat-icon">🏬</div><div class="stat-content"><div class="label" data-i18n="totalStores">门店总数</div><div class="value" id="statStores">0</div></div></div>
+        <div class="stat-card stat-orders" style="cursor:pointer;" onclick="showStoreBreakdown('orders')"><div class="stat-icon">📋</div><div class="stat-content"><div class="label" data-i18n="totalOrders">订单总数</div><div class="value" id="statOrders">0</div></div></div>
+        <div class="stat-card stat-revenue" style="cursor:pointer;" onclick="showStoreBreakdown('revenue')"><div class="stat-icon">💰</div><div class="stat-content"><div class="label" data-i18n="todayRevenue">今日营业额</div><div class="value" id="statRevenue">$0</div></div></div>
+        <div class="stat-card stat-online" id="cardOnlineClients" style="cursor:pointer;" onclick="showOnlineSessions()"><div class="stat-icon">🟢</div><div class="stat-content"><div class="label" data-i18n="onlineClients">在线客户端</div><div class="value" id="statOnlineClients">0</div></div></div>
+        <div class="stat-card stat-scan" style="cursor:pointer;" onclick="showStoreBreakdown('sessions')"><div class="stat-icon">📱</div><div class="stat-content"><div class="label" data-i18n="scanSessions">扫码连接数</div><div class="value" id="statScanSessions">0</div></div></div>
+      </div>
+      <div class="section-title">今日数据</div>
+      <div class="stats-grid stats-today">
+        <div class="stat-card stat-today"><div class="stat-icon">📊</div><div class="stat-content"><div class="label" data-i18n="todayOrders">今日订单</div><div class="value" id="statTodayOrders">0</div></div></div>
+      </div>
+      <div class="section-title" data-i18n="serverStatus">服务器状态</div>
+      <div class="server-monitor">
+        <div class="server-gauge-card">
+          <div class="gauge-ring" id="cpuGauge" style="--pct:0"><div class="gauge-inner"><div class="gauge-value" id="cpuValue">0%</div><div class="gauge-label" data-i18n="cpuUsage">CPU使用率</div></div></div>
+          <div class="gauge-sub" id="cpuCores">- 核心</div>
+        </div>
+        <div class="server-gauge-card">
+          <div class="gauge-ring" id="memGauge" style="--pct:0"><div class="gauge-inner"><div class="gauge-value" id="memValue">0%</div><div class="gauge-label" data-i18n="memUsage">内存使用率</div></div></div>
+          <div class="gauge-sub" id="memDetail">- / -</div>
+        </div>
+        <div class="server-gauge-card">
+          <div class="gauge-ring" id="diskGauge" style="--pct:0"><div class="gauge-inner"><div class="gauge-value" id="diskValue">0%</div><div class="gauge-label" data-i18n="diskUsage">磁盘使用率</div></div></div>
+          <div class="gauge-sub" id="diskDetail">- / -</div>
+        </div>
+        <div class="server-info-card">
+          <div class="server-info-row"><span data-i18n="hostname">主机名</span><span id="serverHostname">-</span></div>
+          <div class="server-info-row"><span data-i18n="systemUptime">运行时间</span><span id="serverUptime">-</span></div>
+          <div class="server-info-row"><span data-i18n="loadAverage">系统负载</span><span id="serverLoadAvg">-</span></div>
+          <div class="server-info-row"><span data-i18n="nodeVersion">Node版本</span><span id="serverNodeVersion">-</span></div>
+          <div class="server-info-row"><span data-i18n="processMemory">进程内存</span><span id="serverProcessMem">-</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 商户管理 -->
+    <div class="panel" id="panel-merchants">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div class="section-title" style="margin:0;">商户列表</div>
+        <button class="btn-primary" onclick="showAddMerchant()" data-i18n="addMerchant">+ 新增商户</button>
+      </div>
+      <div class="table-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <table class="data-table">
+        <thead>
+          <tr><th style="width:180px;" data-i18n="merchantName">商户名称</th><th style="width:120px;" data-i18n="merchantCode">商户编码</th><th style="width:140px;" data-i18n="merchantAccount">商户账号</th><th style="width:100px;" data-i18n="contactPerson">联系人</th><th style="width:130px;" data-i18n="contactPhone">联系电话</th><th style="width:90px;" data-i18n="storeCount">门店数</th><th style="width:80px;" data-i18n="status">状态</th><th style="width:220px;" data-i18n="actions">操作</th></tr>
+        </thead>
+        <tbody id="merchantList"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <!-- 门店总览 -->
+    <div class="panel" id="panel-stores">
+      <div class="section-title">所有门店</div>
+      <div class="table-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <table class="data-table">
+        <thead>
+          <tr><th>ID</th><th data-i18n="storeName">门店名称</th><th data-i18n="belongMerchant">所属商户</th><th>编码</th><th data-i18n="address">地址</th><th data-i18n="status">状态</th></tr>
+        </thead>
+        <tbody id="storeList"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <!-- 日志 -->
+    <div class="panel" id="panel-logs">
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span id="logsPanelTitle">📋 日志</span>
+        <button onclick="refreshCurrentLog()" style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;color:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;transition:all .2s;">🔄 刷新</button>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button id="logTabLogin" onclick="switchSuperLogTab('login')" style="flex:1;max-width:200px;padding:10px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;">🕒 登录日志</button>
+        <button id="logTabAudit" onclick="switchSuperLogTab('audit')" style="flex:1;max-width:200px;padding:10px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">📝 操作审计</button>
+      </div>
+      <div id="superLoginLogsPanel">
+        <div style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;">
+          <select id="logFilterType" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
+            <option value="all">全部类型</option>
+            <option value="merchant_admin">商户管理员</option>
+            <option value="super_admin">超级管理员</option>
+          </select>
+          <select id="logFilterStatus" onchange="loadLoginLogs()" style="padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;">
+            <option value="all">全部状态</option>
+            <option value="success">成功</option>
+            <option value="fail">失败</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr><th>ID</th><th data-i18n="loginTime">登录时间</th><th data-i18n="loginName">登录名</th><th data-i18n="belongMerchant">所属商户</th><th data-i18n="loginIp">登录IP</th><th data-i18n="loginLocation">登录地点</th><th data-i18n="loginType">登录类型</th><th data-i18n="status">状态</th><th data-i18n="remark">备注</th></tr>
+            </thead>
+            <tbody id="loginLogList"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="superAuditLogsPanel" style="display:none;">
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>ID</th><th>时间</th><th>操作者</th><th>操作类型</th><th>目标</th><th>详情</th><th>IP</th></tr></thead>
+            <tbody id="auditLogsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 系统设置 -->
+    <div class="panel" id="panel-settings">
+      <div class="section-title">系统设置</div>
+      <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
+        <p style="color:#888;margin-bottom:16px;">超级管理员账号信息</p>
+        <div class="form-group"><label>用户名</label><input type="text" value="superadmin" disabled style="opacity:.5;"></div>
+        <div class="form-group"><label data-i18n="newPassword">新密码</label><input type="password" id="newSuperPassword" placeholder="留空则不修改"></div>
+        <button class="btn-primary" onclick="changeSuperPassword()" data-i18n="saveChanges">保存修改</button>
+      </div>
+
+      <div class="section-title" style="margin-top:8px;">数据备份</div>
+      <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:24px;margin-bottom:20px;">
+        <p style="color:#888;margin-bottom:16px;">全量数据备份（包含所有商户、门店、菜品、订单等数据）</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
+          <button class="btn-primary" onclick="exportBackup()" style="background:linear-gradient(135deg,#2ecc71,#27ae60);">📤 导出备份</button>
+          <label class="btn-primary" style="background:linear-gradient(135deg,#667eea,#764ba2);cursor:pointer;">
+            📁 选择备份文件
+            <input type="file" id="backupFileInput" accept=".json" style="display:none;" onchange="onBackupFileSelected(this)">
+          </label>
+          <span id="backupFileName" style="color:#888;align-self:center;" data-i18n="noFileSelected">未选择文件</span>
+          <button class="btn-primary" onclick="importBackup()" style="background:linear-gradient(135deg,#ffd93d,#f39c12);color:#333;">📥 导入备份</button>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <label style="color:#aaa;" data-i18n="autoBackupInterval">自动备份间隔：</label>
+          <select id="backupIntervalSelect" style="background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;">
+            <option value="1">每 1 小时</option>
+            <option value="6">每 6 小时</option>
+            <option value="12">每 12 小时</option>
+            <option value="24">每 24 小时</option>
+          </select>
+          <button class="btn-primary" onclick="saveBackupSettings()" style="background:linear-gradient(135deg,#667eea,#764ba2);">💾 保存设置</button>
+          <button class="btn-primary" onclick="backupNow()" style="background:linear-gradient(135deg,#e85d3a,#e84a2a);">⚡ 立即备份</button>
+        </div>
+        <div id="lastBackupInfo" style="color:#666;margin-top:12px;font-size:13px;"></div>
+      </div>
+
+      <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.2);border-radius:12px;padding:24px;margin-bottom:20px;">
+        <p style="color:#e74c3c;margin-bottom:16px;font-weight:600;">⚠️ 危险操作</p>
+        <p style="color:#aaa;margin-bottom:16px;font-size:13px;">重置将清空所有订单、呼叫记录和扫码会话，菜品、商户、门店等基础数据保留。</p>
+        <button class="btn-primary" onclick="resetData()" style="background:linear-gradient(135deg,#e74c3c,#c0392b);">🗑️ 重置订单数据</button>
+      </div>
+
+      <div style="display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;">
+        <button id="tabTimeout" onclick="switchSettingsTab('timeout')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(232,93,58,.4);border-radius:10px;background:rgba(232,93,58,.15);color:#e85d3a;font-weight:600;font-size:14px;cursor:pointer;">⏱️ 全局超时设置</button>
+        <button id="tabOrder" onclick="switchSettingsTab('order')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">📦 下单限制设置</button>
+        <button id="tabSecurity" onclick="switchSettingsTab('security')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">🔒 安全设置</button>
+        <button id="tabCallLimit" onclick="switchSettingsTab('callLimit')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">🔔 呼叫限制设置</button>
+        <button id="tabLog" onclick="switchSettingsTab('log')" style="flex:1;min-width:140px;padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:#aaa;font-weight:600;font-size:14px;cursor:pointer;">📋 日志设置</button>
+      </div>
+
+      <div id="timeoutSettings">
+        <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
+          <p style="color:#888;margin-bottom:16px;">业务超时与刷新配置</p>
+          <div class="form-group"><label>二维码链接有效时间（分钟）</label><input type="number" id="qrSessionTimeout" min="0" max="1440" placeholder="如：45，0=永不过期"><small style="color:#666;">顾客扫码后 session_token 的有效时间，范围0-1440分钟，0=永不过期</small></div>
+          <div class="form-group"><label>服务员登录有效期（小时）</label><input type="number" id="waiterSessionTimeout" min="1" max="168" placeholder="如：12"><small style="color:#666;">服务员登录后 session 的初始有效时间，范围1-168小时</small></div>
+          <div class="form-group"><label>前端下单间隔时间（秒）</label><input type="number" id="orderIntervalSeconds" min="0" max="3600" placeholder="如：30"><small style="color:#666;">同一桌号/顾客两次下单的最小间隔时间，范围0-3600秒</small></div>
+          <div class="form-group"><label>服务员端自动刷新间隔（秒）</label><input type="number" id="waiterRefreshInterval" min="3" max="300" placeholder="如：8"><small style="color:#666;">服务员端页面自动刷新订单数据的间隔时间，范围3-300秒</small></div>
+          <div class="form-group"><label>后厨订单自动隐藏时间（分钟）</label><input type="number" id="kitchenAutoHideMinutes" min="0" max="120" placeholder="如：10"><small style="color:#666;">后厨菜品全部出餐后，订单自动从屏幕隐藏的时间</small></div>
+        </div>
+      </div>
+      <div id="orderSettings" style="display:none;">
+        <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
+          <p style="color:#888;margin-bottom:16px;">顾客下单相关的数量与长度限制</p>
+          <div class="form-group"><label>单次下单菜品种类上限</label><input type="number" id="maxOrderItems" min="1" max="200" placeholder="如：50"><small style="color:#666;">单次订单最多可包含的菜品种类数</small></div>
+          <div class="form-group"><label>单个菜品数量上限（份）</label><input type="number" id="maxItemQuantity" min="1" max="999" placeholder="如：100"><small style="color:#666;">单个菜品单次下单的最大份数</small></div>
+          <div class="form-group"><label>订单备注最大长度（字符）</label><input type="number" id="maxOrderNoteLength" min="10" max="1000" placeholder="如：200"><small style="color:#666;">顾客订单备注的最大字符数</small></div>
+        </div>
+      </div>
+      <div id="securitySettings" style="display:none;">
+        <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
+          <p style="color:#888;margin-bottom:16px;">账号安全与访问控制</p>
+          <div class="form-group"><label>超级管理员无操作超时时间（分钟）</label><input type="number" id="superIdleTimeout" min="1" max="1440" placeholder="如：60"><small style="color:#666;">超级管理员后台无操作后自动退出登录的时间</small></div>
+          <div class="form-group"><label>商户后台无操作超时时间（分钟）</label><input type="number" id="adminIdleTimeout" min="1" max="1440" placeholder="如：30"></div>
+          <div class="form-group"><label>收银员端无操作超时时间（分钟）</label><input type="number" id="cashierIdleTimeout" min="1" max="1440" placeholder="如：30"></div>
+          <div class="form-group"><label>后厨端无操作超时时间（分钟）</label><input type="number" id="kitchenIdleTimeout" min="1" max="1440" placeholder="如：120"></div>
+          <div class="form-group"><label>登录失败最大尝试次数</label><input type="number" id="loginMaxAttempts" min="1" max="20" placeholder="如：5"></div>
+          <div class="form-group"><label>账号锁定时间（分钟）</label><input type="number" id="loginLockMinutes" min="1" max="1440" placeholder="如：15"></div>
+          <div class="form-group"><label>超级管理员IP白名单</label><input type="text" id="superIpWhitelist" placeholder="如：192.168.1.1,10.0.0.1，留空则不限制"></div>
+        </div>
+      </div>
+      <div id="callLimitSettings" style="display:none;">
+        <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
+          <p style="color:#888;margin-bottom:16px;">顾客呼叫服务员次数限制，防止恶意骚扰</p>
+          <div class="form-group">
+            <label>启用呼叫次数限制</label>
+            <select id="callLimitEnabled" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+              <option value="1">启用</option>
+              <option value="0">禁用</option>
+            </select>
+          </div>
+          <div class="form-group"><label>时间窗口内最大呼叫次数</label><input type="number" id="callLimitMax" min="1" max="20" placeholder="如：3"></div>
+          <div class="form-group"><label>统计时间窗口（分钟）</label><input type="number" id="callLimitWindowMinutes" min="1" max="60" placeholder="如：5"></div>
+          <div class="form-group"><label>超限后冷却时间（分钟）</label><input type="number" id="callLimitCooldownMinutes" min="1" max="120" placeholder="如：10"></div>
+        </div>
+      </div>
+      <div id="logSettings" style="display:none;">
+        <div style="background:rgba(255,255,255,.03);border-radius:12px;padding:20px;">
+          <p style="color:#888;margin-bottom:16px;">系统日志自动清理配置</p>
+          <div class="form-group">
+            <label>启用自动清理日志</label>
+            <select id="autoCleanLogEnabled" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+              <option value="1">启用</option>
+              <option value="0">禁用</option>
+            </select>
+          </div>
+          <div class="form-group"><label>日志保留天数</label><input type="number" id="logRetentionDays" min="1" max="365" placeholder="如：30"></div>
+          <div class="form-group">
+            <label>清理登录日志</label>
+            <select id="cleanLoginLog" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+              <option value="1">是</option>
+              <option value="0">否</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>清理操作审计日志</label>
+            <select id="cleanAuditLog" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:14px;">
+              <option value="1">是</option>
+              <option value="0">否</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:20px;text-align:right;">
+        <button class="btn-primary" onclick="saveGlobalSettings()" style="padding:12px 32px;font-size:14px;">💾 保存全局设置</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="merchantModal">
+  <div class="modal-card">
+    <h3 id="merchantModalTitle">新增商户<span class="modal-close" onclick="closeMerchantModal()">✕</span></h3>
+    <input type="hidden" id="editMerchantId">
+    <div class="form-group"><label>商户名称 *</label><input type="text" id="merchantName" placeholder="e.g. FoodFlow"></div>
+    <div class="form-group"><label>商户编码</label><input type="text" id="merchantCode" placeholder="留空自动生成，创建后不可修改"><small style="color:#666;">自定义商户唯一编码，创建后不可修改</small></div>
+    <div class="form-group"><label>商户账号 *</label><input type="text" id="merchantUsername" placeholder="商户管理员登录账号"></div>
+    <div class="form-group"><label>登录密码</label><input type="text" id="merchantPassword" placeholder="留空则自动生成8位随机密码"></div>
+    <div class="form-group"><label>联系人</label><input type="text" id="merchantContact" placeholder="联系人姓名"></div>
+    <div class="form-group"><label>联系电话</label><input type="text" id="merchantPhone" placeholder="联系电话"></div>
+    <div class="form-group"><label>最大门店数</label><input type="number" id="merchantMaxStores" value="1" min="1"></div>
+    <div class="form-group">
+      <label>状态</label>
+      <select id="merchantStatus" style="width:100%;padding:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;">
+        <option value="1">启用</option>
+        <option value="0">禁用</option>
+      </select>
+    </div>
+    <div class="modal-actions"><button class="cancel" onclick="closeMerchantModal()">取消</button><button class="confirm" onclick="saveMerchant()">保存</button></div>
+  </div>
+</div>
+
+<div class="modal" id="confirmModal">
+  <div class="modal-card">
+    <h3 id="confirmModalTitle">确认操作</h3>
+    <p id="confirmModalMessage" style="color:#aaa;line-height:1.6;margin-bottom:8px;">确定要执行此操作吗？</p>
+    <div class="modal-actions"><button class="cancel" onclick="hideConfirm()">取消</button><button class="confirm" id="confirmModalBtn" style="background:linear-gradient(135deg,#e74c3c,#c0392b);">确认</button></div>
+  </div>
+</div>
+
+<div class="modal" id="passwordModal">
+  <div class="modal-card">
+    <h3 id="passwordModalTitle">验证密码</h3>
+    <p id="passwordModalMessage" style="color:#aaa;line-height:1.6;margin-bottom:16px;">请输入密码以验证身份</p>
+    <input type="password" id="passwordModalInput" placeholder="请输入密码" style="width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;outline:none;margin-bottom:8px;">
+    <div class="modal-actions"><button class="cancel" onclick="hidePasswordModal()">取消</button><button class="confirm" onclick="executePasswordModal()">确认</button></div>
+  </div>
+</div>
+
+<div class="modal" id="onlineSessionsModal">
+  <div class="modal-card" style="max-width:700px;">
+    <h3><span id="osModalTitle">在线客户端</span><span class="modal-close" onclick="closeOnlineSessions()">✕</span></h3>
+    <div id="osModalBody" style="color:#ccc;font-size:14px;"></div>
+    <div class="modal-actions"><button class="cancel" onclick="closeOnlineSessions()">关闭</button></div>
+  </div>
+</div>
+
+
+<script src="pages/super.js?v=1790657539"></script>
+</body>
+</html>

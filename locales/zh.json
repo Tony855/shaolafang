@@ -578,8 +578,8 @@
   "port": "端口",
   "paperWidth": "纸宽",
   "setAsDefault": "设为默认打印机",
-  "autoPrintTitle": "自动打印小票",
-  "autoPrintDesc": "开启后，新订单创建时自动打印小票到默认打印机",
+  "autoPrintTitle": "下单自动打印后厨单",
+  "autoPrintDesc": "开启后，顾客下单时自动打印后厨单到默认打印机",
   "genericEscPos": "通用 ESC/POS",
   "star": "Star 星亚",
   "jiabo": "佳博 Gprinter",
@@ -728,5 +728,7 @@
   "granularityYear": "按年",
   "reportDateRange": "日期范围：{start} ~ {end}",
   "pleaseSaveFirst": "请先保存订单再结算",
-  "orderNotFound": "订单不存在"
+  "orderNotFound": "订单不存在",
+  "autoPrintReceiptTitle": "结算自动打印收银小票",
+  "autoPrintReceiptDesc": "开启后，收银员结算时自动打印小票到默认打印机"
 }

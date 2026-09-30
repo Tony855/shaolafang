@@ -453,8 +453,8 @@
   "storeSettingsNav": "Cài đặt cửa hàng",
   "refreshCalls": "Làm mới danh sách gọi",
   "printerName": "Tên máy in",
-  "autoPrintTitle": "In hóa đơn tự động",
-  "autoPrintDesc": "Khi bật, đơn hàng mới tự động in ra máy in mặc định",
+  "autoPrintTitle": "In phiếu bếp tự động",
+  "autoPrintDesc": "Khi bật, phiếu bếp tự động in khi có đơn mới",
   "autoPrintEnabled": "Đã bật in tự động",
   "autoPrintDisabled": "Đã tắt in tự động",
   "ipAddress": "Địa chỉ IP",
@@ -728,5 +728,7 @@
   "granularityYear": "Theo năm",
   "reportDateRange": "Phạm vi: {start} ~ {end}",
   "pleaseSaveFirst": "Vui lòng lưu đơn hàng trước",
-  "orderNotFound": "Không tìm thấy đơn hàng"
+  "orderNotFound": "Không tìm thấy đơn hàng",
+  "autoPrintReceiptTitle": "In hóa đơn tự động khi thanh toán",
+  "autoPrintReceiptDesc": "Khi bật, hóa đơn tự động in khi thu ngân thanh toán"
 }

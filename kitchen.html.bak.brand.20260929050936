@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="data:,">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
+<title>Kitchen Display</title>
+<link rel="stylesheet" href="assets/common.css">
+<script>
+  // 页面渲染前立即检查登录状态，避免登录框闪现
+  (function() {
+    try {
+      if (localStorage.getItem('kitchenToken') || sessionStorage.getItem('kitchenToken')) {
+        document.documentElement.setAttribute('data-authed', 'true');
+      }
+    } catch(e) {}
+  })();
+</script>
+  <link rel="stylesheet" href="assets/kitchen.css?v=1790657539">
+</head>
+<body>
+
+  <div class="login-wrap" id="loginWrap">
+    <div class="login-box">
+      <div class="lang-bar">
+        <select id="langSelect">
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+          <option value="vi">Tiếng Việt</option>
+          <option value="th">ภาษาไทย</option>
+          <option value="km">ភាសាខ្មែរ</option>
+        </select>
+      </div>
+      <h1 id="loginTitle">后厨登录</h1>
+      <p class="desc" id="loginDesc">请使用服务员账号登录后厨显示屏</p>
+      <input id="username" type="text" autocomplete="username">
+      <input id="password" type="password" autocomplete="current-password">
+      <button id="loginBtn">登录</button>
+      <div class="error" id="loginError"></div>
+    </div>
+  </div>
+
+  <div class="kitchen-app" id="kitchenApp">
+    <div class="top-bar">
+      <h1>🍳 <span id="pageTitle">后厨订单显示</span></h1>
+      <span class="count-badge" id="countBadge">0</span>
+      <button class="urge-notification-btn" id="urgeNotificationBtn" onclick="showUrgeNotifications()" style="display:none;background:#e74c3c;color:#fff;border:0;padding:6px 14px;border-radius:20px;cursor:pointer;font-weight:600;font-size:13px;margin-left:10px;">
+        ⚡ <span id="urgeNotificationCount">0</span>
+      </button>
+      <span id="kitchenStoreName" style="background:rgba(255,255,255,.15);padding:4px 12px;border-radius:12px;font-size:13px;margin-left:10px;display:none;"></span>
+      <div class="spacer"></div>
+      <span class="updated"><span class="status-dot" id="statusDot"></span><span id="updatedLabel">更新于</span> <span id="updatedTime">--:--:--</span></span>
+      <select id="langSelectMain">
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+        <option value="vi">Tiếng Việt</option>
+        <option value="th">ภาษาไทย</option>
+        <option value="km">ភាសាខ្មែរ</option>
+      </select>
+      <button id="fullscreenBtn">⛶ <span id="fullscreenLabel">全屏</span></button>
+      <button id="logoutBtn">🚪 <span id="logoutLabel">退出登录</span></button>
+    </div>
+    <div class="ticket-grid" id="ticketGrid"></div>
+  </div>
+
+
+  <div class="modal confirm-modal" id="confirmModal">
+    <div class="modal-card confirm-card">
+      <div class="confirm-icon">⚠️</div>
+      <div class="confirm-title" id="confirmTitle">确认操作</div>
+      <div class="confirm-message" id="confirmMessage">确定要执行此操作吗？</div>
+      <div class="confirm-buttons">
+        <button class="confirm-cancel" id="confirmCancelBtn">取消</button>
+        <button class="confirm-ok" id="confirmOkBtn">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal urge-modal" id="urgeModal">
+    <div class="modal-card urge-card">
+      <div class="urge-header">
+        <div class="urge-title">⚡ <span id="urgeModalTitle"></span></div>
+        <button class="urge-close" onclick="hideUrgeModal()">✕</button>
+      </div>
+      <div class="urge-list" id="urgeList"></div>
+    </div>
+  </div>
+
+  <script src="languages.min.js?v=1790657539"></script>
+  <script src="assets/core.js?v=1790657539"></script>
+  <script src="assets/modules/ui.js?v=1790657539"></script>
+  <script src="assets/modules/money.js?v=1790657539"></script>
+  <script src="assets/modules/order-status.js?v=1790657539"></script>
+  <script src="assets/modules/customer-group.js?v=1790657539"></script>
+  <script src="assets/modules/role.js?v=1790657539"></script>
+  <script src="assets/modules/idle.js?v=1790657539"></script>
+  <script src="/socket.io/socket.io.js"></script>
+<script src="pages/kitchen.js?v=1790657539"></script>
+</body>
+</html>

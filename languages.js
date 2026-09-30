@@ -585,8 +585,8 @@ const LANGUAGES = {
     "port": "端口",
     "paperWidth": "纸宽",
     "setAsDefault": "设为默认打印机",
-    "autoPrintTitle": "自动打印小票",
-    "autoPrintDesc": "开启后，新订单创建时自动打印小票到默认打印机",
+    "autoPrintTitle": "下单自动打印后厨单",
+    "autoPrintDesc": "开启后，顾客下单时自动打印后厨单到默认打印机",
     "genericEscPos": "通用 ESC/POS",
     "star": "Star 星亚",
     "jiabo": "佳博 Gprinter",
@@ -735,7 +735,9 @@ const LANGUAGES = {
     "granularityYear": "按年",
     "reportDateRange": "日期范围：{start} ~ {end}",
     "pleaseSaveFirst": "请先保存订单再结算",
-    "orderNotFound": "订单不存在"
+    "orderNotFound": "订单不存在",
+    "autoPrintReceiptTitle": "结算自动打印收银小票",
+    "autoPrintReceiptDesc": "开启后，收银员结算时自动打印小票到默认打印机"
   },
   "en": {
     "code": "Code",
@@ -1330,8 +1332,8 @@ const LANGUAGES = {
     "port": "Port",
     "paperWidth": "Paper Width",
     "setAsDefault": "Set as Default",
-    "autoPrintTitle": "Auto Print Receipt",
-    "autoPrintDesc": "When enabled, new orders automatically print to the default printer",
+    "autoPrintTitle": "Auto Print Kitchen Order",
+    "autoPrintDesc": "When enabled, kitchen tickets automatically print on new orders",
     "genericEscPos": "Generic ESC/POS",
     "star": "Star",
     "jiabo": "Gprinter",
@@ -1467,7 +1469,9 @@ const LANGUAGES = {
     "granularityYear": "Yearly",
     "reportDateRange": "Date range: {start} ~ {end}",
     "pleaseSaveFirst": "Please save the order first",
-    "orderNotFound": "Order not found"
+    "orderNotFound": "Order not found",
+    "autoPrintReceiptTitle": "Auto Print Receipt on Settle",
+    "autoPrintReceiptDesc": "When enabled, receipt auto-prints on cashier settle"
   },
   "vi": {
     "code": "Mã",
@@ -1924,8 +1928,8 @@ const LANGUAGES = {
     "storeSettingsNav": "Cài đặt cửa hàng",
     "refreshCalls": "Làm mới danh sách gọi",
     "printerName": "Tên máy in",
-    "autoPrintTitle": "In hóa đơn tự động",
-    "autoPrintDesc": "Khi bật, đơn hàng mới tự động in ra máy in mặc định",
+    "autoPrintTitle": "In phiếu bếp tự động",
+    "autoPrintDesc": "Khi bật, phiếu bếp tự động in khi có đơn mới",
     "autoPrintEnabled": "Đã bật in tự động",
     "autoPrintDisabled": "Đã tắt in tự động",
     "ipAddress": "Địa chỉ IP",
@@ -2199,7 +2203,9 @@ const LANGUAGES = {
     "granularityYear": "Theo năm",
     "reportDateRange": "Phạm vi: {start} ~ {end}",
     "pleaseSaveFirst": "Vui lòng lưu đơn hàng trước",
-    "orderNotFound": "Không tìm thấy đơn hàng"
+    "orderNotFound": "Không tìm thấy đơn hàng",
+    "autoPrintReceiptTitle": "In hóa đơn tự động khi thanh toán",
+    "autoPrintReceiptDesc": "Khi bật, hóa đơn tự động in khi thu ngân thanh toán"
   },
   "th": {
     "code": "รหัส",
@@ -2656,8 +2662,8 @@ const LANGUAGES = {
     "storeSettingsNav": "การตั้งค่าร้านค้า",
     "refreshCalls": "รีเฟรชรายการเรียก",
     "printerName": "ชื่อเครื่องพิมพ์",
-    "autoPrintTitle": "พิมพ์ใบเสร็จอัตโนมัติ",
-    "autoPrintDesc": "เมื่อเปิดใช้งาน คำสั่งซื้อใหม่จะพิมพ์ลงเครื่องพิมพ์เริ่มต้นโดยอัตโนมัติ",
+    "autoPrintTitle": "พิมพ์ใบครัวอัตโนมัติ",
+    "autoPrintDesc": "เมื่อเปิดใช้งาน ใบครัวจะพิมพ์อัตโนมัติเมื่อมีออเดอร์ใหม่",
     "autoPrintEnabled": "เปิดใช้งานการพิมพ์อัตโนมัติ",
     "autoPrintDisabled": "ปิดการพิมพ์อัตโนมัติ",
     "ipAddress": "ที่อยู่ IP",
@@ -2931,7 +2937,9 @@ const LANGUAGES = {
     "granularityYear": "รายปี",
     "reportDateRange": "ช่วง: {start} ~ {end}",
     "pleaseSaveFirst": "กรุณาบันทึกออเดอร์ก่อน",
-    "orderNotFound": "ไม่พบออเดอร์"
+    "orderNotFound": "ไม่พบออเดอร์",
+    "autoPrintReceiptTitle": "พิมพ์ใบเสร็จอัตโนมัติเมื่อชำระ",
+    "autoPrintReceiptDesc": "เมื่อเปิดใช้งาน ใบเสร็จจะพิมพ์อัตโนมัติเมื่อแคชเชียร์ชำระเงิน"
   },
   "km": {
     "code": "កូដ",
@@ -3389,8 +3397,8 @@ const LANGUAGES = {
     "storeSettingsNav": "ការកំណត់ហាង",
     "refreshCalls": "ទូរទស្សន៍បញ្ជីការហៅ",
     "printerName": "ឈ្មោះម៉ាស៊ីនបោះពុម្ព",
-    "autoPrintTitle": "បោះពុម្ពវិក្កយបត្រស្វ័យប្រវត្តិ",
-    "autoPrintDesc": "នៅពេលបើក ដើម្បីបញ្ជាថ្មីនឹងបោះពុម្ពទៅម៉ាស៊ីនបោះពុម្ពលំនាំដើមដោយស្វ័យប្រវត្តិ",
+    "autoPrintTitle": "បោះពុម្ពសំបុត្រផ្ទះបាយស្វ័យប្រវត្តិ",
+    "autoPrintDesc": "នៅពេលបើក សំបុត្រផ្ទះបាយនឹងបោះពុម្ពស្វ័យប្រវត្តិ",
     "autoPrintEnabled": "បានបើកការបោះពុម្ពស្វ័យប្រវត្តិ",
     "autoPrintDisabled": "បានបិទការបោះពុម្ពស្វ័យប្រវត្តិ",
     "ipAddress": "អាសយដ្ឋាន IP",
@@ -3663,7 +3671,9 @@ const LANGUAGES = {
     "granularityYear": "តាមឆ្នាំ",
     "reportDateRange": "ចន្លោះ៖ {start} ~ {end}",
     "pleaseSaveFirst": "សូមរក្សាទុកការបញ្ជាទិញជាមុនសិន",
-    "orderNotFound": "រកមិនឃើញការបញ្ជាទិញ"
+    "orderNotFound": "រកមិនឃើញការបញ្ជាទិញ",
+    "autoPrintReceiptTitle": "បោះពុម្ពវិក្កយបត្រស្វ័យប្រវត្តិពេលទូទាត់",
+    "autoPrintReceiptDesc": "នៅពេលបើក វិក្កយបត្រនឹងបោះពុម្ពស្វ័យប្រវត្តិពេលអ្នកគិតលុយទូទាត់"
   }
 };
 

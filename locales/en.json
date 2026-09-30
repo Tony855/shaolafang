@@ -591,8 +591,8 @@
   "port": "Port",
   "paperWidth": "Paper Width",
   "setAsDefault": "Set as Default",
-  "autoPrintTitle": "Auto Print Receipt",
-  "autoPrintDesc": "When enabled, new orders automatically print to the default printer",
+  "autoPrintTitle": "Auto Print Kitchen Order",
+  "autoPrintDesc": "When enabled, kitchen tickets automatically print on new orders",
   "genericEscPos": "Generic ESC/POS",
   "star": "Star",
   "jiabo": "Gprinter",
@@ -728,5 +728,7 @@
   "granularityYear": "Yearly",
   "reportDateRange": "Date range: {start} ~ {end}",
   "pleaseSaveFirst": "Please save the order first",
-  "orderNotFound": "Order not found"
+  "orderNotFound": "Order not found",
+  "autoPrintReceiptTitle": "Auto Print Receipt on Settle",
+  "autoPrintReceiptDesc": "When enabled, receipt auto-prints on cashier settle"
 }

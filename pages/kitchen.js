@@ -218,7 +218,24 @@
       }
     }
 
-    window.serveOrder = function(orderId) {
+    window.serveOrder = async function(orderId) {
+      // ===== 1. 先打印出餐单 =====
+      try {
+        SLF.ui.toast('🖨 正在打印出餐单...');
+        const result = await api('/orders/' + orderId + '/print-kitchen', { method: 'POST' });
+        if (result.printed) {
+          SLF.ui.toast('✅ ' + (t('orderPrinted', null, '出餐单已打印')), 'success');
+        } else if (result.error) {
+          SLF.ui.toast('⚠️ ' + (t('printFailed', null, '打印失败')) + ': ' + result.error, 'error', 3000);
+        } else if (result.printData) {
+          SLF.ui.toast('🖨 ' + (t('noPrinterHint', null, '未配置网络打印机')), '', 2500);
+        }
+      } catch (e) {
+        console.error('打印出餐单失败:', e);
+        SLF.ui.toast('⚠️ ' + (t('printFailed', null, '打印失败')) + '，继续出餐', 'error', 3000);
+      }
+
+      // ===== 2. 隐藏卡片（无论打印成功与否）=====
       hiddenOrderIds.add(orderId);
       try { SLF.store.rawSet('kitchenHiddenOrders', JSON.stringify([...hiddenOrderIds])); } catch(e) {}
       renderTickets(lastOrders);
@@ -558,6 +575,5 @@
     try { window.handleUrge = handleUrge; } catch(err) {}
     try { window.hideUrgeModal = hideUrgeModal; } catch(err) {}
     try { window.markItemDone = markItemDone; } catch(err) {}
-    try { window.serveOrder = serveOrder; } catch(err) {}
     try { window.showUrgeNotifications = showUrgeNotifications; } catch(err) {}
 })();

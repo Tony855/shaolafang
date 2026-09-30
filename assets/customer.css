@@ -951,3 +951,16 @@
         padding-left: max(12px, env(safe-area-inset-left));
         padding-right: max(12px, env(safe-area-inset-right));
     }
+/* ============================================================
+   下单确认弹窗：菜品行主货币红色（2026-09-29）
+   ============================================================ */
+.order-card .order-item .item-price {
+  color: var(--primary-dark, #c94a2a);
+  font-weight: 600;
+}
+
+/* 下单确认弹窗：菜品行主货币红色 */
+.order-card .order-item .item-price {
+  color: var(--primary-dark, #c94a2a);
+  font-weight: 600;
+}

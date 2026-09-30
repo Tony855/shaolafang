@@ -1,0 +1,134 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="data:,">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.5">
+<title>FoodFlow</title>
+<script>
+    try { if (localStorage.getItem('cashierToken')) document.documentElement.setAttribute('data-cashier-session', '1'); } catch(e) {}
+</script>
+<link rel="stylesheet" href="assets/common.css?v=1790660801">
+  <link rel="stylesheet" href="assets/cashier.css?v=1790660801">
+</head>
+<body>
+  <!-- 登录提示 -->
+  <div class="login-modal modal-overlay">
+    <div class="modal" style="text-align:center;max-width:360px;">
+      <div style="font-size:48px;margin-bottom:16px;">💰</div>
+      <h2 style="margin-bottom:8px;color:#ffd93d;font-size:20px;" id="loginTitle">请重新登录</h2>
+      <p style="color:#aaa;margin-bottom:20px;font-size:14px;" id="loginDesc">登录已过期，请重新登录</p>
+      <button class="btn btn-primary" style="width:100%;background:linear-gradient(135deg,#f76b46,#df4d32);border:0;border-radius:8px;padding:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;" id="loginBtn" onclick="goLogin()">重新登录</button>
+    </div>
+  </div>
+
+  <div class="app-content">
+    <header>
+      <div class="header-left">
+        <span class="header-logo">💰</span>
+        <div>
+          <div class="header-title" id="pageTitle">收银台</div>
+          <div class="header-store" id="storeName">加载中...</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <select class="lang-select" id="langSelect" onchange="changeLang(this.value)">
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+          <option value="vi">Tiếng Việt</option>
+          <option value="th">ไทย</option>
+          <option value="km">ខ្មែរ</option>
+        </select>
+        <button class="header-btn" id="logoutBtn" onclick="logout()">退出</button>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="pending" onclick="switchTab('pending')" id="tabPending">未结订单</div>
+      <div class="tab" data-tab="settled" onclick="switchTab('settled')" id="tabSettled">已结订单</div>
+      <div class="tab" data-tab="report" onclick="switchTab('report')" id="tabReport"></div>
+    </div>
+
+    <div class="content">
+      <div id="ordersView">
+      <div style="margin-bottom:12px;display:flex;gap:8px;">
+        <input type="text" id="searchInput" oninput="filterByTable()" style="flex:1;padding:10px 14px;border:1px solid var(--gray-2);border-radius:10px;font-size:14px;outline:none;" placeholder="">
+      </div>
+      <div id="batchBar" style="display:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 16px;border-radius:12px;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:14px;">
+            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" style="width:16px;height:16px;cursor:pointer;accent-color:#fff;">
+            <span id="selectAllLabel"></span>
+          </label>
+          <span id="batchCount">0</span> <span id="selectedLabel"></span> · <b id="batchTotal">$0.00</b>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button id="printBtn" onclick="batchPrint()" style="padding:8px 16px;background:rgba(255,255,255,0.25);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;">🖨</button>
+          <button id="batchSettleBtn" onclick="batchSettle()" style="padding:8px 20px;background:#fff;color:#667eea;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;"></button>
+        </div>
+      </div>
+        <div id="orderList"></div>
+      </div>
+      <div id="reportView" style="display:none;">
+        <div id="reportContent"></div>
+      </div>
+    </div>
+
+    <div class="bottom-bar">
+      <div class="stat-item">
+        <div class="stat-value" id="pendingCount">0</div>
+        <div class="stat-label" id="pendingLabel"></div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="todayCount">0</div>
+        <div class="stat-label" id="todayLabel"></div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="todayRevenue">$0.00</div>
+        <div class="stat-label" id="revenueLabel"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="orderDetailModal">
+    <div class="modal">
+      <button class="modal-close" onclick="closeOrderDetail()">✕</button>
+      <div class="modal-title" id="detailTitle"></div>
+      <div class="modal-section">
+        <div class="modal-section-title" id="dishListTitle"></div>
+        <div id="detailDishes"></div>
+      </div>
+      <div class="modal-total">
+        <span id="totalLabel"></span>
+        <span class="amount" id="detailTotal">$0.00</span>
+      </div>
+      <div class="modal-actions" id="detailActions"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal" style="max-width:360px;text-align:center;">
+      <button class="modal-close" onclick="hideConfirm()">✕</button>
+      <div style="font-size:48px;margin-bottom:12px;" id="confirmIcon">⚠️</div>
+      <div class="modal-title" id="confirmTitle" style="padding-right:0;"></div>
+      <p style="color:#aaa;margin-bottom:20px;font-size:14px;" id="confirmMessage"></p>
+      <div class="modal-actions" style="justify-content:center;">
+        <button class="btn" onclick="hideConfirm()" id="confirmCancelBtn"></button>
+        <button class="btn btn-primary" onclick="executeConfirm()" id="confirmOkBtn"></button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="languages.min.js?v=1790660801"></script>
+  <script src="assets/core.js?v=1790660801"></script>
+  <script src="assets/modules/ui.js?v=1790660801"></script>
+  <script src="assets/modules/money.js?v=1790660801"></script>
+  <script src="assets/modules/order-status.js?v=1790660801"></script>
+  <script src="assets/modules/customer-group.js?v=1790660801"></script>
+  <script src="assets/modules/role.js?v=1790660801"></script>
+  <script src="assets/modules/idle.js?v=1790660801"></script>
+  <script src="/socket.io/socket.io.js"></script>
+<script src="pages/cashier.js?v=1790660801"></script>
+</body>
+</html>

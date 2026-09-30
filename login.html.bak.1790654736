@@ -1,0 +1,60 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login - FoodFlow</title>
+<link rel="stylesheet" href="assets/common.css">
+  <link rel="stylesheet" href="assets/login.css?v=1790654361">
+</head>
+<body>
+  <div class="login-shell">
+    <div class="lang-bar">
+      <select id="langSelect">
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+        <option value="vi">Tiếng Việt</option>
+        <option value="th">ภาษาไทย</option>
+        <option value="km">ភាសាខ្មែរ</option>
+      </select>
+    </div>
+    <div class="login-box">
+      <div class="brand"><span>🍖</span><strong id="brandTitle">FoodFlow</strong></div>
+      <h1 id="loginTitle">登录</h1>
+      <p class="desc" id="loginDesc">请选择登录类型</p>
+
+      <div class="login-type-wrapper">
+        <label id="loginTypeLabel">登录类型</label>
+        <select id="loginType" class="login-type-select">
+          <option value="admin">👔 管理员</option>
+          <option value="waiter">🧑‍🍳 服务员</option>
+          <option value="cashier">💰 收银员</option>
+        </select>
+      </div>
+
+      <input id="username" type="text" placeholder="用户名" autocomplete="username">
+      <input id="password" type="password" placeholder="密码" autocomplete="current-password">
+      <button id="loginBtn">登录</button>
+    </div>
+  </div>
+
+  <div class="error-modal" id="errorModal">
+    <div class="error-modal-card">
+      <div class="error-modal-icon">❌</div>
+      <h2 id="errorModalTitle">登录失败</h2>
+      <div class="error-modal-message" id="errorModalMessage">用户名或密码错误</div>
+      <button class="error-modal-btn" id="errorModalBtn" onclick="hideErrorModal()">确定</button>
+    </div>
+  </div>
+
+  <script src="languages.min.js?v=1790654361"></script>
+  <script src="assets/core.js?v=1790654361"></script>
+  <script src="assets/modules/ui.js?v=1790654361"></script>
+  <script src="assets/modules/money.js?v=1790654361"></script>
+  <script src="assets/modules/order-status.js?v=1790654361"></script>
+  <script src="assets/modules/customer-group.js?v=1790654361"></script>
+  <script src="assets/modules/role.js?v=1790654361"></script>
+  <script src="assets/modules/idle.js?v=1790654361"></script>
+  <script src="pages/login.js?v=1790654361" defer></script>
+</body>
+</html>

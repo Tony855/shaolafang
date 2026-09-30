@@ -349,6 +349,33 @@
             $('#adminInfoStatusLabel').textContent = tAdmin('adminInfoStatus');
             $('#adminInfoCreatedLabel').textContent = tAdmin('adminInfoCreated');
             $('#adminInfoLogoutBtn').textContent = tAdmin('logout');
+
+            // ===== 语言切换后：重新渲染当前模块的列表 =====
+            // 打印机列表（按钮/开关文案跟随语言）
+            try {
+                if (document.getElementById('module-printers') && document.getElementById('module-printers').classList.contains('active')) {
+                    if (window.loadPrinters) window.loadPrinters();
+                }
+            } catch (e) { console.warn('reload printers failed', e); }
+            // 其他已渲染的列表也可以在这里重载（管理员列表、服务员列表等）
+            try {
+                if (document.getElementById('module-admins') && document.getElementById('module-admins').classList.contains('active')) {
+                    if (window.loadAdmins) window.loadAdmins();
+                }
+                if (document.getElementById('module-cashiers') && document.getElementById('module-cashiers').classList.contains('active')) {
+                    if (window.loadCashiers) window.loadCashiers();
+                }
+                if (document.getElementById('module-waiters') && document.getElementById('module-waiters').classList.contains('active')) {
+                    if (window.loadWaiters) window.loadWaiters();
+                }
+                if (document.getElementById('module-stores') && document.getElementById('module-stores').classList.contains('active')) {
+                    if (window.loadStores) window.loadStores();
+                }
+                if (document.getElementById('module-currencies') && document.getElementById('module-currencies').classList.contains('active')) {
+                    if (window.loadCurrencies) window.loadCurrencies();
+                }
+            } catch (e) { console.warn('reload module failed', e); }
+
             $('#todayRevenueLabel').textContent = tAdmin('todayRevenue');
             $('#monthRevenueLabel').textContent = tAdmin('monthRevenue');
             $('#hotDishesTitle').textContent = tAdmin('hotDishesTitle');
@@ -484,8 +511,12 @@
             $('#printerName').placeholder = tAdmin('printerNamePlaceholder');
             $('#printerIp').placeholder = tAdmin('ipPlaceholder');
             $('#printerDefaultLabel').textContent = tAdmin('setAsDefault');
-            $('#autoPrintTitle').textContent = tAdmin('autoPrintTitle') || '自动打印小票';
-            $('#autoPrintDesc').textContent = tAdmin('autoPrintDesc') || '开启后，新订单创建时自动打印小票到默认打印机';
+            $('#autoPrintTitle').textContent = tAdmin('autoPrintTitle') || '下单自动打印后厨单';
+            $('#autoPrintDesc').textContent = tAdmin('autoPrintDesc') || '开启后，顾客下单时自动打印后厨单到默认打印机';
+            const _rt = document.getElementById('autoPrintReceiptTitle');
+            if (_rt) _rt.textContent = tAdmin('autoPrintReceiptTitle') || '结算自动打印收银小票';
+            const _rd = document.getElementById('autoPrintReceiptDesc');
+            if (_rd) _rd.textContent = tAdmin('autoPrintReceiptDesc') || '开启后，收银员结算时自动打印小票到默认打印机';
             $('#addPrinterBtn').textContent = tAdmin('addPrinter');
             const printerTypeOptions = $('#printerType').options;
             printerTypeOptions[0].text = tAdmin('networkPrinter');
@@ -1003,8 +1034,21 @@
                 SLF.ui.toast(enabled ? (tAdmin('autoPrintEnabled') || '已开启自动打印') : (tAdmin('autoPrintDisabled') || '已关闭自动打印'));
             } catch (e) {
                 SLF.ui.toast('❌ ' + (e.message || '保存失败'));
-                // 回滚开关
                 document.getElementById('autoPrintToggle').checked = !enabled;
+            }
+        }
+
+        async function toggleAutoPrintReceipt() {
+            const enabled = document.getElementById('autoPrintReceiptToggle').checked;
+            try {
+                await SLF.api.post('/admin/settings/auto-print', {
+                    enabled: enabled,
+                    type: 'receipt'
+                });
+                SLF.ui.toast(enabled ? (tAdmin('autoPrintEnabled') || '已开启自动打印') : (tAdmin('autoPrintDisabled') || '已关闭自动打印'));
+            } catch (e) {
+                SLF.ui.toast('❌ ' + (e.message || '保存失败'));
+                document.getElementById('autoPrintReceiptToggle').checked = !enabled;
             }
         }
         
@@ -1045,7 +1089,8 @@
                 try { adminSocket.disconnect(); } catch (_) {}
             });
         }
-    try { window.toggleAutoPrint = toggleAutoPrint; } catch(err) {}
+    try { window.toggleAutoPrint = toggleAutoPrint;
+    window.toggleAutoPrintReceipt = toggleAutoPrintReceipt; } catch(err) {}
     // ===== 共享上下文（供后续拆分模块使用）=====
     try {
       Object.assign(window.SLF.admin, {

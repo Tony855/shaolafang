@@ -453,8 +453,8 @@
   "storeSettingsNav": "การตั้งค่าร้านค้า",
   "refreshCalls": "รีเฟรชรายการเรียก",
   "printerName": "ชื่อเครื่องพิมพ์",
-  "autoPrintTitle": "พิมพ์ใบเสร็จอัตโนมัติ",
-  "autoPrintDesc": "เมื่อเปิดใช้งาน คำสั่งซื้อใหม่จะพิมพ์ลงเครื่องพิมพ์เริ่มต้นโดยอัตโนมัติ",
+  "autoPrintTitle": "พิมพ์ใบครัวอัตโนมัติ",
+  "autoPrintDesc": "เมื่อเปิดใช้งาน ใบครัวจะพิมพ์อัตโนมัติเมื่อมีออเดอร์ใหม่",
   "autoPrintEnabled": "เปิดใช้งานการพิมพ์อัตโนมัติ",
   "autoPrintDisabled": "ปิดการพิมพ์อัตโนมัติ",
   "ipAddress": "ที่อยู่ IP",
@@ -728,5 +728,7 @@
   "granularityYear": "รายปี",
   "reportDateRange": "ช่วง: {start} ~ {end}",
   "pleaseSaveFirst": "กรุณาบันทึกออเดอร์ก่อน",
-  "orderNotFound": "ไม่พบออเดอร์"
+  "orderNotFound": "ไม่พบออเดอร์",
+  "autoPrintReceiptTitle": "พิมพ์ใบเสร็จอัตโนมัติเมื่อชำระ",
+  "autoPrintReceiptDesc": "เมื่อเปิดใช้งาน ใบเสร็จจะพิมพ์อัตโนมัติเมื่อแคชเชียร์ชำระเงิน"
 }

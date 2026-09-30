@@ -23,14 +23,22 @@ async function loadPrinters() {
         <div class="admin-card">
             <div class="info">
                 <div class="title">🖨️ ${esc(p.name)} ${p.is_default ? `<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>` : ''}</div>
-                <div class="sub">${typeMap[p.type] || esc(p.type)} · ${esc(p.brand)} · ${esc(p.paper_width)}mm${p.ip_address ? ' · ' + esc(p.ip_address) + ':' + esc(p.port) : ''} · ${p.active ? '<span style="color:#2ecc71;font-weight:600;">' + tAdmin('enabled') + '</span>' : '<span style="color:#e74c3c;">' + tAdmin('disabled') + '</span>'}</div>
+                <div class="sub">${typeMap[p.type] || esc(p.type)} · ${esc(p.brand)} · ${esc(p.paper_width)}mm${p.ip_address ? ' · ' + esc(p.ip_address) + ':' + esc(p.port) : ''}</div>
             </div>
-            <div class="actions">
-                ${hasPermission('can_manage_printer') ? '<button class="copy" onclick="testPrinter(' + p.id + ')">' + tAdmin('testPrint') + '</button>' : ''}
-                <button class="edit-btn" onclick="openPrinterEdit(${p.id})">${L('edit')}</button>
-                <button onclick="togglePrinter(${p.id}, ${p.active ? 0 : 1})">${p.active ? tAdmin('disabled') : tAdmin('enabled')}</button>
-                ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})">${tAdmin('setDefaultPrinter')}</button>` : ''}
-                ${hasPermission('can_manage_printer') ? '<button class="danger" onclick="deletePrinter(' + p.id + ')">' + L('delete') + '</button>' : ''}
+            <div class="printer-controls">
+                <label class="printer-switch-label">
+                    <span class="printer-switch-text ${p.active ? 'on' : 'off'}">${p.active ? tAdmin('enabled') : tAdmin('disabled')}</span>
+                    <label class="store-switch">
+                        <input type="checkbox" ${p.active ? 'checked' : ''} onchange="togglePrinter(${p.id}, this.checked ? 1 : 0)">
+                        <span class="store-switch-slider"></span>
+                    </label>
+                </label>
+                <div class="actions">
+                    ${hasPermission('can_manage_printer') ? '<button class="copy" onclick="testPrinter(' + p.id + ')">' + tAdmin('testPrint') + '</button>' : ''}
+                    <button class="edit-btn" onclick="openPrinterEdit(${p.id})">${L('edit')}</button>
+                    ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})">${tAdmin('setDefaultPrinter')}</button>` : ''}
+                    ${hasPermission('can_manage_printer') ? '<button class="danger" onclick="deletePrinter(' + p.id + ')">' + L('delete') + '</button>' : ''}
+                </div>
             </div>
         </div>
     `).join('');
@@ -144,22 +152,29 @@ function printViaBrowser(base64Data, orderId) {
   printWindow.document.close();
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  const saved = SLF.store.rawGet('autoPrintEnabled');
+document.addEventListener('DOMContentLoaded', async function() {
+  // ===== 后厨单开关 =====
   const toggle = document.getElementById('autoPrintToggle');
   if (toggle) {
-    toggle.checked = saved === '1';
-    toggle.addEventListener('change', function() {
-      SLF.store.rawSet('autoPrintEnabled', this.checked ? '1' : '0');
-      if (this.checked) {
-        if (typeof window.startAutoPrintPoll === 'function') window.startAutoPrintPoll();
-      } else {
-        if (typeof window.stopAutoPrintPoll === 'function') window.stopAutoPrintPoll();
-      }
-    });
+    try {
+      const data = await SLF.api.get('/admin/settings/auto-print?type=kitchen');
+      toggle.checked = !!(data && data.enabled);
+    } catch (e) {
+      console.warn('读取后厨自动打印开关失败', e);
+      toggle.checked = false;
+    }
   }
-  if (saved === '1' && typeof window.startAutoPrintPoll === 'function') {
-    setTimeout(window.startAutoPrintPoll, 3000);
+
+  // ===== 收银小票开关 =====
+  const toggleReceipt = document.getElementById('autoPrintReceiptToggle');
+  if (toggleReceipt) {
+    try {
+      const data = await SLF.api.get('/admin/settings/auto-print?type=receipt');
+      toggleReceipt.checked = !!(data && data.enabled);
+    } catch (e) {
+      console.warn('读取收银自动打印开关失败', e);
+      toggleReceipt.checked = false;
+    }
   }
 });
 

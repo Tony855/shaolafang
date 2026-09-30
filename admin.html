@@ -5,8 +5,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
-<link rel="stylesheet" href="assets/common.css?v=1790692524">
-<link rel="stylesheet" href="assets/admin.css?v=1790692524">
+<link rel="stylesheet" href="assets/common.css?v=1790737176">
+<link rel="stylesheet" href="assets/admin.css?v=1790737176">
 </head>
 <body>
 
@@ -163,16 +163,30 @@
             <!-- 打印机管理 -->
             <section class="panel module-panel" id="module-printers">
                 <h2 id="printersPanelTitle">🖨️ 小票打印机管理</h2>
-                <div class="auto-print-toggle-card" style="background:linear-gradient(135deg,#fef3e2,#fde8d0);border:1px solid #f5c89a;border-radius:14px;padding:16px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+                <div class="auto-print-toggle-card" style="background:linear-gradient(135deg,#fef3e2,#fde8d0);border:1px solid #f5c89a;border-radius:14px;padding:16px 20px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
                     <div style="display:flex;align-items:center;gap:12px;">
                         <div style="font-size:28px;">🖨️</div>
                         <div>
-                            <div style="font-weight:700;font-size:15px;color:#8a4a1a;" id="autoPrintTitle">自动打印小票</div>
-                            <div style="font-size:12px;color:#a06a3a;margin-top:2px;" id="autoPrintDesc">开启后，新订单创建时自动打印小票到默认打印机</div>
+                            <div style="font-weight:700;font-size:15px;color:#8a4a1a;" id="autoPrintTitle">下单自动打印后厨单</div>
+                            <div style="font-size:12px;color:#a06a3a;margin-top:2px;" id="autoPrintDesc">开启后，顾客下单时自动打印后厨单到默认打印机</div>
                         </div>
                     </div>
                     <label class="switch" style="position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0;">
                         <input type="checkbox" id="autoPrintToggle" style="opacity:0;width:0;height:0;" onchange="toggleAutoPrint()">
+                        <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#ccc;transition:.3s;border-radius:28px;"></span>
+                    </label>
+                </div>
+
+                <div class="auto-print-toggle-card" style="background:linear-gradient(135deg,#e8f5e9,#d4edda);border:1px solid #a5d6a7;border-radius:14px;padding:16px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="font-size:28px;">💰</div>
+                        <div>
+                            <div style="font-weight:700;font-size:15px;color:#1b5e20;" id="autoPrintReceiptTitle" data-i18n="autoPrintReceiptTitle">结算自动打印收银小票</div>
+                            <div style="font-size:12px;color:#2e7d32;margin-top:2px;" id="autoPrintReceiptDesc" data-i18n="autoPrintReceiptDesc">开启后，收银员结算时自动打印小票到默认打印机</div>
+                        </div>
+                    </div>
+                    <label class="switch" style="position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0;">
+                        <input type="checkbox" id="autoPrintReceiptToggle" style="opacity:0;width:0;height:0;" onchange="toggleAutoPrintReceipt()">
                         <span class="slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#ccc;transition:.3s;border-radius:28px;"></span>
                     </label>
                 </div>
@@ -632,17 +646,17 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=1790692524"></script>
-    <script src="assets/core.js?v=1790692524"></script>
-  <script src="assets/modules/ui.js?v=1790692524"></script>
-  <script src="assets/modules/money.js?v=1790692524"></script>
-  <script src="assets/modules/order-status.js?v=1790692524"></script>
-  <script src="assets/modules/customer-group.js?v=1790692524"></script>
-  <script src="assets/modules/role.js?v=1790692524"></script>
-  <script src="assets/modules/idle.js?v=1790692524"></script>
+    <script src="languages.min.js?v=1790737176"></script>
+    <script src="assets/core.js?v=1790737176"></script>
+  <script src="assets/modules/ui.js?v=1790737176"></script>
+  <script src="assets/modules/money.js?v=1790737176"></script>
+  <script src="assets/modules/order-status.js?v=1790737176"></script>
+  <script src="assets/modules/customer-group.js?v=1790737176"></script>
+  <script src="assets/modules/role.js?v=1790737176"></script>
+  <script src="assets/modules/idle.js?v=1790737176"></script>
     <script src="/socket.io/socket.io.js"></script>
-<script src="pages/admin/context.js?v=1790692524"></script>
-<script src="pages/admin/settings.js?v=1790692524"></script>
+<script src="pages/admin/context.js?v=1790737176"></script>
+<script src="pages/admin/settings.js?v=1790737176"></script>
 <!-- 批量导入弹窗 -->
 <div class="order-modal" id="importModal">
     <div class="order-modal-card">
@@ -674,18 +688,18 @@
     </div>
 </div>
 
-<script src="pages/admin/logs.js?v=1790692524"></script>
-<script src="pages/admin/waiter.js?v=1790692524"></script>
-<script src="pages/admin/currency.js?v=1790692524"></script>
-<script src="pages/admin/store.js?v=1790692524"></script>
-<script src="pages/admin/admin-mgr.js?v=1790692524"></script>
-<script src="pages/admin/cashier-mgr.js?v=1790692524"></script>
-<script src="pages/admin/printer.js?v=1790692524"></script>
-<script src="pages/admin/report.js?v=1790692524"></script>
-<script src="pages/admin/menu.js?v=1790692524"></script>
-<script src="pages/admin/table.js?v=1790692524"></script>
-<script src="pages/admin/order.js?v=1790692524"></script>
-<script src="pages/admin/shared.js?v=1790692524"></script>
-<script src="pages/admin.js?v=1790692524"></script>
+<script src="pages/admin/logs.js?v=1790737176"></script>
+<script src="pages/admin/waiter.js?v=1790737176"></script>
+<script src="pages/admin/currency.js?v=1790737176"></script>
+<script src="pages/admin/store.js?v=1790737176"></script>
+<script src="pages/admin/admin-mgr.js?v=1790737176"></script>
+<script src="pages/admin/cashier-mgr.js?v=1790737176"></script>
+<script src="pages/admin/printer.js?v=1790737176"></script>
+<script src="pages/admin/report.js?v=1790737176"></script>
+<script src="pages/admin/menu.js?v=1790737176"></script>
+<script src="pages/admin/table.js?v=1790737176"></script>
+<script src="pages/admin/order.js?v=1790737176"></script>
+<script src="pages/admin/shared.js?v=1790737176"></script>
+<script src="pages/admin.js?v=1790737176"></script>
 </body>
 </html>

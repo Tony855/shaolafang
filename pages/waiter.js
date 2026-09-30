@@ -89,7 +89,8 @@
     currentCategory: 'all',
     selectedItem: null,
     tableSearchQuery: '',
-    tableFilter: 'all'
+    tableFilter: 'all',
+    expandedOrderIds: new Set()
   };
 
   let waiterLang = SLF.store.rawGet('waiterLang') || 'zh';
@@ -231,9 +232,41 @@
       const badge = badgeLabel ? `<span class="session-badge" style="background:${badgeColor.bg};color:${badgeColor.color};">${badgeLabel}</span>` : '';
       const noteHtml = o.note ? `<div class="order-note" style="margin:4px 0 6px;padding:6px 8px;border-radius:6px;background:rgba(255,193,7,.15);font-size:12px;color:#c98a1f;line-height:1.4;"><strong>${t('orderNoteDisplay', null, '备注')}：</strong>${escNote(o.note)}</div>` : '';
 
-      return `<div class="order-block"><div class="order-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>${o.order_no || ("#"+o.id)} · <span style="padding:2px 6px;border-radius:4px;background:#e3f2fd;color:#1976d2;font-size:12px;">🏷️ ${esc(o.table || '-')}</span> · ${t('orderPending', null, '未结算')}${badge}<span class="order-meta"> · ${timeLabel}</span></span></div>${noteHtml}<div class="bill-items">${lines}</div></div>`;
+      // 统计该订单未完成菜品数
+      const pendingCount = (o.items || []).filter(i => i.itemStatus !== 'done').length;
+      const totalDishCount = (o.items || []).length;
+      const isExpanded = state.expandedOrderIds.has(o.id);
+      const arrow = isExpanded ? '▼' : '▶';
+      const pendingTip = pendingCount > 0
+        ? `<span class="pending-tip">⚠️ ${pendingCount} 道未完成</span>`
+        : `<span class="ready-tip">✅ 全部完成</span>`;
+
+      return `<div class="order-block ${isExpanded ? 'expanded' : 'collapsed'}">
+        <div class="order-head" onclick="event.stopPropagation();toggleOrderExpand(${o.id})" style="cursor:pointer;">
+          <div class="order-head-left">
+            <span class="order-arrow">${arrow}</span>
+            <span class="order-no">${o.order_no || ("#"+o.id)}</span>
+            ${badge}
+            <span class="order-dish-count">${totalDishCount} ${t('dishes', null, '道')}</span>
+          </div>
+          <div class="order-head-right">
+            ${pendingTip}
+            <span class="order-amount">${orderTotalDisplay}</span>
+          </div>
+        </div>
+        ${isExpanded ? `${noteHtml}<div class="bill-items">${lines}</div>` : ''}
+      </div>`;
     }).join('');
     return active.length ? `<div class="amount" style="display:flex;align-items:center;justify-content:space-between;">${active.length} ${t('order', null, '订单')} · ${totalDisplay}</div>${blocks}` : `<div class="amount" style="color:#c8c8d0">${t('noCustomerOrder', null, '暂无顾客下单')}</div>`;
+  }
+
+  function toggleOrderExpand(orderId) {
+    if (state.expandedOrderIds.has(orderId)) {
+      state.expandedOrderIds.delete(orderId);
+    } else {
+      state.expandedOrderIds.add(orderId);
+    }
+    renderTables();
   }
 
   async function toggleWaiterItem(id, index) {
@@ -710,14 +743,30 @@
       const hasActiveOrder = state.orders.some(o => o.table === table.name && o.status === 'pending');
       const statusClass = hasActiveOrder ? 'occupied' : 'available';
       const statusText = hasActiveOrder ? t('occupied', null, '已占') : t('available', null, '空闲');
-      const transferBtn = hasActiveOrder ? `<div style="position:absolute;top:14px;right:14px;"><button data-table='${esc(table.name)}' class='transfer-btn' style="width:44px;height:44px;border-radius:50%;background:#fff;border:2px solid rgba(232,74,42,0.4);color:var(--primary);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);z-index:10;transition:all 0.2s;" title="${t('transferOrder', null, '转移')}">↔</button></div>` : '';
-      return `<div class="table-card" onclick="openModal('${esc(table.name)}')">${transferBtn}<div class="name">🍽️ ${esc(table.name)} <span class="status ${statusClass}">${statusText}</span></div><div class="bill">${bill(table)}</div></div>`;
+      // 右上角按钮组（放在 .name 行内，不用绝对定位）
+      const canOrder = state.waiter && state.waiter.can_order;
+      const newBtn = canOrder
+        ? `<button data-table='${esc(table.name)}' class='new-order-btn' title="${t('createNewOrder', null, '新建订单')}">+</button>`
+        : '';
+      const transferBtn = hasActiveOrder
+        ? `<button data-table='${esc(table.name)}' class='transfer-btn' title="${t('transferOrder', null, '转移')}">↔</button>`
+        : '';
+      const actions = (newBtn || transferBtn)
+        ? `<div class="table-card-actions">${newBtn}${transferBtn}</div>`
+        : '';
+      return `<div class="table-card" onclick="openModal('${esc(table.name)}')"><div class="name"><span class="name-left">🍽️ ${esc(table.name)} <span class="status ${statusClass}">${statusText}</span></span>${actions}</div><div class="bill">${bill(table)}</div></div>`;
     }).join('') || `<div style="color:#c8c8d0;text-align:center;padding:40px;grid-column:1/-1;">${state.tableSearchQuery || state.tableFilter !== 'all' ? '🔍 ' + t('noData', null, '无匹配结果') : t('noTables', null, '暂无桌号')}</div>`;
     $('#submitBtn').style.display = state.waiter && state.waiter.can_order ? 'block' : 'none';
     document.querySelectorAll('.transfer-btn').forEach(btn => {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
         window.showTransferModal(this.dataset.table);
+      });
+    });
+    document.querySelectorAll('.new-order-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        openOrderEditor(this.dataset.table, null);
       });
     });
   }
@@ -1104,6 +1153,7 @@
     try { window.showOrderHistory = showOrderHistory; } catch(err) {}
     try { window.toggleFullscreen = toggleFullscreen; } catch(err) {}
     try { window.toggleSelectedItem = toggleSelectedItem; } catch(err) {}
+    try { window.toggleOrderExpand = toggleOrderExpand; } catch(err) {}
     try { window.toggleWaiterItem = toggleWaiterItem; } catch(err) {}
     try { window.loadOrderHistory = loadOrderHistory; } catch(err) {}
 })();
