@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
 <link rel="stylesheet" href="assets/common.css?v=1790737176">
-<link rel="stylesheet" href="assets/admin.css?v=1790792087">
+<link rel="stylesheet" href="assets/admin.css?v=1790794710">
 </head>
 <body>
 
@@ -120,17 +120,17 @@
                 <div class="order-tabs-bar">
                     <div class="order-tabs" id="orderTabs">
                         <button class="order-tab active" data-tab="pending" onclick="switchOrderTab('pending')" id="orderTabPending">
-                            <span id="orderTabPendingText">未结算</span> <span class="order-tab-count" id="orderTabPendingCount">0</span>
+                            <span id="orderTabPendingText" data-i18n="pendingOrders">未结算</span> <span class="order-tab-count" id="orderTabPendingCount">0</span>
                         </button>
                         <button class="order-tab" data-tab="settled" onclick="switchOrderTab('settled')" id="orderTabSettled">
-                            <span id="orderTabSettledText">已结</span> <span class="order-tab-count" id="orderTabSettledCount">0</span>
+                            <span id="orderTabSettledText" data-i18n="settledOrders">已结</span> <span class="order-tab-count" id="orderTabSettledCount">0</span>
                         </button>
                         <button class="order-tab" data-tab="refunded" onclick="switchOrderTab('refunded')" id="orderTabRefunded">
-                            <span id="orderTabRefundedText">退款订单</span> <span class="order-tab-count" id="orderTabRefundedCount">0</span>
+                            <span id="orderTabRefundedText" data-i18n="refundOrder">退款订单</span> <span class="order-tab-count" id="orderTabRefundedCount">0</span>
                         </button>
                     </div>
                     <div class="order-toolbar">
-                        <input type="text" id="orderTableSearch" class="order-search-input" placeholder="🔍 请输入桌号或订单号查询" oninput="filterOrders()">
+                        <input type="text" id="orderTableSearch" class="order-search-input" placeholder="🔍 请输入桌号或订单号查询" data-i18n-placeholder="orderSearchInputPlaceholder" oninput="filterOrders()">
                         <button id="openOrderBtn" onclick="openOrderForm()">➕ 新增订单</button>
                     </div>
                 </div>
@@ -221,7 +221,7 @@
                 <div class="order-modal edit-modal" id="printerEditModal">
                     <div class="order-modal-card">
                         <button class="modal-close" onclick="closePrinterEdit()">✕</button>
-                        <h2 id="printerEditTitle">🖨️ 编辑打印机</h2>
+                        <h2 id="printerEditTitle">🖨️ <span data-i18n="printerEditTitle">编辑打印机</span></h2>
                         <input type="hidden" id="editPrinterId">
                         <div class="store-edit-grid">
                             <div class="store-edit-field"><label id="printerEditNameLabel">打印机名称</label><input id="editPrinterName" placeholder="如：前台小票机"></div>
@@ -233,8 +233,8 @@
                             <div class="store-edit-field full"><label class="store-switch-label"><span id="printerEditDefaultLabel">设为默认打印机</span><label class="store-switch"><input type="checkbox" id="editPrinterDefault"><span class="store-switch-slider"></span></label></label></div>
                         </div>
                         <div class="order-modal-actions">
-                            <button onclick="closePrinterEdit()" id="printerEditCancelBtn">取消</button>
-                            <button class="primary" onclick="savePrinterEdit()" id="printerEditSaveBtn">保存</button>
+                            <button onclick="closePrinterEdit()" id="printerEditCancelBtn" data-i18n="cancel">取消</button>
+                            <button class="primary" onclick="savePrinterEdit()" id="printerEditSaveBtn" data-i18n="save">保存</button>
                         </div>
                     </div>
                 </div>
@@ -259,10 +259,10 @@
                 </div>
                 <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                     <!-- 快捷按钮 -->
-                    <button data-range="today" id="quickTodayBtn" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">今日</button>
-                    <button data-range="week" id="quickWeekBtn" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本周</button>
-                    <button data-range="month" id="quickMonthBtn" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本月</button>
-                    <button data-range="year" id="quickYearBtn" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本年</button>
+                    <button data-range="today" id="quickTodayBtn" data-i18n="quickToday" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">今日</button>
+                    <button data-range="week" id="quickWeekBtn" data-i18n="quickWeek" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本周</button>
+                    <button data-range="month" id="quickMonthBtn" data-i18n="quickMonth" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本月</button>
+                    <button data-range="year" id="quickYearBtn" data-i18n="quickYear" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本年</button>
                     <span style="color:rgba(255,255,255,.2);">|</span>
                     <label id="reportDateLabel" style="color:#ccc;">日期:</label>
                     <input type="date" id="reportDate" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
@@ -464,7 +464,7 @@
     <div class="order-modal" id="tableModal">
         <div class="order-modal-card">
             <button class="modal-close" onclick="closeTableForm()">✕</button>
-            <h2 id="tableModalTitle">编辑桌号</h2>
+            <h2 id="tableModalTitle" data-i18n="editTable">编辑桌号</h2>
             <div class="order-field"><label id="tableNameLabel">桌号名称</label><input id="editTableName" maxlength="20"></div>
             <div class="order-field"><label id="tableStatusLabel">状态</label><select id="editTableStatus"><option value="available">空闲</option><option value="occupied">已占</option><option value="reserved">已预订</option></select></div>
             <div class="order-modal-actions"><button id="tableCancelBtn" onclick="closeTableForm()">取消</button><button class="primary" id="tableSaveBtn">保存</button></div>
@@ -683,7 +683,7 @@
         <div id="importPreview" style="max-height: 200px; overflow-y: auto; margin: 10px 0; font-size: 13px;"></div>
         <div id="importResult" style="margin: 10px 0; padding: 10px; border-radius: 6px;"></div>
         <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button type="button" id="importModalCancelBtn" style="flex: 1; background: #555; color: #fff; padding: 12px; border: none; border-radius: 8px; cursor: pointer;" onclick="closeImportModal()">取消</button>
+            <button type="button" id="importModalCancelBtn" data-i18n="cancel" style="flex: 1; background: #555; color: #fff; padding: 12px; border: none; border-radius: 8px; cursor: pointer;" onclick="closeImportModal()">取消</button>
             <button id="confirmImportBtn" onclick="confirmImport()" disabled style="flex: 1; background: #e85d3a; color: #fff; padding: 12px; border: none; border-radius: 8px; cursor: pointer;">开始导入</button>
         </div>
     </div>
@@ -695,7 +695,7 @@
         <h2 id="confirmImportModalTitle">确认导入</h2>
         <p id="confirmImportText" style="color: #888; margin: 15px 0; line-height: 1.5;"></p>
         <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button type="button" id="confirmImportModalCancelBtn" style="flex: 1; background: #555; color: #fff; padding: 12px; border: none; border-radius: 8px; cursor: pointer;" onclick="closeConfirmImport()">取消</button>
+            <button type="button" id="confirmImportModalCancelBtn" data-i18n="cancel" style="flex: 1; background: #555; color: #fff; padding: 12px; border: none; border-radius: 8px; cursor: pointer;" onclick="closeConfirmImport()">取消</button>
             <button id="confirmImportYesBtn" style="flex: 1; background: #e85d3a; color: #fff; padding: 12px; border: none; border-radius: 8px; cursor: pointer;">确认导入</button>
         </div>
     </div>
@@ -713,6 +713,6 @@
 <script src="pages/admin/table.js?v=1790737176"></script>
 <script src="pages/admin/order.js?v=1790791937"></script>
 <script src="pages/admin/shared.js?v=1790787700"></script>
-<script src="pages/admin.js?v=1790792312"></script>
+<script src="pages/admin.js?v=1790794710"></script>
 </body>
 </html>

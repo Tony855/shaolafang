@@ -277,7 +277,28 @@
             }
         }
 
-        function applyAdminLanguage() {
+                function applyDataI18n() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (!key) return;
+                const translated = tAdmin(key);
+                if (translated && translated !== key) el.textContent = translated;
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (!key) return;
+                const translated = tAdmin(key);
+                if (translated && translated !== key) el.placeholder = translated;
+            });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                if (!key) return;
+                const translated = tAdmin(key);
+                if (translated && translated !== key) el.title = translated;
+            });
+        }
+
+function applyAdminLanguage() {
             document.title = tAdmin('headerTitle');
             $('#adminHeaderTitle').textContent = tAdmin('headerTitle');
             $('#adminLang').value = adminLang;
@@ -745,6 +766,8 @@
             _opt('editTableStatus', 0, 'available');
             _opt('editTableStatus', 1, 'occupied');
             _opt('editTableStatus', 2, 'reserved');
+        
+            try { applyDataI18n(); } catch(e) { console.warn('applyDataI18n failed', e); }
         }
 
         // ===== 语言切换和店铺切换（已移到 shared.js）=====
