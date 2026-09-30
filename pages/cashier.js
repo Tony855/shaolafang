@@ -121,6 +121,7 @@ let refundOrderId = null;
     if (langSel) langSel.value = currentLang;
     document.getElementById('tabPending').innerHTML = t('pendingOrders') + ' <span class="pos-tab-count" id="pendingCount">0</span>';
     document.getElementById('tabSettled').innerHTML = t('settledOrders') + ' <span class="pos-tab-count" id="settledCount">0</span>';
+    document.getElementById('tabRefunded').innerHTML = (t('refundOrder') || '退款订单') + ' <span class="pos-tab-count" id="refundedCount">0</span>';
     document.getElementById('todayLabel').textContent = t('todayCount');
     document.getElementById('revenueLabel').textContent = t('todayRevenue');
     document.getElementById('logoutBtn').textContent = t('logout');
@@ -169,9 +170,14 @@ let refundOrderId = null;
   /* ===== 左侧列表渲染 ===== */
   function renderOrders() {
     const container = document.getElementById('orderList');
-    let filtered = (currentTab === 'settled')
-      ? orders.filter(o => o.status !== 'pending')
-      : orders.filter(o => o.status === 'pending');
+    let filtered;
+    if (currentTab === 'refunded') {
+      filtered = orders.filter(o => o.status === 'refunded');
+    } else if (currentTab === 'settled') {
+      filtered = orders.filter(o => o.status === 'done' || o.status === 'canceled');
+    } else {
+      filtered = orders.filter(o => o.status === 'pending');
+    }
 
     if (searchKeyword) {
       const q = searchKeyword.toLowerCase();
@@ -185,19 +191,29 @@ let refundOrderId = null;
     filtered.sort((a, b) => {
       const ta = new Date(a.createdAt || 0).getTime();
       const tb = new Date(b.createdAt || 0).getTime();
-      return currentTab === 'settled' ? tb - ta : ta - tb;
+      return currentTab === 'pending' ? ta - tb : tb - ta;
     });
 
     // 更新计数
     const pendingCountEl = document.getElementById('pendingCount');
     const settledCountEl = document.getElementById('settledCount');
+    const refundedCountEl = document.getElementById('refundedCount');
     if (pendingCountEl) pendingCountEl.textContent = orders.filter(o => o.status === 'pending').length;
-    if (settledCountEl) settledCountEl.textContent = orders.filter(o => o.status !== 'pending').length;
+    if (settledCountEl) settledCountEl.textContent = orders.filter(o => o.status === 'done' || o.status === 'canceled').length;
+    if (refundedCountEl) refundedCountEl.textContent = orders.filter(o => o.status === 'refunded').length;
 
     if (!filtered.length) {
       container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#9ca3af;font-size:14px;">' + (searchKeyword ? '🔍 无匹配结果' : t('noOrders')) + '</div>';
       return;
     }
+
+    // 状态徽章映射（4 色）
+    const _statusMap = {
+      pending:  { text: t('pendingSettlement') || t('pending') || '未结算', cls: 'pending',  icon: '⏳' },
+      done:     { text: t('settled')          || '已结算',                  cls: 'done',     icon: '✅' },
+      refunded: { text: t('refunded')         || '已退款',                  cls: 'refunded', icon: '💸' },
+      canceled: { text: t('canceled')         || '已取消',                  cls: 'canceled', icon: '❌' }
+    };
 
     container.innerHTML = filtered.map(order => {
       const total = moneyHtml(Number(order.total) || 0);
@@ -206,7 +222,30 @@ let refundOrderId = null;
       const sessionLabels = buildSessionLabels([order]);
       const customerLabel = sessionLabels.get(order.id) || '';
 
-      return `<div class="pos-order-card ${isSelected ? 'selected' : ''}" onclick="selectOrder(${order.id})">
+      const _st = _statusMap[order.status];
+      // 待结订单按"是否可结算"细分：全做完=ready，未做完=waiting
+      let _readyCls = '';
+      let _readyTip = '';
+      if (order.status === 'pending') {
+        const _items = order.items || [];
+        const _pending = _items.filter(it => it.itemStatus !== 'done').length;
+        if (_pending === 0 && _items.length > 0) {
+          _readyCls = ' ready-to-settle';
+          _readyTip = `<span class="pos-card-ready-tip">✅ 可结算</span>`;
+        } else if (_pending > 0) {
+          _readyCls = ' waiting-items';
+          _readyTip = `<span class="pos-card-wait-tip">⏳ 还有 ${_pending} 道未完成</span>`;
+        }
+      }
+      const _hidePendingBadge = (order.status === 'pending' && _readyCls === ' ready-to-settle');
+      const _statusBadge = (_st && !_hidePendingBadge) ? `<span class="pos-card-status ${_st.cls}">${_st.icon} ${esc(_st.text)}</span>` : '';
+      const _cardCls = (_st ? ' status-' + _st.cls : '') + _readyCls;
+      const _hasLabel = customerLabel && customerLabel.trim();
+      const _tagsHtml = (_hasLabel || _statusBadge || _readyTip)
+        ? `<div class="pos-order-card-tags">${_hasLabel ? `<span class="pos-tag ${customerLabel === t('staffOrder') ? 'staff' : 'customer'}">${esc(customerLabel)}</span>` : ''}${_readyTip}${_statusBadge}</div>`
+        : '';
+
+      return `<div class="pos-order-card ${isSelected ? 'selected' : ''}${_cardCls}" onclick="selectOrder(${order.id})">
         <div class="pos-order-card-head">
           <div class="pos-order-card-table">🪑 ${esc(order.table_name || '-')}</div>
           <div class="pos-order-card-time">${formatTime(order.createdAt)}</div>
@@ -216,7 +255,7 @@ let refundOrderId = null;
           <span class="pos-order-card-items">${itemCount} ${t('dishes') || '道菜品'}</span>
           <span class="pos-order-card-amount">${total}</span>
         </div>
-        ${customerLabel && customerLabel.trim() ? `<div class="pos-order-card-tags"><span class="pos-tag ${customerLabel === t('staffOrder') ? 'staff' : 'customer'}">${esc(customerLabel)}</span></div>` : ''}
+        ${_tagsHtml}
       </div>`;
     }).join('');
   }
@@ -301,7 +340,7 @@ let refundOrderId = null;
       const statusBadge = isDone
         ? '<span class="pos-dish-status done">✅ ' + (t('done') || '已完成') + '</span>'
         : '<span class="pos-dish-status pending">⏳ ' + (t('pending') || '制作中') + '</span>';
-      return `<div class="pos-detail-item">
+      return `<div class="pos-detail-item ${isDone ? 'item-done' : 'item-pending'}">
         <div class="pos-detail-item-name">
           <span class="emoji">${esc(item.emoji || '🍽️')}</span>
           <span>${esc(item.name)}${returned > 0 ? ` <span style="color:#e74c3c;font-size:12px;">(${t('returned') || '退'} ${returned})</span>` : ''}</span>
@@ -662,6 +701,8 @@ let refundOrderId = null;
     });
     cashierSocket.on('order:settled', () => { loadOrders(); });
     cashierSocket.on('order:transfer', () => { loadOrders(); });
+    cashierSocket.on('table:moved', () => { loadOrders(); });
+    cashierSocket.on('order:urge', () => { loadOrders(); });
     cashierSocket.on('connect', () => {
       _socketConnected = true;
       if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }

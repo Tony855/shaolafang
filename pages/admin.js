@@ -1085,6 +1085,17 @@
             adminSocket.on('item:updated', debouncedLoadOrders);
             adminSocket.on('order:settled', debouncedLoadOrders);
             adminSocket.on('order:transfer', debouncedLoadOrders);
+            adminSocket.on('table:moved', debouncedLoadOrders);
+            adminSocket.on('connect', () => {
+                console.log('[admin] socket 已连接');
+                if (typeof window.refresh === 'function') {
+                    // 重连后补偿一次刷新（静默）
+                    setTimeout(() => { try { window.refresh(); } catch(_) {} }, 100);
+                }
+            });
+            adminSocket.on('disconnect', () => {
+                console.warn('[admin] socket 断开，10 秒后自动重连');
+            });
             adminSocket.on('connect_error', (err) => {
                 console.warn('adminSocket connect_error:', err.message);
             });

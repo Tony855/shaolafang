@@ -1421,3 +1421,186 @@ body {
     padding-bottom: 200px !important;
   }
 }
+
+/* ============================================================
+   订单卡片 4 状态标记（2026-10-01）
+   pending=黄 / done=绿 / refunded=红 / canceled=灰
+   ============================================================ */
+.pos-order-card.status-pending  { border-left: 4px solid #f39c12; background: linear-gradient(135deg, #fffdf5 0%, #fff8e6 100%); }
+.pos-order-card.status-done     { border-left: 4px solid #2ecc71; }
+.pos-order-card.status-refunded { border-left: 4px solid #e74c3c; background: linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%); }
+.pos-order-card.status-canceled { border-left: 4px solid #9ca3af; background: #f8f9fa; opacity: 0.72; }
+
+.pos-order-card.status-pending:hover  { border-color: #f39c12; box-shadow: 0 4px 12px rgba(243,156,18,0.18); }
+.pos-order-card.status-refunded:hover { border-color: #e74c3c; box-shadow: 0 4px 12px rgba(231,76,60,0.18); }
+.pos-order-card.status-canceled:hover { opacity: 0.95; }
+
+.pos-order-card.status-pending.selected  { background: linear-gradient(135deg, #fffbe6 0%, #fff4cc 100%); }
+.pos-order-card.status-refunded.selected { background: linear-gradient(135deg, #ffe0e0 0%, #ffd0d0 100%); }
+.pos-order-card.status-canceled.selected { opacity: 1; background: linear-gradient(135deg, #f0f4ff 0%, #e8edff 100%); }
+
+.pos-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 16px;
+}
+.pos-card-status.pending  { background: #fff3cd; color: #856404; }
+.pos-card-status.done     { background: #d4edda; color: #155724; }
+.pos-card-status.refunded { background: #f8d7da; color: #721c24; }
+.pos-card-status.canceled { background: #e9ecef; color: #495057; }
+
+@media (max-width: 768px) {
+  .pos-card-status { font-size: 10px; padding: 2px 6px; }
+  .pos-order-card.status-pending,
+  .pos-order-card.status-done,
+  .pos-order-card.status-refunded,
+  .pos-order-card.status-canceled { border-left-width: 3px; }
+}
+
+/* ============================================================
+   菜品行状态背景（2026-10-01）
+   制作中=淡黄 + 左侧橙条
+   已完成=淡绿 + 左侧绿条
+   ============================================================ */
+.pos-detail-item.item-pending {
+  background: linear-gradient(90deg, #fffbf0 0%, #fff8e6 60%, #fffdf7 100%);
+  border-left: 3px solid #f39c12;
+  padding-left: 12px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+.pos-detail-item.item-done {
+  background: linear-gradient(90deg, #f5fdf7 0%, #ebf9ee 60%, #f7fdf9 100%);
+  border-left: 3px solid #2ecc71;
+  padding-left: 12px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  opacity: 0.92;
+}
+
+.pos-detail-item.item-done .pos-detail-item-name {
+  color: #6b7280;
+}
+.pos-detail-item.item-pending .pos-detail-item-name {
+  color: #1f2937;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .pos-detail-item.item-pending,
+  .pos-detail-item.item-done {
+    padding-left: 10px;
+    margin-bottom: 3px;
+  }
+}
+
+/* ============================================================
+   待结订单细分：可结算 vs 等菜中（2026-10-01）
+   ============================================================ */
+.pos-order-card.status-pending.ready-to-settle {
+  border-left: 4px solid #2ecc71 !important;
+  background: linear-gradient(135deg, #f6fdf9 0%, #e6f8ee 100%) !important;
+}
+.pos-order-card.status-pending.ready-to-settle:hover {
+  border-color: #2ecc71 !important;
+  box-shadow: 0 4px 14px rgba(46, 204, 113, 0.22);
+}
+
+.pos-order-card.status-pending.waiting-items {
+  border-left: 4px solid #f39c12 !important;
+  background: linear-gradient(135deg, #fffbf0 0%, #fff2d9 100%) !important;
+}
+
+/* 徽章 */
+.pos-card-ready-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 16px;
+  background: #d4edda;
+  color: #155724;
+}
+.pos-card-wait-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 16px;
+  background: #fff3cd;
+  color: #856404;
+}
+
+/* 可结算卡片加轻微脉冲提示（可选，更醒目） */
+.pos-order-card.ready-to-settle {
+  animation: pos-ready-pulse 2.4s ease-in-out infinite;
+}
+@keyframes pos-ready-pulse {
+  0%, 100% { box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  50%      { box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.12); }
+}
+
+@media (max-width: 768px) {
+  .pos-card-ready-tip,
+  .pos-card-wait-tip { font-size: 10px; padding: 2px 6px; }
+}
+
+/* ============================================================
+   "可结算" 状态改天蓝（覆盖旧绿色，2026-10-01）
+   ============================================================ */
+.pos-order-card.status-pending.ready-to-settle {
+  border-left: 4px solid #0ea5e9 !important;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+}
+.pos-order-card.status-pending.ready-to-settle:hover {
+  border-color: #0ea5e9 !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.24) !important;
+}
+.pos-order-card.status-pending.ready-to-settle.selected {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%) !important;
+}
+
+/* 徽章：可结算 → 天蓝 */
+.pos-card-ready-tip {
+  background: #e0f2fe !important;
+  color: #0369a1 !important;
+}
+
+/* 脉冲动画也换天蓝 */
+.pos-order-card.ready-to-settle {
+  animation: pos-ready-pulse-sky 2.4s ease-in-out infinite;
+}
+@keyframes pos-ready-pulse-sky {
+  0%, 100% { box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  50%      { box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14); }
+}
+
+/* ============================================================
+   已退款 Tab 计数徽章红色（2026-10-01）
+   ============================================================ */
+.pos-tab[data-tab="refunded"] .pos-tab-count {
+  background: #e74c3c;
+  color: #fff;
+}
+.pos-tab[data-tab="refunded"]:not(.active) .pos-tab-count {
+  background: #f8d7da;
+  color: #721c24;
+}
+.pos-tab[data-tab="refunded"].active {
+  color: #e74c3c;
+  border-bottom-color: #e74c3c;
+}

@@ -219,6 +219,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
+    io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
     res.json({ success: true, message: '结算成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -270,6 +271,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     // 广播到各端（订单状态变了）
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
+    io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
 
     res.json({ success: true, message: '退款成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }

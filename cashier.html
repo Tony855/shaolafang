@@ -9,7 +9,7 @@
   try { if (localStorage.getItem('cashierToken')) document.documentElement.setAttribute('data-cashier-session', '1'); } catch(e) {}
 </script>
 <link rel="stylesheet" href="assets/common.css">
-<link rel="stylesheet" href="assets/cashier.css?v=1790748960">
+<link rel="stylesheet" href="assets/cashier.css?v=1790791096">
 </head>
 <body>
 
@@ -68,6 +68,9 @@
         </button>
         <button class="pos-tab" data-tab="settled" onclick="switchTab('settled')" id="tabSettled">
           已结 <span class="pos-tab-count" id="settledCount">0</span>
+        </button>
+        <button class="pos-tab" data-tab="refunded" onclick="switchTab('refunded')" id="tabRefunded">
+          退款订单 <span class="pos-tab-count" id="refundedCount">0</span>
         </button>
       </div>
 
@@ -233,7 +236,7 @@
   </div>
 </div>
 
-<script src="languages.min.js?v=1790750493"></script>
+<script src="languages.min.js?v=1790791226"></script>
 <script src="assets/core.js?v=1790748960"></script>
 <script src="assets/modules/ui.js?v=1790748960"></script>
 <script src="assets/modules/money.js?v=1790748960"></script>
@@ -242,6 +245,6 @@
 <script src="assets/modules/role.js?v=1790748960"></script>
 <script src="assets/modules/idle.js?v=1790748960"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="pages/cashier.js?v=1790748960"></script>
+<script src="pages/cashier.js?v=1790791226"></script>
 </body>
 </html>
