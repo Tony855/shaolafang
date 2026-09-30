@@ -144,6 +144,17 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
     if (req.params.id === '1') return res.status(400).json({ error: '不能删除默认商户' });
     const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [req.params.id]);
     const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.params.id])).map(s => s.id);
+
+    // 清会话（必须在删 merchant_admins 之前）
+    await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [req.params.id]);
+    await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [req.params.id]);
+
+    // 清 settings 里的收银员配置和商户级设置
+    for (const sid of storeIds) {
+      await runAsync("DELETE FROM settings WHERE `key` = ?", ['cashiers_' + sid]);
+    }
+    await runAsync("DELETE FROM settings WHERE `key` LIKE ?", [`merchant_${req.params.id}_%`]);
+
     await runAsync('DELETE FROM merchants WHERE id=?', [req.params.id]);
     await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [req.params.id]);
     await runAsync('DELETE FROM stores WHERE merchant_id=?', [req.params.id]);

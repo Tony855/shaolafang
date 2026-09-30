@@ -40,20 +40,14 @@ async function authenticateAdmin(req) {
       if (admin) {
         const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
         if (merchant) {
-          let requestedStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
+          const requestedStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
           let validStoreId = null;
           if (requestedStoreId > 0) {
-            const storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
-            if (storeCheck) validStoreId = requestedStoreId;
-            else {
-              const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-              if (!firstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
-              validStoreId = firstStore.id;
+            const _storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
+            if (!_storeCheck) {
+              return { error: '指定的门店不存在或不属于当前商户' };
             }
-          } else {
-            const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-            if (!firstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
-            validStoreId = firstStore.id;
+            validStoreId = requestedStoreId;
           }
           const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
           const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
@@ -70,20 +64,14 @@ async function authenticateAdmin(req) {
         if (admin) {
           const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
           if (merchant) {
-            let legacyStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
+            const legacyStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
             let legacyValidStoreId = null;
             if (legacyStoreId > 0) {
-              const legacyStoreCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [legacyStoreId, admin.merchant_id]);
-              if (legacyStoreCheck) legacyValidStoreId = legacyStoreId;
-              else {
-                const legacyFirstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-                if (!legacyFirstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
-                legacyValidStoreId = legacyFirstStore.id;
+              const _legacyStoreCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [legacyStoreId, admin.merchant_id]);
+              if (!_legacyStoreCheck) {
+                return { error: '指定的门店不存在或不属于当前商户' };
               }
-            } else {
-              const legacyFirstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-              if (!legacyFirstStore) return { error: '该商户尚未创建店铺，请联系超级管理员' };
-              legacyValidStoreId = legacyFirstStore.id;
+              legacyValidStoreId = legacyStoreId;
             }
             return { adminId: admin.id, merchantId: admin.merchant_id, storeId: legacyValidStoreId };
           }
@@ -107,9 +95,8 @@ async function requireAdminKey(req, res, next) {
     req.merchantId = result.merchantId;
     req.adminSessionToken = result.sessionToken;
     req.storeId = result.storeId || 0;
-    if (!req.storeId) {
-      return res.status(401).json({ error: '未选择有效店铺，请重新登录' });
-    }
+    // 未选店铺时 storeId = 0，业务层自己处理（查询返回空数据）
+    // 只要 X-Store-Id 存在但无效，authenticateAdmin 已经返回 error，不会走到这里
     try {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [result.adminId]);
       if (admin) {

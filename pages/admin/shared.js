@@ -227,6 +227,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (adminStoreSelect) {
     adminStoreSelect.onchange = function() {
       SLF.store.rawSetSession('adminStoreId', this.value);
+      SLF.store.rawSet('storeId', String(this.value));
+      if (window._adminSocket && typeof window._adminSocket.disconnect === 'function') {
+        try { window._adminSocket.disconnect(); window._adminSocket.connect(); } catch(_) {}
+      }
       if (window.updateSidebarStore) window.updateSidebarStore();
       if (window.refresh) window.refresh();
     };

@@ -9,7 +9,8 @@ module.exports = function(app, deps) {
 
   app.get('/api/qrcode/:table', async (req, res) => {
     try {
-      const table = await getAsync('SELECT name, store_id FROM tables WHERE name=? AND store_id=?', [req.params.table, 1]);
+      const storeId = parseInt(req.query.store_id || req.get('X-Store-Id') || '1', 10) || 1;
+      const table = await getAsync('SELECT name, store_id FROM tables WHERE name=? AND store_id=?', [req.params.table, storeId]);
       if (!table) return res.status(404).json({ error: '桌号不存在' });
       const url = `${req.protocol}://${req.get('host')}/?table=${encodeURIComponent(table.name)}`;
       const qrDataUrl = await QRCode.toDataURL(url);

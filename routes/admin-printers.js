@@ -112,11 +112,15 @@ module.exports = function(app, deps) {
 
   app.get('/api/admin/order-prefixes', requireAdminKey, async (req, res) => {
     try {
-      const keys = ['order_prefix_normal', 'order_prefix_refund', 'order_prefix_discount', 'order_prefix_vip', 'order_no_reset_period'];
-      const placeholders = keys.map(() => "?").join(",");
-      const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN (" + placeholders + ")", keys);
+      const mid = req.merchantId || 1;
+      const shortKeys = ['order_prefix_normal', 'order_prefix_refund', 'order_prefix_discount', 'order_prefix_vip', 'order_no_reset_period'];
+      const fullKeys = shortKeys.map(k => `merchant_${mid}_${k}`);
+      const placeholders = fullKeys.map(() => "?").join(",");
+      const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN (" + placeholders + ")", fullKeys);
       const result = {};
-      for (const r of rows) result[r.key] = r.value;
+      for (const r of rows) {
+        result[String(r.key).replace(`merchant_${mid}_`, '')] = r.value;
+      }
       result.order_prefix_normal = result.order_prefix_normal || '11';
       result.order_prefix_refund = result.order_prefix_refund || '01';
       result.order_prefix_discount = result.order_prefix_discount || '21';
@@ -128,13 +132,14 @@ module.exports = function(app, deps) {
 
   app.post('/api/admin/order-prefixes', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
+      const mid = req.merchantId || 1;
       const { normal, refund, discount, vip, daily_reset } = req.body || {};
       const pairs = [
-        ['order_prefix_normal', (normal || '11').padStart(2, '0').slice(-2)],
-        ['order_prefix_refund', (refund || '01').padStart(2, '0').slice(-2)],
-        ['order_prefix_discount', (discount || '21').padStart(2, '0').slice(-2)],
-        ['order_prefix_vip', (vip || '61').padStart(2, '0').slice(-2)],
-        ['order_no_reset_period', ['daily','monthly','yearly','never'].includes(daily_reset) ? daily_reset : 'daily']
+        [`merchant_${mid}_order_prefix_normal`, (normal || '11').padStart(2, '0').slice(-2)],
+        [`merchant_${mid}_order_prefix_refund`, (refund || '01').padStart(2, '0').slice(-2)],
+        [`merchant_${mid}_order_prefix_discount`, (discount || '21').padStart(2, '0').slice(-2)],
+        [`merchant_${mid}_order_prefix_vip`, (vip || '61').padStart(2, '0').slice(-2)],
+        [`merchant_${mid}_order_no_reset_period`, ['daily','monthly','yearly','never'].includes(daily_reset) ? daily_reset : 'daily']
       ];
       for (const [k, v] of pairs) {
         await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [k, v]);

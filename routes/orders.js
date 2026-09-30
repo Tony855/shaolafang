@@ -775,11 +775,15 @@ app.post('/api/orders', async (req, res) => {
     if (note.length > maxNoteLen) note = note.slice(0, maxNoteLen);
 
     // ---------- 6. 计算订单号前缀 ----------
-    const prefixRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_prefix_normal'");
+    const _midRow = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [finalStoreId]);
+    const _mid = _midRow?.merchant_id || 1;
+    const prefixRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${_mid}_order_prefix_normal`])
+                   || await getAsync("SELECT value FROM settings WHERE `key` = 'order_prefix_normal'");
     const orderPrefix = (prefixRow?.value || '11').padStart(2, '0').slice(-2);
     const yyddmm = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const todayPrefix = orderPrefix + yyddmm;
-    const resetRow = await getAsync("SELECT value FROM settings WHERE `key` = 'order_no_reset_period'");
+    const resetRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${_mid}_order_no_reset_period`])
+                  || await getAsync("SELECT value FROM settings WHERE `key` = 'order_no_reset_period'");
     const resetPeriod = resetRow?.value || 'never';
     let seqPrefix = todayPrefix;
     if (resetPeriod === 'monthly') seqPrefix = orderPrefix + yyddmm.slice(0, 4);

@@ -17,14 +17,13 @@ app.post('/api/waiter/login', async (req, res) => {
     if (lockStatus.locked) {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
     }
-    const waiter = await getAsync('SELECT * FROM waiters WHERE username=? AND active=1', [String(username).trim()]);
-    if (!waiter) {
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'waiter', '账号不存在']);
-      recordLoginAttempt(username, 'waiter');
-      return res.status(401).json({ error: '服务员账号或密码错误' });
+    const waiterCandidates = await allAsync('SELECT * FROM waiters WHERE username=? AND active=1', [String(username).trim()]);
+    let waiter = null;
+    for (const cand of waiterCandidates) {
+      if (verifyPassword(password, cand.password_hash)) { waiter = cand; break; }
     }
-    if (!verifyPassword(password, waiter.password_hash)) {
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 0, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '密码错误']);
+    if (!waiter) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'waiter', '账号或密码错误']);
       recordLoginAttempt(username, 'waiter');
       return res.status(401).json({ error: '服务员账号或密码错误' });
     }
@@ -54,18 +53,25 @@ app.post('/api/cashier/login', async (req, res) => {
     }
     const allCashierSettings = await allAsync("SELECT `key`, value FROM settings WHERE `key` LIKE 'cashiers_%'");
     let cashier = null;
-    let targetStoreId = storeId || 1;
+    let targetStoreId = storeId ? parseInt(storeId, 10) : 0;
+    const candidates = [];
     for (const row of allCashierSettings) {
       try {
+        const sid = parseInt(String(row.key).replace('cashiers_', ''), 10) || 1;
+        if (targetStoreId && sid !== targetStoreId) continue;
         const list = JSON.parse(row.value);
         const found = list.find(c => c.username === String(username).trim() && c.active);
-        if (found) {
-          cashier = found;
-          targetStoreId = parseInt(row.key.replace('cashiers_', ''), 10) || 1;
-          break;
-        }
+        if (found) candidates.push({ cashier: found, storeId: sid });
       } catch (e) { continue; }
     }
+    for (const cand of candidates) {
+      if (verifyPassword(password, cand.cashier.password_hash)) {
+        cashier = cand.cashier;
+        targetStoreId = cand.storeId;
+        break;
+      }
+    }
+    if (!cashier) targetStoreId = targetStoreId || 1;
     if (!cashier) {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'cashier', '账号不存在']);
       recordLoginAttempt(username, 'cashier');

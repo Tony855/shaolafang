@@ -20,6 +20,8 @@ function formatOrder(row) {
   }
   return {
     id: row.id,
+    store_id: row.store_id,
+    merchant_id: row.merchant_id,
     table: row.table_name,
     order_no: row.order_no || '',
     table_name: row.table_name,

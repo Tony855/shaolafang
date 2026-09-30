@@ -978,8 +978,10 @@
                 const calls = await api('/waiter-calls');
                 const badge = document.getElementById('callsBadge');
                 if (calls && calls.length > 0) {
-                    badge.style.display = 'inline-block';
-                    badge.textContent = calls.length;
+                    if (badge) {
+                      badge.style.display = 'inline-block';
+                      badge.textContent = calls.length;
+                    }
                     let hasNew = false;
                     for (const c of calls) { if (!knownAdminCallIds.has(c.id)) { hasNew = true; break; } }
                     if (hasNew) {
@@ -1067,10 +1069,11 @@
         if (typeof io === 'function') {
             const adminSocket = io({
                 query: {
-                    storeId: SLF.store.rawGet('storeId') || 1,
+                    storeId: SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || 1,
                     token: SLF.store.rawGetSession('adminToken') || ''
                 }
             });
+            window._adminSocket = adminSocket;
             let socketDebounce = null;
             function debouncedLoadOrders() {
                 clearTimeout(socketDebounce);
