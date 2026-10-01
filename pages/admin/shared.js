@@ -79,6 +79,18 @@ function getCurrentModule() {
 }
 
 function switchAdminModule(module) {
+  const permMap = {
+    menu: 'can_manage_menu', tables: 'can_manage_table', orders: 'can_manage_order',
+    stores: 'can_manage_store', waiters: 'can_manage_waiter', currencies: 'can_manage_currency',
+    printers: 'can_manage_printer', admins: 'can_manage_admin', cashiers: 'can_manage_cashier',
+    logs: 'can_view_logs'
+  };
+  const needPerm = permMap[module];
+  if (needPerm && ctx.hasPermission && !ctx.hasPermission(needPerm)) {
+    const msg = ctx.tAdmin ? ctx.tAdmin('noPermission') : 'No permission';
+    if (SLF.ui && SLF.ui.toast) SLF.ui.toast('❌ ' + msg);
+    return;
+  }
   document.querySelectorAll('.module-panel').forEach(m => m.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const panel = document.getElementById('module-' + module);

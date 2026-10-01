@@ -50,8 +50,17 @@
                 const btn = document.getElementById(btnId);
                 if (btn) btn.style.display = hasPermission(perm) ? '' : 'none';
             }
-            const adminManageCard = document.getElementById('adminManageCard');
-            if (adminManageCard) adminManageCard.style.display = hasPermission('can_manage_admin') ? '' : 'none';
+            const settingsCardPerms = {
+                adminManageCard: 'can_manage_admin',
+                cashierManageCard: 'can_manage_cashier',
+                waiterManageCard: 'can_manage_waiter',
+                currencySettingsCard: 'can_manage_currency',
+                printerSettingsCard: 'can_manage_printer'
+            };
+            for (const [cid, perm] of Object.entries(settingsCardPerms)) {
+                const card = document.getElementById(cid);
+                if (card) card.style.display = hasPermission(perm) ? '' : 'none';
+            }
         }
 
         let menusCache = [];

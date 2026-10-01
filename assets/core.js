@@ -423,6 +423,12 @@
       }
     },
 
+    // 兼容别名：admin.js 里 api(path, {method, body}) 走这里
+    request(path, options = {}) {
+      const method = (options.method || 'GET').toUpperCase();
+      return this._request(method, path, options);
+    },
+
     get(path, options) { return this._request('GET', path, options); },
     post(path, body, options) { return this._request('POST', path, { ...options, body }); },
     put(path, body, options) { return this._request('PUT', path, { ...options, body }); },

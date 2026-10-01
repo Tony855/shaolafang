@@ -33,22 +33,22 @@
             <button class="modal-close" onclick="hideAdminInfo()" style="top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;border:0;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;">✕</button>
             <div style="background:linear-gradient(135deg,#e85d3a,#c0392b);padding:14px 20px;display:flex;align-items:center;gap:12px;">
                 <div style="width:40px;height:40px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">👤</div>
-                <h2 id="adminInfoTitle" style="color:#fff;font-size:16px;font-weight:700;margin:0;">账户信息</h2>
+                <h2 id="adminInfoTitle" data-i18n="adminInfoTitle" style="color:#fff;font-size:16px;font-weight:700;margin:0;">账户信息</h2>
             </div>
             <div style="padding:16px 20px 18px;">
                 <div style="display:flex;flex-direction:column;">
-                    <div class="admin-info-row"><label id="adminInfoUsernameLabel">商户账号</label><span id="adminInfoUsername" style="font-weight:600;color:#e85d3a;">-</span></div>
-                    <div class="admin-info-row"><label id="adminInfoMerchantLabel">商户名称</label><span id="adminInfoMerchant">-</span></div>
-                    <div class="admin-info-row"><label id="adminInfoCodeLabel">商户编码</label><span id="adminInfoCode" style="font-family:monospace;background:rgba(232,93,58,.1);padding:2px 8px;border-radius:6px;font-size:12px;">-</span></div>
-                    <div class="admin-info-row"><label id="adminInfoStoreCountLabel">店铺数量</label><span id="adminInfoStoreCount">-</span></div>
-                    <div class="admin-info-row"><label id="adminInfoContactLabel">联系人</label><span id="adminInfoContact">-</span></div>
-                    <div class="admin-info-row"><label id="adminInfoPhoneLabel">电话</label><span id="adminInfoPhone">-</span></div>
-                    <div class="admin-info-row"><label id="adminInfoStatusLabel">状态</label><span id="adminInfoStatus">-</span></div>
-                    <div class="admin-info-row" style="border-bottom:0;"><label id="adminInfoCreatedLabel">注册时间</label><span id="adminInfoCreated" style="font-size:12px;color:#999;">-</span></div>
+                    <div class="admin-info-row"><label id="adminInfoUsernameLabel" data-i18n="adminInfoUsername">商户账号</label><span id="adminInfoUsername" style="font-weight:600;color:#e85d3a;">-</span></div>
+                    <div class="admin-info-row"><label id="adminInfoMerchantLabel" data-i18n="adminInfoMerchant">商户名称</label><span id="adminInfoMerchant">-</span></div>
+                    <div class="admin-info-row"><label id="adminInfoCodeLabel" data-i18n="adminInfoCode">商户编码</label><span id="adminInfoCode" style="font-family:monospace;background:rgba(232,93,58,.1);padding:2px 8px;border-radius:6px;font-size:12px;">-</span></div>
+                    <div class="admin-info-row"><label id="adminInfoStoreCountLabel" data-i18n="adminInfoStoreCount">店铺数量</label><span id="adminInfoStoreCount">-</span></div>
+                    <div class="admin-info-row"><label id="adminInfoContactLabel" data-i18n="adminInfoContact">联系人</label><span id="adminInfoContact">-</span></div>
+                    <div class="admin-info-row"><label id="adminInfoPhoneLabel" data-i18n="adminInfoPhone">电话</label><span id="adminInfoPhone">-</span></div>
+                    <div class="admin-info-row"><label id="adminInfoStatusLabel" data-i18n="adminInfoStatus">状态</label><span id="adminInfoStatus">-</span></div>
+                    <div class="admin-info-row" style="border-bottom:0;"><label id="adminInfoCreatedLabel" data-i18n="adminInfoCreated">注册时间</label><span id="adminInfoCreated" style="font-size:12px;color:#999;">-</span></div>
                 </div>
                 <button onclick="hideAdminInfo();logoutAdmin()" style="width:100%;margin-top:16px;padding:12px;background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:0;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;">
                     <span>🚪</span>
-                    <span id="adminInfoLogoutBtn">退出登录</span>
+                    <span id="adminInfoLogoutBtn" data-i18n="logout">退出登录</span>
                 </button>
             </div>
         </div>
@@ -340,31 +340,31 @@
                 <div class="settings-card" id="adminManageCard">
                     <h3 class="settings-card-title" id="adminManageCardTitle">👤 管理员管理</h3>
                     <p id="adminManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理商户的管理员账号，支持添加、编辑、删除管理员</p>
-                    <button id="enterAdminManageBtn" onclick="switchAdminModule('admins')" style="background: linear-gradient(135deg,#43e97b,#38f9d7); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入管理员管理</button>
+                    <button class="store-sub-btn" data-perm="can_manage_admin" id="enterAdminManageBtn" onclick="switchAdminModule('admins')" style="background: linear-gradient(135deg,#43e97b,#38f9d7); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入管理员管理</button>
                 </div>
 
                 <div class="settings-card" id="cashierManageCard">
                     <h3 class="settings-card-title" id="cashierManageCardTitle">💰 收银员管理</h3>
                     <p id="cashierManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理收银员账号，支持添加、编辑、删除收银员，配置结算权限</p>
-                    <button id="enterCashierManageBtn" onclick="switchAdminModule('cashiers')" style="background: linear-gradient(135deg,#f6d365,#fda085); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入收银员管理</button>
+                    <button class="store-sub-btn" data-perm="can_manage_cashier" id="enterCashierManageBtn" onclick="switchAdminModule('cashiers')" style="background: linear-gradient(135deg,#f6d365,#fda085); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入收银员管理</button>
                 </div>
 
                 <div class="settings-card" id="waiterManageCard">
                     <h3 class="settings-card-title" id="waiterManageCardTitle">🍽️ 服务员管理</h3>
                     <p id="waiterManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理服务员账号，支持添加、编辑、删除服务员</p>
-                    <button id="enterWaiterManageBtn" onclick="switchAdminModule('waiters')" style="background: linear-gradient(135deg,#a8edea,#fed6e3); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入服务员管理</button>
+                    <button class="store-sub-btn" data-perm="can_manage_waiter" id="enterWaiterManageBtn" onclick="switchAdminModule('waiters')" style="background: linear-gradient(135deg,#a8edea,#fed6e3); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入服务员管理</button>
                 </div>
 
                 <div class="settings-card" id="currencySettingsCard">
                     <h3 class="settings-card-title" id="currencySettingsTitle">💱 货币设置</h3>
                     <p id="currencySettingsDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">配置货币类型、汇率和双币显示</p>
-                    <button id="enterCurrencySettingsBtn" onclick="switchAdminModule('currencies')" style="background: linear-gradient(135deg,#ffecd2,#fcb69f); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入货币设置</button>
+                    <button class="store-sub-btn" data-perm="can_manage_currency" id="enterCurrencySettingsBtn" onclick="switchAdminModule('currencies')" style="background: linear-gradient(135deg,#ffecd2,#fcb69f); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入货币设置</button>
                 </div>
 
                 <div class="settings-card" id="printerSettingsCard">
                     <h3 class="settings-card-title" id="printerSettingsTitle">🖨️ 打印机设置</h3>
                     <p id="printerSettingsDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">配置打印机、打印路由和自动打印</p>
-                    <button id="enterPrinterSettingsBtn" onclick="switchAdminModule('printers')" style="background: linear-gradient(135deg,#a1c4fd,#c2e9fb); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入打印机设置</button>
+                    <button class="store-sub-btn" data-perm="can_manage_printer" id="enterPrinterSettingsBtn" onclick="switchAdminModule('printers')" style="background: linear-gradient(135deg,#a1c4fd,#c2e9fb); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入打印机设置</button>
                 </div>
 
                 <div class="settings-card" id="orderPrefixCard">
