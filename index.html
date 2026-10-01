@@ -12,10 +12,10 @@
 <body>
 
     <header class="header">
-        <div class="header-logo"><i class="fas fa-utensils"></i> <span id="appName">味享</span></div>
+        <div class="header-logo"><i class="fas fa-utensils"></i> <span id="appName" data-i18n="appName">味享</span></div>
         <div class="header-left">
             <span class="store-name-badge" id="storeNameDisplay"><i class="fas fa-store"></i> <span class="badge-text">加载中...</span></span>
-            <span class="table-info" id="tableInfo" title="请扫描桌面二维码绑定桌号"><i class="fas fa-chair"></i> <span class="badge-text" id="tableDisplay">未扫码</span></span>
+            <span class="table-info" id="tableInfo" title="请扫描桌面二维码绑定桌号"><i class="fas fa-chair"></i> <span class="badge-text" id="tableDisplay" data-i18n="notScanned">未扫码</span></span>
         </div>
         <div class="header-right">
             <button id="callWaiterBtn" type="button" title="呼叫服务员" hidden>🔔</button>
@@ -42,23 +42,23 @@
             </div>
             <div class="cart-summary">
                 <span class="total" id="cartTotal">0.00</span>
-                <span id="cartLabel">购物车</span>
+                <span id="cartLabel" data-i18n="cart">购物车</span>
             </div>
         </div>
-        <button class="checkout-btn" id="checkoutBtn" disabled><span id="checkoutLabel">去结算</span></button>
+        <button class="checkout-btn" id="checkoutBtn" disabled><span id="checkoutLabel" data-i18n="checkout">去结算</span></button>
     </div>
 
     <div class="overlay" id="overlay"></div>
 
     <div class="cart-drawer" id="cartDrawer">
         <div class="drawer-header">
-            <h3><i class="fas fa-shopping-cart" style="color:var(--primary);"></i> <span id="drawerTitle">购物车</span></h3>
+            <h3><i class="fas fa-shopping-cart" style="color:var(--primary);"></i> <span id="drawerTitle" data-i18n="cart">购物车</span></h3>
             <button class="close-btn" id="closeDrawer" type="button">✕</button>
         </div>
         <div class="drawer-body" id="drawerBody"></div>
         <div class="drawer-footer">
-            <div class="drawer-total"><span id="totalLabel">合计</span> <strong id="drawerTotal">0.00</strong></div>
-            <button class="submit-btn" id="submitOrderBtn" type="button"><span id="submitLabel">确认下单</span></button>
+            <div class="drawer-total"><span id="totalLabel" data-i18n="total">合计</span> <strong id="drawerTotal">0.00</strong></div>
+            <button class="submit-btn" id="submitOrderBtn" type="button"><span id="submitLabel" data-i18n="submitOrder">确认下单</span></button>
         </div>
     </div>
 
@@ -66,11 +66,11 @@
     <div class="confirm-overlay" id="callWaiterConfirmOverlay">
         <div class="confirm-card">
             <div class="confirm-icon">🔔</div>
-            <div class="confirm-title" id="callConfirmTitle">呼叫服务员</div>
-            <div class="confirm-message" id="callConfirmMessage">确认呼叫服务员？</div>
+            <div class="confirm-title" id="callConfirmTitle" data-i18n="callWaiter">呼叫服务员</div>
+            <div class="confirm-message" id="callConfirmMessage" data-i18n="confirmCallWaiter">确认呼叫服务员？</div>
             <div class="confirm-buttons">
-                <button class="confirm-btn cancel" id="callConfirmCancel" type="button">取消</button>
-                <button class="confirm-btn confirm" id="callConfirmOk" type="button">确认呼叫</button>
+                <button class="confirm-btn cancel" id="callConfirmCancel" type="button" data-i18n="cancel">取消</button>
+                <button class="confirm-btn confirm" id="callConfirmOk" type="button" data-i18n="confirmCall">确认呼叫</button>
             </div>
         </div>
     </div>
@@ -78,10 +78,10 @@
     <!-- 顾客订单详情弹窗 -->
     <div class="order-modal" id="customerOrderModal">
         <div class="order-modal-card">
-            <h3><i class="fas fa-list-ul"></i> <span id="customerOrderTitle">订单详情</span></h3>
+            <h3><i class="fas fa-list-ul"></i> <span id="customerOrderTitle" data-i18n="orderDetails">订单详情</span></h3>
             <div id="customerOrderDetail" class="order-detail-wrap"></div>
             <div class="form-actions">
-                <button class="btn-cancel" id="customerOrderCloseBtn" type="button">关闭</button>
+                <button class="btn-cancel" id="customerOrderCloseBtn" type="button" data-i18n="close">关闭</button>
             </div>
         </div>
     </div>
@@ -89,16 +89,16 @@
     <!-- 下单二次确认弹窗 -->
     <div class="order-modal" id="confirmOrderModal">
         <div class="order-modal-card">
-            <h3><i class="fas fa-clipboard-check"></i> <span id="confirmOrderTitle">去结算</span></h3>
-            <p id="confirmOrderDesc" style="color:#999;font-size:13px;margin:-8px 0 12px;line-height:1.5;">请核对以下菜品和数量，确认无误后提交</p>
+            <h3><i class="fas fa-clipboard-check"></i> <span id="confirmOrderTitle" data-i18n="checkout">去结算</span></h3>
+            <p id="confirmOrderDesc" style="color:#999;font-size:13px;margin:-8px 0 12px;line-height:1.5;" data-i18n="confirmOrderDesc">请核对以下菜品和数量，确认无误后提交</p>
             <div id="confirmOrderList" class="order-detail-wrap"></div>
             <div class="order-note-wrap" style="margin-top:12px;">
-                <label for="orderNoteInput" id="orderNoteLabel" style="display:block;font-size:13px;color:#999;margin-bottom:6px;">备注（选填）</label>
+                <label for="orderNoteInput" id="orderNoteLabel" style="display:block;font-size:13px;color:#999;margin-bottom:6px;" data-i18n="orderNoteLabel">备注（选填）</label>
                 <textarea id="orderNoteInput" maxlength="200" rows="2" placeholder="如：不要香菜、少辣、打包带走…"></textarea>
             </div>
             <div class="form-actions">
-                <button class="btn-cancel" id="confirmOrderCancelBtn" type="button">取消</button>
-                <button class="btn-save" id="confirmOrderSubmitBtn" type="button">确认下单</button>
+                <button class="btn-cancel" id="confirmOrderCancelBtn" type="button" data-i18n="cancel">取消</button>
+                <button class="btn-save" id="confirmOrderSubmitBtn" type="button" data-i18n="submitOrder">确认下单</button>
             </div>
         </div>
     </div>
@@ -107,14 +107,14 @@
     <div class="order-modal" id="orderSuccessModal">
         <div class="order-modal-card">
             <div class="success-icon"><i class="fas fa-check"></i></div>
-            <h3 id="orderSuccessTitle">下单成功</h3>
-            <p class="success-msg" id="orderSuccessMsg">请移步到「订单详情」查看订单</p>
+            <h3 id="orderSuccessTitle" data-i18n="orderSuccessTitle">下单成功</h3>
+            <p class="success-msg" id="orderSuccessMsg" data-i18n="orderSuccessMsg">请移步到「订单详情」查看订单</p>
             <div class="success-note">
                 <i class="fas fa-circle-exclamation"></i>
-                <span id="orderSuccessNote">注意：无法自行修改和取消订单，如需修改或取消订单，请联系商户</span>
+                <span id="orderSuccessNote" data-i18n="orderSuccessNote">注意：无法自行修改和取消订单，如需修改或取消订单，请联系商户</span>
             </div>
             <div class="form-actions">
-                <button class="btn-save" id="orderSuccessCloseBtn" type="button">知道了</button>
+                <button class="btn-save" id="orderSuccessCloseBtn" type="button" data-i18n="gotIt">知道了</button>
             </div>
         </div>
     </div>

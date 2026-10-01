@@ -385,7 +385,7 @@
                             </select>
                         </div>
                     </div>
-                    <button onclick="saveOrderPrefixes()" style="margin-top:12px;padding:10px 24px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;" id="savePrefixBtn">保存</button>
+                    <button onclick="saveOrderPrefixes()" style="margin-top:12px;padding:10px 24px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;" id="savePrefixBtn" data-i18n="save">保存</button>
                 </div>
 
                 <div class="settings-card">
@@ -514,7 +514,7 @@
             </div>
             <div class="order-total-line"><span id="orderTotalLabel">合计</span>：<strong id="orderFormTotal">¥0.00</strong></div>
             <div class="order-field"><label id="orderNoteFieldLabel">备注</label><input type="text" id="orderNoteField" maxlength="200" placeholder="顾客备注（选填）" style="width:100%;box-sizing:border-box;"></div>
-            <div class="order-modal-actions"><button id="orderCancelBtn" onclick="closeOrderForm()">取消</button><button class="primary" id="orderSaveBtn">保存订单</button></div>
+            <div class="order-modal-actions"><button id="orderCancelBtn" onclick="closeOrderForm()" data-i18n="cancel">取消</button><button class="primary" id="orderSaveBtn">保存订单</button></div>
         </div>
     </div>
 
@@ -524,7 +524,7 @@
             <h2 id="tableModalTitle" data-i18n="editTable">编辑桌号</h2>
             <div class="order-field"><label id="tableNameLabel">桌号名称</label><input id="editTableName" maxlength="20"></div>
             <div class="order-field"><label id="tableStatusLabel">状态</label><select id="editTableStatus"><option value="available"><span data-i18n="available">空闲</span><option value="occupied"><span data-i18n="occupied">已占</span><option value="reserved"><span data-i18n="reserved">已预订</span></select></div>
-            <div class="order-modal-actions"><button id="tableCancelBtn" onclick="closeTableForm()">取消</button><button class="primary" id="tableSaveBtn">保存</button></div>
+            <div class="order-modal-actions"><button id="tableCancelBtn" onclick="closeTableForm()" data-i18n="cancel">取消</button><button class="primary" id="tableSaveBtn" data-i18n="save">保存</button></div>
         </div>
     </div>
 
@@ -533,7 +533,7 @@
             <button class="modal-close" onclick="closeCategoryEditModal()">✕</button>
             <h2 id="categoryEditModalTitle">编辑菜品分类</h2>
             <div class="order-field"><label id="categoryEditNameLabel">分类名称</label><input id="editCategoryName" maxlength="20" placeholder="请输入分类名称"></div>
-            <div class="order-modal-actions"><button onclick="closeCategoryEditModal()" id="categoryCancelBtn">取消</button><button class="primary" onclick="saveCategoryEdit()">保存</button></div>
+            <div class="order-modal-actions"><button onclick="closeCategoryEditModal()" id="categoryCancelBtn" data-i18n="cancel">取消</button><button class="primary" onclick="saveCategoryEdit()" data-i18n="save">保存</button></div>
         </div>
     </div>
 
@@ -546,7 +546,7 @@
             <div class="order-field"><label id="currencyEditNameLabel">货币名称</label><input id="editCurrencyName" placeholder="货币名称"></div>
             <div class="order-field"><label id="currencyEditSymbolLabel">货币符号</label><input id="editCurrencySymbol" placeholder="符号"></div>
             <div class="order-field"><label id="currencyEditRateLabel">汇率（相对美元）</label><input id="editCurrencyRate" type="number" step="0.0001" placeholder="汇率"></div>
-            <div class="order-modal-actions"><button onclick="closeCurrencyEdit()" id="currencyCancelBtn">取消</button><button class="primary" onclick="saveCurrencyEdit()" id="currencySaveBtn">保存</button></div>
+            <div class="order-modal-actions"><button onclick="closeCurrencyEdit()" id="currencyCancelBtn" data-i18n="cancel">取消</button><button class="primary" onclick="saveCurrencyEdit()" id="currencySaveBtn" data-i18n="save">保存</button></div>
         </div>
     </div>
 
@@ -559,7 +559,7 @@
                     <div class="store-edit-field full"><label id="cashierUsernameLabel">收银员账号</label><input id="cashierUsername" placeholder="请输入登录账号" required></div>
                     <div class="store-edit-field full"><label id="cashierNameLabel">收银员姓名</label><input id="cashierName" placeholder="请输入姓名" required></div>
                     <div class="store-edit-field full"><label id="cashierPasswordLabel">密码（编辑时留空则不修改）</label><input id="cashierPassword" type="password" placeholder="至少6位"></div>
-                    <div class="store-edit-field full"><label id="cashierStoreLabel">所属店铺</label><select id="cashierStoreSelect" class="waiter-edit-select"></select></div>
+                    <div class="store-edit-field full"><label id="cashierStoreLabel" data-i18n="cashierStoreLabel">所属店铺</label><select id="cashierStoreSelect" class="waiter-edit-select"></select></div>
                 <div class="store-edit-field full">
                         <div class="permission-row" style="padding:0;">
                             <div class="permission-text"><span class="permission-title" id="cashierActiveLabel">启用账号</span><span class="permission-sub" id="cashierActiveSub">启用后可登录收银台</span></div>
@@ -576,7 +576,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="order-modal-actions"><button type="button" onclick="closeCashierModal()" id="cashierCancelButton">取消</button><button type="submit" class="primary" id="cashierSaveButton">保存</button></div>
+                <div class="order-modal-actions"><button type="button" onclick="closeCashierModal()" id="cashierCancelButton" data-i18n="cancel">取消</button><button type="submit" class="primary" id="cashierSaveButton" data-i18n="save">保存</button></div>
             </form>
         </div>
     </div>
@@ -600,7 +600,7 @@
                     </div>
                 </div>
             </div>
-            <div class="order-modal-actions"><button onclick="closeWaiterEdit()" id="waiterEditCancelBtn">取消</button><button class="primary" id="saveWaiterEditBtn">保存</button></div>
+            <div class="order-modal-actions"><button onclick="closeWaiterEdit()" id="waiterEditCancelBtn" data-i18n="cancel">取消</button><button class="primary" id="saveWaiterEditBtn" data-i18n="save">保存</button></div>
         </div>
     </div>
 
@@ -626,7 +626,7 @@
                     <div id="editAdminPermNotice" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(232,93,58,.1);border:1px solid rgba(232,93,58,.3);border-radius:8px;color:#ffb088;font-size:13px;">主管理员拥有全部权限，不可修改</div>
                 </div>
             </div>
-            <div class="order-modal-actions"><button id="editAdminCancelBtn" onclick="closeAdminEdit()">取消</button><button id="saveAdminEditBtn" class="primary" onclick="saveAdminEdit()">保存</button></div>
+            <div class="order-modal-actions"><button id="editAdminCancelBtn" onclick="closeAdminEdit()" data-i18n="cancel">取消</button><button id="saveAdminEditBtn" class="primary" onclick="saveAdminEdit()" data-i18n="save">保存</button></div>
         </div>
     </div>
 
@@ -640,7 +640,7 @@
                 <div class="store-edit-field full"><label id="addAdminDisplayNameLabel">显示名称</label><input id="addAdminDisplayName" placeholder=""></div>
                 <div class="store-edit-field full"><label id="addAdminPermissionsLabel" style="margin-bottom:12px;">权限设置</label><div class="admin-permissions-grid" id="addAdminPermissions"></div></div>
             </div>
-            <div class="order-modal-actions"><button id="addAdminCancelBtn" onclick="closeAddAdminModal()">取消</button><button id="addAdminSaveBtn" class="primary" onclick="submitAddAdmin()">保存</button></div>
+            <div class="order-modal-actions"><button id="addAdminCancelBtn" onclick="closeAddAdminModal()" data-i18n="cancel">取消</button><button id="addAdminSaveBtn" class="primary" onclick="submitAddAdmin()" data-i18n="save">保存</button></div>
         </div>
     </div>
 
@@ -670,7 +670,7 @@
                     </div>
                 </div>
             </div>
-            <div class="order-modal-actions"><button onclick="closeStoreEdit()" id="storeEditCancelBtn">取消</button><button class="primary" id="saveStoreEditBtn">保存</button></div>
+            <div class="order-modal-actions"><button onclick="closeStoreEdit()" id="storeEditCancelBtn" data-i18n="cancel">取消</button><button class="primary" id="saveStoreEditBtn" data-i18n="save">保存</button></div>
         </div>
     </div>
 
@@ -729,7 +729,7 @@
             </div>
 
             <div style="display:flex;gap:10px;margin-top:20px;">
-                <button type="button" onclick="closeAdvancedExport()" style="flex:1;padding:12px;background:#555;color:#fff;border:0;border-radius:10px;cursor:pointer;">取消</button>
+                <button type="button" onclick="closeAdvancedExport()" style="flex:1;padding:12px;background:#555;color:#fff;border:0;border-radius:10px;cursor:pointer;" data-i18n="cancel">取消</button>
                 <button type="button" onclick="doAdvancedExport()" style="flex:1;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;border-radius:10px;cursor:pointer;font-weight:600;"><span data-i18n="downloadCsv">📥 下载 CSV</span></button>
             </div>
         </div>
@@ -741,7 +741,7 @@
             <div class="confirm-icon">⚠️</div>
             <h2 id="confirmTitle">确认操作</h2>
             <div class="confirm-message" id="confirmMessage">确定要执行此操作吗？</div>
-            <div class="order-modal-actions confirm-actions"><button onclick="hideConfirm()" id="confirmCancelBtn">取消</button><button class="primary" onclick="executeConfirm()" id="confirmOkBtn">确定</button></div>
+            <div class="order-modal-actions confirm-actions"><button onclick="hideConfirm()" id="confirmCancelBtn" data-i18n="cancel">取消</button><button class="primary" onclick="executeConfirm()" id="confirmOkBtn">确定</button></div>
         </div>
     </div>
 
@@ -752,7 +752,7 @@
             <h2 id="passwordModalTitle">请输入密码</h2>
             <div class="confirm-message" id="passwordModalMessage">请输入管理员密码以确认操作</div>
             <input type="password" id="passwordModalInput" class="modal-input" placeholder="请输入密码" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;margin-bottom:16px;outline:none;">
-            <div class="order-modal-actions confirm-actions"><button onclick="hidePasswordModal()" id="passwordCancelBtn">取消</button><button class="primary" onclick="executePasswordModal()" id="passwordOkBtn">确认</button></div>
+            <div class="order-modal-actions confirm-actions"><button onclick="hidePasswordModal()" id="passwordCancelBtn" data-i18n="cancel">取消</button><button class="primary" onclick="executePasswordModal()" id="passwordOkBtn">确认</button></div>
         </div>
     </div>
 
@@ -760,7 +760,7 @@
         <div class="order-modal-card" style="max-width:500px;">
             <h2 id="settleDetailTitle">💰 结算订单</h2>
             <div id="settleDetailBody" style="max-height:50vh;overflow-y:auto;color:#ddd;"></div>
-            <div class="order-modal-actions"><button id="settleDetailCancelBtn" onclick="closeSettleDetail()" class="secondary">取消</button><button id="settleDetailOkBtn" onclick="doSettleOrder()" class="primary">确定结算</button></div>
+            <div class="order-modal-actions"><button id="settleDetailCancelBtn" onclick="closeSettleDetail()" class="secondary" data-i18n="cancel">取消</button><button id="settleDetailOkBtn" onclick="doSettleOrder()" class="primary">确定结算</button></div>
         </div>
     </div>
 

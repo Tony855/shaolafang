@@ -17,9 +17,9 @@
 <div class="login-modal modal-overlay" id="loginModal">
   <div class="modal" style="text-align:center;max-width:360px;">
     <div style="font-size:48px;margin-bottom:16px;">💰</div>
-    <h2 style="margin-bottom:8px;color:#ffd93d;font-size:20px;" id="loginTitle">请重新登录</h2>
-    <p style="color:#aaa;margin-bottom:20px;font-size:14px;" id="loginDesc">登录已过期，请重新登录</p>
-    <button class="btn btn-primary" style="width:100%;" id="loginBtn" onclick="goLogin()"><span data-i18n="relogin">重新登录</span></button>
+    <h2 style="margin-bottom:8px;color:#ffd93d;font-size:20px;" id="loginTitle" data-i18n="reloginTitle">请重新登录</h2>
+    <p style="color:#aaa;margin-bottom:20px;font-size:14px;" id="loginDesc" data-i18n="reloginDesc">登录已过期，请重新登录</p>
+    <button class="btn btn-primary" style="width:100%;" id="loginBtn" onclick="goLogin()" data-i18n="relogin"><span data-i18n="relogin">重新登录</span></button>
   </div>
 </div>
 
@@ -117,7 +117,7 @@
         <!-- 金额汇总 -->
         <div class="pos-detail-footer">
           <div class="pos-amount-row">
-            <span class="pos-amount-label" id="totalLabel">合计</span>
+            <span class="pos-amount-label" id="totalLabel" data-i18n="total">合计</span>
             <span class="pos-amount-value pos-amount-total" id="detailTotal">$0.00</span>
           </div>
           <div class="pos-amount-row pos-amount-receivable">

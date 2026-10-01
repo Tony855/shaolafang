@@ -179,7 +179,7 @@ window.openStoreDisplay = function(storeId) {
 window.copyStoreDisplayUrl = function(storeId) {
   const url = location.origin + '/display?store=' + storeId;
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(() => SLF.ui.toast('✅ 已复制：' + url)).catch(() => prompt('手动复制', url));
+    navigator.clipboard.writeText(url).then(() => SLF.ui.toast('✅ ' + (tAdmin('copied') || '已复制') + '：' + url)).catch(() => prompt('手动复制', url));
   } else {
     prompt('手动复制', url);
   }
