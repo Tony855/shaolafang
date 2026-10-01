@@ -88,13 +88,13 @@
                         <button id="openDishModalBtn" onclick="openDishModal()">➕ 新增菜品</button>
                         <button id="importMenuBtn" onclick="openImportModal()">📥 批量导入</button>
                         <button id="exportMenuZipBtn" onclick="exportMenuZip()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:700;">📦 导出ZIP</button>
-                        <select id="menuCategoryFilter" class="menu-filter-select" onchange="loadMenus()"><option value="all">📋 全部分类</option></select>
+                        <select id="menuCategoryFilter" class="menu-filter-select" onchange="loadMenus()"><option value="all"><span data-i18n="menuAllCategoriesOption">📋 全部分类</span></select>
                         <select id="menuSortBy" class="menu-filter-select" onchange="loadMenus()">
-                            <option value="default">🔄 默认排序</option>
-                            <option value="name_asc">🔤 名称 A-Z</option>
-                            <option value="name_desc">🔤 名称 Z-A</option>
-                            <option value="price_asc">💰 价格 低-高</option>
-                            <option value="price_desc">💰 价格 高-低</option>
+                            <option value="default"><span data-i18n="defaultSort">🔄 默认排序</span>
+                            <option value="name_asc"><span data-i18n="nameAsc">🔤 名称 A-Z</span>
+                            <option value="name_desc"><span data-i18n="nameDesc">🔤 名称 Z-A</span>
+                            <option value="price_asc"><span data-i18n="priceAsc">💰 价格 低-高</span>
+                            <option value="price_desc"><span data-i18n="priceDesc">💰 价格 高-低</span>
                         </select>
                     </div>
                     <div id="menus"></div>
@@ -207,11 +207,11 @@
                 <div class="printer-form-container">
                     <div class="printer-form-grid">
                         <div class="form-group"><label id="printerNameLabel">打印机名称</label><input id="printerName" placeholder="如：前台小票机"></div>
-                        <div class="form-group"><label id="printerTypeLabel">连接类型</label><select id="printerType"><option value="network">网络打印机</option><option value="usb">USB打印机</option><option value="bluetooth">蓝牙打印机</option></select></div>
+                        <div class="form-group"><label id="printerTypeLabel">连接类型</label><select id="printerType"><option value="network"><span data-i18n="networkPrinter">网络打印机</span><option value="usb"><span data-i18n="usbPrinter">USB打印机</span><option value="bluetooth"><span data-i18n="bluetoothPrinter">蓝牙打印机</span></select></div>
                         <div class="form-group"><label id="printerIpLabel">IP地址</label><input id="printerIp" placeholder="如：192.168.1.100"></div>
                         <div class="form-group"><label id="printerPortLabel">端口</label><input id="printerPort" type="number" value="9100" placeholder="9100"></div>
-                        <div class="form-group"><label id="printerWidthLabel">纸宽</label><select id="printerWidth"><option value="58">58mm 小票纸</option><option value="80">80mm 小票纸</option></select></div>
-                        <div class="form-group"><label id="printerBrandLabel">品牌</label><select id="printerBrand"><option value="generic">通用 ESC/POS</option><option value="epson">EPSON 爱普生</option><option value="star">Star 星亚</option><option value="bixolon">Bixolon 毕索龙</option><option value="jiabo">佳博 Gprinter</option><option value="xprinter">芯烨 Xprinter</option><option value="rongta">容大 Rongta</option><option value="hoin">弘印 Hoin</option></select></div>
+                        <div class="form-group"><label id="printerWidthLabel">纸宽</label><select id="printerWidth"><option value="58"><span data-i18n="paper58mm">58mm 小票纸</span><option value="80"><span data-i18n="paper80mm">80mm 小票纸</span></select></div>
+                        <div class="form-group"><label id="printerBrandLabel">品牌</label><select id="printerBrand"><option value="generic"><span data-i18n="genericEscPos">通用 ESC/POS</span><option value="epson"><span data-i18n="epson">EPSON 爱普生</span><option value="star"><span data-i18n="star">Star 星亚</span><option value="bixolon"><span data-i18n="bixolon">Bixolon 毕索龙</span><option value="jiabo"><span data-i18n="jiabo">佳博 Gprinter</span><option value="xprinter"><span data-i18n="xprinter">芯烨 Xprinter</span><option value="rongta"><span data-i18n="rongta">容大 Rongta</span><option value="hoin"><span data-i18n="hoin">弘印 Hoin</span></select></div>
                     </div>
                     <div class="printer-form-actions">
                         <label class="store-switch-label"><span id="printerDefaultLabel">设为默认打印机</span><label class="store-switch"><input type="checkbox" id="printerDefault"><span class="store-switch-slider"></span></label></label>
@@ -226,11 +226,11 @@
                         <input type="hidden" id="editPrinterId">
                         <div class="store-edit-grid">
                             <div class="store-edit-field"><label id="printerEditNameLabel">打印机名称</label><input id="editPrinterName" placeholder="如：前台小票机"></div>
-                            <div class="store-edit-field"><label id="printerEditTypeLabel">连接类型</label><select id="editPrinterType"><option value="network">网络打印机</option><option value="usb">USB打印机</option><option value="bluetooth">蓝牙打印机</option></select></div>
+                            <div class="store-edit-field"><label id="printerEditTypeLabel">连接类型</label><select id="editPrinterType"><option value="network"><span data-i18n="networkPrinter">网络打印机</span><option value="usb"><span data-i18n="usbPrinter">USB打印机</span><option value="bluetooth"><span data-i18n="bluetoothPrinter">蓝牙打印机</span></select></div>
                             <div class="store-edit-field"><label id="printerEditIpLabel">IP地址</label><input id="editPrinterIp" placeholder="如：192.168.1.100"></div>
                             <div class="store-edit-field"><label id="printerEditPortLabel">端口</label><input id="editPrinterPort" type="number" value="9100"></div>
-                            <div class="store-edit-field"><label id="printerEditWidthLabel">纸宽</label><select id="editPrinterWidth"><option value="58">58mm 小票纸</option><option value="80">80mm 小票纸</option></select></div>
-                            <div class="store-edit-field"><label id="printerEditBrandLabel">打印机品牌</label><select id="editPrinterBrand"><option value="generic">通用 ESC/POS</option><option value="epson">EPSON 爱普生</option><option value="bixolon">Bixolon 毕索龙</option><option value="rongta">容大 Rongta</option><option value="xprinter">芯烨 Xprinter</option></select></div>
+                            <div class="store-edit-field"><label id="printerEditWidthLabel">纸宽</label><select id="editPrinterWidth"><option value="58"><span data-i18n="paper58mm">58mm 小票纸</span><option value="80"><span data-i18n="paper80mm">80mm 小票纸</span></select></div>
+                            <div class="store-edit-field"><label id="printerEditBrandLabel">打印机品牌</label><select id="editPrinterBrand"><option value="generic"><span data-i18n="genericEscPos">通用 ESC/POS</span><option value="epson"><span data-i18n="epson">EPSON 爱普生</span><option value="bixolon"><span data-i18n="bixolon">Bixolon 毕索龙</span><option value="rongta"><span data-i18n="rongta">容大 Rongta</span><option value="xprinter"><span data-i18n="xprinter">芯烨 Xprinter</span></select></div>
                             <div class="store-edit-field full"><label class="store-switch-label"><span id="printerEditDefaultLabel">设为默认打印机</span><label class="store-switch"><input type="checkbox" id="editPrinterDefault"><span class="store-switch-slider"></span></label></label></div>
                         </div>
                         <div class="order-modal-actions">
@@ -378,10 +378,10 @@
                         <div class="form-group"><label id="prefixVipLabel">VIP消费前缀</label><input id="prefixVip" maxlength="2" style="width:80px;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;"></div>
                         <div class="form-group"><label id="orderResetPeriodLabel">订单号重置周期</label>
                             <select id="orderResetPeriod" style="width:100%;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;">
-                                <option value="daily">每天重置（从00001开始）</option>
-                                <option value="monthly">每月重置（从00001开始）</option>
-                                <option value="yearly">每年重置（从00001开始）</option>
-                                <option value="never">从不重置（全局累加）</option>
+                                <option value="daily"><span data-i18n="orderNoResetDailyFull">每天重置（从00001开始）</span>
+                                <option value="monthly"><span data-i18n="orderNoResetMonthlyFull">每月重置（从00001开始）</span>
+                                <option value="yearly"><span data-i18n="orderNoResetYearlyFull">每年重置（从00001开始）</span>
+                                <option value="never"><span data-i18n="orderNoResetNeverFull">从不重置（全局累加）</span>
                             </select>
                         </div>
                     </div>
@@ -453,7 +453,7 @@
                     </div>
                     <div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                         <button id="saveDisplayPageBtn" class="display-settings-btn">保存展示页设置</button>
-                        <button type="button" id="openDisplayPreviewBtn" onclick="openDisplayPreview()" style="background:rgba(105,192,255,.15);color:#69c0ff;border:1px solid rgba(105,192,255,.3);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;">→ 打开展示页预览</button>
+                        <button type="button" id="openDisplayPreviewBtn" style="background:rgba(105,192,255,.15);color:#69c0ff;border:1px solid rgba(105,192,255,.3);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;">→ 打开展示页预览</button>
                     </div>
                 </div>
                 <div class="settings-card" style="border-color: #ff4d4f;">
@@ -526,7 +526,7 @@
             <button class="modal-close" onclick="closeTableForm()">✕</button>
             <h2 id="tableModalTitle" data-i18n="editTable">编辑桌号</h2>
             <div class="order-field"><label id="tableNameLabel">桌号名称</label><input id="editTableName" maxlength="20"></div>
-            <div class="order-field"><label id="tableStatusLabel">状态</label><select id="editTableStatus"><option value="available">空闲</option><option value="occupied">已占</option><option value="reserved">已预订</option></select></div>
+            <div class="order-field"><label id="tableStatusLabel">状态</label><select id="editTableStatus"><option value="available"><span data-i18n="available">空闲</span><option value="occupied"><span data-i18n="occupied">已占</span><option value="reserved"><span data-i18n="reserved">已预订</span></select></div>
             <div class="order-modal-actions"><button id="tableCancelBtn" onclick="closeTableForm()">取消</button><button class="primary" id="tableSaveBtn">保存</button></div>
         </div>
     </div>
@@ -825,5 +825,18 @@
 <script src="pages/admin/order.js?v=1790828087"></script>
 <script src="pages/admin/shared.js?v=1790828087"></script>
 <script src="pages/admin.js?v=1790828087"></script>
+<script>
+/* openDisplayPreview bind */
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('openDisplayPreviewBtn');
+  if (btn) {
+    btn.addEventListener('click', function() {
+      var storeId = (window.SLF && SLF.store && (SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId'))) || '1';
+      var url = location.origin + '/display?store=' + storeId;
+      window.open(url, '_blank');
+    });
+  }
+});
+</script>
 </body>
 </html>
