@@ -659,6 +659,7 @@
   "permWaiter": "服务员管理",
   "permCurrency": "货币管理",
   "permPrinter": "打印机管理",
+  "permCashier": "收银员管理",
   "permAdmin": "管理员管理",
   "permLogs": "查看日志",
   "permGroupOps": "运营管理",

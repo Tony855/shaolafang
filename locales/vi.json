@@ -482,6 +482,7 @@
   "permWaiter": "Quản lý nhân viên",
   "permCurrency": "Quản lý tiền tệ",
   "permPrinter": "Quản lý máy in",
+  "permCashier": "Quản lý thu ngân",
   "permAdmin": "Quản lý quản trị",
   "permLogs": "Xem nhật ký",
   "permGroupOps": "Quản lý vận hành",

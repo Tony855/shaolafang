@@ -463,6 +463,7 @@
   "permWaiter": "Waiters",
   "permCurrency": "Currency",
   "permPrinter": "Printers",
+  "permCashier": "Cashier Management",
   "permAdmin": "Admins",
   "permLogs": "Logs",
   "permGroupOps": "Operations",

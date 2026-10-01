@@ -482,6 +482,7 @@
   "permWaiter": "จัดการพนักงาน",
   "permCurrency": "จัดการสกุลเงิน",
   "permPrinter": "จัดการเครื่องพิมพ์",
+  "permCashier": "จัดการพนักงานเก็บเงิน",
   "permAdmin": "จัดการผู้ดูแล",
   "permLogs": "ดูบันทึก",
   "permGroupOps": "การดำเนินงาน",
