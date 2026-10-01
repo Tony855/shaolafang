@@ -385,7 +385,17 @@
         }
 
         if (!res.ok) {
-          const error = new Error((data && data.error) || `请求失败 (${res.status})`);
+          const rawMsg = (data && data.error) || `请求失败 (${res.status})`;
+          // 用 __err__前缀 查找翻译，找不到用原文
+          let translated = rawMsg;
+          try {
+            if (i18n && typeof i18n.t === 'function') {
+              const v = i18n.t('__err__' + rawMsg);
+              if (v && v !== '__err__' + rawMsg) translated = v;
+            }
+          } catch (_) {}
+          const error = new Error(translated);
+          error.rawMessage = rawMsg;
           error.status = res.status;
           error.data = data;
           // 401 统一跳转登录页
