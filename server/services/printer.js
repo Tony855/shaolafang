@@ -224,6 +224,7 @@ async function printToNetworkPrinter(data, ip, port) {
 async function dispatchPrint(opts) {
   const { order, orders, type, store, printer, getAsync } = opts;
   let targetPrinter = printer;
+  const storeInfo = store ? { name: store.name || '', address: store.address || '', phone: store.phone || '' } : null;
 
   // 未传打印机 → 查默认打印机（优先按 role 匹配）
   if (!targetPrinter && getAsync) {
@@ -258,7 +259,8 @@ async function dispatchPrint(opts) {
       printed: false,
       printer: null,
       printData: printData.toString('base64'),
-      message: '无可用打印机，请使用前端打印'
+      message: '无可用打印机，请使用前端打印',
+      store: storeInfo
     };
   }
 
@@ -276,14 +278,15 @@ async function dispatchPrint(opts) {
   if (targetPrinter.type === 'network' && targetPrinter.ip_address) {
     try {
       await printToNetworkPrinter(printData, targetPrinter.ip_address, targetPrinter.port);
-      return { success: true, printed: true, printer: targetPrinter.name };
+      return { success: true, printed: true, printer: targetPrinter.name, store: storeInfo };
     } catch (e) {
       return {
         success: false,
         printed: false,
         error: e.message,
         printer: targetPrinter.name,
-        printData: printData.toString('base64')
+        printData: printData.toString('base64'),
+        store: storeInfo
       };
     }
   }
@@ -294,7 +297,8 @@ async function dispatchPrint(opts) {
     printed: false,
     printer: targetPrinter.name,
     printData: printData.toString('base64'),
-    message: '请使用前端打印'
+    message: '请使用前端打印',
+    store: storeInfo
   };
 }
 

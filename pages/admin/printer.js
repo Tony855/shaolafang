@@ -135,6 +135,7 @@ async function printOrder(orderId) {
       // 从缓存找订单，用于展示订单号
       const list = ctx.ordersCache ? ctx.ordersCache() : [];
       const ord = list.find(o => String(o.id) === String(orderId)) || {};
+      ord._store = data.store || null;
       SLF.ui.toast(tAdmin('openingBrowserPrint'));
       printViaBrowser(data.printData, ord);
     }
@@ -192,6 +193,11 @@ function printViaBrowser(base64Data, orderOrId) {
   }[order.pay_method] || '';
   const payHtml = payLabel ? '<div class="row"><span>' + tAdmin('cashier') + '</span><span>' + payLabel + '</span></div>' : '';
 
+  // 店铺名（优先），无则用品牌名
+  const storeName = (order._store && order._store.name) ? order._store.name : (tAdmin('brandName') || 'FoodFlow');
+  const storeAddr = (order._store && order._store.address) ? order._store.address : '';
+  const storePhone = (order._store && order._store.phone) ? order._store.phone : '';
+
   const html =
     '<html><head><meta charset="UTF-8"><title>' + orderNo + '</title>' +
     '<style>' +
@@ -208,7 +214,9 @@ function printViaBrowser(base64Data, orderOrId) {
     '.note{font-size:12px;padding:4px 0;line-height:1.4;}' +
     '.footer{text-align:center;font-size:12px;color:#555;padding-top:8px;}' +
     '</style></head><body onload="window.print();setTimeout(function(){window.close()},800);">' +
-      '<div class="center big">' + tAdmin('brandName') + '</div>' +
+      '<div class="center big">' + storeName + '</div>' +
+      (storeAddr ? '<div class="center sub">' + storeAddr + '</div>' : '') +
+      (storePhone ? '<div class="center sub">' + storePhone + '</div>' : '') +
       '<div class="center sub">' + (tAdmin('table') || 'Table') + ': ' + tableNo + '</div>' +
       '<div class="center sub">' + (tAdmin('order') || 'Order') + ': ' + orderNo + '</div>' +
       (timeStr ? '<div class="center sub">' + timeStr + '</div>' : '') +
