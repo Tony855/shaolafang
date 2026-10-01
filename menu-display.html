@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="data:,">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>菜单 · FoodFlow</title>
+<link rel="stylesheet" href="assets/common.css?v=1">
+<link rel="stylesheet" href="assets/menu-display.css?v=1">
+</head>
+<body>
+<header class="disp-header">
+  <div class="disp-brand">
+    <span class="disp-brand-icon">🍽️</span>
+    <span class="disp-brand-name" id="dispStoreName">FoodFlow</span>
+  </div>
+  <div class="disp-header-right">
+    <span class="disp-clock" id="dispClock">--:--</span>
+    <select class="disp-lang" id="dispLang" onchange="changeDispLang(this.value)">
+      <option value="zh">中文</option>
+      <option value="en">EN</option>
+      <option value="vi">VI</option>
+      <option value="th">TH</option>
+      <option value="km">KM</option>
+    </select>
+    <button class="disp-btn" id="dispFullBtn" onclick="toggleDispFullscreen()" title="全屏">⛶</button>
+  </div>
+</header>
+<nav class="disp-cats" id="dispCats"></nav>
+<main class="disp-main">
+  <div class="disp-grid" id="dispGrid"></div>
+  <div class="disp-empty" id="dispEmpty" style="display:none;">
+    <div style="font-size:64px;opacity:.3;">🍽️</div>
+    <p id="dispEmptyText">暂无菜品</p>
+  </div>
+</main>
+<footer class="disp-footer">
+  <span id="dispCount">0</span> <span id="dispCountText">道菜品</span>
+  <span style="margin-left:auto;" id="dispPowered">Powered by FoodFlow</span>
+</footer>
+<script src="languages.min.js?v=1"></script>
+<script src="assets/core.js?v=1"></script>
+<script src="assets/modules/ui.js?v=1"></script>
+<script src="assets/modules/money.js?v=1"></script>
+<script src="assets/modules/role.js?v=1"></script>
+<script src="pages/menu-display.js?v=1"></script>
+</body>
+</html>

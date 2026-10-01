@@ -50,6 +50,7 @@ module.exports = function registerPageRoutes(app, ctx) {
   app.get('/admin', (req, res) => sendHtml(res, 'admin.html'));
   app.get('/super', (req, res) => sendHtml(res, 'super.html'));
   app.get('/cashier', (req, res) => sendHtml(res, 'cashier.html'));
+  app.get('/display', (req, res) => sendHtml(res, 'menu-display.html'));
 
   app.get('/login.html', (req, res) => res.redirect('/login'));
   app.get('/admin.html', (req, res) => res.redirect('/admin'));
