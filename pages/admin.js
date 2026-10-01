@@ -571,6 +571,7 @@ function applyAdminLanguage() {
             $('#cashiersPanelTitle').textContent = '💰 ' + tAdmin('cashierManage');
             $('#addCashierBtnText').textContent = tAdmin('addCashier');
             // 收银员编辑弹窗
+            const _cst = $('#cashierStoreLabel'); if (_cst) _cst.textContent = tAdmin('cashierStoreLabel');
             const _cu = $('#cashierUsernameLabel'); if (_cu) _cu.textContent = tAdmin('cashierUsername');
             const _cn = $('#cashierNameLabel'); if (_cn) _cn.textContent = tAdmin('cashierDisplayName');
             const _ca = $('#cashierActiveLabel'); if (_ca) _ca.textContent = tAdmin('accountActive');

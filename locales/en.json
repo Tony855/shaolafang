@@ -111,6 +111,7 @@
   "cancelOrder": "Cancel Order",
   "refund": "Refund",
   "viewReport": "View Report",
+  "cashierStoreLabel": "Store",
   "cashierUsername": "Cashier Username",
   "cashierDisplayName": "Cashier Name",
   "accountActive": "Account Active",

@@ -111,6 +111,7 @@
   "cancelOrder": "ยกเลิกออเดอร์",
   "refund": "คืนเงิน",
   "viewReport": "ดูรายงาน",
+  "cashierStoreLabel": "ร้านค้า",
   "cashierUsername": "ชื่อผู้ใช้เจ้าหน้าที่เงินสด",
   "cashierDisplayName": "ชื่อแคชเชียร์",
   "accountActive": "เปิดใช้งานบัญชี",

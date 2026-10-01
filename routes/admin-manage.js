@@ -154,7 +154,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  // ----- 收银员管理 -----
+  // ----- 收银员管理（按商户聚合，跨店铺）-----
   async function getCashiers(storeId) {
     const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", ['cashiers_' + storeId]);
     if (!row || !row.value) return [];
@@ -169,21 +169,63 @@ module.exports = function(app, deps) {
     }
   }
 
+  // 聚合查询本商户下所有店铺的收银员
+  async function getAllCashiersByMerchant(merchantId) {
+    const stores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id', [merchantId]);
+    const result = [];
+    for (const s of stores) {
+      const list = await getCashiers(s.id);
+      for (const c of list) {
+        result.push({
+          id: c.id,
+          username: c.username,
+          display_name: c.display_name,
+          active: c.active,
+          permissions: c.permissions,
+          created_at: c.created_at,
+          store_id: s.id,
+          store_name: s.name
+        });
+      }
+    }
+    return result;
+  }
+
+  // 根据 cashier.id 找到所在店铺
+  async function findCashierStore(merchantId, cashierId) {
+    const stores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id', [merchantId]);
+    for (const s of stores) {
+      const list = await getCashiers(s.id);
+      const idx = list.findIndex(c => c.id === cashierId);
+      if (idx !== -1) return { store: s, list, idx };
+    }
+    return null;
+  }
+
   app.get('/api/admin/cashiers', requireAdminKey, async (req, res) => {
     try {
-      const cashiers = await getCashiers(req.storeId);
-      const safe = cashiers.map(c => ({ id: c.id, username: c.username, display_name: c.display_name, active: c.active, permissions: c.permissions, created_at: c.created_at }));
-      res.json({ cashiers: safe });
+      const list = await getAllCashiersByMerchant(req.merchantId);
+      res.json({ cashiers: list });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   app.post('/api/admin/cashiers', requireAdminKey, async (req, res) => {
     try {
-      const { username, password, display_name, permissions, active } = req.body || {};
+      const { username, password, display_name, permissions, active, store_id } = req.body || {};
       if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写收银员资料' });
       if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
-      const cashiers = await getCashiers(req.storeId);
-      if (cashiers.find(c => c.username === String(username).trim())) return res.status(400).json({ error: '用户名已存在' });
+
+      const targetStoreId = parseInt(store_id, 10) || req.storeId || 1;
+
+      const store = await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
+      if (!store) return res.status(400).json({ error: '目标店铺不存在或不属于当前商户' });
+
+      const all = await getAllCashiersByMerchant(req.merchantId);
+      if (all.find(c => c.username === String(username).trim())) {
+        return res.status(400).json({ error: '该商户下已存在同名收银员账号' });
+      }
+
+      const cashiers = await getCashiers(targetStoreId);
       const newCashier = {
         id: Date.now(),
         username: String(username).trim(),
@@ -199,47 +241,75 @@ module.exports = function(app, deps) {
         created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
       };
       cashiers.push(newCashier);
-      await saveCashiers(req.storeId, cashiers);
-      await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_cashier', 'cashier', newCashier.id, '创建收银员: ' + username, getClientIp(req));
-      res.status(201).json({ success: true, cashier: { id: newCashier.id, username: newCashier.username, display_name: newCashier.display_name, active: newCashier.active, permissions: newCashier.permissions, created_at: newCashier.created_at } });
+      await saveCashiers(targetStoreId, cashiers);
+      await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_cashier', 'cashier', newCashier.id, `创建收银员: ${username} (店铺 #${targetStoreId})`, getClientIp(req));
+      res.status(201).json({ success: true, cashier: { id: newCashier.id, username: newCashier.username, display_name: newCashier.display_name, active: newCashier.active, permissions: newCashier.permissions, created_at: newCashier.created_at, store_id: targetStoreId, store_name: store.name } });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   app.put('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
-      const { display_name, password, permissions, active } = req.body || {};
-      const cashiers = await getCashiers(req.storeId);
-      const idx = cashiers.findIndex(c => c.id === id);
-      if (idx === -1) return res.status(404).json({ error: '收银员不存在' });
-      if (display_name !== undefined) cashiers[idx].display_name = display_name;
-      if (active !== undefined) cashiers[idx].active = active !== false;
+      const { display_name, password, permissions, active, store_id } = req.body || {};
+
+      const found = await findCashierStore(req.merchantId, id);
+      if (!found) return res.status(404).json({ error: '收银员不存在' });
+      const { store: oldStore, list: oldList, idx } = found;
+      const cashier = oldList[idx];
+
+      const targetStoreId = parseInt(store_id, 10) || oldStore.id;
+      const storeChanged = targetStoreId !== oldStore.id;
+
+      let newStore = oldStore;
+      if (storeChanged) {
+        const s = await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
+        if (!s) return res.status(400).json({ error: '目标店铺不存在或不属于当前商户' });
+        newStore = s;
+        const all = await getAllCashiersByMerchant(req.merchantId);
+        if (all.find(c => c.id !== id && c.username === cashier.username)) {
+          return res.status(400).json({ error: '目标店铺已存在同名收银员' });
+        }
+      }
+
+      if (display_name !== undefined) cashier.display_name = display_name;
+      if (active !== undefined) cashier.active = active !== false;
       if (password) {
         if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
-        cashiers[idx].password_hash = hashPassword(password);
+        cashier.password_hash = hashPassword(password);
       }
       if (permissions && typeof permissions === 'object') {
-        if (permissions.can_settle !== undefined) cashiers[idx].permissions.can_settle = permissions.can_settle !== false;
-        if (permissions.can_cancel !== undefined) cashiers[idx].permissions.can_cancel = permissions.can_cancel !== false;
-        if (permissions.can_refund !== undefined) cashiers[idx].permissions.can_refund = permissions.can_refund === true;
-        if (permissions.can_view_report !== undefined) cashiers[idx].permissions.can_view_report = permissions.can_view_report !== false;
+        if (permissions.can_settle !== undefined) cashier.permissions.can_settle = permissions.can_settle !== false;
+        if (permissions.can_cancel !== undefined) cashier.permissions.can_cancel = permissions.can_cancel !== false;
+        if (permissions.can_refund !== undefined) cashier.permissions.can_refund = permissions.can_refund === true;
+        if (permissions.can_view_report !== undefined) cashier.permissions.can_view_report = permissions.can_view_report !== false;
       }
-      await saveCashiers(req.storeId, cashiers);
-      await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_cashier', 'cashier', id, '更新收银员: ' + cashiers[idx].username, getClientIp(req));
-      res.json({ success: true, cashier: { id: cashiers[idx].id, username: cashiers[idx].username, display_name: cashiers[idx].display_name, active: cashiers[idx].active, permissions: cashiers[idx].permissions, created_at: cashiers[idx].created_at } });
+
+      if (storeChanged) {
+        oldList.splice(idx, 1);
+        await saveCashiers(oldStore.id, oldList);
+        const targetList = await getCashiers(newStore.id);
+        targetList.push(cashier);
+        await saveCashiers(newStore.id, targetList);
+      } else {
+        oldList[idx] = cashier;
+        await saveCashiers(oldStore.id, oldList);
+      }
+
+      await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_cashier', 'cashier', id, `更新收银员: ${cashier.username}${storeChanged ? ' (店铺 #' + oldStore.id + ' -> #' + newStore.id + ')' : ''}`, getClientIp(req));
+      res.json({ success: true, cashier: { id: cashier.id, username: cashier.username, display_name: cashier.display_name, active: cashier.active, permissions: cashier.permissions, created_at: cashier.created_at, store_id: newStore.id, store_name: newStore.name } });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   app.delete('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
-      const cashiers = await getCashiers(req.storeId);
-      const idx = cashiers.findIndex(c => c.id === id);
-      if (idx === -1) return res.status(404).json({ error: '收银员不存在' });
-      const username = cashiers[idx].username;
-      cashiers.splice(idx, 1);
-      await saveCashiers(req.storeId, cashiers);
-      await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_cashier', 'cashier', id, '删除收银员: ' + username, getClientIp(req));
+      const found = await findCashierStore(req.merchantId, id);
+      if (!found) return res.status(404).json({ error: '收银员不存在' });
+      const { store, list, idx } = found;
+      const username = list[idx].username;
+      list.splice(idx, 1);
+      await saveCashiers(store.id, list);
+      await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_cashier', 'cashier', id, `删除收银员: ${username} (店铺 #${store.id})`, getClientIp(req));
       res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

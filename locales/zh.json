@@ -111,6 +111,7 @@
   "cancelOrder": "取消订单",
   "refund": "退款",
   "viewReport": "查看报表",
+  "cashierStoreLabel": "所属店铺",
   "cashierUsername": "收银员账号",
   "cashierDisplayName": "收银员姓名",
   "accountActive": "启用账号",

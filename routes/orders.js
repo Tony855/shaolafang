@@ -25,7 +25,14 @@ app.get('/api/waiter/overview', async (req, res) => {
 // ----- 服务员管理 -----
 app.get('/api/admin/waiters', requireAdminKey, async (req, res) => {
   try {
-    const rows = await allAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE store_id=? ORDER BY id', [req.storeId]);
+    const rows = await allAsync(
+      `SELECT w.id, w.username, w.display_name, w.can_order, w.can_mark_item, w.can_complete_order, w.active, w.store_id, s.name AS store_name
+       FROM waiters w
+       LEFT JOIN stores s ON s.id = w.store_id
+       WHERE w.merchant_id = ?
+       ORDER BY w.store_id, w.id`,
+      [req.merchantId]
+    );
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -51,24 +58,35 @@ app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_wa
 app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage_waiter'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT * FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]);
+    const current = await getAsync(
+      'SELECT w.* FROM waiters w JOIN stores s ON s.id = w.store_id WHERE w.id=? AND s.merchant_id=?',
+      [id, req.merchantId]
+    );
     if (!current) return res.status(404).json({ error: '服务员不存在' });
+
+    const targetStoreId = parseInt(req.body.store_id, 10) || current.store_id;
+    const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
+    if (!store) return res.status(400).json({ error: '目标店铺不存在或不属于当前商户' });
+
     const next = { ...current, ...req.body };
     await runAsync(
-      'UPDATE waiters SET username=?, display_name=?, can_order=?, can_mark_item=?, can_complete_order=?, active=? WHERE id=? AND store_id=?',
-      [String(next.username||current.username).trim(), next.display_name||current.display_name, next.can_order?1:0, next.can_mark_item?1:0, next.can_complete_order?1:0, next.active?1:0, id, req.storeId]
+      'UPDATE waiters SET username=?, display_name=?, can_order=?, can_mark_item=?, can_complete_order=?, active=?, store_id=? WHERE id=?',
+      [String(next.username||current.username).trim(), next.display_name||current.display_name, next.can_order?1:0, next.can_mark_item?1:0, next.can_complete_order?1:0, next.active?1:0, targetStoreId, id]
     );
-    if (req.body.password) await runAsync('UPDATE waiters SET password_hash=? WHERE id=? AND store_id=?', [hashPassword(req.body.password), id, req.storeId]);
-    res.json(await getAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]));
+    if (req.body.password) await runAsync('UPDATE waiters SET password_hash=? WHERE id=?', [hashPassword(req.body.password), id]);
+    res.json(await getAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE id=?', [id]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage_waiter'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT id FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]);
+    const current = await getAsync(
+      'SELECT w.* FROM waiters w JOIN stores s ON s.id = w.store_id WHERE w.id=? AND s.merchant_id=?',
+      [id, req.merchantId]
+    );
     if (!current) return res.status(404).json({ error: '服务员不存在' });
-    await runAsync('DELETE FROM waiters WHERE id=? AND store_id=?', [id, req.storeId]);
+    await runAsync('DELETE FROM waiters WHERE id=?', [id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
