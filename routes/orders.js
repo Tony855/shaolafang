@@ -1,3 +1,4 @@
+const AdmZip = require('adm-zip');
 /* ============================================================
    routes/orders.js — 订单核心路由
    ============================================================ */
@@ -244,6 +245,203 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
 });
 
 // 批量导入菜品
+async function downloadImageToUploads(url) {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const ct = (res.headers.get('content-type') || '').split(';')[0].trim();
+    if (!/^image\//.test(ct)) throw new Error('非图片: ' + ct);
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 5 * 1024 * 1024) throw new Error('图片超过5MB');
+    const extMap = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
+    const ext = extMap[ct] || '.jpg';
+    const filename = 'batch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + ext;
+    const fullPath = path.join(UPLOAD_DIR, filename);
+    await fs.promises.writeFile(fullPath, buf);
+    return filename;
+  } catch (e) {
+    console.warn('[batch] 下载图片失败:', url, e.message);
+    return null;
+  }
+}
+
+// ============================================================
+//  菜单打包导出 / 导入（zip = menu.json + images/*）
+// ============================================================
+app.get('/api/admin/menu/export-zip', requireAdminKey, async (req, res) => {
+  try {
+    const storeId = req.storeId || 1;
+    const menus = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [storeId]);
+    const categories = await allAsync('SELECT name, sort FROM menu_categories WHERE store_id=? ORDER BY sort, id', [storeId]);
+
+    const zip = new AdmZip();
+
+    // menu.json：完整菜品 + 分类 + 元数据
+    const payload = {
+      format: 'foodflow-menu',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      storeId,
+      categories: categories.map(c => c.name),
+      menus: menus.map(m => ({
+        name: m.name,
+        name_en: m.name_en || '',
+        emoji: m.emoji || '',
+        price: Number(m.price),
+        category: m.category || '',
+        desc: m.desc || '',
+        desc_en: m.desc_en || '',
+        unit: m.unit || '份',
+        currency_code: m.currency_code || 'USD',
+        show_dual: m.show_dual || 0,
+        secondary_currency_code: m.secondary_currency_code || '',
+        active: m.active,
+        image: m.image || '',
+      })),
+    };
+    zip.addFile('menu.json', Buffer.from(JSON.stringify(payload, null, 2), 'utf8'));
+
+    // images/：只打包实际用到的图片
+    const usedImages = menus.map(m => m.image).filter(Boolean);
+    for (const img of usedImages) {
+      const fp = path.join(UPLOAD_DIR, img);
+      if (fs.existsSync(fp)) {
+        zip.addLocalFile(fp, 'images');
+      }
+    }
+
+    const buf = zip.toBuffer();
+    const filename = `menu-store${storeId}-${new Date().toISOString().slice(0, 10)}.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buf.length);
+    res.send(buf);
+  } catch (e) {
+    console.error('export-zip failed:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/menu/import-zip', requireAdminKey, requirePermission('can_manage_menu'), upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: '请上传 ZIP 文件' });
+    const zipPath = req.file.path;
+    let zip;
+    try {
+      zip = new AdmZip(zipPath);
+    } catch (e) {
+      fs.unlinkSync(zipPath);
+      return res.status(400).json({ error: 'ZIP 解压失败：' + e.message });
+    }
+
+    // 1) 读 menu.json
+    const jsonEntry = zip.getEntry('menu.json');
+    if (!jsonEntry) {
+      fs.unlinkSync(zipPath);
+      return res.status(400).json({ error: 'ZIP 内缺少 menu.json' });
+    }
+    let payload;
+    try {
+      payload = JSON.parse(jsonEntry.getData().toString('utf8'));
+    } catch (e) {
+      fs.unlinkSync(zipPath);
+      return res.status(400).json({ error: 'menu.json 解析失败：' + e.message });
+    }
+    const items = Array.isArray(payload.menus) ? payload.menus : (Array.isArray(payload.items) ? payload.items : []);
+    if (!items.length) {
+      fs.unlinkSync(zipPath);
+      return res.status(400).json({ error: 'ZIP 内没有菜品数据' });
+    }
+
+    // 2) 解出 images/ 到 uploads/（防 zip-slip）
+    const imageMap = {};  // 原始文件名 → 新文件名
+    const uploadsAbs = path.resolve(UPLOAD_DIR);
+    zip.getEntries().forEach(entry => {
+      const entryName = entry.entryName;
+      if (!entryName.startsWith('images/') || entry.isDirectory) return;
+      const base = path.basename(entryName);
+      if (!/\.(jpg|jpeg|png|gif|webp)$/i.test(base)) return;
+      const newName = 'zip_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + path.extname(base).toLowerCase();
+      const dest = path.join(uploadsAbs, newName);
+      // 二次校验：dest 必须在 uploads 下
+      if (!path.resolve(dest).startsWith(uploadsAbs)) return;
+      try {
+        fs.writeFileSync(dest, entry.getData());
+        imageMap[base] = newName;
+      } catch (e) {
+        console.warn('[import-zip] 写图片失败:', base, e.message);
+      }
+    });
+
+    // 3) 自动补分类
+    const csvCategories = [...new Set(items.map(it => String(it.category || '').trim()).filter(Boolean))];
+    const createdCategories = [];
+    for (const cat of csvCategories) {
+      const exists = await getAsync('SELECT id FROM menu_categories WHERE name=? AND store_id=?', [cat, req.storeId || 1]);
+      if (!exists) {
+        const maxSort = await getAsync('SELECT MAX(sort) as max FROM menu_categories WHERE store_id=?', [req.storeId || 1]);
+        const nextSort = (maxSort && maxSort.max !== null) ? maxSort.max + 1 : 0;
+        try {
+          await runAsync('INSERT INTO menu_categories (name, sort, store_id, merchant_id) VALUES (?, ?, ?, ?)', [cat, nextSort, req.storeId || 1, req.merchantId]);
+          createdCategories.push(cat);
+        } catch (e) { /* 忽略并发重复 */ }
+      }
+    }
+
+    // 4) 逐条 upsert
+    let success = 0, failed = 0;
+    const errors = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      try {
+        if (!item.name || item.price === undefined || item.price === null) {
+          failed++;
+          errors.push(`第 ${i + 1} 行：name/price 必填`);
+          continue;
+        }
+        // 图片：menu.json 里存的是原文件名，替换为解出的新文件名
+        let imageName = '';
+        const rawImg = String(item.image || '').trim();
+        if (rawImg) {
+          const base = path.basename(rawImg);
+          imageName = imageMap[base] || (fs.existsSync(path.join(UPLOAD_DIR, base)) ? base : '');
+        }
+        const existing = await getAsync('SELECT id FROM menus WHERE name=? AND store_id=?', [item.name, req.storeId || 1]);
+        if (existing) {
+          if (imageName) {
+            await runAsync('UPDATE menus SET emoji=?, price=?, category=?, `desc`=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=?, image=?, active=? WHERE id=? AND store_id=?',
+              [item.emoji || '🍽️', parseFloat(item.price), item.category || '其他', item.desc || '', item.currency_code || 'USD', item.name_en || '', item.desc_en || '', item:
+.unit || '份', item.show_dual ? 1        : 0, item.secondary_currency_code s || '', imageName, item.active === 0 = ? 0 : 1, s existing.id, req.storeId || 1]);
+          }.replace else {
+            await runAsync('UPDATE menus SET emoji=?, price=?, category=?, `desc`=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=?, active=? WHERE id=? AND store_id=?',
+              [item.emoji || '🍽️', parseFloat(item.price), item.category || '其他', item.desc || '', item.currency_code || 'USD', item.name_en || '', item.desc_en || '', item.unit || '份', item.show_dual ? 1 : 0, item.secondary_currency_code || '', item.active === 0 ? 0 : 1, existing.id, req.storeId || 1]);
+          }
+        } else {
+          await runAsync('INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, active, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [item.name, item.emoji || '🍽️', parseFloat(item.price), item.category || '其他', item.desc || '', imageName, item.currency_code || 'USD', item.name_en || '', item.desc_en || '', item.unit || '份', item.show_dual ? 1 : 0, item.secondary_currency_code || '', item.active === 0 ? 0 : 1, req.storeId || 1, req.merchantId]);
+        }
+        success++;
+      } catch (e) {
+        failed++;
+        errors.push(`第 ${i + 1} 行：${e.message}`);
+      }
+    }
+
+    // 5) 清理上传的 zip
+    try { fs.unlinkSync(zipPath); } catch (e) {}
+
+    res.json({
+      success, failed, errors,
+      createdCategories,
+      imagesImported: Object.keys(imageMap).length,
+      totalImages: Object.keys(imageMap).length,
+    });
+  } catch (e) {
+    console.error('import-zip failed:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const items = req.body.items;
@@ -278,24 +476,66 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
         }
         const existing = await getAsync('SELECT id FROM menus WHERE name = ? AND store_id = ?', [item.name, req.storeId || 1]);
         if (existing) {
-          await runAsync(
-            'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ? WHERE id = ? AND store_id = ?',
-            [
-              item.emoji || '🍽️',
-              parseFloat(item.price),
-              item.category || '其他',
-              item.desc || '',
-              item.currency_code || 'USD',
-              item.name_en || '',
-              item.desc_en || '',
-              item.unit || '份',
-              item.show_dual ? 1 : 0,
-              item.secondary_currency_code || '',
-              existing.id,
-              req.storeId || 1
-            ]
-          );
+          let updImage = null;
+          const updImgRaw = String(item.image || '').trim();
+          if (updImgRaw) {
+            if (/^https?:\/\//i.test(updImgRaw)) {
+              updImage = await downloadImageToUploads(updImgRaw);
+            } else {
+              const lp = path.join(UPLOAD_DIR, updImgRaw);
+              if (fs.existsSync(lp)) updImage = updImgRaw;
+            }
+          }
+          if (updImage) {
+            await runAsync(
+              'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ?, image = ? WHERE id = ? AND store_id = ?',
+              [
+                item.emoji || '🍽️',
+                parseFloat(item.price),
+                item.category || '其他',
+                item.desc || '',
+                item.currency_code || 'USD',
+                item.name_en || '',
+                item.desc_en || '',
+                item.unit || '份',
+                item.show_dual ? 1 : 0,
+                item.secondary_currency_code || '',
+                updImage,
+                existing.id,
+                req.storeId || 1
+              ]
+            );
+          } else {
+            await runAsync(
+              'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ? WHERE id = ? AND store_id = ?',
+              [
+                item.emoji || '🍽️',
+                parseFloat(item.price),
+                item.category || '其他',
+                item.desc || '',
+                item.currency_code || 'USD',
+                item.name_en || '',
+                item.desc_en || '',
+                item.unit || '份',
+                item.show_dual ? 1 : 0,
+                item.secondary_currency_code || '',
+                existing.id,
+                req.storeId || 1
+              ]
+            );
+          }
         } else {
+          // 处理图片：http(s) URL → 下载到 uploads/；否则按已有文件名处理
+          let imageName = '';
+          const rawImg = String(item.image || '').trim();
+          if (rawImg) {
+            if (/^https?:\/\//i.test(rawImg)) {
+              imageName = await downloadImageToUploads(rawImg) || '';
+            } else {
+              const localPath = path.join(UPLOAD_DIR, rawImg);
+              if (fs.existsSync(localPath)) imageName = rawImg;
+            }
+          }
           await runAsync(
             'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
@@ -304,7 +544,7 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
               parseFloat(item.price),
               item.category || '其他',
               item.desc || '',
-              '',
+              imageName,
               item.currency_code || 'USD',
               item.name_en || '',
               item.desc_en || '',

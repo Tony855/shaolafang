@@ -293,7 +293,7 @@ function openImportModal() {
   
   var lang = (window.SLF.i18n && SLF.i18n.lang) || 'zh';
   var texts = {
-    zh: { title: '📥 批量导入菜品', desc: '选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en', downloadTpl: '📥 下载模板', cancel: '取消', startImport: '开始导入', importing: '导入中...' },
+    zh: { title: '📥 批量导入菜品', desc: '选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en,image（image 填图片URL）', downloadTpl: '📥 下载模板', cancel: '取消', startImport: '开始导入', importing: '导入中...' },
     en: { title: '📥 Batch Import Menu', desc: 'Select CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en', downloadTpl: '📥 Download Template', cancel: 'Cancel', startImport: 'Start Import', importing: 'Importing...' },
     km: { title: '📥 នាំចូលម៉ឺនុយជាដុំ', desc: 'ជ្រើសឯកសារ CSV ដើម្បីនាំចូល', downloadTpl: '📥 ទាញយកគំរូ', cancel: 'បោះបង់', startImport: 'ចាប់ផ្តើមនាំចូល', importing: 'កំពុងនាំចូល...' },
     th: { title: '📥 นำเข้าเมนูจำนวนมาก', desc: 'เลือกไฟล์ CSV เพื่อนำเข้า', downloadTpl: '📥 ดาวน์โหลดเทมเพลต', cancel: 'ยกเลิก', startImport: 'เริ่มนำเข้า', importing: 'กำลังนำเข้า...' },
