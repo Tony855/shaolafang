@@ -183,6 +183,9 @@
                 badge = storeNameDisplay.querySelector('.badge-text');
             }
             badge.textContent = '🏪 ' + name;
+            // 顶部品牌标题也改成店铺名
+            const appNameEl = document.getElementById('appName');
+            if (appNameEl) appNameEl.textContent = name;
         }
 
         async function fetchMenu() {
@@ -1060,7 +1063,7 @@
                 const el = document.getElementById(id);
                 if (el) el.textContent = txt;
             };
-            setText('appName', t('appName', null, '味享'));
+            setText('appName', (state.currentStore && state.currentStore.name) || t('appName', null, '味享'));
             setText('cartLabel', t('cart', null, '购物车'));
             setText('checkoutLabel', t('checkout', null, '去结算'));
             setText('totalLabel', t('total', null, '合计'));
