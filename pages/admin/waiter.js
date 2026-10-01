@@ -16,25 +16,31 @@ async function loadWaiters() {
     const storeMap = {};
     stores.forEach(s => storeMap[s.id] = s.name);
     $('#waiterList').innerHTML = rows.length ?
-      rows.map(w => `<div class="admin-card">
-      <div class="info">
-        <div class="title">${esc(w.display_name)} · ${esc(w.username)}</div>
-        <div class="sub">${w.active?tAdmin('enabled'):tAdmin('disabled')} · ${tAdmin('storeLabel') || '店铺'}：${w.store_name || storeMap[w.store_id] || tAdmin('mainStore')}</div>
-        <div class="perms">
-          <label><input type="checkbox" ${w.can_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_order',this.checked)"> ${tAdmin('placeOrder')}</label>
-          <label><input type="checkbox" ${w.can_mark_item?'checked':''} onchange="updateWaiterPerm(${w.id},'can_mark_item',this.checked)"> ${tAdmin('serveDish')}</label>
-          <label><input type="checkbox" ${w.can_complete_order?'checked':''} onchange="updateWaiterPerm(${w.id},'can_complete_order',this.checked)"> ${tAdmin('completeOrder')}</label>
-        </div>
-      </div>
-      <div class="actions">
-        <button class="edit-btn" onclick="openWaiterEdit(${w.id})">✏️ ${ctx.L('edit')}</button>
-        ${hasPermission('can_manage_waiter') ? '<button class="danger" onclick="deleteWaiter(' + w.id + ')">' + ctx.L('delete') + '</button>' : ''}
-      </div>
-    </div>`).join('') :
-      `<div class="empty-hint">${tAdmin('noData')}</div>`;
+      rows.map(w => {
+        const perms = [];
+        if (w.can_order) perms.push(tAdmin('placeOrder'));
+        if (w.can_mark_item) perms.push(tAdmin('serveDish'));
+        if (w.can_complete_order) perms.push(tAdmin('completeOrder'));
+        const storeName = w.store_name || storeMap[w.store_id] || tAdmin('mainStore');
+        const storeTag = '<span style="display:inline-block;background:rgba(52,152,219,.15);color:#5dade2;padding:1px 8px;border-radius:8px;font-size:11px;margin-left:6px;">🏪 ' + esc(storeName) + '</span>';
+        return '<div class="admin-card">' +
+        '<div class="info">' +
+          '<div class="title">' + esc(w.display_name) + ' · ' + esc(w.username) + storeTag + '</div>' +
+          '<div class="sub">' +
+            (w.active ? '<span style="color:#43e97b">' + tAdmin('enabled') + '</span>' : '<span style="color:#f5576c">' + tAdmin('disabled') + '</span>') +
+            ' · ' + (perms.join(' / ') || tAdmin('noPermission')) +
+          '</div>' +
+        '</div>' +
+        '<div class="actions">' +
+          '<button class="edit-btn" onclick="openWaiterEdit(' + w.id + ')">✏️ ' + ctx.L('edit') + '</button>' +
+          (hasPermission('can_manage_waiter') ? '<button class="danger" onclick="deleteWaiter(' + w.id + ')">' + ctx.L('delete') + '</button>' : '') +
+        '</div>' +
+      '</div>';
+      }).join('') :
+      '<div class="empty-hint">' + tAdmin('noData') + '</div>';
   } catch (e) {
     console.error(tAdmin('loadWaiterFailed') + ':', e);
-    $('#waiterList').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
+    $('#waiterList').innerHTML = '<div class="empty-hint">' + tAdmin('noData') + '</div>';
   }
 }
 

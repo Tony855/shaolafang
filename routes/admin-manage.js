@@ -224,6 +224,8 @@ module.exports = function(app, deps) {
       if (all.find(c => c.username === String(username).trim())) {
         return res.status(400).json({ error: '该商户下已存在同名收银员账号' });
       }
+      const dupWaiter = await getAsync('SELECT id FROM waiters WHERE username=? LIMIT 1', [String(username).trim()]);
+      if (dupWaiter) return res.status(409).json({ error: '该用户名已被服务员账号使用，请换一个' });
 
       const cashiers = await getCashiers(targetStoreId);
       const newCashier = {

@@ -23,6 +23,18 @@ app.get('/api/waiter/overview', async (req, res) => {
 });
 
 // ----- 服务员管理 -----
+
+async function cashierUsernameExists(username) {
+  const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` LIKE 'cashiers_%'");
+  for (const row of rows) {
+    try {
+      const list = JSON.parse(row.value);
+      if (list.find(c => c.username === username)) return true;
+    } catch (e) {}
+  }
+  return false;
+}
+
 app.get('/api/admin/waiters', requireAdminKey, async (req, res) => {
   try {
     const rows = await allAsync(
@@ -44,6 +56,7 @@ app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_wa
     const targetStoreId = store_id || req.storeId || 1;
     const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
     if (!store) return res.status(400).json({ error: '店铺不存在' });
+    if (await cashierUsernameExists(String(username).trim())) return res.status(409).json({ error: '该用户名已被收银员账号使用，请换一个' });
     const result = await runAsync(
       'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [String(username).trim(), hashPassword(password), display_name, can_order ? 1 : 0, can_mark_item ? 1 : 0, can_complete_order ? 1 : 0, targetStoreId, req.merchantId]
