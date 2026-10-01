@@ -330,6 +330,15 @@ function parseCSV(text) {
 document.getElementById('importFile').addEventListener('change', function(e) {
   var file = e.target.files[0];
   if (!file) return;
+  if (/\.zip$/i.test(file.name)) {
+    var preview = document.getElementById('importPreview');
+    preview.innerHTML = '<div style="color:#4a9eff;">ZIP: ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)<br>点击"开始导入"解压并同步图片</div>';
+    document.getElementById('confirmImportBtn').disabled = false;
+    window._importZipFile = file;
+    importItems = [];
+    return;
+  }
+  window._importZipFile = null;
   var reader = new FileReader();
   reader.onload = function(ev) {
     try {
@@ -354,6 +363,31 @@ document.getElementById('importFile').addEventListener('change', function(e) {
 });
 
 async function confirmImport() {
+  if (window._importZipFile) {
+    const f = window._importZipFile;
+    const btn = document.getElementById('confirmImportBtn');
+    btn.disabled = true;
+    btn.textContent = '解压导入中...';
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const data = await SLF.api.upload('/admin/menu/import-zip', fd);
+      let html = '<div style="background:#e8f5e9;color:#2e7d32;padding:10px;border-radius:6px;">OK 成功导入 ' + data.success + ' 条';
+      if (data.imagesImported) html += '，图片 ' + data.imagesImported + ' 张';
+      if (data.createdCategories && data.createdCategories.length) html += '，新建分类 ' + data.createdCategories.length + ' 个';
+      html += '</div>';
+      if (data.failed > 0 && data.errors) html += '<div style="margin-top:5px;font-size:12px;color:#c62828;">' + data.errors.slice(0, 5).join('<br>') + '</div>';
+      document.getElementById('importResult').innerHTML = html;
+      window._importZipFile = null;
+      setTimeout(function(){ location.reload(); }, 1500);
+    } catch (e) {
+      document.getElementById('importResult').innerHTML = '<div style="background:#ffebee;color:#c62828;padding:10px;border-radius:6px;">失败：' + e.message + '</div>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '开始导入';
+    }
+    return;
+  }
   if (importItems.length === 0) return;
   // 打开确认弹窗
   document.getElementById('confirmImportText').textContent = '确认导入 ' + importItems.length + ' 条菜品？重复的同名菜品将自动覆盖更新！';
@@ -395,6 +429,23 @@ async function doImport() {
     btn.textContent = '开始导入';
   }
 }
+
+
+async function exportMenuZip() {
+  try {
+    const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '1';
+    const token = SLF.store.rawGetSession('adminToken') || '';
+    SLF.ui.toast('📦 正在打包...');
+    const res = await fetch('/api/admin/menu/export-zip?store_id=' + storeId, { headers: { 'Authorization': 'Bearer ' + token, 'X-Store-Id': String(storeId) } });
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'menu-store' + storeId + '-' + new Date().toISOString().slice(0,10) + '.zip';
+    a.click(); URL.revokeObjectURL(a.href);
+    SLF.ui.toast('✅ 已导出');
+  } catch (e) { SLF.ui.toast('❌ 导出失败: ' + e.message); }
+}
+window.exportMenuZip = exportMenuZip;
 
 window.openImportModal = openImportModal;
 window.closeImportModal = closeImportModal;
