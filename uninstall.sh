@@ -44,7 +44,9 @@ log_info "停止并删除 systemd 服务..."
 systemctl stop foodflow 2>/dev/null || true
 systemctl disable foodflow 2>/dev/null || true
 rm -f /etc/systemd/system/foodflow.service
+rm -f /etc/systemd/system/multi-user.target.wants/foodflow.service
 systemctl daemon-reload
+systemctl reset-failed foodflow 2>/dev/null || true
 log_success "服务已删除"
 
 # ===== 2. 删除 Nginx 配置 =====
