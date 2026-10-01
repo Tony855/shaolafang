@@ -143,22 +143,87 @@ async function printOrder(orderId) {
 
 function printViaBrowser(base64Data, orderOrId) {
   const order = (typeof orderOrId === 'object' && orderOrId) ? orderOrId : {};
-  const orderNo = order.order_no || (order.id ? ('#' + order.id) : ('#' + (orderOrId || '?')));
+  const orderNo = order.order_no || (order.id ? ('#' + order.id) : '#?');
   const tableNo = order.table_name || order.table || '-';
-  const printWindow = window.open('', '_blank', 'width=300,height=600');
+  const items = Array.isArray(order.items) ? order.items : [];
+  const note = order.note || '';
+  const total = Number(order.total) || 0;
+
+  // 时间格式化
+  let timeStr = '';
+  try {
+    const d = order.createdAt ? new Date(order.createdAt) : new Date();
+    const pad = n => String(n).padStart(2, '0');
+    timeStr = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  } catch (e) {}
+
+  // 货币格式化（主币）
+  const fmt = v => {
+    try { return SLF.money.primary(v); } catch (e) { return '$' + Number(v || 0).toFixed(2); }
+  };
+  const baseOf = (item) => {
+    try { return SLF.money.toBase(item.price, item.currency_code); } catch (e) { return Number(item.price) || 0; }
+  };
+
+  // 菜品行
+  let itemsHtml = '';
+  items.forEach(item => {
+    const qty = Number(item.quantity) || 0;
+    const ret = Number(item.returnedQty) || 0;
+    const realQty = qty - ret;
+    const unitBase = baseOf(item);
+    const lineBase = unitBase * realQty;
+    const name = (item.name || '').slice(0, 20);
+    const retTag = ret > 0 ? ' <span style="color:#e74c3c;">(退' + ret + ')</span>' : '';
+    itemsHtml +=
+      '<div class="row">' +
+        '<span class="item-name">' + name + ' ×' + qty + retTag + '</span>' +
+        '<span class="item-amt">' + fmt(lineBase) + '</span>' +
+      '</div>';
+  });
+
+  // 备注
+  const noteHtml = note ? '<div class="separator"></div><div class="note">' + tAdmin('orderNoteDisplay') + ': ' + note + '</div>' : '';
+
+  // 支付方式（可选）
+  const payLabel = {
+    cash: 'Cash', wechat: 'WeChat', alipay: 'Alipay',
+    card: 'Card', aba: 'ABA',
+  }[order.pay_method] || '';
+  const payHtml = payLabel ? '<div class="row"><span>' + tAdmin('cashier') + '</span><span>' + payLabel + '</span></div>' : '';
+
+  const html =
+    '<html><head><meta charset="UTF-8"><title>' + orderNo + '</title>' +
+    '<style>' +
+    '*{box-sizing:border-box}' +
+    'body{font-family:"Courier New",monospace;font-size:13px;padding:10px;width:300px;margin:0 auto;color:#000;}' +
+    '.center{text-align:center;}' +
+    '.big{font-size:18px;font-weight:bold;}' +
+    '.sub{font-size:12px;color:#555;}' +
+    '.separator{border-top:1px dashed #000;margin:8px 0;}' +
+    '.row{display:flex;justify-content:space-between;padding:2px 0;align-items:baseline;}' +
+    '.item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;}' +
+    '.item-amt{white-space:nowrap;font-weight:bold;}' +
+    '.total{font-size:16px;font-weight:bold;padding-top:6px;}' +
+    '.note{font-size:12px;padding:4px 0;line-height:1.4;}' +
+    '.footer{text-align:center;font-size:12px;color:#555;padding-top:8px;}' +
+    '</style></head><body onload="window.print();setTimeout(function(){window.close()},800);">' +
+      '<div class="center big">' + tAdmin('brandName') + '</div>' +
+      '<div class="center sub">' + (tAdmin('table') || 'Table') + ': ' + tableNo + '</div>' +
+      '<div class="center sub">' + (tAdmin('order') || 'Order') + ': ' + orderNo + '</div>' +
+      (timeStr ? '<div class="center sub">' + timeStr + '</div>' : '') +
+      '<div class="separator"></div>' +
+      itemsHtml +
+      noteHtml +
+      '<div class="separator"></div>' +
+      '<div class="row total"><span>' + (tAdmin('total') || 'Total') + '</span><span>' + fmt(total) + '</span></div>' +
+      (payHtml ? '<div class="separator"></div>' + payHtml : '') +
+      '<div class="footer">' + (tAdmin('printerConnectHint') || '') + '</div>' +
+    '</body></html>';
+
+  const printWindow = window.open('', '_blank', 'width=320,height=600');
   if (!printWindow) { SLF.ui.toast(tAdmin('allowPopupToPrint')); return; }
-  printWindow.document.write(
-    '<html><head><title>' + tAdmin('order') + ' ' + orderNo + ' ' + tAdmin('print') + '</title>' +
-    '<style>body { font-family: monospace; font-size: 12px; padding: 10px; width: 280px; } .center { text-align: center; } .bold { font-weight: bold; } .big { font-size: 16px; font-weight: bold; } .separator { border-top: 1px dashed #000; margin: 8px 0; } .row { display: flex; justify-content: space-between; }</style>' +
-    '</head>' +
-    '<body onload="window.print();setTimeout(()=>window.close(),500);">' +
-    '<div class="center big">' + tAdmin('brandName') + '</div>' +
-    '<div class="center">' + tAdmin('table') + ': ' + tableNo + '</div>' +
-    '<div class="center">' + tAdmin('order') + ': ' + orderNo + '</div>' +
-    '<div class="separator"></div>' +
-    '<p>' + tAdmin('printerConnectHint') + '</p>' +
-    '</body></html>'
-  );
+  printWindow.document.write(html);
   printWindow.document.close();
 }
 
