@@ -739,6 +739,7 @@
   "dishesPending": "道未完成",
   "allDone": "全部完成",
   "refundAmount": "退款金额",
+  "refundAmountInput": "退款金额",
   "refundReason": "退款原因",
   "selectReason": "请选择...",
   "refundReasonMistake": "误操作",

@@ -739,6 +739,7 @@
   "dishesPending": "รายการค้าง",
   "allDone": "เสร็จทั้งหมด",
   "refundAmount": "ยอดคืนเงิน",
+  "refundAmountInput": "จำนวนเงินคืน",
   "refundReason": "เหตุผลคืนเงิน",
   "selectReason": "กรุณาเลือก...",
   "refundReasonMistake": "ทำผิดพลาด",

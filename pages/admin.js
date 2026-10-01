@@ -44,7 +44,13 @@
                 addCurrencyBtn: 'can_manage_currency',
                 addPrinterBtn: 'can_manage_printer',
                 addWaiterBtn: 'can_manage_waiter',
-                addStoreBtn: 'can_manage_store'
+                addStoreBtn: 'can_manage_store',
+                addAdminBtn: 'can_manage_admin',
+                openAddCashierModalBtn: 'can_manage_cashier',
+                addOrderBtn: 'can_manage_order',
+                openOrderBtn: 'can_manage_order',
+                openCategoryModalBtn: 'can_manage_menu',
+                importMenuBtn: 'can_manage_menu'
             };
             for (const [btnId, perm] of Object.entries(addBtnMap)) {
                 const btn = document.getElementById(btnId);

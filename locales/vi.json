@@ -739,6 +739,7 @@
   "dishesPending": "món chưa xong",
   "allDone": "Hoàn tất",
   "refundAmount": "Số tiền hoàn",
+  "refundAmountInput": "Số tiền hoàn",
   "refundReason": "Lý do hoàn tiền",
   "selectReason": "Vui lòng chọn...",
   "refundReasonMistake": "Thao tác nhầm",

@@ -74,6 +74,7 @@ let refundOrderId = null;
       SLF.store.rawRemove('cashierStoreId');
       SLF.store.rawRemove('cashierInfo');
       SLF.store.rawRemove('storeId');
+      window.location.href = '/login?type=cashier';
     }, { type: 'warning', icon: '🚪' });
   }
 
@@ -84,6 +85,7 @@ let refundOrderId = null;
     SLF.store.rawRemove('cashierStoreId');
     SLF.store.rawRemove('cashierInfo');
     SLF.store.rawRemove('storeId');
+    window.location.href = '/login?type=cashier';
   }
   SLF.idle.start({ timeoutMin: cashierIdleTimeoutMin, onTimeout: cashierIdleLogout });
   SLF.api.get('/public/global-config').then(cfg => {
@@ -358,9 +360,13 @@ let refundOrderId = null;
 
     // 按钮
     const btnsEl = document.getElementById('detailButtons');
-    const canSettle = order.status === 'pending' && SLF.orderStatus.allItemsDone(order);
-    const canCancel = order.status === 'pending';
-    const canRefund = ['done', 'settled', 'paid', 'completed'].includes(order.status);
+    const perms = (cashierInfo && cashierInfo.permissions) || {};
+    const allowSettle = perms.can_settle !== false;
+    const allowCancel = perms.can_cancel !== false;
+    const allowRefund = perms.can_refund === true;
+    const canSettle = allowSettle && order.status === 'pending' && SLF.orderStatus.allItemsDone(order);
+    const canCancel = allowCancel && order.status === 'pending';
+    const canRefund = allowRefund && ['done', 'settled', 'paid', 'completed'].includes(order.status);
     let btns = '';
     if (canSettle) {
       btns += `<button class="btn btn-pay" onclick="openPaymentModal(${order.id})">💵 ${t('settleOrder') || '收款'}</button>`;

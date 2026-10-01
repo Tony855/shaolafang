@@ -739,6 +739,7 @@
   "dishesPending": "items pending",
   "allDone": "All done",
   "refundAmount": "Refund Amount",
+  "refundAmountInput": "Refund Amount",
   "refundReason": "Refund Reason",
   "selectReason": "Please select...",
   "refundReasonMistake": "Mistake",

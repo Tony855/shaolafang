@@ -174,7 +174,7 @@ async function statusOrder(id, status) {
   }
 }
 function removeOrder(id) {
-  ctx.showPasswordModal(tAdmin('passwordTitle'), async function(password) {
+  ctx.showPasswordModal(tAdmin('passwordModalMessage') || '请输入管理员密码以确认操作', async function(password) {
     try {
       await api('/orders/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: { password } });
       await loadOrders();
