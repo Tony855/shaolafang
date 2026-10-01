@@ -679,6 +679,9 @@ async function initDatabase() {
     if (!/duplicate column|Duplicate key/i.test(e.message || '')) throw e;
   }
   try {
+    await runAsync('ALTER TABLE orders ADD COLUMN refund_amount DECIMAL(10,2) DEFAULT NULL');
+  } catch (e) { if (!/duplicate column/i.test(e.message || '')) console.log('  ! refund_amount:', e.message); }
+  try {
     await runAsync(`ALTER TABLE orders ADD COLUMN customer_token VARCHAR(255) DEFAULT ''`);
   } catch (e) {
     if (!/duplicate column/i.test(e.message || '')) console.log('  ! customer_token:', e.message);

@@ -248,7 +248,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       return res.status(403).json({ error: '没有退款权限' });
     }
     const id = parseInt(req.params.id);
-    const { reason, note } = req.body || {};
+    const { amount, reason, note } = req.body || {};
     if (!reason) return res.status(400).json({ error: '请选择退款原因' });
 
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
@@ -257,9 +257,10 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     if (order.status === 'refunded') return res.status(400).json({ error: '订单已退款' });
 
     const now = new Date().toISOString();
+    const refundAmt = Number(amount) || Number(order.total) || 0;
     await runAsync(
-      "UPDATE orders SET status='refunded', refund_reason=?, refund_note=?, refunded_at=?, refunded_by=? WHERE id=? AND store_id=?",
-      [reason, (note || '').slice(0, 200), now, req.cashier.username || '', id, req.storeId]
+      "UPDATE orders SET status='refunded', refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=?",
+      [reason, (note || '').slice(0, 200), now, req.cashier.username || '', refundAmt, id, req.storeId]
     );
 
     await runAsync(

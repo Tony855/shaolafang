@@ -87,14 +87,20 @@ module.exports = function(app, deps) {
 
   app.post('/api/admin/admins', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
     try {
-      const { username, password, display_name, active } = req.body || {};
+      const { username, password, display_name, active, permissions } = req.body || {};
       if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写管理员资料' });
       if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
       const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [String(username).trim()]);
       if (exists) return res.status(400).json({ error: '用户名已存在' });
+
+      const p1 = permissions || {};
+      const permFields = ['can_manage_menu','can_manage_table','can_manage_order','can_delete_order','can_edit_order','can_manage_store','can_manage_waiter','can_manage_currency','can_manage_printer','can_manage_admin','can_view_logs','can_manage_cashier'];
+      const permCols = permFields.join(', ');
+      const permVals = permFields.map(f => p1[f] ? 1 : 0);
+
       const result = await runAsync(
-        'INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name, active) VALUES (?, ?, ?, ?, ?)',
-        [req.merchantId, String(username).trim(), hashPassword(password), display_name, active ? 1 : 0]
+        'INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name, active, ' + permCols + ') VALUES (?, ?, ?, ?, ?, ' + permFields.map(() => '?').join(',') + ')',
+        [req.merchantId, String(username).trim(), hashPassword(password), display_name, active ? 1 : 0, ...permVals]
       );
       await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_admin', 'merchant_admin', result.lastID, `创建管理员: ${username}`, getClientIp(req));
       res.status(201).json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE id=?', [result.lastID]));

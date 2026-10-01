@@ -53,6 +53,7 @@ app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_wa
   try {
     const { username, password, display_name, can_order, can_mark_item, can_complete_order, store_id } = req.body || {};
     if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写服务员资料' });
+    if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
     const targetStoreId = store_id || req.storeId || 1;
     const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
     if (!store) return res.status(400).json({ error: '店铺不存在' });
@@ -86,7 +87,10 @@ app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage
       'UPDATE waiters SET username=?, display_name=?, can_order=?, can_mark_item=?, can_complete_order=?, active=?, store_id=? WHERE id=?',
       [String(next.username||current.username).trim(), next.display_name||current.display_name, next.can_order?1:0, next.can_mark_item?1:0, next.can_complete_order?1:0, next.active?1:0, targetStoreId, id]
     );
-    if (req.body.password) await runAsync('UPDATE waiters SET password_hash=? WHERE id=?', [hashPassword(req.body.password), id]);
+    if (req.body.password) {
+      if (req.body.password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+      await runAsync('UPDATE waiters SET password_hash=? WHERE id=?', [hashPassword(req.body.password), id]);
+    }
     res.json(await getAsync('SELECT id, username, display_name, can_order, can_mark_item, can_complete_order, active, store_id FROM waiters WHERE id=?', [id]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
