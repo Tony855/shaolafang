@@ -466,7 +466,7 @@ let refundOrderId = null;
     if (payMethod === 'cash') {
       const received = parseFloat(document.getElementById('cashReceived').value) || 0;
       if (received < due) {
-        SLF.ui.toast('❌ 实收金额不足');
+        SLF.ui.toast('❌ ' + (t('insufficientCash') || '实收金额不足'));
         return;
       }
     }
@@ -520,7 +520,7 @@ let refundOrderId = null;
   /* ===== 退款弹窗 ===== */
   function openRefundModal(orderId) {
     const order = orders.find(o => String(o.id) === String(orderId));
-    if (!order) { SLF.ui.toast('❌ 未找到订单'); return; }
+    if (!order) { SLF.ui.toast('❌ ' + (t('orderNotFound') || '未找到订单')); return; }
     refundOrderId = order.id;
     const total = Number(order.total) || 0;
     document.getElementById('refundAmount').innerHTML = moneyHtml(total);
@@ -539,14 +539,14 @@ let refundOrderId = null;
   async function confirmRefund() {
     if (!refundOrderId) return;
     const order = orders.find(o => String(o.id) === String(refundOrderId));
-    if (!order) { SLF.ui.toast('❌ 未找到订单'); return; }
+    if (!order) { SLF.ui.toast('❌ ' + (t('orderNotFound') || '未找到订单')); return; }
     const reason = document.getElementById('refundReason').value.trim();
     const total = Number(order.total) || 0;
     const _inpEl = document.getElementById('refundInput');
     const amount = _inpEl ? (parseFloat(_inpEl.value) || 0) : total;
 
-    if (amount <= 0) { SLF.ui.toast('❌ 退款金额必须大于 0'); return; }
-    if (amount > total) { SLF.ui.toast('❌ 退款金额不能超过订单金额'); return; }
+    if (amount <= 0) { SLF.ui.toast('❌ ' + (t('refundMustBePositive') || '退款金额必须大于 0')); return; }
+    if (amount > total) { SLF.ui.toast('❌ ' + (t('refundExceedsTotal') || '退款金额不能超过订单金额')); return; }
 
     const btn = document.getElementById('confirmRefundBtn');
     btn.disabled = true;

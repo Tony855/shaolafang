@@ -248,8 +248,8 @@ async function doAdvancedExport() {
     const statuses = Array.from(document.querySelectorAll('.adv-status:checked'))
         .map(cb => cb.value).join(',');
 
-    if (!start || !end) { SLF.ui.toast('❌ 请选择日期范围'); return; }
-    if (!statuses) { SLF.ui.toast('❌ 请至少选择一个状态'); return; }
+    if (!start || !end) { SLF.ui.toast('❌ ' + (tAdmin('selectDateRange') || '请选择日期范围')); return; }
+    if (!statuses) { SLF.ui.toast('❌ ' + (tAdmin('selectAtLeastOne') || '请至少选择一个状态')); return; }
 
     const params = new URLSearchParams({ startDate: start, endDate: end, dimension: dim, statuses });
     const token = SLF.store.rawGetSession('adminToken') || '';
@@ -272,10 +272,10 @@ async function doAdvancedExport() {
         a.download = `${dim}_${start}_${end}.csv`;
         a.click();
         URL.revokeObjectURL(a.href);
-        SLF.ui.toast('✅ 已导出');
+        SLF.ui.toast('✅ ' + (tAdmin('exported') || '已导出'));
         closeAdvancedExport();
     } catch (e) {
-        SLF.ui.toast('❌ 导出失败: ' + e.message);
+        SLF.ui.toast('❌ ' + (tAdmin('exportFailed') || '导出失败') + ': ' + e.message);
     }
 }
 

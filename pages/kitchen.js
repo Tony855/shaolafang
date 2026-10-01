@@ -244,7 +244,7 @@
     window.serveOrder = async function(orderId) {
       // ===== 1. 先打印出餐单 =====
       try {
-        SLF.ui.toast('🖨 正在打印出餐单...');
+        SLF.ui.toast('🖨 ' + (t('printingKitchenTicket') || '正在打印出餐单...'));
         const result = await api('/orders/' + orderId + '/print-kitchen', { method: 'POST' });
         if (result.printed) {
           SLF.ui.toast('✅ ' + (t('orderPrinted', null, '出餐单已打印')), 'success');

@@ -133,9 +133,9 @@ window.loadNotificationSettings = loadNotificationSettings;
         show_price: g('dispShowPrice').checked ? 1 : 0,
         show_desc: g('dispShowDesc').checked ? 1 : 0
       }});
-      if (SLF.ui && SLF.ui.toast) SLF.ui.toast('✅ 展示页设置已保存');
+      if (SLF.ui && SLF.ui.toast) SLF.ui.toast('✅ ' + (tAdmin('displaySettingsSaved') || '展示页设置已保存'));
     } catch (e) {
-      if (SLF.ui && SLF.ui.toast) SLF.ui.toast('❌ 保存失败: ' + e.message);
+      if (SLF.ui && SLF.ui.toast) SLF.ui.toast('❌ ' + (tAdmin('saveFailed') || '保存失败') + ': ' + e.message);
     }
   }
 

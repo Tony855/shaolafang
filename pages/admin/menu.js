@@ -438,15 +438,15 @@ async function exportMenuZip() {
   try {
     const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '1';
     const token = SLF.store.rawGetSession('adminToken') || '';
-    SLF.ui.toast('📦 正在打包...');
+    SLF.ui.toast('📦 ' + (tAdmin('exporting') || '正在打包...'));
     const res = await fetch('/api/admin/menu/export-zip?store_id=' + storeId, { headers: { 'Authorization': 'Bearer ' + token, 'X-Store-Id': String(storeId) } });
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'menu-store' + storeId + '-' + new Date().toISOString().slice(0,10) + '.zip';
     a.click(); URL.revokeObjectURL(a.href);
-    SLF.ui.toast('✅ 已导出');
-  } catch (e) { SLF.ui.toast('❌ 导出失败: ' + e.message); }
+    SLF.ui.toast('✅ ' + (tAdmin('exported') || '已导出'));
+  } catch (e) { SLF.ui.toast('❌ ' + (tAdmin('exportFailed') || '导出失败') + ': ' + e.message); }
 }
 window.exportMenuZip = exportMenuZip;
 
