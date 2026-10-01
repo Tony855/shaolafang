@@ -42,10 +42,6 @@ let refundOrderId = null;
   function itemBasePrice(item) {
     return SLF.money.toBase(item.price, item.currency_code);
   }
-  function itemLineTotal(item) {
-    const qty = Number(item.quantity || 0) - Number(item.returnedQty || 0);
-    return itemBasePrice(item) * qty;
-  }
 
   // 金额 HTML：主货币红色，副货币灰色
   function moneyHtml(base) {
