@@ -252,6 +252,21 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
     let success = 0;
     let failed = 0;
     const errors = [];
+    const createdCategories = [];
+
+    // 自动创建 CSV 里出现但数据库没有的分类
+    const csvCategories = [...new Set(items.map(it => String(it.category || '').trim()).filter(Boolean))];
+    for (const cat of csvCategories) {
+      const exists = await getAsync('SELECT id FROM menu_categories WHERE name=? AND store_id=?', [cat, req.storeId || 1]);
+      if (!exists) {
+        const maxSort = await getAsync('SELECT MAX(sort) as max FROM menu_categories WHERE store_id=?', [req.storeId || 1]);
+        const nextSort = (maxSort && maxSort.max !== null) ? maxSort.max + 1 : 0;
+        try {
+          await runAsync('INSERT INTO menu_categories (name, sort, store_id, merchant_id) VALUES (?, ?, ?, ?)', [cat, nextSort, req.storeId || 1, req.merchantId]);
+          createdCategories.push(cat);
+        } catch (e) { /* 并发重复忽略 */ }
+      }
+    }
     
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -308,7 +323,7 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
       }
     }
     
-    res.json({ success, failed, errors });
+    res.json({ success, failed, errors, createdCategories });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

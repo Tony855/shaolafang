@@ -375,8 +375,12 @@ async function doImport() {
   btn.textContent = '导入中...';
   try {
     var result = await window.SLF.api.post('/menu/batch', { items: importItems });
+    var createdInfo = '';
+    if (result.createdCategories && result.createdCategories.length > 0) {
+      createdInfo = '，新建分类 ' + result.createdCategories.length + ' 个：' + result.createdCategories.join('、');
+    }
     var html = '<div style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px;">' +
-      '✅ 成功导入 ' + result.success + ' 条';
+      '✅ 成功导入 ' + result.success + ' 条' + createdInfo;
     if (result.failed > 0) html += '，失败 ' + result.failed + ' 条';
     html += '</div>';
     if (result.errors && result.errors.length) {
