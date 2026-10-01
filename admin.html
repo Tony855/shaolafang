@@ -405,6 +405,57 @@
                     </div>
                 </div>
 
+                <div class="settings-card" id="displayPageCard">
+                    <h3 class="settings-card-title" id="displayPageTitle">🖥️ 菜单展示页设置</h3>
+                    <p style="color:#999;margin-bottom:16px;font-size:14px;">配置 /display 展示页的显示模式、时长等</p>
+                    <div class="settings-form-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="form-group">
+                            <label style="color:#9b9bb2;font-size:13px;">展示模式</label>
+                            <select id="dispMode" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                                <option value="grid">网格（一屏多菜）</option>
+                                <option value="carousel">单菜轮播（一次一个）</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="color:#9b9bb2;font-size:13px;">轮播顺序</label>
+                            <select id="dispOrder" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                                <option value="default">按分类顺序</option>
+                                <option value="sales">按销量优先</option>
+                                <option value="random">随机</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="color:#9b9bb2;font-size:13px;">图片停留（秒）</label>
+                            <input type="number" id="dispImageDuration" min="1" max="120" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                        </div>
+                        <div class="form-group">
+                            <label style="color:#9b9bb2;font-size:13px;">视频播放方式</label>
+                            <select id="dispVideoMode" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                                <option value="full">播完整个视频</option>
+                                <option value="fixed">固定时长后切换</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="color:#9b9bb2;font-size:13px;">视频固定时长（秒）</label>
+                            <input type="number" id="dispVideoDuration" min="1" max="300" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                        </div>
+                        <div class="form-group">
+                            <label style="color:#9b9bb2;font-size:13px;display:flex;align-items:center;gap:8px;">
+                                <input type="checkbox" id="dispOnlyActive" style="width:16px;height:16px;"> 只显示上架菜品
+                            </label>
+                            <label style="color:#9b9bb2;font-size:13px;display:flex;align-items:center;gap:8px;margin-top:10px;">
+                                <input type="checkbox" id="dispShowPrice" style="width:16px;height:16px;"> 显示价格
+                            </label>
+                            <label style="color:#9b9bb2;font-size:13px;display:flex;align-items:center;gap:8px;margin-top:10px;">
+                                <input type="checkbox" id="dispShowDesc" style="width:16px;height:16px;"> 显示描述
+                            </label>
+                        </div>
+                    </div>
+                    <div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                        <button id="saveDisplayPageBtn" class="display-settings-btn">保存展示页设置</button>
+                        <a href="/display" target="_blank" style="color:#69c0ff;font-size:13px;">→ 打开展示页预览</a>
+                    </div>
+                </div>
                 <div class="settings-card" style="border-color: #ff4d4f;">
                     <h3 class="settings-card-title" id="resetDataCardTitle" style="color: #ff4d4f;">⚠️ 重置数据</h3>
                     <p id="resetDataDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">清空本商户所有订单数据（订单、呼叫记录、扫码会话），保留商户、门店、菜品、服务员等基础数据。此操作不可恢复！</p>

@@ -213,3 +213,45 @@ body {
   display: block;
   background: #000;
 }
+/* ====== 单菜轮播模式 ====== */
+body.disp-carousel-mode .disp-grid {
+  display: block;
+  padding: 20px;
+  height: 100%;
+}
+.disp-carousel-card {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  background: linear-gradient(160deg, #1c1e2b, #16182a);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 24px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: carFade .6s ease both;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+}
+@keyframes carFade {
+  from { opacity: 0; transform: scale(.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.disp-carousel-card .disp-thumb-wrap { position: relative; }
+.disp-carousel-card .disp-thumb {
+  height: 55vh;
+  min-height: 260px;
+  max-height: 560px;
+  font-size: 120px;
+}
+.disp-carousel-card .disp-info { padding: 24px 32px 32px; gap: 10px; }
+.disp-carousel-card .disp-name { font-size: 32px; }
+.disp-carousel-card .disp-desc { font-size: 16px; min-height: 24px; -webkit-line-clamp: 3; }
+.disp-carousel-card .disp-price { font-size: 36px; }
+.disp-carousel-card .disp-price .sec { font-size: 20px; }
+.disp-carousel-card .disp-badge { font-size: 15px; padding: 6px 18px; top: 20px; left: 20px; border-radius: 20px; }
+@media (max-width: 768px) {
+  .disp-carousel-card .disp-thumb { height: 40vh; font-size: 80px; }
+  .disp-carousel-card .disp-info { padding: 18px 20px 22px; }
+  .disp-carousel-card .disp-name { font-size: 22px; }
+  .disp-carousel-card .disp-price { font-size: 26px; }
+}

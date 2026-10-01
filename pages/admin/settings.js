@@ -97,3 +97,64 @@ window.saveOrderPrefixes = saveOrderPrefixes;
 window.loadNotificationSettings = loadNotificationSettings;
 
 })();
+
+/* ===== 展示页设置（追加） ===== */
+(function() {
+  const D = window.SLF && window.SLF.admin;
+  if (!D) return;
+  const api = D.api;
+
+  async function loadDisplayPageSettings() {
+    try {
+      const s = await api('/admin/display-page-settings');
+      const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+      const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+      setVal('dispMode', s.mode || 'grid');
+      setVal('dispOrder', s.order || 'default');
+      setVal('dispImageDuration', s.image_duration || 8);
+      setVal('dispVideoMode', s.video_mode || 'full');
+      setVal('dispVideoDuration', s.video_duration || 15);
+      setChk('dispOnlyActive', s.only_active);
+      setChk('dispShowPrice', s.show_price);
+      setChk('dispShowDesc', s.show_desc);
+    } catch (e) { console.warn('load display-page-settings failed', e); }
+  }
+
+  async function saveDisplayPageSettings() {
+    const g = id => document.getElementById(id);
+    try {
+      await api('/admin/display-page-settings', { method: 'POST', body: {
+        mode: g('dispMode').value,
+        order: g('dispOrder').value,
+        image_duration: parseInt(g('dispImageDuration').value, 10) || 8,
+        video_mode: g('dispVideoMode').value,
+        video_duration: parseInt(g('dispVideoDuration').value, 10) || 15,
+        only_active: g('dispOnlyActive').checked ? 1 : 0,
+        show_price: g('dispShowPrice').checked ? 1 : 0,
+        show_desc: g('dispShowDesc').checked ? 1 : 0
+      }});
+      if (SLF.ui && SLF.ui.toast) SLF.ui.toast('✅ 展示页设置已保存');
+    } catch (e) {
+      if (SLF.ui && SLF.ui.toast) SLF.ui.toast('❌ 保存失败: ' + e.message);
+    }
+  }
+
+  window.loadDisplayPageSettings = loadDisplayPageSettings;
+  window.saveDisplayPageSettings = saveDisplayPageSettings;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('saveDisplayPageBtn');
+    if (btn) btn.onclick = saveDisplayPageSettings;
+    const origSwitch = window.switchAdminModule;
+    if (typeof origSwitch === 'function' && !window._dispPageHooked) {
+      window._dispPageHooked = true;
+      window.switchAdminModule = function(m) {
+        const r = origSwitch.apply(this, arguments);
+        if (m === 'password' || m === 'currencies') {
+          try { loadDisplayPageSettings(); } catch (e) {}
+        }
+        return r;
+      };
+    }
+  });
+})();

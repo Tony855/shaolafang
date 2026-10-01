@@ -1007,6 +1007,7 @@ async function initDatabase() {
 // ----- 公开接口 -----
 
 // ----- 公开接口 -----
+require('./routes/display.js')(app, { allAsync, runAsync, requireAdminKey, requirePermission });
 require('./routes/public.js')(app, { getAsync, allAsync, runAsync });
 
 
