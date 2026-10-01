@@ -2776,3 +2776,153 @@ button.edit-btn:disabled {
     justify-content: stretch;
   }
 }
+
+/* 退款订单状态 */
+.status-refunded {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+}
+.order-item-admin .top .status.status-refunded {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+}
+
+/* ============================================================
+   移动端订单页多语言兼容（英文/高棉文等长文本）
+   ============================================================ */
+@media (max-width: 768px) {
+
+  /* 容器防溢出 */
+  .admin-shell, .admin-modules, .panel, .module-panel {
+    max-width: 100% !important;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+  .panel.module-panel { padding: 12px !important; }
+
+  /* 订单 Tab 允许横滑 */
+  .order-tabs-bar {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .order-tabs {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 0 !important;
+  }
+  .order-tabs::-webkit-scrollbar { display: none; }
+  .order-tab {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+  .order-tab-count {
+    font-size: 11px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    padding: 0 5px !important;
+  }
+
+  /* 搜索框 + 按钮铺满 */
+  .order-tabs-bar .order-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    padding-bottom: 0 !important;
+  }
+  .order-search-input,
+  .order-tabs-bar #openOrderBtn {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* 汇总卡片数字缩小 */
+  .summary-card strong { font-size: 18px !important; }
+  .summary-card small { font-size: 12px !important; }
+  .summary-card span { font-size: 12px !important; }
+
+  /* 订单卡片 */
+  .order-item-admin {
+    padding: 14px 12px !important;
+    box-sizing: border-box !important;
+    overflow: hidden;
+  }
+
+  /* 卡片头部：竖排 */
+  .order-item-admin .top {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+  .order-item-admin .top .status {
+    align-self: flex-start;
+  }
+  .order-item-admin .top .table-info {
+    word-break: break-word;
+    line-height: 1.4;
+  }
+
+  /* 菜品行：一行太挤时自动换行 */
+  .order-item-admin .items { width: 100%; }
+  .dish-line {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px 10px !important;
+    padding: 8px 0 !important;
+    align-items: center !important;
+    grid-template-columns: none !important;
+  }
+  .dish-line .dish-name {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .dish-line > span:nth-child(2) {
+    flex: 0 0 auto !important;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .dish-line .item-status,
+  .dish-line .item-toggle {
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+  }
+
+  /* 卡片底部：堆叠 */
+  .order-item-admin .bottom {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .order-item-admin .bottom .time {
+    font-size: 12px;
+  }
+  .order-item-admin .bottom .total {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .order-item-admin .bottom .actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* 备注框断行 */
+  .order-note { word-break: break-word; }
+}
+
+/* 极窄屏 */
+@media (max-width: 420px) {
+  .order-item-admin { padding: 12px 10px !important; }
+  .order-tab { padding: 7px 10px !important; font-size: 12px !important; }
+  .order-item-admin .bottom .total { font-size: 16px; }
+  .summary-card strong { font-size: 16px !important; }
+}
