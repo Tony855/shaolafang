@@ -773,5 +773,8 @@
   "exportByTable": "ตามโต๊ะ",
   "exportOrderStatus": "สถานะออเดอร์",
   "downloadCsv": "📥 ดาวน์โหลด CSV",
+  "saveDisplayPageBtn": "บันทึกการตั้งค่าหน้าจอ",
+  "addDishBtn": "➕ เพิ่มเมนู",
+  "batchImportBtn": "📥 นำเข้าจำนวนมาก",
   "advExport": "ส่งออกขั้นสูง"
 }

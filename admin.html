@@ -87,7 +87,7 @@
                     <div class="menu-toolbar">
                         <button id="openDishModalBtn" onclick="openDishModal()">➕ 新增菜品</button>
                         <button id="importMenuBtn" onclick="openImportModal()">📥 批量导入</button>
-                        <button id="exportMenuZipBtn" onclick="exportMenuZip()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:700;">📦 导出ZIP</button>
+                        <button id="exportMenuZipBtn" onclick="exportMenuZip()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:700;"><span data-i18n="exportZip">📦 导出ZIP</span></button>
                         <select id="menuCategoryFilter" class="menu-filter-select" onchange="loadMenus()"><option value="all"><span data-i18n="menuAllCategoriesOption">📋 全部分类</span></select>
                         <select id="menuSortBy" class="menu-filter-select" onchange="loadMenus()">
                             <option value="default"><span data-i18n="defaultSort">🔄 默认排序</span>
@@ -449,7 +449,7 @@
                         </div>
                     </div>
                     <div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                        <button id="saveDisplayPageBtn" class="display-settings-btn">保存展示页设置</button>
+                        <button id="saveDisplayPageBtn" class="display-settings-btn"><span data-i18n="saveDisplayPageBtn">保存展示页设置</span></button>
                         <button type="button" id="openDisplayPreviewBtn" style="background:rgba(105,192,255,.15);color:#69c0ff;border:1px solid rgba(105,192,255,.3);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;"><span data-i18n="displayOpenPreview">→ 打开展示页预览</span></button>
                     </div>
                 </div>
@@ -767,7 +767,7 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=1790828087"></script>
+    <script src="languages.min.js?v=1790855774"></script>
     <script src="assets/core.js?v=1790737176"></script>
   <script src="assets/modules/ui.js?v=1790737176"></script>
   <script src="assets/modules/money.js?v=1790737176"></script>

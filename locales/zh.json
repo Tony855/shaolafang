@@ -773,5 +773,8 @@
   "exportByTable": "按桌汇总",
   "exportOrderStatus": "订单状态（可多选）",
   "downloadCsv": "📥 下载 CSV",
+  "saveDisplayPageBtn": "保存展示页设置",
+  "addDishBtn": "➕ 新增菜品",
+  "batchImportBtn": "📥 批量导入",
   "advExport": "高级导出"
 }

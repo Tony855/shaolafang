@@ -780,6 +780,9 @@ const LANGUAGES = {
     "exportByTable": "按桌汇总",
     "exportOrderStatus": "订单状态（可多选）",
     "downloadCsv": "📥 下载 CSV",
+    "saveDisplayPageBtn": "保存展示页设置",
+    "addDishBtn": "➕ 新增菜品",
+    "batchImportBtn": "📥 批量导入",
     "advExport": "高级导出"
   },
   "en": {
@@ -1557,6 +1560,9 @@ const LANGUAGES = {
     "exportByTable": "By table",
     "exportOrderStatus": "Order status (multi)",
     "downloadCsv": "📥 Download CSV",
+    "saveDisplayPageBtn": "Save Display Settings",
+    "addDishBtn": "➕ Add Dish",
+    "batchImportBtn": "📥 Batch Import",
     "advExport": "Advanced Export"
   },
   "vi": {
@@ -2334,6 +2340,9 @@ const LANGUAGES = {
     "exportByTable": "Theo bàn",
     "exportOrderStatus": "Trạng thái đơn",
     "downloadCsv": "📥 Tải CSV",
+    "saveDisplayPageBtn": "Lưu cài đặt hiển thị",
+    "addDishBtn": "➕ Thêm món",
+    "batchImportBtn": "📥 Nhập hàng loạt",
     "advExport": "Xuất nâng cao"
   },
   "th": {
@@ -3111,6 +3120,9 @@ const LANGUAGES = {
     "exportByTable": "ตามโต๊ะ",
     "exportOrderStatus": "สถานะออเดอร์",
     "downloadCsv": "📥 ดาวน์โหลด CSV",
+    "saveDisplayPageBtn": "บันทึกการตั้งค่าหน้าจอ",
+    "addDishBtn": "➕ เพิ่มเมนู",
+    "batchImportBtn": "📥 นำเข้าจำนวนมาก",
     "advExport": "ส่งออกขั้นสูง"
   },
   "km": {
@@ -3888,6 +3900,9 @@ const LANGUAGES = {
     "exportByTable": "តាមតុ",
     "exportOrderStatus": "ស្ថានភាពការបញ្ជាទិញ",
     "downloadCsv": "📥 ទាញយក CSV",
+    "saveDisplayPageBtn": "រក្សាទុកការកំណត់",
+    "addDishBtn": "➕ បន្ថែមមុខម្ហូប",
+    "batchImportBtn": "📥 នាំចូលជាដុំ",
     "advExport": "នាំចេញកម្រិតខ្ពស់"
   }
 };

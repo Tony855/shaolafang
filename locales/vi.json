@@ -773,5 +773,8 @@
   "exportByTable": "Theo bàn",
   "exportOrderStatus": "Trạng thái đơn",
   "downloadCsv": "📥 Tải CSV",
+  "saveDisplayPageBtn": "Lưu cài đặt hiển thị",
+  "addDishBtn": "➕ Thêm món",
+  "batchImportBtn": "📥 Nhập hàng loạt",
   "advExport": "Xuất nâng cao"
 }

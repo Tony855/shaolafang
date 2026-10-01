@@ -186,7 +186,9 @@ app.get('/languages.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'languages.js'));
 });
 app.get('/languages.min.js', (req, res) => {
-  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'languages.min.js'));
 });
 

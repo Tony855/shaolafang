@@ -773,5 +773,8 @@
   "exportByTable": "តាមតុ",
   "exportOrderStatus": "ស្ថានភាពការបញ្ជាទិញ",
   "downloadCsv": "📥 ទាញយក CSV",
+  "saveDisplayPageBtn": "រក្សាទុកការកំណត់",
+  "addDishBtn": "➕ បន្ថែមមុខម្ហូប",
+  "batchImportBtn": "📥 នាំចូលជាដុំ",
   "advExport": "នាំចេញកម្រិតខ្ពស់"
 }

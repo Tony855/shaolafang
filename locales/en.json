@@ -773,5 +773,8 @@
   "exportByTable": "By table",
   "exportOrderStatus": "Order status (multi)",
   "downloadCsv": "📥 Download CSV",
+  "saveDisplayPageBtn": "Save Display Settings",
+  "addDishBtn": "➕ Add Dish",
+  "batchImportBtn": "📥 Batch Import",
   "advExport": "Advanced Export"
 }
