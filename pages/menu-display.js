@@ -85,9 +85,16 @@ function renderGrid() {
   $('#dispCountText').textContent = t('dishes', '道菜品');
 
   grid.innerHTML = filtered.map((m, idx) => {
-    const img = m.image
-      ? '<img src="/uploads/' + m.image + '" alt="">'
-      : (m.emoji || '🍽️');
+    let img;
+    if (m.video) {
+      img = '<video autoplay muted loop playsinline preload="metadata" poster="' +
+            (m.image ? '/uploads/' + m.image : '') + '">' +
+            '<source src="/uploads/' + m.video + '"></video>';
+    } else if (m.image) {
+      img = '<img src="/uploads/' + m.image + '" alt="">';
+    } else {
+      img = (m.emoji || '🍽️');
+    }
     const prices = SLF.money.menuPrice(m);
     let secHtml = '';
     if (prices.secondary) secHtml = '<span class="sec">(' + prices.secondary + ')</span>';

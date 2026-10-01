@@ -164,6 +164,7 @@ function editMenu(id) {
   $('#menuDesc').value = current.desc || '';
   $('#menuDescEn').value = current.desc_en || '';
   $('#menuImageFile').value = '';
+  const _vf = $('#menuVideoFile'); if (_vf) _vf.value = '';
   $('#dishModalTitle').textContent = tAdmin('menuManage') + ' #' + id;
   $('#menuSaveButton').textContent = L('save');
   $('#menuCancelButton').hidden = false;
@@ -221,6 +222,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         form.append('show_dual', $('#menuSecondaryCurrency').value ? '1' : '0');
         const file = $('#menuImageFile').files[0];
+        const videoFile = $('#menuVideoFile') && $('#menuVideoFile').files[0];
+        if (videoFile) form.append('video', videoFile);
         if (file) {
           try {
             const dataUrl = await new Promise((res, rej) => {

@@ -225,16 +225,17 @@ app.get('/api/admin/menu', requireAdminKey, async (req, res) => {
   }
 });
 
-app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upload.single('image'), async (req, res) => {
+app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
   try {
     const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code = 'USD' } = req.body;
+    const video = req.files && req.files.video ? req.files.video[0].filename : '';
     if (!name || !price) return res.status(400).json({ error: '名称和价格必填' });
     const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [currency_code, req.merchantId]);
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
-    const image = req.file ? req.file.filename : '';
+    const image = req.files && req.files.image ? req.files.image[0].filename : '';
     const result = await runAsync(
-      'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, emoji || '🍽️', parseFloat(price), category || '其他', desc || '', image, currency_code, name_en || '', desc_en || '', unit || '份', show_dual ? 1 : 0, secondary_currency_code || '', req.storeId || 1, req.merchantId]
+      'INSERT INTO menus (name, emoji, price, category, `desc`, image, video, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, emoji || '🍽️', parseFloat(price), category || '其他', desc || '', image, video || '', currency_code, name_en || '', desc_en || '', unit || '份', show_dual ? 1 : 0, secondary_currency_code || '', req.storeId || 1, req.merchantId]
     );
     const newItem = await getAsync('SELECT * FROM menus WHERE id = ?', [result.lastID]);
     res.status(201).json(newItem);
@@ -391,7 +392,7 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
   }
 });
 
-app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), upload.single('image'), async (req, res) => {
+app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code } = req.body;
@@ -400,14 +401,15 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
     const nextCurrency = currency_code || current.currency_code || 'USD';
     const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [nextCurrency, req.merchantId]);
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
-    let image = req.file ? req.file.filename : current.image;
-    if (req.file && current.image) {
+    let image = (req.files && req.files.image) ? req.files.image[0].filename : current.image;
+    let video = (req.files && req.files.video) ? req.files.video[0].filename : (current.video || '');
+    if (req.files && req.files.image && current.image) {
       const oldPath = path.join(UPLOAD_DIR, current.image);
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
     }
     await runAsync(
-      'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=? AND store_id=?',
-      [name || current.name, emoji || current.emoji, Number.isFinite(Number(price)) ? Number(price) : current.price, category || current.category, desc ?? current.desc, image, nextCurrency, name_en ?? current.name_en ?? '', desc_en ?? current.desc_en ?? '', unit || current.unit || '份', show_dual === undefined ? (current.show_dual || 0) : (show_dual ? 1 : 0), secondary_currency_code ?? current.secondary_currency_code ?? '', id, req.storeId]
+      'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, video=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=? AND store_id=?',
+      [name || current.name, emoji || current.emoji, Number.isFinite(Number(price)) ? Number(price) : current.price, category || current.category, desc ?? current.desc, image, video, nextCurrency, name_en ?? current.name_en ?? '', desc_en ?? current.desc_en ?? '', unit || current.unit || '份', show_dual === undefined ? (current.show_dual || 0) : (show_dual ? 1 : 0), secondary_currency_code ?? current.secondary_currency_code ?? '', id, req.storeId]
     );
     const updated = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     res.json(updated);

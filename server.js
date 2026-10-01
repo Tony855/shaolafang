@@ -209,11 +209,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     // 允许图片 + zip（菜单打包导入）
     if (ext === '.zip') return cb(null, true);
+    if (['.mp4','.webm','.ogg','.mov'].includes(ext)) return cb(null, true);
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extName = allowedTypes.test(ext);
     const mimeType = allowedTypes.test(file.mimetype);
@@ -681,6 +682,9 @@ async function initDatabase() {
   } catch (e) {
     if (!/duplicate column|Duplicate key/i.test(e.message || '')) throw e;
   }
+  try {
+    await runAsync('ALTER TABLE menus ADD COLUMN video VARCHAR(255) DEFAULT NULL');
+  } catch (e) { if (!/duplicate column/i.test(e.message || '')) console.log('  ! menus.video:', e.message); }
   try {
     await runAsync('ALTER TABLE orders ADD COLUMN refund_amount DECIMAL(10,2) DEFAULT NULL');
   } catch (e) { if (!/duplicate column/i.test(e.message || '')) console.log('  ! refund_amount:', e.message); }
