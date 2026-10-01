@@ -430,8 +430,14 @@
                 <input id="menuDesc" class="full" placeholder="菜品描述">
                 <input id="menuDescEn" class="full" placeholder="英文描述">
                 <label class="full" style="display:flex;align-items:center;gap:8px;color:#ccc"><span id="menuSecondaryCurrencyLabel">第二货币</span><select id="menuSecondaryCurrency"></select></label>
-                <input id="menuImageFile" class="full" type="file" accept="image/*">
-                <input id="menuVideoFile" class="full" type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime">
+                <label class="full" style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:8px;margin-top:4px;">
+                    <span style="min-width:60px;color:#9b9bb2;">图片</span>
+                    <input id="menuImageFile" type="file" accept="image/*" style="flex:1;">
+                </label>
+                <label class="full" style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:8px;">
+                    <span style="min-width:60px;color:#9b9bb2;">视频</span>
+                    <input id="menuVideoFile" type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime" style="flex:1;">
+                </label>
                 <button id="menuSaveButton" class="full">新增菜品</button>
                 <button id="menuCancelButton" class="full" type="button" onclick="closeDishModal()" hidden>取消编辑</button>
             </form>
