@@ -11,7 +11,7 @@ const LANGUAGES = {
     "currencySymbol": "¥",
     "currencyRate": 7,
     "currencyCode": "CNY",
-    "appName": "FoodFlow",
+    "appName": "味享",
     "confirm": "确认",
     "confirmTitle": "确认操作",
     "cancel": "取消",
@@ -945,6 +945,8 @@ const LANGUAGES = {
     "__err__已达到门店数量上限（": "已达到门店数量上限（",
     "imageLabel": "图片",
     "videoLabel": "视频",
+    "statusNormal": "正常",
+    "statusDisabled": "已停用",
     "advExport": "高级导出"
   },
   "en": {
@@ -1887,6 +1889,8 @@ const LANGUAGES = {
     "__err__已达到门店数量上限（": "Store limit reached (",
     "imageLabel": "Image",
     "videoLabel": "Video",
+    "statusNormal": "Normal",
+    "statusDisabled": "Disabled",
     "advExport": "Advanced Export"
   },
   "vi": {
@@ -2829,6 +2833,8 @@ const LANGUAGES = {
     "__err__已达到门店数量上限（": "Đã đạt giới hạn cửa hàng (",
     "imageLabel": "Hình ảnh",
     "videoLabel": "Video",
+    "statusNormal": "Bình thường",
+    "statusDisabled": "Đã vô hiệu",
     "advExport": "Xuất nâng cao"
   },
   "th": {
@@ -3771,6 +3777,8 @@ const LANGUAGES = {
     "__err__已达到门店数量上限（": "ถึงขีดจำกัดจำนวนร้าน (",
     "imageLabel": "รูปภาพ",
     "videoLabel": "วิดีโอ",
+    "statusNormal": "ปกติ",
+    "statusDisabled": "ปิดใช้งาน",
     "advExport": "ส่งออกขั้นสูง"
   },
   "km": {
@@ -4713,6 +4721,8 @@ const LANGUAGES = {
     "__err__已达到门店数量上限（": "ដល់ដែនកំណត់ហាង (",
     "imageLabel": "រូបភាព",
     "videoLabel": "វីដេអូ",
+    "statusNormal": "ធម្មតា",
+    "statusDisabled": "បានបិទ",
     "advExport": "នាំចេញកម្រិតខ្ពស់"
   }
 };

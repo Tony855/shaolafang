@@ -784,6 +784,11 @@ function applyAdminLanguage() {
             _opt('editTableStatus', 2, 'reserved');
         
             try { applyDataI18n(); } catch(e) { console.warn('applyDataI18n failed', e); }
+
+            // 切换语言后重载动态内容
+            try { if (window.loadAdminInfo) window.loadAdminInfo(); } catch(e) {}
+            try { if (window.loadReportSummary) window.loadReportSummary(); } catch(e) {}
+            try { if (window.loadWaiterCalls && document.getElementById('module-calls') && document.getElementById('module-calls').classList.contains('active')) window.loadWaiterCalls(); } catch(e) {}
         }
 
         // ===== 语言切换和店铺切换（已移到 shared.js）=====
@@ -880,7 +885,7 @@ function applyAdminLanguage() {
                     const _contact = (data.merchant?.contact_name || '').trim();
                     $('#adminInfoContact').textContent = _contact === '管理员' ? tAdmin('admin') : (_contact || '-');
                     $('#adminInfoPhone').textContent = data.merchant?.contact_phone || '-';
-                    $('#adminInfoStatus').textContent = data.merchant?.status ? tAdmin('storeActive') : tAdmin('storeDisabled');
+                    $('#adminInfoStatus').textContent = data.merchant?.status ? (tAdmin('statusNormal') || '正常') : (tAdmin('statusDisabled') || '已停用');
                     $('#adminInfoStatus').style.color = data.merchant?.status ? '#2ecc71' : '#e74c3c';
                     $('#adminInfoStatus').style.fontWeight = '600';
                     $('#adminInfoCreated').textContent = data.merchant?.created_at ? SLF.utils.formatDateTime(data.merchant.created_at) : (data.admin.created_at ? SLF.utils.formatDateTime(data.admin.created_at) : '-');

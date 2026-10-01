@@ -4,7 +4,7 @@
   "currencySymbol": "¥",
   "currencyRate": 7,
   "currencyCode": "CNY",
-  "appName": "FoodFlow",
+  "appName": "味享",
   "confirm": "确认",
   "confirmTitle": "确认操作",
   "cancel": "取消",
@@ -938,5 +938,7 @@
   "__err__已达到门店数量上限（": "已达到门店数量上限（",
   "imageLabel": "图片",
   "videoLabel": "视频",
+  "statusNormal": "正常",
+  "statusDisabled": "已停用",
   "advExport": "高级导出"
 }

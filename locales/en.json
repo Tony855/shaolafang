@@ -938,5 +938,7 @@
   "__err__已达到门店数量上限（": "Store limit reached (",
   "imageLabel": "Image",
   "videoLabel": "Video",
+  "statusNormal": "Normal",
+  "statusDisabled": "Disabled",
   "advExport": "Advanced Export"
 }

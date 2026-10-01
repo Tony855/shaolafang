@@ -938,5 +938,7 @@
   "__err__已达到门店数量上限（": "ถึงขีดจำกัดจำนวนร้าน (",
   "imageLabel": "รูปภาพ",
   "videoLabel": "วิดีโอ",
+  "statusNormal": "ปกติ",
+  "statusDisabled": "ปิดใช้งาน",
   "advExport": "ส่งออกขั้นสูง"
 }

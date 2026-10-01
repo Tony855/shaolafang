@@ -938,5 +938,7 @@
   "__err__已达到门店数量上限（": "Đã đạt giới hạn cửa hàng (",
   "imageLabel": "Hình ảnh",
   "videoLabel": "Video",
+  "statusNormal": "Bình thường",
+  "statusDisabled": "Đã vô hiệu",
   "advExport": "Xuất nâng cao"
 }
