@@ -866,7 +866,17 @@ function applyAdminLanguage() {
                     $('#adminInfoUsername').textContent = data.admin.username || '-';
                     $('#adminInfoMerchant').textContent = data.merchant?.name || '-';
                     $('#adminInfoCode').textContent = data.merchant?.code || '-';
-                    $('#adminInfoStoreCount').textContent = (data.storeCount || 0) + ' / ' + (data.merchant?.max_stores || 0);
+                    // 店铺数量：已用金色，上限灰色，达上限红色
+                    (function () {
+                        const used = data.storeCount || 0;
+                        const max = (data.merchant && data.merchant.max_stores) || 0;
+                        const el = $('#adminInfoStoreCount');
+                        if (!el) return;
+                        const usedColor = (max > 0 && used >= max) ? '#e74c3c' : '#ffd93d';
+                        el.innerHTML = '<span style="color:' + usedColor + ';font-weight:700;">' + used + '</span>'
+                                     + '<span style="color:#666;margin:0 4px;">/</span>'
+                                     + '<span style="color:#888;">' + max + '</span>';
+                    })();
                     const _contact = (data.merchant?.contact_name || '').trim();
                     $('#adminInfoContact').textContent = _contact === '管理员' ? tAdmin('admin') : (_contact || '-');
                     $('#adminInfoPhone').textContent = data.merchant?.contact_phone || '-';
