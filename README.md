@@ -1,153 +1,110 @@
-# 🍽️ FoodFlow QR Ordering System
+# FoodFlow · 多语言扫码点餐系统
 
-多端餐饮点餐系统，支持顾客扫码点餐、管理后台、服务员端、后厨显示。
+> 一站式餐饮系统：顾客扫码点餐、服务员开台、后厨出单、收银结算、商户后台、超级管理员。
 
-## 功能特性
+## 功能一览
 
-- 📱 **顾客端** - 扫码点餐、多语言切换、呼叫服务员、催单、订单查看
-- 🖥️ **管理后台** - 订单管理、菜单管理、桌台管理、货币管理、服务员管理、营业报表、数据导出、打印机管理、预约管理、销量排行
-- 🛎️ **服务员端** - 代客下单、菜品上菜、订单结算、打印小票
-- 👨‍🍳 **后厨显示** - 实时订单显示、菜品状态标记、打印后厨小票
-- 🌍 **多语言** - 中文、英文、越南文、泰文、高棉文
-- 💱 **多货币** - 支持5种货币，双币显示
-- 🖨️ **小票打印** - 兼容多品牌 ESC/POS 网络打印机（EPSON、Star、Bixolon、佳博、芯烨等）
-- 📊 **数据报表** - 每日营业报表、销量排行、时段分布
-- 💾 **数据备份** - 自动备份、导出/导入
+| 端 | 路径 | 主要能力 |
+|----|------|---------|
+| 顾客 | `/` | 扫码绑定桌号、浏览菜单、加购物车、下单、查看订单、呼叫服务员、催单 |
+| 服务员 | `/waiter` | 桌台状态、开台/换桌/并台、代客下单、上菜、退菜、结算、订单历史 |
+| 后厨 KDS | `/kitchen` | 实时订单票、菜品完成标记、出餐打印、催单提示、全屏模式 |
+| 收银台 | `/cashier` | POS 风格双栏、现金/扫码/刷卡/ABA 收款、找零、退款、小票打印 |
+| 商户后台 | `/admin` | 菜品、分类、桌号、订单、店铺、服务员、收银员、打印机、货币、报表、日志 |
+| 超级管理 | `/super` | 商户 CRUD、门店总览、服务器监控、在线会话、数据备份、全局设置 |
+
+## 核心特性
+
+- 多语言：中文 / English / Tiếng Việt / ภาษาไทย / ភាសាខ្មែរ，所有端实时切换
+- 多商户 + 多店铺：数据按 merchant_id / store_id 严格隔离
+- 双货币显示：主币种 + 副币种并存，汇率可配
+- 实时同步：Socket.IO 按角色分房间推送，各端秒级更新
+- ESC/POS 打印：支持网络打印机直打，另附浏览器打印兜底
+- 订单号序列化：前缀(2) + 日期 + 序号，支持日/月/年/永久重置
+- 权限系统：12 项细粒度权限，主管理员 / 子管理员分权
+- 全链路审计：登录日志、操作日志、金额流水
 
 ## 技术栈
 
-- **后端**: Node.js + Express + MySQL
-- **前端**: 原生 HTML/CSS/JavaScript
-- **打印**: ESC/POS 协议，支持 58mm/80mm 纸宽
+    后端   Node.js 20 · Express 4 · MySQL 8 / MariaDB 10.5+ · Socket.IO 4
+    缓存   Redis（可选，未配则用内存）
+    前端   原生 JS（无框架）· 多语言 JSON · 响应式 CSS
+    打印   ESC/POS 网络协议（TCP 9100）
+    部署   systemd + Nginx + Let's Encrypt
 
 ## 快速开始
 
-> 📖 **详细安装步骤请查看 [INSTALL.md](./INSTALL.md)**，包含 Windows、Linux/Debian 完整安装指南和常见问题排查。
+一键安装（Linux 推荐）：
 
-### 一键安装（Linux 推荐）
+    git clone https://github.com/Tony855/shaolafang.git
+    cd shaolafang
+    sudo bash install.sh
 
-```bash
-git clone https://github.com/Tony855/foodflow.git
-cd foodflow
-sudo bash onekey-install.sh
-```
+手动部署：
 
-### 手动安装
+    npm install --omit=dev
+    cp .env.example .env
+    node server.js
 
-#### 1. 安装依赖
+## 默认账号
 
-```bash
-npm install
-```
+| 角色 | 用户名 | 密码 |
+|------|-------|------|
+| 超级管理员 | superadmin | super123 |
+| 商户管理员 | admin | admin123 |
+| 服务员 | waiter | 123456 |
+| 收银员 | — | 由商户后台自行创建 |
 
-#### 2. 配置环境
+## 常用命令
 
-复制 `.env.example` 为 `.env` 并修改配置：
+    systemctl restart foodflow
+    systemctl status foodflow
+    journalctl -u foodflow -f
+    npm run build:lang
+    npm run check:lang
 
-```bash
-cp .env.example .env
-```
+## 环境变量（.env）
 
-编辑 `.env`：
-```
-PORT=3000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_password
-DB_DATABASE=ordering_system
-DB_PORT=3306
-```
+| 变量 | 说明 | 默认 |
+|------|------|------|
+| PORT | 服务端口 | 3000 |
+| DB_HOST / DB_PORT | 数据库地址 | 127.0.0.1:3306 |
+| DB_DATABASE | 库名（必填） | — |
+| DB_USER / DB_PASSWORD | 数据库账号 | foodflow / 随机 |
+| UPLOAD_DIR | 上传目录 | ./uploads |
+| REDIS_URL | Redis 连接串（可选） | 空 |
+| RUN_SCHEDULED_TASKS | 是否跑定时任务 | true |
 
-#### 3. 初始化数据库（仅首次安装执行）
+## 权限说明
 
-```bash
-node server.js --init-only
-```
+12 项权限，分 3 组：
 
-> 首次安装自动初始化 45 道菜品（默认下架）、8 个分类、5 种货币、12 个桌台。重启不会覆盖用户修改。
+- 运营管理：菜单、桌号、订单、取消订单、编辑订单
+- 基础设置：门店、服务员、货币、打印机、收银员
+- 系统管理：管理员、日志
 
-#### 4. 启动服务器
+主管理员（ID 最小）自动全权限，不可修改。
 
-```bash
-node server.js
-```
+## 常见问题
 
-#### 5. 访问系统
+Q：扫码后"会话已过期"？
+A：二维码 session 在超管后台配置（默认 45 分钟），有未结算订单时自动续期。
 
-- 顾客点餐: http://localhost:3000/
-- 统一登录: http://localhost:3000/login
-- 管理后台: http://localhost:3000/admin
-- 服务员端: http://localhost:3000/waiter
-- 后厨显示: http://localhost:3000/kitchen
+Q：订单号重复？
+A：order_sequences 表原子分配，并发极高时重试一次。
 
-## 默认管理员
+Q：收银员看不到某些按钮？
+A：商户后台"收银员管理"里控制结算/取消/退款/报表权限。
 
-- 管理员密码: `admin123`（首次登录后请修改）
-- 后台密钥: `admin-key-2026`（API 调用使用）
-- 登录地址: http://localhost:3000/login
+Q：语言切换没变？
+A：硬刷新 Ctrl+Shift+R，检查 languages.min.js?v=。
 
-## 初始数据（首次安装）
+## 卸载
 
-- **菜品**: 45 道烧腊菜品，8 个分类（默认全部下架，需手动上架）
-- **货币**: USD 美元（默认）、CNY 人民币、KHR 柬埔寨瑞尔、THB 泰铢、VND 越南盾
-- **双货币**: 默认启用，第二货币为柬埔寨瑞尔（KHR）
-- **桌台**: 12 个（A01-A04, B01-B04, C01-C04）
+    sudo bash uninstall.sh
 
-## 项目结构
+会删除应用文件、数据库、systemd 服务、Nginx 配置。系统软件保留。
 
-```
-├── server.js              # 后端服务器
-├── index.html             # 顾客点餐页
-├── admin.html             # 管理后台
-├── waiter.html            # 服务员端
-├── kitchen.html           # 后厨显示
-├── login.html             # 统一登录页
-├── languages.js           # 多语言翻译（5种语言）
-├── package.json           # 依赖配置
-├── .env.example           # 环境变量模板
-├── INSTALL.md             # 详细安装指南
-├── onekey-install.sh      # Linux 一键安装脚本
-├── assets/
-│   ├── common.css         # 统一样式
-│   └── common.js          # 统一工具库 (SLF)
-└── data/
-    ├── roast-meat-menu.json  # 菜单初始化数据（45道）
-    └── tables.json           # 桌台初始化数据
-```
+## 许可
 
-## API 接口
-
-### 公共接口
-- `GET /api/health` - 健康检查
-- `GET /api/menu` - 获取菜单
-- `GET /api/tables` - 获取桌台
-- `GET /api/public/config` - 获取公共配置
-- `POST /api/orders` - 创建订单
-- `POST /api/orders/:id/urge` - 催单
-
-### 管理接口 (需 X-Admin-Key)
-- `GET /api/orders` - 订单列表
-- `PUT /api/orders/:id` - 更新订单
-- `DELETE /api/orders/:id` - 删除订单
-- `GET/POST/PUT/DELETE /api/admin/menus` - 菜单管理
-- `GET/POST/PUT/DELETE /api/admin/tables` - 桌台管理
-- `GET/POST/PUT/DELETE /api/admin/currencies` - 货币管理
-- `GET/POST/PUT/DELETE /api/admin/waiters` - 服务员管理
-- `GET/POST/PUT/DELETE /api/admin/printers` - 打印机管理
-- `GET /api/admin/reports/daily` - 每日报表
-- `GET /api/admin/export/:type` - 数据导出
-- `POST /api/orders/:id/print` - 打印订单
-- `POST /api/orders/:id/print-kitchen` - 打印后厨小票
-
-## 打印机配置
-
-在管理后台 → 打印机管理中添加网络打印机：
-- 打印机名称
-- IP 地址
-- 端口（默认 9100）
-- 纸宽（58mm 或 80mm）
-- 品牌（通用/EPSON/Star/Bixolon/佳博/芯烨/容大/弘印）
-
-## 许可证
-
-MIT
+私有项目，未经许可请勿分发。
