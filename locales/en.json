@@ -819,5 +819,8 @@
   "__err__店铺不存在": "Store not found",
   "__err__管理员不存在": "Admin not found",
   "__err__收银员不存在": "Cashier not found",
+  "displayPage": "Display",
+  "copyDisplayLink": "Copy Link",
+  "copiedToClipboard": "Copied",
   "advExport": "Advanced Export"
 }

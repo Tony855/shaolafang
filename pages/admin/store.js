@@ -40,8 +40,8 @@ async function loadStores() {
       <div class="actions">
         <button class="edit-btn" onclick="openStoreEdit(${s.id})">✏️ ${ctx.L('edit')}</button>
         <button class="copy" onclick="copyStoreMenu(${s.id})">📋 ${tAdmin('copyMainStoreMenu')}</button>
-        <button onclick="openStoreDisplay(${s.id})" style="background:rgba(105,192,255,.15);border-color:rgba(105,192,255,.3);color:#69c0ff;">📺 展示页</button>
-        <button onclick="copyStoreDisplayUrl(${s.id})" style="background:rgba(105,192,255,.15);border-color:rgba(105,192,255,.3);color:#69c0ff;">🔗 复制链接</button>
+        <button onclick="openStoreDisplay(${s.id})" style="background:rgba(105,192,255,.15);border-color:rgba(105,192,255,.3);color:#69c0ff;">📺 ${tAdmin('displayPage') || '展示页'}</button>
+        <button onclick="copyStoreDisplayUrl(${s.id})" style="background:rgba(105,192,255,.15);border-color:rgba(105,192,255,.3);color:#69c0ff;">🔗 ${tAdmin('copyDisplayLink') || '复制链接'}</button>
         ${hasPermission('can_manage_store') ? '<button class="danger" onclick="deleteStore(' + s.id + ')">' + ctx.L('delete') + '</button>' : ''}
       </div>
     </div>`).join('') :

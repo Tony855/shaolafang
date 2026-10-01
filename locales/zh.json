@@ -819,5 +819,8 @@
   "__err__店铺不存在": "店铺不存在",
   "__err__管理员不存在": "管理员不存在",
   "__err__收银员不存在": "收银员不存在",
+  "displayPage": "展示页",
+  "copyDisplayLink": "复制链接",
+  "copiedToClipboard": "已复制",
   "advExport": "高级导出"
 }

@@ -826,6 +826,9 @@ const LANGUAGES = {
     "__err__店铺不存在": "店铺不存在",
     "__err__管理员不存在": "管理员不存在",
     "__err__收银员不存在": "收银员不存在",
+    "displayPage": "展示页",
+    "copyDisplayLink": "复制链接",
+    "copiedToClipboard": "已复制",
     "advExport": "高级导出"
   },
   "en": {
@@ -1649,6 +1652,9 @@ const LANGUAGES = {
     "__err__店铺不存在": "Store not found",
     "__err__管理员不存在": "Admin not found",
     "__err__收银员不存在": "Cashier not found",
+    "displayPage": "Display",
+    "copyDisplayLink": "Copy Link",
+    "copiedToClipboard": "Copied",
     "advExport": "Advanced Export"
   },
   "vi": {
@@ -2472,6 +2478,9 @@ const LANGUAGES = {
     "__err__店铺不存在": "Không tìm thấy cửa hàng",
     "__err__管理员不存在": "Không tìm thấy quản trị viên",
     "__err__收银员不存在": "Không tìm thấy thu ngân",
+    "displayPage": "Hiển thị",
+    "copyDisplayLink": "Sao chép liên kết",
+    "copiedToClipboard": "Đã sao chép",
     "advExport": "Xuất nâng cao"
   },
   "th": {
@@ -3295,6 +3304,9 @@ const LANGUAGES = {
     "__err__店铺不存在": "ไม่พบร้าน",
     "__err__管理员不存在": "ไม่พบผู้ดูแล",
     "__err__收银员不存在": "ไม่พบพนักงานเก็บเงิน",
+    "displayPage": "แสดงผล",
+    "copyDisplayLink": "คัดลอกลิงก์",
+    "copiedToClipboard": "คัดลอกแล้ว",
     "advExport": "ส่งออกขั้นสูง"
   },
   "km": {
@@ -4118,6 +4130,9 @@ const LANGUAGES = {
     "__err__店铺不存在": "រកមិនឃើញហាង",
     "__err__管理员不存在": "រកមិនឃើញអ្នកគ្រប់គ្រង",
     "__err__收银员不存在": "រកមិនឃើញអ្នកគិតលុយ",
+    "displayPage": "បង្ហាញ",
+    "copyDisplayLink": "ចម្លងតំណ",
+    "copiedToClipboard": "បានចម្លង",
     "advExport": "នាំចេញកម្រិតខ្ពស់"
   }
 };

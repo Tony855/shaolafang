@@ -819,5 +819,8 @@
   "__err__店铺不存在": "Không tìm thấy cửa hàng",
   "__err__管理员不存在": "Không tìm thấy quản trị viên",
   "__err__收银员不存在": "Không tìm thấy thu ngân",
+  "displayPage": "Hiển thị",
+  "copyDisplayLink": "Sao chép liên kết",
+  "copiedToClipboard": "Đã sao chép",
   "advExport": "Xuất nâng cao"
 }
