@@ -116,12 +116,12 @@
                 <h2 id="orderPanelTitle">订单管理</h2>
                 <div class="order-summary">
                     <div class="summary-card pending"><span id="pendingLabel">未完成订单</span><strong id="pendingOrderCount">0</strong><small id="pendingOrderAmount">$0.00</small></div>
-                    <div class="summary-card done"><span id="doneLabel">已结算订单</span><strong id="doneOrderCount">0</strong><small id="doneOrderAmount">$0.00</small></div>
+                    <div class="summary-card done"><span id="doneLabel"><span data-i18n="orderDone">已结算</span>订单</span><strong id="doneOrderCount">0</strong><small id="doneOrderAmount">$0.00</small></div>
                 </div>
                 <div class="order-tabs-bar">
                     <div class="order-tabs" id="orderTabs">
                         <button class="order-tab active" data-tab="pending" onclick="switchOrderTab('pending')" id="orderTabPending">
-                            <span id="orderTabPendingText" data-i18n="pendingOrders">未结算</span> <span class="order-tab-count" id="orderTabPendingCount">0</span>
+                            <span id="orderTabPendingText" data-i18n="pendingOrders"><span data-i18n="orderPending">未结算</span></span> <span class="order-tab-count" id="orderTabPendingCount">0</span>
                         </button>
                         <button class="order-tab" data-tab="settled" onclick="switchOrderTab('settled')" id="orderTabSettled">
                             <span id="orderTabSettledText" data-i18n="settledOrders">已结</span> <span class="order-tab-count" id="orderTabSettledCount">0</span>
@@ -147,7 +147,7 @@
                         <label class="store-switch"><input type="checkbox" id="dualCurrencyEnabled"><span class="store-switch-slider"></span></label>
                     </label>
                     <select id="dualCurrencySelect" class="display-settings-select"></select>
-                    <button id="saveDisplaySettingsBtn" class="display-settings-btn">保存显示设置</button>
+                    <button id="saveDisplaySettingsBtn" class="display-settings-btn"><span data-i18n="save">保存</span>显示设置</button>
                 </div>
                 <form id="currencyForm" class="currency-form-grid">
                     <div class="form-group"><label id="currencyCodeLabel">货币代码</label><input id="currencyCode" placeholder="如：CNY" required></div>
@@ -234,7 +234,7 @@
                             <div class="store-edit-field full"><label class="store-switch-label"><span id="printerEditDefaultLabel">设为默认打印机</span><label class="store-switch"><input type="checkbox" id="editPrinterDefault"><span class="store-switch-slider"></span></label></label></div>
                         </div>
                         <div class="order-modal-actions">
-                            <button onclick="closePrinterEdit()" id="printerEditCancelBtn" data-i18n="cancel">取消</button>
+                            <button onclick="closePrinterEdit()" id="printerEditCancelBtn" data-i18n="cancel"><span data-i18n="cancel">取消</span></button>
                             <button class="primary" onclick="savePrinterEdit()" id="printerEditSaveBtn" data-i18n="save">保存</button>
                         </div>
                     </div>
@@ -313,7 +313,7 @@
                         <div class="form-group"><label id="waiterUsernameLabel">账号</label><input id="waiterUsernameInput" placeholder="请输入账号"></div>
                         <div class="form-group"><label id="waiterPasswordLabel">密码</label><input id="waiterPasswordInput" type="password" placeholder="请输入密码"></div>
                         <div class="form-group"><label id="waiterNameLabel">姓名</label><input id="waiterNameInput" placeholder="请输入姓名"></div>
-                        <div class="form-group"><label id="waiterStoreLabel">所属店铺</label><select id="waiterStoreSelect"></select></div>
+                        <div class="form-group"><label id="waiterStoreLabel"><span data-i18n="cashierStoreLabel">所属店铺</span></label><select id="waiterStoreSelect"></select></div>
                         <div class="form-group" style="display:flex;align-items:flex-end;"><button id="addWaiterBtn" class="primary" style="width:100%;">添加服务员</button></div>
                     </div>
                 </div>
@@ -690,30 +690,30 @@
     <div class="order-modal" id="advancedExportModal" style="display:none;">
         <div class="order-modal-card" style="max-width:520px;">
             <button class="modal-close" onclick="closeAdvancedExport()">✕</button>
-            <h2>🔎 高级导出</h2>
+            <h2><span data-i18n="advExport">🔎 高级导出</span></h2>
 
             <div style="display:flex;gap:12px;margin:16px 0;">
                 <div style="flex:1;">
-                    <label style="font-size:13px;color:#888;display:block;margin-bottom:6px;">起始日期</label>
+                    <label style="font-size:13px;color:#888;display:block;margin-bottom:6px;"><span data-i18n="startDate">起始日期</span></label>
                     <input type="date" id="advExportStart" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
                 </div>
                 <div style="flex:1;">
-                    <label style="font-size:13px;color:#888;display:block;margin-bottom:6px;">结束日期</label>
+                    <label style="font-size:13px;color:#888;display:block;margin-bottom:6px;"><span data-i18n="endDate">结束日期</span></label>
                     <input type="date" id="advExportEnd" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
                 </div>
             </div>
 
             <div style="margin:16px 0;">
-                <label style="font-size:13px;color:#888;display:block;margin-bottom:8px;">导出维度</label>
+                <label style="font-size:13px;color:#888;display:block;margin-bottom:8px;"><span data-i18n="exportDimension">导出维度</span></label>
                 <select id="advExportDim" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
-                    <option value="orders">订单明细</option>
-                    <option value="sales">菜品销量</option>
-                    <option value="tables">按桌汇总</option>
+                    <option value="orders"><span data-i18n="exportOrdersDetail">订单明细</span></option>
+                    <option value="sales"><span data-i18n="exportDishSales">菜品销量</span></option>
+                    <option value="tables"><span data-i18n="exportByTable">按桌汇总</span></option>
                 </select>
             </div>
 
             <div style="margin:16px 0;">
-                <label style="font-size:13px;color:#888;display:block;margin-bottom:8px;">订单状态（可多选）</label>
+                <label style="font-size:13px;color:#888;display:block;margin-bottom:8px;"><span data-i18n="exportOrderStatus">订单状态（可多选）</span></label>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;">
                     <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
                         <input type="checkbox" class="adv-status" value="done" checked> 已结算
@@ -722,17 +722,15 @@
                         <input type="checkbox" class="adv-status" value="pending"> 未结算
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
-                        <input type="checkbox" class="adv-status" value="canceled"> 已取消
-                    </label>
+                        <input type="checkbox" class="adv-status" value="canceled"><span data-i18n="canceled">已取消</span></label>
                     <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
-                        <input type="checkbox" class="adv-status" value="refunded"> 已退款
-                    </label>
+                        <input type="checkbox" class="adv-status" value="refunded"><span data-i18n="refunded">已退款</span></label>
                 </div>
             </div>
 
             <div style="display:flex;gap:10px;margin-top:20px;">
                 <button type="button" onclick="closeAdvancedExport()" style="flex:1;padding:12px;background:#555;color:#fff;border:0;border-radius:10px;cursor:pointer;">取消</button>
-                <button type="button" onclick="doAdvancedExport()" style="flex:1;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;border-radius:10px;cursor:pointer;font-weight:600;">📥 下载 CSV</button>
+                <button type="button" onclick="doAdvancedExport()" style="flex:1;padding:12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;border-radius:10px;cursor:pointer;font-weight:600;"><span data-i18n="downloadCsv">📥 下载 CSV</span></button>
             </div>
         </div>
     </div>
