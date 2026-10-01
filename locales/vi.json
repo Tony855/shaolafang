@@ -936,5 +936,7 @@
   "__err__默认总店不能删除": "Không thể xóa cửa hàng chính mặc định",
   "__err__默认货币不能删除，请先设置其他默认货币": "Không thể xóa tiền tệ mặc định, đặt loại khác trước",
   "__err__已达到门店数量上限（": "Đã đạt giới hạn cửa hàng (",
+  "imageLabel": "Hình ảnh",
+  "videoLabel": "Video",
   "advExport": "Xuất nâng cao"
 }

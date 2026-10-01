@@ -936,5 +936,7 @@
   "__err__默认总店不能删除": "Default main store cannot be deleted",
   "__err__默认货币不能删除，请先设置其他默认货币": "Cannot delete default currency, set another first",
   "__err__已达到门店数量上限（": "Store limit reached (",
+  "imageLabel": "Image",
+  "videoLabel": "Video",
   "advExport": "Advanced Export"
 }

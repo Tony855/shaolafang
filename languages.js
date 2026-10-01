@@ -943,6 +943,8 @@ const LANGUAGES = {
     "__err__默认总店不能删除": "默认总店不能删除",
     "__err__默认货币不能删除，请先设置其他默认货币": "默认货币不能删除，请先设置其他默认货币",
     "__err__已达到门店数量上限（": "已达到门店数量上限（",
+    "imageLabel": "图片",
+    "videoLabel": "视频",
     "advExport": "高级导出"
   },
   "en": {
@@ -1883,6 +1885,8 @@ const LANGUAGES = {
     "__err__默认总店不能删除": "Default main store cannot be deleted",
     "__err__默认货币不能删除，请先设置其他默认货币": "Cannot delete default currency, set another first",
     "__err__已达到门店数量上限（": "Store limit reached (",
+    "imageLabel": "Image",
+    "videoLabel": "Video",
     "advExport": "Advanced Export"
   },
   "vi": {
@@ -2823,6 +2827,8 @@ const LANGUAGES = {
     "__err__默认总店不能删除": "Không thể xóa cửa hàng chính mặc định",
     "__err__默认货币不能删除，请先设置其他默认货币": "Không thể xóa tiền tệ mặc định, đặt loại khác trước",
     "__err__已达到门店数量上限（": "Đã đạt giới hạn cửa hàng (",
+    "imageLabel": "Hình ảnh",
+    "videoLabel": "Video",
     "advExport": "Xuất nâng cao"
   },
   "th": {
@@ -3763,6 +3769,8 @@ const LANGUAGES = {
     "__err__默认总店不能删除": "ลบร้านหลักเริ่มต้นไม่ได้",
     "__err__默认货币不能删除，请先设置其他默认货币": "ลบสกุลเงินเริ่มต้นไม่ได้ ตั้งค่าใหม่ก่อน",
     "__err__已达到门店数量上限（": "ถึงขีดจำกัดจำนวนร้าน (",
+    "imageLabel": "รูปภาพ",
+    "videoLabel": "วิดีโอ",
     "advExport": "ส่งออกขั้นสูง"
   },
   "km": {
@@ -4703,6 +4711,8 @@ const LANGUAGES = {
     "__err__默认总店不能删除": "លុបហាងចម្បងលំនាំដើមមិនបាន",
     "__err__默认货币不能删除，请先设置其他默认货币": "លុបរូបិយប័ណ្ណលំនាំដើមមិនបាន កំណត់រូបិយប័ណ្ណផ្សេងជាមុន",
     "__err__已达到门店数量上限（": "ដល់ដែនកំណត់ហាង (",
+    "imageLabel": "រូបភាព",
+    "videoLabel": "វីដេអូ",
     "advExport": "នាំចេញកម្រិតខ្ពស់"
   }
 };
