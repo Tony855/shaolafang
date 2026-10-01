@@ -391,7 +391,21 @@
           try {
             if (i18n && typeof i18n.t === 'function') {
               const v = i18n.t('__err__' + rawMsg);
-              if (v && v !== '__err__' + rawMsg) translated = v;
+              if (v && v !== '__err__' + rawMsg) {
+                translated = v;
+              } else {
+                // 带变量的错误：用最长前缀匹配 __err__ 字典
+                const dict = (SLF.i18n && SLF.i18n.dicts && SLF.i18n.dicts[SLF.i18n.lang]) || {};
+                let bestKey = '';
+                for (const k in dict) {
+                  if (k.indexOf('__err__') !== 0) continue;
+                  const zh = k.slice(7);
+                  if (zh && rawMsg.indexOf(zh) === 0 && zh.length > bestKey.length) {
+                    bestKey = zh;
+                  }
+                }
+                if (bestKey) translated = dict['__err__' + bestKey] + rawMsg.slice(bestKey.length);
+              }
             }
           } catch (_) {}
           const error = new Error(translated);
