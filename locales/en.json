@@ -945,5 +945,9 @@
   "reportScopeAll": "All Stores",
   "reportByStore": "By Store Comparison",
   "reportScopeLabel": "Scope",
-  "advExport": "Advanced Export"
+  "allStores": "All Stores",
+  "advExport": "Advanced Export",
+  "applyToAllStoresMsg": "Apply to all stores of this merchant?",
+  "applyAll": "Apply to All",
+  "onlyCurrent": "Current Only"
 }

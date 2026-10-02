@@ -49,21 +49,41 @@ module.exports = function(app, deps) {
   app.get('/api/admin/display-settings', requireAdminKey, async (req, res) => {
     try {
       const mid = req.merchantId || 1;
-      const enabled = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_dual_currency_enabled`]);
-      const secondary = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_secondary_currency_code`]);
-      const enabledFallback = enabled || await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
-      const secondaryFallback = secondary || await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
-      res.json({ enabled: enabledFallback?.value === '1', secondaryCurrencyCode: secondaryFallback?.value || 'USD' });
+      const sid = req.storeId || 1;
+      // 优先：店铺级
+      const storeEnabled = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${sid}_dual_currency_enabled`]);
+      const storeSecondary = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${sid}_secondary_currency_code`]);
+      // 回退 1：商户级
+      const merEnabled = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_dual_currency_enabled`]);
+      const merSecondary = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_secondary_currency_code`]);
+      // 回退 2：全局
+      const globalEnabled = await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
+      const globalSecondary = await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
+
+      const enabled = storeEnabled || merEnabled || globalEnabled;
+      const secondary = storeSecondary || merSecondary || globalSecondary;
+      res.json({ enabled: enabled?.value === '1', secondaryCurrencyCode: secondary?.value || 'USD', scope: storeEnabled ? 'store' : (merEnabled ? 'merchant' : 'global') });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   app.post('/api/admin/display-settings', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
-      const mid = req.merchantId || 1;
+      const sid = req.storeId || 1;
       const enabled = req.body.enabled ? '1' : '0';
       const secondary = String(req.body.secondaryCurrencyCode || 'USD');
-      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`merchant_${mid}_dual_currency_enabled`, enabled]);
-      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`merchant_${mid}_secondary_currency_code`, secondary]);
+      // 写入店铺级
+      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${sid}_dual_currency_enabled`, enabled]);
+      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${sid}_secondary_currency_code`, secondary]);
+
+      // 可选：应用到所有店铺
+      if (req.body.applyAll) {
+        const stores = await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.merchantId || 1]);
+        for (const st of stores) {
+          if (String(st.id) === String(sid)) continue;
+          await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${st.id}_dual_currency_enabled`, enabled]);
+          await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${st.id}_secondary_currency_code`, secondary]);
+        }
+      }
       res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -72,17 +92,20 @@ module.exports = function(app, deps) {
   app.get('/api/admin/notification-settings', requireAdminKey, async (req, res) => {
     try {
       const mid = req.merchantId || 1;
-      const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_new_order_sound_enabled`]);
-      const fallback = row || await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
-      res.json({ enabled: fallback ? fallback.value === '1' : true });
+      const sid = req.storeId || 1;
+      const storeRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${sid}_new_order_sound_enabled`]);
+      const merRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_new_order_sound_enabled`]);
+      const globalRow = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
+      const row = storeRow || merRow || globalRow;
+      res.json({ enabled: row ? row.value === '1' : true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   app.post('/api/admin/notification-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
-      const mid = req.merchantId || 1;
+      const sid = req.storeId || 1;
       const enabled = req.body.enabled ? '1' : '0';
-      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`merchant_${mid}_new_order_sound_enabled`, enabled]);
+      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${sid}_new_order_sound_enabled`, enabled]);
       res.json({ success: true, enabled: enabled === '1' });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

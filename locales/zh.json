@@ -945,5 +945,9 @@
   "reportScopeAll": "所有店铺",
   "reportByStore": "各店铺对比",
   "reportScopeLabel": "范围",
-  "advExport": "高级导出"
+  "allStores": "所有店铺",
+  "advExport": "高级导出",
+  "applyToAllStoresMsg": "是否应用到本商户的所有店铺？",
+  "applyAll": "应用到全部",
+  "onlyCurrent": "仅当前店铺"
 }

@@ -78,14 +78,20 @@ document.addEventListener('DOMContentLoaded', function() {
   if (saveDisplaySettingsBtn) {
     saveDisplaySettingsBtn.onclick = async function() {
       try {
+        const applyAll = await SLF.ui.confirm(
+          tAdmin('applyToAllStoresMsg') || '是否应用到本商户的所有店铺？\n确定 = 应用到所有店铺，取消 = 仅当前店铺',
+          tAdmin('applyAll') || '应用到全部',
+          tAdmin('onlyCurrent') || '仅当前店铺'
+        );
         await SLF.api.post('/admin/display-settings', {
           enabled: $('#dualCurrencyEnabled').checked,
-          secondaryCurrencyCode: $('#dualCurrencySelect').value
+          secondaryCurrencyCode: $('#dualCurrencySelect').value,
+          applyAll: applyAll
         });
         await loadDisplaySettings();
         await loadOrderPrefixes();
         if (window.loadMenus) await window.loadMenus();
-        SLF.ui.toast('✅ ' + tAdmin('displaySettingsSaved'));
+        SLF.ui.toast('✅ ' + tAdmin('displaySettingsSaved') + (applyAll ? ' (' + (tAdmin('allStores') || '所有店铺') + ')' : ''));
       } catch (e) { SLF.ui.toast('❌ ' + e.message); }
     };
   }

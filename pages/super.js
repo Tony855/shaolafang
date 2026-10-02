@@ -247,6 +247,32 @@ function formatDateTime(dateStr) {
   return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
 
+async function loadStoreCompare() {
+  try {
+    const d = await api('/super/store-breakdown');
+    const stores = (d && d.stores) || [];
+    const tbody = document.getElementById('storeCompareBody');
+    if (!tbody) return;
+    if (!stores.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;padding:20px;">暂无门店</td></tr>';
+      return;
+    }
+    tbody.innerHTML = stores.map(s => `
+      <tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+        <td data-label="门店" style="font-weight:600;color:#fff;">${esc(s.store_name)}</td>
+        <td data-label="商户" style="color:#888;font-size:13px;">${esc(s.merchant_name)}</td>
+        <td data-label="总订单" style="text-align:right;color:#fff;">${s.total_orders || 0}</td>
+        <td data-label="今日订单" style="text-align:right;color:#ffd93d;">${s.today_orders || 0}</td>
+        <td data-label="今日营收" style="text-align:right;color:#2ecc71;font-weight:700;">$${Number(s.today_revenue || 0).toFixed(2)}</td>
+        <td data-label="累计扫码" style="text-align:right;color:#888;">${s.total_sessions || 0}</td>
+        <td data-label="当前在线" style="text-align:right;color:#27ae60;font-weight:600;">${s.online_count || 0}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error('loadStoreCompare:', e);
+  }
+}
+
 async function loadDashboard() {
   try {
     const stats = await api('/super/stats');
@@ -258,6 +284,7 @@ async function loadDashboard() {
     document.getElementById('statOnlineClients').textContent = stats.onlineClients || 0;
     document.getElementById('statScanSessions').textContent = stats.totalScanSessions || 0;
     loadServerStats();
+    loadStoreCompare();
   } catch (e) { SLF.ui.toast(e.message, 'error'); }
 }
 

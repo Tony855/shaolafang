@@ -5,15 +5,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FoodFlow</title>
-  <link rel="stylesheet" href="assets/super.css?v=1790660801">
-<script src="languages.min.js?v=1790908776"></script>
-<script src="assets/core.js?v=1790660801"></script>
-  <script src="assets/modules/ui.js?v=1790660801"></script>
-  <script src="assets/modules/money.js?v=1790660801"></script>
-  <script src="assets/modules/order-status.js?v=1790660801"></script>
-  <script src="assets/modules/customer-group.js?v=1790660801"></script>
-  <script src="assets/modules/role.js?v=1790660801"></script>
-  <script src="assets/modules/idle.js?v=1790660801"></script>
+  <link rel="stylesheet" href="assets/super.css?v=1790933328">
+<script src="languages.min.js?v=1790933328"></script>
+<script src="assets/core.js?v=1790933328"></script>
+  <script src="assets/modules/ui.js?v=1790933328"></script>
+  <script src="assets/modules/money.js?v=1790933328"></script>
+  <script src="assets/modules/order-status.js?v=1790933328"></script>
+  <script src="assets/modules/customer-group.js?v=1790933328"></script>
+  <script src="assets/modules/role.js?v=1790933328"></script>
+  <script src="assets/modules/idle.js?v=1790933328"></script>
 </head>
 <body>
 
@@ -89,6 +89,23 @@
 
     <!-- 仪表盘 -->
     <div class="panel active" id="panel-dashboard">
+      <div class="section-title" style="margin-top:24px;">📊 分店对比</div>
+      <div id="storeCompareCard" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;margin-bottom:24px;overflow-x:auto;">
+        <table class="data-table" style="min-width:640px;">
+          <thead>
+            <tr>
+              <th>门店</th>
+              <th>商户</th>
+              <th style="text-align:right;">总订单</th>
+              <th style="text-align:right;">今日订单</th>
+              <th style="text-align:right;">今日营收</th>
+              <th style="text-align:right;">累计扫码</th>
+              <th style="text-align:right;">当前在线</th>
+            </tr>
+          </thead>
+          <tbody id="storeCompareBody"></tbody>
+        </table>
+      </div>
       <div class="stats-grid">
         <div class="stat-card stat-merchants"><div class="stat-icon">🏪</div><div class="stat-content"><div class="label" data-i18n="totalMerchants">商户总数</div><div class="value" id="statMerchants">0</div></div></div>
         <div class="stat-card stat-stores"><div class="stat-icon">🏬</div><div class="stat-content"><div class="label" data-i18n="totalStores">门店总数</div><div class="value" id="statStores">0</div></div></div>
@@ -374,6 +391,6 @@
 </div>
 
 
-<script src="pages/super.js?v=1790908776"></script>
+<script src="pages/super.js?v=1790933328"></script>
 </body>
 </html>

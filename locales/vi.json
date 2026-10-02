@@ -945,5 +945,9 @@
   "reportScopeAll": "Tất cả cửa hàng",
   "reportByStore": "So sánh cửa hàng",
   "reportScopeLabel": "Phạm vi",
-  "advExport": "Xuất nâng cao"
+  "allStores": "Tất cả",
+  "advExport": "Xuất nâng cao",
+  "applyToAllStoresMsg": "Áp dụng cho tất cả cửa hàng?",
+  "applyAll": "Áp dụng tất cả",
+  "onlyCurrent": "Chỉ hiện tại"
 }

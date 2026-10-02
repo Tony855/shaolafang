@@ -945,5 +945,9 @@
   "reportScopeAll": "ហាងទាំងអស់",
   "reportByStore": "ប្រើប្រាស់ហាង",
   "reportScopeLabel": "វិស្យភាព",
-  "advExport": "នាំចេញកម្រិតខ្ពស់"
+  "allStores": "ទាំងអស់",
+  "advExport": "នាំចេញកម្រិតខ្ពស់",
+  "applyToAllStoresMsg": "ប្រើទាំងអស់ទាំងអស់?",
+  "applyAll": "ប្រើទាំងអស់",
+  "onlyCurrent": "តែបច្ចុប្បន្នប៉ុង"
 }

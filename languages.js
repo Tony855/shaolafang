@@ -952,7 +952,11 @@ const LANGUAGES = {
     "reportScopeAll": "所有店铺",
     "reportByStore": "各店铺对比",
     "reportScopeLabel": "范围",
-    "advExport": "高级导出"
+    "allStores": "所有店铺",
+    "advExport": "高级导出",
+    "applyToAllStoresMsg": "是否应用到本商户的所有店铺？",
+    "applyAll": "应用到全部",
+    "onlyCurrent": "仅当前店铺"
   },
   "en": {
     "code": "Code",
@@ -1901,7 +1905,11 @@ const LANGUAGES = {
     "reportScopeAll": "All Stores",
     "reportByStore": "By Store Comparison",
     "reportScopeLabel": "Scope",
-    "advExport": "Advanced Export"
+    "allStores": "All Stores",
+    "advExport": "Advanced Export",
+    "applyToAllStoresMsg": "Apply to all stores of this merchant?",
+    "applyAll": "Apply to All",
+    "onlyCurrent": "Current Only"
   },
   "vi": {
     "code": "Mã",
@@ -2850,7 +2858,11 @@ const LANGUAGES = {
     "reportScopeAll": "Tất cả cửa hàng",
     "reportByStore": "So sánh cửa hàng",
     "reportScopeLabel": "Phạm vi",
-    "advExport": "Xuất nâng cao"
+    "allStores": "Tất cả",
+    "advExport": "Xuất nâng cao",
+    "applyToAllStoresMsg": "Áp dụng cho tất cả cửa hàng?",
+    "applyAll": "Áp dụng tất cả",
+    "onlyCurrent": "Chỉ hiện tại"
   },
   "th": {
     "code": "รหัส",
@@ -3799,7 +3811,11 @@ const LANGUAGES = {
     "reportScopeAll": "ทุกร้าน",
     "reportByStore": "เปรียบเทียบร้าน",
     "reportScopeLabel": "ขอบเขต",
-    "advExport": "ส่งออกขั้นสูง"
+    "allStores": "ทุกสาขา",
+    "advExport": "ส่งออกขั้นสูง",
+    "applyToAllStoresMsg": "ใช้กับทุกสาขา?",
+    "applyAll": "ใช้ทั้งหมด",
+    "onlyCurrent": "เฉพาะปัจจุบัน"
   },
   "km": {
     "code": "កូដ",
@@ -4748,7 +4764,11 @@ const LANGUAGES = {
     "reportScopeAll": "ហាងទាំងអស់",
     "reportByStore": "ប្រើប្រាស់ហាង",
     "reportScopeLabel": "វិស្យភាព",
-    "advExport": "នាំចេញកម្រិតខ្ពស់"
+    "allStores": "ទាំងអស់",
+    "advExport": "នាំចេញកម្រិតខ្ពស់",
+    "applyToAllStoresMsg": "ប្រើទាំងអស់ទាំងអស់?",
+    "applyAll": "ប្រើទាំងអស់",
+    "onlyCurrent": "តែបច្ចុប្បន្នប៉ុង"
   }
 };
 

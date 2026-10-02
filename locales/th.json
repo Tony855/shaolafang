@@ -945,5 +945,9 @@
   "reportScopeAll": "ทุกร้าน",
   "reportByStore": "เปรียบเทียบร้าน",
   "reportScopeLabel": "ขอบเขต",
-  "advExport": "ส่งออกขั้นสูง"
+  "allStores": "ทุกสาขา",
+  "advExport": "ส่งออกขั้นสูง",
+  "applyToAllStoresMsg": "ใช้กับทุกสาขา?",
+  "applyAll": "ใช้ทั้งหมด",
+  "onlyCurrent": "เฉพาะปัจจุบัน"
 }
