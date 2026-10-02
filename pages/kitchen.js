@@ -396,13 +396,13 @@
       if (_socketConnected && pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
-        console.log('[kitchen] socket connected, paused polling');
+        SLF.log.debug('[kitchen] socket connected, paused polling');
       } else if (!_socketConnected && !pollTimer) {
         pollTimer = setInterval(() => {
           if (_socketConnected) return;
           loadOrders();
         }, 30000);
-        console.log('[kitchen] socket disconnected, resumed polling');
+        SLF.log.debug('[kitchen] socket disconnected, resumed polling');
       }
     }
     function stopPolling() {
@@ -578,7 +578,7 @@
 
       // 连接状态：断开时开启轮询，重连时刷新一次
       socket.on('connect', () => {
-        console.log('[kitchen] socket connected');
+        SLF.log.debug('[kitchen] socket connected');
         _socketConnected = true;
         updatePollingBySocket();
         // 重连成功 → 立即全量刷新一次（补偿断线期间丢失的事件）

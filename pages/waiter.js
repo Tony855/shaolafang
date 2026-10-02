@@ -683,7 +683,7 @@
     stopWaiterAutoRefresh();
     const secs = Math.max(3, parseInt(intervalSec, 10) || 8);
     if (_socketConnected) {
-      console.log('[waiter] socket connected, paused polling');
+      SLF.log.debug('[waiter] socket connected, paused polling');
       return;
     }
     waiterAutoRefreshTimer = setInterval(() => {
@@ -695,7 +695,7 @@
     if (_socketConnected && waiterAutoRefreshTimer) {
       clearInterval(waiterAutoRefreshTimer);
       waiterAutoRefreshTimer = null;
-      console.log('[waiter] socket connected, paused polling');
+      SLF.log.debug('[waiter] socket connected, paused polling');
     } else if (!_socketConnected && !waiterAutoRefreshTimer) {
       startWaiterAutoRefresh(intervalSec || 8);
     }
@@ -1126,7 +1126,7 @@
 
     // 重连成功后全量刷新一次
     waiterSocket.on('connect', () => {
-      console.log('[waiter] socket connected');
+      SLF.log.debug('[waiter] socket connected');
       _socketConnected = true;
       updateWaiterPollingBySocket();
       if (typeof load === 'function') load();

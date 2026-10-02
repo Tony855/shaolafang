@@ -95,7 +95,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     try {
       const data = await api('/cashier/khqr/providers');
       khqrProviders = (data.providers || []).filter(p => p.enabled !== false);  // 所有启用的都显示
-      console.log('[khqr] providers loaded:', khqrProviders.map(p => p.bank + '/' + p.currency));
+      SLF.log.debug('[khqr] providers loaded:', khqrProviders.map(p => p.bank + '/' + p.currency));
       renderProviderButtons();
     } catch (e) {
       console.warn('[khqr] load providers failed:', e.message);
@@ -141,7 +141,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       let extIdx = 0;
       function tryNext() {
         if (extIdx >= ICON_EXTS.length) {
-          console.log('[khqr] 图标不存在:', iconFile);
+          SLF.log.debug('[khqr] 图标不存在:', iconFile);
           return;
         }
         const ext = ICON_EXTS[extIdx++];

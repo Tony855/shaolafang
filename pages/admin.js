@@ -853,7 +853,7 @@ function applyAdminLanguage() {
             if (adminLang !== 'zh') await loadAdminLanguage(adminLang);
             applyAdminLanguage();
 
-            console.log("adminToken:", adminToken); if (adminToken) {
+            if (adminToken) {
             $('#dashboard').hidden = false;
             $('#logoutBtn').hidden = false;
             $('#adminNameBtn').hidden = false;
@@ -1071,7 +1071,7 @@ function applyAdminLanguage() {
             adminSocket.on('order:transfer', debouncedLoadOrders);
             adminSocket.on('table:moved', debouncedLoadOrders);
             adminSocket.on('connect', () => {
-                console.log('[admin] socket 已连接');
+                SLF.log.debug('[admin] socket 已连接');
                 if (typeof window.refresh === 'function') {
                     // 重连后补偿一次刷新（静默）
                     setTimeout(() => { try { window.refresh(); } catch(_) {} }, 100);
