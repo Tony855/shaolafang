@@ -433,6 +433,14 @@
           error.data = data;
           // 401 统一跳转登录页
           if (res.status === 401) {
+            console.error('[SLF.core] 401 Unauthorized:', {
+              method: method,
+              path: path,
+              url: url,
+              page: location.pathname,
+              hasCashierToken: !!localStorage.getItem('cashierToken'),
+              hasAdminToken: !!sessionStorage.getItem('adminToken'),
+            });
             const page = location.pathname;
             if (!page.startsWith('/login')) {
               // 先清除 token

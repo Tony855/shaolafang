@@ -39,26 +39,22 @@ function renderProviderList(providers) {
   }
 
   el.innerHTML = providers.map(p => {
-    const badgeDefault = p.isDefault
-      ? '<span style="display:inline-block;background:#2ecc71;color:#fff;padding:1px 8px;border-radius:8px;font-size:11px;font-weight:700;margin-left:6px;">默认</span>'
-      : '';
     const badgeDisabled = !p.enabled
-      ? '<span style="display:inline-block;background:#777;color:#fff;padding:1px 8px;border-radius:8px;font-size:11px;font-weight:700;margin-left:6px;">已禁用</span>'
+      ? '<span style="display:inline-block;background:#777;color:#fff;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-left:6px;">已禁用</span>'
       : '';
-    const bank = esc(p.bank || 'ABA');
-    const cur = p.currency === 'USD' ? '🇺🇸 USD' : (p.currency === 'KHR' ? '🇰🇭 KHR' : esc(p.currency || ''));
-    const bg = p.enabled ? 'rgba(46,204,113,.08)' : 'rgba(255,255,255,.03)';
-    const border = p.enabled ? 'rgba(46,204,113,.25)' : 'rgba(255,255,255,.08)';
+    const bg = p.enabled ? 'rgba(46,204,113,.06)' : 'rgba(255,255,255,.03)';
+    const border = p.enabled ? 'rgba(46,204,113,.2)' : 'rgba(255,255,255,.08)';
 
-    return `<div style="padding:12px 14px;background:${bg};border:1px solid ${border};border-radius:10px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:0;">
-        <div style="color:#fff;font-weight:600;font-size:14px;">${esc(p.label)}${badgeDefault}${badgeDisabled}</div>
-        <div style="color:#999;font-size:12px;margin-top:3px;">${bank} · ${cur} · ${esc(p.merchantName || '')}${p.bakongId ? ' · <code style="color:#ffd93d;">' + esc(p.bakongId) + '</code>' : ''}</div>
+    return `<div style="padding:8px 12px;background:${bg};border:1px solid ${border};border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+      <div class="khqr-icon-wrap" data-bank="${esc(p.bank || '')}" style="width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:18px;overflow:hidden;">📱</div>
+      <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+        <span style="color:#fff;font-weight:600;font-size:13px;">${esc(p.label)}</span>
+        ${badgeDisabled}
+        <span style="color:#888;font-size:11px;">${esc(p.bank || '')} · ${esc(p.currency || '')} · ${esc(p.merchantName || '')}</span>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;">
-        ${!p.isDefault && p.enabled ? '<button data-action="default" data-id="' + p.id + '" style="padding:6px 12px;border:0;border-radius:8px;background:rgba(46,204,113,.15);color:#2ecc71;font-size:12px;font-weight:600;cursor:pointer;">设为默认</button>' : ''}
-        <button data-action="toggle" data-id="${p.id}" style="padding:6px 12px;border:0;border-radius:8px;background:rgba(255,193,7,.15);color:#ffd93d;font-size:12px;font-weight:600;cursor:pointer;">${p.enabled ? '禁用' : '启用'}</button>
-        <button data-action="delete" data-id="${p.id}" style="padding:6px 12px;border:0;border-radius:8px;background:rgba(231,76,60,.15);color:#e74c3c;font-size:12px;font-weight:600;cursor:pointer;">删除</button>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button data-action="toggle" data-id="${p.id}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(255,193,7,.15);color:#ffd93d;font-size:11px;font-weight:600;cursor:pointer;">${p.enabled ? '禁用' : '启用'}</button>
+        <button data-action="delete" data-id="${p.id}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(231,76,60,.15);color:#e74c3c;font-size:11px;font-weight:600;cursor:pointer;">删除</button>
       </div>
     </div>`;
   }).join('');
@@ -68,10 +64,27 @@ function renderProviderList(providers) {
     btn.addEventListener('click', () => {
       const action = btn.dataset.action;
       const id = btn.dataset.id;
-      if (action === 'default') setDefaultProvider(id);
-      else if (action === 'toggle') toggleProvider(id);
+      if (action === 'toggle') toggleProvider(id);
       else if (action === 'delete') deleteProvider(id);
     });
+  });
+
+  // 加载银行图标
+  const _BANK_ICON_MAP = { 'ABA': 'aba', 'ACLEDA': 'acleda', 'Bakong': 'KHQR', 'Wing': 'Wing' };
+  const _ICON_EXTS = ['png', 'jpg', 'jpeg', 'webp'];
+  el.querySelectorAll('.khqr-icon-wrap').forEach(wrap => {
+    const bank = wrap.dataset.bank || '';
+    const key = _BANK_ICON_MAP[bank] || bank.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let _i = 0;
+    function tryNext() {
+      if (_i >= _ICON_EXTS.length) return;
+      const url = '/assets/vendor/payment-icons/' + key + '.' + _ICON_EXTS[_i++];
+      const img = new Image();
+      img.onload = function() { wrap.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:100%;object-fit:contain;" alt="">'; };
+      img.onerror = tryNext;
+      img.src = url;
+    }
+    tryNext();
   });
 }
 
@@ -103,9 +116,7 @@ async function uploadKhqrImage(file) {
   const fd = new FormData();
   fd.append('image', file);
   const label = (document.getElementById('khqrUploadLabel') || {}).value || '';
-  const bank = (document.getElementById('khqrUploadBank') || {}).value || 'ABA';
   fd.append('label', label.trim());
-  fd.append('bank', bank);
 
   const token = SLF.store.rawGetSession('adminToken') || '';
   const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '';

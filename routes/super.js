@@ -584,4 +584,42 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// ===== 商户支付方式配置 =====
+app.get('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (req, res) => {
+  try {
+    const mid = parseInt(req.params.id, 10);
+    const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${mid}_payment_methods`]);
+    const defaults = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
+    let methods = { ...defaults };
+    if (row && row.value) {
+      try { methods = { ...defaults, ...JSON.parse(row.value) }; } catch (e) {}
+    }
+    res.json({ methods });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (req, res) => {
+  try {
+    const mid = parseInt(req.params.id, 10);
+    const src = (req.body && req.body.methods) || {};
+    const clean = {
+      cash:   src.cash   !== false,
+      wechat: src.wechat === true,
+      alipay: src.alipay === true,
+      card:   src.card   === true,
+      khqr:   src.khqr   === true,
+    };
+    await runAsync(
+      "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+      [`merchant_${mid}_payment_methods`, JSON.stringify(clean)]
+    );
+    try {
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
+        'update_payment_methods', 'merchant', mid, JSON.stringify(clean), getClientIp(req));
+    } catch (_) {}
+    res.json({ success: true, methods: clean });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 };

@@ -335,9 +335,12 @@ async function loadMerchants() {
         <td data-label="门店数"><span style="color:#aaa;">${m.store_count}</span><span style="color:#666;"> / </span><span style="color:#ffd93d;font-weight:600;">${m.max_stores}</span></td>
         <td data-label="状态"><span class="status-badge ${m.status === 1 ? 'status-active' : 'status-disabled'}">${m.status === 1 ? t('enabled', null, '启用') : t('disabled', null, '禁用')}</span></td>
         <td>
-          <button class="action-btn primary" onclick="editMerchant(${m.id})">编辑</button>
-          <button class="action-btn warning" onclick="resetPassword(${m.id})">重置密码</button>
-          ${m.id != 1 ? `<button class="action-btn danger" onclick="deleteMerchant(${m.id})">删除</button>` : ''}
+          <div class="merchant-actions">
+            <button class="action-btn primary" onclick="editMerchant(${m.id})">编辑</button>
+            <button class="action-btn" onclick="openPaymentMethods(${m.id}, '${esc(m.name)}')" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#0a3d1a;">💳 支付</button>
+            <button class="action-btn warning" onclick="resetPassword(${m.id})">重置密码</button>
+            ${m.id != 1 ? `<button class="action-btn danger" onclick="deleteMerchant(${m.id})">删除</button>` : ''}
+          </div>
         </td>
       </tr>
     `).join('');
@@ -1083,4 +1086,58 @@ window.closeOnlineSessions = closeOnlineSessions;
     try { window.switchSettingsTab = switchSettingsTab; } catch(err) {}
     try { window.switchSuperLogTab = switchSuperLogTab; } catch(err) {}
     try { window.toggleSidebar = toggleSidebar; } catch(err) {}
+
+// ===== 支付方式配置 =====
+let _pmMerchantId = null;
+
+async function openPaymentMethods(merchantId, merchantName) {
+  _pmMerchantId = merchantId;
+  const nameEl = document.getElementById('pmMerchantName');
+  if (nameEl) nameEl.textContent = '商户：' + (merchantName || ('#' + merchantId));
+  try {
+    const data = await api('/super/merchants/' + merchantId + '/payment-methods');
+    const m = data.methods || {};
+    document.getElementById('pmCash').checked   = m.cash   !== false;
+    document.getElementById('pmWechat').checked = m.wechat === true;
+    document.getElementById('pmAlipay').checked = m.alipay === true;
+    document.getElementById('pmCard').checked   = m.card   === true;
+    document.getElementById('pmKhqr').checked   = m.khqr   === true;
+    document.getElementById('paymentMethodsModal').classList.add('open');
+  } catch (e) {
+    SLF.ui.toast('加载失败: ' + e.message, 'error');
+  }
+}
+
+function closePaymentMethods() {
+  const m = document.getElementById('paymentMethodsModal');
+  if (m) m.classList.remove('open');
+  _pmMerchantId = null;
+}
+
+async function savePaymentMethods() {
+  if (!_pmMerchantId) return;
+  const methods = {
+    cash:   document.getElementById('pmCash').checked,
+    wechat: document.getElementById('pmWechat').checked,
+    alipay: document.getElementById('pmAlipay').checked,
+    card:   document.getElementById('pmCard').checked,
+    khqr:   document.getElementById('pmKhqr').checked,
+  };
+  try {
+    await api('/super/merchants/' + _pmMerchantId + '/payment-methods', {
+      method: 'PUT',
+      body: JSON.stringify({ methods: methods }),
+    });
+    SLF.ui.toast('✅ 已保存', 'success');
+    closePaymentMethods();
+  } catch (e) {
+    SLF.ui.toast('保存失败: ' + e.message, 'error');
+  }
+}
+
+// 挂到 window
+try { window.openPaymentMethods = openPaymentMethods; } catch(e) {}
+try { window.closePaymentMethods = closePaymentMethods; } catch(e) {}
+try { window.savePaymentMethods = savePaymentMethods; } catch(e) {}
+
 })();

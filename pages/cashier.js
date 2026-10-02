@@ -25,7 +25,9 @@
 let refundOrderId = null;
 
 // KHQR 支付弹窗状态
-let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null };
+let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null };
+let khqrProviders = [];
+let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
 
   SLF.i18n.init(currentLang);
 
@@ -57,6 +59,105 @@ let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null };
     return sec
       ? `<span class="money-primary">${p}</span> <span class="money-secondary">(${sec})</span>`
       : `<span class="money-primary">${p}</span>`;
+  }
+
+  /* ===== 加载商户启用的支付方式 ===== */
+  async function loadPaymentMethods() {
+    try {
+      const data = await api('/cashier/payment-methods');
+      enabledPaymentMethods = Object.assign(
+        { cash: true, wechat: false, alipay: false, card: false, khqr: false },
+        data.methods || {}
+      );
+      applyPaymentMethodsVisibility();
+    } catch (e) {
+      console.warn('[payment-methods] 加载失败:', e.message);
+    }
+  }
+
+  function applyPaymentMethodsVisibility() {
+    const map = { cash: '[data-method="cash"]', wechat: '[data-method="wechat"]', alipay: '[data-method="alipay"]', card: '[data-method="card"]' };
+    Object.keys(map).forEach(k => {
+      const el = document.querySelector(map[k]);
+      if (el) el.style.display = enabledPaymentMethods[k] ? '' : 'none';
+    });
+    if (!enabledPaymentMethods.khqr) {
+      document.querySelectorAll('.payment-methods [data-provider-id]').forEach(el => el.style.display = 'none');
+      const oldAba = document.querySelector('.payment-methods [data-method="aba"]');
+      if (oldAba) oldAba.style.display = 'none';
+    } else {
+      document.querySelectorAll('.payment-methods [data-provider-id]').forEach(el => el.style.display = '');
+    }
+  }
+
+  /* ===== KHQR providers 加载与渲染 ===== */
+  async function loadKhqrProviders() {
+    try {
+      const data = await api('/cashier/khqr/providers');
+      khqrProviders = (data.providers || []).filter(p => p.enabled !== false);  // 所有启用的都显示
+      console.log('[khqr] providers loaded:', khqrProviders.map(p => p.bank + '/' + p.currency));
+      renderProviderButtons();
+    } catch (e) {
+      console.warn('[khqr] load providers failed:', e.message);
+      khqrProviders = [];
+    }
+  }
+
+  // bank 名 → 图标文件名（大小写/别名映射）
+  const BANK_ICON_MAP = {
+    'ABA': 'aba',
+    'ACLEDA': 'acleda',
+    'Bakong': 'KHQR',
+    'Wing': 'Wing',
+    'Chip Mong': 'ChipMong',
+  };
+  const ICON_EXTS = ['png', 'jpg', 'jpeg', 'webp'];
+
+  function renderProviderButtons() {
+    const container = document.querySelector('.payment-methods');
+    if (!container) return;
+
+    container.querySelectorAll('[data-provider-id]').forEach(b => b.remove());
+    const abaBtn = container.querySelector('[data-method="aba"]');
+    if (abaBtn) abaBtn.style.display = 'none';
+
+    if (!enabledPaymentMethods.khqr) return;
+    if (!khqrProviders.length) return;
+
+    khqrProviders.forEach(p => {
+      const bankName = String(p.bank || '').trim();
+      let iconFile = BANK_ICON_MAP[bankName];
+      if (!iconFile) iconFile = bankName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const btn = document.createElement('button');
+      btn.className = 'payment-method';
+      btn.dataset.method = 'provider';
+      btn.dataset.providerId = p.id;
+
+      const label = bankName || '扫码';
+      const labelHtml = '<span class="pm-label" style="font-size:12px;font-weight:700;">' + esc(label) + '</span>';
+      btn.innerHTML = '<span class="pm-icon" style="font-size:22px;">📱</span>' + labelHtml;
+
+      let extIdx = 0;
+      function tryNext() {
+        if (extIdx >= ICON_EXTS.length) {
+          console.log('[khqr] 图标不存在:', iconFile);
+          return;
+        }
+        const ext = ICON_EXTS[extIdx++];
+        const url = '/assets/vendor/payment-icons/' + iconFile + '.' + ext;
+        const img = new Image();
+        img.onload = function() {
+          btn.innerHTML = '<span class="pm-icon pm-icon-aba"><img src="' + url + '" alt="' + esc(label) + '"></span>' + labelHtml;
+        };
+        img.onerror = tryNext;
+        img.src = url;
+      }
+      tryNext();
+
+      btn.addEventListener('click', () => selectPayMethod('provider', p.id));
+      container.appendChild(btn);
+    });
   }
 
   function goLogin() {
@@ -415,25 +516,30 @@ let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null };
     paymentOrderId = null;
   }
 
-  function selectPayMethod(method) {
+  function selectPayMethod(method, providerId) {
     payMethod = method;
-    document.querySelectorAll('.payment-method').forEach(btn => btn.classList.toggle('active', btn.dataset.method === method));
+    document.querySelectorAll('.payment-method').forEach(btn => {
+      const isActive = btn.dataset.method === method
+        && (!providerId || btn.dataset.providerId === providerId);
+      btn.classList.toggle('active', isActive);
+    });
     document.getElementById('cashArea').style.display = method === 'cash' ? 'block' : 'none';
 
-    // ABA / KHQR → 打开动态码弹窗
-    if (method === 'aba' && paymentOrderId) {
-      openKhqrModal(paymentOrderId);
+    // ABA 或 provider → 打开动态码弹窗
+    if ((method === 'aba' || method === 'provider') && paymentOrderId) {
+      openKhqrModal(paymentOrderId, providerId);
     }
   }
 
   /* ===== KHQR 动态收款 ===== */
-  function openKhqrModal(orderId) {
+  function openKhqrModal(orderId, providerId) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
-    closePaymentModal(); // 关掉普通收款弹窗
+    closePaymentModal();
 
     khqrState.orderId = orderId;
+    khqrState.providerId = providerId || null;
     document.getElementById('khqrImage').src = '';
     document.getElementById('khqrMerchant').textContent = '...';
     document.getElementById('khqrOrderNo').textContent = order.order_no || ('#' + order.id);
@@ -446,7 +552,7 @@ let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null };
     document.getElementById('khqrModal').classList.add('show');
 
     // 请求生成
-    api('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId } })
+    api('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId, provider_id: providerId || undefined } })
       .then(res => {
         // 优先用后端返回的 base64（<img> 无法带 token，不能直接用 URL 接口）
         if (res.qr_data_url) {
@@ -810,6 +916,8 @@ let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null };
       });
 
       await loadOrders();
+      await loadPaymentMethods();
+      await loadKhqrProviders();
       if (refreshTimer) clearInterval(refreshTimer);
       if (!_socketConnected) {
         refreshTimer = setInterval(() => {

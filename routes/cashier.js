@@ -319,4 +319,49 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ----- 收银台获取本商户启用的支付方式 -----
+app.get('/api/cashier/payment-methods', requireCashier, async (req, res) => {
+  try {
+    const mid = req.merchantId;
+    const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${mid}_payment_methods`]);
+    const defaults = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
+    let methods = { ...defaults };
+    if (row && row.value) {
+      try { methods = { ...defaults, ...JSON.parse(row.value) }; } catch (e) {}
+    }
+    res.json({ methods });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ----- 收银台获取本店铺启用的 KHQR 收款码 -----
+app.get('/api/cashier/khqr/providers', requireCashier, async (req, res) => {
+  try {
+    const sid = req.storeId;
+    const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`store_${sid}_khqr_providers`]);
+    let list = [];
+    if (row && row.value) {
+      try { list = JSON.parse(row.value); } catch (e) {}
+    }
+    const QRCode = require('qrcode');
+    const enabled = list.filter(p => p.enabled);
+    const out = [];
+    for (const p of enabled) {
+      let dataUrl = '';
+      try {
+        dataUrl = await QRCode.toDataURL(p.payload, { errorCorrectionLevel: 'M', margin: 1, width: 400 });
+      } catch (e) { console.warn('[khqr] qr gen failed', p.id, e.message); }
+      out.push({
+        id: p.id,
+        bank: p.bank,
+        currency: p.currency,
+        merchantName: p.merchantName,
+        isDefault: p.isDefault,
+        enabled: p.enabled !== false,
+        qr_data_url: dataUrl,
+      });
+    }
+    res.json({ providers: out });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 };

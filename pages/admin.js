@@ -662,7 +662,7 @@ function applyAdminLanguage() {
             _st('waiterManageCardTitle', 'waiterManageCardTitle');
             _st('waiterManageDesc', 'waiterManageDesc');
             _st('enterWaiterManageBtn', 'enterWaiterManage');
-            _st('currencySettingsTitle', 'currencySettingsTitle');
+            _st('currencySettingsTitleText', 'currencySettingsTitle');
             _st('currencySettingsDesc', 'currencySettingsDesc');
             _st('enterCurrencySettingsBtn', 'enterCurrencySettingsBtn');
             _st('printerSettingsTitle', 'printerSettingsTitle');
