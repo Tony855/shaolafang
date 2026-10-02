@@ -949,5 +949,8 @@
   "advExport": "នាំចេញកម្រិតខ្ពស់",
   "applyToAllStoresMsg": "ប្រើទាំងអស់ទាំងអស់?",
   "applyAll": "ប្រើទាំងអស់",
-  "onlyCurrent": "តែបច្ចុប្បន្នប៉ុង"
+  "onlyCurrent": "តែបច្ចុប្បន្នប៉ុង",
+  "yearRevenue": "ចំនូលឆ្នាំ",
+  "monthOrders": "ការបញ្ជាទិញខែ",
+  "yearOrders": "ការបញ្ជាទិញឆ្នាំ"
 }

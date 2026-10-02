@@ -949,5 +949,8 @@
   "advExport": "ส่งออกขั้นสูง",
   "applyToAllStoresMsg": "ใช้กับทุกสาขา?",
   "applyAll": "ใช้ทั้งหมด",
-  "onlyCurrent": "เฉพาะปัจจุบัน"
+  "onlyCurrent": "เฉพาะปัจจุบัน",
+  "yearRevenue": "รายได้ปี",
+  "monthOrders": "ออเดอร์เดือน",
+  "yearOrders": "ออเดอร์ปี"
 }

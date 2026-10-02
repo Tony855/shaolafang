@@ -193,6 +193,10 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
     const orderCount = await getAsync('SELECT COUNT(*) as count FROM orders');
     const todayOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE()");
     const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE() AND status='done'");
+    const monthRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND MONTH(createdAt)=MONTH(CURDATE()) AND status='done'");
+    const yearRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND status='done'");
+    const monthOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND MONTH(createdAt)=MONTH(CURDATE())");
+    const yearOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE())");
     const now = new Date().toISOString();
     const onlineClients = await getAsync('SELECT COUNT(*) as count FROM scan_sessions WHERE expires_at > ?', [now]);
     const totalScanSessions = await getAsync('SELECT COUNT(*) as count FROM scan_sessions');
@@ -203,6 +207,10 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
       orderCount: orderCount.count,
       todayOrders: todayOrders.count,
       todayRevenue: Number(todayRevenue.total) || 0,
+      monthRevenue: Number(monthRevenue.total) || 0,
+      monthOrders: monthOrders.count,
+      yearRevenue: Number(yearRevenue.total) || 0,
+      yearOrders: yearOrders.count,
       onlineClients: onlineClients.count,
       totalScanSessions: totalScanSessions.count,
       todayScanSessions: todayScanSessions.count

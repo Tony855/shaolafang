@@ -949,5 +949,8 @@
   "advExport": "Xuất nâng cao",
   "applyToAllStoresMsg": "Áp dụng cho tất cả cửa hàng?",
   "applyAll": "Áp dụng tất cả",
-  "onlyCurrent": "Chỉ hiện tại"
+  "onlyCurrent": "Chỉ hiện tại",
+  "yearRevenue": "Doanh thu năm",
+  "monthOrders": "Đơn hàng tháng",
+  "yearOrders": "Đơn hàng năm"
 }

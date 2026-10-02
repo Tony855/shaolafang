@@ -280,7 +280,13 @@ async function loadDashboard() {
     document.getElementById('statStores').textContent = stats.storeCount;
     document.getElementById('statOrders').textContent = stats.orderCount;
     document.getElementById('statTodayOrders').textContent = stats.todayOrders;
-    document.getElementById('statRevenue').textContent = '$' + Number(stats.todayRevenue).toFixed(2);
+    const mrEl = document.getElementById('statMonthRevenue');
+    if (mrEl) mrEl.textContent = '$' + Number(stats.monthRevenue || 0).toFixed(2);
+    const yrEl = document.getElementById('statYearRevenue');
+    if (yrEl) yrEl.textContent = '$' + Number(stats.yearRevenue || 0).toFixed(2);
+    // 向后兼容：旧 id statRevenue
+    const srEl = document.getElementById('statRevenue');
+    if (srEl) srEl.textContent = '$' + Number(stats.todayRevenue).toFixed(2);
     document.getElementById('statOnlineClients').textContent = stats.onlineClients || 0;
     document.getElementById('statScanSessions').textContent = stats.totalScanSessions || 0;
     loadServerStats();

@@ -956,7 +956,10 @@ const LANGUAGES = {
     "advExport": "高级导出",
     "applyToAllStoresMsg": "是否应用到本商户的所有店铺？",
     "applyAll": "应用到全部",
-    "onlyCurrent": "仅当前店铺"
+    "onlyCurrent": "仅当前店铺",
+    "yearRevenue": "年度营业额",
+    "monthOrders": "本月订单",
+    "yearOrders": "年度订单"
   },
   "en": {
     "code": "Code",
@@ -1909,7 +1912,10 @@ const LANGUAGES = {
     "advExport": "Advanced Export",
     "applyToAllStoresMsg": "Apply to all stores of this merchant?",
     "applyAll": "Apply to All",
-    "onlyCurrent": "Current Only"
+    "onlyCurrent": "Current Only",
+    "yearRevenue": "Annual Revenue",
+    "monthOrders": "Monthly Orders",
+    "yearOrders": "Annual Orders"
   },
   "vi": {
     "code": "Mã",
@@ -2862,7 +2868,10 @@ const LANGUAGES = {
     "advExport": "Xuất nâng cao",
     "applyToAllStoresMsg": "Áp dụng cho tất cả cửa hàng?",
     "applyAll": "Áp dụng tất cả",
-    "onlyCurrent": "Chỉ hiện tại"
+    "onlyCurrent": "Chỉ hiện tại",
+    "yearRevenue": "Doanh thu năm",
+    "monthOrders": "Đơn hàng tháng",
+    "yearOrders": "Đơn hàng năm"
   },
   "th": {
     "code": "รหัส",
@@ -3815,7 +3824,10 @@ const LANGUAGES = {
     "advExport": "ส่งออกขั้นสูง",
     "applyToAllStoresMsg": "ใช้กับทุกสาขา?",
     "applyAll": "ใช้ทั้งหมด",
-    "onlyCurrent": "เฉพาะปัจจุบัน"
+    "onlyCurrent": "เฉพาะปัจจุบัน",
+    "yearRevenue": "รายได้ปี",
+    "monthOrders": "ออเดอร์เดือน",
+    "yearOrders": "ออเดอร์ปี"
   },
   "km": {
     "code": "កូដ",
@@ -4768,7 +4780,10 @@ const LANGUAGES = {
     "advExport": "នាំចេញកម្រិតខ្ពស់",
     "applyToAllStoresMsg": "ប្រើទាំងអស់ទាំងអស់?",
     "applyAll": "ប្រើទាំងអស់",
-    "onlyCurrent": "តែបច្ចុប្បន្នប៉ុង"
+    "onlyCurrent": "តែបច្ចុប្បន្នប៉ុង",
+    "yearRevenue": "ចំនូលឆ្នាំ",
+    "monthOrders": "ការបញ្ជាទិញខែ",
+    "yearOrders": "ការបញ្ជាទិញឆ្នាំ"
   }
 };
 

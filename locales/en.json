@@ -949,5 +949,8 @@
   "advExport": "Advanced Export",
   "applyToAllStoresMsg": "Apply to all stores of this merchant?",
   "applyAll": "Apply to All",
-  "onlyCurrent": "Current Only"
+  "onlyCurrent": "Current Only",
+  "yearRevenue": "Annual Revenue",
+  "monthOrders": "Monthly Orders",
+  "yearOrders": "Annual Orders"
 }

@@ -5,15 +5,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FoodFlow</title>
-  <link rel="stylesheet" href="assets/super.css?v=1790933328">
-<script src="languages.min.js?v=1790933328"></script>
-<script src="assets/core.js?v=1790933328"></script>
-  <script src="assets/modules/ui.js?v=1790933328"></script>
-  <script src="assets/modules/money.js?v=1790933328"></script>
-  <script src="assets/modules/order-status.js?v=1790933328"></script>
-  <script src="assets/modules/customer-group.js?v=1790933328"></script>
-  <script src="assets/modules/role.js?v=1790933328"></script>
-  <script src="assets/modules/idle.js?v=1790933328"></script>
+  <link rel="stylesheet" href="assets/super.css?v=1790933741">
+<script src="languages.min.js?v=1790933741"></script>
+<script src="assets/core.js?v=1790933741"></script>
+  <script src="assets/modules/ui.js?v=1790933741"></script>
+  <script src="assets/modules/money.js?v=1790933741"></script>
+  <script src="assets/modules/order-status.js?v=1790933741"></script>
+  <script src="assets/modules/customer-group.js?v=1790933741"></script>
+  <script src="assets/modules/role.js?v=1790933741"></script>
+  <script src="assets/modules/idle.js?v=1790933741"></script>
 </head>
 <body>
 
@@ -110,7 +110,8 @@
         <div class="stat-card stat-merchants"><div class="stat-icon">🏪</div><div class="stat-content"><div class="label" data-i18n="totalMerchants">商户总数</div><div class="value" id="statMerchants">0</div></div></div>
         <div class="stat-card stat-stores"><div class="stat-icon">🏬</div><div class="stat-content"><div class="label" data-i18n="totalStores">门店总数</div><div class="value" id="statStores">0</div></div></div>
         <div class="stat-card stat-orders" style="cursor:pointer;" onclick="showStoreBreakdown('orders')"><div class="stat-icon">📋</div><div class="stat-content"><div class="label" data-i18n="totalOrders">订单总数</div><div class="value" id="statOrders">0</div></div></div>
-        <div class="stat-card stat-revenue" style="cursor:pointer;" onclick="showStoreBreakdown('revenue')"><div class="stat-icon">💰</div><div class="stat-content"><div class="label" data-i18n="todayRevenue">今日营业额</div><div class="value" id="statRevenue">$0</div></div></div>
+        <div class="stat-card stat-revenue" style="cursor:pointer;" onclick="showStoreBreakdown('revenue')"><div class="stat-icon">💰</div><div class="stat-content"><div class="label" data-i18n="monthRevenue">本月营业额</div><div class="value" id="statMonthRevenue">$0</div></div></div>
+        <div class="stat-card stat-revenue" style="cursor:pointer;" onclick="showStoreBreakdown('revenue')"><div class="stat-icon">📅</div><div class="stat-content"><div class="label" data-i18n="yearRevenue">年度营业额</div><div class="value" id="statYearRevenue">$0</div></div></div>
         <div class="stat-card stat-online" id="cardOnlineClients" style="cursor:pointer;" onclick="showOnlineSessions()"><div class="stat-icon">🟢</div><div class="stat-content"><div class="label" data-i18n="onlineClients">在线客户端</div><div class="value" id="statOnlineClients">0</div></div></div>
         <div class="stat-card stat-scan" style="cursor:pointer;" onclick="showStoreBreakdown('sessions')"><div class="stat-icon">📱</div><div class="stat-content"><div class="label" data-i18n="scanSessions">扫码连接数</div><div class="value" id="statScanSessions">0</div></div></div>
       </div>
@@ -391,6 +392,6 @@
 </div>
 
 
-<script src="pages/super.js?v=1790933328"></script>
+<script src="pages/super.js?v=1790933741"></script>
 </body>
 </html>
