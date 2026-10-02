@@ -933,10 +933,13 @@ if (token) showApp();
 })();
 ;
 // ===== 在线会话/门店统计弹窗 =====
-async function showStoreBreakdown(type) {
+async function showStoreBreakdown(type, period) {
+  period = period || 'today';
+  const periodLabel = { today: '今日', month: '本月', year: '年度' }[period];
+
   const titles = {
     orders: '订单总数（按门店）',
-    revenue: '今日营业额（按门店）',
+    revenue: periodLabel + '营业额（按门店）',
     sessions: '扫码会话（按门店）'
   };
   document.getElementById('osModalTitle').textContent = titles[type] || '门店统计';
@@ -944,7 +947,6 @@ async function showStoreBreakdown(type) {
   document.getElementById('onlineSessionsModal').style.display = 'flex';
   try {
     const d = await SLF.api.get('/super/store-breakdown');
-    // 修复：接口返回的是 { stores: [...] }
     const stores = (d && d.stores) || [];
     if (!stores.length) {
       document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">暂无门店</p>';
@@ -952,7 +954,7 @@ async function showStoreBreakdown(type) {
     }
     const cols = {
       orders: ['门店', '商户', '总订单', '今日订单'],
-      revenue: ['门店', '商户', '今日营业额', '今日订单'],
+      revenue: ['门店', '商户', periodLabel + '营业额', periodLabel + '订单'],
       sessions: ['门店', '商户', '累计扫码', '当前在线']
     };
     let html = '<table style="width:100%;border-collapse:collapse;font-size:14px;color:#ddd;">';
@@ -967,10 +969,12 @@ async function showStoreBreakdown(type) {
           + '<td style="padding:12px;text-align:center;">' + (s.total_orders||0) + '</td>'
           + '<td style="padding:12px;text-align:center;">' + (s.today_orders||0) + '</td>';
       } else if (type === 'revenue') {
+        const revKey = period === 'month' ? 'month_revenue' : (period === 'year' ? 'year_revenue' : 'today_revenue');
+        const ordKey = period === 'month' ? 'month_orders' : (period === 'year' ? 'year_orders' : 'today_orders');
         html += '<td style="padding:12px;font-weight:600;">' + esc(s.store_name||'-') + '</td>'
           + '<td style="padding:12px;color:#888;">' + esc(s.merchant_name||'-') + '</td>'
-          + '<td style="padding:12px;text-align:center;color:#27ae60;font-weight:600;">$' + Number(s.today_revenue||0).toFixed(2) + '</td>'
-          + '<td style="padding:12px;text-align:center;">' + (s.today_orders||0) + '</td>';
+          + '<td style="padding:12px;text-align:center;color:#27ae60;font-weight:600;">$' + Number(s[revKey]||0).toFixed(2) + '</td>'
+          + '<td style="padding:12px;text-align:center;">' + (s[ordKey]||0) + '</td>';
       } else {
         html += '<td style="padding:12px;font-weight:600;">' + esc(s.store_name||'-') + '</td>'
           + '<td style="padding:12px;color:#888;">' + esc(s.merchant_name||'-') + '</td>'

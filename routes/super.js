@@ -228,6 +228,10 @@ app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id) AS total_orders,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=?) AS today_orders,
         (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=? AND o.status='done') AS today_revenue,
+        (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND MONTH(o.createdAt)=MONTH(CURDATE())) AS month_orders,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND MONTH(o.createdAt)=MONTH(CURDATE()) AND o.status='done') AS month_revenue,
+        (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE())) AS year_orders,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND o.status='done') AS year_revenue,
         (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id) AS total_sessions,
         (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id AND ss.expires_at>?) AS online_count
       FROM stores s
