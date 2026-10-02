@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FoodFlow</title>
   <link rel="stylesheet" href="assets/super.css?v=1790660801">
-<script src="languages.min.js?v=1790855774"></script>
+<script src="languages.min.js?v=1790908776"></script>
 <script src="assets/core.js?v=1790660801"></script>
   <script src="assets/modules/ui.js?v=1790660801"></script>
   <script src="assets/modules/money.js?v=1790660801"></script>
@@ -251,6 +251,7 @@
           <p style="color:#888;margin-bottom:16px;">业务超时与刷新配置</p>
           <div class="form-group"><label>二维码链接有效时间（分钟）</label><input type="number" id="qrSessionTimeout" min="0" max="1440" placeholder="如：45，0=永不过期"><small style="color:#666;">顾客扫码后 session_token 的有效时间，范围0-1440分钟，0=永不过期</small></div>
           <div class="form-group"><label>服务员登录有效期（小时）</label><input type="number" id="waiterSessionTimeout" min="1" max="168" placeholder="如：12"><small style="color:#666;">服务员登录后 session 的初始有效时间，范围1-168小时</small></div>
+          <div class="form-group"><label>收银员登录有效期（小时）</label><input type="number" id="cashierSessionTimeout" min="1" max="168" placeholder="如：12"><small style="color:#666;">收银员登录后 session 的初始有效时间，范围1-168小时</small></div>
           <div class="form-group"><label>前端下单间隔时间（秒）</label><input type="number" id="orderIntervalSeconds" min="0" max="3600" placeholder="如：30"><small style="color:#666;">同一桌号/顾客两次下单的最小间隔时间，范围0-3600秒</small></div>
           <div class="form-group"><label>服务员端自动刷新间隔（秒）</label><input type="number" id="waiterRefreshInterval" min="3" max="300" placeholder="如：8"><small style="color:#666;">服务员端页面自动刷新订单数据的间隔时间，范围3-300秒</small></div>
           <div class="form-group"><label>后厨订单自动隐藏时间（分钟）</label><input type="number" id="kitchenAutoHideMinutes" min="0" max="120" placeholder="如：10"><small style="color:#666;">后厨菜品全部出餐后，订单自动从屏幕隐藏的时间</small></div>
@@ -373,6 +374,6 @@
 </div>
 
 
-<script src="pages/super.js?v=1790660801"></script>
+<script src="pages/super.js?v=1790908776"></script>
 </body>
 </html>

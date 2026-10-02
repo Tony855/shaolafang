@@ -496,6 +496,7 @@ async function loadGlobalSettings() {
     setVal('kitchenIdleTimeout', settings.kitchen_idle_timeout || 120);
     setVal('qrSessionTimeout', (settings.qr_session_timeout !== undefined && settings.qr_session_timeout !== null) ? settings.qr_session_timeout : 45);
     setVal('waiterSessionTimeout', settings.waiter_session_timeout || 12);
+    setVal('cashierSessionTimeout', settings.cashier_session_timeout || 12);
     setVal('orderIntervalSeconds', settings.order_interval_seconds || 30);
     setVal('waiterRefreshInterval', settings.waiter_refresh_interval || 8);
     setVal('kitchenAutoHideMinutes', settings.kitchen_auto_hide_minutes || 10);
@@ -578,6 +579,7 @@ async function saveGlobalSettings() {
       kitchen_idle_timeout: getInt('kitchenIdleTimeout') || 120,
       qr_session_timeout: qrTimeout,
       waiter_session_timeout: waiterSessionTimeout,
+      cashier_session_timeout: getInt('cashierSessionTimeout') || 12,
       order_interval_seconds: orderInterval,
       waiter_refresh_interval: waiterRefresh,
       max_order_items: maxOrderItems,

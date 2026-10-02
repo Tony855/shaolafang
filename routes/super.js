@@ -335,7 +335,7 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
 
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'cashier_idle_timeout', 'kitchen_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist', 'call_limit_enabled', 'call_limit_max', 'call_limit_window_minutes', 'call_limit_cooldown_minutes', 'auto_clean_log_enabled', 'log_retention_days', 'clean_login_log', 'clean_audit_log', 'kitchen_auto_hide_minutes')");
+    const rows = await allAsync("SELECT `key`, value FROM settings WHERE `key` IN ('super_idle_timeout', 'admin_idle_timeout', 'cashier_idle_timeout', 'kitchen_idle_timeout', 'qr_session_timeout', 'order_interval_seconds', 'waiter_refresh_interval', 'waiter_session_timeout', 'cashier_session_timeout', 'max_order_items', 'max_item_quantity', 'max_order_note_length', 'login_max_attempts', 'login_lock_minutes', 'super_ip_whitelist', 'call_limit_enabled', 'call_limit_max', 'call_limit_window_minutes', 'call_limit_cooldown_minutes', 'auto_clean_log_enabled', 'log_retention_days', 'clean_login_log', 'clean_audit_log', 'kitchen_auto_hide_minutes')");
     const settings = {};
     rows.forEach(r => { settings[r.key] = r.value; });
     res.json({
@@ -345,6 +345,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
       kitchen_idle_timeout: parseInt(settings.kitchen_idle_timeout || '120', 10),
       qr_session_timeout: parseInt(settings.qr_session_timeout || '45', 10),
       waiter_session_timeout: parseInt(settings.waiter_session_timeout || '12', 10),
+      cashier_session_timeout: parseInt(settings.cashier_session_timeout || '12', 10),
       order_interval_seconds: parseInt(settings.order_interval_seconds || '30', 10),
       waiter_refresh_interval: parseInt(settings.waiter_refresh_interval || '8', 10),
       max_order_items: parseInt(settings.max_order_items || '50', 10),
@@ -368,7 +369,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { super_idle_timeout, admin_idle_timeout, cashier_idle_timeout, kitchen_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes, auto_clean_log_enabled, log_retention_days, clean_login_log, clean_audit_log, kitchen_auto_hide_minutes } = req.body || {};
+    const { super_idle_timeout, admin_idle_timeout, cashier_idle_timeout, kitchen_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, cashier_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes, auto_clean_log_enabled, log_retention_days, clean_login_log, clean_audit_log, kitchen_auto_hide_minutes } = req.body || {};
     if (super_idle_timeout !== undefined) {
       const mins = Math.max(1, Math.min(1440, parseInt(super_idle_timeout, 10) || 60));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
@@ -392,6 +393,11 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     if (waiter_session_timeout !== undefined) {
       const hours = Math.max(1, Math.min(168, parseInt(waiter_session_timeout, 10) || 12));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('waiter_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(hours), String(hours)]);
+    }
+
+    if (cashier_session_timeout !== undefined) {
+      const hours = Math.max(1, Math.min(168, parseInt(cashier_session_timeout, 10) || 12));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('cashier_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(hours), String(hours)]);
     }
     if (order_interval_seconds !== undefined) {
       const secs = Math.max(0, Math.min(3600, parseInt(order_interval_seconds, 10) || 30));
