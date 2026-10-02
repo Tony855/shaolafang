@@ -1202,3 +1202,4 @@ function applyAdminLanguage() {
       window.loadAdminLanguage = loadAdminLanguage;
     } catch(err) {}
 })();
+try { window.loadAdminInfo = loadAdminInfo; } catch(e) {}

@@ -228,9 +228,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const lang = this.value;
       SLF.store.rawSet('adminLang', lang);
       // 先加载语言字典
-      if (window.loadAdminLanguage) await window.loadAdminLanguage(lang);
-      if (window.applyAdminLanguage) window.applyAdminLanguage();
-      if (window.loadAdminInfo) window.loadAdminInfo();
+      try { if (window.loadAdminLanguage) await window.loadAdminLanguage(lang); } catch(e) { console.error('loadAdminLanguage:', e); }
+      try { if (window.applyAdminLanguage) window.applyAdminLanguage(); } catch(e) { console.error('applyAdminLanguage:', e); }
+      try { if (window.loadAdminInfo) window.loadAdminInfo(); } catch(e) { console.error('loadAdminInfo:', e); }
       const navItem = document.querySelector('.nav-item.active');
       if (navItem && window.switchAdminModule) window.switchAdminModule(navItem.dataset.module);
     };
