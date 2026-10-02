@@ -6,7 +6,14 @@ module.exports = function(app, deps) {
 
   app.get('/api/admin/printers', requireAdminKey, async (req, res) => {
     try {
-      const rows = await allAsync('SELECT * FROM printers WHERE store_id=? ORDER BY id', [req.storeId || 1]);
+      const rows = await allAsync(
+        `SELECT p.*, s.name AS store_name
+         FROM printers p
+         LEFT JOIN stores s ON s.id = p.store_id
+         WHERE p.store_id = ?
+         ORDER BY p.id`,
+        [req.storeId || 1]
+      );
       res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

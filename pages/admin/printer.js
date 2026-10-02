@@ -22,7 +22,7 @@ async function loadPrinters() {
     container.innerHTML = data.map(p => `
         <div class="admin-card">
             <div class="info">
-                <div class="title">🖨️ ${esc(p.name)} ${p.is_default ? `<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>` : ''}</div>
+                <div class="title">🖨️ ${esc(p.name)} ${p.is_default ? `<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>` : ''} ${p.store_name ? `<span style="background:rgba(52,152,219,.15);color:#5dade2;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">🏪 ${esc(p.store_name)}</span>` : ''}</div>
                 <div class="sub">${typeMap[p.type] || esc(p.type)} · ${esc(p.brand)} · ${esc(p.paper_width)}mm${p.ip_address ? ' · ' + esc(p.ip_address) + ':' + esc(p.port) : ''}</div>
             </div>
             <div class="printer-controls">
