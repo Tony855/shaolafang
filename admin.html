@@ -5,8 +5,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
-<link rel="stylesheet" href="assets/common.css?v=1790737176">
-<link rel="stylesheet" href="assets/admin.css?v=1790857119">
+<link rel="stylesheet" href="assets/common.css?v=1790913613">
+<link rel="stylesheet" href="assets/admin.css?v=1790913613">
 </head>
 <body>
 
@@ -447,9 +447,20 @@
                             <label style="color:#9b9bb2;font-size:13px;display:flex;align-items:center;gap:8px;margin-top:10px;">
                                 <input type="checkbox" id="dispShowDesc" style="width:16px;height:16px;"><span data-i18n="displayShowDesc">显示描述</span></label>
                         </div>
+                        <div class="form-group" style="grid-column:1/-1;">
+                            <label style="color:#9b9bb2;font-size:13px;margin-bottom:8px;display:block;"><span data-i18n="displayLanguages">展示页显示语言（可多选）</span></label>
+                            <div id="dispLanguages" style="display:flex;gap:14px;flex-wrap:wrap;">
+                                <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;"><input type="checkbox" value="zh" style="width:16px;height:16px;">🇨🇳 中文</label>
+                                <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;"><input type="checkbox" value="en" style="width:16px;height:16px;">🇬🇧 English</label>
+                                <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;"><input type="checkbox" value="vi" style="width:16px;height:16px;">🇻🇳 Tiếng Việt</label>
+                                <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;"><input type="checkbox" value="th" style="width:16px;height:16px;">🇹🇭 ภาษาไทย</label>
+                                <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;"><input type="checkbox" value="km" style="width:16px;height:16px;">🇰🇭 ភាសាខ្មែរ</label>
+                            </div>
+                            <small style="color:#666;display:block;margin-top:6px;">勾选多个时，菜名会分行显示（第一行为主语言）</small>
+                        </div>
                     </div>
                     <div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                        <button id="saveDisplayPageBtn" class="display-settings-btn"><span data-i18n="saveDisplayPageBtn">保存展示页设置</span></button>
+                        <button id="saveDisplayPageBtn" class="display-settings-btn" onclick="window.saveDisplayPageSettings && window.saveDisplayPageSettings()"><span data-i18n="saveDisplayPageBtn">保存展示页设置</span></button>
                         <button type="button" id="openDisplayPreviewBtn" style="background:rgba(105,192,255,.15);color:#69c0ff;border:1px solid rgba(105,192,255,.3);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;"><span data-i18n="displayOpenPreview">→ 打开展示页预览</span></button>
                     </div>
                 </div>
@@ -765,17 +776,17 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=1790869458"></script>
-    <script src="assets/core.js?v=1790737176"></script>
-  <script src="assets/modules/ui.js?v=1790737176"></script>
-  <script src="assets/modules/money.js?v=1790737176"></script>
-  <script src="assets/modules/order-status.js?v=1790737176"></script>
-  <script src="assets/modules/customer-group.js?v=1790737176"></script>
-  <script src="assets/modules/role.js?v=1790737176"></script>
-  <script src="assets/modules/idle.js?v=1790737176"></script>
-    <script src="/socket.io/socket.io.js"></script>
-<script src="pages/admin/context.js?v=1790828087"></script>
-<script src="pages/admin/settings.js?v=1790828087"></script>
+    <script src="languages.min.js?v=1790913613"></script>
+    <script src="assets/core.js?v=1790913613"></script>
+  <script src="assets/modules/ui.js?v=1790913613"></script>
+  <script src="assets/modules/money.js?v=1790913613"></script>
+  <script src="assets/modules/order-status.js?v=1790913613"></script>
+  <script src="assets/modules/customer-group.js?v=1790913613"></script>
+  <script src="assets/modules/role.js?v=1790913613"></script>
+  <script src="assets/modules/idle.js?v=1790913613"></script>
+    <script src="/socket.io/socket.io.js?v=1790913613"></script>
+<script src="pages/admin/context.js?v=1790913613"></script>
+<script src="pages/admin/settings.js?v=1790913613"></script>
 <!-- 批量导入弹窗 -->
 <div class="order-modal" id="importModal">
     <div class="order-modal-card">
@@ -807,19 +818,19 @@
     </div>
 </div>
 
-<script src="pages/admin/logs.js?v=1790828087"></script>
-<script src="pages/admin/waiter.js?v=1790828087"></script>
-<script src="pages/admin/currency.js?v=1790828087"></script>
-<script src="pages/admin/store.js?v=1790828087"></script>
-<script src="pages/admin/admin-mgr.js?v=1790828087"></script>
-<script src="pages/admin/cashier-mgr.js?v=1790828087"></script>
-<script src="pages/admin/printer.js?v=1790871190"></script>
-<script src="pages/admin/report.js?v=1790828087"></script>
-<script src="pages/admin/menu.js?v=1790828087"></script>
-<script src="pages/admin/table.js?v=1790828087"></script>
-<script src="pages/admin/order.js?v=1790828087"></script>
-<script src="pages/admin/shared.js?v=1790828087"></script>
-<script src="pages/admin.js?v=1790869882"></script>
+<script src="pages/admin/logs.js?v=1790913613"></script>
+<script src="pages/admin/waiter.js?v=1790913613"></script>
+<script src="pages/admin/currency.js?v=1790913613"></script>
+<script src="pages/admin/store.js?v=1790913613"></script>
+<script src="pages/admin/admin-mgr.js?v=1790913613"></script>
+<script src="pages/admin/cashier-mgr.js?v=1790913613"></script>
+<script src="pages/admin/printer.js?v=1790913613"></script>
+<script src="pages/admin/report.js?v=1790913613"></script>
+<script src="pages/admin/menu.js?v=1790913613"></script>
+<script src="pages/admin/table.js?v=1790913613"></script>
+<script src="pages/admin/order.js?v=1790913613"></script>
+<script src="pages/admin/shared.js?v=1790913613"></script>
+<script src="pages/admin.js?v=1790913613"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {

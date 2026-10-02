@@ -940,5 +940,6 @@
   "videoLabel": "Video",
   "statusNormal": "Bình thường",
   "statusDisabled": "Đã vô hiệu",
+  "displayLanguages": "Ngôn ngữ hiển thị",
   "advExport": "Xuất nâng cao"
 }

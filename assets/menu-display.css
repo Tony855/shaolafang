@@ -255,3 +255,13 @@ body.disp-carousel-mode .disp-grid {
   .disp-carousel-card .disp-name { font-size: 22px; }
   .disp-carousel-card .disp-price { font-size: 26px; }
 }
+
+.disp-info .disp-name.disp-name-sub {
+  font-size: 13px; font-weight: 500;
+  color: var(--disp-dim, #9598ab); margin-top: -2px;
+}
+.disp-info .disp-desc.disp-desc-sub {
+  font-size: 12px; color: rgba(149, 152, 171, 0.7);
+}
+.disp-carousel-card .disp-name.disp-name-sub { font-size: 22px; }
+.disp-carousel-card .disp-desc.disp-desc-sub { font-size: 14px; }

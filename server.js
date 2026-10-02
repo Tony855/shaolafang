@@ -173,9 +173,14 @@ app.use(express.urlencoded({ extended: true }));
 const staticOptions = {
   dotfiles: 'deny',
   index: false,
-  etag: true,
-  lastModified: true,
-  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    // 完全禁缓存，避免移动端浏览器缓存旧代码
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  },
 };
 app.use('/assets', express.static(path.join(__dirname, 'assets'), staticOptions));
 app.use('/pages', express.static(path.join(__dirname, 'pages'), staticOptions));

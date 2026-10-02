@@ -940,5 +940,6 @@
   "videoLabel": "วิดีโอ",
   "statusNormal": "ปกติ",
   "statusDisabled": "ปิดใช้งาน",
+  "displayLanguages": "ภาษาที่แสดง",
   "advExport": "ส่งออกขั้นสูง"
 }

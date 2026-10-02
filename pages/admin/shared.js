@@ -159,9 +159,9 @@ function switchAdminModule(module) {
     }
   }
   btn.addEventListener('mousedown', onStart);
-  btn.addEventListener('touchstart', onStart);
+  btn.addEventListener('touchstart', onStart, { passive: false });
   document.addEventListener('mousemove', onMove);
-  document.addEventListener('touchmove', onMove);
+  document.addEventListener('touchmove', onMove, { passive: false });
   document.addEventListener('mouseup', onEnd);
   document.addEventListener('touchend', onEnd);
 })();
@@ -171,6 +171,11 @@ function logoutAdmin() {
   SLF.store.rawRemoveSession('adminId');
   SLF.store.rawRemoveSession('adminPermissions');
   SLF.store.rawRemoveSession('adminIsPrimary');
+  // 清理商户相关的 storeId，避免下次登录其它商户时残留
+  SLF.store.rawRemoveSession('adminStoreId');
+  SLF.store.rawRemoveSession('adminMerchantId');
+  SLF.store.rawRemoveSession('adminMerchantName');
+  SLF.store.rawRemove('storeId');
   location.href = '/login';
 }
 

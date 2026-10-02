@@ -940,5 +940,6 @@
   "videoLabel": "视频",
   "statusNormal": "正常",
   "statusDisabled": "已停用",
+  "displayLanguages": "展示页显示语言（可多选）",
   "advExport": "高级导出"
 }

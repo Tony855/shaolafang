@@ -10,7 +10,8 @@ module.exports = function(app, deps) {
     order: 'default',
     only_active: 1,
     show_price: 1,
-    show_desc: 1
+    show_desc: 1,
+    languages: '["zh"]'
   };
 
   async function readSettings() {
@@ -18,8 +19,11 @@ module.exports = function(app, deps) {
     const result = Object.assign({}, DEFAULTS);
     for (const r of rows) {
       const k = String(r.key).replace(/^display_/, '');
-      if (['image_duration','video_duration','only_active','show_price','show_desc'].includes(k)) {
-        result[k] = parseInt(r.value, 10) || DEFAULTS[k];
+      if (k === 'languages') {
+        result[k] = r.value;
+      } else if (['image_duration','video_duration','only_active','show_price','show_desc'].includes(k)) {
+        const n = parseInt(r.value, 10);
+        result[k] = Number.isNaN(n) ? DEFAULTS[k] : n;   // ★ 修 0 被 || 吞掉的 bug
       } else {
         result[k] = r.value;
       }
@@ -28,7 +32,7 @@ module.exports = function(app, deps) {
   }
 
   async function writeSettings(body) {
-    const keys = ['mode','image_duration','video_mode','video_duration','order','only_active','show_price','show_desc'];
+    const keys = ['mode','image_duration','video_mode','video_duration','order','only_active','show_price','show_desc','languages'];
     for (const k of keys) {
       if (body[k] === undefined || body[k] === null) continue;
       await runAsync(

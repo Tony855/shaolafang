@@ -56,12 +56,15 @@ async function loadStores() {
       waiterSelect.innerHTML = optionsHtml;
       editWaiterStore.innerHTML = optionsHtml;
       window._adminStores = rows;
-      const savedId = SLF.store.rawGetSession('adminStoreId') || '1';
-      if (rows.some(r => String(r.id) === savedId)) adminSelect.value = savedId;
-      else {
+      const savedId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '';
+      if (rows.some(r => String(r.id) === savedId)) {
+        adminSelect.value = savedId;
+      } else {
         adminSelect.value = rows[0].id;
-        SLF.store.rawSetSession('adminStoreId', String(rows[0].id));
       }
+      // ★ 同步两种存储，避免残留旧商户的 storeId
+      SLF.store.rawSetSession('adminStoreId', String(adminSelect.value));
+      SLF.store.rawSet('storeId', String(adminSelect.value));
       waiterSelect.value = rows[0].id;
       updateSidebarStore();
     } else {

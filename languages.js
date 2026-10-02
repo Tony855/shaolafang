@@ -947,6 +947,7 @@ const LANGUAGES = {
     "videoLabel": "视频",
     "statusNormal": "正常",
     "statusDisabled": "已停用",
+    "displayLanguages": "展示页显示语言（可多选）",
     "advExport": "高级导出"
   },
   "en": {
@@ -1891,6 +1892,7 @@ const LANGUAGES = {
     "videoLabel": "Video",
     "statusNormal": "Normal",
     "statusDisabled": "Disabled",
+    "displayLanguages": "Display Languages",
     "advExport": "Advanced Export"
   },
   "vi": {
@@ -2835,6 +2837,7 @@ const LANGUAGES = {
     "videoLabel": "Video",
     "statusNormal": "Bình thường",
     "statusDisabled": "Đã vô hiệu",
+    "displayLanguages": "Ngôn ngữ hiển thị",
     "advExport": "Xuất nâng cao"
   },
   "th": {
@@ -3779,6 +3782,7 @@ const LANGUAGES = {
     "videoLabel": "วิดีโอ",
     "statusNormal": "ปกติ",
     "statusDisabled": "ปิดใช้งาน",
+    "displayLanguages": "ภาษาที่แสดง",
     "advExport": "ส่งออกขั้นสูง"
   },
   "km": {
@@ -4723,6 +4727,7 @@ const LANGUAGES = {
     "videoLabel": "វីដេអូ",
     "statusNormal": "ធម្មតា",
     "statusDisabled": "បានបិទ",
+    "displayLanguages": "ភាសាបង្ហាញ",
     "advExport": "នាំចេញកម្រិតខ្ពស់"
   }
 };

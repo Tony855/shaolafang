@@ -13,7 +13,10 @@ module.exports = function registerPageRoutes(app, ctx) {
   function sendHtml(res, file) {
     const html = fs.readFileSync(path.join(ROOT, file), 'utf-8');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache');
+    // 强制不缓存 HTML（手机上 no-cache 常常被忽略，改成 no-store）
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.send(html);
   }
 

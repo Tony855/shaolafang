@@ -273,23 +273,27 @@
         });
 
         async function refresh() {
-            try {
-                await window.loadCurrencies();
-                await window.loadMenuCategories();
-                await window.loadStores();
-                await loadDisplaySettings();
-                await loadOrderPrefixes();
-                await loadNotificationSettings();
-                const loadTasks = [window.loadMenus(), window.loadTables(), window.loadOrders(), loadLoginLogs()];
-                if (hasPermission('can_manage_admin')) loadTasks.push(window.loadAdmins());
-                if (hasPermission('can_view_logs')) loadTasks.push(loadAuditLogs());
-                await Promise.all(loadTasks);
-                const currentModule = window.getCurrentModule();
-                if (currentModule) switchAdminModule(currentModule);
-            } catch (e) {
-                SLF.ui.toast('❌ ' + e.message);
-                throw e;
-            }
+            const _safe = async (label, fn) => {
+                try { await fn(); }
+                catch (e) {
+                    console.error('[refresh] ' + label + ' 失败:', e);
+                    SLF.ui.toast('⚠️ ' + label + ' 加载失败: ' + e.message, 5000);
+                }
+            };
+            await _safe('货币', () => window.loadCurrencies());
+            await _safe('分类', () => window.loadMenuCategories());
+            await _safe('店铺', () => window.loadStores());
+            await _safe('显示设置', () => loadDisplaySettings());
+            await _safe('订单前缀', () => loadOrderPrefixes());
+            await _safe('提示音设置', () => loadNotificationSettings());
+            await _safe('菜品', () => window.loadMenus());
+            await _safe('桌号', () => window.loadTables());
+            await _safe('订单', () => window.loadOrders());
+            await _safe('登录日志', () => loadLoginLogs());
+            if (hasPermission('can_manage_admin')) await _safe('管理员', () => window.loadAdmins());
+            if (hasPermission('can_view_logs'))  await _safe('审计日志', () => loadAuditLogs());
+            const currentModule = window.getCurrentModule();
+            if (currentModule) switchAdminModule(currentModule);
         }
 
                 function applyDataI18n() {
@@ -799,6 +803,10 @@ function applyAdminLanguage() {
         function adminIdleLogout() {
             adminToken = '';
             SLF.store.rawRemoveSession('adminToken');
+            SLF.store.rawRemoveSession('adminStoreId');
+            SLF.store.rawRemoveSession('adminMerchantId');
+            SLF.store.rawRemoveSession('adminMerchantName');
+            SLF.store.rawRemove('storeId');
             window.location.href = '/login';
         }
         SLF.idle.start({ timeoutMin: adminIdleTimeoutMin, onTimeout: adminIdleLogout });
@@ -1200,6 +1208,6 @@ function applyAdminLanguage() {
       window.loadReportSummary = loadReportSummary;
       window.applyAdminLanguage = applyAdminLanguage;
       window.loadAdminLanguage = loadAdminLanguage;
+      window.loadAdminInfo = loadAdminInfo;
     } catch(err) {}
 })();
-try { window.loadAdminInfo = loadAdminInfo; } catch(e) {}

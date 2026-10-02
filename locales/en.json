@@ -940,5 +940,6 @@
   "videoLabel": "Video",
   "statusNormal": "Normal",
   "statusDisabled": "Disabled",
+  "displayLanguages": "Display Languages",
   "advExport": "Advanced Export"
 }

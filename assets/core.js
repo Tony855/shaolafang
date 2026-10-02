@@ -386,6 +386,25 @@
 
         if (!res.ok) {
           const rawMsg = (data && data.error) || `请求失败 (${res.status})`;
+
+          // ★ storeId 不属于当前商户 → 用后端返回的 validStores[0] 修正并重试一次
+          if (data && data.code === 'STORE_NOT_IN_MERCHANT'
+              && Array.isArray(data.validStores) && data.validStores.length
+              && !options._retriedAfterStoreFix) {
+            const valid = data.validStores[0];
+            console.warn('[core.api] storeId 不属于当前商户，自动修正并重试:', {
+              requested: data.requestedStoreId,
+              corrected: valid.id,
+              valid: data.validStores.map(x => x.id + ':' + x.name)
+            });
+            try {
+              store.rawSet('storeId', String(valid.id));
+              store.rawSetSession('adminStoreId', String(valid.id));
+            } catch (_) {}
+            const newOptions = Object.assign({}, options, { _retriedAfterStoreFix: true });
+            return this._request(method, path, newOptions);
+          }
+
           // 用 __err__前缀 查找翻译，找不到用原文
           let translated = rawMsg;
           try {

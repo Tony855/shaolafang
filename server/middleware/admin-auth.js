@@ -2,7 +2,7 @@
  * server/middleware/admin-auth.js
  * 管理员认证中间件（从 server.js 抽出）
  */
-const { getAsync, runAsync } = require('../db/helpers');
+const { getAsync, runAsync, allAsync } = require('../db/helpers');
 
 async function getWaiterFromRequest(req) {
   const token = req.get('X-Waiter-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
@@ -45,7 +45,14 @@ async function authenticateAdmin(req) {
           if (requestedStoreId > 0) {
             const _storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
             if (!_storeCheck) {
-              return { error: '指定的门店不存在或不属于当前商户' };
+              const _validStores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id ASC', [admin.merchant_id]);
+              return {
+                error: '指定的门店不存在或不属于当前商户',
+                code: 'STORE_NOT_IN_MERCHANT',
+                requestedStoreId: requestedStoreId,
+                validStores: _validStores,
+                merchantId: admin.merchant_id
+              };
             }
             validStoreId = requestedStoreId;
           }
@@ -69,7 +76,14 @@ async function authenticateAdmin(req) {
             if (legacyStoreId > 0) {
               const _legacyStoreCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [legacyStoreId, admin.merchant_id]);
               if (!_legacyStoreCheck) {
-                return { error: '指定的门店不存在或不属于当前商户' };
+                const _legacyValidStores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id ASC', [admin.merchant_id]);
+                return {
+                  error: '指定的门店不存在或不属于当前商户',
+                  code: 'STORE_NOT_IN_MERCHANT',
+                  requestedStoreId: legacyStoreId,
+                  validStores: _legacyValidStores,
+                  merchantId: admin.merchant_id
+                };
               }
               legacyValidStoreId = legacyStoreId;
             }
@@ -89,7 +103,10 @@ async function authenticateAdmin(req) {
 
 async function requireAdminKey(req, res, next) {
   const result = await authenticateAdmin(req);
-  if (result && result.error) return res.status(401).json({ error: result.error });
+  if (result && result.error) {
+    // 完整透传 code / validStores / requestedStoreId / merchantId
+    return res.status(401).json(result);
+  }
   if (result) {
     req.adminId = result.adminId;
     req.merchantId = result.merchantId;
@@ -140,7 +157,7 @@ async function logAudit(actorType, actorId, actorUsername, action, targetType, t
 
 async function requireAdminOrWaiter(req, res, next) {
   const adminResult = await authenticateAdmin(req);
-  if (adminResult && adminResult.error) return res.status(401).json({ error: adminResult.error });
+  if (adminResult && adminResult.error) return res.status(401).json(adminResult);
   if (adminResult) {
     req.adminId = adminResult.adminId;
     req.merchantId = adminResult.merchantId;

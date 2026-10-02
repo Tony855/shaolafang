@@ -7,7 +7,18 @@
 const ctx = window.SLF.admin;
 if (!ctx) return;
 
-const { $, tAdmin, L } = ctx;
+
+const { $, esc, hasPermission, showConfirm } = ctx;
+
+// tAdmin / L 动态取：admin.js 后加载，会覆盖 ctx.tAdmin，所以不能提前解构
+function tAdmin(key, fb) {
+  const fn = (window.SLF && window.SLF.admin && window.SLF.admin.tAdmin) || ctx.tAdmin;
+  return fn ? fn(key, fb) : fb;
+}
+function L(key) {
+  const fn = (window.SLF && window.SLF.admin && window.SLF.admin.L) || ctx.L;
+  return fn ? fn(key) : key;
+}
 
 async function loadDisplaySettings() {
   try {
@@ -100,6 +111,22 @@ window.loadNotificationSettings = loadNotificationSettings;
 
 /* ===== 展示页设置（追加） ===== */
 (function() {
+
+  /* 本 IIFE 内 tAdmin 兜底 */
+  const tAdmin = function(key, fb) {
+    try {
+      const a = window.SLF && window.SLF.admin;
+      if (a && typeof a.tAdmin === 'function') {
+        const v = a.tAdmin(key);
+        if (v && v !== key) return v;
+      }
+      const v2 = window.SLF && window.SLF.i18n && window.SLF.i18n.t(key);
+      if (v2 && v2 !== key) return v2;
+    } catch (e) {}
+    return fb !== undefined ? fb : key;
+  };
+  const L = function(key) { return tAdmin(key); };
+
   const D = window.SLF && window.SLF.admin;
   if (!D) return;
   const api = D.api;
@@ -108,15 +135,22 @@ window.loadNotificationSettings = loadNotificationSettings;
     try {
       const s = await api('/admin/display-page-settings');
       const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-      const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+      const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = (v === 1 || v === '1' || v === true); };
       setVal('dispMode', s.mode || 'grid');
       setVal('dispOrder', s.order || 'default');
-      setVal('dispImageDuration', s.image_duration || 8);
+      setVal('dispImageDuration', (s.image_duration !== undefined && s.image_duration !== null) ? s.image_duration : 8);
       setVal('dispVideoMode', s.video_mode || 'full');
-      setVal('dispVideoDuration', s.video_duration || 15);
+      setVal('dispVideoDuration', (s.video_duration !== undefined && s.video_duration !== null) ? s.video_duration : 15);
       setChk('dispOnlyActive', s.only_active);
       setChk('dispShowPrice', s.show_price);
       setChk('dispShowDesc', s.show_desc);
+      try {
+        const langs = JSON.parse(s.languages || '["zh"]');
+        document.querySelectorAll('#dispLanguages input[type="checkbox"]').forEach(cb => {
+          cb.checked = langs.includes(cb.value);
+        });
+      } catch (e) {}
+
     } catch (e) { console.warn('load display-page-settings failed', e); }
   }
 
@@ -131,7 +165,11 @@ window.loadNotificationSettings = loadNotificationSettings;
         video_duration: parseInt(g('dispVideoDuration').value, 10) || 15,
         only_active: g('dispOnlyActive').checked ? 1 : 0,
         show_price: g('dispShowPrice').checked ? 1 : 0,
-        show_desc: g('dispShowDesc').checked ? 1 : 0
+        show_desc: g('dispShowDesc').checked ? 1 : 0,
+        languages: JSON.stringify(
+          Array.from(document.querySelectorAll('#dispLanguages input[type="checkbox"]'))
+            .filter(cb => cb.checked).map(cb => cb.value)
+        )
       }});
       if (SLF.ui && SLF.ui.toast) SLF.ui.toast('✅ ' + (tAdmin('displaySettingsSaved') || '展示页设置已保存'));
     } catch (e) {
@@ -142,19 +180,31 @@ window.loadNotificationSettings = loadNotificationSettings;
   window.loadDisplayPageSettings = loadDisplayPageSettings;
   window.saveDisplayPageSettings = saveDisplayPageSettings;
 
-  document.addEventListener('DOMContentLoaded', function() {
-    const btn = document.getElementById('saveDisplayPageBtn');
-    if (btn) btn.onclick = saveDisplayPageSettings;
-    const origSwitch = window.switchAdminModule;
-    if (typeof origSwitch === 'function' && !window._dispPageHooked) {
-      window._dispPageHooked = true;
-      window.switchAdminModule = function(m) {
-        const r = origSwitch.apply(this, arguments);
-        if (m === 'password' || m === 'currencies') {
-          try { loadDisplayPageSettings(); } catch (e) {}
-        }
-        return r;
-      };
+  // 事件委托：不依赖 DOMContentLoaded，也不怕 DOM 被重建
+  document.addEventListener('click', function(e) {
+    const t = e.target;
+    const btn = t && t.closest && t.closest('#saveDisplayPageBtn');
+    if (!btn) return;
+    e.preventDefault();
+    saveDisplayPageSettings();
+  }, true);
+
+  // 监听"系统设置"模块变可见时，自动加载配置
+  // 页面加载后直接调一次（不管是否切到系统设置）
+  function bootLoadDisplayPageSettings() {
+    try { loadDisplayPageSettings(); } catch (e) { console.warn('boot load:', e); }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootLoadDisplayPageSettings);
+  } else {
+    setTimeout(bootLoadDisplayPageSettings, 300);
+  }
+
+  // 切到"系统设置"模块时再刷一次（覆盖多店铺场景）
+  document.addEventListener('click', function(e) {
+    const nav = e.target && e.target.closest && e.target.closest('.nav-item');
+    if (nav && nav.dataset && nav.dataset.module === 'password') {
+      setTimeout(function() { try { loadDisplayPageSettings(); } catch (er) {} }, 100);
     }
-  });
+  }, true);
 })();

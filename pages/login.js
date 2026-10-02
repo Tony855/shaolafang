@@ -208,6 +208,13 @@ const $ = s => document.querySelector(s);
           SLF.store.rawSetSession('adminId', data.adminId || '');
           SLF.store.rawSetSession('adminIsPrimary', data.isPrimary ? '1' : '0');
           SLF.store.rawSetSession('adminPermissions', JSON.stringify(data.permissions || {}));
+          // ★ 清掉旧商户残留的 storeId，避免跨商户登录带错 X-Store-Id
+          SLF.store.rawRemove('storeId');
+          SLF.store.rawRemoveSession('adminStoreId');
+          if (data.storeId) {
+            SLF.store.rawSet('storeId', String(data.storeId));
+            SLF.store.rawSetSession('adminStoreId', String(data.storeId));
+          }
           window.location.href = '/admin';
           return;
         } else if (loginType === 'cashier') {

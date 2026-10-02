@@ -12,7 +12,7 @@ let currencies = [];
 let defaultCurrency = { symbol: '$', rate: 1, code: 'USD' };
 let dualCurrency = { enabled: false, currency: null };
 let clockTimer = null;
-let settings = { mode:'grid', image_duration:8, video_mode:'full', video_duration:15, order:'default', only_active:1, show_price:1, show_desc:1 };
+let settings = { mode:'grid', image_duration:8, video_mode:'full', video_duration:15, order:'default', only_active:1, show_price:1, show_desc:1, languages:'["zh"]' };
 let carIdx = 0, carTimer = null;
 
 function t(key, fb){ if(!SLF.i18n) return fb||key; const v=SLF.i18n.t(key); return (v===undefined||v===null||v===key)?(fb||key):v; }
@@ -24,7 +24,33 @@ function catText(cat){
   const global = (window.LANGUAGES && window.LANGUAGES[lang] && window.LANGUAGES[lang].categories) || {};
   return global[cat] || cat;
 }
-function menuName(item){ return currentLang==='zh' ? item.name : (item['name_'+currentLang] || item.name_en || item.name); }
+function menuName(item){ return menuNameAll(item)[0] || item.name || ''; }
+function parseLanguages(){
+  try { const a = JSON.parse(settings.languages || '["zh"]'); return Array.isArray(a) && a.length ? a : ['zh']; }
+  catch (e) { return ['zh']; }
+}
+function menuNameAll(item){
+  const langs = parseLanguages(); const out = [];
+  langs.forEach(lang => {
+    let v = '';
+    if (lang === 'zh') v = item.name || '';
+    else v = item['name_' + lang] || (lang === 'en' ? item.name_en : '') || '';
+    v = (v || '').trim();
+    if (v && !out.includes(v)) out.push(v);
+  });
+  return out.length ? out : [item.name || ''];
+}
+function menuDescAll(item){
+  const langs = parseLanguages(); const out = [];
+  langs.forEach(lang => {
+    let v = '';
+    if (lang === 'zh') v = item.desc || '';
+    else v = item['desc_' + lang] || (lang === 'en' ? item.desc_en : '') || '';
+    v = (v || '').trim();
+    if (v && !out.includes(v)) out.push(v);
+  });
+  return out;
+}
 function menuDesc(item){ return currentLang==='zh' ? (item.desc||'') : (item['desc_'+currentLang] || item.desc_en || item.desc || ''); }
 function startClock(){
   if (clockTimer) return;
@@ -55,9 +81,12 @@ function cardHtml(m){
   let secHtml = prices.secondary ? '<span class="sec">('+prices.secondary+')</span>' : '';
   const hot = (Number(m.sales_count)||0)>0 ? '<span class="disp-badge">🔥 '+t('hotSelling','热销')+'</span>' : '';
   const priceRow = settings.show_price ? '<div class="disp-price">'+prices.primary+secHtml+'</div>' : '';
-  const descRow = (settings.show_desc && menuDesc(m)) ? '<div class="disp-desc">'+menuDesc(m)+'</div>' : '';
+  const names = menuNameAll(m);
+  const nameHtml = names.map((n, i) => '<div class="disp-name' + (i > 0 ? ' disp-name-sub' : '') + '">' + n + '</div>').join('');
+  const descs = menuDescAll(m);
+  const descHtml = (settings.show_desc && descs.length) ? descs.map((d, i) => '<div class="disp-desc' + (i > 0 ? ' disp-desc-sub' : '') + '">' + d + '</div>').join('') : '';
   return '<div class="disp-thumb-wrap">'+hot+'<div class="disp-thumb">'+media+'</div></div>'+
-    '<div class="disp-info"><div class="disp-name">'+(menuName(m)||'')+'</div>'+descRow+priceRow+'</div>';
+    '<div class="disp-info">' + nameHtml + descHtml + priceRow + '</div>';
 }
 function applyFilterAndRender(){
   filtered = currentCat==='__ALL__' ? allMenu : allMenu.filter(m=>m.category===currentCat);
