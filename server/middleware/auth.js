@@ -55,4 +55,41 @@ async function requireCashier(req, res, next) {
   }
 }
 
-module.exports = { requireSuperAdmin, requireCashier };
+async function requireAdminOrCashier(req, res, next) {
+  // 先试管理员
+  const { authenticateAdmin } = require('./admin-auth');
+  const adminResult = await authenticateAdmin(req);
+  if (adminResult && !adminResult.error) {
+    req.adminId = adminResult.adminId;
+    req.merchantId = adminResult.merchantId;
+    req.adminSessionToken = adminResult.sessionToken;
+    req.storeId = adminResult.storeId || parseInt(req.get('X-Store-Id') || '0', 10);
+    req.isAdmin = true;
+    return next();
+  }
+  // 再试收银员
+  try {
+    const token = req.get('X-Cashier-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!token) return res.status(401).json({ error: '未登录' });
+    const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
+    if (!session || new Date(session.expires_at).getTime() <= Date.now()) {
+      return res.status(401).json({ error: '登录已过期，请重新登录' });
+    }
+    const cashiersData = await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + session.store_id]);
+    if (!cashiersData) return res.status(401).json({ error: '账号不存在' });
+    let list = [];
+    try { list = JSON.parse(cashiersData.value); } catch (e) { return res.status(401).json({ error: '账号数据异常' }); }
+    const cashier = list.find(c => String(c.id) === String(session.cashier_id) && c.active);
+    if (!cashier) return res.status(401).json({ error: '账号不存在或已停用' });
+    req.cashier = { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
+    req.cashierId = cashier.id;
+    req.storeId = session.store_id;
+    req.merchantId = session.merchant_id;
+    req.isCashier = true;
+    return next();
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
+
+module.exports = { requireSuperAdmin, requireCashier, requireAdminOrCashier };

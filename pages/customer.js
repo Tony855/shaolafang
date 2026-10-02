@@ -217,7 +217,7 @@
                 state.currencies = Array.isArray(config.currencies) ? config.currencies : [];
                 state.defaultCurrency = config.defaultCurrency || state.defaultCurrency;
                 state.dualCurrency = config.dualCurrency || { enabled: false, currency: null };
-                SLF.money.configure({ currencies: state.currencies, defaultCurrency: state.defaultCurrency, dualCurrency: state.dualCurrency });
+                SLF.money.configure({ currencies: state.currencies, primaryCurrency: config.primaryCurrency || state.defaultCurrency, secondaryCurrency: config.secondaryCurrency || (config.dualCurrency && config.dualCurrency.enabled ? config.dualCurrency.currency : null) });
 
                 // 统一约束（优先用 constraints，缺失时回退旧字段）
                 state.constraints = config.constraints || {
@@ -466,8 +466,8 @@
                         const unitDisplay = SLF.money.primary(SLF.money.toBase(item.price, item.currency_code));
                         const itemPrimaryTotal = SLF.money.primary(itemTotalBase);
                         let itemSecondaryTotal = '';
-                        if (state.dualCurrency.enabled && item.secondary_currency_code) {
-                            itemSecondaryTotal = SLF.money.secondary(itemTotalBase, item.secondary_currency_code);
+                        if (state.dualCurrency.enabled && state.dualCurrency.currency) {
+                            itemSecondaryTotal = SLF.money.secondary(itemTotalBase, state.dualCurrency.currency.code);
                         }
                         const itemTotalDisplay = itemSecondaryTotal
                             ? `<span class="money-primary">${itemPrimaryTotal}</span> <span class="money-secondary">(${itemSecondaryTotal})</span>`
@@ -892,8 +892,8 @@
                     (item.quantity - (item.returnedQty || 0));
                 const primaryItemTotal = SLF.money.primary(totalBase);
                 let secondaryItemTotal = '';
-                if (state.dualCurrency.enabled && item.secondary_currency_code) {
-                    secondaryItemTotal = SLF.money.secondary(totalBase, item.secondary_currency_code);
+                if (state.dualCurrency.enabled && state.dualCurrency.currency) {
+                    secondaryItemTotal = SLF.money.secondary(totalBase, state.dualCurrency.currency.code);
                 }
                 const itemTotalDisplay = secondaryItemTotal
                     ? `${primaryItemTotal} (${secondaryItemTotal})`
@@ -972,7 +972,7 @@
                     emoji: i.emoji,
                     currency_code: i.currency_code || state.defaultCurrency.code,
                     show_dual: i.show_dual || 0,
-                    secondary_currency_code: i.secondary_currency_code || '',
+                    secondary_currency_code: '',
                     unit: i.unit || '份'
                 })),
                 note: noteInput ? noteInput.value.trim().slice(0, maxNoteLen) : ''

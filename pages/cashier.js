@@ -24,6 +24,9 @@
   let payMethod = 'cash';
 let refundOrderId = null;
 
+// KHQR 支付弹窗状态
+let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null };
+
   SLF.i18n.init(currentLang);
 
   /* ===== 工具 ===== */
@@ -238,9 +241,12 @@ let refundOrderId = null;
       const _hidePendingBadge = (order.status === 'pending' && _readyCls === ' ready-to-settle');
       const _statusBadge = (_st && !_hidePendingBadge) ? `<span class="pos-card-status ${_st.cls}">${_st.icon} ${esc(_st.text)}</span>` : '';
       const _cardCls = (_st ? ' status-' + _st.cls : '') + _readyCls;
+      const _awaitingTag = order.awaiting_confirm
+        ? '<span class="pos-card-wait-tip" style="background:#fff3cd;color:#856404;">🔔 客户说已付款，待核实</span>'
+        : '';
       const _hasLabel = customerLabel && customerLabel.trim();
-      const _tagsHtml = (_hasLabel || _statusBadge || _readyTip)
-        ? `<div class="pos-order-card-tags">${_hasLabel ? `<span class="pos-tag ${customerLabel === t('staffOrder') ? 'staff' : 'customer'}">${esc(customerLabel)}</span>` : ''}${_readyTip}${_statusBadge}</div>`
+      const _tagsHtml = (_hasLabel || _statusBadge || _readyTip || _awaitingTag)
+        ? `<div class="pos-order-card-tags">${_hasLabel ? `<span class="pos-tag ${customerLabel === t('staffOrder') ? 'staff' : 'customer'}">${esc(customerLabel)}</span>` : ''}${_awaitingTag}${_readyTip}${_statusBadge}</div>`
         : '';
 
       return `<div class="pos-order-card ${isSelected ? 'selected' : ''}${_cardCls}" onclick="selectOrder(${order.id})">
@@ -413,6 +419,178 @@ let refundOrderId = null;
     payMethod = method;
     document.querySelectorAll('.payment-method').forEach(btn => btn.classList.toggle('active', btn.dataset.method === method));
     document.getElementById('cashArea').style.display = method === 'cash' ? 'block' : 'none';
+
+    // ABA / KHQR → 打开动态码弹窗
+    if (method === 'aba' && paymentOrderId) {
+      openKhqrModal(paymentOrderId);
+    }
+  }
+
+  /* ===== KHQR 动态收款 ===== */
+  function openKhqrModal(orderId) {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    closePaymentModal(); // 关掉普通收款弹窗
+
+    khqrState.orderId = orderId;
+    document.getElementById('khqrImage').src = '';
+    document.getElementById('khqrMerchant').textContent = '...';
+    document.getElementById('khqrOrderNo').textContent = order.order_no || ('#' + order.id);
+    document.getElementById('khqrStatusBar').innerHTML = '<span>⏳ 正在生成二维码...</span>';
+
+    const btn = document.getElementById('khqrConfirmBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 生成中...';
+
+    document.getElementById('khqrModal').classList.add('show');
+
+    // 请求生成
+    api('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId } })
+      .then(res => {
+        // 优先用后端返回的 base64（<img> 无法带 token，不能直接用 URL 接口）
+        if (res.qr_data_url) {
+          document.getElementById('khqrImage').src = res.qr_data_url;
+        } else {
+          // 兜底：老接口（无 auth 时可能失败）
+          const size = Math.min(560, Math.max(280, Math.floor(window.innerWidth * 0.7)));
+          document.getElementById('khqrImage').src = '/api/cashier/khqr/qrimage?order_id=' + orderId + '&size=' + size + '&_t=' + Date.now();
+        }
+        // 金额渲染（按币种加符号 + 副币）
+        (function(){
+          var cur = String(res.currency || 'USD').toUpperCase();
+          var sym = cur === 'KHR' ? '៛' : (cur === 'USD' ? '$' : '');
+          var amt = Number(res.amount) || 0;
+          var amtStr = cur === 'KHR' ? Math.round(amt).toLocaleString('en-US') : amt.toFixed(2);
+
+          // 换算成 USD base
+          var baseUSD = amt;
+          if (cur !== 'USD') {
+            try {
+              var curObj = SLF.money.find(cur);
+              if (curObj && Number(curObj.rate)) baseUSD = amt / Number(curObj.rate);
+            } catch (e) {}
+          }
+
+          // KHQR 弹窗强制显示"另一种币种"（USD 或 KHR），与店铺副币设置无关
+          var secHtml = '';
+          try {
+            var altCode = (cur === 'KHR') ? 'USD' : 'KHR';
+            var altStr = SLF.money.secondary(baseUSD, altCode);
+            if (altStr) secHtml = '<span style="color:#999;font-size:13px;margin-left:6px;">(' + altStr + ')</span>';
+          } catch (e) {}
+
+          document.getElementById('khqrAmount').innerHTML =
+            '<span style="color:#e85d3a;font-weight:800;">' + sym + amtStr + '</span>' + secHtml;
+        })();
+
+        document.getElementById('khqrMerchant').textContent =
+          (res.provider_bank ? res.provider_bank + ' · ' : '') + (res.merchant_name || '');
+        khqrState.expiresAt = new Date(res.expires_at).getTime();
+        startKhqrCountdown();
+        startKhqrPolling();
+        btn.disabled = false;
+        btn.textContent = '✅ 已收到款';
+        document.getElementById('khqrStatusBar').innerHTML =
+          '<span>⏳ 等待客户扫码付款...</span>';
+      })
+      .catch(e => {
+        document.getElementById('khqrStatusBar').innerHTML =
+          '<span style="color:#e74c3c;">❌ ' + esc(e.message || '生成失败') + '</span>';
+        btn.textContent = '❌ 生成失败';
+      });
+  }
+
+  function closeKhqrModal() {
+    document.getElementById('khqrModal').classList.remove('show');
+    stopKhqrTimers();
+    // 取消本次支付（清掉 pay_khqr_ref）
+    if (khqrState.orderId) {
+      api('/cashier/khqr/cancel', { method: 'POST', body: { order_id: khqrState.orderId } }).catch(() => {});
+    }
+    khqrState.orderId = null;
+  }
+
+  function startKhqrCountdown() {
+    stopKhqrTimers();
+    const update = () => {
+      const left = Math.max(0, khqrState.expiresAt - Date.now());
+      const totalSec = Math.floor(left / 1000);
+      const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+      const s = String(totalSec % 60).padStart(2, '0');
+      const el = document.getElementById('khqrCountdown');
+      if (el) {
+        el.textContent = m + ':' + s;
+        if (totalSec <= 60) {
+          el.style.color = '#e74c3c';
+          el.style.animation = 'khqr-blink 1s infinite';
+        }
+      }
+      if (left <= 0) {
+        stopKhqrTimers();
+        const bar = document.getElementById('khqrStatusBar');
+        if (bar) bar.innerHTML = '<span style="color:#e74c3c;">⏰ 二维码已过期，请重新生成</span>';
+        const btn = document.getElementById('khqrConfirmBtn');
+        if (btn) { btn.disabled = true; btn.textContent = '已过期'; }
+      }
+    };
+    update();
+    khqrState.timer = setInterval(update, 1000);
+  }
+
+  function startKhqrPolling() {
+    // 每 3 秒查一次订单状态
+    khqrState.pollTimer = setInterval(async () => {
+      if (!khqrState.orderId) return;
+      try {
+        const o = orders.find(x => x.id === khqrState.orderId);
+        if (!o) return;
+        // 直接拉最新订单
+        const fresh = await api('/cashier/orders/' + khqrState.orderId);
+        if (fresh && fresh.status === 'done') {
+          stopKhqrTimers();
+          SLF.ui.toast('✅ ' + (t('settleSuccess') || '收款成功'));
+          closeKhqrModalSilent();
+          await loadOrders();
+        } else if (fresh && fresh.awaiting_confirm) {
+          document.getElementById('khqrStatusBar').innerHTML =
+            '<span style="color:#ffb020;">🔔 服务员已标记客户付款，请核实到账</span>';
+        }
+      } catch (e) { /* 静默 */ }
+    }, 3000);
+  }
+
+  function stopKhqrTimers() {
+    if (khqrState.timer) { clearInterval(khqrState.timer); khqrState.timer = null; }
+    if (khqrState.pollTimer) { clearInterval(khqrState.pollTimer); khqrState.pollTimer = null; }
+  }
+
+  function closeKhqrModalSilent() {
+    document.getElementById('khqrModal').classList.remove('show');
+    stopKhqrTimers();
+    khqrState.orderId = null;
+  }
+
+  async function confirmKhqrReceived() {
+    if (!khqrState.orderId) return;
+    const btn = document.getElementById('khqrConfirmBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 确认中...';
+    try {
+      const res = await api('/cashier/khqr/confirm', {
+        method: 'POST',
+        body: { order_id: khqrState.orderId, role: 'cashier' }
+      });
+      SLF.ui.toast('✅ ' + (t('settleSuccess') || '已收款'));
+      closeKhqrModalSilent();
+      selectedOrderId = null;
+      document.body.classList.remove('pos-detail-open');
+      await loadOrders();
+    } catch (e) {
+      SLF.ui.toast('❌ ' + e.message);
+      btn.disabled = false;
+      btn.textContent = '✅ 已收到款';
+    }
   }
 
   function renderQuickCash(amount) {
@@ -620,7 +798,7 @@ let refundOrderId = null;
         currencies = cfg.currencies || [];
         defaultCurrency = cfg.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' };
         dualCurrency = cfg.dualCurrency || { enabled: false, currency: null };
-        SLF.money.configure({ currencies, defaultCurrency, dualCurrency });
+        SLF.money.configure({ currencies, primaryCurrency: cfg.primaryCurrency || cfg.defaultCurrency, secondaryCurrency: cfg.secondaryCurrency || (cfg.dualCurrency && cfg.dualCurrency.enabled ? cfg.dualCurrency.currency : null) });
         const ri = parseInt(cfg.waiter_refresh_interval, 10);
         if (!isNaN(ri) && ri >= 3) refreshInterval = ri;
       } catch (e) { console.error('currency load failed', e); }
@@ -693,6 +871,20 @@ let refundOrderId = null;
       renderOrders();
       updateBottomStats();
     });
+    cashierSocket.on('khqr:awaiting', (payload) => {
+      if (!payload || !belongsToStore(payload)) return;
+      // 提示收银员核实
+      const table = payload.table || '-';
+      const orderNo = payload.orderNo || ('#' + payload.orderId);
+      SLF.ui.toast('🔔 ' + table + ' 客户说已付款（' + orderNo + '），请核实到账', 'warning', 6000);
+      // 刷新订单列表
+      loadOrders();
+      // 如果当前正打开这个订单详情，自动刷新
+      if (selectedOrderId === payload.orderId) {
+        renderDetail();
+      }
+    });
+
     cashierSocket.on('item:updated', (payload) => {
       if (!payload || !payload.order) return;
       const updated = payload.order;
@@ -739,6 +931,9 @@ let refundOrderId = null;
   window.logout = logout;
   window.goLogin = goLogin;
   window.changeLang = changeLang;
+  window.openKhqrModal = openKhqrModal;
+  window.closeKhqrModal = closeKhqrModal;
+  window.confirmKhqrReceived = confirmKhqrReceived;
 
   init();
 })();

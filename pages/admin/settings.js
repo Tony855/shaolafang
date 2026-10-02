@@ -25,20 +25,45 @@ async function loadDisplaySettings() {
     const d = await SLF.api.get('/admin/display-settings');
     const admin = window.SLF.admin;
     if (d) {
-      admin.setDualCurrency && admin.setDualCurrency(!!d.enabled);
-      admin.setSecondaryCurrencyCode && admin.setSecondaryCurrencyCode(d.secondaryCurrencyCode || 'USD');
-      $('#dualCurrencyEnabled').checked = admin.dualCurrencyEnabled();
-      $('#dualCurrencySelect').value = admin.secondaryCurrencyCode();
+      admin.setDualCurrency && admin.setDualCurrency(!!d.secondaryCurrencyCode);
+      admin.setSecondaryCurrencyCode && admin.setSecondaryCurrencyCode(d.secondaryCurrencyCode || '');
     }
+    // 填充两个下拉
+    const list = admin.currenciesCache ? admin.currenciesCache() : [];
+    const primarySel = document.getElementById('dispPrimaryCurrency');
+    const secondarySel = document.getElementById('dispSecondaryCurrency');
+    if (primarySel) {
+      primarySel.innerHTML = list.map(c =>
+        `<option value="${c.code}">${c.code} · ${c.symbol} · ${c.name}</option>`
+      ).join('');
+      primarySel.value = d.primaryCurrencyCode || 'USD';
+    }
+    if (secondarySel) {
+      secondarySel.innerHTML = '<option value="">— 不显示副货币 —</option>' +
+        list.map(c => `<option value="${c.code}">${c.code} · ${c.symbol} · ${c.name}</option>`).join('');
+      secondarySel.value = d.secondaryCurrencyCode || '';
+    }
+    // 显示当前店铺名
+    const sel = document.getElementById('adminStoreSelect');
+    const el = document.getElementById('currencyCurrentStoreName');
+    if (sel && el && sel.selectedIndex >= 0) el.textContent = sel.options[sel.selectedIndex].text;
+    return;
     const config = await SLF.api.get('/public/config');
     if (config) {
       admin.setDefaultCurrencyObj && admin.setDefaultCurrencyObj(config.defaultCurrency || { symbol: '$', rate: 1, code: 'USD' });
     }
-    SLF.money.configure({
-      currencies: admin.currenciesCache(),
-      defaultCurrency: admin.defaultCurrencyObj(),
-      dualCurrency: { enabled: admin.dualCurrencyEnabled(), currency: admin.secondaryCurrencyCode() ? { code: admin.secondaryCurrencyCode() } : null }
-    });
+    // 从 display-settings 读主/副币
+    try {
+      const ds = await SLF.api.get('/admin/display-settings');
+      const list = admin.currenciesCache ? admin.currenciesCache() : [];
+      const prim = ds.primaryCurrencyCode ? (list.find(c => c.code === ds.primaryCurrencyCode) || admin.defaultCurrencyObj()) : admin.defaultCurrencyObj();
+      const sec = ds.secondaryCurrencyCode ? (list.find(c => c.code === ds.secondaryCurrencyCode) || null) : null;
+      SLF.money.configure({
+        currencies: list,
+        primaryCurrency: prim,
+        secondaryCurrency: sec
+      });
+    } catch (e) { console.warn('货币配置失败', e); }
   } catch (e) { console.warn('加载货币配置失败', e); }
 }
 
@@ -84,8 +109,8 @@ document.addEventListener('DOMContentLoaded', function() {
           tAdmin('onlyCurrent') || '仅当前店铺'
         );
         await SLF.api.post('/admin/display-settings', {
-          enabled: $('#dualCurrencyEnabled').checked,
-          secondaryCurrencyCode: $('#dualCurrencySelect').value,
+          primaryCurrencyCode: $('#dispPrimaryCurrency').value,
+          secondaryCurrencyCode: $('#dispSecondaryCurrency').value,
           applyAll: applyAll
         });
         await loadDisplaySettings();

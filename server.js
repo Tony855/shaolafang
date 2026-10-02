@@ -160,7 +160,7 @@ const {
   logAudit,
   requireAdminOrWaiter,
 } = require('./server/middleware/admin-auth');
-const { requireSuperAdmin, requireCashier } = require('./server/middleware/auth');
+const { requireSuperAdmin, requireCashier, requireAdminOrCashier } = require('./server/middleware/auth');
 
 // ---------- 获取真实客户端IP ----------
 // ---------- IP地理位置查询 ----------
@@ -1057,7 +1057,7 @@ if (typeof _advExport.attachAdvancedExport === 'function') {
 
 
 // ----- 全局配置+催单+管理员/收银员+重置 -----
-require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, hashPassword, verifyPassword, logAudit, getClientIp, io });
+require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io });
 
 
 
@@ -1185,6 +1185,23 @@ initDatabase().then(async () => {
       setInterval(() => {
         autoCleanLogs().catch(err => console.error('日志清理失败:', err.message));
       }, 24 * 60 * 60 * 1000);
+      // KHQR 动态码过期清理：每 60 秒扫一次，清掉超过 15 分钟还未支付的 pending 订单
+      setInterval(async () => {
+        try {
+          const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+          const result = await runAsync(
+            "UPDATE orders SET pay_khqr_ref='', pay_expires_at='' " +
+            "WHERE status='pending' AND awaiting_confirm=0 " +
+            "AND pay_expires_at != '' AND pay_expires_at < ?",
+            [cutoff]
+          );
+          if (result.changes > 0) {
+            console.log('[cleanup] 清理了', result.changes, '个过期 KHQR 码');
+          }
+        } catch (e) {
+          console.error('[cleanup] 过期清理失败:', e.message);
+        }
+      }, 60 * 1000);
     } else {
       console.log('⏭️ 定时任务未启用（设置 RUN_SCHEDULED_TASKS=true 启用）');
     }

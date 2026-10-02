@@ -1,29 +1,39 @@
 /*
- * FoodFlow · SLF.money — 货币换算与主/副货币价格格式化（唯一实现）
- * 各页拉到 global-config 后调用 SLF.money.configure({currencies, defaultCurrency, dualCurrency})。
+ * SLF.money — 货币换算与价格格式化
  *
- * 数据约定：currencies 每项 { code, symbol, rate, is_default }，rate = 该币兑基准(USD)汇率。
- *   base(基准/USD) = price / rate
- *   主币显示      = base * defaultCurrency.rate
- *   副币显示      = base / defaultCurrency.rate * secCurrency.rate
+ * 新模型（3 个概念）：
+ *   base       —— 系统内部基准（USD），不可见
+ *   primary    —— 显示给顾客的主货币（默认 USD，可改 KHR）
+ *   secondary  —— 副货币（可选，空=关闭双币）
+ *
+ * configure({ currencies, primaryCurrency, secondaryCurrency })
  */
 (function (global) {
   'use strict';
   var SLF = global.SLF = global.SLF || {};
 
   var currencies = [];
-  var def = { symbol: '$', rate: 1, code: 'USD' };
-  var dual = { enabled: false, currency: null };
+  var primaryCur = { code: 'USD', symbol: '$', rate: 1 };
+  var secondaryCur = null;
 
   function configure(cfg) {
     cfg = cfg || {};
     if (Array.isArray(cfg.currencies)) currencies = cfg.currencies;
-    if (cfg.defaultCurrency) def = cfg.defaultCurrency;
-    if (cfg.dualCurrency) dual = cfg.dualCurrency;
-    // admin 风格：未显式给 defaultCurrency 时从列表挑 is_default
-    if (!cfg.defaultCurrency && Array.isArray(cfg.currencies) && cfg.currencies.length) {
-      def = cfg.currencies.find(function (c) { return c.is_default; }) || cfg.currencies[0];
+
+    // 主币
+    if (cfg.primaryCurrency) primaryCur = cfg.primaryCurrency;
+    // 兼容旧字段
+    else if (cfg.defaultCurrency) primaryCur = cfg.defaultCurrency;
+
+    // 副币：null/空 = 关闭
+    if (cfg.secondaryCurrency !== undefined) {
+      secondaryCur = cfg.secondaryCurrency || null;
+    } else if (cfg.dualCurrency && cfg.dualCurrency.enabled && cfg.dualCurrency.currency) {
+      secondaryCur = cfg.dualCurrency.currency;
+    } else {
+      secondaryCur = null;
     }
+
     return SLF.money;
   }
 
@@ -32,7 +42,7 @@
     return null;
   }
 
-  // 任意币种价格 → 基准(USD)
+  // 任意币种价格 → USD base
   function toBase(price, code) {
     if (!code) return Number(price || 0);
     var c = find(code);
@@ -40,40 +50,39 @@
     return Number(price || 0) / Number(c.rate);
   }
 
-  // 基准价 → 默认主币显示串
+  // base(USD) → 主币显示串
   function primary(base) {
-    var sym = (def && def.symbol) || '$';
-    var rate = Number((def && def.rate) || 1);
+    var sym = primaryCur.symbol || '$';
+    var rate = Number(primaryCur.rate || 1);
     return sym + (Number(base || 0) * rate).toFixed(2);
   }
 
-  // 基准价 → 指定副币显示串（找不到返回 ''）
+  // base(USD) → 指定副币显示串
   function secondary(base, code) {
     if (!code) return '';
     var sc = find(code);
     if (!sc) return '';
-    var defaultRate = Number((def && def.rate) || 1);
-    var v = (Number(base || 0) / defaultRate) * Number(sc.rate || 1);
-    return (sc.symbol || '') + v.toFixed(2);
+    var rate = Number(sc.rate || 1);
+    return (sc.symbol || '') + (Number(base || 0) * rate).toFixed(2);
   }
 
-  // 主币 [+ 副币]；opts: { showSecondary=true, secondaryCode }
+  // base → '主币 (副币)' 或 '主币'
   function format(base, opts) {
     opts = opts || {};
-    var show = opts.showSecondary !== false;
-    var code = opts.secondaryCode;
-    if (show && !code && dual.enabled && dual.currency) code = dual.currency.code;
-    var sec = code ? secondary(base, code) : '';
-    return sec ? primary(base) + ' (' + sec + ')' : primary(base);
+    var p = primary(base);
+    var secCode = opts.secondaryCode;
+    if (secCode === undefined) secCode = secondaryCur ? secondaryCur.code : null;
+    var secStr = secCode ? secondary(base, secCode) : '';
+    return secStr ? p + ' (' + secStr + ')' : p;
   }
 
   // 菜品价格：返回 { primary, secondary }
   function menuPrice(item) {
     var base = toBase(item.price, item.currency_code);
     var p = primary(base);
-    var s = '';
-    if (dual.enabled && item.secondary_currency_code) s = secondary(base, item.secondary_currency_code);
-    return { primary: p, secondary: s };
+    var secStr = '';
+    if (secondaryCur) secStr = secondary(base, secondaryCur.code);
+    return { primary: p, secondary: secStr };
   }
 
   SLF.money = {
@@ -85,7 +94,15 @@
     menuPrice: menuPrice,
     find: find
   };
+
   Object.defineProperty(SLF.money, 'currencies', { get: function () { return currencies; } });
-  Object.defineProperty(SLF.money, 'default', { get: function () { return def; } });
-  Object.defineProperty(SLF.money, 'dual', { get: function () { return dual; } });
+  Object.defineProperty(SLF.money, 'primaryCurrency', { get: function () { return primaryCur; } });
+  Object.defineProperty(SLF.money, 'secondaryCurrency', { get: function () { return secondaryCur; } });
+  // 兼容旧 getter
+  Object.defineProperty(SLF.money, 'default', { get: function () { return primaryCur; } });
+  Object.defineProperty(SLF.money, 'dual', {
+    get: function () {
+      return { enabled: !!secondaryCur, currency: secondaryCur };
+    }
+  });
 })(window);

@@ -2,9 +2,68 @@
    routes/admin-manage.js — 全局配置 + 催单 + 管理员/收银员 CRUD + 重置
    ============================================================ */
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
+  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
+
+  /* ===== KHQR 多收款码管理 ===== */
+  async function loadKhqrProviders(storeId) {
+    const row = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_providers']);
+    let list = [];
+    if (row && row.value) {
+      try { list = JSON.parse(row.value); } catch (e) { list = []; }
+    }
+    if (list.length === 0) {
+      const oldPayload = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_static_payload']);
+      if (oldPayload && oldPayload.value) {
+        const nameRow = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_merchant_name']);
+        const bakongRow = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_bakong_id']);
+        let cur = 'USD';
+        try {
+          const info = khqr.extractInfo(khqr.parseTLV(oldPayload.value));
+          cur = info.currency === '840' ? 'USD' : 'KHR';
+        } catch (e) {}
+        list = [{
+          id: 'p_migrated_' + Date.now(),
+          label: (nameRow && nameRow.value ? nameRow.value : '默认收款码'),
+          bank: 'ABA',
+          payload: oldPayload.value,
+          merchantName: nameRow ? nameRow.value : '',
+          bakongId: bakongRow ? bakongRow.value : '',
+          currency: cur,
+          isDefault: true,
+          enabled: true,
+          createdAt: new Date().toISOString(),
+        }];
+        await saveKhqrProviders(storeId, list);
+        console.log('[khqr] 已从旧数据迁移 1 个 provider: store=' + storeId);
+      }
+    }
+    return list;
+  }
+
+  async function saveKhqrProviders(storeId, list) {
+    await runAsync(
+      "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+      ['store_' + storeId + '_khqr_providers', JSON.stringify(list)]
+    );
+  }
+
+  /* ===== KHQR 辅助：解析并校验当前 store ===== */
+  async function resolveKhqrStore(req) {
+    const sid = parseInt(req.storeId, 10) || 0;
+    if (!sid || sid <= 0) {
+      throw Object.assign(new Error('未指定店铺，请先在顶部切换店铺'), { status: 400 });
+    }
+    // 校验 store 属于当前商户
+    const store = await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=?', [sid, req.merchantId]);
+    if (!store) {
+      throw Object.assign(new Error('店铺不存在或不属于当前商户'), { status: 403 });
+    }
+    return { storeId: store.id, storeName: store.name };
+  }
+
 
   app.get('/api/public/global-config', async (req, res) => {
     try {
@@ -20,7 +79,7 @@ module.exports = function(app, deps) {
         cashier_idle_timeout: parseInt(cashierIdle?.value || '30', 10),
         kitchen_idle_timeout: parseInt(kitchenIdle?.value || '120', 10),
       });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   // ----- 催单（需要 session 校验 + 限流）-----
@@ -74,7 +133,7 @@ module.exports = function(app, deps) {
       io.to('waiter-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
 
       res.json({ success: true, message: '已通知后厨，请稍候' });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   // ----- 商户管理员管理 -----
@@ -82,7 +141,7 @@ module.exports = function(app, deps) {
     try {
       const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, (id = (SELECT MIN(id) FROM merchant_admins ma2 WHERE ma2.merchant_id = merchant_admins.merchant_id)) AS is_primary, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
       res.json(rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   app.post('/api/admin/admins', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
@@ -104,7 +163,7 @@ module.exports = function(app, deps) {
       );
       await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_admin', 'merchant_admin', result.lastID, `创建管理员: ${username}`, getClientIp(req));
       res.status(201).json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE id=?', [result.lastID]));
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
@@ -141,7 +200,7 @@ module.exports = function(app, deps) {
       }
       await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_admin', 'merchant_admin', id, `更新管理员: ${admin.username}`, getClientIp(req));
       res.json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]));
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
@@ -157,7 +216,7 @@ module.exports = function(app, deps) {
       await runAsync('DELETE FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
       await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_admin', 'merchant_admin', id, `删除管理员: ${admin.username}`, getClientIp(req));
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   // ----- 收银员管理（按商户聚合，跨店铺）-----
@@ -212,7 +271,7 @@ module.exports = function(app, deps) {
     try {
       const list = await getAllCashiersByMerchant(req.merchantId);
       res.json({ cashiers: list });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   app.post('/api/admin/cashiers', requireAdminKey, async (req, res) => {
@@ -252,7 +311,7 @@ module.exports = function(app, deps) {
       await saveCashiers(targetStoreId, cashiers);
       await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_cashier', 'cashier', newCashier.id, `创建收银员: ${username} (店铺 #${targetStoreId})`, getClientIp(req));
       res.status(201).json({ success: true, cashier: { id: newCashier.id, username: newCashier.username, display_name: newCashier.display_name, active: newCashier.active, permissions: newCashier.permissions, created_at: newCashier.created_at, store_id: targetStoreId, store_name: store.name } });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   app.put('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
@@ -305,7 +364,7 @@ module.exports = function(app, deps) {
 
       await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_cashier', 'cashier', id, `更新收银员: ${cashier.username}${storeChanged ? ' (店铺 #' + oldStore.id + ' -> #' + newStore.id + ')' : ''}`, getClientIp(req));
       res.json({ success: true, cashier: { id: cashier.id, username: cashier.username, display_name: cashier.display_name, active: cashier.active, permissions: cashier.permissions, created_at: cashier.created_at, store_id: newStore.id, store_name: newStore.name } });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   app.delete('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
@@ -319,7 +378,7 @@ module.exports = function(app, deps) {
       await saveCashiers(store.id, list);
       await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_cashier', 'cashier', id, `删除收银员: ${username} (店铺 #${store.id})`, getClientIp(req));
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
   app.post('/api/admin/reset-data', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
@@ -337,6 +396,357 @@ module.exports = function(app, deps) {
       await runAsync('DELETE FROM scan_sessions WHERE merchant_id = ?', [merchantId]);
       await runAsync('DELETE FROM reservations WHERE merchant_id = ?', [merchantId]);
       res.json({ success: true, message: '订单数据已重置' });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
+
+  /* ===== KHQR 静态码上传 + 自动解析 ===== */
+  const multer = require('multer');
+  const path = require('path');
+  const fs = require('fs');
+  const os = require('os');
+  const khqr = require('../server/services/khqr');
+
+  const khqrUpload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => cb(null, os.tmpdir()),
+      filename: (req, file, cb) => cb(null, 'khqr_' + Date.now() + path.extname(file.originalname)),
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      if (/^image\//.test(file.mimetype)) return cb(null, true);
+      cb(new Error('只能上传图片'));
+    },
+  });
+
+  app.post('/api/admin/khqr/upload', requireAdminKey, requirePermission('can_manage_store'), khqrUpload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: '请上传二维码图片' });
+      const filePath = req.file.path;
+      try {
+        const buf = fs.readFileSync(filePath);
+        const parsed = await khqr.parseAndValidateStaticQR(buf);
+        const { storeId: sid, storeName } = await resolveKhqrStore(req);
+
+        const label = (req.body && req.body.label || '').trim() || (parsed.merchantName + ' - ' + parsed.currency);
+        const bank = (req.body && req.body.bank || '').trim() || 'ABA';
+
+        const list = await loadKhqrProviders(sid);
+        const newProvider = {
+          id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          label: label,
+          bank: bank,
+          payload: parsed.payload,
+          merchantName: parsed.merchantName,
+          bakongId: parsed.bakongId || '',
+          currency: parsed.currency,
+          isDefault: list.length === 0,
+          enabled: true,
+          createdAt: new Date().toISOString(),
+        };
+        list.push(newProvider);
+        await saveKhqrProviders(sid, list);
+        console.log('[khqr/upload] store=' + sid + ' (' + storeName + ') 新增 provider=' + newProvider.id);
+
+        res.json({
+          success: true,
+          provider: newProvider,
+          merchantName: parsed.merchantName,
+          currency: parsed.currency,
+          bakongId: parsed.bakongId,
+          payloadPreview: parsed.payload.slice(0, 30) + '...',
+          totalProviders: list.length,
+        });
+      } finally {
+        try { fs.unlinkSync(filePath); } catch (e) {}
+      }
+    } catch (e) {
+      console.error('[khqr/upload]', e);
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  /* ===== 读取当前 KHQR 配置 ===== */
+  app.get('/api/admin/khqr/info', requireAdminKey, async (req, res) => {
+    try {
+      const { storeId: sid, storeName } = await resolveKhqrStore(req);
+      const payload = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + sid + '_khqr_static_payload']);
+      const name = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + sid + '_khqr_merchant_name']);
+      const bakong = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + sid + '_khqr_bakong_id']);
+      res.json({
+        configured: !!payload,
+        merchantName: name ? name.value : '',
+        bakongId: bakong ? bakong.value : '',
+        payloadPreview: payload ? payload.value.slice(0, 30) + '...' : '',
+      });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
+  /* ===== 生成动态码 ===== */
+  app.post('/api/cashier/khqr/generate', requireAdminOrCashier, async (req, res) => {
+    try {
+      const { storeId: sid } = await resolveKhqrStore(req);
+      const { order_id } = req.body || {};
+      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      if (!order) return res.status(404).json({ error: '订单不存在' });
+      if (order.status !== 'pending') return res.status(400).json({ error: '订单已结算或已取消' });
+
+      const expireRow = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + sid + '_khqr_expire_minutes']);
+      const expireMin = parseInt(expireRow ? expireRow.value : '10', 10) || 10;
+
+      // 选择哪个收款码
+      const list = await loadKhqrProviders(sid);
+      const enabledList = list.filter(p => p.enabled);
+      if (enabledList.length === 0) return res.status(400).json({ error: '未配置 KHQR 收款码，请先在系统设置中上传' });
+
+      const providerId = (req.body && req.body.provider_id) || '';
+      let provider;
+      if (providerId) {
+        provider = enabledList.find(p => p.id === providerId);
+        if (!provider) return res.status(400).json({ error: '指定的收款码不存在或已禁用' });
+      } else {
+        provider = enabledList.find(p => p.isDefault) || enabledList[0];
+      }
+      const payloadRow = { value: provider.payload };
+      const nameRow = { value: provider.merchantName };
+
+      // 币种直接读 provider 存储时已解析好的字段，避免二次解析出错
+      let staticCurrency = provider.currency;
+      if (!staticCurrency) {
+        // 兜底：重新解析
+        const staticInfo = khqr.extractInfo(khqr.parseTLV(provider.payload));
+        staticCurrency = staticInfo.currency === '840' ? 'USD' : (staticInfo.currency === '116' ? 'KHR' : 'USD');
+      }
+      console.log('[khqr/generate] provider=' + provider.id + ' provider.currency=' + provider.currency + ' staticCurrency=' + staticCurrency);
+
+      // 订单原始币种
+      let orderCurrency = 'USD';
+      try {
+        const items = JSON.parse(order.items || '[]');
+        if (items[0] && items[0].currency_code) orderCurrency = items[0].currency_code;
+      } catch (e) {}
+
+      // 换算：静态码币种 != 订单币种 时，按汇率转
+      let finalAmount = Number(order.total);
+      if (orderCurrency !== staticCurrency) {
+        const rates = await allAsync('SELECT code, rate FROM currencies WHERE merchant_id=?', [req.merchantId || 1]);
+        const rateMap = {};
+        for (const r of rates) rateMap[r.code] = Number(r.rate) || 1;
+        // rate = 该币兑 USD 汇率
+        const usdRateOfOrder = rateMap[orderCurrency] || 1;
+        const usdRateOfStatic = rateMap[staticCurrency] || 1;
+        // 订单币种 → USD → 静态码币种
+        const usdAmount = Number(order.total) / usdRateOfOrder;
+        finalAmount = usdAmount * usdRateOfStatic;
+        console.log('[khqr/generate] 币种换算:', order.total, orderCurrency, '→', finalAmount.toFixed(2), staticCurrency);
+      }
+
+      const orderNo = order.order_no || ('#' + order.id);
+      const dynamicPayload = khqr.buildDynamicPayload(payloadRow.value, finalAmount, staticCurrency, orderNo);
+      const currency = staticCurrency;
+
+      // 前端 <img> 带不了 token，直接返回 base64 dataURL
+      const qrDataUrl = await QRCode.toDataURL(dynamicPayload, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 320,
+      });
+      const expiresAt = new Date(Date.now() + expireMin * 60 * 1000).toISOString();
+
+      // 保存到订单
+      await runAsync('UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=?',
+        ['khqr', dynamicPayload, expiresAt, order.id]);
+
+      res.json({
+        qr_payload: dynamicPayload,
+        qr_data_url: qrDataUrl,
+        provider_id: provider.id,
+        provider_label: provider.label,
+        provider_bank: provider.bank,
+        amount: Number(finalAmount.toFixed(2)),
+        original_amount: Number(order.total),
+        original_currency: orderCurrency,
+        currency,
+        merchant_name: nameRow ? nameRow.value : '',
+        order_no: orderNo,
+        expires_at: expiresAt,
+        expire_minutes: expireMin,
+      });
+    } catch (e) {
+      console.error('[khqr/generate]', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  /* ===== 到账确认 ===== */
+  app.post('/api/cashier/khqr/confirm', requireAdminOrCashier, async (req, res) => {
+    try {
+      const { storeId: sid } = await resolveKhqrStore(req);
+      const { order_id, role } = req.body || {};
+      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      if (!order) return res.status(404).json({ error: '订单不存在' });
+      if (order.status !== 'pending') return res.status(400).json({ error: '订单状态不允许确认' });
+
+      if (role === 'waiter') {
+        // 服务员只能标记待确认
+        await runAsync('UPDATE orders SET awaiting_confirm=1 WHERE id=?', [order_id]);
+        return res.json({ success: true, status: 'awaiting_confirm' });
+      }
+
+      // 收银员直接结算
+      await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, paid_confirmed_by=? WHERE id=?",
+        [req.adminId || req.cashierId || 'unknown', order_id]);
+      await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id }), req.ip || '', new Date().toISOString()]);
+      res.json({ success: true, status: 'done' });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
+
+  /* ===== 列出所有 KHQR provider ===== */
+  app.get('/api/admin/khqr/providers', requireAdminKey, async (req, res) => {
+    try {
+      const { storeId: sid } = await resolveKhqrStore(req);
+      const list = await loadKhqrProviders(sid);
+      res.json({ providers: list });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
+  /* ===== 删除某个 provider ===== */
+  app.delete('/api/admin/khqr/providers/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
+    try {
+      const { storeId: sid } = await resolveKhqrStore(req);
+      const id = req.params.id;
+      const list = await loadKhqrProviders(sid);
+      const idx = list.findIndex(p => p.id === id);
+      if (idx < 0) return res.status(404).json({ error: '收款码不存在' });
+      const removed = list.splice(idx, 1)[0];
+      // 如果删掉的是默认且还有剩余，把第一个设为默认
+      if (removed.isDefault && list.length > 0) list[0].isDefault = true;
+      await saveKhqrProviders(sid, list);
+      res.json({ success: true, remaining: list.length });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
+  /* ===== 设为默认 ===== */
+  app.post('/api/admin/khqr/providers/:id/default', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
+    try {
+      const { storeId: sid } = await resolveKhqrStore(req);
+      const id = req.params.id;
+      const list = await loadKhqrProviders(sid);
+      let found = false;
+      for (const p of list) {
+        if (p.id === id) { p.isDefault = true; found = true; }
+        else p.isDefault = false;
+      }
+      if (!found) return res.status(404).json({ error: '收款码不存在' });
+      await saveKhqrProviders(sid, list);
+      res.json({ success: true });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
+  /* ===== 启用/禁用 ===== */
+  app.post('/api/admin/khqr/providers/:id/toggle', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
+    try {
+      const { storeId: sid } = await resolveKhqrStore(req);
+      const id = req.params.id;
+      const list = await loadKhqrProviders(sid);
+      const p = list.find(x => x.id === id);
+      if (!p) return res.status(404).json({ error: '收款码不存在' });
+      p.enabled = !p.enabled;
+      await saveKhqrProviders(sid, list);
+      res.json({ success: true, enabled: p.enabled });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
+  /* ===== 二维码图片（PNG） ===== */
+  app.get('/api/cashier/khqr/qrimage', requireAdminOrCashier, async (req, res) => {
+    try {
+      const { storeId: sid } = await resolveKhqrStore(req);
+      const { order_id, size } = req.query;
+      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+
+      const order = await getAsync('SELECT pay_khqr_ref FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      if (!order || !order.pay_khqr_ref) return res.status(404).json({ error: '未生成动态码' });
+
+      const px = Math.max(120, Math.min(1024, parseInt(size, 10) || 320));
+      const dataUrl = await QRCode.toDataURL(order.pay_khqr_ref, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: px,
+      });
+      const base64 = dataUrl.split(',')[1];
+      const buf = Buffer.from(base64, 'base64');
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'no-store, no-cache');
+      res.send(buf);
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
+  /* ===== 服务员：通知收银员核实到账 ===== */
+  app.post('/api/waiter/khqr/notify', requireAdminOrWaiter, async (req, res) => {
+    try {
+      const { order_id } = req.body || {};
+      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+
+      let sid;
+      let actorName = 'admin';
+      if (req.isAdmin) {
+        sid = req.storeId;
+        actorName = 'admin';
+      } else if (req.waiter) {
+        sid = req.waiterStoreId || req.waiter.store_id;
+        actorName = req.waiter.display_name || req.waiter.username || 'waiter';
+      }
+      if (!sid) return res.status(400).json({ error: '未指定店铺' });
+
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      if (!order) return res.status(404).json({ error: '订单不存在' });
+      if (order.status !== 'pending') return res.status(400).json({ error: '订单状态不允许通知' });
+
+      // 幂等：已通知过直接返回
+      if (order.awaiting_confirm) {
+        return res.json({ success: true, status: 'awaiting_confirm', already: true });
+      }
+
+      await runAsync('UPDATE orders SET awaiting_confirm=1 WHERE id=?', [order_id]);
+
+      // 广播给收银台
+      io.to('cashier-' + sid).emit('khqr:awaiting', {
+        orderId: order.id,
+        table: order.table_name,
+        orderNo: order.order_no,
+        total: order.total,
+        storeId: sid,
+      });
+
+      // 审计日志
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [req.isAdmin ? 'admin' : 'waiter',
+         req.isAdmin ? (req.adminId || 0) : (req.waiter ? req.waiter.id : 0),
+         actorName, 'khqr_notify_awaiting',
+         JSON.stringify({ order_id: order.id, table: order.table_name }),
+         getClientIp(req), new Date().toISOString()]
+      );
+
+      res.json({ success: true, status: 'awaiting_confirm' });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
+  /* ===== 取消/退回待确认 ===== */
+  app.post('/api/cashier/khqr/cancel', requireAdminOrCashier, async (req, res) => {
+    try {
+      const { storeId: sid } = await resolveKhqrStore(req);
+      const { order_id } = req.body || {};
+      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+      await runAsync('UPDATE orders SET awaiting_confirm=0, pay_khqr_ref=?, pay_expires_at=? WHERE id=? AND store_id=?',
+        ['', '', order_id, sid]);
+      res.json({ success: true });
+    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+
 };

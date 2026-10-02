@@ -138,27 +138,6 @@
                 <div id="orders"></div>
             </section>
 
-            <!-- 货币类型 -->
-            <section class="panel module-panel" id="module-currencies">
-                <h2 id="currencyPanelTitle">货币类型</h2>
-                <div class="display-settings-bar">
-                    <label class="store-switch-label">
-                        <span id="currencyDualLabel">启用双币显示</span>
-                        <label class="store-switch"><input type="checkbox" id="dualCurrencyEnabled"><span class="store-switch-slider"></span></label>
-                    </label>
-                    <select id="dualCurrencySelect" class="display-settings-select"></select>
-                    <button id="saveDisplaySettingsBtn" class="display-settings-btn"><span data-i18n="save">保存</span>显示设置</button>
-                </div>
-                <form id="currencyForm" class="currency-form-grid">
-                    <div class="form-group"><label id="currencyCodeLabel">货币代码</label><input id="currencyCode" placeholder="如：CNY" required></div>
-                    <div class="form-group"><label id="currencySymbolLabel">符号</label><input id="currencySymbol" placeholder="如：¥" required></div>
-                    <div class="form-group"><label id="currencyNameLabel">名称</label><input id="currencyName" placeholder="如：人民币" required></div>
-                    <div class="form-group"><label id="currencyRateLabel">汇率</label><input id="currencyRate" type="number" step="any" placeholder="汇率" required></div>
-                    <div class="form-group" style="display:flex;align-items:flex-end;"><button id="addCurrencyBtn" class="primary" style="width:100%;">新增货币</button></div>
-                </form>
-                <div id="currencies"></div>
-            </section>
-
             <!-- 预约管理 -->
             <section class="panel module-panel" id="module-reservations">
                 <h2 id="reservationsPanelTitle">📅 桌台预约管理</h2>
@@ -337,6 +316,8 @@
                     </div>
                 </div>
                 <div id="storeList"></div>
+
+
             </section>
 
             <!-- 系统设置 -->
@@ -363,14 +344,64 @@
 
                 <div class="settings-card" id="currencySettingsCard">
                     <h3 class="settings-card-title" id="currencySettingsTitle">💱 货币设置</h3>
-                    <p id="currencySettingsDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">配置货币类型、汇率和双币显示</p>
-                    <button class="store-sub-btn" data-perm="can_manage_currency" id="enterCurrencySettingsBtn" onclick="switchAdminModule('currencies')" style="background: linear-gradient(135deg,#ffecd2,#fcb69f); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入货币设置</button>
+                    <p style="color:#999;margin-bottom:16px;font-size:14px;">选择主货币（显示价格）和副货币（可选，括号显示）</p>
+                    <div style="background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.2);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#ffb088;">
+                        ⚠️ 仅对 <strong id="currencyCurrentStoreName" style="color:#fff;">当前店铺</strong> 生效
+                    </div>
+                    <div class="settings-form-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="form-group">
+                            <label style="color:#9b9bb2;font-size:13px;">主货币</label>
+                            <select id="dispPrimaryCurrency" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;"></select>
+                        </div>
+                        <div class="form-group">
+                            <label style="color:#9b9bb2;font-size:13px;">副货币（无 = 关闭双币）</label>
+                            <select id="dispSecondaryCurrency" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                                <option value="">— 不显示副货币 —</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+                        <button id="saveDisplaySettingsBtn" class="display-settings-btn">💾 保存</button>
+                        <button id="applyCurrencyToAllBtn" style="background:rgba(52,152,219,.15);color:#69c0ff;border:1px solid rgba(52,152,219,.3);border-radius:8px;padding:9px 14px;cursor:pointer;font-size:13px;font-weight:600;">📋 应用到所有店铺</button>
+                    </div>
                 </div>
 
                 <div class="settings-card" id="printerSettingsCard">
                     <h3 class="settings-card-title" id="printerSettingsTitle">🖨️ 打印机设置</h3>
                     <p id="printerSettingsDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">配置打印机、打印路由和自动打印</p>
                     <button class="store-sub-btn" data-perm="can_manage_printer" id="enterPrinterSettingsBtn" onclick="switchAdminModule('printers')" style="background: linear-gradient(135deg,#a1c4fd,#c2e9fb); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入打印机设置</button>
+                </div>
+
+                <div class="settings-card" id="khqrSettingsCard">
+                    <h3 class="settings-card-title">💳 KHQR 收款码</h3>
+                    <p style="color:#999;margin-bottom:16px;font-size:14px;">可配置多个收款码（ABA / ACLEDA / Wing 等），收银台按客户所用银行选择。</p>
+
+                    <div style="background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.2);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#ffb088;">
+                        ⚠️ 配置仅对 <strong id="khqrCurrentStoreName" style="color:#fff;">当前店铺</strong> 生效，切换店铺可分别配置
+                    </div>
+
+                    <!-- 已配置的收款码列表 -->
+                    <div id="khqrProviderList" style="margin-bottom:16px;"></div>
+
+                    <!-- 添加新区 -->
+                    <div style="padding:16px;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.15);border-radius:12px;">
+                        <div style="color:#ccc;font-size:13px;font-weight:600;margin-bottom:12px;">➕ 添加收款码</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                            <input type="text" id="khqrUploadLabel" placeholder="备注名（如：ABA-HUANG）" style="height:40px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.25);color:#fff;font-size:14px;">
+                            <select id="khqrUploadBank" style="height:40px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.25);color:#fff;font-size:14px;">
+                                <option value="ABA">ABA Bank</option>
+                                <option value="ACLEDA">ACLEDA Bank</option>
+                                <option value="Wing">Wing Bank</option>
+                                <option value="Bakong">Bakong</option>
+                                <option value="Other">其他</option>
+                            </select>
+                        </div>
+                        <input type="file" id="khqrImageFile" accept="image/*" style="display:none;">
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                            <button id="khqrUploadBtn" type="button" style="padding:10px 22px;border:0;border-radius:10px;background:linear-gradient(135deg,#e85d3a,#e84a2a);color:#fff;font-weight:700;cursor:pointer;">📤 选择图片并上传</button>
+                            <span id="khqrUploadName" style="color:#888;font-size:13px;">未选择文件</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="settings-card" id="orderPrefixCard">
@@ -496,7 +527,6 @@
                 <input id="menuEmoji" placeholder="图标（例如 🍖）" value="🍖">
                 <input id="menuDesc" class="full" placeholder="菜品描述">
                 <input id="menuDescEn" class="full" placeholder="英文描述">
-                <label class="full" style="display:flex;align-items:center;gap:8px;color:#ccc"><span id="menuSecondaryCurrencyLabel">第二货币</span><select id="menuSecondaryCurrency"></select></label>
                 <label class="full" style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:8px;margin-top:4px;">
                     <span data-i18n="imageLabel" style="min-width:60px;color:#9b9bb2;">图片</span>
                     <input id="menuImageFile" type="file" accept="image/*" style="flex:1;">
@@ -833,6 +863,7 @@
 <script src="pages/admin/admin-mgr.js?v=1790933426"></script>
 <script src="pages/admin/cashier-mgr.js?v=1790933426"></script>
 <script src="pages/admin/printer.js?v=1790933426"></script>
+<script src="pages/admin/khqr.js?v=1790933426"></script>
 <script src="pages/admin/report.js?v=1790933426"></script>
 <script src="pages/admin/menu.js?v=1790933426"></script>
 <script src="pages/admin/table.js?v=1790933426"></script>

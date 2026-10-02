@@ -248,6 +248,12 @@
         ? `<span class="pending-tip">⚠️ ${pendingCount} ${t('dishesPending', null, '道未完成')}</span>`
         : `<span class="ready-tip">✅ ${t('allDone', null, '全部完成')}</span>`;
 
+      const _awaitingTip = o.awaiting_confirm
+        ? `<span class="pending-tip" style="background:rgba(255,193,7,.18);color:#856404;">🔔 已通知收银员</span>`
+        : '';
+      const _notifyBtn = (!o.awaiting_confirm && o.status === 'pending')
+        ? `<button onclick="event.stopPropagation();notifyKhqrAwaiting(${o.id})" title="客户说已付款，通知收银员核实" style="background:linear-gradient(135deg,#ffb020,#ff8c00);color:#fff;border:0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;margin-left:6px;">📤 通知收银员</button>`
+        : '';
       return `<div class="order-block ${isExpanded ? 'expanded' : 'collapsed'}">
         <div class="order-head" onclick="event.stopPropagation();toggleOrderExpand(${o.id})" style="cursor:pointer;">
           <div class="order-head-left">
@@ -257,8 +263,10 @@
             <span class="order-dish-count">${totalDishCount} ${t('dishes', null, '道')}</span>
           </div>
           <div class="order-head-right">
+            ${_awaitingTip}
             ${pendingTip}
             <span class="order-amount">${orderTotalDisplay}</span>
+            ${_notifyBtn}
           </div>
         </div>
         ${isExpanded ? `${noteHtml}<div class="bill-items">${lines}</div>` : ''}
@@ -655,7 +663,7 @@
         ${(order.items || []).map((item) => `
           <div class="order-detail-item">
             <span class="dish-name">${esc(item.emoji) || '🍽️'} ${esc(item.name)} x${item.quantity}</span>
-            <span class="item-price">${SLF.money.format((Number(item.price) || 0) * item.quantity, { secondaryCode: item.secondary_currency_code })}</span>
+            <span class="item-price">${SLF.money.format((Number(item.price) || 0) * item.quantity)}</span>
           </div>
         `).join('')}
       </div>
@@ -979,9 +987,9 @@
     showConfirm(t('confirmSubmit', null, '确认提交此订单？'), async function () {
       const cartItems = Object.entries(state.cart).filter(([id, q]) => q > 0).map(([id, q]) => {
         const m = state.menu.find(x => x.id === +id);
-        return { id: m.id, name: m.name, price: m.price, quantity: q, emoji: m.emoji, itemStatus: 'pending', show_dual: m.show_dual || 0, secondary_currency_code: m.secondary_currency_code || '', unit: m.unit || t('unit', null, '份') };
+        return { id: m.id, name: m.name, price: m.price, quantity: q, emoji: m.emoji, itemStatus: 'pending', show_dual: 0, secondary_currency_code: '', unit: m.unit || t('unit', null, '份') };
       });
-      const lockedItems = state.lockedItems.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, emoji: i.emoji, itemStatus: 'done', show_dual: i.show_dual || 0, secondary_currency_code: i.secondary_currency_code || '', unit: i.unit || t('unit', null, '份') }));
+      const lockedItems = state.lockedItems.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, emoji: i.emoji, itemStatus: 'done', show_dual: 0, secondary_currency_code: '', unit: i.unit || t('unit', null, '份') }));
       const items = [...lockedItems, ...cartItems];
       if (!items.length) { SLF.ui.toast(t('selectDish', null, '请先选择菜品')); return; }
       try {
@@ -1165,5 +1173,6 @@
     try { window.toggleSelectedItem = toggleSelectedItem; } catch(err) {}
     try { window.toggleOrderExpand = toggleOrderExpand; } catch(err) {}
     try { window.toggleWaiterItem = toggleWaiterItem; } catch(err) {}
+    try { window.notifyKhqrAwaiting = notifyKhqrAwaiting; } catch(err) {}
     try { window.loadOrderHistory = loadOrderHistory; } catch(err) {}
 })();

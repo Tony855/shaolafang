@@ -1604,3 +1604,10 @@ body {
   color: #e74c3c;
   border-bottom-color: #e74c3c;
 }
+
+
+/* ===== KHQR 倒计时闪烁 ===== */
+@keyframes khqr-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

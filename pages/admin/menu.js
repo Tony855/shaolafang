@@ -27,9 +27,11 @@ async function loadMenus() {
   $('#menus').innerHTML = filtered.length ?
     `<div class="menu-list">${filtered.map(m => {
       let priceDisplay = SLF.money.primary(SLF.money.toBase(m.price, (m.currency_code||'USD')));
-      if (ctx.dualCurrencyEnabled() && m.secondary_currency_code) {
-        const base = SLF.money.toBase(m.price, m.currency_code || 'USD');
-        const sec = SLF.money.secondary(base, m.secondary_currency_code);
+      // 副币统一由店铺级设置决定，不再读菜品级字段
+      const _base = SLF.money.toBase(m.price, m.currency_code || 'USD');
+      const _sec = SLF.money.secondaryCurrency;
+      if (_sec && _sec.code) {
+        const sec = SLF.money.secondary(_base, _sec.code);
         if (sec) priceDisplay += ` (${sec})`;
       }
       return `<div class="menu-item-admin ${m.active ? '' : 'inactive'}">
@@ -132,7 +134,6 @@ function openDishModal() {
   editingMenuId = null;
   $('#menuForm').reset();
   $('#menuEmoji').value = '🍖';
-  $('#menuSecondaryCurrency').value = '';
   $('#dishModalTitle').textContent = tAdmin('addDish');
   $('#menuSaveButton').textContent = tAdmin('addDish');
   $('#menuCancelButton').hidden = true;
@@ -159,7 +160,6 @@ function editMenu(id) {
   $('#menuCategory').value = current.category;
   $('#menuCurrency').value = current.currency_code || 'USD';
   $('#menuUnit').value = current.unit || tAdmin('portion');
-  $('#menuSecondaryCurrency').value = current.secondary_currency_code || '';
   $('#menuEmoji').value = current.emoji || '';
   $('#menuDesc').value = current.desc || '';
   $('#menuDescEn').value = current.desc_en || '';
@@ -215,12 +215,11 @@ document.addEventListener('DOMContentLoaded', function() {
           ['name', 'menuName'], ['name_en', 'menuNameEn'], ['price', 'menuPrice'],
           ['category', 'menuCategory'], ['currency_code', 'menuCurrency'],
           ['emoji', 'menuEmoji'], ['desc', 'menuDesc'], ['desc_en', 'menuDescEn'],
-          ['unit', 'menuUnit'], ['secondary_currency_code', 'menuSecondaryCurrency']
+          ['unit', 'menuUnit']
         ].forEach(([k, id]) => {
           const el = $('#' + id);
           form.append(k, el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value);
         });
-        form.append('show_dual', $('#menuSecondaryCurrency').value ? '1' : '0');
         const file = $('#menuImageFile').files[0];
         const videoFile = $('#menuVideoFile') && $('#menuVideoFile').files[0];
         if (videoFile) form.append('video', videoFile);

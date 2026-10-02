@@ -10,7 +10,35 @@
             }
             return SLF.api.get(path);
         };
-        const $ = s => document.querySelector(s);
+        // null-safe $ : 找不到元素时返回"空壳对象"，避免整页崩
+        const $ = s => {
+            const el = document.querySelector(s);
+            if (el) return el;
+            return {
+                textContent: '',
+                innerHTML: '',
+                value: '',
+                placeholder: '',
+                checked: false,
+                disabled: false,
+                style: {},
+                classList: { add: () => {}, remove: () => {}, toggle: () => {}, contains: () => false },
+                addEventListener: () => {},
+                removeEventListener: () => {},
+                setAttribute: () => {},
+                removeAttribute: () => {},
+                getAttribute: () => null,
+                appendChild: () => {},
+                removeChild: () => {},
+                focus: () => {},
+                blur: () => {},
+                click: () => {},
+                querySelector: () => null,
+                querySelectorAll: () => [],
+                closest: () => null,
+                dataset: {}
+            };
+        };
         let adminToken = SLF.store.rawGetSession('adminToken') || '';
         let adminId = parseInt(SLF.store.rawGetSession('adminId') || '0', 10);
         let adminIsPrimary = SLF.store.rawGetSession('adminIsPrimary') === '1';
@@ -456,8 +484,8 @@ function applyAdminLanguage() {
             $('#menuEmoji').placeholder = tAdmin('icon');
             $('#menuDesc').placeholder = tAdmin('desc');
             $('#menuDescEn').placeholder = tAdmin('descEn');
-            $('#currencyDualLabel').textContent = tAdmin('dualCurrency');
-            $('#menuSecondaryCurrencyLabel').textContent = tAdmin('secondaryCurrency');
+            const _msl = document.getElementById('menuSecondaryCurrencyLabel');
+            if (_msl) _msl.textContent = tAdmin('secondaryCurrency');
             $('#menuSaveButton').textContent = editingMenuId ? L('save') : tAdmin('addDish');
             $('#menuCancelButton').textContent = tAdmin('cancelEdit');
             window.populateMenuCategorySelect();
@@ -473,16 +501,6 @@ function applyAdminLanguage() {
             _ot('orderTabSettledText',  'settledOrders', '已结订单');
             _ot('orderTabRefundedText', 'refundOrder',   '退款订单');
             $('#doneLabel').textContent = tAdmin('completedOrders');
-            $('#currencyPanelTitle').textContent = tAdmin('currencyManageTitle');
-            $('#currencyCode').placeholder = tAdmin('currencyCode');
-            $('#currencySymbol').placeholder = tAdmin('currencySymbol');
-            $('#currencyName').placeholder = tAdmin('currencyName');
-            $('#currencyRate').placeholder = tAdmin('currencyRateLabel');
-            $('#addCurrencyBtn').textContent = tAdmin('addCurrency');
-            $('#currencyCodeLabel').textContent = tAdmin('currencyCodeLabel');
-            $('#currencySymbolLabel').textContent = tAdmin('currencySymbolLabel');
-            $('#currencyNameLabel').textContent = tAdmin('currencyName');
-            $('#currencyRateLabel').textContent = tAdmin('currencyRateLabel');
             $('#logsPanelTitle').textContent = tAdmin('logsTitle');
             $('#waitersPanelTitle').textContent = tAdmin('waitersManage');
             $('#storesPanelTitle').textContent = tAdmin('storesManage');

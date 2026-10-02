@@ -28,19 +28,30 @@ async function loadCurrencies() {
   const defaultCurrency = list.find(c => c.is_default) || list[0] || null;
   // 配置 SLF.money
   if (typeof SLF !== 'undefined' && SLF.money) {
+    // 从后端读取当前店铺的货币配置
+    let prim = defaultCurrency;
+    let sec = null;
+    try {
+      const ds = await api('/admin/display-settings');
+      if (ds.primaryCurrencyCode) {
+        prim = list.find(c => c.code === ds.primaryCurrencyCode) || defaultCurrency;
+      }
+      if (ds.secondaryCurrencyCode) {
+        sec = list.find(c => c.code === ds.secondaryCurrencyCode) || null;
+      }
+    } catch (e) { console.warn('读 display-settings 失败', e); }
     SLF.money.configure({
       currencies: list,
-      defaultCurrency: defaultCurrency,
-      dualCurrency: {
-        enabled: (window.SLF.admin.dualCurrencyEnabled ? window.SLF.admin.dualCurrencyEnabled() : false),
-        currency: (window.SLF.admin.secondaryCurrencyCode ? window.SLF.admin.secondaryCurrencyCode() : '') ? { code: (window.SLF.admin.secondaryCurrencyCode ? window.SLF.admin.secondaryCurrencyCode() : '') } : null
-      }
+      primaryCurrency: prim,
+      secondaryCurrency: sec
     });
   }
   const defaultCode = defaultCurrency?.code || 'USD';
   $('#menuCurrency').innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)} · ${esc(currencyNameText(c.name,c.code))}</option>`).join('');
-  $('#dualCurrencySelect').innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');
-  $('#menuSecondaryCurrency').innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');
+  const elDual = $('#dualCurrencySelect');
+  if (elDual) elDual.innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');
+  const elSec = $('#menuSecondaryCurrency');
+  if (elSec) elSec.innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');
   $('#currencies').innerHTML = list.map(c => `
       <div class="row">
         <div><b>${esc(c.code)} ${esc(c.symbol)}</b><small>${esc(currencyNameText(c.name,c.code))} · ${tAdmin('currencyRateLabel')} ${esc(c.rate)}${c.is_default ? ` · ${tAdmin('default')}` : ''}</small></div>

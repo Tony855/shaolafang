@@ -13,13 +13,15 @@ module.exports = function(app, deps) {
         'SELECT code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code',
         [merchantId]
       );
-      const dualRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_dual_currency_enabled`])
-                   || await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_dual_currency_enabled`])
-                   || await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
-      const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_secondary_currency_code`])
-                        || await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_secondary_currency_code`])
-                        || await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
-      const secondaryCurrency = currencies.find(c => c.code === secondaryRow?.value) || null;
+      // 简化：只读店铺级
+      const primaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_primary_currency_code`]);
+      const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_secondary_currency_code`]);
+
+      const primaryCode = (primaryRow && primaryRow.value) || 'USD';
+      const secondaryCode = (secondaryRow && secondaryRow.value) || '';
+
+      const primaryCurrency = currencies.find(c => c.code === primaryCode) || currencies.find(c => c.is_default) || currencies[0] || { code: 'USD', symbol: '$', rate: 1 };
+      const secondaryCurrency = secondaryCode ? (currencies.find(c => c.code === secondaryCode) || null) : null;
       const soundRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_new_order_sound_enabled`])
                     || await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_new_order_sound_enabled`])
                     || await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
@@ -48,8 +50,11 @@ module.exports = function(app, deps) {
       };
       res.json({
         currencies,
-        defaultCurrency: currencies.find(c => c.is_default) || currencies[0] || { code: 'USD', symbol: '$', rate: 1 },
-        dualCurrency: { enabled: dualRow?.value === '1', currency: secondaryCurrency },
+        primaryCurrency,
+        secondaryCurrency,
+        // 兼容旧字段
+        defaultCurrency: primaryCurrency,
+        dualCurrency: { enabled: !!secondaryCurrency, currency: secondaryCurrency },
         newOrderSoundEnabled: soundRow ? soundRow.value === '1' : true,
         constraints,
         waiter_refresh_interval: parseInt(s.waiter_refresh_interval || '8', 10),

@@ -3,8 +3,35 @@
  */
 window.SLF = window.SLF || {};
 window.SLF.admin = {
-  // 这些值会在 admin.js 加载后被替换
-  $: (sel) => document.querySelector(sel),
+  // null-safe $ : 找不到元素时返回空壳对象，避免整页崩
+  $: (sel) => {
+    const el = document.querySelector(sel);
+    if (el) return el;
+    return {
+      textContent: '',
+      innerHTML: '',
+      value: '',
+      placeholder: '',
+      checked: false,
+      disabled: false,
+      style: {},
+      classList: { add: () => {}, remove: () => {}, toggle: () => {}, contains: () => false },
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      setAttribute: () => {},
+      removeAttribute: () => {},
+      getAttribute: () => null,
+      appendChild: () => {},
+      removeChild: () => {},
+      focus: () => {},
+      blur: () => {},
+      click: () => {},
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      closest: () => null,
+      dataset: {}
+    };
+  },
   api: async (path, opts = {}) => {
     const method = (opts.method || 'GET').toUpperCase();
     return SLF.api._request(method, path, { body: opts.body });
@@ -23,7 +50,8 @@ window.SLF.admin = {
   setMenus: () => {},
   setTables: () => {},
   setOrders: () => {},
-  dualCurrencyEnabled: false,
+  dualCurrencyEnabled: () => false,
+  secondaryCurrencyCode: () => '',
   secondaryCurrencyCode: 'USD',
   adminId: 0,
   buildSessionLabels: (orders) => new Map(),

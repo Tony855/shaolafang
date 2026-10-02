@@ -60,8 +60,8 @@ async function normalizeOrderItems(items, storeId) {
       quantity,
       emoji: menuItem.emoji || '🍽️',
       itemStatus: item.itemStatus || 'pending',
-      show_dual: item.show_dual || menuItem.show_dual || (item.secondary_currency_code || menuItem.secondary_currency_code ? 1 : 0),
-      secondary_currency_code: item.secondary_currency_code || menuItem.secondary_currency_code || '',
+      show_dual: 0,
+      secondary_currency_code: '',
       unit: item.unit || menuItem.unit || '份'
     });
   }

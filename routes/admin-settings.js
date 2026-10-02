@@ -48,43 +48,54 @@ module.exports = function(app, deps) {
   // ----- 显示设置 -----
   app.get('/api/admin/display-settings', requireAdminKey, async (req, res) => {
     try {
-      const mid = req.merchantId || 1;
       const sid = req.storeId || 1;
-      // 优先：店铺级
-      const storeEnabled = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${sid}_dual_currency_enabled`]);
-      const storeSecondary = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${sid}_secondary_currency_code`]);
-      // 回退 1：商户级
-      const merEnabled = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_dual_currency_enabled`]);
-      const merSecondary = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${mid}_secondary_currency_code`]);
-      // 回退 2：全局
-      const globalEnabled = await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
-      const globalSecondary = await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");
-
-      const enabled = storeEnabled || merEnabled || globalEnabled;
-      const secondary = storeSecondary || merSecondary || globalSecondary;
-      res.json({ enabled: enabled?.value === '1', secondaryCurrencyCode: secondary?.value || 'USD', scope: storeEnabled ? 'store' : (merEnabled ? 'merchant' : 'global') });
+      const primaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${sid}_primary_currency_code`]);
+      const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${sid}_secondary_currency_code`]);
+      res.json({
+        primaryCurrencyCode: (primaryRow && primaryRow.value) || 'USD',
+        secondaryCurrencyCode: (secondaryRow && secondaryRow.value) || '',
+      });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
   app.post('/api/admin/display-settings', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
       const sid = req.storeId || 1;
-      const enabled = req.body.enabled ? '1' : '0';
-      const secondary = String(req.body.secondaryCurrencyCode || 'USD');
-      // 写入店铺级
-      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${sid}_dual_currency_enabled`, enabled]);
-      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${sid}_secondary_currency_code`, secondary]);
+      const { primaryCurrencyCode, secondaryCurrencyCode } = req.body || {};
+      const pCode = String(primaryCurrencyCode || 'USD').trim().toUpperCase();
+      const sCode = String(secondaryCurrencyCode || '').trim().toUpperCase();
+
+      // 校验
+      if (sCode && sCode === pCode) {
+        return res.status(400).json({ error: '副货币不能和主货币相同' });
+      }
+
+      await runAsync(
+        "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+        [`store_${sid}_primary_currency_code`, pCode]
+      );
+      await runAsync(
+        "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+        [`store_${sid}_secondary_currency_code`, sCode]
+      );
 
       // 可选：应用到所有店铺
       if (req.body.applyAll) {
         const stores = await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.merchantId || 1]);
         for (const st of stores) {
           if (String(st.id) === String(sid)) continue;
-          await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${st.id}_dual_currency_enabled`, enabled]);
-          await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${st.id}_secondary_currency_code`, secondary]);
+          await runAsync(
+            "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+            [`store_${st.id}_primary_currency_code`, pCode]
+          );
+          await runAsync(
+            "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+            [`store_${st.id}_secondary_currency_code`, sCode]
+          );
         }
       }
-      res.json({ success: true });
+
+      res.json({ success: true, primaryCurrencyCode: pCode, secondaryCurrencyCode: sCode });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
