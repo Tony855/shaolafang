@@ -5,8 +5,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
-<link rel="stylesheet" href="assets/common.css?v=1790913613">
-<link rel="stylesheet" href="assets/admin.css?v=1790913613">
+<link rel="stylesheet" href="assets/common.css?v=1790932032">
+<link rel="stylesheet" href="assets/admin.css?v=1790932032">
 </head>
 <body>
 
@@ -407,6 +407,9 @@
 
                 <div class="settings-card" id="displayPageCard">
                     <h3 class="settings-card-title" id="displayPageTitle">🖥️ <span data-i18n="displayPageTitle">菜单展示页设置</span></h3>
+                    <div style="margin:8px 0 14px;padding:10px 14px;background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.2);border-radius:10px;font-size:13px;color:#ffb088;">
+                        ⚠️ 当前配置仅对 <strong id="dispCurrentStoreName" style="color:#fff;">当前店铺</strong> 生效，切换顶部店铺后会看到不同配置
+                    </div>
                     <p style="color:#999;margin-bottom:16px;font-size:14px;"><span data-i18n="displayPageDesc">配置 /display 展示页的显示模式、时长等</span></p>
                     <div class="settings-form-grid" style="grid-template-columns: 1fr 1fr;">
                         <div class="form-group">
@@ -460,7 +463,7 @@
                         </div>
                     </div>
                     <div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                        <button id="saveDisplayPageBtn" class="display-settings-btn" onclick="window.saveDisplayPageSettings && window.saveDisplayPageSettings()"><span data-i18n="saveDisplayPageBtn">保存展示页设置</span></button>
+                        <button id="saveDisplayPageBtn" class="display-settings-btn" onclick="window.saveDisplayPageSettings && window.saveDisplayPageSettings()"><span data-i18n="saveDisplayPageBtn">保存展示页设置</span></button><button id="applyDisplayAllBtn" onclick="applyDisplayPageToAll()" style="background:rgba(52,152,219,.15);color:#69c0ff;border:1px solid rgba(52,152,219,.3);border-radius:8px;padding:9px 14px;cursor:pointer;font-size:13px;font-weight:600;margin-left:8px;">📋 应用到所有店铺</button>
                         <button type="button" id="openDisplayPreviewBtn" style="background:rgba(105,192,255,.15);color:#69c0ff;border:1px solid rgba(105,192,255,.3);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;"><span data-i18n="displayOpenPreview">→ 打开展示页预览</span></button>
                     </div>
                 </div>
@@ -776,17 +779,17 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=1790913613"></script>
-    <script src="assets/core.js?v=1790913613"></script>
-  <script src="assets/modules/ui.js?v=1790913613"></script>
-  <script src="assets/modules/money.js?v=1790913613"></script>
-  <script src="assets/modules/order-status.js?v=1790913613"></script>
-  <script src="assets/modules/customer-group.js?v=1790913613"></script>
-  <script src="assets/modules/role.js?v=1790913613"></script>
-  <script src="assets/modules/idle.js?v=1790913613"></script>
-    <script src="/socket.io/socket.io.js?v=1790913613"></script>
-<script src="pages/admin/context.js?v=1790913613"></script>
-<script src="pages/admin/settings.js?v=1790913613"></script>
+    <script src="languages.min.js?v=1790932032"></script>
+    <script src="assets/core.js?v=1790932032"></script>
+  <script src="assets/modules/ui.js?v=1790932032"></script>
+  <script src="assets/modules/money.js?v=1790932032"></script>
+  <script src="assets/modules/order-status.js?v=1790932032"></script>
+  <script src="assets/modules/customer-group.js?v=1790932032"></script>
+  <script src="assets/modules/role.js?v=1790932032"></script>
+  <script src="assets/modules/idle.js?v=1790932032"></script>
+    <script src="/socket.io/socket.io.js?v=1790932032"></script>
+<script src="pages/admin/context.js?v=1790932032"></script>
+<script src="pages/admin/settings.js?v=1790932032"></script>
 <!-- 批量导入弹窗 -->
 <div class="order-modal" id="importModal">
     <div class="order-modal-card">
@@ -818,19 +821,19 @@
     </div>
 </div>
 
-<script src="pages/admin/logs.js?v=1790913613"></script>
-<script src="pages/admin/waiter.js?v=1790913613"></script>
-<script src="pages/admin/currency.js?v=1790913613"></script>
-<script src="pages/admin/store.js?v=1790913613"></script>
-<script src="pages/admin/admin-mgr.js?v=1790913613"></script>
-<script src="pages/admin/cashier-mgr.js?v=1790913613"></script>
-<script src="pages/admin/printer.js?v=1790913613"></script>
-<script src="pages/admin/report.js?v=1790913613"></script>
-<script src="pages/admin/menu.js?v=1790913613"></script>
-<script src="pages/admin/table.js?v=1790913613"></script>
-<script src="pages/admin/order.js?v=1790913613"></script>
-<script src="pages/admin/shared.js?v=1790913613"></script>
-<script src="pages/admin.js?v=1790913613"></script>
+<script src="pages/admin/logs.js?v=1790932032"></script>
+<script src="pages/admin/waiter.js?v=1790932032"></script>
+<script src="pages/admin/currency.js?v=1790932032"></script>
+<script src="pages/admin/store.js?v=1790932032"></script>
+<script src="pages/admin/admin-mgr.js?v=1790932032"></script>
+<script src="pages/admin/cashier-mgr.js?v=1790932032"></script>
+<script src="pages/admin/printer.js?v=1790932032"></script>
+<script src="pages/admin/report.js?v=1790932032"></script>
+<script src="pages/admin/menu.js?v=1790932032"></script>
+<script src="pages/admin/table.js?v=1790932032"></script>
+<script src="pages/admin/order.js?v=1790932032"></script>
+<script src="pages/admin/shared.js?v=1790932032"></script>
+<script src="pages/admin.js?v=1790932032"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {

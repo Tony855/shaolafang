@@ -133,6 +133,15 @@ window.loadNotificationSettings = loadNotificationSettings;
 
   async function loadDisplayPageSettings() {
     try {
+      // 显示当前店铺名
+      try {
+        const sel = document.getElementById('adminStoreSelect');
+        const el = document.getElementById('dispCurrentStoreName');
+        if (sel && el && sel.selectedIndex >= 0) {
+          el.textContent = sel.options[sel.selectedIndex].text;
+        }
+      } catch (e) {}
+
       const s = await api('/admin/display-page-settings');
       const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
       const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = (v === 1 || v === '1' || v === true); };
@@ -179,6 +188,29 @@ window.loadNotificationSettings = loadNotificationSettings;
 
   window.loadDisplayPageSettings = loadDisplayPageSettings;
   window.saveDisplayPageSettings = saveDisplayPageSettings;
+
+  async function applyDisplayPageToAll() {
+    // 1) 先保存当前店铺
+    try {
+      await saveDisplayPageSettings();
+    } catch (e) { /* 忽略 save 里已经 toast */ }
+
+    // 2) 二次确认
+    const ok = await SLF.ui.confirm(
+      '确定把当前店铺的展示页设置应用到本商户所有其它店铺？\n\n⚠️ 会覆盖其它店铺已有的展示页配置',
+      '确定应用', '取消'
+    );
+    if (!ok) return;
+
+    // 3) 调用接口
+    try {
+      const r = await api('/admin/display-page-settings/apply-all', { method: 'POST' });
+      SLF.ui.toast('✅ 已应用到 ' + (r.appliedTo || 0) + ' 个店铺');
+    } catch (e) {
+      SLF.ui.toast('❌ 应用失败: ' + e.message);
+    }
+  }
+  window.applyDisplayPageToAll = applyDisplayPageToAll;
 
   // 事件委托：不依赖 DOMContentLoaded，也不怕 DOM 被重建
   document.addEventListener('click', function(e) {
