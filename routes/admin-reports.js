@@ -4,11 +4,35 @@
 module.exports = function(app, deps) {
   const { getAsync, allAsync, requireAdminKey, authenticateAdmin } = deps;
 
+  // 根据 scope 生成 store 过滤条件
+  // 返回 { where, params, isAll }
+  function buildStoreWhere(req, scope) {
+    if (scope === 'all') {
+      return {
+        where: 'store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+        params: [req.merchantId],
+        isAll: true
+      };
+    }
+    return {
+      where: 'store_id=?',
+      params: [req.storeId],
+      isAll: false
+    };
+  }
+
+
   app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
     try {
       // ===== 支持 startDate/endDate 范围查询，向后兼容 date =====
       let startDate = req.query.startDate || req.query.date || new Date().toISOString().slice(0, 10);
       let endDate = req.query.endDate || startDate;
+
+      const scope = String(req.query.scope || 'current').toLowerCase();
+      const sw = buildStoreWhere(req, scope);
+      const swWhere = sw.where;
+      const swParams = sw.params;
+      const isAll = sw.isAll;
 
       const startOfDay = new Date(startDate + 'T00:00:00.000Z');
       const endOfDay = new Date(endDate + 'T23:59:59.999Z');
@@ -28,15 +52,15 @@ module.exports = function(app, deps) {
           SUM(CASE WHEN status='done' THEN total ELSE 0 END) AS total_revenue,
           AVG(CASE WHEN status='done' THEN total END) AS avg_order_value
         FROM orders
-        WHERE store_id=? AND createdAt >= ? AND createdAt <= ?
-      `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+        WHERE ${swWhere} AND createdAt >= ? AND createdAt <= ?
+      `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
       const tableRevenue = await allAsync(`
         SELECT table_name, COUNT(*) AS orders, SUM(total) AS revenue
         FROM orders
-        WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt <= ?
+        WHERE ${swWhere} AND status='done' AND createdAt >= ? AND createdAt <= ?
         GROUP BY table_name
         ORDER BY revenue DESC
-      `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+      `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
       const dishRanking = await allAsync(`
         SELECT m.name, m.emoji,
                SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
@@ -45,12 +69,12 @@ module.exports = function(app, deps) {
         JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
           ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
         JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
-        WHERE o.store_id=? AND o.status='done' AND o.createdAt >= ? AND o.createdAt <= ?
+        WHERE o.${swWhere.replace(/store_id/g, 'store_id')} AND o.status='done' AND o.createdAt >= ? AND o.createdAt <= ?
         GROUP BY m.id, m.name, m.emoji
         HAVING quantity > 0
         ORDER BY quantity DESC
         LIMIT 10
-      `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+      `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
       // ===== 时段分布：按粒度动态调整 =====
       let hourlyStats;
       if (granularity === 'day') {
@@ -59,20 +83,20 @@ module.exports = function(app, deps) {
           SELECT CONCAT(LPAD(HOUR(createdAt),2,'0'), ':', LPAD(FLOOR(MINUTE(createdAt)/10)*10, 2, '0')) AS time_bucket,
                  COUNT(*) AS orders, SUM(total) AS revenue
           FROM orders
-          WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt < ?
+          WHERE ${swWhere} AND status='done' AND createdAt >= ? AND createdAt < ?
           GROUP BY time_bucket
           ORDER BY time_bucket
-        `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+        `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
       } else if (granularity === 'month') {
         // 按月：每天聚合
         hourlyStats = await allAsync(`
           SELECT DATE(createdAt) AS time_bucket,
                  COUNT(*) AS orders, SUM(total) AS revenue
           FROM orders
-          WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt < ?
+          WHERE ${swWhere} AND status='done' AND createdAt >= ? AND createdAt < ?
           GROUP BY time_bucket
           ORDER BY time_bucket
-        `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+        `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
       } else {
         // 按年：每月聚合
         hourlyStats = await allAsync(`
@@ -82,13 +106,33 @@ module.exports = function(app, deps) {
           WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt < ?
           GROUP BY time_bucket
           ORDER BY time_bucket
-        `, [req.storeId, startOfDay.toISOString(), endOfDay.toISOString()]);
+        `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
       }
+      // scope=all 时额外返回分店对比
+      let storeBreakdown = null;
+      if (isAll) {
+        storeBreakdown = await allAsync(`
+          SELECT s.id AS store_id, s.name AS store_name,
+                 COUNT(o.id) AS orders,
+                 SUM(CASE WHEN o.status='done' THEN 1 ELSE 0 END) AS completed_orders,
+                 SUM(CASE WHEN o.status='canceled' THEN 1 ELSE 0 END) AS canceled_orders,
+                 SUM(CASE WHEN o.status='done' THEN o.total ELSE 0 END) AS revenue
+          FROM stores s
+          LEFT JOIN orders o ON o.store_id = s.id
+              AND o.createdAt >= ? AND o.createdAt <= ?
+          WHERE s.merchant_id = ?
+          GROUP BY s.id, s.name
+          ORDER BY revenue DESC, s.id
+        `, [startOfDay.toISOString(), endOfDay.toISOString(), req.merchantId]);
+      }
+
       res.json({
         date,
         startDate,
         endDate,
         granularity,
+        scope,
+        storeBreakdown,
         summary: {
           totalOrders: orderStats?.total_orders || 0,
           completedOrders: orderStats?.completed_orders || 0,

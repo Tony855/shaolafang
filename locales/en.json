@@ -941,5 +941,9 @@
   "statusNormal": "Normal",
   "statusDisabled": "Disabled",
   "displayLanguages": "Display Languages",
+  "reportScopeCurrent": "Current Store",
+  "reportScopeAll": "All Stores",
+  "reportByStore": "By Store Comparison",
+  "reportScopeLabel": "Scope",
   "advExport": "Advanced Export"
 }

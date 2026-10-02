@@ -941,5 +941,9 @@
   "statusNormal": "ปกติ",
   "statusDisabled": "ปิดใช้งาน",
   "displayLanguages": "ภาษาที่แสดง",
+  "reportScopeCurrent": "ร้านปัจจุบัน",
+  "reportScopeAll": "ทุกร้าน",
+  "reportByStore": "เปรียบเทียบร้าน",
+  "reportScopeLabel": "ขอบเขต",
   "advExport": "ส่งออกขั้นสูง"
 }

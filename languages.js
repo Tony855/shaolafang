@@ -948,6 +948,10 @@ const LANGUAGES = {
     "statusNormal": "正常",
     "statusDisabled": "已停用",
     "displayLanguages": "展示页显示语言（可多选）",
+    "reportScopeCurrent": "当前店铺",
+    "reportScopeAll": "所有店铺",
+    "reportByStore": "各店铺对比",
+    "reportScopeLabel": "范围",
     "advExport": "高级导出"
   },
   "en": {
@@ -1893,6 +1897,10 @@ const LANGUAGES = {
     "statusNormal": "Normal",
     "statusDisabled": "Disabled",
     "displayLanguages": "Display Languages",
+    "reportScopeCurrent": "Current Store",
+    "reportScopeAll": "All Stores",
+    "reportByStore": "By Store Comparison",
+    "reportScopeLabel": "Scope",
     "advExport": "Advanced Export"
   },
   "vi": {
@@ -2838,6 +2846,10 @@ const LANGUAGES = {
     "statusNormal": "Bình thường",
     "statusDisabled": "Đã vô hiệu",
     "displayLanguages": "Ngôn ngữ hiển thị",
+    "reportScopeCurrent": "Cửa hàng hiện tại",
+    "reportScopeAll": "Tất cả cửa hàng",
+    "reportByStore": "So sánh cửa hàng",
+    "reportScopeLabel": "Phạm vi",
     "advExport": "Xuất nâng cao"
   },
   "th": {
@@ -3783,6 +3795,10 @@ const LANGUAGES = {
     "statusNormal": "ปกติ",
     "statusDisabled": "ปิดใช้งาน",
     "displayLanguages": "ภาษาที่แสดง",
+    "reportScopeCurrent": "ร้านปัจจุบัน",
+    "reportScopeAll": "ทุกร้าน",
+    "reportByStore": "เปรียบเทียบร้าน",
+    "reportScopeLabel": "ขอบเขต",
     "advExport": "ส่งออกขั้นสูง"
   },
   "km": {
@@ -4728,6 +4744,10 @@ const LANGUAGES = {
     "statusNormal": "ធម្មតា",
     "statusDisabled": "បានបិទ",
     "displayLanguages": "ភាសាបង្ហាញ",
+    "reportScopeCurrent": "ហាងបច្ចុប្បន្ន",
+    "reportScopeAll": "ហាងទាំងអស់",
+    "reportByStore": "ប្រើប្រាស់ហាង",
+    "reportScopeLabel": "វិស្យភាព",
     "advExport": "នាំចេញកម្រិតខ្ពស់"
   }
 };

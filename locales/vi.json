@@ -941,5 +941,9 @@
   "statusNormal": "Bình thường",
   "statusDisabled": "Đã vô hiệu",
   "displayLanguages": "Ngôn ngữ hiển thị",
+  "reportScopeCurrent": "Cửa hàng hiện tại",
+  "reportScopeAll": "Tất cả cửa hàng",
+  "reportByStore": "So sánh cửa hàng",
+  "reportScopeLabel": "Phạm vi",
   "advExport": "Xuất nâng cao"
 }

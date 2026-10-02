@@ -5,8 +5,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
-<link rel="stylesheet" href="assets/common.css?v=1790932032">
-<link rel="stylesheet" href="assets/admin.css?v=1790932032">
+<link rel="stylesheet" href="assets/common.css?v=1790932606">
+<link rel="stylesheet" href="assets/admin.css?v=1790932606">
 </head>
 <body>
 
@@ -265,6 +265,11 @@
                     <button data-range="month" id="quickMonthBtn" data-i18n="quickMonth" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本月</button>
                     <button data-range="year" id="quickYearBtn" data-i18n="quickYear" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本年</button>
                     <span style="color:rgba(255,255,255,.2);">|</span>
+                    <label id="reportScopeLabel" style="color:#ccc;">范围:</label>
+                    <select id="reportScopeSelect" onchange="loadDailyReport()" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;cursor:pointer;">
+                        <option value="current" data-i18n="reportScopeCurrent">当前店铺</option>
+                        <option value="all" data-i18n="reportScopeAll">所有店铺</option>
+                    </select>
                     <label id="reportDateLabel" style="color:#ccc;">日期:</label>
                     <input type="date" id="reportDate" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;">
                     <button id="queryReportBtn" onclick="loadDailyReport()" style="background:#e85d3a;color:#fff;border:0;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">查询</button>
@@ -779,17 +784,17 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=1790932032"></script>
-    <script src="assets/core.js?v=1790932032"></script>
-  <script src="assets/modules/ui.js?v=1790932032"></script>
-  <script src="assets/modules/money.js?v=1790932032"></script>
-  <script src="assets/modules/order-status.js?v=1790932032"></script>
-  <script src="assets/modules/customer-group.js?v=1790932032"></script>
-  <script src="assets/modules/role.js?v=1790932032"></script>
-  <script src="assets/modules/idle.js?v=1790932032"></script>
-    <script src="/socket.io/socket.io.js?v=1790932032"></script>
-<script src="pages/admin/context.js?v=1790932032"></script>
-<script src="pages/admin/settings.js?v=1790932032"></script>
+    <script src="languages.min.js?v=1790932606"></script>
+    <script src="assets/core.js?v=1790932606"></script>
+  <script src="assets/modules/ui.js?v=1790932606"></script>
+  <script src="assets/modules/money.js?v=1790932606"></script>
+  <script src="assets/modules/order-status.js?v=1790932606"></script>
+  <script src="assets/modules/customer-group.js?v=1790932606"></script>
+  <script src="assets/modules/role.js?v=1790932606"></script>
+  <script src="assets/modules/idle.js?v=1790932606"></script>
+    <script src="/socket.io/socket.io.js?v=1790932606"></script>
+<script src="pages/admin/context.js?v=1790932606"></script>
+<script src="pages/admin/settings.js?v=1790932606"></script>
 <!-- 批量导入弹窗 -->
 <div class="order-modal" id="importModal">
     <div class="order-modal-card">
@@ -821,19 +826,19 @@
     </div>
 </div>
 
-<script src="pages/admin/logs.js?v=1790932032"></script>
-<script src="pages/admin/waiter.js?v=1790932032"></script>
-<script src="pages/admin/currency.js?v=1790932032"></script>
-<script src="pages/admin/store.js?v=1790932032"></script>
-<script src="pages/admin/admin-mgr.js?v=1790932032"></script>
-<script src="pages/admin/cashier-mgr.js?v=1790932032"></script>
-<script src="pages/admin/printer.js?v=1790932032"></script>
-<script src="pages/admin/report.js?v=1790932032"></script>
-<script src="pages/admin/menu.js?v=1790932032"></script>
-<script src="pages/admin/table.js?v=1790932032"></script>
-<script src="pages/admin/order.js?v=1790932032"></script>
-<script src="pages/admin/shared.js?v=1790932032"></script>
-<script src="pages/admin.js?v=1790932032"></script>
+<script src="pages/admin/logs.js?v=1790932606"></script>
+<script src="pages/admin/waiter.js?v=1790932606"></script>
+<script src="pages/admin/currency.js?v=1790932606"></script>
+<script src="pages/admin/store.js?v=1790932606"></script>
+<script src="pages/admin/admin-mgr.js?v=1790932606"></script>
+<script src="pages/admin/cashier-mgr.js?v=1790932606"></script>
+<script src="pages/admin/printer.js?v=1790932606"></script>
+<script src="pages/admin/report.js?v=1790932606"></script>
+<script src="pages/admin/menu.js?v=1790932606"></script>
+<script src="pages/admin/table.js?v=1790932606"></script>
+<script src="pages/admin/order.js?v=1790932606"></script>
+<script src="pages/admin/shared.js?v=1790932606"></script>
+<script src="pages/admin.js?v=1790932606"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {

@@ -73,10 +73,38 @@ async function loadDailyReport(rangeStart, rangeEnd) {
     startDate = endDate = dateInput;
   }
   try {
-    const data = await api(`/admin/reports/daily?startDate=${startDate}&endDate=${endDate}`);
+    const scope = ($('#reportScopeSelect') && $('#reportScopeSelect').value) || 'current';
+    const data = await api(`/admin/reports/daily?startDate=${startDate}&endDate=${endDate}&scope=${scope}`);
     const s = data.summary;
     const container = $('#reportContent');
-    let html = `
+    let html = '';
+
+    // scope=all：先渲染分店对比表
+    if (data.scope === 'all' && Array.isArray(data.storeBreakdown) && data.storeBreakdown.length > 0) {
+      const _h = (s) => '<' + 'th style="padding:10px 14px;text-align:right;color:#ffd93d;font-size:13px;font-weight:700;">' + s + '</th>';
+      html += '<h3 style="margin:0 0 10px;color:#fff;font-size:15px;font-weight:700;">🏬 ' + (tAdmin('reportByStore') || '各店铺对比') + '</h3>';
+      html += '<div style="overflow-x:auto;margin-bottom:24px;"><table style="width:100%;border-collapse:collapse;background:rgba(255,255,255,.04);border-radius:12px;overflow:hidden;">';
+      html += '<thead><tr style="background:rgba(255,255,255,.06);">' +
+              '<th style="padding:10px 14px;text-align:left;color:#ffd93d;font-size:13px;font-weight:700;">' + (tAdmin('storeLabel') || '店铺') + '</th>' +
+              _h(tAdmin('totalOrders') || '订单总数') +
+              _h(tAdmin('completed') || '已完成') +
+              _h(tAdmin('canceled') || '已取消') +
+              _h(tAdmin('totalRevenue') || '总营业额') +
+              '</tr></thead><tbody>';
+      data.storeBreakdown.forEach((st, i) => {
+        const bg = i % 2 === 0 ? 'rgba(255,255,255,.02)' : 'transparent';
+        html += '<tr style="background:' + bg + ';border-top:1px solid rgba(255,255,255,.06);">' +
+                '<td style="padding:10px 14px;color:#fff;font-size:14px;font-weight:600;">' + esc(st.store_name || ('#' + st.store_id)) + '</td>' +
+                '<td style="padding:10px 14px;color:#fff;font-size:14px;text-align:right;">' + (st.orders || 0) + '</td>' +
+                '<td style="padding:10px 14px;color:#2ecc71;font-size:14px;text-align:right;">' + (st.completed_orders || 0) + '</td>' +
+                '<td style="padding:10px 14px;color:#e74c3c;font-size:14px;text-align:right;">' + (st.canceled_orders || 0) + '</td>' +
+                '<td style="padding:10px 14px;color:#ffd93d;font-size:14px;font-weight:700;text-align:right;">$' + Number(st.revenue || 0).toFixed(2) + '</td>' +
+                '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    html += `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
             <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
                 <div style="font-size:28px;font-weight:700;color:#e85d3a;">${s.totalOrders}</div>

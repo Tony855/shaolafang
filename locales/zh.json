@@ -941,5 +941,9 @@
   "statusNormal": "正常",
   "statusDisabled": "已停用",
   "displayLanguages": "展示页显示语言（可多选）",
+  "reportScopeCurrent": "当前店铺",
+  "reportScopeAll": "所有店铺",
+  "reportByStore": "各店铺对比",
+  "reportScopeLabel": "范围",
   "advExport": "高级导出"
 }

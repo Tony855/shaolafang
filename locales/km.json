@@ -941,5 +941,9 @@
   "statusNormal": "ធម្មតា",
   "statusDisabled": "បានបិទ",
   "displayLanguages": "ភាសាបង្ហាញ",
+  "reportScopeCurrent": "ហាងបច្ចុប្បន្ន",
+  "reportScopeAll": "ហាងទាំងអស់",
+  "reportByStore": "ប្រើប្រាស់ហាង",
+  "reportScopeLabel": "វិស្យភាព",
   "advExport": "នាំចេញកម្រិតខ្ពស់"
 }
