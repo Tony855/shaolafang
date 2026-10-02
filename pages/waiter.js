@@ -1006,12 +1006,8 @@
 
   async function setLanguage(lang) {
       waiterLang = lang;
-      SLF.i18n.lang = lang;
-
-      if (!SLF.i18n.dicts[lang] && window.LANGUAGES && window.LANGUAGES[lang]) {
-          SLF.i18n.dicts[lang] = { ...window.LANGUAGES[lang] };
-      }
-
+      // 走 core.js 统一逻辑：优先用内置 LANGUAGES(zh)，否则从 /api/i18n/:lang 加载
+      await SLF.i18n.setLang(lang);
       SLF.store.rawSet('waiterLang', lang);
       SLF.store.rawSet('lang', lang);
       if (state.token) {

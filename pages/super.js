@@ -8,9 +8,10 @@ let currentLang = SLF.store.rawGet('superLang') || SLF.store.rawGet('lang') || '
 
 SLF.i18n.init(currentLang);
 
-function changeSuperLang(lang) {
+async function changeSuperLang(lang) {
   currentLang = lang;
-  SLF.i18n.lang = lang;
+  // 走 core.js 统一逻辑：优先用内置 LANGUAGES(zh)，否则从 /api/i18n/:lang 加载
+  await SLF.i18n.setLang(lang);
   SLF.store.rawSet('superLang', lang);
   SLF.store.rawSet('lang', lang);
   applyI18n();

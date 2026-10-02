@@ -274,11 +274,17 @@
 
     /* 切换语言 */
     async setLang(lang) {
-      if (this.lang === lang) return;
+      const hasDict = !!(this.dicts[lang]) || !!(global.LANGUAGES && global.LANGUAGES[lang]);
+      const wasSame = this.lang === lang;
+
+      // 语言没变且字典已就绪 → 完全跳过
+      if (wasSame && hasDict) return;
+
       this.lang = lang;
       store.rawSet(CONFIG.STORAGE_KEYS.lang, lang);
 
-      if (!this.dicts[lang] && !(global.LANGUAGES && global.LANGUAGES[lang])) {
+      // 字典缺失就加载（即使 this.lang 已经是目标语言）
+      if (!hasDict) {
         await this.loadLanguage(lang);
       }
 

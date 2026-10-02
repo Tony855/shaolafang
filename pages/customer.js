@@ -1056,8 +1056,8 @@
         // 应用语言
         async function applyLanguage() {
             SLF.store.rawSet('preferredLang', currentLang);
-            try { await loadLanguageData(currentLang); } catch (e) { console.warn('applyLanguage loadLanguageData failed:', e); }
-            SLF.i18n.lang = currentLang;
+            // 走 core.js 统一逻辑：优先用内置 LANGUAGES(zh)，否则从 /api/i18n/:lang 加载
+            await SLF.i18n.setLang(currentLang);
 
             const setText = (id, txt) => {
                 const el = document.getElementById(id);

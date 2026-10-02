@@ -110,9 +110,8 @@
         let adminLang = SLF.store.rawGet('adminLang') || 'zh';
 
         async function loadAdminLanguage(lang) {
-            const globalDict = (typeof LANGUAGES !== 'undefined' && LANGUAGES[lang]) || {};
-            SLF.i18n.dicts[lang] = { ...globalDict, _loaded: true };
-            SLF.i18n.lang = lang;
+            // 优先用内置 LANGUAGES(zh)，否则从 /api/i18n/:lang 按需加载
+            await SLF.i18n.setLang(lang);
             adminLang = lang;
             return true;
         }

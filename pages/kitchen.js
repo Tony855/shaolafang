@@ -134,9 +134,10 @@
       applyDataI18n();
     }
 
-    function setLang(next) {
+    async function setLang(next) {
       lang = next;
-      SLF.i18n.lang = next;
+      // 走 core.js 统一逻辑：优先用内置 LANGUAGES(zh)，否则从 /api/i18n/:lang 加载
+      await SLF.i18n.setLang(next);
       SLF.store.rawSet('kitchenLang', lang);
       SLF.store.rawSet('lang', lang);
       applyLoginLanguage();
