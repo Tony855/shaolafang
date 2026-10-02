@@ -92,8 +92,65 @@ function buildDynamicPayload(staticPayload, amount, currencyCode, orderNo) {
   }
   const tlvs = parseTLV(staticPayload);
 
-  // 2) 删除 54（金额）、62（附加信息）、63（CRC）
-  const clean = tlvs.filter(t => !['54', '62', '63'].includes(t.tag));
+  // 2) 删除 54（金额）、63（CRC）
+  //    但 62（附加信息）需要保留原始子标签（如电话号码），只删掉旧主条目稍后重建
+  const clean = tlvs.filter(t => !['54', '63'].includes(t.tag));
+  const t62Orig = tlvs.find(t => t.tag === '62');
+  const t62Subs = t62Orig ? parseTLV(t62Orig.value) : [];
+  // 从 clean 里移除旧的 62（主条目）
+  for (let i = clean.length - 1; i >= 0; i--) {
+    if (clean[i].tag === '62') clean.splice(i, 1);
+  }
+
+  // 2.5) 标准化 Tag 29.01（9位）+ 修复 Tag 39.00（11位含855）
+  const t29 = clean.find(t => t.tag === '29');
+  let fullPhone = '';
+  let shortPhone = '';
+
+  if (t29) {
+    const subs = parseTLV(t29.value);
+    const subMap = {};
+    for (const sub of subs) subMap[sub.tag] = sub.value;
+
+    // 完整手机号（11位含 855），从原始 29.01 保留
+    fullPhone = String(subMap['01'] || '');
+    if (fullPhone && !fullPhone.startsWith('855')) {
+      fullPhone = '855' + fullPhone.replace(/^0/, '');
+    }
+
+    // 9位手机号：优先 Tag 62.02，否则去掉 855 前缀
+    const t62Orig = tlvs.find(t => t.tag === '62');
+    if (t62Orig) {
+      const sub62 = parseTLV(t62Orig.value);
+      const p02 = sub62.find(s => s.tag === '02');
+      if (p02) shortPhone = p02.value;
+    }
+    if (!shortPhone && fullPhone.startsWith('855')) {
+      shortPhone = '0' + fullPhone.slice(3);
+    }
+
+    // 重建 Tag 29（29.01 用 9 位）
+    let newT29 = '';
+    if (subMap['00']) newT29 += tlv('00', subMap['00']);
+    if (shortPhone) newT29 += tlv('01', shortPhone);
+    if (subMap['02']) newT29 += tlv('02', subMap['02']);
+    t29.value = newT29;
+
+    console.log('[khqr] Tag 29.01 = ' + shortPhone + ' (9位), 完整手机号 = ' + fullPhone);
+  }
+
+  // 2.6) 修复 Tag 39.00 = 完整手机号（关键！ACLEDA 官方动态码的做法）
+  const t39 = clean.find(t => t.tag === '39');
+  if (t39 && fullPhone) {
+    const subs39 = parseTLV(t39.value);
+    let newT39 = '';
+    for (const s of subs39) {
+      if (s.tag === '00') newT39 += tlv('00', fullPhone);
+      else newT39 += tlv(s.tag, s.value);
+    }
+    t39.value = newT39;
+    console.log('[khqr] Tag 39.00 = ' + fullPhone);
+  }
 
   // 3) 标签 01 → 12（动态）
   const t01 = clean.find(t => t.tag === '01');
@@ -109,8 +166,15 @@ function buildDynamicPayload(staticPayload, amount, currencyCode, orderNo) {
     ? String(Math.round(Number(amount)))
     : Number(amount).toFixed(2);
 
-  // 6) 附加信息 62（订单号 + 交易用途）
+  // 6) 附加信息 62：保留原始子标签（如 02 电话号码），追加订单号
   let t62Value = '';
+  // 保留原始子标签（跳过 01/08，因为要替换成新订单号）
+  for (const sub of t62Subs) {
+    if (sub.tag !== '01' && sub.tag !== '08') {
+      t62Value += tlv(sub.tag, sub.value);
+    }
+  }
+  // 追加新的订单号
   if (orderNo) {
     t62Value += tlv('01', orderNo);            // 子标签 01 = 账单号
     t62Value += tlv('08', 'Order ' + orderNo); // 子标签 08 = 交易用途
@@ -137,6 +201,10 @@ function buildDynamicPayload(staticPayload, amount, currencyCode, orderNo) {
 
   if (t62Value) parts.push(tlv('62', t62Value));
   if (t99Value) parts.push(tlv('99', t99Value));
+
+  // 7.5) 按 Tag 数字升序重排（EMVCo 标准要求）
+  //    每个元素形如 '52 04 5999'，提取前 2 位 tag 排序
+  parts.sort((a, b) => parseInt(a.slice(0, 2), 10) - parseInt(b.slice(0, 2), 10));
 
   // 8) 追加 6304 + CRC
   const body = parts.join('') + '6304';
