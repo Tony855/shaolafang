@@ -146,8 +146,6 @@
     });
 
     renderTables();
-    const _newBtn = document.getElementById('createNewOrderBtn');
-    if (_newBtn) _newBtn.textContent = '➕ ' + t('createNewOrder', null, '创建新订单');
   }
 
   let confirmCallback = null;

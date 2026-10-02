@@ -149,62 +149,6 @@
         // ===== 共享工具（已移到 pages/admin/shared.js）=====
 
 
-        // ===== 管理员管理 =====
-        const ADMIN_PERMISSIONS = [
-            { key: 'can_manage_menu', labelKey: 'permMenu', icon: '🍽️', group: 'permGroupOps' },
-            { key: 'can_manage_table', labelKey: 'permTable', icon: '🪑', group: 'permGroupOps' },
-            { key: 'can_manage_order', labelKey: 'permOrder', icon: '📋', group: 'permGroupOps' },
-            { key: 'can_delete_order', labelKey: 'permDeleteOrder', icon: '🗑️', group: 'permGroupOps' },
-            { key: 'can_edit_order', labelKey: 'permEditOrder', icon: '✏️', group: 'permGroupOps' },
-            { key: 'can_manage_store', labelKey: 'permStore', icon: '🏪', group: 'permGroupBase' },
-            { key: 'can_manage_waiter', labelKey: 'permWaiter', icon: '👥', group: 'permGroupBase' },
-            { key: 'can_manage_currency', labelKey: 'permCurrency', icon: '💱', group: 'permGroupBase' },
-            { key: 'can_manage_printer', labelKey: 'permPrinter', icon: '🖨️', group: 'permGroupBase' },
-            { key: 'can_manage_cashier', labelKey: 'permCashier', icon: '💳', group: 'permGroupBase' },
-            { key: 'can_manage_admin', labelKey: 'permAdmin', icon: '👤', group: 'permGroupSystem' },
-            { key: 'can_view_logs', labelKey: 'permLogs', icon: '📝', group: 'permGroupSystem' }
-        ];
-
-        function renderAdminPermissions(containerId, permissions, disabled) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            const groups = {};
-            ADMIN_PERMISSIONS.forEach(p => {
-                if (!groups[p.group]) groups[p.group] = [];
-                groups[p.group].push(p);
-            });
-            let html = '';
-            for (const [groupKey, perms] of Object.entries(groups)) {
-                html += `<div class="admin-perm-group">
-                    <div class="admin-perm-group-title">${tAdmin(groupKey)}</div>
-                    <div class="admin-perm-items">`;
-                perms.forEach(p => {
-                    const checked = permissions && permissions[p.key] ? 'checked' : '';
-                    const dis = disabled ? 'disabled' : '';
-                    html += `<label class="admin-perm-item ${disabled ? 'disabled' : ''}">
-                        <span class="admin-perm-icon">${p.icon}</span>
-                        <span class="admin-perm-label">${tAdmin(p.labelKey)}</span>
-                        <label class="store-switch">
-                            <input type="checkbox" class="admin-perm-checkbox" data-key="${p.key}" ${checked} ${dis}>
-                            <span class="store-switch-slider"></span>
-                        </label>
-                    </label>`;
-                });
-                html += `</div></div>`;
-            }
-            container.innerHTML = html;
-        }
-
-        function collectAdminPermissions(containerId) {
-            const container = document.getElementById(containerId);
-            if (!container) return {};
-            const perms = {};
-            container.querySelectorAll('.admin-perm-checkbox').forEach(cb => {
-                perms[cb.dataset.key] = cb.checked ? 1 : 0;
-            });
-            return perms;
-        }
-
         // ===== 管理员管理（已移到 pages/admin/admin-mgr.js）=====
 
 
@@ -439,9 +383,6 @@ function applyAdminLanguage() {
                 if (document.getElementById('module-stores') && document.getElementById('module-stores').classList.contains('active')) {
                     if (window.loadStores) window.loadStores();
                 }
-                if (document.getElementById('module-currencies') && document.getElementById('module-currencies').classList.contains('active')) {
-                    if (window.loadCurrencies) window.loadCurrencies();
-                }
             } catch (e) { console.warn('reload module failed', e); }
 
             $('#todayRevenueLabel').textContent = tAdmin('todayRevenue');
@@ -484,8 +425,6 @@ function applyAdminLanguage() {
             $('#menuEmoji').placeholder = tAdmin('icon');
             $('#menuDesc').placeholder = tAdmin('desc');
             $('#menuDescEn').placeholder = tAdmin('descEn');
-            const _msl = document.getElementById('menuSecondaryCurrencyLabel');
-            if (_msl) _msl.textContent = tAdmin('secondaryCurrency');
             $('#menuSaveButton').textContent = editingMenuId ? L('save') : tAdmin('addDish');
             $('#menuCancelButton').textContent = tAdmin('cancelEdit');
             window.populateMenuCategorySelect();
@@ -829,55 +768,16 @@ function applyAdminLanguage() {
         }
         SLF.idle.start({ timeoutMin: adminIdleTimeoutMin, onTimeout: adminIdleLogout });
 
-        // 确认弹窗
-        let confirmCallback = null;
-        let confirmCancelCallback = null;
-        function showConfirm(message, callback, title, cancelCallback) {
-            document.getElementById('confirmTitle').textContent = title || tAdmin('confirmTitle') || '确认操作';
-            document.getElementById('confirmMessage').textContent = message;
-            confirmCallback = callback;
-            confirmCancelCallback = cancelCallback || null;
-            document.getElementById('confirmModal').classList.add('open');
-        }
-        function hideConfirm() {
-            document.getElementById('confirmModal').classList.remove('open');
-            if (confirmCancelCallback) {
-                const cb = confirmCancelCallback;
-                confirmCallback = null;
-                confirmCancelCallback = null;
-                cb();
-            } else {
-                confirmCallback = null;
-            }
-        }
-        function executeConfirm() {
-            if (confirmCallback) confirmCallback();
-            hideConfirm();
-        }
-
-        // 密码输入弹窗
-        let passwordCallback = null;
-        function showPasswordModal(message, callback, title) {
-            document.getElementById('passwordModalTitle').textContent = title || tAdmin('passwordModalTitle') || '请输入密码';
-            document.getElementById('passwordModalMessage').textContent = message || tAdmin('passwordModalMessage') || '请输入管理员密码以确认操作';
-            document.getElementById('passwordModalInput').placeholder = tAdmin('passwordModalPlaceholder') || '请输入密码';
-            document.getElementById('passwordModalInput').value = '';
-            passwordCallback = callback;
-            document.getElementById('passwordModal').classList.add('open');
-            setTimeout(() => document.getElementById('passwordModalInput').focus(), 100);
-        }
-        function hidePasswordModal() {
-            document.getElementById('passwordModal').classList.remove('open');
-            passwordCallback = null;
-        }
-        function executePasswordModal() {
-            const password = document.getElementById('passwordModalInput').value;
-            if (!password) { SLF.ui.toast('❌ ' + (tAdmin('passwordModalPlaceholder') || '请输入密码')); return; }
-            if (passwordCallback) passwordCallback(password);
-            hidePasswordModal();
-        }
-
-        // ===== 密码弹窗和确认弹窗（已移到 shared.js）=====
+        // ===== 弹窗函数已移到 pages/admin/modals.js =====
+        // 通过 window 全局访问（modals.js 已挂载）：
+        //   showConfirm / hideConfirm / executeConfirm
+        //   showPasswordModal / hidePasswordModal / executePasswordModal
+        const showConfirm = window.showConfirm;
+        const hideConfirm = window.hideConfirm;
+        const executeConfirm = window.executeConfirm;
+        const showPasswordModal = window.showPasswordModal;
+        const hidePasswordModal = window.hidePasswordModal;
+        const executePasswordModal = window.executePasswordModal;
 
 
         function logoutAdmin() {

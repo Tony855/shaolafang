@@ -48,20 +48,7 @@ async function loadCurrencies() {
   }
   const defaultCode = defaultCurrency?.code || 'USD';
   $('#menuCurrency').innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)} · ${esc(currencyNameText(c.name,c.code))}</option>`).join('');
-  const elDual = $('#dualCurrencySelect');
-  if (elDual) elDual.innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');
-  const elSec = $('#menuSecondaryCurrency');
-  if (elSec) elSec.innerHTML = list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)}</option>`).join('');
-  $('#currencies').innerHTML = list.map(c => `
-      <div class="row">
-        <div><b>${esc(c.code)} ${esc(c.symbol)}</b><small>${esc(currencyNameText(c.name,c.code))} · ${tAdmin('currencyRateLabel')} ${esc(c.rate)}${c.is_default ? ` · ${tAdmin('default')}` : ''}</small></div>
-        <div class="actions">
-          ${c.is_default ? '' : `<button onclick="setDefaultCurrency(${c.id})">${tAdmin('setDefault')}</button>`}
-          ${hasPermission('can_manage_currency') ? '<button onclick="editCurrency(' + c.id + ')">' + ctx.L('edit') + '</button>' : ''}
-          ${hasPermission('can_manage_currency') ? '<button class="danger" onclick="removeCurrency(' + c.id + ')">' + ctx.L('delete') + '</button>' : ''}
-        </div>
-      </div>
-    `).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
+  // 旧货币列表渲染已下线（统一走"系统设置 → 货币设置"卡片）
   return list;
 }
 
@@ -114,26 +101,6 @@ function removeCurrency(id) {
     } catch (e) { SLF.ui.toast('❌ ' + e.message); }
   });
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-  const currencyForm = document.getElementById('currencyForm');
-  if (currencyForm) {
-    currencyForm.onsubmit = async function(e) {
-      e.preventDefault();
-      try {
-        await api('/currencies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
-          code: $('#currencyCode').value,
-          symbol: $('#currencySymbol').value,
-          name: $('#currencyName').value,
-          rate: +$('#currencyRate').value
-        }});
-        e.target.reset();
-        await loadCurrencies();
-        SLF.ui.toast('✅ ' + tAdmin('currencyManageTitle') + ' ' + tAdmin('added'));
-      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
-    };
-  }
-});
 
 // 挂到 window
 window.loadCurrencies = loadCurrencies;
