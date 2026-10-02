@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
 <link rel="stylesheet" href="assets/common.css?v=1790933426">
-<link rel="stylesheet" href="assets/admin.css?v=1790933426">
+<link rel="stylesheet" href="assets/admin.css?v=1790973968">
 </head>
 <body>
 
@@ -239,10 +239,10 @@
                 </div>
                 <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                     <!-- 快捷按钮 -->
-                    <button data-range="today" id="quickTodayBtn" data-i18n="quickToday" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">今日</button>
-                    <button data-range="week" id="quickWeekBtn" data-i18n="quickWeek" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本周</button>
-                    <button data-range="month" id="quickMonthBtn" data-i18n="quickMonth" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本月</button>
-                    <button data-range="year" id="quickYearBtn" data-i18n="quickYear" style="background:rgba(255,255,255,.08);color:#ccc;border:1px solid rgba(255,255,255,.15);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">本年</button>
+                    <button class="ff-quick-btn" data-range="today" id="quickTodayBtn" data-i18n="quickToday">今日</button>
+                    <button class="ff-quick-btn" data-range="week" id="quickWeekBtn" data-i18n="quickWeek">本周</button>
+                    <button class="ff-quick-btn" data-range="month" id="quickMonthBtn" data-i18n="quickMonth">本月</button>
+                    <button class="ff-quick-btn" data-range="year" id="quickYearBtn" data-i18n="quickYear">本年</button>
                     <span style="color:rgba(255,255,255,.2);">|</span>
                     <label id="reportScopeLabel" style="color:#ccc;">范围:</label>
                     <select id="reportScopeSelect" onchange="loadDailyReport()" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;cursor:pointer;">
@@ -298,7 +298,7 @@
                         <div class="form-group"><label id="waiterPasswordLabel">密码</label><input id="waiterPasswordInput" type="password" placeholder="请输入密码"></div>
                         <div class="form-group"><label id="waiterNameLabel">姓名</label><input id="waiterNameInput" placeholder="请输入姓名"></div>
                         <div class="form-group"><label id="waiterStoreLabel"><span data-i18n="cashierStoreLabel">所属店铺</span></label><select id="waiterStoreSelect"></select></div>
-                        <div class="form-group" style="display:flex;align-items:flex-end;"><button id="addWaiterBtn" class="primary" style="width:100%;">添加服务员</button></div>
+                        <div class="form-group ff-flex-end"><button id="addWaiterBtn" class="primary" style="width:100%;">添加服务员</button></div>
                     </div>
                 </div>
                 <div id="waiterList"></div>
@@ -312,7 +312,7 @@
                         <div class="form-group"><label id="storeNameLabel">店铺名称</label><input id="storeNameInput" placeholder="请输入店铺名称"></div>
                         <div class="form-group"><label id="storeCodeLabel">店铺编码</label><input id="storeCodeInput" placeholder="请输入店铺编码"></div>
                         <div class="form-group"><label id="storeAddressLabel">地址</label><input id="storeAddressInput" placeholder="请输入地址"></div>
-                        <div class="form-group" style="display:flex;align-items:flex-end;"><button id="addStoreBtn" class="primary" style="width:100%;">添加店铺</button></div>
+                        <div class="form-group ff-flex-end"><button id="addStoreBtn" class="primary" style="width:100%;">添加店铺</button></div>
                     </div>
                 </div>
                 <div id="storeList"></div>
@@ -326,34 +326,34 @@
 
                 <div class="settings-card" id="adminManageCard">
                     <h3 class="settings-card-title" id="adminManageCardTitle">👤 管理员管理</h3>
-                    <p id="adminManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理商户的管理员账号，支持添加、编辑、删除管理员</p>
+                    <p class="ff-desc" id="adminManageDesc">管理商户的管理员账号，支持添加、编辑、删除管理员</p>
                     <button class="store-sub-btn" data-perm="can_manage_admin" id="enterAdminManageBtn" onclick="switchAdminModule('admins')" style="background: linear-gradient(135deg,#43e97b,#38f9d7); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入管理员管理</button>
                 </div>
 
                 <div class="settings-card" id="cashierManageCard">
                     <h3 class="settings-card-title" id="cashierManageCardTitle">💰 收银员管理</h3>
-                    <p id="cashierManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理收银员账号，支持添加、编辑、删除收银员，配置结算权限</p>
+                    <p class="ff-desc" id="cashierManageDesc">管理收银员账号，支持添加、编辑、删除收银员，配置结算权限</p>
                     <button class="store-sub-btn" data-perm="can_manage_cashier" id="enterCashierManageBtn" onclick="switchAdminModule('cashiers')" style="background: linear-gradient(135deg,#f6d365,#fda085); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入收银员管理</button>
                 </div>
 
                 <div class="settings-card" id="waiterManageCard">
                     <h3 class="settings-card-title" id="waiterManageCardTitle">🍽️ 服务员管理</h3>
-                    <p id="waiterManageDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">管理服务员账号，支持添加、编辑、删除服务员</p>
+                    <p class="ff-desc" id="waiterManageDesc">管理服务员账号，支持添加、编辑、删除服务员</p>
                     <button class="store-sub-btn" data-perm="can_manage_waiter" id="enterWaiterManageBtn" onclick="switchAdminModule('waiters')" style="background: linear-gradient(135deg,#a8edea,#fed6e3); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入服务员管理</button>
                 </div>
 
                 <div class="settings-card" id="currencySettingsCard">
-                    <h3 class="settings-card-title" id="currencySettingsTitle" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><span id="currencySettingsTitleText">💱 货币设置</span><span style="background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.2);border-radius:8px;padding:4px 12px;font-size:12px;color:#ffb088;font-weight:400;letter-spacing:0;">⚠️ 仅对 <strong id="currencyCurrentStoreName" style="color:#fff;">当前店铺</strong> 生效</span></h3>
-                    <p style="color:#999;margin-bottom:16px;font-size:14px;">选择主货币（显示价格）和副货币（可选，括号显示）</p>
+                    <h3 class="settings-card-title ff-flex-center" id="currencySettingsTitle"><span id="currencySettingsTitleText">💱 货币设置</span><span class="ff-store-hint">⚠️ 仅对 <strong id="currencyCurrentStoreName" style="color:#fff;">当前店铺</strong> 生效</span></h3>
+                    <p class="ff-desc-tight">选择主货币（显示价格）和副货币（可选，括号显示）</p>
                     
                     <div class="settings-form-grid" style="grid-template-columns: 1fr 1fr;">
                         <div class="form-group">
                             <label style="color:#9b9bb2;font-size:13px;">主货币</label>
-                            <select id="dispPrimaryCurrency" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;"></select>
+                            <select class="ff-input-dark" id="dispPrimaryCurrency"></select>
                         </div>
                         <div class="form-group">
                             <label style="color:#9b9bb2;font-size:13px;">副货币（无 = 关闭双币）</label>
-                            <select id="dispSecondaryCurrency" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                            <select class="ff-input-dark" id="dispSecondaryCurrency">
                                 <option value="">— 不显示副货币 —</option>
                             </select>
                         </div>
@@ -366,16 +366,16 @@
 
                 <div class="settings-card" id="printerSettingsCard">
                     <h3 class="settings-card-title" id="printerSettingsTitle">🖨️ 打印机设置</h3>
-                    <p id="printerSettingsDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">配置打印机、打印路由和自动打印</p>
+                    <p class="ff-desc" id="printerSettingsDesc">配置打印机、打印路由和自动打印</p>
                     <button class="store-sub-btn" data-perm="can_manage_printer" id="enterPrinterSettingsBtn" onclick="switchAdminModule('printers')" style="background: linear-gradient(135deg,#a1c4fd,#c2e9fb); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入打印机设置</button>
                 </div>
 
                 <div class="settings-card" id="khqrSettingsCard">
-                    <h3 class="settings-card-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title ff-flex-center">
                         <span>💳 KHQR 收款码</span>
-                        <span style="background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.2);border-radius:8px;padding:4px 12px;font-size:12px;color:#ffb088;font-weight:400;letter-spacing:0;">⚠️ 配置仅对 <strong id="khqrCurrentStoreName" style="color:#fff;">当前店铺</strong> 生效</span>
+                        <span class="ff-store-hint">⚠️ 配置仅对 <strong id="khqrCurrentStoreName" style="color:#fff;">当前店铺</strong> 生效</span>
                     </h3>
-                    <p style="color:#999;margin-bottom:16px;font-size:14px;">可配置多个收款码（ABA / ACLEDA / Wing 等），收银台按客户所用银行选择。</p>
+                    <p class="ff-desc-tight">可配置多个收款码（ABA / ACLEDA / Wing 等），收银台按客户所用银行选择。</p>
 
                     <!-- 已配置的收款码列表 -->
                     <div id="khqrProviderList" style="margin-bottom:16px;"></div>
@@ -387,7 +387,7 @@
                             <input type="text" id="khqrUploadLabel" placeholder="备注名（可选，留空自动用收款人名字）" style="width:100%;height:40px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.25);color:#fff;font-size:14px;">
                         </div>
                         <input type="file" id="khqrImageFile" accept="image/*" style="display:none;">
-                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <div class="ff-flex-center">
                             <button id="khqrUploadBtn" type="button" style="padding:10px 22px;border:0;border-radius:10px;background:linear-gradient(135deg,#e85d3a,#e84a2a);color:#fff;font-weight:700;cursor:pointer;">📤 选择图片并上传</button>
                             <span id="khqrUploadName" style="color:#888;font-size:13px;">未选择文件</span>
                         </div>
@@ -396,12 +396,12 @@
 
                 <div class="settings-card" id="orderPrefixCard">
                     <h3 class="settings-card-title" id="orderPrefixTitle">🔢 订单号前缀配置</h3>
-                    <p style="color:#999;margin-bottom:16px;font-size:14px;" id="orderPrefixDesc">订单号格式：前缀(2位) + 年月日(6位) + 序号(5位)，如 1125091900001</p>
+                    <p class="ff-desc-tight" id="orderPrefixDesc">订单号格式：前缀(2位) + 年月日(6位) + 序号(5位)，如 1125091900001</p>
                     <div class="settings-form-grid">
-                        <div class="form-group"><label id="prefixNormalLabel">普通消费前缀</label><input id="prefixNormal" maxlength="2" style="width:80px;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;"></div>
-                        <div class="form-group"><label id="prefixRefundLabel">退款单前缀</label><input id="prefixRefund" maxlength="2" style="width:80px;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;"></div>
-                        <div class="form-group"><label id="prefixDiscountLabel">打折消费前缀</label><input id="prefixDiscount" maxlength="2" style="width:80px;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;"></div>
-                        <div class="form-group"><label id="prefixVipLabel">VIP消费前缀</label><input id="prefixVip" maxlength="2" style="width:80px;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;"></div>
+                        <div class="form-group"><label id="prefixNormalLabel">普通消费前缀</label><input class="ff-input-sm" id="prefixNormal" maxlength="2"></div>
+                        <div class="form-group"><label id="prefixRefundLabel">退款单前缀</label><input class="ff-input-sm" id="prefixRefund" maxlength="2"></div>
+                        <div class="form-group"><label id="prefixDiscountLabel">打折消费前缀</label><input class="ff-input-sm" id="prefixDiscount" maxlength="2"></div>
+                        <div class="form-group"><label id="prefixVipLabel">VIP消费前缀</label><input class="ff-input-sm" id="prefixVip" maxlength="2"></div>
                         <div class="form-group"><label id="orderResetPeriodLabel">订单号重置周期</label>
                             <select id="orderResetPeriod" style="width:100%;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;">
                                 <option value="daily"><span data-i18n="orderNoResetDailyFull">每天重置（从00001开始）</span>
@@ -419,7 +419,7 @@
                     <form id="passwordForm" class="settings-form-grid">
                         <div class="form-group"><label id="oldPasswordLabel">旧密码</label><input id="oldPassword" type="password" placeholder="请输入旧密码" required></div>
                         <div class="form-group"><label id="newPasswordLabel">新密码</label><input id="newPassword" type="password" placeholder="至少 6 位" required></div>
-                        <div class="form-group" style="display:flex;align-items:flex-end;"><button id="changePasswordBtn" class="primary" style="width:100%;">修改密码</button></div>
+                        <div class="form-group ff-flex-end"><button id="changePasswordBtn" class="primary" style="width:100%;">修改密码</button></div>
                     </form>
                 </div>
 
@@ -432,70 +432,70 @@
                 </div>
 
                 <div class="settings-card" id="displayPageCard">
-                    <h3 class="settings-card-title" id="displayPageTitle" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title ff-flex-center" id="displayPageTitle">
                         <span>🖥️ <span data-i18n="displayPageTitle">菜单展示页设置</span></span>
-                        <span style="background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.2);border-radius:8px;padding:4px 12px;font-size:12px;color:#ffb088;font-weight:400;letter-spacing:0;">⚠️ 仅对 <strong id="dispCurrentStoreName" style="color:#fff;">当前店铺</strong> 生效</span>
+                        <span class="ff-store-hint">⚠️ 仅对 <strong id="dispCurrentStoreName" style="color:#fff;">当前店铺</strong> 生效</span>
                     </h3>
                     <p style="color:#999;margin-bottom:18px;font-size:13px;"><span data-i18n="displayPageDesc">配置 /display 展示页的显示模式、时长等</span></p>
 
                     <div class="settings-form-grid" style="grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:14px;">
                         <div class="form-group">
-                            <label style="color:#9b9bb2;font-size:13px;display:block;margin-bottom:6px;"><span data-i18n="displayMode">展示模式</span></label>
-                            <select id="dispMode" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                            <label class="ff-label-dim"><span data-i18n="displayMode">展示模式</span></label>
+                            <select class="ff-input-dark" id="dispMode">
                                 <option value="grid" data-i18n="displayModeGrid">网格（一屏多菜）</option>
                                 <option value="carousel" data-i18n="displayModeCarousel">单菜轮播（一次一个）</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label style="color:#9b9bb2;font-size:13px;display:block;margin-bottom:6px;"><span data-i18n="displayOrder">轮播顺序</span></label>
-                            <select id="dispOrder" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                            <label class="ff-label-dim"><span data-i18n="displayOrder">轮播顺序</span></label>
+                            <select class="ff-input-dark" id="dispOrder">
                                 <option value="default" data-i18n="displayOrderDefault">按分类顺序</option>
                                 <option value="sales" data-i18n="displayOrderSales">按销量优先</option>
                                 <option value="random" data-i18n="displayOrderRandom">随机</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label style="color:#9b9bb2;font-size:13px;display:block;margin-bottom:6px;"><span data-i18n="displayImageDuration">图片停留（秒）</span></label>
-                            <input type="number" id="dispImageDuration" min="1" max="120" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                            <label class="ff-label-dim"><span data-i18n="displayImageDuration">图片停留（秒）</span></label>
+                            <input class="ff-input-dark" type="number" id="dispImageDuration" min="1" max="120">
                         </div>
                         <div class="form-group">
-                            <label style="color:#9b9bb2;font-size:13px;display:block;margin-bottom:6px;"><span data-i18n="displayVideoMode">视频播放方式</span></label>
-                            <select id="dispVideoMode" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                            <label class="ff-label-dim"><span data-i18n="displayVideoMode">视频播放方式</span></label>
+                            <select class="ff-input-dark" id="dispVideoMode">
                                 <option value="full" data-i18n="displayVideoFull">播完整个视频</option>
                                 <option value="fixed" data-i18n="displayVideoFixed">固定时长后切换</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label style="color:#9b9bb2;font-size:13px;display:block;margin-bottom:6px;"><span data-i18n="displayVideoDuration">视频固定时长（秒）</span></label>
-                            <input type="number" id="dispVideoDuration" min="1" max="300" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                            <label class="ff-label-dim"><span data-i18n="displayVideoDuration">视频固定时长（秒）</span></label>
+                            <input class="ff-input-dark" type="number" id="dispVideoDuration" min="1" max="300">
                         </div>
                     </div>
 
                     <div style="display:flex;gap:24px;flex-wrap:wrap;margin:16px 0;padding:12px 16px;background:rgba(255,255,255,.03);border-radius:10px;">
-                        <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;">
-                            <input type="checkbox" id="dispOnlyActive" style="width:16px;height:16px;accent-color:#e85d3a;"><span data-i18n="displayOnlyActive">只显示上架菜品</span>
+                        <label class="ff-check-row-lg">
+                            <input class="ff-checkbox-red" type="checkbox" id="dispOnlyActive"><span data-i18n="displayOnlyActive">只显示上架菜品</span>
                         </label>
-                        <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;">
-                            <input type="checkbox" id="dispShowPrice" style="width:16px;height:16px;accent-color:#e85d3a;"><span data-i18n="displayShowPrice">显示价格</span>
+                        <label class="ff-check-row-lg">
+                            <input class="ff-checkbox-red" type="checkbox" id="dispShowPrice"><span data-i18n="displayShowPrice">显示价格</span>
                         </label>
-                        <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;">
-                            <input type="checkbox" id="dispShowDesc" style="width:16px;height:16px;accent-color:#e85d3a;"><span data-i18n="displayShowDesc">显示描述</span>
+                        <label class="ff-check-row-lg">
+                            <input class="ff-checkbox-red" type="checkbox" id="dispShowDesc"><span data-i18n="displayShowDesc">显示描述</span>
                         </label>
                     </div>
 
                     <div class="form-group">
                         <label style="color:#9b9bb2;font-size:13px;display:block;margin-bottom:8px;"><span data-i18n="displayLanguages">展示页显示语言（可多选）</span></label>
                         <div id="dispLanguages" style="display:flex;gap:10px;flex-wrap:wrap;">
-                            <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;">
-                                <input type="checkbox" value="zh" style="width:16px;height:16px;accent-color:#e85d3a;">🇨🇳 中文</label>
-                            <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;">
-                                <input type="checkbox" value="en" style="width:16px;height:16px;accent-color:#e85d3a;">🇬🇧 English</label>
-                            <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;">
-                                <input type="checkbox" value="vi" style="width:16px;height:16px;accent-color:#e85d3a;">🇻🇳 Tiếng Việt</label>
-                            <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;">
-                                <input type="checkbox" value="th" style="width:16px;height:16px;accent-color:#e85d3a;">🇹🇭 ภาษาไทย</label>
-                            <label style="color:#ccc;font-size:13px;display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;">
-                                <input type="checkbox" value="km" style="width:16px;height:16px;accent-color:#e85d3a;">🇰🇭 ភាសាខ្មែរ</label>
+                            <label class="ff-lang-option">
+                                <input class="ff-checkbox-red" type="checkbox" value="zh">🇨🇳 中文</label>
+                            <label class="ff-lang-option">
+                                <input class="ff-checkbox-red" type="checkbox" value="en">🇬🇧 English</label>
+                            <label class="ff-lang-option">
+                                <input class="ff-checkbox-red" type="checkbox" value="vi">🇻🇳 Tiếng Việt</label>
+                            <label class="ff-lang-option">
+                                <input class="ff-checkbox-red" type="checkbox" value="th">🇹🇭 ภาษาไทย</label>
+                            <label class="ff-lang-option">
+                                <input class="ff-checkbox-red" type="checkbox" value="km">🇰🇭 ភាសាខ្មែរ</label>
                         </div>
                         <small style="color:#666;display:block;margin-top:8px;">勾选多个时，菜名会分行显示（第一行为主语言）</small>
                     </div>
@@ -508,7 +508,7 @@
                 </div>
                 <div class="settings-card" style="border-color: #ff4d4f;">
                     <h3 class="settings-card-title" id="resetDataCardTitle" style="color: #ff4d4f;">⚠️ 重置数据</h3>
-                    <p id="resetDataDesc" style="color: #999; margin-bottom: 16px; font-size: 14px;">清空本商户所有订单数据（订单、呼叫记录、扫码会话），保留商户、门店、菜品、服务员等基础数据。此操作不可恢复！</p>
+                    <p class="ff-desc" id="resetDataDesc">清空本商户所有订单数据（订单、呼叫记录、扫码会话），保留商户、门店、菜品、服务员等基础数据。此操作不可恢复！</p>
                     <button id="resetDataBtn" style="background: #ff4d4f; border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">重置订单数据</button>
                 </div>
             </section>
@@ -747,17 +747,17 @@
             <div style="display:flex;gap:12px;margin:16px 0;">
                 <div style="flex:1;">
                     <label style="font-size:13px;color:#888;display:block;margin-bottom:6px;"><span data-i18n="startDate">起始日期</span></label>
-                    <input type="date" id="advExportStart" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                    <input class="ff-input-full" type="date" id="advExportStart">
                 </div>
                 <div style="flex:1;">
                     <label style="font-size:13px;color:#888;display:block;margin-bottom:6px;"><span data-i18n="endDate">结束日期</span></label>
-                    <input type="date" id="advExportEnd" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                    <input class="ff-input-full" type="date" id="advExportEnd">
                 </div>
             </div>
 
             <div style="margin:16px 0;">
                 <label style="font-size:13px;color:#888;display:block;margin-bottom:8px;"><span data-i18n="exportDimension">导出维度</span></label>
-                <select id="advExportDim" style="width:100%;padding:10px;border-radius:8px;border:1px solid #4d4d70;background:#22223a;color:#fff;">
+                <select class="ff-input-full" id="advExportDim">
                     <option value="orders" data-i18n="exportOrdersDetail">订单明细</option>
                     <option value="sales" data-i18n="exportDishSales">菜品销量</option>
                     <option value="tables" data-i18n="exportByTable">按桌汇总</option>
@@ -767,15 +767,15 @@
             <div style="margin:16px 0;">
                 <label style="font-size:13px;color:#888;display:block;margin-bottom:8px;"><span data-i18n="exportOrderStatus">订单状态（可多选）</span></label>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                    <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
+                    <label class="ff-check-row">
                         <input type="checkbox" class="adv-status" value="done" checked> 已结算
                     </label>
-                    <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
+                    <label class="ff-check-row">
                         <input type="checkbox" class="adv-status" value="pending"> 未结算
                     </label>
-                    <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
+                    <label class="ff-check-row">
                         <input type="checkbox" class="adv-status" value="canceled"><span data-i18n="canceled">已取消</span></label>
-                    <label style="display:flex;align-items:center;gap:6px;color:#ccc;font-size:13px;">
+                    <label class="ff-check-row">
                         <input type="checkbox" class="adv-status" value="refunded"><span data-i18n="refunded">已退款</span></label>
                 </div>
             </div>

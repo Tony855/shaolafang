@@ -2926,3 +2926,109 @@ button.edit-btn:disabled {
   .order-item-admin .bottom .total { font-size: 16px; }
   .summary-card strong { font-size: 16px !important; }
 }
+
+/* ============================================================
+   Extracted from admin.html (阶段 B：内联样式抽 class)
+   !important 是为了保持原内联样式的最高优先级语义
+   ============================================================ */
+.ff-checkbox-red {
+    width: 16px !important;
+    height: 16px !important;
+    accent-color: #e85d3a !important;
+}
+.ff-input-dark {
+    width: 100% !important;
+    height: 42px !important;
+    padding: 0 12px !important;
+    border-radius: 10px !important;
+    border: 1px solid #4d4d70 !important;
+    background: #22223a !important;
+    color: #fff !important;
+}
+.ff-input-sm {
+    width: 80px !important;
+    height: 42px !important;
+    padding: 0 12px !important;
+    font-size: 14px !important;
+    border-radius: 10px !important;
+    border: 1px solid #4d4d70 !important;
+    background: #22223a !important;
+    color: #fff !important;
+    outline: none !important;
+}
+.ff-input-full {
+    width: 100% !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
+    border: 1px solid #4d4d70 !important;
+    background: #22223a !important;
+    color: #fff !important;
+}
+.ff-desc, .ff-desc-tight {
+    color: #999 !important;
+    margin-bottom: 16px !important;
+    font-size: 14px !important;
+}
+.ff-label-dim {
+    color: #9b9bb2 !important;
+    font-size: 13px !important;
+    display: block !important;
+    margin-bottom: 6px !important;
+}
+.ff-lang-option {
+    color: #ccc !important;
+    font-size: 13px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 6px 12px !important;
+    background: rgba(255,255,255,.04) !important;
+    border: 1px solid rgba(255,255,255,.08) !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+}
+.ff-quick-btn {
+    background: rgba(255,255,255,.08) !important;
+    color: #ccc !important;
+    border: 1px solid rgba(255,255,255,.15) !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+}
+.ff-flex-center {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    flex-wrap: wrap !important;
+}
+.ff-flex-end {
+    display: flex !important;
+    align-items: flex-end !important;
+}
+.ff-check-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    color: #ccc !important;
+    font-size: 13px !important;
+}
+.ff-check-row-lg {
+    color: #ccc !important;
+    font-size: 13px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+}
+.ff-store-hint {
+    background: rgba(232,93,58,.08) !important;
+    border: 1px solid rgba(232,93,58,.2) !important;
+    border-radius: 8px !important;
+    padding: 4px 12px !important;
+    font-size: 12px !important;
+    color: #ffb088 !important;
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
+}
