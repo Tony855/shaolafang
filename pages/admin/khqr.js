@@ -8,11 +8,7 @@ const ctx = window.SLF.admin;
 if (!ctx) return;
 const { api } = ctx;
 
-function esc(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
-}
+const esc = SLF.utils.esc;
 
 function getCurrentStoreName() {
   const sel = document.getElementById('adminStoreSelect');

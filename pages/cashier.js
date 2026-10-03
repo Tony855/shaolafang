@@ -32,11 +32,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   SLF.i18n.init(currentLang);
 
   /* ===== 工具 ===== */
-  function esc(s) {
-    return String(s ?? '').replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
-  }
+  const esc = SLF.utils.esc;
   function formatTime(iso) {
     if (!iso) return '-';
     try {
@@ -49,17 +45,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   }
 
   // 金额 HTML：主货币红色，副货币灰色
-  function moneyHtml(base) {
-    const p = SLF.money.primary(base);
-    const d = SLF.money.dual;
-    let sec = '';
-    if (d && d.enabled && d.currency && d.currency.code) {
-      sec = SLF.money.secondary(base, d.currency.code);
-    }
-    return sec
-      ? `<span class="money-primary">${p}</span> <span class="money-secondary">(${sec})</span>`
-      : `<span class="money-primary">${p}</span>`;
-  }
+  const moneyHtml = SLF.money.formatHtml;
 
   /* ===== 加载商户启用的支付方式 ===== */
   async function loadPaymentMethods() {
@@ -242,16 +228,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   }
 
   /* ===== API ===== */
-  async function api(url, options = {}) {
-    const cashierStoreId = SLF.store.rawGet('cashierStoreId');
-    if (cashierStoreId) SLF.store.rawSet('storeId', cashierStoreId);
-    const method = (options.method || 'GET').toUpperCase();
-    if (method === 'GET') return SLF.api.get(url, options);
-    if (method === 'POST') return SLF.api.post(url, options.body, options);
-    if (method === 'PUT') return SLF.api.put(url, options.body, options);
-    if (method === 'DELETE') return SLF.api.del(url, options);
-    return SLF.api._request(method, url, options);
-  }
+  const api = (path, opt) => SLF.api.page(path, opt);
 
   async function loadOrders() {
     try {

@@ -80,14 +80,7 @@
     }
 
 
-    async function api(path, opt = {}) {
-      const method = (opt.method || 'GET').toUpperCase();
-      if (method === 'GET') return SLF.api.get(path, opt);
-      if (method === 'POST') return SLF.api.post(path, opt.body, opt);
-      if (method === 'PUT') return SLF.api.put(path, opt.body, opt);
-      if (method === 'DELETE') return SLF.api.del(path, opt);
-      return SLF.api._request(method, path, opt);
-    }
+    const api = (path, opt) => SLF.api.page(path, opt);
 
   function applyDataI18n() {
     document.querySelectorAll('[data-i18n]').forEach(el => {

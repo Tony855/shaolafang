@@ -134,10 +134,6 @@
     font-size: 13px; font-weight: 700; padding: 8px 12px; cursor: pointer; white-space: nowrap;
   }
   .item-row button.mark-btn:hover { filter: brightness(1.1); }
-  .ticket-ready-tag {
-    align-self: flex-start; background: rgba(46,204,113,.16); color: var(--ok);
-    font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
-  }
   /* 修复：原先 CSS 结尾多了个 } 与孤立声明，已修正 */
   .ticket-serve-btn {
     align-self: stretch;
@@ -153,17 +149,6 @@
     box-shadow: 0 4px 12px rgba(46,204,113,.3);
   }
   .ticket-serve-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(46,204,113,.4); }
-  .ticket-actions {
-    display: flex; gap: 8px; margin-top: 10px; padding-top: 10px;
-    border-top: 1px solid var(--border);
-  }
-  .ticket-actions button {
-    flex: 1; padding: 8px 0; border: 0; border-radius: 8px;
-    font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .2s;
-  }
-  .ticket-actions button:hover { opacity: .85; }
-  .print-btn { background: rgba(52,152,219,.2); color: #5dade2; }
-  .complete-btn { background: rgba(46,204,113,.2); color: var(--ok); }
   @media (max-width:520px) {
     .ticket-grid { grid-template-columns: 1fr; padding: 12px; }
     .top-bar { padding: 10px 12px; }

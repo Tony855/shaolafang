@@ -85,8 +85,19 @@
     return { primary: p, secondary: secStr };
   }
 
+  // 返回 HTML 字符串：主货币红色 + 副货币灰色（括号内）
+  function formatHtml(base) {
+    var p = primary(base);
+    var d = secondaryCur;
+    var sec = d ? secondary(base, d.code) : '';
+    return sec
+      ? '<span class="money-primary">' + p + '</span> <span class="money-secondary">(' + sec + ')</span>'
+      : '<span class="money-primary">' + p + '</span>';
+  }
+
   SLF.money = {
     configure: configure,
+    formatHtml: formatHtml,
     toBase: toBase,
     primary: primary,
     secondary: secondary,

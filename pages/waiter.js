@@ -165,20 +165,7 @@
   $('#confirmOkBtn').onclick = function () { if (confirmCallback) confirmCallback(); hideConfirm(); };
   $('#confirmModal').onclick = function (e) { if (e.target === this) hideConfirm(); };
 
-  async function api(path, opt = {}) {
-    try {
-      const method = (opt.method || 'GET').toUpperCase();
-      let result;
-      if (method === 'GET') result = await SLF.api.get(path, opt);
-      else if (method === 'POST') result = await SLF.api.post(path, opt.body, opt);
-      else if (method === 'PUT') result = await SLF.api.put(path, opt.body, opt);
-      else if (method === 'DELETE') result = await SLF.api.del(path, opt);
-      else result = await SLF.api._request(method, path, opt);
-      return result;
-    } catch (e) {
-      throw e;
-    }
-  }
+  const api = (path, opt) => SLF.api.page(path, opt);
 
   let knownWaiterOrderIds = null;
   function logoutWaiter() {

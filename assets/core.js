@@ -492,6 +492,17 @@
     del(path, options) { return this._request('DELETE', path, options); },
     patch(path, body, options) { return this._request('PATCH', path, { ...options, body }); },
 
+    /* 页面级便捷入口：api(path, { method, body }) */
+    page(path, options = {}) {
+      const method = (options.method || 'GET').toUpperCase();
+      if (method === 'GET') return this.get(path, options);
+      if (method === 'POST') return this.post(path, options.body, options);
+      if (method === 'PUT') return this.put(path, options.body, options);
+      if (method === 'DELETE') return this.del(path, options);
+      if (method === 'PATCH') return this.patch(path, options.body, options);
+      return this._request(method, path, options);
+    },
+
     /* 上传文件 */
     upload(path, formData, options = {}) {
       return this._request('POST', path, { ...options, body: formData });

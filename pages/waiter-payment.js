@@ -9,14 +9,7 @@
 const $ = (s) => document.querySelector(s);
 const t = SLF.t;
 
-async function apiCall(path, opts = {}) {
-  const method = (opts.method || 'GET').toUpperCase();
-  if (method === 'GET') return SLF.api.get(path, opts);
-  if (method === 'POST') return SLF.api.post(path, opts.body, opts);
-  if (method === 'PUT') return SLF.api.put(path, opts.body, opts);
-  if (method === 'DELETE') return SLF.api.del(path, opts);
-  return SLF.api._request(method, path, opts);
-}
+const apiCall = (path, opt) => SLF.api.page(path, opt);
 
 let paymentOrderId = null;
 let payMethod = 'cash';
@@ -25,17 +18,7 @@ let khqrProviders = [];
 let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
 
 /* ===== 金额 HTML ===== */
-function moneyHtml(base) {
-  const p = SLF.money.primary(base);
-  const d = SLF.money.dual;
-  let sec = '';
-  if (d && d.enabled && d.currency && d.currency.code) {
-    sec = SLF.money.secondary(base, d.currency.code);
-  }
-  return sec
-    ? '<span class="money-primary">' + p + '</span> <span class="money-secondary">(' + sec + ')</span>'
-    : '<span class="money-primary">' + p + '</span>';
-}
+const moneyHtml = SLF.money.formatHtml;
 
 /* ===== 加载商户启用的支付方式 ===== */
 async function loadPaymentMethods() {
