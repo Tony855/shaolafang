@@ -249,9 +249,6 @@
       const _awaitingTip = o.awaiting_confirm
         ? `<span class="pending-tip" style="background:rgba(255,193,7,.18);color:#856404;">🔔 已通知收银员</span>`
         : '';
-      const _notifyBtn = (!o.awaiting_confirm && o.status === 'pending')
-        ? `<button onclick="event.stopPropagation();notifyKhqrAwaiting(${o.id})" title="客户说已付款，通知收银员核实" style="background:linear-gradient(135deg,#ffb020,#ff8c00);color:#fff;border:0;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;margin-left:6px;">📤 通知收银员</button>`
-        : '';
       return `<div class="order-block ${isExpanded ? 'expanded' : 'collapsed'}">
         <div class="order-head" onclick="event.stopPropagation();toggleOrderExpand(${o.id})" style="cursor:pointer;">
           <div class="order-head-left">
@@ -264,7 +261,7 @@
             ${_awaitingTip}
             ${pendingTip}
             <span class="order-amount">${orderTotalDisplay}</span>
-            ${_notifyBtn}
+            
           </div>
         </div>
         ${isExpanded ? `${noteHtml}<div class="bill-items">${lines}</div>` : ''}
@@ -1187,6 +1184,5 @@
     try { window.toggleSelectedItem = toggleSelectedItem; } catch(err) {}
     try { window.toggleOrderExpand = toggleOrderExpand; } catch(err) {}
     try { window.toggleWaiterItem = toggleWaiterItem; } catch(err) {}
-    try { window.notifyKhqrAwaiting = notifyKhqrAwaiting; } catch(err) {}
     try { window.loadOrderHistory = loadOrderHistory; } catch(err) {}
 })();

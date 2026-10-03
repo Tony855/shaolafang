@@ -128,6 +128,19 @@ window.openPaymentModal = async function(orderId, orderHint) {
     try { order = await apiCall('/orders/' + orderId); } catch (e) { order = null; }
   }
   if (!order) { SLF.ui.toast('❌ ' + (t('orderNotFound') || '订单不存在')); return; }
+
+  // 菜品检查：全部完成才允许结算（与后端一致，提前拦截，避免弹窗被拒）
+  const items = Array.isArray(order.items) ? order.items : [];
+  if (items.length === 0) {
+    SLF.ui.toast('⚠️ ' + (t('noDishes') || '无菜品') + '，无法结算');
+    return;
+  }
+  const pendingCount = items.filter(i => i.itemStatus !== 'done').length;
+  if (pendingCount > 0) {
+    SLF.ui.toast('⚠️ ' + (t('itemsNotReady') || '菜品未全部完成，无法结算') + '（' + pendingCount + '）');
+    return;
+  }
+
   paymentOrderId = orderId;
   payMethod = 'cash';
   const amount = Number(order.total) || 0;
