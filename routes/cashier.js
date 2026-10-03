@@ -4,7 +4,7 @@
 const crypto = require('crypto');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io } = deps;
+  const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io } = deps;
 
 app.post('/api/waiter/login', async (req, res) => {
   try {
@@ -320,7 +320,7 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
 });
 
 // ----- 收银台获取本商户启用的支付方式 -----
-app.get('/api/cashier/payment-methods', requireCashier, async (req, res) => {
+app.get('/api/cashier/payment-methods', requireAdminOrCashierOrWaiter, async (req, res) => {
   try {
     const mid = req.merchantId;
     const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${mid}_payment_methods`]);
@@ -334,7 +334,7 @@ app.get('/api/cashier/payment-methods', requireCashier, async (req, res) => {
 });
 
 // ----- 收银台获取本店铺启用的 KHQR 收款码 -----
-app.get('/api/cashier/khqr/providers', requireCashier, async (req, res) => {
+app.get('/api/cashier/khqr/providers', requireAdminOrCashierOrWaiter, async (req, res) => {
   try {
     const sid = req.storeId;
     const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`store_${sid}_khqr_providers`]);

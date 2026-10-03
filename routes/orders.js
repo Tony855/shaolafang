@@ -992,7 +992,7 @@ app.post('/api/orders', async (req, res) => {
 app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   try {
     const id = req.params.id;
-    const { table, items, status, note } = req.body;
+    const { table, items, status, note, pay_method } = req.body;
     const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
@@ -1039,10 +1039,19 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     if (typeof note === 'string') {
       nextNote = note.trim().slice(0, 200);
     }
-    await runAsync(
-      'UPDATE orders SET table_name=?, items=?, total=?, status=?, note=? WHERE id=? AND store_id=?',
-      [nextTable, itemsJson, calculatedTotal, status || existing.status, nextNote, id, orderStoreId]
-    );
+    if (status === 'done' && typeof pay_method === 'string') {
+      const cashReceived = Number(req.body.cash_received) || 0;
+      const cashChange = Number(req.body.cash_change) || 0;
+      await runAsync(
+        'UPDATE orders SET table_name=?, items=?, total=?, status=?, note=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=?',
+        [nextTable, itemsJson, calculatedTotal, status, nextNote, pay_method.slice(0, 20), cashReceived, cashChange, id, orderStoreId]
+      );
+    } else {
+      await runAsync(
+        'UPDATE orders SET table_name=?, items=?, total=?, status=?, note=? WHERE id=? AND store_id=?',
+        [nextTable, itemsJson, calculatedTotal, status || existing.status, nextNote, id, orderStoreId]
+      );
+    }
     const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     await syncTableStatus(nextTable, orderStoreId);
     if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);

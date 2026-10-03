@@ -92,4 +92,61 @@ async function requireAdminOrCashier(req, res, next) {
   }
 }
 
-module.exports = { requireSuperAdmin, requireCashier, requireAdminOrCashier };
+async function requireAdminOrCashierOrWaiter(req, res, next) {
+  // 1) 先试管理员 / 收银员（复用现有逻辑）
+  const { authenticateAdmin } = require('./admin-auth');
+  const adminResult = await authenticateAdmin(req);
+  if (adminResult && !adminResult.error) {
+    req.adminId = adminResult.adminId;
+    req.merchantId = adminResult.merchantId;
+    req.adminSessionToken = adminResult.sessionToken;
+    req.storeId = adminResult.storeId || parseInt(req.get('X-Store-Id') || '0', 10);
+    req.isAdmin = true;
+    return next();
+  }
+  // 2) 试收银员
+  try {
+    const cashierToken = req.get('X-Cashier-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (cashierToken) {
+      const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [cashierToken]);
+      if (session && new Date(session.expires_at).getTime() > Date.now()) {
+        const cashiersData = await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + session.store_id]);
+        if (cashiersData) {
+          let list = [];
+          try { list = JSON.parse(cashiersData.value); } catch (e) {}
+          const cashier = list.find(c => String(c.id) === String(session.cashier_id) && c.active);
+          if (cashier) {
+            req.cashier = { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
+            req.cashierId = cashier.id;
+            req.storeId = session.store_id;
+            req.merchantId = session.merchant_id;
+            req.isCashier = true;
+            return next();
+          }
+        }
+      }
+    }
+  } catch (e) { /* 继续试 waiter */ }
+  // 3) 试服务员
+  try {
+    const waiterToken = req.get('X-Waiter-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (waiterToken) {
+      const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [waiterToken]);
+      if (session && new Date(session.expires_at).getTime() > Date.now()) {
+        const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
+        if (waiter) {
+          req.waiter = waiter;
+          req.waiterStoreId = waiter.store_id || 1;
+          req.storeId = waiter.store_id || 1;
+          req.merchantId = waiter.merchant_id || 1;
+          req.isWaiter = true;
+          req.isAdmin = false;
+          return next();
+        }
+      }
+    }
+  } catch (e) { /* 落到 401 */ }
+  return res.status(401).json({ error: '未登录或登录已过期' });
+}
+
+module.exports = { requireSuperAdmin, requireCashier, requireAdminOrCashier, requireAdminOrCashierOrWaiter };

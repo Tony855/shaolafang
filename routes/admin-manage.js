@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const QRCode = require('qrcode');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
+  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
 
   /* ===== KHQR 多收款码管理 ===== */
   async function loadKhqrProviders(storeId) {
@@ -492,7 +492,7 @@ module.exports = function(app, deps) {
   });
 
   /* ===== 生成动态码 ===== */
-  app.post('/api/cashier/khqr/generate', requireAdminOrCashier, async (req, res) => {
+  app.post('/api/cashier/khqr/generate', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id } = req.body || {};
@@ -590,7 +590,7 @@ module.exports = function(app, deps) {
   });
 
   /* ===== 到账确认 ===== */
-  app.post('/api/cashier/khqr/confirm', requireAdminOrCashier, async (req, res) => {
+  app.post('/api/cashier/khqr/confirm', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, role } = req.body || {};
@@ -673,7 +673,7 @@ module.exports = function(app, deps) {
   });
 
   /* ===== 二维码图片（PNG） ===== */
-  app.get('/api/cashier/khqr/qrimage', requireAdminOrCashier, async (req, res) => {
+  app.get('/api/cashier/khqr/qrimage', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, size } = req.query;
@@ -748,7 +748,7 @@ module.exports = function(app, deps) {
   });
 
   /* ===== 取消/退回待确认 ===== */
-  app.post('/api/cashier/khqr/cancel', requireAdminOrCashier, async (req, res) => {
+  app.post('/api/cashier/khqr/cancel', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id } = req.body || {};

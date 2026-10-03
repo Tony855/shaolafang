@@ -160,7 +160,7 @@ const {
   logAudit,
   requireAdminOrWaiter,
 } = require('./server/middleware/admin-auth');
-const { requireSuperAdmin, requireCashier, requireAdminOrCashier } = require('./server/middleware/auth');
+const { requireSuperAdmin, requireCashier, requireAdminOrCashier, requireAdminOrCashierOrWaiter } = require('./server/middleware/auth');
 
 // ---------- 获取真实客户端IP ----------
 // ---------- IP地理位置查询 ----------
@@ -1034,7 +1034,7 @@ require('./routes/admin-system.js')(app, { getAsync, allAsync, runAsync, require
 
 // ----- 服务员登录 -----
 // ----- 服务员+收银员 -----
-require('./routes/cashier.js')(app, { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io });
+require('./routes/cashier.js')(app, { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io });
 
 
 // ----- 服务员概览 -----
@@ -1057,7 +1057,7 @@ if (typeof _advExport.attachAdvancedExport === 'function') {
 
 
 // ----- 全局配置+催单+管理员/收银员+重置 -----
-require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io });
+require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io });
 
 
 

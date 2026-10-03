@@ -14,7 +14,7 @@
         document.documentElement.setAttribute('data-waiter-session', '1');
     }
 </script>
-<link rel="stylesheet" href="assets/waiter.css?v=1790745535">
+<link rel="stylesheet" href="assets/waiter.css?v=1790989861">
 <link rel="stylesheet" href="assets/common.css?v=1790745535">
 </head>
 <body>
@@ -145,6 +145,96 @@
   </div>
 </div>
 
+<!-- 收款弹窗（与收银台一致） -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="payment-card">
+    <button class="modal-close" onclick="closePaymentModal()">✕</button>
+    <h2 class="payment-title" id="paymentTitle" data-i18n="settleOrder">收款</h2>
+    <div class="payment-amount">
+      <div class="payment-amount-label" data-i18n="receivableAmount">应收金额</div>
+      <div class="payment-amount-value" id="paymentAmount">$0.00</div>
+    </div>
+
+    <div class="payment-methods" id="paymentMethodsWrap">
+      <button class="payment-method active" data-method="cash" onclick="selectPayMethod('cash')">
+        <span class="pm-icon">💵</span>
+        <span class="pm-label" data-i18n="cashPay">现金</span>
+      </button>
+      <button class="payment-method" data-method="wechat" onclick="selectPayMethod('wechat')">
+        <span class="pm-icon">💚</span>
+        <span class="pm-label" data-i18n="wechatPay">微信</span>
+      </button>
+      <button class="payment-method" data-method="alipay" onclick="selectPayMethod('alipay')">
+        <span class="pm-icon">💙</span>
+        <span class="pm-label" data-i18n="alipayPay">支付宝</span>
+      </button>
+      <button class="payment-method" data-method="card" onclick="selectPayMethod('card')">
+        <span class="pm-icon">💳</span>
+        <span class="pm-label" data-i18n="cardPay">刷卡</span>
+      </button>
+      <button class="payment-method" data-method="aba" onclick="selectPayMethod('aba')">
+        <span class="pm-icon pm-icon-aba"><img src="assets/vendor/payment-icons/aba.png" alt="ABA"></span>
+        <span class="pm-label">ABA</span>
+      </button>
+    </div>
+
+    <div class="payment-cash-area" id="cashArea">
+      <div class="payment-input-row">
+        <label data-i18n="actualReceived">实收</label>
+        <input type="number" id="cashReceived" class="payment-input"
+               placeholder="0.00" step="0.01" min="0"
+               oninput="onCashInput()">
+      </div>
+      <div class="payment-change-row">
+        <span data-i18n="changeAmount">找零</span>
+        <span class="payment-change-value" id="cashChange">$0.00</span>
+      </div>
+      <div class="payment-quick-cash" id="quickCash"></div>
+    </div>
+
+    <div class="payment-actions">
+      <button class="btn btn-secondary" onclick="closePaymentModal()" data-i18n="cancel">取消</button>
+      <button class="btn btn-primary" id="confirmPayBtn" onclick="confirmPay()" data-i18n="confirmPay">确认收款</button>
+    </div>
+  </div>
+</div>
+
+<!-- KHQR 动态收款弹窗（与收银台一致） -->
+<div class="modal-overlay" id="khqrModal">
+  <div class="payment-card" style="max-width:460px;text-align:center;">
+    <button class="modal-close" onclick="closeKhqrModal()">✕</button>
+    <h2 class="payment-title">💳 <span data-i18n="khqrTitle">扫码收款</span></h2>
+
+    <div class="payment-amount" style="padding:8px 0 16px;">
+      <div class="payment-amount-label" data-i18n="receivableAmount">应收金额</div>
+      <div class="payment-amount-value" id="khqrAmount">$0.00</div>
+    </div>
+
+    <div style="background:#fff;padding:14px;border-radius:14px;display:inline-block;box-shadow:0 4px 16px rgba(0,0,0,.08);max-width:100%;box-sizing:border-box;">
+      <img id="khqrImage" src="" alt="KHQR" class="khqr-image">
+    </div>
+
+    <div style="margin-top:14px;color:#888;font-size:13px;">
+      <div><span data-i18n="khqrMerchant">收款人：</span><strong id="khqrMerchant" style="color:#333;"></strong></div>
+      <div style="margin-top:4px;font-family:'SF Mono',monospace;font-size:12px;color:#999;"><span id="khqrOrderNo"></span></div>
+    </div>
+
+    <div style="margin-top:16px;font-size:14px;color:#666;">
+      <span data-i18n="khqrCountdown">二维码有效期：</span>
+      <span id="khqrCountdown" style="font-family:'SF Mono',monospace;font-weight:700;color:#e85d3a;font-size:16px;">10:00</span>
+    </div>
+
+    <div id="khqrStatusBar" style="margin-top:14px;padding:10px 14px;border-radius:10px;background:#f0f4ff;color:#5a6acf;font-size:13px;">
+      <span data-i18n="khqrWaiting">等待客户扫码付款...</span>
+    </div>
+
+    <div class="payment-actions" style="margin-top:18px;">
+      <button class="btn btn-secondary" onclick="closeKhqrModal()" data-i18n="cancel">取消</button>
+      <button class="btn btn-primary" id="khqrConfirmBtn" onclick="confirmKhqrReceived()" data-i18n="khqrReceived">✅ 已收到款</button>
+    </div>
+  </div>
+</div>
+
 <!-- 结算确认弹窗（展示订单详情） -->
 <div class="modal confirm-modal" id="settleConfirmModal">
   <div class="modal-card" style="max-width:520px;">
@@ -153,6 +243,16 @@
       <button class="close" onclick="closeSettleConfirm()">✕</button>
     </div>
     <div id="settleConfirmBody" style="max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:8px 0;"></div>
+    <div style="padding:12px 0;border-top:1px solid #f0f0f0;">
+      <div style="color:#666;font-size:13px;margin-bottom:8px;font-weight:600;" data-i18n="payMethod">收款方式</div>
+      <div class="pay-methods" id="settlePayMethods">
+        <button type="button" class="pay-method-btn active" data-method="cash" onclick="selectSettlePayMethod('cash')">💵 <span data-i18n="cashPay">现金</span></button>
+        <button type="button" class="pay-method-btn" data-method="aba" onclick="selectSettlePayMethod('aba')">📱 <span data-i18n="khqrPay">扫码</span></button>
+        <button type="button" class="pay-method-btn" data-method="wechat" onclick="selectSettlePayMethod('wechat')">💚 <span data-i18n="wechatPay">微信</span></button>
+        <button type="button" class="pay-method-btn" data-method="alipay" onclick="selectSettlePayMethod('alipay')">💙 <span data-i18n="alipayPay">支付宝</span></button>
+        <button type="button" class="pay-method-btn" data-method="card" onclick="selectSettlePayMethod('card')">💳 <span data-i18n="cardPay">刷卡</span></button>
+      </div>
+    </div>
     <div style="display:flex;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #f0f0f0;">
       <button class="confirm-cancel" style="flex:1;padding:10px;border:0;border-radius:10px;background:#f0f0f5;color:#666;font-size:15px;font-weight:600;cursor:pointer;" onclick="closeSettleConfirm()" data-i18n="cancel">取消</button>
       <button class="confirm-ok" style="flex:1;padding:10px;border:0;border-radius:10px;background:linear-gradient(135deg,#e85d3a,#e84a2a);color:#fff;font-size:15px;font-weight:600;cursor:pointer;" onclick="confirmSettleFromEditor()" data-i18n="settleNow">确认结算</button>
@@ -180,6 +280,7 @@
   <script src="assets/modules/role.js?v=1790745535"></script>
   <script src="assets/modules/idle.js?v=1790745535"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="pages/waiter.js?v=1790976620"></script>
+<script src="pages/waiter.js?v=1790988650"></script>
+<script src="pages/waiter-payment.js?v=1790989732"></script>
 </body>
 </html>

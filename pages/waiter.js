@@ -334,12 +334,30 @@
 
   // ===== 从编辑卡片点结算：弹订单详情二次确认 =====
   const _settleConfirmedIds = new Set();   // 已确认过的订单 id，后续同订单不再弹
+  let _settlePayMethod = 'cash';           // 结算弹窗里选中的收款方式
+
+  function syncSettlePayMethodUI() {
+    document.querySelectorAll('#settlePayMethods .pay-method-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.method === _settlePayMethod);
+    });
+  }
+  window.selectSettlePayMethod = function(method) {
+    _settlePayMethod = method;
+    syncSettlePayMethodUI();
+  };
 
   function handleSettleFromEditor() {
     const id = state.editingOrderId;
     if (!id) { SLF.ui.toast('❌ ' + t('pleaseSaveFirst', null, '请先保存订单再结算')); return; }
     const order = state.orders.find(o => o.id === id);
     if (!order) { SLF.ui.toast('❌ ' + t('orderNotFound', null, '订单不存在')); return; }
+    // 打开收款弹窗（与收银台一致），收款完成后由 waiter-payment.js 回调 doSettleFromEditor
+    if (typeof window.openPaymentModal === 'function') {
+      window.openPaymentModal(id, order);
+      return;
+    }
+    // 兜底：没有 payment 模块时走旧逻辑
+    if (_settleConfirmedIds.has(id)) { doSettleFromEditor(id); return; }
 
     // 已确认过：直接结算
     if (_settleConfirmedIds.has(id)) {
@@ -384,6 +402,8 @@
 
       body.innerHTML = html;
     }
+    _settlePayMethod = 'cash';
+    syncSettlePayMethodUI();
     document.getElementById('settleConfirmModal').classList.add('open');
   }
 
@@ -404,7 +424,7 @@
       await api('/orders/' + id, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'done' })
+        body: JSON.stringify({ status: 'done', pay_method: _settlePayMethod })
       });
       SLF.ui.toast('✅ ' + t('settleOrder', null, '已结算'));
       if (typeof closeModal === 'function') closeModal();
@@ -1146,7 +1166,7 @@
     try { window.closeModal = closeModal; } catch(err) {}
     try { window.closeOrderSelect = closeOrderSelect; } catch(err) {}
     try { window.closeTransferModal = closeTransferModal; } catch(err) {}
-    try { window.handleSettleFromEditor = handleSettleFromEditor; } catch(err) {}
+    try { window.handleSettleFromEditor = handleSettleFromEditor; window.doWaiterSettle = doSettleFromEditor; window.closeWaiterModal = closeModal; window.reloadWaiterData = load; } catch(err) {}
     try { window.closeSettleConfirm = closeSettleConfirm; } catch(err) {}
     try { window.confirmSettleFromEditor = confirmSettleFromEditor; } catch(err) {}
     try { window.completeWaiterOrder = completeWaiterOrder; } catch(err) {}
