@@ -64,7 +64,7 @@ function populateMenuCategorySelect() {
   const filterSelect = $('#menuCategoryFilter');
   if (filterSelect) {
     const currentValue = filterSelect.value;
-    filterSelect.innerHTML = '<option value="all">📋 ' + tAdmin('allCategories') + '</option>' +
+    filterSelect.innerHTML = '<option value="all">' + tAdmin('menuAllCategoriesOption') + '</option>' +
       cats.map(c => `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
     filterSelect.value = currentValue || 'all';
   }
