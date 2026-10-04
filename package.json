@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "build:lang": "node scripts/build-languages.js",
     "check:lang": "node scripts/check-lang.js",
-    "check:lang:strict": "node scripts/check-lang.js --strict"
+    "check:lang:strict": "node scripts/check-lang.js --strict",
+    "build:admin": "node scripts/build-admin-bundle.js"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",
