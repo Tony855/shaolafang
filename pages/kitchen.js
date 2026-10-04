@@ -570,11 +570,17 @@
       });
 
       // 连接状态：断开时开启轮询，重连时刷新一次
+      // 首次 connect 不 load（init 已 load），只有断线重连才补偿刷新
+      let socketEverConnected = false;
       socket.on('connect', () => {
         SLF.log.debug('[kitchen] socket connected');
         _socketConnected = true;
         updatePollingBySocket();
-        // 重连成功 → 立即全量刷新一次（补偿断线期间丢失的事件）
+        if (!socketEverConnected) {
+          socketEverConnected = true;
+          return;
+        }
+        // 断线重连 → 补偿一次全量刷新
         loadOrders();
       });
       socket.on('disconnect', () => {

@@ -1128,11 +1128,16 @@
       transferDebounce = setTimeout(() => { if (typeof load === 'function') load(); }, 300);
     });
 
-    // 重连成功后全量刷新一次
+    // 首次 connect 不 load（init 已 load），只有断线重连才补偿刷新
+    let socketEverConnected = false;
     waiterSocket.on('connect', () => {
       SLF.log.debug('[waiter] socket connected');
       _socketConnected = true;
       updateWaiterPollingBySocket();
+      if (!socketEverConnected) {
+        socketEverConnected = true;
+        return;
+      }
       if (typeof load === 'function') load();
     });
     waiterSocket.on('disconnect', () => {

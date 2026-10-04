@@ -982,9 +982,15 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     cashierSocket.on('order:transfer', () => { loadOrders(); });
     cashierSocket.on('table:moved', () => { loadOrders(); });
     cashierSocket.on('order:urge', () => { loadOrders(); });
+    // 首次 connect 不 load（init 已 load），只有断线重连才补偿刷新
+    let socketEverConnected = false;
     cashierSocket.on('connect', () => {
       _socketConnected = true;
       if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+      if (!socketEverConnected) {
+        socketEverConnected = true;
+        return;
+      }
       loadOrders();
     });
     cashierSocket.on('disconnect', () => {
