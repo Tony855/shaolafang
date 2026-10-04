@@ -683,7 +683,7 @@
             menuGrid.innerHTML = filtered.map(item => {
                 const qty = state.cart[item.id] || 0;
                 const imgHtml = item.image
-                    ? `<img src="/uploads/${esc(item.image)}" alt="${esc(item.name)}">`
+                    ? `<img src="/uploads/${esc(item.image)}" alt="${esc(item.name)}" loading="lazy" decoding="async">`
                     : (esc(item.emoji) || '🍽️');
                 const trans = getMenuTranslation(item);
                 const name = esc(trans ? trans.name : item.name);
