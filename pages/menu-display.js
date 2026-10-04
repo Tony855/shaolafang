@@ -135,25 +135,30 @@ async function loadSettings(){
 async function loadData(){
   const params = new URLSearchParams(location.search);
   storeId = parseInt(params.get('store') || '1', 10) || 1;
-  try {
-    const cfg = await SLF.api.get('/public/config?store_id=' + storeId);
-    currencies = cfg.currencies || [];
-    defaultCurrency = cfg.defaultCurrency || defaultCurrency;
-    dualCurrency = cfg.dualCurrency || dualCurrency;
+
+  // 4 个接口并行拉取（原串行耗时 = 4 个之和，现在 = 最慢那个）
+  const [cfgRes, infoRes, settingsRes, menuRes] = await Promise.all([
+    SLF.api.get('/public/config?store_id=' + storeId).catch(e => null),
+    SLF.api.get('/public/store-info?store_id=' + storeId).catch(e => null),
+    SLF.api.get('/public/display-page-settings?store_id=' + storeId).catch(e => null),
+    SLF.api.get('/menu?store_id=' + storeId).catch(e => null),
+  ]);
+
+  // ---- 依次处理（依赖顺序，不能乱）----
+  if (cfgRes) {
+    currencies = cfgRes.currencies || [];
+    defaultCurrency = cfgRes.defaultCurrency || defaultCurrency;
+    dualCurrency = cfgRes.dualCurrency || dualCurrency;
     SLF.money.configure({ currencies, defaultCurrency, dualCurrency });
-  } catch (e) {}
-  try {
-    const info = await SLF.api.get('/public/store-info?store_id=' + storeId);
-    if (info && info.name) storeName = info.name;
-  } catch (e) {}
+  }
+  if (infoRes && infoRes.name) storeName = infoRes.name;
   if ($('#dispStoreName')) $('#dispStoreName').textContent = storeName;
-  await loadSettings();
-  try {
-    const data = await SLF.api.get('/menu?store_id=' + storeId);
-    let list = Array.isArray(data) ? data : [];
-    if (settings.only_active) list = list.filter(m => m.active !== 0);
-    allMenu = list;
-  } catch (e) { allMenu = []; }
+  if (settingsRes) settings = Object.assign(settings, settingsRes || {});
+
+  let list = Array.isArray(menuRes) ? menuRes : [];
+  if (settings.only_active) list = list.filter(m => m.active !== 0);
+  allMenu = list;
+
   renderCats();
   applyFilterAndRender();
 }
