@@ -173,13 +173,9 @@ app.use(express.urlencoded({ extended: true }));
 const staticOptions = {
   dotfiles: 'deny',
   index: false,
-  etag: false,
-  lastModified: false,
+  // 长缓存：所有引用都带 ?v=xxx（改文件需更新版本号），二次访问命中缓存不发请求
   setHeaders: (res) => {
-    // 完全禁缓存，避免移动端浏览器缓存旧代码
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   },
 };
 app.use('/assets', express.static(path.join(__dirname, 'assets'), staticOptions));
