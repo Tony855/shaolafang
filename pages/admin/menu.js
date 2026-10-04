@@ -35,7 +35,7 @@ async function loadMenus() {
         if (sec) priceDisplay += ` (${sec})`;
       }
       return `<div class="menu-item-admin ${m.active ? '' : 'inactive'}">
-        <div class="menu-thumb">${m.image ? `<img src="/uploads/${esc(m.image)}?v=${Date.now()}">` : esc(m.emoji || '🍽️')}</div>
+        <div class="menu-thumb">${m.image ? `<img src="/uploads/${esc(m.image)}">` : esc(m.emoji || '🍽️')}</div>
         <div class="menu-info">
           <div class="name-row"><span class="name">${esc(m.name)}</span><span class="price">${priceDisplay}</span></div>
           <div class="meta">${esc(categoryText(m.category))}${m.desc ? ` · ${esc(m.desc)}` : ''}</div>
