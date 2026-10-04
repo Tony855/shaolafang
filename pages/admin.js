@@ -264,7 +264,7 @@
             if (hasPermission('can_manage_admin')) await _safe('管理员', () => window.loadAdmins());
             if (hasPermission('can_view_logs'))  await _safe('审计日志', () => loadAuditLogs());
             const currentModule = window.getCurrentModule();
-            if (currentModule) switchAdminModule(currentModule);
+            if (currentModule) switchAdminModule(currentModule, { skipLoad: true }); // 数据已在上方预加载，跳过重复加载
         }
 
                 function applyDataI18n() {
@@ -1070,10 +1070,15 @@ function applyAdminLanguage() {
             adminSocket.on('order:settled', debouncedLoadOrders);
             adminSocket.on('order:transfer', debouncedLoadOrders);
             adminSocket.on('table:moved', debouncedLoadOrders);
+            // 首次 connect 不 refresh（init 里已 refresh），只有断线重连才补偿刷新
+            let socketEverConnected = false;
             adminSocket.on('connect', () => {
                 SLF.log.debug('[admin] socket 已连接');
+                if (!socketEverConnected) {
+                    socketEverConnected = true;
+                    return;
+                }
                 if (typeof window.refresh === 'function') {
-                    // 重连后补偿一次刷新（静默）
                     setTimeout(() => { try { window.refresh(); } catch(_) {} }, 100);
                 }
             });

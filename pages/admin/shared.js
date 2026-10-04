@@ -78,7 +78,8 @@ function getCurrentModule() {
   return activeNav ? activeNav.dataset.module : null;
 }
 
-function switchAdminModule(module) {
+function switchAdminModule(module, opts) {
+  opts = opts || {};
   const permMap = {
     menu: 'can_manage_menu', tables: 'can_manage_table', orders: 'can_manage_order',
     stores: 'can_manage_store', waiters: 'can_manage_waiter', currencies: 'can_manage_currency',
@@ -97,6 +98,9 @@ function switchAdminModule(module) {
   if (panel) panel.classList.add('active');
   const navItem = document.querySelector(`.nav-item[data-module="${module}"]`);
   if (navItem) navItem.classList.add('active');
+
+  // opts.skipLoad: 只切 UI，不重新加载数据（refresh() 里已预加载过所有模块）
+  if (opts.skipLoad) return;
 
   if (module === 'menu') { if (window.loadMenus) window.loadMenus(); if (window.loadMenuCategories) window.loadMenuCategories(); }
   if (module === 'tables') { if (window.loadTables) window.loadTables(); }

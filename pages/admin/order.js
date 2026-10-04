@@ -77,7 +77,6 @@ async function loadOrders() {
       </div>
     `).join('') || `<div class="empty-hint">${tAdmin('noOrders')}</div>`;
   if (typeof window.updateOrderSummary === 'function') window.updateOrderSummary();
-  if (ctx.tablesCache().length && window.loadTables) window.loadTables();
 }
 window.loadOrders = loadOrders;
 
