@@ -984,8 +984,12 @@
     $('#orderTotal').textContent = SLF.money.format(totalBase);
   }
 
+  let _submittingWaiterOrder = false;
   $('#submitBtn').onclick = async function () {
-    if (!state.currentTable) { SLF.ui.toast(t('noTables', null, '暂无桌号')); return; }
+    if (_submittingWaiterOrder) return;
+    _submittingWaiterOrder = true;
+    try {
+    if (!state.currentTable) { SLF.ui.toast(t('noTables', null, '暂无桌号')); _submittingWaiterOrder = false; return; }
     showConfirm(t('confirmSubmit', null, '确认提交此订单？'), async function () {
       const cartItems = Object.entries(state.cart).filter(([id, q]) => q > 0).map(([id, q]) => {
         const m = state.menu.find(x => x.id === +id);
@@ -1006,6 +1010,7 @@
         await load();
       } catch (e) { SLF.ui.toast('❌ ' + e.message); }
     });
+    } finally { _submittingWaiterOrder = false; }
   };
 
   async function setLanguage(lang) {

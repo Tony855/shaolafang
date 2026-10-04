@@ -955,10 +955,14 @@
         // ============================================================
         // 下单
         // ============================================================
+        let _submittingOrder = false;
         async function submitOrder() {
+            if (_submittingOrder) return;   // 防双击
+            _submittingOrder = true;
+            try {
             const items = getCartItems();
-            if (items.length === 0) return;
-            if (!state.table) { SLF.ui.toast(t('scanFirst', null, '请先扫码'), 2600); return; }
+            if (items.length === 0) { _submittingOrder = false; return; }
+            if (!state.table) { SLF.ui.toast(t('scanFirst', null, '请先扫码'), 2600); _submittingOrder = false; return; }
             if (!isScanSessionValid()) { SLF.ui.toast(t('sessionExpired', null, '会话已过期'), 2600); return; }
             if (!isBackendOnline) { SLF.ui.toast(`❌ ${t('backendOffline', null, '后端离线')}`, 3000); return; }
 
@@ -1013,6 +1017,12 @@
                     }
                 }
                 SLF.ui.toast('❌ ' + msg);
+            } finally {
+                _submittingOrder = false;
+            }
+            } catch (outerE) {
+                _submittingOrder = false;
+                throw outerE;
             }
         }
 

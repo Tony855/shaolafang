@@ -879,7 +879,8 @@ app.post('/api/orders', async (req, res) => {
       }
     }
 
-    const calculatedTotal = items.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
+    const rawTotal = items.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
+    const calculatedTotal = Math.round(rawTotal * 100) / 100;   // 强制保留 2 位小数
     const itemsJson = JSON.stringify(items);
     const createdAt = new Date().toISOString();
 
