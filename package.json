@@ -9,7 +9,8 @@
     "build:lang": "node scripts/build-languages.js",
     "check:lang": "node scripts/check-lang.js",
     "check:lang:strict": "node scripts/check-lang.js --strict",
-    "build:admin": "node scripts/build-admin-bundle.js"
+    "build:admin": "node scripts/build-admin-bundle.js",
+    "bump": "bash scripts/bump-version.sh"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",
