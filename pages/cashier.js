@@ -207,6 +207,12 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   function applyLang() {
     const langSel = document.getElementById('langSelect');
     if (langSel) langSel.value = currentLang;
+    // 页面标题跟随语言
+    const _pt = document.getElementById('pageTitle');
+    if (_pt) _pt.textContent = 'FoodFlow · ' + (t('cashierDesk') || 'Cashier');
+    // 顶部品牌标题跟随语言
+    const _bt = document.getElementById('posBrandTitle');
+    if (_bt) _bt.textContent = 'FoodFlow · ' + (t('cashierDesk') || 'Cashier');
     document.getElementById('tabPending').innerHTML = t('pendingOrders') + ' <span class="pos-tab-count" id="pendingCount">0</span>';
     document.getElementById('tabSettled').innerHTML = t('settledOrders') + ' <span class="pos-tab-count" id="settledCount">0</span>';
     document.getElementById('tabRefunded').innerHTML = (t('refundOrder') || '退款订单') + ' <span class="pos-tab-count" id="refundedCount">0</span>';

@@ -168,8 +168,16 @@ async function changeDispLang(lang){
   SLF.store.rawSet('displayLang', lang);
   SLF.store.rawSet('lang', lang);
   await SLF.i18n.init(lang);
+  updateDispTitle();
   renderCats();
   applyFilterAndRender();
+}
+
+function updateDispTitle(){
+  const el = document.getElementById('pageTitle');
+  if (!el) return;
+  const menuLabel = (SLF.i18n && SLF.i18n.t && SLF.i18n.t('menu')) || 'Menu';
+  el.textContent = menuLabel + ' · FoodFlow';
 }
 function toggleDispFullscreen(){
   if (document.fullscreenElement) document.exitFullscreen();

@@ -959,7 +959,8 @@ const LANGUAGES = {
     "onlyCurrent": "仅当前店铺",
     "yearRevenue": "年度营业额",
     "monthOrders": "本月订单",
-    "yearOrders": "年度订单"
+    "yearOrders": "年度订单",
+    "cashierDesk": "收银台"
   }
 };
 

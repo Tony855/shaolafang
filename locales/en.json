@@ -952,5 +952,6 @@
   "onlyCurrent": "Current Only",
   "yearRevenue": "Annual Revenue",
   "monthOrders": "Monthly Orders",
-  "yearOrders": "Annual Orders"
+  "yearOrders": "Annual Orders",
+  "cashierDesk": "Cashier"
 }

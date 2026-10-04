@@ -4,7 +4,7 @@
 <link rel="icon" href="data:,">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>FoodFlow · 收银台</title>
+<title id="pageTitle">FoodFlow · 收银台</title>
 <script>
   try { if (localStorage.getItem('cashierToken')) document.documentElement.setAttribute('data-cashier-session', '1'); } catch(e) {}
 </script>
@@ -31,7 +31,7 @@
     <div class="pos-brand">
       <span class="pos-brand-icon">💰</span>
       <div>
-        <div class="pos-brand-title">FoodFlow · 收银台</div>
+        <div class="pos-brand-title" id="posBrandTitle">FoodFlow · 收银台</div>
         <div class="pos-brand-store" id="storeName">加载中...</div>
       </div>
     </div>
@@ -277,8 +277,8 @@
   </div>
 </div>
 
-<script src="languages.min.js?v=1790975812"></script>
-<script src="assets/core.js?v=1791007083"></script>
+<script src="languages.min.js?v=1791134028"></script>
+<script src="assets/core.js?v=1791134028"></script>
 <script src="assets/modules/ui.js?v=1790748960"></script>
 <script src="assets/modules/money.js?v=1791007641"></script>
 <script src="assets/modules/order-status.js?v=1790748960"></script>
@@ -286,6 +286,6 @@
 <script src="assets/modules/role.js?v=1790748960"></script>
 <script src="assets/modules/idle.js?v=1790748960"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script src="pages/cashier.js?v=1791133134"></script>
+<script src="pages/cashier.js?v=1791134028"></script>
 </body>
 </html>
