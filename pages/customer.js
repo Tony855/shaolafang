@@ -143,7 +143,7 @@
         // ============================================================
         async function checkBackend() {
             try {
-                await SLF.api.get('/menu');
+                await SLF.api.get('/health');
                 isBackendOnline = true;
             } catch {
                 isBackendOnline = false;
@@ -161,9 +161,16 @@
             }
         }
 
+        let _storeInfoFetchedForStoreId = null;
         async function fetchStoreInfo() {
+            const sid = state.storeId || 1;
+            if (_storeInfoFetchedForStoreId === sid && state.currentStore) {
+                updateStoreNameDisplay();
+                return;
+            }
             try {
-                state.currentStore = await SLF.api.get(`/public/store-info?store_id=${state.storeId || 1}`);
+                state.currentStore = await SLF.api.get(`/public/store-info?store_id=${sid}`);
+                _storeInfoFetchedForStoreId = sid;
             } catch (e) {
                 console.warn('加载店铺信息失败:', e);
                 state.currentStore = null;
