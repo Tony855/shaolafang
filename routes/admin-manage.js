@@ -294,7 +294,7 @@ module.exports = function(app, deps) {
 
       const cashiers = await getCashiers(targetStoreId);
       const newCashier = {
-        id: Date.now(),
+        id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
         username: String(username).trim(),
         display_name,
         password_hash: hashPassword(password),
