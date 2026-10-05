@@ -53,16 +53,6 @@ module.exports = function(app, deps) {
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [req.params.token]);
       if (!session) return res.status(404).json({ error: '扫码会话不存在，请重新扫码' });
       if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '二维码已过期，请重新扫码' });
-      const qrTimeoutS = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
-      const qrTimeoutMins = parseInt(qrTimeoutS?.value || '45', 10);
-      if (qrTimeoutMins > 0) {
-        // 只有已经有未结算订单的session才自动续期，没下单的到时间就过期
-        const orderCount = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND status='pending'", [session.table_name]);
-        if (orderCount && orderCount.cnt > 0) {
-          const newQrExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
-          runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newQrExpires, req.params.token]).catch(()=>{});
-        }
-      }
       const customerToken = req.query.ct || '';
       let rows;
       if (customerToken) {
@@ -82,17 +72,7 @@ module.exports = function(app, deps) {
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [req.params.token]);
       if (!session) return res.status(404).json({ error: '会话不存在' });
       if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '会话已过期' });
-      const qrTimeoutS2 = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
-      const qrTimeoutMins2 = parseInt(qrTimeoutS2?.value || '45', 10);
       let expiresAt2 = session.expires_at;
-      if (qrTimeoutMins2 > 0) {
-        // 只有已经有未结算订单的session才自动续期，没下单的到时间就过期
-        const orderCount2 = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND status='pending'", [session.table_name]);
-        if (orderCount2 && orderCount2.cnt > 0) {
-          expiresAt2 = new Date(Date.now() + qrTimeoutMins2 * 60 * 1000).toISOString();
-          runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [expiresAt2, req.params.token]).catch(()=>{});
-        }
-      }
       res.json({ table: session.table_name, storeId: session.store_id || 1, sessionToken: req.params.token, expiresAt: expiresAt2 });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

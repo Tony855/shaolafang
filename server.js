@@ -193,6 +193,21 @@ app.get('/languages.min.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'languages.min.js'));
 });
 
+// PWA manifest（根目录文件，不在 /assets 里）
+app.get('/manifest.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'manifest.json'));
+});
+
+// Service Worker（必须和 HTML 同源，且不能被 CDN/代理缓存）
+app.get('/service-worker.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.sendFile(path.join(__dirname, 'service-worker.js'));
+});
+
 // i18n 按需加载
 const i18nCache = {};
 // ----- 页面路由+i18n+qr-print -----

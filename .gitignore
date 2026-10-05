@@ -76,3 +76,9 @@ uploads/*
 !uploads/.gitkeep
 backups/
 initial-credentials.txt
+
+# 临时备份
+*.bak.*
+*.dupfix.*
+*.fix*.*
+*.broken.*

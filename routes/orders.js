@@ -4,6 +4,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const { hashPassword, verifyPassword } = require('../server/middleware/password');
+const { compressImage } = require('../server/services/image-compress');
 
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
@@ -232,7 +233,16 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
     if (!name || !price) return res.status(400).json({ error: '名称和价格必填' });
     const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [currency_code, req.merchantId]);
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
-    const image = req.files && req.files.image ? req.files.image[0].filename : '';
+    let image = req.files && req.files.image ? req.files.image[0].filename : '';
+    // 后端兜底压缩（前端已压过，这里是保护）
+    if (image) {
+      try {
+        const cp = await compressImage(path.join(UPLOAD_DIR, image));
+        if (!cp.skipped && cp.outPath) {
+          image = path.basename(cp.outPath);
+        }
+      } catch (e) { console.warn('[POST /api/menu] 压缩失败:', e.message); }
+    }
     const result = await runAsync(
       'INSERT INTO menus (name, emoji, price, category, `desc`, image, video, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [name, emoji || '🍽️', parseFloat(price), category || '其他', desc || '', image, video || '', currency_code, name_en || '', desc_en || '', unit || '份', show_dual ? 1 : 0, secondary_currency_code || '', req.storeId || 1, req.merchantId]
@@ -403,6 +413,15 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
     let image = (req.files && req.files.image) ? req.files.image[0].filename : current.image;
     let video = (req.files && req.files.video) ? req.files.video[0].filename : (current.video || '');
+    // 新上传的图片兜底压缩
+    if (req.files && req.files.image) {
+      try {
+        const cp = await compressImage(path.join(UPLOAD_DIR, image));
+        if (!cp.skipped && cp.outPath) {
+          image = path.basename(cp.outPath);
+        }
+      } catch (e) { console.warn('[PUT /api/menu/:id] 压缩失败:', e.message); }
+    }
     if (req.files && req.files.image && current.image) {
       const oldPath = path.join(UPLOAD_DIR, current.image);
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
@@ -1056,6 +1075,16 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     await syncTableStatus(nextTable, orderStoreId);
     if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
+
+    // 方案3：如果本次改状态为 done，且该桌已无未结订单，作废该桌所有 session
+    if (status === 'done') {
+      const _stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [nextTable, orderStoreId]);
+      if (!_stillPending || _stillPending.cnt === 0) {
+        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [nextTable, orderStoreId]);
+        console.log('[session-cleanup] 桌 ' + nextTable + ' 通过订单编辑结算，已作废其所有 session');
+      }
+    }
+
     res.json(formatOrder(updatedRow));
   } catch (e) {
     console.error('更新订单失败:', e);

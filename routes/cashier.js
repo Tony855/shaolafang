@@ -155,6 +155,17 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
       await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=? AND store_id=?", [now, order.id, req.storeId]);
       await syncTableStatus(order.table_name, req.storeId);
     }
+
+    // 方案3：批量结算后，逐桌检查并作废已结清的 session
+    // 方案3：批量结算后，逐桌检查并作废已结清的 session
+    const _tablesToCheck = [...new Set(orders.map(o => o.table_name))];
+    for (const _tbl of _tablesToCheck) {
+      const _left = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [_tbl, req.storeId]);
+      if (!_left || _left.cnt === 0) {
+        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [_tbl, req.storeId]);
+        console.log('[session-cleanup] 桌 ' + _tbl + ' 批量结算完成，已作废其所有 session');
+      }
+    }
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       ['cashier', 0, req.cashier.username, 'batch_settle', JSON.stringify({ order_ids: orders.map(o => o.id), tables: tableNames, count: orders.length, total: totalAmount.toFixed(2) }), getClientIp(req), now]);
     let printed = false, printError = null;
@@ -216,6 +227,14 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
       [new Date().toISOString(), pay_method || '', Number(cash_received) || 0, Number(cash_change) || 0, id, req.storeId]
     );
     await syncTableStatus(order.table_name, req.storeId);
+
+    // 方案3：该桌已无未结订单时，作废该桌所有 session（顾客需重新扫码）
+    const _stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [order.table_name, req.storeId]);
+    if (!_stillPending || _stillPending.cnt === 0) {
+      await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [order.table_name, req.storeId]);
+      console.log('[session-cleanup] 桌 ' + order.table_name + ' 结算完成，已作废其所有 session');
+    }
+
     await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total }), getClientIp(req), new Date().toISOString()]);
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });

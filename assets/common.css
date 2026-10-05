@@ -425,3 +425,47 @@ textarea {
   color: #999 !important;
   font-weight: 400 !important;
 }
+
+/* ============================================================
+   iOS PWA standalone · 安全区域适配（2026-10-05）
+   只在「添加到主屏幕」后打开时生效；浏览器模式不受影响
+   ============================================================ */
+@media all and (display-mode: standalone) {
+
+  /* --- 顶部刘海避让：所有固定/粘性头部 --- */
+  body > header,
+  .header,
+  .pos-header,
+  .top-bar,
+  .top,
+  .super-top {
+    padding-top: max(env(safe-area-inset-top, 0px), 8px) !important;
+    padding-left: max(env(safe-area-inset-left, 0px), 12px) !important;
+    padding-right: max(env(safe-area-inset-right, 0px), 12px) !important;
+  }
+
+  /* --- 底部 Home 指示条避让：所有固定底部条 --- */
+  .cart-bar,
+  .pos-left-bottom,
+  .pos-detail-btns,
+  .cart-drawer .drawer-footer {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px) !important;
+  }
+
+  /* --- 弹窗左右避让 --- */
+  .modal-overlay,
+  .order-modal {
+    padding-left: max(env(safe-area-inset-left, 0px), 0) !important;
+    padding-right: max(env(safe-area-inset-right, 0px), 0) !important;
+  }
+
+  /* --- 去掉 iOS 点击灰色高亮 --- */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* --- 防止 iOS 聚焦 input 时自动放大（字号 <16px 会触发） --- */
+  input, select, textarea {
+    font-size: max(16px, 1em);
+  }
+}
