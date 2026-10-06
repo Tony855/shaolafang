@@ -133,7 +133,7 @@ const {
   assertTableExists,
   verifyLegacyAdminPassword,
 } = require('./server/services/order');
-const { getOrderCooldownMs } = require('./server/services/orderNo');
+const { allocateOrderNo, getOrderCooldownMs } = require('./server/services/orderNo');
 
 const {
   collectBackupData,
@@ -319,26 +319,9 @@ async function writeInitialCredentialsFile(credentials) {
 }
 
 // ============================================================
-//  订单号分配（并发安全，依赖调用者在事务上下文中）
+//  订单号分配 → 已统一从 server/services/orderNo.js 引入（见文件顶部）
+//  这样 allocateOrderNo 内部的 FOR UPDATE 才能使用同一个事务上下文
 // ============================================================
-async function allocateOrderNo(todayPrefix) {
-  const now = new Date().toISOString();
-  await runAsync(
-    'INSERT INTO order_sequences (prefix, current_value, updated_at) VALUES (?, 0, ?) ' +
-    'ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)',
-    [todayPrefix, now]
-  );
-  const row = await getAsync(
-    'SELECT current_value FROM order_sequences WHERE prefix = ? FOR UPDATE',
-    [todayPrefix]
-  );
-  const next = (row?.current_value || 0) + 1;
-  await runAsync(
-    'UPDATE order_sequences SET current_value = ?, updated_at = ? WHERE prefix = ?',
-    [next, now, todayPrefix]
-  );
-  return todayPrefix + String(next).padStart(5, '0');
-}
 
 // ---------- 数据库初始化 ----------
 async function ensureOrderTables() {

@@ -93,11 +93,12 @@ fi
 S=$(sql "SELECT status FROM orders WHERE id=$ORDER_ID;")
 [ "$S" = "refunded" ] && ok "status=refunded" || bad "status=$S"
 
-step "9. 顾客查订单"
+step "9. 顾客查订单（结算后 session 应失效）"
+# 本次会话加的"结算后清 session"逻辑 → 查不到是**预期行为**
 if curl -sS "$BASE/api/public/table-session/$SESSION_TOKEN/orders?ct=$CUSTOMER_TOKEN" | grep -q "\"id\":$ORDER_ID"; then
-  ok "能查到"
+  bad "结算后 session 仍能查到订单（应失效）"
 else
-  bad "查不到"
+  ok "结算后 session 已失效（预期）"
 fi
 
 step "10. 数据隔离"
