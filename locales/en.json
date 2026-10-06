@@ -953,5 +953,6 @@
   "yearRevenue": "Annual Revenue",
   "monthOrders": "Monthly Orders",
   "yearOrders": "Annual Orders",
-  "cashierDesk": "Cashier"
+  "cashierDesk": "Cashier",
+  "backToSettings": "Back to Settings"
 }

@@ -5,8 +5,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
-<link rel="stylesheet" href="assets/common.css?v=1791224365">
-<link rel="stylesheet" href="assets/admin.css?v=1791224365">
+<link rel="stylesheet" href="assets/common.css?v=1791286805">
+<link rel="stylesheet" href="assets/admin.css?v=1791289376">
 </head>
 <body>
 
@@ -155,6 +155,7 @@
 
             <!-- 打印机管理 -->
             <section class="panel module-panel" id="module-printers">
+                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"><span class="admin-back-text" data-i18n="backToSettings">返回系统设置</span></button>
                 <h2 id="printersPanelTitle">🖨️ 小票打印机管理</h2>
                 <div class="auto-print-toggle-card" style="background:linear-gradient(135deg,#fef3e2,#fde8d0);border:1px solid #f5c89a;border-radius:14px;padding:16px 20px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
                     <div style="display:flex;align-items:center;gap:12px;">
@@ -277,6 +278,7 @@
 
             <!-- 管理员管理 -->
             <section class="panel module-panel" id="module-admins">
+                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"><span class="admin-back-text" data-i18n="backToSettings">返回系统设置</span></button>
                 <h2 id="adminsPanelTitle">👤 管理员管理</h2>
                 <div style="margin-bottom:16px;"><button onclick="openAddAdminModal()" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addAdminBtnText">添加管理员</span></button></div>
                 <div id="adminList"></div>
@@ -284,6 +286,7 @@
 
             <!-- 收银员管理 -->
             <section class="panel module-panel" id="module-cashiers">
+                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"><span class="admin-back-text" data-i18n="backToSettings">返回系统设置</span></button>
                 <h2 id="cashiersPanelTitle">💰 收银员管理</h2>
                 <div style="margin-bottom:16px;"><button onclick="openAddCashierModal()" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addCashierBtnText">添加收银员</span></button></div>
                 <div id="cashierList"></div>
@@ -291,6 +294,7 @@
 
             <!-- 服务员管理 -->
             <section class="panel module-panel" id="module-waiters">
+                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"><span class="admin-back-text" data-i18n="backToSettings">返回系统设置</span></button>
                 <h2 id="waitersPanelTitle">服务员管理</h2>
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
@@ -817,15 +821,15 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=1791224365"></script>
-    <script src="assets/core.js?v=1791224365"></script>
-  <script src="assets/modules/ui.js?v=1791224365"></script>
-  <script src="assets/modules/money.js?v=1791224365"></script>
-  <script src="assets/modules/order-status.js?v=1791224365"></script>
-  <script src="assets/modules/customer-group.js?v=1791224365"></script>
-  <script src="assets/modules/role.js?v=1791224365"></script>
-  <script src="assets/modules/idle.js?v=1791224365"></script>
-<script src="assets/modules/pwa.js?v=1791224365"></script>
+    <script src="languages.min.js?v=1791286805"></script>
+    <script src="assets/core.js?v=1791286805"></script>
+  <script src="assets/modules/ui.js?v=1791286805"></script>
+  <script src="assets/modules/money.js?v=1791286805"></script>
+  <script src="assets/modules/order-status.js?v=1791286805"></script>
+  <script src="assets/modules/customer-group.js?v=1791286805"></script>
+  <script src="assets/modules/role.js?v=1791286805"></script>
+  <script src="assets/modules/idle.js?v=1791286805"></script>
+<script src="assets/modules/pwa.js?v=1791286805"></script>
     <script src="/socket.io/socket.io.js?v=1791161860"></script>
 <!-- 批量导入弹窗 -->
 <div class="order-modal" id="importModal">
@@ -858,8 +862,8 @@
     </div>
 </div>
 
-<script src="assets/admin-bundle.js?v=1791270993"></script>
-<script src="pages/admin.js?v=1791270993"></script>
+<script src="assets/admin-bundle.js?v=1791286805"></script>
+<script src="pages/admin.js?v=1791286805"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {

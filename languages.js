@@ -960,7 +960,8 @@ const LANGUAGES = {
     "yearRevenue": "年度营业额",
     "monthOrders": "本月订单",
     "yearOrders": "年度订单",
-    "cashierDesk": "收银台"
+    "cashierDesk": "收银台",
+    "backToSettings": "返回系统设置"
   }
 };
 

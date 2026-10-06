@@ -1137,7 +1137,7 @@
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 300;
+            z-index: 1100;
             padding: 16px;
         }
         .order-modal.open {
@@ -2246,12 +2246,60 @@ button.edit-btn:disabled {
                 justify-content: flex-end;
             }
 
+            .order-modal {
+                padding: 12px;
+                padding-top: max(16px, env(safe-area-inset-top));
+                padding-bottom: max(16px, env(safe-area-inset-bottom));
+                align-items: flex-start;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
             .order-modal-card {
-                padding: 14px;
-                max-height: 90vh;
+                width: 100%;
+                max-width: calc(100vw - 24px);
+                margin: 0 auto;
+                max-height: calc(100dvh - 40px);
+                padding: 18px 16px;
+                border-radius: 16px;
+                box-sizing: border-box;
+                overflow-y: auto;
             }
             .dish-modal-card {
                 max-width: 100%;
+            }
+            .order-modal-card h2 {
+                font-size: 17px;
+                padding-right: 44px;
+                margin-bottom: 16px;
+                line-height: 1.3;
+            }
+            .order-modal-card .modal-close {
+                top: 10px;
+                right: 10px;
+                width: 32px;
+                height: 32px;
+                font-size: 15px;
+            }
+            .admin-perm-item {
+                padding: 8px 10px;
+            }
+            .admin-perm-label {
+                font-size: 13px;
+            }
+            .admin-perm-items {
+                grid-template-columns: 1fr;
+            }
+            .order-modal-card .store-edit-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .order-modal-actions {
+                flex-direction: column-reverse;
+                gap: 8px;
+                margin-top: 16px;
+            }
+            .order-modal-actions button {
+                width: 100%;
             }
             .modal-form {
                 grid-template-columns: 1fr !important;
@@ -2928,4 +2976,55 @@ button.edit-btn:disabled {
     align-items: center !important;
     gap: 8px !important;
     cursor: pointer !important;
+}
+
+
+/* ============================================================
+   二级面板返回按钮（2026-10-06）
+   用于从"管理员管理 / 收银员管理 / 打印机设置 / 服务员管理"等
+   二级面板一键返回"系统设置"
+   ============================================================ */
+.admin-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #ddd;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.admin-back-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateX(-2px);
+}
+.admin-back-btn::before {
+    content: '←';
+    font-size: 14px;
+    line-height: 1;
+}
+.admin-back-btn:active {
+    transform: translateX(0) scale(0.97);
+}
+
+/* 移动端：右上角 ✕ 圆按钮 */
+@media (max-width: 760px) {
+    .panel.module-panel { position: relative; }
+    .panel.module-panel > h2 { padding-right: 44px; }
+    .admin-back-btn {
+        position: absolute; top: 8px; right: 8px;
+        margin: 0; width: 34px; height: 34px; min-width: 34px;
+        padding: 0; justify-content: center; border-radius: 50%;
+        gap: 0; font-size: 14px; z-index: 5;
+    }
+    .admin-back-btn::before { content: '✕'; font-size: 14px; }
+    .admin-back-btn .admin-back-text { display: none; }
+    .admin-back-btn:hover, .admin-back-btn:active { transform: none; }
 }
