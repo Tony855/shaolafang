@@ -130,12 +130,41 @@
     applyI18n(bannerEl);
     requestAnimationFrame(function () { bannerEl.classList.add('show'); });
 
-    bannerEl.querySelector('.pwa-install-btn').addEventListener('click', function () {
-      markShown(); onInstall();
-    });
-    bannerEl.querySelector('.pwa-install-close').addEventListener('click', function () {
-      markShown(); hideBanner();
-    });
+    // iOS 使用 touchstart + click 双保险（iOS 有时 click 事件不触发）
+    var _btn = bannerEl.querySelector('.pwa-install-btn');
+    var _closeBtn = bannerEl.querySelector('.pwa-install-close');
+
+    function _onInstallTap(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[pwa] 安装按钮被点击');
+      try {
+        markShown();
+        if (typeof onInstall === 'function') {
+          console.log('[pwa] 调用 onInstall');
+          onInstall();
+        } else {
+          console.error('[pwa] onInstall 不是函数:', typeof onInstall);
+          alert('请使用 Safari 底部「分享」→「添加到主屏幕」');
+        }
+      } catch (err) {
+        console.error('[pwa] onInstall 异常:', err);
+        alert('安装引导异常: ' + err.message);
+      }
+    }
+
+    function _onCloseTap(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      markShown();
+      hideBanner();
+    }
+
+    // 同时绑 click 和 touchstart（iOS 有时 touchstart 更快触发）
+    _btn.addEventListener('click', _onInstallTap);
+    _btn.addEventListener('touchend', _onInstallTap);
+    _closeBtn.addEventListener('click', _onCloseTap);
+    _closeBtn.addEventListener('touchend', _onCloseTap);
   }
   function hideBanner() {
     if (!bannerEl) return;
