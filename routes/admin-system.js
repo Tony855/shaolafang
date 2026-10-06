@@ -4,15 +4,6 @@
 module.exports = function(app, deps) {
   const { getAsync, allAsync, runAsync, requireAdminKey, requirePermission, verifyPassword, hashPassword, logAudit, getClientIp } = deps;
 
-  app.post('/api/admin/logout', requireAdminKey, async (req, res) => {
-    try {
-      if (req.adminSessionToken) {
-        await runAsync('DELETE FROM admin_sessions WHERE token=?', [req.adminSessionToken]).catch(() => {});
-      }
-      res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
-
   app.get('/api/admin/login-logs', requireAdminKey, async (req, res) => {
     try {
       const merchantId = req.merchantId || 1;
