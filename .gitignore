@@ -82,3 +82,14 @@ initial-credentials.txt
 *.dupfix.*
 *.fix*.*
 *.broken.*
+# 部署包 / 临时文件
+foodflow.zip
+*.zip
+
+# i18n 审计报告（一次性产物）
+i18n-audit-*/
+i18n-refined-*/
+
+# 备份文件
+*.bak-*
+*.bak

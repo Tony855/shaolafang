@@ -26,7 +26,7 @@ function updateSidebarStore() {
       codeEl.textContent = '';
     }
   } else {
-    nameEl.textContent = '未选择店铺';
+    nameEl.textContent = tAdmin('noStoreSelected');
     codeEl.textContent = '';
   }
 }

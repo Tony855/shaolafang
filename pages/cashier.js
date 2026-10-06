@@ -120,7 +120,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       btn.dataset.method = 'provider';
       btn.dataset.providerId = p.id;
 
-      const label = bankName || '扫码';
+      const label = bankName || t('scanPayFallback');
       const labelHtml = '<span class="pm-label" style="font-size:12px;font-weight:700;">' + esc(label) + '</span>';
       btn.innerHTML = '<span class="pm-icon" style="font-size:22px;">📱</span>' + labelHtml;
 
@@ -288,7 +288,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     if (refundedCountEl) refundedCountEl.textContent = orders.filter(o => o.status === 'refunded').length;
 
     if (!filtered.length) {
-      container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#9ca3af;font-size:14px;">' + (searchKeyword ? '🔍 无匹配结果' : t('noOrders')) + '</div>';
+      container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#9ca3af;font-size:14px;">' + (searchKeyword ? t('noSearchResult') : t('noOrders')) + '</div>';
       return;
     }
 
@@ -326,7 +326,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       const _statusBadge = (_st && !_hidePendingBadge) ? `<span class="pos-card-status ${_st.cls}">${_st.icon} ${esc(_st.text)}</span>` : '';
       const _cardCls = (_st ? ' status-' + _st.cls : '') + _readyCls;
       const _awaitingTag = order.awaiting_confirm
-        ? '<span class="pos-card-wait-tip" style="background:#fff3cd;color:#856404;">🔔 客户说已付款，待核实</span>'
+        ? '<span class="pos-card-wait-tip" style="background:#fff3cd;color:#856404;"' + t('khqrAwaitConfirm') + '</span>'
         : '';
       const _hasLabel = customerLabel && customerLabel.trim();
       const _tagsHtml = (_hasLabel || _statusBadge || _readyTip || _awaitingTag)
@@ -526,11 +526,11 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     document.getElementById('khqrImage').src = '';
     document.getElementById('khqrMerchant').textContent = '...';
     document.getElementById('khqrOrderNo').textContent = order.order_no || ('#' + order.id);
-    document.getElementById('khqrStatusBar').innerHTML = '<span>⏳ 正在生成二维码...</span>';
+    document.getElementById('khqrStatusBar').innerHTML = '<span>' + t('khqrGenerating') + '</span>';
 
     const btn = document.getElementById('khqrConfirmBtn');
     btn.disabled = true;
-    btn.textContent = '⏳ 生成中...';
+    btn.textContent = t('khqrGeneratingBtn');
 
     document.getElementById('khqrModal').classList.add('show');
 
@@ -579,14 +579,14 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
         startKhqrCountdown();
         startKhqrPolling();
         btn.disabled = false;
-        btn.textContent = '✅ 已收到款';
+        btn.textContent = t('khqrReceived');
         document.getElementById('khqrStatusBar').innerHTML =
-          '<span>⏳ 等待客户扫码付款...</span>';
+          '<span>' + t('khqrWaitingScan') + '</span>';
       })
       .catch(e => {
         document.getElementById('khqrStatusBar').innerHTML =
-          '<span style="color:#e74c3c;">❌ ' + esc(e.message || '生成失败') + '</span>';
-        btn.textContent = '❌ 生成失败';
+          '<span style="color:#e74c3c;">❌ ' + esc(e.message || t('khqrGenerateFailed')) + '</span>';
+        btn.textContent = '❌ ' + t('khqrGenerateFailed');
       });
   }
 
@@ -618,9 +618,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       if (left <= 0) {
         stopKhqrTimers();
         const bar = document.getElementById('khqrStatusBar');
-        if (bar) bar.innerHTML = '<span style="color:#e74c3c;">⏰ 二维码已过期，请重新生成</span>';
+        if (bar) bar.innerHTML = '<span style="color:#e74c3c;">' + t('khqrExpired') + '</span>';
         const btn = document.getElementById('khqrConfirmBtn');
-        if (btn) { btn.disabled = true; btn.textContent = '已过期'; }
+        if (btn) { btn.disabled = true; btn.textContent = t('khqrExpiredShort'); }
       }
     };
     update();
@@ -643,7 +643,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
           await loadOrders();
         } else if (fresh && fresh.awaiting_confirm) {
           document.getElementById('khqrStatusBar').innerHTML =
-            '<span style="color:#ffb020;">🔔 服务员已标记客户付款，请核实到账</span>';
+            '<span style="color:#ffb020;">' + t('khqrServicePaid') + '</span>';
         }
       } catch (e) { /* 静默 */ }
     }, 3000);
@@ -664,7 +664,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     if (!khqrState.orderId) return;
     const btn = document.getElementById('khqrConfirmBtn');
     btn.disabled = true;
-    btn.textContent = '⏳ 确认中...';
+    btn.textContent = t('khqrConfirming');
     try {
       const res = await api('/cashier/khqr/confirm', {
         method: 'POST',
@@ -678,7 +678,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     } catch (e) {
       SLF.ui.toast('❌ ' + e.message);
       btn.disabled = false;
-      btn.textContent = '✅ 已收到款';
+      btn.textContent = t('khqrReceived');
     }
   }
 
@@ -881,7 +881,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       const storeId = SLF.store.rawGet('cashierStoreId') || '1';
       SLF.store.rawSet('storeId', storeId);
       document.getElementById('storeName').textContent = cashierInfo.storeName || (t('store') + ' #' + storeId);
-      document.getElementById('cashierName').textContent = cashierInfo.display_name || cashierInfo.username || '收银员';
+      document.getElementById('cashierName').textContent = cashierInfo.display_name || cashierInfo.username || t('cashier');
       try {
         const cfg = await SLF.api.get('/public/config?store_id=' + (SLF.store.rawGet('storeId') || 1));
         currencies = cfg.currencies || [];
@@ -967,7 +967,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       // 提示收银员核实
       const table = payload.table || '-';
       const orderNo = payload.orderNo || ('#' + payload.orderId);
-      SLF.ui.toast('🔔 ' + table + ' 客户说已付款（' + orderNo + '），请核实到账', 'warning', 6000);
+      SLF.ui.toast('🔔 ' + table + ' ' + t('khqrCustomerPaid', { orderNo }), 'warning', 6000);
       // 刷新订单列表
       loadOrders();
       // 如果当前正打开这个订单详情，自动刷新

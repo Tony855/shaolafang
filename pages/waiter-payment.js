@@ -81,7 +81,7 @@ function renderProviderButtons() {
     btn.className = 'payment-method';
     btn.dataset.method = 'provider';
     btn.dataset.providerId = p.id;
-    const label = bankName || '扫码';
+    const label = bankName || t('scanPayFallback');
     const labelHtml = '<span class="pm-label" style="font-size:12px;font-weight:700;">' + label + '</span>';
     btn.innerHTML = '<span class="pm-icon" style="font-size:22px;">📱</span>' + labelHtml;
 
@@ -240,10 +240,10 @@ function openKhqrModal(orderId, providerId) {
   $('#khqrImage').src = '';
   $('#khqrMerchant').textContent = '...';
   $('#khqrOrderNo').textContent = '';
-  $('#khqrStatusBar').innerHTML = '<span>⏳ 正在生成二维码...</span>';
+  $('#khqrStatusBar').innerHTML = '<span>' + t('khqrGenerating') + '</span>';
   const btn = $('#khqrConfirmBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ 生成中...';
+  btn.textContent = t('khqrGeneratingBtn');
   $('#khqrModal').classList.add('show');
 
   apiCall('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId, provider_id: providerId || undefined } })
@@ -281,12 +281,12 @@ function openKhqrModal(orderId, providerId) {
       startKhqrCountdown();
       startKhqrPolling();
       btn.disabled = false;
-      btn.textContent = '✅ 已收到款';
-      $('#khqrStatusBar').innerHTML = '<span>⏳ 等待客户扫码付款...</span>';
+      btn.textContent = t('khqrReceived');
+      $('#khqrStatusBar').innerHTML = '<span>' + t('khqrWaitingScan') + '</span>';
     })
     .catch(e => {
-      $('#khqrStatusBar').innerHTML = '<span style="color:#e74c3c;">❌ ' + (e.message || '生成失败') + '</span>';
-      btn.textContent = '❌ 生成失败';
+      $('#khqrStatusBar').innerHTML = '<span style="color:#e74c3c;">❌ ' + (e.message || t('khqrGenerateFailed')) + '</span>';
+      btn.textContent = '❌ ' + t('khqrGenerateFailed');
     });
 }
 
@@ -322,9 +322,9 @@ function startKhqrCountdown() {
     if (left <= 0) {
       stopKhqrTimers();
       const bar = $('#khqrStatusBar');
-      if (bar) bar.innerHTML = '<span style="color:#e74c3c;">⏰ 二维码已过期，请重新生成</span>';
+      if (bar) bar.innerHTML = '<span style="color:#e74c3c;">' + t('khqrExpired') + '</span>';
       const btn = $('#khqrConfirmBtn');
-      if (btn) { btn.disabled = true; btn.textContent = '已过期'; }
+      if (btn) { btn.disabled = true; btn.textContent = t('khqrExpiredShort'); }
     }
   };
   update();
@@ -357,7 +357,7 @@ window.confirmKhqrReceived = async function() {
   const id = khqrState.orderId;
   const btn = $('#khqrConfirmBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ 确认中...';
+  btn.textContent = t('khqrConfirming');
   try {
     await apiCall('/orders/' + id, { method: 'PUT', body: { status: 'done', pay_method: 'aba' } });
     SLF.ui.toast('✅ ' + (t('settleOrder') || '已收款'));
@@ -368,7 +368,7 @@ window.confirmKhqrReceived = async function() {
   } catch (e) {
     SLF.ui.toast('❌ ' + e.message);
     btn.disabled = false;
-    btn.textContent = '✅ 已收到款';
+    btn.textContent = t('khqrReceived');
   }
 };
 

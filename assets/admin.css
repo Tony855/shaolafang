@@ -2987,14 +2987,18 @@ button.edit-btn:disabled {
 .admin-back-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
+    justify-content: center;
+    gap: 0;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0;
     margin-bottom: 16px;
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
+    border-radius: 50%;
     background: rgba(255, 255, 255, 0.06);
     color: #ddd;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -3006,7 +3010,7 @@ button.edit-btn:disabled {
     transform: translateX(-2px);
 }
 .admin-back-btn::before {
-    content: '←';
+    content: '✕';
     font-size: 14px;
     line-height: 1;
 }
@@ -3025,6 +3029,5 @@ button.edit-btn:disabled {
         gap: 0; font-size: 14px; z-index: 5;
     }
     .admin-back-btn::before { content: '✕'; font-size: 14px; }
-    .admin-back-btn .admin-back-text { display: none; }
     .admin-back-btn:hover, .admin-back-btn:active { transform: none; }
 }

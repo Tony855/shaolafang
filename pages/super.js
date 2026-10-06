@@ -41,11 +41,11 @@ function applyI18n() {
   });
 
   const navTexts = {
-    dashboard: t('dashboard', null, '仪表盘'),
-    merchants: t('merchantManage', null, '商户管理'),
-    stores: t('storeOverview', null, '门店总览'),
+    dashboard: t('dashboard', null, t('dashboard')),
+    merchants: t('merchantManage', null, t('merchantManage')),
+    stores: t('storeOverview', null, t('storeOverview')),
     logs: t('logs', null, '日志'),
-    settings: t('systemSettings', null, '系统设置'),
+    settings: t('systemSettings', null, t('systemSettings')),
   };
   document.querySelectorAll('.nav-item').forEach(item => {
     const module = item.getAttribute('data-module');
@@ -58,37 +58,37 @@ function applyI18n() {
   if (navLogsText) navLogsText.textContent = t('logs', null, '日志');
 
   const loginTitle = document.querySelector('.login-card h1');
-  if (loginTitle) loginTitle.textContent = '🔐 ' + t('superAdmin', null, '超级管理员');
+  if (loginTitle) loginTitle.textContent = '🔐 ' + t('superAdmin', null, t('superAdmin'));
   const loginLabels = document.querySelectorAll('.login-card .form-group label');
-  if (loginLabels && loginLabels[0]) loginLabels[0].textContent = t('username', null, '用户名');
+  if (loginLabels && loginLabels[0]) loginLabels[0].textContent = t('username', null, t('username'));
   if (loginLabels && loginLabels[1]) loginLabels[1].textContent = t('password', null, '密码');
   const loginUsername = document.getElementById('loginUsername');
   if (loginUsername) loginUsername.placeholder = t('username', null, '请输入用户名');
   const loginPassword = document.getElementById('loginPassword');
-  if (loginPassword) loginPassword.placeholder = t('password', null, '请输入密码');
+  if (loginPassword) loginPassword.placeholder = t('password', null, t('enterPassword'));
   const loginBtn = document.querySelector('.login-btn');
   if (loginBtn) loginBtn.textContent = t('login', null, '登录');
 
   const adminName = document.getElementById('adminName');
-  if (adminName) adminName.textContent = t('superAdmin', null, '超级管理员');
-  document.querySelectorAll('.logout-btn').forEach(btn => btn.textContent = t('logout', null, '退出登录'));
+  if (adminName) adminName.textContent = t('superAdmin', null, t('superAdmin'));
+  document.querySelectorAll('.logout-btn').forEach(btn => btn.textContent = t('logout', null, t('logout')));
 
   const titleEl = document.getElementById('pageTitle');
   if (titleEl && currentModule) {
     const titles = {
-      dashboard: t('dashboard', null, '仪表盘'),
-      merchants: t('merchantManage', null, '商户管理'),
-      stores: t('storeOverview', null, '门店总览'),
+      dashboard: t('dashboard', null, t('dashboard')),
+      merchants: t('merchantManage', null, t('merchantManage')),
+      stores: t('storeOverview', null, t('storeOverview')),
       logs: t('logs', null, '日志'),
-      settings: t('systemSettings', null, '系统设置')
+      settings: t('systemSettings', null, t('systemSettings'))
     };
     if (titles[currentModule]) titleEl.textContent = titles[currentModule];
   }
 
   const errorModalTitle = document.getElementById('errorModalTitle');
-  if (errorModalTitle) errorModalTitle.textContent = t('loginFailed', null, '登录失败');
+  if (errorModalTitle) errorModalTitle.textContent = t('loginFailed', null, t('loginFailed'));
   const errorModalMessage = document.getElementById('errorModalMessage');
-  if (errorModalMessage) errorModalMessage.textContent = t('loginError', null, '登录失败，请重试');
+  if (errorModalMessage) errorModalMessage.textContent = t('loginError', null, t('loginError'));
   const errorModalBtn = document.querySelector('.error-modal-btn');
   if (errorModalBtn) errorModalBtn.textContent = t('confirm', null, '确定');
 }
@@ -134,26 +134,26 @@ async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
   if (!username || !password) {
-    showError(t('pleaseEnterCredentials', null, '请输入用户名和密码'));
+    showError(t('pleaseEnterCredentials', null, t('pleaseEnterCredentials')));
     return;
   }
   try {
     const data = await SLF.api.post('/super/login', { username, password });
     if (!data || !data.token) {
-      throw new Error((data && data.error) || t('loginFailed', null, '登录失败'));
+      throw new Error((data && data.error) || t('loginFailed', null, t('loginFailed')));
     }
     token = data.token;
     SLF.store.rawSet('superToken', token);
     SLF.store.rawSet('superAdmin', JSON.stringify(data.admin || {}));
     showApp();
   } catch (e) {
-    showError(e.message || t('loginError', null, '登录失败，请重试'));
+    showError(e.message || t('loginError', null, t('loginError')));
   }
 }
 
 function showError(msg, title) {
-  document.getElementById('errorModalTitle').textContent = title || t('loginFailed', null, '登录失败');
-  document.getElementById('errorModalMessage').textContent = msg || t('loginError', null, '登录失败，请重试');
+  document.getElementById('errorModalTitle').textContent = title || t('loginFailed', null, t('loginFailed'));
+  document.getElementById('errorModalMessage').textContent = msg || t('loginError', null, t('loginError'));
   document.getElementById('errorModal').classList.add('open');
 }
 function hideErrorModal() {
@@ -169,7 +169,7 @@ function showApp() {
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   const admin = JSON.parse(SLF.store.rawGet('superAdmin') || '{}');
-  document.getElementById('adminName').textContent = admin.display_name || t('superAdmin', null, '超级管理员');
+  document.getElementById('adminName').textContent = admin.display_name || t('superAdmin', null, t('superAdmin'));
   lastActivity = Date.now();
   startIdleCheck();
   ['click', 'keydown', 'mousemove', 'scroll'].forEach(evt => {
@@ -192,11 +192,11 @@ function switchModule(mod) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === mod));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + mod));
   const titles = {
-    dashboard: t('dashboard', null, '仪表盘'),
-    merchants: t('merchantManage', null, '商户管理'),
-    stores: t('storeOverview', null, '门店总览'),
+    dashboard: t('dashboard', null, t('dashboard')),
+    merchants: t('merchantManage', null, t('merchantManage')),
+    stores: t('storeOverview', null, t('storeOverview')),
     logs: t('logs', null, '日志'),
-    settings: t('systemSettings', null, '系统设置')
+    settings: t('systemSettings', null, t('systemSettings'))
   };
   document.getElementById('pageTitle').textContent = titles[mod] || '';
   if (mod === 'dashboard') loadDashboard();
@@ -255,7 +255,7 @@ async function loadStoreCompare() {
     const tbody = document.getElementById('storeCompareBody');
     if (!tbody) return;
     if (!stores.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;padding:20px;">暂无门店</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;padding:20px;">' + t('noStores') + '</td></tr>';
       return;
     }
     tbody.innerHTML = stores.map(s => `
@@ -263,10 +263,10 @@ async function loadStoreCompare() {
         <td data-label="门店" style="font-weight:600;color:#fff;">${esc(s.store_name)}</td>
         <td data-label="商户" style="color:#888;font-size:13px;">${esc(s.merchant_name)}</td>
         <td data-label="总订单" style="text-align:right;color:#fff;">${s.total_orders || 0}</td>
-        <td data-label="今日订单" style="text-align:right;color:#ffd93d;">${s.today_orders || 0}</td>
-        <td data-label="今日营收" style="text-align:right;color:#2ecc71;font-weight:700;">$${Number(s.today_revenue || 0).toFixed(2)}</td>
-        <td data-label="累计扫码" style="text-align:right;color:#888;">${s.total_sessions || 0}</td>
-        <td data-label="当前在线" style="text-align:right;color:#27ae60;font-weight:600;">${s.online_count || 0}</td>
+        <td data-label=t('todayOrders') style="text-align:right;color:#ffd93d;">${s.today_orders || 0}</td>
+        <td data-label=t('todayRevenueCol') style="text-align:right;color:#2ecc71;font-weight:700;">$${Number(s.today_revenue || 0).toFixed(2)}</td>
+        <td data-label=t('totalScan') style="text-align:right;color:#888;">${s.total_sessions || 0}</td>
+        <td data-label=t('currentOnline') style="text-align:right;color:#27ae60;font-weight:600;">${s.online_count || 0}</td>
       </tr>
     `).join('');
   } catch (e) {
@@ -305,7 +305,7 @@ async function loadServerStats() {
     const data = await api('/super/server-stats');
     document.getElementById('cpuValue').textContent = data.cpu.usage + '%';
     document.getElementById('cpuGauge').style.setProperty('--pct', data.cpu.usage);
-    document.getElementById('cpuCores').textContent = data.cpu.cores + ' 核心';
+    document.getElementById('cpuCores').textContent = data.cpu.cores + ' ' + t('coresLabel');
     document.getElementById('memValue').textContent = data.memory.usage + '%';
     document.getElementById('memGauge').style.setProperty('--pct', data.memory.usage);
     document.getElementById('memDetail').textContent = formatBytes(data.memory.used) + ' / ' + formatBytes(data.memory.total);
@@ -325,12 +325,12 @@ async function loadMerchants() {
     const list = await api('/super/merchants');
     document.getElementById('merchantList').innerHTML = list.map(m => `
       <tr>
-        <td data-label="商户名称" style="font-weight:700;color:#fff;font-size:15px;">${esc(m.name)}</td>
-        <td data-label="商户编码"><span style="display:inline-block;background:rgba(255,217,61,.12);color:#ffd93d;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;">${esc(m.code)}</span></td>
-        <td data-label="商户账号"><span style="display:inline-block;background:rgba(102,204,255,.1);color:#66ccff;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;">${esc(m.admin_username) || '-'}</span></td>
-        <td data-label="联系人" style="color:#ccc;">${esc(m.contact_name) || '-'}</td>
-        <td data-label="联系电话" style="color:#999;font-family:monospace;font-size:13px;">${esc(m.contact_phone) || '-'}</td>
-        <td data-label="门店数"><span style="color:#aaa;">${m.store_count}</span><span style="color:#666;"> / </span><span style="color:#ffd93d;font-weight:600;">${m.max_stores}</span></td>
+        <td data-label=t('merchantName') style="font-weight:700;color:#fff;font-size:15px;">${esc(m.name)}</td>
+        <td data-label=t('merchantCode')><span style="display:inline-block;background:rgba(255,217,61,.12);color:#ffd93d;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;">${esc(m.code)}</span></td>
+        <td data-label=t('merchantAccount')><span style="display:inline-block;background:rgba(102,204,255,.1);color:#66ccff;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;">${esc(m.admin_username) || '-'}</span></td>
+        <td data-label=t('contactPerson') style="color:#ccc;">${esc(m.contact_name) || '-'}</td>
+        <td data-label=t('contactPhone') style="color:#999;font-family:monospace;font-size:13px;">${esc(m.contact_phone) || '-'}</td>
+        <td data-label=t('storeCountCol')><span style="color:#aaa;">${m.store_count}</span><span style="color:#666;"> / </span><span style="color:#ffd93d;font-weight:600;">${m.max_stores}</span></td>
         <td data-label="状态"><span class="status-badge ${m.status === 1 ? 'status-active' : 'status-disabled'}">${m.status === 1 ? t('enabled', null, '启用') : t('disabled', null, '禁用')}</span></td>
         <td>
           <div class="merchant-actions">
@@ -347,14 +347,14 @@ async function loadMerchants() {
 
 function translateLoginMessage(msg) {
   if (!msg) return '';
-  if (msg.includes('商户管理员登录成功')) { const username = msg.split(':')[1] || ''; return t('merchantAdminLogin', null, '商户管理员登录') + ': ' + username.trim(); }
-  if (msg.includes('超级管理员登录成功')) { const username = msg.split(':')[1] || ''; return t('superAdminLogin', null, '超级管理员登录') + ': ' + username.trim(); }
-  if (msg.includes('服务员登录成功')) return t('loginSuccess', null, '登录成功');
-  if (msg.includes('收银员登录成功')) return t('loginSuccess', null, '登录成功');
-  if (msg.includes('用户名不存在') || msg.includes('账号不存在')) return t('usernameNotExist', null, '用户名不存在');
-  if (msg.includes('密码错误')) return t('passwordError', null, '密码错误');
-  if (msg.includes('请输入用户名和密码')) return t('pleaseEnterCredentials', null, '请输入用户名和密码');
-  if (msg.includes('IP不在白名单内')) return t('noPermission', null, '无权限');
+  if (msg.includes('商户管理员登录成功')) { const username = msg.split(':')[1] || ''; return t('merchantAdminLogin', null, t('merchantAdminLogin')) + ': ' + username.trim(); }
+  if (msg.includes('超级管理员登录成功')) { const username = msg.split(':')[1] || ''; return t('superAdminLogin', null, t('superAdminLogin')) + ': ' + username.trim(); }
+  if (msg.includes('服务员登录成功')) return t('loginSuccess', null, t('loginSuccess'));
+  if (msg.includes('收银员登录成功')) return t('loginSuccess', null, t('loginSuccess'));
+  if (msg.includes('用户名不存在') || msg.includes('账号不存在')) return t('usernameNotExist', null, t('usernameNotExist'));
+  if (msg.includes('密码错误')) return t('passwordError', null, t('passwordError'));
+  if (msg.includes('请输入用户名和密码')) return t('pleaseEnterCredentials', null, t('pleaseEnterCredentials'));
+  if (msg.includes('IP不在白名单内')) return t('noPermission', null, t('noPermission'));
   return msg;
 }
 
@@ -371,29 +371,29 @@ async function loadLoginLogs() {
     if (filterStatus === 'fail') filtered = filtered.filter(l => l.success === 0);
     const tbody = document.getElementById('loginLogList');
     if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:40px;">暂无登录日志</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:40px;">' + t('noLoginLogs') + '</td></tr>';
       return;
     }
     tbody.innerHTML = filtered.map(l => {
       const time = l.createdAt ? formatDateTime(l.createdAt) : '-';
-      const statusBadge = l.success === 1 ? '<span style="color:#2ecc71;font-weight:600;">✅ 成功</span>' : '<span style="color:#e74c3c;font-weight:600;">❌ 失败</span>';
+      const statusBadge = l.success === 1 ? '<span style="color:#2ecc71;font-weight:600;">' + t('loginSuccessIcon') + '</span>' : '<span style="color:#e74c3c;font-weight:600;">' + t('loginFailIcon') + '</span>';
       const typeBadge = l.login_type === 'super_admin'
-        ? '<span style="background:rgba(102,126,234,.2);color:#667eea;padding:2px 8px;border-radius:4px;font-size:11px;">超级管理员</span>'
-        : '<span style="background:rgba(232,93,58,.2);color:#e85d3a;padding:2px 8px;border-radius:4px;font-size:11px;">商户管理员</span>';
+        ? '<span style="background:rgba(102,126,234,.2);color:#667eea;padding:2px 8px;border-radius:4px;font-size:11px;">' + t('superAdmin') + '</span>'
+        : '<span style="background:rgba(232,93,58,.2);color:#e85d3a;padding:2px 8px;border-radius:4px;font-size:11px;">' + t('merchantAdminBadge') + '</span>';
       return `<tr>
         <td data-label="ID"><span style="color:#ffd93d;font-family:monospace;font-weight:600;">#${l.id}</span></td>
-        <td data-label="登录时间" style="white-space:nowrap;color:#ccc;font-size:13px;">${time}</td>
-        <td data-label="登录名" style="font-weight:600;color:#fff;">${esc(l.username) || '-'}</td>
-        <td data-label="所属商户" style="color:#ccc;">${esc(l.merchant_name) || '-'}</td>
-        <td data-label="登录IP" style="font-family:monospace;color:#999;font-size:13px;">${esc(l.ip) || '-'}</td>
-        <td data-label="登录地点" style="color:#999;font-size:13px;">${esc(l.location) || '-'}</td>
-        <td data-label="登录类型">${typeBadge}</td>
+        <td data-label=t('loginTime') style="white-space:nowrap;color:#ccc;font-size:13px;">${time}</td>
+        <td data-label=t('loginName') style="font-weight:600;color:#fff;">${esc(l.username) || '-'}</td>
+        <td data-label=t('belongMerchant') style="color:#ccc;">${esc(l.merchant_name) || '-'}</td>
+        <td data-label=t('loginIp') style="font-family:monospace;color:#999;font-size:13px;">${esc(l.ip) || '-'}</td>
+        <td data-label=t('loginLocation') style="color:#999;font-size:13px;">${esc(l.location) || '-'}</td>
+        <td data-label=t('loginType')>${typeBadge}</td>
         <td data-label="状态">${statusBadge}</td>
         <td data-label="备注" style="color:#888;font-size:12px;">${esc(translateLoginMessage(l.message))}</td>
       </tr>`;
     }).join('');
   } catch (e) {
-    document.getElementById('loginLogList').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#e74c3c;padding:40px;">加载失败: ' + esc(e.message) + '</td></tr>';
+    document.getElementById('loginLogList').innerHTML = '<tr><td colspan="9" style="text-align:center;color:#e74c3c;padding:40px;">' + t('loadFailedColon') + esc(e.message) + '</td></tr>';
   }
 }
 
@@ -403,9 +403,9 @@ async function loadStores() {
     const list = Array.isArray(stores) ? stores : [];
     document.getElementById('storeList').innerHTML = list.map(s => `
       <tr>
-        <td data-label="门店ID"><span style="display:inline-block;background:rgba(255,217,61,.12);color:#ffd93d;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;">#${s.id}</span></td>
-        <td data-label="门店名称" style="font-weight:600;color:#fff;">${esc(s.name)}</td>
-        <td data-label="所属商户" style="color:#ccc;">${esc(s.merchant_name) || t('unknown', null, '未知')}</td>
+        <td data-label=t('storeId')><span style="display:inline-block;background:rgba(255,217,61,.12);color:#ffd93d;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;font-weight:600;">#${s.id}</span></td>
+        <td data-label=t('storeName') style="font-weight:600;color:#fff;">${esc(s.name)}</td>
+        <td data-label=t('belongMerchant') style="color:#ccc;">${esc(s.merchant_name) || t('unknown', null, '未知')}</td>
         <td data-label="编码"><code style="color:#66ccff;font-family:monospace;font-size:13px;">${esc(s.code) || '-'}</code></td>
         <td data-label="地址" style="color:#999;font-size:13px;">${esc(s.address) || '-'}</td>
         <td data-label="状态"><span class="status-badge ${s.active ? 'status-active' : 'status-disabled'}">${s.active ? t('enabled', null, '启用') : t('disabled', null, '禁用')}</span></td>
@@ -415,7 +415,7 @@ async function loadStores() {
 }
 
 function showAddMerchant() {
-  document.getElementById('merchantModalTitle').innerHTML = '新增商户<span class="modal-close" onclick="closeMerchantModal()">✕</span>';
+  document.getElementById('merchantModalTitle').innerHTML = t('addMerchant') + '<span class="modal-close" onclick="closeMerchantModal()">✕</span>';
   document.getElementById('editMerchantId').value = '';
   document.getElementById('merchantName').value = '';
   document.getElementById('merchantCode').value = '';
@@ -438,7 +438,7 @@ async function editMerchant(id) {
     const list = await api('/super/merchants');
     const m = list.find(x => x.id === id);
     if (!m) return;
-    document.getElementById('merchantModalTitle').innerHTML = '编辑商户<span class="modal-close" onclick="closeMerchantModal()">✕</span>';
+    document.getElementById('merchantModalTitle').innerHTML = t('editMerchant') + '<span class="modal-close" onclick="closeMerchantModal()">✕</span>';
     document.getElementById('editMerchantId').value = m.id;
     document.getElementById('merchantName').value = m.name;
     document.getElementById('merchantCode').value = m.code;
@@ -472,12 +472,12 @@ async function saveMerchant() {
     max_stores: parseInt(document.getElementById('merchantMaxStores').value) || 1,
     status: parseInt(document.getElementById('merchantStatus').value)
   };
-  if (!data.name) { SLF.ui.toast(t('merchantNameRequired', null, '商户名称必填'), 'error'); return; }
-  if (!data.username) { SLF.ui.toast(t('accountRequired', null, '请输入账号'), 'error'); return; }
+  if (!data.name) { SLF.ui.toast(t('merchantNameRequired', null, t('merchantNameRequired')), 'error'); return; }
+  if (!data.username) { SLF.ui.toast(t('accountRequired', null, t('accountRequired')), 'error'); return; }
   try {
     if (id) {
       await api('/super/merchants/' + id, { method: 'PUT', body: JSON.stringify(data) });
-      SLF.ui.toast(t('merchantUpdated', null, '商户已更新'), 'success');
+      SLF.ui.toast(t('merchantUpdated', null, t('merchantUpdated')), 'success');
     } else {
       const result = await api('/super/merchants', { method: 'POST', body: JSON.stringify(data) });
       SLF.ui.toast(t('merchantCreated', { username: result.adminUsername, password: result.defaultPassword }, '商户已创建'), 'success');
@@ -488,33 +488,33 @@ async function saveMerchant() {
 }
 
 function deleteMerchant(id) {
-  showConfirm(t('confirmDeleteMerchant', null, '确认删除该商户？'), async function() {
+  showConfirm(t('confirmDeleteMerchant', null, t('confirmDeleteMerchant')), async function() {
     try {
       await api('/super/merchants/' + id, { method: 'DELETE' });
-      SLF.ui.toast(t('merchantDeleted', null, '商户已删除'), 'success');
+      SLF.ui.toast(t('merchantDeleted', null, t('merchantDeleted')), 'success');
       loadMerchants();
     } catch (e) { SLF.ui.toast(e.message, 'error'); }
   });
 }
 
 function resetPassword(id) {
-  showConfirm(t('confirmResetPassword', null, '确认重置该商户管理员密码为 admin123？'), async function() {
+  showConfirm(t('confirmResetPassword', null, t('confirmResetPassword')), async function() {
     try {
       await api('/super/merchants/' + id + '/reset-password', { method: 'POST', body: JSON.stringify({}) });
-      SLF.ui.toast(t('passwordReset', null, '密码已重置'), 'success');
+      SLF.ui.toast(t('passwordReset', null, t('passwordReset')), 'success');
     } catch (e) { SLF.ui.toast(e.message, 'error'); }
   });
 }
 
 function changeSuperPassword() {
   const newPwd = document.getElementById('newSuperPassword').value;
-  if (!newPwd) { SLF.ui.toast(t('pleaseEnterNewPassword', null, '请输入新密码（至少6位）'), 'error'); return; }
-  if (newPwd.length < 6) { SLF.ui.toast('❌ ' + t('passwordTooShort', null, '密码至少6位'), 'error'); return; }
-  showPasswordModal(t('enterOldPassword', null, '请输入旧密码'), async function(oldPwd) {
+  if (!newPwd) { SLF.ui.toast(t('pleaseEnterNewPassword', null, t('pleaseEnterNewPassword')), 'error'); return; }
+  if (newPwd.length < 6) { SLF.ui.toast('❌ ' + t('passwordTooShort', null, t('passwordMin6')), 'error'); return; }
+  showPasswordModal(t('enterOldPassword', null, t('enterOldPassword')), async function(oldPwd) {
     try {
       const data = await SLF.api.post('/super/change-password', { oldPassword: oldPwd, newPassword: newPwd });
-      if (!data || !data.success) throw new Error((data && data.error) || t('saveFailed', null, '保存失败'));
-      SLF.ui.toast('✅ ' + t('passwordChanged', null, '密码已更新'), 'success');
+      if (!data || !data.success) throw new Error((data && data.error) || t('saveFailed', null, t('saveFailed')));
+      SLF.ui.toast('✅ ' + t('passwordChanged', null, t('passwordChanged')), 'success');
       document.getElementById('newSuperPassword').value = '';
     } catch (e) { SLF.ui.toast('❌ ' + e.message, 'error'); }
   });
@@ -548,7 +548,7 @@ async function loadGlobalSettings() {
     setVal('logRetentionDays', settings.log_retention_days || 30);
     setVal('cleanLoginLog', settings.clean_login_log ? '1' : '0');
     setVal('cleanAuditLog', settings.clean_audit_log ? '1' : '0');
-  } catch (e) { SLF.ui.toast(t('loadFailed', null, '加载失败') + ': ' + e.message, 'error'); }
+  } catch (e) { SLF.ui.toast(t('loadFailed', null, t('loadFailed')) + ': ' + e.message, 'error'); }
 }
 
 function switchSettingsTab(tab) {
@@ -632,8 +632,8 @@ async function saveGlobalSettings() {
       clean_audit_log: document.getElementById('cleanAuditLog').value === '1',
       kitchen_auto_hide_minutes: getInt('kitchenAutoHideMinutes') || 0
     })});
-    SLF.ui.toast(t('settingsSaved', null, '设置已保存'), 'success');
-  } catch (e) { SLF.ui.toast(t('saveFailed', null, '保存失败') + ': ' + e.message, 'error'); }
+    SLF.ui.toast(t('settingsSaved', null, t('settingsSaved')), 'success');
+  } catch (e) { SLF.ui.toast(t('saveFailed', null, t('saveFailed')) + ': ' + e.message, 'error'); }
 }
 
 let currentLogTab = 'login';
@@ -660,21 +660,21 @@ async function loadAuditLogs() {
     const logs = await api('/super/audit-logs');
     const tbody = document.getElementById('auditLogsBody');
     if (!logs || logs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#666;">暂无操作记录</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#666;">' + t('noAuditRecords') + '</td></tr>';
       return;
     }
     const actionNames = {
-      'create_merchant': '创建商户', 'update_merchant': '编辑商户', 'delete_merchant': '删除商户',
-      'reset_merchant_password': '重置商户密码', 'create_store': '创建店铺', 'update_store': '编辑店铺',
-      'delete_store': '删除店铺', 'settle_order': '结算订单', 'cancel_order': '取消订单',
-      'reset_data': '重置数据', 'change_password': '修改密码', 'update_settings': '更新设置',
-      'reset_all_data': '重置所有数据', 'login': '登录', 'logout': '登出',
-      'backup': '数据备份', 'import_backup': '导入备份'
+      'create_merchant': t('actionCreateMerchant'), 'update_merchant': t('actionUpdateMerchant'), 'delete_merchant': t('actionDeleteMerchant'),
+      'reset_merchant_password': t('actionResetMerchantPassword'), 'create_store': t('actionCreateStore'), 'update_store': t('editStore'),
+      'delete_store': t('actionDeleteStore'), 'settle_order': t('settleOrder'), 'cancel_order': t('cancelOrder'),
+      'reset_data': t('actionResetData'), 'change_password': t('changePassword'), 'update_settings': t('actionUpdateSettings'),
+      'reset_all_data': t('actionResetAllData'), 'login': '登录', 'logout': '登出',
+      'backup': t('dataBackup'), 'import_backup': t('actionImportBackup')
     };
     const targetTypeNames = {
-      'merchant': '商户', 'merchant_admin': '管理员', 'store': '店铺', 'menu': '菜品',
-      'category': '分类', 'waiter': '服务员', 'table': '桌号', 'currency': '货币',
-      'order': '订单', 'settings': '设置', 'system': '系统', 'super_admin': '超级管理员'
+      'merchant': '商户', 'merchant_admin': t('admin'), 'store': '店铺', 'menu': '菜品',
+      'category': '分类', 'waiter': t('waiter'), 'table': '桌号', 'currency': '货币',
+      'order': '订单', 'settings': '设置', 'system': '系统', 'super_admin': t('superAdmin')
     };
     tbody.innerHTML = logs.map(log => {
       const action = actionNames[log.action] || log.action;
@@ -699,7 +699,7 @@ async function loadAuditLogs() {
       </tr>`;
     }).join('');
   } catch (e) {
-    document.getElementById('auditLogsBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#e74c3c;">加载失败: ' + esc(e.message) + '</td></tr>';
+    document.getElementById('auditLogsBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:#e74c3c;">' + t('loadFailedColon') + esc(e.message) + '</td></tr>';
   }
 }
 
@@ -707,7 +707,7 @@ async function loadAuditLogs() {
 // 通用确认弹窗
 let confirmCallback = null;
 function showConfirm(message, callback, title) {
-  document.getElementById('confirmModalTitle').textContent = title || t('confirmOperation', null, '确认操作');
+  document.getElementById('confirmModalTitle').textContent = title || t('confirmOperation', null, t('confirmTitle'));
   document.getElementById('confirmModalMessage').textContent = message;
   confirmCallback = callback;
   document.getElementById('confirmModal').classList.add('open');
@@ -728,8 +728,8 @@ document.getElementById('confirmModal').addEventListener('click', function(e) {
 // 密码输入弹窗
 let passwordCallback = null;
 function showPasswordModal(message, callback, title) {
-  document.getElementById('passwordModalTitle').textContent = title || t('verifyPassword', null, '验证密码');
-  document.getElementById('passwordModalMessage').textContent = message || t('enterPasswordVerify', null, '请输入密码以验证身份');
+  document.getElementById('passwordModalTitle').textContent = title || t('verifyPassword', null, t('verifyPassword'));
+  document.getElementById('passwordModalMessage').textContent = message || t('enterPasswordVerify', null, t('enterPasswordVerify'));
   document.getElementById('passwordModalInput').value = '';
   passwordCallback = callback;
   document.getElementById('passwordModal').classList.add('open');
@@ -742,7 +742,7 @@ function hidePasswordModal() {
 window.hidePasswordModal = hidePasswordModal;
 function executePasswordModal() {
   const password = document.getElementById('passwordModalInput').value;
-  if (!password) { SLF.ui.toast(t('enterPassword', null, '请输入密码'), 'error'); return; }
+  if (!password) { SLF.ui.toast(t('enterPassword', null, t('enterPassword')), 'error'); return; }
   if (passwordCallback) passwordCallback(password);
   hidePasswordModal();
 }
@@ -755,16 +755,16 @@ document.getElementById('passwordModal').addEventListener('click', function(e) {
 
 function resetData() {
   showPasswordModal(t('enterPasswordVerify', null, '请再次输入密码'), function(password) {
-    showConfirm(t('confirmResetData', null, '确认重置所有订单数据？此操作不可恢复'), async function() {
+    showConfirm(t('confirmResetData', null, t('confirmResetData')), async function() {
       try {
         const data = await SLF.api.post('/super/reset-data', { password });
-        if (!data || !data.success) throw new Error((data && data.error) || t('resetFailed', null, '重置失败'));
-        SLF.ui.toast('✅ ' + t('orderDataReset', null, '订单数据已重置'), 'success');
+        if (!data || !data.success) throw new Error((data && data.error) || t('resetFailed', null, t('resetFailed')));
+        SLF.ui.toast('✅ ' + t('orderDataReset', null, t('orderDataReset')), 'success');
       } catch (e) {
-        SLF.ui.toast('❌ ' + t('resetFailed', null, '重置失败') + ': ' + e.message, 'error');
+        SLF.ui.toast('❌ ' + t('resetFailed', null, t('resetFailed')) + ': ' + e.message, 'error');
       }
-    }, t('confirmResetDataTitle', null, '重置数据确认'));
-  }, t('verifySuperPassword', null, '请输入超级管理员密码验证'));
+    }, t('confirmResetDataTitle', null, t('confirmResetDataTitle')));
+  }, t('verifySuperPassword', null, t('verifySuperPassword')));
 }
 
 // ===== 数据备份 =====
@@ -787,7 +787,7 @@ async function exportBackup() {
     const res = await fetch('/api/super/backup/export', {
       headers: { 'X-Super-Token': token, 'Authorization': 'Bearer ' + token }
     });
-    if (!res.ok) throw new Error(t('exportFailed', null, '导出失败'));
+    if (!res.ok) throw new Error(t('exportFailed', null, t('exportFailed')));
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -795,9 +795,9 @@ async function exportBackup() {
     a.download = 'foodflow-backup-' + new Date().toISOString().slice(0,10) + '.json';
     a.click();
     URL.revokeObjectURL(url);
-    SLF.ui.toast('✅ ' + t('backupExported', null, '备份已导出'), 'success');
+    SLF.ui.toast('✅ ' + t('backupExported', null, t('backupExported')), 'success');
   } catch (e) {
-    SLF.ui.toast('❌ ' + t('exportFailed', null, '导出失败') + ': ' + e.message, 'error');
+    SLF.ui.toast('❌ ' + t('exportFailed', null, t('exportFailed')) + ': ' + e.message, 'error');
   }
 }
 window.exportBackup = exportBackup;
@@ -812,19 +812,19 @@ window.onBackupFileSelected = onBackupFileSelected;
 
 async function importBackup() {
   if (!selectedBackupFile) {
-    SLF.ui.toast('⚠️ ' + t('pleaseSelectBackupFile', null, '请选择备份文件'), 'error');
+    SLF.ui.toast('⚠️ ' + t('pleaseSelectBackupFile', null, t('pleaseSelectBackupFile')), 'error');
     return;
   }
-  showConfirm(t('confirmImportBackup', null, '确认导入备份？当前数据将被覆盖'), async function() {
+  showConfirm(t('confirmImportBackup', null, t('confirmImportBackup')), async function() {
     try {
       const text = await selectedBackupFile.text();
       const data = JSON.parse(text);
       const result = await SLF.api.post('/super/backup/import', data);
-      if (!result || !result.success) throw new Error((result && result.error) || t('importFailed', null, '导入失败'));
-      SLF.ui.toast('✅ ' + t('backupImported', null, '备份已导入'), 'success');
+      if (!result || !result.success) throw new Error((result && result.error) || t('importFailed', null, t('importFailed')));
+      SLF.ui.toast('✅ ' + t('backupImported', null, t('backupImported')), 'success');
       setTimeout(() => location.reload(), 1500);
     } catch (e) {
-      SLF.ui.toast('❌ ' + t('importFailed', null, '导入失败') + ': ' + e.message, 'error');
+      SLF.ui.toast('❌ ' + t('importFailed', null, t('importFailed')) + ': ' + e.message, 'error');
     }
   });
 }
@@ -834,9 +834,9 @@ async function saveBackupSettings() {
   try {
     const intervalHours = document.getElementById('backupIntervalSelect').value;
     await api('/super/backup/settings', { method: 'PUT', body: JSON.stringify({ intervalHours }) });
-    SLF.ui.toast('✅ ' + t('backupSettingsSaved', null, '备份设置已保存'), 'success');
+    SLF.ui.toast('✅ ' + t('backupSettingsSaved', null, t('backupSettingsSaved')), 'success');
   } catch (e) {
-    SLF.ui.toast('❌ ' + t('saveFailed', null, '保存失败'), 'error');
+    SLF.ui.toast('❌ ' + t('saveFailed', null, t('saveFailed')), 'error');
   }
 }
 window.saveBackupSettings = saveBackupSettings;
@@ -844,10 +844,10 @@ window.saveBackupSettings = saveBackupSettings;
 async function backupNow() {
   try {
     await api('/super/backup/now', { method: 'POST' });
-    SLF.ui.toast('✅ ' + t('backupGenerated', null, '备份已生成'), 'success');
+    SLF.ui.toast('✅ ' + t('backupGenerated', null, t('backupGenerated')), 'success');
     loadBackupSettings();
   } catch (e) {
-    SLF.ui.toast('❌ ' + t('backupFailed', null, '备份失败'), 'error');
+    SLF.ui.toast('❌ ' + t('backupFailed', null, t('backupFailed')), 'error');
   }
 }
 window.backupNow = backupNow;
@@ -936,27 +936,27 @@ if (token) showApp();
 // ===== 在线会话/门店统计弹窗 =====
 async function showStoreBreakdown(type, period) {
   period = period || 'today';
-  const periodLabel = { today: '今日', month: '本月', year: '年度' }[period];
+  const periodLabel = { today: t('quickToday'), month: t('quickMonth'), year: t('yearLabel') }[period];
 
   const titles = {
-    orders: '订单总数（按门店）',
-    revenue: periodLabel + '营业额（按门店）',
-    sessions: '扫码会话（按门店）'
+    orders: t('totalOrdersByStore'),
+    revenue: periodLabel + t('revenueByStoreModal'),
+    sessions: t('scanSessionsByStore')
   };
-  document.getElementById('osModalTitle').textContent = titles[type] || '门店统计';
-  document.getElementById('osModalBody').innerHTML = '<p style="color:#888;">加载中...</p>';
+  document.getElementById('osModalTitle').textContent = titles[type] || t('storeStatistics');
+  document.getElementById('osModalBody').innerHTML = '<p style="color:#888;">' + t('loading') + '</p>';
   document.getElementById('onlineSessionsModal').style.display = 'flex';
   try {
     const d = await SLF.api.get('/super/store-breakdown');
     const stores = (d && d.stores) || [];
     if (!stores.length) {
-      document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">暂无门店</p>';
+      document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">' + t('noStores') + '</p>';
       return;
     }
     const cols = {
-      orders: ['门店', '商户', '总订单', '今日订单'],
-      revenue: ['门店', '商户', periodLabel + '营业额', periodLabel + '订单'],
-      sessions: ['门店', '商户', '累计扫码', '当前在线']
+      orders: ['门店', '商户', '总订单', t('todayOrders')],
+      revenue: ['门店', '商户', periodLabel + t('revenueCol'), periodLabel + '订单'],
+      sessions: ['门店', '商户', t('totalScan'), t('currentOnline')]
     };
     let html = '<table style="width:100%;border-collapse:collapse;font-size:14px;color:#ddd;">';
     html += '<tr style="background:rgba(255,255,255,0.08);color:#888;">';
@@ -993,25 +993,25 @@ async function showStoreBreakdown(type, period) {
 window.showStoreBreakdown = showStoreBreakdown;
 
 async function showOnlineSessions() {
-  document.getElementById('osModalTitle').textContent = '在线客户端（按门店）';
-  document.getElementById('osModalBody').innerHTML = '<p style="color:#888;">加载中...</p>';
+  document.getElementById('osModalTitle').textContent = t('onlineClientsByStore');
+  document.getElementById('osModalBody').innerHTML = '<p style="color:#888;">' + t('loading') + '</p>';
   document.getElementById('onlineSessionsModal').style.display = 'flex';
   try {
     const d = await SLF.api.get('/super/online-sessions');
     const sessions = (d && d.sessions) || [];
     if (!sessions.length) {
-      document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">暂无在线客户端</p>';
+      document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">' + t('noOnlineClients') + '</p>';
       return;
     }
     let html = '<table style="width:100%;border-collapse:collapse;font-size:14px;color:#ddd;">';
-    html += '<tr style="background:rgba(255,255,255,0.08);color:#888;"><th style="padding:10px 12px;text-align:left;font-weight:600;">门店</th><th style="padding:10px 12px;text-align:left;font-weight:600;">商户</th><th style="padding:10px 12px;text-align:center;font-weight:600;">在线桌号</th><th style="padding:10px 12px;text-align:center;font-weight:600;">待结订单</th><th style="padding:10px 12px;"></th></tr>';
+    html += '<tr style="background:rgba(255,255,255,0.08);color:#888;"><th style="padding:10px 12px;text-align:left;font-weight:600;">' + t('storeNameCol') + '</th><th style="padding:10px 12px;text-align:left;font-weight:600;">' + t('merchant') + '</th><th style="padding:10px 12px;text-align:center;font-weight:600;">' + t('currentOnline') + '</th><th style="padding:10px 12px;text-align:center;font-weight:600;">' + t('pendingOrders') + '</th><th style="padding:10px 12px;"></th></tr>';
     sessions.forEach(s => {
       html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">'
         + '<td style="padding:12px;">' + esc(s.store_name||'-') + '</td>'
         + '<td style="padding:12px;color:#888;">' + esc(s.merchant_name||'-') + '</td>'
         + '<td style="padding:12px;text-align:center;font-weight:600;color:#27ae60;">' + (s.online_count||0) + '</td>'
         + '<td style="padding:12px;text-align:center;">' + (s.pending_orders||0) + '</td>'
-        + '<td style="padding:12px;text-align:right;"><button onclick="showStoreSessions(' + s.store_id + ',\'' + esc(s.store_name||'').replace(/'/g,"") + '\')" style="padding:6px 14px;border:none;border-radius:8px;background:#667eea;color:#fff;cursor:pointer;font-size:12px;font-weight:600;">详情</button></td>'
+        + '<td style="padding:12px;text-align:right;"><button onclick="showStoreSessions(' + s.store_id + ',\'' + esc(s.store_name||'').replace(/'/g,"") + '\')" style="padding:6px 14px;border:none;border-radius:8px;background:#667eea;color:#fff;cursor:pointer;font-size:12px;font-weight:600;">' + t('details') + '</button></td>'
         + '</tr>';
     });
     html += '</table>';
@@ -1023,17 +1023,23 @@ async function showOnlineSessions() {
 window.showOnlineSessions = showOnlineSessions;
 
 async function showStoreSessions(storeId, storeName) {
-  document.getElementById('osModalTitle').textContent = '在线会话 - ' + storeName;
-  document.getElementById('osModalBody').innerHTML = '<p style="color:#888;">加载中...</p>';
+  document.getElementById('osModalTitle').textContent = t('onlineSessionsPrefix') + storeName;
+  document.getElementById('osModalBody').innerHTML = '<p style="color:#888;">' + t('loading') + '</p>';
   try {
     const d = await SLF.api.get('/super/online-sessions/' + storeId);
     const sessions = (d && d.sessions) || [];
     if (!sessions.length) {
-      document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">该店暂无在线会话</p>';
+      document.getElementById('osModalBody').innerHTML = '<p style="color:#888;text-align:center;padding:20px;">' + t('noStoreSessions') + '</p>';
       return;
     }
     let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;color:#ddd;">';
-    html += '<tr style="background:rgba(255,255,255,0.08);color:#888;"><th style="padding:10px 12px;text-align:left;font-weight:600;">桌号</th><th style="padding:10px 12px;text-align:left;font-weight:600;">进店时间</th><th style="padding:10px 12px;text-align:left;font-weight:600;">过期时间</th><th style="padding:10px 12px;text-align:left;font-weight:600;">当前订单</th><th style="padding:10px 12px;text-align:right;font-weight:600;">金额</th></tr>';
+    html += '<tr style="background:rgba(255,255,255,0.08);color:#888;">' +
+      '<th style="padding:10px 12px;text-align:left;font-weight:600;">' + t('table') + '</th>' +
+      '<th style="padding:10px 12px;text-align:left;font-weight:600;">' + t('enterTime') + '</th>' +
+      '<th style="padding:10px 12px;text-align:left;font-weight:600;">' + t('expireTime') + '</th>' +
+      '<th style="padding:10px 12px;text-align:left;font-weight:600;">' + t('currentOrder') + '</th>' +
+      '<th style="padding:10px 12px;text-align:right;font-weight:600;">' + t('amountCol') + '</th>' +
+      '</tr>';
     sessions.forEach(s => {
       html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);">'
         + '<td style="padding:10px;font-weight:600;">' + esc(s.table_name||'-') + '</td>'
@@ -1091,7 +1097,7 @@ let _pmMerchantId = null;
 async function openPaymentMethods(merchantId, merchantName) {
   _pmMerchantId = merchantId;
   const nameEl = document.getElementById('pmMerchantName');
-  if (nameEl) nameEl.textContent = '商户：' + (merchantName || ('#' + merchantId));
+  if (nameEl) nameEl.textContent = t('merchantPrefix') + (merchantName || ('#' + merchantId));
   try {
     const data = await api('/super/merchants/' + merchantId + '/payment-methods');
     const m = data.methods || {};

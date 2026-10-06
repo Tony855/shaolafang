@@ -39,7 +39,7 @@ async function loadDisplaySettings() {
       primarySel.value = d.primaryCurrencyCode || 'USD';
     }
     if (secondarySel) {
-      secondarySel.innerHTML = '<option value="">— 不显示副货币 —</option>' +
+      secondarySel.innerHTML = '<option value="">' + tAdmin('noSecondaryCurrency') + '</option>' +
         list.map(c => `<option value="${c.code}">${c.code} · ${c.symbol} · ${c.name}</option>`).join('');
       secondarySel.value = d.secondaryCurrencyCode || '';
     }
@@ -228,17 +228,17 @@ window.loadNotificationSettings = loadNotificationSettings;
 
     // 2) 二次确认
     const ok = await SLF.ui.confirm(
-      '确定把当前店铺的展示页设置应用到本商户所有其它店铺？\n\n⚠️ 会覆盖其它店铺已有的展示页配置',
-      '确定应用', '取消'
+      tAdmin('applyDisplayAllConfirm'),
+      tAdmin('applyConfirm'), tAdmin('cancel')
     );
     if (!ok) return;
 
     // 3) 调用接口
     try {
       const r = await api('/admin/display-page-settings/apply-all', { method: 'POST' });
-      SLF.ui.toast('✅ 已应用到 ' + (r.appliedTo || 0) + ' 个店铺');
+      SLF.ui.toast(tAdmin('appliedToPrefix') + (r.appliedTo || 0) + tAdmin('appliedToSuffix'));
     } catch (e) {
-      SLF.ui.toast('❌ 应用失败: ' + e.message);
+      SLF.ui.toast(tAdmin('applyFailedColon') + e.message);
     }
   }
   window.applyDisplayPageToAll = applyDisplayPageToAll;

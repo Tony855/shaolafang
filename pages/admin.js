@@ -248,21 +248,21 @@
                 try { await fn(); }
                 catch (e) {
                     console.error('[refresh] ' + label + ' 失败:', e);
-                    SLF.ui.toast('⚠️ ' + label + ' 加载失败: ' + e.message, 5000);
+                    SLF.ui.toast('⚠️ ' + tAdmin(label) + ' ' + tAdmin('loadFailedColon') + e.message, 5000);
                 }
             };
-            await _safe('货币', () => window.loadCurrencies());
-            await _safe('分类', () => window.loadMenuCategories());
-            await _safe('店铺', () => window.loadStores());
-            await _safe('显示设置', () => loadDisplaySettings());
-            await _safe('订单前缀', () => loadOrderPrefixes());
-            await _safe('提示音设置', () => loadNotificationSettings());
-            await _safe('菜品', () => window.loadMenus());
-            await _safe('桌号', () => window.loadTables());
-            await _safe('订单', () => window.loadOrders());
-            await _safe('登录日志', () => loadLoginLogs());
-            if (hasPermission('can_manage_admin')) await _safe('管理员', () => window.loadAdmins());
-            if (hasPermission('can_view_logs'))  await _safe('审计日志', () => loadAuditLogs());
+            await _safe('currencyName', () => window.loadCurrencies());
+            await _safe('menuCategory', () => window.loadMenuCategories());
+            await _safe('storeName', () => window.loadStores());
+            await _safe('saveDisplaySettings', () => loadDisplaySettings());
+            await _safe('orderPrefixTitle', () => loadOrderPrefixes());
+            await _safe('notifyTitle', () => loadNotificationSettings());
+            await _safe('menu', () => window.loadMenus());
+            await _safe('tablesManage', () => window.loadTables());
+            await _safe('orders', () => window.loadOrders());
+            await _safe('loginLogs', () => loadLoginLogs());
+            if (hasPermission('can_manage_admin')) await _safe('adminManageTitle', () => window.loadAdmins());
+            if (hasPermission('can_view_logs'))  await _safe('auditLogs', () => loadAuditLogs());
             const currentModule = window.getCurrentModule();
             if (currentModule) switchAdminModule(currentModule, { skipLoad: true }); // 数据已在上方预加载，跳过重复加载
         }
@@ -1019,7 +1019,7 @@ function applyAdminLanguage() {
                 });
                 SLF.ui.toast(enabled ? (tAdmin('autoPrintEnabled') || '已开启自动打印') : (tAdmin('autoPrintDisabled') || '已关闭自动打印'));
             } catch (e) {
-                SLF.ui.toast('❌ ' + (e.message || '保存失败'));
+                SLF.ui.toast('❌ ' + (e.message || tAdmin('saveFailed')));
                 document.getElementById('autoPrintToggle').checked = !enabled;
             }
         }
@@ -1033,7 +1033,7 @@ function applyAdminLanguage() {
                 });
                 SLF.ui.toast(enabled ? (tAdmin('autoPrintEnabled') || '已开启自动打印') : (tAdmin('autoPrintDisabled') || '已关闭自动打印'));
             } catch (e) {
-                SLF.ui.toast('❌ ' + (e.message || '保存失败'));
+                SLF.ui.toast('❌ ' + (e.message || tAdmin('saveFailed')));
                 document.getElementById('autoPrintReceiptToggle').checked = !enabled;
             }
         }

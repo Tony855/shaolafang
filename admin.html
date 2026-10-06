@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
 <link rel="stylesheet" href="assets/common.css?v=1791286805">
-<link rel="stylesheet" href="assets/admin.css?v=1791289376">
+<link rel="stylesheet" href="assets/admin.css?v=1791291028">
 </head>
 <body>
 
@@ -86,9 +86,9 @@
                 <div id="dishPanel">
                     <div class="menu-toolbar">
                         <button id="openDishModalBtn" onclick="openDishModal()">➕ 新增菜品</button>
-                        <button id="importMenuBtn" onclick="openImportModal()">📥 批量导入</button>
+                        <button id="importMenuBtn" onclick="openImportModal()" data-i18n="importMenuBtn">📥 批量导入</button>
                         <button id="exportMenuZipBtn" onclick="exportMenuZip()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:0;padding:9px 14px;border-radius:10px;cursor:pointer;font-weight:700;"><span data-i18n="exportZip">📦 导出ZIP</span></button>
-                        <select id="menuCategoryFilter" class="menu-filter-select" onchange="loadMenus()"><option value="all">📋 全部分类</option></select>
+                        <select id="menuCategoryFilter" class="menu-filter-select" onchange="loadMenus()"><option value="all" data-i18n="menuAllCategoriesOption">📋 全部分类</option></select>
                         <select id="menuSortBy" class="menu-filter-select" onchange="loadMenus()">
                             <option value="default"><span data-i18n="defaultSort">🔄 默认排序</span>
                             <option value="name_asc"><span data-i18n="nameAsc">🔤 名称 A-Z</span>
@@ -155,7 +155,7 @@
 
             <!-- 打印机管理 -->
             <section class="panel module-panel" id="module-printers">
-                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"><span class="admin-back-text" data-i18n="backToSettings">返回系统设置</span></button>
+                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"></button>
                 <h2 id="printersPanelTitle">🖨️ 小票打印机管理</h2>
                 <div class="auto-print-toggle-card" style="background:linear-gradient(135deg,#fef3e2,#fde8d0);border:1px solid #f5c89a;border-radius:14px;padding:16px 20px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
                     <div style="display:flex;align-items:center;gap:12px;">
@@ -186,15 +186,15 @@
                 </div>
                 <div class="printer-form-container">
                     <div class="printer-form-grid">
-                        <div class="form-group"><label id="printerNameLabel">打印机名称</label><input id="printerName" placeholder="如：前台小票机"></div>
-                        <div class="form-group"><label id="printerTypeLabel">连接类型</label><select id="printerType"><option value="network"><span data-i18n="networkPrinter">网络打印机</span><option value="usb"><span data-i18n="usbPrinter">USB打印机</span><option value="bluetooth"><span data-i18n="bluetoothPrinter">蓝牙打印机</span></select></div>
-                        <div class="form-group"><label id="printerIpLabel">IP地址</label><input id="printerIp" placeholder="如：192.168.1.100"></div>
-                        <div class="form-group"><label id="printerPortLabel">端口</label><input id="printerPort" type="number" value="9100" placeholder="9100"></div>
-                        <div class="form-group"><label id="printerWidthLabel">纸宽</label><select id="printerWidth"><option value="58"><span data-i18n="paper58mm">58mm 小票纸</span><option value="80"><span data-i18n="paper80mm">80mm 小票纸</span></select></div>
+                        <div class="form-group"><label id="printerNameLabel" data-i18n="printerName">打印机名称</label><input id="printerName" placeholder="如：前台小票机"></div>
+                        <div class="form-group"><label id="printerTypeLabel" data-i18n="connectionType">连接类型</label><select id="printerType"><option value="network"><span data-i18n="networkPrinter">网络打印机</span><option value="usb"><span data-i18n="usbPrinter">USB打印机</span><option value="bluetooth"><span data-i18n="bluetoothPrinter">蓝牙打印机</span></select></div>
+                        <div class="form-group"><label id="printerIpLabel" data-i18n="ipAddress">IP地址</label><input id="printerIp" placeholder="如：192.168.1.100"></div>
+                        <div class="form-group"><label id="printerPortLabel" data-i18n="port">端口</label><input id="printerPort" type="number" value="9100" placeholder="9100"></div>
+                        <div class="form-group"><label id="printerWidthLabel" data-i18n="paperWidth">纸宽</label><select id="printerWidth"><option value="58"><span data-i18n="paper58mm">58mm 小票纸</span><option value="80"><span data-i18n="paper80mm">80mm 小票纸</span></select></div>
                         <div class="form-group"><label id="printerBrandLabel">品牌</label><select id="printerBrand"><option value="generic"><span data-i18n="genericEscPos">通用 ESC/POS</span><option value="epson"><span data-i18n="epson">EPSON 爱普生</span><option value="star"><span data-i18n="star">Star 星亚</span><option value="bixolon"><span data-i18n="bixolon">Bixolon 毕索龙</span><option value="jiabo"><span data-i18n="jiabo">佳博 Gprinter</span><option value="xprinter"><span data-i18n="xprinter">芯烨 Xprinter</span><option value="rongta"><span data-i18n="rongta">容大 Rongta</span><option value="hoin"><span data-i18n="hoin">弘印 Hoin</span></select></div>
                     </div>
                     <div class="printer-form-actions">
-                        <label class="store-switch-label"><span id="printerDefaultLabel">设为默认打印机</span><label class="store-switch"><input type="checkbox" id="printerDefault"><span class="store-switch-slider"></span></label></label>
+                        <label class="store-switch-label"><span id="printerDefaultLabel" data-i18n="setAsDefault">设为默认打印机</span><label class="store-switch"><input type="checkbox" id="printerDefault"><span class="store-switch-slider"></span></label></label>
                         <button id="addPrinterBtn" onclick="addPrinter()" class="primary">添加打印机</button>
                     </div>
                 </div>
@@ -205,13 +205,13 @@
                         <h2 id="printerEditTitle">🖨️ <span data-i18n="printerEditTitle">编辑打印机</span></h2>
                         <input type="hidden" id="editPrinterId">
                         <div class="store-edit-grid">
-                            <div class="store-edit-field"><label id="printerEditNameLabel">打印机名称</label><input id="editPrinterName" placeholder="如：前台小票机"></div>
-                            <div class="store-edit-field"><label id="printerEditTypeLabel">连接类型</label><select id="editPrinterType"><option value="network"><span data-i18n="networkPrinter">网络打印机</span><option value="usb"><span data-i18n="usbPrinter">USB打印机</span><option value="bluetooth"><span data-i18n="bluetoothPrinter">蓝牙打印机</span></select></div>
-                            <div class="store-edit-field"><label id="printerEditIpLabel">IP地址</label><input id="editPrinterIp" placeholder="如：192.168.1.100"></div>
-                            <div class="store-edit-field"><label id="printerEditPortLabel">端口</label><input id="editPrinterPort" type="number" value="9100"></div>
-                            <div class="store-edit-field"><label id="printerEditWidthLabel">纸宽</label><select id="editPrinterWidth"><option value="58"><span data-i18n="paper58mm">58mm 小票纸</span><option value="80"><span data-i18n="paper80mm">80mm 小票纸</span></select></div>
-                            <div class="store-edit-field"><label id="printerEditBrandLabel">打印机品牌</label><select id="editPrinterBrand"><option value="generic"><span data-i18n="genericEscPos">通用 ESC/POS</span><option value="epson"><span data-i18n="epson">EPSON 爱普生</span><option value="bixolon"><span data-i18n="bixolon">Bixolon 毕索龙</span><option value="rongta"><span data-i18n="rongta">容大 Rongta</span><option value="xprinter"><span data-i18n="xprinter">芯烨 Xprinter</span></select></div>
-                            <div class="store-edit-field full"><label class="store-switch-label"><span id="printerEditDefaultLabel">设为默认打印机</span><label class="store-switch"><input type="checkbox" id="editPrinterDefault"><span class="store-switch-slider"></span></label></label></div>
+                            <div class="store-edit-field"><label id="printerEditNameLabel" data-i18n="printerName">打印机名称</label><input id="editPrinterName" placeholder="如：前台小票机"></div>
+                            <div class="store-edit-field"><label id="printerEditTypeLabel" data-i18n="connectionType">连接类型</label><select id="editPrinterType"><option value="network"><span data-i18n="networkPrinter">网络打印机</span><option value="usb"><span data-i18n="usbPrinter">USB打印机</span><option value="bluetooth"><span data-i18n="bluetoothPrinter">蓝牙打印机</span></select></div>
+                            <div class="store-edit-field"><label id="printerEditIpLabel" data-i18n="ipAddress">IP地址</label><input id="editPrinterIp" placeholder="如：192.168.1.100"></div>
+                            <div class="store-edit-field"><label id="printerEditPortLabel" data-i18n="port">端口</label><input id="editPrinterPort" type="number" value="9100"></div>
+                            <div class="store-edit-field"><label id="printerEditWidthLabel" data-i18n="paperWidth">纸宽</label><select id="editPrinterWidth"><option value="58"><span data-i18n="paper58mm">58mm 小票纸</span><option value="80"><span data-i18n="paper80mm">80mm 小票纸</span></select></div>
+                            <div class="store-edit-field"><label id="printerEditBrandLabel" data-i18n="printerEditBrandLabel">打印机品牌</label><select id="editPrinterBrand"><option value="generic"><span data-i18n="genericEscPos">通用 ESC/POS</span><option value="epson"><span data-i18n="epson">EPSON 爱普生</span><option value="bixolon"><span data-i18n="bixolon">Bixolon 毕索龙</span><option value="rongta"><span data-i18n="rongta">容大 Rongta</span><option value="xprinter"><span data-i18n="xprinter">芯烨 Xprinter</span></select></div>
+                            <div class="store-edit-field full"><label class="store-switch-label"><span id="printerEditDefaultLabel" data-i18n="setAsDefault">设为默认打印机</span><label class="store-switch"><input type="checkbox" id="editPrinterDefault"><span class="store-switch-slider"></span></label></label></div>
                         </div>
                         <div class="order-modal-actions">
                             <button onclick="closePrinterEdit()" id="printerEditCancelBtn" data-i18n="cancel"><span data-i18n="cancel">取消</span></button>
@@ -245,7 +245,7 @@
                     <button class="ff-quick-btn" data-range="month" id="quickMonthBtn" data-i18n="quickMonth">本月</button>
                     <button class="ff-quick-btn" data-range="year" id="quickYearBtn" data-i18n="quickYear">本年</button>
                     <span style="color:rgba(255,255,255,.2);">|</span>
-                    <label id="reportScopeLabel" style="color:#ccc;">范围:</label>
+                    <label id="reportScopeLabel" style="color:#ccc;" data-i18n="reportScopeLabel">范围:</label>
                     <select id="reportScopeSelect" onchange="loadDailyReport()" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:#fff;cursor:pointer;">
                         <option value="current" data-i18n="reportScopeCurrent">当前店铺</option>
                         <option value="all" data-i18n="reportScopeAll">所有店铺</option>
@@ -278,7 +278,7 @@
 
             <!-- 管理员管理 -->
             <section class="panel module-panel" id="module-admins">
-                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"><span class="admin-back-text" data-i18n="backToSettings">返回系统设置</span></button>
+                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"></button>
                 <h2 id="adminsPanelTitle">👤 管理员管理</h2>
                 <div style="margin-bottom:16px;"><button onclick="openAddAdminModal()" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addAdminBtnText">添加管理员</span></button></div>
                 <div id="adminList"></div>
@@ -286,7 +286,7 @@
 
             <!-- 收银员管理 -->
             <section class="panel module-panel" id="module-cashiers">
-                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"><span class="admin-back-text" data-i18n="backToSettings">返回系统设置</span></button>
+                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"></button>
                 <h2 id="cashiersPanelTitle">💰 收银员管理</h2>
                 <div style="margin-bottom:16px;"><button onclick="openAddCashierModal()" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;">➕ <span id="addCashierBtnText">添加收银员</span></button></div>
                 <div id="cashierList"></div>
@@ -294,7 +294,7 @@
 
             <!-- 服务员管理 -->
             <section class="panel module-panel" id="module-waiters">
-                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"><span class="admin-back-text" data-i18n="backToSettings">返回系统设置</span></button>
+                <button class="admin-back-btn" onclick="switchAdminModule('password')" type="button" aria-label="返回系统设置" title="返回系统设置"></button>
                 <h2 id="waitersPanelTitle">服务员管理</h2>
                 <div class="manage-form-container">
                     <div class="manage-form-grid">
@@ -341,52 +341,52 @@
                 </div>
 
                 <div class="settings-card" id="waiterManageCard">
-                    <h3 class="settings-card-title" id="waiterManageCardTitle">🍽️ 服务员管理</h3>
-                    <p class="ff-desc" id="waiterManageDesc">管理服务员账号，支持添加、编辑、删除服务员</p>
-                    <button class="store-sub-btn" data-perm="can_manage_waiter" id="enterWaiterManageBtn" onclick="switchAdminModule('waiters')" style="background: linear-gradient(135deg,#a8edea,#fed6e3); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入服务员管理</button>
+                    <h3 class="settings-card-title" id="waiterManageCardTitle" data-i18n="waiterManageCardTitle">🍽️ 服务员管理</h3>
+                    <p class="ff-desc" id="waiterManageDesc" data-i18n="waiterManageDesc">管理服务员账号，支持添加、编辑、删除服务员</p>
+                    <button class="store-sub-btn" data-perm="can_manage_waiter" id="enterWaiterManageBtn" onclick="switchAdminModule('waiters')" style="background: linear-gradient(135deg,#a8edea,#fed6e3); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;" data-i18n="enterWaiterManage">进入服务员管理</button>
                 </div>
 
                 <div class="settings-card" id="currencySettingsCard">
-                    <h3 class="settings-card-title ff-flex-center" id="currencySettingsTitle"><span id="currencySettingsTitleText">💱 货币设置</span></h3>
-                    <p class="ff-desc-tight">选择主货币（显示价格）和副货币（可选，括号显示）</p>
+                    <h3 class="settings-card-title ff-flex-center" id="currencySettingsTitle"><span id="currencySettingsTitleText" data-i18n="currencySettingsTitle">💱 货币设置</span></h3>
+                    <p class="ff-desc-tight" data-i18n="currencyDescNew">选择主货币（显示价格）和副货币（可选，括号显示）</p>
                     
                     <div class="settings-form-grid" style="grid-template-columns: 1fr 1fr;">
                         <div class="form-group">
-                            <label style="color:#9b9bb2;font-size:13px;">主货币</label>
+                            <label style="color:#9b9bb2;font-size:13px;" data-i18n="primaryCurrencyLabel">主货币</label>
                             <select class="ff-input-dark" id="dispPrimaryCurrency"></select>
                         </div>
                         <div class="form-group">
-                            <label style="color:#9b9bb2;font-size:13px;">副货币（无 = 关闭双币）</label>
+                            <label style="color:#9b9bb2;font-size:13px;" data-i18n="secondaryCurrencyLabel">副货币（无 = 关闭双币）</label>
                             <select class="ff-input-dark" id="dispSecondaryCurrency">
-                                <option value="">— 不显示副货币 —</option>
+                                <option value="" data-i18n="noSecondaryCurrency">— 不显示副货币 —</option>
                             </select>
                         </div>
                     </div>
                     <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
                         <button id="saveDisplaySettingsBtn" class="display-settings-btn">💾 保存</button>
-                        <button id="applyCurrencyToAllBtn" style="background:rgba(52,152,219,.15);color:#69c0ff;border:1px solid rgba(52,152,219,.3);border-radius:8px;padding:9px 14px;cursor:pointer;font-size:13px;font-weight:600;">📋 应用到所有店铺</button>
+                        <button id="applyCurrencyToAllBtn" style="background:rgba(52,152,219,.15);color:#69c0ff;border:1px solid rgba(52,152,219,.3);border-radius:8px;padding:9px 14px;cursor:pointer;font-size:13px;font-weight:600;" data-i18n="applyToAllStores">📋 应用到所有店铺</button>
                     </div>
                 </div>
 
                 <div class="settings-card" id="printerSettingsCard">
-                    <h3 class="settings-card-title" id="printerSettingsTitle">🖨️ 打印机设置</h3>
-                    <p class="ff-desc" id="printerSettingsDesc">配置打印机、打印路由和自动打印</p>
-                    <button class="store-sub-btn" data-perm="can_manage_printer" id="enterPrinterSettingsBtn" onclick="switchAdminModule('printers')" style="background: linear-gradient(135deg,#a1c4fd,#c2e9fb); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">进入打印机设置</button>
+                    <h3 class="settings-card-title" id="printerSettingsTitle" data-i18n="printerSettingsTitle">🖨️ 打印机设置</h3>
+                    <p class="ff-desc" id="printerSettingsDesc" data-i18n="printerSettingsDesc">配置打印机、打印路由和自动打印</p>
+                    <button class="store-sub-btn" data-perm="can_manage_printer" id="enterPrinterSettingsBtn" onclick="switchAdminModule('printers')" style="background: linear-gradient(135deg,#a1c4fd,#c2e9fb); border: none; color: #fff; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;" data-i18n="enterPrinterSettingsBtn">进入打印机设置</button>
                 </div>
 
                 <div class="settings-card" id="khqrSettingsCard">
                     <h3 class="settings-card-title ff-flex-center">
-                        <span>💳 KHQR 收款码</span>
+                        <span data-i18n="khqrSectionTitle">💳 KHQR 收款码</span>
                         
                     </h3>
-                    <p class="ff-desc-tight">可配置多个收款码（ABA / ACLEDA / Wing 等），收银台按客户所用银行选择。</p>
+                    <p class="ff-desc-tight" data-i18n="khqrSectionDesc">可配置多个收款码（ABA / ACLEDA / Wing 等），收银台按客户所用银行选择。</p>
 
                     <!-- 已配置的收款码列表 -->
                     <div id="khqrProviderList" style="margin-bottom:16px;"></div>
 
                     <!-- 添加新区 -->
                     <div style="padding:16px;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.15);border-radius:12px;">
-                        <div style="color:#ccc;font-size:13px;font-weight:600;margin-bottom:12px;">➕ 添加收款码</div>
+                        <div style="color:#ccc;font-size:13px;font-weight:600;margin-bottom:12px;" data-i18n="khqrAddTitle">➕ 添加收款码</div>
                         <div style="margin-bottom:10px;">
                             <input type="text" id="khqrUploadLabel" placeholder="备注名（可选，留空自动用收款人名字）" style="width:100%;height:40px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.25);color:#fff;font-size:14px;">
                         </div>
@@ -406,7 +406,7 @@
                         <div class="form-group"><label id="prefixRefundLabel">退款单前缀</label><input class="ff-input-sm" id="prefixRefund" maxlength="2"></div>
                         <div class="form-group"><label id="prefixDiscountLabel">打折消费前缀</label><input class="ff-input-sm" id="prefixDiscount" maxlength="2"></div>
                         <div class="form-group"><label id="prefixVipLabel">VIP消费前缀</label><input class="ff-input-sm" id="prefixVip" maxlength="2"></div>
-                        <div class="form-group"><label id="orderResetPeriodLabel">订单号重置周期</label>
+                        <div class="form-group"><label id="orderResetPeriodLabel" data-i18n="orderResetPeriod">订单号重置周期</label>
                             <select id="orderResetPeriod" style="width:100%;height:42px;padding:0 12px;font-size:14px;border-radius:10px;border:1px solid #4d4d70;background:#22223a;color:#fff;outline:none;">
                                 <option value="daily"><span data-i18n="orderNoResetDailyFull">每天重置（从00001开始）</span>
                                 <option value="monthly"><span data-i18n="orderNoResetMonthlyFull">每月重置（从00001开始）</span>
@@ -421,7 +421,7 @@
                 <div class="settings-card">
                     <h3 id="changePasswordCardTitle" class="settings-card-title">🔐 修改密码</h3>
                     <form id="passwordForm" class="settings-form-grid">
-                        <div class="form-group"><label id="oldPasswordLabel">旧密码</label><input id="oldPassword" type="password" placeholder="请输入旧密码" required></div>
+                        <div class="form-group"><label id="oldPasswordLabel" data-i18n="oldPassword">旧密码</label><input id="oldPassword" type="password" placeholder="请输入旧密码" required></div>
                         <div class="form-group"><label id="newPasswordLabel">新密码</label><input id="newPassword" type="password" placeholder="至少 6 位" required></div>
                         <div class="form-group ff-flex-end"><button id="changePasswordBtn" class="primary" style="width:100%;">修改密码</button></div>
                     </form>
@@ -501,12 +501,12 @@
                             <label class="ff-lang-option">
                                 <input class="ff-checkbox-red" type="checkbox" value="km">🇰🇭 ភាសាខ្មែរ</label>
                         </div>
-                        <small style="color:#666;display:block;margin-top:8px;">勾选多个时，菜名会分行显示（第一行为主语言）</small>
+                        <small style="color:#666;display:block;margin-top:8px;" data-i18n="langMultiHint">勾选多个时，菜名会分行显示（第一行为主语言）</small>
                     </div>
 
                     <div style="margin-top:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <button id="saveDisplayPageBtn" class="display-settings-btn" onclick="window.saveDisplayPageSettings && window.saveDisplayPageSettings()"><span data-i18n="saveDisplayPageBtn">保存展示页设置</span></button>
-                        <button id="applyDisplayAllBtn" onclick="applyDisplayPageToAll()" style="background:rgba(52,152,219,.15);color:#69c0ff;border:1px solid rgba(52,152,219,.3);border-radius:8px;padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;">📋 应用到所有店铺</button>
+                        <button id="applyDisplayAllBtn" onclick="applyDisplayPageToAll()" style="background:rgba(52,152,219,.15);color:#69c0ff;border:1px solid rgba(52,152,219,.3);border-radius:8px;padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;" data-i18n="applyToAllStores">📋 应用到所有店铺</button>
                         <button type="button" id="openDisplayPreviewBtn" style="background:rgba(105,192,255,.15);color:#69c0ff;border:1px solid rgba(105,192,255,.3);border-radius:8px;padding:10px 16px;cursor:pointer;font-size:13px;font-weight:600;"><span data-i18n="displayOpenPreview">→ 打开预览</span></button>
                     </div>
                 </div>
@@ -588,7 +588,7 @@
         <div class="order-modal-card">
             <button class="modal-close" onclick="closeCategoryEditModal()">✕</button>
             <h2 id="categoryEditModalTitle">编辑菜品分类</h2>
-            <div class="order-field"><label id="categoryEditNameLabel">分类名称</label><input id="editCategoryName" maxlength="20" placeholder="请输入分类名称"></div>
+            <div class="order-field"><label id="categoryEditNameLabel" data-i18n="categoryName">分类名称</label><input id="editCategoryName" maxlength="20" placeholder="请输入分类名称"></div>
             <div class="order-modal-actions"><button onclick="closeCategoryEditModal()" id="categoryCancelBtn" data-i18n="cancel">取消</button><button class="primary" onclick="saveCategoryEdit()" data-i18n="save">保存</button></div>
         </div>
     </div>
@@ -814,14 +814,14 @@
 
     <div class="order-modal" id="settleDetailModal">
         <div class="order-modal-card" style="max-width:500px;">
-            <h2 id="settleDetailTitle">💰 结算订单</h2>
+            <h2 id="settleDetailTitle" data-i18n="settleOrder">💰 结算订单</h2>
             <div id="settleDetailBody" style="max-height:50vh;overflow-y:auto;color:#ddd;"></div>
-            <div class="order-modal-actions"><button id="settleDetailCancelBtn" onclick="closeSettleDetail()" class="secondary" data-i18n="cancel">取消</button><button id="settleDetailOkBtn" onclick="doSettleOrder()" class="primary">确定结算</button></div>
+            <div class="order-modal-actions"><button id="settleDetailCancelBtn" onclick="closeSettleDetail()" class="secondary" data-i18n="cancel">取消</button><button id="settleDetailOkBtn" onclick="doSettleOrder()" class="primary" data-i18n="settleNow">确定结算</button></div>
         </div>
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=1791286805"></script>
+    <script src="languages.min.js?v=1791294650"></script>
     <script src="assets/core.js?v=1791286805"></script>
   <script src="assets/modules/ui.js?v=1791286805"></script>
   <script src="assets/modules/money.js?v=1791286805"></script>
@@ -835,10 +835,10 @@
 <div class="order-modal" id="importModal">
     <div class="order-modal-card">
         
-        <h2 id="importModalTitle">📥 批量导入菜品</h2>
-        <p id="importModalDesc" style="color: #888; margin: 10px 0;">选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en,image；或选择 .zip（menu.json + images/）</p>
+        <h2 id="importModalTitle" data-i18n="importMenuTitle">📥 批量导入菜品</h2>
+        <p id="importModalDesc" style="color: #888; margin: 10px 0;" data-i18n="importMenuDesc">选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en,image；或选择 .zip（menu.json + images/）</p>
         <p style="color: #888; margin: 10px 0;">
-            <a href="data:text/csv;charset=utf-8,%EF%BB%BFname%2Ccategory%2Cprice%2Cemoji%2Cdesc%2Cname_en%2Cdesc_en%2Cimage%0A%E7%BA%A2%E7%83%A7%E8%82%89%2C%E8%8F%9C%E8%8F%9C%2C12%2C%F0%9F%8D%96%2C%E7%BB%8F%E5%85%B8%E7%BA%A2%E7%83%A7%E8%82%89%2CBraised%20Pork%2CClassic%20braised%2Chttps%3A%2F%2Fexample.com%2Fhongshaorou.jpg%0A%E6%B8%85%E7%82%92%E9%9D%92%E8%8F%9C%2C%E7%B4%A0%E8%8F%9C%2C6%2C%F0%9F%A5%AC%2C%E6%B8%85%E7%82%92%E6%97%B6%E8%94%AC%2CVegetables%2CSeasonal%20greens%2C" download="menu_template.csv" id="downloadTemplateLink" style="color: #4a9eff;">📥 下载模板</a>
+            <a href="data:text/csv;charset=utf-8,%EF%BB%BFname%2Ccategory%2Cprice%2Cemoji%2Cdesc%2Cname_en%2Cdesc_en%2Cimage%0A%E7%BA%A2%E7%83%A7%E8%82%89%2C%E8%8F%9C%E8%8F%9C%2C12%2C%F0%9F%8D%96%2C%E7%BB%8F%E5%85%B8%E7%BA%A2%E7%83%A7%E8%82%89%2CBraised%20Pork%2CClassic%20braised%2Chttps%3A%2F%2Fexample.com%2Fhongshaorou.jpg%0A%E6%B8%85%E7%82%92%E9%9D%92%E8%8F%9C%2C%E7%B4%A0%E8%8F%9C%2C6%2C%F0%9F%A5%AC%2C%E6%B8%85%E7%82%92%E6%97%B6%E8%94%AC%2CVegetables%2CSeasonal%20greens%2C" download="menu_template.csv" id="downloadTemplateLink" style="color: #4a9eff;" data-i18n="downloadTemplate">📥 下载模板</a>
         </p>
         <input type="file" id="importFile" accept=".csv,.zip" style="margin: 15px 0; padding: 10px; border: 1px dashed #ccc; width: 100%; box-sizing: border-box;">
         <div id="importPreview" style="max-height: 200px; overflow-y: auto; margin: 10px 0; font-size: 13px;"></div>
@@ -853,17 +853,17 @@
 <!-- 导入确认弹窗 -->
 <div class="order-modal" id="confirmImportModal">
     <div class="order-modal-card">
-        <h2 id="confirmImportModalTitle">确认导入</h2>
+        <h2 id="confirmImportModalTitle" data-i18n="confirmImportTitle">确认导入</h2>
         <p id="confirmImportText" style="color: #888; margin: 15px 0; line-height: 1.5;"></p>
         <div style="display: flex; gap: 10px; margin-top: 20px;">
             <button type="button" id="confirmImportModalCancelBtn" data-i18n="cancel" style="flex: 1; background: #555; color: #fff; padding: 12px; border: none; border-radius: 8px; cursor: pointer;" onclick="closeConfirmImport()">取消</button>
-            <button id="confirmImportYesBtn" style="flex: 1; background: #e85d3a; color: #fff; padding: 12px; border: none; border-radius: 8px; cursor: pointer;">确认导入</button>
+            <button id="confirmImportYesBtn" style="flex: 1; background: #e85d3a; color: #fff; padding: 12px; border: none; border-radius: 8px; cursor: pointer;" data-i18n="confirmImportTitle">确认导入</button>
         </div>
     </div>
 </div>
 
-<script src="assets/admin-bundle.js?v=1791286805"></script>
-<script src="pages/admin.js?v=1791286805"></script>
+<script src="assets/admin-bundle.js?v=1791294650"></script>
+<script src="pages/admin.js?v=1791294650"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {

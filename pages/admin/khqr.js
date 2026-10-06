@@ -9,11 +9,12 @@ if (!ctx) return;
 const { api } = ctx;
 
 const esc = SLF.utils.esc;
+const tAdmin = (window.SLF && window.SLF.t) ? window.SLF.t : function(k){ return k; };
 
 function getCurrentStoreName() {
   const sel = document.getElementById('adminStoreSelect');
   if (sel && sel.selectedIndex >= 0) return sel.options[sel.selectedIndex].text;
-  return '当前店铺';
+  return tAdmin('currentStoreFallback');
 }
 
 function updateCurrentStoreName() {
@@ -29,14 +30,14 @@ function renderProviderList(providers) {
   if (!providers || providers.length === 0) {
     el.innerHTML =
       '<div style="padding:14px 16px;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);border-radius:10px;color:#ffd93d;font-size:13px;">' +
-        '⚠️ 当前店铺尚未配置任何收款码' +
+        tAdmin('noKhqrConfigured') +
       '</div>';
     return;
   }
 
   el.innerHTML = providers.map(p => {
     const badgeDisabled = !p.enabled
-      ? '<span style="display:inline-block;background:#777;color:#fff;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-left:6px;">已禁用</span>'
+      ? '<span style="display:inline-block;background:#777;color:#fff;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-left:6px;">' + tAdmin('disabledBadge') + '</span>'
       : '';
     const bg = p.enabled ? 'rgba(46,204,113,.06)' : 'rgba(255,255,255,.03)';
     const border = p.enabled ? 'rgba(46,204,113,.2)' : 'rgba(255,255,255,.08)';
@@ -49,7 +50,7 @@ function renderProviderList(providers) {
         <span style="color:#888;font-size:11px;">${esc(p.bank || '')} · ${esc(p.currency || '')} · ${esc(p.merchantName || '')}</span>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
-        <button data-action="toggle" data-id="${p.id}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(255,193,7,.15);color:#ffd93d;font-size:11px;font-weight:600;cursor:pointer;">${p.enabled ? '禁用' : '启用'}</button>
+        <button data-action="toggle" data-id="${p.id}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(255,193,7,.15);color:#ffd93d;font-size:11px;font-weight:600;cursor:pointer;">${p.enabled ? tAdmin('disabled') : tAdmin('enabled')}</button>
         <button data-action="delete" data-id="${p.id}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(231,76,60,.15);color:#e74c3c;font-size:11px;font-weight:600;cursor:pointer;">删除</button>
       </div>
     </div>`;
@@ -116,7 +117,7 @@ async function uploadKhqrImage(file) {
 
   const token = SLF.store.rawGetSession('adminToken') || '';
   const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '';
-  if (!storeId) throw new Error('请先选择店铺');
+  if (!storeId) throw new Error(tAdmin('selectStoreFirst'));
 
   const res = await fetch('/api/admin/khqr/upload', {
     method: 'POST',
@@ -130,10 +131,10 @@ async function uploadKhqrImage(file) {
 
 /* ---------- 删除 / 设默认 / 切换 ---------- */
 async function deleteProvider(id) {
-  if (!confirm('确定删除这个收款码？')) return;
+  if (!confirm(tAdmin('confirmDeleteKhqr'))) return;
   try {
     await api('/admin/khqr/providers/' + id, { method: 'DELETE' });
-    SLF.ui && SLF.ui.toast ? SLF.ui.toast('✅ 已删除') : 0;
+    SLF.ui && SLF.ui.toast ? SLF.ui.toast('✅ ' + tAdmin('deleted')) : 0;
     await loadKhqrInfo();
   } catch (e) {
     SLF.ui && SLF.ui.toast ? SLF.ui.toast('❌ ' + e.message) : alert(e.message);
@@ -143,7 +144,7 @@ async function deleteProvider(id) {
 async function setDefaultProvider(id) {
   try {
     await api('/admin/khqr/providers/' + id + '/default', { method: 'POST' });
-    SLF.ui && SLF.ui.toast ? SLF.ui.toast('✅ 已设为默认') : 0;
+    SLF.ui && SLF.ui.toast ? SLF.ui.toast(tAdmin('setAsDefaultDone')) : 0;
     await loadKhqrInfo();
   } catch (e) {
     SLF.ui && SLF.ui.toast ? SLF.ui.toast('❌ ' + e.message) : alert(e.message);
@@ -174,10 +175,10 @@ function bindEvents() {
     if (!file) return;
     if (nameEl) nameEl.textContent = file.name;
     btn.disabled = true;
-    btn.textContent = '⏳ 解析中...';
+    btn.textContent = tAdmin('parsing');
     try {
       const data = await uploadKhqrImage(file);
-      SLF.ui && SLF.ui.toast ? SLF.ui.toast('✅ 已添加：' + (data.provider && data.provider.label || '')) : 0;
+      SLF.ui && SLF.ui.toast ? SLF.ui.toast(tAdmin('addedColon') + (data.provider && data.provider.label || '')) : 0;
       // 清空输入
       const labelEl = document.getElementById('khqrUploadLabel');
       if (labelEl) labelEl.value = '';
@@ -186,9 +187,9 @@ function bindEvents() {
       SLF.ui && SLF.ui.toast ? SLF.ui.toast('❌ ' + e.message) : alert(e.message);
     } finally {
       btn.disabled = false;
-      btn.textContent = '📤 选择图片并上传';
+      btn.textContent = tAdmin('chooseImageUpload');
       input.value = '';
-      if (nameEl) nameEl.textContent = '未选择文件';
+      if (nameEl) nameEl.textContent = tAdmin('noFileSelected');
     }
   });
 }

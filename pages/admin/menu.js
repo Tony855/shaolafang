@@ -334,7 +334,7 @@ document.getElementById('importFile').addEventListener('change', function(e) {
   if (!file) return;
   if (/\.zip$/i.test(file.name)) {
     var preview = document.getElementById('importPreview');
-    preview.innerHTML = '<div style="color:#4a9eff;">ZIP: ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)<br>点击"开始导入"解压并同步图片</div>';
+    preview.innerHTML = '<div style="color:#4a9eff;">ZIP: ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)<br>' + tAdmin('zipImportHint') + '</div>';
     document.getElementById('confirmImportBtn').disabled = false;
     window._importZipFile = file;
     importItems = [];
@@ -347,17 +347,17 @@ document.getElementById('importFile').addEventListener('change', function(e) {
       importItems = parseCSV(ev.target.result);
       var preview = document.getElementById('importPreview');
       if (importItems.length === 0) {
-        preview.innerHTML = '<div style="color: #ff6b6b;">没有解析到有效数据</div>';
+        preview.innerHTML = '<div style="color: #ff6b6b;">' + tAdmin('noValidData') + '</div>';
         document.getElementById('confirmImportBtn').disabled = true;
         return;
       }
-      preview.innerHTML = '<div style="color: #4caf50;">解析到 ' + importItems.length + ' 条数据：</div>' +
+      preview.innerHTML = '<div style="color: #4caf50;">' + tAdmin('parsedPrefix') + importItems.length + tAdmin('parsedSuffix') + '</div>' +
         importItems.slice(0, 10).map(function(item, i) { 
           return '<div style="padding: 3px 0; border-bottom: 1px solid #eee;">' + (i+1) + '. ' + item.name + ' - $' + item.price + ' (' + item.category + ')</div>';
-        }).join('') + (importItems.length > 10 ? '<div style="color: #888; padding: 5px 0;">... 共 ' + importItems.length + ' 条</div>' : '');
+        }).join('') + (importItems.length > 10 ? '<div style="color: #888; padding: 5px 0;">' + tAdmin('moreItemsPrefix') + importItems.length + tAdmin('moreItemsSuffix') + '</div>' : '');
       document.getElementById('confirmImportBtn').disabled = false;
     } catch (err) {
-      document.getElementById('importPreview').innerHTML = '<div style="color: #ff6b6b;">解析失败：' + err.message + '</div>';
+      document.getElementById('importPreview').innerHTML = '<div style="color: #ff6b6b;">' + tAdmin('parseFailedColon') + err.message + '</div>';
       document.getElementById('confirmImportBtn').disabled = true;
     }
   };
@@ -369,30 +369,30 @@ async function confirmImport() {
     const f = window._importZipFile;
     const btn = document.getElementById('confirmImportBtn');
     btn.disabled = true;
-    btn.textContent = '解压导入中...';
+    btn.textContent = tAdmin('extracting');
     try {
       const fd = new FormData();
       fd.append('file', f);
       const data = await SLF.api.upload('/admin/menu/import-zip', fd);
-      let html = '<div style="background:#e8f5e9;color:#2e7d32;padding:10px;border-radius:6px;">OK 成功导入 ' + data.success + ' 条';
-      if (data.imagesImported) html += '，图片 ' + data.imagesImported + ' 张';
-      if (data.createdCategories && data.createdCategories.length) html += '，新建分类 ' + data.createdCategories.length + ' 个';
+      let html = '<div style="background:#e8f5e9;color:#2e7d32;padding:10px;border-radius:6px;">' + tAdmin('importOkPrefix') + data.success + tAdmin('importOkSuffix');
+      if (data.imagesImported) html += tAdmin('importedImagesPre') + data.imagesImported + tAdmin('importedImagesSuf');
+      if (data.createdCategories && data.createdCategories.length) html += tAdmin('newCatsPre') + data.createdCategories.length + tAdmin('newCatsSuf');
       html += '</div>';
       if (data.failed > 0 && data.errors) html += '<div style="margin-top:5px;font-size:12px;color:#c62828;">' + data.errors.slice(0, 5).join('<br>') + '</div>';
       document.getElementById('importResult').innerHTML = html;
       window._importZipFile = null;
       setTimeout(function(){ location.reload(); }, 1500);
     } catch (e) {
-      document.getElementById('importResult').innerHTML = '<div style="background:#ffebee;color:#c62828;padding:10px;border-radius:6px;">失败：' + e.message + '</div>';
+      document.getElementById('importResult').innerHTML = '<div style="background:#ffebee;color:#c62828;padding:10px;border-radius:6px;">' + tAdmin('failedColon') + e.message + '</div>';
     } finally {
       btn.disabled = false;
-      btn.textContent = '开始导入';
+      btn.textContent = tAdmin('startImport');
     }
     return;
   }
   if (importItems.length === 0) return;
   // 打开确认弹窗
-  document.getElementById('confirmImportText').textContent = '确认导入 ' + importItems.length + ' 条菜品？重复的同名菜品将自动覆盖更新！';
+  document.getElementById('confirmImportText').textContent = tAdmin('confirmImportPrefix') + importItems.length + tAdmin('itemsOverwriteHint');
   document.getElementById('confirmImportModal').classList.add('open');
   // 绑定确认按钮
   document.getElementById('confirmImportYesBtn').onclick = function() {
@@ -408,16 +408,16 @@ function closeConfirmImport() {
 async function doImport() {
   var btn = document.getElementById('confirmImportBtn');
   btn.disabled = true;
-  btn.textContent = '导入中...';
+  btn.textContent = tAdmin('importing');
   try {
     var result = await window.SLF.api.post('/menu/batch', { items: importItems });
     var createdInfo = '';
     if (result.createdCategories && result.createdCategories.length > 0) {
-      createdInfo = '，新建分类 ' + result.createdCategories.length + ' 个：' + result.createdCategories.join('、');
+      createdInfo = tAdmin('newCatsListPre') + result.createdCategories.length + tAdmin('newCatsListSuf') + result.createdCategories.join('、');
     }
     var html = '<div style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px;">' +
-      '✅ 成功导入 ' + result.success + ' 条' + createdInfo;
-    if (result.failed > 0) html += '，失败 ' + result.failed + ' 条';
+      tAdmin('okImportedPre') + result.success + tAdmin('okImportedMid') + createdInfo;
+    if (result.failed > 0) html += tAdmin('importFailedSuf') + result.failed + tAdmin('importFailedSuf2');
     html += '</div>';
     if (result.errors && result.errors.length) {
       html += '<div style="margin-top: 5px; font-size: 12px; color: #c62828;">' + result.errors.slice(0, 5).join('<br>') + '</div>';
@@ -425,10 +425,10 @@ async function doImport() {
     document.getElementById('importResult').innerHTML = html;
     setTimeout(() => location.reload(), 1500);
   } catch (e) {
-    document.getElementById('importResult').innerHTML = '<div style="background: #ffebee; color: #c62828; padding: 10px; border-radius: 6px;">❌ 导入失败：' + e.message + '</div>';
+    document.getElementById('importResult').innerHTML = '<div style="background: #ffebee; color: #c62828; padding: 10px; border-radius: 6px;">' + tAdmin('importFailedColon') + e.message + '</div>';
   } finally {
     btn.disabled = false;
-    btn.textContent = '开始导入';
+    btn.textContent = tAdmin('startImport');
   }
 }
 

@@ -199,7 +199,7 @@
             try {
                 if (!isBackendOnline) {
                     isBackendOnline = await checkBackend();
-                    if (!isBackendOnline) throw new Error('后端未连接');
+                    if (!isBackendOnline) throw new Error(t('backendNotConnected'));
                 }
                 const data = await SLF.api.get(`/menu?store_id=${state.storeId || 1}`);
                 if (Array.isArray(data)) state.menu = data;
@@ -425,7 +425,7 @@
                 let html = '';
                 data.orders.forEach((order) => {
                     order.items = order.items || [];
-                    let timeStr = '未知时间';
+                    let timeStr = t('unknownTime');
                     if (order.createdAt) {
                         try {
                             const dt = new Date(order.createdAt);
@@ -481,7 +481,7 @@
                             : itemPrimaryTotal;
 
                         const emoji = item.emoji || '🍽️';
-                        const name = item.name || '菜品';
+                        const name = item.name || t('dishName');
 
                         html += `
                             <div class="order-item">
