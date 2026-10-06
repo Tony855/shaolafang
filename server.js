@@ -1,17 +1,8 @@
 const express = require('express');
-const { AsyncLocalStorage } = require('async_hooks');
-
-// 全球通用日期时间格式 YYYY-MM-DD HH:mm:ss
-function formatGlobalDateTime(date) {
-  const d = date instanceof Date ? date : new Date(date);
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-function formatGlobalTime(date) {
-  const d = date instanceof Date ? date : new Date(date);
-  const pad = n => String(n).padStart(2, '0');
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
+// ★ 关键：pool / helpers / constants 必须在文件顶部 require（TDZ 问题）
+const { pool, poolConfig, setPool } = require('./server/db/pool');
+const { runAsync, getAsync, allAsync, withTransaction } = require('./server/db/helpers');
+const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
 const cors = require('cors');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
@@ -241,56 +232,8 @@ const upload = multer({
   }
 });
 
-// ---------- MySQL 连接池 ----------
-const poolConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: (() => { const db = process.env.DB_DATABASE; if (!db) { console.error('❌ .env 缺少 DB_DATABASE'); process.exit(1); } return db; })(),
-  port: Number(process.env.DB_PORT) || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  charset: 'utf8mb4'
-};
-
-let pool = mysql.createPool(poolConfig);
-
-// ---------- 数据库辅助函数 ----------
-const transactionStorage = new AsyncLocalStorage();
-
-async function runAsync(sql, params) {
-  const db = transactionStorage.getStore() || pool;
-  const [result] = await db.execute(sql, params);
-  return { lastID: result.insertId, changes: result.affectedRows };
-}
-
-async function getAsync(sql, params) {
-  const db = transactionStorage.getStore() || pool;
-  const [rows] = await db.execute(sql, params);
-  return rows[0] || null;
-}
-
-async function allAsync(sql, params) {
-  const db = transactionStorage.getStore() || pool;
-  const [rows] = await db.execute(sql, params);
-  return rows;
-}
-
-async function withTransaction(work) {
-  const conn = await pool.getConnection();
-  await conn.query('START TRANSACTION');
-  try {
-    const result = await transactionStorage.run(conn, work);
-    await conn.query('COMMIT');
-    return result;
-  } catch (e) {
-    await conn.query('ROLLBACK');
-    throw e;
-  } finally {
-    conn.release();
-  }
-}
+// ---------- MySQL 连接池 + 数据库辅助函数已统一从 server/db/ 引入（见文件顶部）----------
+// 保证 server.js / routes / middleware / services 共享同一个 pool 和 transactionStorage
 
 // ---------- 常量 ----------
 const createTableToken = () => crypto.randomBytes(12).toString('base64url');
@@ -485,7 +428,7 @@ async function initDatabase() {
       await conn.query(`CREATE DATABASE IF NOT EXISTS \`${poolConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
       conn.release();
       await tempPool.end();
-      pool = mysql.createPool(poolConfig);
+      setPool(mysql.createPool(poolConfig));
     } else {
       throw err;
     }

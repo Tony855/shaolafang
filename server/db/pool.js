@@ -21,5 +21,6 @@ let pool = mysql.createPool(poolConfig);
 module.exports = {
   get pool() { return pool; },
   set pool(p) { pool = p; },
+  setPool(p) { pool = p; },
   poolConfig
 };
