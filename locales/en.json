@@ -1098,7 +1098,7 @@
   "primaryCurrencyLabel": "Primary currency",
   "secondaryCurrencyLabel": "Secondary (none = off)",
   "noSecondaryCurrency": "— No secondary —",
-  "khqrSectionTitle": "💳 KHQR Payment QR",
+  "khqrSectionTitle": "💳 Bank Payment QR",
   "khqrSectionDesc": "Configure multiple payment QRs (ABA / ACLEDA / Wing, etc.). Cashier picks the one matching the customer.",
   "khqrAddTitle": "➕ Add payment QR",
   "langMultiHint": "If multiple are checked, dish names show on separate lines (first = primary)",

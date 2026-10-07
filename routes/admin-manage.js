@@ -483,7 +483,7 @@ module.exports = function(app, deps) {
       // 选择哪个收款码
       const list = await loadKhqrProviders(sid);
       const enabledList = list.filter(p => p.enabled);
-      if (enabledList.length === 0) return res.status(400).json({ error: '未配置 KHQR 收款码，请先在系统设置中上传' });
+      if (enabledList.length === 0) return res.status(400).json({ error: '未配置银行收款码，请先在系统设置中上传' });
 
       const providerId = (req.body && req.body.provider_id) || '';
       let provider;

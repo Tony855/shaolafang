@@ -1098,7 +1098,7 @@
   "primaryCurrencyLabel": "Tiền tệ chính",
   "secondaryCurrencyLabel": "Tiền tệ phụ (trống = tắt)",
   "noSecondaryCurrency": "— Không hiển thị tiền phụ —",
-  "khqrSectionTitle": "💳 Mã QR KHQR",
+  "khqrSectionTitle": "💳 Mã QR ngân hàng",
   "khqrSectionDesc": "Cấu hình nhiều mã thanh toán (ABA / ACLEDA / Wing...). Thu ngân chọn theo ngân hàng của khách.",
   "khqrAddTitle": "➕ Thêm mã thanh toán",
   "langMultiHint": "Nếu chọn nhiều, tên món hiện trên các dòng riêng (dòng đầu = chính)",

@@ -1098,7 +1098,7 @@
   "primaryCurrencyLabel": "สกุลเงินหลัก",
   "secondaryCurrencyLabel": "สกุลเงินรอง (ว่าง = ปิด)",
   "noSecondaryCurrency": "— ไม่แสดงสกุลเงินรอง —",
-  "khqrSectionTitle": "💳 คิวอาร์โค้ด KHQR",
+  "khqrSectionTitle": "💳 คิวอาร์โค้ดธนาคาร",
   "khqrSectionDesc": "ตั้งค่าคิวอาร์โค้ดหลายรายการ (ABA / ACLEDA / Wing ฯลฯ) แคชเชียร์เลือกตามธนาคารลูกค้า",
   "khqrAddTitle": "➕ เพิ่มคิวอาร์โค้ด",
   "langMultiHint": "ถ้าเลือกหลายภาษา ชื่อเมนูจะแสดงหลายบรรทัด (บรรทัดแรก = หลัก)",
