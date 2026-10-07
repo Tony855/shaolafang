@@ -343,7 +343,7 @@ app.get('/api/cashier/payment-methods', requireAdminOrCashierOrWaiter, async (re
   try {
     const mid = req.merchantId;
     const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${mid}_payment_methods`]);
-    const defaults = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
+    const defaults = { cash: true, wechat: true, alipay: true, card: true, khqr: true };
     let methods = { ...defaults };
     if (row && row.value) {
       try { methods = { ...defaults, ...JSON.parse(row.value) }; } catch (e) {}

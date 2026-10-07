@@ -40,12 +40,10 @@ function applyPaymentMethodsVisibility() {
     const el = document.querySelector('#paymentModal ' + map[k]);
     if (el) el.style.display = enabledPaymentMethods[k] ? '' : 'none';
   });
-  // ABA 按钮：只在 khqr 启用时显示
-  const abaBtn = document.querySelector('#paymentModal [data-method="aba"]');
-  if (abaBtn) abaBtn.style.display = enabledPaymentMethods.khqr ? '' : 'none';
-  if (!enabledPaymentMethods.khqr) {
-    document.querySelectorAll('#paymentMethodsWrap [data-provider-id]').forEach(el => el.style.display = 'none');
-  }
+  // KHQR 动态按钮（ABA / ACLEDA / Wing 等）：统一双向显隐
+  document.querySelectorAll('#paymentMethodsWrap [data-provider-id]').forEach(el => {
+    el.style.display = enabledPaymentMethods.khqr ? '' : 'none';
+  });
 }
 
 /* ===== KHQR providers ===== */
@@ -67,11 +65,9 @@ function renderProviderButtons() {
   const container = document.querySelector('#paymentMethodsWrap');
   if (!container) return;
   container.querySelectorAll('[data-provider-id]').forEach(b => b.remove());
-  // 隐藏静态 ABA 按钮（避免与动态 provider 重复）
-  const abaBtn = container.querySelector('[data-method="aba"]');
-  if (abaBtn) abaBtn.style.display = 'none';
-  if (!enabledPaymentMethods.khqr) return;
   if (!khqrProviders.length) return;
+  // 按钮永远创建，显示/隐藏由 applyPaymentMethodsVisibility() 统一控制
+  // （避免并行加载时 khqr 尚未更新就跳过渲染）
 
   khqrProviders.forEach(p => {
     const bankName = String(p.bank || '').trim();
@@ -106,13 +102,16 @@ function renderProviderButtons() {
 
 /* ===== 打开/关闭收款弹窗 ===== */
 window.openPaymentModal = async function(orderId, orderHint) {
+  // ★ 优先使用缓存订单，跳过 /orders/:id 请求
   let order = orderHint;
+  if (!order && window._waiterOrderCache) {
+    order = window._waiterOrderCache[orderId];
+  }
   if (!order) {
     try { order = await apiCall('/orders/' + orderId); } catch (e) { order = null; }
   }
   if (!order) { SLF.ui.toast('❌ ' + (t('orderNotFound') || '订单不存在')); return; }
 
-  // 菜品检查：全部完成才允许结算（与后端一致，提前拦截，避免弹窗被拒）
   const items = Array.isArray(order.items) ? order.items : [];
   if (items.length === 0) {
     SLF.ui.toast('⚠️ ' + (t('noDishes') || '无菜品') + '，无法结算');
@@ -135,11 +134,30 @@ window.openPaymentModal = async function(orderId, orderHint) {
   });
   $('#cashArea').style.display = 'block';
   renderQuickCash(amount);
-  await loadPaymentMethods();
-  await loadKhqrProviders();
-  if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n($('#paymentModal'));
+
+  // ★ 弹窗打开前先隐藏所有非现金按钮，避免"闪现后消失"
+  document.querySelectorAll('#paymentModal .payment-method').forEach(btn => {
+    if (btn.dataset.method !== 'cash') btn.style.display = 'none';
+  });
+
+  // ★ 立即显示弹窗（用户零等待）
   $('#paymentModal').classList.add('show');
   setTimeout(() => { const el = $('#cashReceived'); if (el) el.focus(); }, 100);
+  if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n($('#paymentModal'));
+
+  // ★ 串行加载：先拿到支付方式（含 khqr 开关），再渲染 KHQR 动态按钮
+  //   （并行会导致 renderProviderButtons 读到旧的 khqr=false 而跳过渲染）
+  (async () => {
+    try { await loadPaymentMethods(); }
+    catch (e) { console.warn('[payment] 加载支付方式失败', e.message); }
+    // ★ KHQR providers 已在页面初始化时预加载（按钮+图标已就绪）
+    //   只有预加载失败（数组为空）时才补拉一次，避免每次点结算重建按钮导致图标重新加载
+    if (!khqrProviders.length) {
+      try { await loadKhqrProviders(); }
+      catch (e) { console.warn('[payment] 加载KHQR失败', e.message); }
+    }
+    if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n($('#paymentModal'));
+  })();
 };
 
 window.closePaymentModal = function() {
@@ -399,5 +417,25 @@ document.addEventListener('click', function(e) {
   if (e.target && e.target.id === 'paymentModal') window.closePaymentModal();
   if (e.target && e.target.id === 'khqrModal') window.closeKhqrModal();
 });
+
+/* ============================================================
+   页面加载时预加载支付方式和 KHQR 图标
+   （与收银员端一致：避免点击结算时图标逐个出现）
+   ============================================================ */
+(function preloadPaymentAssets() {
+  function run() {
+    // 未登录不预加载，避免 401
+    if (!SLF.store.rawGet('waiterToken')) return;
+    (async () => {
+      try { await loadPaymentMethods(); } catch (e) {}
+      try { await loadKhqrProviders(); } catch (e) {}
+    })();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(run, 500); });
+  } else {
+    setTimeout(run, 500);
+  }
+})();
 
 })();

@@ -601,7 +601,7 @@ app.get('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (re
   try {
     const mid = parseInt(req.params.id, 10);
     const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${mid}_payment_methods`]);
-    const defaults = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
+    const defaults = { cash: true, wechat: true, alipay: true, card: true, khqr: true };
     let methods = { ...defaults };
     if (row && row.value) {
       try { methods = { ...defaults, ...JSON.parse(row.value) }; } catch (e) {}
@@ -616,10 +616,10 @@ app.put('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (re
     const src = (req.body && req.body.methods) || {};
     const clean = {
       cash:   src.cash   !== false,
-      wechat: src.wechat === true,
-      alipay: src.alipay === true,
-      card:   src.card   === true,
-      khqr:   src.khqr   === true,
+      wechat: src.wechat !== false,
+      alipay: src.alipay !== false,
+      card:   src.card   !== false,
+      khqr:   src.khqr   !== false,
     };
     await runAsync(
       "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",

@@ -227,8 +227,7 @@
 
       // 统计该订单未完成菜品数
       const pendingCount = (o.items || []).filter(i => i.itemStatus !== 'done').length;
-      const totalDishCount = (o.items || []).length;
-      const isExpanded = state.expandedOrderIds.has(o.id);
+            const isExpanded = state.expandedOrderIds.has(o.id);
       const arrow = isExpanded ? '▼' : '▶';
       const pendingTip = pendingCount > 0
         ? `<span class="pending-tip">⚠️ ${pendingCount} ${t('dishesPending', null, '道未完成')}</span>`
@@ -242,8 +241,7 @@
           <div class="order-head-left">
             <span class="order-arrow">${arrow}</span>
             <span class="order-no">${o.order_no || ("#"+o.id)}</span>
-            ${badge}
-            <span class="order-dish-count">${totalDishCount} ${t('dishes', null, '道')}</span>
+                        
           </div>
           <div class="order-head-right">
             ${_awaitingTip}
@@ -846,7 +844,9 @@
     const listEl = $('#orderSelectList');
     const canSettle = state.waiter && state.waiter.can_complete_order;
     let html = '';
+    window._waiterOrderCache = window._waiterOrderCache || {};
     tableOrders.forEach((order, idx) => {
+      window._waiterOrderCache[order.id] = order;
       const customerLabel = labels.get(order.id) || (t('order', null, '订单') + (idx + 1));
       const itemCount = order.items ? order.items.length : 0;
       const timeStr = order.createdAt ? new Date(order.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -854,17 +854,18 @@
       const showSettleBtn = canSettle && order.status === 'pending' && allDone;
       const orderNo = order.order_no || ('#' + order.id);
       const settleBtnHtml = showSettleBtn
-        ? '<button onclick="event.stopPropagation();window.openPaymentModal(' + order.id + ')" style="background:linear-gradient(135deg,#27ae60,#2ecc71);border:0;color:#fff;padding:8px 14px;border-radius:20px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 3px 10px rgba(46,204,113,.3);white-space:nowrap;">' + t('settleOrder', null, '结算') + '</button>'
+        ? '<button onclick="event.stopPropagation();window.openPaymentModal(' + order.id + ')" class="btn-settle">' + t('settleOrder', null, '结算') + '</button>'
         : '';
-      html += '<div class="order-select-item" onclick="selectOrder(' + order.id + ')" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid var(--gray-2);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .2s;gap:10px;">';
-      html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-weight:600;font-size:15px;">' + esc(customerLabel) + ' <span style="color:#e85d3a;font-weight:700;font-size:13px;margin-left:6px;">' + esc(orderNo) + '</span></div>';
-      html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + itemCount + ' ' + t('dishes', null, '道菜品') + ' · ' + timeStr + '</div>';
-      html += '</div>';
-      html += '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">';
-      html += '<div style="font-weight:700;color:var(--primary);white-space:nowrap;">' + SLF.money.format(order.total || 0) + '</div>';
-      html += settleBtnHtml;
-      html += '</div>';
+      html += '<div class="order-select-item" onclick="selectOrder(' + order.id + ')">';
+      html += '  <div class="order-row-1">';
+      html += '    <span class="order-no-label">' + esc(orderNo) + '</span>';
+      html += '    <span class="order-dish-count">' + itemCount + ' ' + t('dishes', null, '道菜品') + '</span>';
+      html += '    <span class="order-time">' + timeStr + '</span>';
+      html += '  </div>';
+      html += '  <div class="order-row-2">';
+      html += '    <span class="order-select-total">' + SLF.money.format(order.total || 0) + '</span>';
+      html += '    <div class="order-select-action">' + settleBtnHtml + '</div>';
+      html += '  </div>';
       html += '</div>';
     });
     listEl.innerHTML = html;

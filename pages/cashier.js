@@ -582,7 +582,10 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   }
   window.confirmAwaiting = confirmAwaiting;
 
-  function openPaymentModal(orderId) {
+  async function openPaymentModal(orderId) {
+    // 实时拉取支付方式配置（不缓存，保证超管后台改动立即生效）
+    try { await loadPaymentMethods(); } catch (e) { console.warn('[payment] 刷新支付方式失败', e); }
+
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
     paymentOrderId = orderId;

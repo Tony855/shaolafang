@@ -1469,3 +1469,111 @@ body {
   vertical-align: middle;
   flex-shrink: 0;
 }
+
+/* ============================================================
+   收款弹窗：多语言下金额输入框溢出修复（与服务员端一致）
+   ============================================================ */
+#paymentModal .payment-card {
+  max-width: min(500px, calc(100vw - 24px));
+  box-sizing: border-box;
+  overflow: hidden;
+}
+#paymentModal .payment-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+#paymentModal .payment-input-row label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+#paymentModal .payment-input {
+  flex: 1 1 0%;
+  min-width: 0;              /* ★ 关键：允许收缩 */
+  width: 100%;
+  box-sizing: border-box;
+}
+#paymentModal .payment-change-row {
+  box-sizing: border-box;
+}
+#paymentModal .payment-change-value {
+  white-space: nowrap;
+}
+
+/* 移动端进一步保护 */
+@media (max-width: 768px) {
+  #paymentModal .payment-input-row {
+    gap: 8px;
+  }
+  #paymentModal .payment-input {
+    font-size: 16px;
+  }
+}
+
+/* ============================================================
+   收银员端确认弹窗：补全缺失的白色卡片背景
+   ============================================================ */
+#confirmModal .modal {
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  max-width: min(360px, calc(100vw - 32px));
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  text-align: center;
+}
+
+/* 关闭按钮定位修正 */
+#confirmModal .modal .modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: #666;
+  border: 0;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#confirmModal .modal .modal-close:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* 标题和文字颜色（收银员端弹窗不用暗色主题） */
+#confirmModal .modal .modal-title {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+#confirmModal .modal #confirmMessage {
+  color: #6b7280 !important;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+/* 按钮行 */
+#confirmModal .modal .modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+#confirmModal .modal .modal-actions .btn {
+  min-width: 100px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
