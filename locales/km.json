@@ -1193,5 +1193,6 @@
   "orderInterval": "ចន្លោះការបញ្ជាទិញ",
   "confirmReceived": "បញ្ជាក់ការទទួល",
   "notifyCashierConfirm": "បានជូនដំណឹងអ្នកគិតលុយ",
-  "khqrLabelPlaceholder": "ស្លាក (ស្រេចចិត្ត)"
+  "khqrLabelPlaceholder": "ស្លាក (ស្រេចចិត្ត)",
+  "incompleteShort": "មិនទាន់រួច"
 }

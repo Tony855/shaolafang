@@ -1200,7 +1200,8 @@ const LANGUAGES = {
     "orderInterval": "下单间隔",
     "confirmReceived": "确认到账",
     "notifyCashierConfirm": "已通知收银员确认",
-    "khqrLabelPlaceholder": "备注名（可选）"
+    "khqrLabelPlaceholder": "备注名（可选）",
+    "incompleteShort": "未完成"
   },
   "en": {
     "code": "Code",
@@ -2397,7 +2398,8 @@ const LANGUAGES = {
     "orderInterval": "Order interval",
     "confirmReceived": "Confirm received",
     "notifyCashierConfirm": "Cashier notified",
-    "khqrLabelPlaceholder": "Label (optional)"
+    "khqrLabelPlaceholder": "Label (optional)",
+    "incompleteShort": "Incomplete"
   },
   "vi": {
     "code": "Mã",
@@ -3594,7 +3596,8 @@ const LANGUAGES = {
     "orderInterval": "Khoảng cách đặt hàng",
     "confirmReceived": "Xác nhận đã nhận",
     "notifyCashierConfirm": "Đã thông báo thu ngân",
-    "khqrLabelPlaceholder": "Nhãn (tùy chọn)"
+    "khqrLabelPlaceholder": "Nhãn (tùy chọn)",
+    "incompleteShort": "Chưa xong"
   },
   "th": {
     "code": "รหัส",
@@ -4791,7 +4794,8 @@ const LANGUAGES = {
     "orderInterval": "ช่วงห่างออเดอร์",
     "confirmReceived": "ยืนยันรับเงิน",
     "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว",
-    "khqrLabelPlaceholder": "ป้ายชื่อ (ไม่บังคับ)"
+    "khqrLabelPlaceholder": "ป้ายชื่อ (ไม่บังคับ)",
+    "incompleteShort": "ยังไม่เสร็จ"
   },
   "km": {
     "code": "កូដ",
@@ -5988,7 +5992,8 @@ const LANGUAGES = {
     "orderInterval": "ចន្លោះការបញ្ជាទិញ",
     "confirmReceived": "បញ្ជាក់ការទទួល",
     "notifyCashierConfirm": "បានជូនដំណឹងអ្នកគិតលុយ",
-    "khqrLabelPlaceholder": "ស្លាក (ស្រេចចិត្ត)"
+    "khqrLabelPlaceholder": "ស្លាក (ស្រេចចិត្ត)",
+    "incompleteShort": "មិនទាន់រួច"
   }
 };
 

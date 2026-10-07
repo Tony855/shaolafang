@@ -1193,5 +1193,6 @@
   "orderInterval": "Order interval",
   "confirmReceived": "Confirm received",
   "notifyCashierConfirm": "Cashier notified",
-  "khqrLabelPlaceholder": "Label (optional)"
+  "khqrLabelPlaceholder": "Label (optional)",
+  "incompleteShort": "Incomplete"
 }

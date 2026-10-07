@@ -1193,5 +1193,6 @@
   "orderInterval": "Khoảng cách đặt hàng",
   "confirmReceived": "Xác nhận đã nhận",
   "notifyCashierConfirm": "Đã thông báo thu ngân",
-  "khqrLabelPlaceholder": "Nhãn (tùy chọn)"
+  "khqrLabelPlaceholder": "Nhãn (tùy chọn)",
+  "incompleteShort": "Chưa xong"
 }

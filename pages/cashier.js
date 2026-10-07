@@ -532,7 +532,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     if (canSettle) {
       btns += `<button class="btn btn-pay" onclick="openPaymentModal(${order.id})">💵 ${t('settleOrder')}</button>`;
     } else if (order.status === 'pending') {
-      btns += `<button class="btn btn-pay" disabled title="${t('itemsNotReady')}">💵 ${t('settleOrder') || '收款'} (未完成)</button>`;
+      btns += `<button class="btn btn-pay" disabled title="${t('itemsNotReady')}">💵 ${t('settleOrder') || '收款'} (${t('incompleteShort')})</button>`;
     }
     btns += `<button class="btn btn-print" onclick="printOrder(${order.id})" title="${t('print') || '打印'}">🖨</button>`;
     if (canRefund) {

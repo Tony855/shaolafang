@@ -1193,5 +1193,6 @@
   "orderInterval": "ช่วงห่างออเดอร์",
   "confirmReceived": "ยืนยันรับเงิน",
   "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว",
-  "khqrLabelPlaceholder": "ป้ายชื่อ (ไม่บังคับ)"
+  "khqrLabelPlaceholder": "ป้ายชื่อ (ไม่บังคับ)",
+  "incompleteShort": "ยังไม่เสร็จ"
 }

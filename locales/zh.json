@@ -1193,5 +1193,6 @@
   "orderInterval": "下单间隔",
   "confirmReceived": "确认到账",
   "notifyCashierConfirm": "已通知收银员确认",
-  "khqrLabelPlaceholder": "备注名（可选）"
+  "khqrLabelPlaceholder": "备注名（可选）",
+  "incompleteShort": "未完成"
 }
