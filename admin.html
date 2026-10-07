@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FoodFlow</title>
 <link rel="stylesheet" href="assets/common.css?v=1791356376">
-<link rel="stylesheet" href="assets/admin.css?v=1791343018">
+<link rel="stylesheet" href="assets/admin.css?v=1791362328">
 </head>
 <body>
 
@@ -388,12 +388,12 @@
                     <div style="padding:16px;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.15);border-radius:12px;">
                         <div style="color:#ccc;font-size:13px;font-weight:600;margin-bottom:12px;" data-i18n="khqrAddTitle">➕ 添加收款码</div>
                         <div style="margin-bottom:10px;">
-                            <input type="text" id="khqrUploadLabel" placeholder="备注名（可选，留空自动用收款人名字）" style="width:100%;height:40px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.25);color:#fff;font-size:14px;">
+                            <input type="text" id="khqrUploadLabel" data-i18n-placeholder="khqrLabelPlaceholder" placeholder="备注名（可选，留空自动用收款人名字）" style="width:100%;height:40px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.25);color:#fff;font-size:14px;">
                         </div>
                         <input type="file" id="khqrImageFile" accept="image/*" style="display:none;">
                         <div class="ff-flex-center">
-                            <button id="khqrUploadBtn" type="button" style="padding:10px 22px;border:0;border-radius:10px;background:linear-gradient(135deg,#e85d3a,#e84a2a);color:#fff;font-weight:700;cursor:pointer;">📤 选择图片并上传</button>
-                            <span id="khqrUploadName" style="color:#888;font-size:13px;">未选择文件</span>
+                            <button id="khqrUploadBtn" type="button" style="padding:10px 22px;border:0;border-radius:10px;background:linear-gradient(135deg,#e85d3a,#e84a2a);color:#fff;font-weight:700;cursor:pointer;" data-i18n="chooseImageUpload">📤 选择图片并上传</button>
+                            <span id="khqrUploadName" data-i18n="noFileSelected" style="color:#888;font-size:13px;">未选择文件</span>
                         </div>
                     </div>
                 </div>
@@ -821,7 +821,7 @@
     </div>
 
     <!-- ===== JavaScript ===== -->
-    <script src="languages.min.js?v=1791357666"></script>
+    <script src="languages.min.js?v=1791362328"></script>
     <script src="assets/core.js?v=1791357666"></script>
   <script src="assets/modules/ui.js?v=1791334649"></script>
   <script src="assets/modules/money.js?v=1791286805"></script>
@@ -862,8 +862,8 @@
     </div>
 </div>
 
-<script src="assets/admin-bundle.js?v=1791294650"></script>
-<script src="pages/admin.js?v=1791294650"></script>
+<script src="assets/admin-bundle.js?v=1791362328"></script>
+<script src="pages/admin.js?v=1791362328"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {

@@ -1192,5 +1192,6 @@
   "passwordTooShort": "รหัสผ่านอย่างน้อย 6 ตัว",
   "orderInterval": "ช่วงห่างออเดอร์",
   "confirmReceived": "ยืนยันรับเงิน",
-  "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว"
+  "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว",
+  "khqrLabelPlaceholder": "ป้ายชื่อ (ไม่บังคับ)"
 }

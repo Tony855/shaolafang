@@ -51,7 +51,7 @@ function renderProviderList(providers) {
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
         <button data-action="toggle" data-id="${p.id}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(255,193,7,.15);color:#ffd93d;font-size:11px;font-weight:600;cursor:pointer;">${p.enabled ? tAdmin('disabled') : tAdmin('enabled')}</button>
-        <button data-action="delete" data-id="${p.id}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(231,76,60,.15);color:#e74c3c;font-size:11px;font-weight:600;cursor:pointer;">删除</button>
+        <button data-action="delete" data-id="${p.id}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(231,76,60,.15);color:#e74c3c;font-size:11px;font-weight:600;cursor:pointer;">${tAdmin('delete')}</button>
       </div>
     </div>`;
   }).join('');

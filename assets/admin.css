@@ -3031,3 +3031,45 @@ button.edit-btn:disabled {
     .admin-back-btn::before { content: '✕'; font-size: 14px; }
     .admin-back-btn:hover, .admin-back-btn:active { transform: none; }
 }
+
+/* ============================================================
+   移动端导航栏紧凑化（2026-10-07）
+   修复侧边栏菜单项文字换行导致的高度膨胀
+   ============================================================ */
+@media (max-width: 1024px) {
+  .admin-sidebar {
+    width: 180px !important;
+  }
+  .nav-item {
+    padding: 11px 12px !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-height: 0 !important;
+    word-break: normal !important;
+  }
+  .nav-item .nav-icon {
+    flex-shrink: 0 !important;
+  }
+  .nav-item > span:last-child {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-sidebar {
+    width: 170px !important;
+  }
+  .nav-item {
+    padding: 9px 10px !important;
+    font-size: 12px !important;
+    gap: 6px !important;
+  }
+}

@@ -1199,7 +1199,8 @@ const LANGUAGES = {
     "passwordTooShort": "密码至少6位",
     "orderInterval": "下单间隔",
     "confirmReceived": "确认到账",
-    "notifyCashierConfirm": "已通知收银员确认"
+    "notifyCashierConfirm": "已通知收银员确认",
+    "khqrLabelPlaceholder": "备注名（可选）"
   },
   "en": {
     "code": "Code",
@@ -2395,7 +2396,8 @@ const LANGUAGES = {
     "passwordTooShort": "Password must be at least 6 characters",
     "orderInterval": "Order interval",
     "confirmReceived": "Confirm received",
-    "notifyCashierConfirm": "Cashier notified"
+    "notifyCashierConfirm": "Cashier notified",
+    "khqrLabelPlaceholder": "Label (optional)"
   },
   "vi": {
     "code": "Mã",
@@ -3591,7 +3593,8 @@ const LANGUAGES = {
     "passwordTooShort": "Mật khẩu ít nhất 6 ký tự",
     "orderInterval": "Khoảng cách đặt hàng",
     "confirmReceived": "Xác nhận đã nhận",
-    "notifyCashierConfirm": "Đã thông báo thu ngân"
+    "notifyCashierConfirm": "Đã thông báo thu ngân",
+    "khqrLabelPlaceholder": "Nhãn (tùy chọn)"
   },
   "th": {
     "code": "รหัส",
@@ -4787,7 +4790,8 @@ const LANGUAGES = {
     "passwordTooShort": "รหัสผ่านอย่างน้อย 6 ตัว",
     "orderInterval": "ช่วงห่างออเดอร์",
     "confirmReceived": "ยืนยันรับเงิน",
-    "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว"
+    "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว",
+    "khqrLabelPlaceholder": "ป้ายชื่อ (ไม่บังคับ)"
   },
   "km": {
     "code": "កូដ",
@@ -5983,7 +5987,8 @@ const LANGUAGES = {
     "passwordTooShort": "ពាក្យសម្ងាត់យ៉ាងហោចណាស់ 6 តួ",
     "orderInterval": "ចន្លោះការបញ្ជាទិញ",
     "confirmReceived": "បញ្ជាក់ការទទួល",
-    "notifyCashierConfirm": "បានជូនដំណឹងអ្នកគិតលុយ"
+    "notifyCashierConfirm": "បានជូនដំណឹងអ្នកគិតលុយ",
+    "khqrLabelPlaceholder": "ស្លាក (ស្រេចចិត្ត)"
   }
 };
 

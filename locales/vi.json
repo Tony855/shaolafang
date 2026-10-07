@@ -1192,5 +1192,6 @@
   "passwordTooShort": "Mật khẩu ít nhất 6 ký tự",
   "orderInterval": "Khoảng cách đặt hàng",
   "confirmReceived": "Xác nhận đã nhận",
-  "notifyCashierConfirm": "Đã thông báo thu ngân"
+  "notifyCashierConfirm": "Đã thông báo thu ngân",
+  "khqrLabelPlaceholder": "Nhãn (tùy chọn)"
 }

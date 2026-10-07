@@ -1192,5 +1192,6 @@
   "passwordTooShort": "Password must be at least 6 characters",
   "orderInterval": "Order interval",
   "confirmReceived": "Confirm received",
-  "notifyCashierConfirm": "Cashier notified"
+  "notifyCashierConfirm": "Cashier notified",
+  "khqrLabelPlaceholder": "Label (optional)"
 }
