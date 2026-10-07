@@ -401,6 +401,20 @@ install_single() {
     fi
     systemctl start redis-server 2>/dev/null || true
 
+# ===== 3.1 开启 Redis AOF 持久化（避免重启后订单号计数器回退） =====
+if [ -f /etc/redis/redis.conf ]; then
+    if grep -q '^appendonly no' /etc/redis/redis.conf; then
+        sed -i 's/^appendonly no/appendonly yes/' /etc/redis/redis.conf
+        log_info "Redis AOF 已开启（appendonly yes）"
+    elif ! grep -q '^appendonly yes' /etc/redis/redis.conf; then
+        echo 'appendonly yes' >> /etc/redis/redis.conf
+        log_info "Redis AOF 已开启（追加配置）"
+    fi
+    grep -q '^appendfsync' /etc/redis/redis.conf || echo 'appendfsync everysec' >> /etc/redis/redis.conf
+    systemctl restart redis-server 2>/dev/null || systemctl restart redis 2>/dev/null || true
+fi
+
+
     # ===== 6. 安装 Node.js 20 LTS =====
     echo ""
     log_info "检查 Node.js..."
