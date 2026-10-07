@@ -657,7 +657,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
           var cur = String(res.currency || 'USD').toUpperCase();
           var sym = cur === 'KHR' ? '៛' : (cur === 'USD' ? '$' : '');
           var amt = Number(res.amount) || 0;
-          var amtStr = cur === 'KHR' ? Math.round(amt).toLocaleString('en-US') : amt.toFixed(2);
+          var amtStr = ['KHR','VND','THB'].indexOf(cur) >= 0 ? Math.round(amt).toLocaleString('en-US') : amt.toFixed(2);
 
           // 换算成 USD base
           var baseUSD = amt;

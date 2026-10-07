@@ -43,6 +43,13 @@
   }
 
   // 任意币种价格 → USD base
+  // 各币种小数位：VND/THB/KHR 无小数，USD/CNY 保留2位
+  var DECIMALS = { USD: 2, CNY: 2, VND: 0, THB: 0, KHR: 0 };
+  function decimalsOf(code) {
+    if (DECIMALS[code] !== undefined) return DECIMALS[code];
+    return 2;
+  }
+
   function toBase(price, code) {
     if (!code) return Number(price || 0);
     var c = find(code);
@@ -54,7 +61,7 @@
   function primary(base) {
     var sym = primaryCur.symbol || '$';
     var rate = Number(primaryCur.rate || 1);
-    return sym + (Number(base || 0) * rate).toFixed(2);
+    return sym + (Number(base || 0) * rate).toFixed(decimalsOf(primaryCur.code));
   }
 
   // base(USD) → 指定副币显示串
@@ -63,7 +70,7 @@
     var sc = find(code);
     if (!sc) return '';
     var rate = Number(sc.rate || 1);
-    return (sc.symbol || '') + (Number(base || 0) * rate).toFixed(2);
+    return (sc.symbol || '') + (Number(base || 0) * rate).toFixed(decimalsOf(sc.code));
   }
 
   // base → '主币 (副币)' 或 '主币'

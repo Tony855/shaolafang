@@ -268,7 +268,7 @@ function openKhqrModal(orderId, providerId) {
         const cur = String(res.currency || 'USD').toUpperCase();
         const sym = cur === 'KHR' ? '៛' : (cur === 'USD' ? '$' : '');
         const amt = Number(res.amount) || 0;
-        const amtStr = cur === 'KHR' ? Math.round(amt).toLocaleString('en-US') : amt.toFixed(2);
+        const amtStr = ['KHR','VND','THB'].indexOf(cur) >= 0 ? Math.round(amt).toLocaleString('en-US') : amt.toFixed(2);
         let baseUSD = amt;
         if (cur !== 'USD') {
           try {
