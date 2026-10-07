@@ -469,3 +469,217 @@ textarea {
     font-size: max(16px, 1em);
   }
 }
+
+/* ============================================================
+   收款弹窗公共样式（2026-10-07 从 waiter.css 抽出）
+   收银员端 / 服务员端共用
+   ============================================================ */
+.payment-card {
+  position: relative;
+  background: #fff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 500px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  animation: paymentIn 0.25s ease;
+}
+@keyframes paymentIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.payment-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1f2937;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.payment-amount {
+  text-align: center;
+  padding: 16px 0 20px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 18px;
+}
+.payment-amount-label {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+.payment-amount-value {
+  font-size: 36px;
+  font-weight: 800;
+  color: #e85d3a;
+  letter-spacing: -1px;
+}
+
+.payment-methods {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.payment-method {
+  padding: 12px 6px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.payment-method:hover {
+  border-color: #667eea;
+  background: #f0f4ff;
+}
+.payment-method.active {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+}
+.payment-method .pm-icon { font-size: 22px; }
+.payment-method .pm-label { font-size: 12px; font-weight: 700; }
+
+.payment-cash-area {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+.payment-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.payment-input-row label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+.payment-input {
+  flex: 1;
+  height: 42px;
+  padding: 0 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  outline: none;
+  font-family: "SF Mono", monospace;
+  text-align: right;
+}
+.payment-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+}
+.payment-change-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+.payment-change-row span:first-child {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+}
+.payment-change-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: #2ecc71;
+  font-family: "SF Mono", monospace;
+}
+.payment-quick-cash {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.quick-cash-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.quick-cash-btn:hover {
+  border-color: #667eea;
+  background: #f0f4ff;
+  color: #667eea;
+}
+
+.payment-actions {
+  display: flex;
+  gap: 10px;
+}
+.payment-actions .btn {
+  flex: 1;
+  height: 48px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  border: 0;
+  cursor: pointer;
+}
+.btn { display: inline-flex; align-items: center; justify-content: center; }
+.btn-secondary { background: #f3f4f6; color: #1f2937; }
+.btn-secondary:hover { background: #e5e7eb; }
+.btn-primary {
+  background: linear-gradient(135deg, #ff8a4c, #e84a2a);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(232,74,42,0.3);
+}
+.btn-primary:hover { box-shadow: 0 6px 20px rgba(232,74,42,0.4); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.payment-card .modal-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 30px; height: 30px;
+  border: 0; border-radius: 50%;
+  background: rgba(0,0,0,0.06);
+  color: #666;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10;
+}
+.payment-card .modal-close:hover { background: rgba(0,0,0,0.12); }
+
+/* ABA 图标 */
+.pm-icon-aba {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  min-width: 24px;
+}
+.pm-icon-aba img {
+  max-height: 28px;
+  max-width: 40px;
+  width: auto; height: auto;
+  object-fit: contain;
+  display: block;
+  border-radius: 3px;
+}
+.payment-method.active .pm-icon-aba img { filter: brightness(1.1); }
+
+/* ============================================================
+   khqrModal z-index 加强（确保叠在收款弹窗之上）
+   ============================================================ */
+#khqrModal.modal-overlay { z-index: 999 !important; }
+#paymentModal.modal-overlay { z-index: 300; }

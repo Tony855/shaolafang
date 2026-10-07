@@ -1,0 +1,292 @@
+
+/* ============================================================
+   KHQR 弹窗移动端适配（2026-10-07）
+   ============================================================ */
+@media (max-width: 768px) {
+    #khqrModal {
+        padding: 8px !important;
+        padding-top: max(12px, env(safe-area-inset-top)) !important;
+        padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+        align-items: center !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    #khqrModal .payment-card {
+        padding: 16px !important;
+        max-width: calc(100vw - 16px) !important;
+        max-height: calc(100dvh - 24px) !important;
+        overflow-y: auto !important;
+        box-sizing: border-box !important;
+    }
+    #khqrModal .khqr-image,
+    #khqrModal #khqrImage {
+        max-width: min(260px, 60vw) !important;
+        max-height: min(260px, 60vw) !important;
+        width: auto !important;
+        height: auto !important;
+    }
+    #khqrModal .payment-amount-value {
+        font-size: 26px !important;
+    }
+    #khqrModal .payment-actions {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    #khqrModal .payment-actions .btn {
+        width: 100% !important;
+        height: 48px !important;
+    }
+}
+
+/* KHQR 弹窗移动端适配（2026-10-07） */
+@media (max-width: 768px) {
+    #khqrModal {
+        padding: 8px !important;
+        padding-top: max(12px, env(safe-area-inset-top)) !important;
+        padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+        align-items: center !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    #khqrModal .payment-card {
+        padding: 14px !important;
+        max-width: calc(100vw - 16px) !important;
+        max-height: calc(100dvh - 24px) !important;
+        overflow-y: auto !important;
+        box-sizing: border-box !important;
+        border-radius: 16px !important;
+    }
+    #khqrModal #khqrImage {
+        max-width: min(240px, 55vw) !important;
+        max-height: min(240px, 55vw) !important;
+        width: auto !important;
+        height: auto !important;
+        margin: 0 auto;
+    }
+    #khqrModal .payment-amount-value {
+        font-size: 26px !important;
+    }
+    #khqrModal .payment-actions {
+        flex-direction: column !important;
+        gap: 8px !important;
+        margin-top: 12px !important;
+    }
+    #khqrModal .payment-actions .btn {
+        width: 100% !important;
+        height: 46px !important;
+    }
+}
+
+/* ============================================================
+   KHQR 弹窗移动端适配（2026-10-07 · 强制覆盖）
+   ============================================================ */
+@media (max-width: 768px) {
+    #khqrModal {
+        position: fixed !important;
+        inset: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 12px !important;
+        padding-top: max(16px, env(safe-area-inset-top)) !important;
+        padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+        box-sizing: border-box !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        z-index: 9999 !important;
+    }
+    #khqrModal .payment-card {
+        width: 100% !important;
+        max-width: calc(100vw - 24px) !important;
+        max-height: calc(100dvh - 32px) !important;
+        padding: 14px 14px 12px !important;
+        border-radius: 16px !important;
+        box-sizing: border-box !important;
+        overflow-y: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        position: relative !important;
+        margin: auto !important;
+    }
+    #khqrModal .payment-title {
+        font-size: 16px !important;
+        margin-bottom: 6px !important;
+    }
+    #khqrModal .payment-amount {
+        padding: 4px 0 8px !important;
+        margin-bottom: 8px !important;
+    }
+    #khqrModal .payment-amount-label {
+        font-size: 12px !important;
+    }
+    #khqrModal .payment-amount-value {
+        font-size: 24px !important;
+    }
+    /* 二维码容器 + 图片：尺寸自适应 */
+    #khqrModal .payment-card > div[style*="background:#fff"] {
+        padding: 10px !important;
+        margin: 0 auto !important;
+        max-width: 100% !important;
+    }
+    #khqrModal #khqrImage {
+        width: min(200px, 48vw) !important;
+        height: min(200px, 48vw) !important;
+        max-width: 100% !important;
+        object-fit: contain !important;
+    }
+    /* 收款人 / 有效期：字号紧凑 */
+    #khqrModal .payment-card > div[style*="margin-top:14px"] {
+        margin-top: 8px !important;
+        font-size: 12px !important;
+    }
+    #khqrModal .payment-card > div[style*="margin-top:16px"] {
+        margin-top: 8px !important;
+        font-size: 13px !important;
+    }
+    #khqrModal #khqrStatusBar {
+        margin-top: 8px !important;
+        padding: 8px 10px !important;
+        font-size: 12px !important;
+    }
+    /* 按钮堆叠全宽 */
+    #khqrModal .payment-actions {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        margin-top: 10px !important;
+    }
+    #khqrModal .payment-actions .btn {
+        width: 100% !important;
+        height: 46px !important;
+        font-size: 15px !important;
+    }
+    #khqrModal .modal-close {
+        top: 8px !important;
+        right: 8px !important;
+        width: 30px !important;
+        height: 30px !important;
+    }
+}
+
+/* ============================================================
+   KHQR 弹窗最终修复（2026-10-07 v2 · 用 class 完全接管）
+   —— 覆盖前面所有 @media 和 HTML 内联样式
+   ============================================================ */
+
+/* 手机端（覆盖之前的全部规则） */
+@media (max-width: 768px) {
+
+  /* 遮罩层：允许垂直滚动 */
+  .modal-overlay#khqrModal {
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px !important;
+    padding-top: max(12px, env(safe-area-inset-top)) !important;
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+    overflow-y: auto !important;
+  }
+
+  /* 卡片：强制不超屏 + 内部滚动 */
+  #khqrModal .payment-card,
+  #khqrModal .payment-card.khqr-card {
+    width: 100% !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    padding: 14px !important;
+    margin: auto !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    border-radius: 16px !important;
+  }
+
+  /* 二维码外层容器 */
+  #khqrModal .khqr-image-wrap {
+    display: block !important;
+    background: #fff !important;
+    padding: 10px !important;
+    margin: 0 auto !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08) !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
+  }
+
+  /* 二维码图片本身：size 由 CSS 完全控制（覆盖 HTML 内联 280px） */
+  #khqrModal img.khqr-image-inline,
+  #khqrModal #khqrImage {
+    display: block !important;
+    width: min(200px, 50vw) !important;
+    height: min(200px, 50vw) !important;
+    max-width: 100% !important;
+    max-height: 200px !important;
+    margin: 0 auto !important;
+    object-fit: contain !important;
+  }
+
+  /* 标题/金额紧凑 */
+  #khqrModal .payment-title {
+    font-size: 16px !important;
+    margin: 0 0 6px !important;
+    padding-right: 36px !important;
+  }
+  #khqrModal .payment-amount {
+    padding: 4px 0 8px !important;
+    margin-bottom: 8px !important;
+  }
+  #khqrModal .payment-amount-label { font-size: 12px !important; }
+  #khqrModal .payment-amount-value { font-size: 24px !important; }
+
+  /* 收款人/有效期/状态栏紧凑 */
+  #khqrModal > .payment-card > div { font-size: 12px !important; }
+  #khqrModal #khqrStatusBar {
+    margin-top: 8px !important;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  /* 按钮堆叠全宽 */
+  #khqrModal .payment-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+  }
+  #khqrModal .payment-actions .btn {
+    width: 100% !important;
+    height: 46px !important;
+    font-size: 15px !important;
+  }
+
+  /* 关闭按钮 */
+  #khqrModal .modal-close {
+    top: 8px !important;
+    right: 8px !important;
+    width: 30px !important;
+    height: 30px !important;
+  }
+}
+
+/* 桌面端：保持原样 */
+@media (min-width: 769px) {
+  #khqrModal .payment-card,
+  #khqrModal .payment-card.khqr-card {
+    max-width: 460px !important;
+    text-align: center !important;
+  }
+  #khqrModal img.khqr-image-inline,
+  #khqrModal #khqrImage {
+    display: block !important;
+    width: 280px !important;
+    height: 280px !important;
+    object-fit: contain !important;
+    margin: 0 auto !important;
+  }
+  #khqrModal .khqr-image-wrap {
+    display: inline-block !important;
+    background: #fff !important;
+    padding: 14px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,.08) !important;
+  }
+}

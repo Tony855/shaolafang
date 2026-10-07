@@ -28,7 +28,7 @@ const { execSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const LOCALES_DIR = path.join(ROOT, 'locales');
 // 只内置 zh，en/vi/th/km 走 /api/i18n/:lang 按需加载（省 ~200KB/页）
-const EXPECTED_LANGS = ['zh'];
+const EXPECTED_LANGS = ['zh', 'en', 'vi', 'th', 'km'];
 
 /* 加载 5 个 JSON */
 function loadLocales() {

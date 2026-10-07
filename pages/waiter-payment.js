@@ -247,6 +247,9 @@ function openKhqrModal(orderId, providerId) {
   btn.textContent = t('khqrGeneratingBtn');
   $('#khqrModal').classList.add('show');
 
+  // 打开弹窗后翻译所有 data-i18n 元素
+  if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n($('#khqrModal'));
+
   apiCall('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId, provider_id: providerId || undefined } })
     .then(res => {
       if (res.qr_data_url) $('#khqrImage').src = res.qr_data_url;

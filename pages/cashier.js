@@ -469,6 +469,12 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       btns += `<button class="btn btn-cancel-order" onclick="cancelOrder(${order.id})" title="${t('cancelOrder') || '取消'}">✕</button>`;
     }
     btnsEl.innerHTML = btns;
+
+    // 详情渲染完后，重新翻译这一区域的 data-i18n
+    if (SLF.ui && SLF.ui.applyI18n) {
+      const dv = document.getElementById('detailView');
+      if (dv) SLF.ui.applyI18n(dv);
+    }
   }
 
   function updateBottomStats() {
@@ -521,7 +527,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
-    closePaymentModal();
+    // 保留底下的收款弹窗，KHQR 叠在其上；点取消可回到上一级
 
     khqrState.orderId = orderId;
     khqrState.providerId = providerId || null;
@@ -535,6 +541,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     btn.textContent = t('khqrGeneratingBtn');
 
     document.getElementById('khqrModal').classList.add('show');
+
+    // 打开弹窗后翻译所有 data-i18n 元素
+    if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n(document.getElementById('khqrModal'));
 
     // 请求生成
     api('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId, provider_id: providerId || undefined } })

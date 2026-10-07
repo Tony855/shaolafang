@@ -11,7 +11,7 @@
   const CONFIG = {
     API_BASE: '/api',
     DEFAULT_LANG: 'zh',
-    VERSION: '20260918',
+    VERSION: '1791339223',
     STORAGE_KEYS: {
       lang: 'lang',
       adminToken: 'adminToken',
@@ -195,6 +195,14 @@
 
     /* 初始化：加载语言字典 */
     async init(lang, customDict) {
+      // 清理历史遗留的 i18n localStorage 缓存
+      try {
+        ['zh', 'en', 'vi', 'th', 'km'].forEach(l => {
+          localStorage.removeItem('foodflow_i18n_' + l);
+          localStorage.removeItem('foodflow_i18n_' + l + '_v');
+        });
+      } catch (e) {}
+
       this.lang = lang || CONFIG.DEFAULT_LANG;
       store.rawSet(CONFIG.STORAGE_KEYS.lang, this.lang);
 
@@ -219,22 +227,12 @@
 
     /* 从 API 加载语言字典 */
     async loadLanguage(lang) {
+      // 无本地缓存：每次用带版本号的 URL fetch，确保拿到最新字典
       try {
-        const cached = store.rawGet('i18n_' + lang);
-        if (cached) {
-          try {
-            this.dicts[lang] = JSON.parse(cached);
-            log.info('i18n: 使用缓存字典', lang);
-            return true;
-          } catch (e) {}
-        }
-
-        const res = await fetch(`/api/i18n/${lang}?v=${CONFIG.VERSION}`);
+        const res = await fetch(`/api/i18n/${lang}?v=${CONFIG.VERSION}`, { cache: 'no-store' });
         if (res.ok) {
-          const data = await res.json();
-          this.dicts[lang] = data;
-          store.rawSet('i18n_' + lang, JSON.stringify(data));
-          log.info('i18n: 从 API 加载字典', lang);
+          this.dicts[lang] = await res.json();
+          log.info('i18n: 从 API 加载字典', lang, CONFIG.VERSION);
           return true;
         }
       } catch (e) {
