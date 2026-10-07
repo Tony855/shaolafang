@@ -833,13 +833,9 @@
     $('#currentTableBadge').innerHTML = tableLabel;
     state.editingOrderId = order ? order.id : null;
     $('#submitBtn').textContent = order ? t('submitOrder', null, '提交') : t('submitOrder', null, '提交订单');
-    // 编辑已有未结算订单且服务员有结算权限时，显示"结算"按钮
+    // 结算入口已移到"选择订单"弹窗，编辑界面不再显示结算按钮
     const settleBtn = $('#settleBtn');
-    if (settleBtn) {
-      const canSettle = order && order.status === 'pending' && state.waiter && state.waiter.can_complete_order;
-      settleBtn.textContent = t('settleOrder', null, '结算');
-      settleBtn.style.display = canSettle ? 'inline-block' : 'none';
-    }
+    if (settleBtn) settleBtn.style.display = 'none';
     renderDishes();
     $('#orderModal').classList.add('open');
   }
@@ -848,14 +844,27 @@
     $('#orderSelectTitle').textContent = t('currentTable', null, '当前桌号') + '：' + state.currentTable + ' - ' + t('selectOrder', null, '选择订单');
     const labels = buildSessionLabels(tableOrders);
     const listEl = $('#orderSelectList');
+    const canSettle = state.waiter && state.waiter.can_complete_order;
     let html = '';
     tableOrders.forEach((order, idx) => {
       const customerLabel = labels.get(order.id) || (t('order', null, '订单') + (idx + 1));
       const itemCount = order.items ? order.items.length : 0;
       const timeStr = order.createdAt ? new Date(order.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
-      html += '<div class="order-select-item" onclick="selectOrder(' + order.id + ')" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid var(--gray-2);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .2s;">';
-      html += '<div><div style="font-weight:600;font-size:15px;">' + esc(customerLabel) + '</div><div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + itemCount + ' ' + t('dishes', null, '道菜品') + ' · ' + timeStr + '</div></div>';
-      html += '<div style="font-weight:700;color:var(--primary);">' + SLF.money.format(order.total || 0) + '</div>';
+      const allDone = SLF.orderStatus.allItemsDone(order);
+      const showSettleBtn = canSettle && order.status === 'pending' && allDone;
+      const orderNo = order.order_no || ('#' + order.id);
+      const settleBtnHtml = showSettleBtn
+        ? '<button onclick="event.stopPropagation();window.openPaymentModal(' + order.id + ')" style="background:linear-gradient(135deg,#27ae60,#2ecc71);border:0;color:#fff;padding:8px 14px;border-radius:20px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 3px 10px rgba(46,204,113,.3);white-space:nowrap;">' + t('settleOrder', null, '结算') + '</button>'
+        : '';
+      html += '<div class="order-select-item" onclick="selectOrder(' + order.id + ')" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid var(--gray-2);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .2s;gap:10px;">';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-weight:600;font-size:15px;">' + esc(customerLabel) + ' <span style="color:#e85d3a;font-weight:700;font-size:13px;margin-left:6px;">' + esc(orderNo) + '</span></div>';
+      html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + itemCount + ' ' + t('dishes', null, '道菜品') + ' · ' + timeStr + '</div>';
+      html += '</div>';
+      html += '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">';
+      html += '<div style="font-weight:700;color:var(--primary);white-space:nowrap;">' + SLF.money.format(order.total || 0) + '</div>';
+      html += settleBtnHtml;
+      html += '</div>';
       html += '</div>';
     });
     listEl.innerHTML = html;

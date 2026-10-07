@@ -222,3 +222,10 @@ document.addEventListener('click', function(e) {
 window.loadKhqrInfo = loadKhqrInfo;
 
 })();
+
+// 语言切换时重新渲染 KHQR 收款码列表
+if (window.SLF && window.SLF.i18n && typeof window.SLF.i18n.onChange === 'function') {
+  window.SLF.i18n.onChange(function () {
+    if (window.loadKhqrInfo) setTimeout(function () { window.loadKhqrInfo(); }, 50);
+  });
+}
