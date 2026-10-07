@@ -1057,7 +1057,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   if (typeof io === 'function') {
     const cashierSocket = io({
       query: {
-        storeId: SLF.store.rawGet('storeId') || 1,
+        storeId: SLF.store.rawGet('cashierStoreId') || SLF.store.rawGet('storeId') || 1,
         token: SLF.store.rawGet('cashierToken') || ''
       }
     });
