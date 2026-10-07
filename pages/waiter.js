@@ -145,6 +145,7 @@
       }
     });
 
+    if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n();
     renderTables();
   }
 
@@ -1034,7 +1035,15 @@
   const savedLang = SLF.store.rawGet('waiterLang') || 'zh';
   waiterLang = savedLang;
 
-  function initWaiterPage() {
+  // 语言切换时自动翻译所有 data-i18n 元素
+if (SLF.i18n && typeof SLF.i18n.onChange === 'function') {
+  SLF.i18n.onChange(function() {
+    if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n();
+    if (typeof applyWaiterLanguage === 'function') applyWaiterLanguage();
+  });
+}
+
+function initWaiterPage() {
     try {
       // ===== 桌台搜索 + 过滤事件绑定 =====
       const searchInput = document.getElementById('tableSearchInput');

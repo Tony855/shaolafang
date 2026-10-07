@@ -1150,5 +1150,11 @@
   "selectStoreFirst": "กรุณาเลือกสาขาก่อน",
   "readyToSettle": "✅ พร้อมชำระ",
   "itemsPendingPre": "⏳ เหลือ ",
-  "itemsPendingSuf": " รายการค้าง"
+  "itemsPendingSuf": " รายการค้าง",
+  "receivable": "ค้างรับ",
+  "receivableAmount": "ยอดค้างชำระ",
+  "cashPay": "เงินสด",
+  "actualReceived": "รับจริง",
+  "changeAmount": "เงินทอน",
+  "confirmPay": "ยืนยันการรับเงิน"
 }

@@ -1150,5 +1150,11 @@
   "selectStoreFirst": "Vui lòng chọn cửa hàng trước",
   "readyToSettle": "✅ Có thể thanh toán",
   "itemsPendingPre": "⏳ Còn ",
-  "itemsPendingSuf": " món chưa xong"
+  "itemsPendingSuf": " món chưa xong",
+  "receivable": "Phải thu",
+  "receivableAmount": "Số tiền cần thu",
+  "cashPay": "Tiền mặt",
+  "actualReceived": "Tiền nhận",
+  "changeAmount": "Tiền thối",
+  "confirmPay": "Xác nhận thu tiền"
 }

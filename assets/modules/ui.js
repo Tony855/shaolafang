@@ -231,6 +231,35 @@
      ------------------------------------------------------------ */
   injectStyle();
   SLF.ui = Object.assign(dom, {
+    /**
+     * 遍历 root 下所有 [data-i18n]/[data-i18n-placeholder]/[data-i18n-title] 元素，
+     * 用当前语言的翻译替换文本/placeholder/title
+     * @param {Element} [root=document]
+     */
+    applyI18n(root) {
+      root = root || document;
+      const i18n = SLF.i18n;
+      if (!i18n || typeof i18n.t !== 'function') return;
+      root.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (!key) return;
+        const v = i18n.t(key);
+        if (v && v !== key) el.textContent = v;
+      });
+      root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (!key) return;
+        const v = i18n.t(key);
+        if (v && v !== key) el.placeholder = v;
+      });
+      root.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (!key) return;
+        const v = i18n.t(key);
+        if (v && v !== key) el.title = v;
+      });
+    },
+
     toast,
     confirm,
     showLoading,

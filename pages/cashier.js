@@ -222,6 +222,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     document.getElementById('searchInput').placeholder = '🔍 ' + t('searchPlaceholder');
     document.getElementById('detailEmpty').querySelector('p').textContent = t('selectOrder') || '← 从左侧选择一个订单';
     document.getElementById('paymentTitle').textContent = t('settleOrder') || '收款';
+    // 兜底：把所有带 data-i18n 的静态元素翻译一遍
+    if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n();
   }
 
   /* ===== Tab 切换 ===== */

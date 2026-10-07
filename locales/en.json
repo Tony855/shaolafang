@@ -1150,5 +1150,11 @@
   "selectStoreFirst": "Please select a store first",
   "readyToSettle": "✅ Ready to settle",
   "itemsPendingPre": "⏳ ",
-  "itemsPendingSuf": " item(s) pending"
+  "itemsPendingSuf": " item(s) pending",
+  "receivable": "Receivable",
+  "receivableAmount": "Amount due",
+  "cashPay": "Cash",
+  "actualReceived": "Received",
+  "changeAmount": "Change",
+  "confirmPay": "Confirm payment"
 }

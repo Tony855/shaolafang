@@ -1150,5 +1150,11 @@
   "selectStoreFirst": "សូមជ្រើសរើសហាងជាមុន",
   "readyToSettle": "✅ អាចបង់ប្រាក់",
   "itemsPendingPre": "⏳ នៅសល់ ",
-  "itemsPendingSuf": " ធាតុមិនរួច"
+  "itemsPendingSuf": " ធាតុមិនរួច",
+  "receivable": "ត្រូវទទួល",
+  "receivableAmount": "ចំនួនត្រូវទទួល",
+  "cashPay": "សាច់ប្រាក់",
+  "actualReceived": "ទទួលបាន",
+  "changeAmount": "ប្រាក់អាប់",
+  "confirmPay": "បញ្ជាក់ការទទួលប្រាក់"
 }

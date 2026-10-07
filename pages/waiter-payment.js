@@ -137,6 +137,7 @@ window.openPaymentModal = async function(orderId, orderHint) {
   renderQuickCash(amount);
   await loadPaymentMethods();
   await loadKhqrProviders();
+  if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n($('#paymentModal'));
   $('#paymentModal').classList.add('show');
   setTimeout(() => { const el = $('#cashReceived'); if (el) el.focus(); }, 100);
 };

@@ -1150,5 +1150,11 @@
   "selectStoreFirst": "请先选择店铺",
   "readyToSettle": "✅ 可结算",
   "itemsPendingPre": "⏳ 还有 ",
-  "itemsPendingSuf": " 道未完成"
+  "itemsPendingSuf": " 道未完成",
+  "receivable": "应收",
+  "receivableAmount": "应收金额",
+  "cashPay": "现金",
+  "actualReceived": "实收",
+  "changeAmount": "找零",
+  "confirmPay": "确认收款"
 }
