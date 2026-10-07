@@ -2,8 +2,15 @@
    server/services/orderNo.js — 订单号分配
    ============================================================ */
 const { runAsync, getAsync } = require('../db/helpers');
+const redisState = require('../db/redis-state');
 
 async function allocateOrderNo(todayPrefix) {
+  if (redisState.ready && redisState.client) {
+    try {
+      const seq = await redisState.client.incr('order_seq:' + todayPrefix);
+      return todayPrefix + String(seq).padStart(5, '0');
+    } catch (e) {}
+  }
   const now = new Date().toISOString();
   await runAsync(
     'INSERT INTO order_sequences (prefix, current_value, updated_at) VALUES (?, 0, ?) ' +

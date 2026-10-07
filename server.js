@@ -61,6 +61,7 @@ async function initRedis() {
     redisClient.on('error', (err) => console.error('Redis连接错误:', err.message));
     await redisClient.connect();
     redisReady = true;
+    try { const rs = require("./server/db/redis-state"); rs.client = redisClient; rs.ready = true; } catch(_) {}
     console.log('✅ Redis缓存已连接');
     return true;
   } catch(e) {
@@ -1107,11 +1108,26 @@ io.on('connection', (socket) => {
 // ---------- 启动 ----------
 const isInitOnly = process.argv.includes('--init-only');
 
+async function initSocketAdapter() {
+  try {
+    const { createAdapter } = require('@socket.io/redis-adapter');
+    const { createClient } = require('redis');
+    const url = process.env.REDIS_URL;
+    if (!url) return;
+    const pub = createClient({ url });
+    const sub = pub.duplicate();
+    await Promise.all([pub.connect(), sub.connect()]);
+    io.adapter(createAdapter(pub, sub));
+    console.log('✅ Socket.io Redis Adapter 已启用');
+  } catch (e) { console.warn('⚠️ Socket.io Adapter 失败:', e.message); }
+}
+
 initDatabase().then(async () => {
   if (isInitOnly) {
     process.exit(0);
   }
   await initRedis();
+  await initSocketAdapter();
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`📁 数据库: MySQL (${poolConfig.database})`);
     if (RUN_SCHEDULED_TASKS) {

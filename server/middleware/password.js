@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 function hashPassword(pwd) {
-  return bcrypt.hashSync(pwd, 10);
+  return bcrypt.hashSync(pwd, 8);
 }
 
 function verifyPassword(pwd, hash) {

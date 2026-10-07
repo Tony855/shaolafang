@@ -11,8 +11,8 @@ const poolConfig = {
   database: env.DB_DATABASE,
   port: env.DB_PORT,
   waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
+  connectionLimit: env.DB_CONNECTION_LIMIT,
+  queueLimit: 200,
   charset: 'utf8mb4'
 };
 

@@ -13,6 +13,7 @@
     "bump": "bash scripts/bump-version.sh"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "adm-zip": "^0.6.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",

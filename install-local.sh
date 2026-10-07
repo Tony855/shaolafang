@@ -261,7 +261,7 @@ DB_DATABASE=$DEFAULT_DB_NAME
 DB_USER=foodflow
 DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
-REDIS_URL=
+REDIS_URL=redis://127.0.0.1:6379
 UPLOAD_DIR=$APP_DIR/uploads
 RUN_SCHEDULED_TASKS=true
 JWT_SECRET=$JWT_RANDOM_SECRET
@@ -276,6 +276,35 @@ echo "    主机: 127.0.0.1"
 echo "    数据库: $DEFAULT_DB_NAME"
 echo "    用户: foodflow"
 echo "    密码: ${DB_RANDOM_PASSWORD:0:4}****（完整密码见 .env 文件）"
+
+
+# ===== 7.8 生产优化 =====
+apply_production_optimizations() {
+    log_info "应用生产环境优化..."
+    [ -f "$APP_DIR/server/config/env.js" ] && grep -q 'DB_CONNECTION_LIMIT' "$APP_DIR/server/config/env.js" ||       sed -i 's|\(DB_PORT: Number(process.env.DB_PORT) || 3306,\)|
+  DB_CONNECTION_LIMIT: Number(process.env.DB_CONNECTION_LIMIT) || 50,|' "$APP_DIR/server/config/env.js" 2>/dev/null || true
+    [ -f "$APP_DIR/server/db/pool.js" ] && sed -i -E 's|connectionLimit:\s*[0-9]+|connectionLimit: env.DB_CONNECTION_LIMIT|;s|queueLimit:\s*[0-9]+|queueLimit: 200|' "$APP_DIR/server/db/pool.js"
+    [ -f "$APP_DIR/server/middleware/password.js" ] && sed -i -E 's|bcrypt\.hashSync\(pwd, 10\)|bcrypt.hashSync(pwd, 8)|' "$APP_DIR/server/middleware/password.js"
+    MC=""
+    mariadb -u root -e "SELECT 1" >/dev/null 2>&1 && MC="mariadb -u root"
+    [ -z "$MC" ] && mysql -u root -e "SELECT 1" >/dev/null 2>&1 && MC="mysql -u root"
+    if [ -n "$MC" ]; then
+      for idx in \
+        "orders idx_store_status_created (store_id, status, createdAt)" \
+        "orders idx_store_table_status (store_id, table_name, status)" \
+        "orders idx_store_created (store_id, createdAt)" \
+        "waiter_calls idx_store_status_created (store_id, status, created_at)" \
+        "scan_sessions idx_store_expires (store_id, expires_at)" \
+        "menus idx_store_active (store_id, active)" \
+        "tables idx_store_status (store_id, status)"; do
+        set -- $idx; TBL=$1; NAME=$2; shift 2
+        EX=$($MC "$DEFAULT_DB_NAME" -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='$DEFAULT_DB_NAME' AND TABLE_NAME='$TBL' AND INDEX_NAME='$NAME';" 2>/dev/null)
+        [ "${EX:-0}" -lt 1 ] && $MC "$DEFAULT_DB_NAME" -e "CREATE INDEX $NAME ON \`$TBL\` $*;" 2>/dev/null || true
+      done
+    fi
+    log_success "生产环境优化完成"
+}
+apply_production_optimizations
 
 # ===== 8. 停止旧服务，配置 Systemd =====
 echo ""

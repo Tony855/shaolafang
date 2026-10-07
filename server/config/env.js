@@ -29,4 +29,5 @@ module.exports = {
   DB_PASSWORD: process.env.DB_PASSWORD || '',
   DB_DATABASE: (() => { const db = process.env.DB_DATABASE; if (!db) { console.error('❌ .env 缺少 DB_DATABASE'); process.exit(1); } return db; })(),
   DB_PORT: Number(process.env.DB_PORT) || 3306,
+  DB_CONNECTION_LIMIT: Number(process.env.DB_CONNECTION_LIMIT) || 50,
 };
