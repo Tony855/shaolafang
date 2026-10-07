@@ -973,11 +973,11 @@
   "__err__菜品序号无效，当前共 ": "ลำดับเมนูไม่ถูกต้อง ทั้งหมด ",
   "__err__该订单暂无菜品，无法切换状态": "ออเดอร์นี้ยังไม่มีเมนู ไม่สามารถเปลี่ยนสถานะได้",
   "noSearchResult": "🔍 ไม่พบผลลัพธ์ที่ตรงกัน",
-  "khqrAwaitConfirm": "🔔 ลูกค้าแจ้งว่าชำระแล้ว รอตรวจสอบ",
-  "khqrCustomerPaid": "ลูกค้าแจ้งว่าชำระแล้ว ({orderNo}) กรุณาตรวจสอบ",
+  "khqrAwaitConfirm": "🔔 ลูกค้าชำระแล้ว",
+  "khqrCustomerPaid": "ลูกค้าชำระเงินแล้ว ยืนยัน?",
   "khqrGenerating": "⏳ กำลังสร้างคิวอาร์โค้ด...",
   "khqrGeneratingBtn": "⏳ กำลังสร้าง...",
-  "khqrReceived": "✅ ได้รับเงินแล้ว",
+  "khqrReceived": "✅ ออเดอร์ชำระแล้ว",
   "khqrGenerateFailed": "สร้างไม่สำเร็จ",
   "khqrExpired": "⏰ คิวอาร์โค้ดหมดอายุ กรุณาสร้างใหม่",
   "khqrExpiredShort": "หมดอายุ",
@@ -1190,5 +1190,7 @@
   "printingKitchenTicket": "กำลังพิมพ์ใบครัว...",
   "editMerchant": "แก้ไขผู้ค้า",
   "passwordTooShort": "รหัสผ่านอย่างน้อย 6 ตัว",
-  "orderInterval": "ช่วงห่างออเดอร์"
+  "orderInterval": "ช่วงห่างออเดอร์",
+  "confirmReceived": "ยืนยันรับเงิน",
+  "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว"
 }

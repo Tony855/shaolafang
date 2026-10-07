@@ -973,11 +973,11 @@
   "__err__菜品序号无效，当前共 ": "Invalid item index, total ",
   "__err__该订单暂无菜品，无法切换状态": "Order has no items, cannot change status",
   "noSearchResult": "🔍 No matching results",
-  "khqrAwaitConfirm": "🔔 Customer says paid, pending verification",
-  "khqrCustomerPaid": "Customer says paid ({orderNo}), please verify",
+  "khqrAwaitConfirm": "🔔 Customer paid",
+  "khqrCustomerPaid": "Customer paid, confirm?",
   "khqrGenerating": "⏳ Generating QR code...",
   "khqrGeneratingBtn": "⏳ Generating...",
-  "khqrReceived": "✅ Payment received",
+  "khqrReceived": "✅ Order paid",
   "khqrGenerateFailed": "Generation failed",
   "khqrExpired": "⏰ QR code expired, please regenerate",
   "khqrExpiredShort": "Expired",
@@ -1190,5 +1190,7 @@
   "printingKitchenTicket": "Printing kitchen ticket...",
   "editMerchant": "Edit merchant",
   "passwordTooShort": "Password must be at least 6 characters",
-  "orderInterval": "Order interval"
+  "orderInterval": "Order interval",
+  "confirmReceived": "Confirm received",
+  "notifyCashierConfirm": "Cashier notified"
 }

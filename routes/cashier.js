@@ -152,7 +152,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     const totalAmount = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
     const tableNames = [...new Set(orders.map(o => o.table_name))];
     for (const order of orders) {
-      await runAsync("UPDATE orders SET status='done', createdAt=? WHERE id=? AND store_id=?", [now, order.id, req.storeId]);
+      await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, createdAt=? WHERE id=? AND store_id=?", [now, order.id, req.storeId]);
       await syncTableStatus(order.table_name, req.storeId);
     }
 
@@ -223,7 +223,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     } catch(e) { return res.status(400).json({ error: '订单数据异常' }); }
     const { pay_method, cash_received, cash_change } = req.body || {};
     await runAsync(
-      "UPDATE orders SET status='done', createdAt=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=?",
+      "UPDATE orders SET status='done', awaiting_confirm=0, createdAt=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=?",
       [new Date().toISOString(), pay_method || '', Number(cash_received) || 0, Number(cash_change) || 0, id, req.storeId]
     );
     await syncTableStatus(order.table_name, req.storeId);

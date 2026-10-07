@@ -13,7 +13,7 @@ const apiCall = (path, opt) => SLF.api.page(path, opt);
 
 let paymentOrderId = null;
 let payMethod = 'cash';
-let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null };
+let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '' };
 let khqrProviders = [];
 let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
 
@@ -219,8 +219,14 @@ window.confirmPay = async function() {
       const changeText = $('#cashChange').textContent.replace(/[^0-9.]/g, '');
       body.cash_change = parseFloat(changeText) || 0;
     }
-    await apiCall('/orders/' + id, { method: 'PUT', body });
-    SLF.ui.toast('✅ ' + (t('settleOrder') || '已结算'));
+    // ★ 不再直接结算，改为通知收银员确认
+    await apiCall('/waiter/khqr/notify', { method: 'POST', body: {
+      order_id: id,
+      pay_method: body.pay_method,
+      cash_received: body.cash_received || 0,
+      cash_change: body.cash_change || 0,
+    }});
+    SLF.ui.toast('🔔 ' + (t('notifyCashierConfirm') || '已通知收银员确认'));
     window.closePaymentModal();
     if (typeof window.closeWaiterModal === 'function') window.closeWaiterModal();
     if (typeof window.reloadWaiterData === 'function') await window.reloadWaiterData();
@@ -279,6 +285,7 @@ function openKhqrModal(orderId, providerId) {
         $('#khqrAmount').innerHTML = '<span style="color:#e85d3a;font-weight:800;">' + sym + amtStr + '</span>' + secHtml;
       })();
 
+      khqrState.bankName = res.provider_bank || '';
       $('#khqrMerchant').textContent = (res.provider_bank ? res.provider_bank + ' · ' : '') + (res.merchant_name || '');
       $('#khqrOrderNo').textContent = res.order_no || '';
       khqrState.expiresAt = new Date(res.expires_at).getTime();
@@ -363,8 +370,12 @@ window.confirmKhqrReceived = async function() {
   btn.disabled = true;
   btn.textContent = t('khqrConfirming');
   try {
-    await apiCall('/orders/' + id, { method: 'PUT', body: { status: 'done', pay_method: 'aba' } });
-    SLF.ui.toast('✅ ' + (t('settleOrder') || '已收款'));
+    // ★ 不再直接结算，改为通知收银员确认
+    await apiCall('/waiter/khqr/notify', { method: 'POST', body: {
+      order_id: id,
+      pay_method: (khqrState.bankName || 'aba').toLowerCase(),
+    }});
+    SLF.ui.toast('🔔 ' + (t('notifyCashierConfirm') || '已通知收银员确认'));
     closeKhqrModalSilent();
     window.closePaymentModal();
     if (typeof window.closeWaiterModal === 'function') window.closeWaiterModal();

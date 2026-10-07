@@ -980,11 +980,11 @@ const LANGUAGES = {
     "__err__菜品序号无效，当前共 ": "菜品序号无效，当前共 ",
     "__err__该订单暂无菜品，无法切换状态": "该订单暂无菜品，无法切换状态",
     "noSearchResult": "🔍 无匹配结果",
-    "khqrAwaitConfirm": "🔔 客户说已付款，待核实",
-    "khqrCustomerPaid": "客户说已付款（{orderNo}），请核实到账",
+    "khqrAwaitConfirm": "🔔 客户已支付成功",
+    "khqrCustomerPaid": "客户已支付成功，确认？",
     "khqrGenerating": "⏳ 正在生成二维码...",
     "khqrGeneratingBtn": "⏳ 生成中...",
-    "khqrReceived": "✅ 已收到款",
+    "khqrReceived": "✅ 订单已付款",
     "khqrGenerateFailed": "生成失败",
     "khqrExpired": "⏰ 二维码已过期，请重新生成",
     "khqrExpiredShort": "已过期",
@@ -1197,7 +1197,9 @@ const LANGUAGES = {
     "printingKitchenTicket": "正在打印出餐单...",
     "editMerchant": "编辑商户",
     "passwordTooShort": "密码至少6位",
-    "orderInterval": "下单间隔"
+    "orderInterval": "下单间隔",
+    "confirmReceived": "确认到账",
+    "notifyCashierConfirm": "已通知收银员确认"
   },
   "en": {
     "code": "Code",
@@ -2174,11 +2176,11 @@ const LANGUAGES = {
     "__err__菜品序号无效，当前共 ": "Invalid item index, total ",
     "__err__该订单暂无菜品，无法切换状态": "Order has no items, cannot change status",
     "noSearchResult": "🔍 No matching results",
-    "khqrAwaitConfirm": "🔔 Customer says paid, pending verification",
-    "khqrCustomerPaid": "Customer says paid ({orderNo}), please verify",
+    "khqrAwaitConfirm": "🔔 Customer paid",
+    "khqrCustomerPaid": "Customer paid, confirm?",
     "khqrGenerating": "⏳ Generating QR code...",
     "khqrGeneratingBtn": "⏳ Generating...",
-    "khqrReceived": "✅ Payment received",
+    "khqrReceived": "✅ Order paid",
     "khqrGenerateFailed": "Generation failed",
     "khqrExpired": "⏰ QR code expired, please regenerate",
     "khqrExpiredShort": "Expired",
@@ -2391,7 +2393,9 @@ const LANGUAGES = {
     "printingKitchenTicket": "Printing kitchen ticket...",
     "editMerchant": "Edit merchant",
     "passwordTooShort": "Password must be at least 6 characters",
-    "orderInterval": "Order interval"
+    "orderInterval": "Order interval",
+    "confirmReceived": "Confirm received",
+    "notifyCashierConfirm": "Cashier notified"
   },
   "vi": {
     "code": "Mã",
@@ -3368,11 +3372,11 @@ const LANGUAGES = {
     "__err__菜品序号无效，当前共 ": "Chỉ số món không hợp lệ, tổng ",
     "__err__该订单暂无菜品，无法切换状态": "Đơn hàng không có món, không thể đổi trạng thái",
     "noSearchResult": "🔍 Không có kết quả phù hợp",
-    "khqrAwaitConfirm": "🔔 Khách báo đã thanh toán, chờ xác nhận",
-    "khqrCustomerPaid": "Khách báo đã thanh toán ({orderNo}), vui lòng xác minh",
+    "khqrAwaitConfirm": "🔔 Khách đã trả tiền",
+    "khqrCustomerPaid": "Khách đã thanh toán, xác nhận?",
     "khqrGenerating": "⏳ Đang tạo mã QR...",
     "khqrGeneratingBtn": "⏳ Đang tạo...",
-    "khqrReceived": "✅ Đã nhận tiền",
+    "khqrReceived": "✅ Đơn đã thanh toán",
     "khqrGenerateFailed": "Tạo thất bại",
     "khqrExpired": "⏰ Mã QR đã hết hạn, vui lòng tạo lại",
     "khqrExpiredShort": "Đã hết hạn",
@@ -3585,7 +3589,9 @@ const LANGUAGES = {
     "printingKitchenTicket": "Đang in phiếu bếp...",
     "editMerchant": "Sửa thương nhân",
     "passwordTooShort": "Mật khẩu ít nhất 6 ký tự",
-    "orderInterval": "Khoảng cách đặt hàng"
+    "orderInterval": "Khoảng cách đặt hàng",
+    "confirmReceived": "Xác nhận đã nhận",
+    "notifyCashierConfirm": "Đã thông báo thu ngân"
   },
   "th": {
     "code": "รหัส",
@@ -4562,11 +4568,11 @@ const LANGUAGES = {
     "__err__菜品序号无效，当前共 ": "ลำดับเมนูไม่ถูกต้อง ทั้งหมด ",
     "__err__该订单暂无菜品，无法切换状态": "ออเดอร์นี้ยังไม่มีเมนู ไม่สามารถเปลี่ยนสถานะได้",
     "noSearchResult": "🔍 ไม่พบผลลัพธ์ที่ตรงกัน",
-    "khqrAwaitConfirm": "🔔 ลูกค้าแจ้งว่าชำระแล้ว รอตรวจสอบ",
-    "khqrCustomerPaid": "ลูกค้าแจ้งว่าชำระแล้ว ({orderNo}) กรุณาตรวจสอบ",
+    "khqrAwaitConfirm": "🔔 ลูกค้าชำระแล้ว",
+    "khqrCustomerPaid": "ลูกค้าชำระเงินแล้ว ยืนยัน?",
     "khqrGenerating": "⏳ กำลังสร้างคิวอาร์โค้ด...",
     "khqrGeneratingBtn": "⏳ กำลังสร้าง...",
-    "khqrReceived": "✅ ได้รับเงินแล้ว",
+    "khqrReceived": "✅ ออเดอร์ชำระแล้ว",
     "khqrGenerateFailed": "สร้างไม่สำเร็จ",
     "khqrExpired": "⏰ คิวอาร์โค้ดหมดอายุ กรุณาสร้างใหม่",
     "khqrExpiredShort": "หมดอายุ",
@@ -4779,7 +4785,9 @@ const LANGUAGES = {
     "printingKitchenTicket": "กำลังพิมพ์ใบครัว...",
     "editMerchant": "แก้ไขผู้ค้า",
     "passwordTooShort": "รหัสผ่านอย่างน้อย 6 ตัว",
-    "orderInterval": "ช่วงห่างออเดอร์"
+    "orderInterval": "ช่วงห่างออเดอร์",
+    "confirmReceived": "ยืนยันรับเงิน",
+    "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว"
   },
   "km": {
     "code": "កូដ",
@@ -5756,11 +5764,11 @@ const LANGUAGES = {
     "__err__菜品序号无效，当前共 ": "លំដាប់មុខម្ហូបមិនត្រឹមត្រូវ សរុប ",
     "__err__该订单暂无菜品，无法切换状态": "ការបញ្ជាទិញមិនមានមុខហូប មិនអាចប្តូរស្ថានភាព",
     "noSearchResult": "🔍 គ្មានលទ្ធផលត្រូវគ្នា",
-    "khqrAwaitConfirm": "🔔 អតិថិជនបានជូនដំណឹងថាបានបង់ប្រាក់ រង់ចាំផ្ទៀងផ្ទាត់",
-    "khqrCustomerPaid": "អតិថិជនបានជូនដំណឹងថាបានបង់ប្រាក់ ({orderNo}) សូមផ្ទៀងផ្ទាត់",
+    "khqrAwaitConfirm": "🔔 អតិថិជនបានបង់ប្រាក់",
+    "khqrCustomerPaid": "អតិថិជនបានបង់ប្រាក់ បញ្ជាក់?",
     "khqrGenerating": "⏳ កំពុងបង្កើតកូដ QR...",
     "khqrGeneratingBtn": "⏳ កំពុងបង្កើត...",
-    "khqrReceived": "✅ ទទួលបានប្រាក់រួចរាល់",
+    "khqrReceived": "✅ ការបញ្ជាទិញបានបង់ប្រាក់",
     "khqrGenerateFailed": "ការបង្កើតបរាជ័យ",
     "khqrExpired": "⏰ កូដ QR ផុតកំណត់ សូមបង្កើតឡើងវិញ",
     "khqrExpiredShort": "ផុតកំណត់",
@@ -5973,7 +5981,9 @@ const LANGUAGES = {
     "printingKitchenTicket": "កំពុងបោះពុម្ពសំបុត្រផ្ទះបាយ...",
     "editMerchant": "កែប្រែពាណិជ្ជករ",
     "passwordTooShort": "ពាក្យសម្ងាត់យ៉ាងហោចណាស់ 6 តួ",
-    "orderInterval": "ចន្លោះការបញ្ជាទិញ"
+    "orderInterval": "ចន្លោះការបញ្ជាទិញ",
+    "confirmReceived": "បញ្ជាក់ការទទួល",
+    "notifyCashierConfirm": "បានជូនដំណឹងអ្នកគិតលុយ"
   }
 };
 

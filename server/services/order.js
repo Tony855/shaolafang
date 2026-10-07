@@ -32,6 +32,10 @@ function formatOrder(row) {
     sessionToken: row.session_token || '',
     customerToken: row.customer_token || '',
     note: row.note || '',
+    awaiting_confirm: Number(row.awaiting_confirm) || 0,
+    pay_method: row.pay_method || '',
+    cash_received: Number(row.cash_received) || 0,
+    cash_change: Number(row.cash_change) || 0,
     dataCorrupted
   };
 }

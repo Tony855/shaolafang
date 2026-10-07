@@ -973,11 +973,11 @@
   "__err__菜品序号无效，当前共 ": "Chỉ số món không hợp lệ, tổng ",
   "__err__该订单暂无菜品，无法切换状态": "Đơn hàng không có món, không thể đổi trạng thái",
   "noSearchResult": "🔍 Không có kết quả phù hợp",
-  "khqrAwaitConfirm": "🔔 Khách báo đã thanh toán, chờ xác nhận",
-  "khqrCustomerPaid": "Khách báo đã thanh toán ({orderNo}), vui lòng xác minh",
+  "khqrAwaitConfirm": "🔔 Khách đã trả tiền",
+  "khqrCustomerPaid": "Khách đã thanh toán, xác nhận?",
   "khqrGenerating": "⏳ Đang tạo mã QR...",
   "khqrGeneratingBtn": "⏳ Đang tạo...",
-  "khqrReceived": "✅ Đã nhận tiền",
+  "khqrReceived": "✅ Đơn đã thanh toán",
   "khqrGenerateFailed": "Tạo thất bại",
   "khqrExpired": "⏰ Mã QR đã hết hạn, vui lòng tạo lại",
   "khqrExpiredShort": "Đã hết hạn",
@@ -1190,5 +1190,7 @@
   "printingKitchenTicket": "Đang in phiếu bếp...",
   "editMerchant": "Sửa thương nhân",
   "passwordTooShort": "Mật khẩu ít nhất 6 ký tự",
-  "orderInterval": "Khoảng cách đặt hàng"
+  "orderInterval": "Khoảng cách đặt hàng",
+  "confirmReceived": "Xác nhận đã nhận",
+  "notifyCashierConfirm": "Đã thông báo thu ngân"
 }

@@ -973,11 +973,11 @@
   "__err__菜品序号无效，当前共 ": "菜品序号无效，当前共 ",
   "__err__该订单暂无菜品，无法切换状态": "该订单暂无菜品，无法切换状态",
   "noSearchResult": "🔍 无匹配结果",
-  "khqrAwaitConfirm": "🔔 客户说已付款，待核实",
-  "khqrCustomerPaid": "客户说已付款（{orderNo}），请核实到账",
+  "khqrAwaitConfirm": "🔔 客户已支付成功",
+  "khqrCustomerPaid": "客户已支付成功，确认？",
   "khqrGenerating": "⏳ 正在生成二维码...",
   "khqrGeneratingBtn": "⏳ 生成中...",
-  "khqrReceived": "✅ 已收到款",
+  "khqrReceived": "✅ 订单已付款",
   "khqrGenerateFailed": "生成失败",
   "khqrExpired": "⏰ 二维码已过期，请重新生成",
   "khqrExpiredShort": "已过期",
@@ -1190,5 +1190,7 @@
   "printingKitchenTicket": "正在打印出餐单...",
   "editMerchant": "编辑商户",
   "passwordTooShort": "密码至少6位",
-  "orderInterval": "下单间隔"
+  "orderInterval": "下单间隔",
+  "confirmReceived": "确认到账",
+  "notifyCashierConfirm": "已通知收银员确认"
 }

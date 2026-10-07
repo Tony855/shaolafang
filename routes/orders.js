@@ -1076,6 +1076,26 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     await syncTableStatus(nextTable, orderStoreId);
     if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
 
+    // ★ 服务员端请求 status='done' → 强制改为"待收银员确认"（不再直接结算）
+    //   （管理员请求 status='done' 不受此限制，保留后台直接结算能力）
+    if (status === 'done' && !req.isAdmin && req.waiter) {
+      await runAsync(
+        'UPDATE orders SET status=?, awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=?',
+        ['pending', String(pay_method || '').slice(0, 20), Number(req.body.cash_received) || 0, Number(req.body.cash_change) || 0, id, orderStoreId]
+      );
+      const _o = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
+      // 广播给收银台
+      io.to('cashier-' + orderStoreId).emit('khqr:awaiting', {
+        orderId: parseInt(id, 10),
+        table: _o.table_name,
+        orderNo: _o.order_no,
+        total: _o.total,
+        storeId: orderStoreId,
+      });
+      console.log('[waiter-settle] 桌 ' + _o.table_name + ' 服务员结算 → 待收银员确认');
+      return res.json(formatOrder(_o));
+    }
+
     // 方案3：如果本次改状态为 done，且该桌已无未结订单，作废该桌所有 session
     if (status === 'done') {
       const _stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [nextTable, orderStoreId]);

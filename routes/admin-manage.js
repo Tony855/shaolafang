@@ -495,7 +495,7 @@ module.exports = function(app, deps) {
   app.post('/api/cashier/khqr/generate', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
       const { storeId: sid } = await resolveKhqrStore(req);
-      const { order_id } = req.body || {};
+      const { order_id, pay_method, cash_received, cash_change } = req.body || {};
       if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
@@ -602,7 +602,10 @@ module.exports = function(app, deps) {
 
       if (role === 'waiter') {
         // 服务员只能标记待确认
-        await runAsync('UPDATE orders SET awaiting_confirm=1 WHERE id=?', [order_id]);
+        await runAsync(
+        'UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=?',
+        [String(pay_method || '').slice(0, 20), Number(cash_received) || 0, Number(cash_change) || 0, order_id]
+      );
         return res.json({ success: true, status: 'awaiting_confirm' });
       }
 
@@ -699,7 +702,7 @@ module.exports = function(app, deps) {
   /* ===== 服务员：通知收银员核实到账 ===== */
   app.post('/api/waiter/khqr/notify', requireAdminOrWaiter, async (req, res) => {
     try {
-      const { order_id } = req.body || {};
+      const { order_id, pay_method, cash_received, cash_change } = req.body || {};
       if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
 
       let sid;
@@ -722,7 +725,10 @@ module.exports = function(app, deps) {
         return res.json({ success: true, status: 'awaiting_confirm', already: true });
       }
 
-      await runAsync('UPDATE orders SET awaiting_confirm=1 WHERE id=?', [order_id]);
+      await runAsync(
+        'UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=?',
+        [String(pay_method || '').slice(0, 20), Number(cash_received) || 0, Number(cash_change) || 0, order_id]
+      );
 
       // 广播给收银台
       io.to('cashier-' + sid).emit('khqr:awaiting', {

@@ -25,9 +25,10 @@
 let refundOrderId = null;
 
 // KHQR 支付弹窗状态
-let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null };
+let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '' };
 let khqrProviders = [];
 let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
+  const awaitingOrders = new Map();  // 收银员待确认订单（服务员已标记，等待确认到账）
 
   SLF.i18n.init(currentLang);
 
@@ -238,10 +239,52 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   /* ===== API ===== */
   const api = (path, opt) => SLF.api.page(path, opt);
 
+  function renderAwaitingBanner() {
+    const el = document.getElementById('awaitingBanner');
+    const list = document.getElementById('awaitingBannerList');
+    const cnt = document.getElementById('awaitingBannerCount');
+    if (!el || !list) return;
+    if (awaitingOrders.size === 0) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    if (cnt) cnt.textContent = awaitingOrders.size;
+    list.innerHTML = Array.from(awaitingOrders.values()).map(o => `
+      <div class="awaiting-item">
+        <div class="awaiting-item-info">
+          <strong>🪑 ${esc(o.table_name || '-')}</strong>
+          <span>${esc(o.order_no || ('#' + o.id))}</span>
+        </div>
+        <div class="awaiting-item-actions">
+          <button onclick="confirmAwaiting(${o.id})">${t('confirmReceived') || '确认收款'}</button>
+          <button onclick="dismissAwaiting(${o.id})">${t('close') || '关闭'}</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function addAwaitingOrder(order) {
+    if (!order || !order.id) return;
+    awaitingOrders.set(order.id, order);
+    renderAwaitingBanner();
+  }
+
+  function dismissAwaiting(orderId) {
+    awaitingOrders.delete(orderId);
+    renderAwaitingBanner();
+  }
+  window.dismissAwaiting = dismissAwaiting;
+
   async function loadOrders() {
     try {
       const data = await api('/cashier/orders');
       orders = data.orders || [];
+      // 只把服务器返回的待确认订单**加进**横幅，不清理
+      // （避免 awaiting_confirm 字段偶发延迟/缺失导致横幅刚显示就消失）
+      orders.forEach(o => {
+        if (o.awaiting_confirm && o.status === 'pending') {
+          awaitingOrders.set(o.id, o);
+        }
+      });
+      renderAwaitingBanner();
       renderOrders();
       renderDetail();
       updateBottomStats();
@@ -305,6 +348,35 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     container.innerHTML = filtered.map(order => {
       const total = moneyHtml(Number(order.total) || 0);
       const itemCount = (order.items || []).length;
+
+      // 支付方式标签（仅已结算订单显示）
+      // 支付方式标签（logo 资源路径映射）
+      const _ICON_FILE_MAP = {
+        'aba': 'aba', 'acleda': 'acleda', 'wing': 'Wing',
+        'bakong': 'KHQR', 'chipmong': 'ChipMong', 'khqr': 'KHQR',
+      };
+      const _ICON_EXTS = ['png', 'jpg', 'jpeg', 'webp'];
+      let _payLabel = '';
+      if (order.status === 'done') {
+        const _pm = String(order.pay_method || '').toLowerCase();
+        const _pmTrim = _pm.replace(/\s+/g, '');
+        if (_pm === 'cash')               _payLabel = '💵 ' + (t('cashPay') || '现金');
+        else if (_pm === 'wechat')        _payLabel = '💚 ' + (t('wechatPay') || '微信');
+        else if (_pm === 'alipay')        _payLabel = '💙 ' + (t('alipayPay') || '支付宝');
+        else if (_pm === 'card')          _payLabel = '💳 ' + (t('cardPay') || '刷卡');
+        else if (_ICON_FILE_MAP[_pmTrim]) {
+          const _bankLabel = _pmTrim === 'bakong' ? 'Bakong'
+                           : _pmTrim === 'chipmong' ? 'Chip Mong'
+                           : _pmTrim.toUpperCase();
+          // 尝试多个扩展名，第一个能加载的用
+          const _iconBase = '/assets/vendor/payment-icons/' + _ICON_FILE_MAP[_pmTrim];
+          _payLabel = '<img src="' + _iconBase + '.png" alt="' + esc(_bankLabel) + '" '
+                    + 'style="height:14px;width:auto;max-width:36px;vertical-align:middle;margin-right:4px;object-fit:contain;border-radius:2px;" '
+                    + 'onerror="this.style.display=\'none\'">' + esc(_bankLabel);
+        }
+        else if (_pmTrim === 'provider')  _payLabel = t('khqrPay') || '扫码';
+        else if (_pm)                     _payLabel = esc(_pm.toUpperCase());
+      }
       const isSelected = order.id === selectedOrderId;
       const sessionLabels = buildSessionLabels([order]);
       const customerLabel = sessionLabels.get(order.id) || '';
@@ -331,8 +403,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
         ? '<span class="pos-card-wait-tip" style="background:#fff3cd;color:#856404;"' + t('khqrAwaitConfirm') + '</span>'
         : '';
       const _hasLabel = customerLabel && customerLabel.trim();
-      const _tagsHtml = (_hasLabel || _statusBadge || _readyTip || _awaitingTag)
-        ? `<div class="pos-order-card-tags">${_hasLabel ? `<span class="pos-tag ${customerLabel === t('staffOrder') ? 'staff' : 'customer'}">${esc(customerLabel)}</span>` : ''}${_awaitingTag}${_readyTip}${_statusBadge}</div>`
+      const _payTag = _payLabel ? `<span class="pos-tag pay-method">${_payLabel}</span>` : '';
+      const _tagsHtml = (_hasLabel || _statusBadge || _readyTip || _awaitingTag || _payTag)
+        ? `<div class="pos-order-card-tags">${_hasLabel ? `<span class="pos-tag ${customerLabel === t('staffOrder') ? 'staff' : 'customer'}">${esc(customerLabel)}</span>` : ''}${_awaitingTag}${_readyTip}${_payTag}${_statusBadge}</div>`
         : '';
 
       return `<div class="pos-order-card ${isSelected ? 'selected' : ''}${_cardCls}" onclick="selectOrder(${order.id})">
@@ -486,6 +559,29 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   }
 
   /* ===== 收款弹窗 ===== */
+  async function confirmAwaiting(orderId) {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    const body = { pay_method: order.pay_method || 'cash' };
+    if (body.pay_method === 'cash') {
+      body.cash_received = Number(order.cash_received) || 0;
+      body.cash_change = Number(order.cash_change) || 0;
+    }
+    try {
+      await api('/cashier/orders/' + orderId + '/settle', { method: 'PUT', body });
+      SLF.ui.toast('✅ ' + (t('settleSuccess') || '收款成功'));
+      // ★ 从待确认横幅里移除
+      awaitingOrders.delete(orderId);
+      renderAwaitingBanner();
+      selectedOrderId = null;
+      document.body.classList.remove('pos-detail-open');
+      await loadOrders();
+    } catch (e) {
+      SLF.ui.toast('❌ ' + e.message);
+    }
+  }
+  window.confirmAwaiting = confirmAwaiting;
+
   function openPaymentModal(orderId) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
@@ -584,6 +680,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
             '<span style="color:#e85d3a;font-weight:800;">' + sym + amtStr + '</span>' + secHtml;
         })();
 
+        khqrState.bankName = res.provider_bank || '';
         document.getElementById('khqrMerchant').textContent =
           (res.provider_bank ? res.provider_bank + ' · ' : '') + (res.merchant_name || '');
         khqrState.expiresAt = new Date(res.expires_at).getTime();
@@ -975,10 +1072,15 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     });
     cashierSocket.on('khqr:awaiting', (payload) => {
       if (!payload || !belongsToStore(payload)) return;
-      // 提示收银员核实
-      const table = payload.table || '-';
-      const orderNo = payload.orderNo || ('#' + payload.orderId);
-      SLF.ui.toast('🔔 ' + table + ' ' + t('khqrCustomerPaid', { orderNo }), 'warning', 6000);
+      // ★ 加入持久横幅（不用 toast，toast 会自动消失）
+      addAwaitingOrder({
+        id: payload.orderId,
+        table_name: payload.table,
+        order_no: payload.orderNo,
+        total: payload.total,
+        awaiting_confirm: 1,
+        status: 'pending',
+      });
       // 刷新订单列表
       loadOrders();
       // 如果当前正打开这个订单详情，自动刷新
