@@ -1147,5 +1147,8 @@
   "applyConfirm": "Apply",
   "backendNotConnected": "Backend not connected",
   "unknownTime": "Unknown time",
-  "selectStoreFirst": "Please select a store first"
+  "selectStoreFirst": "Please select a store first",
+  "readyToSettle": "✅ Ready to settle",
+  "itemsPendingPre": "⏳ ",
+  "itemsPendingSuf": " item(s) pending"
 }

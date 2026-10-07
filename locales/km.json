@@ -1147,5 +1147,8 @@
   "applyConfirm": "អនុវត្ត",
   "backendNotConnected": "មិនបានភ្ជាប់ម៉ាស៊ីនមេ",
   "unknownTime": "ពេលវេលាមិនស្គាល់",
-  "selectStoreFirst": "សូមជ្រើសរើសហាងជាមុន"
+  "selectStoreFirst": "សូមជ្រើសរើសហាងជាមុន",
+  "readyToSettle": "✅ អាចបង់ប្រាក់",
+  "itemsPendingPre": "⏳ នៅសល់ ",
+  "itemsPendingSuf": " ធាតុមិនរួច"
 }

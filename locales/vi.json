@@ -1147,5 +1147,8 @@
   "applyConfirm": "Áp dụng",
   "backendNotConnected": "Chưa kết nối máy chủ",
   "unknownTime": "Không rõ thời gian",
-  "selectStoreFirst": "Vui lòng chọn cửa hàng trước"
+  "selectStoreFirst": "Vui lòng chọn cửa hàng trước",
+  "readyToSettle": "✅ Có thể thanh toán",
+  "itemsPendingPre": "⏳ Còn ",
+  "itemsPendingSuf": " món chưa xong"
 }

@@ -1147,5 +1147,8 @@
   "applyConfirm": "ใช้",
   "backendNotConnected": "ยังไม่เชื่อมต่อเซิร์ฟเวอร์",
   "unknownTime": "ไม่ทราบเวลา",
-  "selectStoreFirst": "กรุณาเลือกสาขาก่อน"
+  "selectStoreFirst": "กรุณาเลือกสาขาก่อน",
+  "readyToSettle": "✅ พร้อมชำระ",
+  "itemsPendingPre": "⏳ เหลือ ",
+  "itemsPendingSuf": " รายการค้าง"
 }

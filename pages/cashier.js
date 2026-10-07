@@ -316,10 +316,10 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
         const _pending = _items.filter(it => it.itemStatus !== 'done').length;
         if (_pending === 0 && _items.length > 0) {
           _readyCls = ' ready-to-settle';
-          _readyTip = `<span class="pos-card-ready-tip">✅ 可结算</span>`;
+          _readyTip = `<span class="pos-card-ready-tip">${t('readyToSettle')}</span>`;
         } else if (_pending > 0) {
           _readyCls = ' waiting-items';
-          _readyTip = `<span class="pos-card-wait-tip">⏳ 还有 ${_pending} 道未完成</span>`;
+          _readyTip = `<span class="pos-card-wait-tip">${t('itemsPendingPre')}${_pending}${t('itemsPendingSuf')}</span>`;
         }
       }
       const _hidePendingBadge = (order.status === 'pending' && _readyCls === ' ready-to-settle');
@@ -455,9 +455,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     const canRefund = allowRefund && ['done', 'settled', 'paid', 'completed'].includes(order.status);
     let btns = '';
     if (canSettle) {
-      btns += `<button class="btn btn-pay" onclick="openPaymentModal(${order.id})">💵 ${t('settleOrder') || '收款'}</button>`;
+      btns += `<button class="btn btn-pay" onclick="openPaymentModal(${order.id})">💵 ${t('settleOrder')}</button>`;
     } else if (order.status === 'pending') {
-      btns += `<button class="btn btn-pay" disabled title="${t('itemsNotReady') || '菜品未全部完成'}">💵 ${t('settleOrder') || '收款'} (未完成)</button>`;
+      btns += `<button class="btn btn-pay" disabled title="${t('itemsNotReady')}">💵 ${t('settleOrder') || '收款'} (未完成)</button>`;
     }
     btns += `<button class="btn btn-print" onclick="printOrder(${order.id})" title="${t('print') || '打印'}">🖨</button>`;
     if (canRefund) {

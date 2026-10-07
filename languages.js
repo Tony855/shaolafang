@@ -1154,7 +1154,10 @@ const LANGUAGES = {
     "applyConfirm": "确定应用",
     "backendNotConnected": "后端未连接",
     "unknownTime": "未知时间",
-    "selectStoreFirst": "请先选择店铺"
+    "selectStoreFirst": "请先选择店铺",
+    "readyToSettle": "✅ 可结算",
+    "itemsPendingPre": "⏳ 还有 ",
+    "itemsPendingSuf": " 道未完成"
   }
 };
 
