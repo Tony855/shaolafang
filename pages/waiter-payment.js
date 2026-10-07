@@ -138,27 +138,16 @@ window.openPaymentModal = async function(orderId, orderHint) {
   $('#cashArea').style.display = 'block';
   renderQuickCash(amount);
 
-  // ★ 弹窗打开前先隐藏所有非现金按钮，避免"闪现后消失"
-  document.querySelectorAll('#paymentModal .payment-method').forEach(btn => {
-    if (btn.dataset.method !== 'cash') btn.style.display = 'none';
-  });
-
   // ★ 立即显示弹窗（用户零等待）
   $('#paymentModal').classList.add('show');
   setTimeout(() => { const el = $('#cashReceived'); if (el) el.focus(); }, 100);
   if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n($('#paymentModal'));
 
-  // ★ 串行加载：先拿到支付方式（含 khqr 开关），再渲染 KHQR 动态按钮
-  //   （并行会导致 renderProviderButtons 读到旧的 khqr=false 而跳过渲染）
+  // ★ 与收银员端一致：配置已在页面加载时预加载，弹窗打开不重新拉取
+  //   只做异步刷新，避免阻塞弹窗显示（让配置变化能及时反映）
   (async () => {
     try { await loadPaymentMethods(); }
     catch (e) { console.warn('[payment] 加载支付方式失败', e.message); }
-    // ★ KHQR providers 已在页面初始化时预加载（按钮+图标已就绪）
-    //   只有预加载失败（数组为空）时才补拉一次，避免每次点结算重建按钮导致图标重新加载
-    if (!khqrProviders.length) {
-      try { await loadKhqrProviders(); }
-      catch (e) { console.warn('[payment] 加载KHQR失败', e.message); }
-    }
     if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n($('#paymentModal'));
   })();
 };
