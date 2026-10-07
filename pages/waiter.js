@@ -1103,13 +1103,13 @@ function initWaiterPage() {
   if (typeof io === 'function') {
     const waiterSocket = io({
       query: {
-        storeId: SLF.store.rawGet('storeId') || 1,
+        storeId: SLF.store.rawGet('waiterStoreId') || SLF.store.rawGet('storeId') || 1,
         token: SLF.store.rawGet('waiterToken') || ''
       }
     });
     // ============ Socket 增量更新（避免全量拉取）============
     function belongsToStore(o) {
-      const sid = SLF.store.rawGet('storeId') || '1';
+      const sid = SLF.store.rawGet('waiterStoreId') || SLF.store.rawGet('storeId') || '1';
       return !o || !o.store_id || String(o.store_id) === String(sid);
     }
 

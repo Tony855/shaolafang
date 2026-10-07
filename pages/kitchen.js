@@ -501,7 +501,7 @@
     if (typeof io === 'function') {
       const socket = io({
         query: {
-          storeId: SLF.store.rawGet('storeId') || 1,
+          storeId: SLF.store.rawGet('waiterStoreId') || SLF.store.rawGet('storeId') || 1,
           token: SLF.store.rawGet('kitchenToken') || ''
         }
       });
@@ -510,7 +510,7 @@
 
       // 检查订单是否属于当前 store
       function belongsToStore(o) {
-        const sid = SLF.store.rawGet('storeId') || '1';
+        const sid = SLF.store.rawGet('waiterStoreId') || SLF.store.rawGet('storeId') || '1';
         return !o || !o.store_id || String(o.store_id) === String(sid);
       }
 

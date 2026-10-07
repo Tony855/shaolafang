@@ -210,6 +210,8 @@ const $ = s => document.querySelector(s);
           SLF.store.rawSetSession('adminPermissions', JSON.stringify(data.permissions || {}));
           // ★ 清掉旧商户残留的 storeId，避免跨商户登录带错 X-Store-Id
           SLF.store.rawRemove('storeId');
+          SLF.store.rawRemove('waiterStoreId');
+          SLF.store.rawRemove('cashierStoreId');
           SLF.store.rawRemoveSession('adminStoreId');
           if (data.storeId) {
             SLF.store.rawSet('storeId', String(data.storeId));
@@ -219,14 +221,24 @@ const $ = s => document.querySelector(s);
           return;
         } else if (loginType === 'cashier') {
           const data = await SLF.api.post('/cashier/login', { username, password });
+          // ★ 清掉其它角色的 storeId，避免污染
+          SLF.store.rawRemove('storeId');
+          SLF.store.rawRemove('waiterStoreId');
+          SLF.store.rawRemoveSession('adminStoreId');
           SLF.store.rawSet('cashierToken', data.token);
           SLF.store.rawSet('cashierStoreId', String(data.storeId || 1));
+          SLF.store.rawSet('storeId', String(data.storeId || 1));
           SLF.store.rawSet('cashierInfo', JSON.stringify({ ...data.cashier, storeName: data.storeName }));
           window.location.href = '/cashier';
           return;
         } else {
           const data = await SLF.api.post('/waiter/login', { username, password });
+          // ★ 清掉其它角色的 storeId，避免污染
+          SLF.store.rawRemove('storeId');
+          SLF.store.rawRemove('cashierStoreId');
+          SLF.store.rawRemoveSession('adminStoreId');
           SLF.store.rawSet('waiterToken', data.token);
+          SLF.store.rawSet('waiterStoreId', String(data.storeId || 1));
           SLF.store.rawSet('storeId', String(data.storeId || 1));
           window.location.href = '/waiter';
           return;
