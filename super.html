@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FoodFlow</title>
-  <link rel="stylesheet" href="assets/super.css?v=1791286805">
+  <link rel="stylesheet" href="assets/super.css?v=1791380271">
 <script src="languages.min.js?v=1791363499"></script>
 <script src="assets/core.js?v=1791357666"></script>
   <script src="assets/modules/ui.js?v=1791334649"></script>
@@ -399,33 +399,15 @@
   </div>
 </div>
 
-<script src="pages/super.js?v=1791363499"></script>
+<script src="pages/super.js?v=1791380271"></script>
 
 <div class="modal" id="paymentMethodsModal">
   <div class="modal-card" style="max-width:420px;">
     <h3><span id="pmModalTitle" data-i18n="paymentMethodsConfig">💳 支付方式配置</span><span class="modal-close" onclick="closePaymentMethods()">✕</span></h3>
     <div id="pmMerchantName" style="color:#888;font-size:13px;margin-bottom:16px;"></div>
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <label class="super-pay-method">
-        <span class="super-strong" data-i18n="cashPay">💵 现金</span>
-        <input class="super-checkbox-lg" type="checkbox" id="pmCash">
-      </label>
-      <label class="super-pay-method">
-        <span class="super-strong" data-i18n="wechatPay">💚 微信支付</span>
-        <input class="super-checkbox-lg" type="checkbox" id="pmWechat">
-      </label>
-      <label class="super-pay-method">
-        <span class="super-strong" data-i18n="alipayPay">💙 支付宝</span>
-        <input class="super-checkbox-lg" type="checkbox" id="pmAlipay">
-      </label>
-      <label class="super-pay-method">
-        <span class="super-strong" data-i18n="cardPay">💳 刷卡</span>
-        <input class="super-checkbox-lg" type="checkbox" id="pmCard">
-      </label>
-      <label class="super-pay-method">
-        <span class="super-strong" data-i18n="khqrPay">📱 扫码（KHQR）</span>
-        <input class="super-checkbox-lg" type="checkbox" id="pmKhqr">
-      </label>
+    <div id="pmMethodsList" style="display:flex;flex-direction:column;gap:12px;"></div>
+    <div id="pmEmptyHint" style="display:none;padding:12px 14px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.15);border-radius:8px;color:#888;font-size:12px;text-align:center;">
+      该商户尚未上传任何 KHQR 收款码，请先在"KHQR 收款码"区上传后再配置
     </div>
     <div style="margin-top:16px;padding:10px 14px;background:rgba(255,193,7,.1);border:1px solid rgba(255,193,7,.2);border-radius:8px;color:#ffd93d;font-size:12px;" data-i18n="paymentMethodsHint">
       💡 关闭后该商户收银台不显示对应按钮

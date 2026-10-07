@@ -1102,13 +1102,48 @@ async function openPaymentMethods(merchantId, merchantName) {
   const nameEl = document.getElementById('pmMerchantName');
   if (nameEl) nameEl.textContent = t('merchantPrefix') + (merchantName || ('#' + merchantId));
   try {
-    const data = await api('/super/merchants/' + merchantId + '/payment-methods');
-    const m = data.methods || {};
-    document.getElementById('pmCash').checked   = m.cash   !== false;
-    document.getElementById('pmWechat').checked = m.wechat === true;
-    document.getElementById('pmAlipay').checked = m.alipay === true;
-    document.getElementById('pmCard').checked   = m.card   === true;
-    document.getElementById('pmKhqr').checked   = m.khqr   === true;
+    // 并行拉取：可用支付方式列表 + 当前配置
+    const [avail, cfg] = await Promise.all([
+      api('/super/merchants/' + merchantId + '/available-methods'),
+      api('/super/merchants/' + merchantId + '/payment-methods'),
+    ]);
+    const methods = cfg.methods || {};
+    const listEl = document.getElementById('pmMethodsList');
+    const emptyHint = document.getElementById('pmEmptyHint');
+    if (!listEl) { SLF.ui.toast('❌ 找不到 pmMethodsList 容器', 'error'); return; }
+
+    // 构建所有选项：内置 + 动态 bank
+    const allItems = [
+      ...(avail.builtin || []),
+      ...(avail.banks || []),
+    ];
+
+    if (allItems.length === 0) {
+      listEl.innerHTML = '';
+      if (emptyHint) emptyHint.style.display = 'block';
+      document.getElementById('paymentMethodsModal').classList.add('open');
+      return;
+    }
+    if (emptyHint) emptyHint.style.display = 'none';
+
+    // 动态渲染每个复选框
+    listEl.innerHTML = allItems.map(item => {
+      const key = item.key;
+      const label = item.label || key;
+      const icon = item.icon || '';
+      const checked = methods[key] !== false ? 'checked' : '';
+      // 银行类图标：尝试用 img 加载（可选）
+      const iconHtml = item.isBank
+        ? '<img src="/assets/vendor/payment-icons/' + key + '.png" alt="" style="width:18px;height:18px;vertical-align:middle;margin-right:4px;" onerror="this.style.display=\'none\'">'
+        : icon + ' ';
+      return (
+        '<label class="super-pay-method">' +
+          '<span class="super-strong">' + iconHtml + label + '</span>' +
+          '<input class="super-checkbox-lg pm-item-checkbox" type="checkbox" data-key="' + key + '" ' + checked + '>' +
+        '</label>'
+      );
+    }).join('');
+
     document.getElementById('paymentMethodsModal').classList.add('open');
   } catch (e) {
     SLF.ui.toast('加载失败: ' + e.message, 'error');
@@ -1123,13 +1158,10 @@ function closePaymentMethods() {
 
 async function savePaymentMethods() {
   if (!_pmMerchantId) return;
-  const methods = {
-    cash:   document.getElementById('pmCash').checked,
-    wechat: document.getElementById('pmWechat').checked,
-    alipay: document.getElementById('pmAlipay').checked,
-    card:   document.getElementById('pmCard').checked,
-    khqr:   document.getElementById('pmKhqr').checked,
-  };
+  const methods = {};
+  document.querySelectorAll('#pmMethodsList .pm-item-checkbox').forEach(cb => {
+    methods[cb.dataset.key] = cb.checked;
+  });
   try {
     await api('/super/merchants/' + _pmMerchantId + '/payment-methods', {
       method: 'PUT',

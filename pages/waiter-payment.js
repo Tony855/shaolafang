@@ -40,9 +40,10 @@ function applyPaymentMethodsVisibility() {
     const el = document.querySelector('#paymentModal ' + map[k]);
     if (el) el.style.display = enabledPaymentMethods[k] ? '' : 'none';
   });
-  // KHQR 动态按钮（ABA / ACLEDA / Wing 等）：统一双向显隐
+  // KHQR 动态按钮：按每个 bank 独立配置显示
   document.querySelectorAll('#paymentMethodsWrap [data-provider-id]').forEach(el => {
-    el.style.display = enabledPaymentMethods.khqr ? '' : 'none';
+    const key = el.dataset.bankKey;
+    el.style.display = enabledPaymentMethods[key] ? '' : 'none';
   });
 }
 
@@ -77,6 +78,8 @@ function renderProviderButtons() {
     btn.className = 'payment-method';
     btn.dataset.method = 'provider';
     btn.dataset.providerId = p.id;
+    // ★ 银行唯一键（小写无空格），用于按商户配置独立控制显隐
+    btn.dataset.bankKey = bankName.toLowerCase().replace(/[^a-z0-9]/g, '');
     const label = bankName || t('scanPayFallback');
     const labelHtml = '<span class="pm-label" style="font-size:12px;font-weight:700;">' + label + '</span>';
     btn.innerHTML = '<span class="pm-icon" style="font-size:22px;">📱</span>' + labelHtml;
@@ -173,7 +176,7 @@ window.selectPayMethod = function(method, providerId) {
     btn.classList.toggle('active', isActive);
   });
   $('#cashArea').style.display = method === 'cash' ? 'block' : 'none';
-  if ((method === 'aba' || method === 'provider') && paymentOrderId) {
+  if (method === 'provider' && paymentOrderId) {
     openKhqrModal(paymentOrderId, providerId);
   }
 };

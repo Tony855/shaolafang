@@ -343,10 +343,32 @@ app.get('/api/cashier/payment-methods', requireAdminOrCashierOrWaiter, async (re
   try {
     const mid = req.merchantId;
     const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${mid}_payment_methods`]);
-    const defaults = { cash: true, wechat: true, alipay: true, card: true, khqr: true };
-    let methods = { ...defaults };
+    const methods = {};
+    const builtin = ['cash', 'wechat', 'alipay', 'card'];
+    builtin.forEach(k => { methods[k] = true; });
+    // 读该商户所有 store 的 KHQR bank
+    const stores = await allAsync("SELECT id FROM stores WHERE merchant_id=?", [mid]);
+    const bankSet = new Set();
+    for (const st of stores) {
+      const r = await getAsync("SELECT value FROM settings WHERE `key`=?", [`store_${st.id}_khqr_providers`]);
+      if (!r || !r.value) continue;
+      try {
+        const list = JSON.parse(r.value);
+        (list || []).forEach(p => {
+          if (p && p.bank) {
+            const key = String(p.bank).toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (key) bankSet.add(key);
+          }
+        });
+      } catch (e) {}
+    }
+    bankSet.forEach(b => { methods[b] = true; });
+    // 已有配置覆盖
     if (row && row.value) {
-      try { methods = { ...defaults, ...JSON.parse(row.value) }; } catch (e) {}
+      try {
+        const saved = JSON.parse(row.value);
+        Object.keys(saved).forEach(k => { methods[k] = saved[k] !== false; });
+      } catch (e) {}
     }
     res.json({ methods });
   } catch (e) { res.status(500).json({ error: e.message }); }

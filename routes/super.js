@@ -601,26 +601,55 @@ app.get('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (re
   try {
     const mid = parseInt(req.params.id, 10);
     const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${mid}_payment_methods`]);
-    const defaults = { cash: true, wechat: true, alipay: true, card: true, khqr: true };
-    let methods = { ...defaults };
+    const methods = {};
+    // 内置 4 种默认全开
+    const builtin = ['cash', 'wechat', 'alipay', 'card'];
+    builtin.forEach(k => { methods[k] = true; });
+    // 该商户所有 KHQR bank 默认全开
+    const banks = await getMerchantBanks(mid);
+    banks.forEach(b => { methods[b] = true; });
+    // 已有配置覆盖
     if (row && row.value) {
-      try { methods = { ...defaults, ...JSON.parse(row.value) }; } catch (e) {}
+      try {
+        const saved = JSON.parse(row.value);
+        Object.keys(saved).forEach(k => { methods[k] = saved[k] !== false; });
+      } catch (e) {}
     }
     res.json({ methods });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 辅助：读取该商户所有 store 下配置的 KHQR bank 名（去重、小写、无空格）
+async function getMerchantBanks(merchantId) {
+  const stores = await allAsync("SELECT id FROM stores WHERE merchant_id=?", [merchantId]);
+  const bankSet = new Set();
+  for (const st of stores) {
+    const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`store_${st.id}_khqr_providers`]);
+    if (!row || !row.value) continue;
+    try {
+      const list = JSON.parse(row.value);
+      (list || []).forEach(p => {
+        if (p && p.bank) {
+          const key = String(p.bank).toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (key) bankSet.add(key);
+        }
+      });
+    } catch (e) {}
+  }
+  return Array.from(bankSet);
+}
+
 app.put('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (req, res) => {
   try {
     const mid = parseInt(req.params.id, 10);
     const src = (req.body && req.body.methods) || {};
-    const clean = {
-      cash:   src.cash   !== false,
-      wechat: src.wechat !== false,
-      alipay: src.alipay !== false,
-      card:   src.card   !== false,
-      khqr:   src.khqr   !== false,
-    };
+    const clean = {};
+    // 内置 4 种
+    const builtin = ['cash', 'wechat', 'alipay', 'card'];
+    builtin.forEach(k => { clean[k] = src[k] !== false; });
+    // 动态 bank 键（与当前商户可用的 bank 列表取交集，防止脏数据）
+    const banks = await getMerchantBanks(mid);
+    banks.forEach(b => { clean[b] = src[b] !== false; });
     await runAsync(
       "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
       [`merchant_${mid}_payment_methods`, JSON.stringify(clean)]
@@ -630,6 +659,27 @@ app.put('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (re
         'update_payment_methods', 'merchant', mid, JSON.stringify(clean), getClientIp(req));
     } catch (_) {}
     res.json({ success: true, methods: clean });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// 新增：返回该商户所有可用的支付方式（内置 + 动态 bank）
+app.get('/api/super/merchants/:id/available-methods', requireSuperAdmin, async (req, res) => {
+  try {
+    const mid = parseInt(req.params.id, 10);
+    const builtin = [
+      { key: 'cash',   label: '现金',       icon: '💵' },
+      { key: 'wechat', label: '微信支付',   icon: '💚' },
+      { key: 'alipay', label: '支付宝',     icon: '💙' },
+      { key: 'card',   label: '刷卡',       icon: '💳' },
+    ];
+    const banks = await getMerchantBanks(mid);
+    const bankMethods = banks.map(b => ({
+      key: b,
+      label: b.toUpperCase(),
+      icon: '',
+      isBank: true,
+    }));
+    res.json({ builtin, banks: bankMethods });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

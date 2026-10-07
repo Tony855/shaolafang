@@ -68,13 +68,11 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       const el = document.querySelector(map[k]);
       if (el) el.style.display = enabledPaymentMethods[k] ? '' : 'none';
     });
-    if (!enabledPaymentMethods.khqr) {
-      document.querySelectorAll('.payment-methods [data-provider-id]').forEach(el => el.style.display = 'none');
-      const oldAba = document.querySelector('.payment-methods [data-method="aba"]');
-      if (oldAba) oldAba.style.display = 'none';
-    } else {
-      document.querySelectorAll('.payment-methods [data-provider-id]').forEach(el => el.style.display = '');
-    }
+    // KHQR 动态按钮：按每个 bank 独立配置显示
+    document.querySelectorAll('.payment-methods [data-provider-id]').forEach(el => {
+      const key = el.dataset.bankKey;
+      el.style.display = enabledPaymentMethods[key] ? '' : 'none';
+    });
   }
 
   /* ===== KHQR providers 加载与渲染 ===== */
@@ -108,8 +106,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     const abaBtn = container.querySelector('[data-method="aba"]');
     if (abaBtn) abaBtn.style.display = 'none';
 
-    if (!enabledPaymentMethods.khqr) return;
     if (!khqrProviders.length) return;
+    // 按钮永远创建，显隐由 applyPaymentMethodsVisibility 按 bankKey 控制
 
     khqrProviders.forEach(p => {
       const bankName = String(p.bank || '').trim();
@@ -120,6 +118,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       btn.className = 'payment-method';
       btn.dataset.method = 'provider';
       btn.dataset.providerId = p.id;
+      // ★ 银行唯一键（小写无空格），用于按商户配置独立控制显隐
+      btn.dataset.bankKey = bankName.toLowerCase().replace(/[^a-z0-9]/g, '');
 
       const label = bankName || t('scanPayFallback');
       const labelHtml = '<span class="pm-label" style="font-size:12px;font-weight:700;">' + esc(label) + '</span>';
@@ -615,8 +615,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     });
     document.getElementById('cashArea').style.display = method === 'cash' ? 'block' : 'none';
 
-    // ABA 或 provider → 打开动态码弹窗
-    if ((method === 'aba' || method === 'provider') && paymentOrderId) {
+    // provider（含所有 KHQR 银行）→ 打开动态码弹窗
+    if (method === 'provider' && paymentOrderId) {
       openKhqrModal(paymentOrderId, providerId);
     }
   }
