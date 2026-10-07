@@ -1194,5 +1194,8 @@
   "confirmReceived": "Xác nhận đã nhận",
   "notifyCashierConfirm": "Đã thông báo thu ngân",
   "khqrLabelPlaceholder": "Nhãn (tùy chọn)",
-  "incompleteShort": "Chưa xong"
+  "incompleteShort": "Chưa xong",
+  "pwaIOSInstallAlert": "Nhấn nút Chia sẻ ở dưới Safari → Thêm vào Màn hình chính",
+  "pwaInstallError": "Lỗi hướng dẫn cài đặt",
+  "refreshing": "Đang làm mới..."
 }

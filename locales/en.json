@@ -1194,5 +1194,8 @@
   "confirmReceived": "Confirm received",
   "notifyCashierConfirm": "Cashier notified",
   "khqrLabelPlaceholder": "Label (optional)",
-  "incompleteShort": "Incomplete"
+  "incompleteShort": "Incomplete",
+  "pwaIOSInstallAlert": "Tap the Share button at the bottom of Safari → Add to Home Screen",
+  "pwaInstallError": "Install guide error",
+  "refreshing": "Refreshing..."
 }

@@ -1132,10 +1132,10 @@ async function savePaymentMethods() {
       method: 'PUT',
       body: JSON.stringify({ methods: methods }),
     });
-    SLF.ui.toast('✅ 已保存', 'success');
+    SLF.ui.toast('✅ ' + (SLF.t('saved') || '已保存'), 'success');
     closePaymentMethods();
   } catch (e) {
-    SLF.ui.toast('保存失败: ' + e.message, 'error');
+    SLF.ui.toast('❌ ' + (SLF.t('saveFailed') || '保存失败') + ': ' + e.message, 'error');
   }
 }
 

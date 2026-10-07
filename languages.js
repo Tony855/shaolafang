@@ -1201,7 +1201,10 @@ const LANGUAGES = {
     "confirmReceived": "确认到账",
     "notifyCashierConfirm": "已通知收银员确认",
     "khqrLabelPlaceholder": "备注名（可选）",
-    "incompleteShort": "未完成"
+    "incompleteShort": "未完成",
+    "pwaIOSInstallAlert": "请使用 Safari 底部「分享」→「添加到主屏幕」",
+    "pwaInstallError": "安装引导异常",
+    "refreshing": "刷新中..."
   },
   "en": {
     "code": "Code",
@@ -2399,7 +2402,10 @@ const LANGUAGES = {
     "confirmReceived": "Confirm received",
     "notifyCashierConfirm": "Cashier notified",
     "khqrLabelPlaceholder": "Label (optional)",
-    "incompleteShort": "Incomplete"
+    "incompleteShort": "Incomplete",
+    "pwaIOSInstallAlert": "Tap the Share button at the bottom of Safari → Add to Home Screen",
+    "pwaInstallError": "Install guide error",
+    "refreshing": "Refreshing..."
   },
   "vi": {
     "code": "Mã",
@@ -3597,7 +3603,10 @@ const LANGUAGES = {
     "confirmReceived": "Xác nhận đã nhận",
     "notifyCashierConfirm": "Đã thông báo thu ngân",
     "khqrLabelPlaceholder": "Nhãn (tùy chọn)",
-    "incompleteShort": "Chưa xong"
+    "incompleteShort": "Chưa xong",
+    "pwaIOSInstallAlert": "Nhấn nút Chia sẻ ở dưới Safari → Thêm vào Màn hình chính",
+    "pwaInstallError": "Lỗi hướng dẫn cài đặt",
+    "refreshing": "Đang làm mới..."
   },
   "th": {
     "code": "รหัส",
@@ -4795,7 +4804,10 @@ const LANGUAGES = {
     "confirmReceived": "ยืนยันรับเงิน",
     "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว",
     "khqrLabelPlaceholder": "ป้ายชื่อ (ไม่บังคับ)",
-    "incompleteShort": "ยังไม่เสร็จ"
+    "incompleteShort": "ยังไม่เสร็จ",
+    "pwaIOSInstallAlert": "แตะปุ่มแชร์ที่ด้านล่าง Safari → เพิ่มไปยังหน้าจอหลัก",
+    "pwaInstallError": "ข้อผิดพลาดคู่มือติดตั้ง",
+    "refreshing": "กำลังรีเฟรช..."
   },
   "km": {
     "code": "កូដ",
@@ -5993,7 +6005,10 @@ const LANGUAGES = {
     "confirmReceived": "បញ្ជាក់ការទទួល",
     "notifyCashierConfirm": "បានជូនដំណឹងអ្នកគិតលុយ",
     "khqrLabelPlaceholder": "ស្លាក (ស្រេចចិត្ត)",
-    "incompleteShort": "មិនទាន់រួច"
+    "incompleteShort": "មិនទាន់រួច",
+    "pwaIOSInstallAlert": "ចុចប៊ូតុងចែករំលែកនៅខាងក្រោម Safari → បន្ថែមទៅអេក្រង់ដើម",
+    "pwaInstallError": "កំហុសការណែនាំដំឡើង",
+    "refreshing": "កំពុងធ្វើឱ្យទាន់សម័យ..."
   }
 };
 

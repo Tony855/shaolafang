@@ -1194,5 +1194,8 @@
   "confirmReceived": "ยืนยันรับเงิน",
   "notifyCashierConfirm": "แจ้งแคชเชียร์แล้ว",
   "khqrLabelPlaceholder": "ป้ายชื่อ (ไม่บังคับ)",
-  "incompleteShort": "ยังไม่เสร็จ"
+  "incompleteShort": "ยังไม่เสร็จ",
+  "pwaIOSInstallAlert": "แตะปุ่มแชร์ที่ด้านล่าง Safari → เพิ่มไปยังหน้าจอหลัก",
+  "pwaInstallError": "ข้อผิดพลาดคู่มือติดตั้ง",
+  "refreshing": "กำลังรีเฟรช..."
 }

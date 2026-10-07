@@ -1194,5 +1194,8 @@
   "confirmReceived": "បញ្ជាក់ការទទួល",
   "notifyCashierConfirm": "បានជូនដំណឹងអ្នកគិតលុយ",
   "khqrLabelPlaceholder": "ស្លាក (ស្រេចចិត្ត)",
-  "incompleteShort": "មិនទាន់រួច"
+  "incompleteShort": "មិនទាន់រួច",
+  "pwaIOSInstallAlert": "ចុចប៊ូតុងចែករំលែកនៅខាងក្រោម Safari → បន្ថែមទៅអេក្រង់ដើម",
+  "pwaInstallError": "កំហុសការណែនាំដំឡើង",
+  "refreshing": "កំពុងធ្វើឱ្យទាន់សម័យ..."
 }

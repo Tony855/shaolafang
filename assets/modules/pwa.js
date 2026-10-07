@@ -145,11 +145,11 @@
           onInstall();
         } else {
           console.error('[pwa] onInstall 不是函数:', typeof onInstall);
-          alert('请使用 Safari 底部「分享」→「添加到主屏幕」');
+          alert((SLF.t ? SLF.t('pwaIOSInstallAlert') : '请使用 Safari 底部「分享」→「添加到主屏幕」'));
         }
       } catch (err) {
         console.error('[pwa] onInstall 异常:', err);
-        alert('安装引导异常: ' + err.message);
+        alert((SLF.t ? SLF.t('pwaInstallError') : '安装引导异常') + ': ' + err.message);
       }
     }
 
@@ -223,7 +223,7 @@
     updateBannerEl.querySelector('#pwaUpdateBtn').addEventListener('click', function () {
       var btn = this;
       btn.disabled = true;
-      btn.textContent = '刷新中...';
+      btn.textContent = (SLF.t ? SLF.t('refreshing') : '刷新中...');
       navigator.serviceWorker.getRegistration().then(function (reg) {
         if (reg && reg.waiting) {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
