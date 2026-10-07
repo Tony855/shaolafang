@@ -1197,5 +1197,7 @@
   "incompleteShort": "Incomplete",
   "pwaIOSInstallAlert": "Tap the Share button at the bottom of Safari → Add to Home Screen",
   "pwaInstallError": "Install guide error",
-  "refreshing": "Refreshing..."
+  "refreshing": "Refreshing...",
+  "backupRetentionDays": "Backup retention (days):",
+  "backupRetentionHint": "(Auto-clean older files, 1-3650 days)"
 }

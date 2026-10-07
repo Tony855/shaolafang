@@ -1204,7 +1204,9 @@ const LANGUAGES = {
     "incompleteShort": "未完成",
     "pwaIOSInstallAlert": "请使用 Safari 底部「分享」→「添加到主屏幕」",
     "pwaInstallError": "安装引导异常",
-    "refreshing": "刷新中..."
+    "refreshing": "刷新中...",
+    "backupRetentionDays": "备份保留天数：",
+    "backupRetentionHint": "（超期自动清理，1-3650 天）"
   },
   "en": {
     "code": "Code",
@@ -2405,7 +2407,9 @@ const LANGUAGES = {
     "incompleteShort": "Incomplete",
     "pwaIOSInstallAlert": "Tap the Share button at the bottom of Safari → Add to Home Screen",
     "pwaInstallError": "Install guide error",
-    "refreshing": "Refreshing..."
+    "refreshing": "Refreshing...",
+    "backupRetentionDays": "Backup retention (days):",
+    "backupRetentionHint": "(Auto-clean older files, 1-3650 days)"
   },
   "vi": {
     "code": "Mã",
@@ -3606,7 +3610,9 @@ const LANGUAGES = {
     "incompleteShort": "Chưa xong",
     "pwaIOSInstallAlert": "Nhấn nút Chia sẻ ở dưới Safari → Thêm vào Màn hình chính",
     "pwaInstallError": "Lỗi hướng dẫn cài đặt",
-    "refreshing": "Đang làm mới..."
+    "refreshing": "Đang làm mới...",
+    "backupRetentionDays": "Số ngày giữ bản sao lưu:",
+    "backupRetentionHint": "(Tự động xóa file cũ, 1-3650 ngày)"
   },
   "th": {
     "code": "รหัส",
@@ -4807,7 +4813,9 @@ const LANGUAGES = {
     "incompleteShort": "ยังไม่เสร็จ",
     "pwaIOSInstallAlert": "แตะปุ่มแชร์ที่ด้านล่าง Safari → เพิ่มไปยังหน้าจอหลัก",
     "pwaInstallError": "ข้อผิดพลาดคู่มือติดตั้ง",
-    "refreshing": "กำลังรีเฟรช..."
+    "refreshing": "กำลังรีเฟรช...",
+    "backupRetentionDays": "จำนวนวันเก็บบันทึกสำรอง:",
+    "backupRetentionHint": "(ลบไฟล์เก่าอัตโนมัติ 1-3650 วัน)"
   },
   "km": {
     "code": "កូដ",
@@ -6008,7 +6016,9 @@ const LANGUAGES = {
     "incompleteShort": "មិនទាន់រួច",
     "pwaIOSInstallAlert": "ចុចប៊ូតុងចែករំលែកនៅខាងក្រោម Safari → បន្ថែមទៅអេក្រង់ដើម",
     "pwaInstallError": "កំហុសការណែនាំដំឡើង",
-    "refreshing": "កំពុងធ្វើឱ្យទាន់សម័យ..."
+    "refreshing": "កំពុងធ្វើឱ្យទាន់សម័យ...",
+    "backupRetentionDays": "ចំនួនថ្ងៃរក្សាបម្រុងទុក៖",
+    "backupRetentionHint": "(សម្អាតឯកសារចាស់ដោយស្វ័យប្រវត្តិ 1-3650 ថ្ងៃ)"
   }
 };
 

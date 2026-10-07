@@ -425,7 +425,9 @@ BACKUP_DIR="$APP_DIR/backups"
 mkdir -p "$BACKUP_DIR"
 mysqldump -u foodflow -p'$DB_RANDOM_PASSWORD' $DEFAULT_DB_NAME > "$BACKUP_DIR/db_$DATE.sql" 2>/dev/null
 gzip "$BACKUP_DIR/db_$DATE.sql"
-find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +7 -delete
+RETENTION=$(mysql -u foodflow -p"$DB_RANDOM_PASSWORD" $DEFAULT_DB_NAME -N -e "SELECT value FROM settings WHERE \`key\`='backup_retention_days';" 2>/dev/null)
+RETENTION=${RETENTION:-30}
+find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +$RETENTION -delete
 EOF
 chmod +x "$BACKUP_SCRIPT"
 (crontab -l 2>/dev/null | grep -v "auto-backup.sh"; echo "0 3 * * * $BACKUP_SCRIPT") | crontab -

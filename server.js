@@ -874,6 +874,8 @@ async function initDatabase() {
   // 全局设置默认值
   const backupInterval = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
   if (!backupInterval) await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_interval_hours', '24')");
+  const backupRetention = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_retention_days'");
+  if (!backupRetention) await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_retention_days', '30')");
   const dualCurrency = await getAsync("SELECT value FROM settings WHERE `key` = 'dual_currency_enabled'");
   if (!dualCurrency) await runAsync("INSERT INTO settings (`key`, value) VALUES ('dual_currency_enabled', '1')");
   const secondaryCurrency = await getAsync("SELECT value FROM settings WHERE `key` = 'secondary_currency_code'");

@@ -1197,5 +1197,7 @@
   "incompleteShort": "មិនទាន់រួច",
   "pwaIOSInstallAlert": "ចុចប៊ូតុងចែករំលែកនៅខាងក្រោម Safari → បន្ថែមទៅអេក្រង់ដើម",
   "pwaInstallError": "កំហុសការណែនាំដំឡើង",
-  "refreshing": "កំពុងធ្វើឱ្យទាន់សម័យ..."
+  "refreshing": "កំពុងធ្វើឱ្យទាន់សម័យ...",
+  "backupRetentionDays": "ចំនួនថ្ងៃរក្សាបម្រុងទុក៖",
+  "backupRetentionHint": "(សម្អាតឯកសារចាស់ដោយស្វ័យប្រវត្តិ 1-3650 ថ្ងៃ)"
 }

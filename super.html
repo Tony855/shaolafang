@@ -247,7 +247,12 @@
             <option value="12" data-i18n="every12Hours">每 12 小时</option>
             <option value="24" data-i18n="every24Hours">每 24 小时</option>
           </select>
-          <button class="btn-primary" onclick="saveBackupSettings()" style="background:linear-gradient(135deg,#667eea,#764ba2);" data-i18n="saveSettingsBtn">💾 保存设置</button>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;">
+          <label style="color:#aaa;" data-i18n="backupRetentionDays">备份保留天数：</label>
+          <input type="number" id="backupRetentionDays" min="1" max="3650" value="30" style="width:100px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;" />
+          <span style="color:#666;font-size:12px;" data-i18n="backupRetentionHint">（超期自动清理，1-3650 天）</span>
+        </div>
+        <button class="btn-primary" onclick="saveBackupSettings()" style="background:linear-gradient(135deg,#667eea,#764ba2);" data-i18n="saveSettingsBtn">💾 保存设置</button>
           <button class="btn-primary" onclick="backupNow()" style="background:linear-gradient(135deg,#e85d3a,#e84a2a);" data-i18n="backupNowBtn">⚡ 立即备份</button>
         </div>
         <div id="lastBackupInfo" style="color:#666;margin-top:12px;font-size:13px;"></div>

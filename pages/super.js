@@ -775,6 +775,8 @@ async function loadBackupSettings() {
     const data = await api('/super/backup/settings');
     const sel = document.getElementById('backupIntervalSelect');
     if (sel) sel.value = String(data.intervalHours || 24);
+    const rd = document.getElementById('backupRetentionDays');
+    if (rd) rd.value = String(data.retentionDays || 30);
     if (data.lastBackupAt) {
       const info = document.getElementById('lastBackupInfo');
       if (info) info.textContent = t('lastBackupTime', null, '上次备份时间') + ': ' + formatDateTime(data.lastBackupAt);
@@ -833,7 +835,8 @@ window.importBackup = importBackup;
 async function saveBackupSettings() {
   try {
     const intervalHours = document.getElementById('backupIntervalSelect').value;
-    await api('/super/backup/settings', { method: 'PUT', body: JSON.stringify({ intervalHours }) });
+    const retentionDays = (document.getElementById('backupRetentionDays') || {}).value || 30;
+    await api('/super/backup/settings', { method: 'PUT', body: JSON.stringify({ intervalHours, retentionDays }) });
     SLF.ui.toast('✅ ' + t('backupSettingsSaved', null, t('backupSettingsSaved')), 'success');
   } catch (e) {
     SLF.ui.toast('❌ ' + t('saveFailed', null, t('saveFailed')), 'error');

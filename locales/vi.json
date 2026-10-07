@@ -1197,5 +1197,7 @@
   "incompleteShort": "Chưa xong",
   "pwaIOSInstallAlert": "Nhấn nút Chia sẻ ở dưới Safari → Thêm vào Màn hình chính",
   "pwaInstallError": "Lỗi hướng dẫn cài đặt",
-  "refreshing": "Đang làm mới..."
+  "refreshing": "Đang làm mới...",
+  "backupRetentionDays": "Số ngày giữ bản sao lưu:",
+  "backupRetentionHint": "(Tự động xóa file cũ, 1-3650 ngày)"
 }

@@ -547,15 +547,26 @@ app.get('/api/super/backup/settings', requireSuperAdmin, async (req, res) => {
   try {
     const intervalRow = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
     const lastBackupRow = await getAsync("SELECT value FROM settings WHERE `key` = 'last_backup_at'");
-    res.json({ intervalHours: parseInt(intervalRow?.value || '24', 10), lastBackupAt: lastBackupRow?.value || null });
+    const retentionRow = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_retention_days'");
+    res.json({
+      intervalHours: parseInt(intervalRow?.value || '24', 10),
+      retentionDays: parseInt(retentionRow?.value || '30', 10),
+      lastBackupAt: lastBackupRow?.value || null
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/super/backup/settings', requireSuperAdmin, async (req, res) => {
   try {
-    const { intervalHours } = req.body || {};
-    const hours = Math.max(1, Math.min(168, parseInt(intervalHours, 10) || 24));
-    await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_interval_hours', ?) ON DUPLICATE KEY UPDATE value=?", [String(hours), String(hours)]);
+    const { intervalHours, retentionDays } = req.body || {};
+    if (intervalHours !== undefined) {
+      const hours = Math.max(1, Math.min(168, parseInt(intervalHours, 10) || 24));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_interval_hours', ?) ON DUPLICATE KEY UPDATE value=?", [String(hours), String(hours)]);
+    }
+    if (retentionDays !== undefined) {
+      const days = Math.max(1, Math.min(3650, parseInt(retentionDays, 10) || 120));
+      await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_retention_days', ?) ON DUPLICATE KEY UPDATE value=?", [String(days), String(days)]);
+    }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
