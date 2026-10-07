@@ -10,37 +10,12 @@ module.exports = function(app, deps) {
   /* ===== KHQR 多收款码管理 ===== */
   async function loadKhqrProviders(storeId) {
     const row = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_providers']);
-    let list = [];
     if (row && row.value) {
-      try { list = JSON.parse(row.value); } catch (e) { list = []; }
+      try { return JSON.parse(row.value); } catch (e) { return []; }
     }
-    if (list.length === 0) {
-      const oldPayload = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_static_payload']);
-      if (oldPayload && oldPayload.value) {
-        const nameRow = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_merchant_name']);
-        const bakongRow = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_bakong_id']);
-        let cur = 'USD';
-        try {
-          const info = khqr.extractInfo(khqr.parseTLV(oldPayload.value));
-          cur = info.currency === '840' ? 'USD' : 'KHR';
-        } catch (e) {}
-        list = [{
-          id: 'p_migrated_' + Date.now(),
-          label: (nameRow && nameRow.value ? nameRow.value : '默认收款码'),
-          bank: 'ABA',
-          payload: oldPayload.value,
-          merchantName: nameRow ? nameRow.value : '',
-          bakongId: bakongRow ? bakongRow.value : '',
-          currency: cur,
-          isDefault: true,
-          enabled: true,
-          createdAt: new Date().toISOString(),
-        }];
-        await saveKhqrProviders(storeId, list);
-        console.log('[khqr] 已从旧数据迁移 1 个 provider: store=' + storeId);
-      }
-    }
-    return list;
+    return [];
+    // ★ 不再自动从 store_X_khqr_static_payload 迁移
+    //   迁移已一次性完成，删光了就是删光了
   }
 
   async function saveKhqrProviders(storeId, list) {
