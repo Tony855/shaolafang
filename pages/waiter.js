@@ -790,14 +790,28 @@
   function openModal(table) {
     state.currentTable = table;
     const tableOrders = state.orders.filter(o => o.table === table && o.status === 'pending');
-    if (tableOrders.length > 1) {
+
+    // ★ 该桌所有订单都已通知收银员 → 禁止进入编辑
+    if (tableOrders.length > 0 && tableOrders.every(o => o.awaiting_confirm)) {
+      SLF.ui.toast('🔔 ' + (t('khqrAwaitConfirm', null, '订单已通知收银员，无法编辑')));
+      return;
+    }
+
+    // ★ 只要有订单（≥1）就弹出"选择订单"，让服务员明确选择要操作哪单
+    if (tableOrders.length > 0) {
       showOrderSelect(tableOrders);
       return;
     }
-    openOrderEditor(table, tableOrders[0] || null);
+    openOrderEditor(table, null);
   }
 
   function openOrderEditor(table, order) {
+    // ★ 防御性守卫：已通知收银员的订单不允许编辑
+    if (order && order.awaiting_confirm) {
+      SLF.ui.toast('🔔 ' + (t('khqrAwaitConfirm', null, '订单已通知收银员，无法编辑')));
+      return;
+    }
+
     state.currentTable = table;
     state.cart = {};
     state.cartMeta = {};
@@ -851,11 +865,13 @@
       const itemCount = order.items ? order.items.length : 0;
       const timeStr = order.createdAt ? new Date(order.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
       const allDone = SLF.orderStatus.allItemsDone(order);
-      const showSettleBtn = canSettle && order.status === 'pending' && allDone;
+      // ★ 已通知收银员（awaiting_confirm=1）的订单不再显示"结算"按钮
+      const showSettleBtn = canSettle && order.status === 'pending' && allDone && !order.awaiting_confirm;
+      const showAwaitingTip = order.awaiting_confirm;
       const orderNo = order.order_no || ('#' + order.id);
       const settleBtnHtml = showSettleBtn
         ? '<button onclick="event.stopPropagation();window.openPaymentModal(' + order.id + ')" class="btn-settle">' + t('settleOrder', null, '结算') + '</button>'
-        : '';
+        : (showAwaitingTip ? '<span class="btn-awaiting-tip">🔔 ' + t('khqrAwaitConfirm', null, '已通知收银员') + '</span>' : '');
       html += '<div class="order-select-item" onclick="selectOrder(' + order.id + ')">';
       html += '  <div class="order-row-1">';
       html += '    <span class="order-no-label">' + esc(orderNo) + '</span>';
@@ -875,6 +891,11 @@
   function selectOrder(orderId) {
     const order = state.orders.find(o => o.id === orderId);
     if (!order) return;
+    // ★ 已通知收银员 → 点击只提示，不进入编辑
+    if (order.awaiting_confirm) {
+      SLF.ui.toast('🔔 ' + (t('khqrAwaitConfirm', null, '订单已通知收银员，无法编辑')));
+      return;
+    }
     const t_ = state.currentTable;
     closeOrderSelect();
     openOrderEditor(t_, order);

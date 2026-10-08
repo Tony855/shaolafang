@@ -115,6 +115,12 @@ window.openPaymentModal = async function(orderId, orderHint) {
   }
   if (!order) { SLF.ui.toast('❌ ' + (t('orderNotFound') || '订单不存在')); return; }
 
+  // ★ 已通知收银员的订单不允许再次打开收款
+  if (order.awaiting_confirm) {
+    SLF.ui.toast('🔔 ' + (t('khqrAwaitConfirm', null, '已通知收银员，请等待确认')));
+    return;
+  }
+
   const items = Array.isArray(order.items) ? order.items : [];
   if (items.length === 0) {
     SLF.ui.toast('⚠️ ' + (t('noDishes') || '无菜品') + '，无法结算');
@@ -204,6 +210,14 @@ window.onCashInput = function() {
 window.confirmPay = async function() {
   if (!paymentOrderId) return;
   const id = paymentOrderId;
+
+  // ★ 防御性检查：订单已通知收银员则拒绝
+  const _ord = (window._waiterOrderCache && window._waiterOrderCache[id]) || null;
+  if (_ord && _ord.awaiting_confirm) {
+    SLF.ui.toast('🔔 ' + (t('khqrAwaitConfirm', null, '已通知收银员，请等待确认')));
+    window.closePaymentModal();
+    return;
+  }
   // 从 DOM 拿 due
   let due = 0;
   const amtEl = $('#paymentAmount');

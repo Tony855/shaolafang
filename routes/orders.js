@@ -680,6 +680,10 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     if (!row) return res.status(404).json({ error: '订单不存在' });
     if (!req.isAdmin && req.waiter && !req.waiter.can_mark_item) return res.status(403).json({ error: '该服务员没有标记菜品权限' });
     if (row.status === 'done') return res.status(409).json({ error: '已结算订单不能修改菜品状态' });
+    // ★ 服务员：订单已通知收银员后，禁止退菜/改菜品状态（管理员不受限）
+    if (!req.isAdmin && row.awaiting_confirm) {
+      return res.status(409).json({ error: '订单已通知收银员，无法修改菜品' });
+    }
     let items = row.items;
     if (typeof items === 'string') {
       try { items = JSON.parse(items); } catch (e) { console.error(`订单 ${id} 的 items 解析失败:`, items, e); items = []; }
@@ -1017,6 +1021,10 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
     if (existing.status === 'done') return res.status(409).json({ error: '已完成订单不能编辑' });
+    // ★ 服务员：订单已通知收银员后，禁止任何编辑（管理员不受限）
+    if (!req.isAdmin && existing.awaiting_confirm) {
+      return res.status(409).json({ error: '订单已通知收银员，无法修改' });
+    }
     if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_edit_order)) {
       return res.status(403).json({ error: '无权修改订单' });
     }
