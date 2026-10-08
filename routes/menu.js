@@ -1,0 +1,349 @@
+/* ============================================================
+   routes/menu.js — 菜品 + 分类
+   ============================================================ */
+const crypto = require("crypto");
+const fs = require("fs");
+const { hashPassword, verifyPassword } = require("../server/middleware/password");
+const { compressImage } = require("../server/services/image-compress");
+
+module.exports = function(app, deps) {
+  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
+
+app.get('/api/menu', async (req, res) => {
+  try {
+    const storeId = parseInt(req.query.store_id || '1', 10);
+    const rows = await allAsync('SELECT * FROM menus WHERE active = 1 AND store_id = ? ORDER BY id', [storeId]);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/admin/menu', requireAdminKey, async (req, res) => {
+  try {
+    const rows = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [req.storeId || 1]);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+  try {
+    const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code = 'USD' } = req.body;
+    const video = req.files && req.files.video ? req.files.video[0].filename : '';
+    if (!name || !price) return res.status(400).json({ error: '名称和价格必填' });
+    const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [currency_code, req.merchantId]);
+    if (!currency) return res.status(400).json({ error: '货币类型不存在' });
+    let image = req.files && req.files.image ? req.files.image[0].filename : '';
+    // 后端兜底压缩（前端已压过，这里是保护）
+    if (image) {
+      try {
+        const cp = await compressImage(path.join(UPLOAD_DIR, image));
+        if (!cp.skipped && cp.outPath) {
+          image = path.basename(cp.outPath);
+        }
+      } catch (e) { console.warn('[POST /api/menu] 压缩失败:', e.message); }
+    }
+    const result = await runAsync(
+      'INSERT INTO menus (name, emoji, price, category, `desc`, image, video, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, emoji || '🍽️', parseFloat(price), category || '其他', desc || '', image, video || '', currency_code, name_en || '', desc_en || '', unit || '份', show_dual ? 1 : 0, secondary_currency_code || '', req.storeId || 1, req.merchantId]
+    );
+    const newItem = await getAsync('SELECT * FROM menus WHERE id = ?', [result.lastID]);
+    res.status(201).json(newItem);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 批量导入菜品
+async function downloadImageToUploads(url) {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const ct = (res.headers.get('content-type') || '').split(';')[0].trim();
+    if (!/^image\//.test(ct)) throw new Error('非图片: ' + ct);
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 5 * 1024 * 1024) throw new Error('图片超过5MB');
+    const extMap = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
+    const ext = extMap[ct] || '.jpg';
+    const filename = 'batch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + ext;
+    const fullPath = path.join(UPLOAD_DIR, filename);
+    await fs.promises.writeFile(fullPath, buf);
+    return filename;
+  } catch (e) {
+    console.warn('[batch] 下载图片失败:', url, e.message);
+    return null;
+  }
+}
+
+app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
+  try {
+    const items = req.body.items;
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: '导入数据不能为空' });
+    
+    let success = 0;
+    let failed = 0;
+    const errors = [];
+    const createdCategories = [];
+
+    // 自动创建 CSV 里出现但数据库没有的分类
+    const csvCategories = [...new Set(items.map(it => String(it.category || '').trim()).filter(Boolean))];
+    for (const cat of csvCategories) {
+      const exists = await getAsync('SELECT id FROM menu_categories WHERE name=? AND store_id=?', [cat, req.storeId || 1]);
+      if (!exists) {
+        const maxSort = await getAsync('SELECT MAX(sort) as max FROM menu_categories WHERE store_id=?', [req.storeId || 1]);
+        const nextSort = (maxSort && maxSort.max !== null) ? maxSort.max + 1 : 0;
+        try {
+          await runAsync('INSERT INTO menu_categories (name, sort, store_id, merchant_id) VALUES (?, ?, ?, ?)', [cat, nextSort, req.storeId || 1, req.merchantId]);
+          createdCategories.push(cat);
+        } catch (e) { /* 并发重复忽略 */ }
+      }
+    }
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      try {
+        if (!item.name || !item.price) {
+          failed++;
+          errors.push(`第 ${i+1} 行：名称和价格必填`);
+          continue;
+        }
+        const existing = await getAsync('SELECT id FROM menus WHERE name = ? AND store_id = ?', [item.name, req.storeId || 1]);
+        if (existing) {
+          let updImage = null;
+          const updImgRaw = String(item.image || '').trim();
+          if (updImgRaw) {
+            if (/^https?:\/\//i.test(updImgRaw)) {
+              updImage = await downloadImageToUploads(updImgRaw);
+            } else {
+              const lp = path.join(UPLOAD_DIR, updImgRaw);
+              if (fs.existsSync(lp)) updImage = updImgRaw;
+            }
+          }
+          if (updImage) {
+            await runAsync(
+              'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ?, image = ? WHERE id = ? AND store_id = ?',
+              [
+                item.emoji || '🍽️',
+                parseFloat(item.price),
+                item.category || '其他',
+                item.desc || '',
+                item.currency_code || 'USD',
+                item.name_en || '',
+                item.desc_en || '',
+                item.unit || '份',
+                item.show_dual ? 1 : 0,
+                item.secondary_currency_code || '',
+                updImage,
+                existing.id,
+                req.storeId || 1
+              ]
+            );
+          } else {
+            await runAsync(
+              'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ? WHERE id = ? AND store_id = ?',
+              [
+                item.emoji || '🍽️',
+                parseFloat(item.price),
+                item.category || '其他',
+                item.desc || '',
+                item.currency_code || 'USD',
+                item.name_en || '',
+                item.desc_en || '',
+                item.unit || '份',
+                item.show_dual ? 1 : 0,
+                item.secondary_currency_code || '',
+                existing.id,
+                req.storeId || 1
+              ]
+            );
+          }
+        } else {
+          // 处理图片：http(s) URL → 下载到 uploads/；否则按已有文件名处理
+          let imageName = '';
+          const rawImg = String(item.image || '').trim();
+          if (rawImg) {
+            if (/^https?:\/\//i.test(rawImg)) {
+              imageName = await downloadImageToUploads(rawImg) || '';
+            } else {
+              const localPath = path.join(UPLOAD_DIR, rawImg);
+              if (fs.existsSync(localPath)) imageName = rawImg;
+            }
+          }
+          await runAsync(
+            'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              item.name,
+              item.emoji || '🍽️',
+              parseFloat(item.price),
+              item.category || '其他',
+              item.desc || '',
+              imageName,
+              item.currency_code || 'USD',
+              item.name_en || '',
+              item.desc_en || '',
+              item.unit || '份',
+              item.show_dual ? 1 : 0,
+              item.secondary_currency_code || '',
+              req.storeId || 1,
+              req.merchantId
+            ]
+          );
+        }
+        success++;
+      } catch (e) {
+        failed++;
+        errors.push(`第 ${i+1} 行：${e.message}`);
+      }
+    }
+    
+    res.json({ success, failed, errors, createdCategories });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code } = req.body;
+    const current = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    if (!current) return res.status(404).json({ error: '菜品不存在' });
+    const nextCurrency = currency_code || current.currency_code || 'USD';
+    const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [nextCurrency, req.merchantId]);
+    if (!currency) return res.status(400).json({ error: '货币类型不存在' });
+    let image = (req.files && req.files.image) ? req.files.image[0].filename : current.image;
+    let video = (req.files && req.files.video) ? req.files.video[0].filename : (current.video || '');
+    // 新上传的图片兜底压缩
+    if (req.files && req.files.image) {
+      try {
+        const cp = await compressImage(path.join(UPLOAD_DIR, image));
+        if (!cp.skipped && cp.outPath) {
+          image = path.basename(cp.outPath);
+        }
+      } catch (e) { console.warn('[PUT /api/menu/:id] 压缩失败:', e.message); }
+    }
+    if (req.files && req.files.image && current.image) {
+      const oldPath = path.join(UPLOAD_DIR, current.image);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+    await runAsync(
+      'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, video=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=? AND store_id=?',
+      [name || current.name, emoji || current.emoji, Number.isFinite(Number(price)) ? Number(price) : current.price, category || current.category, desc ?? current.desc, image, video, nextCurrency, name_en ?? current.name_en ?? '', desc_en ?? current.desc_en ?? '', unit || current.unit || '份', show_dual === undefined ? (current.show_dual || 0) : (show_dual ? 1 : 0), secondary_currency_code ?? current.secondary_currency_code ?? '', id, req.storeId]
+    );
+    const updated = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    res.json(updated);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const item = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    if (!item) return res.status(404).json({ error: '菜品不存在' });
+    if (item.image) {
+      const imgPath = path.join(UPLOAD_DIR, item.image);
+      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+    }
+    await runAsync('DELETE FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/menu/:id/status', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const item = await getAsync('SELECT id FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    if (!item) return res.status(404).json({ error: '菜品不存在' });
+    const active = req.body.active ? 1 : 0;
+    await runAsync('UPDATE menus SET active=? WHERE id=? AND store_id=?', [active, id, req.storeId]);
+    res.json(await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ----- 菜品分类 -----
+app.get('/api/menu-categories', requireAdminKey, async (req, res) => {
+  try {
+    const rows = await allAsync('SELECT * FROM menu_categories WHERE store_id=? ORDER BY sort, id', [req.storeId]);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/menu-categories', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: '分类名称必填' });
+    const maxSort = await getAsync('SELECT MAX(sort) as max FROM menu_categories WHERE store_id=?', [req.storeId]);
+    const nextSort = (maxSort && maxSort.max !== null) ? maxSort.max + 1 : 0;
+    const result = await runAsync('INSERT INTO menu_categories (name, sort, store_id, merchant_id) VALUES (?, ?, ?, ?)', [name, nextSort, req.storeId, req.merchantId]);
+    const row = await getAsync('SELECT * FROM menu_categories WHERE id = ? AND store_id = ?', [result.lastID, req.storeId]);
+    res.status(201).json(row);
+  } catch (e) {
+    if (String(e.message).includes('Duplicate entry')) return res.status(409).json({ error: '分类已存在' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/menu-categories/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: '分类名称必填' });
+    const current = await getAsync('SELECT name FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    if (!current) return res.status(404).json({ error: '分类不存在' });
+    await withTransaction(async () => {
+      await runAsync('UPDATE menu_categories SET name=? WHERE id=? AND store_id=?', [name, id, req.storeId]);
+      await runAsync('UPDATE menus SET category=? WHERE category=? AND store_id=?', [name, current.name, req.storeId]);
+    });
+    res.json(await getAsync('SELECT * FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]));
+  } catch (e) {
+    if (String(e.message).includes('Duplicate entry')) return res.status(409).json({ error: '分类已存在' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/menu-categories/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const current = await getAsync('SELECT name FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    if (!current) return res.status(404).json({ error: '分类不存在' });
+    const remaining = await getAsync("SELECT name FROM menu_categories WHERE id != ? AND store_id = ? ORDER BY sort, id LIMIT 1", [id, req.storeId]);
+    let fallback = remaining ? remaining.name : '其他';
+    await withTransaction(async () => {
+      if (!remaining) await runAsync("INSERT IGNORE INTO menu_categories (name, sort, store_id) VALUES ('其他', 0, ?)", [req.storeId]);
+      await runAsync('DELETE FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]);
+      await runAsync('UPDATE menus SET category=? WHERE category=? AND store_id=?', [fallback, current.name, req.storeId]);
+    });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/menu-categories/sort', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids must be a non-empty array' });
+    await withTransaction(async () => {
+      for (let i = 0; i < ids.length; i++) {
+        await runAsync('UPDATE menu_categories SET sort = ? WHERE id = ? AND store_id = ?', [i, ids[i], req.storeId]);
+      }
+    });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ----- 桌号 -----
+
+};
