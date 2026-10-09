@@ -20,9 +20,6 @@ Thumbs.db
 # 日志
 *.log
 
-*.png
-*.jpg
-*.jpeg
 
 # --- 编辑/重构产生的临时备份 ---
 *.bak
@@ -102,7 +99,18 @@ foodflow.conf.bak
 *.js.bak-*
 
 # 支付方式图标例外（允许提交）
+
+
+# ---------- 图片资源：全局排除 ----------
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+
+# ---------- 静态 UI 资源：白名单（新加的图标自动进 git）----------
 !assets/vendor/payment-icons/
-!assets/vendor/payment-icons/*.png
+!assets/vendor/payment-icons/**
 !assets/icons/
-!assets/icons/*.png
+!assets/icons/**
