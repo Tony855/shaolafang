@@ -191,16 +191,14 @@ app.get('/languages.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'languages.js'));
 });
 app.get('/languages.min.js', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
+  res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   res.sendFile(path.join(__dirname, 'languages.min.js'));
 });
 
 // PWA manifest（根目录文件，不在 /assets 里）
 app.get('/manifest.json', (req, res) => {
   res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   res.sendFile(path.join(__dirname, 'manifest.json'));
 });
 

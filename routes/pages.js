@@ -13,19 +13,18 @@ module.exports = function registerPageRoutes(app, ctx) {
   function sendHtml(res, file) {
     const html = fs.readFileSync(path.join(ROOT, file), 'utf-8');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    // 强制不缓存 HTML（手机上 no-cache 常常被忽略，改成 no-store）
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    // 协商缓存：每次带 If-None-Match 问服务器，未改 304，改了 200
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     res.send(html);
   }
 
   // 静态语言包
   app.get('/languages.js', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(ROOT, 'languages.js'));
   });
   app.get('/languages.min.js', (req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     res.sendFile(path.join(ROOT, 'languages.min.js'));
   });
 
@@ -37,7 +36,7 @@ module.exports = function registerPageRoutes(app, ctx) {
     if (i18nCache[lang]) return res.json(i18nCache[lang]);
     try {
       i18nCache[lang] = JSON.parse(fs.readFileSync(path.join(ROOT, 'locales', lang + '.json'), 'utf-8'));
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
       res.json(i18nCache[lang]);
     } catch (e) {
       res.status(500).json({ error: 'Failed to load language' });
