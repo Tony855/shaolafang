@@ -391,8 +391,6 @@ function buildDynamicPayload(staticPayload, amount, currencyCode, orderNo) {
     }
 
     t39.value = newT39;
-
-    console.log('[khqr] Tag 39.00 = ' + fullPhone);
   }
 
   const t01 = clean.find(t => t.tag === '01');

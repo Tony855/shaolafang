@@ -525,8 +525,6 @@ module.exports = function(app, deps) {
 
       const requestedCurrency = String((req.body && req.body.currency) || '').trim().toUpperCase();
       const targetCurrency = ['USD', 'KHR'].includes(requestedCurrency) ? requestedCurrency : staticCurrency;
-      console.log('[khqr/generate] provider=' + provider.id + ' provider.currency=' + provider.currency + ' targetCurrency=' + targetCurrency);
-
       // 订单原始币种
       let orderCurrency = 'USD';
       try {
@@ -546,7 +544,6 @@ module.exports = function(app, deps) {
         // 订单币种 → USD → 静态码币种
         const usdAmount = Number(order.total) / usdRateOfOrder;
         finalAmount = usdAmount * usdRateOfStatic;
-        console.log('[khqr/generate] 币种换算:', order.total, orderCurrency, '→', finalAmount.toFixed(2), targetCurrency);
       }
 
       const orderNo = order.order_no || ('#' + order.id);
