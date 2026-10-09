@@ -87,10 +87,29 @@ module.exports = function(app, deps) {
   app.get('/api/public/khqr/banks', async (req, res) => {
     try {
       const { BANKS, DEFAULT_BANK } = require('../server/config/khqr-banks');
+      const { VIETQR_BANKS } = require('../server/config/vietqr-banks');
+      const { resolveIcon } = require('../server/services/icon-resolver');
+
+      // ★ 大小写不敏感：把配置里的 icon 名解析成磁盘真实文件名
+      const resolve = (b) => ({ name: b.name, icon: resolveIcon(b.icon) });
+
+      const khBanks = BANKS.map(resolve);
+      const vnBanks = Object.values(VIETQR_BANKS).map(resolve);
+
+      // 按 name 去重（KB 和 VN 可能有同名，取第一个）
+      const seen = new Set();
+      const allBanks = [];
+      for (const b of [...khBanks, ...vnBanks]) {
+        const k = b.name.toLowerCase();
+        if (seen.has(k)) continue;
+        seen.add(k);
+        allBanks.push(b);
+      }
+
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.json({
-        banks: BANKS.map(b => ({ name: b.name, icon: b.icon })),
-        defaultBank: DEFAULT_BANK,
+        banks: allBanks,
+        defaultBank: { name: DEFAULT_BANK.name, icon: resolveIcon(DEFAULT_BANK.icon) },
       });
     } catch (e) {
       res.status(500).json({ error: e.message });

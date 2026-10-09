@@ -424,14 +424,19 @@ module.exports = function(app, deps) {
         const { identifyVietBank } = require('../server/config/vietqr-banks');
         const explicitBank = (req.body && req.body.bank) ? String(req.body.bank).trim() : '';
 
-        let bank, bakongId = '', bankBin = '', bankAccount = '';
+        let bank, bankIcon = '', bakongId = '', bankBin = '', bankAccount = '';
+        const { resolveIcon } = require('../server/services/icon-resolver');
         if (parsed.kind === 'VIETQR') {
           bankBin = parsed.bankBin || '';
           bankAccount = parsed.bankAccount || '';
-          bank = explicitBank || identifyVietBank(bankBin).name;
+          const info = identifyVietBank(bankBin);
+          bank = explicitBank || info.name;
+          bankIcon = resolveIcon(info.icon);
         } else {
           bakongId = parsed.bakongId || '';
-          bank = explicitBank || identifyBank(bakongId).name;
+          const info = identifyBank(bakongId);
+          bank = explicitBank || info.name;
+          bankIcon = resolveIcon(info.icon);
         }
 
         const currency = parsed.currency || (parsed.kind === 'VIETQR' ? 'VND' : 'USD');
@@ -445,6 +450,7 @@ module.exports = function(app, deps) {
           kind: parsed.kind,                        // ★ 'KHQR' | 'VIETQR'
           label: label,
           bank: bank,
+          bankIcon: bankIcon,                       // ★ 磁盘真实文件名
           bankBin: bankBin,                         // VietQR 用
           bankAccount: bankAccount,                 // VietQR 用
           payload: parsed.payload,

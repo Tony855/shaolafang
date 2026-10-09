@@ -1159,6 +1159,29 @@ async function initSocketAdapter() {
   } catch (e) { console.warn('⚠️ Socket.io Adapter 失败:', e.message); }
 }
 
+// ★ 启动时检查图标是否齐全（有缺失只告警，不阻断）
+(async () => {
+  try {
+    const { findMissing } = require('./server/services/icon-resolver');
+    const { BANKS } = require('./server/config/khqr-banks');
+    const { VIETQR_BANKS } = require('./server/config/vietqr-banks');
+    const configured = [
+      ...BANKS.map(b => b.icon),
+      ...Object.values(VIETQR_BANKS).map(b => b.icon),
+      'KHQR.png',
+    ];
+    const missing = findMissing(configured);
+    if (missing.length) {
+      console.warn('⚠️  以下图标文件缺失（前端会 404）：');
+      missing.forEach(m => console.warn('   - assets/vendor/payment-icons/' + m));
+    } else {
+      console.log('✅ 所有配置的银行图标都齐全');
+    }
+  } catch (e) {
+    console.warn('[icon-check] 启动检查失败:', e.message);
+  }
+})();
+
 initDatabase().then(async () => {
   if (isInitOnly) {
     process.exit(0);
