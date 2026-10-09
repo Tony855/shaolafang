@@ -738,6 +738,7 @@ async function initDatabase() {
       code VARCHAR(50) UNIQUE NOT NULL,
       contact_name VARCHAR(100),
       contact_phone VARCHAR(50),
+      country VARCHAR(4) NOT NULL DEFAULT '',
       max_stores INT NOT NULL DEFAULT 1,
       status TINYINT NOT NULL DEFAULT 1,
       expire_date DATE,
@@ -745,6 +746,14 @@ async function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  // ★ 兼容旧库：merchants.country 字段迁移（幂等）
+  try {
+    await runAsync("ALTER TABLE merchants ADD COLUMN country VARCHAR(4) NOT NULL DEFAULT ''");
+    console.log('  + 迁移 merchants: 添加 country 字段');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) console.log('  ! merchants.country:', e.message);
+  }
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS super_admins (

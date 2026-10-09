@@ -71,7 +71,7 @@ app.get('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 
 app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
   try {
-    const { name, code, username, password, contact_name, contact_phone, max_stores } = req.body || {};
+    const { name, code, username, password, contact_name, contact_phone, max_stores, country } = req.body || {};
     if (!name) return res.status(400).json({ error: '商户名称必填' });
     if (!username || !username.trim()) return res.status(400).json({ error: '登录账号必填' });
     const adminUsername = username.trim();
@@ -96,7 +96,8 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
       } while (codeExists);
       merchantCode = generatedCode;
     }
-    const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status) VALUES (?, ?, ?, ?, ?, 1)', [name, merchantCode, contact_name || '', contact_phone || '', max_stores || 1]);
+    const _country = String(country || '').trim().toUpperCase().slice(0, 4);
+    const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status, country) VALUES (?, ?, ?, ?, ?, 1, ?)', [name, merchantCode, contact_name || '', contact_phone || '', max_stores || 1, _country]);
     const newMerchantId = result.lastID;
     let adminPassword = (password && password.trim()) ? password.trim() : '';
     if (!adminPassword) {
@@ -123,8 +124,10 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 
 app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
-    const { name, username, password, contact_name, contact_phone, max_stores, status } = req.body || {};
-    await runAsync('UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=? WHERE id=?', [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, req.params.id]);
+    const { name, username, password, contact_name, contact_phone, max_stores, status, country } = req.body || {};
+    const _cur = await getAsync('SELECT country FROM merchants WHERE id=?', [req.params.id]);
+    const _nextCountry = (country !== undefined) ? String(country).trim().toUpperCase().slice(0, 4) : (_cur && _cur.country ? _cur.country : '');
+    await runAsync('UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=?, country=? WHERE id=?', [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, _nextCountry, req.params.id]);
     const primaryAdmin = await getAsync('SELECT id, username FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.params.id]);
     if (primaryAdmin) {
       if (username && username.trim() && username.trim() !== primaryAdmin.username) {

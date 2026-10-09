@@ -3,6 +3,27 @@
  */
 (function(){
 'use strict';
+
+// ===== 国家列表 + 显示辅助（2026-10-09 新增）=====
+const COUNTRY_OPTIONS = [
+  { code: '',      label: '— 未指定 —' },
+  { code: 'KH',    label: '🇰🇭 柬埔寨' },
+  { code: 'VN',    label: '🇻🇳 越南' },
+  { code: 'TH',    label: '🇹🇭 泰国' },
+  { code: 'CN',    label: '🇨🇳 中国' },
+  { code: 'MY',    label: '🇲🇾 马来西亚' },
+  { code: 'SG',    label: '🇸🇬 新加坡' },
+  { code: 'LA',    label: '🇱🇦 老挝' },
+  { code: 'MM',    label: '🇲🇲 缅甸' },
+  { code: 'ID',    label: '🇮🇩 印尼' },
+  { code: 'PH',    label: '🇵🇭 菲律宾' },
+  { code: 'OTHER', label: '🌐 其他' }
+];
+function countryLabel(code) {
+  if (!code) return '';
+  const c = COUNTRY_OPTIONS.find(o => o.code === String(code).toUpperCase());
+  return c ? c.label : String(code);
+}
 // ===== i18n =====
 let currentLang = SLF.store.rawGet('superLang') || SLF.store.rawGet('lang') || 'zh';
 
@@ -320,8 +341,67 @@ async function loadServerStats() {
   } catch (e) {}
 }
 
+
+// ===== 确保表头有"国家"列 =====
+function ensureMerchantCountryHeader() {
+  const tbody = document.getElementById('merchantList');
+  if (!tbody) return;
+  const table = tbody.closest('table');
+  if (!table) return;
+  const headRow = table.querySelector('thead tr');
+  if (!headRow) return;
+  if (headRow.querySelector('[data-col="country"]')) return;
+
+  const th = document.createElement('th');
+  th.setAttribute('data-col', 'country');
+  th.setAttribute('data-i18n', 'countryCol');
+  th.textContent = (typeof t === 'function' ? (t('countryCol', null, '国家') || '国家') : '国家');
+
+  let targetTh = null;
+  Array.from(headRow.children).forEach(c => {
+    if (targetTh) return;
+    const txt = (c.textContent || '').trim();
+    if (/门店数|门店数量|Store/i.test(txt)) targetTh = c;
+  });
+  if (targetTh) headRow.insertBefore(th, targetTh);
+  else headRow.appendChild(th);
+}
+
+// ===== 确保商户表单里有"国家"下拉 =====
+function ensureMerchantCountryField() {
+  if (document.getElementById('merchantCountry')) return;
+  const statusEl = document.getElementById('merchantStatus');
+  if (!statusEl) { console.warn('[country] merchantStatus 不存在'); return; }
+  const statusGroup = statusEl.closest('.form-group') || statusEl.parentElement;
+  if (!statusGroup || !statusGroup.parentNode) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'form-group';
+  wrap.setAttribute('data-country-field', '1');
+
+  const label = document.createElement('label');
+  label.setAttribute('for', 'merchantCountry');
+  label.setAttribute('data-i18n', 'countryCol');
+  label.textContent = (typeof t === 'function' ? (t('countryCol', null, '国家归属地') || '国家归属地') : '国家归属地');
+
+  const sel = document.createElement('select');
+  sel.id = 'merchantCountry';
+  sel.style.cssText = 'width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#22223a;color:#fff;font-size:14px;';
+  COUNTRY_OPTIONS.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.code;
+    opt.textContent = o.label;
+    sel.appendChild(opt);
+  });
+
+  wrap.appendChild(label);
+  wrap.appendChild(sel);
+  statusGroup.parentNode.insertBefore(wrap, statusGroup.nextSibling);
+}
+
 async function loadMerchants() {
   try {
+    ensureMerchantCountryHeader();
     const list = await api('/super/merchants');
     document.getElementById('merchantList').innerHTML = list.map(m => `
       <tr>
@@ -330,6 +410,7 @@ async function loadMerchants() {
         <td data-label=t('merchantAccount')><span style="display:inline-block;background:rgba(102,204,255,.1);color:#66ccff;padding:3px 10px;border-radius:6px;font-family:monospace;font-size:13px;">${esc(m.admin_username) || '-'}</span></td>
         <td data-label=t('contactPerson') style="color:#ccc;">${esc(m.contact_name) || '-'}</td>
         <td data-label=t('contactPhone') style="color:#999;font-family:monospace;font-size:13px;">${esc(m.contact_phone) || '-'}</td>
+        <td data-label=t('countryCol') style="color:#ccc;">${m.country ? countryLabel(m.country) : '<span style="color:#555;">—</span>'}</td>
         <td data-label=t('storeCountCol')><span style="color:#aaa;">${m.store_count}</span><span style="color:#666;"> / </span><span style="color:#ffd93d;font-weight:600;">${m.max_stores}</span></td>
         <td data-label="状态"><span class="status-badge ${m.status === 1 ? 'status-active' : 'status-disabled'}">${m.status === 1 ? t('enabled', null, '启用') : t('disabled', null, '禁用')}</span></td>
         <td>
@@ -429,6 +510,9 @@ function showAddMerchant() {
   document.getElementById('merchantPhone').value = '';
   document.getElementById('merchantMaxStores').value = 1;
   document.getElementById('merchantStatus').value = '1';
+  ensureMerchantCountryField();
+  const _cSel = document.getElementById('merchantCountry');
+  if (_cSel) _cSel.value = '';
   document.getElementById('merchantUsername').disabled = false;
   document.getElementById('merchantModal').classList.add('open');
 }
@@ -452,6 +536,9 @@ async function editMerchant(id) {
     document.getElementById('merchantPhone').value = m.contact_phone || '';
     document.getElementById('merchantMaxStores').value = m.max_stores;
     document.getElementById('merchantStatus').value = m.status;
+    ensureMerchantCountryField();
+    const _cSel = document.getElementById('merchantCountry');
+    if (_cSel) _cSel.value = m.country || '';
     document.getElementById('merchantUsername').disabled = false;
     document.getElementById('merchantModal').classList.add('open');
   } catch (e) { SLF.ui.toast(e.message, 'error'); }
@@ -462,6 +549,8 @@ window.closeMerchantModal = closeMerchantModal;
 
 async function saveMerchant() {
   const id = document.getElementById('editMerchantId').value;
+  ensureMerchantCountryField();
+  const _countryEl = document.getElementById('merchantCountry');
   const data = {
     name: document.getElementById('merchantName').value.trim(),
     code: document.getElementById('merchantCode').value.trim(),
@@ -470,7 +559,8 @@ async function saveMerchant() {
     contact_name: document.getElementById('merchantContact').value.trim(),
     contact_phone: document.getElementById('merchantPhone').value.trim(),
     max_stores: parseInt(document.getElementById('merchantMaxStores').value) || 1,
-    status: parseInt(document.getElementById('merchantStatus').value)
+    status: parseInt(document.getElementById('merchantStatus').value),
+    country: _countryEl ? _countryEl.value : ''
   };
   if (!data.name) { SLF.ui.toast(t('merchantNameRequired', null, t('merchantNameRequired')), 'error'); return; }
   if (!data.username) { SLF.ui.toast(t('accountRequired', null, t('accountRequired')), 'error'); return; }
@@ -925,6 +1015,7 @@ if (token) showApp();
     try { window.saveGlobalSettings = saveGlobalSettings; } catch(err) {}
     try { window.saveMerchant = saveMerchant; } catch(err) {}
     try { window.showAddMerchant = showAddMerchant; } catch(err) {}
+try { window.ensureMerchantCountryField = ensureMerchantCountryField; window.countryLabel = countryLabel; window.COUNTRY_OPTIONS = COUNTRY_OPTIONS; } catch(err) {}
     try { window.showOnlineSessions = showOnlineSessions; } catch(err) {}
     try { window.showStoreBreakdown = showStoreBreakdown; } catch(err) {}
     try { window.showStoreSessions = showStoreSessions; } catch(err) {}
