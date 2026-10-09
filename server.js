@@ -640,6 +640,32 @@ async function initDatabase() {
     if (!/duplicate column/i.test(e.message || '')) console.log('  ! customer_token:', e.message);
   }
 
+  // ===== orders 支付/退款字段补全迁移（幂等）=====
+  const ordersPaymentColumns = [
+    ['order_no',          'VARCHAR(20) DEFAULT NULL'],
+    ['pay_method',        "VARCHAR(20) DEFAULT ''"],
+    ['cash_received',     'DECIMAL(10,2) DEFAULT 0'],
+    ['cash_change',       'DECIMAL(10,2) DEFAULT 0'],
+    ['awaiting_confirm',  'TINYINT NOT NULL DEFAULT 0'],
+    ['pay_khqr_ref',      "VARCHAR(255) DEFAULT ''"],
+    ['pay_expires_at',    "VARCHAR(50) DEFAULT ''"],
+    ['paid_confirmed_by', "VARCHAR(100) DEFAULT ''"],
+    ['refund_amount',     'DECIMAL(10,2) DEFAULT NULL'],
+    ['refund_reason',     "VARCHAR(100) DEFAULT ''"],
+    ['refund_note',       "VARCHAR(200) DEFAULT ''"],
+    ['refunded_at',       "VARCHAR(50) DEFAULT ''"],
+    ['refunded_by',       "VARCHAR(100) DEFAULT ''"],
+  ];
+  for (const [col, def] of ordersPaymentColumns) {
+    try { await runAsync(`ALTER TABLE orders ADD COLUMN ${col} ${def}`); }
+    catch (e) { if (!/duplicate column/i.test(e.message || '')) console.log(`  ! orders.${col}: ${e.message}`); }
+  }
+  try {
+    await runAsync('ALTER TABLE orders ADD UNIQUE INDEX idx_order_no (order_no)');
+  } catch (e) {
+    if (!/duplicate key|Duplicate key name/i.test(e.message || '')) console.log('  ! idx_order_no:', e.message);
+  }
+
   await runAsync(`
     CREATE TABLE IF NOT EXISTS settings (
       \`key\` VARCHAR(255) PRIMARY KEY,
