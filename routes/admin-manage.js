@@ -549,13 +549,7 @@ module.exports = function(app, deps) {
       // 保存到订单
       await runAsync('UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=?',
         ['khqr', dynamicPayload, expiresAt, order.id]);
-      console.log('[khqr-timing] resolveStore=' + (_t1 - _t0) +
-        'ms, buildPayload=' + (_t2 - _t1) +
-        'ms, qrImage=' + (_t3 - _t2) +
-        'ms, dbWrite=' + (_t4 - _t3) +
-        'ms, total=' + (_t4 - _t0) + 'ms');
-
-      res.json({
+res.json({
         qr_payload: dynamicPayload,
         qr_data_url: qrDataUrl,
         provider_id: provider.id,
