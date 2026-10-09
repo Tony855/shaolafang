@@ -417,15 +417,10 @@ module.exports = function(app, deps) {
         const parsed = await khqr.parseAndValidateStaticQR(buf);
         const { storeId: sid, storeName } = await resolveKhqrStore(req);
 
-        // 从 bakongId 自动识别银行（如 abaakhppxxx@abaa → ABA，khqr@aclb → ACLEDA）
-        let bank = 'Other';
-        const bakongId = String(parsed.bakongId || '').toLowerCase();
-        if (bakongId.includes('@abaa') || bakongId.includes('aba')) bank = 'ABA';
-        else if (bakongId.includes('@aclb') || bakongId.includes('acleda')) bank = 'ACLEDA';
-        else if (bakongId.includes('@wing') || bakongId.includes('wing')) bank = 'Wing';
-        else if (bakongId.includes('bakong')) bank = 'Bakong';
-        else if (bakongId.includes('@chipmong') || bakongId.includes('chipmong')) bank = 'Chip Mong';
-        else if (req.body && req.body.bank) bank = req.body.bank.trim();
+        // 从 bakongId 自动识别银行（规则见 server/config/khqr-banks.js）
+        const { identifyBank } = require('../server/config/khqr-banks');
+        const explicitBank = (req.body && req.body.bank) ? String(req.body.bank).trim() : '';
+        const bank = explicitBank || identifyBank(parsed.bakongId).name;
 
         // 备注名：用户填了就用，否则自动生成
         const label = (req.body && req.body.label || '').trim() || (parsed.merchantName + ' - ' + parsed.currency);

@@ -83,5 +83,19 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  // ★ KHQR 银行列表（给前端拉取图标映射）
+  app.get('/api/public/khqr/banks', async (req, res) => {
+    try {
+      const { BANKS, DEFAULT_BANK } = require('../server/config/khqr-banks');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.json({
+        banks: BANKS.map(b => ({ name: b.name, icon: b.icon })),
+        defaultBank: DEFAULT_BANK,
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get('/api/health', (req, res) => res.json({ ok: true, service: 'foodflow', timestamp: new Date().toISOString() }));
 };
