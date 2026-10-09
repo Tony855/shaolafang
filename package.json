@@ -10,7 +10,8 @@
     "check:lang": "node scripts/check-lang.js",
     "check:lang:strict": "node scripts/check-lang.js --strict",
     "build:admin": "node scripts/build-admin-bundle.js",
-    "bump": "bash scripts/bump-version.sh"
+    "bump": "bash scripts/bump-version.sh",
+    "fetch-logos": "node scripts/fetch-bank-logos.js"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",
