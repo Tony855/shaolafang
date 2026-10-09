@@ -98,3 +98,4 @@ install.sh.bak-mariadb-fix
 install-local.sh.bak-mariadb-fix
 setup-nginx.sh.bak
 foodflow.conf.bak
+*.bak-*-*
