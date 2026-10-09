@@ -8,7 +8,7 @@
 #   sudo bash setup-nginx.sh
 #
 # 环境变量（可选，在 .env 中配置）：
-#   DOMAIN=your-domain.com    域名（用于SSL证书）
+#   DOMAIN=$DOMAIN    域名（用于SSL证书）
 #   EMAIL=your@email.com      邮箱（用于SSL证书续期提醒）
 #   BACKEND_PORT=3000         后端端口（默认3000）
 # ============================================================
@@ -48,9 +48,21 @@ if [ -f .env ]; then
     set +a
 fi
 
+# 域名 / 邮箱：环境变量 > .env > 交互式输入
 DOMAIN="${DOMAIN:-${QR_DOMAIN:-}}"
 EMAIL="${EMAIL:-}"
 BACKEND_PORT="${PORT:-3000}"
+
+# 交互式补全（缺则询问）
+if [ -z "$DOMAIN" ]; then
+    echo ""
+    read -p "请输入域名（直接回车跳过 HTTPS，仅配置 HTTP）: " input_domain
+    DOMAIN="$(echo "$input_domain" | tr -d '[:space:]')"
+fi
+if [ -n "$DOMAIN" ] && [ -z "$EMAIL" ]; then
+    read -p "请输入邮箱（用于 Let's Encrypt 证书续期，可留空）: " input_email
+    EMAIL="$(echo "$input_email" | tr -d '[:space:]')"
+fi
 
 # 后端端口不能是80/443
 if [ "$BACKEND_PORT" = "80" ] || [ "$BACKEND_PORT" = "443" ]; then
@@ -270,7 +282,7 @@ EOF
     fi
 else
     if [ -z "$DOMAIN" ]; then
-        log_warn "未配置域名，跳过 SSL（可在 .env 中设置 DOMAIN=your-domain.com）"
+        log_warn "未配置域名，跳过 SSL（可在 .env 中设置 DOMAIN=$DOMAIN）"
     else
         log_warn "Certbot 未安装，跳过 SSL"
     fi
@@ -323,7 +335,7 @@ else
     echo "  HTTP: http://${DOMAIN:-$(hostname -I | awk '{print $1}')}"
     echo ""
     log_warn "SSL 未启用，启用方法:"
-    echo "  1. 在 .env 中设置 DOMAIN=your-domain.com"
+    echo "  1. 在 .env 中设置 DOMAIN=$DOMAIN"
     echo "  2. 确保域名解析到本机IP"
     echo "  3. 确保防火墙开放 80 端口"
     echo "  4. 重新运行: sudo bash setup-nginx.sh"

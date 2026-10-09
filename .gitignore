@@ -93,3 +93,8 @@ i18n-refined-*/
 # 备份文件
 *.bak-*
 *.bak
+install.sh.bak
+install.sh.bak-mariadb-fix
+install-local.sh.bak-mariadb-fix
+setup-nginx.sh.bak
+foodflow.conf.bak

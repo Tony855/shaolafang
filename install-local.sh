@@ -115,14 +115,31 @@ log_success "系统软件包更新完成"
 echo ""
 log_info "检查数据库..."
 DB_INSTALLED=false
-if command -v mariadb &> /dev/null || command -v mysql &> /dev/null; then
+# 严格检测：必须同时具备 mariadbd/mysqld 二进制 + systemd unit
+if { command -v mariadbd &>/dev/null || command -v mysqld &>/dev/null; } \
+   && systemctl list-unit-files 2>/dev/null | grep -qE '^(mariadb|mysql)\.service'; then
     DB_INSTALLED=true
+    systemctl start mariadb 2>/dev/null || systemctl start mysql 2>/dev/null || true
     log_success "MariaDB/MySQL 已安装"
 else
     log_info "安装 MariaDB（兼容MySQL）..."
-    apt-get install -y -qq mariadb-server
+    # 清除 client-only 残骸，否则 apt 会跳过主包安装
+    if command -v mariadb &>/dev/null || command -v mysql &>/dev/null; then
+        log_warn "检测到 MariaDB client 残骸，先清理再重装..."
+        apt-get remove --purge -y 'mariadb-*' 'mysql-*' 2>/dev/null || true
+        apt-get autoremove -y 2>/dev/null || true
+        rm -rf /var/lib/mysql /etc/mysql /run/mysqld
+    fi
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mariadb-server
+    mkdir -p /run/mysqld
+    chown mysql:mysql /run/mysqld
     systemctl enable mariadb
     systemctl start mariadb
+    sleep 2
+    if ! systemctl is-active --quiet mariadb; then
+        log_error "MariaDB 启动失败，请检查: journalctl -u mariadb -n 30"
+        exit 1
+    fi
     log_success "MariaDB 安装完成"
 fi
 

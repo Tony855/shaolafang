@@ -38,11 +38,28 @@ CONFIG_DIR="/etc/foodflow"           # 配置文件目录
 SERVICE_NAME="foodflow"              # systemd 服务名
 
 # 版本选择（main = 最新开发版，或者填 tag 版本号比如 v1.0.0）
-GIT_VERSION="main"                       # 要安装的 git 版本（main 或 tag）
+GIT_VERSION="${GIT_VERSION:-main}"
 
-# 域名和邮箱（用于 SSL 证书，留空则不配置 HTTPS）
-DOMAIN="foodflow.v2net.cc"           # 你的域名，比如 foodflow.example.com
-EMAIL="v2wallid@gmail.com"               # 你的邮箱，用于证书续期提醒
+# ============================================================
+#  域名 / 邮箱（用于 SSL 证书）
+#  优先级：环境变量 > 下面的默认值 > 安装时交互式询问
+#
+#  用法 A（非交互，推荐 CI/CD）：
+#     sudo DOMAIN=example.com EMAIL=me@example.com bash install.sh
+#  用法 B（留空 → 安装时询问）：
+#     sudo bash install.sh
+#  用法 C（改下面的默认值）：
+#     DOMAIN_DEFAULT="example.com"
+#     EMAIL_DEFAULT="me@example.com"
+# ============================================================
+
+# ↓↓↓ 默认值：留空则安装时询问
+DOMAIN_DEFAULT="${DOMAIN_DEFAULT:-}"
+EMAIL_DEFAULT="${EMAIL_DEFAULT:-}"
+
+# 最终生效值
+DOMAIN="${DOMAIN:-$DOMAIN_DEFAULT}"
+EMAIL="${EMAIL:-$EMAIL_DEFAULT}"
 
 # ============================================================
 # 显示横幅
@@ -241,6 +258,38 @@ select_node_role() {
 }
 
 # ============================================================
+# 询问域名（仅当环境变量和默认值都为空时）
+# ============================================================
+ask_domain_if_needed() {
+    if [ -z "$DOMAIN" ]; then
+        echo ""
+        echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
+        echo -e "${CYAN}${BOLD}  域名配置（用于 HTTPS 证书）${NC}"
+        echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
+        echo ""
+        echo "  直接回车 → 跳过 HTTPS，仅用 HTTP 访问"
+        echo "  输入域名 → 自动申请 Let's Encrypt 证书"
+        echo ""
+        read -p "  请输入域名（如 foodflow.example.com）: " input_domain
+        DOMAIN="$(echo "$input_domain" | tr -d '[:space:]')"
+    fi
+
+    if [ -n "$DOMAIN" ] && [ -z "$EMAIL" ]; then
+        read -p "  请输入邮箱（用于证书续期提醒，可留空）: " input_email
+        EMAIL="$(echo "$input_email" | tr -d '[:space:]')"
+    fi
+
+    echo ""
+    if [ -n "$DOMAIN" ]; then
+        log_info "域名: ${BOLD}$DOMAIN${NC}"
+        log_info "邮箱: ${BOLD}${EMAIL:-（未填）}${NC}"
+    else
+        log_warn "未配置域名，将仅支持 HTTP 访问"
+        log_info "后续可修改 ${BOLD}.env${NC} 里的 DOMAIN 后重新运行 setup-nginx.sh"
+    fi
+}
+
+# ============================================================
 # 确认安装配置
 # ============================================================
 confirm_installation() {
@@ -252,6 +301,8 @@ confirm_installation() {
     if [ "$DEPLOY_MODE" != "standard" ]; then
         echo "  节点角色：$NODE_ROLE"
     fi
+    echo "  域名：    ${DOMAIN:-（未配置，仅 HTTP）}"
+    echo "  邮箱：    ${EMAIL:-（未填）}"
     echo "  操作系统：$OS_NAME $OS_VERSION"
     echo "  系统架构：$ARCH"
     echo "  内存总量：${MEM_TOTAL}MB"
@@ -376,16 +427,37 @@ install_single() {
     # ===== 4. 安装 MariaDB =====
     echo ""
     log_info "检查数据库..."
-    if command -v mariadb &> /dev/null || command -v mysql &> /dev/null; then
+    # 严格检测：必须同时具备 mariadbd/mysqld 二进制 + systemd unit
+    # 只查 client 命令会误判（镜像自带 client 残骸时踩坑）
+    _mariadb_ok=false
+    if { command -v mariadbd &>/dev/null || command -v mysqld &>/dev/null; } \
+       && systemctl list-unit-files 2>/dev/null | grep -qE '^(mariadb|mysql)\.service'; then
+        _mariadb_ok=true
+    fi
+    if [ "$_mariadb_ok" = "true" ]; then
+        systemctl start mariadb 2>/dev/null || systemctl start mysql 2>/dev/null || true
         log_success "MariaDB/MySQL 已安装"
     else
         log_info "安装 MariaDB..."
-        apt-get install -y -qq mariadb-server
+        # 清除 client-only 残骸，否则 apt 会跳过主包安装
+        if command -v mariadb &>/dev/null || command -v mysql &>/dev/null; then
+            log_warn "检测到 MariaDB client 残骸，先清理再重装..."
+            apt-get remove --purge -y 'mariadb-*' 'mysql-*' 2>/dev/null || true
+            apt-get autoremove -y 2>/dev/null || true
+            rm -rf /var/lib/mysql /etc/mysql /run/mysqld
+        fi
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mariadb-server
+        mkdir -p /run/mysqld
+        chown mysql:mysql /run/mysqld
         systemctl enable mariadb
         systemctl start mariadb
+        sleep 2
+        if ! systemctl is-active --quiet mariadb; then
+            log_error "MariaDB 启动失败，请检查: journalctl -u mariadb -n 30"
+            exit 1
+        fi
         log_success "MariaDB 安装完成"
     fi
-    systemctl start mariadb 2>/dev/null || systemctl start mysql 2>/dev/null || true
 
     # ===== 5. 安装 Redis =====
     echo ""
@@ -728,14 +800,14 @@ show_post_install_guide() {
         echo ""
         echo "  3. 配置SSL证书（推荐）："
         echo "     sudo apt-get install certbot python3-certbot-nginx"
-        echo "     sudo certbot --nginx -d your-domain.com"
+        echo "     sudo certbot --nginx -d $DOMAIN"
         echo ""
         echo "  4. 访问系统："
-        echo "     前台点餐：https://your-domain.com"
-        echo "     商户后台：https://your-domain.com/admin"
-        echo "     服务员端：https://your-domain.com/waiter"
-        echo "     后厨端：  https://your-domain.com/kitchen"
-        echo "     超管后台：https://your-domain.com/super（默认 superadmin/super123，请尽快修改）"
+        echo "     前台点餐：https://$DOMAIN"
+        echo "     商户后台：https://$DOMAIN/admin"
+        echo "     服务员端：https://$DOMAIN/waiter"
+        echo "     后厨端：  https://$DOMAIN/kitchen"
+        echo "     超管后台：https://$DOMAIN/super（默认 superadmin/super123，请尽快修改）"
         echo ""
     else
         echo "  1. 在所有应用服务器节点上编辑环境变量："
@@ -750,7 +822,7 @@ show_post_install_guide() {
         echo "     sudo nginx -t && sudo systemctl reload nginx"
         echo ""
         echo "  4. 配置SSL证书："
-        echo "     sudo certbot --nginx -d your-domain.com"
+        echo "     sudo certbot --nginx -d $DOMAIN"
         echo ""
         echo "  5. 验证集群健康状态："
         echo "     curl -s http://节点1IP:3000/health"
@@ -758,7 +830,7 @@ show_post_install_guide() {
         echo ""
         if [ "$DEPLOY_MODE" == "enterprise-ultimate" ]; then
             echo "  6. 企业旗舰版超级管理员后台："
-            echo "     https://your-domain.com/super"
+            echo "     https://$DOMAIN/super"
             echo "     默认账号：superadmin / super123"
             echo "     （请尽快修改默认密码！）"
             echo ""
@@ -795,6 +867,9 @@ main() {
 
     # 选择节点角色（集群部署）
     select_node_role "$2"
+
+    # 询问域名（仅当环境变量和默认值都为空时）
+    ask_domain_if_needed
 
     # 确认安装配置
     confirm_installation
