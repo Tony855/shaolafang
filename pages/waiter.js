@@ -12,7 +12,7 @@
   //      这里保留一份"白名单"式拦截，允许所有滚动容器内滑动。
   document.addEventListener('touchmove', function(e) {
     const allowed = e.target.closest(
-      '#mainContent, .modal-card, .modal-body, .dish-list, .selected-items, .dish-categories, .bill-items, #orderSelectList, .scroll-hide'
+      '#mainContent, .modal-card, .modal-body, .dish-list, .selected-items, .dish-categories, .bill-items, #orderSelectList, .scroll-hide, #khqrModal, .khqr-card, .payment-card'
     );
     if (!allowed) e.preventDefault();
   }, { passive: false });
