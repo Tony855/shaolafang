@@ -414,40 +414,64 @@ module.exports = function(app, deps) {
       const filePath = req.file.path;
       try {
         const buf = fs.readFileSync(filePath);
-        const parsed = await khqr.parseAndValidateStaticQR(buf);
         const { storeId: sid, storeName } = await resolveKhqrStore(req);
 
-        // 从 bakongId 自动识别银行（规则见 server/config/khqr-banks.js）
-        const { identifyBank } = require('../server/config/khqr-banks');
-        const explicitBank = (req.body && req.body.bank) ? String(req.body.bank).trim() : '';
-        const bank = explicitBank || identifyBank(parsed.bakongId).name;
+        // ★ 自动识别 KHQR / VietQR
+        const { parseAnyQR } = require('../server/services/qr-detect');
+        const parsed = await parseAnyQR(buf);
 
-        // 备注名：用户填了就用，否则自动生成
-        const label = (req.body && req.body.label || '').trim() || (parsed.merchantName + ' - ' + parsed.currency);
+        const { identifyBank } = require('../server/config/khqr-banks');
+        const { identifyVietBank } = require('../server/config/vietqr-banks');
+        const explicitBank = (req.body && req.body.bank) ? String(req.body.bank).trim() : '';
+
+        let bank, bakongId = '', bankBin = '', bankAccount = '';
+        if (parsed.kind === 'VIETQR') {
+          bankBin = parsed.bankBin || '';
+          bankAccount = parsed.bankAccount || '';
+          bank = explicitBank || identifyVietBank(bankBin).name;
+        } else {
+          bakongId = parsed.bakongId || '';
+          bank = explicitBank || identifyBank(bakongId).name;
+        }
+
+        const currency = parsed.currency || (parsed.kind === 'VIETQR' ? 'VND' : 'USD');
+        const label = (req.body && req.body.label || '').trim() ||
+          (parsed.merchantName + ' - ' + currency);
 
         const list = await loadKhqrProviders(sid);
         const newProvider = {
           id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          country: parsed.country,                  // ★ 'KH' | 'VN'
+          kind: parsed.kind,                        // ★ 'KHQR' | 'VIETQR'
           label: label,
           bank: bank,
+          bankBin: bankBin,                         // VietQR 用
+          bankAccount: bankAccount,                 // VietQR 用
           payload: parsed.payload,
           merchantName: parsed.merchantName,
-          bakongId: parsed.bakongId || '',
-          currency: parsed.currency,
+          bakongId: bakongId,                       // KHQR 用
+          currency: currency,
+          qrType: parsed.qrType,                    // 'STATIC' | 'DYNAMIC'
           isDefault: list.length === 0,
           enabled: true,
           createdAt: new Date().toISOString(),
         };
         list.push(newProvider);
         await saveKhqrProviders(sid, list);
-        console.log('[khqr/upload] store=' + sid + ' (' + storeName + ') 新增 provider=' + newProvider.id);
+        console.log('[khqr/upload] store=' + sid + ' (' + storeName + ') country=' +
+          parsed.country + ' 新增 provider=' + newProvider.id);
 
         res.json({
           success: true,
           provider: newProvider,
+          country: parsed.country,
+          kind: parsed.kind,
           merchantName: parsed.merchantName,
-          currency: parsed.currency,
-          bakongId: parsed.bakongId,
+          currency: currency,
+          bank: bank,
+          bankBin: bankBin,
+          bankAccount: bankAccount,
+          bakongId: bakongId,
           payloadPreview: parsed.payload.slice(0, 30) + '...',
           totalProviders: list.length,
         });

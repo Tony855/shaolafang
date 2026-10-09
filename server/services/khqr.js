@@ -518,24 +518,8 @@ function buildDynamicPayload(staticPayload, amount, currencyCode, orderNo) {
    从图片 Buffer 解析二维码
    ============================================================ */
 
-async function decodeQRFromImage(buffer) {
-  const image = await _readImage(buffer);
-
-  // Jimp 1.x 的 resize 签名与旧版不兼容，跳过缩放。
-  // jsQR 对图片尺寸无硬要求，高分辨率图片也能识别。
-
-  const { data, width, height } = image.bitmap;
-
-  const pixels = new Uint8ClampedArray(data.buffer || data);
-
-  const result = jsQR(pixels, width, height);
-
-  if (!result) {
-    throw new Error('未识别到二维码，请上传清晰的二维码图片');
-  }
-
-  return result.data;
-}
+// 图片解码已抽到 server/services/qr-image.js，供 KHQR/VietQR 共用
+const { decodeQRFromImage } = require('./qr-image');
 
 
 /* ============================================================
