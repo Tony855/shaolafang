@@ -100,3 +100,9 @@ setup-nginx.sh.bak
 foodflow.conf.bak
 *.bak-*-*
 *.js.bak-*
+
+# 支付方式图标例外（允许提交）
+!assets/vendor/payment-icons/
+!assets/vendor/payment-icons/*.png
+!assets/icons/
+!assets/icons/*.png
