@@ -266,6 +266,8 @@ window.confirmPay = async function() {
 
 /* ===== KHQR 动态码 ===== */
 function openKhqrModal(orderId, providerId, selectedCurrency) {
+  // ★ 关键：先清掉所有旧的定时器，否则每次打开都会叠加，越用越卡
+  if (typeof stopKhqrTimers === 'function') stopKhqrTimers();
   selectedCurrency = String(selectedCurrency || "USD").toUpperCase();
   if (!["USD", "KHR"].includes(selectedCurrency)) selectedCurrency = "USD";
   khqrState.orderId = orderId;
@@ -409,7 +411,7 @@ function startKhqrPolling() {
         if (typeof window.reloadWaiterData === 'function') await window.reloadWaiterData();
       }
     } catch (e) { /* 静默 */ }
-  }, 3000);
+  }, 5000);
 }
 
 function stopKhqrTimers() {

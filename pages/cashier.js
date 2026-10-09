@@ -623,6 +623,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
 
   /* ===== KHQR 动态收款 ===== */
   function openKhqrModal(orderId, providerId, selectedCurrency) {
+  // ★ 关键：先清掉所有旧的定时器，否则每次打开都会叠加，越用越卡
+  if (typeof stopKhqrTimers === 'function') stopKhqrTimers();
   selectedCurrency = String(selectedCurrency || "USD").toUpperCase();
   if (!["USD", "KHR"].includes(selectedCurrency)) selectedCurrency = "USD";
     const order = orders.find(o => o.id === orderId);
@@ -786,7 +788,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
             '<span style="color:#ffb020;">' + t('khqrServicePaid') + '</span>';
         }
       } catch (e) { /* 静默 */ }
-    }, 3000);
+    }, 5000);
   }
 
   function stopKhqrTimers() {
