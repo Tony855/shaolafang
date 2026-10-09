@@ -539,16 +539,25 @@ module.exports = function(app, deps) {
       const currency = targetCurrency;
 
       // 前端 <img> 带不了 token，直接返回 base64 dataURL
+      const _t2 = Date.now();
       const qrDataUrl = await QRCode.toDataURL(dynamicPayload, {
         errorCorrectionLevel: 'M',
         margin: 1,
         width: 320,
       });
+      const _t3 = Date.now();
       const expiresAt = new Date(Date.now() + expireMin * 60 * 1000).toISOString();
 
       // 保存到订单
       await runAsync('UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=?',
         ['khqr', dynamicPayload, expiresAt, order.id]);
+
+      const _t4 = Date.now();
+      console.log('[khqr-timing] resolveStore=' + (_t1 - _t0) +
+        'ms, buildPayload=' + (_t2 - _t1) +
+        'ms, qrImage=' + (_t3 - _t2) +
+        'ms, dbWrite=' + (_t4 - _t3) +
+        'ms, total=' + (_t4 - _t0) + 'ms');
 
       res.json({
         qr_payload: dynamicPayload,
