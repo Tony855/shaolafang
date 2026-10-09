@@ -1613,3 +1613,38 @@ body {
   border-color: #ff7a3d;
   box-shadow: 0 0 0 3px rgba(255,122,61,0.12);
 }
+
+/* ===== 退款输入框：最强覆盖（2026-10-09 二次修复）===== */
+#refundModal .refund-input-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin-bottom: 14px !important;
+}
+#refundModal .refund-input-row > label {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  padding-top: 0 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+}
+#refundModal .refund-input,
+#refundModal #refundInput {
+  flex: 1 1 0% !important;
+  min-width: 0 !important;      /* ★★ 最关键 */
+  width: auto !important;        /* ★ 让 flex 决定宽度 */
+  max-width: 100% !important;
+  height: auto !important;       /* ★ 覆盖旧的 42px */
+  box-sizing: border-box !important;  /* ★★ padding 算进宽度 */
+  padding: 10px 12px !important;
+  border: 1.5px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  text-align: right !important;
+  font-family: inherit !important;
+}
