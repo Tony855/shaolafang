@@ -746,6 +746,10 @@ function applyAdminLanguage() {
             try { applyDataI18n(); } catch(e) { console.warn('applyDataI18n failed', e); }
 
             // 切换语言后重载动态内容
+            // ★ 重跑动态生成 <option> 的函数（没 data-i18n 属性，applyDataI18n 处理不到）
+            ['loadDisplaySettings','loadOrderPrefixes','loadNotificationSettings','loadCurrencies','populateMenuCategorySelect'].forEach(function(fnName) {
+                try { if (window[fnName]) window[fnName](); } catch(e) { console.warn('[i18n reload] ' + fnName + ' 失败:', e); }
+            });
             try { if (window.loadAdminInfo) window.loadAdminInfo(); } catch(e) {}
             try { if (window.loadReportSummary) window.loadReportSummary(); } catch(e) {}
             try { if (window.loadWaiterCalls && document.getElementById('module-calls') && document.getElementById('module-calls').classList.contains('active')) window.loadWaiterCalls(); } catch(e) {}
