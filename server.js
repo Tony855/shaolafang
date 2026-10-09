@@ -166,17 +166,28 @@ app.use(express.urlencoded({ extended: true }));
 const staticOptions = {
   dotfiles: 'deny',
   index: false,
-  // 长缓存：所有引用都带 ?v=xxx（改文件需更新版本号），二次访问命中缓存不发请求
+  // 协商缓存：浏览器每次都带 If-None-Match 问服务器，
+  // 文件没变 → 304（极省流量），文件变了 → 200 + 新内容
+  // 好处：改完 JS/CSS 不用手动改 ?v=，硬刷新即生效
   setHeaders: (res) => {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   },
 };
 app.use('/assets', express.static(path.join(__dirname, 'assets'), staticOptions));
 app.use('/pages', express.static(path.join(__dirname, 'pages'), staticOptions));
 // uploads 保留长缓存（图片内容一般不变，改了就是新文件名）
-app.use('/uploads', express.static(UPLOAD_DIR, { dotfiles: 'deny', index: false, setHeaders: (res) => res.setHeader('Cache-Control', 'public, max-age=2592000') }));
+app.use('/uploads', express.static(UPLOAD_DIR, {
+  dotfiles: 'deny',
+  index: false,
+  // 协商缓存：文件名带时间戳时天然就是新文件，
+  // 文件名不变的内容（如同一张图）走 304，一致且省流量
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+  },
+}));
 
 app.get('/languages.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   res.sendFile(path.join(__dirname, 'languages.js'));
 });
 app.get('/languages.min.js', (req, res) => {
