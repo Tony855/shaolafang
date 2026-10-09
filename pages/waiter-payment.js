@@ -348,10 +348,12 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
           const img = document.createElement('img');
           img.src = '/assets/vendor/payment-icons/' + map[bank];
           img.alt = bank;
-          img.style.cssText = 'width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:8px;';
+          img.style.cssText = 'width:24px;height:24px;object-fit:contain;flex-shrink:0;';
           el.appendChild(img);
         }
-        el.appendChild(document.createTextNode((bank ? bank + ' · ' : '') + (res.merchant_name || '')));
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = (bank ? bank + ' · ' : '') + (res.merchant_name || '');
+        el.appendChild(nameSpan);
       }
       $('#khqrOrderNo').textContent = res.order_no || '';
       khqrState.expiresAt = new Date(res.expires_at).getTime();
