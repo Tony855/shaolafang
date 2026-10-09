@@ -1159,6 +1159,7 @@
   "confirmPay": "确认收款",
   "khqrTitle": "扫码收款",
   "khqrMerchantLabel": "收款人：",
+  "khqrOrderNoLabel": "订单号：",
   "khqrCountdownLabel": "二维码有效期：",
   "khqrWaiting": "等待客户扫码付款...",
   "refundReasonCustomer": "顾客要求",

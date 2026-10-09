@@ -1159,6 +1159,7 @@
   "confirmPay": "Confirm payment",
   "khqrTitle": "Scan to pay",
   "khqrMerchantLabel": "Payee: ",
+  "khqrOrderNoLabel": "Order No.:",
   "khqrCountdownLabel": "QR validity: ",
   "khqrWaiting": "Waiting for customer to scan and pay...",
   "refundReasonCustomer": "Customer request",

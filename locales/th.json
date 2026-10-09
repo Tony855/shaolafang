@@ -1159,6 +1159,7 @@
   "confirmPay": "ยืนยันการรับเงิน",
   "khqrTitle": "สแกนเพื่อชำระ",
   "khqrMerchantLabel": "ผู้รับเงิน: ",
+  "khqrOrderNoLabel": "เลขที่ออร์เดอร์:",
   "khqrCountdownLabel": "อายุคิวอาร์: ",
   "khqrWaiting": "รอลูกค้าสแกนและชำระเงิน...",
   "refundReasonCustomer": "ลูกค้าขอ",

@@ -1159,6 +1159,7 @@
   "confirmPay": "Xác nhận thu tiền",
   "khqrTitle": "Quét mã để trả",
   "khqrMerchantLabel": "Người nhận: ",
+  "khqrOrderNoLabel": "Số đơn:",
   "khqrCountdownLabel": "Hiệu lực QR: ",
   "khqrWaiting": "Đang chờ khách quét mã và thanh toán...",
   "refundReasonCustomer": "Yêu cầu khách",

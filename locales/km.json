@@ -1159,6 +1159,7 @@
   "confirmPay": "បញ្ជាក់ការទទួលប្រាក់",
   "khqrTitle": "ស្កេនដើម្បីបង់ប្រាក់",
   "khqrMerchantLabel": "អ្នកទទួល: ",
+  "khqrOrderNoLabel": "លេខកុម្ម៉ង់៖",
   "khqrCountdownLabel": "សុពលភាព QR: ",
   "khqrWaiting": "រង់ចាំអតិថិជនស្កេន និងបង់ប្រាក់...",
   "refundReasonCustomer": "អតិថិជនស្នើ",
