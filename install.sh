@@ -45,6 +45,66 @@ prepare_deploy_key() {
     export GIT_SSH_COMMAND="ssh -i $FOODFLOW_DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 }
 
+# ===== 已安装时的更新模式 =====
+update_existing_install() {
+    log_step "检测到已安装，执行代码更新"
+
+    prepare_deploy_key 2>/dev/null || {
+        log_error "无法准备 deploy key，更新中止"
+        return 1
+    }
+
+    local target="$APP_DIR"
+    local ts=$(date +%Y%m%d%H%M%S)
+
+    if [ -d "$target/.git" ]; then
+        log_info "已是 git 仓库，执行 git fetch + reset..."
+        cd "$target"
+        local old_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        git fetch origin main || { log_error "git fetch 失败"; return 1; }
+        git reset --hard origin/main || { log_error "git reset 失败"; return 1; }
+        local new_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        log_success "代码已更新: $old_rev -> $new_rev"
+    else
+        log_info "非 git 仓库，从远端 clone 后覆盖同步..."
+        local tmp_clone="/tmp/foodflow-update-$ts"
+        rm -rf "$tmp_clone"
+        git clone --depth 1 --branch main "$FOODFLOW_REPO" "$tmp_clone" || {
+            log_error "clone 失败"
+            rm -rf "$tmp_clone"
+            return 1
+        }
+        rsync -a --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude 'uploads' \
+            --exclude 'backups' \
+            --exclude 'logs' \
+            --exclude '.env' \
+            "$tmp_clone/" "$target/"
+        rm -rf "$tmp_clone"
+
+        cd "$target"
+        [ -d .git ] || git init -q
+        git remote remove origin 2>/dev/null || true
+        git remote add origin "$FOODFLOW_REPO"
+        git fetch -q origin main 2>/dev/null || true
+        git reset --hard origin/main 2>/dev/null || true
+        log_success "代码已同步到最新"
+    fi
+
+    log_info "重启 $SERVICE_NAME 服务..."
+    systemctl restart "$SERVICE_NAME"
+    sleep 3
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        log_success "✅ $SERVICE_NAME 已重启"
+        return 0
+    else
+        log_error "❌ 服务启动失败，请检查：journalctl -u $SERVICE_NAME -n 50"
+        return 1
+    fi
+}
+
 # 脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$SCRIPT_DIR/deploy"
@@ -355,6 +415,12 @@ install_single() {
 
     # ===== 2. 部署代码到 $APP_DIR =====
     echo ""
+    # ===== 检测是否已安装：已装则更新代码 + 重启，不再重复装环境 =====
+    if [ -f "$DEPLOY_TARGET/server.js" ] && systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+        update_existing_install
+        exit $?
+    fi
+
     log_info "部署代码到 $DEPLOY_TARGET..."
 
     # 创建目标目录
