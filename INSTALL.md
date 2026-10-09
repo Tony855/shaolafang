@@ -725,3 +725,25 @@ mysql -u root -p ordering_system < backup.sql
 ---
 
 *文档版本: v1.0 | 更新日期: 2026-09-10*
+
+---
+
+## 数据库字段迁移排查（备查）
+
+**症状**：`Unknown column 'pay_method' in 'SET'`
+
+**根因**：`server.js` 的 `initDatabase()` 早期版本只 CREATE 了 10 列 + 补了 4 列，
+漏了 orders 表 13 个支付/退款字段（`pay_method` / `cash_received` /
+`cash_change` / `awaiting_confirm` / `pay_khqr_ref` / `pay_expires_at` /
+`paid_confirmed_by` / `refund_amount` / `refund_reason` / `refund_note` /
+`refunded_at` / `refunded_by` / `order_no`）。
+
+**修复**：commit `cad6141`，`initDatabase()` 末尾加入幂等 ALTER 补齐全部字段。
+
+**排查**：
+1. `git log --oneline -1` 应为 `cad6141` 或更新
+2. `node server.js --init-only` 手动跑迁移
+3. `mysql -e "SHOW COLUMNS FROM orders"` 验证字段
+
+**相关**：MariaDB 严格检测（二进制 + systemd unit）、域名环境变量化，
+见 commit `12fec82`。
