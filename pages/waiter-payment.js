@@ -339,23 +339,9 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
       })();
 
       khqrState.bankName = res.provider_bank || '';
-      {
-        const el = $('#khqrMerchant');
-        const bank = String(res.provider_bank || '');
-        const map = { ABA: 'aba.png', ACLEDA: 'acleda.png', Wing: 'Wing.png', Bakong: 'KHQR.png', 'Chip Mong': 'KHQR.png' };
-        el.replaceChildren();
-        if (map[bank]) {
-          const img = document.createElement('img');
-          img.src = '/assets/vendor/payment-icons/' + map[bank];
-          img.alt = bank;
-          img.style.cssText = 'width:24px;height:24px;object-fit:contain;flex-shrink:0;';
-          el.appendChild(img);
-        }
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = (bank ? bank + ' · ' : '') + (res.merchant_name || '');
-        el.appendChild(nameSpan);
+      if (window.KHQRShared) {
+        KHQRShared.renderPayee('khqrMerchant', 'khqrOrderNo', res);
       }
-      $('#khqrOrderNo').textContent = res.order_no || '';
       khqrState.expiresAt = new Date(res.expires_at).getTime();
       startKhqrCountdown();
       startKhqrPolling();

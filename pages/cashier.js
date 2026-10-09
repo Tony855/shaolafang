@@ -712,19 +712,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
         })();
 
         khqrState.bankName = res.provider_bank || '';
-        {
-          const el = document.getElementById('khqrMerchant');
-          const bank = String(res.provider_bank || '');
-          const map = { ABA: 'aba.png', ACLEDA: 'acleda.png', Wing: 'Wing.png', Bakong: 'KHQR.png', 'Chip Mong': 'KHQR.png' };
-          el.replaceChildren();
-          if (map[bank]) {
-            const img = document.createElement('img');
-            img.src = '/assets/vendor/payment-icons/' + map[bank];
-            img.alt = bank;
-            img.style.cssText = 'width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:8px;';
-            el.appendChild(img);
-          }
-          el.appendChild(document.createTextNode((bank ? bank + ' · ' : '') + (res.merchant_name || '')));
+        if (window.KHQRShared) {
+          KHQRShared.renderPayee('khqrMerchant', 'khqrOrderNo', res);
         }
         khqrState.expiresAt = new Date(res.expires_at).getTime();
         startKhqrCountdown();

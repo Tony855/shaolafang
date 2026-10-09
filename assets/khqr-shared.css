@@ -1,0 +1,112 @@
+/* ============================================================
+   assets/khqr-shared.css — KHQR 收款弹窗共用样式
+   收银员端 + 服务员端共用，改这一份即可
+   ============================================================ */
+
+/* ===== 弹窗整体布局（移动端优先）===== */
+#khqrModal {
+  box-sizing: border-box;
+  padding: 10px !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  align-items: center !important;
+  justify-content: center !important;
+}
+#khqrModal .payment-card,
+#khqrModal .khqr-card {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 460px !important;
+  max-height: calc(100dvh - 24px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  margin: auto !important;
+  padding: 14px !important;
+  border-radius: 16px !important;
+}
+
+/* ===== 标题 / 币种切换 / 金额 ===== */
+#khqrModal .payment-title {
+  margin: 2px 30px 8px !important;
+  font-size: 18px !important;
+}
+#khqrCurrencySwitch {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  padding: 10px !important;
+  margin: 6px auto 10px !important;
+  font-size: 16px !important;
+}
+#khqrModal .payment-amount {
+  padding: 4px 0 8px !important;
+}
+#khqrAmount {
+  line-height: 1.25 !important;
+  overflow-wrap: anywhere;
+}
+
+/* ===== 二维码图片 ===== */
+#khqrModal .khqr-image-wrap {
+  margin: 6px auto !important;
+  padding: 6px !important;
+}
+#khqrModal #khqrImage {
+  display: block !important;
+  width: min(65vw, 300px) !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 34dvh !important;
+  object-fit: contain !important;
+  margin: 0 auto !important;
+}
+
+/* ===== 收款人区域（2 行紧凑布局）===== */
+.khqr-payee {
+  margin-top: 10px;
+  color: #888;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: center;
+}
+.khqr-payee-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #333;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+.khqr-payee-line .bank-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.khqr-payee-account {
+  margin-top: 2px;
+  font-family: 'SF Mono', monospace;
+  font-size: 12px;
+  color: #999;
+}
+
+/* ===== 状态栏 + 底部按钮 ===== */
+#khqrModal #khqrStatusBar {
+  margin-top: 8px !important;
+}
+#khqrModal .payment-actions {
+  position: sticky;
+  bottom: -14px;
+  padding: 8px 0 2px;
+  background: #fff;
+  margin-top: 8px !important;
+}
+
+/* ===== 小屏优化 ===== */
+@media (max-width: 600px) {
+  #khqrModal {
+    align-items: flex-start !important;
+  }
+}

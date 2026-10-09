@@ -9,89 +9,8 @@
   try { if (localStorage.getItem('cashierToken')) document.documentElement.setAttribute('data-cashier-session', '1'); } catch(e) {}
 </script>
 <link rel="stylesheet" href="assets/common.css?v=1791356376">
+<link rel="stylesheet" href="assets/khqr-shared.css?v=1">
 <link rel="stylesheet" href="assets/cashier.css?v=1791407775">
-
-<style id="foodflow-khqr-mobile-fix">
-#khqrModal {
-  box-sizing: border-box;
-  padding: 10px !important;
-  overflow-y: auto !important;
-  overscroll-behavior: contain;
-  align-items: center !important;
-  justify-content: center !important;
-}
-#khqrModal .payment-card,
-#khqrModal .khqr-card {
-  box-sizing: border-box !important;
-  width: 100% !important;
-  max-width: 460px !important;
-  max-height: calc(100dvh - 24px) !important;
-  overflow-y: auto !important;
-  overscroll-behavior: contain;
-  margin: auto !important;
-  padding: 14px !important;
-  border-radius: 16px !important;
-}
-#khqrModal .payment-title {
-  margin: 2px 30px 8px !important;
-  font-size: 18px !important;
-}
-#khqrCurrencySwitch {
-  width: 100% !important;
-  max-width: none !important;
-  box-sizing: border-box !important;
-  padding: 10px !important;
-  margin: 6px auto 10px !important;
-  font-size: 16px !important;
-}
-#khqrModal .payment-amount {
-  padding: 4px 0 8px !important;
-}
-#khqrAmount {
-  line-height: 1.25 !important;
-  overflow-wrap: anywhere;
-}
-#khqrModal .khqr-image-wrap {
-  margin: 6px auto !important;
-  padding: 6px !important;
-}
-#khqrModal #khqrImage {
-  display: block !important;
-  width: min(65vw, 300px) !important;
-  height: auto !important;
-  max-width: 100% !important;
-  max-height: 34dvh !important;
-  object-fit: contain !important;
-  margin: 0 auto !important;
-}
-#khqrModal #khqrMerchant {
-  overflow-wrap: anywhere;
-}
-#khqrModal #khqrStatusBar {
-  margin-top: 8px !important;
-}
-#khqrModal .payment-actions {
-  position: sticky;
-  bottom: -14px;
-  padding: 8px 0 2px;
-  background: #fff;
-  margin-top: 8px !important;
-}
-@media (max-width: 600px) {
-  #khqrModal {
-    align-items: flex-start !important;
-  }
-  #khqrModal .payment-card,
-  #khqrModal .khqr-card {
-    max-height: calc(100dvh - 20px) !important;
-    padding: 12px !important;
-  }
-  #khqrModal #khqrImage {
-    width: min(65vw, 260px) !important;
-    max-height: 30dvh !important;
-  }
-}
-</style>
 
 </head>
 <body>
@@ -285,9 +204,11 @@
       <img id="khqrImage" src="" alt="KHQR" class="khqr-image-inline">
     </div>
 
-    <div style="margin-top:14px;color:#888;font-size:13px;">
-      <div><span data-i18n="khqrMerchantLabel">收款人：</span><strong id="khqrMerchant" style="color:#333;"></strong></div>
-      <div style="margin-top:4px;font-family:'SF Mono',monospace;font-size:12px;color:#999;"><span id="khqrOrderNo"></span></div>
+    <div class="khqr-payee">
+      <div id="khqrMerchant" class="khqr-payee-line"></div>
+      <div class="khqr-payee-account">
+        <span data-i18n="khqrOrderNoLabel">账号：</span><span id="khqrOrderNo"></span>
+      </div>
     </div>
 
     <div style="margin-top:16px;font-size:14px;color:#666;">
@@ -369,6 +290,7 @@
 <script src="assets/modules/idle.js?v=1791286805"></script>
 <script src="assets/modules/pwa.js?v=1791363499"></script>
 <script src="/socket.io/socket.io.js"></script>
+<script src="pages/khqr-shared.js?v=1"></script>
 <script src="pages/cashier.js?v=1791510291"></script>
 
 <!-- 客户已支付横幅（持久显示，直到收银员确认） -->
