@@ -8,14 +8,27 @@ module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
 
   /* ===== KHQR 多收款码管理 ===== */
+  // ★ 内存缓存：KHQR providers 读得多改得少，缓存 30 秒
+  const _khqrProvidersCache = new Map();  // storeId -> { data, expireAt }
+  const KHQR_PROVIDERS_TTL = 30000;
+
   async function loadKhqrProviders(storeId) {
-    const row = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_providers']);
-    if (row && row.value) {
-      try { return JSON.parse(row.value); } catch (e) { return []; }
+    const cached = _khqrProvidersCache.get(storeId);
+    if (cached && cached.expireAt > Date.now()) {
+      return cached.data;
     }
-    return [];
-    // ★ 不再自动从 store_X_khqr_static_payload 迁移
-    //   迁移已一次性完成，删光了就是删光了
+    const row = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + storeId + '_khqr_providers']);
+    let data = [];
+    if (row && row.value) {
+      try { data = JSON.parse(row.value); } catch (e) { data = []; }
+    }
+    _khqrProvidersCache.set(storeId, { data, expireAt: Date.now() + KHQR_PROVIDERS_TTL });
+    return data;
+  }
+
+  // ★ 写操作后主动失效缓存
+  function invalidateKhqrProviders(storeId) {
+    _khqrProvidersCache.delete(storeId);
   }
 
   async function saveKhqrProviders(storeId, list) {
@@ -23,6 +36,8 @@ module.exports = function(app, deps) {
       "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
       ['store_' + storeId + '_khqr_providers', JSON.stringify(list)]
     );
+    // ★ 写后失效缓存
+    if (typeof invalidateKhqrProviders === 'function') invalidateKhqrProviders(storeId);
   }
 
   /* ===== KHQR 辅助：解析并校验当前 store ===== */
@@ -542,7 +557,7 @@ module.exports = function(app, deps) {
       const qrDataUrl = await QRCode.toDataURL(dynamicPayload, {
         errorCorrectionLevel: 'M',
         margin: 1,
-        width: 320,
+        width: 240,
       });
       const expiresAt = new Date(Date.now() + expireMin * 60 * 1000).toISOString();
 
@@ -666,7 +681,7 @@ res.json({
       const order = await getAsync('SELECT pay_khqr_ref FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
       if (!order || !order.pay_khqr_ref) return res.status(404).json({ error: '未生成动态码' });
 
-      const px = Math.max(120, Math.min(1024, parseInt(size, 10) || 320));
+      const px = Math.max(120, Math.min(1024, parseInt(size, 10) || 240));
       const dataUrl = await QRCode.toDataURL(order.pay_khqr_ref, {
         errorCorrectionLevel: 'M',
         margin: 1,
