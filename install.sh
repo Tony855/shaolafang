@@ -27,6 +27,24 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 log_success() { echo -e "${GREEN}${BOLD}[SUCCESS]${NC}${NC} $1"; }
 
+# ===== 内嵌只读 deploy key（用于从私有仓库 clone）=====
+# 只读权限，泄露最多让别人读代码，不能推送
+FOODFLOW_REPO="git@github.com:Tony855/shaolafang.git"
+FOODFLOW_DEPLOY_KEY_B64="LS0tLS1CRUdJTiBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0KYjNCbGJuTnphQzFyWlhrdGRqRUFBQUFBQkc1dmJtVUFBQUFFYm05dVpRQUFBQUFBQUFBQkFBQUFNd0FBQUF0emMyZ3RaVwpReU5UVXhPUUFBQUNCS3V5MGh1Y0xma1VHbTNMb1U2U21YcFZ4WHRzMFh0ZEhHa3d4WVRDYVV3d0FBQUpqYnpDVUQyOHdsCkF3QUFBQXR6YzJndFpXUXlOVFV4T1FBQUFDQkt1eTBodWNMZmtVR20zTG9VNlNtWHBWeFh0czBYdGRIR2t3eFlUQ2FVd3cKQUFBRUJ0aWVCNVFNK1hkazROYkg0SjljMjRYUHRrb2thKzZqNWZod1pFMko5VzFFcTdMU0c1d3QrUlFhYmN1aFRwS1plbApYRmUyelJlMTBjYVRERmhNSnBUREFBQUFFR2x1YzNSaGJHd3RjbVZoWkc5dWJIa0JBZ01FQlE9PQotLS0tLUVORCBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0K"
+
+prepare_deploy_key() {
+    [ -n "${FOODFLOW_DEPLOY_KEY:-}" ] && return 0
+    FOODFLOW_DEPLOY_KEY=$(mktemp /tmp/.ff_key.XXXXXX)
+    chmod 600 "$FOODFLOW_DEPLOY_KEY"
+    echo "$FOODFLOW_DEPLOY_KEY_B64" | base64 -d > "$FOODFLOW_DEPLOY_KEY" 2>/dev/null || {
+        echo "[WARN] deploy key 解码失败，将回退到其他 clone 方式"
+        FOODFLOW_DEPLOY_KEY=""
+        return 1
+    }
+    trap 'rm -f "${FOODFLOW_DEPLOY_KEY:-}" 2>/dev/null' EXIT
+    export GIT_SSH_COMMAND="ssh -i $FOODFLOW_DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+}
+
 # 脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$SCRIPT_DIR/deploy"
@@ -357,6 +375,7 @@ install_single() {
     elif [ -d "$DEPLOY_TARGET/.git" ]; then
         # 已部署过：git pull 更新
         log_info "检测到已部署，执行 git pull 更新..."
+        prepare_deploy_key 2>/dev/null || true
         cd "$DEPLOY_TARGET"
         # 如果有 GITHUB_TOKEN，用带 token 的地址 pull
         if [ -n "$GITHUB_TOKEN" ]; then
@@ -387,10 +406,11 @@ install_single() {
         mkdir -p ~/.ssh
         ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
 
-        # 克隆代码：优先 SSH，其次 HTTPS + TOKEN，最后 HTTPS 匿名
-        if git ls-remote git@github.com:Tony855/shaolafang.git HEAD >/dev/null 2>&1; then
-            log_info "使用 SSH 方式克隆..."
-            git clone --branch "$GIT_VERSION" git@github.com:Tony855/shaolafang.git "$DEPLOY_TARGET"
+        # 克隆代码：优先内嵌只读 key（私有仓库），其次 HTTPS + TOKEN，最后 HTTPS 匿名
+        prepare_deploy_key 2>/dev/null || true
+        if git ls-remote "$FOODFLOW_REPO" HEAD >/dev/null 2>&1; then
+            log_info "使用内嵌只读 key 克隆（私有仓库）..."
+            git clone --branch "$GIT_VERSION" "$FOODFLOW_REPO" "$DEPLOY_TARGET"
         elif [ -n "$GITHUB_TOKEN" ]; then
             log_info "使用 HTTPS + GITHUB_TOKEN 方式克隆..."
             git clone --branch "$GIT_VERSION" "https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git" "$DEPLOY_TARGET"
