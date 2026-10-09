@@ -622,7 +622,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   }
 
   /* ===== KHQR 动态收款 ===== */
-  function openKhqrModal(orderId, providerId) {
+  function openKhqrModal(orderId, providerId, selectedCurrency) {
+  selectedCurrency = String(selectedCurrency || "USD").toUpperCase();
+  if (!["USD", "KHR"].includes(selectedCurrency)) selectedCurrency = "USD";
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
@@ -641,11 +643,31 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
 
     document.getElementById('khqrModal').classList.add('show');
 
-    // 打开弹窗后翻译所有 data-i18n 元素
+    {
+      const old = document.getElementById('khqrCurrencySwitch');
+      if (old) old.remove();
+      const sw = document.createElement('button');
+      sw.id = 'khqrCurrencySwitch';
+      sw.type = 'button';
+      sw.textContent = selectedCurrency === 'USD' ? '$ USD  ⇄  ៛ KHR' : '៛ KHR  ⇄  $ USD';
+      sw.setAttribute('aria-label', '切换 KHQR 收款币种');
+      sw.style.cssText = 'display:block;width:100%;max-width:360px;margin:12px auto;padding:14px 18px;border-radius:12px;border:2px solid #16a34a;background:#166534;color:#fff;font-size:17px;font-weight:800;cursor:pointer;';
+      sw.onclick = () => {
+        if (typeof window.__khqrSwitchBusy !== 'undefined' && window.__khqrSwitchBusy) return;
+        window.__khqrSwitchBusy = true;
+        try {
+          openKhqrModal(orderId, providerId, selectedCurrency === 'USD' ? 'KHR' : 'USD');
+        } finally {
+          setTimeout(() => { window.__khqrSwitchBusy = false; }, 500);
+        }
+      };
+      const amountEl = document.getElementById('khqrAmount');
+      if (amountEl && amountEl.parentNode) amountEl.parentNode.insertBefore(sw, amountEl);
+    }
     if (SLF.ui && SLF.ui.applyI18n) SLF.ui.applyI18n(document.getElementById('khqrModal'));
 
     // 请求生成
-    api('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId, provider_id: providerId || undefined } })
+    api('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId, provider_id: providerId || undefined, currency: selectedCurrency } })
       .then(res => {
         // 优先用后端返回的 base64（<img> 无法带 token，不能直接用 URL 接口）
         if (res.qr_data_url) {
@@ -679,13 +701,31 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
             if (altStr) secHtml = '<span style="color:#999;font-size:13px;margin-left:6px;">(' + altStr + ')</span>';
           } catch (e) {}
 
+          document.getElementById('khqrAmount').style.cssText =
+            'display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;width:100%;text-align:center;line-height:1.35;';
           document.getElementById('khqrAmount').innerHTML =
-            '<span style="color:#e85d3a;font-weight:800;">' + sym + amtStr + '</span>' + secHtml;
+            '' +
+            '<span style="color:#e85d3a;font-size:clamp(28px,6vw,42px);font-weight:800;">' + sym + amtStr + '</span>' +
+            (secHtml ? secHtml.replace('margin-left:6px;', 'margin-left:0;') : '');
+          const sw = document.getElementById('khqrCurrencySwitch');
+          if (sw) sw.textContent = cur === 'USD' ? '$ USD  ⇄  ៛ KHR' : '៛ KHR  ⇄  $ USD';
         })();
 
         khqrState.bankName = res.provider_bank || '';
-        document.getElementById('khqrMerchant').textContent =
-          (res.provider_bank ? res.provider_bank + ' · ' : '') + (res.merchant_name || '');
+        {
+          const el = document.getElementById('khqrMerchant');
+          const bank = String(res.provider_bank || '');
+          const map = { ABA: 'aba.png', ACLEDA: 'acleda.png', Wing: 'Wing.png', Bakong: 'KHQR.png', 'Chip Mong': 'KHQR.png' };
+          el.replaceChildren();
+          if (map[bank]) {
+            const img = document.createElement('img');
+            img.src = '/assets/vendor/payment-icons/' + map[bank];
+            img.alt = bank;
+            img.style.cssText = 'width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:8px;';
+            el.appendChild(img);
+          }
+          el.appendChild(document.createTextNode((bank ? bank + ' · ' : '') + (res.merchant_name || '')));
+        }
         khqrState.expiresAt = new Date(res.expires_at).getTime();
         startKhqrCountdown();
         startKhqrPolling();

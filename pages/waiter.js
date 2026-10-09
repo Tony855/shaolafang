@@ -93,7 +93,7 @@
     expandedOrderIds: new Set()
   };
 
-  let waiterLang = SLF.store.rawGet('waiterLang') || 'zh';
+  let waiterLang = SLF.store.rawGet('waiterLang') || SLF.store.rawGet('lang') || 'zh';
   SLF.i18n.init(waiterLang);
 
   // t(key, params, fallback)
@@ -1063,7 +1063,7 @@
     await setLanguage(this.value);
   });
 
-  const savedLang = SLF.store.rawGet('waiterLang') || 'zh';
+  const savedLang = SLF.store.rawGet('waiterLang') || SLF.store.rawGet('lang') || 'zh';
   waiterLang = savedLang;
 
   // 语言切换时自动翻译所有 data-i18n 元素

@@ -503,7 +503,14 @@ module.exports = function(app, deps) {
         const staticInfo = khqr.extractInfo(khqr.parseTLV(provider.payload));
         staticCurrency = staticInfo.currency === '840' ? 'USD' : (staticInfo.currency === '116' ? 'KHR' : 'USD');
       }
-      console.log('[khqr/generate] provider=' + provider.id + ' provider.currency=' + provider.currency + ' staticCurrency=' + staticCurrency);
+      console.log('[khqr/debug] 请求币种=', JSON.stringify(req.body && req.body.currency),
+        '请求类型=', typeof (req.body && req.body.currency),
+        'provider=', provider.id,
+        'staticCurrency=', staticCurrency);
+
+      const requestedCurrency = String((req.body && req.body.currency) || '').trim().toUpperCase();
+      const targetCurrency = ['USD', 'KHR'].includes(requestedCurrency) ? requestedCurrency : staticCurrency;
+      console.log('[khqr/generate] provider=' + provider.id + ' provider.currency=' + provider.currency + ' targetCurrency=' + targetCurrency);
 
       // 订单原始币种
       let orderCurrency = 'USD';
@@ -514,22 +521,22 @@ module.exports = function(app, deps) {
 
       // 换算：静态码币种 != 订单币种 时，按汇率转
       let finalAmount = Number(order.total);
-      if (orderCurrency !== staticCurrency) {
+      if (orderCurrency !== targetCurrency) {
         const rates = await allAsync('SELECT code, rate FROM currencies WHERE merchant_id=?', [req.merchantId || 1]);
         const rateMap = {};
         for (const r of rates) rateMap[r.code] = Number(r.rate) || 1;
         // rate = 该币兑 USD 汇率
         const usdRateOfOrder = rateMap[orderCurrency] || 1;
-        const usdRateOfStatic = rateMap[staticCurrency] || 1;
+        const usdRateOfStatic = rateMap[targetCurrency] || 1;
         // 订单币种 → USD → 静态码币种
         const usdAmount = Number(order.total) / usdRateOfOrder;
         finalAmount = usdAmount * usdRateOfStatic;
-        console.log('[khqr/generate] 币种换算:', order.total, orderCurrency, '→', finalAmount.toFixed(2), staticCurrency);
+        console.log('[khqr/generate] 币种换算:', order.total, orderCurrency, '→', finalAmount.toFixed(2), targetCurrency);
       }
 
       const orderNo = order.order_no || ('#' + order.id);
-      const dynamicPayload = khqr.buildDynamicPayload(payloadRow.value, finalAmount, staticCurrency, orderNo);
-      const currency = staticCurrency;
+      const dynamicPayload = khqr.buildDynamicPayload(payloadRow.value, finalAmount, targetCurrency, orderNo);
+      const currency = targetCurrency;
 
       // 前端 <img> 带不了 token，直接返回 base64 dataURL
       const qrDataUrl = await QRCode.toDataURL(dynamicPayload, {

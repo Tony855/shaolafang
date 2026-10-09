@@ -9,7 +9,7 @@
     const audio = SLF.audio || { unlock: () => {}, setEnabled: () => {}, playNewOrderChime: () => {}, playUrgeChime: () => {} };
     const utils = SLF.utils || { esc: s => String(s ?? ''), formatTime: d => new Date(d).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) };
 
-    let lang = SLF.store.rawGet('kitchenLang') || 'zh';
+    let lang = SLF.store.rawGet('kitchenLang') || SLF.store.rawGet('lang') || 'zh';
     SLF.i18n.init(lang);
 
     // t(key, params, fallback)

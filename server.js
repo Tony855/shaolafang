@@ -3,6 +3,7 @@ const express = require('express');
 const { pool, poolConfig, setPool } = require('./server/db/pool');
 const { runAsync, getAsync, allAsync, withTransaction } = require('./server/db/helpers');
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
+const { initMerchantSettings, initStoreSettings } = require('./server/services/settings-init');
 const cors = require('cors');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
@@ -804,6 +805,10 @@ async function initDatabase() {
       [defaultMerchantId, 'FoodFlow总店', 'ff-main', '']);
     const defaultStoreId = (await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [defaultMerchantId])).id;
     console.log('  + 已创建默认店铺：FoodFlow总店 (id=' + defaultStoreId + ')');
+    // ★ 初始化默认商户/门店的 settings
+    await initMerchantSettings(runAsync, defaultMerchantId);
+    await initStoreSettings(runAsync, defaultStoreId);
+    console.log('  + 已初始化商户级/门店级默认 settings');
 
     // 默认货币
     for (const currency of [

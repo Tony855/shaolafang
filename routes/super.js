@@ -5,6 +5,8 @@ const crypto = require('crypto');
 const os = require('os');
 const fs = require('fs');
 
+const { initMerchantSettings, initStoreSettings } = require('../server/services/settings-init');
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, collectBackupData, autoBackupDatabase, withTransaction } = deps;
 
@@ -109,7 +111,10 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
     const defaultStoreName = name + '总店';
     const defaultStoreCode = merchantCode.toLowerCase() + '-main';
-    await runAsync('INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)', [newMerchantId, defaultStoreName, defaultStoreCode, '']);
+    const storeRes = await runAsync('INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)', [newMerchantId, defaultStoreName, defaultStoreCode, '']);
+    // ★ 初始化商户级 + 默认门店级 settings
+    await initMerchantSettings(runAsync, newMerchantId);
+    await initStoreSettings(runAsync, storeRes.lastID);
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
       `创建商户「${name}」(编码: ${merchantCode}, 账号: ${adminUsername})`, getClientIp(req));
     res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });

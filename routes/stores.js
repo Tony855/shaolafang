@@ -6,6 +6,8 @@ const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
 
+const { initStoreSettings } = require('../server/services/settings-init');
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
@@ -26,6 +28,8 @@ app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_sto
       return res.status(403).json({ error: '已达到门店数量上限（' + merchant.max_stores + '家），请联系超级管理员升级' });
     }
     const result = await runAsync('INSERT INTO stores (name, code, address, active, merchant_id) VALUES (?, ?, ?, 1, ?)', [name, code || '', address || '', merchantId]);
+    // ★ 初始化门店级默认 settings
+    await initStoreSettings(runAsync, result.lastID);
     res.status(201).json(await getAsync('SELECT * FROM stores WHERE id=?', [result.lastID]));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
