@@ -150,7 +150,7 @@ const cache = {
       // A configured Redis instance is authoritative for cross-node cooldowns.
       // Fail closed while it is unavailable; per-process memory fallback would
       // allow duplicate submissions across application nodes.
-      if (!redisReady || !redisClient || redisClient.isReady === false) return false;
+      if (!redisReady || !redisClient || redisClient.isReady === false) return null;
       try {
         const result = await redisClient.set(key, JSON.stringify(value), {
           NX: true,
@@ -159,7 +159,7 @@ const cache = {
         return result === 'OK';
       } catch (error) {
         console.error('Redis cooldown acquisition failed:', error.message);
-        return false;
+        return null;
       }
     }
     if (memoryCache.get(key) !== undefined && memoryCache.get(key) !== null) return false;
