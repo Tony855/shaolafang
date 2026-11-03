@@ -510,7 +510,8 @@ async function syncTableStatus(tableName, storeId) {
 
 async function initDatabase() {
   try {
-    await poolModule.pool.getConnection();
+    const probeConnection = await poolModule.pool.getConnection();
+    probeConnection.release();
   } catch (err) {
     if (err.code === 'ER_BAD_DB_ERROR') {
       const tempPool = mysql.createPool({
@@ -526,7 +527,9 @@ async function initDatabase() {
       await conn.query(`CREATE DATABASE IF NOT EXISTS \`${poolConfig.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
       conn.release();
       await tempPool.end();
+      const previousPool = poolModule.pool;
       setPool(mysql.createPool(poolConfig));
+      await previousPool.end().catch(() => {});
     } else {
       throw err;
     }
