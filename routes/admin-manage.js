@@ -518,7 +518,7 @@ module.exports = function(app, deps) {
       if (order.status !== 'pending') return res.status(400).json({ error: '订单已结算或已取消' });
 
       const expireRow = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + sid + '_khqr_expire_minutes']);
-      const expireMin = parseInt(expireRow ? expireRow.value : '10', 10) || 10;
+      const expireMin = Math.max(1, Math.min(60, parseInt(expireRow ? expireRow.value : '10', 10) || 10));
 
       // 选择哪个收款码
       const list = await loadKhqrProviders(sid);
@@ -584,9 +584,10 @@ module.exports = function(app, deps) {
       const expiresAt = new Date(Date.now() + expireMin * 60 * 1000).toISOString();
 
       // 保存到订单
-      await runAsync('UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=?',
-        ['khqr', dynamicPayload, expiresAt, order.id]);
-res.json({
+      const qrUpdate = await runAsync("UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=? AND store_id=? AND status='pending'",
+        ['khqr', dynamicPayload, expiresAt, order.id, sid]);
+      if (!qrUpdate.affectedRows) return res.status(409).json({ error: '订单状态已变化，无法生成新的收款码' });
+      res.json({
         qr_payload: dynamicPayload,
         qr_data_url: qrDataUrl,
         provider_id: provider.id,
