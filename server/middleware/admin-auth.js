@@ -10,7 +10,10 @@ async function getWaiterFromRequest(req) {
   if (!token) return null;
   const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
   if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
-  return await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
+  return await getAsync(
+    'SELECT w.* FROM waiters w JOIN stores s ON s.id=w.store_id AND s.active=1 JOIN merchants m ON m.id=s.merchant_id AND m.status=1 WHERE w.id=? AND w.active=1',
+    [session.waiter_id]
+  );
 }
 
 async function getCashierFromRequest(req) {
@@ -18,6 +21,11 @@ async function getCashierFromRequest(req) {
   if (!token) return null;
   const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
   if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
+  const activeStore = await getAsync(
+    'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
+    [session.store_id, session.merchant_id]
+  );
+  if (!activeStore) return null;
   const cashiersData = await getAsync('SELECT value FROM settings WHERE `key` = ?', ['cashiers_' + session.store_id]);
   if (!cashiersData) return null;
   let cashiers = [];
@@ -44,7 +52,7 @@ async function authenticateAdmin(req) {
           const requestedStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
           let validStoreId = null;
           if (requestedStoreId > 0) {
-            const _storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
+            const _storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1', [requestedStoreId, admin.merchant_id]);
             if (!_storeCheck) {
               const _validStores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id ASC', [admin.merchant_id]);
               return {
@@ -58,7 +66,7 @@ async function authenticateAdmin(req) {
             validStoreId = Number(_storeCheck.id);
           } else {
             // Default to this merchant's first store, never global store_id=1.
-            const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+            const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? AND active=1 ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
             validStoreId = firstStore ? Number(firstStore.id) : -1;
           }
           const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
@@ -78,7 +86,14 @@ async function authenticateAdmin(req) {
     const supplied = Buffer.from(String(providedKey));
     const expected = Buffer.from(String(setting.value));
     if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
-      return { storeId: parseInt(req.get('X-Store-Id') || '1', 10) };
+      const rawStoreId = req.get('X-Store-Id') ?? '1';
+      const storeId = typeof rawStoreId === 'string' && rawStoreId.trim() !== '' ? Number(rawStoreId) : NaN;
+      if (!Number.isSafeInteger(storeId) || storeId <= 0) {
+        return { error: '指定的店铺编号无效', code: 'INVALID_STORE_ID' };
+      }
+      const store = await getAsync('SELECT id, merchant_id FROM stores WHERE id=? AND active=1', [storeId]);
+      if (!store) return { error: '指定的店铺不存在或已停用', code: 'STORE_NOT_ACTIVE' };
+      return { storeId: Number(store.id), merchantId: store.merchant_id, legacyApiKey: true };
     }
   }
   return null;
