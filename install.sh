@@ -606,7 +606,8 @@ fi
     # ===== 9. 配置数据库 =====
     echo ""
     # 检查是否已安装过：如果 .env 存在，说明是更新模式，跳过数据库重建
-    if [ -f "$CONFIG_DIR/.env" ]; then
+    ENV_FILE="$APP_DIR/.env"
+    if [ -f "$ENV_FILE" ]; then
         log_info "检测到已安装（.env 存在），跳过数据库重建，保留所有数据！"
         SKIP_DB_INIT=1
     else
@@ -633,6 +634,14 @@ fi
     if [ -z "$MYSQL_CMD" ]; then
         log_error "无法以 root 身份登录数据库，请检查 MariaDB 是否安装并启动"
         exit 1
+    fi
+
+    if [ "$SKIP_DB_INIT" -eq 1 ]; then
+        DB_RANDOM_PASSWORD=$(sed -n 's/^DB_PASSWORD=//p' "$ENV_FILE" | tail -n 1)
+        if [ -z "$DB_RANDOM_PASSWORD" ]; then
+            log_error "现有 .env 缺少 DB_PASSWORD，拒绝使用随机密码覆盖生产数据库配置。"
+            exit 1
+        fi
     fi
 
     if [ "$SKIP_DB_INIT" -eq 0 ]; then
@@ -682,8 +691,9 @@ EOF
 
     # ===== 10. 写入 .env 配置文件 =====
     echo ""
-    log_info "写入环境变量配置..."
     ENV_FILE="$APP_DIR/.env"
+    if [ "$SKIP_DB_INIT" -eq 0 ]; then
+    log_info "创建首次安装 .env 配置..." 
     cat > "$ENV_FILE" << EOF
 PORT=3000
 DB_HOST=127.0.0.1
@@ -698,8 +708,12 @@ RUN_SCHEDULED_TASKS=true
 JWT_SECRET=$JWT_RANDOM_SECRET
 QR_DOMAIN=$DOMAIN
 EOF
-    chmod 600 "$ENV_FILE"
+    chmod 640 "$ENV_FILE"
+    chown root:www-data "$ENV_FILE"
     log_success ".env 配置文件已生成"
+    else
+        log_info "更新模式：保留现有 .env，不覆盖数据库密码和 JWT_SECRET。"
+    fi
 
     # ===== 11. 配置 Systemd 服务 =====
     echo ""
@@ -711,6 +725,16 @@ EOF
     sleep 1
 
     NODE_PATH=$(which node)
+    if ! id foodflow >/dev/null 2>&1; then
+        useradd --system --no-create-home --home-dir "$APP_DIR" --shell /usr/sbin/nologin --gid www-data foodflow
+    fi
+    chown -R root:www-data "$APP_DIR"
+    for writable_dir in uploads backups logs; do
+        mkdir -p "$APP_DIR/$writable_dir"
+        chown -R foodflow:www-data "$APP_DIR/$writable_dir"
+        chmod 0770 "$APP_DIR/$writable_dir"
+    done
+    [ -f "$ENV_FILE" ] && chown root:www-data "$ENV_FILE" && chmod 0640 "$ENV_FILE"
     cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
 Description=FoodFlow QR Ordering System
@@ -718,7 +742,8 @@ After=network.target mariadb.service mysql.service redis.service
 
 [Service]
 Type=simple
-User=root
+User=foodflow
+Group=www-data
 WorkingDirectory=$APP_DIR
 ExecStart=$NODE_PATH server.js
 Restart=always
