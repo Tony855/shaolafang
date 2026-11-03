@@ -86,7 +86,8 @@ module.exports = function(app, deps) {
       // 2. 验证 session 有效
       const session = await getAsync('SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
       if (!session) return res.status(401).json({ error: '扫码会话不存在，请重新扫码' });
-      if (new Date(session.expires_at).getTime() < Date.now()) {
+      const sessionExpiresAt = new Date(session.expires_at).getTime();
+      if (!Number.isFinite(sessionExpiresAt) || sessionExpiresAt <= Date.now()) {
         return res.status(410).json({ error: '二维码已过期，请重新扫码' });
       }
 
