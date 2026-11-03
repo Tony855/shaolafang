@@ -11,7 +11,7 @@ module.exports = function(app, deps) {
 
   function resolveUploadFile(name) {
     const root = path.resolve(UPLOAD_DIR);
-    const base = path.basename(String(name || '').replace(/\\\\/g, '/'));
+    const base = path.basename(String(name || '').split(String.fromCharCode(92)).join('/'));
     if (!base || base === '.' || base === '..') return null;
     const resolved = path.resolve(root, base);
     return resolved.startsWith(root + path.sep) ? resolved : null;
