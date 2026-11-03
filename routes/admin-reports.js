@@ -87,8 +87,8 @@ module.exports = function(app, deps) {
           (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND createdAt >= ? AND createdAt <= ?) AS total_orders,
           (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS completed_orders,
           (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='canceled' AND createdAt >= ? AND createdAt <= ?) AS canceled_orders,
-          (SELECT COALESCE(SUM(total), 0) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_revenue,
-          (SELECT AVG(total) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS avg_order_value
+          (SELECT COALESCE(SUM(total - COALESCE(refund_amount, 0)), 0) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_revenue,
+          (SELECT AVG(total - COALESCE(refund_amount, 0)) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS avg_order_value
       `, [
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
@@ -97,7 +97,7 @@ module.exports = function(app, deps) {
         ...swParams, rangeStart, rangeEnd
       ]);
       const tableRevenue = await allAsync(`
-        SELECT table_name, COUNT(*) AS orders, SUM(total) AS revenue
+        SELECT table_name, COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
         FROM orders
         WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
         GROUP BY table_name
@@ -122,7 +122,7 @@ module.exports = function(app, deps) {
         // 按日：24 小时内每 10 分钟聚合
         hourlyStats = await allAsync(`
           SELECT CONCAT(LPAD(HOUR(COALESCE(settled_at, createdAt)),2,'0'), ':', LPAD(FLOOR(MINUTE(COALESCE(settled_at, createdAt))/10)*10, 2, '0')) AS time_bucket,
-                 COUNT(*) AS orders, SUM(total) AS revenue
+                 COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
           FROM orders
           WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
@@ -132,7 +132,7 @@ module.exports = function(app, deps) {
         // 按月：每天聚合
         hourlyStats = await allAsync(`
           SELECT DATE(COALESCE(settled_at, createdAt)) AS time_bucket,
-                 COUNT(*) AS orders, SUM(total) AS revenue
+                 COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
           FROM orders
           WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
@@ -142,7 +142,7 @@ module.exports = function(app, deps) {
         // 按年：每月聚合
         hourlyStats = await allAsync(`
           SELECT DATE_FORMAT(COALESCE(settled_at, createdAt), '%Y-%m') AS time_bucket,
-                 COUNT(*) AS orders, SUM(total) AS revenue
+                 COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
           FROM orders
           WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
@@ -157,7 +157,7 @@ module.exports = function(app, deps) {
                  SUM(CASE WHEN o.id IS NOT NULL AND o.createdAt >= ? AND o.createdAt <= ? THEN 1 ELSE 0 END) AS orders,
                  SUM(CASE WHEN o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? THEN 1 ELSE 0 END) AS completed_orders,
                  SUM(CASE WHEN o.status='canceled' AND o.createdAt >= ? AND o.createdAt <= ? THEN 1 ELSE 0 END) AS canceled_orders,
-                 SUM(CASE WHEN o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? THEN o.total ELSE 0 END) AS revenue
+                 SUM(CASE WHEN o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? THEN (o.total - COALESCE(o.refund_amount, 0)) ELSE 0 END) AS revenue
           FROM stores s
           LEFT JOIN orders o ON o.store_id = s.id
               AND ((o.createdAt >= ? AND o.createdAt <= ?) OR (o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?))
@@ -199,11 +199,11 @@ module.exports = function(app, deps) {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       const todayStats = await getAsync(`
-        SELECT COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
+        SELECT COALESCE(SUM(total - COALESCE(refund_amount, 0)), 0) AS revenue, COUNT(*) AS orders
         FROM orders WHERE store_id=? AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
       `, [req.storeId, todayStart.toISOString(), todayEnd.toISOString()]);
       const monthStats = await getAsync(`
-        SELECT COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
+        SELECT COALESCE(SUM(total - COALESCE(refund_amount, 0)), 0) AS revenue, COUNT(*) AS orders
         FROM orders WHERE store_id=? AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
       `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
       const topDishes = await allAsync(`
@@ -365,7 +365,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
         // ===== 按桌汇总 =====
         const stPlaceholders = statuses.map(() => '?').join(',');
         const rows = await allAsync(`
-          SELECT table_name, COUNT(*) AS order_count, SUM(total) AS revenue, AVG(total) AS avg_order
+          SELECT table_name, COUNT(*) AS order_count, SUM(total - COALESCE(refund_amount, 0)) AS revenue, AVG(total - COALESCE(refund_amount, 0)) AS avg_order
           FROM orders
           WHERE store_id=? AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ? AND status IN (${stPlaceholders})
           GROUP BY table_name
