@@ -1085,16 +1085,22 @@ io.use(async (socket, next) => {
     const token = (socket.handshake.query.token || '').trim();
     const requestedStoreId = parseInt(socket.handshake.query.storeId, 10) || 1;
 
-    // 无 token：视为顾客端，允许连接但只能进公共房间
-    if (!token) {
+    // 顾客端必须持有有效扫码会话；禁止仅靠可伪造的 storeId 订阅整家门店事件。
+    if (!token) return next(new Error('unauthorized: table session required'));
+    const scanSession = await getAsync('SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?', [token]);
+    if (scanSession) {
+      if (new Date(scanSession.expires_at).getTime() <= Date.now()) {
+        return next(new Error('unauthorized: table session expired'));
+      }
       socket.data.role = 'public';
-      socket.data.storeId = requestedStoreId;
+      socket.data.storeId = scanSession.store_id || 1;
+      socket.data.tableName = scanSession.table_name;
       return next();
     }
 
     // 1) 服务员/后厨（共用 waiter_sessions）
-    const waiterSession = await getAsync('SELECT waiter_id FROM waiter_sessions WHERE token=?', [token]);
-    if (waiterSession) {
+    const waiterSession = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
+    if (waiterSession && new Date(waiterSession.expires_at).getTime() > Date.now()) {
       const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [waiterSession.waiter_id]);
       if (waiter) {
         socket.data.role = 'waiter';
@@ -1105,8 +1111,8 @@ io.use(async (socket, next) => {
     }
 
     // 2) 收银员
-    const cashierSession = await getAsync('SELECT cashier_id, store_id FROM cashier_sessions WHERE token=?', [token]);
-    if (cashierSession) {
+    const cashierSession = await getAsync('SELECT cashier_id, store_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
+    if (cashierSession && new Date(cashierSession.expires_at).getTime() > Date.now()) {
       socket.data.role = 'cashier';
       socket.data.storeId = cashierSession.store_id || 1;
       socket.data.cashierId = cashierSession.cashier_id;
@@ -1114,8 +1120,8 @@ io.use(async (socket, next) => {
     }
 
     // 3) 管理员
-    const adminSession = await getAsync('SELECT admin_id FROM admin_sessions WHERE token=?', [token]);
-    if (adminSession) {
+    const adminSession = await getAsync('SELECT admin_id, expires_at FROM admin_sessions WHERE token=?', [token]);
+    if (adminSession && new Date(adminSession.expires_at).getTime() > Date.now()) {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [adminSession.admin_id]);
       if (admin) {
         socket.data.role = 'admin';
@@ -1154,7 +1160,7 @@ io.on('connection', (socket) => {
     socket.join('kitchen-' + storeId);
     socket.join('cashier-' + storeId);
   } else if (role === 'public') {
-    socket.join('public-store-' + storeId);
+    socket.join('public-table-' + storeId + '-' + socket.data.tableName);
   }
 
   socket.on('disconnect', () => { /* 可选日志 */ });
