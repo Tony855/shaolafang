@@ -311,7 +311,6 @@ apply_production_optimizations() {
     [ -f "$APP_DIR/server/config/env.js" ] && grep -q 'DB_CONNECTION_LIMIT' "$APP_DIR/server/config/env.js" ||       sed -i 's|\(DB_PORT: Number(process.env.DB_PORT) || 3306,\)|
   DB_CONNECTION_LIMIT: Number(process.env.DB_CONNECTION_LIMIT) || 50,|' "$APP_DIR/server/config/env.js" 2>/dev/null || true
     [ -f "$APP_DIR/server/db/pool.js" ] && sed -i -E 's|connectionLimit:\s*[0-9]+|connectionLimit: env.DB_CONNECTION_LIMIT|;s|queueLimit:\s*[0-9]+|queueLimit: 200|' "$APP_DIR/server/db/pool.js"
-    [ -f "$APP_DIR/server/middleware/password.js" ] && sed -i -E 's|bcrypt\.hashSync\(pwd, 10\)|bcrypt.hashSync(pwd, 8)|' "$APP_DIR/server/middleware/password.js"
     MC=""
     mariadb -u root -e "SELECT 1" >/dev/null 2>&1 && MC="mariadb -u root"
     [ -z "$MC" ] && mysql -u root -e "SELECT 1" >/dev/null 2>&1 && MC="mysql -u root"
