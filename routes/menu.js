@@ -19,7 +19,7 @@ app.get('/api/menu', async (req, res) => {
   }
 });
 
-app.get('/api/admin/menu', requireAdminKey, async (req, res) => {
+app.get('/api/admin/menu', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const rows = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [req.storeId || 1]);
     res.json(rows);
