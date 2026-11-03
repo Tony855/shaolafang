@@ -37,8 +37,8 @@ async function getOrderCooldownMs() {
     const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'order_interval_seconds'");
     const raw = setting?.value ?? '30';
     const seconds = typeof raw === 'string' && raw.trim() === '' ? NaN : Number(raw);
-    if (!Number.isSafeInteger(seconds)) return 30 * 1000;
-    return Math.max(0, Math.min(3600, seconds)) * 1000;
+    if (!Number.isSafeInteger(seconds) || seconds < 0) return 30 * 1000;
+    return Math.min(3600, seconds) * 1000;
   } catch (e) { return 30 * 1000; }
 }
 
