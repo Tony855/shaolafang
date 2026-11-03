@@ -316,6 +316,7 @@ app.get('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
 // ============================================================
 app.post('/api/orders', async (req, res) => {
   try {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) req.body = {};
     // ---------- 1. 认证 ----------
     const adminAuth = await authenticateAdmin(req);
     const isAdmin = Boolean(adminAuth && !adminAuth.error);
@@ -342,24 +343,40 @@ app.post('/api/orders', async (req, res) => {
     let customerToken = '';
     let sessionStoreId = null;
     let table;
+    const requestedTable = typeof req.body.table === 'string' ? req.body.table.trim() : '';
+    if (!requestedTable || requestedTable.length > 50) {
+      return res.status(400).json({ error: '桌号无效' });
+    }
     if (!isAdmin && !isWaiter) {
-      const token = req.body.sessionToken || null;
-      customerToken = req.body.customerToken || '';
-      if (!token) return res.status(401).json({ error: '请重新扫码后再下单' });
+      const token = typeof req.body.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
+      customerToken = typeof req.body.customerToken === 'string' ? req.body.customerToken.trim().slice(0, 128) : '';
+      if (!token || token.length > 256) return res.status(401).json({ error: '请重新扫码后再下单' });
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [token]);
       if (!session) return res.status(401).json({ error: '请重新扫码后再下单' });
       const sessionExpiresAt = new Date(session.expires_at).getTime();
       if (!Number.isFinite(sessionExpiresAt) || sessionExpiresAt <= Date.now()) {
         return res.status(410).json({ error: '二维码已过期或会话有效期无效，请重新扫码' });
       }
-      table = await assertTableExists(req.body.table, session.store_id || 1);
+      sessionStoreId = Number(session.store_id);
+      if (!Number.isSafeInteger(sessionStoreId) || sessionStoreId <= 0) {
+        return res.status(401).json({ error: '扫码会话店铺信息无效，请重新扫码' });
+      }
+      const activeStore = await getAsync(
+        'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+        [sessionStoreId]
+      );
+      if (!activeStore) return res.status(404).json({ error: '店铺不存在或已停用，暂时无法下单' });
+      table = await assertTableExists(requestedTable, sessionStoreId);
       if (session.table_name !== table) return res.status(403).json({ error: '扫码桌号与下单桌号不一致' });
-      sessionStoreId = session.store_id || 1;
       sessionToken = token;
     } else {
-      table = await assertTableExists(req.body.table, req.storeId || 1);
+      const orderStoreId = Number(req.storeId);
+      if (!Number.isSafeInteger(orderStoreId) || orderStoreId <= 0) {
+        return res.status(403).json({ error: '无权访问该店铺' });
+      }
+      table = await assertTableExists(requestedTable, orderStoreId);
     }
-    const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, sessionStoreId || req.storeId || 1]);
+    const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, sessionStoreId || req.storeId]);
     const storeId = tableStore?.store_id || sessionStoreId || req.storeId || 1;
     if (isWaiter && waiter.store_id !== storeId) return res.status(403).json({ error: '不能为其他店铺的桌号下单' });
     const finalStoreId = sessionStoreId || storeId;
@@ -378,7 +395,8 @@ app.post('/api/orders', async (req, res) => {
       return res.status(400).json({ error: '订单至少需要一道菜品' });
     }
     const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
-    const maxItemsValue = parseInt(maxItemsRow?.value || '50', 10);
+    const maxItemsRaw = maxItemsRow?.value ?? '50';
+    const maxItemsValue = typeof maxItemsRaw === 'string' && maxItemsRaw.trim() === '' ? NaN : Number(maxItemsRaw);
     const maxItems = Number.isSafeInteger(maxItemsValue) && maxItemsValue > 0 ? Math.min(maxItemsValue, 200) : 50;
     if (rawItems.length > maxItems) {
       return res.status(400).json({
@@ -389,7 +407,8 @@ app.post('/api/orders', async (req, res) => {
       });
     }
     const maxQtyRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_item_quantity'");
-    const maxQtyValue = parseInt(maxQtyRow?.value || '100', 10);
+    const maxQtyRaw = maxQtyRow?.value ?? '100';
+    const maxQtyValue = typeof maxQtyRaw === 'string' && maxQtyRaw.trim() === '' ? NaN : Number(maxQtyRaw);
     const maxQty = Number.isSafeInteger(maxQtyValue) && maxQtyValue > 0 ? Math.min(maxQtyValue, 1000) : 100;
     for (const rawItem of rawItems) {
       const quantity = Number(rawItem && rawItem.quantity);
@@ -414,7 +433,9 @@ app.post('/api/orders', async (req, res) => {
     // ---------- 5. 备注处理 ----------
     let note = typeof req.body.note === 'string' ? req.body.note.trim() : '';
     const maxNoteRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_note_length'");
-    const maxNoteLen = parseInt(maxNoteRow?.value || '200', 10);
+    const maxNoteRaw = maxNoteRow?.value ?? '200';
+    const configuredMaxNoteLen = typeof maxNoteRaw === 'string' && maxNoteRaw.trim() === '' ? NaN : Number(maxNoteRaw);
+    const maxNoteLen = Number.isSafeInteger(configuredMaxNoteLen) && configuredMaxNoteLen >= 0 ? Math.min(configuredMaxNoteLen, 2000) : 200;
     if (note.length > maxNoteLen) note = note.slice(0, maxNoteLen);
 
     // ---------- 6. 计算订单号前缀 ----------
