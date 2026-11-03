@@ -38,7 +38,12 @@ module.exports = function(app, deps) {
       if (!table) return res.status(404).json({ error: '无效或已失效的桌码' });
       const sessionToken = crypto.randomBytes(24).toString('base64url');
       const qrTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
-      const qrTimeoutMinutes = parseInt(qrTimeoutSetting?.value || '45', 10);
+      const configuredQrTimeout = Number.parseInt(qrTimeoutSetting?.value ?? '45', 10);
+      // A literal 0 intentionally disables expiry; malformed values fall back to
+      // the secure default rather than accidentally creating a never-expiring token.
+      const qrTimeoutMinutes = Number.isSafeInteger(configuredQrTimeout) && configuredQrTimeout >= 0
+        ? Math.min(configuredQrTimeout, 1440)
+        : 45;
       const expiresAt = qrTimeoutMinutes > 0
         ? new Date(Date.now() + qrTimeoutMinutes * 60 * 1000).toISOString()
         : new Date('9999-12-31T23:59:59Z').toISOString();
