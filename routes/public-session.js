@@ -36,6 +36,10 @@ module.exports = function(app, deps) {
   // ----- 顾客二维码桌码解析 -----
   app.get('/api/public/table-token/:token', async (req, res) => {
     try {
+      // The response contains bearer session/customer tokens; never let a
+      // browser, reverse proxy, or shared cache persist those credentials.
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.setHeader('Pragma', 'no-cache');
       const qrToken = typeof req.params.token === 'string' ? req.params.token : '';
       if (!qrToken || qrToken.length > 255) return res.status(400).json({ error: '桌码无效' });
       const table = await getAsync('SELECT name, store_id FROM tables WHERE qr_token=?', [qrToken]);
