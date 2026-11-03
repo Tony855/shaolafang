@@ -54,10 +54,14 @@ update_existing_install() {
 
     local target="$APP_DIR"
     local ts=$(date +%Y%m%d%H%M%S)
+    local old_sha=""
+    local node_modules_backup="$target/.node_modules-backup-$ts"
+    local node_modules_stage="$target/.node_modules-stage-$ts"
 
     if [ -d "$target/.git" ]; then
         log_info "已是 git 仓库，执行 git fetch + reset..."
         cd "$target"
+        old_sha=$(git rev-parse HEAD 2>/dev/null || true)
         local old_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
         git fetch origin main || { log_error "git fetch 失败"; return 1; }
         git reset --hard origin/main || { log_error "git reset 失败"; return 1; }
@@ -91,14 +95,52 @@ update_existing_install() {
         log_success "代码已同步到最新"
     fi
 
+    # 更新代码后必须同步 package-lock.json 对应的运行依赖；否则 Redis/MySQL
+    # 等依赖升级只更新源码，不更新现有 node_modules。
+    if [ -f "$target/package-lock.json" ] && [ -f "$target/package.json" ]; then
+        rm -rf "$node_modules_stage"
+        mkdir -p "$node_modules_stage"
+        cp "$target/package.json" "$target/package-lock.json" "$node_modules_stage/"
+        if ! (cd "$node_modules_stage" && npm ci --omit=dev --no-audit --no-fund); then
+            rm -rf "$node_modules_stage"
+            if [ -n "$old_sha" ]; then git -C "$target" reset --hard "$old_sha" >/dev/null 2>&1 || true; fi
+            log_error "依赖安装失败，已保留现有 node_modules；代码已尝试回滚"
+            return 1
+        fi
+
+        if [ -d "$target/node_modules" ]; then
+            mv "$target/node_modules" "$node_modules_backup"
+        fi
+        if ! mv "$node_modules_stage/node_modules" "$target/node_modules"; then
+            [ -d "$node_modules_backup" ] && mv "$node_modules_backup" "$target/node_modules"
+            rm -rf "$node_modules_stage"
+            if [ -n "$old_sha" ]; then git -C "$target" reset --hard "$old_sha" >/dev/null 2>&1 || true; fi
+            log_error "切换依赖目录失败，已恢复旧 node_modules"
+            return 1
+        fi
+        rm -rf "$node_modules_stage"
+    else
+        log_warn "未找到 package.json/package-lock.json，跳过依赖更新"
+    fi
+
     log_info "重启 $SERVICE_NAME 服务..."
-    systemctl restart "$SERVICE_NAME"
-    sleep 3
+    if systemctl restart "$SERVICE_NAME"; then
+        sleep 3
+    fi
     if systemctl is-active --quiet "$SERVICE_NAME"; then
-        log_success "✅ $SERVICE_NAME 已重启"
+        rm -rf "$node_modules_backup"
+        log_success "✅ $SERVICE_NAME 已重启，依赖已同步"
         return 0
     else
         log_error "❌ 服务启动失败，请检查：journalctl -u $SERVICE_NAME -n 50"
+        if [ -d "$node_modules_backup" ]; then
+            rm -rf "$target/node_modules"
+            mv "$node_modules_backup" "$target/node_modules"
+        fi
+        if [ -n "$old_sha" ]; then
+            git -C "$target" reset --hard "$old_sha" >/dev/null 2>&1 || true
+            systemctl restart "$SERVICE_NAME" >/dev/null 2>&1 || true
+        fi
         return 1
     fi
 }
