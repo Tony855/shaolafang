@@ -5,6 +5,8 @@ const crypto = require("crypto");
 const dns = require("dns").promises;
 const net = require("net");
 const fs = require("fs");
+const dns = require("dns").promises;
+const net = require("net");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
 
@@ -66,99 +68,82 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
   }
 });
 
-// 批量导入菜品
-function isPrivateAddress(address) {
-  const version = net.isIP(address);
-  if (version === 4) {
-    const octets = address.split('.').map(Number);
-    const [a, b, d] = octets;
-    return a === 0 || a === 10 || a === 127 || a >= 224 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 192 && b === 0) ||
-      (a === 192 && b === 0 && d === 0) ||
-      (a === 198 && (b === 18 || b === 19)) ||
-      (a === 198 && b === 51 && d === 100) ||
-      (a === 203 && b === 0 && d === 113);
-  }
-  if (version === 6) {
-    const ip = address.toLowerCase();
-    if (ip.startsWith('::ffff:')) return isPrivateAddress(ip.slice(7));
-    return ip === '::' || ip === '::1' || ip.startsWith('fc') ||
-      ip.startsWith('fd') || /^fe[89ab]/.test(ip) ||
-      ip.startsWith('ff') || ip.startsWith('2001:db8:');
-  }
-  return true;
-}
+// 批量导入菜品：只允许公网 HTTP(S) 图片，逐跳校验重定向并限制响应体大小。
+const blockedImageTargets = new net.BlockList();
+for (const [address, prefix] of [
+  ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8],
+  ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.0.2.0', 24],
+  ['192.88.99.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24],
+  ['203.0.113.0', 24], ['224.0.0.0', 4], ['240.0.0.0', 4]
+]) blockedImageTargets.addSubnet(address, prefix, 'ipv4');
+for (const [address, prefix] of [
+  ['::', 128], ['::1', 128], ['::ffff:0:0', 96], ['64:ff9b:1::', 48],
+  ['100::', 64], ['2001:db8::', 32], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8]
+]) blockedImageTargets.addSubnet(address, prefix, 'ipv6');
+const globalIpv6Targets = new net.BlockList();
+globalIpv6Targets.addSubnet('2000::', 3, 'ipv6');
 
-async function validateExternalImageUrl(value) {
-  const parsed = new URL(value);
-  if (parsed.protocol !== 'https:' || (parsed.port && parsed.port !== '443') ||
-      parsed.username || parsed.password) {
-    throw new Error('远程图片只允许 HTTPS 公网地址');
+async function validatePublicImageUrl(value) {
+  const target = new URL(value);
+  if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) {
+    throw new Error('图片地址只允许无凭据的公网 HTTP(S) URL');
   }
-  const hostname = parsed.hostname.toLowerCase();
-  if (!hostname || hostname === 'localhost' || hostname.endsWith('.localhost') ||
-      hostname.endsWith('.local') || hostname.endsWith('.internal')) {
-    throw new Error('禁止访问本地或内网地址');
+  const hostname = target.hostname.replace(/^\\[|\\]$/g, '').toLowerCase().replace(/\\.$/, '');
+  if (!hostname || hostname === 'localhost' || /\\.(?:localhost|local|internal|test|example|invalid)$/.test(hostname)) {
+    throw new Error('禁止访问本地或保留域名');
   }
-  const addresses = net.isIP(hostname)
-    ? [{ address: hostname }]
-    : await dns.lookup(hostname, { all: true, verbatim: true });
-  if (!addresses.length || addresses.some(item => isPrivateAddress(item.address))) {
-    throw new Error('远程图片地址解析到非公网 IP，已拒绝');
+  const addresses = await dns.lookup(hostname, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some(({ address, family }) => {
+    const type = family === 6 ? 'ipv6' : 'ipv4';
+    return (family === 6 && !globalIpv6Targets.check(address, type)) ||
+      blockedImageTargets.check(address, type);
+  })) {
+    throw new Error('图片域名解析到非公网地址，已拒绝');
   }
-  return parsed;
+  return target;
 }
 
 async function downloadImageToUploads(url) {
   try {
-    let current = String(url);
-    let response = null;
-    for (let redirects = 0; redirects <= 3; redirects++) {
-      const parsed = await validateExternalImageUrl(current);
-      response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(15000) });
-      if ([301, 302, 303, 307, 308].includes(response.status)) {
-        const location = response.headers.get('location');
-        if (!location || redirects === 3) throw new Error('远程图片重定向次数过多或缺少目标地址');
-        current = new URL(location, parsed).toString();
-        continue;
-      }
-      break;
+    let target = await validatePublicImageUrl(url);
+    let res;
+    for (let redirects = 0; redirects <= 4; redirects++) {
+      res = await fetch(target, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15000),
+        headers: { Accept: 'image/jpeg,image/png,image/webp,image/gif' }
+      });
+      if (![301, 302, 303, 307, 308].includes(res.status)) break;
+      const location = res.headers.get('location');
+      if (!location || redirects === 4) throw new Error('图片重定向次数超限或目标无效');
+      target = await validatePublicImageUrl(new URL(location, target).toString());
     }
-    if (!response || !response.ok) throw new Error('HTTP ' + (response?.status || '请求失败'));
-    const ct = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!res || !res.ok) throw new Error('图片服务器返回 HTTP ' + (res?.status || 0));
+    const ct = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
     const extMap = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
-    if (!extMap[ct]) throw new Error('不支持的图片类型: ' + ct);
-    const declaredSize = Number(response.headers.get('content-length') || 0);
-    if (declaredSize > 5 * 1024 * 1024) throw new Error('图片超过5MB');
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('远程图片响应为空');
+    const ext = extMap[ct];
+    if (!ext) throw new Error('不支持的图片格式: ' + (ct || 'unknown'));
+    const maxBytes = 5 * 1024 * 1024;
+    const declaredLength = Number(res.headers.get('content-length'));
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw new Error('图片超过5MB');
+    if (!res.body) throw new Error('图片响应为空');
     const chunks = [];
-    let total = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > 5 * 1024 * 1024) {
-        await reader.cancel();
+    let totalBytes = 0;
+    for await (const chunk of res.body) {
+      const part = Buffer.from(chunk);
+      totalBytes += part.length;
+      if (totalBytes > maxBytes) {
+        await res.body.cancel().catch(() => {});
         throw new Error('图片超过5MB');
       }
-      chunks.push(Buffer.from(value));
+      chunks.push(part);
     }
-    if (!total) throw new Error('远程图片内容为空');
-    const buf = Buffer.concat(chunks, total);
-    const filename = 'batch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + extMap[ct];
-    const uploadRoot = path.resolve(UPLOAD_DIR);
-    await fs.promises.mkdir(uploadRoot, { recursive: true });
-    const fullPath = path.resolve(uploadRoot, filename);
-    if (!fullPath.startsWith(uploadRoot + path.sep)) throw new Error('图片保存路径无效');
-    await fs.promises.writeFile(fullPath, buf, { flag: 'wx', mode: 0o640 });
+    if (!totalBytes) throw new Error('图片响应为空');
+    const filename = 'batch_' + crypto.randomBytes(12).toString('hex') + ext;
+    await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), Buffer.concat(chunks, totalBytes), { flag: 'wx', mode: 0o640 });
     return filename;
   } catch (e) {
-    console.warn('[batch] 下载图片失败:', String(url).slice(0, 200), e.message);
+    console.warn('[batch] 图片下载失败:', e.message);
     return null;
   }
 }
