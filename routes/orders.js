@@ -61,6 +61,11 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, requireOrderTransferA
         error.status = 404;
         throw error;
       }
+      if (target.status === 'reserved') {
+        const error = new Error('目标桌已被预约，不能转入订单');
+        error.status = 409;
+        throw error;
+      }
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE', [orderId, storeId]);
       if (!order) {
