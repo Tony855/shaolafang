@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const QRCode = require('qrcode');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
+  const { getAsync, runAsync, allAsync, withTransaction, syncTableStatus, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
 
   /* ===== KHQR 多收款码管理 ===== */
   // ★ 内存缓存：KHQR providers 读得多改得少，缓存 30 秒
@@ -641,13 +641,42 @@ module.exports = function(app, deps) {
         return res.json({ success: true, status: 'awaiting_confirm' });
       }
 
-      // 只有已认证的管理员/收银员可人工确认到账；更新必须绑定当前门店且保持待处理状态。
+      // 只有已认证的管理员/收银员可人工确认到账；保留服务员提交的实际支付方式。
+      const paymentMethod = String(order.pay_method || 'khqr').trim().slice(0, 40);
+      const orderTotal = Number(order.total);
+      if (!Number.isFinite(orderTotal) || orderTotal <= 0) return res.status(400).json({ error: '订单金额无效' });
+      const cashReceived = paymentMethod.toLowerCase() === 'cash'
+        ? Number(req.body?.cash_received ?? order.cash_received)
+        : 0;
+      if (paymentMethod.toLowerCase() === 'cash' && (!Number.isFinite(cashReceived) || cashReceived < orderTotal)) {
+        return res.status(400).json({ error: '现金实收金额不足，请重新录入实收金额' });
+      }
+      const cashChange = paymentMethod.toLowerCase() === 'cash'
+        ? Math.round((cashReceived - orderTotal) * 100) / 100
+        : 0;
       const settledAt = new Date().toISOString();
-      const result = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, pay_method='khqr', settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
-        [settledAt, req.adminId || req.cashierId || 'unknown', order_id, sid]);
-      if (!result.affectedRows) return res.status(409).json({ error: '订单状态已变化，请刷新后重试' });
-      await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id }), req.ip || '', new Date().toISOString()]);
+      await withTransaction(async () => {
+        const result = await runAsync(
+          "UPDATE orders SET status='done', awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=?, settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
+          [paymentMethod, cashReceived, cashChange, settledAt, req.adminId || req.cashierId || 'unknown', order_id, sid]
+        );
+        if (!result.affectedRows) {
+          const error = new Error('订单状态已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
+        await syncTableStatus(order.table_name, sid);
+        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [order.table_name, sid]);
+        if (!stillPending || Number(stillPending.cnt) === 0) {
+          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [order.table_name, sid]);
+        }
+        await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
+      });
+      io.to('kitchen-' + sid).emit('order:settled', { orderId: Number(order_id) });
+      io.to('waiter-' + sid).emit('order:settled', { orderId: Number(order_id) });
+      io.to('cashier-' + sid).emit('order:settled', { orderId: Number(order_id) });
+      io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId: Number(order_id) });
       res.json({ success: true, status: 'done' });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
