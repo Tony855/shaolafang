@@ -57,6 +57,11 @@ app.post('/api/public/call-waiter', async (req, res) => {
         [table, initialSession.store_id]
       );
       if (!tableRow) throw Object.assign(new Error('桌号不存在'), { status: 404 });
+      const activeStore = await getAsync(
+        'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+        [tableRow.store_id]
+      );
+      if (!activeStore) throw Object.assign(new Error('店铺已停用，暂时无法呼叫服务员'), { status: 404 });
       const session = await getAsync(
         'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=? FOR UPDATE',
         [sessionToken]
