@@ -64,6 +64,7 @@ module.exports = function registerPageRoutes(app, ctx) {
   // 二维码打印
   app.get('/qr-print', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, private');
       const tableId = parseInt(req.query.tableId || '0', 10);
       const lang = ['zh','en','vi','th','km'].includes(req.query.lang) ? req.query.lang : 'zh';
       if (!tableId) return res.status(400).send('Invalid tableId');
