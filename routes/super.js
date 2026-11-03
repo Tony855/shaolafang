@@ -2,6 +2,7 @@
    routes/super.js — 超级管理员路由
    ============================================================ */
 const crypto = require('crypto');
+const { needsRehash } = require('../server/middleware/password');
 const os = require('os');
 const fs = require('fs');
 
@@ -41,6 +42,10 @@ app.post('/api/super/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
       recordLoginAttempt(username, 'super_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
+    }
+    if (needsRehash(superAdmin.password_hash)) {
+      const upgradedHash = hashPassword(password);
+      await runAsync('UPDATE super_admins SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, superAdmin.id, superAdmin.password_hash]);
     }
     resetLoginAttempts(username, 'super_admin');
     await runAsync('UPDATE super_admins SET last_login_at=NOW() WHERE id=?', [superAdmin.id]);
@@ -520,7 +525,7 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body || {};
     if (!oldPassword || !newPassword) return res.status(400).json({ error: '请输入旧密码和新密码' });
-    if (newPassword.length < 6) return res.status(400).json({ error: '新密码至少6位' });
+    if (newPassword.length < 12 || newPassword.length > 128) return res.status(400).json({ error: '新密码长度必须为 12 至 128 个字符' });
     if (!verifyPassword(oldPassword, req.superAdmin.password_hash)) {
       return res.status(401).json({ error: '旧密码错误' });
     }
