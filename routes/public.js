@@ -6,9 +6,11 @@ module.exports = function(app, deps) {
 
   app.get('/api/public/config', async (req, res) => {
     try {
-      const storeId = parseInt(req.query.store_id || '1', 10);
-      const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [storeId]);
-      const merchantId = store?.merchant_id || 1;
+      const storeId = Number(req.query.store_id ?? 1);
+      if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(400).json({ error: '店铺编号无效' });
+      const store = await getAsync('SELECT id, merchant_id FROM stores WHERE id=? AND active=1', [storeId]);
+      if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
+      const merchantId = store.merchant_id;
       const currencies = await allAsync(
         'SELECT code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code',
         [merchantId]
@@ -77,7 +79,10 @@ module.exports = function(app, deps) {
 
   app.get('/api/public/categories', async (req, res) => {
     try {
-      const storeId = parseInt(req.query.store_id || '1', 10);
+      const storeId = Number(req.query.store_id ?? 1);
+      if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(400).json({ error: '店铺编号无效' });
+      const store = await getAsync('SELECT id FROM stores WHERE id=? AND active=1', [storeId]);
+      if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       const rows = await allAsync('SELECT id, name, sort FROM menu_categories WHERE store_id=? ORDER BY sort', [storeId]);
       res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
