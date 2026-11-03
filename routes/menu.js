@@ -180,7 +180,7 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
       try {
         const itemName = typeof item.name === 'string' ? item.name.trim() : '';
         const itemPrice = typeof item.price === 'number' || typeof item.price === 'string' ? Number(item.price) : NaN;
-        const itemCurrency = String(itemCurrency).trim().toUpperCase();
+        const itemCurrency = String(item.currency_code || 'USD').trim().toUpperCase();
         if (!itemName || itemName.length > 120 || !Number.isFinite(itemPrice) || itemPrice <= 0) {
           failed++;
           errors.push(`第 ${i+1} 行：菜品名称无效或价格必须是大于 0 的有效数字`);
