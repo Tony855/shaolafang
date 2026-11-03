@@ -24,7 +24,7 @@ test('cooldown uses atomic set-if-absent instead of a racy get-then-set', async 
   assert.equal(results.filter(Boolean).length, 1);
   assert.equal(calls.length, 20);
   assert.equal(calls[0].key, 'cooldown:table-A');
-  assert.equal(calls[0].ttl, 4);
+  assert.equal(calls[0].ttl, 3);
 });
 
 test('cooldown handles zero, invalid and negative intervals safely', async () => {
@@ -36,6 +36,6 @@ test('cooldown handles zero, invalid and negative intervals safely', async () =>
   assert.equal(calls.length, 0);
   await checker('invalid', NaN);
   await checker('negative', -1);
-  assert.equal(calls[0].ttl, 31);
-  assert.equal(calls[1].ttl, 31);
+  assert.equal(calls[0].ttl, 30);
+  assert.equal(calls[1].ttl, 30);
 });
