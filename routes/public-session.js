@@ -126,8 +126,7 @@ module.exports = function(app, deps) {
         [sessionStoreId]
       );
       if (!activeStore) return res.status(404).json({ error: '店铺不存在或已停用' });
-      const customerToken = crypto.randomBytes(16).toString('base64url');
-      res.json({ table: session.table_name, storeId: sessionStoreId, sessionToken, customerToken, expiresAt: session.expires_at });
+      res.json({ table: session.table_name, storeId: sessionStoreId, sessionToken, expiresAt: session.expires_at });
     } catch (error) {
       res.status(500).json({ error: '读取扫码会话失败' });
     }
