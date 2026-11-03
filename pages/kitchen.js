@@ -500,10 +500,8 @@
     // Socket（传 kitchenToken + 防抖）
     if (typeof io === 'function') {
       const socket = io({
-        query: {
-          storeId: SLF.store.rawGet('waiterStoreId') || SLF.store.rawGet('storeId') || 1,
-          token: SLF.store.rawGet('kitchenToken') || ''
-        }
+        query: { storeId: SLF.store.rawGet('waiterStoreId') || SLF.store.rawGet('storeId') || 1 },
+        auth: { token: SLF.store.rawGet('kitchenToken') || '' }
       });
 
       // ============ 优化：本地增量更新，避免全量拉取 ============
