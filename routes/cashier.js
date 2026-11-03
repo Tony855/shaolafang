@@ -181,13 +181,43 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
       return res.status(400).json({ error: '现金实收金额不足' });
     }
     const cashChange = paymentMethod.toLowerCase() === 'cash' ? Math.round((cashReceived - totalAmount) * 100) / 100 : 0;
-    const tableNames = [...new Set(orders.map(o => o.table_name))];
+    let settlementOrders = orders;
+    let tableNames = [...new Set(orders.map(o => o.table_name))];
     await withTransaction(async () => {
-      for (let index = 0; index < orders.length; index++) {
-        const order = orders[index];
+      // Lock all selected orders in stable ID order and revalidate the live
+      // amounts/items before recording payment.
+      const lockedOrders = await allAsync(
+        "SELECT * FROM orders WHERE id IN (" + placeholders + ") AND store_id=? AND status='pending' ORDER BY id FOR UPDATE",
+        [...orderIds, req.storeId]
+      );
+      if (lockedOrders.length !== orderIds.length) {
+        const error = new Error('部分订单状态已变化，批量结算已取消');
+        error.status = 409;
+        throw error;
+      }
+      const lockedTotal = Math.round(lockedOrders.reduce((sum, item) => sum + Number(item.total), 0) * 100) / 100;
+      if (!Number.isFinite(lockedTotal) || lockedTotal !== totalAmount ||
+          (paymentMethod.toLowerCase() === 'cash' && cashReceived < lockedTotal)) {
+        const error = new Error('订单金额已变化，请刷新后重新核对收款金额');
+        error.status = 409;
+        throw error;
+      }
+      for (const order of lockedOrders) {
+        let liveItems;
+        try { liveItems = JSON.parse(order.items || '[]'); } catch (_) { liveItems = null; }
+        if (!Array.isArray(liveItems) || !liveItems.length || !liveItems.every(item => item.itemStatus === 'done')) {
+          const error = new Error('订单 ' + (order.order_no || order.id) + ' 存在未完成菜品或数据异常');
+          error.status = 409;
+          throw error;
+        }
+      }
+      settlementOrders = lockedOrders;
+      tableNames = [...new Set(lockedOrders.map(o => o.table_name))];
+      for (let index = 0; index < settlementOrders.length; index++) {
+        const order = settlementOrders[index];
         // Allocate any batch cash change to the final order so per-order totals
         // reconcile with the aggregate cash tendered and change in the audit log.
-        const orderCashChange = paymentMethod.toLowerCase() === 'cash' && index === orders.length - 1 ? cashChange : 0;
+        const orderCashChange = paymentMethod.toLowerCase() === 'cash' && index === settlementOrders.length - 1 ? cashChange : 0;
         const orderCashReceived = paymentMethod.toLowerCase() === 'cash' ? Number(order.total) + orderCashChange : 0;
         const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [now, paymentMethod, orderCashReceived, orderCashChange, order.id, req.storeId]);
         if (!updated.affectedRows) {
@@ -202,7 +232,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         if (!left || Number(left.cnt) === 0) await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [tableName, req.storeId]);
       }
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ['cashier', 0, req.cashier.username, 'batch_settle', JSON.stringify({ order_ids: orders.map(o => o.id), tables: tableNames, count: orders.length, total: totalAmount.toFixed(2), pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), now]);
+        ['cashier', 0, req.cashier.username, 'batch_settle', JSON.stringify({ order_ids: settlementOrders.map(o => o.id), tables: tableNames, count: settlementOrders.length, total: totalAmount.toFixed(2), pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), now]);
     });
     let printed = false, printError = null;
     const autoPrintRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", ['auto_print_receipt_' + req.storeId]);
@@ -211,13 +241,13 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         const printer = await getAsync('SELECT * FROM printers WHERE store_id=? AND is_default=1 AND active=1', [req.storeId]);
         const store = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
         if (printer && printer.type === 'network' && printer.ip_address) {
-          const printData = buildBatchReceipt(orders, store, printer);
+          const printData = buildBatchReceipt(settlementOrders, store, printer);
           await printToNetworkPrinter(printData, printer.ip_address, printer.port);
           printed = true;
         }
       } catch (pe) { printError = pe.message; }
     }
-    res.json({ success: true, settled: orders.length, total: totalAmount.toFixed(2), printed, printError });
+    res.json({ success: true, settled: settlementOrders.length, total: totalAmount.toFixed(2), printed, printError });
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
