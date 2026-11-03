@@ -18,7 +18,14 @@ module.exports = function(app, deps) {
     const base = path.basename(String(name || '').split(String.fromCharCode(92)).join('/'));
     if (!base || base === '.' || base === '..') return null;
     const resolved = path.resolve(root, base);
-    return resolved.startsWith(root + path.sep) ? resolved : null;
+    if (!resolved.startsWith(root + path.sep)) return null;
+    try {
+      const realRoot = fs.realpathSync(root);
+      const realFile = fs.realpathSync(resolved);
+      return realFile.startsWith(realRoot + path.sep) ? realFile : null;
+    } catch (_) {
+      return null;
+    }
   }
 
 app.get('/api/menu', async (req, res) => {
