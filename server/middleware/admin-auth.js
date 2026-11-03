@@ -95,7 +95,7 @@ async function requireAdminKey(req, res, next) {
     req.merchantId = result.merchantId;
     req.adminSessionToken = result.sessionToken;
     req.storeId = Number.isSafeInteger(Number(result.storeId)) && Number(result.storeId) !== 0 ? Number(result.storeId) : -1;
-    // 未选店铺时 storeId = 0，业务层自己处理（查询返回空数据）
+    // 未选店铺时已默认当前商户首店；无门店时使用 -1，防止旧路由回退到全局店铺 1
     // 只要 X-Store-Id 存在但无效，authenticateAdmin 已经返回 error，不会走到这里
     try {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [result.adminId]);
