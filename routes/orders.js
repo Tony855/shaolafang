@@ -381,14 +381,6 @@ app.post('/api/orders', async (req, res) => {
     if (isWaiter && waiter.store_id !== storeId) return res.status(403).json({ error: '不能为其他店铺的桌号下单' });
     const finalStoreId = sessionStoreId || storeId;
 
-    // ---------- 3. 冷却检查 ----------
-    const cooldownKey = sessionToken || ('store:' + finalStoreId + ':table:' + table);
-    const cooldownMs = await getOrderCooldownMs();
-    const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs);
-    if (!canSubmit) {
-      return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
-    }
-
     // ---------- 4. 菜品规范化与上限校验 ----------
     const rawItems = req.body.items;
     if (!Array.isArray(rawItems) || rawItems.length === 0) {
@@ -453,6 +445,16 @@ app.post('/api/orders', async (req, res) => {
     if (resetPeriod === 'monthly') seqPrefix = orderPrefix + yyddmm.slice(0, 4);
     else if (resetPeriod === 'yearly') seqPrefix = orderPrefix + yyddmm.slice(0, 2);
     else if (resetPeriod === 'never') seqPrefix = orderPrefix + 'GL';
+
+    // ---------- 7. 原子冷却检查 ----------
+    // Acquire the cooldown only after the payload has passed validation. Invalid
+    // requests must not lock a customer's QR session and block a valid order.
+    const cooldownKey = sessionToken || ('store:' + finalStoreId + ':table:' + table);
+    const cooldownMs = await getOrderCooldownMs();
+    const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs);
+    if (!canSubmit) {
+      return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
+    }
 
     // ---------- 7. 事务：分配订单号 + 写订单 + 更新销量 + 更新桌台 + 重置会话 ----------
     let createdOrder;
