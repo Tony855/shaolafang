@@ -220,12 +220,12 @@ module.exports = function(app, deps) {
         headers = ['ID','名称','英文名','价格','货币','分类','单位','状态'];
       } else if (type === 'sales') {
         rows = await allAsync(`
-          SELECT m.id, m.name, m.price, SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS total_qty,
+          SELECT m.id, m.name, m.price, SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)))) AS total_qty,
                  SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0))) * COALESCE(
-                   CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].base_price')) AS DECIMAL(12,4)),
-                   CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].price')) AS DECIMAL(12,4)),
-                   m.price
-                 )) AS total_revenue
+                    CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].base_price')) AS DECIMAL(12,4)),
+                    CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].price')) AS DECIMAL(12,4)),
+                    m.price
+                  )) AS total_revenue
           FROM orders o
           JOIN (${JSON_ITEM_INDEXES}) n
             ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
@@ -282,7 +282,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
         // ===== 订单明细 =====
         const stPlaceholders = statuses.map(() => '?').join(',');
         const params = [storeId, startIso, endIso, ...statuses];
-        let sql = `SELECT id, order_no, table_name, total, status, pay_method, note, createdAt FROM orders
+        let sql = `SELECT id, order_no, table_name, total, status, pay_method, note, createdAt, settled_at FROM orders
                    WHERE store_id=? AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ? AND status IN (${stPlaceholders})`;
         if (payMethods.length) {
           sql += ` AND pay_method IN (${payMethods.map(() => '?').join(',')})`;
@@ -291,7 +291,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
         sql += ' ORDER BY createdAt DESC';
         const rows = await allAsync(sql, params);
 
-        csv = '\uFEFF订单ID,订单号,桌号,金额,状态,支付方式,备注,下单时间\n';
+        csv = '\uFEFF订单ID,订单号,桌号,金额,状态,支付方式,备注,下单时间,结算时间\n';
         for (const r of rows) {
           csv += [
             r.id,
@@ -301,7 +301,8 @@ module.exports.attachAdvancedExport = function(app, deps) {
             r.status,
             r.pay_method || '',
             `"${(r.note || '').replace(/"/g, '""')}"`,
-            r.createdAt
+            r.createdAt,
+            r.settled_at || ''
           ].join(',') + '\n';
         }
         filename = `orders_${startDate}_${endDate}.csv`;
