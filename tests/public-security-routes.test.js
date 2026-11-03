@@ -289,3 +289,78 @@ test('waiter-call cooldown remains active after older calls leave the rolling co
   assert.equal(res.body.cooldownMinutes, 5);
   assert.equal(inserted, false);
 });
+
+
+test('order creation rechecks the QR session after locking the table', async () => {
+  const { app, routes } = routeHarness();
+  const queries = [];
+  const writes = [];
+  let sessionReads = 0;
+  const validSession = {
+    table_name: 'A1',
+    store_id: 7,
+    expires_at: new Date(Date.now() + 60000).toISOString()
+  };
+  require('../routes/orders')(app, {
+    authenticateAdmin: async () => null,
+    getWaiterFromRequest: async () => null,
+    getAsync: async (sql) => {
+      queries.push(sql);
+      if (sql.includes('FROM scan_sessions') && sql.includes('FOR UPDATE')) {
+        sessionReads++;
+        return null; // Session was removed by a concurrent table move after the first read.
+      }
+      if (sql.includes('FROM scan_sessions')) return validSession;
+      if (sql.includes('FROM tables')) return { store_id: 7, id: 1 };
+      if (sql.includes('max_order_items')) return { value: '50' };
+      if (sql.includes('max_item_quantity')) return { value: '100' };
+      if (sql.includes('max_order_note_length')) return { value: '200' };
+      if (sql.includes('SELECT merchant_id FROM stores')) return { merchant_id: 7 };
+      if (sql.includes('order_prefix_normal')) return { value: '11' };
+      if (sql.includes('order_no_reset_period')) return { value: 'never' };
+      return null;
+    },
+    runAsync: async (sql, params) => { writes.push({ sql, params }); return { lastID: 99, affectedRows: 1 }; },
+    allAsync: async () => [],
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    requireAdminOrWaiter: pass,
+    getWaiterFromRequest: async () => null,
+    formatOrder: value => value,
+    normalizeOrderItems: async () => [{ id: 1, name: 'Tea', quantity: 1, base_price: 2, itemStatus: 'done' }],
+    assertTableExists: async () => 'A1',
+    syncTableStatus: async () => {},
+    ensureOrderTables: async () => {},
+    io: { to: () => ({ emit() {} }) },
+    getClientIp: () => '127.0.0.1',
+    logAudit: async () => {},
+    upload: {},
+    UPLOAD_DIR: '/tmp',
+    path: require('node:path'),
+    allocateOrderNo: async () => '11000001',
+    getOrderCooldownMs: async () => 0,
+    createTableToken: () => 'unused',
+    buildReceipt: () => Buffer.from(''),
+    buildKitchenTicket: () => Buffer.from(''),
+    printToNetworkPrinter: async () => {},
+    dispatchPrint: async () => ({ printed: false }),
+    verifyPassword: () => true,
+    checkAndSetCooldown: async () => true,
+    withTransaction: async fn => fn()
+  });
+
+  const handler = routes.get('POST /api/orders').at(-1);
+  const res = response();
+  await handler({
+    body: { table: 'A1', sessionToken: 'qr-session', customerToken: 'customer-token', items: [{ id: 1, quantity: 1 }] },
+    get: () => ''
+  }, res);
+
+  assert.equal(res.statusCode, 401);
+  assert.equal(sessionReads, 1);
+  const lockIndex = queries.findIndex(sql => sql.includes('FROM tables') && sql.includes('FOR UPDATE'));
+  const sessionLockIndex = queries.findIndex(sql => sql.includes('FROM scan_sessions') && sql.includes('FOR UPDATE'));
+  assert.ok(lockIndex >= 0);
+  assert.ok(sessionLockIndex > lockIndex);
+  assert.equal(writes.some(write => write.sql.includes('INSERT INTO orders')), false);
+});
