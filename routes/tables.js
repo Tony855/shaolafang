@@ -28,17 +28,32 @@ app.get('/api/tables', requireAdminOrWaiter, async (req, res) => {
 
 app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
   try {
-    const { name, status } = req.body;
-    if (!name) return res.status(400).json({ error: '桌号名称必填' });
-    const result = await runAsync(
-      'INSERT INTO tables (name, status, store_id, merchant_id) VALUES (?, ?, ?, ?)',
-      [name, status || 'available', req.storeId || 1, req.merchantId]
-    );
-    await runAsync('UPDATE tables SET qr_token=? WHERE id=?', [createTableToken(), result.lastID]);
-    const newTable = await getAsync('SELECT * FROM tables WHERE id = ?', [result.lastID]);
+    const storeId = Number(req.storeId);
+    const merchantId = Number(req.merchantId);
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const status = req.body?.status || 'available';
+    if (!Number.isSafeInteger(storeId) || storeId <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+      return res.status(400).json({ error: '店铺或商户信息无效' });
+    }
+    if (!name || name.length > 50) return res.status(400).json({ error: '桌号名称必须为 1 至 50 个字符' });
+    if (!['available', 'occupied', 'reserved'].includes(status)) {
+      return res.status(400).json({ error: '无效的桌号状态' });
+    }
+
+    const newTable = await withTransaction(async () => {
+      const result = await runAsync(
+        'INSERT INTO tables (name, status, qr_token, store_id, merchant_id) VALUES (?, ?, ?, ?, ?)',
+        [name, status, createTableToken(), storeId, merchantId]
+      );
+      return getAsync(
+        'SELECT id, name, status, store_id FROM tables WHERE id=? AND store_id=?',
+        [result.lastID, storeId]
+      );
+    });
     res.status(201).json(newTable);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    if (e && e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该桌号名称已存在' });
+    res.status(e.status || 500).json({ error: e.status ? e.message : '创建桌台失败' });
   }
 });
 
@@ -111,44 +126,93 @@ app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
 // ----- 转移订单 -----
 app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
   try {
-    const id = req.params.id;
-    const existing = await getAsync('SELECT * FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
-    if (!existing) return res.status(404).json({ error: '桌号不存在' });
-    const newName = req.body.name !== undefined ? String(req.body.name).trim() : existing.name;
-    const newStatus = req.body.status || existing.status;
-    if (!newName) return res.status(400).json({ error: '桌号名称不能为空' });
-    if (!['available', 'occupied', 'reserved'].includes(newStatus)) {
-      return res.status(400).json({ error: '无效的桌号状态' });
+    const storeId = Number(req.storeId);
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0 || !Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({ error: '桌台或店铺信息无效' });
     }
-    try {
-      await runAsync('UPDATE tables SET name=?, status=? WHERE id=? AND store_id=?', [newName, newStatus, id, req.storeId]);
-    } catch (e) {
-      if (e && e.code === 'ER_DUP_ENTRY') {
-        return res.status(409).json({ error: '该桌号名称已存在，请换一个' });
+
+    const updated = await withTransaction(async () => {
+      const existing = await getAsync(
+        'SELECT id, name, status FROM tables WHERE id=? AND store_id=? FOR UPDATE',
+        [id, storeId]
+      );
+      if (!existing) throw Object.assign(new Error('桌号不存在'), { status: 404 });
+      const newName = req.body?.name !== undefined ? String(req.body.name).trim() : existing.name;
+      const newStatus = req.body?.status || existing.status;
+      if (!newName || newName.length > 50) {
+        throw Object.assign(new Error('桌号名称必须为 1 至 50 个字符'), { status: 400 });
       }
-      throw e;
-    }
-    if (newName !== existing.name) {
-      await runAsync("UPDATE orders SET table_name=? WHERE table_name=? AND store_id=? AND status=\"pending\"", [newName, existing.name, req.storeId]);
-    }
-    const updated = await getAsync('SELECT * FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
+      if (!['available', 'occupied', 'reserved'].includes(newStatus)) {
+        throw Object.assign(new Error('无效的桌号状态'), { status: 400 });
+      }
+
+      await runAsync('UPDATE tables SET name=?, status=? WHERE id=? AND store_id=?', [newName, newStatus, id, storeId]);
+      if (newName !== existing.name) {
+        // Keep every active reference aligned with the renamed table in the same transaction.
+        await runAsync(
+          "UPDATE orders SET table_name=? WHERE table_name=? AND store_id=? AND status='pending'",
+          [newName, existing.name, storeId]
+        );
+        await runAsync(
+          'UPDATE scan_sessions SET table_name=? WHERE table_name=? AND store_id=?',
+          [newName, existing.name, storeId]
+        );
+        await runAsync(
+          "UPDATE waiter_calls SET table_name=? WHERE table_name=? AND store_id=? AND status='pending'",
+          [newName, existing.name, storeId]
+        );
+        await runAsync(
+          "UPDATE reservations SET table_name=? WHERE table_name=? AND store_id=? AND status IN ('pending','confirmed')",
+          [newName, existing.name, storeId]
+        );
+      }
+      return getAsync('SELECT id, name, status, store_id FROM tables WHERE id=? AND store_id=?', [id, storeId]);
+    });
     res.json(updated);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    if (e && e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该桌号名称已存在，请换一个' });
+    res.status(e.status || 500).json({ error: e.status ? e.message : '更新桌台失败' });
   }
 });
 
 app.delete('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
   try {
-    const id = req.params.id;
-    const existing = await getAsync('SELECT * FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
-    if (!existing) return res.status(404).json({ error: '桌号不存在' });
-    const orderCount = await getAsync("SELECT COUNT(*) AS count FROM orders WHERE table_name = ? AND store_id = ? AND status != 'canceled'", [existing.name, req.storeId]);
-    if (orderCount.count > 0) return res.status(409).json({ error: '该桌仍有未完成订单，不能删除' });
-    await runAsync('DELETE FROM tables WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    const storeId = Number(req.storeId);
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0 || !Number.isSafeInteger(id) || id <= 0) {
+      return res.status(400).json({ error: '桌台或店铺信息无效' });
+    }
+
+    await withTransaction(async () => {
+      const existing = await getAsync(
+        'SELECT id, name FROM tables WHERE id=? AND store_id=? FOR UPDATE',
+        [id, storeId]
+      );
+      if (!existing) throw Object.assign(new Error('桌号不存在'), { status: 404 });
+
+      const pendingOrders = await getAsync(
+        "SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+        [existing.name, storeId]
+      );
+      const pendingCalls = await getAsync(
+        "SELECT COUNT(*) AS count FROM waiter_calls WHERE table_name=? AND store_id=? AND status='pending'",
+        [existing.name, storeId]
+      );
+      const activeReservations = await getAsync(
+        "SELECT COUNT(*) AS count FROM reservations WHERE table_name=? AND store_id=? AND status IN ('pending','confirmed')",
+        [existing.name, storeId]
+      );
+      if (Number(pendingOrders?.count || 0) || Number(pendingCalls?.count || 0) || Number(activeReservations?.count || 0)) {
+        throw Object.assign(new Error('该桌仍有关联的未结订单、待处理呼叫或有效预约，不能删除'), { status: 409 });
+      }
+
+      await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [existing.name, storeId]);
+      await runAsync('DELETE FROM tables WHERE id=? AND store_id=?', [id, storeId]);
+    });
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(e.status || 500).json({ error: e.status ? e.message : '删除桌台失败' });
   }
 });
 
