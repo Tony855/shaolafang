@@ -305,10 +305,22 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
-    if (order.status === 'done') return res.status(400).json({ error: '已结算订单不能取消，请使用退款' });
-    await runAsync("UPDATE orders SET status='canceled', createdAt=? WHERE id=? AND store_id=?", [new Date().toISOString(), id, req.storeId]);
-    await syncTableStatus(order.table_name, req.storeId);
-    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), new Date().toISOString()]);
+    if (order.status !== 'pending') return res.status(400).json({ error: '只有待处理订单可以取消' });
+    const canceledAt = new Date().toISOString();
+    await withTransaction(async () => {
+      const canceled = await runAsync(
+        "UPDATE orders SET status='canceled' WHERE id=? AND store_id=? AND status='pending'",
+        [id, req.storeId]
+      );
+      if (!canceled.affectedRows) {
+        const error = new Error('订单状态已变化，取消操作已中止');
+        error.status = 409;
+        throw error;
+      }
+      await syncTableStatus(order.table_name, req.storeId);
+      await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), canceledAt]);
+    });
     res.json({ success: true, message: '取消成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
