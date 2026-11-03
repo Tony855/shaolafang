@@ -60,6 +60,12 @@ app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), 
 // ----- 整桌转移：把整个桌的所有未结算订单转到目标桌 -----
 app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
   try {
+    if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_table)) {
+      return res.status(403).json({ error: '没有桌台管理权限' });
+    }
+    if (req.waiter && !req.waiter.can_order) {
+      return res.status(403).json({ error: '该服务员没有桌台操作权限' });
+    }
     const storeId = Number(req.isAdmin ? req.storeId : req.waiterStoreId);
     if (!Number.isSafeInteger(storeId) || storeId <= 0) {
       return res.status(403).json({ error: '无权访问该店铺桌台' });
