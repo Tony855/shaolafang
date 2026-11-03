@@ -112,7 +112,18 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     io.to('kitchen-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     io.to('waiter-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
     io.to('cashier-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
-    io.to('public-store-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
+    io.to('public-table-' + (updatedRow.store_id || 1) + '-' + updatedRow.table_name).emit('item:updated', {
+      orderId: id,
+      order: {
+        id: updatedOrder.id,
+        order_no: updatedOrder.order_no,
+        table_name: updatedOrder.table_name,
+        items: updatedOrder.items.map(item => ({ id: item.id, name: item.name, quantity: item.quantity, itemStatus: item.itemStatus, returnedQty: item.returnedQty || 0 })),
+        total: updatedOrder.total,
+        status: updatedOrder.status,
+        createdAt: updatedOrder.createdAt
+      }
+    });
     res.json(updatedOrder);
   } catch (e) {
     console.error('切换菜品状态失败:', e);
@@ -335,7 +346,15 @@ app.post('/api/orders', async (req, res) => {
     io.to('kitchen-' + (newRow.store_id || 1)).emit('order:new', orderData);
     io.to('waiter-' + (newRow.store_id || 1)).emit('order:new', orderData);
     io.to('cashier-' + (newRow.store_id || 1)).emit('order:new', orderData);
-    io.to('public-store-' + (newRow.store_id || 1)).emit('order:new', orderData);
+    io.to('public-table-' + (newRow.store_id || 1) + '-' + newRow.table_name).emit('order:new', {
+      id: orderData.id,
+      order_no: orderData.order_no,
+      table_name: orderData.table_name,
+      items: orderData.items.map(item => ({ id: item.id, name: item.name, quantity: item.quantity, itemStatus: item.itemStatus })),
+      total: orderData.total,
+      status: orderData.status,
+      createdAt: orderData.createdAt
+    });
 
     const responseData = {
       success: true,
