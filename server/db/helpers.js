@@ -13,13 +13,13 @@ async function runAsync(sql, params) {
 }
 
 async function getAsync(sql, params) {
-  const db = transactionStorage.getStore() || pool;
+  const db = transactionStorage.getStore() || poolModule.pool;
   const [rows] = await db.execute(sql, params);
   return rows[0] || null;
 }
 
 async function allAsync(sql, params) {
-  const db = transactionStorage.getStore() || pool;
+  const db = transactionStorage.getStore() || poolModule.pool;
   const [rows] = await db.execute(sql, params);
   return rows;
 }
