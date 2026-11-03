@@ -238,9 +238,15 @@ if [ -z "$MYSQL_CMD" ]; then
     exit 1
 fi
 
-# 7.4 创建数据库（先删除旧的，确保干净）
-log_info "创建数据库..."
-$MYSQL_CMD -e "DROP DATABASE IF EXISTS \`$DEFAULT_DB_NAME\`;"
+# 7.4 安全创建数据库：已有业务库时绝不自动删除或覆盖。
+log_info "检查数据库是否已存在..."
+DB_EXISTS=$($MYSQL_CMD -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$DEFAULT_DB_NAME';")
+if [ "${DB_EXISTS:-0}" -gt 0 ]; then
+    log_error "数据库 $DEFAULT_DB_NAME 已存在。为保护生产数据，安装程序拒绝 DROP/覆盖。"
+    log_error "请先完成独立备份；已有系统升级请使用升级流程，不要重新初始化数据库。"
+    exit 1
+fi
+log_info "创建全新数据库..."
 $MYSQL_CMD -e "CREATE DATABASE \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 7.5 创建数据库用户（先删除旧用户，确保密码正确）
@@ -283,6 +289,11 @@ rm -f "$APP_DIR/db-test.js"
 # 7.7 写入 .env 文件（始终覆盖）
 ENV_FILE="$APP_DIR/.env"
 log_info "写入环境变量配置..."
+if [ -e "$ENV_FILE" ]; then
+    log_error "检测到现有 .env。为避免覆盖生产密钥和数据库凭据，安装程序已停止。"
+    log_error "请备份并人工迁移现有配置后再进行首次初始化。"
+    exit 1
+fi
 
 cat > "$ENV_FILE" << EOF
 PORT=3000
