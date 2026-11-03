@@ -359,7 +359,7 @@ sudo bash onekey-install.sh
 ✅ 安装完成。
 👉 顾客点餐页：http://你的服务器IP
 👉 后台管理：http://你的服务器IP/login
-👉 默认后台密码：admin123
+👉 初始密码：系统随机生成，见 /var/lib/foodflow/initial-credentials.txt
 👉 数据库 root 密码已保存至：/root/.mysql_root_password
 ```
 
@@ -457,7 +457,7 @@ node server.js
   - VND 越南盾（汇率 25000）
 - **双货币显示**: 默认启用，第二货币为柬埔寨瑞尔（KHR）
 - **桌台**: 12 个桌台（A01-A04, B01-B04, C01-C04）
-- **管理员**: 密码 `admin123`
+- **管理员**: 首次密码随机生成，见 `/var/lib/foodflow/initial-credentials.txt`
 
 ---
 
@@ -507,8 +507,8 @@ pm2 start server.js --name foodflow
 
 ### 管理员账号
 - **登录方式**: 密码登录
-- **默认密码**: `admin123`
-- **后台密钥**: `admin-key-2026`（API 调用使用）
+- **初始密码**: 首次初始化时随机生成，见 `/var/lib/foodflow/initial-credentials.txt`
+- **后台 API 密钥**: 默认未启用；如有需要请单独配置高强度密钥
 - **首次登录后请立即修改密码**
 
 ### 服务员账号
