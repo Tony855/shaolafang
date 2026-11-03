@@ -201,7 +201,7 @@ test('table deletion is blocked while pending orders or active reservations rema
       if (sql.includes('FROM reservations')) return { count: 1 };
       return null;
     },
-    allAsync: async () => [],
+    allAsync: async sql => sql.includes('FROM reservations') ? [{ id: 1 }] : [],
     runAsync: async sql => { writes.push(sql); return { affectedRows: 1 }; },
     withTransaction: async fn => fn(),
     syncTableStatus: async () => {},
