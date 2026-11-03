@@ -25,14 +25,15 @@ module.exports = function(app, deps) {
   app.post('/api/admin/change-password', requireAdminKey, async (req, res) => {
     try {
       const { oldPassword, newPassword } = req.body;
-      if (!oldPassword || !newPassword || newPassword.length < 6) {
-        return res.status(400).json({ error: '请提供旧密码和新密码（新密码至少6位）' });
+      if (!oldPassword || !newPassword || newPassword.length < 12 || newPassword.length > 128) {
+        return res.status(400).json({ error: '请提供旧密码和新密码（新密码长度为 12 至 128 个字符）' });
       }
       const admin = await getAsync('SELECT id, username, password_hash FROM merchant_admins WHERE id=?', [req.adminId]);
       if (!admin) return res.status(401).json({ error: '管理员不存在' });
       if (!verifyPassword(oldPassword, admin.password_hash)) return res.status(401).json({ error: '旧密码错误' });
       const hash = hashPassword(newPassword);
-      await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=?', [hash, req.adminId]);
+      await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=? AND merchant_id=?', [hash, req.adminId, req.merchantId]);
+      await runAsync('DELETE FROM admin_sessions WHERE admin_id=? AND token<>?', [req.adminId, req.adminSessionToken || '']);
       await logAudit('merchant_admin', req.adminId, admin.username, 'change_password', 'merchant_admin', req.adminId, '修改管理员密码', getClientIp(req));
       res.json({ success: true, message: '密码已更新' });
     } catch (e) { res.status(500).json({ error: e.message }); }
