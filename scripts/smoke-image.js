@@ -19,8 +19,10 @@ async function main() {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foodflow-image-smoke-'));
   try {
     const image = new Jimp({ width: 512, height: 512, color: 0xffffffff });
+    let state = 0x12345678;
     for (let i = 0; i < image.bitmap.data.length; i += 4) {
-      const pixel = (i * 37 + Math.floor(i / 4) * 19) & 255;
+      state ^= state << 13; state ^= state >>> 17; state ^= state << 5;
+      const pixel = state & 255;
       image.bitmap.data[i] = pixel;
       image.bitmap.data[i + 1] = (pixel * 7) & 255;
       image.bitmap.data[i + 2] = (pixel * 13) & 255;
