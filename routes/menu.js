@@ -9,6 +9,14 @@ const { compressImage } = require("../server/services/image-compress");
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
+  function resolveUploadFile(name) {
+    const root = path.resolve(UPLOAD_DIR);
+    const base = path.basename(String(name || '').replace(/\\\\/g, '/'));
+    if (!base || base === '.' || base === '..') return null;
+    const resolved = path.resolve(root, base);
+    return resolved.startsWith(root + path.sep) ? resolved : null;
+  }
+
 app.get('/api/menu', async (req, res) => {
   try {
     const storeId = parseInt(req.query.store_id || '1', 10);
@@ -117,8 +125,8 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
             if (/^https?:\/\//i.test(updImgRaw)) {
               updImage = await downloadImageToUploads(updImgRaw);
             } else {
-              const lp = path.join(UPLOAD_DIR, updImgRaw);
-              if (fs.existsSync(lp)) updImage = updImgRaw;
+              const lp = resolveUploadFile(updImgRaw);
+              if (lp && fs.existsSync(lp) && fs.statSync(lp).isFile()) updImage = path.basename(lp);
             }
           }
           if (updImage) {
@@ -167,8 +175,8 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
             if (/^https?:\/\//i.test(rawImg)) {
               imageName = await downloadImageToUploads(rawImg) || '';
             } else {
-              const localPath = path.join(UPLOAD_DIR, rawImg);
-              if (fs.existsSync(localPath)) imageName = rawImg;
+              const localPath = resolveUploadFile(rawImg);
+              if (localPath && fs.existsSync(localPath) && fs.statSync(localPath).isFile()) imageName = path.basename(localPath);
             }
           }
           await runAsync(
@@ -225,8 +233,8 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
       } catch (e) { console.warn('[PUT /api/menu/:id] 压缩失败:', e.message); }
     }
     if (req.files && req.files.image && current.image) {
-      const oldPath = path.join(UPLOAD_DIR, current.image);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      const oldPath = resolveUploadFile(current.image);
+      if (oldPath && fs.existsSync(oldPath) && fs.statSync(oldPath).isFile()) fs.unlinkSync(oldPath);
     }
     await runAsync(
       'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, video=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=? AND store_id=?',
@@ -245,8 +253,8 @@ app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'
     const item = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!item) return res.status(404).json({ error: '菜品不存在' });
     if (item.image) {
-      const imgPath = path.join(UPLOAD_DIR, item.image);
-      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+      const imgPath = resolveUploadFile(item.image);
+      if (imgPath && fs.existsSync(imgPath) && fs.statSync(imgPath).isFile()) fs.unlinkSync(imgPath);
     }
     await runAsync('DELETE FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     res.json({ success: true });
