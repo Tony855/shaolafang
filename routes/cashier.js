@@ -270,7 +270,32 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     }
     const cashChange = paymentMethod.toLowerCase() === 'cash' ? Math.round((cashReceived - orderTotal) * 100) / 100 : 0;
     const settledAt = new Date().toISOString();
+    let settledTableName = order.table_name;
     await withTransaction(async () => {
+      // Lock and re-read the order so a concurrent edit cannot change the
+      // payable total/items after the cashier validated the stale snapshot.
+      const lockedOrder = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE', [id, req.storeId]);
+      if (!lockedOrder || lockedOrder.status !== 'pending') {
+        const error = new Error('订单状态已变化，请刷新后重试');
+        error.status = 409;
+        throw error;
+      }
+      const lockedTotal = Number(lockedOrder.total);
+      let lockedItems;
+      try { lockedItems = JSON.parse(lockedOrder.items || '[]'); } catch (_) { lockedItems = null; }
+      if (!Number.isFinite(lockedTotal) || lockedTotal <= 0 ||
+          Math.round(lockedTotal * 100) !== Math.round(orderTotal * 100) ||
+          !Array.isArray(lockedItems) || !lockedItems.length || !lockedItems.every(item => item.itemStatus === 'done')) {
+        const error = new Error('订单内容或金额已变化，请刷新后重新核对');
+        error.status = 409;
+        throw error;
+      }
+      if (paymentMethod.toLowerCase() === 'cash' && cashReceived < lockedTotal) {
+        const error = new Error('现金实收金额不足，请重新录入');
+        error.status = 400;
+        throw error;
+      }
+      settledTableName = lockedOrder.table_name;
       const settled = await runAsync(
         "UPDATE orders SET status='done', awaiting_confirm=0, settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'",
         [settledAt, paymentMethod, cashReceived, cashChange, id, req.storeId]
@@ -280,18 +305,18 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
-      await syncTableStatus(order.table_name, req.storeId);
-      const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [order.table_name, req.storeId]);
+      await syncTableStatus(settledTableName, req.storeId);
+      const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [settledTableName, req.storeId]);
       if (!stillPending || Number(stillPending.cnt) === 0) {
-        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [order.table_name, req.storeId]);
+        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [settledTableName, req.storeId]);
       }
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: order.table_name, total: order.total, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
+        ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: settledTableName, total: lockedOrder.total, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
     });
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
-    io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', { orderId: id });
+    io.to('public-table-' + req.storeId + '-' + settledTableName).emit('order:settled', { orderId: id });
     res.json({ success: true, message: '结算成功' });
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
