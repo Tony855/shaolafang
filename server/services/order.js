@@ -2,7 +2,7 @@
    server/services/order.js — 订单辅助函数
    ============================================================ */
 const { getAsync } = require('../db/helpers');
-const { verifyPassword } = require('../middleware/password');
+const { hashPassword, verifyPassword, needsRehash } = require('../middleware/password');
 
 function formatOrder(row) {
   let items = row.items;
@@ -88,8 +88,12 @@ async function assertTableExists(table, storeId) {
 
 async function verifyLegacyAdminPassword(inputPwd) {
   const row = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
-  if (!row || !row.value) return false;
-  return verifyPassword(inputPwd, row.value);
+  if (!row || !row.value || !verifyPassword(inputPwd, row.value)) return false;
+  if (needsRehash(row.value)) {
+    const upgradedHash = hashPassword(inputPwd);
+    await runAsync("UPDATE settings SET value=? WHERE `key` = 'admin_password' AND value=?", [upgradedHash, row.value]);
+  }
+  return true;
 }
 
 module.exports = { formatOrder, normalizeOrderItems, assertTableExists, verifyLegacyAdminPassword };
