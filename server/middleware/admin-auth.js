@@ -8,7 +8,7 @@ async function getWaiterFromRequest(req) {
   const token = req.get('X-Waiter-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
   const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-  if (!session || new Date(session.expires_at).getTime() <= Date.now()) return null;
+  if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
   return await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
 }
 
@@ -32,7 +32,7 @@ async function authenticateAdmin(req) {
   if (token) {
     const session = await getAsync('SELECT * FROM admin_sessions WHERE token=?', [token]);
     if (session) {
-      if (new Date(session.expires_at).getTime() <= Date.now()) {
+      if (!Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
         await runAsync('DELETE FROM admin_sessions WHERE token=?', [token]).catch(() => {});
         return { error: '登录已过期，请重新登录' };
       }
@@ -164,7 +164,7 @@ async function requireAdminOrWaiter(req, res, next) {
   const token = req.get('X-Waiter-Token') || bearerToken;
   if (token) {
     const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-    if (session && new Date(session.expires_at).getTime() > Date.now()) {
+    if (session && Number.isFinite(new Date(session.expires_at).getTime()) && new Date(session.expires_at).getTime() > Date.now()) {
       const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
       if (waiter) {
         req.waiter = waiter;
