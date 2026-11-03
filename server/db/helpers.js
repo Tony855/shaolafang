@@ -9,7 +9,7 @@ const transactionStorage = new AsyncLocalStorage();
 async function runAsync(sql, params) {
   const db = transactionStorage.getStore() || pool;
   const [result] = await db.execute(sql, params);
-  return { lastID: result.insertId, changes: result.affectedRows };
+  return { lastID: result.insertId, insertId: result.insertId, changes: result.affectedRows, affectedRows: result.affectedRows };
 }
 
 async function getAsync(sql, params) {
