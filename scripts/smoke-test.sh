@@ -55,11 +55,12 @@ S=$(sql "SELECT status FROM orders WHERE id=$ORDER_ID;")
 [ "$S" = "pending" ] && ok "status=pending" || bad "status=$S"
 
 step "4. 后厨标记菜品完成"
-WT=$(sql "SELECT token FROM waiter_sessions WHERE expires_at > NOW() ORDER BY id DESC LIMIT 1;")
-if [ -z "$WT" ]; then
-  # 没登录过 waiter，用收银 token 也能改状态（admin 权限）
-  WT=""
+if [ -z "${WAITER_USERNAME:-}" ] || [ -z "${WAITER_PASSWORD:-}" ]; then
+  load_credential waiter || { bad "缺少服务员凭据"; exit 1; }
+  WAITER_USERNAME="${WAITER_USERNAME:-$CRED_USERNAME}"
+  WAITER_PASSWORD="${WAITER_PASSWORD:-$CRED_PASSWORD}"
 fi
+WT=$(printf '{"username":"%s","password":"%s"}' "$WAITER_USERNAME" "$WAITER_PASSWORD" | curl -sS -X POST "$BASE/api/waiter/login" -H 'Content-Type: application/json' --data-binary @- | grep -oP '"token":"\K[^"]+')
 PUT_RESP=$(curl -sS -X PUT "$BASE/api/orders/$ORDER_ID/items/0" \
   -H "X-Waiter-Token: $WT" \
   -H 'Content-Type: application/json' \
