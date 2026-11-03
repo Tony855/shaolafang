@@ -27,6 +27,10 @@ app.post('/api/waiter/login', async (req, res) => {
       recordLoginAttempt(username, 'waiter');
       return res.status(401).json({ error: '服务员账号或密码错误' });
     }
+    if (needsRehash(waiter.password_hash)) {
+      const upgradedHash = hashPassword(password);
+      await runAsync('UPDATE waiters SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, waiter.id, waiter.password_hash]);
+    }
     resetLoginAttempts(username, 'waiter');
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '服务员登录成功']);
     const token = crypto.randomBytes(24).toString('base64url');
@@ -81,6 +85,20 @@ app.post('/api/cashier/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'cashier', '密码错误']);
       recordLoginAttempt(username, 'cashier');
       return res.status(401).json({ error: '收银员账号或密码错误' });
+    }
+    if (needsRehash(cashier.password_hash)) {
+      const settingKey = 'cashiers_' + targetStoreId;
+      const settingsRow = await getAsync('SELECT value FROM settings WHERE `key`=?', [settingKey]);
+      if (settingsRow) {
+        try {
+          const list = JSON.parse(settingsRow.value);
+          const index = list.findIndex(item => String(item.id) === String(cashier.id));
+          if (index >= 0 && list[index].password_hash === cashier.password_hash) {
+            list[index].password_hash = hashPassword(password);
+            await runAsync('UPDATE settings SET value=? WHERE `key`=?', [JSON.stringify(list), settingKey]);
+          }
+        } catch (e) { console.warn('[cashier] legacy password migration skipped:', e.message); }
+      }
     }
     resetLoginAttempts(username, 'cashier');
     const store = await getAsync('SELECT merchant_id, name FROM stores WHERE id=?', [targetStoreId]);
