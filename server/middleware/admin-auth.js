@@ -108,7 +108,8 @@ async function requireAdminKey(req, res, next) {
           can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
           can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
           can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
+          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
+          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
         };
       }
     } catch (e) { console.warn('加载管理员权限失败:', e.message); }
@@ -158,7 +159,8 @@ async function requireAdminOrWaiter(req, res, next) {
           can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
           can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
           can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
+          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
+          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
         };
       }
     } catch (e) { console.warn('加载管理员权限失败:', e.message); }
