@@ -1,6 +1,7 @@
 const express = require('express');
 // ★ 关键：pool / helpers / constants 必须在文件顶部 require（TDZ 问题）
-const { pool, poolConfig, setPool } = require('./server/db/pool');
+const poolModule = require('./server/db/pool');
+const { poolConfig, setPool } = poolModule;
 const { runAsync, getAsync, allAsync, withTransaction } = require('./server/db/helpers');
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
 const { initMerchantSettings, initStoreSettings } = require('./server/services/settings-init');
@@ -509,7 +510,7 @@ async function syncTableStatus(tableName, storeId) {
 
 async function initDatabase() {
   try {
-    await pool.getConnection();
+    await poolModule.pool.getConnection();
   } catch (err) {
     if (err.code === 'ER_BAD_DB_ERROR') {
       const tempPool = mysql.createPool({
@@ -1303,7 +1304,7 @@ initDatabase().then(async () => {
 
 const shutdown = createGracefulShutdown({
   io,
-  pool,
+  pool: { end: () => poolModule.pool.end() },
   getRedisClients: () => [redisClient, socketRedisPub, socketRedisSub],
   logger: console
 });
