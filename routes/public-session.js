@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const QRCode = require('qrcode');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, formatOrder } = deps;
+  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder } = deps;
 
   app.get('/api/qrcode/:table', async (req, res) => {
     try {
@@ -18,7 +18,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get('/api/tables/:id/qrcode', requireAdminKey, async (req, res) => {
+  app.get('/api/tables/:id/qrcode', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
     try {
       const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ? AND store_id = ?', [req.params.id, req.storeId]);
       if (!table) return res.status(404).json({ error: '桌号不存在' });
