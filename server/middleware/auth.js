@@ -13,7 +13,7 @@ async function requireSuperAdmin(req, res, next) {
     if (!token) return res.status(401).json({ error: '未登录' });
     const session = await getAsync('SELECT * FROM super_sessions WHERE token=?', [token]);
     if (!session) return res.status(401).json({ error: '登录已过期，请重新登录' });
-    if (new Date(session.expires_at).getTime() <= Date.now()) {
+    if (!Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
       await runAsync('DELETE FROM super_sessions WHERE token=?', [token]).catch(() => {});
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
@@ -37,7 +37,7 @@ async function requireCashier(req, res, next) {
     const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
     if (!token) return res.status(401).json({ error: '请先登录收银员账号' });
     const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
-    if (!session || new Date(session.expires_at).getTime() <= Date.now()) {
+    if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
     const cashiersData = await getAsync('SELECT value FROM settings WHERE `key` = ?', ['cashiers_' + session.store_id]);
@@ -109,7 +109,7 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
     const cashierToken = req.get('X-Cashier-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     if (cashierToken) {
       const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [cashierToken]);
-      if (session && new Date(session.expires_at).getTime() > Date.now()) {
+      if (session && Number.isFinite(new Date(session.expires_at).getTime()) && new Date(session.expires_at).getTime() > Date.now()) {
         const cashiersData = await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + session.store_id]);
         if (cashiersData) {
           let list = [];
