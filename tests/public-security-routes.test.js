@@ -143,6 +143,7 @@ test('waiter-call throttling and insert are serialized in a transaction', async 
         return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
       }
       if (sql.includes('FROM tables')) return { id: 1, store_id: 7 };
+      if (sql.includes('FROM stores')) return { id: 7 };
       if (sql.includes('COUNT(*)')) return { cnt: 0 };
       return null;
     },
@@ -268,6 +269,7 @@ test('waiter-call cooldown remains active after older calls leave the rolling co
         return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
       }
       if (sql.includes('FROM tables')) return { id: 1, store_id: 7 };
+      if (sql.includes('FROM stores')) return { id: 7 };
       return null;
     },
     allAsync: async sql => {
@@ -316,6 +318,7 @@ test('order creation rechecks the QR session after locking the table', async () 
       }
       if (sql.includes('FROM scan_sessions')) return validSession;
       if (sql.includes('FROM tables')) return { store_id: 7, id: 1 };
+      if (sql.includes('FROM stores')) return { id: 7 };
       if (sql.includes('max_order_items')) return { value: '50' };
       if (sql.includes('max_item_quantity')) return { value: '100' };
       if (sql.includes('max_order_note_length')) return { value: '200' };
