@@ -492,7 +492,7 @@ module.exports = function(app, deps) {
   });
 
   /* ===== 读取当前 KHQR 配置 ===== */
-  app.get('/api/admin/khqr/info', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/khqr/info', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
       const { storeId: sid, storeName } = await resolveKhqrStore(req);
       const payload = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + sid + '_khqr_static_payload']);
@@ -684,7 +684,7 @@ module.exports = function(app, deps) {
 
 
   /* ===== 列出所有 KHQR provider ===== */
-  app.get('/api/admin/khqr/providers', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/khqr/providers', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
       const { storeId: sid } = await resolveKhqrStore(req);
       const list = await loadKhqrProviders(sid);
