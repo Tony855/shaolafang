@@ -97,6 +97,11 @@ module.exports = function(app, deps) {
           [initialSession.table_name, initialSession.store_id]
         );
         if (!tableRow) throw Object.assign(new Error('桌台已变化，请重新扫码'), { status: 409 });
+        const activeStore = await getAsync(
+          'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+          [initialSession.store_id]
+        );
+        if (!activeStore) throw Object.assign(new Error('店铺已停用，暂时无法催单'), { status: 404 });
 
         const session = await getAsync(
           'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=? FOR UPDATE',
