@@ -72,7 +72,7 @@ async function requireAdminOrCashier(req, res, next) {
     const token = req.get('X-Cashier-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     if (!token) return res.status(401).json({ error: '未登录' });
     const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
-    if (!session || new Date(session.expires_at).getTime() <= Date.now()) {
+    if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
     const cashiersData = await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + session.store_id]);
@@ -132,7 +132,7 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
     const waiterToken = req.get('X-Waiter-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     if (waiterToken) {
       const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [waiterToken]);
-      if (session && new Date(session.expires_at).getTime() > Date.now()) {
+      if (session && Number.isFinite(new Date(session.expires_at).getTime()) && new Date(session.expires_at).getTime() > Date.now()) {
         const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
         if (waiter) {
           req.waiter = waiter;
