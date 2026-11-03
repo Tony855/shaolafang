@@ -44,16 +44,22 @@ module.exports = function(app, deps) {
       if (daysDiff <= 1) granularity = 'day';
       else if (daysDiff <= 31) granularity = 'month';   // 按天聚合
       else granularity = 'year';                        // 按月聚合
+      const rangeStart = startOfDay.toISOString();
+      const rangeEnd = endOfDay.toISOString();
       const orderStats = await getAsync(`
         SELECT
-          COUNT(*) AS total_orders,
-          SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) AS completed_orders,
-          SUM(CASE WHEN status='canceled' THEN 1 ELSE 0 END) AS canceled_orders,
-          SUM(CASE WHEN status='done' THEN total ELSE 0 END) AS total_revenue,
-          AVG(CASE WHEN status='done' THEN total END) AS avg_order_value
-        FROM orders
-        WHERE ${swWhere} AND createdAt >= ? AND createdAt <= ?
-      `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
+          (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND createdAt >= ? AND createdAt <= ?) AS total_orders,
+          (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS completed_orders,
+          (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='canceled' AND createdAt >= ? AND createdAt <= ?) AS canceled_orders,
+          (SELECT COALESCE(SUM(total), 0) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_revenue,
+          (SELECT AVG(total) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS avg_order_value
+      `, [
+        ...swParams, rangeStart, rangeEnd,
+        ...swParams, rangeStart, rangeEnd,
+        ...swParams, rangeStart, rangeEnd,
+        ...swParams, rangeStart, rangeEnd,
+        ...swParams, rangeStart, rangeEnd
+      ]);
       const tableRevenue = await allAsync(`
         SELECT table_name, COUNT(*) AS orders, SUM(total) AS revenue
         FROM orders
@@ -93,7 +99,7 @@ module.exports = function(app, deps) {
           SELECT DATE(COALESCE(settled_at, createdAt)) AS time_bucket,
                  COUNT(*) AS orders, SUM(total) AS revenue
           FROM orders
-          WHERE ${swWhere} AND status='done' AND createdAt >= ? AND createdAt < ?
+          WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
           ORDER BY time_bucket
         `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
@@ -103,7 +109,7 @@ module.exports = function(app, deps) {
           SELECT DATE_FORMAT(COALESCE(settled_at, createdAt), '%Y-%m') AS time_bucket,
                  COUNT(*) AS orders, SUM(total) AS revenue
           FROM orders
-          WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt < ?
+          WHERE store_id=? AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
           ORDER BY time_bucket
         `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
@@ -113,17 +119,20 @@ module.exports = function(app, deps) {
       if (isAll) {
         storeBreakdown = await allAsync(`
           SELECT s.id AS store_id, s.name AS store_name,
-                 COUNT(o.id) AS orders,
-                 SUM(CASE WHEN o.status='done' THEN 1 ELSE 0 END) AS completed_orders,
-                 SUM(CASE WHEN o.status='canceled' THEN 1 ELSE 0 END) AS canceled_orders,
-                 SUM(CASE WHEN o.status='done' THEN o.total ELSE 0 END) AS revenue
+                 SUM(CASE WHEN o.id IS NOT NULL AND o.createdAt >= ? AND o.createdAt <= ? THEN 1 ELSE 0 END) AS orders,
+                 SUM(CASE WHEN o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? THEN 1 ELSE 0 END) AS completed_orders,
+                 SUM(CASE WHEN o.status='canceled' AND o.createdAt >= ? AND o.createdAt <= ? THEN 1 ELSE 0 END) AS canceled_orders,
+                 SUM(CASE WHEN o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? THEN o.total ELSE 0 END) AS revenue
           FROM stores s
           LEFT JOIN orders o ON o.store_id = s.id
-              AND o.createdAt >= ? AND o.createdAt <= ?
+              AND ((o.createdAt >= ? AND o.createdAt <= ?) OR (o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?))
           WHERE s.merchant_id = ?
           GROUP BY s.id, s.name
           ORDER BY revenue DESC, s.id
-        `, [startOfDay.toISOString(), endOfDay.toISOString(), req.merchantId]);
+        `, [
+          rangeStart, rangeEnd, rangeStart, rangeEnd, rangeStart, rangeEnd,
+          rangeStart, rangeEnd, rangeStart, rangeEnd, rangeStart, rangeEnd, req.merchantId
+        ]);
       }
 
       res.json({
@@ -160,7 +169,7 @@ module.exports = function(app, deps) {
       `, [req.storeId, todayStart.toISOString(), todayEnd.toISOString()]);
       const monthStats = await getAsync(`
         SELECT COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
-        FROM orders WHERE store_id=? AND status='done' AND createdAt >= ? AND createdAt <= ?
+        FROM orders WHERE store_id=? AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
       `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
       const topDishes = await allAsync(`
         SELECT m.id, m.name, m.emoji, m.price, m.category,
@@ -265,7 +274,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
         const stPlaceholders = statuses.map(() => '?').join(',');
         const params = [storeId, startIso, endIso, ...statuses];
         let sql = `SELECT id, order_no, table_name, total, status, pay_method, note, createdAt FROM orders
-                   WHERE store_id=? AND createdAt >= ? AND createdAt <= ? AND status IN (${stPlaceholders})`;
+                   WHERE store_id=? AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ? AND status IN (${stPlaceholders})`;
         if (payMethods.length) {
           sql += ` AND pay_method IN (${payMethods.map(() => '?').join(',')})`;
           params.push(...payMethods);
@@ -301,7 +310,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
                 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
             ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
           JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
-          WHERE o.store_id=? AND o.createdAt >= ? AND o.createdAt <= ? AND o.status IN (${stPlaceholders})
+          WHERE o.store_id=? AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? AND o.status IN (${stPlaceholders})
           GROUP BY m.id, m.name, m.category, m.price
           HAVING total_qty > 0
           ORDER BY total_qty DESC
