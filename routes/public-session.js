@@ -23,7 +23,7 @@ module.exports = function(app, deps) {
     try {
       const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ? AND store_id = ?', [req.params.id, req.storeId]);
       if (!table) return res.status(404).json({ error: '桌号不存在' });
-      const store = await getAsync('SELECT name FROM stores WHERE id=? AND active=1', [table.store_id]);
+      const store = await getAsync('SELECT s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [table.store_id]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       const url = `${req.protocol}://${req.get('host')}/?token=${encodeURIComponent(table.qr_token)}`;
       const qrDataUrl = await QRCode.toDataURL(url);
