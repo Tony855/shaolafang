@@ -65,7 +65,7 @@ module.exports = function(app, deps) {
   }
 
   // ----- 商户后台 API -----
-  app.get('/api/admin/display-page-settings', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/display-page-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
       if (!req.storeId) return res.status(400).json({ error: '未指定店铺', code: 'STORE_REQUIRED' });
       res.json(await readSettings(req.storeId));
