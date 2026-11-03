@@ -16,7 +16,8 @@ function createSocketAuthenticator({ getAsync, logger = console }) {
 
   return async function authenticateSocket(socket, next) {
     try {
-      const rawToken = socket.handshake?.query?.token;
+      // Keep bearer credentials out of the URL/query string and reverse-proxy access logs.
+      const rawToken = socket.handshake?.auth?.token;
       const token = typeof rawToken === 'string' ? rawToken.trim() : '';
       if (!token || token.length > 256) return next(new Error('unauthorized: valid session token required'));
 
