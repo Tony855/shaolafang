@@ -27,11 +27,13 @@ module.exports = function(app, deps) {
       if (normalized.error) return res.status(400).json({ error: normalized.error });
       const { code, symbol, name, rate } = normalized.value;
       const is_default = !!req.body?.is_default;
+      let createdCurrency;
       await withTransaction(async () => {
         if (is_default) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [req.merchantId]);
         const result = await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [req.merchantId, code, symbol, name, rate, is_default ? 1 : 0]);
-        res.status(201).json(await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [result.lastID, req.merchantId]));
+        createdCurrency = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [result.lastID, req.merchantId]);
       });
+      res.status(201).json(createdCurrency);
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
