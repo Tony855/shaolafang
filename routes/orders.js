@@ -12,49 +12,84 @@ module.exports = function(app, deps) {
 app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
   try {
     const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
-    const orderId = parseInt(req.params.id, 10);
-    const targetTable = (req.body?.target_table || '').trim();
-    if (!targetTable) return res.status(400).json({ error: '请选择目标桌号' });
-    const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, storeId]);
-    if (!order) return res.status(404).json({ error: '订单不存在' });
-    if (order.status !== 'pending') return res.status(400).json({ error: '仅未结算订单可转移' });
-    if (order.table_name === targetTable) return res.status(400).json({ error: '目标桌与当前桌相同' });
-    const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=?', [targetTable, storeId]);
-    if (!target) return res.status(404).json({ error: '目标桌不存在' });
-    const oldTable = order.table_name;
-    const targetPending = await getAsync("SELECT COUNT(*) as cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [targetTable, storeId]);
-    const nowIso = new Date().toISOString();
-    const targetSession = await getAsync(
-      "SELECT token FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
-      [targetTable, storeId, nowIso]
-    );
-    let newToken;
-    if (targetSession) {
-      newToken = targetSession.token;
-    } else {
-      newToken = 'auto_' + crypto.randomBytes(24).toString('base64url');
-      const exp = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-      await runAsync(
-        'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-        [targetTable, newToken, exp, nowIso, storeId, storeId]
-      );
+    const orderId = Number(req.params.id);
+    const targetTable = String(req.body?.target_table || '').trim();
+    if (!Number.isSafeInteger(orderId) || orderId <= 0 || !targetTable || targetTable.length > 80) {
+      return res.status(400).json({ error: '订单或目标桌号无效' });
     }
-    await runAsync('UPDATE orders SET table_name=?, session_token=? WHERE id=? AND store_id=?', [targetTable, newToken, orderId, storeId]);
-    await syncTableStatus(oldTable, storeId);
-    await syncTableStatus(targetTable, storeId);
-    await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ?', [oldTable, storeId, new Date().toISOString()]);
-    const actorType = req.waiter ? 'waiter' : 'admin';
-    const actorName = req.waiter ? req.waiter.display_name : 'admin';
-    const logParams = [actorType, 0, actorName, 'transfer_order', JSON.stringify({ order_id: orderId, from: oldTable, to: targetTable }), getClientIp(req) || 'unknown', new Date().toISOString()];
-    console.log('[TRANSFER LOG]', JSON.stringify(logParams));
-    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', logParams);
+
+    let oldTable = '';
+    let targetHasOrders = false;
+    let newToken = '';
+    await withTransaction(async () => {
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE', [orderId, storeId]);
+      if (!order) {
+        const error = new Error('订单不存在');
+        error.status = 404;
+        throw error;
+      }
+      if (order.status !== 'pending' || order.awaiting_confirm) {
+        const error = new Error('仅未结算且未通知收银员的订单可转移');
+        error.status = 409;
+        throw error;
+      }
+      if (order.table_name === targetTable) {
+        const error = new Error('目标桌与当前桌相同');
+        error.status = 400;
+        throw error;
+      }
+      const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=? FOR UPDATE', [targetTable, storeId]);
+      if (!target || target.active === 0 || target.active === false) {
+        const error = new Error('目标桌不存在或已停用');
+        error.status = 404;
+        throw error;
+      }
+
+      oldTable = order.table_name;
+      const targetPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [targetTable, storeId]);
+      targetHasOrders = Number(targetPending?.cnt || 0) > 0;
+      const nowIso = new Date().toISOString();
+      const targetSession = await getAsync(
+        "SELECT token FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ? ORDER BY created_at DESC LIMIT 1 FOR UPDATE",
+        [targetTable, storeId, nowIso]
+      );
+      if (targetSession) {
+        newToken = targetSession.token;
+      } else {
+        newToken = 'auto_' + crypto.randomBytes(24).toString('base64url');
+        const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+        await runAsync(
+          'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+          [targetTable, newToken, expiresAt, nowIso, storeId, storeId]
+        );
+      }
+      const moved = await runAsync("UPDATE orders SET table_name=?, session_token=? WHERE id=? AND store_id=? AND status='pending'",
+        [targetTable, newToken, orderId, storeId]);
+      if (!moved.affectedRows) {
+        const error = new Error('订单状态已变化，转桌操作已取消');
+        error.status = 409;
+        throw error;
+      }
+      await syncTableStatus(oldTable, storeId);
+      await syncTableStatus(targetTable, storeId);
+      const oldPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [oldTable, storeId]);
+      if (!oldPending || Number(oldPending.cnt) === 0) {
+        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [oldTable, storeId]);
+      }
+      const actorType = req.waiter ? 'waiter' : 'admin';
+      const actorName = req.waiter ? req.waiter.display_name : 'admin';
+      await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [actorType, req.waiter?.id || req.adminId || 0, actorName, 'transfer_order', JSON.stringify({ order_id: orderId, from: oldTable, to: targetTable }), getClientIp(req) || 'unknown', new Date().toISOString()]);
+    });
+
     io.to('waiter-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
     io.to('kitchen-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
     io.to('cashier-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
-    res.json({ success: true, from: oldTable, to: targetTable, targetHasOrders: targetPending ? targetPending.cnt > 0 : false });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    res.json({ success: true, from: oldTable, to: targetTable, targetHasOrders });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
 });
-
 
 app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) => {
   try {
@@ -229,20 +264,19 @@ app.post('/api/orders', async (req, res) => {
   try {
     // ---------- 1. 认证 ----------
     const adminAuth = await authenticateAdmin(req);
-    const adminKey = req.get('X-Admin-Key');
-    const keySetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
-    const isAdmin = Boolean((adminAuth && !adminAuth.error) || (adminKey && keySetting && adminKey === keySetting.value));
-    if (adminAuth && !adminAuth.error) {
-      req.adminId = adminAuth.adminId;
-      req.merchantId = adminAuth.merchantId;
-      req.storeId = adminAuth.storeId;
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId]);
-      if (admin) {
+    const isAdmin = Boolean(adminAuth && !adminAuth.error);
+    if (isAdmin) {
+      req.adminId = adminAuth.adminId || null;
+      req.merchantId = adminAuth.merchantId || null;
+      req.storeId = adminAuth.storeId || parseInt(req.get('X-Store-Id') || '1', 10);
+      // A configured legacy API key is an explicit store-scoped integration credential.
+      // It is not a merchant-admin account and must not inherit or fabricate admin permissions.
+      if (req.adminId && req.merchantId) {
+        const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1', [req.adminId, req.merchantId]);
+        if (!admin) return res.status(401).json({ error: '管理员账号已停用或不存在' });
         const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.merchantId]);
         const isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
-        if (!isPrimaryAdmin && !admin.can_manage_order) {
-          return res.status(403).json({ error: '没有下单权限' });
-        }
+        if (!isPrimaryAdmin && !admin.can_manage_order) return res.status(403).json({ error: '没有下单权限' });
       }
     }
     const waiter = await getWaiterFromRequest(req);
