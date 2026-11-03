@@ -3,6 +3,7 @@
  * 管理员认证中间件（从 server.js 抽出）
  */
 const { getAsync, runAsync, allAsync } = require('../db/helpers');
+const crypto = require('crypto');
 
 async function getWaiterFromRequest(req) {
   const token = req.get('X-Waiter-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
@@ -68,8 +69,12 @@ async function authenticateAdmin(req) {
   }
   const providedKey = req.get('X-Admin-Key');
   const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
-  if (providedKey && setting && providedKey === setting.value) {
-    return { storeId: parseInt(req.get('X-Store-Id') || '1', 10) };
+  if (providedKey && setting && setting.value) {
+    const supplied = Buffer.from(String(providedKey));
+    const expected = Buffer.from(String(setting.value));
+    if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
+      return { storeId: parseInt(req.get('X-Store-Id') || '1', 10) };
+    }
   }
   return null;
 }
