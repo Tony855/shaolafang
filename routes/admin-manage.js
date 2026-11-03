@@ -655,21 +655,49 @@ module.exports = function(app, deps) {
         return res.json({ success: true, status: 'awaiting_confirm' });
       }
 
-      // 只有已认证的管理员/收银员可人工确认到账；保留服务员提交的实际支付方式。
-      const paymentMethod = String(order.pay_method || 'khqr').trim().slice(0, 40);
-      const orderTotal = Number(order.total);
-      if (!Number.isFinite(orderTotal) || orderTotal <= 0) return res.status(400).json({ error: '订单金额无效' });
-      const cashReceived = paymentMethod.toLowerCase() === 'cash'
-        ? Number(req.body?.cash_received ?? order.cash_received)
-        : 0;
-      if (paymentMethod.toLowerCase() === 'cash' && (!Number.isFinite(cashReceived) || cashReceived < orderTotal)) {
-        return res.status(400).json({ error: '现金实收金额不足，请重新录入实收金额' });
-      }
-      const cashChange = paymentMethod.toLowerCase() === 'cash'
-        ? Math.round((cashReceived - orderTotal) * 100) / 100
-        : 0;
+      // 只有已认证的管理员/收银员可人工确认到账；表行先锁定，再锁订单，避免与转桌/改桌死锁。
       const settledAt = new Date().toISOString();
       await withTransaction(async () => {
+        const lockedTable = await getAsync(
+          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+          [order.table_name, sid]
+        );
+        if (!lockedTable) {
+          const error = new Error('订单关联桌台已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
+        const lockedOrder = await getAsync(
+          'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+          [order_id, sid]
+        );
+        if (!lockedOrder || lockedOrder.status !== 'pending' ||
+            lockedOrder.table_name !== order.table_name ||
+            (!Number(lockedOrder.awaiting_confirm) && !lockedOrder.pay_khqr_ref)) {
+          const error = new Error('订单状态或桌台已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
+
+        const paymentMethod = String(lockedOrder.pay_method || 'khqr').trim().slice(0, 40);
+        const orderTotal = Number(lockedOrder.total);
+        if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
+          const error = new Error('订单金额无效');
+          error.status = 400;
+          throw error;
+        }
+        const cashReceived = paymentMethod.toLowerCase() === 'cash'
+          ? Number(req.body?.cash_received ?? lockedOrder.cash_received)
+          : 0;
+        if (paymentMethod.toLowerCase() === 'cash' && (!Number.isFinite(cashReceived) || cashReceived < orderTotal)) {
+          const error = new Error('现金实收金额不足，请重新录入实收金额');
+          error.status = 400;
+          throw error;
+        }
+        const cashChange = paymentMethod.toLowerCase() === 'cash'
+          ? Math.round((cashReceived - orderTotal) * 100) / 100
+          : 0;
+
         const result = await runAsync(
           "UPDATE orders SET status='done', awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=?, settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
           [paymentMethod, cashReceived, cashChange, settledAt, req.adminId || req.cashierId || 'unknown', order_id, sid]
@@ -679,10 +707,10 @@ module.exports = function(app, deps) {
           error.status = 409;
           throw error;
         }
-        await syncTableStatus(order.table_name, sid);
-        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [order.table_name, sid]);
+        await syncTableStatus(lockedOrder.table_name, sid);
+        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [lockedOrder.table_name, sid]);
         if (!stillPending || Number(stillPending.cnt) === 0) {
-          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [order.table_name, sid]);
+          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, sid]);
         }
         await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
