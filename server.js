@@ -300,42 +300,34 @@ const upload = multer({
 // ---------- 常量 ----------
 const createTableToken = () => crypto.randomBytes(12).toString('base64url');
 
-// ---------- 登录限流器 ----------
-const loginAttempts = new Map();
-
-function getLoginAttempts(username, type) {
-  const key = `${username}|${type}`;
-  if (!loginAttempts.has(key)) {
-    loginAttempts.set(key, { count: 0, lockUntil: 0, firstAttempt: 0 });
-  }
-  return loginAttempts.get(key);
+// ---------- 登录限流器（跨进程/集群持久化） ----------
+// Every failed login is written to login_logs by the caller. Querying this table
+// makes the lockout effective across workers and cluster nodes, unlike a process-local Map.
+function recordLoginAttempt() {
+  // Intentionally no-op: the failed login row is written before this call.
 }
 
-function recordLoginAttempt(username, type) {
-  const attempt = getLoginAttempts(username, type);
-  attempt.count += 1;
-  if (attempt.firstAttempt === 0) attempt.firstAttempt = Date.now();
-  loginAttempts.set(`${username}|${type}`, attempt);
-}
-
-function resetLoginAttempts(username, type) {
-  loginAttempts.delete(`${username}|${type}`);
+function resetLoginAttempts() {
+  // Successful login rows form the reset boundary in isLoginLocked().
 }
 
 async function isLoginLocked(username, type) {
   const settings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_max_attempts'");
   const lockSettings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_lock_minutes'");
-  const maxAttempts = parseInt(settings?.value || '5', 10);
-  const lockMinutes = parseInt(lockSettings?.value || '15', 10);
-  const attempt = getLoginAttempts(username, type);
-  if (attempt.lockUntil > Date.now()) {
-    const remaining = Math.ceil((attempt.lockUntil - Date.now()) / 60000);
-    return { locked: true, remaining, maxAttempts, lockMinutes };
-  }
-  if (attempt.count >= maxAttempts) {
-    attempt.lockUntil = Date.now() + lockMinutes * 60 * 1000;
-    loginAttempts.set(`${username}|${type}`, attempt);
-    return { locked: true, remaining: lockMinutes, maxAttempts, lockMinutes };
+  const maxAttempts = Math.max(1, parseInt(settings?.value || '5', 10) || 5);
+  const lockMinutes = Math.max(1, parseInt(lockSettings?.value || '15', 10) || 15);
+  const recent = await getAsync(
+    "SELECT COUNT(*) AS count, MAX(createdAt) AS last_attempt " +
+    "FROM login_logs WHERE username=? AND login_type=? AND success=0 " +
+    "AND createdAt >= DATE_SUB(NOW(), INTERVAL ? MINUTE) " +
+    "AND createdAt > COALESCE((SELECT MAX(createdAt) FROM login_logs WHERE username=? AND login_type=? AND success=1), '1970-01-01 00:00:00')",
+    [String(username || '').slice(0, 191), type, lockMinutes, String(username || '').slice(0, 191), type]
+  );
+  const count = Number(recent?.count || 0);
+  if (count >= maxAttempts && recent.last_attempt) {
+    const lockUntil = new Date(recent.last_attempt).getTime() + lockMinutes * 60 * 1000;
+    const remaining = Math.ceil((lockUntil - Date.now()) / 60000);
+    if (remaining > 0) return { locked: true, remaining, maxAttempts, lockMinutes };
   }
   return { locked: false, maxAttempts, lockMinutes };
 }
