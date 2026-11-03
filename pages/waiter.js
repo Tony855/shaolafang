@@ -1158,6 +1158,18 @@ function initWaiterPage() {
       state.orders = state.orders.filter(o => o.id !== id);
       renderTables();
     });
+    waiterSocket.on('order:cancelled', (payload) => {
+      const id = payload && payload.orderId;
+      if (!id) return;
+      state.orders = state.orders.filter(o => o.id !== id);
+      renderTables();
+    });
+    waiterSocket.on('order:deleted', (payload) => {
+      const id = payload && payload.orderId;
+      if (!id) return;
+      state.orders = state.orders.filter(o => o.id !== id);
+      renderTables();
+    });
 
     // 转移订单 / 整桌转移：涉及状态重组，仍拉全量
     let transferDebounce = null;

@@ -124,7 +124,7 @@ sudo certbot --nginx -d your-domain.com
 | `DB_CONNECTION_LIMIT` | 连接池大小 | 100 | 100 |
 | `REDIS_URL` | Redis连接（必须） | ✅ 相同 | ✅ 相同 |
 | `UPLOAD_DIR` | 上传目录 | /mnt/shared/uploads | /mnt/shared/uploads |
-| `RUN_SCHEDULED_TASKS` | 定时任务 | **true** | **不设置** |
+| `RUN_SCHEDULED_TASKS` | 定时任务 | **true** | **false** |
 | `MERCHANT_CODE_PREFIX` | 商户编码前缀 | FF | FF |
 | `ALLOW_MERCHANT_REGISTRATION` | 商户自助注册 | false | false |
 | `MAX_STORES_PER_MERCHANT` | 单商户最大门店数 | 0(不限) | 0(不限) |

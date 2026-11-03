@@ -1072,6 +1072,8 @@ function applyAdminLanguage() {
             adminSocket.on('order:new', debouncedLoadOrders);
             adminSocket.on('item:updated', debouncedLoadOrders);
             adminSocket.on('order:settled', debouncedLoadOrders);
+            adminSocket.on('order:cancelled', debouncedLoadOrders);
+            adminSocket.on('order:deleted', debouncedLoadOrders);
             adminSocket.on('order:transfer', debouncedLoadOrders);
             adminSocket.on('table:moved', debouncedLoadOrders);
             // 首次 connect 不 refresh（init 里已 refresh），只有断线重连才补偿刷新
