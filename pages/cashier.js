@@ -566,6 +566,11 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     if (body.pay_method === 'cash') {
       body.cash_received = Number(order.cash_received) || 0;
       body.cash_change = Number(order.cash_change) || 0;
+      if (body.cash_received < Number(order.total || 0)) {
+        // Waiter requested cashier confirmation without recording a sufficient cash amount.
+        // Open the normal POS payment dialog instead of trusting a zero/short cash receipt.
+        return openPaymentModal(orderId);
+      }
     }
     try {
       await api('/cashier/orders/' + orderId + '/settle', { method: 'PUT', body });
