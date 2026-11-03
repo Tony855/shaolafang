@@ -401,7 +401,7 @@ app.put('/api/menu/:id/status', requireAdminKey, requirePermission('can_manage_m
 });
 
 // ----- 菜品分类 -----
-app.get('/api/menu-categories', requireAdminKey, async (req, res) => {
+app.get('/api/menu-categories', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
     const rows = await allAsync('SELECT * FROM menu_categories WHERE store_id=? ORDER BY sort, id', [req.storeId]);
     res.json(rows);
