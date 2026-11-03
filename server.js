@@ -319,14 +319,13 @@ const DEFAULT_CREDENTIALS = {
 };
 
 async function writeInitialCredentialsFile(credentials) {
-  const file = process.env.INIT_CRED_FILE || '/etc/foodflow/initial-credentials.txt';
+  const file = process.env.INIT_CRED_FILE || '/var/lib/foodflow/initial-credentials.txt';
   try {
     await fs.promises.mkdir(path.dirname(file), { recursive: true });
     const content = Object.entries(credentials)
       .map(([k, v]) => `${k}: ${v.username} / ${v.password}`)
       .join('\n') + '\n';
     await fs.promises.writeFile(file, content, { mode: 0o600 });
-    await fs.promises.chmod(file, 0o600);
     await fs.promises.chmod(file, 0o600);
     console.log(`  + 初始凭据已写入 ${file}（权限 600）`);
   } catch (e) {
