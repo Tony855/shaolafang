@@ -36,7 +36,8 @@ app.post('/api/waiter/login', async (req, res) => {
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '服务员登录成功']);
     const token = crypto.randomBytes(24).toString('base64url');
     const waiterTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
-    const waiterTimeoutHours = parseInt(waiterTimeoutSetting?.value || '12', 10);
+    const configuredWaiterTimeoutHours = Number.parseInt(waiterTimeoutSetting?.value || '12', 10);
+    const waiterTimeoutHours = Number.isSafeInteger(configuredWaiterTimeoutHours) && configuredWaiterTimeoutHours > 0 ? Math.min(configuredWaiterTimeoutHours, 720) : 12;
     const expiresAt = new Date(Date.now() + waiterTimeoutHours * 60 * 60 * 1000).toISOString();
     await runAsync('INSERT INTO waiter_sessions (waiter_id, token, expires_at) VALUES (?, ?, ?)', [waiter.id, token, expiresAt]);
     const store = await getAsync('SELECT name FROM stores WHERE id=?', [waiter.store_id || 1]);
