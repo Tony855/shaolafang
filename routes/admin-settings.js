@@ -4,7 +4,7 @@
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission } = deps;
 
-  app.get('/api/currencies', requireAdminKey, async (req, res) => {
+  app.get('/api/currencies', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try { res.json(await allAsync('SELECT * FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code', [req.merchantId])); }
     catch (e) { res.status(500).json({ error: e.message }); }
   });
@@ -46,7 +46,7 @@ module.exports = function(app, deps) {
   });
 
   // ----- 显示设置 -----
-  app.get('/api/admin/display-settings', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/display-settings', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
       const sid = req.storeId || 1;
       const primaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${sid}_primary_currency_code`]);
@@ -100,7 +100,7 @@ module.exports = function(app, deps) {
   });
 
   // ----- 新订单提示音设置 -----
-  app.get('/api/admin/notification-settings', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/notification-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
       const mid = req.merchantId || 1;
       const sid = req.storeId || 1;
