@@ -991,7 +991,7 @@ async function initDatabase() {
   const newOrderSound = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
   if (!newOrderSound) await runAsync("INSERT INTO settings (`key`, value) VALUES ('new_order_sound_enabled', '1')");
   const adminPassword = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
-  if (!adminPassword) await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_password', ?)", [hashPassword('admin123')]);
+  if (!adminPassword) await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_password', ?)", [hashPassword(DEFAULT_CREDENTIALS.merchantAdmin.password)]);
 
   const prefixDefaults = {
     'order_prefix_normal': '11',
