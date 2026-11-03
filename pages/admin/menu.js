@@ -353,7 +353,7 @@ document.getElementById('importFile').addEventListener('change', function(e) {
       }
       preview.innerHTML = '<div style="color: #4caf50;">' + tAdmin('parsedPrefix') + importItems.length + tAdmin('parsedSuffix') + '</div>' +
         importItems.slice(0, 10).map(function(item, i) { 
-          return '<div style="padding: 3px 0; border-bottom: 1px solid #eee;">' + (i+1) + '. ' + esc(item.name) + ' - ;
+          return '<div style="padding: 3px 0; border-bottom: 1px solid #eee;">' + (i+1) + '. '+ esc(item.name) + ' - $' + esc(item.price) + ' (' + esc(item.category) + ')</div>';
         }).join('') + (importItems.length > 10 ? '<div style="color: #888; padding: 5px 0;">' + tAdmin('moreItemsPrefix') + importItems.length + tAdmin('moreItemsSuffix') + '</div>' : '');
       document.getElementById('confirmImportBtn').disabled = false;
     } catch (err) {
@@ -413,118 +413,19 @@ async function doImport() {
     var result = await window.SLF.api.post('/menu/batch', { items: importItems });
     var createdInfo = '';
     if (result.createdCategories && result.createdCategories.length > 0) {
-      createdInfo = tAdmin('newCatsListPre') + result.createdCategories.length + tAdmin('newCatsListSuf') + result.createdCategories.join('、');
+      createdInfo = tAdmin('newCatsListPre') + result.createdCategories.length + tAdmin('newCatsListSuf') + result.createdCategories.map(esc).join('、');
     }
     var html = '<div style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px;">' +
       tAdmin('okImportedPre') + result.success + tAdmin('okImportedMid') + createdInfo;
     if (result.failed > 0) html += tAdmin('importFailedSuf') + result.failed + tAdmin('importFailedSuf2');
     html += '</div>';
     if (result.errors && result.errors.length) {
-      html += '<div style="margin-top: 5px; font-size: 12px; color: #c62828;">' + result.errors.slice(0, 5).join('<br>') + '</div>';
+      html += '<div style="margin-top: 5px; font-size: 12px; color: #c62828;">' + result.errors.slice(0, 5).map(esc).join('<br>') + '</div>';
     }
     document.getElementById('importResult').innerHTML = html;
     setTimeout(() => location.reload(), 1500);
   } catch (e) {
     document.getElementById('importResult').innerHTML = '<div style="background: #ffebee; color: #c62828; padding: 10px; border-radius: 6px;">' + tAdmin('importFailedColon') + esc(e.message) + '</div>';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = tAdmin('startImport');
-  }
-}
-
-
-async function exportMenuZip() {
-  try {
-    const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '1';
-    const token = SLF.store.rawGetSession('adminToken') || '';
-    SLF.ui.toast('📦 ' + (tAdmin('exporting') || '正在打包...'));
-    const res = await fetch('/api/admin/menu/export-zip?store_id=' + storeId, { headers: { 'Authorization': 'Bearer ' + token, 'X-Store-Id': String(storeId) } });
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'menu-store' + storeId + '-' + new Date().toISOString().slice(0,10) + '.zip';
-    a.click(); URL.revokeObjectURL(a.href);
-    SLF.ui.toast('✅ ' + (tAdmin('exported') || '已导出'));
-  } catch (e) { SLF.ui.toast('❌ ' + (tAdmin('exportFailed') || '导出失败') + ': ' + e.message); }
-}
-window.exportMenuZip = exportMenuZip;
-
-window.openImportModal = openImportModal;
-window.closeImportModal = closeImportModal;
-window.confirmImport = confirmImport;
-window.closeConfirmImport = closeConfirmImport; + esc(item.price) + ' (' + esc(item.category) + ')</div>';
-        }).join('') + (importItems.length > 10 ? '<div style="color: #888; padding: 5px 0;">' + tAdmin('moreItemsPrefix') + importItems.length + tAdmin('moreItemsSuffix') + '</div>' : '');
-      document.getElementById('confirmImportBtn').disabled = false;
-    } catch (err) {
-      document.getElementById('importPreview').innerHTML = '<div style="color: #ff6b6b;">' + tAdmin('parseFailedColon') + err.message + '</div>';
-      document.getElementById('confirmImportBtn').disabled = true;
-    }
-  };
-  reader.readAsText(file, 'utf-8');
-});
-
-async function confirmImport() {
-  if (window._importZipFile) {
-    const f = window._importZipFile;
-    const btn = document.getElementById('confirmImportBtn');
-    btn.disabled = true;
-    btn.textContent = tAdmin('extracting');
-    try {
-      const fd = new FormData();
-      fd.append('file', f);
-      const data = await SLF.api.upload('/admin/menu/import-zip', fd);
-      let html = '<div style="background:#e8f5e9;color:#2e7d32;padding:10px;border-radius:6px;">' + tAdmin('importOkPrefix') + data.success + tAdmin('importOkSuffix');
-      if (data.imagesImported) html += tAdmin('importedImagesPre') + data.imagesImported + tAdmin('importedImagesSuf');
-      if (data.createdCategories && data.createdCategories.length) html += tAdmin('newCatsPre') + data.createdCategories.length + tAdmin('newCatsSuf');
-      html += '</div>';
-      if (data.failed > 0 && data.errors) html += '<div style="margin-top:5px;font-size:12px;color:#c62828;">' + data.errors.slice(0, 5).join('<br>') + '</div>';
-      document.getElementById('importResult').innerHTML = html;
-      window._importZipFile = null;
-      setTimeout(function(){ location.reload(); }, 1500);
-    } catch (e) {
-      document.getElementById('importResult').innerHTML = '<div style="background:#ffebee;color:#c62828;padding:10px;border-radius:6px;">' + tAdmin('failedColon') + e.message + '</div>';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = tAdmin('startImport');
-    }
-    return;
-  }
-  if (importItems.length === 0) return;
-  // 打开确认弹窗
-  document.getElementById('confirmImportText').textContent = tAdmin('confirmImportPrefix') + importItems.length + tAdmin('itemsOverwriteHint');
-  document.getElementById('confirmImportModal').classList.add('open');
-  // 绑定确认按钮
-  document.getElementById('confirmImportYesBtn').onclick = function() {
-    closeConfirmImport();
-    doImport();
-  };
-}
-
-function closeConfirmImport() {
-  document.getElementById('confirmImportModal').classList.remove('open');
-}
-
-async function doImport() {
-  var btn = document.getElementById('confirmImportBtn');
-  btn.disabled = true;
-  btn.textContent = tAdmin('importing');
-  try {
-    var result = await window.SLF.api.post('/menu/batch', { items: importItems });
-    var createdInfo = '';
-    if (result.createdCategories && result.createdCategories.length > 0) {
-      createdInfo = tAdmin('newCatsListPre') + result.createdCategories.length + tAdmin('newCatsListSuf') + result.createdCategories.join('、');
-    }
-    var html = '<div style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px;">' +
-      tAdmin('okImportedPre') + result.success + tAdmin('okImportedMid') + createdInfo;
-    if (result.failed > 0) html += tAdmin('importFailedSuf') + result.failed + tAdmin('importFailedSuf2');
-    html += '</div>';
-    if (result.errors && result.errors.length) {
-      html += '<div style="margin-top: 5px; font-size: 12px; color: #c62828;">' + result.errors.slice(0, 5).join('<br>') + '</div>';
-    }
-    document.getElementById('importResult').innerHTML = html;
-    setTimeout(() => location.reload(), 1500);
-  } catch (e) {
-    document.getElementById('importResult').innerHTML = '<div style="background: #ffebee; color: #c62828; padding: 10px; border-radius: 6px;">' + tAdmin('importFailedColon') + e.message + '</div>';
   } finally {
     btn.disabled = false;
     btn.textContent = tAdmin('startImport');
