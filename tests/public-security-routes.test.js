@@ -156,3 +156,60 @@ test('waiter-call throttling and insert are serialized in a transaction', async 
   assert.equal(res.body.success, true);
   assert.ok(calls.some(x => x.sql.includes('INSERT INTO waiter_calls')));
 });
+
+
+test('renaming a table updates pending orders, active QR sessions, calls and reservations atomically', async () => {
+  const { app, routes } = routeHarness();
+  const writes = [];
+  let transactions = 0;
+  require('../routes/tables')(app, {
+    requireAdminOrWaiter: pass,
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async sql => {
+      if (sql.includes('FOR UPDATE')) return { id: 9, name: 'A1', status: 'available' };
+      return { id: 9, name: 'A1-new', status: 'available', store_id: 7 };
+    },
+    allAsync: async () => [],
+    runAsync: async sql => { writes.push(sql); return { affectedRows: 1 }; },
+    withTransaction: async fn => { transactions++; return fn(); },
+    syncTableStatus: async () => {},
+    io: { to: () => ({ emit() {} }) }
+  });
+  const handler = routes.get('PUT /api/tables/:id').at(-1);
+  const res = response();
+  await handler({ params: { id: '9' }, storeId: 7, body: { name: 'A1-new' } }, res);
+  assert.equal(transactions, 1);
+  assert.equal(res.statusCode, 200);
+  assert.ok(writes.some(sql => sql.includes('UPDATE orders SET table_name')));
+  assert.ok(writes.some(sql => sql.includes('UPDATE scan_sessions SET table_name')));
+  assert.ok(writes.some(sql => sql.includes('UPDATE waiter_calls SET table_name')));
+  assert.ok(writes.some(sql => sql.includes('UPDATE reservations SET table_name')));
+});
+
+test('table deletion is blocked while pending orders or active reservations remain', async () => {
+  const { app, routes } = routeHarness();
+  const writes = [];
+  require('../routes/tables')(app, {
+    requireAdminOrWaiter: pass,
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async sql => {
+      if (sql.includes('FOR UPDATE')) return { id: 9, name: 'A1' };
+      if (sql.includes('FROM orders')) return { count: 0 };
+      if (sql.includes('FROM waiter_calls')) return { count: 0 };
+      if (sql.includes('FROM reservations')) return { count: 1 };
+      return null;
+    },
+    allAsync: async () => [],
+    runAsync: async sql => { writes.push(sql); return { affectedRows: 1 }; },
+    withTransaction: async fn => fn(),
+    syncTableStatus: async () => {},
+    io: { to: () => ({ emit() {} }) }
+  });
+  const handler = routes.get('DELETE /api/tables/:id').at(-1);
+  const res = response();
+  await handler({ params: { id: '9' }, storeId: 7 }, res);
+  assert.equal(res.statusCode, 409);
+  assert.equal(writes.length, 0);
+});
