@@ -3,6 +3,7 @@
    ============================================================ */
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { runAsync, getAsync, allAsync } = require('../db/helpers');
 const { parseRetentionDays, pruneAutoBackups } = require('./backup-retention');
 
@@ -20,7 +21,9 @@ async function autoBackupDatabase() {
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   const data = await collectBackupData();
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = path.join(backupDir, `auto-${timestamp}.json`);
+  // Include a cryptographically random suffix so simultaneous backups in the
+  // same millisecond cannot overwrite one another during the atomic rename.
+  const filename = path.join(backupDir, `auto-${timestamp}-${crypto.randomBytes(6).toString('hex')}.json`);
   const tempFilename = filename + `.tmp-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
   try {
     fs.writeFileSync(tempFilename, JSON.stringify(data, null, 2), { flag: 'wx', mode: 0o600 });
