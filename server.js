@@ -1117,7 +1117,7 @@ if (typeof _advExport.attachAdvancedExport === 'function') {
 
 
 // ----- 全局配置+催单+管理员/收银员+重置 -----
-require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io });
+require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, withTransaction, syncTableStatus, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io });
 
 
 
