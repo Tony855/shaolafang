@@ -6,7 +6,7 @@ const path = require('path');
 const QRCode = require('qrcode');
 
 module.exports = function registerPageRoutes(app, ctx) {
-  const { getAsync } = ctx;
+  const { getAsync, requireAdminKey, requirePermission } = ctx;
   const ROOT = path.join(__dirname, '..');
   
   // 每次请求都读磁盘，不做版本号替换，让 HTML 里写死的 ?v=xxx 直接生效
@@ -62,14 +62,14 @@ module.exports = function registerPageRoutes(app, ctx) {
   app.get('/index.html', (req, res) => res.redirect('/'));
 
   // 二维码打印
-  app.get('/qr-print', async (req, res) => {
+  app.get('/qr-print', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
     try {
       const tableId = parseInt(req.query.tableId || '0', 10);
       const lang = ['zh','en','vi','th','km'].includes(req.query.lang) ? req.query.lang : 'zh';
       if (!tableId) return res.status(400).send('Invalid tableId');
-      const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ?', [tableId]);
+      const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ? AND store_id = ?', [tableId, req.storeId]);
       if (!table) return res.status(404).send('Table not found');
-      const store = await getAsync('SELECT name, qr_languages FROM stores WHERE id = ?', [table.store_id || 1]);
+      const store = await getAsync('SELECT name, qr_languages FROM stores WHERE id = ? AND merchant_id = ?', [table.store_id || 1, req.merchantId]);
       const storeName = store?.name || 'FoodFlow';
       let displayLangs = ['zh'];
       if (store?.qr_languages) {
