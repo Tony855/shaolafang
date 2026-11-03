@@ -55,7 +55,11 @@ async function authenticateAdmin(req) {
                 merchantId: admin.merchant_id
               };
             }
-            validStoreId = requestedStoreId;
+            validStoreId = Number(_storeCheck.id);
+          } else {
+            // Default to this merchant's first store, never global store_id=1.
+            const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+            validStoreId = firstStore ? Number(firstStore.id) : -1;
           }
           const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
           const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 30);
@@ -90,7 +94,7 @@ async function requireAdminKey(req, res, next) {
     req.adminId = result.adminId;
     req.merchantId = result.merchantId;
     req.adminSessionToken = result.sessionToken;
-    req.storeId = result.storeId || 0;
+    req.storeId = Number.isSafeInteger(Number(result.storeId)) && Number(result.storeId) !== 0 ? Number(result.storeId) : -1;
     // 未选店铺时 storeId = 0，业务层自己处理（查询返回空数据）
     // 只要 X-Store-Id 存在但无效，authenticateAdmin 已经返回 error，不会走到这里
     try {
@@ -143,7 +147,7 @@ async function requireAdminOrWaiter(req, res, next) {
     req.merchantId = adminResult.merchantId;
     req.isAdmin = true;
     req.adminSessionToken = adminResult.sessionToken;
-    req.storeId = adminResult.storeId;
+    req.storeId = Number.isSafeInteger(Number(adminResult.storeId)) && Number(adminResult.storeId) !== 0 ? Number(adminResult.storeId) : -1;
     try {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [adminResult.adminId]);
       if (admin) {
