@@ -467,6 +467,11 @@ app.post('/api/orders', async (req, res) => {
         if (!lockedTable) {
           throw Object.assign(new Error('桌号已不存在，请重新扫码或刷新桌台'), { status: 404 });
         }
+        const activeStore = await getAsync(
+          'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+          [finalStoreId]
+        );
+        if (!activeStore) throw Object.assign(new Error('店铺已停用，暂时无法下单'), { status: 404 });
         if (sessionToken) {
           const lockedSession = await getAsync(
             'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=? FOR UPDATE',
