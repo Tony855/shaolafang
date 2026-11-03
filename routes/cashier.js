@@ -362,7 +362,15 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
     if (order.status !== 'pending') return res.status(400).json({ error: '只有待处理订单可以取消' });
     const canceledAt = new Date().toISOString();
+    let canceledTableName = order.table_name;
     await withTransaction(async () => {
+      const lockedOrder = await getAsync('SELECT table_name, status FROM orders WHERE id=? AND store_id=? FOR UPDATE', [id, req.storeId]);
+      if (!lockedOrder || lockedOrder.status !== 'pending') {
+        const error = new Error('订单状态已变化，取消操作已中止');
+        error.status = 409;
+        throw error;
+      }
+      canceledTableName = lockedOrder.table_name;
       const canceled = await runAsync(
         "UPDATE orders SET status='canceled' WHERE id=? AND store_id=? AND status='pending'",
         [id, req.storeId]
@@ -372,9 +380,9 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
-      await syncTableStatus(order.table_name, req.storeId);
+      await syncTableStatus(canceledTableName, req.storeId);
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), canceledAt]);
+        ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: canceledTableName }), getClientIp(req), canceledAt]);
     });
     res.json({ success: true, message: '取消成功' });
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
