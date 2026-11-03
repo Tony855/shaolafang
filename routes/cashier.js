@@ -2,6 +2,7 @@
    routes/cashier.js — 服务员登录 + 收银员路由
    ============================================================ */
 const crypto = require('crypto');
+const { hashPassword, needsRehash } = require('../server/middleware/password');
 
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io } = deps;
