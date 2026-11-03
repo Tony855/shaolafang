@@ -181,7 +181,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     const tableNames = [...new Set(orders.map(o => o.table_name))];
     await withTransaction(async () => {
       for (const order of orders) {
-        const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [paymentMethod, cashReceived, cashChange, order.id, req.storeId]);
+        const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [now, paymentMethod, cashReceived, cashChange, order.id, req.storeId]);
         if (!updated.affectedRows) {
           const error = new Error('订单状态已变化，批量结算已回滚，请刷新后重试');
           error.status = 409;
@@ -262,7 +262,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     const settledAt = new Date().toISOString();
     await withTransaction(async () => {
       const settled = await runAsync(
-        "UPDATE orders SET status='done', awaiting_confirm=0, createdAt=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'",
+        "UPDATE orders SET status='done', awaiting_confirm=0, settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'",
         [settledAt, paymentMethod, cashReceived, cashChange, id, req.storeId]
       );
       if (!settled.affectedRows) {
