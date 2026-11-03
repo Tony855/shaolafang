@@ -44,8 +44,13 @@ async function withTransaction(work) {
     } catch (error) {
       try {
         await current.query('ROLLBACK TO SAVEPOINT ' + savepoint);
-      } finally {
+      } catch (rollbackError) {
+        error.rollbackError = rollbackError;
+      }
+      try {
         await current.query('RELEASE SAVEPOINT ' + savepoint);
+      } catch (releaseError) {
+        error.releaseSavepointError = releaseError;
       }
       throw error;
     }
