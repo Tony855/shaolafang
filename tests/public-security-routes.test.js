@@ -406,7 +406,7 @@ test('QR print page is authenticated and scoped to the active store', async () =
     },
     fs: {
       existsSync: () => true,
-      readFileSync: () => '<html><head></head><body>{{table}} {{storeName}} {{qrDataUrl}}</body></html>'
+      readFileSync: () => '<html><head></head><body>{{table}} {{storeName}} {{qrDataUrl}} {{url}}</body></html>'
     },
     path: require('node:path'),
     QRCode: { toDataURL: async url => 'data:image/png;base64,' + Buffer.from(url).toString('base64') }
@@ -432,7 +432,7 @@ test('QR print page is authenticated and scoped to the active store', async () =
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(queries[0].params, ['5', 7]);
+  assert.deepEqual(queries[0].params, [5, 7]);
   assert.deepEqual(queries[1].params, [7, 2]);
   assert.match(res.body, /secret-qr-token/);
   assert.match(res.headers['Cache-Control'] || '', /no-store/);
