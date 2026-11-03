@@ -56,7 +56,7 @@ async function normalizeOrderItems(items, storeId) {
     }
     const menuItem = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ? AND active=1', [menuId, storeId || 1]);
     if (!menuItem) throw new Error(`菜品不存在、已下架或不属于当前门店（ID: ${menuId}）`);
-    const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [menuItem.store_id || 1]);
+    const store = await getAsync('SELECT merchant_id FROM stores WHERE id=? AND active=1', [menuItem.store_id || 1]);
     if (!store) throw new Error(`菜品所属店铺不存在（ID: ${menuItem.store_id}）`);
     const currency = await getAsync('SELECT code, rate FROM currencies WHERE code=? AND merchant_id=?', [menuItem.currency_code || 'USD', store.merchant_id]);
     const price = Number(menuItem.price);
@@ -85,7 +85,7 @@ async function normalizeOrderItems(items, storeId) {
 async function assertTableExists(table, storeId) {
   const normalized = String(table || '').trim();
   if (!normalized) throw new Error('请选择桌号');
-  const existing = await getAsync('SELECT name FROM tables WHERE name = ? AND store_id = ?', [normalized, storeId || 1]);
+  const existing = await getAsync('SELECT t.name FROM tables t JOIN stores s ON s.id=t.store_id WHERE t.name = ? AND t.store_id = ? AND s.active=1', [normalized, storeId || 1]);
   if (!existing) throw new Error('桌号不存在');
   return normalized;
 }
