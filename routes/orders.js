@@ -629,41 +629,102 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     }
 
     await withTransaction(async () => {
+      const tableNames = [...new Set([existing.table_name, nextTable])];
+      const tablePlaceholders = tableNames.map(() => '?').join(',');
+      const lockedTables = await allAsync(
+        'SELECT id, name FROM tables WHERE store_id=? AND name IN (' + tablePlaceholders + ') ORDER BY id FOR UPDATE',
+        [orderStoreId, ...tableNames]
+      );
+      if (lockedTables.length !== tableNames.length) {
+        const error = new Error('订单关联桌台已变化，请刷新后重试');
+        error.status = 409;
+        throw error;
+      }
+
+      const lockedOrder = await getAsync(
+        'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+        [id, orderStoreId]
+      );
+      const snapshotItems = typeof existing.items === 'string' ? existing.items : JSON.stringify(existing.items || []);
+      const lockedItemsSnapshot = typeof lockedOrder?.items === 'string'
+        ? lockedOrder.items
+        : JSON.stringify(lockedOrder?.items || []);
+      if (!lockedOrder || lockedOrder.status !== 'pending' ||
+          lockedOrder.table_name !== existing.table_name ||
+          Number(lockedOrder.total) !== Number(existing.total) ||
+          lockedItemsSnapshot !== snapshotItems ||
+          (!req.isAdmin && !waiterCompletion && lockedOrder.awaiting_confirm)) {
+        const error = new Error('订单状态或内容已变化，请刷新后重试');
+        error.status = 409;
+        throw error;
+      }
+
+      let nextSessionToken = lockedOrder.session_token || '';
+      if (nextTable !== existing.table_name) {
+        const nowMs = Date.now();
+        const nowIso = new Date(nowMs).toISOString();
+        const targetSession = await getAsync(
+          'SELECT token, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+          [nextTable, orderStoreId, nowIso]
+        );
+        const targetExpiry = targetSession ? new Date(targetSession.expires_at).getTime() : NaN;
+        if (targetSession && Number.isFinite(targetExpiry) && targetExpiry > nowMs) {
+          nextSessionToken = targetSession.token;
+        } else {
+          nextSessionToken = crypto.randomBytes(32).toString('base64url');
+          const expiresAt = new Date(nowMs + 2 * 60 * 60 * 1000).toISOString();
+          await runAsync(
+            'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+            [nextTable, nextSessionToken, expiresAt, nowIso, orderStoreId, orderStoreId]
+          );
+        }
+      }
+
       let update;
       if (waiterCompletion) {
         // A waiter may request settlement, but must never transiently mark an order as paid.
         update = await runAsync(
-          "UPDATE orders SET table_name=?, items=?, total=?, note=?, status='pending', awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
-          [nextTable, itemsJson, calculatedTotal, nextNote, paymentMethod, cashReceived, cashChange, id, orderStoreId]
+          "UPDATE orders SET table_name=?, session_token=?, items=?, total=?, note=?, status='pending', awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
+          [nextTable, nextSessionToken, itemsJson, calculatedTotal, nextNote, paymentMethod, cashReceived, cashChange, id, orderStoreId]
         );
       } else if (status === 'done' && req.isAdmin) {
         update = await runAsync(
-          "UPDATE orders SET table_name=?, items=?, total=?, status='done', note=?, awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=?, settled_at=? WHERE id=? AND store_id=? AND status='pending'",
-          [nextTable, itemsJson, calculatedTotal, nextNote, paymentMethod, cashReceived, cashChange, now, id, orderStoreId]
+          "UPDATE orders SET table_name=?, session_token=?, items=?, total=?, status='done', note=?, awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=?, settled_at=? WHERE id=? AND store_id=? AND status='pending'",
+          [nextTable, nextSessionToken, itemsJson, calculatedTotal, nextNote, paymentMethod, cashReceived, cashChange, now, id, orderStoreId]
         );
       } else {
         update = await runAsync(
-          "UPDATE orders SET table_name=?, items=?, total=?, status='pending', note=? WHERE id=? AND store_id=? AND status='pending'",
-          [nextTable, itemsJson, calculatedTotal, nextNote, id, orderStoreId]
+          "UPDATE orders SET table_name=?, session_token=?, items=?, total=?, status='pending', note=? WHERE id=? AND store_id=? AND status='pending'",
+          [nextTable, nextSessionToken, itemsJson, calculatedTotal, nextNote, id, orderStoreId]
         );
       }
       if (!update.affectedRows) {
-        const current = await getAsync('SELECT status, awaiting_confirm FROM orders WHERE id=? AND store_id=?', [id, orderStoreId]);
-        if (!current || current.status !== 'pending' || (waiterCompletion && current.awaiting_confirm)) {
-          const error = new Error('订单状态已变化，请刷新后重试');
-          error.status = 409;
-          throw error;
+        const error = new Error('订单状态已变化，请刷新后重试');
+        error.status = 409;
+        throw error;
+      }
+
+      await syncTableStatus(nextTable, orderStoreId);
+      if (nextTable !== existing.table_name) {
+        await syncTableStatus(existing.table_name, orderStoreId);
+        const oldPending = await getAsync(
+          "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+          [existing.table_name, orderStoreId]
+        );
+        if (!oldPending || Number(oldPending.cnt) === 0) {
+          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [existing.table_name, orderStoreId]);
         }
       }
-      await syncTableStatus(nextTable, orderStoreId);
-      if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
       if (status === 'done' && req.isAdmin) {
-        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [nextTable, orderStoreId]);
+        const stillPending = await getAsync(
+          "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+          [nextTable, orderStoreId]
+        );
         if (!stillPending || Number(stillPending.cnt) === 0) {
           await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [nextTable, orderStoreId]);
         }
       }
-    });
+    });;
 
     const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (waiterCompletion) {
