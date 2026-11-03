@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+// Unit tests replace the connection pool and never connect to a real database.
+process.env.DB_DATABASE = process.env.DB_DATABASE || 'foodflow_test';
 const { pool } = require('../server/db/pool');
 const { withTransaction } = require('../server/db/helpers');
 
