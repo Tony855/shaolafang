@@ -81,7 +81,7 @@ test('table move runs under one transaction and uses a cryptographically random 
 
   const handlers = routes.get('POST /api/tables/move');
   const res = response();
-  await handlers.at(-1)({ isAdmin: true, storeId: 7, body: { from_table: 'A1', target_table: 'A2' } }, res);
+  await handlers.at(-1)({ isAdmin: true, isPrimaryAdmin: true, storeId: 7, body: { from_table: 'A1', target_table: 'A2' } }, res);
   assert.equal(transactionCalls, 1);
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.count, 2);
