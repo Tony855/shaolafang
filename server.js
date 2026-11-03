@@ -35,13 +35,31 @@ const os = require('os');
 
 const app = express();
 app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
+const corsOrigins = new Set((process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean));
 
-// Socket.io
+// Socket.IO: same-host requests are allowed; cross-origin browser clients must be explicitly allowlisted.
 const http = require('http');
 const server = http.createServer(app);
 const { Server } = require('socket.io');
 const io = new Server(server, {
-  cors: { origin: '*' },
+  cors: {
+    origin: (origin, callback) => callback(null, !origin || corsOrigins.has(origin)),
+    credentials: false
+  },
+  allowRequest: (req, callback) => {
+    const origin = req.headers.origin;
+    if (!origin) return callback(null, true);
+    if (corsOrigins.has(origin)) return callback(null, true);
+    try {
+      const parsed = new URL(origin);
+      const requestHost = String(req.headers.host || '').toLowerCase();
+      const sameHost = parsed.host.toLowerCase() === requestHost &&
+        (parsed.protocol === 'http:' || parsed.protocol === 'https:');
+      return callback(sameHost ? null : 'origin not allowed', sameHost);
+    } catch (_) {
+      return callback('invalid origin', false);
+    }
+  },
   pingInterval: 10000,
   pingTimeout: 5000
 });
@@ -158,7 +176,6 @@ const { requireSuperAdmin, requireCashier, requireAdminOrCashier, requireAdminOr
 // ---------- 获取真实客户端IP ----------
 // ---------- IP地理位置查询 ----------
 // ---------- 中间件 ----------
-const corsOrigins = new Set((process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean));
 app.use(cors({
   origin: (origin, callback) => {
     // Same-origin and non-browser clients do not need CORS headers.
