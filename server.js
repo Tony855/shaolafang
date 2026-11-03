@@ -186,6 +186,7 @@ app.use(cors({
 }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
@@ -1128,7 +1129,7 @@ app.use('/api', (req, res) => {
 app.use((err, req, res, next) => {
   console.error('未处理的错误:', err);
   if (res.headersSent) return next(err);
-  res.status(500).json({ error: '服务器内部错误', message: err.message });
+  res.status(500).json({ error: '服务器内部错误' });
 });
 
 // ============================================================
