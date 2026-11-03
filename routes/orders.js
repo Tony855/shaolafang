@@ -256,35 +256,40 @@ app.post('/api/orders', async (req, res) => {
     }
 
     // ---------- 4. 菜品规范化与上限校验 ----------
-    const items = await normalizeOrderItems(req.body.items, finalStoreId);
-
+    const rawItems = req.body.items;
+    if (!Array.isArray(rawItems) || rawItems.length === 0) {
+      return res.status(400).json({ error: '订单至少需要一道菜品' });
+    }
     const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_order_items'");
-    const maxItems = parseInt(maxItemsRow?.value || '50', 10);
-    if (items.length > maxItems) {
+    const maxItemsValue = parseInt(maxItemsRow?.value || '50', 10);
+    const maxItems = Number.isSafeInteger(maxItemsValue) && maxItemsValue > 0 ? Math.min(maxItemsValue, 200) : 50;
+    if (rawItems.length > maxItems) {
       return res.status(400).json({
         error: `单次下单菜品数量不能超过${maxItems}种`,
         code: 'ORDER_ITEM_TYPES_EXCEEDED',
         limit: maxItems,
-        actual: items.length,
+        actual: rawItems.length,
       });
     }
-
     const maxQtyRow = await getAsync("SELECT value FROM settings WHERE `key` = 'max_item_quantity'");
-    const maxQty = parseInt(maxQtyRow?.value || '100', 10);
-    for (const item of items) {
-      if (Number(item.quantity) > maxQty) {
+    const maxQtyValue = parseInt(maxQtyRow?.value || '100', 10);
+    const maxQty = Number.isSafeInteger(maxQtyValue) && maxQtyValue > 0 ? Math.min(maxQtyValue, 1000) : 100;
+    for (const rawItem of rawItems) {
+      const quantity = Number(rawItem && rawItem.quantity);
+      if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > maxQty) {
         return res.status(400).json({
-          error: `单个菜品数量不能超过${maxQty}份`,
+          error: `单个菜品数量必须为 1 至 ${maxQty} 份`,
           code: 'ITEM_QTY_EXCEEDED',
           limit: maxQty,
-          actual: Number(item.quantity),
-          itemId: item.id,
-          itemName: item.name,
+          actual: Number.isFinite(quantity) ? quantity : null,
         });
       }
     }
-
-    const rawTotal = items.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
+    const items = await normalizeOrderItems(rawItems, finalStoreId);
+    const rawTotal = items.reduce((sum, item) => sum + Number(item.base_price) * item.quantity, 0);
+    if (!Number.isFinite(rawTotal) || rawTotal < 0 || rawTotal > 1000000000) {
+      return res.status(400).json({ error: '订单金额超出允许范围' });
+    }
     const calculatedTotal = Math.round(rawTotal * 100) / 100;   // 强制保留 2 位小数
     const itemsJson = JSON.stringify(items);
     const createdAt = new Date().toISOString();
