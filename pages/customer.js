@@ -1362,7 +1362,7 @@
                 }
             });
 
-            // Socket（不传 token，走 public 房间）
+            // Socket 仅通过握手 auth 发送扫码会话凭据，避免令牌出现在 URL 和访问日志中。
             if (typeof io === 'function') {
                 const customerSocket = io({
                     query: { storeId: state.storeId || 1 },
