@@ -4,6 +4,18 @@
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission } = deps;
 
+  function normalizeCurrency(input) {
+    const code = String(input?.code || '').trim().toUpperCase();
+    const symbol = String(input?.symbol || '').trim();
+    const name = String(input?.name || '').trim();
+    const rate = Number(input?.rate);
+    if (!/^[A-Z0-9]{3,10}$/.test(code)) return { error: '货币代码必须为 3-10 位英文字母或数字' };
+    if (!symbol || symbol.length > 8 || /[<>&"'\x60\u0000-\u001f\u007f]/.test(symbol)) return { error: '货币符号无效或包含不允许的字符' };
+    if (!name || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) return { error: '货币名称无效' };
+    if (!Number.isFinite(rate) || rate <= 0 || rate > 1e12) return { error: '汇率必须大于 0 且不超过 1e12' };
+    return { value: { code, symbol, name, rate } };
+  }
+
   app.get('/api/currencies', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try { res.json(await allAsync('SELECT * FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code', [req.merchantId])); }
     catch (e) { res.status(500).json({ error: e.message }); }
@@ -11,11 +23,13 @@ module.exports = function(app, deps) {
 
   app.post('/api/currencies', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
-      const { code, symbol, name, rate, is_default } = req.body;
-      if (!code || !symbol || !name || !(Number(rate) > 0)) return res.status(400).json({ error: '货币资料不完整' });
+      const normalized = normalizeCurrency(req.body || {});
+      if (normalized.error) return res.status(400).json({ error: normalized.error });
+      const { code, symbol, name, rate } = normalized.value;
+      const is_default = !!req.body?.is_default;
       await withTransaction(async () => {
         if (is_default) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [req.merchantId]);
-        const result = await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [req.merchantId, String(code).toUpperCase(), symbol, name, Number(rate), is_default ? 1 : 0]);
+        const result = await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [req.merchantId, code, symbol, name, rate, is_default ? 1 : 0]);
         res.status(201).json(await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [result.lastID, req.merchantId]));
       });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -25,11 +39,13 @@ module.exports = function(app, deps) {
     try {
       const current = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [req.params.id, req.merchantId]);
       if (!current) return res.status(404).json({ error: '货币不存在' });
-      const next = { ...current, ...req.body };
-      if (!(Number(next.rate) > 0)) return res.status(400).json({ error: '汇率必须大于 0' });
+      const next = normalizeCurrency({ ...current, ...(req.body || {}) });
+      if (next.error) return res.status(400).json({ error: next.error });
+      const { code, symbol, name, rate } = next.value;
+      const is_default = req.body?.is_default === undefined ? !!current.is_default : !!req.body.is_default;
       await withTransaction(async () => {
-        if (next.is_default) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [req.merchantId]);
-        await runAsync('UPDATE currencies SET code=?,symbol=?,name=?,rate=?,is_default=? WHERE id=? AND merchant_id=?', [String(next.code).toUpperCase(), next.symbol, next.name, Number(next.rate), next.is_default ? 1 : 0, current.id, req.merchantId]);
+        if (is_default) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [req.merchantId]);
+        await runAsync('UPDATE currencies SET code=?,symbol=?,name=?,rate=?,is_default=? WHERE id=? AND merchant_id=?', [code, symbol, name, rate, is_default ? 1 : 0, current.id, req.merchantId]);
       });
       res.json(await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [current.id, req.merchantId]));
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -65,9 +81,18 @@ module.exports = function(app, deps) {
       const pCode = String(primaryCurrencyCode || 'USD').trim().toUpperCase();
       const sCode = String(secondaryCurrencyCode || '').trim().toUpperCase();
 
-      // 校验
+      // 校验币种代码并确认两个币种均属于当前商户。
+      if (!/^[A-Z0-9]{3,10}$/.test(pCode) || (sCode && !/^[A-Z0-9]{3,10}$/.test(sCode))) {
+        return res.status(400).json({ error: '货币代码无效' });
+      }
       if (sCode && sCode === pCode) {
         return res.status(400).json({ error: '副货币不能和主货币相同' });
+      }
+      const primaryCurrency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [pCode, req.merchantId]);
+      if (!primaryCurrency) return res.status(400).json({ error: '主货币不存在' });
+      if (sCode) {
+        const secondaryCurrency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [sCode, req.merchantId]);
+        if (!secondaryCurrency) return res.status(400).json({ error: '副货币不存在' });
       }
 
       await runAsync(
