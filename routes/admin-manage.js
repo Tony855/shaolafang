@@ -75,56 +75,82 @@ module.exports = function(app, deps) {
   // ----- 催单（需要 session 校验 + 限流）-----
   app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
     try {
-      const id = req.params.id;
-      const { sessionToken } = req.body || {};
+      const id = Number(req.params.id);
+      const sessionToken = typeof req.body?.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
+      if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '订单编号无效' });
+      if (!sessionToken) return res.status(401).json({ error: '请重新扫码后再催单' });
 
-      // 1. 必须带 sessionToken
-      if (!sessionToken) {
-        return res.status(401).json({ error: '请重新扫码后再催单' });
-      }
-
-      // 2. 验证 session 有效
-      const session = await getAsync('SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
-      if (!session) return res.status(401).json({ error: '扫码会话不存在，请重新扫码' });
-      const sessionExpiresAt = new Date(session.expires_at).getTime();
-      if (!Number.isFinite(sessionExpiresAt) || sessionExpiresAt <= Date.now()) {
+      const initialSession = await getAsync(
+        'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?',
+        [sessionToken]
+      );
+      if (!initialSession) return res.status(401).json({ error: '扫码会话不存在，请重新扫码' });
+      const initialExpiry = new Date(initialSession.expires_at).getTime();
+      if (!Number.isFinite(initialExpiry) || initialExpiry <= Date.now()) {
         return res.status(410).json({ error: '二维码已过期，请重新扫码' });
       }
 
-      // 3. 订单必须属于该 session 的桌号 + 店铺
-      const order = await getAsync(
-        'SELECT * FROM orders WHERE id=? AND store_id=? AND table_name=?',
-        [id, session.store_id, session.table_name]
-      );
-      if (!order) return res.status(404).json({ error: '订单不存在' });
-      if (order.status !== 'pending') return res.status(400).json({ error: '订单已完成或已取消' });
+      const result = await withTransaction(async () => {
+        // Lock table -> session -> order; this matches order creation and table operations.
+        const tableRow = await getAsync(
+          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+          [initialSession.table_name, initialSession.store_id]
+        );
+        if (!tableRow) throw Object.assign(new Error('桌台已变化，请重新扫码'), { status: 409 });
 
-      // 4. 催单限流：同一订单 5 分钟内只能催 1 次
-      const URGE_COOLDOWN_MS = 5 * 60 * 1000;
-      const recent = await getAsync(
-        "SELECT created_at FROM waiter_calls WHERE table_name=? AND store_id=? AND type='urge' AND message LIKE ? ORDER BY created_at DESC LIMIT 1",
-        [order.table_name, order.store_id, `%#${id} %`]
-      );
-      if (recent) {
-        const elapsed = Date.now() - new Date(recent.created_at).getTime();
-        if (elapsed < URGE_COOLDOWN_MS) {
-          const remaining = Math.ceil((URGE_COOLDOWN_MS - elapsed) / 60000);
-          return res.status(429).json({ error: `已催单，请${remaining}分钟后再试`, cooldownMinutes: remaining });
+        const session = await getAsync(
+          'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=? FOR UPDATE',
+          [sessionToken]
+        );
+        if (!session) throw Object.assign(new Error('扫码会话已失效，请重新扫码'), { status: 401 });
+        const expiresAt = new Date(session.expires_at).getTime();
+        if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+          throw Object.assign(new Error('二维码已过期，请重新扫码'), { status: 410 });
         }
+        if (session.table_name !== initialSession.table_name ||
+            Number(session.store_id) !== Number(initialSession.store_id)) {
+          throw Object.assign(new Error('扫码桌台已变化，请重新扫码'), { status: 409 });
+        }
+
+        const order = await getAsync(
+          'SELECT * FROM orders WHERE id=? AND store_id=? AND table_name=? FOR UPDATE',
+          [id, session.store_id, session.table_name]
+        );
+        if (!order) throw Object.assign(new Error('订单不存在或已转移'), { status: 404 });
+        if (order.status !== 'pending') throw Object.assign(new Error('订单已完成或已取消'), { status: 400 });
+
+        const URGE_COOLDOWN_MS = 5 * 60 * 1000;
+        const recent = await getAsync(
+          "SELECT created_at FROM waiter_calls WHERE table_name=? AND store_id=? AND type='urge' AND message LIKE ? ORDER BY created_at DESC LIMIT 1 FOR UPDATE",
+          [order.table_name, order.store_id, `%#${id} %`]
+        );
+        if (recent) {
+          const elapsed = Date.now() - new Date(recent.created_at).getTime();
+          if (!Number.isFinite(elapsed) || elapsed < URGE_COOLDOWN_MS) {
+            const remaining = Number.isFinite(elapsed)
+              ? Math.max(1, Math.ceil((URGE_COOLDOWN_MS - elapsed) / 60000))
+              : 5;
+            return { limited: true, remaining };
+          }
+        }
+
+        const callId = crypto.randomBytes(16).toString('hex');
+        await runAsync(
+          'INSERT INTO waiter_calls (id, table_name, type, message, status, store_id, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+          [callId, order.table_name, 'urge', `订单 #${id} 顾客催单`, 'pending', order.store_id || 1, new Date().toISOString(), order.store_id || 1]
+        );
+        return { limited: false, callId, storeId: order.store_id || 1, tableName: order.table_name };
+      });
+
+      if (result.limited) {
+        return res.status(429).json({ error: `已催单，请${result.remaining}分钟后再试`, cooldownMinutes: result.remaining });
       }
-
-      // 5. 写入催单记录
-      const callId = crypto.randomBytes(16).toString('hex');
-      await runAsync(
-        'INSERT INTO waiter_calls (id, table_name, type, message, status, store_id, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-        [callId, order.table_name, 'urge', `订单 #${id} 顾客催单`, 'pending', order.store_id || 1, new Date().toISOString(), order.store_id || 1]
-      );
-
-      io.to('kitchen-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
-      io.to('waiter-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
-
+      io.to('kitchen-' + result.storeId).emit('order:urge', { orderId: id, table: result.tableName });
+      io.to('waiter-' + result.storeId).emit('order:urge', { orderId: id, table: result.tableName });
       res.json({ success: true, message: '已通知后厨，请稍候' });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) {
+      res.status(e.status || 500).json({ error: e.status ? e.message : '催单失败' });
+    }
   });
 
   // ----- 商户管理员管理 -----
