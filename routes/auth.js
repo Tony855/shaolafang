@@ -42,7 +42,7 @@ module.exports = function(app, deps) {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, location, admin.merchant_id, 'merchant_admin', '商户管理员登录成功: ' + username]);
       const token = crypto.randomBytes(32).toString('hex');
       const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
-      const configuredTimeoutMinutes = Number.parseInt(timeoutSetting?.value || '30', 10);
+      const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 30);
       const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 30;
       const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
       await runAsync('INSERT INTO admin_sessions (admin_id, token, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [admin.id, token, expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
