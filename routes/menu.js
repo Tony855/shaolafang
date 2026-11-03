@@ -112,6 +112,7 @@ async function downloadImageToUploads(url) {
         headers: { Accept: 'image/jpeg,image/png,image/webp,image/gif' }
       });
       if (![301, 302, 303, 307, 308].includes(res.status)) break;
+      if (res.body) await res.body.cancel().catch(() => {});
       const location = res.headers.get('location');
       if (!location || redirects === 4) throw new Error('图片重定向次数超限或目标无效');
       target = await validatePublicImageUrl(new URL(location, target).toString());
