@@ -108,7 +108,8 @@ app.post('/api/cashier/login', async (req, res) => {
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, merchantId, 'cashier', '收银员登录成功']);
     const token = crypto.randomBytes(24).toString('base64url');
     const cashierTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'cashier_session_timeout'");
-    const cashierTimeoutHours = parseInt(cashierTimeoutSetting?.value || '12', 10);
+    const configuredCashierTimeoutHours = Number.parseInt(cashierTimeoutSetting?.value || '12', 10);
+    const cashierTimeoutHours = Number.isSafeInteger(configuredCashierTimeoutHours) && configuredCashierTimeoutHours > 0 ? Math.min(configuredCashierTimeoutHours, 720) : 12;
     const expiresAt = new Date(Date.now() + cashierTimeoutHours * 60 * 60 * 1000).toISOString();
     await runAsync('INSERT INTO cashier_sessions (cashier_id, store_id, merchant_id, token, expires_at) VALUES (?, ?, ?, ?, ?)', [cashier.id, targetStoreId, merchantId, token, expiresAt]);
     res.json({
