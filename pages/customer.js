@@ -85,9 +85,19 @@
             constraints: null
         };
 
+        // Fallback customer tokens must use cryptographic randomness.
+        function generateCustomerToken() {
+            if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') {
+                throw new Error('当前浏览器不支持安全随机数，无法创建顾客会话');
+            }
+            const bytes = new Uint8Array(24);
+            window.crypto.getRandomValues(bytes);
+            return 'ct_' + Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+        }
+
         // 页面初始化时自动生成唯一customer_token
         if (!SLF.store.rawGet('customer_token')) {
-            state.customerToken = 'ct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            state.customerToken = generateCustomerToken();
             SLF.store.rawSet('customer_token', state.customerToken);
         } else {
             state.customerToken = SLF.store.rawGet('customer_token');
@@ -305,7 +315,7 @@
                         state.customerToken = SLF.store.rawGet('customer_token');
                     }
                     if (!state.customerToken) {
-                        state.customerToken = 'ct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        state.customerToken = generateCustomerToken();
                         SLF.store.rawSet('customer_token', state.customerToken);
                     }
                     await fetchStoreInfo();
@@ -325,7 +335,7 @@
                         state.customerToken = SLF.store.rawGet('customer_token');
                     }
                     if (!state.customerToken) {
-                        state.customerToken = 'ct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        state.customerToken = generateCustomerToken();
                         SLF.store.rawSet('customer_token', state.customerToken);
                     }
                     try {
