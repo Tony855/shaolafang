@@ -417,7 +417,7 @@ def api_audit():
         warn(f"{len(missing)} 个前端 API 调用未在后端找到")
         if VERBOSE:
             for p in missing[:40]: print(f"       {color(p, C.GRAY)}")
-    return True
+    return not missing
 
 # ============ 主 ============
 if __name__ == '__main__':
@@ -434,7 +434,7 @@ if __name__ == '__main__':
     i18n_audit()
     css_class_audit()
     window_export_audit()
-    api_audit()
+    ok_all &= api_audit()
 
     print()
     print(color("═"*60, C.BLUE))
