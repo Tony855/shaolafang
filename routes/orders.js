@@ -311,7 +311,7 @@ app.post('/api/orders', async (req, res) => {
     const finalStoreId = sessionStoreId || storeId;
 
     // ---------- 3. 冷却检查 ----------
-    const cooldownKey = sessionToken || table;
+    const cooldownKey = sessionToken || ('store:' + finalStoreId + ':table:' + table);
     const cooldownMs = await getOrderCooldownMs();
     const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs || 3000);
     if (!canSubmit) {
