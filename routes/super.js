@@ -10,7 +10,9 @@ const fs = require('fs');
 const { initMerchantSettings, initStoreSettings } = require('../server/services/settings-init');
 
 function boundedInteger(value, fallback, min, max) {
-  const parsed = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
+  if ((typeof value !== 'string' && typeof value !== 'number') ||
+      (typeof value === 'string' && value.trim() === '')) return fallback;
+  const parsed = Number(value);
   if (!Number.isSafeInteger(parsed)) return fallback;
   return Math.min(max, Math.max(min, parsed));
 }
