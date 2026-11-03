@@ -149,9 +149,13 @@ async function downloadImageToUploads(url) {
 
 app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const items = req.body.items;
+    const items = req.body?.items;
     if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: '导入数据不能为空' });
-    
+    if (items.length > 500) return res.status(400).json({ error: '单次最多导入 500 道菜品' });
+    if (items.some(item => !item || typeof item !== 'object' || Array.isArray(item))) {
+      return res.status(400).json({ error: '导入数据中存在无效菜品对象' });
+    }
+
     let success = 0;
     let failed = 0;
     const errors = [];
@@ -174,12 +178,26 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       try {
-        if (!item.name || !item.price) {
+        const itemName = typeof item.name === 'string' ? item.name.trim() : '';
+        const itemPrice = typeof item.price === 'number' || typeof item.price === 'string' ? Number(item.price) : NaN;
+        const itemCurrency = String(itemCurrency).trim().toUpperCase();
+        if (!itemName || itemName.length > 120 || !Number.isFinite(itemPrice) || itemPrice <= 0) {
           failed++;
-          errors.push(`第 ${i+1} 行：名称和价格必填`);
+          errors.push(`第 ${i+1} 行：菜品名称无效或价格必须是大于 0 的有效数字`);
           continue;
         }
-        const existing = await getAsync('SELECT id FROM menus WHERE name = ? AND store_id = ?', [item.name, req.storeId || 1]);
+        if (!itemCurrency || itemCurrency.length > 12) {
+          failed++;
+          errors.push(`第 ${i+1} 行：货币代码无效`);
+          continue;
+        }
+        const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [itemCurrency, req.merchantId]);
+        if (!currency) {
+          failed++;
+          errors.push(`第 ${i+1} 行：货币 ${itemCurrency} 不存在`);
+          continue;
+        }
+        const existing = await getAsync('SELECT id FROM menus WHERE name = ? AND store_id = ?', [itemName, req.storeId || 1]);
         if (existing) {
           let updImage = null;
           const updImgRaw = String(item.image || '').trim();
@@ -196,10 +214,10 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
               'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ?, image = ? WHERE id = ? AND store_id = ?',
               [
                 item.emoji || '🍽️',
-                parseFloat(item.price),
+                itemPrice,
                 item.category || '其他',
                 item.desc || '',
-                item.currency_code || 'USD',
+                itemCurrency,
                 item.name_en || '',
                 item.desc_en || '',
                 item.unit || '份',
@@ -215,10 +233,10 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
               'UPDATE menus SET emoji = ?, price = ?, category = ?, `desc` = ?, currency_code = ?, name_en = ?, desc_en = ?, unit = ?, show_dual = ?, secondary_currency_code = ? WHERE id = ? AND store_id = ?',
               [
                 item.emoji || '🍽️',
-                parseFloat(item.price),
+                itemPrice,
                 item.category || '其他',
                 item.desc || '',
-                item.currency_code || 'USD',
+                itemCurrency,
                 item.name_en || '',
                 item.desc_en || '',
                 item.unit || '份',
@@ -244,13 +262,13 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
           await runAsync(
             'INSERT INTO menus (name, emoji, price, category, `desc`, image, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
-              item.name,
+              itemName,
               item.emoji || '🍽️',
-              parseFloat(item.price),
+              itemPrice,
               item.category || '其他',
               item.desc || '',
               imageName,
-              item.currency_code || 'USD',
+              itemCurrency,
               item.name_en || '',
               item.desc_en || '',
               item.unit || '份',
