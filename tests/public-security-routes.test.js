@@ -213,3 +213,35 @@ test('table deletion is blocked while pending orders or active reservations rema
   assert.equal(res.statusCode, 409);
   assert.equal(writes.length, 0);
 });
+
+
+test('sub-admin without table permission cannot list or move tables', async () => {
+  const { app, routes } = routeHarness();
+  let databaseTouched = false;
+  require('../routes/tables')(app, {
+    requireAdminOrWaiter: pass,
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async () => { databaseTouched = true; return null; },
+    allAsync: async () => { databaseTouched = true; return []; },
+    runAsync: async () => { databaseTouched = true; return { affectedRows: 0 }; },
+    withTransaction: async fn => fn(),
+    syncTableStatus: async () => {},
+    io: { to: () => ({ emit() {} }) }
+  });
+
+  const listHandlers = routes.get('GET /api/tables');
+  const listRes = response();
+  let listNextCalled = false;
+  listHandlers[1]({ isAdmin: true, isPrimaryAdmin: false, adminPermissions: { can_manage_table: 0 } }, listRes, () => { listNextCalled = true; });
+  assert.equal(listRes.statusCode, 403);
+  assert.equal(listNextCalled, false);
+
+  const moveHandlers = routes.get('POST /api/tables/move');
+  const moveRes = response();
+  let moveNextCalled = false;
+  moveHandlers[1]({ isAdmin: true, isPrimaryAdmin: false, adminPermissions: { can_manage_table: 0 } }, moveRes, () => { moveNextCalled = true; });
+  assert.equal(moveRes.statusCode, 403);
+  assert.equal(moveNextCalled, false);
+  assert.equal(databaseTouched, false);
+});
