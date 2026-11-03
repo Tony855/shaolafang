@@ -36,7 +36,7 @@ echo "数据库和用户创建完成"
 
 # 执行应用初始化（创建表和默认数据）
 cd /var/www/foodflow
-DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASSWORD=$DB_PASS DB_NAME=$DB_NAME INIT_ONLY=true INIT_CRED_FILE=/var/lib/foodflow/initial-credentials.txt node server.js
+DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASSWORD=$DB_PASS DB_NAME=$DB_NAME INIT_CRED_FILE=/var/lib/foodflow/initial-credentials.txt node server.js --init-only
 
 echo ""
 echo "=========================================="
