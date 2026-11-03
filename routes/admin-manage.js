@@ -138,7 +138,7 @@ module.exports = function(app, deps) {
     try {
       const { username, password, display_name, active, permissions } = req.body || {};
       if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写管理员资料' });
-      if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+      if (password.length < 12 || password.length > 128) return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
       const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [String(username).trim()]);
       if (exists) return res.status(400).json({ error: '用户名已存在' });
 
@@ -171,7 +171,7 @@ module.exports = function(app, deps) {
       if (display_name !== undefined) { fields.push('display_name=?'); values.push(display_name); }
       if (active !== undefined) { fields.push('active=?'); values.push(active ? 1 : 0); }
       if (password) {
-        if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+        if (password.length < 12 || password.length > 128) return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
         fields.push('password_hash=?'); values.push(hashPassword(password));
       }
       if (permissions && typeof permissions === 'object') {
