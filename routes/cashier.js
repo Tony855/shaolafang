@@ -393,52 +393,90 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     if (!req.cashier.permissions?.can_refund) {
       return res.status(403).json({ error: '没有退款权限' });
     }
-    const id = parseInt(req.params.id);
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '订单编号无效' });
     const { amount, reason, note } = req.body || {};
-    if (!reason) return res.status(400).json({ error: '请选择退款原因' });
-
-    const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
-    if (!order) return res.status(404).json({ error: '订单不存在' });
-    if (order.status !== 'done') return res.status(400).json({ error: '只有已结算订单才能退款' });
-    if (order.status === 'refunded') return res.status(400).json({ error: '订单已退款' });
-
-    const orderTotal = Number(order.total);
-    const refundAmt = amount === undefined || amount === null || amount === ''
-      ? orderTotal
-      : Number(amount);
-    if (!Number.isFinite(orderTotal) || orderTotal <= 0 ||
-        !Number.isFinite(refundAmt) || refundAmt <= 0 || refundAmt > orderTotal) {
-      return res.status(400).json({ error: '退款金额必须大于 0 且不能超过订单应收金额' });
-    }
-    const cleanReason = String(reason).trim().slice(0, 100);
+    const cleanReason = typeof reason === 'string' ? reason.trim().slice(0, 100) : '';
     if (!cleanReason) return res.status(400).json({ error: '请选择退款原因' });
+    const requestedAmount = amount === undefined || amount === null || amount === ''
+      ? null
+      : Number(amount);
+    if (requestedAmount !== null && (!Number.isFinite(requestedAmount) || requestedAmount <= 0)) {
+      return res.status(400).json({ error: '退款金额必须是大于 0 的有效数字' });
+    }
     const cleanNote = typeof note === 'string' ? note.slice(0, 200) : '';
     const now = new Date().toISOString();
+    let tableName = '';
+    let orderTotal = 0;
+    let refundAmount = 0;
+    let totalRefunded = 0;
+    let remainingAmount = 0;
+    let fullyRefunded = false;
+
     await withTransaction(async () => {
+      const lockedOrder = await getAsync(
+        'SELECT status, total, refund_amount, table_name FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+        [id, req.storeId]
+      );
+      if (!lockedOrder) {
+        const error = new Error('订单不存在');
+        error.status = 404;
+        throw error;
+      }
+      if (lockedOrder.status !== 'done') {
+        const error = new Error(lockedOrder.status === 'refunded' ? '订单已全额退款' : '只有已结算且未全额退款的订单才能退款');
+        error.status = 409;
+        throw error;
+      }
+
+      orderTotal = Number(lockedOrder.total);
+      const alreadyRefunded = Math.max(0, Number(lockedOrder.refund_amount) || 0);
+      const available = Math.round((orderTotal - alreadyRefunded) * 100) / 100;
+      if (!Number.isFinite(orderTotal) || orderTotal <= 0 || available <= 0) {
+        const error = new Error('订单没有可退款余额');
+        error.status = 409;
+        throw error;
+      }
+      refundAmount = requestedAmount === null ? available : Math.round(requestedAmount * 100) / 100;
+      if (refundAmount <= 0 || refundAmount > available) {
+        const error = new Error('退款金额不能超过剩余可退款金额 ' + available.toFixed(2));
+        error.status = 400;
+        throw error;
+      }
+
+      totalRefunded = Math.round((alreadyRefunded + refundAmount) * 100) / 100;
+      fullyRefunded = totalRefunded >= Math.round(orderTotal * 100) / 100;
+      remainingAmount = Math.max(0, Math.round((orderTotal - totalRefunded) * 100) / 100);
+      tableName = lockedOrder.table_name;
       const refundUpdate = await runAsync(
-        "UPDATE orders SET status='refunded', refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=? AND status='done'",
-        [cleanReason, cleanNote, now, req.cashier.username || '', refundAmt, id, req.storeId]
+        "UPDATE orders SET status=?, refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=? AND status='done'",
+        [fullyRefunded ? 'refunded' : 'done', cleanReason, cleanNote, now, req.cashier.username || '', totalRefunded, id, req.storeId]
       );
       if (!refundUpdate.affectedRows) {
-        const error = new Error('订单状态已变化，可能已被其他收银员处理');
+        const error = new Error('订单状态已变化，退款操作已回滚');
         error.status = 409;
         throw error;
       }
       await runAsync(
         'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['cashier', 0, req.cashier.username, 'refund_order',
-         JSON.stringify({ order_id: id, table: order.table_name, total: order.total, refund_amount: refundAmt, reason: cleanReason, note: cleanNote }),
+         JSON.stringify({ order_id: id, table: tableName, total: orderTotal, refund_amount: refundAmount, total_refunded: totalRefunded, remaining_amount: remainingAmount, fully_refunded: fullyRefunded, reason: cleanReason, note: cleanNote }),
          getClientIp(req), now]
       );
     });
 
-    // 广播到各端（订单状态变了）
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
-    io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', { orderId: id });
-
-    res.json({ success: true, message: '退款成功' });
+    io.to('public-table-' + req.storeId + '-' + tableName).emit('order:settled', { orderId: id });
+    res.json({
+      success: true,
+      message: fullyRefunded ? '订单已全额退款' : '部分退款成功',
+      refund_amount: refundAmount,
+      total_refunded: totalRefunded,
+      remaining_amount: remainingAmount,
+      fully_refunded: fullyRefunded
+    });
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
