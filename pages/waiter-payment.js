@@ -8,6 +8,7 @@
 
 const $ = (s) => document.querySelector(s);
 const t = SLF.t;
+const esc = SLF.utils.esc;
 
 const apiCall = (path, opt) => SLF.api.page(path, opt);
 
@@ -81,7 +82,7 @@ function renderProviderButtons() {
     // ★ 银行唯一键（小写无空格），用于按商户配置独立控制显隐
     btn.dataset.bankKey = bankName.toLowerCase().replace(/[^a-z0-9]/g, '');
     const label = bankName || t('scanPayFallback');
-    const labelHtml = '<span class="pm-label" style="font-size:12px;font-weight:700;">' + label + '</span>';
+    const labelHtml = '<span class="pm-label" style="font-size:12px;font-weight:700;">' + esc(label) + '</span>';
     btn.innerHTML = '<span class="pm-icon" style="font-size:22px;">📱</span>' + labelHtml;
 
     let extIdx = 0;
@@ -352,7 +353,7 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
       $('#khqrStatusBar').innerHTML = '<span>' + t('khqrWaitingScan') + '</span>';
     })
     .catch(e => {
-      $('#khqrStatusBar').innerHTML = '<span style="color:#e74c3c;">❌ ' + (e.message || t('khqrGenerateFailed')) + '</span>';
+      $('#khqrStatusBar').innerHTML = '<span style="color:#e74c3c;">❌ ' + esc(e.message || t('khqrGenerateFailed')) + '</span>';
       btn.textContent = '❌ ' + t('khqrGenerateFailed');
     });
 }
