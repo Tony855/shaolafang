@@ -2,6 +2,23 @@
    routes/admin-reports.js — 报表 + 管理员信息
    ============================================================ */
 
+function parseDateRange(startDate, endDate, maxDays = 1095) {
+  const validDate = value => {
+    if (typeof value !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return null;
+    const date = new Date(value + 'T00:00:00.000Z');
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? date : null;
+  };
+  const start = validDate(startDate);
+  const end = validDate(endDate);
+  if (!start || !end || end < start) return null;
+  const days = Math.floor((end - start) / 86400000) + 1;
+  if (days > maxDays) return null;
+  return {
+    start: new Date(start.getTime()).toISOString(),
+    end: new Date(end.getTime() + 86400000 - 1).toISOString()
+  };
+}
+
 function csvRow(values) {
   return values.map(value => {
     const raw = value === null || value === undefined ? '' : String(value);
@@ -51,8 +68,10 @@ module.exports = function(app, deps) {
       const swParams = sw.params;
       const isAll = sw.isAll;
 
-      const startOfDay = new Date(startDate + 'T00:00:00.000Z');
-      const endOfDay = new Date(endDate + 'T23:59:59.999Z');
+      const dateRange = parseDateRange(startDate, endDate);
+      if (!dateRange) return res.status(400).json({ error: '日期范围无效，最多支持 1095 天' });
+      const startOfDay = new Date(dateRange.start);
+      const endOfDay = new Date(dateRange.end);
       const date = (startDate === endDate) ? startDate : `${startDate} ~ ${endDate}`;
 
       // 根据范围天数自动判断聚合粒度
@@ -276,14 +295,22 @@ module.exports.attachAdvancedExport = function(app, deps) {
   app.get('/api/admin/export-advanced', requireAdminKey, async (req, res) => {
     try {
       const storeId = req.storeId || 1;
-      const startDate = req.query.startDate || '1970-01-01';
       const endDate = req.query.endDate || new Date().toISOString().slice(0, 10);
+      const startDate = req.query.startDate || endDate;
       const dimension = req.query.dimension || 'orders';     // orders | sales | tables
-      const statuses = (req.query.statuses || 'done').split(',').filter(Boolean);
-      const payMethods = (req.query.payMethods || '').split(',').filter(Boolean);
-
-      const startIso = startDate + 'T00:00:00.000Z';
-      const endIso = endDate + 'T23:59:59.999Z';
+      const statuses = String(req.query.statuses || 'done').split(',').map(value => value.trim()).filter(Boolean);
+      const payMethods = String(req.query.payMethods || '').split(',').map(value => value.trim()).filter(Boolean);
+      const allowedStatuses = new Set(['pending', 'done', 'canceled', 'refunded']);
+      if (!statuses.length || statuses.some(status => !allowedStatuses.has(status))) {
+        return res.status(400).json({ error: '订单状态筛选条件无效' });
+      }
+      if (payMethods.length > 20 || payMethods.some(method => !method || method.length > 40)) {
+        return res.status(400).json({ error: '支付方式筛选条件无效' });
+      }
+      const dateRange = parseDateRange(startDate, endDate);
+      if (!dateRange) return res.status(400).json({ error: '日期范围无效，最多支持 1095 天' });
+      const startIso = dateRange.start;
+      const endIso = dateRange.end;
 
       let csv = '';
       let filename = '';
