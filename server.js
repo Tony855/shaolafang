@@ -122,17 +122,26 @@ const cache = {
       memoryCache.set(key, value, ttlSeconds);
     }
   },
+  async setIfAbsent(key, value, ttlSeconds) {
+    if (redisReady) {
+      const result = await redisClient.set(key, JSON.stringify(value), {
+        NX: true,
+        ...(ttlSeconds > 0 ? { EX: ttlSeconds } : {})
+      });
+      return result === 'OK';
+    }
+    if (memoryCache.get(key) !== undefined && memoryCache.get(key) !== null) return false;
+    memoryCache.set(key, value, ttlSeconds);
+    return true;
+  },
   async del(key) {
     if (redisReady) await redisClient.del(key);
     else memoryCache.delete(key);
   }
 };
 async function checkAndSetCooldown(key, cooldownMs) {
-  const last = await cache.get('cooldown:' + key);
-  const now = Date.now();
-  if (last && (now - last) < cooldownMs) return false;
-  await cache.set('cooldown:' + key, now, Math.ceil(cooldownMs / 1000) + 1);
-  return true;
+  const ttlSeconds = Math.max(1, Math.ceil(Number(cooldownMs) / 1000));
+  return cache.setIfAbsent('cooldown:' + key, Date.now(), ttlSeconds);
 }
 
 // ---------- 模块化引入（从 server/services 引入） ----------
