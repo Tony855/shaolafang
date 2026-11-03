@@ -1140,7 +1140,7 @@ require('./routes/admin-settings.js')(app, { getAsync, runAsync, allAsync, withT
 
 // ----- 二维码 -----
 // ----- 二维码+桌台session -----
-require('./routes/public-session.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, formatOrder });
+require('./routes/public-session.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder });
 
 
 // ---------- 全局错误处理 ----------
