@@ -637,8 +637,9 @@ module.exports = function(app, deps) {
       }
 
       // 只有已认证的管理员/收银员可人工确认到账；更新必须绑定当前门店且保持待处理状态。
-      const result = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, pay_method='khqr', paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
-        [req.adminId || req.cashierId || 'unknown', order_id, sid]);
+      const settledAt = new Date().toISOString();
+      const result = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, pay_method='khqr', settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
+        [settledAt, req.adminId || req.cashierId || 'unknown', order_id, sid]);
       if (!result.affectedRows) return res.status(409).json({ error: '订单状态已变化，请刷新后重试' });
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id }), req.ip || '', new Date().toISOString()]);
