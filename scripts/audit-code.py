@@ -431,7 +431,7 @@ if __name__ == '__main__':
     ok_all &= frontend_handler_audit()
     ok_all &= html_id_audit()
     ok_all &= backend_audit()
-    i18n_audit()
+    ok_all &= i18n_audit()
     css_class_audit()
     window_export_audit()
     ok_all &= api_audit()
