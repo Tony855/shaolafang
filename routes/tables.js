@@ -10,7 +10,7 @@ module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
   function requireTableAccess(req, res, next) {
-    if (!req.isAdmin || req.isPrimaryAdmin || req.adminPermissions?.can_manage_table) return next();
+    if (!req.isAdmin || !req.adminId || req.isPrimaryAdmin || req.adminPermissions?.can_manage_table) return next();
     return res.status(403).json({ error: '没有桌台管理权限' });
   }
 
