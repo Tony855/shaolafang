@@ -211,6 +211,7 @@ const {
   requireAdminOrWaiter,
 } = require('./server/middleware/admin-auth');
 const { requireSuperAdmin, requireCashier, requireAdminOrCashier, requireAdminOrCashierOrWaiter } = require('./server/middleware/auth');
+const { createSocketAuthenticator } = require('./server/middleware/socket-auth');
 
 // ---------- 获取真实客户端IP ----------
 // ---------- IP地理位置查询 ----------
@@ -1184,83 +1185,7 @@ app.use((err, req, res, next) => {
 // ============================================================
 //  Socket.io 握手鉴权
 // ============================================================
-io.use(async (socket, next) => {
-  try {
-    const token = (socket.handshake.query.token || '').trim();
-    const requestedStoreId = parseInt(socket.handshake.query.storeId, 10) || 1;
-
-    // 顾客端必须持有有效扫码会话；禁止仅靠可伪造的 storeId 订阅整家门店事件。
-    if (!token) return next(new Error('unauthorized: table session required'));
-    const scanSession = await getAsync('SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?', [token]);
-    if (scanSession) {
-      if (!Number.isFinite(new Date(scanSession.expires_at).getTime()) || new Date(scanSession.expires_at).getTime() <= Date.now()) {
-        return next(new Error('unauthorized: table session expired'));
-      }
-      socket.data.role = 'public';
-      socket.data.storeId = scanSession.store_id || 1;
-      socket.data.tableName = scanSession.table_name;
-      return next();
-    }
-
-    // 1) 服务员/后厨（共用 waiter_sessions）
-    const waiterSession = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-    if (waiterSession && Number.isFinite(new Date(waiterSession.expires_at).getTime()) && new Date(waiterSession.expires_at).getTime() > Date.now()) {
-      const waiter = await getAsync('SELECT w.* FROM waiters w JOIN stores s ON s.id=w.store_id AND s.merchant_id=w.merchant_id AND s.active=1 JOIN merchants m ON m.id=w.merchant_id AND m.status=1 WHERE w.id=? AND w.active=1', [waiterSession.waiter_id]);
-      if (waiter) {
-        socket.data.role = 'waiter';
-        socket.data.storeId = waiter.store_id || 1;
-        socket.data.waiterId = waiter.id;
-        return next();
-      }
-    }
-
-    // 2) 收银员
-    const cashierSession = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
-    if (cashierSession && Number.isFinite(new Date(cashierSession.expires_at).getTime()) && new Date(cashierSession.expires_at).getTime() > Date.now()) {
-      const activeCashierStore = await getAsync(
-        'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
-        [cashierSession.store_id, cashierSession.merchant_id]
-      );
-      const cashierSettings = activeCashierStore ? await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + cashierSession.store_id]) : null;
-      let cashierList = [];
-      try { cashierList = JSON.parse(cashierSettings?.value || '[]'); } catch (_) {}
-      const activeCashier = cashierList.find(item => String(item.id) === String(cashierSession.cashier_id) && item.active);
-      if (activeCashier) {
-        socket.data.role = 'cashier';
-        socket.data.storeId = cashierSession.store_id || 1;
-        socket.data.cashierId = cashierSession.cashier_id;
-        return next();
-      }
-    }
-
-    // 3) 管理员
-    const adminSession = await getAsync('SELECT admin_id, expires_at FROM admin_sessions WHERE token=?', [token]);
-    if (adminSession && Number.isFinite(new Date(adminSession.expires_at).getTime()) && new Date(adminSession.expires_at).getTime() > Date.now()) {
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [adminSession.admin_id]);
-      const merchant = admin ? await getAsync('SELECT status FROM merchants WHERE id=?', [admin.merchant_id]) : null;
-      if (admin && merchant && merchant.status === 1) {
-        socket.data.role = 'admin';
-        socket.data.adminId = admin.id;
-        socket.data.merchantId = admin.merchant_id;
-        const storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
-        if (storeCheck) {
-          socket.data.storeId = requestedStoreId;
-        } else {
-          const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
-          socket.data.storeId = firstStore?.id || 1;
-        }
-        return next();
-      }
-    }
-
-    // 有 token 但查不到对应会话
-    return next(new Error('unauthorized: token invalid or expired'));
-  } catch (e) {
-    console.error('[socket] auth error:', e);
-    return next(new Error('auth failed'));
-  }
-});
-
+io.use(createSocketAuthenticator({ getAsync, logger: console }));
 io.on('connection', (socket) => {
   const { role, storeId } = socket.data;
   console.log(`[socket] connected role=${role} store=${storeId} id=${socket.id}`);
