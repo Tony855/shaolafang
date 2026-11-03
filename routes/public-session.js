@@ -52,7 +52,7 @@ module.exports = function(app, deps) {
     try {
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [req.params.token]);
       if (!session) return res.status(404).json({ error: '扫码会话不存在，请重新扫码' });
-      if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '二维码已过期，请重新扫码' });
+      if (!Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return res.status(410).json({ error: '二维码已过期，请重新扫码' });
       const customerToken = req.query.ct || '';
       let rows;
       if (customerToken) {
@@ -71,7 +71,7 @@ module.exports = function(app, deps) {
     try {
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [req.params.token]);
       if (!session) return res.status(404).json({ error: '会话不存在' });
-      if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '会话已过期' });
+      if (!Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return res.status(410).json({ error: '会话已过期' });
       let expiresAt2 = session.expires_at;
       res.json({ table: session.table_name, storeId: session.store_id || 1, sessionToken: req.params.token, expiresAt: expiresAt2 });
     } catch (e) { res.status(500).json({ error: e.message }); }
