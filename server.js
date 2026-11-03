@@ -675,6 +675,7 @@ async function initDatabase() {
       total DECIMAL(10,2) NOT NULL,
       status VARCHAR(20) DEFAULT 'pending',
       createdAt VARCHAR(50) NOT NULL,
+      settled_at VARCHAR(50) DEFAULT NULL,
       session_token VARCHAR(255),
       store_id INT NOT NULL DEFAULT 1,
       note VARCHAR(200) DEFAULT '',
@@ -707,6 +708,7 @@ async function initDatabase() {
   // ===== orders 支付/退款字段补全迁移（幂等）=====
   const ordersPaymentColumns = [
     ['order_no',          'VARCHAR(20) DEFAULT NULL'],
+    ['settled_at',        'VARCHAR(50) DEFAULT NULL'],
     ['pay_method',        "VARCHAR(20) DEFAULT ''"],
     ['cash_received',     'DECIMAL(10,2) DEFAULT 0'],
     ['cash_change',       'DECIMAL(10,2) DEFAULT 0'],
