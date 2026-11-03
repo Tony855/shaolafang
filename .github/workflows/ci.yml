@@ -61,5 +61,11 @@ jobs:
       - name: Run repository code audit
         run: python3 scripts/audit-code.py
 
+      - name: Strict language validation
+        run: npm run check:lang:strict
+
+      - name: Run tests when defined
+        run: npm test --if-present
+
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
