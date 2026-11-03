@@ -254,7 +254,7 @@ module.exports = function(app, deps) {
                     CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].base_price')) AS DECIMAL(12,4)),
                     CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].price')) AS DECIMAL(12,4)),
                     m.price
-                  )) AS total_revenue
+                  ) * CASE WHEN o.total > 0 THEN GREATEST(0, o.total - COALESCE(o.refund_amount, 0)) / o.total ELSE 0 END) AS total_revenue
           FROM orders o
           JOIN (${JSON_ITEM_INDEXES}) n
             ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
@@ -344,7 +344,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
                    CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].base_price')) AS DECIMAL(12,4)),
                    CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].price')) AS DECIMAL(12,4)),
                    m.price
-                 )) AS total_revenue
+                 ) * CASE WHEN o.total > 0 THEN GREATEST(0, o.total - COALESCE(o.refund_amount, 0)) / o.total ELSE 0 END) AS total_revenue
           FROM orders o
           JOIN (${JSON_ITEM_INDEXES}) n
             ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
