@@ -114,7 +114,7 @@ async function validatePublicImageUrl(value) {
 
 function requestPublicImage(resolved) {
   const { target, address } = resolved;
-  const hostname = target.hostname.replace(/^\\[|\\]$/g, '');
+  const hostname = target.hostname.replace(/^\[|\]$/g, '');
   const transport = target.protocol === 'https:' ? https : http;
   return new Promise((resolve, reject) => {
     const request = transport.request({
