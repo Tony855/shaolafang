@@ -4,6 +4,7 @@ process.env.DB_DATABASE = process.env.DB_DATABASE || 'foodflow_test';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+process.env.DB_DATABASE = process.env.DB_DATABASE || 'foodflow_test';
 const { pool } = require('../server/db/pool');
 const { requireCashier } = require('../server/middleware/auth');
 
