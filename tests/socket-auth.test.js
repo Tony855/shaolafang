@@ -104,3 +104,11 @@ test('positiveSafeInteger rejects partial, zero and unsafe store identifiers', (
   assert.equal(positiveSafeInteger('0'), null);
   assert.equal(positiveSafeInteger(Number.MAX_SAFE_INTEGER + 1), null);
 });
+
+test('socket auth refuses credentials supplied only in URL query strings', async () => {
+  const middleware = createSocketAuthenticator({ getAsync: async () => null, logger: { error() {} } });
+  const socket = { handshake: { query: { token: 'query-token' }, auth: {} }, data: {} };
+  let error = null;
+  await middleware(socket, value => { error = value || null; });
+  assert.match(error.message, /session token required/);
+});
