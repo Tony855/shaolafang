@@ -27,22 +27,20 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 log_success() { echo -e "${GREEN}${BOLD}[SUCCESS]${NC}${NC} $1"; }
 
-# ===== 内嵌只读 deploy key（用于从私有仓库 clone）=====
-# 只读权限，泄露最多让别人读代码，不能推送
-FOODFLOW_REPO="git@github.com:Tony855/shaolafang.git"
-FOODFLOW_DEPLOY_KEY_B64="LS0tLS1CRUdJTiBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0KYjNCbGJuTnphQzFyWlhrdGRqRUFBQUFBQkc1dmJtVUFBQUFFYm05dVpRQUFBQUFBQUFBQkFBQUFNd0FBQUF0emMyZ3RaVwpReU5UVXhPUUFBQUNCS3V5MGh1Y0xma1VHbTNMb1U2U21YcFZ4WHRzMFh0ZEhHa3d4WVRDYVV3d0FBQUpqYnpDVUQyOHdsCkF3QUFBQXR6YzJndFpXUXlOVFV4T1FBQUFDQkt1eTBodWNMZmtVR20zTG9VNlNtWHBWeFh0czBYdGRIR2t3eFlUQ2FVd3cKQUFBRUJ0aWVCNVFNK1hkazROYkg0SjljMjRYUHRrb2thKzZqNWZod1pFMko5VzFFcTdMU0c1d3QrUlFhYmN1aFRwS1plbApYRmUyelJlMTBjYVRERmhNSnBUREFBQUFFR2x1YzNSaGJHd3RjbVZoWkc5dWJIa0JBZ01FQlE9PQotLS0tLUVORCBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0K"
+# 仓库为公开仓库，默认使用 HTTPS；绝不在代码中保存 SSH 私钥或 Token。
+FOODFLOW_REPO="https://github.com/Tony855/shaolafang.git"
 
 prepare_deploy_key() {
-    [ -n "${FOODFLOW_DEPLOY_KEY:-}" ] && return 0
-    FOODFLOW_DEPLOY_KEY=$(mktemp /tmp/.ff_key.XXXXXX)
-    chmod 600 "$FOODFLOW_DEPLOY_KEY"
-    echo "$FOODFLOW_DEPLOY_KEY_B64" | base64 -d > "$FOODFLOW_DEPLOY_KEY" 2>/dev/null || {
-        echo "[WARN] deploy key 解码失败，将回退到其他 clone 方式"
-        FOODFLOW_DEPLOY_KEY=""
+    # 仅在运维人员显式注入独立密钥文件时使用；公开仓库不需要部署密钥。
+    if [ -z "${FOODFLOW_DEPLOY_KEY:-}" ]; then
+        return 0
+    fi
+    if [ ! -r "$FOODFLOW_DEPLOY_KEY" ]; then
+        log_error "FOODFLOW_DEPLOY_KEY 指定的密钥文件不可读"
         return 1
-    }
-    trap 'rm -f "${FOODFLOW_DEPLOY_KEY:-}" 2>/dev/null' EXIT
-    export GIT_SSH_COMMAND="ssh -i $FOODFLOW_DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    fi
+    export FOODFLOW_REPO="git@github.com:Tony855/shaolafang.git"
+    export GIT_SSH_COMMAND="ssh -i $FOODFLOW_DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 }
 
 # ===== 已安装时的更新模式 =====
