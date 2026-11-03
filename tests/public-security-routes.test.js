@@ -245,3 +245,47 @@ test('sub-admin without table permission cannot list or move tables', async () =
   assert.equal(moveNextCalled, false);
   assert.equal(databaseTouched, false);
 });
+
+
+test('waiter-call cooldown remains active after older calls leave the rolling count window', async () => {
+  const { app, routes } = routeHarness();
+  const now = Date.now();
+  const recentCalls = [
+    { created_at: new Date(now - 5 * 60000).toISOString() },
+    { created_at: new Date(now - 5.5 * 60000).toISOString() },
+    { created_at: new Date(now - 6 * 60000).toISOString() }
+  ];
+  let inserted = false;
+  require('../routes/calls')(app, {
+    requireAdminOrWaiter: pass,
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async sql => {
+      if (sql.includes('FROM scan_sessions')) {
+        return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
+      }
+      if (sql.includes('FROM tables')) return { id: 1, store_id: 7 };
+      return null;
+    },
+    allAsync: async sql => {
+      if (sql.includes('call_limit_enabled')) {
+        return [
+          { key: 'call_limit_enabled', value: '1' },
+          { key: 'call_limit_max', value: '3' },
+          { key: 'call_limit_window_minutes', value: '5' },
+          { key: 'call_limit_cooldown_minutes', value: '10' }
+        ];
+      }
+      if (sql.includes('FROM waiter_calls')) return recentCalls;
+      return [];
+    },
+    runAsync: async () => { inserted = true; return { affectedRows: 1 }; },
+    withTransaction: async fn => fn()
+  });
+  const handler = routes.get('POST /api/public/call-waiter').at(-1);
+  const res = response();
+  await handler({ body: { table: 'A1', sessionToken: 'valid-token' } }, res);
+  assert.equal(res.statusCode, 429);
+  assert.equal(res.body.cooldownMinutes, 5);
+  assert.equal(inserted, false);
+});
