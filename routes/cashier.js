@@ -384,7 +384,7 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
       return res.status(403).json({ error: '没有查看报表权限' });
     }
     const today = new Date().toISOString().split('T')[0];
-    const settledOrders = await allAsync("SELECT * FROM orders WHERE store_id=? AND status='done' AND SUBSTRING(createdAt, 1, 10)=? ORDER BY createdAt DESC", [req.storeId, today]);
+    const settledOrders = await allAsync("SELECT * FROM orders WHERE store_id=? AND status='done' AND SUBSTRING(COALESCE(settled_at, createdAt), 1, 10)=? ORDER BY COALESCE(settled_at, createdAt) DESC", [req.storeId, today]);
     const totalRevenue = settledOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
     res.json({
       date: today,
