@@ -39,7 +39,7 @@ module.exports = function(app, deps) {
       const sessionToken = crypto.randomBytes(24).toString('base64url');
       const qrTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
       const rawQrTimeout = String(qrTimeoutSetting?.value ?? '45').trim();
-      const configuredQrTimeout = /^\\d+$/.test(rawQrTimeout) ? Number(rawQrTimeout) : NaN;
+      const configuredQrTimeout = /^\d+$/.test(rawQrTimeout) ? Number(rawQrTimeout) : NaN;
       // A literal 0 intentionally disables expiry; malformed values fall back to
       // the secure default rather than accidentally creating a never-expiring token.
       const qrTimeoutMinutes = Number.isSafeInteger(configuredQrTimeout) && configuredQrTimeout >= 0
