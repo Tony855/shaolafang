@@ -34,7 +34,7 @@ app.post('/api/public/call-waiter', async (req, res) => {
     );
     const limitCfg = Object.fromEntries(limitRows.map(row => [row.key, row.value]));
     const parseLimit = (value, fallback, min, max) => {
-      const parsed = Number.parseInt(value, 10);
+      const parsed = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
       return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
     };
     const limitEnabled = (limitCfg.call_limit_enabled || '1') !== '0';
@@ -63,22 +63,25 @@ app.post('/api/public/call-waiter', async (req, res) => {
       }
 
       if (limitEnabled) {
-        const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
-        const countRow = await getAsync(
-          "SELECT COUNT(*) AS cnt FROM waiter_calls WHERE table_name=? AND store_id=? AND (type='call' OR type='' OR type IS NULL) AND created_at>=?",
-          [table, tableRow.store_id, windowStart]
+        const recentCalls = await allAsync(
+          "SELECT created_at FROM waiter_calls WHERE table_name=? AND store_id=? AND (type='call' OR type='' OR type IS NULL) ORDER BY created_at DESC LIMIT ?",
+          [table, tableRow.store_id, maxCalls]
         );
-        if (Number(countRow?.cnt || 0) >= maxCalls) {
-          const lastCall = await getAsync(
-            "SELECT created_at FROM waiter_calls WHERE table_name=? AND store_id=? AND (type='call' OR type='' OR type IS NULL) ORDER BY created_at DESC LIMIT 1",
-            [table, tableRow.store_id]
-          );
-          let remaining = cooldownMinutes;
-          if (lastCall) {
-            const elapsed = (Date.now() - new Date(lastCall.created_at).getTime()) / 60000;
-            remaining = Number.isFinite(elapsed) ? Math.max(0, Math.ceil(cooldownMinutes - elapsed)) : cooldownMinutes;
+        if (recentCalls.length >= maxCalls) {
+          const timestamps = recentCalls.map(row => new Date(row.created_at).getTime());
+          const newest = timestamps[0];
+          const oldest = timestamps[timestamps.length - 1];
+          const now = Date.now();
+          // Once the limit is reached, keep the cooldown active even after the
+          // rolling count window begins to shed older calls.
+          if (!timestamps.every(Number.isFinite)) {
+            return { limited: true, cooldownMinutes };
           }
-          return { limited: true, cooldownMinutes: remaining };
+          if (newest - oldest <= windowMinutes * 60 * 1000) {
+            const elapsedMinutes = (now - newest) / 60000;
+            const remaining = Math.max(0, Math.ceil(cooldownMinutes - elapsedMinutes));
+            if (remaining > 0) return { limited: true, cooldownMinutes: remaining };
+          }
         }
       }
 
