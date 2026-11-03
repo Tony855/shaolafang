@@ -2,6 +2,7 @@
    routes/super.js — 超级管理员路由
    ============================================================ */
 const crypto = require('crypto');
+const express = require('express');
 const { needsRehash } = require('../server/middleware/password');
 const os = require('os');
 const fs = require('fs');
@@ -562,7 +563,7 @@ app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/super/backup/import', requireSuperAdmin, async (req, res) => {
+app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '50mb' }), async (req, res) => {
   try {
     const data = req.body;
     const tables = ['menus', 'tables', 'orders', 'order_sequences', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
