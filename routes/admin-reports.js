@@ -31,7 +31,7 @@ function csvRow(values) {
 }
 
 module.exports = function(app, deps) {
-  const { getAsync, allAsync, requireAdminKey, authenticateAdmin } = deps;
+  const { getAsync, allAsync, requireAdminKey, requirePermission, authenticateAdmin } = deps;
 
   // Keep report aggregation aligned with the 200-item order API limit.
   const JSON_ITEM_INDEXES = Array.from({ length: 200 }, (_, index) => index === 0
@@ -56,7 +56,7 @@ module.exports = function(app, deps) {
   }
 
 
-  app.get('/api/admin/reports/daily', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/reports/daily', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
       // ===== 支持 startDate/endDate 范围查询，向后兼容 date =====
       let startDate = req.query.startDate || req.query.date || new Date().toISOString().slice(0, 10);
@@ -191,7 +191,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get('/api/admin/reports/summary', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/reports/summary', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -226,7 +226,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get('/api/admin/info', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/info', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
       const admin = await getAsync('SELECT id, username, display_name, merchant_id, created_at, last_login_at, active FROM merchant_admins WHERE id=?', [req.adminId]);
       const merchant = await getAsync('SELECT id, name, code, contact_name, contact_phone, max_stores, status, created_at FROM merchants WHERE id=?', [admin?.merchant_id]);
@@ -238,6 +238,10 @@ module.exports = function(app, deps) {
   app.get('/api/admin/export/:type', requireAdminKey, async (req, res) => {
     try {
       const type = req.params.type;
+      const permission = type === 'menu' ? 'can_manage_menu' : 'can_view_logs';
+      if (!req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions[permission])) {
+        return res.status(403).json({ error: '没有导出该数据的权限' });
+      }
       let rows = [], filename = '', headers = [];
       if (type === 'orders') {
         rows = await allAsync('SELECT * FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000', [req.storeId]);
@@ -290,9 +294,9 @@ module.exports = function(app, deps) {
 // 高级导出：支持日期范围 + 状态 + 支付方式筛选
 // ═══════════════════════════════════════════════════════════
 module.exports.attachAdvancedExport = function(app, deps) {
-  const { getAsync, allAsync, requireAdminKey } = deps;
+  const { getAsync, allAsync, requireAdminKey, requirePermission } = deps;
 
-  app.get('/api/admin/export-advanced', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/export-advanced', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
       const storeId = req.storeId || 1;
       const endDate = req.query.endDate || new Date().toISOString().slice(0, 10);
