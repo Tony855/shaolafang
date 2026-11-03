@@ -229,17 +229,37 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+    files: 5,
+    fields: 100,
+    parts: 120,
+    fieldNameSize: 100,
+    fieldSize: 1024 * 1024,
+    headerPairs: 2000
+  },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    // 允许图片 + zip（菜单打包导入）
-    if (ext === '.zip') return cb(null, true);
-    if (['.mp4','.webm','.ogg','.mov'].includes(ext)) return cb(null, true);
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extName = allowedTypes.test(ext);
-    const mimeType = allowedTypes.test(file.mimetype);
-    if (extName && mimeType) return cb(null, true);
-    cb(new Error('只允许上传图片文件（JPG/PNG/GIF/WEBP）或 ZIP 包'));
+    const imageMimes = {
+      '.jpg': ['image/jpeg'],
+      '.jpeg': ['image/jpeg'],
+      '.png': ['image/png'],
+      '.gif': ['image/gif'],
+      '.webp': ['image/webp']
+    };
+    const videoMimes = {
+      '.mp4': ['video/mp4', 'application/octet-stream'],
+      '.webm': ['video/webm', 'application/octet-stream'],
+      '.ogg': ['video/ogg', 'application/ogg'],
+      '.mov': ['video/quicktime', 'application/octet-stream']
+    };
+    if (ext === '.zip') {
+      if (['application/zip', 'application/x-zip-compressed', 'application/octet-stream'].includes(file.mimetype)) return cb(null, true);
+      return cb(new Error('ZIP 文件 MIME 类型不正确'));
+    }
+    if (imageMimes[ext]?.includes(file.mimetype)) return cb(null, true);
+    if (videoMimes[ext]?.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('不支持的文件格式或 MIME 类型不匹配'));
   }
 });
 
