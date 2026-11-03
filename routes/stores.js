@@ -82,6 +82,9 @@ app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('
         const imageName = path.basename(String(menu.image));
         const srcPath = path.resolve(uploadRoot, imageName);
         if (srcPath.startsWith(uploadRoot + path.sep) && fs.existsSync(srcPath) && fs.statSync(srcPath).isFile()) {
+          const realRoot = fs.realpathSync(uploadRoot);
+          const realSource = fs.realpathSync(srcPath);
+          if (!realSource.startsWith(realRoot + path.sep)) continue;
           const ext = path.extname(imageName).toLowerCase();
           const newFilename = Date.now() + '_' + Math.random().toString(36).slice(2,6) + ext;
           const destPath = path.resolve(uploadRoot, newFilename);
