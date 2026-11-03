@@ -2,6 +2,7 @@
 (function(){
 'use strict';
 const $ = s => document.querySelector(s);
+const esc = SLF.utils.esc;
 const SUPPORTED = ['zh','en','vi','th','km'];
 let currentLang = SLF.store.rawGet('displayLang') || SLF.store.rawGet('lang') || 'zh';
 if (!SUPPORTED.includes(currentLang)) currentLang = 'zh';
@@ -67,24 +68,24 @@ function renderCats(){
   const cats = [...new Set(allMenu.map(m=>m.category).filter(Boolean))];
   const list = ['__ALL__', ...cats];
   const box = $('#dispCats'); if(!box) return;
-  box.innerHTML = list.map(c=>'<button class="disp-cat'+(c===currentCat?' active':'')+'" data-cat="'+c+'">'+catText(c)+'</button>').join('');
+  box.innerHTML = list.map(c=>'<button class="disp-cat'+(c===currentCat?' active':'')+'" data-cat="'+esc(c)+'">'+esc(catText(c))+'</button>').join('');
   box.querySelectorAll('.disp-cat').forEach(b=>{ b.onclick=()=>{ currentCat=b.dataset.cat; renderCats(); applyFilterAndRender(); }; });
   const active = box.querySelector('.disp-cat.active');
   if (active) active.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
 }
 function cardHtml(m){
   let media;
-  if (m.video) media = '<video autoplay muted loop playsinline preload="metadata"'+(m.image?' poster="/uploads/'+m.image+'"':'')+'><source src="/uploads/'+m.video+'"></video>';
-  else if (m.image) media = '<img src="/uploads/'+m.image+'" alt="">';
-  else media = (m.emoji || '🍽️');
+  if (m.video) media = '<video autoplay muted loop playsinline preload="metadata"'+(m.image?' poster="/uploads/'+esc(m.image)+'"':'')+'><source src="/uploads/'+esc(m.video)+'"></video>';
+  else if (m.image) media = '<img src="/uploads/'+esc(m.image)+'" alt="">';
+  else media = esc(m.emoji || '🍽️');
   const prices = SLF.money.menuPrice(m);
   let secHtml = prices.secondary ? '<span class="sec">('+prices.secondary+')</span>' : '';
   const hot = (Number(m.sales_count)||0)>0 ? '<span class="disp-badge">🔥 '+t('hotSelling','热销')+'</span>' : '';
   const priceRow = settings.show_price ? '<div class="disp-price">'+prices.primary+secHtml+'</div>' : '';
   const names = menuNameAll(m);
-  const nameHtml = names.map((n, i) => '<div class="disp-name' + (i > 0 ? ' disp-name-sub' : '') + '">' + n + '</div>').join('');
+  const nameHtml = names.map((n, i) => '<div class="disp-name' + (i > 0 ? ' disp-name-sub' : '') + '">' + esc(n) + '</div>').join('');
   const descs = menuDescAll(m);
-  const descHtml = (settings.show_desc && descs.length) ? descs.map((d, i) => '<div class="disp-desc' + (i > 0 ? ' disp-desc-sub' : '') + '">' + d + '</div>').join('') : '';
+  const descHtml = (settings.show_desc && descs.length) ? descs.map((d, i) => '<div class="disp-desc' + (i > 0 ? ' disp-desc-sub' : '') + '">' + esc(d) + '</div>').join('') : '';
   return '<div class="disp-thumb-wrap">'+hot+'<div class="disp-thumb">'+media+'</div></div>'+
     '<div class="disp-info">' + nameHtml + descHtml + priceRow + '</div>';
 }
