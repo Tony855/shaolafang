@@ -172,8 +172,8 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, parameterLimit: 2000 }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, parameterLimit: 1000, limit: '1mb' }));
 // 静态资源：协商缓存（文件没变 304，变了 200 拿新版）
 // 不设 max-age，让浏览器每次都问服务器，改动即生效，不需要改文件名或版本号
 const staticOptions = {
