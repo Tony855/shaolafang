@@ -8,7 +8,7 @@ module.exports = function(app, deps) {
     try {
       const storeId = Number(req.query.store_id ?? 1);
       if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(400).json({ error: '店铺编号无效' });
-      const store = await getAsync('SELECT id, merchant_id FROM stores WHERE id=? AND active=1', [storeId]);
+      const store = await getAsync('SELECT s.id, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       const merchantId = store.merchant_id;
       const currencies = await allAsync(
@@ -72,7 +72,7 @@ module.exports = function(app, deps) {
     try {
       const storeId = Number(req.query.store_id ?? 1);
       if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(400).json({ error: '店铺编号无效' });
-      const store = await getAsync('SELECT id, name, address FROM stores WHERE id=? AND active=1', [storeId]);
+      const store = await getAsync('SELECT s.id, s.name, s.address FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       res.json(store);
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -82,7 +82,7 @@ module.exports = function(app, deps) {
     try {
       const storeId = Number(req.query.store_id ?? 1);
       if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(400).json({ error: '店铺编号无效' });
-      const store = await getAsync('SELECT id FROM stores WHERE id=? AND active=1', [storeId]);
+      const store = await getAsync('SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       const rows = await allAsync('SELECT id, name, sort FROM menu_categories WHERE store_id=? ORDER BY sort', [storeId]);
       res.json(rows);
