@@ -4,6 +4,13 @@
 const crypto = require('crypto');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
 
+function formatStaffOrder(row, formatOrder) {
+  const formatted = formatOrder(row);
+  delete formatted.sessionToken;
+  delete formatted.customerToken;
+  return formatted;
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io } = deps;
 
@@ -142,7 +149,7 @@ app.post('/api/cashier/logout', async (req, res) => {
 app.get('/api/cashier/orders', requireCashier, async (req, res) => {
   try {
     const rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND status != 'canceled' ORDER BY createdAt DESC", [req.storeId]);
-    res.json({ orders: rows.map(formatOrder) });
+    res.json({ orders: rows.map(row => formatStaffOrder(row, formatOrder)) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -151,7 +158,7 @@ app.get('/api/cashier/orders/:id', requireCashier, async (req, res) => {
     const id = parseInt(req.params.id);
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
-    res.json(formatOrder(order));
+    res.json(formatStaffOrder(order, formatOrder));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
