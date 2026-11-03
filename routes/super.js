@@ -217,9 +217,9 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
     const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores');
     const orderCount = await getAsync('SELECT COUNT(*) as count FROM orders');
     const todayOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE()");
-    const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE() AND status='done'");
-    const monthRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND MONTH(createdAt)=MONTH(CURDATE()) AND status='done'");
-    const yearRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND status='done'");
+    const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE SUBSTRING(COALESCE(settled_at, createdAt), 1, 10)=CURDATE() AND status='done'");
+    const monthRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND MONTH(COALESCE(settled_at, createdAt))=MONTH(CURDATE()) AND status='done'");
+    const yearRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND status='done'");
     const monthOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND MONTH(createdAt)=MONTH(CURDATE())");
     const yearOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE())");
     const now = new Date().toISOString();
@@ -252,11 +252,11 @@ app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
       SELECT s.id AS store_id, s.name AS store_name, m.name AS merchant_name,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id) AS total_orders,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=?) AS today_orders,
-        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=? AND o.status='done') AS today_revenue,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(COALESCE(o.settled_at,o.createdAt),1,10)=? AND o.status='done') AS today_revenue,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND MONTH(o.createdAt)=MONTH(CURDATE())) AS month_orders,
-        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND MONTH(o.createdAt)=MONTH(CURDATE()) AND o.status='done') AS month_revenue,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(COALESCE(o.settled_at,o.createdAt))=YEAR(CURDATE()) AND MONTH(COALESCE(o.settled_at,o.createdAt))=MONTH(CURDATE()) AND o.status='done') AS month_revenue,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE())) AS year_orders,
-        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND o.status='done') AS year_revenue,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(COALESCE(o.settled_at,o.createdAt))=YEAR(CURDATE()) AND o.status='done') AS year_revenue,
         (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id) AS total_sessions,
         (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id AND ss.expires_at>?) AS online_count
       FROM stores s
