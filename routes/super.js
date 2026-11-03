@@ -105,10 +105,11 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
     const _country = String(country || '').trim().toUpperCase().slice(0, 4);
     const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status, country) VALUES (?, ?, ?, ?, ?, 1, ?)', [name, merchantCode, contact_name || '', contact_phone || '', max_stores || 1, _country]);
     const newMerchantId = result.lastID;
-    let adminPassword = (password && password.trim()) ? password.trim() : '';
-    if (!adminPassword) {
-      const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      for (let i = 0; i < 8; i++) adminPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+    const adminPassword = (password && String(password).trim())
+      ? String(password).trim()
+      : crypto.randomBytes(24).toString('base64url');
+    if (adminPassword.length < 12 || adminPassword.length > 128) {
+      return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
     }
     const adminHash = hashPassword(adminPassword);
     await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
