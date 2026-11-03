@@ -31,7 +31,7 @@ function setup() {
       return null;
     },
     allAsync: async (sql) => {
-      if (sql.includes('FROM waiters WHERE username')) return [waiter];
+      if (sql.includes('FROM waiters w JOIN stores s')) return [waiter];
       if (sql.includes("LIKE 'cashiers_%'")) return [{ key: 'cashiers_1', value: JSON.stringify([cashier]) }];
       return [];
     },
