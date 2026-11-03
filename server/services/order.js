@@ -37,6 +37,9 @@ function formatOrder(row) {
     pay_method: row.pay_method || '',
     cash_received: Number(row.cash_received) || 0,
     cash_change: Number(row.cash_change) || 0,
+    refund_amount: Number(row.refund_amount) || 0,
+    refund_reason: row.refund_reason || '',
+    refunded_at: row.refunded_at || '',
     dataCorrupted
   };
 }
