@@ -364,3 +364,24 @@ test('order creation rechecks the QR session after locking the table', async () 
   assert.ok(sessionLockIndex > lockIndex);
   assert.equal(writes.some(write => write.sql.includes('INSERT INTO orders')), false);
 });
+
+
+test('QR credential generation requires table-management permission', () => {
+  const { app, routes } = routeHarness();
+  const auth = () => {};
+  const permission = () => {};
+  require('../routes/public-session')(app, {
+    requireAdminKey: auth,
+    requirePermission: key => {
+      assert.equal(key, 'can_manage_table');
+      return permission;
+    },
+    getAsync: async () => null,
+    runAsync: async () => ({ affectedRows: 1 }),
+    allAsync: async () => [],
+    formatOrder: value => value
+  });
+  const handlers = routes.get('GET /api/tables/:id/qrcode');
+  assert.equal(handlers[0], auth);
+  assert.equal(handlers[1], permission);
+});
