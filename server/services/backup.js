@@ -6,7 +6,7 @@ const fs = require('fs');
 const { runAsync, getAsync, allAsync } = require('../db/helpers');
 
 async function collectBackupData() {
-  const tables = ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
+  const tables = ['menus', 'tables', 'orders', 'order_sequences', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'waiters', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
   const data = { exportedAt: new Date().toISOString(), tables: {} };
   for (const table of tables) {
     data.tables[table] = await allAsync(`SELECT * FROM \`${table}\``);
@@ -19,7 +19,8 @@ async function autoBackupDatabase() {
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   const data = await collectBackupData();
   const filename = path.join(backupDir, `auto-${new Date().toISOString().slice(0,10)}.json`);
-  fs.writeFileSync(filename, JSON.stringify(data, null, 2));
+  fs.writeFileSync(filename, JSON.stringify(data, null, 2), { mode: 0o600 });
+  fs.chmodSync(filename, 0o600);
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('last_backup_at', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [new Date().toISOString()]);
 }
 
