@@ -4,7 +4,7 @@
 module.exports = function(app, deps) {
   const { getAsync, allAsync, runAsync, requireAdminKey, requirePermission, verifyPassword, hashPassword, logAudit, getClientIp } = deps;
 
-  app.get('/api/admin/login-logs', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/login-logs', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
       const merchantId = req.merchantId || 1;
       const rows = await allAsync('SELECT * FROM login_logs WHERE merchant_id = ? ORDER BY id DESC LIMIT 200', [merchantId]);
