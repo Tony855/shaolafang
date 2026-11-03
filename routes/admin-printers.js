@@ -4,7 +4,7 @@
 module.exports = function(app, deps) {
   const { getAsync, allAsync, runAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, formatOrder, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, EscPosBuilder, formatGlobalDateTime } = deps;
 
-  app.get('/api/admin/printers', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/printers', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
       const rows = await allAsync(
         `SELECT p.*, s.name AS store_name
