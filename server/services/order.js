@@ -29,6 +29,7 @@ function formatOrder(row) {
     total: row.total,
     status: row.status,
     createdAt: row.createdAt,
+    settled_at: row.settled_at || '',
     sessionToken: row.session_token || '',
     customerToken: row.customer_token || '',
     note: row.note || '',
