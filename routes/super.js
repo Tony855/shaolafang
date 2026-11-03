@@ -601,7 +601,8 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
         const rows = data.tables[table];
         await runAsync(`DELETE FROM \`${table}\``);
         for (const row of rows) {
-          const keys = Object.keys(row).filter(key => key !== 'id');
+          // Preserve primary keys so store_id, merchant_id and order references remain intact.
+          const keys = Object.keys(row);
           if (!keys.length) continue;
           const placeholders = keys.map(() => '?').join(', ');
           const values = keys.map(key => row[key]);
