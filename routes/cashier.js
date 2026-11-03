@@ -25,7 +25,7 @@ app.post('/api/waiter/login', async (req, res) => {
     if (lockStatus.locked) {
       return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
     }
-    const waiterCandidates = await allAsync('SELECT * FROM waiters WHERE username=? AND active=1', [String(username).trim()]);
+    const waiterCandidates = await allAsync('SELECT w.* FROM waiters w JOIN stores s ON s.id=w.store_id AND s.merchant_id=w.merchant_id AND s.active=1 JOIN merchants m ON m.id=w.merchant_id AND m.status=1 WHERE w.username=? AND w.active=1', [String(username).trim()]);
     let waiter = null;
     for (const cand of waiterCandidates) {
       if (verifyPassword(password, cand.password_hash)) { waiter = cand; break; }
@@ -47,8 +47,9 @@ app.post('/api/waiter/login', async (req, res) => {
     const waiterTimeoutHours = Number.isSafeInteger(configuredWaiterTimeoutHours) && configuredWaiterTimeoutHours > 0 ? Math.min(configuredWaiterTimeoutHours, 720) : 12;
     const expiresAt = new Date(Date.now() + waiterTimeoutHours * 60 * 60 * 1000).toISOString();
     await runAsync('INSERT INTO waiter_sessions (waiter_id, token, expires_at) VALUES (?, ?, ?)', [waiter.id, token, expiresAt]);
-    const store = await getAsync('SELECT name FROM stores WHERE id=?', [waiter.store_id || 1]);
-    res.json({ token, storeId: waiter.store_id || 1, storeName: store?.name || '', waiter: { id: waiter.id, username: waiter.username, display_name: waiter.display_name, can_order: waiter.can_order, can_mark_item: waiter.can_mark_item, can_complete_order: waiter.can_complete_order, store_id: waiter.store_id } });
+    const store = await getAsync('SELECT name FROM stores WHERE id=? AND merchant_id=? AND active=1', [waiter.store_id, waiter.merchant_id]);
+    if (!store) return res.status(403).json({ error: '服务员所属门店已停用' });
+    res.json({ token, storeId: Number(waiter.store_id), storeName: store.name, waiter: { id: waiter.id, username: waiter.username, display_name: waiter.display_name, can_order: waiter.can_order, can_mark_item: waiter.can_mark_item, can_complete_order: waiter.can_complete_order, store_id: waiter.store_id } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -110,8 +111,9 @@ app.post('/api/cashier/login', async (req, res) => {
       }
     }
     resetLoginAttempts(username, 'cashier');
-    const store = await getAsync('SELECT merchant_id, name FROM stores WHERE id=?', [targetStoreId]);
-    const merchantId = store?.merchant_id || 1;
+    const store = await getAsync('SELECT s.merchant_id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [targetStoreId]);
+    if (!store) return res.status(403).json({ error: '收银员所属门店或商户已停用' });
+    const merchantId = Number(store.merchant_id);
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, merchantId, 'cashier', '收银员登录成功']);
     const token = crypto.randomBytes(24).toString('base64url');
     const cashierTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'cashier_session_timeout'");
