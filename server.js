@@ -1154,7 +1154,7 @@ io.use(async (socket, next) => {
     if (!token) return next(new Error('unauthorized: table session required'));
     const scanSession = await getAsync('SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?', [token]);
     if (scanSession) {
-      if (new Date(scanSession.expires_at).getTime() <= Date.now()) {
+      if (!Number.isFinite(new Date(scanSession.expires_at).getTime()) || new Date(scanSession.expires_at).getTime() <= Date.now()) {
         return next(new Error('unauthorized: table session expired'));
       }
       socket.data.role = 'public';
@@ -1165,7 +1165,7 @@ io.use(async (socket, next) => {
 
     // 1) 服务员/后厨（共用 waiter_sessions）
     const waiterSession = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-    if (waiterSession && new Date(waiterSession.expires_at).getTime() > Date.now()) {
+    if (waiterSession && Number.isFinite(new Date(waiterSession.expires_at).getTime()) && new Date(waiterSession.expires_at).getTime() > Date.now()) {
       const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [waiterSession.waiter_id]);
       if (waiter) {
         socket.data.role = 'waiter';
@@ -1176,19 +1176,26 @@ io.use(async (socket, next) => {
     }
 
     // 2) 收银员
-    const cashierSession = await getAsync('SELECT cashier_id, store_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
-    if (cashierSession && new Date(cashierSession.expires_at).getTime() > Date.now()) {
-      socket.data.role = 'cashier';
-      socket.data.storeId = cashierSession.store_id || 1;
-      socket.data.cashierId = cashierSession.cashier_id;
-      return next();
+    const cashierSession = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
+    if (cashierSession && Number.isFinite(new Date(cashierSession.expires_at).getTime()) && new Date(cashierSession.expires_at).getTime() > Date.now()) {
+      const cashierSettings = await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + cashierSession.store_id]);
+      let cashierList = [];
+      try { cashierList = JSON.parse(cashierSettings?.value || '[]'); } catch (_) {}
+      const activeCashier = cashierList.find(item => String(item.id) === String(cashierSession.cashier_id) && item.active);
+      if (activeCashier) {
+        socket.data.role = 'cashier';
+        socket.data.storeId = cashierSession.store_id || 1;
+        socket.data.cashierId = cashierSession.cashier_id;
+        return next();
+      }
     }
 
     // 3) 管理员
     const adminSession = await getAsync('SELECT admin_id, expires_at FROM admin_sessions WHERE token=?', [token]);
-    if (adminSession && new Date(adminSession.expires_at).getTime() > Date.now()) {
+    if (adminSession && Number.isFinite(new Date(adminSession.expires_at).getTime()) && new Date(adminSession.expires_at).getTime() > Date.now()) {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [adminSession.admin_id]);
-      if (admin) {
+      const merchant = admin ? await getAsync('SELECT status FROM merchants WHERE id=?', [admin.merchant_id]) : null;
+      if (admin && merchant && merchant.status === 1) {
         socket.data.role = 'admin';
         socket.data.adminId = admin.id;
         socket.data.merchantId = admin.merchant_id;
