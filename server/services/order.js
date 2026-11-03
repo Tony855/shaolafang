@@ -44,30 +44,35 @@ async function normalizeOrderItems(items, storeId) {
   if (!Array.isArray(items) || items.length === 0) throw new Error('订单至少需要一道菜品');
   const normalized = [];
   for (const item of items) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('菜品数据格式无效');
     const menuId = Number(item.id);
     const quantity = Number(item.quantity);
-    if (!Number.isInteger(menuId) || !Number.isInteger(quantity) || quantity <= 0) {
+    if (!Number.isSafeInteger(menuId) || menuId <= 0 || !Number.isSafeInteger(quantity) || quantity <= 0) {
       throw new Error('菜品或数量无效');
     }
-    const menuItem = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [menuId, storeId || 1]);
-    if (!menuItem) throw new Error(`菜品不存在（ID: ${menuId}）`);
+    const menuItem = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ? AND active=1', [menuId, storeId || 1]);
+    if (!menuItem) throw new Error(`菜品不存在、已下架或不属于当前门店（ID: ${menuId}）`);
     const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [menuItem.store_id || 1]);
     if (!store) throw new Error(`菜品所属店铺不存在（ID: ${menuItem.store_id}）`);
     const currency = await getAsync('SELECT code, rate FROM currencies WHERE code=? AND merchant_id=?', [menuItem.currency_code || 'USD', store.merchant_id]);
-    if (!currency || !(Number(currency.rate) > 0)) throw new Error(`菜品货币无效（${menuItem.currency_code || 'CNY'}）`);
+    const price = Number(menuItem.price);
+    const rate = Number(currency?.rate);
+    if (!currency || !Number.isFinite(price) || price < 0 || !Number.isFinite(rate) || rate <= 0) {
+      throw new Error(`菜品价格或货币汇率无效（${menuItem.currency_code || 'USD'}）`);
+    }
     normalized.push({
       id: menuItem.id,
       name: menuItem.name,
-      price: menuItem.price,
+      price,
       currency_code: currency.code,
-      base_price: Number(menuItem.price) / Number(currency.rate),
+      base_price: price / rate,
       quantity,
       emoji: menuItem.emoji || '🍽️',
-      // Kitchen status is server-controlled; never accept it from customer/order payloads.
+      // Kitchen status and unit are server-controlled; ignore client-supplied values.
       itemStatus: 'pending',
       show_dual: 0,
       secondary_currency_code: '',
-      unit: item.unit || menuItem.unit || '份'
+      unit: menuItem.unit || '份'
     });
   }
   return normalized;
