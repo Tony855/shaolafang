@@ -8,7 +8,7 @@ function response() {
     statusCode: 200,
     body: undefined,
     headers: {},
-    setHeader(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+    setHeader(name, value) { this.headers[name] = value; return this; },
     status(code) { this.statusCode = code; return this; },
     json(value) { this.body = value; return this; }
   };
@@ -507,8 +507,8 @@ test('public QR scan credentials are never cacheable', async () => {
   const res = response();
   await handler({ params: { token: 'qr-token' }, protocol: 'https', get: name => name === 'host' ? 'foodflow.example' : '' }, res);
   assert.equal(res.statusCode, 200);
-  assert.equal(res.headers['cache-control'], 'no-store, private');
-  assert.equal(res.headers.pragma, 'no-cache');
+  assert.equal(res.headers['Cache-Control'], 'no-store, private');
+  assert.equal(res.headers.Pragma, 'no-cache');
   assert.ok(res.body.sessionToken);
   assert.ok(res.body.customerToken);
 });
