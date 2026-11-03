@@ -4,6 +4,8 @@
 const crypto = require("crypto");
 const dns = require("dns").promises;
 const net = require("net");
+const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
@@ -92,8 +94,8 @@ async function validatePublicImageUrl(value) {
   if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) {
     throw new Error('图片地址只允许无凭据的公网 HTTP(S) URL');
   }
-  const hostname = target.hostname.replace(/^\[|\]$/g, '').toLowerCase().replace(/\.$/, '');
-  if (!hostname || hostname === 'localhost' || /\.(?:localhost|local|internal|test|example|invalid)$/.test(hostname)) {
+  const hostname = target.hostname.replace(/^\\[|\\]$/g, '').toLowerCase().replace(/\\.$/, '');
+  if (!hostname || hostname === 'localhost' || /\\.(?:localhost|local|internal|test|example|invalid)$/.test(hostname)) {
     throw new Error('禁止访问本地或保留域名');
   }
   const addresses = await dns.lookup(hostname, { all: true, verbatim: true });
@@ -104,41 +106,70 @@ async function validatePublicImageUrl(value) {
   })) {
     throw new Error('图片域名解析到非公网地址，已拒绝');
   }
-  return target;
+  // Pin the validated DNS answer so a rebinding response cannot redirect the
+  // actual HTTP connection to loopback, private networks, or cloud metadata.
+  return { target, address: addresses[0] };
+}
+
+function requestPublicImage(resolved) {
+  const { target, address } = resolved;
+  const hostname = target.hostname.replace(/^\\[|\\]$/g, '');
+  const transport = target.protocol === 'https:' ? https : http;
+  return new Promise((resolve, reject) => {
+    const request = transport.request({
+      protocol: target.protocol,
+      hostname,
+      port: target.port || (target.protocol === 'https:' ? 443 : 80),
+      path: target.pathname + target.search,
+      method: 'GET',
+      headers: { Accept: 'image/jpeg,image/png,image/webp,image/gif' },
+      lookup: (_host, options, callback) => {
+        if (options && options.all) return callback(null, [address]);
+        callback(null, address.address, address.family);
+      },
+      ...(target.protocol === 'https:' && !net.isIP(hostname) ? { servername: hostname } : {})
+    }, response => resolve(response));
+    request.setTimeout(15000, () => request.destroy(new Error('图片请求超时')));
+    request.on('error', reject);
+    request.end();
+  });
 }
 
 async function downloadImageToUploads(url) {
   try {
-    let target = await validatePublicImageUrl(url);
+    let resolved = await validatePublicImageUrl(url);
     let res;
     for (let redirects = 0; redirects <= 4; redirects++) {
-      res = await fetch(target, {
-        redirect: 'manual',
-        signal: AbortSignal.timeout(15000),
-        headers: { Accept: 'image/jpeg,image/png,image/webp,image/gif' }
-      });
-      if (![301, 302, 303, 307, 308].includes(res.status)) break;
-      if (res.body) await res.body.cancel().catch(() => {});
-      const location = res.headers.get('location');
+      res = await requestPublicImage(resolved);
+      if (![301, 302, 303, 307, 308].includes(res.statusCode)) break;
+      const location = res.headers.location;
+      res.destroy();
       if (!location || redirects === 4) throw new Error('图片重定向次数超限或目标无效');
-      target = await validatePublicImageUrl(new URL(location, target).toString());
+      resolved = await validatePublicImageUrl(new URL(location, resolved.target).toString());
     }
-    if (!res || !res.ok) throw new Error('图片服务器返回 HTTP ' + (res?.status || 0));
-    const ct = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!res || res.statusCode < 200 || res.statusCode >= 300) {
+      throw new Error('图片服务器返回 HTTP ' + (res?.statusCode || 0));
+    }
+    const ct = String(res.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
     const extMap = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
     const ext = extMap[ct];
-    if (!ext) throw new Error('不支持的图片格式: ' + (ct || 'unknown'));
+    if (!ext) {
+      res.destroy();
+      throw new Error('不支持的图片格式: ' + (ct || 'unknown'));
+    }
     const maxBytes = 5 * 1024 * 1024;
-    const declaredLength = Number(res.headers.get('content-length'));
-    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw new Error('图片超过5MB');
-    if (!res.body) throw new Error('图片响应为空');
+    const declaredLength = Number(res.headers['content-length']);
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+      res.destroy();
+      throw new Error('图片超过5MB');
+    }
     const chunks = [];
     let totalBytes = 0;
-    for await (const chunk of res.body) {
+    for await (const chunk of res) {
       const part = Buffer.from(chunk);
       totalBytes += part.length;
       if (totalBytes > maxBytes) {
-        await res.body.cancel().catch(() => {});
+        res.destroy();
         throw new Error('图片超过5MB');
       }
       chunks.push(part);
