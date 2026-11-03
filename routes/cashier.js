@@ -239,7 +239,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
-    io.to('public-store-' + req.storeId).emit('order:settled', { orderId: id });
+    io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', { orderId: id });
     res.json({ success: true, message: '结算成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -275,17 +275,30 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     if (order.status !== 'done') return res.status(400).json({ error: '只有已结算订单才能退款' });
     if (order.status === 'refunded') return res.status(400).json({ error: '订单已退款' });
 
+    const orderTotal = Number(order.total);
+    const refundAmt = amount === undefined || amount === null || amount === ''
+      ? orderTotal
+      : Number(amount);
+    if (!Number.isFinite(orderTotal) || orderTotal <= 0 ||
+        !Number.isFinite(refundAmt) || refundAmt <= 0 || refundAmt > orderTotal) {
+      return res.status(400).json({ error: '退款金额必须大于 0 且不能超过订单应收金额' });
+    }
+    const cleanReason = String(reason).trim().slice(0, 100);
+    if (!cleanReason) return res.status(400).json({ error: '请选择退款原因' });
+    const cleanNote = typeof note === 'string' ? note.slice(0, 200) : '';
     const now = new Date().toISOString();
-    const refundAmt = Number(amount) || Number(order.total) || 0;
-    await runAsync(
-      "UPDATE orders SET status='refunded', refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=?",
-      [reason, (note || '').slice(0, 200), now, req.cashier.username || '', refundAmt, id, req.storeId]
+    const refundResult = await runAsync(
+      "UPDATE orders SET status='refunded', refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=? AND status='done'",
+      [cleanReason, cleanNote, now, req.cashier.username || '', refundAmt, id, req.storeId]
     );
+    if (!refundResult.affectedRows) {
+      return res.status(409).json({ error: '订单状态已变化或已退款，请刷新后重试' });
+    }
 
     await runAsync(
       'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       ['cashier', 0, req.cashier.username, 'refund_order',
-       JSON.stringify({ order_id: id, table: order.table_name, total: order.total, reason, note: note || '' }),
+       JSON.stringify({ order_id: id, table: order.table_name, total: order.total, refund_amount: refundAmt, reason: cleanReason, note: cleanNote }),
        getClientIp(req), now]
     );
 
@@ -293,7 +306,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
-    io.to('public-store-' + req.storeId).emit('order:settled', { orderId: id });
+    io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', { orderId: id });
 
     res.json({ success: true, message: '退款成功' });
   } catch (e) { res.status(500).json({ error: e.message }); }
