@@ -370,13 +370,13 @@
                     }
                     if (info.customerToken) {
                         state.customerToken = info.customerToken;
-                        SLF.store.rawSet('customer_token', info.customerToken);
-                    } else if (SLF.store.rawGet('customer_token')) {
-                        state.customerToken = SLF.store.rawGet('customer_token');
+                        setStoredCustomerToken(info.customerToken);
+                    } else if (getStoredCustomerToken()) {
+                        state.customerToken = getStoredCustomerToken();
                     }
                     if (!state.customerToken) {
                         state.customerToken = generateCustomerToken();
-                        SLF.store.rawSet('customer_token', state.customerToken);
+                        setStoredCustomerToken(state.customerToken);
                     }
                     await fetchStoreInfo();
                     await fetchMenu();
@@ -391,13 +391,13 @@
                     setStoredScanSession(session.sessionToken, session.expiresAt);
                     if (session.customerToken) {
                         state.customerToken = session.customerToken;
-                        SLF.store.rawSet('customer_token', session.customerToken);
-                    } else if (SLF.store.rawGet('customer_token')) {
-                        state.customerToken = SLF.store.rawGet('customer_token');
+                        setStoredCustomerToken(session.customerToken);
+                    } else if (getStoredCustomerToken()) {
+                        state.customerToken = getStoredCustomerToken();
                     }
                     if (!state.customerToken) {
                         state.customerToken = generateCustomerToken();
-                        SLF.store.rawSet('customer_token', state.customerToken);
+                        setStoredCustomerToken(state.customerToken);
                     }
                     try {
                         const url = new URL(window.location.href);
@@ -430,11 +430,10 @@
                 state.scanToken = '';
                 state.scanSessionToken = '';
                 state.scanExpiresAt = '';
-                SLF.store.rawRemove('scan_session_token');
-                SLF.store.rawRemove('scan_session_expires_at');
+                clearStoredScanSession();
                 state.storeId = 1;
                 state.customerToken = '';
-                SLF.store.rawRemove('customer_token');
+                clearStoredCustomerToken();
                 tableDisplay.textContent = t('notScanned', null, '未扫码');
                 tableInfo.title = t('scanToBind', null, '请扫描桌面二维码绑定桌号');
                 document.getElementById('customerOrderBtn').hidden = true;
@@ -466,7 +465,7 @@
                 return;
             }
             try {
-                const ct = state.customerToken || SLF.store.rawGet('customer_token') || '';
+                const ct = state.customerToken || getStoredCustomerToken() || '';
                 const data = await SLF.api.get('/public/table-session/orders', {
                     headers: {
                         'X-Scan-Session': state.scanSessionToken,
@@ -1053,7 +1052,7 @@
             const orderData = {
                 table: state.table,
                 sessionToken: state.scanSessionToken,
-                customerToken: state.customerToken || SLF.store.rawGet('customer_token') || '',
+                customerToken: state.customerToken || getStoredCustomerToken() || '',
                 items: items.map(i => ({
                     id: i.id,
                     quantity: i.quantity,
@@ -1297,7 +1296,7 @@
             try {
                 const data = await SLF.api.post('/orders/' + orderId + '/urge', {
                     sessionToken: state.scanSessionToken || '',
-                    customerToken: state.customerToken || SLF.store.rawGet('customer_token') || ''
+                    customerToken: state.customerToken || getStoredCustomerToken() || ''
                 });
                 if (data && data.success) {
                     SLF.ui.toast(`✅ ${t('notifiedKitchen', null, '已通知后厨')}`, 2500);
