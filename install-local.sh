@@ -12,12 +12,7 @@
 
 set -e
 
-# 安全检查：如果当前目录的历史里有已泄露的 token 模式，警告
-if git log --all --oneline 2>/dev/null | grep -q "ghp_"; then
-    log_warn "⚠️  检测到 git 历史中可能存在已泄露的 GitHub Token（ghp_...）"
-    log_warn "    请确认已在 GitHub 侧撤销该 Token，并考虑用 git-filter-repo 重写历史"
-fi
-  
+
 # ===== 颜色输出 =====
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -29,6 +24,11 @@ log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# 安全检查：如果当前仓库历史中存在 GitHub Token 模式，提示运维人员检查。
+if git log --all --oneline 2>/dev/null | grep -q "ghp_"; then
+    log_warn "检测到 Git 历史中可能存在 GitHub Token 痕迹。请撤销相关凭据并检查历史。"
+fi
 
 # ===== 检查 root 权限 =====
 if [ "$EUID" -ne 0 ]; then
@@ -126,9 +126,8 @@ else
     # 清除 client-only 残骸，否则 apt 会跳过主包安装
     if command -v mariadb &>/dev/null || command -v mysql &>/dev/null; then
         log_warn "检测到 MariaDB client 残骸，先清理再重装..."
-        apt-get remove --purge -y 'mariadb-*' 'mysql-*' 2>/dev/null || true
-        apt-get autoremove -y 2>/dev/null || true
-        rm -rf /var/lib/mysql /etc/mysql /run/mysqld
+        log_warn "保留现有数据库目录和配置，不执行 purge 或删除 /var/lib/mysql。"
+        log_warn "将直接尝试安装 MariaDB Server；若失败请先人工检查数据库服务状态。"
     fi
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mariadb-server
     mkdir -p /run/mysqld
