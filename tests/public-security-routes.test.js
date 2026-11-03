@@ -385,3 +385,55 @@ test('QR credential generation requires table-management permission', () => {
   assert.equal(handlers[0], auth);
   assert.equal(handlers[1], permission);
 });
+
+
+test('QR print page is authenticated and scoped to the active store', async () => {
+  const { app, routes } = routeHarness();
+  const queries = [];
+  const auth = () => {};
+  const permission = () => {};
+  require('../routes/pages')(app, {
+    requireAdminKey: auth,
+    requirePermission: key => {
+      assert.equal(key, 'can_manage_table');
+      return permission;
+    },
+    getAsync: async (sql, params) => {
+      queries.push({ sql, params });
+      if (sql.includes('FROM tables')) return { name: 'A1', qr_token: 'secret-qr-token', store_id: 7 };
+      if (sql.includes('FROM stores')) return { name: 'Store A', qr_languages: 'en' };
+      return null;
+    },
+    fs: {
+      existsSync: () => true,
+      readFileSync: () => '<html><head></head><body>{{table}} {{storeName}} {{qrDataUrl}}</body></html>'
+    },
+    path: require('node:path'),
+    QRCode: { toDataURL: async url => 'data:image/png;base64,' + Buffer.from(url).toString('base64') }
+  });
+
+  const handlers = routes.get('GET /qr-print');
+  assert.equal(handlers[0], auth);
+  assert.equal(handlers[1], permission);
+  const res = {
+    statusCode: 200,
+    body: '',
+    headers: {},
+    status(code) { this.statusCode = code; return this; },
+    setHeader(name, value) { this.headers[name] = value; },
+    send(value) { this.body = value; return this; }
+  };
+  await handlers.at(-1)({
+    query: { tableId: '5', lang: 'en' },
+    storeId: 7,
+    merchantId: 2,
+    protocol: 'https',
+    get: () => 'foodflow.example'
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(queries[0].params, ['5', 7]);
+  assert.deepEqual(queries[1].params, [7, 2]);
+  assert.match(res.body, /secret-qr-token/);
+  assert.match(res.headers['Cache-Control'] || '', /no-store/);
+});
