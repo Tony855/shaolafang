@@ -146,7 +146,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     for (const o of orders) {
       try {
         const items = JSON.parse(o.items || '[]');
-        if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 存在未完成菜品，无法结算' });
+        if (!Array.isArray(items) || !items.length || !items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 存在未完成菜品或没有有效菜品，无法结算' });
       } catch(e) { return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 数据异常' }); }
     }
     const now = new Date().toISOString();
@@ -216,7 +216,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
     try {
       const items = JSON.parse(order.items || '[]');
-      if (!items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '存在未完成菜品，无法结算' });
+      if (!Array.isArray(items) || !items.length || !items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '存在未完成菜品或没有有效菜品，无法结算' });
     } catch(e) { return res.status(400).json({ error: '订单数据异常' }); }
     const { pay_method, cash_received, cash_change } = req.body || {};
     const settled = await runAsync(
@@ -285,23 +285,23 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     if (!cleanReason) return res.status(400).json({ error: '请选择退款原因' });
     const cleanNote = typeof note === 'string' ? note.slice(0, 200) : '';
     const now = new Date().toISOString();
-    const orderTotal = Number(order.total);
-    const refundAmt = (amount === undefined || amount === null || amount === '') ? orderTotal : Number(amount);
-    if (!Number.isFinite(orderTotal) || orderTotal <= 0 || !Number.isFinite(refundAmt) || refundAmt <= 0 || refundAmt > orderTotal) {
-      return res.status(400).json({ error: '退款金额必须大于 0 且不能超过订单总额' });
-    }
-    const refundUpdate = await runAsync(
-      "UPDATE orders SET status='refunded', refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=? AND status='done'",
-      [String(reason).slice(0, 100), String(note || '').slice(0, 200), now, req.cashier.username || '', refundAmt, id, req.storeId]
-    );
-    if (!refundUpdate.affectedRows) return res.status(409).json({ error: '订单状态已变化，可能已被其他收银员处理' });
-
-    await runAsync(
-      'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      ['cashier', 0, req.cashier.username, 'refund_order',
-       JSON.stringify({ order_id: id, table: order.table_name, total: order.total, refund_amount: refundAmt, reason: cleanReason, note: cleanNote }),
-       getClientIp(req), now]
-    );
+    await withTransaction(async () => {
+      const refundUpdate = await runAsync(
+        "UPDATE orders SET status='refunded', refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=? AND status='done'",
+        [cleanReason, cleanNote, now, req.cashier.username || '', refundAmt, id, req.storeId]
+      );
+      if (!refundUpdate.affectedRows) {
+        const error = new Error('订单状态已变化，可能已被其他收银员处理');
+        error.status = 409;
+        throw error;
+      }
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['cashier', 0, req.cashier.username, 'refund_order',
+         JSON.stringify({ order_id: id, table: order.table_name, total: order.total, refund_amount: refundAmt, reason: cleanReason, note: cleanNote }),
+         getClientIp(req), now]
+      );
+    });
 
     // 广播到各端（订单状态变了）
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
@@ -310,7 +310,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', { orderId: id });
 
     res.json({ success: true, message: '退款成功' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
 // ===== 单个订单打印小票 =====
