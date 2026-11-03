@@ -322,7 +322,7 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
         ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: order.table_name }), getClientIp(req), canceledAt]);
     });
     res.json({ success: true, message: '取消成功' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
 app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
