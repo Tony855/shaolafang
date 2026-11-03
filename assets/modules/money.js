@@ -37,6 +37,13 @@
     return SLF.money;
   }
 
+  function safeSymbol(value) {
+    return String(value == null ? '' : value)
+      .replace(/[<>&"'\x60]/g, '')
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .slice(0, 8);
+  }
+
   function find(code) {
     for (var i = 0; i < currencies.length; i++) if (currencies[i].code === code) return currencies[i];
     return null;
@@ -59,7 +66,7 @@
 
   // base(USD) → 主币显示串
   function primary(base) {
-    var sym = primaryCur.symbol || '$';
+    var sym = safeSymbol(primaryCur.symbol) || '$';
     var rate = Number(primaryCur.rate || 1);
     return sym + (Number(base || 0) * rate).toFixed(decimalsOf(primaryCur.code));
   }
@@ -70,7 +77,7 @@
     var sc = find(code);
     if (!sc) return '';
     var rate = Number(sc.rate || 1);
-    return (sc.symbol || '') + (Number(base || 0) * rate).toFixed(decimalsOf(sc.code));
+    return safeSymbol(sc.symbol) + (Number(base || 0) * rate).toFixed(decimalsOf(sc.code));
   }
 
   // base → '主币 (副币)' 或 '主币'

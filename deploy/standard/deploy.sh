@@ -115,7 +115,12 @@ if [ ! -f "$DEPLOY_TARGET/install-local.sh" ]; then
 fi
 
 cd "$DEPLOY_TARGET"
-bash install-local.sh
+if [ -f "$DEPLOY_TARGET/.env" ]; then
+    log_info "检测到已有生产配置，使用安全升级流程（保留当前源码）..."
+    SKIP_GIT_UPDATE=1 bash "$DEPLOY_TARGET/remote-update.sh"
+else
+    bash install-local.sh
+fi
 
 # ===== 完成 =====
 echo ""

@@ -7,6 +7,8 @@ function response() {
   return {
     statusCode: 200,
     body: undefined,
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; return this; },
     status(code) { this.statusCode = code; return this; },
     json(value) { this.body = value; return this; }
   };
@@ -443,4 +445,70 @@ test('QR print page is authenticated and scoped to the active store', async () =
   assert.deepEqual(queries[1].params, [7, 2]);
   assert.match(res.body, /secret-qr-token/);
   assert.match(res.headers['Cache-Control'] || '', /no-store/);
+});
+
+
+test('customer order lookup accepts bearer tokens in headers and disables caching', async () => {
+  const { app, routes } = routeHarness();
+  const sqlCalls = [];
+  require('../routes/public-session')(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async (sql, params) => {
+      sqlCalls.push({ sql, params });
+      if (sql.includes('FROM scan_sessions')) {
+        return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
+      }
+      if (sql.includes('FROM stores')) return { id: 7 };
+      return null;
+    },
+    allAsync: async (sql, params) => {
+      sqlCalls.push({ sql, params });
+      return [{ id: 99, customer_token: 'private-customer-token' }];
+    },
+    runAsync: async () => ({ affectedRows: 1 }),
+    formatOrder: row => row
+  });
+
+  const headers = { 'X-Scan-Session': 'private-scan-session', 'X-Customer-Token': 'private-customer-token' };
+  const res = {
+    ...response(),
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; }
+  };
+  await routes.get('GET /api/public/table-session/orders').at(-1)({
+    get: name => headers[name] || '',
+    query: {},
+    params: {}
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.orders[0].id, 99);
+  assert.deepEqual(sqlCalls[0].params, ['private-scan-session']);
+  assert.deepEqual(sqlCalls[2].params.slice(0, 2), [7, 'private-customer-token']);
+  assert.match(res.headers['Cache-Control'], /no-store/);
+});
+
+test('public QR scan credentials are never cacheable', async () => {
+  const { app, routes } = routeHarness();
+  require('../routes/public-session')(app, {
+    getAsync: async sql => {
+      if (sql.includes('FROM tables WHERE qr_token')) return { name: 'A1', store_id: 7 };
+      if (sql.includes('FROM stores')) return { id: 7 };
+      return null;
+    },
+    runAsync: async () => ({ affectedRows: 1, lastID: 1 }),
+    allAsync: async () => [],
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    formatOrder: row => row
+  });
+  const handler = routes.get('GET /api/public/table-token/:token').at(-1);
+  const res = response();
+  await handler({ params: { token: 'qr-token' }, protocol: 'https', get: name => name === 'host' ? 'foodflow.example' : '' }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers['Cache-Control'], 'no-store, private');
+  assert.equal(res.headers.Pragma, 'no-cache');
+  assert.ok(res.body.sessionToken);
+  assert.ok(res.body.customerToken);
 });

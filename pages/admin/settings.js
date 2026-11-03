@@ -34,13 +34,13 @@ async function loadDisplaySettings() {
     const secondarySel = document.getElementById('dispSecondaryCurrency');
     if (primarySel) {
       primarySel.innerHTML = list.map(c =>
-        `<option value="${c.code}">${c.code} · ${c.symbol} · ${c.name}</option>`
+        `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)} · ${esc(c.name)}</option>`
       ).join('');
       primarySel.value = d.primaryCurrencyCode || 'USD';
     }
     if (secondarySel) {
       secondarySel.innerHTML = '<option value="">' + tAdmin('noSecondaryCurrency') + '</option>' +
-        list.map(c => `<option value="${c.code}">${c.code} · ${c.symbol} · ${c.name}</option>`).join('');
+        list.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.symbol)} · ${esc(c.name)}</option>`).join('');
       secondarySel.value = d.secondaryCurrencyCode || '';
     }
     // 显示当前店铺名

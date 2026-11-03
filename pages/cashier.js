@@ -989,7 +989,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   let confirmCallback = null;
   function showConfirm(title, message, callback, options = {}) {
     document.getElementById('confirmTitle').textContent = title;
-    document.getElementById('confirmMessage').innerHTML = message;
+    document.getElementById('confirmMessage').textContent = message;
     document.getElementById('confirmIcon').textContent = options.icon || '⚠️';
     document.getElementById('confirmOkBtn').textContent = options.okText || t('confirm');
     document.getElementById('confirmCancelBtn').textContent = options.cancelText || t('cancel');
@@ -1096,10 +1096,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   /* ===== Socket ===== */
   if (typeof io === 'function') {
     const cashierSocket = io({
-      query: {
-        storeId: SLF.store.rawGet('cashierStoreId') || SLF.store.rawGet('storeId') || 1,
-        token: SLF.store.rawGet('cashierToken') || ''
-      }
+      query: { storeId: SLF.store.rawGet('cashierStoreId') || SLF.store.rawGet('storeId') || 1 },
+      auth: { token: SLF.store.rawGet('cashierToken') || '' }
     });
     function belongsToStore(o) {
       const sid = SLF.store.rawGet('cashierStoreId') || SLF.store.rawGet('storeId') || '1';

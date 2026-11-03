@@ -41,3 +41,7 @@ G=$(grep -c 'const candidates = \[\]' routes/cashier.js 2>/dev/null); G=${G:-0}
 echo ""
 echo "=== 结果 ==="
 echo "  通过: $PASS  失败: $FAIL  警告: $WARN"
+if [ "$FAIL" -gt 0 ]; then
+  exit 1
+fi
+exit 0

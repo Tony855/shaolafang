@@ -90,10 +90,11 @@ else
 fi
 
 step "7. 结算订单"
-if [ "$CASHIER_OK" = "1" ]; then
+ORDER_TOTAL=$(sql "SELECT total FROM orders WHERE id=$ORDER_ID;")
+if [ "$CASHIER_OK" = "1" ] && [ -n "$ORDER_TOTAL" ]; then
   curl -sS -X PUT "$BASE/api/cashier/orders/$ORDER_ID/settle" \
     -H "X-Cashier-Token: $CASHIER_TOKEN" -H 'Content-Type: application/json' \
-    -d '{"pay_method":"cash","cash_received":999,"cash_change":0}' > /dev/null
+    -d "{\"pay_method\":\"cash\",\"cash_received\":$ORDER_TOTAL,\"cash_change\":0}" > /dev/null
 fi
 S=$(sql "SELECT status FROM orders WHERE id=$ORDER_ID;")
 [ "$S" = "done" ] && ok "status=done" || bad "status=$S"
@@ -102,14 +103,14 @@ step "8. 退款订单"
 if [ "$CASHIER_OK" = "1" ]; then
   curl -sS -X PUT "$BASE/api/cashier/orders/$ORDER_ID/refund" \
     -H "X-Cashier-Token: $CASHIER_TOKEN" -H 'Content-Type: application/json' \
-    -d '{"amount":0,"reason":"smoke"}' > /dev/null
+    -d "{\"amount\":$ORDER_TOTAL,\"reason\":\"smoke\"}" > /dev/null
 fi
 S=$(sql "SELECT status FROM orders WHERE id=$ORDER_ID;")
 [ "$S" = "refunded" ] && ok "status=refunded" || bad "status=$S"
 
 step "9. 顾客查订单（结算后 session 应失效）"
 # 本次会话加的"结算后清 session"逻辑 → 查不到是**预期行为**
-if curl -sS "$BASE/api/public/table-session/$SESSION_TOKEN/orders?ct=$CUSTOMER_TOKEN" | grep -q "\"id\":$ORDER_ID"; then
+if curl -sS "$BASE/api/public/table-session/orders" -H "X-Scan-Session: $SESSION_TOKEN" -H "X-Customer-Token: $CUSTOMER_TOKEN" | grep -q "\"id\":$ORDER_ID"; then
   bad "结算后 session 仍能查到订单（应失效）"
 else
   ok "结算后 session 已失效（预期）"
@@ -128,5 +129,12 @@ ok "已清理 #$ORDER_ID"
 echo ""
 echo "══════════════════════════════════════════════"
 echo "  通过: $PASS    失败: $FAIL"
-[ $FAIL -eq 0 ] && echo "  🎉 全部通过" || echo "  ⚠️  $FAIL 项失败"
-echo "══════════════════════════════════════════════"
+if [ "$FAIL" -eq 0 ]; then
+  echo "  🎉 全部通过"
+  echo "══════════════════════════════════════════════"
+  exit 0
+else
+  echo "  ⚠️  $FAIL 项失败"
+  echo "══════════════════════════════════════════════"
+  exit 1
+fi

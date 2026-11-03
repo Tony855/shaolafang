@@ -452,6 +452,9 @@ app.post('/api/orders', async (req, res) => {
     const cooldownKey = sessionToken || ('store:' + finalStoreId + ':table:' + table);
     const cooldownMs = await getOrderCooldownMs();
     const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs);
+    if (canSubmit === null) {
+      return res.status(503).json({ error: '订单服务暂时不可用，请稍后重试' });
+    }
     if (!canSubmit) {
       return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
     }

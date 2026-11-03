@@ -3,6 +3,7 @@
  * 管理员认证中间件（从 server.js 抽出）
  */
 const { getAsync, runAsync, allAsync } = require('../db/helpers');
+const { getActiveWaiter } = require('../services/waiter-auth');
 const crypto = require('crypto');
 
 async function getWaiterFromRequest(req) {
@@ -199,10 +200,13 @@ async function requireAdminOrWaiter(req, res, next) {
   if (token) {
     const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
     if (session && Number.isFinite(new Date(session.expires_at).getTime()) && new Date(session.expires_at).getTime() > Date.now()) {
-      const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
+      const waiter = await getActiveWaiter(getAsync, session.waiter_id);
       if (waiter) {
         req.waiter = waiter;
-        req.waiterStoreId = waiter.store_id || 1;
+        req.waiterStoreId = Number(waiter.store_id);
+        req.storeId = Number(waiter.store_id);
+        req.merchantId = Number(waiter.merchant_id);
+        req.isWaiter = true;
         req.isAdmin = false;
         const expiresTime = new Date(session.expires_at).getTime();
         if (expiresTime - Date.now() < 60 * 60 * 1000) {

@@ -36,6 +36,10 @@ module.exports = function(app, deps) {
   // ----- 顾客二维码桌码解析 -----
   app.get('/api/public/table-token/:token', async (req, res) => {
     try {
+      // The response contains bearer session/customer tokens; never let a
+      // browser, reverse proxy, or shared cache persist those credentials.
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.setHeader('Pragma', 'no-cache');
       const qrToken = typeof req.params.token === 'string' ? req.params.token : '';
       if (!qrToken || qrToken.length > 255) return res.status(400).json({ error: '桌码无效' });
       const table = await getAsync('SELECT name, store_id FROM tables WHERE qr_token=?', [qrToken]);
@@ -65,9 +69,26 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get('/api/public/table-session/:token/orders', async (req, res) => {
+  const getSessionToken = req => {
+    const headerToken = typeof req.get === 'function' ? req.get('X-Scan-Session') : req.headers?.['x-scan-session'];
+    const value = typeof headerToken === 'string' && headerToken.trim()
+      ? headerToken.trim()
+      : (typeof req.params?.token === 'string' ? req.params.token : '');
+    return value;
+  };
+
+  const getCustomerToken = req => {
+    const headerToken = typeof req.get === 'function' ? req.get('X-Customer-Token') : req.headers?.['x-customer-token'];
+    const value = typeof headerToken === 'string' && headerToken.trim()
+      ? headerToken.trim()
+      : (typeof req.query?.ct === 'string' ? req.query.ct.trim() : '');
+    return value;
+  };
+
+  const getSessionOrders = async (req, res) => {
     try {
-      const sessionToken = typeof req.params.token === 'string' ? req.params.token : '';
+      res.setHeader('Cache-Control', 'no-store, private');
+      const sessionToken = getSessionToken(req);
       if (!sessionToken || sessionToken.length > 256) return res.status(400).json({ error: '扫码会话令牌无效' });
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [sessionToken]);
       if (!session) return res.status(404).json({ error: '扫码会话不存在，请重新扫码' });
@@ -79,24 +100,25 @@ module.exports = function(app, deps) {
         [sessionStoreId]
       );
       if (!activeStore) return res.status(404).json({ error: '店铺不存在或已停用' });
-      const customerToken = typeof req.query.ct === 'string' ? req.query.ct.trim() : '';
+      const customerToken = getCustomerToken(req);
       if (customerToken.length > 128) return res.status(400).json({ error: '顾客会话令牌无效' });
       let rows;
       if (customerToken) {
-        // 只按customer_token + store_id查询，不管订单在哪个桌，都能查到自己的订单
-        // 限定最近7天，避免无限累积历史订单
-        const sevenDaysAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC", [sessionStoreId, customerToken, sevenDaysAgo]);
       } else {
         rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, sessionStoreId, sessionToken]);
       }
       res.json({ table: session.table_name, orders: rows.map(formatOrder) });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
+    } catch (error) {
+      res.status(500).json({ error: '查询订单失败' });
+    }
+  };
 
-  app.get('/api/public/table-session/:token/info', async (req, res) => {
+  const getSessionInfo = async (req, res) => {
     try {
-      const sessionToken = typeof req.params.token === 'string' ? req.params.token : '';
+      res.setHeader('Cache-Control', 'no-store, private');
+      const sessionToken = getSessionToken(req);
       if (!sessionToken || sessionToken.length > 256) return res.status(400).json({ error: '扫码会话令牌无效' });
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [sessionToken]);
       if (!session) return res.status(404).json({ error: '会话不存在' });
@@ -109,13 +131,30 @@ module.exports = function(app, deps) {
       );
       if (!activeStore) return res.status(404).json({ error: '店铺不存在或已停用' });
       res.json({ table: session.table_name, storeId: sessionStoreId, sessionToken, expiresAt: session.expires_at });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
+    } catch (error) {
+      res.status(500).json({ error: '读取扫码会话失败' });
+    }
+  };
 
-  app.delete('/api/public/table-session/:token', async (req, res) => {
+  const deleteSession = async (req, res) => {
     try {
-      await runAsync('DELETE FROM scan_sessions WHERE token=?', [req.params.token]);
+      res.setHeader('Cache-Control', 'no-store, private');
+      const sessionToken = getSessionToken(req);
+      if (!sessionToken || sessionToken.length > 256) return res.status(400).json({ error: '扫码会话令牌无效' });
+      await runAsync('DELETE FROM scan_sessions WHERE token=?', [sessionToken]);
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
+    } catch (error) {
+      res.status(500).json({ error: '结束扫码会话失败' });
+    }
+  };
+
+  // Header-based endpoints keep bearer tokens out of URLs and reverse-proxy access logs.
+  app.get('/api/public/table-session/orders', getSessionOrders);
+  app.get('/api/public/table-session/info', getSessionInfo);
+  app.delete('/api/public/table-session', deleteSession);
+
+  // Legacy path/query aliases remain for older clients during rollout.
+  app.get('/api/public/table-session/:token/orders', getSessionOrders);
+  app.get('/api/public/table-session/:token/info', getSessionInfo);
+  app.delete('/api/public/table-session/:token', deleteSession);
 };

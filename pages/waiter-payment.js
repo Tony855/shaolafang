@@ -8,6 +8,7 @@
 
 const $ = (s) => document.querySelector(s);
 const t = SLF.t;
+const esc = SLF.utils.esc;
 
 const apiCall = (path, opt) => SLF.api.page(path, opt);
 
@@ -81,7 +82,7 @@ function renderProviderButtons() {
     // ★ 银行唯一键（小写无空格），用于按商户配置独立控制显隐
     btn.dataset.bankKey = bankName.toLowerCase().replace(/[^a-z0-9]/g, '');
     const label = bankName || t('scanPayFallback');
-    const labelHtml = '<span class="pm-label" style="font-size:12px;font-weight:700;">' + label + '</span>';
+    const labelHtml = '<span class="pm-label" style="font-size:12px;font-weight:700;">' + esc(label) + '</span>';
     btn.innerHTML = '<span class="pm-icon" style="font-size:22px;">📱</span>' + labelHtml;
 
     let extIdx = 0;
@@ -91,7 +92,7 @@ function renderProviderButtons() {
       const url = '/assets/vendor/payment-icons/' + iconFile + '.' + ext;
       const img = new Image();
       img.onload = function() {
-        btn.innerHTML = '<span class="pm-icon pm-icon-aba"><img src="' + url + '" alt="' + label + '"></span>' + labelHtml;
+        btn.innerHTML = '<span class="pm-icon pm-icon-aba"><img src="' + url + '" alt="' + esc(label) + '"></span>' + labelHtml;
       };
       img.onerror = tryNext;
       img.src = url;
@@ -334,7 +335,7 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
           'display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;width:100%;text-align:center;line-height:1.35;';
         $('#khqrAmount').innerHTML =
           '' +
-          '<span style="color:#e85d3a;font-size:clamp(28px,6vw,42px);font-weight:800;">' + sym + amtStr + '</span>' +
+          '<span style="color:#e85d3a;font-size:clamp(28px,6vw,42px);font-weight:800;">' + esc(sym) + amtStr + '</span>' +
           (secHtml ? secHtml.replace('margin-left:6px;', 'margin-left:0;') : '');
         const sw = document.getElementById('khqrCurrencySwitch');
         if (sw) sw.textContent = cur === 'USD' ? '$ USD  ⇄  ៛ KHR' : '៛ KHR  ⇄  $ USD';
@@ -352,7 +353,7 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
       $('#khqrStatusBar').innerHTML = '<span>' + t('khqrWaitingScan') + '</span>';
     })
     .catch(e => {
-      $('#khqrStatusBar').innerHTML = '<span style="color:#e74c3c;">❌ ' + (e.message || t('khqrGenerateFailed')) + '</span>';
+      $('#khqrStatusBar').innerHTML = '<span style="color:#e74c3c;">❌ ' + esc(e.message || t('khqrGenerateFailed')) + '</span>';
       btn.textContent = '❌ ' + t('khqrGenerateFailed');
     });
 }

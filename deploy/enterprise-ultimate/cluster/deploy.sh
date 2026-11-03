@@ -145,5 +145,5 @@ echo "  1. 请确保 /etc/foodflow/.env 中的数据库、Redis、NFS 配置正�
 echo "  2. 所有节点的数据库、Redis、NFS 配置必须完全相同"
 echo "  3. 请配置 Nginx 负载均衡（参考 deploy/enterprise-ultimate/cluster/nginx.conf）"
 echo "  4. 建议配置 SSL 证书"
-echo "  5. 超级管理员后台: https://your-domain.com/super (默认 superadmin/super123)"
+echo "  5. 超级管理员后台: https://your-domain.com/super (初始密码为随机生成，见 /var/lib/foodflow/initial-credentials.txt)"
 echo ""

@@ -27,7 +27,17 @@ module.exports = {
   DB_HOST: process.env.DB_HOST || 'localhost',
   DB_USER: process.env.DB_USER || 'root',
   DB_PASSWORD: process.env.DB_PASSWORD || '',
-  DB_DATABASE: (() => { const db = process.env.DB_DATABASE; if (!db) { console.error('❌ .env 缺少 DB_DATABASE'); process.exit(1); } return db; })(),
+  DB_DATABASE: (() => {
+    const db = String(process.env.DB_DATABASE || '').trim();
+    if (!db) {
+      console.error('❌ .env 缺少 DB_DATABASE');
+      process.exit(1);
+    }
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(db)) {
+      throw new Error('DB_DATABASE must be a valid MySQL identifier (1-64 letters, numbers, underscores or hyphens)');
+    }
+    return db;
+  })(),
   DB_PORT: Number(process.env.DB_PORT) || 3306,
   DB_CONNECTION_LIMIT: Number(process.env.DB_CONNECTION_LIMIT) || 50,
 };

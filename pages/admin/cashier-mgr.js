@@ -110,7 +110,7 @@ async function loadCashiers() {
         '</div>' +
         '<div class="actions">' +
           '<button class="edit-btn" onclick="editCashier(' + c.id + ')">✏️ ' + L('edit') + '</button>' +
-          '<button class="danger" onclick="deleteCashier(' + c.id + ', \'' + esc(c.username) + '\')">' + L('delete') + '</button>' +
+          '<button class="danger" onclick="deleteCashier(' + c.id + ')">' + L('delete') + '</button>' +
         '</div>' +
       '</div>';
       }).join('') :
@@ -120,7 +120,9 @@ async function loadCashiers() {
   }
 }
 
-function deleteCashier(id, username) {
+function deleteCashier(id) {
+  const cashier = allCashiers.find(item => String(item.id) === String(id));
+  const username = cashier ? cashier.username : '';
   showConfirm(tAdmin('deleteCashierConfirm').replace('{username}', username), function() {
     api('/admin/cashiers/' + id, { method: 'DELETE' }).then(() => {
       SLF.ui.toast('✅ ' + tAdmin('cashierDeleted'));

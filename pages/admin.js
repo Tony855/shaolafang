@@ -1056,10 +1056,8 @@ function applyAdminLanguage() {
         // Socket 事件（带 token 与防抖）
         if (typeof io === 'function') {
             const adminSocket = io({
-                query: {
-                    storeId: SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || 1,
-                    token: SLF.store.rawGetSession('adminToken') || ''
-                }
+                query: { storeId: SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || 1 },
+                auth: { token: SLF.store.rawGetSession('adminToken') || '' }
             });
             window._adminSocket = adminSocket;
             let socketDebounce = null;

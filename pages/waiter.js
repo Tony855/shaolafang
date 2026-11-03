@@ -1123,10 +1123,8 @@ function initWaiterPage() {
   // Socket（传 waiterToken）
   if (typeof io === 'function') {
     const waiterSocket = io({
-      query: {
-        storeId: SLF.store.rawGet('waiterStoreId') || SLF.store.rawGet('storeId') || 1,
-        token: SLF.store.rawGet('waiterToken') || ''
-      }
+      query: { storeId: SLF.store.rawGet('waiterStoreId') || SLF.store.rawGet('storeId') || 1 },
+      auth: { token: SLF.store.rawGet('waiterToken') || '' }
     });
     // ============ Socket 增量更新（避免全量拉取）============
     function belongsToStore(o) {

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 // Unit tests replace the connection pool and never connect to a real database.
 process.env.DB_DATABASE = process.env.DB_DATABASE || 'foodflow_test';
 const { pool } = require('../server/db/pool');
-const { withTransaction } = require('../server/db/helpers');
+const { runAsync, getAsync, allAsync, withTransaction } = require('../server/db/helpers');
 
 function mockConnection(options = {}) {
   const calls = [];
@@ -63,5 +63,39 @@ test('nested transaction uses a savepoint and rolls back only the nested work', 
     assert.equal(conn.released, true);
   } finally {
     pool.getConnection = original;
+  }
+});
+
+
+test('helpers use the replacement pool after database bootstrap', async () => {
+  const poolModule = require('../server/db/pool');
+  const { runAsync } = require('../server/db/helpers');
+  const originalPool = poolModule.pool;
+  const replacementCalls = [];
+  const replacementConnection = mockConnection();
+  const replacementPool = {
+    async execute(sql, params) {
+      replacementCalls.push({ sql, params });
+      if (sql.startsWith('SELECT')) return [[{ id: 42, value: 'replacement' }]];
+      return [{ affectedRows: 1, insertId: 12 }];
+    },
+    async getConnection() {
+      replacementCalls.push({ sql: 'GET_CONNECTION' });
+      return replacementConnection;
+    }
+  };
+
+  poolModule.setPool(replacementPool);
+  try {
+    const result = await runAsync('UPDATE bootstrap_test SET ready=?', [1]);
+    assert.equal(result.affectedRows, 1);
+    assert.deepEqual(await getAsync('SELECT id FROM bootstrap_test WHERE id=?', [42]), { id: 42, value: 'replacement' });
+    assert.deepEqual(await allAsync('SELECT id FROM bootstrap_test'), [{ id: 42, value: 'replacement' }]);
+    await withTransaction(async () => 'replacement-pool');
+    assert.equal(replacementCalls[0].sql, 'UPDATE bootstrap_test SET ready=?');
+    assert.ok(replacementCalls.some(call => call.sql === 'GET_CONNECTION'));
+    assert.equal(replacementConnection.released, true);
+  } finally {
+    poolModule.setPool(originalPool);
   }
 });

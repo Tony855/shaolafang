@@ -39,3 +39,11 @@ test('cooldown handles zero, invalid and negative intervals safely', async () =>
   assert.equal(calls[0].ttl, 30);
   assert.equal(calls[1].ttl, 30);
 });
+
+
+test('cooldown backend unavailability is distinguishable from an active cooldown', async () => {
+  const checker = createCooldownChecker({
+    async setIfAbsent() { return null; }
+  });
+  assert.equal(await checker('table-A', 3000), null);
+});

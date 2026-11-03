@@ -85,12 +85,74 @@
             constraints: null
         };
 
+        // Fallback customer tokens must use cryptographic randomness.
+        function generateCustomerToken() {
+            if (!window.crypto || typeof window.crypto.getRandomValues !== 'function') {
+                throw new Error('当前浏览器不支持安全随机数，无法创建顾客会话');
+            }
+            const bytes = new Uint8Array(24);
+            window.crypto.getRandomValues(bytes);
+            return 'ct_' + Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+        }
+
+        function sessionStorageGet(key) {
+            try { return window.sessionStorage.getItem(key) || ''; } catch (_) { return ''; }
+        }
+        function sessionStorageSet(key, value) {
+            try { window.sessionStorage.setItem(key, String(value)); return true; } catch (_) { return false; }
+        }
+        function sessionStorageRemove(key) {
+            try { window.sessionStorage.removeItem(key); } catch (_) {}
+        }
+        function getStoredCustomerToken() {
+            const current = sessionStorageGet('customer_token');
+            if (current) return current;
+            const legacy = SLF.store.rawGet('customer_token') || '';
+            if (legacy && sessionStorageSet('customer_token', legacy)) SLF.store.rawRemove('customer_token');
+            return legacy;
+        }
+        function setStoredCustomerToken(value) {
+            if (!sessionStorageSet('customer_token', value)) {
+                SLF.store.rawSet('customer_token', value);
+            } else {
+                SLF.store.rawRemove('customer_token');
+            }
+        }
+        function clearStoredCustomerToken() {
+            sessionStorageRemove('customer_token');
+            SLF.store.rawRemove('customer_token');
+        }
+        function getStoredScanSessionToken() {
+            const current = sessionStorageGet('scan_session_token');
+            if (current) return current;
+            const legacy = SLF.store.rawGet('scan_session_token') || '';
+            if (legacy && sessionStorageSet('scan_session_token', legacy)) SLF.store.rawRemove('scan_session_token');
+            return legacy;
+        }
+        function setStoredScanSession(token, expiresAt) {
+            const saved = sessionStorageSet('scan_session_token', token) &&
+                sessionStorageSet('scan_session_expires_at', expiresAt);
+            if (!saved) {
+                SLF.store.rawSet('scan_session_token', token);
+                SLF.store.rawSet('scan_session_expires_at', expiresAt);
+            } else {
+                SLF.store.rawRemove('scan_session_token');
+                SLF.store.rawRemove('scan_session_expires_at');
+            }
+        }
+        function clearStoredScanSession() {
+            sessionStorageRemove('scan_session_token');
+            sessionStorageRemove('scan_session_expires_at');
+            SLF.store.rawRemove('scan_session_token');
+            SLF.store.rawRemove('scan_session_expires_at');
+        }
+
         // 页面初始化时自动生成唯一customer_token
-        if (!SLF.store.rawGet('customer_token')) {
-            state.customerToken = 'ct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            SLF.store.rawSet('customer_token', state.customerToken);
+        if (!getStoredCustomerToken()) {
+            state.customerToken = generateCustomerToken();
+            setStoredCustomerToken(state.customerToken);
         } else {
-            state.customerToken = SLF.store.rawGet('customer_token');
+            state.customerToken = getStoredCustomerToken();
         }
 
         let isBackendOnline = false;
@@ -276,10 +338,12 @@
             try {
                 const query = new URLSearchParams(window.location.search);
                 let token = query.get('token');
-                let sessionParam = query.get('session');
+                // Keep the bearer session in local storage, not in the address bar or Referer header.
+                let sessionParam = query.get('session') || (!token ? getStoredScanSessionToken() : null);
 
                 if (SLF.store.rawGet('customer_session_terminated')) {
                     SLF.store.rawRemove('customer_session_terminated');
+                    clearStoredScanSession();
                     token = null;
                     sessionParam = null;
                     try {
@@ -292,21 +356,27 @@
                 }
 
                 if (sessionParam) {
-                    const info = await SLF.api.get(`/public/table-session/${encodeURIComponent(sessionParam)}/info`);
+                    const info = await SLF.api.get('/public/table-session/info', { headers: { 'X-Scan-Session': sessionParam } });
                     state.table = info.table;
                     state.storeId = info.storeId || 1;
                     state.scanToken = '';
                     state.scanSessionToken = info.sessionToken;
                     state.scanExpiresAt = info.expiresAt;
+                    setStoredScanSession(info.sessionToken, info.expiresAt);
+                    if (query.has('session')) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('session');
+                        history.replaceState(null, '', url.pathname + url.search + url.hash);
+                    }
                     if (info.customerToken) {
                         state.customerToken = info.customerToken;
-                        SLF.store.rawSet('customer_token', info.customerToken);
-                    } else if (SLF.store.rawGet('customer_token')) {
-                        state.customerToken = SLF.store.rawGet('customer_token');
+                        setStoredCustomerToken(info.customerToken);
+                    } else if (getStoredCustomerToken()) {
+                        state.customerToken = getStoredCustomerToken();
                     }
                     if (!state.customerToken) {
-                        state.customerToken = 'ct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                        SLF.store.rawSet('customer_token', state.customerToken);
+                        state.customerToken = generateCustomerToken();
+                        setStoredCustomerToken(state.customerToken);
                     }
                     await fetchStoreInfo();
                     await fetchMenu();
@@ -318,20 +388,22 @@
                     state.scanToken = token;
                     state.scanSessionToken = session.sessionToken;
                     state.scanExpiresAt = session.expiresAt;
+                    setStoredScanSession(session.sessionToken, session.expiresAt);
                     if (session.customerToken) {
                         state.customerToken = session.customerToken;
-                        SLF.store.rawSet('customer_token', session.customerToken);
-                    } else if (SLF.store.rawGet('customer_token')) {
-                        state.customerToken = SLF.store.rawGet('customer_token');
+                        setStoredCustomerToken(session.customerToken);
+                    } else if (getStoredCustomerToken()) {
+                        state.customerToken = getStoredCustomerToken();
                     }
                     if (!state.customerToken) {
-                        state.customerToken = 'ct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                        SLF.store.rawSet('customer_token', state.customerToken);
+                        state.customerToken = generateCustomerToken();
+                        setStoredCustomerToken(state.customerToken);
                     }
                     try {
                         const url = new URL(window.location.href);
                         url.searchParams.delete('token');
-                        url.searchParams.set('session', state.scanSessionToken);
+                        url.searchParams.delete('table');
+                        url.searchParams.delete('session');
                         history.replaceState(null, '', url.pathname + url.search + url.hash);
                     } catch (_) {}
                     await fetchStoreInfo();
@@ -342,6 +414,7 @@
                     state.scanToken = '';
                     state.scanSessionToken = '';
                     state.scanExpiresAt = '';
+                    clearStoredScanSession();
                     state.storeId = 1;
                 }
 
@@ -357,9 +430,10 @@
                 state.scanToken = '';
                 state.scanSessionToken = '';
                 state.scanExpiresAt = '';
+                clearStoredScanSession();
                 state.storeId = 1;
                 state.customerToken = '';
-                SLF.store.rawRemove('customer_token');
+                clearStoredCustomerToken();
                 tableDisplay.textContent = t('notScanned', null, '未扫码');
                 tableInfo.title = t('scanToBind', null, '请扫描桌面二维码绑定桌号');
                 document.getElementById('customerOrderBtn').hidden = true;
@@ -391,11 +465,13 @@
                 return;
             }
             try {
-                const ct = state.customerToken || SLF.store.rawGet('customer_token') || '';
-                const data = await SLF.api.get(
-                    `/public/table-session/${encodeURIComponent(state.scanSessionToken)}/orders` +
-                    (ct ? `?ct=${encodeURIComponent(ct)}` : '')
-                );
+                const ct = state.customerToken || getStoredCustomerToken() || '';
+                const data = await SLF.api.get('/public/table-session/orders', {
+                    headers: {
+                        'X-Scan-Session': state.scanSessionToken,
+                        'X-Customer-Token': ct
+                    }
+                });
 
                 const orderStatusMap = {
                     'pending': t('orderPending', null, '未结算'),
@@ -976,7 +1052,7 @@
             const orderData = {
                 table: state.table,
                 sessionToken: state.scanSessionToken,
-                customerToken: state.customerToken || SLF.store.rawGet('customer_token') || '',
+                customerToken: state.customerToken || getStoredCustomerToken() || '',
                 items: items.map(i => ({
                     id: i.id,
                     quantity: i.quantity,
@@ -1220,7 +1296,7 @@
             try {
                 const data = await SLF.api.post('/orders/' + orderId + '/urge', {
                     sessionToken: state.scanSessionToken || '',
-                    customerToken: state.customerToken || SLF.store.rawGet('customer_token') || ''
+                    customerToken: state.customerToken || getStoredCustomerToken() || ''
                 });
                 if (data && data.success) {
                     SLF.ui.toast(`✅ ${t('notifiedKitchen', null, '已通知后厨')}`, 2500);
@@ -1362,10 +1438,11 @@
                 }
             });
 
-            // Socket（不传 token，走 public 房间）
+            // Socket 仅通过握手 auth 发送扫码会话凭据，避免令牌出现在 URL 和访问日志中。
             if (typeof io === 'function') {
                 const customerSocket = io({
-                    query: { storeId: state.storeId || 1, token: state.scanSessionToken || '' }
+                    query: { storeId: state.storeId || 1 },
+                    auth: { token: state.scanSessionToken || '' }
                 });
                 customerSocket.on('item:updated', refreshCustomerOrdersIfOpen);
                 customerSocket.on('order:settled', refreshCustomerOrdersIfOpen);
