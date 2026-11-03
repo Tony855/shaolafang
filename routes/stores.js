@@ -11,7 +11,7 @@ const { initStoreSettings } = require('../server/services/settings-init');
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
-app.get('/api/admin/stores', requireAdminKey, async (req, res) => {
+app.get('/api/admin/stores', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     res.json(await allAsync('SELECT * FROM stores WHERE merchant_id=? ORDER BY id', [req.merchantId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
