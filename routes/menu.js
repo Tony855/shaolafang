@@ -45,10 +45,11 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
     const cleanName = typeof name === 'string' ? name.trim() : '';
     const numericPrice = typeof price === 'number' || typeof price === 'string' ? Number(price) : NaN;
     const currencyCode = String(currency_code || 'USD').trim().toUpperCase();
-    if (!cleanName || cleanName.length > 120 || !Number.isFinite(numericPrice) || numericPrice <= 0) {
+    if (!cleanName || cleanName.length > 120 || !Number.isFinite(numericPrice) || numericPrice <= 0 || numericPrice > 10000000) {
       return res.status(400).json({ error: '菜品名称无效或价格必须是大于 0 的有效数字' });
     }
     const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [currencyCode, req.merchantId]);
+    if (!currencyCode || currencyCode.length > 10) return res.status(400).json({ error: '货币代码无效' });
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
     let image = req.files && req.files.image ? req.files.image[0].filename : '';
     // 后端兜底压缩（前端已压过，这里是保护）
@@ -186,12 +187,12 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
         const itemName = typeof item.name === 'string' ? item.name.trim() : '';
         const itemPrice = typeof item.price === 'number' || typeof item.price === 'string' ? Number(item.price) : NaN;
         const itemCurrency = String(item.currency_code || 'USD').trim().toUpperCase();
-        if (!itemName || itemName.length > 120 || !Number.isFinite(itemPrice) || itemPrice <= 0) {
+        if (!itemName || itemName.length > 120 || !Number.isFinite(itemPrice) || itemPrice <= 0 || itemPrice > 10000000) {
           failed++;
           errors.push(`第 ${i+1} 行：菜品名称无效或价格必须是大于 0 的有效数字`);
           continue;
         }
-        if (!itemCurrency || itemCurrency.length > 12) {
+        if (!itemCurrency || itemCurrency.length > 10) {
           failed++;
           errors.push(`第 ${i+1} 行：货币代码无效`);
           continue;
@@ -306,9 +307,10 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
     const nextCurrency = String(currency_code || current.currency_code || 'USD').trim().toUpperCase();
     const nextName = name === undefined ? current.name : (typeof name === 'string' ? name.trim() : '');
     const nextPrice = price === undefined ? Number(current.price) : (typeof price === 'number' || typeof price === 'string' ? Number(price) : NaN);
-    if (!nextName || nextName.length > 120 || !Number.isFinite(nextPrice) || nextPrice <= 0) {
+    if (!nextName || nextName.length > 120 || !Number.isFinite(nextPrice) || nextPrice <= 0 || nextPrice > 10000000) {
       return res.status(400).json({ error: '菜品名称无效或价格必须是大于 0 的有效数字' });
     }
+    if (!nextCurrency || nextCurrency.length > 10) return res.status(400).json({ error: '货币代码无效' });
     const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [nextCurrency, req.merchantId]);
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
     let image = (req.files && req.files.image) ? req.files.image[0].filename : current.image;
