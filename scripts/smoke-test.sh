@@ -11,6 +11,20 @@ sql() {
   mysql -u root foodflow_system -N -e "$1" 2>/dev/null
 }
 
+CRED_FILE="${INIT_CRED_FILE:-/var/lib/foodflow/initial-credentials.txt}"
+load_credential() {
+  local role="$1" line
+  line=$(grep -m1 "^$role: " "$CRED_FILE" 2>/dev/null || true)
+  [ -n "$line" ] || return 1
+  CRED_USERNAME=$(printf '%s' "$line" | sed -E 's/^[^:]+: ([^ ]+) \/ .*/\1/')
+  CRED_PASSWORD=$(printf '%s' "$line" | sed -E 's/^[^:]+: [^ ]+ \/ //')
+}
+if [ -z "${CASHIER_USERNAME:-}" ] || [ -z "${CASHIER_PASSWORD:-}" ]; then
+  load_credential cashier || { echo "❌ 缺少收银员凭据：设置 CASHIER_USERNAME/CASHIER_PASSWORD 或提供 $CRED_FILE"; exit 1; }
+  CASHIER_USERNAME="${CASHIER_USERNAME:-$CRED_USERNAME}"
+  CASHIER_PASSWORD="${CASHIER_PASSWORD:-$CRED_PASSWORD}"
+fi
+
 TS=$(date +%s | tail -c 7)
 
 step "0. 准备测试数据"
@@ -65,8 +79,7 @@ else
 fi
 
 step "6. 收银员登录"
-CASHIER_TOKEN=$(curl -sS -X POST "$BASE/api/cashier/login" -H 'Content-Type: application/json' \
-  -d '{"username":"cashier","password":"123456"}' | grep -oP '"token":"\K[^"]+')
+CASHIER_TOKEN=$(printf '{"username":"%s","password":"%s"}' "$CASHIER_USERNAME" "$CASHIER_PASSWORD" | curl -sS -X POST "$BASE/api/cashier/login" -H 'Content-Type: application/json' --data-binary @- | grep -oP '"token":"\K[^"]+')
 if [ -n "$CASHIER_TOKEN" ]; then
   ok "登录成功"
   CASHIER_OK=1
