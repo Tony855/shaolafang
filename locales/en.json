@@ -243,7 +243,7 @@
   "confirmOperation": "Confirm Operation",
   "confirmResetData": "Confirm reset all order data? This cannot be undone",
   "confirmResetDataTitle": "Reset Data Confirmation",
-  "confirmResetPassword": "Confirm reset this merchant admin password to admin123?",
+  "confirmResetPassword": "Generate a new random administrator password?",
   "dashboard": "Dashboard",
   "enterPassword": "Please enter password",
   "enterPasswordVerify": "Please enter password to verify identity",
