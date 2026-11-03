@@ -118,10 +118,38 @@ app.post('/api/tables/move', requireAdminOrWaiter, requireTableAccess, async (re
       if (result.affectedRows === 0) {
         throw Object.assign(new Error('当前桌没有未结算订单可以转移'), { status: 400 });
       }
+      // Keep pending service calls and active reservations attached to the
+      // physical table move instead of leaving stale records on the source.
+      await runAsync(
+        "UPDATE waiter_calls SET table_name=? WHERE table_name=? AND store_id=? AND status='pending'",
+        [targetTable, fromTable, storeId]
+      );
+      await runAsync(
+        "UPDATE reservations SET table_name=? WHERE table_name=? AND store_id=? AND status IN ('pending','confirmed')",
+        [targetTable, fromTable, storeId]
+      );
 
       await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [fromTable, storeId]);
       await syncTableStatus(fromTable, storeId);
       await syncTableStatus(targetTable, storeId);
+      const sourceReservations = await getAsync(
+        "SELECT COUNT(*) AS count FROM reservations WHERE table_name=? AND store_id=? AND status IN ('pending','confirmed')",
+        [fromTable, storeId]
+      );
+      const targetReservations = await getAsync(
+        "SELECT COUNT(*) AS count FROM reservations WHERE table_name=? AND store_id=? AND status IN ('pending','confirmed')",
+        [targetTable, storeId]
+      );
+      const targetOrders = await getAsync(
+        "SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+        [targetTable, storeId]
+      );
+      if (Number(sourceReservations?.count || 0) === 0) {
+        await runAsync("UPDATE tables SET status='available' WHERE name=? AND store_id=? AND status='reserved'", [fromTable, storeId]);
+      }
+      if (Number(targetReservations?.count || 0) > 0 && Number(targetOrders?.count || 0) === 0) {
+        await runAsync("UPDATE tables SET status='reserved' WHERE name=? AND store_id=? AND status='available'", [targetTable, storeId]);
+      }
       return result.affectedRows;
     });
 
