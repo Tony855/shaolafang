@@ -100,6 +100,7 @@ test('waiter call requires a valid, matching and unexpired QR session', async t 
     requireAdminKey: pass,
     requirePermission: () => pass,
     getAsync: async sql => {
+      if (sql.includes('JOIN merchants')) return { id: 7 };
       if (sql.includes('FROM scan_sessions')) return session;
       return null;
     },
@@ -134,6 +135,7 @@ test('waiter-call throttling and insert are serialized in a transaction', async 
     requireAdminKey: pass,
     requirePermission: () => pass,
     getAsync: async (sql) => {
+      if (sql.includes('JOIN merchants')) return { id: 7 };
       if (sql.includes('FROM scan_sessions') && sql.includes('FOR UPDATE')) {
         return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
       }
@@ -261,6 +263,7 @@ test('waiter-call cooldown remains active after older calls leave the rolling co
     requireAdminKey: pass,
     requirePermission: () => pass,
     getAsync: async sql => {
+      if (sql.includes('JOIN merchants')) return { id: 7 };
       if (sql.includes('FROM scan_sessions')) {
         return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
       }
@@ -306,6 +309,7 @@ test('order creation rechecks the QR session after locking the table', async () 
     getWaiterFromRequest: async () => null,
     getAsync: async (sql) => {
       queries.push(sql);
+      if (sql.includes('JOIN merchants')) return { id: 7 };
       if (sql.includes('FROM scan_sessions') && sql.includes('FOR UPDATE')) {
         sessionReads++;
         return null; // Session was removed by a concurrent table move after the first read.
