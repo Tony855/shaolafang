@@ -480,6 +480,10 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_edit_order)) {
       return res.status(403).json({ error: '无权修改订单' });
     }
+    if (status === 'done' && req.isAdmin && !req.isPrimaryAdmin &&
+        !(req.adminPermissions && req.adminPermissions.can_manage_order)) {
+      return res.status(403).json({ error: '没有订单结算权限' });
+    }
     if (status !== undefined && !['pending', 'done'].includes(status)) {
       return res.status(400).json({ error: '不支持的订单状态，请使用专用取消/退款接口' });
     }
