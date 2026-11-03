@@ -242,7 +242,7 @@ module.exports = function(app, deps) {
       if (type === 'orders') {
         rows = await allAsync('SELECT * FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000', [req.storeId]);
         filename = `orders_${new Date().toISOString().slice(0,10)}.csv`;
-        headers = ['订单号','桌号','状态','金额','备注','下单时间'];
+        headers = ['订单号','桌号','状态','原金额','累计退款','净收入','备注','下单时间'];
       } else if (type === 'menu') {
         rows = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [req.storeId]);
         filename = `menu_${new Date().toISOString().slice(0,10)}.csv`;
@@ -271,7 +271,7 @@ module.exports = function(app, deps) {
       const csvRows = [headers.join(',')];
       for (const row of rows) {
         if (type === 'orders') {
-          csvRows.push(csvRow([row.id, row.table_name, row.status, row.total, row.note, row.createdAt]));
+          csvRows.push(csvRow([row.id, row.table_name, row.status, row.total, row.refund_amount || 0, Math.max(0, Number(row.total) - Number(row.refund_amount || 0)), row.note, row.createdAt]));
         } else if (type === 'menu') {
           csvRows.push(csvRow([row.id, row.name, row.name_en || '', row.price, row.currency_code, row.category || '', row.unit, row.active]));
         } else if (type === 'sales') {
@@ -319,7 +319,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
         // ===== 订单明细 =====
         const stPlaceholders = statuses.map(() => '?').join(',');
         const params = [storeId, startIso, endIso, ...statuses];
-        let sql = `SELECT id, order_no, table_name, total, status, pay_method, note, createdAt, settled_at FROM orders
+        let sql = `SELECT id, order_no, table_name, total, COALESCE(refund_amount, 0) AS refund_amount, (total - COALESCE(refund_amount, 0)) AS net_total, status, pay_method, note, createdAt, settled_at FROM orders
                    WHERE store_id=? AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ? AND status IN (${stPlaceholders})`;
         if (payMethods.length) {
           sql += ` AND pay_method IN (${payMethods.map(() => '?').join(',')})`;
@@ -328,9 +328,9 @@ module.exports.attachAdvancedExport = function(app, deps) {
         sql += ' ORDER BY createdAt DESC';
         const rows = await allAsync(sql, params);
 
-        csv = '\uFEFF订单ID,订单号,桌号,金额,状态,支付方式,备注,下单时间,结算时间\n';
+        csv = '\uFEFF订单ID,订单号,桌号,原金额,累计退款,净收入,状态,支付方式,备注,下单时间,结算时间\n';
         for (const r of rows) {
-          csv += csvRow([r.id, r.order_no || '', r.table_name || '', r.total, r.status, r.pay_method || '', r.note || '', r.createdAt, r.settled_at || '']) + '\n';
+          csv += csvRow([r.id, r.order_no || '', r.table_name || '', r.total, r.refund_amount, r.net_total, r.status, r.pay_method || '', r.note || '', r.createdAt, r.settled_at || '']) + '\n';
         }
         filename = `orders_${startDate}_${endDate}.csv`;
 
