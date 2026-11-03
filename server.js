@@ -122,17 +122,29 @@ const cache = {
       memoryCache.set(key, value, ttlSeconds);
     }
   },
+  async setIfAbsent(key, value, ttlSeconds) {
+    if (redisReady) {
+      const result = await redisClient.set(key, JSON.stringify(value), {
+        NX: true,
+        ...(ttlSeconds > 0 ? { EX: ttlSeconds } : {})
+      });
+      return result === 'OK';
+    }
+    if (memoryCache.get(key) !== undefined && memoryCache.get(key) !== null) return false;
+    memoryCache.set(key, value, ttlSeconds);
+    return true;
+  },
   async del(key) {
     if (redisReady) await redisClient.del(key);
     else memoryCache.delete(key);
   }
 };
 async function checkAndSetCooldown(key, cooldownMs) {
-  const last = await cache.get('cooldown:' + key);
-  const now = Date.now();
-  if (last && (now - last) < cooldownMs) return false;
-  await cache.set('cooldown:' + key, now, Math.ceil(cooldownMs / 1000) + 1);
-  return true;
+  let interval = Number(cooldownMs);
+  if (!Number.isFinite(interval) || interval < 0) interval = 30000;
+  if (interval === 0) return true;
+  const ttlSeconds = Math.max(1, Math.ceil(interval / 1000));
+  return cache.setIfAbsent('cooldown:' + key, Date.now(), ttlSeconds);
 }
 
 // ---------- 模块化引入（从 server/services 引入） ----------
@@ -244,7 +256,7 @@ app.get('/service-worker.js', (req, res) => {
 // i18n 按需加载
 const i18nCache = {};
 // ----- 页面路由+i18n+qr-print -----
-require('./routes/pages.js')(app, { getAsync, path, fs, QRCode, __dirname });
+require('./routes/pages.js')(app, { getAsync, path, fs, QRCode, __dirname, requireAdminKey, requirePermission });
 
 
 // ---------- 文件上传 ----------
@@ -1110,9 +1122,9 @@ require('./routes/admin-printers.js')(app, { getAsync, allAsync, runAsync, requi
 // ----- 数据导出 -----
 // ----- 报表+导出 -----
 const _advExport = require('./routes/admin-reports.js');
-_advExport(app, { getAsync, allAsync, requireAdminKey, authenticateAdmin });
+_advExport(app, { getAsync, allAsync, requireAdminKey, requirePermission, authenticateAdmin });
 if (typeof _advExport.attachAdvancedExport === 'function') {
-  _advExport.attachAdvancedExport(app, { getAsync, allAsync, requireAdminKey });
+  _advExport.attachAdvancedExport(app, { getAsync, allAsync, requireAdminKey, requirePermission });
 }
 
 
@@ -1128,7 +1140,7 @@ require('./routes/admin-settings.js')(app, { getAsync, runAsync, allAsync, withT
 
 // ----- 二维码 -----
 // ----- 二维码+桌台session -----
-require('./routes/public-session.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, formatOrder });
+require('./routes/public-session.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder });
 
 
 // ---------- 全局错误处理 ----------
@@ -1154,7 +1166,7 @@ io.use(async (socket, next) => {
     if (!token) return next(new Error('unauthorized: table session required'));
     const scanSession = await getAsync('SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?', [token]);
     if (scanSession) {
-      if (new Date(scanSession.expires_at).getTime() <= Date.now()) {
+      if (!Number.isFinite(new Date(scanSession.expires_at).getTime()) || new Date(scanSession.expires_at).getTime() <= Date.now()) {
         return next(new Error('unauthorized: table session expired'));
       }
       socket.data.role = 'public';
@@ -1165,8 +1177,8 @@ io.use(async (socket, next) => {
 
     // 1) 服务员/后厨（共用 waiter_sessions）
     const waiterSession = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-    if (waiterSession && new Date(waiterSession.expires_at).getTime() > Date.now()) {
-      const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [waiterSession.waiter_id]);
+    if (waiterSession && Number.isFinite(new Date(waiterSession.expires_at).getTime()) && new Date(waiterSession.expires_at).getTime() > Date.now()) {
+      const waiter = await getAsync('SELECT w.* FROM waiters w JOIN stores s ON s.id=w.store_id AND s.merchant_id=w.merchant_id AND s.active=1 JOIN merchants m ON m.id=w.merchant_id AND m.status=1 WHERE w.id=? AND w.active=1', [waiterSession.waiter_id]);
       if (waiter) {
         socket.data.role = 'waiter';
         socket.data.storeId = waiter.store_id || 1;
@@ -1176,19 +1188,30 @@ io.use(async (socket, next) => {
     }
 
     // 2) 收银员
-    const cashierSession = await getAsync('SELECT cashier_id, store_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
-    if (cashierSession && new Date(cashierSession.expires_at).getTime() > Date.now()) {
-      socket.data.role = 'cashier';
-      socket.data.storeId = cashierSession.store_id || 1;
-      socket.data.cashierId = cashierSession.cashier_id;
-      return next();
+    const cashierSession = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
+    if (cashierSession && Number.isFinite(new Date(cashierSession.expires_at).getTime()) && new Date(cashierSession.expires_at).getTime() > Date.now()) {
+      const activeCashierStore = await getAsync(
+        'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
+        [cashierSession.store_id, cashierSession.merchant_id]
+      );
+      const cashierSettings = activeCashierStore ? await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + cashierSession.store_id]) : null;
+      let cashierList = [];
+      try { cashierList = JSON.parse(cashierSettings?.value || '[]'); } catch (_) {}
+      const activeCashier = cashierList.find(item => String(item.id) === String(cashierSession.cashier_id) && item.active);
+      if (activeCashier) {
+        socket.data.role = 'cashier';
+        socket.data.storeId = cashierSession.store_id || 1;
+        socket.data.cashierId = cashierSession.cashier_id;
+        return next();
+      }
     }
 
     // 3) 管理员
     const adminSession = await getAsync('SELECT admin_id, expires_at FROM admin_sessions WHERE token=?', [token]);
-    if (adminSession && new Date(adminSession.expires_at).getTime() > Date.now()) {
+    if (adminSession && Number.isFinite(new Date(adminSession.expires_at).getTime()) && new Date(adminSession.expires_at).getTime() > Date.now()) {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [adminSession.admin_id]);
-      if (admin) {
+      const merchant = admin ? await getAsync('SELECT status FROM merchants WHERE id=?', [admin.merchant_id]) : null;
+      if (admin && merchant && merchant.status === 1) {
         socket.data.role = 'admin';
         socket.data.adminId = admin.id;
         socket.data.merchantId = admin.merchant_id;

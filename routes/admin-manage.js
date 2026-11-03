@@ -75,59 +75,91 @@ module.exports = function(app, deps) {
   // ----- 催单（需要 session 校验 + 限流）-----
   app.post('/api/orders/:id(\\d+)/urge', async (req, res) => {
     try {
-      const id = req.params.id;
-      const { sessionToken } = req.body || {};
+      const id = Number(req.params.id);
+      const sessionToken = typeof req.body?.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
+      if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '订单编号无效' });
+      if (!sessionToken) return res.status(401).json({ error: '请重新扫码后再催单' });
 
-      // 1. 必须带 sessionToken
-      if (!sessionToken) {
-        return res.status(401).json({ error: '请重新扫码后再催单' });
-      }
-
-      // 2. 验证 session 有效
-      const session = await getAsync('SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
-      if (!session) return res.status(401).json({ error: '扫码会话不存在，请重新扫码' });
-      if (new Date(session.expires_at).getTime() < Date.now()) {
+      const initialSession = await getAsync(
+        'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?',
+        [sessionToken]
+      );
+      if (!initialSession) return res.status(401).json({ error: '扫码会话不存在，请重新扫码' });
+      const initialExpiry = new Date(initialSession.expires_at).getTime();
+      if (!Number.isFinite(initialExpiry) || initialExpiry <= Date.now()) {
         return res.status(410).json({ error: '二维码已过期，请重新扫码' });
       }
 
-      // 3. 订单必须属于该 session 的桌号 + 店铺
-      const order = await getAsync(
-        'SELECT * FROM orders WHERE id=? AND store_id=? AND table_name=?',
-        [id, session.store_id, session.table_name]
-      );
-      if (!order) return res.status(404).json({ error: '订单不存在' });
-      if (order.status !== 'pending') return res.status(400).json({ error: '订单已完成或已取消' });
+      const result = await withTransaction(async () => {
+        // Lock table -> session -> order; this matches order creation and table operations.
+        const tableRow = await getAsync(
+          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+          [initialSession.table_name, initialSession.store_id]
+        );
+        if (!tableRow) throw Object.assign(new Error('桌台已变化，请重新扫码'), { status: 409 });
+        const activeStore = await getAsync(
+          'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+          [initialSession.store_id]
+        );
+        if (!activeStore) throw Object.assign(new Error('店铺已停用，暂时无法催单'), { status: 404 });
 
-      // 4. 催单限流：同一订单 5 分钟内只能催 1 次
-      const URGE_COOLDOWN_MS = 5 * 60 * 1000;
-      const recent = await getAsync(
-        "SELECT created_at FROM waiter_calls WHERE table_name=? AND store_id=? AND type='urge' AND message LIKE ? ORDER BY created_at DESC LIMIT 1",
-        [order.table_name, order.store_id, `%#${id} %`]
-      );
-      if (recent) {
-        const elapsed = Date.now() - new Date(recent.created_at).getTime();
-        if (elapsed < URGE_COOLDOWN_MS) {
-          const remaining = Math.ceil((URGE_COOLDOWN_MS - elapsed) / 60000);
-          return res.status(429).json({ error: `已催单，请${remaining}分钟后再试`, cooldownMinutes: remaining });
+        const session = await getAsync(
+          'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=? FOR UPDATE',
+          [sessionToken]
+        );
+        if (!session) throw Object.assign(new Error('扫码会话已失效，请重新扫码'), { status: 401 });
+        const expiresAt = new Date(session.expires_at).getTime();
+        if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+          throw Object.assign(new Error('二维码已过期，请重新扫码'), { status: 410 });
         }
+        if (session.table_name !== initialSession.table_name ||
+            Number(session.store_id) !== Number(initialSession.store_id)) {
+          throw Object.assign(new Error('扫码桌台已变化，请重新扫码'), { status: 409 });
+        }
+
+        const order = await getAsync(
+          'SELECT * FROM orders WHERE id=? AND store_id=? AND table_name=? FOR UPDATE',
+          [id, session.store_id, session.table_name]
+        );
+        if (!order) throw Object.assign(new Error('订单不存在或已转移'), { status: 404 });
+        if (order.status !== 'pending') throw Object.assign(new Error('订单已完成或已取消'), { status: 400 });
+
+        const URGE_COOLDOWN_MS = 5 * 60 * 1000;
+        const recent = await getAsync(
+          "SELECT created_at FROM waiter_calls WHERE table_name=? AND store_id=? AND type='urge' AND message LIKE ? ORDER BY created_at DESC LIMIT 1 FOR UPDATE",
+          [order.table_name, order.store_id, `%#${id} %`]
+        );
+        if (recent) {
+          const elapsed = Date.now() - new Date(recent.created_at).getTime();
+          if (!Number.isFinite(elapsed) || elapsed < URGE_COOLDOWN_MS) {
+            const remaining = Number.isFinite(elapsed)
+              ? Math.max(1, Math.ceil((URGE_COOLDOWN_MS - elapsed) / 60000))
+              : 5;
+            return { limited: true, remaining };
+          }
+        }
+
+        const callId = crypto.randomBytes(16).toString('hex');
+        await runAsync(
+          'INSERT INTO waiter_calls (id, table_name, type, message, status, store_id, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+          [callId, order.table_name, 'urge', `订单 #${id} 顾客催单`, 'pending', order.store_id || 1, new Date().toISOString(), order.store_id || 1]
+        );
+        return { limited: false, callId, storeId: order.store_id || 1, tableName: order.table_name };
+      });
+
+      if (result.limited) {
+        return res.status(429).json({ error: `已催单，请${result.remaining}分钟后再试`, cooldownMinutes: result.remaining });
       }
-
-      // 5. 写入催单记录
-      const callId = crypto.randomBytes(16).toString('hex');
-      await runAsync(
-        'INSERT INTO waiter_calls (id, table_name, type, message, status, store_id, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-        [callId, order.table_name, 'urge', `订单 #${id} 顾客催单`, 'pending', order.store_id || 1, new Date().toISOString(), order.store_id || 1]
-      );
-
-      io.to('kitchen-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
-      io.to('waiter-' + (order.store_id || 1)).emit('order:urge', { orderId: id, table: order.table_name });
-
+      io.to('kitchen-' + result.storeId).emit('order:urge', { orderId: id, table: result.tableName });
+      io.to('waiter-' + result.storeId).emit('order:urge', { orderId: id, table: result.tableName });
       res.json({ success: true, message: '已通知后厨，请稍候' });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) {
+      res.status(e.status || 500).json({ error: e.status ? e.message : '催单失败' });
+    }
   });
 
   // ----- 商户管理员管理 -----
-  app.get('/api/admin/admins', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/admins', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
     try {
       const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, (id = (SELECT MIN(id) FROM merchant_admins ma2 WHERE ma2.merchant_id = merchant_admins.merchant_id)) AS is_primary, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
       res.json(rows);
@@ -257,14 +289,14 @@ module.exports = function(app, deps) {
     return null;
   }
 
-  app.get('/api/admin/cashiers', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/cashiers', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
       const list = await getAllCashiersByMerchant(req.merchantId);
       res.json({ cashiers: list });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
-  app.post('/api/admin/cashiers', requireAdminKey, async (req, res) => {
+  app.post('/api/admin/cashiers', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
       const { username, password, display_name, permissions, active, store_id } = req.body || {};
       if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写收银员资料' });
@@ -304,7 +336,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
-  app.put('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
+  app.put('/api/admin/cashiers/:id', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       const { display_name, password, permissions, active, store_id } = req.body || {};
@@ -357,7 +389,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
-  app.delete('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
+  app.delete('/api/admin/cashiers/:id', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       const found = await findCashierStore(req.merchantId, id);
@@ -373,20 +405,33 @@ module.exports = function(app, deps) {
 
   app.post('/api/admin/reset-data', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
-      const { password } = req.body;
+      const { password } = req.body || {};
       if (!password) return res.status(400).json({ error: '请输入管理员密码' });
-      const merchantId = req.merchantId;
-      if (!merchantId) return res.status(400).json({ error: '商户信息缺失' });
-      const admin = await getAsync('SELECT password_hash FROM merchant_admins WHERE id=?', [req.adminId]);
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '商户信息缺失' });
+      }
+      const admin = await getAsync(
+        'SELECT password_hash FROM merchant_admins WHERE id=? AND merchant_id=?',
+        [req.adminId, merchantId]
+      );
       if (!admin || !verifyPassword(password, admin.password_hash)) {
         return res.status(401).json({ error: '密码错误，重置失败' });
       }
-      await runAsync('DELETE FROM orders WHERE merchant_id = ?', [merchantId]);
-      await runAsync('DELETE FROM waiter_calls WHERE merchant_id = ?', [merchantId]);
-      await runAsync('DELETE FROM scan_sessions WHERE merchant_id = ?', [merchantId]);
-      await runAsync('DELETE FROM reservations WHERE merchant_id = ?', [merchantId]);
-      res.json({ success: true, message: '订单数据已重置' });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+
+      const resetResult = await withTransaction(async () => {
+        const deletedOrders = await runAsync('DELETE FROM orders WHERE merchant_id=?', [merchantId]);
+        await runAsync('DELETE FROM waiter_calls WHERE merchant_id=?', [merchantId]);
+        await runAsync('DELETE FROM scan_sessions WHERE merchant_id=?', [merchantId]);
+        await runAsync('DELETE FROM reservations WHERE merchant_id=?', [merchantId]);
+        await runAsync("UPDATE tables SET status='available' WHERE merchant_id=?", [merchantId]);
+        await runAsync('UPDATE menus SET sales_count=0 WHERE merchant_id=?', [merchantId]);
+        return deletedOrders.affectedRows;
+      });
+      res.json({ success: true, deletedOrders: resetResult, message: '订单数据已重置' });
+    } catch (e) {
+      res.status(e.status || 500).json({ error: e.status ? e.message : '重置订单数据失败' });
+    }
   });
 
   /* ===== KHQR 静态码上传 + 自动解析 ===== */
@@ -491,7 +536,7 @@ module.exports = function(app, deps) {
   });
 
   /* ===== 读取当前 KHQR 配置 ===== */
-  app.get('/api/admin/khqr/info', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/khqr/info', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
       const { storeId: sid, storeName } = await resolveKhqrStore(req);
       const payload = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + sid + '_khqr_static_payload']);
@@ -641,21 +686,49 @@ module.exports = function(app, deps) {
         return res.json({ success: true, status: 'awaiting_confirm' });
       }
 
-      // 只有已认证的管理员/收银员可人工确认到账；保留服务员提交的实际支付方式。
-      const paymentMethod = String(order.pay_method || 'khqr').trim().slice(0, 40);
-      const orderTotal = Number(order.total);
-      if (!Number.isFinite(orderTotal) || orderTotal <= 0) return res.status(400).json({ error: '订单金额无效' });
-      const cashReceived = paymentMethod.toLowerCase() === 'cash'
-        ? Number(req.body?.cash_received ?? order.cash_received)
-        : 0;
-      if (paymentMethod.toLowerCase() === 'cash' && (!Number.isFinite(cashReceived) || cashReceived < orderTotal)) {
-        return res.status(400).json({ error: '现金实收金额不足，请重新录入实收金额' });
-      }
-      const cashChange = paymentMethod.toLowerCase() === 'cash'
-        ? Math.round((cashReceived - orderTotal) * 100) / 100
-        : 0;
+      // 只有已认证的管理员/收银员可人工确认到账；表行先锁定，再锁订单，避免与转桌/改桌死锁。
       const settledAt = new Date().toISOString();
       await withTransaction(async () => {
+        const lockedTable = await getAsync(
+          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+          [order.table_name, sid]
+        );
+        if (!lockedTable) {
+          const error = new Error('订单关联桌台已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
+        const lockedOrder = await getAsync(
+          'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+          [order_id, sid]
+        );
+        if (!lockedOrder || lockedOrder.status !== 'pending' ||
+            lockedOrder.table_name !== order.table_name ||
+            (!Number(lockedOrder.awaiting_confirm) && !lockedOrder.pay_khqr_ref)) {
+          const error = new Error('订单状态或桌台已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
+
+        const paymentMethod = String(lockedOrder.pay_method || 'khqr').trim().slice(0, 40);
+        const orderTotal = Number(lockedOrder.total);
+        if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
+          const error = new Error('订单金额无效');
+          error.status = 400;
+          throw error;
+        }
+        const cashReceived = paymentMethod.toLowerCase() === 'cash'
+          ? Number(req.body?.cash_received ?? lockedOrder.cash_received)
+          : 0;
+        if (paymentMethod.toLowerCase() === 'cash' && (!Number.isFinite(cashReceived) || cashReceived < orderTotal)) {
+          const error = new Error('现金实收金额不足，请重新录入实收金额');
+          error.status = 400;
+          throw error;
+        }
+        const cashChange = paymentMethod.toLowerCase() === 'cash'
+          ? Math.round((cashReceived - orderTotal) * 100) / 100
+          : 0;
+
         const result = await runAsync(
           "UPDATE orders SET status='done', awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=?, settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
           [paymentMethod, cashReceived, cashChange, settledAt, req.adminId || req.cashierId || 'unknown', order_id, sid]
@@ -665,10 +738,10 @@ module.exports = function(app, deps) {
           error.status = 409;
           throw error;
         }
-        await syncTableStatus(order.table_name, sid);
-        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [order.table_name, sid]);
+        await syncTableStatus(lockedOrder.table_name, sid);
+        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [lockedOrder.table_name, sid]);
         if (!stillPending || Number(stillPending.cnt) === 0) {
-          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [order.table_name, sid]);
+          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, sid]);
         }
         await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
@@ -683,7 +756,7 @@ module.exports = function(app, deps) {
 
 
   /* ===== 列出所有 KHQR provider ===== */
-  app.get('/api/admin/khqr/providers', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/khqr/providers', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
       const { storeId: sid } = await resolveKhqrStore(req);
       const list = await loadKhqrProviders(sid);

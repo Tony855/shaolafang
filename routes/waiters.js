@@ -9,7 +9,7 @@ const { compressImage } = require("../server/services/image-compress");
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
-app.get('/api/admin/waiters', requireAdminKey, async (req, res) => {
+app.get('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_waiter'), async (req, res) => {
   try {
     const rows = await allAsync(
       `SELECT w.id, w.username, w.display_name, w.can_order, w.can_mark_item, w.can_complete_order, w.active, w.store_id, s.name AS store_name

@@ -18,7 +18,8 @@ async function requireSuperAdmin(req, res, next) {
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
     const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_idle_timeout'");
-    const timeoutMinutes = parseInt(timeoutSetting?.value || '60', 10);
+    const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 60);
+    const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 60;
     const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
     runAsync('UPDATE super_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE id=?', [session.super_admin_id]);
@@ -40,6 +41,13 @@ async function requireCashier(req, res, next) {
     if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
+    const store = await getAsync(
+      'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
+      [session.store_id, session.merchant_id]
+    );
+    if (!store || !Number.isSafeInteger(Number(session.store_id)) || Number(session.store_id) <= 0) {
+      return res.status(401).json({ error: '门店或商户已停用' });
+    }
     const cashiersData = await getAsync('SELECT value FROM settings WHERE `key` = ?', ['cashiers_' + session.store_id]);
     if (!cashiersData) return res.status(401).json({ error: '账号不存在' });
     let cashiers = [];
@@ -47,8 +55,8 @@ async function requireCashier(req, res, next) {
     const cashier = cashiers.find(c => String(c.id) === String(session.cashier_id) && c.active);
     if (!cashier) return res.status(401).json({ error: '账号不存在或已停用' });
     req.cashier = { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
-    req.storeId = session.store_id || 1;
-    req.merchantId = session.merchant_id || 1;
+    req.storeId = Number(session.store_id);
+    req.merchantId = Number(session.merchant_id);
     next();
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -81,7 +89,8 @@ async function requireAdminOrCashier(req, res, next) {
         can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
         can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
         can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-        can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
+        can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
+          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
       };
     }
     return next();
@@ -93,6 +102,13 @@ async function requireAdminOrCashier(req, res, next) {
     const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
     if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
       return res.status(401).json({ error: '登录已过期，请重新登录' });
+    }
+    const cashierStore = await getAsync(
+      'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
+      [session.store_id, session.merchant_id]
+    );
+    if (!cashierStore || !Number.isSafeInteger(Number(session.store_id)) || Number(session.store_id) <= 0) {
+      return res.status(401).json({ error: '门店或商户已停用' });
     }
     const cashiersData = await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + session.store_id]);
     if (!cashiersData) return res.status(401).json({ error: '账号不存在' });
@@ -137,7 +153,8 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
         can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
         can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
         can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-        can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
+        can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
+          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
       };
     }
     return next();
@@ -148,6 +165,13 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
     if (cashierToken) {
       const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [cashierToken]);
       if (session && Number.isFinite(new Date(session.expires_at).getTime()) && new Date(session.expires_at).getTime() > Date.now()) {
+        const cashierStore = await getAsync(
+          'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
+          [session.store_id, session.merchant_id]
+        );
+        if (!cashierStore || !Number.isSafeInteger(Number(session.store_id)) || Number(session.store_id) <= 0) {
+          return res.status(401).json({ error: '门店或商户已停用' });
+        }
         const cashiersData = await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + session.store_id]);
         if (cashiersData) {
           let list = [];
@@ -171,12 +195,15 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
     if (waiterToken) {
       const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [waiterToken]);
       if (session && Number.isFinite(new Date(session.expires_at).getTime()) && new Date(session.expires_at).getTime() > Date.now()) {
-        const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
-        if (waiter) {
+        const waiter = await getAsync(
+          'SELECT w.*, s.merchant_id AS merchant_id FROM waiters w JOIN stores s ON s.id=w.store_id AND s.active=1 JOIN merchants m ON m.id=s.merchant_id AND m.status=1 WHERE w.id=? AND w.active=1',
+          [session.waiter_id]
+        );
+        if (waiter && Number.isSafeInteger(Number(waiter.store_id)) && Number(waiter.store_id) > 0) {
           req.waiter = waiter;
-          req.waiterStoreId = waiter.store_id || 1;
-          req.storeId = waiter.store_id || 1;
-          req.merchantId = waiter.merchant_id || 1;
+          req.waiterStoreId = Number(waiter.store_id);
+          req.storeId = Number(waiter.store_id);
+          req.merchantId = Number(waiter.merchant_id);
           req.isWaiter = true;
           req.isAdmin = false;
           return next();

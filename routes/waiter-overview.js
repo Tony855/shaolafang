@@ -13,11 +13,27 @@ app.get('/api/waiter/overview', async (req, res) => {
   try {
     const waiter = await getWaiterFromRequest(req);
     if (!waiter) return res.status(401).json({ error: '请先登录服务员账号' });
-    const storeId = waiter.store_id || 1;
-    const store = await getAsync('SELECT name FROM stores WHERE id=?', [storeId]);
-    const tables = await allAsync('SELECT * FROM tables WHERE store_id=? ORDER BY id', [storeId]);
+    const storeId = Number(waiter.store_id);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0) {
+      return res.status(403).json({ error: '服务员未绑定有效门店' });
+    }
+    const store = await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=?', [storeId, waiter.merchant_id]);
+    if (!store) return res.status(403).json({ error: '服务员所属门店不存在或已变更' });
+    const tables = await allAsync('SELECT id, name, status, store_id FROM tables WHERE store_id=? ORDER BY id', [storeId]);
     const rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND status != 'canceled' ORDER BY createdAt DESC", [storeId]);
-    res.json({ waiter, storeName: store?.name || '', tables, orders: rows.map(formatOrder) });
+    const safeWaiter = {
+      id: waiter.id, username: waiter.username, display_name: waiter.display_name,
+      can_order: waiter.can_order, can_mark_item: waiter.can_mark_item,
+      can_complete_order: waiter.can_complete_order, active: waiter.active,
+      store_id: waiter.store_id, merchant_id: waiter.merchant_id
+    };
+    const orders = rows.map(row => {
+      const formatted = formatOrder(row);
+      delete formatted.sessionToken;
+      delete formatted.customerToken;
+      return formatted;
+    });
+    res.json({ waiter: safeWaiter, storeName: store.name, tables, orders });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

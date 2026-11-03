@@ -4,7 +4,7 @@
 module.exports = function(app, deps) {
   const { getAsync, allAsync, runAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, formatOrder, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, EscPosBuilder, formatGlobalDateTime } = deps;
 
-  app.get('/api/admin/printers', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/printers', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
       const rows = await allAsync(
         `SELECT p.*, s.name AS store_name
@@ -106,7 +106,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/settings/auto-print', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
       const storeId = req.storeId || 1;
       const type = req.query.type || 'kitchen';
@@ -117,7 +117,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get('/api/admin/order-prefixes', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/order-prefixes', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
       const mid = req.merchantId || 1;
       const shortKeys = ['order_prefix_normal', 'order_prefix_refund', 'order_prefix_discount', 'order_prefix_vip', 'order_no_reset_period'];

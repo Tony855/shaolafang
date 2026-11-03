@@ -9,6 +9,14 @@ const fs = require('fs');
 
 const { initMerchantSettings, initStoreSettings } = require('../server/services/settings-init');
 
+function boundedInteger(value, fallback, min, max) {
+  if ((typeof value !== 'string' && typeof value !== 'number') ||
+      (typeof value === 'string' && value.trim() === '')) return fallback;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, collectBackupData, autoBackupDatabase, withTransaction } = deps;
 
@@ -54,7 +62,8 @@ app.post('/api/super/login', async (req, res) => {
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, superLocation, 'super_admin', '超级管理员登录成功: ' + username]);
     const token = crypto.randomBytes(32).toString('hex');
     const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_idle_timeout'");
-    const timeoutMinutes = parseInt(timeoutSetting?.value || '60', 10);
+    const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 60);
+    const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 60;
     const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
     await runAsync('INSERT INTO super_sessions (super_admin_id, token, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [superAdmin.id, token, expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
     res.json({ success: true, token, admin: { id: superAdmin.id, username: superAdmin.username, display_name: superAdmin.display_name } });
@@ -234,9 +243,9 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
     const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores');
     const orderCount = await getAsync('SELECT COUNT(*) as count FROM orders');
     const todayOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE()");
-    const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE SUBSTRING(COALESCE(settled_at, createdAt), 1, 10)=CURDATE() AND status='done'");
-    const monthRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND MONTH(COALESCE(settled_at, createdAt))=MONTH(CURDATE()) AND status='done'");
-    const yearRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND status='done'");
+    const todayRevenue = await getAsync("SELECT COALESCE(SUM(total - COALESCE(refund_amount,0)),0) as total FROM orders WHERE SUBSTRING(COALESCE(settled_at, createdAt), 1, 10)=CURDATE() AND status='done'");
+    const monthRevenue = await getAsync("SELECT COALESCE(SUM(total - COALESCE(refund_amount,0)),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND MONTH(COALESCE(settled_at, createdAt))=MONTH(CURDATE()) AND status='done'");
+    const yearRevenue = await getAsync("SELECT COALESCE(SUM(total - COALESCE(refund_amount,0)),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND status='done'");
     const monthOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND MONTH(createdAt)=MONTH(CURDATE())");
     const yearOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE())");
     const now = new Date().toISOString();
@@ -269,11 +278,11 @@ app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
       SELECT s.id AS store_id, s.name AS store_name, m.name AS merchant_name,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id) AS total_orders,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=?) AS today_orders,
-        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(COALESCE(o.settled_at,o.createdAt),1,10)=? AND o.status='done') AS today_revenue,
+        (SELECT COALESCE(SUM(o.total - COALESCE(o.refund_amount,0)),0) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(COALESCE(o.settled_at,o.createdAt),1,10)=? AND o.status='done') AS today_revenue,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND MONTH(o.createdAt)=MONTH(CURDATE())) AS month_orders,
-        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(COALESCE(o.settled_at,o.createdAt))=YEAR(CURDATE()) AND MONTH(COALESCE(o.settled_at,o.createdAt))=MONTH(CURDATE()) AND o.status='done') AS month_revenue,
+        (SELECT COALESCE(SUM(o.total - COALESCE(o.refund_amount,0)),0) FROM orders o WHERE o.store_id=s.id AND YEAR(COALESCE(o.settled_at,o.createdAt))=YEAR(CURDATE()) AND MONTH(COALESCE(o.settled_at,o.createdAt))=MONTH(CURDATE()) AND o.status='done') AS month_revenue,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE())) AS year_orders,
-        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(COALESCE(o.settled_at,o.createdAt))=YEAR(CURDATE()) AND o.status='done') AS year_revenue,
+        (SELECT COALESCE(SUM(o.total - COALESCE(o.refund_amount,0)),0) FROM orders o WHERE o.store_id=s.id AND YEAR(COALESCE(o.settled_at,o.createdAt))=YEAR(CURDATE()) AND o.status='done') AS year_revenue,
         (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id) AS total_sessions,
         (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id AND ss.expires_at>?) AS online_count
       FROM stores s
@@ -425,32 +434,32 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
     const { super_idle_timeout, admin_idle_timeout, cashier_idle_timeout, kitchen_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, cashier_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes, auto_clean_log_enabled, log_retention_days, clean_login_log, clean_audit_log, kitchen_auto_hide_minutes } = req.body || {};
     if (super_idle_timeout !== undefined) {
-      const mins = Math.max(1, Math.min(1440, parseInt(super_idle_timeout, 10) || 60));
+      const mins = boundedInteger(super_idle_timeout, 60, 1, 1440);
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
     }
     if (admin_idle_timeout !== undefined) {
-      const mins = Math.max(1, Math.min(1440, parseInt(admin_idle_timeout, 10) || 30));
+      const mins = boundedInteger(admin_idle_timeout, 30, 1, 1440);
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
     }
     if (qr_session_timeout !== undefined) {
-      const mins = Math.max(0, Math.min(1440, parseInt(qr_session_timeout, 10) || 0));
+      const mins = boundedInteger(qr_session_timeout, 45, 0, 1440);
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('qr_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
     }
     if (cashier_idle_timeout !== undefined) {
-      const mins = Math.max(1, Math.min(1440, parseInt(cashier_idle_timeout, 10) || 30));
+      const mins = boundedInteger(cashier_idle_timeout, 30, 1, 1440);
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('cashier_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
     }
     if (kitchen_idle_timeout !== undefined) {
-      const mins = Math.max(1, Math.min(1440, parseInt(kitchen_idle_timeout, 10) || 120));
+      const mins = boundedInteger(kitchen_idle_timeout, 120, 1, 1440);
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('kitchen_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
     }
     if (waiter_session_timeout !== undefined) {
-      const hours = Math.max(1, Math.min(168, parseInt(waiter_session_timeout, 10) || 12));
+      const hours = boundedInteger(waiter_session_timeout, 12, 1, 168);
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('waiter_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(hours), String(hours)]);
     }
 
     if (cashier_session_timeout !== undefined) {
-      const hours = Math.max(1, Math.min(168, parseInt(cashier_session_timeout, 10) || 12));
+      const hours = boundedInteger(cashier_session_timeout, 12, 1, 168);
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('cashier_session_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(hours), String(hours)]);
     }
     if (order_interval_seconds !== undefined) {

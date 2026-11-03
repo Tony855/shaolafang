@@ -10,7 +10,10 @@ async function getWaiterFromRequest(req) {
   if (!token) return null;
   const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
   if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
-  return await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
+  return await getAsync(
+    'SELECT w.* FROM waiters w JOIN stores s ON s.id=w.store_id AND s.merchant_id=w.merchant_id AND s.active=1 JOIN merchants m ON m.id=w.merchant_id AND m.status=1 WHERE w.id=? AND w.active=1',
+    [session.waiter_id]
+  );
 }
 
 async function getCashierFromRequest(req) {
@@ -18,6 +21,11 @@ async function getCashierFromRequest(req) {
   if (!token) return null;
   const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
   if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
+  const activeStore = await getAsync(
+    'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
+    [session.store_id, session.merchant_id]
+  );
+  if (!activeStore) return null;
   const cashiersData = await getAsync('SELECT value FROM settings WHERE `key` = ?', ['cashiers_' + session.store_id]);
   if (!cashiersData) return null;
   let cashiers = [];
@@ -41,10 +49,17 @@ async function authenticateAdmin(req) {
       if (admin) {
         const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
         if (merchant) {
-          const requestedStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
+          const rawRequestedStoreId = req.get('X-Store-Id');
+          const requestedStoreId = rawRequestedStoreId === undefined || rawRequestedStoreId === null || rawRequestedStoreId === ''
+            ? 0
+            : Number(rawRequestedStoreId);
           let validStoreId = null;
+          if (rawRequestedStoreId !== undefined && rawRequestedStoreId !== null && rawRequestedStoreId !== '' &&
+              (!Number.isSafeInteger(requestedStoreId) || requestedStoreId <= 0)) {
+            return { error: '指定的门店编号无效', code: 'INVALID_STORE_ID' };
+          }
           if (requestedStoreId > 0) {
-            const _storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [requestedStoreId, admin.merchant_id]);
+            const _storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1', [requestedStoreId, admin.merchant_id]);
             if (!_storeCheck) {
               const _validStores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id ASC', [admin.merchant_id]);
               return {
@@ -55,10 +70,15 @@ async function authenticateAdmin(req) {
                 merchantId: admin.merchant_id
               };
             }
-            validStoreId = requestedStoreId;
+            validStoreId = Number(_storeCheck.id);
+          } else {
+            // Default to this merchant's first store, never global store_id=1.
+            const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? AND active=1 ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+            validStoreId = firstStore ? Number(firstStore.id) : -1;
           }
           const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
-          const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
+          const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 30);
+          const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 30;
           const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
           runAsync('UPDATE admin_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
           return { adminId: admin.id, merchantId: admin.merchant_id, storeId: validStoreId, sessionToken: token };
@@ -73,7 +93,14 @@ async function authenticateAdmin(req) {
     const supplied = Buffer.from(String(providedKey));
     const expected = Buffer.from(String(setting.value));
     if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
-      return { storeId: parseInt(req.get('X-Store-Id') || '1', 10) };
+      const rawStoreId = req.get('X-Store-Id') ?? '1';
+      const storeId = typeof rawStoreId === 'string' && rawStoreId.trim() !== '' ? Number(rawStoreId) : NaN;
+      if (!Number.isSafeInteger(storeId) || storeId <= 0) {
+        return { error: '指定的店铺编号无效', code: 'INVALID_STORE_ID' };
+      }
+      const store = await getAsync('SELECT s.id, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
+      if (!store) return { error: '指定的店铺不存在或已停用', code: 'STORE_NOT_ACTIVE' };
+      return { storeId: Number(store.id), merchantId: store.merchant_id, legacyApiKey: true };
     }
   }
   return null;
@@ -89,8 +116,8 @@ async function requireAdminKey(req, res, next) {
     req.adminId = result.adminId;
     req.merchantId = result.merchantId;
     req.adminSessionToken = result.sessionToken;
-    req.storeId = result.storeId || 0;
-    // 未选店铺时 storeId = 0，业务层自己处理（查询返回空数据）
+    req.storeId = Number.isSafeInteger(Number(result.storeId)) && Number(result.storeId) !== 0 ? Number(result.storeId) : -1;
+    // 未选店铺时已默认当前商户首店；无门店时使用 -1，防止旧路由回退到全局店铺 1
     // 只要 X-Store-Id 存在但无效，authenticateAdmin 已经返回 error，不会走到这里
     try {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [result.adminId]);
@@ -108,7 +135,8 @@ async function requireAdminKey(req, res, next) {
           can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
           can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
           can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
+          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
+          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
         };
       }
     } catch (e) { console.warn('加载管理员权限失败:', e.message); }
@@ -141,7 +169,7 @@ async function requireAdminOrWaiter(req, res, next) {
     req.merchantId = adminResult.merchantId;
     req.isAdmin = true;
     req.adminSessionToken = adminResult.sessionToken;
-    req.storeId = adminResult.storeId;
+    req.storeId = Number.isSafeInteger(Number(adminResult.storeId)) && Number(adminResult.storeId) !== 0 ? Number(adminResult.storeId) : -1;
     try {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [adminResult.adminId]);
       if (admin) {
@@ -158,7 +186,8 @@ async function requireAdminOrWaiter(req, res, next) {
           can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
           can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
           can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
+          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
+          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
         };
       }
     } catch (e) { console.warn('加载管理员权限失败:', e.message); }
@@ -178,7 +207,8 @@ async function requireAdminOrWaiter(req, res, next) {
         const expiresTime = new Date(session.expires_at).getTime();
         if (expiresTime - Date.now() < 60 * 60 * 1000) {
           const wTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
-          const wTimeoutHours = parseInt(wTimeoutSetting?.value || '12', 10);
+          const configuredWaiterTimeoutHours = Number(wTimeoutSetting?.value ?? 12);
+          const wTimeoutHours = Number.isSafeInteger(configuredWaiterTimeoutHours) && configuredWaiterTimeoutHours > 0 ? Math.min(configuredWaiterTimeoutHours, 720) : 12;
           const newExpires = new Date(Date.now() + wTimeoutHours * 60 * 60 * 1000).toISOString();
           runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(()=>{});
         }

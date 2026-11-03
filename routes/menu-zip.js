@@ -6,7 +6,7 @@ const AdmZip = require('adm-zip');
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, upload, UPLOAD_DIR } = deps;
 
-  app.get('/api/admin/menu/export-zip', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/menu/export-zip', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
     try {
       const storeId = req.storeId || 1;
       const menus = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [storeId]);
@@ -30,9 +30,15 @@ module.exports = function(app, deps) {
       for (const m of menus) {
         if (!m.image) continue;
         const imageName = path.basename(String(m.image));
-        const fp = path.resolve(UPLOAD_DIR, imageName);
         const uploadRoot = path.resolve(UPLOAD_DIR);
-        if (fp.startsWith(uploadRoot + path.sep) && fs.existsSync(fp)) zip.addLocalFile(fp, 'images');
+        const fp = path.resolve(uploadRoot, imageName);
+        if (fp.startsWith(uploadRoot + path.sep) && fs.existsSync(fp) && fs.statSync(fp).isFile()) {
+          try {
+            const realRoot = fs.realpathSync(uploadRoot);
+            const realFile = fs.realpathSync(fp);
+            if (realFile.startsWith(realRoot + path.sep)) zip.addLocalFile(realFile, 'images');
+          } catch (_) {}
+        }
       }
       const buf = zip.toBuffer();
       res.setHeader('Content-Type', 'application/zip');
@@ -94,6 +100,10 @@ module.exports = function(app, deps) {
         return res.status(413).json({ error: '单个 ZIP 最多导入 2000 个菜品' });
       }
       if (!items.length) { try { fs.unlinkSync(zipPath); } catch (_) {} return res.status(400).json({ error: 'ZIP 内没有菜品数据' }); }
+      if (items.some(item => !item || typeof item !== 'object' || Array.isArray(item))) {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        return res.status(400).json({ error: 'ZIP 菜单中存在无效菜品对象' });
+      }
 
       const imageMap = {};
       const uploadsAbs = path.resolve(UPLOAD_DIR);
@@ -128,18 +138,38 @@ module.exports = function(app, deps) {
         const it = items[i];
         try {
           const itemName = typeof it.name === 'string' ? it.name.trim() : '';
-          const itemPrice = Number(it.price);
-          if (!itemName || itemName.length > 120 || !Number.isFinite(itemPrice) || itemPrice < 0 || itemPrice > 10000000) {
+          const itemPrice = typeof it.price === 'number' || typeof it.price === 'string' ? Number(it.price) : NaN;
+          const itemCurrency = String(it.currency_code || 'USD').trim().toUpperCase();
+          if (!itemName || itemName.length > 120 || !Number.isFinite(itemPrice) || itemPrice <= 0 || itemPrice > 10000000) {
             failed++; errors.push('第 ' + (i+1) + ' 行：菜品名称或价格无效'); continue;
+          }
+          if (!itemCurrency || itemCurrency.length > 10) {
+            failed++; errors.push('第 ' + (i+1) + ' 行：货币代码无效'); continue;
+          }
+          const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [itemCurrency, req.merchantId]);
+          if (!currency) {
+            failed++; errors.push('第 ' + (i+1) + ' 行：货币 ' + itemCurrency + ' 不存在'); continue;
           }
           let imageName = '';
           const rawImg = String(it.image || '').trim();
           if (rawImg) {
-            const base = path.basename(rawImg);
-            imageName = imageMap[base] || (fs.existsSync(path.join(UPLOAD_DIR, base)) ? base : '');
+            const base = path.basename(rawImg.replace(/\\/g, '/'));
+            if (imageMap[base]) {
+              imageName = imageMap[base];
+            } else {
+              const uploadRoot = path.resolve(UPLOAD_DIR);
+              const candidate = path.resolve(uploadRoot, base);
+              if (candidate.startsWith(uploadRoot + path.sep) && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+                try {
+                  const realRoot = fs.realpathSync(uploadRoot);
+                  const realCandidate = fs.realpathSync(candidate);
+                  if (realCandidate.startsWith(realRoot + path.sep)) imageName = path.basename(realCandidate);
+                } catch (_) {}
+              }
+            }
           }
           const ex = await getAsync('SELECT id FROM menus WHERE name=? AND store_id=?', [itemName, req.storeId || 1]);
-          const base10 = [it.emoji || '🍽️', itemPrice, String(it.category || '其他').slice(0, 80), it.desc || '', it.currency_code || 'USD', it.name_en || '', it.desc_en || '', it.unit || '份', it.show_dual ? 1 : 0, it.secondary_currency_code || ''];
+          const base10 = [String(it.emoji || '🍽️').slice(0, 16), itemPrice, String(it.category || '其他').trim().slice(0, 80), String(it.desc || '').slice(0, 1000), itemCurrency, String(it.name_en || '').slice(0, 120), String(it.desc_en || '').slice(0, 1000), String(it.unit || '份').slice(0, 20), it.show_dual ? 1 : 0, String(it.secondary_currency_code || '').slice(0, 10)];
           const activeVal = it.active === 0 ? 0 : 1;
           if (ex) {
             if (imageName) {

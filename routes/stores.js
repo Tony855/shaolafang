@@ -11,7 +11,7 @@ const { initStoreSettings } = require('../server/services/settings-init');
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
-app.get('/api/admin/stores', requireAdminKey, async (req, res) => {
+app.get('/api/admin/stores', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     res.json(await allAsync('SELECT * FROM stores WHERE merchant_id=? ORDER BY id', [req.merchantId]));
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -76,13 +76,22 @@ app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('
     for (const menu of menusToCopy) {
       let newImage = '';
       if (menu.image) {
-        const srcPath = path.join(uploadDir, menu.image);
-        if (fs.existsSync(srcPath)) {
-          const ext = path.extname(menu.image);
+        // Only copy a file whose resolved path remains inside UPLOAD_DIR.
+        // Legacy rows may contain absolute paths or traversal segments.
+        const uploadRoot = path.resolve(uploadDir);
+        const imageName = path.basename(String(menu.image));
+        const srcPath = path.resolve(uploadRoot, imageName);
+        if (srcPath.startsWith(uploadRoot + path.sep) && fs.existsSync(srcPath) && fs.statSync(srcPath).isFile()) {
+          const realRoot = fs.realpathSync(uploadRoot);
+          const realSource = fs.realpathSync(srcPath);
+          if (!realSource.startsWith(realRoot + path.sep)) continue;
+          const ext = path.extname(imageName).toLowerCase();
           const newFilename = Date.now() + '_' + Math.random().toString(36).slice(2,6) + ext;
-          const destPath = path.join(uploadDir, newFilename);
-          fs.copyFileSync(srcPath, destPath);
-          newImage = newFilename;
+          const destPath = path.resolve(uploadRoot, newFilename);
+          if (destPath.startsWith(uploadRoot + path.sep)) {
+            fs.copyFileSync(srcPath, destPath);
+            newImage = newFilename;
+          }
         }
       }
       await runAsync(
@@ -90,7 +99,7 @@ app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           menu.name, menu.emoji, menu.price, menu.category, menu.desc,
-          newImage || menu.image,
+          newImage,
           menu.currency_code || 'USD',
           menu.name_en || '', menu.desc_en || '',
           menu.active !== undefined ? menu.active : 1,
