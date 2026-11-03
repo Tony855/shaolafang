@@ -74,8 +74,7 @@ module.exports = function(app, deps) {
       `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
       const dishRanking = await allAsync(`
         SELECT m.name, m.emoji,
-               SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
-                 - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS quantity
+               SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)))) AS quantity
         FROM orders o
         JOIN (${JSON_ITEM_INDEXES}) n
           ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
@@ -178,8 +177,7 @@ module.exports = function(app, deps) {
       `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
       const topDishes = await allAsync(`
         SELECT m.id, m.name, m.emoji, m.price, m.category,
-               SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
-                 - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS sales_count
+               SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)))) AS sales_count
         FROM orders o
         JOIN (${JSON_ITEM_INDEXES}) n
           ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
@@ -312,8 +310,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
         const stPlaceholders = statuses.map(() => '?').join(',');
         const rows = await allAsync(`
           SELECT m.id, m.name, m.category, m.price,
-                 SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
-                   - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS total_qty,
+                 SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)))) AS total_qty,
                  SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0))) * COALESCE(
                    CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].base_price')) AS DECIMAL(12,4)),
                    CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].price')) AS DECIMAL(12,4)),
