@@ -508,7 +508,7 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
     }
     const today = new Date().toISOString().split('T')[0];
     const settledOrders = await allAsync("SELECT * FROM orders WHERE store_id=? AND status='done' AND SUBSTRING(COALESCE(settled_at, createdAt), 1, 10)=? ORDER BY COALESCE(settled_at, createdAt) DESC", [req.storeId, today]);
-    const totalRevenue = settledOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+    const totalRevenue = settledOrders.reduce((sum, o) => sum + Math.max(0, (Number(o.total) || 0) - (Number(o.refund_amount) || 0)), 0);
     res.json({
       date: today,
       orderCount: settledOrders.length,
