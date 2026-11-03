@@ -13,8 +13,9 @@ app.post('/api/public/call-waiter', async (req, res) => {
   try {
     const table = typeof req.body?.table === 'string' ? req.body.table.trim() : '';
     const sessionToken = typeof req.body?.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
-    if (!table) return res.status(400).json({ error: '桌号不能为空' });
+    if (!table || table.length > 50) return res.status(400).json({ error: '桌号无效' });
     if (!sessionToken) return res.status(401).json({ error: '请先扫描桌台二维码' });
+    if (sessionToken.length > 256) return res.status(400).json({ error: '扫码会话令牌无效' });
 
     const initialSession = await getAsync(
       'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?',
