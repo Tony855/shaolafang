@@ -374,20 +374,33 @@ module.exports = function(app, deps) {
 
   app.post('/api/admin/reset-data', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
-      const { password } = req.body;
+      const { password } = req.body || {};
       if (!password) return res.status(400).json({ error: '请输入管理员密码' });
-      const merchantId = req.merchantId;
-      if (!merchantId) return res.status(400).json({ error: '商户信息缺失' });
-      const admin = await getAsync('SELECT password_hash FROM merchant_admins WHERE id=?', [req.adminId]);
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '商户信息缺失' });
+      }
+      const admin = await getAsync(
+        'SELECT password_hash FROM merchant_admins WHERE id=? AND merchant_id=?',
+        [req.adminId, merchantId]
+      );
       if (!admin || !verifyPassword(password, admin.password_hash)) {
         return res.status(401).json({ error: '密码错误，重置失败' });
       }
-      await runAsync('DELETE FROM orders WHERE merchant_id = ?', [merchantId]);
-      await runAsync('DELETE FROM waiter_calls WHERE merchant_id = ?', [merchantId]);
-      await runAsync('DELETE FROM scan_sessions WHERE merchant_id = ?', [merchantId]);
-      await runAsync('DELETE FROM reservations WHERE merchant_id = ?', [merchantId]);
-      res.json({ success: true, message: '订单数据已重置' });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+
+      const resetResult = await withTransaction(async () => {
+        const deletedOrders = await runAsync('DELETE FROM orders WHERE merchant_id=?', [merchantId]);
+        await runAsync('DELETE FROM waiter_calls WHERE merchant_id=?', [merchantId]);
+        await runAsync('DELETE FROM scan_sessions WHERE merchant_id=?', [merchantId]);
+        await runAsync('DELETE FROM reservations WHERE merchant_id=?', [merchantId]);
+        await runAsync("UPDATE tables SET status='available' WHERE merchant_id=?", [merchantId]);
+        await runAsync('UPDATE menus SET sales_count=0 WHERE merchant_id=?', [merchantId]);
+        return deletedOrders.affectedRows;
+      });
+      res.json({ success: true, deletedOrders: resetResult, message: '订单数据已重置' });
+    } catch (e) {
+      res.status(e.status || 500).json({ error: e.status ? e.message : '重置订单数据失败' });
+    }
   });
 
   /* ===== KHQR 静态码上传 + 自动解析 ===== */
