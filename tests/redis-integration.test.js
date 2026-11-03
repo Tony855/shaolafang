@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { createClient } = require('redis');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { Server } = require('socket.io');
+const http = require('node:http');
 const { closeRedisClient } = require('../server/services/graceful-shutdown');
 
 const REDIS_URL = process.env.REDIS_URL;
@@ -29,6 +30,7 @@ test('Redis 6 client commands, atomic cooldown and pub/sub work against a live s
   const adapterPublisher = makeClient();
   const adapterSubscriber = makeClient();
   let io;
+  let httpServer;
 
   try {
     await Promise.all(clients.map(client => client.connect()));
@@ -60,9 +62,14 @@ test('Redis 6 client commands, atomic cooldown and pub/sub work against a live s
 
     const adapterFactory = createAdapter(adapterPublisher, adapterSubscriber);
     assert.equal(typeof adapterFactory, 'function');
-    io = new Server();
+    httpServer = http.createServer();
+    io = new Server(httpServer);
     io.adapter(adapterFactory);
     assert.ok(io.of('/').adapter);
+    await new Promise((resolve, reject) => {
+      httpServer.once('error', reject);
+      httpServer.listen(0, resolve);
+    });
   } finally {
     if (io) await new Promise(resolve => io.close(resolve));
     await Promise.allSettled(clients.map(client => closeRedisClient(client)));
