@@ -532,18 +532,44 @@ app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/backup/import', requireSuperAdmin, async (req, res) => {
   try {
     const data = req.body;
-    if (!data || !data.tables || typeof data.tables !== 'object') return res.status(400).json({ error: '备份文件格式无效' });
+    const tables = ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
+    if (!data || !data.tables || typeof data.tables !== 'object' || Array.isArray(data.tables)) {
+      return res.status(400).json({ error: '备份文件格式无效' });
+    }
+    // Reject incomplete or malformed backups before deleting a single production row.
+    for (const table of tables) {
+      if (!Array.isArray(data.tables[table])) {
+        return res.status(400).json({ error: `备份缺少有效数据表：${table}` });
+      }
+      if (data.tables[table].length > 100000) {
+        return res.status(413).json({ error: `数据表 ${table} 的记录数超过导入限制` });
+      }
+      if (data.tables[table].some(row => !row || typeof row !== 'object' || Array.isArray(row))) {
+        return res.status(400).json({ error: `数据表 ${table} 包含无效记录` });
+      }
+    }
     await withTransaction(async () => {
-      for (const table of ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins']) {
-        const rows = Array.isArray(data.tables[table]) ? data.tables[table] : [];
+      for (const table of tables) {
+        const rows = data.tables[table];
+        const columns = await allAsync(`SHOW COLUMNS FROM \`${table}\``);
+        const allowedColumns = new Set(columns.map(column => column.Field));
+        for (const row of rows) {
+          const rowKeys = Object.keys(row);
+          const invalidKeys = rowKeys.filter(key => !allowedColumns.has(key));
+          if (invalidKeys.length) {
+            throw new Error(`备份表 ${table} 包含未知字段：${invalidKeys.join(', ')}`);
+          }
+        }
+      }
+      for (const table of tables) {
+        const rows = data.tables[table];
         await runAsync(`DELETE FROM \`${table}\``);
         for (const row of rows) {
-          const keys = Object.keys(row).filter(k => !['id'].includes(k));
+          const keys = Object.keys(row).filter(key => key !== 'id');
+          if (!keys.length) continue;
           const placeholders = keys.map(() => '?').join(', ');
-          const values = keys.map(k => row[k]);
-          if (keys.length) {
-            await runAsync(`INSERT INTO \`${table}\` (${keys.map(k => `\`${k}\``).join(', ')}) VALUES (${placeholders})`, values);
-          }
+          const values = keys.map(key => row[key]);
+          await runAsync(`INSERT INTO \`${table}\` (${keys.map(key => `\`${key}\``).join(', ')}) VALUES (${placeholders})`, values);
         }
       }
     });
