@@ -64,34 +64,7 @@ async function authenticateAdmin(req) {
         }
       }
     }
-    try {
-      const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-      if (payload.adminId) {
-        const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [payload.adminId]);
-        if (admin) {
-          const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
-          if (merchant) {
-            const legacyStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
-            let legacyValidStoreId = null;
-            if (legacyStoreId > 0) {
-              const _legacyStoreCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [legacyStoreId, admin.merchant_id]);
-              if (!_legacyStoreCheck) {
-                const _legacyValidStores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id ASC', [admin.merchant_id]);
-                return {
-                  error: '指定的门店不存在或不属于当前商户',
-                  code: 'STORE_NOT_IN_MERCHANT',
-                  requestedStoreId: legacyStoreId,
-                  validStores: _legacyValidStores,
-                  merchantId: admin.merchant_id
-                };
-              }
-              legacyValidStoreId = legacyStoreId;
-            }
-            return { adminId: admin.id, merchantId: admin.merchant_id, storeId: legacyValidStoreId };
-          }
-        }
-      }
-    } catch (e) { }
+
   }
   const providedKey = req.get('X-Admin-Key');
   const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
