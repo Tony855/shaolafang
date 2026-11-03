@@ -58,64 +58,116 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
 
 app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const index = parseInt(req.params.index);
+    const id = Number(req.params.id);
+    const index = Number(req.params.index);
     const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
-    const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
-    if (!row) return res.status(404).json({ error: '订单不存在' });
-    if (!req.isAdmin && req.waiter && !req.waiter.can_mark_item) return res.status(403).json({ error: '该服务员没有标记菜品权限' });
-    if (row.status === 'done') return res.status(409).json({ error: '已结算订单不能修改菜品状态' });
-    // ★ 服务员：订单已通知收银员后，禁止退菜/改菜品状态（管理员不受限）
-    if (!req.isAdmin && row.awaiting_confirm) {
-      return res.status(409).json({ error: '订单已通知收银员，无法修改菜品' });
+    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(index) || index < 0) {
+      return res.status(400).json({ error: '订单或菜品序号无效' });
     }
-    let items = row.items;
-    if (typeof items === 'string') {
-      try { items = JSON.parse(items); } catch (e) { console.error(`订单 ${id} 的 items 解析失败:`, items, e); items = []; }
-    } else if (!Array.isArray(items)) {
-      items = [];
+    if (!req.isAdmin && req.waiter && !req.waiter.can_mark_item) {
+      return res.status(403).json({ error: '该服务员没有标记菜品权限' });
     }
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: `该订单暂无菜品，无法切换状态（订单ID: ${id}）` });
-    }
-    if (index < 0 || index >= items.length) {
-      return res.status(400).json({ error: `菜品序号无效，当前共 ${items.length} 道菜品，请求序号 ${index}（从0开始）` });
-    }
-    if (req.body.returnQty !== undefined && req.body.returnQty !== null) {
-      const returnQty = Number(req.body.returnQty);
-      const qty = Number(items[index].quantity) || 1;
-      if (!Number.isSafeInteger(returnQty) || returnQty < 0 || returnQty > qty) {
-        return res.status(400).json({ error: '退回数量必须为 0 至菜品数量之间的整数' });
+
+    let updatedRow = null;
+    let changed = false;
+    await withTransaction(async () => {
+      const row = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE', [id, orderStoreId]);
+      if (!row) {
+        const error = new Error('订单不存在');
+        error.status = 404;
+        throw error;
       }
-      const previousReturnQty = Number(items[index].returnedQty) || 0;
-      const returnDelta = returnQty - previousReturnQty;
-      if (returnDelta === 0) return res.json(formatOrder(row));
-      items[index].returnedQty = returnQty;
-      const newTotal = items.reduce((sum, it) => {
-        const price = Number(it.base_price || it.price) || 0;
-        const q = Number(it.quantity) || 0;
-        const rq = Number(it.returnedQty) || 0;
-        return sum + price * (q - rq);
-      }, 0);
-      await withTransaction(async () => {
-        if (items[index].id && returnDelta > 0) {
-          await runAsync('UPDATE menus SET sales_count = GREATEST(0, sales_count - ?) WHERE id = ? AND store_id = ?', [returnDelta, items[index].id, orderStoreId]);
-        } else if (items[index].id && returnDelta < 0) {
-          await runAsync('UPDATE menus SET sales_count = sales_count + ? WHERE id = ? AND store_id = ?', [-returnDelta, items[index].id, orderStoreId]);
+      if (row.status !== 'pending') {
+        const error = new Error('已结算或已取消订单不能修改菜品');
+        error.status = 409;
+        throw error;
+      }
+      if (!req.isAdmin && row.awaiting_confirm) {
+        const error = new Error('订单已通知收银员，无法修改菜品');
+        error.status = 409;
+        throw error;
+      }
+
+      let items = row.items;
+      if (typeof items === 'string') {
+        try { items = JSON.parse(items); } catch (_) { items = []; }
+      }
+      if (!Array.isArray(items) || items.length === 0 || index >= items.length) {
+        const error = new Error('菜品序号无效或订单暂无菜品');
+        error.status = 400;
+        throw error;
+      }
+
+      if (req.body.returnQty !== undefined && req.body.returnQty !== null) {
+        const returnQty = Number(req.body.returnQty);
+        const quantity = Number(items[index].quantity) || 1;
+        if (!Number.isSafeInteger(returnQty) || returnQty < 0 || returnQty > quantity) {
+          const error = new Error('退回数量必须为 0 至菜品数量之间的整数');
+          error.status = 400;
+          throw error;
         }
-        const update = await runAsync("UPDATE orders SET items=?, total=? WHERE id=? AND store_id=? AND status='pending'", [JSON.stringify(items), newTotal, id, orderStoreId]);
-        if (!update.affectedRows) {
-          const error = new Error('订单状态已变化，退菜操作已取消，请刷新后重试');
+        const previousReturnQty = Number(items[index].returnedQty) || 0;
+        const returnDelta = returnQty - previousReturnQty;
+        if (returnDelta !== 0) {
+          items[index].returnedQty = returnQty;
+          const newTotalRaw = items.reduce((sum, item) => {
+            const unitPrice = Number(item.base_price ?? item.price);
+            const itemQty = Number(item.quantity) || 0;
+            const returned = Math.max(0, Math.min(Number(item.returnedQty) || 0, itemQty));
+            return sum + unitPrice * (itemQty - returned);
+          }, 0);
+          if (!Number.isFinite(newTotalRaw) || newTotalRaw < 0) {
+            const error = new Error('退菜后订单金额无效');
+            error.status = 400;
+            throw error;
+          }
+          const newTotal = Math.round(newTotalRaw * 100) / 100;
+          if (items[index].id && returnDelta > 0) {
+            await runAsync('UPDATE menus SET sales_count=GREATEST(0, sales_count-?) WHERE id=? AND store_id=?', [returnDelta, items[index].id, orderStoreId]);
+          } else if (items[index].id && returnDelta < 0) {
+            await runAsync('UPDATE menus SET sales_count=sales_count+? WHERE id=? AND store_id=?', [-returnDelta, items[index].id, orderStoreId]);
+          }
+          const result = await runAsync("UPDATE orders SET items=?, total=? WHERE id=? AND store_id=? AND status='pending'", [JSON.stringify(items), newTotal, id, orderStoreId]);
+          if (!result.affectedRows) {
+            const error = new Error('订单状态已变化，退菜操作已取消，请刷新后重试');
+            error.status = 409;
+            throw error;
+          }
+          changed = true;
+        }
+      } else {
+        const requestedStatus = req.body.itemStatus === undefined ? 'pending' : req.body.itemStatus;
+        if (!['done', 'pending'].includes(requestedStatus)) {
+          const error = new Error('菜品状态无效');
+          error.status = 400;
+          throw error;
+        }
+        if (items[index].itemStatus === 'done' && requestedStatus !== 'done') {
+          const error = new Error('已完成菜品不能改回制作中');
           error.status = 409;
           throw error;
         }
-      });
-      const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
-      const updatedOrder = formatOrder(updatedRow);
-      io.to('kitchen-' + orderStoreId).emit('item:updated', { orderId: id, order: updatedOrder });
-      io.to('waiter-' + orderStoreId).emit('item:updated', { orderId: id, order: updatedOrder });
-      io.to('cashier-' + orderStoreId).emit('item:updated', { orderId: id, order: updatedOrder });
-      io.to('public-table-' + orderStoreId + '-' + updatedRow.table_name).emit('item:updated', {
+        if (items[index].itemStatus !== requestedStatus) {
+          items[index].itemStatus = requestedStatus;
+          const result = await runAsync("UPDATE orders SET items=? WHERE id=? AND store_id=? AND status='pending'", [JSON.stringify(items), id, orderStoreId]);
+          if (!result.affectedRows) {
+            const error = new Error('订单状态已变化，请刷新后重试');
+            error.status = 409;
+            throw error;
+          }
+          changed = true;
+        }
+      }
+      updatedRow = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, orderStoreId]);
+    });
+
+    const updatedOrder = formatOrder(updatedRow);
+    if (changed) {
+      const storeId = updatedRow.store_id || 1;
+      io.to('kitchen-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
+      io.to('waiter-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
+      io.to('cashier-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
+      io.to('public-table-' + storeId + '-' + updatedRow.table_name).emit('item:updated', {
         orderId: id,
         order: {
           id: updatedOrder.id,
@@ -127,37 +179,11 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
           createdAt: updatedOrder.createdAt
         }
       });
-      return res.json(updatedOrder);
     }
-    if (items[index].itemStatus === 'done' && req.body.itemStatus !== 'done') {
-      return res.status(409).json({ error: '已完成菜品不能改回制作中' });
-    }
-    const nextStatus = req.body.itemStatus === 'done' ? 'done' : 'pending';
-    if (items[index].itemStatus === nextStatus) return res.json(formatOrder(row));
-    items[index].itemStatus = nextStatus;
-    const itemUpdate = await runAsync("UPDATE orders SET items=? WHERE id=? AND store_id=? AND status='pending'", [JSON.stringify(items), id, orderStoreId]);
-    if (!itemUpdate.affectedRows) return res.status(409).json({ error: '订单状态已变化，请刷新后重试' });
-    const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
-    const updatedOrder = formatOrder(updatedRow);
-    io.to('kitchen-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
-    io.to('waiter-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
-    io.to('cashier-' + (updatedRow.store_id || 1)).emit('item:updated', { orderId: id, order: updatedOrder });
-    io.to('public-table-' + (updatedRow.store_id || 1) + '-' + updatedRow.table_name).emit('item:updated', {
-      orderId: id,
-      order: {
-        id: updatedOrder.id,
-        order_no: updatedOrder.order_no,
-        table_name: updatedOrder.table_name,
-        items: updatedOrder.items.map(item => ({ id: item.id, name: item.name, quantity: item.quantity, itemStatus: item.itemStatus, returnedQty: item.returnedQty || 0 })),
-        total: updatedOrder.total,
-        status: updatedOrder.status,
-        createdAt: updatedOrder.createdAt
-      }
-    });
-    res.json(updatedOrder);
+    return res.json(updatedOrder);
   } catch (e) {
     console.error('切换菜品状态失败:', e);
-    res.status(500).json({ error: e.message });
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
 
