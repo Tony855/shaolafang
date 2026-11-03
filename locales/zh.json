@@ -243,7 +243,7 @@
   "confirmOperation": "确认操作",
   "confirmResetData": "确认重置所有订单数据？此操作不可恢复",
   "confirmResetDataTitle": "重置数据确认",
-  "confirmResetPassword": "确认重置该商户管理员密码为 admin123？",
+  "confirmResetPassword": "确认生成新的随机管理员密码？",
   "dashboard": "仪表盘",
   "enterPassword": "请输入密码",
   "enterPasswordVerify": "请输入密码以验证身份",
