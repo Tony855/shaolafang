@@ -383,6 +383,32 @@ app.post('/api/orders', async (req, res) => {
     let createdOrder;
     try {
       createdOrder = await withTransaction(async () => {
+        // Serialize order creation with table rename, move and delete operations.
+        // Lock order is always table row -> QR session row to avoid stale-session races.
+        const lockedTable = await getAsync(
+          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+          [table, finalStoreId]
+        );
+        if (!lockedTable) {
+          throw Object.assign(new Error('桌号已不存在，请重新扫码或刷新桌台'), { status: 404 });
+        }
+        if (sessionToken) {
+          const lockedSession = await getAsync(
+            'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=? FOR UPDATE',
+            [sessionToken]
+          );
+          if (!lockedSession) {
+            throw Object.assign(new Error('扫码会话已失效，请重新扫码'), { status: 401 });
+          }
+          const lockedExpiry = new Date(lockedSession.expires_at).getTime();
+          if (!Number.isFinite(lockedExpiry) || lockedExpiry <= Date.now()) {
+            throw Object.assign(new Error('二维码已过期，请重新扫码'), { status: 410 });
+          }
+          if (lockedSession.table_name !== table || Number(lockedSession.store_id) !== Number(finalStoreId)) {
+            throw Object.assign(new Error('桌台或扫码会话已变化，请重新扫码'), { status: 409 });
+          }
+        }
+
         const orderNo = await allocateOrderNo(seqPrefix);
         const result = await runAsync(
           'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
