@@ -17,7 +17,7 @@ async function getCashierFromRequest(req) {
   const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
   const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
-  if (!session || new Date(session.expires_at).getTime() <= Date.now()) return null;
+  if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
   const cashiersData = await getAsync('SELECT value FROM settings WHERE `key` = ?', ['cashiers_' + session.store_id]);
   if (!cashiersData) return null;
   let cashiers = [];
