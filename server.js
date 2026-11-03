@@ -292,25 +292,28 @@ async function isLoginLocked(username, type) {
 // ============================================================
 //  默认凭据集中定义 + 首次初始化凭据文件
 // ============================================================
+// Initial passwords are generated per first boot unless explicitly injected by the operator.
+// They are written once to a mode-0600 file; never ship predictable production defaults.
+const generateInitialPassword = () => crypto.randomBytes(24).toString('base64url');
 const DEFAULT_CREDENTIALS = {
   superAdmin: {
-    username:    process.env.INIT_SUPER_USERNAME   || 'superadmin',
-    password:    process.env.INIT_SUPER_PASSWORD   || 'super123',
+    username: process.env.INIT_SUPER_USERNAME || 'superadmin',
+    password: process.env.INIT_SUPER_PASSWORD || generateInitialPassword(),
     displayName: '超级管理员',
   },
   merchantAdmin: {
-    username:    process.env.INIT_ADMIN_USERNAME   || 'admin',
-    password:    process.env.INIT_ADMIN_PASSWORD   || 'admin123',
+    username: process.env.INIT_ADMIN_USERNAME || 'admin',
+    password: process.env.INIT_ADMIN_PASSWORD || generateInitialPassword(),
     displayName: 'FoodFlow管理员',
   },
   waiter: {
-    username:    process.env.INIT_WAITER_USERNAME  || 'waiter',
-    password:    process.env.INIT_WAITER_PASSWORD  || '123456',
+    username: process.env.INIT_WAITER_USERNAME || 'waiter',
+    password: process.env.INIT_WAITER_PASSWORD || generateInitialPassword(),
     displayName: '服务员A',
   },
   cashier: {
-    username:    process.env.INIT_CASHIER_USERNAME || 'cashier',
-    password:    process.env.INIT_CASHIER_PASSWORD || '123456',
+    username: process.env.INIT_CASHIER_USERNAME || 'cashier',
+    password: process.env.INIT_CASHIER_PASSWORD || generateInitialPassword(),
     displayName: '收银员',
   },
 };
@@ -323,6 +326,7 @@ async function writeInitialCredentialsFile(credentials) {
       .map(([k, v]) => `${k}: ${v.username} / ${v.password}`)
       .join('\n') + '\n';
     await fs.promises.writeFile(file, content, { mode: 0o600 });
+    await fs.promises.chmod(file, 0o600);
     console.log(`  + 初始凭据已写入 ${file}（权限 600）`);
   } catch (e) {
     console.warn(`  ! 无法写入凭据文件 ${file}: ${e.message}（不影响服务启动）`);
@@ -821,7 +825,7 @@ async function initDatabase() {
       "INSERT INTO super_admins (username, password_hash, display_name) VALUES (?, ?, ?)",
       [c.username, superHash, c.displayName]
     );
-    console.log(`  + 已创建超级管理员：${c.username} / ${c.password}`);
+    console.log(`  + 已创建超级管理员：${c.username}（密码已写入受保护的初始凭据文件）`);
     initialCredentials.superAdmin = c;
   }
 
@@ -841,7 +845,7 @@ async function initDatabase() {
       "INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)",
       [defaultMerchantId, ac.username, adminHash, ac.displayName]
     );
-    console.log(`  + 已创建商户管理员：${ac.username} / ${ac.password}`);
+    console.log(`  + 已创建商户管理员：${ac.username}（密码已写入受保护的初始凭据文件）`);
     initialCredentials.merchantAdmin = ac;
 
     // 默认店铺
@@ -904,7 +908,7 @@ async function initDatabase() {
       'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, active, store_id, merchant_id) VALUES (?, ?, ?, 1, 1, 1, 1, ?, ?)',
       [wc.username, waiterHash, wc.displayName, defaultStoreId, defaultMerchantId]
     );
-    console.log(`  + 已创建默认服务员：${wc.username} / ${wc.password}`);
+    console.log(`  + 已创建默认服务员：${wc.username}（密码已写入受保护的初始凭据文件）`);
     initialCredentials.waiter = wc;
 
     // 说明：默认收银员不再预置。
