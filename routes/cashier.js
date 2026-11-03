@@ -554,7 +554,7 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
       orderCount: settledOrders.length,
       totalRevenue: totalRevenue.toFixed(2),
       avgOrderValue: settledOrders.length > 0 ? (totalRevenue / settledOrders.length).toFixed(2) : '0.00',
-      orders: settledOrders.map(formatOrder)
+      orders: settledOrders.map(row => formatStaffOrder(row, formatOrder))
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
