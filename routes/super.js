@@ -39,6 +39,7 @@ app.post('/api/super/login', async (req, res) => {
     const isValid = verifyPassword(password, superAdmin.password_hash);
     if (!isValid) {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
+      recordLoginAttempt(username, 'super_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     resetLoginAttempts(username, 'super_admin');
@@ -183,9 +184,19 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (req, res) => {
   try {
     const { password } = req.body || {};
-    const newPwd = password || 'admin123';
+    const newPwd = (password === undefined || password === null || String(password).trim() === '')
+      ? crypto.randomBytes(24).toString('base64url')
+      : String(password);
+    if (newPwd.length < 12 || newPwd.length > 128) {
+      return res.status(400).json({ error: '新密码长度必须为 12 至 128 个字符' });
+    }
+    const merchant = await getAsync('SELECT id FROM merchants WHERE id=?', [req.params.id]);
+    if (!merchant) return res.status(404).json({ error: '商户不存在' });
     const hash = hashPassword(newPwd);
-    await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
+    await withTransaction(async () => {
+      await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
+      await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [req.params.id]);
+    });
     const merchantForLog = await getAsync('SELECT name, code FROM merchants WHERE id=?', [req.params.id]);
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', req.params.id,
       `重置商户「${merchantForLog?.name || '未知'}」的管理员密码`, getClientIp(req));
