@@ -106,7 +106,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get('/api/admin/settings/auto-print', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/settings/auto-print', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
       const storeId = req.storeId || 1;
       const type = req.query.type || 'kitchen';
