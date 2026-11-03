@@ -1142,6 +1142,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     });
     cashierSocket.on('order:settled', () => { loadOrders(); });
     cashierSocket.on('order:cancelled', () => { loadOrders(); });
+    cashierSocket.on('order:deleted', () => { loadOrders(); });
     cashierSocket.on('order:transfer', () => { loadOrders(); });
     cashierSocket.on('table:moved', () => { loadOrders(); });
     cashierSocket.on('order:urge', () => { loadOrders(); });
