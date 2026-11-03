@@ -10,6 +10,9 @@ module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
   function requireOrderTransferAccess(req, res, next) {
+    if (req.waiter && !req.waiter.can_order) {
+      return res.status(403).json({ error: '该服务员没有转移订单权限' });
+    }
     if (!req.isAdmin || !req.adminId || req.isPrimaryAdmin || req.adminPermissions?.can_manage_order) return next();
     return res.status(403).json({ error: '没有订单管理权限' });
   }
@@ -145,6 +148,10 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(index) || index < 0) {
       return res.status(400).json({ error: '订单或菜品序号无效' });
+    }
+    if (req.isAdmin && req.adminId && !req.isPrimaryAdmin &&
+        !(req.adminPermissions && req.adminPermissions.can_edit_order)) {
+      return res.status(403).json({ error: '没有编辑订单权限' });
     }
     if (!req.isAdmin && req.waiter && !req.waiter.can_mark_item) {
       return res.status(403).json({ error: '该服务员没有标记菜品权限' });
