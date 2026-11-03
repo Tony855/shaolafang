@@ -286,10 +286,13 @@
             try {
                 const query = new URLSearchParams(window.location.search);
                 let token = query.get('token');
-                let sessionParam = query.get('session');
+                // Keep the bearer session in local storage, not in the address bar or Referer header.
+                let sessionParam = query.get('session') || (!token ? SLF.store.rawGet('scan_session_token') : null);
 
                 if (SLF.store.rawGet('customer_session_terminated')) {
                     SLF.store.rawRemove('customer_session_terminated');
+                    SLF.store.rawRemove('scan_session_token');
+                    SLF.store.rawRemove('scan_session_expires_at');
                     token = null;
                     sessionParam = null;
                     try {
@@ -308,6 +311,13 @@
                     state.scanToken = '';
                     state.scanSessionToken = info.sessionToken;
                     state.scanExpiresAt = info.expiresAt;
+                    SLF.store.rawSet('scan_session_token', info.sessionToken);
+                    SLF.store.rawSet('scan_session_expires_at', info.expiresAt);
+                    if (query.has('session')) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('session');
+                        history.replaceState(null, '', url.pathname + url.search + url.hash);
+                    }
                     if (info.customerToken) {
                         state.customerToken = info.customerToken;
                         SLF.store.rawSet('customer_token', info.customerToken);
@@ -328,6 +338,8 @@
                     state.scanToken = token;
                     state.scanSessionToken = session.sessionToken;
                     state.scanExpiresAt = session.expiresAt;
+                    SLF.store.rawSet('scan_session_token', session.sessionToken);
+                    SLF.store.rawSet('scan_session_expires_at', session.expiresAt);
                     if (session.customerToken) {
                         state.customerToken = session.customerToken;
                         SLF.store.rawSet('customer_token', session.customerToken);
@@ -341,7 +353,8 @@
                     try {
                         const url = new URL(window.location.href);
                         url.searchParams.delete('token');
-                        url.searchParams.set('session', state.scanSessionToken);
+                        url.searchParams.delete('table');
+                        url.searchParams.delete('session');
                         history.replaceState(null, '', url.pathname + url.search + url.hash);
                     } catch (_) {}
                     await fetchStoreInfo();
@@ -352,6 +365,8 @@
                     state.scanToken = '';
                     state.scanSessionToken = '';
                     state.scanExpiresAt = '';
+                    SLF.store.rawRemove('scan_session_token');
+                    SLF.store.rawRemove('scan_session_expires_at');
                     state.storeId = 1;
                 }
 
@@ -367,6 +382,8 @@
                 state.scanToken = '';
                 state.scanSessionToken = '';
                 state.scanExpiresAt = '';
+                SLF.store.rawRemove('scan_session_token');
+                SLF.store.rawRemove('scan_session_expires_at');
                 state.storeId = 1;
                 state.customerToken = '';
                 SLF.store.rawRemove('customer_token');
