@@ -728,6 +728,9 @@ EOF
     if ! id foodflow >/dev/null 2>&1; then
         useradd --system --no-create-home --home-dir "$APP_DIR" --shell /usr/sbin/nologin --gid www-data foodflow
     fi
+    mkdir -p /var/lib/foodflow
+    chown foodflow:www-data /var/lib/foodflow
+    chmod 0700 /var/lib/foodflow
     chown -R root:www-data "$APP_DIR"
     for writable_dir in uploads backups logs; do
         mkdir -p "$APP_DIR/$writable_dir"
