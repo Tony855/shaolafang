@@ -1,22 +1,13 @@
 #!/usr/bin/env bash
 # FoodFlow 远程更新脚本
-# 自动定位到脚本所在目录，拉取最新代码、装依赖、重启服务
-# 用法: bash remote-update.sh
+# 自动定位到脚本所在目录，按指定分支/标签更新源码和锁定依赖，并在失败时回滚。
+# 用法: GIT_VERSION=main bash remote-update.sh
 set -e
 
-# 切到脚本所在目录（不硬编码路径）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 echo "[INFO] 工作目录: $SCRIPT_DIR"
 
-# 检查 git 仓库
-if [ ! -d ".git" ]; then
-  echo "[ERROR] 当前目录不是 git 仓库: $SCRIPT_DIR"
-  echo "        请先 clone 代码后再运行本脚本"
-  exit 1
-fi
-
-# 检查必要命令
 for cmd in git npm systemctl; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "[ERROR] 缺少命令: $cmd"
@@ -24,22 +15,68 @@ for cmd in git npm systemctl; do
   fi
 done
 
-# 拉取最新代码
-echo "[INFO] 拉取最新代码..."
-git pull
+if [ ! -d ".git" ]; then
+  echo "[ERROR] 当前目录不是 git 仓库: $SCRIPT_DIR"
+  exit 1
+fi
 
-# 安装生产依赖
-echo "[INFO] 安装生产依赖..."
-npm install --omit=dev
+GIT_VERSION="${GIT_VERSION:-main}"
+OLD_SHA="$(git rev-parse HEAD)"
+TS="$(date +%Y%m%d%H%M%S)"
+STAGE="$SCRIPT_DIR/.node_modules-stage-$TS"
+BACKUP="$SCRIPT_DIR/.node_modules-backup-$TS"
 
-# 重启服务
-echo "[INFO] 重启 foodflow 服务..."
+echo "[INFO] 拉取 $GIT_VERSION..."
+git fetch origin "$GIT_VERSION"
+git reset --hard FETCH_HEAD
+
+if [ ! -f package.json ] || [ ! -f package-lock.json ]; then
+  echo "[ERROR] 缺少 package.json 或 package-lock.json，拒绝更新运行依赖"
+  git reset --hard "$OLD_SHA"
+  exit 1
+fi
+
+mkdir -p "$STAGE"
+cp package.json package-lock.json "$STAGE/"
+echo "[INFO] 在独立目录安装锁定的生产依赖..."
+if ! (cd "$STAGE" && npm ci --omit=dev --no-audit --no-fund); then
+  rm -rf "$STAGE"
+  git reset --hard "$OLD_SHA"
+  echo "[ERROR] 依赖安装失败，已回滚源码，现有 node_modules 未变更"
+  exit 1
+fi
+
+if [ -d node_modules ]; then
+  mv node_modules "$BACKUP"
+fi
+if ! mv "$STAGE/node_modules" node_modules; then
+  [ -d "$BACKUP" ] && mv "$BACKUP" node_modules
+  rm -rf "$STAGE"
+  git reset --hard "$OLD_SHA"
+  echo "[ERROR] 切换依赖目录失败，已恢复旧依赖和源码"
+  exit 1
+fi
+rm -rf "$STAGE"
+
 if systemctl list-unit-files | grep -q "^foodflow.service"; then
-  systemctl daemon-reload
-  systemctl restart foodflow
-  echo "[OK] foodflow 已重启"
+  echo "[INFO] 重启 foodflow 服务..."
+  if systemctl restart foodflow; then
+    sleep 3
+  fi
+  if systemctl is-active --quiet foodflow; then
+    rm -rf "$BACKUP"
+    echo "[OK] foodflow 已更新并重启"
+  else
+    echo "[ERROR] 新版本启动失败，正在回滚..."
+    rm -rf node_modules
+    [ -d "$BACKUP" ] && mv "$BACKUP" node_modules
+    git reset --hard "$OLD_SHA"
+    systemctl restart foodflow || true
+    exit 1
+  fi
 else
-  echo "[WARN] 未找到 foodflow.service，请手动启动"
+  rm -rf "$BACKUP"
+  echo "[WARN] 未找到 foodflow.service，源码和依赖已更新但未执行重启"
 fi
 
 echo "[OK] 更新完成"
