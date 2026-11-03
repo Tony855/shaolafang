@@ -477,12 +477,11 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     if (!existing) return res.status(404).json({ error: '订单不存在' });
     if (existing.status !== 'pending') return res.status(409).json({ error: '只有待处理订单可以编辑' });
     if (!req.isAdmin && existing.awaiting_confirm) return res.status(409).json({ error: '订单已通知收银员，无法修改' });
-    if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_edit_order)) {
-      return res.status(403).json({ error: '无权修改订单' });
-    }
-    if (status === 'done' && req.isAdmin && !req.isPrimaryAdmin &&
-        !(req.adminPermissions && req.adminPermissions.can_manage_order)) {
-      return res.status(403).json({ error: '没有订单结算权限' });
+    if (req.isAdmin && !req.isPrimaryAdmin) {
+      const allowed = status === 'done'
+        ? Boolean(req.adminPermissions && req.adminPermissions.can_manage_order)
+        : Boolean(req.adminPermissions && req.adminPermissions.can_edit_order);
+      if (!allowed) return res.status(403).json({ error: status === 'done' ? '没有订单结算权限' : '无权修改订单' });
     }
     if (status !== undefined && !['pending', 'done'].includes(status)) {
       return res.status(400).json({ error: '不支持的订单状态，请使用专用取消/退款接口' });
@@ -490,6 +489,9 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     const waiterCompletion = status === 'done' && !req.isAdmin && Boolean(req.waiter);
     if (waiterCompletion && !req.waiter.can_complete_order) {
       return res.status(403).json({ error: '该服务员没有提交订单结算权限' });
+    }
+    if (req.waiter && !waiterCompletion && !req.waiter.can_order) {
+      return res.status(403).json({ error: '该服务员没有修改订单权限' });
     }
 
     let currentItems = existing.items;
