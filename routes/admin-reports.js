@@ -235,7 +235,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
-  app.get('/api/admin/export/:type', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/export/:type', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
       const type = req.params.type;
       const permission = type === 'menu' ? 'can_manage_menu' : 'can_view_logs';
