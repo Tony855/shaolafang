@@ -9,6 +9,11 @@ const { compressImage } = require("../server/services/image-compress");
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
+  function requireOrderTransferAccess(req, res, next) {
+    if (!req.isAdmin || !req.adminId || req.isPrimaryAdmin || req.adminPermissions?.can_manage_order) return next();
+    return res.status(403).json({ error: '没有订单管理权限' });
+  }
+
   function formatStaffOrder(row) {
     const formatted = formatOrder(row);
     delete formatted.sessionToken;
@@ -16,62 +21,87 @@ module.exports = function(app, deps) {
     return formatted;
   }
 
-app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
+app.post('/api/orders/:id/transfer', requireAdminOrWaiter, requireOrderTransferAccess, async (req, res) => {
   try {
     const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
     const orderId = Number(req.params.id);
-    const targetTable = String(req.body?.target_table || '').trim();
-    if (!Number.isSafeInteger(orderId) || orderId <= 0 || !targetTable || targetTable.length > 80) {
+    const targetTable = typeof req.body?.target_table === 'string' ? req.body.target_table.trim() : '';
+    if (!Number.isSafeInteger(orderId) || orderId <= 0 || !targetTable || targetTable.length > 50) {
       return res.status(400).json({ error: '订单或目标桌号无效' });
+    }
+
+    const initialOrder = await getAsync(
+      'SELECT id, table_name, status FROM orders WHERE id=? AND store_id=?',
+      [orderId, storeId]
+    );
+    if (!initialOrder) return res.status(404).json({ error: '订单不存在' });
+    if (!initialOrder.table_name || initialOrder.table_name === targetTable) {
+      return res.status(400).json({ error: '目标桌与当前桌相同或当前桌号无效' });
     }
 
     let oldTable = '';
     let targetHasOrders = false;
     let newToken = '';
     await withTransaction(async () => {
-      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE', [orderId, storeId]);
-      if (!order) {
-        const error = new Error('订单不存在');
-        error.status = 404;
-        throw error;
-      }
-      if (order.status !== 'pending' || order.awaiting_confirm) {
-        const error = new Error('仅未结算且未通知收银员的订单可转移');
+      // Lock tables first, in stable ID order, then lock the order and QR session.
+      // This matches table move/create/call lock ordering and avoids stale source-table races.
+      const lockedTables = await allAsync(
+        'SELECT id, name, status, active FROM tables WHERE store_id=? AND name IN (?, ?) ORDER BY id FOR UPDATE',
+        [storeId, initialOrder.table_name, targetTable]
+      );
+      const source = lockedTables.find(table => table.name === initialOrder.table_name);
+      const target = lockedTables.find(table => table.name === targetTable);
+      if (!source) {
+        const error = new Error('源桌不存在或已更名');
         error.status = 409;
         throw error;
       }
-      if (order.table_name === targetTable) {
-        const error = new Error('目标桌与当前桌相同');
-        error.status = 400;
-        throw error;
-      }
-      const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=? FOR UPDATE', [targetTable, storeId]);
       if (!target || target.active === 0 || target.active === false) {
         const error = new Error('目标桌不存在或已停用');
         error.status = 404;
         throw error;
       }
 
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE', [orderId, storeId]);
+      if (!order) {
+        const error = new Error('订单不存在');
+        error.status = 404;
+        throw error;
+      }
+      if (order.table_name !== initialOrder.table_name || order.status !== 'pending' || order.awaiting_confirm) {
+        const error = new Error('订单状态或桌台已变化，请刷新后重试');
+        error.status = 409;
+        throw error;
+      }
+
       oldTable = order.table_name;
-      const targetPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [targetTable, storeId]);
+      const targetPending = await getAsync(
+        "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+        [targetTable, storeId]
+      );
       targetHasOrders = Number(targetPending?.cnt || 0) > 0;
-      const nowIso = new Date().toISOString();
+      const now = Date.now();
+      const nowIso = new Date(now).toISOString();
       const targetSession = await getAsync(
-        "SELECT token FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ? ORDER BY created_at DESC LIMIT 1 FOR UPDATE",
+        'SELECT token, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
         [targetTable, storeId, nowIso]
       );
-      if (targetSession) {
+      const targetExpiry = targetSession ? new Date(targetSession.expires_at).getTime() : NaN;
+      if (targetSession && Number.isFinite(targetExpiry) && targetExpiry > now) {
         newToken = targetSession.token;
       } else {
-        newToken = 'auto_' + crypto.randomBytes(24).toString('base64url');
-        const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+        newToken = crypto.randomBytes(32).toString('base64url');
+        const expiresAt = new Date(now + 2 * 60 * 60 * 1000).toISOString();
         await runAsync(
           'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
           [targetTable, newToken, expiresAt, nowIso, storeId, storeId]
         );
       }
-      const moved = await runAsync("UPDATE orders SET table_name=?, session_token=? WHERE id=? AND store_id=? AND status='pending'",
-        [targetTable, newToken, orderId, storeId]);
+
+      const moved = await runAsync(
+        "UPDATE orders SET table_name=?, session_token=? WHERE id=? AND store_id=? AND status='pending'",
+        [targetTable, newToken, orderId, storeId]
+      );
       if (!moved.affectedRows) {
         const error = new Error('订单状态已变化，转桌操作已取消');
         error.status = 409;
@@ -79,14 +109,19 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
       }
       await syncTableStatus(oldTable, storeId);
       await syncTableStatus(targetTable, storeId);
-      const oldPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [oldTable, storeId]);
+      const oldPending = await getAsync(
+        "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+        [oldTable, storeId]
+      );
       if (!oldPending || Number(oldPending.cnt) === 0) {
         await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [oldTable, storeId]);
       }
       const actorType = req.waiter ? 'waiter' : 'admin';
       const actorName = req.waiter ? req.waiter.display_name : 'admin';
-      await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [actorType, req.waiter?.id || req.adminId || 0, actorName, 'transfer_order', JSON.stringify({ order_id: orderId, from: oldTable, to: targetTable }), getClientIp(req) || 'unknown', new Date().toISOString()]);
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [actorType, req.waiter?.id || req.adminId || 0, actorName, 'transfer_order', JSON.stringify({ order_id: orderId, from: oldTable, to: targetTable }), getClientIp(req) || 'unknown', new Date().toISOString()]
+      );
     });
 
     io.to('waiter-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
