@@ -90,10 +90,11 @@ else
 fi
 
 step "7. 结算订单"
-if [ "$CASHIER_OK" = "1" ]; then
+ORDER_TOTAL=$(sql "SELECT total FROM orders WHERE id=$ORDER_ID;")
+if [ "$CASHIER_OK" = "1" ] && [ -n "$ORDER_TOTAL" ]; then
   curl -sS -X PUT "$BASE/api/cashier/orders/$ORDER_ID/settle" \
     -H "X-Cashier-Token: $CASHIER_TOKEN" -H 'Content-Type: application/json' \
-    -d '{"pay_method":"cash","cash_received":999,"cash_change":0}' > /dev/null
+    -d "{\"pay_method\":\"cash\",\"cash_received\":$ORDER_TOTAL,\"cash_change\":0}" > /dev/null
 fi
 S=$(sql "SELECT status FROM orders WHERE id=$ORDER_ID;")
 [ "$S" = "done" ] && ok "status=done" || bad "status=$S"
@@ -102,7 +103,7 @@ step "8. 退款订单"
 if [ "$CASHIER_OK" = "1" ]; then
   curl -sS -X PUT "$BASE/api/cashier/orders/$ORDER_ID/refund" \
     -H "X-Cashier-Token: $CASHIER_TOKEN" -H 'Content-Type: application/json' \
-    -d '{"amount":0,"reason":"smoke"}' > /dev/null
+    -d "{\"amount\":$ORDER_TOTAL,\"reason\":\"smoke\"}" > /dev/null
 fi
 S=$(sql "SELECT status FROM orders WHERE id=$ORDER_ID;")
 [ "$S" = "refunded" ] && ok "status=refunded" || bad "status=$S"
