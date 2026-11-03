@@ -636,8 +636,14 @@ fi
     fi
 
     if [ "$SKIP_DB_INIT" -eq 0 ]; then
-    log_info "创建数据库..."
-    $MYSQL_CMD -e "DROP DATABASE IF EXISTS \`$DEFAULT_DB_NAME\`;"
+    log_info "检查目标数据库是否已存在..."
+    DB_EXISTS=$($MYSQL_CMD -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$DEFAULT_DB_NAME';")
+    if [ "${DB_EXISTS:-0}" -gt 0 ]; then
+        log_error "数据库 $DEFAULT_DB_NAME 已存在但配置目录没有 .env。为保护数据，拒绝 DROP/覆盖。"
+        log_error "请恢复正确的 $CONFIG_DIR/.env 或执行经备份确认的迁移流程。"
+        exit 1
+    fi
+    log_info "创建全新数据库..."
     $MYSQL_CMD -e "CREATE DATABASE \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
     log_info "创建数据库用户..."
