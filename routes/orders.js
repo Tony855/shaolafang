@@ -545,7 +545,7 @@ app.post('/api/orders', async (req, res) => {
     res.status(201).json(responseData);
   } catch (e) {
     console.error('[POST /api/orders] 错误:', e);
-    res.status(500).json({ error: e.message });
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
 
