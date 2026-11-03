@@ -1369,6 +1369,7 @@
                 });
                 customerSocket.on('item:updated', refreshCustomerOrdersIfOpen);
                 customerSocket.on('order:settled', refreshCustomerOrdersIfOpen);
+                customerSocket.on('order:cancelled', refreshCustomerOrdersIfOpen);
                 customerSocket.on('order:new', refreshCustomerOrdersIfOpen);
                 customerSocket.on('connect_error', (err) => {
                     console.warn('socket connect_error:', err.message);
