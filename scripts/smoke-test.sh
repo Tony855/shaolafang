@@ -110,7 +110,7 @@ S=$(sql "SELECT status FROM orders WHERE id=$ORDER_ID;")
 
 step "9. 顾客查订单（结算后 session 应失效）"
 # 本次会话加的"结算后清 session"逻辑 → 查不到是**预期行为**
-if curl -sS "$BASE/api/public/table-session/$SESSION_TOKEN/orders?ct=$CUSTOMER_TOKEN" | grep -q "\"id\":$ORDER_ID"; then
+if curl -sS "$BASE/api/public/table-session/orders" -H "X-Scan-Session: $SESSION_TOKEN" -H "X-Customer-Token: $CUSTOMER_TOKEN" | grep -q "\"id\":$ORDER_ID"; then
   bad "结算后 session 仍能查到订单（应失效）"
 else
   ok "结算后 session 已失效（预期）"
