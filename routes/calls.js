@@ -82,7 +82,7 @@ app.put('/api/waiter-calls/:id/handle', requireAdminOrWaiter, async (req, res) =
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/admin/reservations', requireAdminKey, async (req, res) => {
+app.get('/api/admin/reservations', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const storeId = req.storeId || 1;
     const rows = await allAsync(
