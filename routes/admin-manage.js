@@ -509,6 +509,8 @@ module.exports = function(app, deps) {
   /* ===== 生成动态码 ===== */
   app.post('/api/cashier/khqr/generate', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
+      if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有生成收款码权限' });
+      if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
       if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
@@ -611,6 +613,8 @@ module.exports = function(app, deps) {
   /* ===== 到账确认 ===== */
   app.post('/api/cashier/khqr/confirm', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
+      if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有确认收款权限' });
+      if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
       if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
@@ -633,7 +637,7 @@ module.exports = function(app, deps) {
       }
 
       // 只有已认证的管理员/收银员可人工确认到账；更新必须绑定当前门店且保持待处理状态。
-      const result = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
+      const result = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, pay_method='khqr', paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
         [req.adminId || req.cashierId || 'unknown', order_id, sid]);
       if (!result.affectedRows) return res.status(409).json({ error: '订单状态已变化，请刷新后重试' });
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
