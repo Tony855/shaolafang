@@ -92,7 +92,7 @@ function renderProviderButtons() {
       const url = '/assets/vendor/payment-icons/' + iconFile + '.' + ext;
       const img = new Image();
       img.onload = function() {
-        btn.innerHTML = '<span class="pm-icon pm-icon-aba"><img src="' + url + '" alt="' + label + '"></span>' + labelHtml;
+        btn.innerHTML = '<span class="pm-icon pm-icon-aba"><img src="' + url + '" alt="' + esc(label) + '"></span>' + labelHtml;
       };
       img.onerror = tryNext;
       img.src = url;
@@ -335,7 +335,7 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
           'display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;width:100%;text-align:center;line-height:1.35;';
         $('#khqrAmount').innerHTML =
           '' +
-          '<span style="color:#e85d3a;font-size:clamp(28px,6vw,42px);font-weight:800;">' + sym + amtStr + '</span>' +
+          '<span style="color:#e85d3a;font-size:clamp(28px,6vw,42px);font-weight:800;">' + esc(sym) + amtStr + '</span>' +
           (secHtml ? secHtml.replace('margin-left:6px;', 'margin-left:0;') : '');
         const sw = document.getElementById('khqrCurrencySwitch');
         if (sw) sw.textContent = cur === 'USD' ? '$ USD  ⇄  ៛ KHR' : '៛ KHR  ⇄  $ USD';
