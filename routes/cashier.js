@@ -271,6 +271,15 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         }
       } catch (pe) { printError = pe.message; }
     }
+    // Broadcast every settled order so KDS, waiter, cashier and customer views
+    // converge immediately after a batch operation just like single settlement.
+    for (const order of settlementOrders) {
+      const payload = { orderId: Number(order.id) };
+      io.to('kitchen-' + req.storeId).emit('order:settled', payload);
+      io.to('waiter-' + req.storeId).emit('order:settled', payload);
+      io.to('cashier-' + req.storeId).emit('order:settled', payload);
+      io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', payload);
+    }
     res.json({ success: true, settled: settlementOrders.length, total: totalAmount.toFixed(2), printed, printError });
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
@@ -426,6 +435,11 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: canceledTableName }), getClientIp(req), canceledAt]);
     });
+    const canceledPayload = { orderId: Number(id) };
+    io.to('kitchen-' + req.storeId).emit('order:cancelled', canceledPayload);
+    io.to('waiter-' + req.storeId).emit('order:cancelled', canceledPayload);
+    io.to('cashier-' + req.storeId).emit('order:cancelled', canceledPayload);
+    io.to('public-table-' + req.storeId + '-' + canceledTableName).emit('order:cancelled', canceledPayload);
     res.json({ success: true, message: '取消成功' });
   } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
