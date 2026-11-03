@@ -35,7 +35,9 @@ async function allocateOrderNo(todayPrefix) {
 async function getOrderCooldownMs() {
   try {
     const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'order_interval_seconds'");
-    const seconds = parseInt(setting ? setting.value : '30', 10);
+    const raw = setting?.value ?? '30';
+    const seconds = typeof raw === 'string' && raw.trim() === '' ? NaN : Number(raw);
+    if (!Number.isSafeInteger(seconds)) return 30 * 1000;
     return Math.max(0, Math.min(3600, seconds)) * 1000;
   } catch (e) { return 30 * 1000; }
 }
