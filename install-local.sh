@@ -54,30 +54,9 @@ if [ ! -f "$APP_DIR/server.js" ]; then
     if [ ! -f server.js ]; then
         log_info "拉取仓库到 $APP_DIR..."
     
-        # 优先使用 SSH（推荐，无需 token）
-        # 若必须使用 HTTPS，通过环境变量 GITHUB_TOKEN 注入，切勿硬编码
-        REPO_URL=""
-        if git ls-remote git@github.com:Tony855/shaolafang.git HEAD >/dev/null 2>&1; then
-            REPO_URL="git@github.com:Tony855/shaolafang.git"
-            log_info "使用 SSH 方式拉取"
-        elif [ -n "$GITHUB_TOKEN" ]; then
-            REPO_URL="https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git"
-            log_info "使用 HTTPS + GITHUB_TOKEN 拉取"
-        else
-            log_error "无法拉取仓库：SSH 未配置且未提供 GITHUB_TOKEN 环境变量"
-            log_error "解决方案二选一："
-            log_error "  1) 配置 SSH 密钥：ssh-keygen -t ed25519 && cat ~/.ssh/id_ed25519.pub 添加到 GitHub"
-            log_error "  2) 运行脚本时携带 token：sudo GITHUB_TOKEN=ghp_xxx bash install-local.sh"
-            exit 1
-        fi
-    
+        REPO_URL="https://github.com/Tony855/shaolafang.git"
+        log_info "使用公开仓库 HTTPS 方式拉取"
         git clone "$REPO_URL" .
-        # clone 后立刻从 git 配置里剥离 token（防止写入 .git/config）
-        if [ -n "$GITHUB_TOKEN" ]; then
-            git remote set-url origin https://github.com/Tony855/shaolafang.git
-            # 关闭凭证缓存，避免 token 落到磁盘
-            git config --unset credential.helper 2>/dev/null || true
-        fi
     fi
     log_success "代码已就位: $APP_DIR"
 else
@@ -92,6 +71,13 @@ fi
 
 if [ ! -f "$APP_DIR/package.json" ]; then
     log_error "当前目录未找到 package.json"
+    exit 1
+fi
+
+# 本脚本仅用于首次初始化；已有 .env 的实例应使用安全升级流程。
+if [ -e "$APP_DIR/.env" ]; then
+    log_error "检测到已有 .env，拒绝执行首次安装以免重置生产配置。"
+    log_error "请使用 install.sh 的更新模式，或先完成独立备份和迁移。"
     exit 1
 fi
 
@@ -361,6 +347,17 @@ fuser -k 3000/tcp 2>/dev/null || true
 sleep 1
 
 NODE_PATH=$(which node)
+if ! id foodflow >/dev/null 2>&1; then
+    useradd --system --no-create-home --home-dir "$APP_DIR" --shell /usr/sbin/nologin --gid www-data foodflow
+fi
+chown -R root:www-data "$APP_DIR"
+for writable_dir in uploads backups logs; do
+    mkdir -p "$APP_DIR/$writable_dir"
+    chown -R foodflow:www-data "$APP_DIR/$writable_dir"
+    chmod 0770 "$APP_DIR/$writable_dir"
+done
+chown root:www-data "$ENV_FILE"
+chmod 0640 "$ENV_FILE"
 
 cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
@@ -369,7 +366,8 @@ After=network.target mariadb.service mysql.service redis.service
 
 [Service]
 Type=simple
-User=root
+User=foodflow
+Group=www-data
 WorkingDirectory=$APP_DIR
 ExecStart=$NODE_PATH server.js
 Restart=always
