@@ -202,19 +202,21 @@ app.delete('/api/tables/:id', requireAdminKey, requirePermission('can_manage_tab
       );
       if (!existing) throw Object.assign(new Error('桌号不存在'), { status: 404 });
 
-      const pendingOrders = await getAsync(
-        "SELECT COUNT(*) AS count FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+      // Lock dependent rows before checking, so an order/call cannot be inserted
+      // between the emptiness check and deleting the table.
+      const pendingOrders = await allAsync(
+        "SELECT id FROM orders WHERE table_name=? AND store_id=? AND status='pending' ORDER BY id FOR UPDATE",
         [existing.name, storeId]
       );
-      const pendingCalls = await getAsync(
-        "SELECT COUNT(*) AS count FROM waiter_calls WHERE table_name=? AND store_id=? AND status='pending'",
+      const pendingCalls = await allAsync(
+        "SELECT id FROM waiter_calls WHERE table_name=? AND store_id=? AND status='pending' ORDER BY id FOR UPDATE",
         [existing.name, storeId]
       );
-      const activeReservations = await getAsync(
-        "SELECT COUNT(*) AS count FROM reservations WHERE table_name=? AND store_id=? AND status IN ('pending','confirmed')",
+      const activeReservations = await allAsync(
+        "SELECT id FROM reservations WHERE table_name=? AND store_id=? AND status IN ('pending','confirmed') ORDER BY id FOR UPDATE",
         [existing.name, storeId]
       );
-      if (Number(pendingOrders?.count || 0) || Number(pendingCalls?.count || 0) || Number(activeReservations?.count || 0)) {
+      if (pendingOrders.length || pendingCalls.length || activeReservations.length) {
         throw Object.assign(new Error('该桌仍有关联的未结订单、待处理呼叫或有效预约，不能删除'), { status: 409 });
       }
 
