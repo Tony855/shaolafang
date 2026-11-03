@@ -132,7 +132,7 @@ sudo certbot --nginx -d your-domain.com
 | `DB_NAME` | 数据库名 | foodflow_standard | foodflow_standard |
 | `REDIS_URL` | Redis连接（必须） | ✅ 相同 | ✅ 相同 |
 | `UPLOAD_DIR` | 上传目录（NFS） | /mnt/shared/uploads | /mnt/shared/uploads |
-| `RUN_SCHEDULED_TASKS` | 执行定时任务 | **true** | **不设置** |
+| `RUN_SCHEDULED_TASKS` | 执行定时任务 | **true** | **false** |
 | `JWT_SECRET` | JWT密钥 | ✅ 相同 | ✅ 相同 |
 
 > **关键**：两台节点的数据库、Redis、NFS配置必须完全相同！
