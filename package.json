@@ -12,7 +12,7 @@
     "build:admin": "node scripts/build-admin-bundle.js",
     "bump": "bash scripts/bump-version.sh",
     "fetch-logos": "node scripts/fetch-bank-logos.js",
-    "test": "node scripts/smoke-image.js"
+    "test": "node --test"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",
