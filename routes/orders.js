@@ -9,6 +9,13 @@ const { compressImage } = require("../server/services/image-compress");
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
+  function formatStaffOrder(row) {
+    const formatted = formatOrder(row);
+    delete formatted.sessionToken;
+    delete formatted.customerToken;
+    return formatted;
+  }
+
 app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
   try {
     const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
@@ -196,7 +203,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
       updatedRow = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, orderStoreId]);
     });
 
-    const updatedOrder = formatOrder(updatedRow);
+    const updatedOrder = formatStaffOrder(updatedRow);
     if (changed) {
       const storeId = updatedRow.store_id || 1;
       io.to('kitchen-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
@@ -239,7 +246,7 @@ app.get('/api/orders', requireAdminOrWaiter, async (req, res) => {
     }
     sql += ' ORDER BY createdAt DESC';
     const rows = await allAsync(sql, params);
-    const formatted = rows.map(formatOrder);
+    const formatted = rows.map(formatStaffOrder);
     res.json(formatted);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -251,7 +258,7 @@ app.get('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
     const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [req.params.id, orderStoreId]);
     if (!row) return res.status(404).json({ error: '订单不存在' });
-    res.json(formatOrder(row));
+    res.json(formatStaffOrder(row));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -638,7 +645,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       io.to('cashier-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
       io.to('public-table-' + orderStoreId + '-' + updatedRow.table_name).emit('order:settled', { orderId: Number(id) });
     }
-    res.json(formatOrder(updatedRow));
+    res.json(formatStaffOrder(updatedRow));
   } catch (e) {
     console.error('更新订单失败:', e);
     res.status(e.status || 500).json({ error: e.message });
