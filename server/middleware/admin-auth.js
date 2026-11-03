@@ -11,7 +11,7 @@ async function getWaiterFromRequest(req) {
   const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
   if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
   return await getAsync(
-    'SELECT w.* FROM waiters w JOIN stores s ON s.id=w.store_id AND s.active=1 JOIN merchants m ON m.id=s.merchant_id AND m.status=1 WHERE w.id=? AND w.active=1',
+    'SELECT w.* FROM waiters w JOIN stores s ON s.id=w.store_id AND s.merchant_id=w.merchant_id AND s.active=1 JOIN merchants m ON m.id=w.merchant_id AND m.status=1 WHERE w.id=? AND w.active=1',
     [session.waiter_id]
   );
 }
