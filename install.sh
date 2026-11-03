@@ -841,11 +841,10 @@ EOF
         echo "  访问地址：https://$DOMAIN"
     fi
     echo ""
-    echo "默认账号:"
-    echo "  超级管理员: superadmin / super123"
-    echo "  商户管理员: admin / admin123"
+    echo "初始账号用户名：superadmin / admin"
+    echo "初始密码：系统随机生成，见 /var/lib/foodflow/initial-credentials.txt"
     echo ""
-    log_warn "请及时修改默认管理员密码"
+    log_warn "首次登录后请立即修改所有初始密码"
 }
 
 # ============================================================
@@ -925,7 +924,7 @@ show_post_install_guide() {
         echo "     商户后台：https://$DOMAIN/admin"
         echo "     服务员端：https://$DOMAIN/waiter"
         echo "     后厨端：  https://$DOMAIN/kitchen"
-        echo "     超管后台：https://$DOMAIN/super（默认 superadmin/super123，请尽快修改）"
+        echo "     超管后台：https://$DOMAIN/super（初始凭据见 /var/lib/foodflow/initial-credentials.txt）"
         echo ""
     else
         echo "  1. 在所有应用服务器节点上编辑环境变量："
@@ -949,7 +948,7 @@ show_post_install_guide() {
         if [ "$DEPLOY_MODE" == "enterprise-ultimate" ]; then
             echo "  6. 企业旗舰版超级管理员后台："
             echo "     https://$DOMAIN/super"
-            echo "     默认账号：superadmin / super123"
+            echo "     初始密码：随机生成，见 /var/lib/foodflow/initial-credentials.txt"
             echo "     （请尽快修改默认密码！）"
             echo ""
         fi
