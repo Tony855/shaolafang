@@ -6,7 +6,7 @@ function csvRow(values) {
   return values.map(value => {
     const raw = value === null || value === undefined ? '' : String(value);
     // Spreadsheet programs may execute cells beginning with formula markers.
-    const safe = typeof value === 'string' && /^[\\s\\u0000-\\u001f]*[=+@-]/.test(raw)
+    const safe = typeof value === 'string' && /^[\s\u0000-\u001f]*[=+@-]/.test(raw)
       ? "'" + raw
       : raw;
     return '"' + safe.replace(/"/g, '""') + '"';
