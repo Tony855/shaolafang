@@ -101,7 +101,7 @@ app.get('/api/waiter-calls', requireAdminOrWaiter, async (req, res) => {
   try {
     const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
     const rows = await allAsync(
-      'SELECT * FROM waiter_calls WHERE store_id=? AND status="pending" ORDER BY created_at DESC',
+      'SELECT id, table_name, store_id, status, type, message, created_at, handled_by, handled_at FROM waiter_calls WHERE store_id=? AND status="pending" ORDER BY created_at DESC',
       [storeId]
     );
     res.json(rows);
