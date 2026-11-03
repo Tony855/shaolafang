@@ -49,8 +49,15 @@ async function authenticateAdmin(req) {
       if (admin) {
         const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
         if (merchant) {
-          const requestedStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
+          const rawRequestedStoreId = req.get('X-Store-Id');
+          const requestedStoreId = rawRequestedStoreId === undefined || rawRequestedStoreId === null || rawRequestedStoreId === ''
+            ? 0
+            : Number(rawRequestedStoreId);
           let validStoreId = null;
+          if (rawRequestedStoreId !== undefined && rawRequestedStoreId !== null && rawRequestedStoreId !== '' &&
+              (!Number.isSafeInteger(requestedStoreId) || requestedStoreId <= 0)) {
+            return { error: '指定的门店编号无效', code: 'INVALID_STORE_ID' };
+          }
           if (requestedStoreId > 0) {
             const _storeCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1', [requestedStoreId, admin.merchant_id]);
             if (!_storeCheck) {
