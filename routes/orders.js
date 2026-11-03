@@ -400,7 +400,7 @@ app.post('/api/orders', async (req, res) => {
         if (sessionToken) {
           const qrTimeoutRow = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
           const rawQrTimeout = String(qrTimeoutRow?.value ?? '45').trim();
-          const parsedQrTimeout = /^\\d+$/.test(rawQrTimeout) ? Number(rawQrTimeout) : NaN;
+          const parsedQrTimeout = /^\d+$/.test(rawQrTimeout) ? Number(rawQrTimeout) : NaN;
           const qrTimeoutMins = Number.isSafeInteger(parsedQrTimeout) && parsedQrTimeout >= 0 ? Math.min(parsedQrTimeout, 1440) : 45;
           if (qrTimeoutMins > 0) {
             const newExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
