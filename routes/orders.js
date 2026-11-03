@@ -32,7 +32,7 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, async (req, res) => {
     if (targetSession) {
       newToken = targetSession.token;
     } else {
-      newToken = 'auto_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      newToken = 'auto_' + crypto.randomBytes(24).toString('base64url');
       const exp = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
       await runAsync(
         'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
