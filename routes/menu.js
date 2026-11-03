@@ -91,11 +91,12 @@ globalIpv6Targets.addSubnet('2000::', 3, 'ipv6');
 
 async function validatePublicImageUrl(value) {
   const target = new URL(value);
-  if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) {
+  if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password ||
+      (target.port && !((target.protocol === 'http:' && target.port === '80') || (target.protocol === 'https:' && target.port === '443')))) {
     throw new Error('图片地址只允许无凭据的公网 HTTP(S) URL');
   }
   const hostname = target.hostname.replace(/^\\[|\\]$/g, '').toLowerCase().replace(/\\.$/, '');
-  if (!hostname || hostname === 'localhost' || /\\.(?:localhost|local|internal|test|example|invalid)$/.test(hostname)) {
+  if (!hostname || hostname === 'localhost' || /\\.(?:localhost|local|lan|home\\.arpa|internal|intranet|corp|test|example|invalid)$/.test(hostname)) {
     throw new Error('禁止访问本地或保留域名');
   }
   const addresses = await dns.lookup(hostname, { all: true, verbatim: true });
