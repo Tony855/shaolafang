@@ -22,6 +22,13 @@ app.post('/api/public/call-waiter', async (req, res) => {
       [sessionToken]
     );
     if (!initialSession) return res.status(401).json({ error: '扫码会话不存在，请重新扫码' });
+    const initialStoreId = Number(initialSession.store_id);
+    if (!Number.isSafeInteger(initialStoreId) || initialStoreId <= 0) return res.status(401).json({ error: '扫码会话店铺信息无效' });
+    const activeStore = await getAsync(
+      'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+      [initialStoreId]
+    );
+    if (!activeStore) return res.status(404).json({ error: '店铺不存在或已停用' });
     const initialExpiry = new Date(initialSession.expires_at).getTime();
     if (!Number.isFinite(initialExpiry) || initialExpiry <= Date.now()) {
       return res.status(410).json({ error: '二维码已过期，请重新扫码' });
