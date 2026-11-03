@@ -257,14 +257,14 @@ module.exports = function(app, deps) {
     return null;
   }
 
-  app.get('/api/admin/cashiers', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/cashiers', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
       const list = await getAllCashiersByMerchant(req.merchantId);
       res.json({ cashiers: list });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
-  app.post('/api/admin/cashiers', requireAdminKey, async (req, res) => {
+  app.post('/api/admin/cashiers', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
       const { username, password, display_name, permissions, active, store_id } = req.body || {};
       if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写收银员资料' });
@@ -304,7 +304,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
-  app.put('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
+  app.put('/api/admin/cashiers/:id', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       const { display_name, password, permissions, active, store_id } = req.body || {};
@@ -357,7 +357,7 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
-  app.delete('/api/admin/cashiers/:id', requireAdminKey, async (req, res) => {
+  app.delete('/api/admin/cashiers/:id', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       const found = await findCashierStore(req.merchantId, id);
