@@ -168,7 +168,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
       } catch(e) { return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 数据异常' }); }
     }
     const now = new Date().toISOString();
-    const totalAmount = orders.reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+    const totalAmount = Math.round(orders.reduce((s, o) => s + Number(o.total), 0) * 100) / 100;
     if (!Number.isFinite(totalAmount) || totalAmount <= 0) return res.status(400).json({ error: '订单金额无效，无法批量结算' });
     const { pay_method, cash_received } = req.body || {};
     const paymentMethod = typeof pay_method === 'string' ? pay_method.trim().slice(0, 40) : '';
@@ -180,8 +180,13 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     const cashChange = paymentMethod.toLowerCase() === 'cash' ? Math.round((cashReceived - totalAmount) * 100) / 100 : 0;
     const tableNames = [...new Set(orders.map(o => o.table_name))];
     await withTransaction(async () => {
-      for (const order of orders) {
-        const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [now, paymentMethod, cashReceived, cashChange, order.id, req.storeId]);
+      for (let index = 0; index < orders.length; index++) {
+        const order = orders[index];
+        // Allocate any batch cash change to the final order so per-order totals
+        // reconcile with the aggregate cash tendered and change in the audit log.
+        const orderCashChange = paymentMethod.toLowerCase() === 'cash' && index === orders.length - 1 ? cashChange : 0;
+        const orderCashReceived = paymentMethod.toLowerCase() === 'cash' ? Number(order.total) + orderCashChange : 0;
+        const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [now, paymentMethod, orderCashReceived, orderCashChange, order.id, req.storeId]);
         if (!updated.affectedRows) {
           const error = new Error('订单状态已变化，批量结算已回滚，请刷新后重试');
           error.status = 409;
@@ -215,8 +220,10 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
 
 app.post('/api/cashier/orders/batch-print', requireCashier, async (req, res) => {
   try {
-    const orderIds = (req.body?.order_ids || []).map(id => parseInt(id)).filter(id => !isNaN(id));
+    const orderIds = [...new Set((Array.isArray(req.body?.order_ids) ? req.body.order_ids : [])
+      .map(id => Number(id)).filter(id => Number.isSafeInteger(id) && id > 0))];
     if (!orderIds.length) return res.status(400).json({ error: '请选择要打印的订单' });
+    if (orderIds.length > 100) return res.status(400).json({ error: '单次最多打印 100 笔订单' });
     const placeholders = orderIds.map(() => '?').join(',');
     const orders = await allAsync('SELECT * FROM orders WHERE id IN (' + placeholders + ') AND store_id=?', [...orderIds, req.storeId]);
     if (!orders.length) return res.status(404).json({ error: '订单不存在' });
