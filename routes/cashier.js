@@ -191,14 +191,29 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     let settlementOrders = orders;
     let tableNames = [...new Set(orders.map(o => o.table_name))];
     await withTransaction(async () => {
-      // Lock all selected orders in stable ID order and revalidate the live
-      // amounts/items before recording payment.
+      // Lock affected tables first, matching table move/rename/delete lock order.
+      const tablePlaceholders = tableNames.map(() => '?').join(',');
+      const lockedTables = await allAsync(
+        'SELECT id, name FROM tables WHERE store_id=? AND name IN (' + tablePlaceholders + ') ORDER BY id FOR UPDATE',
+        [req.storeId, ...tableNames]
+      );
+      if (lockedTables.length !== tableNames.length) {
+        const error = new Error('订单关联桌台已变化，请刷新后重试');
+        error.status = 409;
+        throw error;
+      }
+      // Then lock orders in stable ID order and revalidate the live amounts/items.
       const lockedOrders = await allAsync(
         "SELECT * FROM orders WHERE id IN (" + placeholders + ") AND store_id=? AND status='pending' ORDER BY id FOR UPDATE",
         [...orderIds, req.storeId]
       );
       if (lockedOrders.length !== orderIds.length) {
         const error = new Error('部分订单状态已变化，批量结算已取消');
+        error.status = 409;
+        throw error;
+      }
+      if (lockedOrders.some(order => !tableNames.includes(order.table_name))) {
+        const error = new Error('订单桌台已变化，请刷新后重试');
         error.status = 409;
         throw error;
       }
@@ -309,10 +324,19 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     const settledAt = new Date().toISOString();
     let settledTableName = order.table_name;
     await withTransaction(async () => {
-      // Lock and re-read the order so a concurrent edit cannot change the
-      // payable total/items after the cashier validated the stale snapshot.
+      // Lock the table before the order, matching table move/rename/delete operations.
+      const lockedTable = await getAsync(
+        'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+        [order.table_name, req.storeId]
+      );
+      if (!lockedTable) {
+        const error = new Error('订单关联桌台已变化，请刷新后重试');
+        error.status = 409;
+        throw error;
+      }
+      // Re-read the order after obtaining the table lock.
       const lockedOrder = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE', [id, req.storeId]);
-      if (!lockedOrder || lockedOrder.status !== 'pending') {
+      if (!lockedOrder || lockedOrder.status !== 'pending' || lockedOrder.table_name !== order.table_name) {
         const error = new Error('订单状态已变化，请刷新后重试');
         error.status = 409;
         throw error;
@@ -371,8 +395,17 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     const canceledAt = new Date().toISOString();
     let canceledTableName = order.table_name;
     await withTransaction(async () => {
+      const lockedTable = await getAsync(
+        'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+        [order.table_name, req.storeId]
+      );
+      if (!lockedTable) {
+        const error = new Error('订单关联桌台已变化，取消操作已中止');
+        error.status = 409;
+        throw error;
+      }
       const lockedOrder = await getAsync('SELECT table_name, status FROM orders WHERE id=? AND store_id=? FOR UPDATE', [id, req.storeId]);
-      if (!lockedOrder || lockedOrder.status !== 'pending') {
+      if (!lockedOrder || lockedOrder.status !== 'pending' || lockedOrder.table_name !== order.table_name) {
         const error = new Error('订单状态已变化，取消操作已中止');
         error.status = 409;
         throw error;
