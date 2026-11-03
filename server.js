@@ -97,7 +97,7 @@ async function initRedis() {
     console.log('✅ Redis缓存已连接');
     return true;
   } catch (error) {
-    await closeRedisClient(client).catch(closeError => {
+    await Promise.resolve(closeRedisClient(client)).catch(closeError => {
       console.error('Redis连接失败后的资源清理失败:', closeError.message);
     });
     redisClient = null;
