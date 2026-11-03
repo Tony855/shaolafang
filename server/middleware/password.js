@@ -1,20 +1,36 @@
 /**
  * server/middleware/password.js
- * 密码哈希/校验（从 server.js 抽出）
+ * Password hashing, verification and transparent migration of legacy hashes.
  */
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-function hashPassword(pwd) {
-  return bcrypt.hashSync(pwd, 8);
-}
+const BCRYPT_ROUNDS = Math.min(14, Math.max(12, Number.parseInt(process.env.BCRYPT_ROUNDS || '12', 10) || 12));
 
-function verifyPassword(pwd, hash) {
-  if (!hash) return false;
-  if (hash.startsWith('$2')) {
-    return bcrypt.compareSync(pwd, hash);
+function hashPassword(password) {
+  if (typeof password !== 'string' || !password.length) {
+    throw new TypeError('Password must be a non-empty string');
   }
-  return crypto.createHash('sha256').update(pwd).digest('hex') === hash;
+  return bcrypt.hashSync(password, BCRYPT_ROUNDS);
 }
 
-module.exports = { hashPassword, verifyPassword };
+function verifyPassword(password, hash) {
+  if (typeof password !== 'string' || typeof hash !== 'string' || !hash) return false;
+  if (hash.startsWith('$2')) {
+    try { return bcrypt.compareSync(password, hash); }
+    catch (_) { return false; }
+  }
+  // Legacy SHA-256 hashes are accepted only for migration at successful login.
+  if (!/^[a-f0-9]{64}$/i.test(hash)) return false;
+  const candidate = crypto.createHash('sha256').update(password).digest();
+  const stored = Buffer.from(hash, 'hex');
+  return stored.length === candidate.length && crypto.timingSafeEqual(candidate, stored);
+}
+
+function needsRehash(hash) {
+  if (typeof hash !== 'string' || !hash.startsWith('$2')) return true;
+  const rounds = Number.parseInt(hash.split('$')[2], 10);
+  return !Number.isFinite(rounds) || rounds < BCRYPT_ROUNDS;
+}
+
+module.exports = { hashPassword, verifyPassword, needsRehash, BCRYPT_ROUNDS };
