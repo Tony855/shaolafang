@@ -44,10 +44,7 @@ echo "  商户 B: $ADMIN_B (id=$MID_B)"
 echo ""
 echo "=============== 双方登录 ==============="
 
-T_A=$(curl -sS -X POST "$BASE/api/admin/login" \
-  -H 'Content-Type: application/json' \
-  -d "{\"username\":\"$ADMIN_A\",\"password\":\"iso${A}${TS}\"}" 2>/dev/null | grep -oP '"token":"\K[^"]+')
-# 密码是 iso${A}${TS} = isoA<TS>
+# 密码是 isoA<TS>。
 T_A=$(curl -sS -X POST "$BASE/api/admin/login" \
   -H 'Content-Type: application/json' \
   -d "{\"username\":\"$ADMIN_A\",\"password\":\"isoA$TS\"}" | grep -oP '"token":"\K[^"]+')
@@ -121,7 +118,7 @@ check "商户 B 看不到商户 A 的分类" "0" "$(echo "$CAT_B" | grep -c "A�
 # 5. B 用 A 的 store_id 请求（跨商户越权）
 CROSS=$(curl -sS -o /dev/null -w '%{http_code}' "$BASE/api/admin/menu" \
   -H "Authorization: Bearer $T_B" -H "X-Store-Id: $S_A")
-check "商户 B 伪造 X-Store-Id=$S_A 被回退到自己的 store（200）" "200" "$CROSS"
+check "商户 B 伪造 X-Store-Id=$S_A 被拒绝（401）" "401" "$CROSS"
 
 # 6. 数据库层面：A 的数据是否 merchant_id 正确
 DB_CHECK=$(mysql -u root foodflow_system -N -e "
@@ -192,30 +189,41 @@ fi
 echo ""
 echo "=============== 清理测试数据 ==============="
 
+if [ -n "${MID_A:-}" ] && [ -n "${MID_B:-}" ] && [ -n "${S_A:-}" ] && [ -n "${S_B:-}" ]; then
 mysql -u root foodflow_system -e "
-DELETE FROM menus WHERE name LIKE '%$TS%';
-DELETE FROM menu_categories WHERE name LIKE '%$TS%';
-DELETE FROM tables WHERE name LIKE '%$TS%';
-DELETE FROM printers WHERE name LIKE '%$TS%';
-DELETE FROM waiters WHERE username LIKE '%$TS%';
-DELETE FROM orders WHERE id=$ORDER_ID;
-DELETE FROM waiter_calls WHERE message LIKE '%$ORDER_ID%';
+DELETE FROM orders WHERE store_id IN ($S_A, $S_B);
+DELETE FROM waiter_calls WHERE store_id IN ($S_A, $S_B);
 DELETE FROM scan_sessions WHERE store_id IN ($S_A, $S_B);
-DELETE FROM merchants WHERE id IN ($MID_A, $MID_B);
+DELETE FROM waiter_sessions WHERE waiter_id IN (SELECT id FROM waiters WHERE merchant_id IN ($MID_A, $MID_B));
+DELETE FROM cashier_sessions WHERE store_id IN ($S_A, $S_B);
+DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id IN ($MID_A, $MID_B));
+DELETE FROM login_logs WHERE username IN ('$ADMIN_A', '$ADMIN_B') OR username LIKE 'wA$TS';
+DELETE FROM audit_logs WHERE (target_type='merchant' AND target_id IN ($MID_A, $MID_B)) OR (actor_type='merchant_admin' AND actor_id IN (SELECT id FROM merchant_admins WHERE merchant_id IN ($MID_A, $MID_B)));
+DELETE FROM reservations WHERE store_id IN ($S_A, $S_B);
+DELETE FROM printers WHERE store_id IN ($S_A, $S_B);
+DELETE FROM waiters WHERE store_id IN ($S_A, $S_B);
+DELETE FROM menus WHERE store_id IN ($S_A, $S_B);
+DELETE FROM menu_categories WHERE store_id IN ($S_A, $S_B);
+DELETE FROM tables WHERE store_id IN ($S_A, $S_B);
+DELETE FROM currencies WHERE merchant_id IN ($MID_A, $MID_B);
+DELETE FROM settings WHERE `key` LIKE 'store_${S_A}_%' OR `key` LIKE 'store_${S_B}_%' OR `key` LIKE 'merchant_${MID_A}_%' OR `key` LIKE 'merchant_${MID_B}_%' OR `key` IN ('cashiers_${S_A}', 'cashiers_${S_B}');
 DELETE FROM merchant_admins WHERE merchant_id IN ($MID_A, $MID_B);
 DELETE FROM stores WHERE merchant_id IN ($MID_A, $MID_B);
-DELETE FROM currencies WHERE merchant_id IN ($MID_A, $MID_B);
+DELETE FROM merchants WHERE id IN ($MID_A, $MID_B);
 " 2>/dev/null
+fi
 echo "  ✓ 已清理"
 
 echo ""
 echo "=============== 结果汇总 ==============="
 echo "  通过: $PASS"
 echo "  失败: $FAIL"
-if [ $FAIL -eq 0 ]; then
+if [ "$FAIL" -eq 0 ]; then
   echo ""
   echo "  🎉 全部隔离测试通过！"
+  exit 0
 else
   echo ""
   echo "  ⚠ 有 $FAIL 项失败，需排查"
+  exit 1
 fi
