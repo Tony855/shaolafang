@@ -9,13 +9,20 @@ const { compressImage } = require("../server/services/image-compress");
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
-app.get('/api/tables', async (req, res) => {
+// Management table listing: never expose qr_token or allow a caller to select another store.
+app.get('/api/tables', requireAdminOrWaiter, async (req, res) => {
   try {
-    const storeId = parseInt(req.query.store_id || req.get('X-Store-Id') || '1', 10);
-    const rows = await allAsync('SELECT * FROM tables WHERE store_id=? ORDER BY id', [storeId]);
+    const storeId = req.isAdmin ? Number(req.storeId) : Number(req.waiterStoreId);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0) {
+      return res.status(403).json({ error: '无权访问该店铺桌台' });
+    }
+    const rows = await allAsync(
+      'SELECT id, name, status, store_id FROM tables WHERE store_id=? ORDER BY id',
+      [storeId]
+    );
     res.json(rows);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: '获取桌台失败' });
   }
 });
 
@@ -38,55 +45,67 @@ app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), 
 // ----- 整桌转移：把整个桌的所有未结算订单转到目标桌 -----
 app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
   try {
-    const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
-    const fromTable = (req.body?.from_table || '').trim();
-    const targetTable = (req.body?.target_table || '').trim();
+    const storeId = Number(req.isAdmin ? req.storeId : req.waiterStoreId);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0) {
+      return res.status(403).json({ error: '无权访问该店铺桌台' });
+    }
+    const fromTable = typeof req.body?.from_table === 'string' ? req.body.from_table.trim() : '';
+    const targetTable = typeof req.body?.target_table === 'string' ? req.body.target_table.trim() : '';
     if (!fromTable || !targetTable) return res.status(400).json({ error: '请选择源桌和目标桌' });
     if (fromTable === targetTable) return res.status(400).json({ error: '目标桌与当前桌相同' });
 
-    const target = await getAsync('SELECT * FROM tables WHERE name=? AND store_id=?', [targetTable, storeId]);
-    if (!target) return res.status(404).json({ error: '目标桌不存在' });
-
-    const nowIso = new Date().toISOString();
-    // 查目标桌的有效 session
-    const targetSession = await getAsync(
-      "SELECT token FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ? ORDER BY created_at DESC LIMIT 1",
-      [targetTable, storeId, nowIso]
-    );
-    let newToken;
-    if (targetSession) {
-      newToken = targetSession.token;
-    } else {
-      newToken = 'auto_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-      const exp = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-      await runAsync(
-        'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-        [targetTable, newToken, exp, nowIso, storeId, storeId]
+    const moved = await withTransaction(async () => {
+      // Lock both table rows in a deterministic order to serialize concurrent moves.
+      const lockedTables = await allAsync(
+        'SELECT id, name, status FROM tables WHERE store_id=? AND name IN (?, ?) ORDER BY id FOR UPDATE',
+        [storeId, fromTable, targetTable]
       );
-    }
+      const source = lockedTables.find(row => row.name === fromTable);
+      const target = lockedTables.find(row => row.name === targetTable);
+      if (!source) throw Object.assign(new Error('源桌不存在'), { status: 404 });
+      if (!target) throw Object.assign(new Error('目标桌不存在'), { status: 404 });
+      if (!['available', 'occupied', 'reserved'].includes(target.status)) {
+        throw Object.assign(new Error('目标桌当前不可用'), { status: 409 });
+      }
 
-    // 一次性把所有未结算订单的 table_name 和 session_token 都改过来
-    const result = await runAsync(
-      "UPDATE orders SET table_name=?, session_token=? WHERE table_name=? AND store_id=? AND status='pending'",
-      [targetTable, newToken, fromTable, storeId]
-    );
+      const now = Date.now();
+      const nowIso = new Date(now).toISOString();
+      const targetSession = await getAsync(
+        'SELECT token, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+        [targetTable, storeId, nowIso]
+      );
+      let newToken = targetSession && Number.isFinite(new Date(targetSession.expires_at).getTime()) &&
+        new Date(targetSession.expires_at).getTime() > now ? targetSession.token : null;
+      if (!newToken) {
+        newToken = crypto.randomBytes(32).toString('base64url');
+        const expiresAt = new Date(now + 2 * 60 * 60 * 1000).toISOString();
+        await runAsync(
+          'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+          [targetTable, newToken, expiresAt, nowIso, storeId, storeId]
+        );
+      }
 
-    if (result.affectedRows === 0) {
-      return res.status(400).json({ error: '当前桌没有未结算订单可以转移' });
-    }
+      const result = await runAsync(
+        "UPDATE orders SET table_name=?, session_token=? WHERE table_name=? AND store_id=? AND status='pending'",
+        [targetTable, newToken, fromTable, storeId]
+      );
+      if (result.affectedRows === 0) {
+        throw Object.assign(new Error('当前桌没有未结算订单可以转移'), { status: 400 });
+      }
 
-    // 删除源桌的旧 session
-    await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at > ?', [fromTable, storeId, nowIso]);
+      await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [fromTable, storeId]);
+      await syncTableStatus(fromTable, storeId);
+      await syncTableStatus(targetTable, storeId);
+      return result.affectedRows;
+    });
 
-    await syncTableStatus(fromTable, storeId);
-    await syncTableStatus(targetTable, storeId);
-
-    io.to('waiter-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: result.affectedRows });
-    io.to('kitchen-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: result.affectedRows });
-    io.to('cashier-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: result.affectedRows });
-
-    res.json({ success: true, from: fromTable, to: targetTable, count: result.affectedRows });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    io.to('waiter-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: moved });
+    io.to('kitchen-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: moved });
+    io.to('cashier-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: moved });
+    res.json({ success: true, from: fromTable, to: targetTable, count: moved });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.status ? e.message : '整桌转移失败' });
+  }
 });
 
 // ----- 转移订单 -----
