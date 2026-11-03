@@ -78,57 +78,73 @@ app.get('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
   try {
     const { name, code, username, password, contact_name, contact_phone, max_stores, country } = req.body || {};
-    if (!name) return res.status(400).json({ error: '商户名称必填' });
-    if (!username || !username.trim()) return res.status(400).json({ error: '登录账号必填' });
-    const adminUsername = username.trim();
-    const userExists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [adminUsername]);
-    if (userExists) return res.status(400).json({ error: '登录账号已存在' });
-    let merchantCode = (code && code.trim()) ? code.trim() : '';
-    if (merchantCode) {
-      const codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [merchantCode]);
-      if (codeExists) return res.status(400).json({ error: '商户编码已存在' });
-    } else {
-      const now = new Date();
-      const yy = String(now.getFullYear()).slice(-2);
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const monthPrefix = yy + mm;
-      const monthCountRow = await getAsync("SELECT COUNT(*) AS cnt FROM merchants WHERE code LIKE ?", [monthPrefix + '%']);
-      let seq = monthCountRow.cnt + 1;
-      let generatedCode, codeExists;
-      do {
-        generatedCode = monthPrefix + String(seq).padStart(4, '0');
-        codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [generatedCode]);
-        if (codeExists) seq++;
-      } while (codeExists);
-      merchantCode = generatedCode;
+    const merchantName = typeof name === 'string' ? name.trim() : '';
+    const adminUsername = typeof username === 'string' ? username.trim() : '';
+    if (!merchantName || merchantName.length > 120) return res.status(400).json({ error: '商户名称必填且不能超过 120 个字符' });
+    if (!adminUsername || adminUsername.length > 100) return res.status(400).json({ error: '登录账号必填且不能超过 100 个字符' });
+    const storeLimit = max_stores === undefined || max_stores === null || max_stores === '' ? 1 : Number(max_stores);
+    if (!Number.isSafeInteger(storeLimit) || storeLimit < 1 || storeLimit > 1000) {
+      return res.status(400).json({ error: '门店数量上限必须为 1 至 1000 的整数' });
     }
-    const _country = String(country || '').trim().toUpperCase().slice(0, 4);
-    const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status, country) VALUES (?, ?, ?, ?, ?, 1, ?)', [name, merchantCode, contact_name || '', contact_phone || '', max_stores || 1, _country]);
-    const newMerchantId = result.lastID;
     const adminPassword = (password && String(password).trim())
       ? String(password).trim()
       : crypto.randomBytes(24).toString('base64url');
     if (adminPassword.length < 12 || adminPassword.length > 128) {
       return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
     }
-    const adminHash = hashPassword(adminPassword);
-    await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
-    for (const currency of [
-      ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
-      ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
-    ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
-    const defaultStoreName = name + '总店';
-    const defaultStoreCode = merchantCode.toLowerCase() + '-main';
-    const storeRes = await runAsync('INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)', [newMerchantId, defaultStoreName, defaultStoreCode, '']);
-    // ★ 初始化商户级 + 默认门店级 settings
-    await initMerchantSettings(runAsync, newMerchantId);
-    await initStoreSettings(runAsync, storeRes.lastID);
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
-      `创建商户「${name}」(编码: ${merchantCode}, 账号: ${adminUsername})`, getClientIp(req));
-    res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
 
+    const userExists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [adminUsername]);
+    if (userExists) return res.status(400).json({ error: '登录账号已存在' });
+    let merchantCode = (typeof code === 'string' && code.trim()) ? code.trim() : '';
+    if (merchantCode.length > 40) return res.status(400).json({ error: '商户编码不能超过 40 个字符' });
+    if (merchantCode) {
+      const codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [merchantCode]);
+      if (codeExists) return res.status(400).json({ error: '商户编码已存在' });
+    } else {
+      const now = new Date();
+      const monthPrefix = String(now.getFullYear()).slice(-2) + String(now.getMonth() + 1).padStart(2, '0');
+      const monthCountRow = await getAsync("SELECT COUNT(*) AS cnt FROM merchants WHERE code LIKE ?", [monthPrefix + '%']);
+      let seq = Number(monthCountRow?.cnt || 0) + 1;
+      do {
+        merchantCode = monthPrefix + String(seq).padStart(4, '0');
+        seq++;
+      } while (await getAsync('SELECT id FROM merchants WHERE code=?', [merchantCode]));
+    }
+
+    const countryCode = String(country || '').trim().toUpperCase().slice(0, 4);
+    const adminHash = hashPassword(adminPassword);
+    let newMerchantId;
+    await withTransaction(async () => {
+      const result = await runAsync(
+        'INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status, country) VALUES (?, ?, ?, ?, ?, 1, ?)',
+        [merchantName, merchantCode, String(contact_name || '').slice(0, 120), String(contact_phone || '').slice(0, 40), storeLimit, countryCode]
+      );
+      newMerchantId = result.lastID;
+      await runAsync(
+        'INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)',
+        [newMerchantId, adminUsername, adminHash, merchantName + '管理员']
+      );
+      for (const currency of [
+        ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
+        ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
+      ]) {
+        await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
+      }
+      const storeRes = await runAsync(
+        'INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)',
+        [newMerchantId, merchantName + '总店', merchantCode.toLowerCase() + '-main', '']
+      );
+      await initMerchantSettings(runAsync, newMerchantId);
+      await initStoreSettings(runAsync, storeRes.lastID);
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
+        `创建商户「${merchantName}」(编码: ${merchantCode}, 账号: ${adminUsername})`, getClientIp(req));
+    });
+    res.status(201).json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '商户编码或登录账号已存在，请刷新后重试' });
+    res.status(500).json({ error: '创建商户失败' });
+  }
+});
 app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
     const { name, username, password, contact_name, contact_phone, max_stores, status, country } = req.body || {};
