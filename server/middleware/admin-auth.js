@@ -98,7 +98,7 @@ async function authenticateAdmin(req) {
       if (!Number.isSafeInteger(storeId) || storeId <= 0) {
         return { error: '指定的店铺编号无效', code: 'INVALID_STORE_ID' };
       }
-      const store = await getAsync('SELECT id, merchant_id FROM stores WHERE id=? AND active=1', [storeId]);
+      const store = await getAsync('SELECT s.id, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return { error: '指定的店铺不存在或已停用', code: 'STORE_NOT_ACTIVE' };
       return { storeId: Number(store.id), merchantId: store.merchant_id, legacyApiKey: true };
     }
