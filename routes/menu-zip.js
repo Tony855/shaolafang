@@ -84,6 +84,10 @@ module.exports = function(app, deps) {
       let payload;
       try { payload = JSON.parse(jsonEntry.getData().toString('utf8')); }
       catch (e) { try { fs.unlinkSync(zipPath); } catch (_) {} return res.status(400).json({ error: 'menu.json 解析失败：' + e.message }); }
+      if (!payload || payload.format !== 'foodflow-menu' || payload.version !== 1) {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        return res.status(400).json({ error: '不支持的菜单 ZIP 格式或版本' });
+      }
       const items = Array.isArray(payload.menus) ? payload.menus : [];
       if (items.length > 2000) {
         try { fs.unlinkSync(zipPath); } catch (_) {}
