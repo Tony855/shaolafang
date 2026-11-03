@@ -316,12 +316,13 @@ async function isLoginLocked(username, type) {
   const lockSettings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_lock_minutes'");
   const maxAttempts = Math.max(1, parseInt(settings?.value || '5', 10) || 5);
   const lockMinutes = Math.max(1, parseInt(lockSettings?.value || '15', 10) || 15);
+  const cutoff = new Date(Date.now() - lockMinutes * 60 * 1000).toISOString();
   const recent = await getAsync(
     "SELECT COUNT(*) AS count, MAX(createdAt) AS last_attempt " +
     "FROM login_logs WHERE username=? AND login_type=? AND success=0 " +
-    "AND createdAt >= DATE_SUB(NOW(), INTERVAL ? MINUTE) " +
-    "AND createdAt > COALESCE((SELECT MAX(createdAt) FROM login_logs WHERE username=? AND login_type=? AND success=1), '1970-01-01 00:00:00')",
-    [String(username || '').slice(0, 191), type, lockMinutes, String(username || '').slice(0, 191), type]
+    "AND createdAt >= ? " +
+    "AND createdAt > COALESCE((SELECT MAX(createdAt) FROM login_logs WHERE username=? AND login_type=? AND success=1), '')",
+    [String(username || '').slice(0, 100), type, cutoff, String(username || '').slice(0, 100), type]
   );
   const count = Number(recent?.count || 0);
   if (count >= maxAttempts && recent.last_attempt) {
