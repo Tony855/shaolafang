@@ -46,14 +46,11 @@
     cp .env.example .env
     node server.js
 
-## 默认账号
+## 首次登录账号
 
-| 角色 | 用户名 | 密码 |
-|------|-------|------|
-| 超级管理员 | superadmin | super123 |
-| 商户管理员 | admin | admin123 |
-| 服务员 | waiter | 123456 |
-| 收银员 | — | 由商户后台自行创建 |
+首次初始化时，系统默认用户名为 `superadmin`、`admin`、`waiter`。密码由服务端随机生成，不再使用公开的固定默认密码。
+
+首次初始化凭据写入服务器 `/etc/foodflow/initial-credentials.txt`，文件权限为 `0600`。请仅通过服务器本机安全渠道读取并立即修改密码。收银员由商户后台自行创建。
 
 ## 常用命令
 
@@ -103,7 +100,7 @@ A：硬刷新 Ctrl+Shift+R，检查 languages.min.js?v=。
 
     sudo bash uninstall.sh
 
-会删除应用文件、数据库、systemd 服务、Nginx 配置。系统软件保留。
+会卸载应用程序和服务。数据库默认保留；上传文件、备份和配置会先归档，避免误删生产数据。
 
 ## 许可
 
