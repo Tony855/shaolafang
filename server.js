@@ -256,7 +256,7 @@ app.get('/service-worker.js', (req, res) => {
 // i18n 按需加载
 const i18nCache = {};
 // ----- 页面路由+i18n+qr-print -----
-require('./routes/pages.js')(app, { getAsync, path, fs, QRCode, __dirname });
+require('./routes/pages.js')(app, { getAsync, path, fs, QRCode, __dirname, requireAdminKey, requirePermission });
 
 
 // ---------- 文件上传 ----------
