@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const buildScript = fs.readFileSync(path.join(root, 'scripts/build-admin-bundle.js'), 'utf8');
-const modulePaths = [...buildScript.matchAll(/'(pages\\/admin\\/[^']+\\.js)'/g)].map(match => match[1]);
+const modulePaths = [...buildScript.matchAll(/'(pages\/admin\/[^']+\.js)'/g)].map(match => match[1]);
 const bundle = fs.readFileSync(path.join(root, 'assets/admin-bundle.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
 
@@ -20,5 +20,5 @@ test('committed admin bundle contains the current source of every admin module',
 });
 
 test('admin HTML references a versioned bundle URL', () => {
-  assert.match(html, /assets\\/admin-bundle\\.js\\?v=\\d+/);
+  assert.match(html, /assets\/admin-bundle\.js\?v=\d+/);
 });
