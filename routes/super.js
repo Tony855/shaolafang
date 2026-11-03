@@ -566,7 +566,7 @@ app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '50mb' }), async (req, res) => {
   try {
     const data = req.body;
-    const tables = ['menus', 'tables', 'orders', 'order_sequences', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
+    const tables = ['merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies', 'order_sequences', 'orders', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'];
     if (!data || !data.tables || typeof data.tables !== 'object' || Array.isArray(data.tables)) {
       return res.status(400).json({ error: '备份文件格式无效' });
     }
@@ -597,9 +597,11 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
           }
         }
       }
+      for (const table of [...tables].reverse()) {
+        await runAsync(`DELETE FROM \`${table}\``);
+      }
       for (const table of tables) {
         const rows = data.tables[table];
-        await runAsync(`DELETE FROM \`${table}\``);
         for (const row of rows) {
           // Preserve primary keys so store_id, merchant_id and order references remain intact.
           const keys = Object.keys(row);
