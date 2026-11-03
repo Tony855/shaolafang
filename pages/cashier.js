@@ -861,7 +861,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       return;
     }
     refundOrderId = id;
-    document.getElementById('refundAmount').innerHTML = moneyHtml(Number(order.total) || 0);
+    const remaining = Math.max(0, Number(order.total || 0) - Number(order.refund_amount || 0));
+    document.getElementById('refundAmount').innerHTML = moneyHtml(remaining);
     document.getElementById('refundReason').value = '';
     document.getElementById('refundNote').value = '';
     document.getElementById('refundModal').classList.add('show');
@@ -937,9 +938,11 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     if (!order) { SLF.ui.toast('❌ ' + (t('orderNotFound') || '未找到订单')); return; }
     refundOrderId = order.id;
     const total = Number(order.total) || 0;
-    document.getElementById('refundAmount').innerHTML = moneyHtml(total);
+    const remaining = Math.max(0, total - Number(order.refund_amount || 0));
+    if (remaining <= 0) { SLF.ui.toast('❌ ' + (t('refundAlreadyComplete') || '订单已全额退款')); return; }
+    document.getElementById('refundAmount').innerHTML = moneyHtml(remaining);
     const _inp = document.getElementById('refundInput');
-    if (_inp) _inp.value = total.toFixed(2);
+    if (_inp) _inp.value = remaining.toFixed(2);
     document.getElementById('refundReason').value = '';
     document.getElementById('refundModal').classList.add('show');
     setTimeout(() => { const el = document.getElementById('refundInput'); if (el) el.focus(); }, 100);
@@ -956,11 +959,12 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     if (!order) { SLF.ui.toast('❌ ' + (t('orderNotFound') || '未找到订单')); return; }
     const reason = document.getElementById('refundReason').value.trim();
     const total = Number(order.total) || 0;
+    const remaining = Math.max(0, total - Number(order.refund_amount || 0));
     const _inpEl = document.getElementById('refundInput');
-    const amount = _inpEl ? (parseFloat(_inpEl.value) || 0) : total;
+    const amount = _inpEl ? (Number(_inpEl.value) || 0) : remaining;
 
     if (amount <= 0) { SLF.ui.toast('❌ ' + (t('refundMustBePositive') || '退款金额必须大于 0')); return; }
-    if (amount > total) { SLF.ui.toast('❌ ' + (t('refundExceedsTotal') || '退款金额不能超过订单金额')); return; }
+    if (amount > remaining) { SLF.ui.toast('❌ ' + (t('refundExceedsTotal') || '退款金额不能超过剩余可退款金额')); return; }
 
     const btn = document.getElementById('confirmRefundBtn');
     btn.disabled = true;
