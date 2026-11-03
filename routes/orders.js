@@ -793,23 +793,82 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
 
 app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_delete_order'), async (req, res) => {
   try {
-    const id = req.params.id;
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '订单编号无效' });
     const { password } = req.body || {};
-    if (!password) {
-      return res.status(400).json({ error: '请输入管理员密码' });
-    }
-    const currentAdmin = await getAsync('SELECT password_hash FROM merchant_admins WHERE id=?', [req.adminId]);
+    if (!password) return res.status(400).json({ error: '请输入管理员密码' });
+
+    const currentAdmin = await getAsync(
+      'SELECT password_hash, username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',
+      [req.adminId, req.merchantId]
+    );
     if (!currentAdmin || !verifyPassword(password, currentAdmin.password_hash)) {
       return res.status(401).json({ error: '密码错误' });
     }
-    const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    const existing = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
-    const result = await runAsync('DELETE FROM orders WHERE id = ? AND store_id = ?', [id, req.storeId]);
-    if (result.changes === 0) return res.status(404).json({ error: '订单不存在' });
-    if (existing) await syncTableStatus(existing.table_name, existing.store_id);
+
+    let deletedOrder = null;
+    await withTransaction(async () => {
+      // Lock table -> order, consistent with settlement, transfer and table mutation.
+      const lockedTable = await getAsync(
+        'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+        [existing.table_name, req.storeId]
+      );
+      if (!lockedTable) throw Object.assign(new Error('订单关联桌台已变化，删除操作已中止'), { status: 409 });
+
+      const lockedOrder = await getAsync(
+        'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+        [id, req.storeId]
+      );
+      if (!lockedOrder) throw Object.assign(new Error('订单不存在或已被删除'), { status: 404 });
+      if (lockedOrder.table_name !== existing.table_name) {
+        throw Object.assign(new Error('订单桌台已变化，请刷新后重试'), { status: 409 });
+      }
+
+      const result = await runAsync(
+        'DELETE FROM orders WHERE id=? AND store_id=?',
+        [id, req.storeId]
+      );
+      if (!result.affectedRows) throw Object.assign(new Error('订单不存在或已被删除'), { status: 404 });
+
+      await syncTableStatus(lockedOrder.table_name, req.storeId);
+      const pending = await getAsync(
+        "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+        [lockedOrder.table_name, req.storeId]
+      );
+      if (!pending || Number(pending.cnt) === 0) {
+        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, req.storeId]);
+      }
+
+      await logAudit(
+        'merchant_admin',
+        req.adminId,
+        currentAdmin.username,
+        'delete_order',
+        'order',
+        id,
+        JSON.stringify({
+          order_no: lockedOrder.order_no,
+          table_name: lockedOrder.table_name,
+          status: lockedOrder.status,
+          total: lockedOrder.total,
+          pay_method: lockedOrder.pay_method,
+          refund_amount: lockedOrder.refund_amount
+        }),
+        getClientIp(req)
+      );
+      deletedOrder = lockedOrder;
+    });
+
+    const payload = { orderId: id };
+    io.to('kitchen-' + req.storeId).emit('order:deleted', payload);
+    io.to('waiter-' + req.storeId).emit('order:deleted', payload);
+    io.to('cashier-' + req.storeId).emit('order:deleted', payload);
+    io.to('public-table-' + req.storeId + '-' + deletedOrder.table_name).emit('order:deleted', payload);
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
 
