@@ -63,15 +63,15 @@ update_existing_install() {
         cd "$target"
         old_sha=$(git rev-parse HEAD 2>/dev/null || true)
         local old_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        git fetch origin main || { log_error "git fetch 失败"; return 1; }
-        git reset --hard origin/main || { log_error "git reset 失败"; return 1; }
+        git fetch origin "$GIT_VERSION" || { log_error "git fetch $GIT_VERSION 失败"; return 1; }
+        git reset --hard FETCH_HEAD || { log_error "git reset $GIT_VERSION 失败"; return 1; }
         local new_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
         log_success "代码已更新: $old_rev -> $new_rev"
     else
         log_info "非 git 仓库，从远端 clone 后覆盖同步..."
         local tmp_clone="/tmp/foodflow-update-$ts"
         rm -rf "$tmp_clone"
-        git clone --depth 1 --branch main "$FOODFLOW_REPO" "$tmp_clone" || {
+        git clone --depth 1 --branch "$GIT_VERSION" "$FOODFLOW_REPO" "$tmp_clone" || {
             log_error "clone 失败"
             rm -rf "$tmp_clone"
             return 1
@@ -90,8 +90,8 @@ update_existing_install() {
         [ -d .git ] || git init -q
         git remote remove origin 2>/dev/null || true
         git remote add origin "$FOODFLOW_REPO"
-        git fetch -q origin main 2>/dev/null || true
-        git reset --hard origin/main 2>/dev/null || true
+        git fetch -q origin "$GIT_VERSION" 2>/dev/null || true
+        git reset --hard FETCH_HEAD 2>/dev/null || true
         log_success "代码已同步到最新"
     fi
 
@@ -221,7 +221,7 @@ check_system() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         OS_NAME="$NAME"
-        OS_VERSION="$GIT_VERSION_ID"
+        OS_VERSION="$VERSION_ID"
         log_info "操作系统：$OS_NAME $OS_VERSION"
     else
         log_error "无法识别操作系统，支持 Debian 11+ / Ubuntu 20.04+"
