@@ -4,6 +4,11 @@
 module.exports = function(app, deps) {
   const { getAsync, allAsync, requireAdminKey, authenticateAdmin } = deps;
 
+  // Keep report aggregation aligned with the 200-item order API limit.
+  const JSON_ITEM_INDEXES = Array.from({ length: 200 }, (_, index) => index === 0
+    ? 'SELECT 0 AS idx'
+    : `UNION ALL SELECT ${index}`).join(' ');
+
   // 根据 scope 生成 store 过滤条件
   // 返回 { where, params, isAll }
   function buildStoreWhere(req, scope) {
@@ -72,7 +77,7 @@ module.exports = function(app, deps) {
                SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
                  - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS quantity
         FROM orders o
-        JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
+        JOIN (${JSON_ITEM_INDEXES}) n
           ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
         JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
         WHERE o.${swWhere.replace(/store_id/g, 'store_id')} AND o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?
@@ -109,7 +114,7 @@ module.exports = function(app, deps) {
           SELECT DATE_FORMAT(COALESCE(settled_at, createdAt), '%Y-%m') AS time_bucket,
                  COUNT(*) AS orders, SUM(total) AS revenue
           FROM orders
-          WHERE store_id=? AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
+          WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
           ORDER BY time_bucket
         `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
@@ -176,7 +181,7 @@ module.exports = function(app, deps) {
                SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
                  - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS sales_count
         FROM orders o
-        JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
+        JOIN (${JSON_ITEM_INDEXES}) n
           ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
         JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
         WHERE o.store_id=? AND o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?
@@ -216,9 +221,13 @@ module.exports = function(app, deps) {
       } else if (type === 'sales') {
         rows = await allAsync(`
           SELECT m.id, m.name, m.price, SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS total_qty,
-                 SUM((CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS DECIMAL(10,2)) - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS DECIMAL(10,2)), 0)) * m.price) AS total_revenue
+                 SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0))) * COALESCE(
+                   CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].base_price')) AS DECIMAL(12,4)),
+                   CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].price')) AS DECIMAL(12,4)),
+                   m.price
+                 )) AS total_revenue
           FROM orders o
-          JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
+          JOIN (${JSON_ITEM_INDEXES}) n
             ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
           JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
           WHERE o.store_id=? AND o.status = 'done'
@@ -304,10 +313,13 @@ module.exports.attachAdvancedExport = function(app, deps) {
           SELECT m.id, m.name, m.category, m.price,
                  SUM(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED)
                    - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)) AS total_qty,
-                 SUM((CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS DECIMAL(10,2)) - COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS DECIMAL(10,2)), 0)) * m.price) AS total_revenue
+                 SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0))) * COALESCE(
+                   CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].base_price')) AS DECIMAL(12,4)),
+                   CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].price')) AS DECIMAL(12,4)),
+                   m.price
+                 )) AS total_revenue
           FROM orders o
-          JOIN (SELECT 0 AS idx UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4
-                UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) n
+          JOIN (${JSON_ITEM_INDEXES}) n
             ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
           JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
           WHERE o.store_id=? AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? AND o.status IN (${stPlaceholders})
@@ -330,7 +342,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
         const rows = await allAsync(`
           SELECT table_name, COUNT(*) AS order_count, SUM(total) AS revenue, AVG(total) AS avg_order
           FROM orders
-          WHERE store_id=? AND createdAt >= ? AND createdAt <= ? AND status IN (${stPlaceholders})
+          WHERE store_id=? AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ? AND status IN (${stPlaceholders})
           GROUP BY table_name
           ORDER BY revenue DESC
         `, [storeId, startIso, endIso, ...statuses]);
