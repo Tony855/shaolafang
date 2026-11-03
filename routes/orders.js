@@ -410,108 +410,141 @@ app.post('/api/orders', async (req, res) => {
 
 app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   try {
-    const id = req.params.id;
-    const { table, items, status, note, pay_method } = req.body;
+    const id = Number(req.params.id);
+    const { table, items, status, note, pay_method } = req.body || {};
     const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
-    if (existing.status === 'done') return res.status(409).json({ error: '已完成订单不能编辑' });
-    // ★ 服务员：订单已通知收银员后，禁止任何编辑（管理员不受限）
-    if (!req.isAdmin && existing.awaiting_confirm) {
-      return res.status(409).json({ error: '订单已通知收银员，无法修改' });
-    }
+    if (existing.status !== 'pending') return res.status(409).json({ error: '只有待处理订单可以编辑' });
+    if (!req.isAdmin && existing.awaiting_confirm) return res.status(409).json({ error: '订单已通知收银员，无法修改' });
     if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_edit_order)) {
       return res.status(403).json({ error: '无权修改订单' });
     }
+    if (status !== undefined && !['pending', 'done'].includes(status)) {
+      return res.status(400).json({ error: '不支持的订单状态，请使用专用取消/退款接口' });
+    }
+    const waiterCompletion = status === 'done' && !req.isAdmin && Boolean(req.waiter);
+    if (waiterCompletion && !req.waiter.can_complete_order) {
+      return res.status(403).json({ error: '该服务员没有提交订单结算权限' });
+    }
+
     let currentItems = existing.items;
     if (typeof currentItems === 'string') {
       try { currentItems = JSON.parse(currentItems); } catch (_) { currentItems = []; }
-    } else if (!Array.isArray(currentItems)) {
-      currentItems = [];
     }
-    let newItems = [];
+    if (!Array.isArray(currentItems)) currentItems = [];
+
+    let newItems;
     if (items === undefined || items === null) {
       newItems = currentItems;
     } else {
-      if (!Array.isArray(items)) {
-        return res.status(400).json({ error: 'items 必须是数组' });
+      if (!Array.isArray(items) || items.length === 0 || items.length > 200) {
+        return res.status(400).json({ error: '订单菜品必须为 1 至 200 项的数组' });
       }
-      if (items.length === 0) {
-        newItems = [];
-      } else {
-        newItems = await normalizeOrderItems(items, orderStoreId);
-        for (let i = 0; i < newItems.length; i++) {
-          if (items[i] && (items[i].itemStatus === 'done' || items[i].itemStatus === 'pending')) {
-            newItems[i].itemStatus = items[i].itemStatus;
-          }
+      newItems = await normalizeOrderItems(items, orderStoreId);
+      const previousByMenuId = new Map(currentItems.map(item => [String(item.id), item]));
+      for (const item of newItems) {
+        const previous = previousByMenuId.get(String(item.id));
+        if (previous && Number(previous.quantity) === Number(item.quantity)) {
+          if (['done', 'pending'].includes(previous.itemStatus)) item.itemStatus = previous.itemStatus;
+          item.returnedQty = Math.min(Number(previous.returnedQty) || 0, Number(item.quantity));
         }
       }
     }
-    const calculatedTotal = newItems.reduce((sum, item) => sum + (Number(item.base_price) || Number(item.price)) * item.quantity, 0);
-    if (status === 'done') {
-      if (!req.isAdmin && req.waiter && !req.waiter.can_complete_order) {
-        return res.status(403).json({ error: '该服务员没有结算订单权限' });
-      }
-      if (newItems.some(item => item.itemStatus !== 'done')) {
-        return res.status(409).json({ error: '存在未完成菜品，请先完成或删除该菜品后再结算订单' });
-      }
+    if (!Array.isArray(newItems) || newItems.length === 0) {
+      return res.status(400).json({ error: '订单至少需要一道菜品' });
     }
+
+    const calculatedTotal = newItems.reduce((sum, item) => {
+      const unitPrice = Number(item.base_price ?? item.price);
+      const quantity = Number(item.quantity);
+      const returnedQty = Math.max(0, Math.min(Number(item.returnedQty) || 0, quantity));
+      return sum + unitPrice * (quantity - returnedQty);
+    }, 0);
+    if (!Number.isFinite(calculatedTotal) || calculatedTotal < 0 || calculatedTotal > 1000000000) {
+      return res.status(400).json({ error: '订单金额无效或超出允许范围' });
+    }
+    if (status === 'done' && newItems.some(item => item.itemStatus !== 'done')) {
+      return res.status(409).json({ error: '存在未完成菜品，请先完成或删除该菜品后再结算订单' });
+    }
+
     const nextTable = table === undefined ? existing.table_name : await assertTableExists(table, orderStoreId);
     const itemsJson = JSON.stringify(newItems);
-    let nextNote = existing.note || '';
-    if (typeof note === 'string') {
-      nextNote = note.trim().slice(0, 200);
+    const nextNote = typeof note === 'string' ? note.trim().slice(0, 200) : (existing.note || '');
+    const paymentMethod = typeof pay_method === 'string' ? pay_method.trim().slice(0, 40) : '';
+    const now = new Date().toISOString();
+    let cashReceived = 0;
+    let cashChange = 0;
+    if (status === 'done' && req.isAdmin) {
+      if (!paymentMethod) return res.status(400).json({ error: '管理员直接结算必须指定收款方式' });
+      if (paymentMethod.toLowerCase() === 'cash') {
+        cashReceived = Number(req.body.cash_received);
+        if (!Number.isFinite(cashReceived) || cashReceived < calculatedTotal) {
+          return res.status(400).json({ error: '现金实收金额不足' });
+        }
+        cashChange = Math.round((cashReceived - calculatedTotal) * 100) / 100;
+      }
+    } else if (waiterCompletion) {
+      cashReceived = Math.max(0, Number(req.body.cash_received) || 0);
+      cashChange = Math.max(0, Number(req.body.cash_change) || 0);
     }
-    if (status === 'done' && typeof pay_method === 'string') {
-      const cashReceived = Number(req.body.cash_received) || 0;
-      const cashChange = Number(req.body.cash_change) || 0;
-      await runAsync(
-        'UPDATE orders SET table_name=?, items=?, total=?, status=?, note=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=?',
-        [nextTable, itemsJson, calculatedTotal, status, nextNote, pay_method.slice(0, 20), cashReceived, cashChange, id, orderStoreId]
-      );
-    } else {
-      await runAsync(
-        'UPDATE orders SET table_name=?, items=?, total=?, status=?, note=? WHERE id=? AND store_id=?',
-        [nextTable, itemsJson, calculatedTotal, status || existing.status, nextNote, id, orderStoreId]
-      );
-    }
-    const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
-    await syncTableStatus(nextTable, orderStoreId);
-    if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
 
-    // ★ 服务员端请求 status='done' → 强制改为"待收银员确认"（不再直接结算）
-    //   （管理员请求 status='done' 不受此限制，保留后台直接结算能力）
-    if (status === 'done' && !req.isAdmin && req.waiter) {
-      await runAsync(
-        'UPDATE orders SET status=?, awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=?',
-        ['pending', String(pay_method || '').slice(0, 20), Number(req.body.cash_received) || 0, Number(req.body.cash_change) || 0, id, orderStoreId]
-      );
-      const _o = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
-      // 广播给收银台
+    await withTransaction(async () => {
+      let update;
+      if (waiterCompletion) {
+        // A waiter may request settlement, but must never transiently mark an order as paid.
+        update = await runAsync(
+          "UPDATE orders SET table_name=?, items=?, total=?, note=?, status='pending', awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
+          [nextTable, itemsJson, calculatedTotal, nextNote, paymentMethod, cashReceived, cashChange, id, orderStoreId]
+        );
+      } else if (status === 'done' && req.isAdmin) {
+        update = await runAsync(
+          "UPDATE orders SET table_name=?, items=?, total=?, status='done', note=?, awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=?, settled_at=? WHERE id=? AND store_id=? AND status='pending'",
+          [nextTable, itemsJson, calculatedTotal, nextNote, paymentMethod, cashReceived, cashChange, now, id, orderStoreId]
+        );
+      } else {
+        update = await runAsync(
+          "UPDATE orders SET table_name=?, items=?, total=?, status='pending', note=? WHERE id=? AND store_id=? AND status='pending'",
+          [nextTable, itemsJson, calculatedTotal, nextNote, id, orderStoreId]
+        );
+      }
+      if (!update.affectedRows) {
+        const current = await getAsync('SELECT status, awaiting_confirm FROM orders WHERE id=? AND store_id=?', [id, orderStoreId]);
+        if (!current || current.status !== 'pending' || (waiterCompletion && current.awaiting_confirm)) {
+          const error = new Error('订单状态已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
+      }
+      await syncTableStatus(nextTable, orderStoreId);
+      if (nextTable !== existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
+      if (status === 'done' && req.isAdmin) {
+        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [nextTable, orderStoreId]);
+        if (!stillPending || Number(stillPending.cnt) === 0) {
+          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [nextTable, orderStoreId]);
+        }
+      }
+    });
+
+    const updatedRow = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
+    if (waiterCompletion) {
       io.to('cashier-' + orderStoreId).emit('khqr:awaiting', {
-        orderId: parseInt(id, 10),
-        table: _o.table_name,
-        orderNo: _o.order_no,
-        total: _o.total,
+        orderId: Number(id),
+        table: updatedRow.table_name,
+        orderNo: updatedRow.order_no,
+        total: updatedRow.total,
         storeId: orderStoreId,
       });
-      console.log('[waiter-settle] 桌 ' + _o.table_name + ' 服务员结算 → 待收银员确认');
-      return res.json(formatOrder(_o));
+    } else if (status === 'done' && req.isAdmin) {
+      io.to('kitchen-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
+      io.to('waiter-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
+      io.to('cashier-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
+      io.to('public-table-' + orderStoreId + '-' + updatedRow.table_name).emit('order:settled', { orderId: Number(id) });
     }
-
-    // 方案3：如果本次改状态为 done，且该桌已无未结订单，作废该桌所有 session
-    if (status === 'done') {
-      const _stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [nextTable, orderStoreId]);
-      if (!_stillPending || _stillPending.cnt === 0) {
-        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [nextTable, orderStoreId]);
-        console.log('[session-cleanup] 桌 ' + nextTable + ' 通过订单编辑结算，已作废其所有 session');
-      }
-    }
-
     res.json(formatOrder(updatedRow));
   } catch (e) {
     console.error('更新订单失败:', e);
-    res.status(500).json({ error: e.message });
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
 
