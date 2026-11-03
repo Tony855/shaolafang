@@ -233,14 +233,14 @@ test('sub-admin without table permission cannot list or move tables', async () =
   const listHandlers = routes.get('GET /api/tables');
   const listRes = response();
   let listNextCalled = false;
-  listHandlers[1]({ isAdmin: true, isPrimaryAdmin: false, adminPermissions: { can_manage_table: 0 } }, listRes, () => { listNextCalled = true; });
+  listHandlers[1]({ isAdmin: true, adminId: 55, isPrimaryAdmin: false, adminPermissions: { can_manage_table: 0 } }, listRes, () => { listNextCalled = true; });
   assert.equal(listRes.statusCode, 403);
   assert.equal(listNextCalled, false);
 
   const moveHandlers = routes.get('POST /api/tables/move');
   const moveRes = response();
   let moveNextCalled = false;
-  moveHandlers[1]({ isAdmin: true, isPrimaryAdmin: false, adminPermissions: { can_manage_table: 0 } }, moveRes, () => { moveNextCalled = true; });
+  moveHandlers[1]({ isAdmin: true, adminId: 55, isPrimaryAdmin: false, adminPermissions: { can_manage_table: 0 } }, moveRes, () => { moveNextCalled = true; });
   assert.equal(moveRes.statusCode, 403);
   assert.equal(moveNextCalled, false);
   assert.equal(databaseTouched, false);
