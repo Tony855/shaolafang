@@ -548,8 +548,11 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
       return res.status(401).json({ error: '旧密码错误' });
     }
     const hash = hashPassword(newPassword);
-    await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
+    await withTransaction(async () => {
+      await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
+      await runAsync('DELETE FROM super_sessions WHERE super_admin_id=? AND token<>?', [req.superAdmin.id, req.superSessionToken || '']);
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
+    });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
