@@ -4,6 +4,7 @@
 const path = require('path');
 const fs = require('fs');
 const { runAsync, getAsync, allAsync } = require('../db/helpers');
+const { parseRetentionDays, pruneAutoBackups } = require('./backup-retention');
 
 async function collectBackupData() {
   const tables = ['menus', 'tables', 'orders', 'order_sequences', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'waiters', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
@@ -18,15 +19,32 @@ async function autoBackupDatabase() {
   const backupDir = path.join(__dirname, '..', '..', 'backups');
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   const data = await collectBackupData();
-  const filename = path.join(backupDir, `auto-${new Date().toISOString().slice(0,10)}.json`);
-  fs.writeFileSync(filename, JSON.stringify(data, null, 2), { mode: 0o600 });
-  fs.chmodSync(filename, 0o600);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = path.join(backupDir, `auto-${timestamp}.json`);
+  const tempFilename = filename + `.tmp-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    fs.writeFileSync(tempFilename, JSON.stringify(data, null, 2), { flag: 'wx', mode: 0o600 });
+    fs.chmodSync(tempFilename, 0o600);
+    fs.renameSync(tempFilename, filename);
+  } catch (error) {
+    try { fs.unlinkSync(tempFilename); } catch (_) {}
+    throw error;
+  }
+
+  const retentionRow = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_retention_days'");
+  const retentionDays = parseRetentionDays(retentionRow?.value ?? 30);
+  const removed = pruneAutoBackups(backupDir, retentionDays);
+  if (removed > 0) console.log(`[backup] 已清理 ${removed} 个超过 ${retentionDays} 天的自动备份`);
+
   await runAsync("INSERT INTO settings (`key`, value) VALUES ('last_backup_at', ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [new Date().toISOString()]);
 }
 
 async function maybeAutoBackup() {
   const intervalRow = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
-  const intervalHours = Number(intervalRow?.value || 24);
+  const rawIntervalHours = Number(intervalRow?.value ?? 24);
+  const intervalHours = Number.isSafeInteger(rawIntervalHours) && rawIntervalHours >= 1
+    ? Math.min(rawIntervalHours, 168)
+    : 24;
   const lastRow = await getAsync("SELECT value FROM settings WHERE `key` = 'last_backup_at'");
   const lastTime = lastRow ? new Date(lastRow.value).getTime() : 0;
   if (Date.now() - lastTime >= intervalHours * 60 * 60 * 1000) {
@@ -39,7 +57,7 @@ async function autoCleanLogs() {
     const enabledRow = await getAsync("SELECT value FROM settings WHERE `key` = 'auto_clean_log_enabled'");
     if (!enabledRow || (enabledRow.value !== '1' && enabledRow.value !== 'true')) return;
     const daysRow = await getAsync("SELECT value FROM settings WHERE `key` = 'log_retention_days'");
-    const retentionDays = parseInt(daysRow?.value || '30', 10);
+    const retentionDays = parseRetentionDays(daysRow?.value ?? 30);
     const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
     const cleanLoginRow = await getAsync("SELECT value FROM settings WHERE `key` = 'clean_login_log'");
     const cleanAuditRow = await getAsync("SELECT value FROM settings WHERE `key` = 'clean_audit_log'");
