@@ -1,6 +1,18 @@
 /* ============================================================
    routes/admin-reports.js — 报表 + 管理员信息
    ============================================================ */
+
+function csvRow(values) {
+  return values.map(value => {
+    const raw = value === null || value === undefined ? '' : String(value);
+    // Spreadsheet programs may execute cells beginning with formula markers.
+    const safe = typeof value === 'string' && /^[\\s\\u0000-\\u001f]*[=+@-]/.test(raw)
+      ? "'" + raw
+      : raw;
+    return '"' + safe.replace(/"/g, '""') + '"';
+  }).join(',');
+}
+
 module.exports = function(app, deps) {
   const { getAsync, allAsync, requireAdminKey, authenticateAdmin } = deps;
 
@@ -240,11 +252,11 @@ module.exports = function(app, deps) {
       const csvRows = [headers.join(',')];
       for (const row of rows) {
         if (type === 'orders') {
-          csvRows.push([row.id, row.table_name, row.status, row.total, `"${(row.note||'').replace(/"/g,'""')}"`, row.createdAt].join(','));
+          csvRows.push(csvRow([row.id, row.table_name, row.status, row.total, row.note, row.createdAt]));
         } else if (type === 'menu') {
-          csvRows.push([row.id, `"${row.name}"`, `"${row.name_en||''}"`, row.price, row.currency_code, `"${row.category||''}"`, row.unit, row.active].join(','));
+          csvRows.push(csvRow([row.id, row.name, row.name_en || '', row.price, row.currency_code, row.category || '', row.unit, row.active]));
         } else if (type === 'sales') {
-          csvRows.push([row.id, `"${row.name}"`, row.price, row.total_qty || 0, row.total_revenue || 0].join(','));
+          csvRows.push(csvRow([row.id, row.name, row.price, row.total_qty || 0, row.total_revenue || 0]));
         }
       }
       const csv = '\uFEFF' + csvRows.join('\n');
@@ -291,17 +303,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
 
         csv = '\uFEFF订单ID,订单号,桌号,金额,状态,支付方式,备注,下单时间,结算时间\n';
         for (const r of rows) {
-          csv += [
-            r.id,
-            r.order_no || '',
-            `"${(r.table_name || '').replace(/"/g, '""')}"`,
-            r.total,
-            r.status,
-            r.pay_method || '',
-            `"${(r.note || '').replace(/"/g, '""')}"`,
-            r.createdAt,
-            r.settled_at || ''
-          ].join(',') + '\n';
+          csv += csvRow([r.id, r.order_no || '', r.table_name || '', r.total, r.status, r.pay_method || '', r.note || '', r.createdAt, r.settled_at || '']) + '\n';
         }
         filename = `orders_${startDate}_${endDate}.csv`;
 
@@ -328,9 +330,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
 
         csv = '\uFEFF菜品ID,菜品名称,分类,单价,销量,销售额\n';
         for (const r of rows) {
-          csv += [r.id, `"${(r.name || '').replace(/"/g, '""')}"`,
-                  `"${(r.category || '').replace(/"/g, '""')}"`,
-                  r.price, r.total_qty || 0, r.total_revenue || 0].join(',') + '\n';
+          csv += csvRow([r.id, r.name || '', r.category || '', r.price, r.total_qty || 0, r.total_revenue || 0]) + '\n';
         }
         filename = `sales_${startDate}_${endDate}.csv`;
 
@@ -347,7 +347,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
 
         csv = '\uFEFF桌号,订单数,总营收,客单价\n';
         for (const r of rows) {
-          csv += [r.table_name, r.order_count, r.revenue, Number(r.avg_order || 0).toFixed(2)].join(',') + '\n';
+          csv += csvRow([r.table_name, r.order_count, r.revenue, Number(r.avg_order || 0).toFixed(2)]) + '\n';
         }
         filename = `tables_${startDate}_${endDate}.csv`;
       } else {
