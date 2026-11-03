@@ -543,10 +543,12 @@ app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/backup/import', requireSuperAdmin, async (req, res) => {
   try {
     const data = req.body;
-    const tables = ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
+    const tables = ['menus', 'tables', 'orders', 'order_sequences', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
     if (!data || !data.tables || typeof data.tables !== 'object' || Array.isArray(data.tables)) {
       return res.status(400).json({ error: '备份文件格式无效' });
     }
+    // Older backups may not contain the order sequence table; restore it as empty for compatibility.
+    if (data.tables.order_sequences === undefined) data.tables.order_sequences = [];
     // Reject incomplete or malformed backups before deleting a single production row.
     for (const table of tables) {
       if (!Array.isArray(data.tables[table])) {
@@ -583,8 +585,12 @@ app.post('/api/super/backup/import', requireSuperAdmin, async (req, res) => {
           await runAsync(`INSERT INTO \`${table}\` (${keys.map(key => `\`${key}\``).join(', ')}) VALUES (${placeholders})`, values);
         }
       }
+      // Never restore live authentication/QR sessions from a backup; invalidate all old tokens.
+      for (const sessionTable of ['scan_sessions', 'waiter_sessions', 'cashier_sessions', 'admin_sessions', 'super_sessions']) {
+        await runAsync(`DELETE FROM \`${sessionTable}\``);
+      }
     });
-    res.json({ success: true, message: '备份已导入' });
+    res.json({ success: true, message: '备份已导入；所有旧登录和扫码会话已失效' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
