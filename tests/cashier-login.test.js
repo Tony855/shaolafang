@@ -27,7 +27,7 @@ function setup() {
     getAsync: async (sql) => {
       if (sql.includes('waiter_session_timeout') || sql.includes('cashier_session_timeout')) return { value: '12' };
       if (sql.includes('SELECT name FROM stores')) return { name: 'QA Store' };
-      if (sql.includes('SELECT merchant_id, name FROM stores')) return { merchant_id: 1, name: 'QA Store' };
+      if (sql.includes('SELECT s.merchant_id, s.name FROM stores')) return { merchant_id: 1, name: 'QA Store' };
       return null;
     },
     allAsync: async (sql) => {
