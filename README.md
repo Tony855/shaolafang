@@ -70,7 +70,7 @@
 | DB_USER / DB_PASSWORD | 数据库账号 | foodflow / 随机 |
 | UPLOAD_DIR | 上传目录 | ./uploads |
 | REDIS_URL | Redis 连接串（可选） | 空 |
-| RUN_SCHEDULED_TASKS | 是否跑定时任务 | true |
+| RUN_SCHEDULED_TASKS | 是否跑定时任务 | false（安装器会在单机模式显式设为 true） |
 
 ## 权限说明
 
