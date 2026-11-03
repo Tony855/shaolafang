@@ -360,7 +360,7 @@ app.post('/api/orders', async (req, res) => {
     // ---------- 3. 冷却检查 ----------
     const cooldownKey = sessionToken || ('store:' + finalStoreId + ':table:' + table);
     const cooldownMs = await getOrderCooldownMs();
-    const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs || 3000);
+    const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs);
     if (!canSubmit) {
       return res.status(429).json({ error: '操作过于频繁，请稍后再试' });
     }
