@@ -1096,10 +1096,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   /* ===== Socket ===== */
   if (typeof io === 'function') {
     const cashierSocket = io({
-      query: {
-        storeId: SLF.store.rawGet('cashierStoreId') || SLF.store.rawGet('storeId') || 1,
-        token: SLF.store.rawGet('cashierToken') || ''
-      }
+      query: { storeId: SLF.store.rawGet('cashierStoreId') || SLF.store.rawGet('storeId') || 1 },
+      auth: { token: SLF.store.rawGet('cashierToken') || '' }
     });
     function belongsToStore(o) {
       const sid = SLF.store.rawGet('cashierStoreId') || SLF.store.rawGet('storeId') || '1';
