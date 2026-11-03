@@ -73,19 +73,41 @@ const REDIS_URL = process.env.REDIS_URL || null;
 // ===== Redis 缓存层 =====
 let redisClient = null;
 let redisReady = false;
+let socketRedisPub = null;
+let socketRedisSub = null;
 async function initRedis() {
-  if (!redis || !REDIS_URL) return false;
+  if (!REDIS_URL) return false;
+  if (!redis) {
+    console.error('❌ REDIS_URL 已配置，但 redis 客户端依赖不可用；为避免多节点限流失效，将拒绝依赖 Redis 的操作');
+    return false;
+  }
+
+  let client = null;
   try {
-    redisClient = redis.createClient({ url: REDIS_URL });
-    redisClient.on('error', (err) => console.error('Redis连接错误:', err.message));
-    await redisClient.connect();
+    client = redis.createClient({ url: REDIS_URL });
+    client.on('error', err => console.error('Redis连接错误:', err.message));
+    await client.connect();
+    redisClient = client;
     redisReady = true;
-    try { const rs = require("./server/db/redis-state"); rs.client = redisClient; rs.ready = true; } catch(_) {}
+    try {
+      const state = require('./server/db/redis-state');
+      state.client = client;
+      state.ready = true;
+    } catch (_) {}
     console.log('✅ Redis缓存已连接');
     return true;
-  } catch(e) {
-    console.log('ℹ️ Redis未启用，使用内存缓存（单服务器模式）');
+  } catch (error) {
+    await closeRedisClient(client).catch(closeError => {
+      console.error('Redis连接失败后的资源清理失败:', closeError.message);
+    });
+    redisClient = null;
     redisReady = false;
+    try {
+      const state = require('./server/db/redis-state');
+      state.client = null;
+      state.ready = false;
+    } catch (_) {}
+    console.error('❌ Redis配置存在但连接失败；已关闭残留客户端，依赖Redis的请求将安全失败:', error.message);
     return false;
   }
 }
@@ -123,12 +145,21 @@ const cache = {
     }
   },
   async setIfAbsent(key, value, ttlSeconds) {
-    if (redisReady) {
-      const result = await redisClient.set(key, JSON.stringify(value), {
-        NX: true,
-        ...(ttlSeconds > 0 ? { EX: ttlSeconds } : {})
-      });
-      return result === 'OK';
+    if (REDIS_URL) {
+      // A configured Redis instance is authoritative for cross-node cooldowns.
+      // Fail closed while it is unavailable; per-process memory fallback would
+      // allow duplicate submissions across application nodes.
+      if (!redisReady || !redisClient || redisClient.isReady === false) return false;
+      try {
+        const result = await redisClient.set(key, JSON.stringify(value), {
+          NX: true,
+          ...(ttlSeconds > 0 ? { EX: ttlSeconds } : {})
+        });
+        return result === 'OK';
+      } catch (error) {
+        console.error('Redis cooldown acquisition failed:', error.message);
+        return false;
+      }
     }
     if (memoryCache.get(key) !== undefined && memoryCache.get(key) !== null) return false;
     memoryCache.set(key, value, ttlSeconds);
@@ -139,13 +170,7 @@ const cache = {
     else memoryCache.delete(key);
   }
 };
-async function checkAndSetCooldown(key, cooldownMs) {
-  let interval = Number(cooldownMs);
-  if (!Number.isFinite(interval) || interval < 0) interval = 30000;
-  if (interval === 0) return true;
-  const ttlSeconds = Math.max(1, Math.ceil(interval / 1000));
-  return cache.setIfAbsent('cooldown:' + key, Date.now(), ttlSeconds);
-}
+const checkAndSetCooldown = createCooldownChecker(cache);
 
 // ---------- 模块化引入（从 server/services 引入） ----------
 const { getClientIp, getLocationByIp } = require('./server/services/geo');
@@ -166,6 +191,8 @@ const {
   verifyLegacyAdminPassword,
 } = require('./server/services/order');
 const { allocateOrderNo, getOrderCooldownMs } = require('./server/services/orderNo');
+const { closeRedisClient, createGracefulShutdown } = require('./server/services/graceful-shutdown');
+const { createCooldownChecker } = require('./server/services/cooldown');
 
 const {
   collectBackupData,
@@ -1258,17 +1285,28 @@ io.on('connection', (socket) => {
 const isInitOnly = process.argv.includes('--init-only');
 
 async function initSocketAdapter() {
+  if (!REDIS_URL || !redis) return false;
+  let pub = null;
+  let sub = null;
   try {
     const { createAdapter } = require('@socket.io/redis-adapter');
-    const { createClient } = require('redis');
-    const url = process.env.REDIS_URL;
-    if (!url) return;
-    const pub = createClient({ url });
-    const sub = pub.duplicate();
+    pub = redis.createClient({ url: REDIS_URL });
+    sub = pub.duplicate();
+    pub.on('error', error => console.error('Socket.IO Redis publisher error:', error.message));
+    sub.on('error', error => console.error('Socket.IO Redis subscriber error:', error.message));
     await Promise.all([pub.connect(), sub.connect()]);
     io.adapter(createAdapter(pub, sub));
+    socketRedisPub = pub;
+    socketRedisSub = sub;
     console.log('✅ Socket.io Redis Adapter 已启用');
-  } catch (e) { console.warn('⚠️ Socket.io Adapter 失败:', e.message); }
+    return true;
+  } catch (error) {
+    await Promise.allSettled([closeRedisClient(pub), closeRedisClient(sub)]);
+    socketRedisPub = null;
+    socketRedisSub = null;
+    console.warn('⚠️ Socket.io Adapter 初始化失败，已清理连接:', error.message);
+    return false;
+  }
 }
 
 // ★ 启动时检查图标是否齐全（有缺失只告警，不阻断）
@@ -1338,13 +1376,29 @@ initDatabase().then(async () => {
   process.exit(1);
 });
 
-for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.on(signal, () => pool.end().then(() => process.exit(0)));
+const shutdown = createGracefulShutdown({
+  io,
+  pool,
+  getRedisClients: () => [redisClient, socketRedisPub, socketRedisSub],
+  logger: console
+});
+
+function exitAfterShutdown(reason, exitCode) {
+  shutdown(reason, exitCode)
+    .catch(error => console.error('[shutdown] Fatal cleanup error:', error))
+    .finally(() => process.exit(exitCode));
 }
 
-process.on('uncaughtException', (err) => {
-  console.error('未捕获的异常:', err);
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => exitAfterShutdown(signal, 0));
+}
+
+process.on('uncaughtException', error => {
+  console.error('未捕获的异常，正在安全关闭服务:', error);
+  exitAfterShutdown('uncaughtException', 1);
 });
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('未处理的 Promise 拒绝:', reason);
+
+process.on('unhandledRejection', reason => {
+  console.error('未处理的 Promise 拒绝，正在安全关闭服务:', reason);
+  exitAfterShutdown('unhandledRejection', 1);
 });
