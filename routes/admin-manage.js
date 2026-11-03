@@ -510,6 +510,7 @@ module.exports = function(app, deps) {
   app.post('/api/cashier/khqr/generate', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
       if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有生成收款码权限' });
+      if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
@@ -614,6 +615,7 @@ module.exports = function(app, deps) {
   app.post('/api/cashier/khqr/confirm', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
       if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有确认收款权限' });
+      if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
@@ -622,6 +624,9 @@ module.exports = function(app, deps) {
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
       if (order.status !== 'pending') return res.status(400).json({ error: '订单状态不允许确认' });
+      if (!Number(order.awaiting_confirm) && !order.pay_khqr_ref) {
+        return res.status(409).json({ error: '该订单尚未提交收款确认，也没有已生成的 KHQR 收款码' });
+      }
 
       // 身份由服务端认证中间件决定，不能信任客户端传入的 role。
       if (req.waiter) {
