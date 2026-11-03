@@ -48,23 +48,42 @@ async function compressImage(filePath, opts) {
         const w = img.bitmap.width;
         const h = img.bitmap.height;
 
-        // 长边超过 maxDim 才缩放
+        // Jimp 1.x 已移除 AUTO 和 quality()；旧版仍保留原 positional API。
         if (w > maxDim || h > maxDim) {
-            if (w >= h) img.resize(maxDim, Jimp.AUTO);
-            else img.resize(Jimp.AUTO, maxDim);
+            if (Jimp.AUTO !== undefined) {
+                if (w >= h) img.resize(maxDim, Jimp.AUTO);
+                else img.resize(Jimp.AUTO, maxDim);
+            } else if (w >= h) {
+                img.resize({ w: maxDim });
+            } else {
+                img.resize({ h: maxDim });
+            }
         }
 
-        // 统一存为 JPEG（体积小，透明背景转白）
+        // 使用 Jimp 1.x 的编码 options；写临时文件，确认变小后再原子替换原图。
         const outPath = filePath.replace(/\.(png|webp|jpeg|jpg)$/i, '.jpg');
-        img.quality(quality);
-        await img.writeAsync ? img.writeAsync(outPath) : await img.write(outPath);
+        let encoded;
+        if (typeof img.getBuffer === 'function') {
+            encoded = await img.getBuffer('image/jpeg', { quality });
+        } else {
+            if (typeof img.quality === 'function') img.quality(quality);
+            const jpegMime = Jimp.MIME_JPEG || 'image/jpeg';
+            if (typeof img.getBufferAsync === 'function') encoded = await img.getBufferAsync(jpegMime);
+            else throw new Error('当前 Jimp 版本不支持 JPEG 编码');
+        }
+        if (!Buffer.isBuffer(encoded) || encoded.length === 0) throw new Error('图片编码结果为空');
 
-        // 如果原路径和新路径不同，删除原文件
-        if (outPath !== filePath && fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
+        const tempPath = outPath.replace(/\.jpg$/i, '.tmp-' + Date.now() + '.jpg');
+        fs.writeFileSync(tempPath, encoded, { mode: 0o640 });
+        const compressedSize = fs.statSync(tempPath).size;
+        if (compressedSize >= originalSize) {
+            fs.unlinkSync(tempPath);
+            return { skipped: true, reason: 'compressed image is not smaller', originalSize, compressedSize };
         }
 
-        const compressedSize = fs.statSync(outPath).size;
+        fs.renameSync(tempPath, outPath);
+        if (outPath !== filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
         return {
             skipped: false,
             originalSize,
