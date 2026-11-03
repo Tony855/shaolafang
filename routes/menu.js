@@ -30,7 +30,10 @@ module.exports = function(app, deps) {
 
 app.get('/api/menu', async (req, res) => {
   try {
-    const storeId = parseInt(req.query.store_id || '1', 10);
+    const storeId = Number(req.query.store_id ?? 1);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(400).json({ error: '店铺编号无效' });
+    const store = await getAsync('SELECT id FROM stores WHERE id=? AND active=1', [storeId]);
+    if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
     const rows = await allAsync('SELECT * FROM menus WHERE active = 1 AND store_id = ? ORDER BY id', [storeId]);
     res.json(rows);
   } catch (e) {
