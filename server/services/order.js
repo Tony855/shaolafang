@@ -63,7 +63,8 @@ async function normalizeOrderItems(items, storeId) {
       base_price: Number(menuItem.price) / Number(currency.rate),
       quantity,
       emoji: menuItem.emoji || '🍽️',
-      itemStatus: item.itemStatus || 'pending',
+      // Kitchen status is server-controlled; never accept it from customer/order payloads.
+      itemStatus: 'pending',
       show_dual: 0,
       secondary_currency_code: '',
       unit: item.unit || menuItem.unit || '份'
