@@ -121,6 +121,25 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
     req.adminSessionToken = adminResult.sessionToken;
     req.storeId = adminResult.storeId || parseInt(req.get('X-Store-Id') || '0', 10);
     req.isAdmin = true;
+    if (adminResult.adminId && adminResult.merchantId) {
+      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1', [adminResult.adminId, adminResult.merchantId]);
+      if (!admin) return res.status(401).json({ error: '管理员账号已停用或不存在' });
+      const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [adminResult.merchantId]);
+      req.isPrimaryAdmin = Boolean(primaryAdmin && String(primaryAdmin.id) === String(admin.id));
+      req.adminPermissions = {
+        can_manage_menu: req.isPrimaryAdmin || admin.can_manage_menu ? 1 : 0,
+        can_manage_table: req.isPrimaryAdmin || admin.can_manage_table ? 1 : 0,
+        can_manage_order: req.isPrimaryAdmin || admin.can_manage_order ? 1 : 0,
+        can_delete_order: req.isPrimaryAdmin || admin.can_delete_order ? 1 : 0,
+        can_edit_order: req.isPrimaryAdmin || admin.can_edit_order ? 1 : 0,
+        can_manage_store: req.isPrimaryAdmin || admin.can_manage_store ? 1 : 0,
+        can_manage_waiter: req.isPrimaryAdmin || admin.can_manage_waiter ? 1 : 0,
+        can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
+        can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
+        can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
+        can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0
+      };
+    }
     return next();
   }
   // 2) 试收银员
