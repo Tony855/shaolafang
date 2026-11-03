@@ -292,7 +292,7 @@
                 }
 
                 if (sessionParam) {
-                    const info = await SLF.api.get(`/public/table-session/${encodeURIComponent(sessionParam)}/info`);
+                    const info = await SLF.api.get('/public/table-session/info', { headers: { 'X-Scan-Session': sessionParam } });
                     state.table = info.table;
                     state.storeId = info.storeId || 1;
                     state.scanToken = '';
@@ -392,10 +392,12 @@
             }
             try {
                 const ct = state.customerToken || SLF.store.rawGet('customer_token') || '';
-                const data = await SLF.api.get(
-                    `/public/table-session/${encodeURIComponent(state.scanSessionToken)}/orders` +
-                    (ct ? `?ct=${encodeURIComponent(ct)}` : '')
-                );
+                const data = await SLF.api.get('/public/table-session/orders', {
+                    headers: {
+                        'X-Scan-Session': state.scanSessionToken,
+                        'X-Customer-Token': ct
+                    }
+                });
 
                 const orderStatusMap = {
                     'pending': t('orderPending', null, '未结算'),
