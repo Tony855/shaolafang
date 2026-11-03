@@ -37,6 +37,13 @@
     return SLF.money;
   }
 
+  function safeSymbol(value) {
+    return String(value == null ? '' : value)
+      .replace(/[<>&"'\x60]/g, '')
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .slice(0, 8);
+  }
+
   function find(code) {
     for (var i = 0; i < currencies.length; i++) if (currencies[i].code === code) return currencies[i];
     return null;
@@ -59,7 +66,72 @@
 
   // base(USD) → 主币显示串
   function primary(base) {
-    var sym = primaryCur.symbol || '$';
+    var sym = safeSymbol(primaryCur.symbol) || '
+    var rate = Number(primaryCur.rate || 1);
+    return sym + (Number(base || 0) * rate).toFixed(decimalsOf(primaryCur.code));
+  }
+
+  // base(USD) → 指定副币显示串
+  function secondary(base, code) {
+    if (!code) return '';
+    var sc = find(code);
+    if (!sc) return '';
+    var rate = Number(sc.rate || 1);
+    return safeSymbol(sc.symbol) + (Number(base || 0) * rate).toFixed(decimalsOf(sc.code));
+  }
+
+  // base → '主币 (副币)' 或 '主币'
+  function format(base, opts) {
+    opts = opts || {};
+    var p = primary(base);
+    var secCode = opts.secondaryCode;
+    if (secCode === undefined) secCode = secondaryCur ? secondaryCur.code : null;
+    var secStr = secCode ? secondary(base, secCode) : '';
+    return secStr ? p + ' (' + secStr + ')' : p;
+  }
+
+  // 菜品价格：返回 { primary, secondary }
+  function menuPrice(item) {
+    var base = toBase(item.price, item.currency_code);
+    var p = primary(base);
+    var secStr = '';
+    if (secondaryCur) secStr = secondary(base, secondaryCur.code);
+    return { primary: p, secondary: secStr };
+  }
+
+  // 返回 HTML 字符串：主货币红色 + 副货币灰色（括号内）
+  function formatHtml(base) {
+    var p = primary(base);
+    var d = secondaryCur;
+    var sec = d ? secondary(base, d.code) : '';
+    return sec
+      ? '<span class="money-primary">' + p + '</span> <span class="money-secondary">(' + sec + ')</span>'
+      : '<span class="money-primary">' + p + '</span>';
+  }
+
+  SLF.money = {
+    configure: configure,
+    formatHtml: formatHtml,
+    toBase: toBase,
+    primary: primary,
+    secondary: secondary,
+    format: format,
+    menuPrice: menuPrice,
+    find: find
+  };
+
+  Object.defineProperty(SLF.money, 'currencies', { get: function () { return currencies; } });
+  Object.defineProperty(SLF.money, 'primaryCurrency', { get: function () { return primaryCur; } });
+  Object.defineProperty(SLF.money, 'secondaryCurrency', { get: function () { return secondaryCur; } });
+  // 兼容旧 getter
+  Object.defineProperty(SLF.money, 'default', { get: function () { return primaryCur; } });
+  Object.defineProperty(SLF.money, 'dual', {
+    get: function () {
+      return { enabled: !!secondaryCur, currency: secondaryCur };
+    }
+  });
+})(window);
+;
     var rate = Number(primaryCur.rate || 1);
     return sym + (Number(base || 0) * rate).toFixed(decimalsOf(primaryCur.code));
   }
