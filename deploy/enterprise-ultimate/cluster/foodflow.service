@@ -33,7 +33,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/www/foodflow/logs /mnt/shared/uploads
+ReadWritePaths=/var/www/foodflow/logs /var/www/foodflow/backups /mnt/shared/uploads
 ReadOnlyPaths=/var/www/foodflow
 
 StandardOutput=journal
