@@ -1178,7 +1178,7 @@ io.use(async (socket, next) => {
     // 1) 服务员/后厨（共用 waiter_sessions）
     const waiterSession = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
     if (waiterSession && Number.isFinite(new Date(waiterSession.expires_at).getTime()) && new Date(waiterSession.expires_at).getTime() > Date.now()) {
-      const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [waiterSession.waiter_id]);
+      const waiter = await getAsync('SELECT w.* FROM waiters w JOIN stores s ON s.id=w.store_id AND s.merchant_id=w.merchant_id AND s.active=1 JOIN merchants m ON m.id=w.merchant_id AND m.status=1 WHERE w.id=? AND w.active=1', [waiterSession.waiter_id]);
       if (waiter) {
         socket.data.role = 'waiter';
         socket.data.storeId = waiter.store_id || 1;
@@ -1190,7 +1190,11 @@ io.use(async (socket, next) => {
     // 2) 收银员
     const cashierSession = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
     if (cashierSession && Number.isFinite(new Date(cashierSession.expires_at).getTime()) && new Date(cashierSession.expires_at).getTime() > Date.now()) {
-      const cashierSettings = await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + cashierSession.store_id]);
+      const activeCashierStore = await getAsync(
+        'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
+        [cashierSession.store_id, cashierSession.merchant_id]
+      );
+      const cashierSettings = activeCashierStore ? await getAsync('SELECT value FROM settings WHERE `key`=?', ['cashiers_' + cashierSession.store_id]) : null;
       let cashierList = [];
       try { cashierList = JSON.parse(cashierSettings?.value || '[]'); } catch (_) {}
       const activeCashier = cashierList.find(item => String(item.id) === String(cashierSession.cashier_id) && item.active);
