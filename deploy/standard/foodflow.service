@@ -13,10 +13,12 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=root
-Group=root
+User=foodflow
+Group=www-data
 
 WorkingDirectory=/var/www/foodflow
+EnvironmentFile=/var/www/foodflow/.env
+ReadWritePaths=/var/www/foodflow/uploads /var/www/foodflow/backups /var/www/foodflow/logs
 
 # 使用 env 命令查找 node，避免路径写死
 ExecStart=/usr/bin/env node server.js
