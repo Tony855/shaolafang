@@ -2,12 +2,12 @@
    server/db/helpers.js — runAsync/getAsync/allAsync/withTransaction
    ============================================================ */
 const { AsyncLocalStorage } = require('async_hooks');
-const { pool } = require('./pool');
+const poolModule = require('./pool');
 
 const transactionStorage = new AsyncLocalStorage();
 
 async function runAsync(sql, params) {
-  const db = transactionStorage.getStore() || pool;
+  const db = transactionStorage.getStore() || poolModule.pool;
   const [result] = await db.execute(sql, params);
   return { lastID: result.insertId, insertId: result.insertId, changes: result.affectedRows, affectedRows: result.affectedRows };
 }
@@ -56,7 +56,7 @@ async function withTransaction(work) {
     }
   }
 
-  const conn = await pool.getConnection();
+  const conn = await poolModule.pool.getConnection();
   let transactionStarted = false;
   try {
     await conn.query('START TRANSACTION');
