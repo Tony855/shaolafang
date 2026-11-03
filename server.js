@@ -1023,7 +1023,7 @@ require('./routes/admin-system.js')(app, { getAsync, allAsync, runAsync, require
 
 // ----- 服务员登录 -----
 // ----- 服务员+收银员 -----
-require('./routes/cashier.js')(app, { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io });
+require('./routes/cashier.js')(app, { getAsync, runAsync, allAsync, withTransaction, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io });
 
 
 // ----- 服务员概览 -----
