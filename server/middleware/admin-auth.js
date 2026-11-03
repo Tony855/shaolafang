@@ -58,7 +58,8 @@ async function authenticateAdmin(req) {
             validStoreId = requestedStoreId;
           }
           const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_idle_timeout'");
-          const timeoutMinutes = parseInt(timeoutSetting?.value || '30', 10);
+          const configuredTimeoutMinutes = Number.parseInt(timeoutSetting?.value || '30', 10);
+          const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 30;
           const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
           runAsync('UPDATE admin_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
           return { adminId: admin.id, merchantId: admin.merchant_id, storeId: validStoreId, sessionToken: token };
@@ -180,7 +181,8 @@ async function requireAdminOrWaiter(req, res, next) {
         const expiresTime = new Date(session.expires_at).getTime();
         if (expiresTime - Date.now() < 60 * 60 * 1000) {
           const wTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
-          const wTimeoutHours = parseInt(wTimeoutSetting?.value || '12', 10);
+          const configuredWaiterTimeoutHours = Number.parseInt(wTimeoutSetting?.value || '12', 10);
+          const wTimeoutHours = Number.isSafeInteger(configuredWaiterTimeoutHours) && configuredWaiterTimeoutHours > 0 ? Math.min(configuredWaiterTimeoutHours, 720) : 12;
           const newExpires = new Date(Date.now() + wTimeoutHours * 60 * 60 * 1000).toISOString();
           runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(()=>{});
         }
