@@ -5,8 +5,6 @@ const crypto = require("crypto");
 const dns = require("dns").promises;
 const net = require("net");
 const fs = require("fs");
-const dns = require("dns").promises;
-const net = require("net");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
 
