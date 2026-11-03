@@ -2,6 +2,7 @@
    routes/auth.js — 登录/登出
    ============================================================ */
 const crypto = require('crypto');
+const { hashPassword, needsRehash } = require('../server/middleware/password');
 
 module.exports = function(app, deps) {
   const { getAsync, runAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts,
@@ -30,6 +31,10 @@ module.exports = function(app, deps) {
       }
       const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [admin.merchant_id]);
       if (!merchant || merchant.status !== 1) return res.status(403).json({ error: '商户账号已被禁用，请联系超级管理员' });
+      if (needsRehash(admin.password_hash)) {
+        const upgradedHash = hashPassword(password);
+        await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, admin.id, admin.password_hash]);
+      }
       resetLoginAttempts(username, 'merchant_admin');
       await runAsync('UPDATE merchant_admins SET last_login_at=NOW() WHERE id=?', [admin.id]);
       const clientIp = getClientIp(req);
