@@ -558,6 +558,12 @@
         lastOrders = lastOrders.filter(o => o.id !== id);
         renderTickets(lastOrders);
       });
+      socket.on('order:deleted', (payload) => {
+        const id = payload && payload.orderId;
+        if (!id) return;
+        lastOrders = lastOrders.filter(o => o.id !== id);
+        renderTickets(lastOrders);
+      });
 
       // 转移订单：涉及状态重组，仍拉全量
       let transferDebounce = null;
