@@ -15,6 +15,7 @@ check() {
 }
 
 TS=$(date +%s | tail -c 6)
+WAITER_TEST_PASSWORD=$(openssl rand -hex 16)
 echo "=============== 创建测试商户 ==============="
 
 CRED_FILE="${INIT_CRED_FILE:-/var/lib/foodflow/initial-credentials.txt}"
