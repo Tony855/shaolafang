@@ -95,10 +95,58 @@
             return 'ct_' + Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
         }
 
+        function sessionStorageGet(key) {
+            try { return window.sessionStorage.getItem(key) || ''; } catch (_) { return ''; }
+        }
+        function sessionStorageSet(key, value) {
+            try { window.sessionStorage.setItem(key, String(value)); return true; } catch (_) { return false; }
+        }
+        function sessionStorageRemove(key) {
+            try { window.sessionStorage.removeItem(key); } catch (_) {}
+        }
+        function getStoredCustomerToken() {
+            const current = sessionStorageGet('customer_token');
+            if (current) return current;
+            const legacy = getStoredCustomerToken() || '';
+            if (legacy && sessionStorageSet('customer_token', legacy)) clearStoredCustomerToken();
+            return legacy;
+        }
+        function setStoredCustomerToken(value) {
+            if (!sessionStorageSet('customer_token', value)) SLF.store.rawSet('customer_token', value);
+            else SLF.store.rawRemove('customer_token');
+        }
+        function clearStoredCustomerToken() {
+            sessionStorageRemove('customer_token');
+            SLF.store.rawRemove('customer_token');
+        }
+        function getStoredScanSessionToken() {
+            const current = sessionStorageGet('scan_session_token');
+            if (current) return current;
+            const legacy = SLF.store.rawGet('scan_session_token') || '';
+            if (legacy && sessionStorageSet('scan_session_token', legacy)) SLF.store.rawRemove('scan_session_token');
+            return legacy;
+        }
+        function setStoredScanSession(token, expiresAt) {
+            const saved = sessionStorageSet('scan_session_token', token) &&
+                sessionStorageSet('scan_session_expires_at', expiresAt);
+            if (!saved) {
+                SLF.store.rawSet('scan_session_token', token);
+                SLF.store.rawSet('scan_session_expires_at', expiresAt);
+            } else {
+                clearStoredScanSession();
+            }
+        }
+        function clearStoredScanSession() {
+            sessionStorageRemove('scan_session_token');
+            sessionStorageRemove('scan_session_expires_at');
+            SLF.store.rawRemove('scan_session_token');
+            SLF.store.rawRemove('scan_session_expires_at');
+        }
+
         // 页面初始化时自动生成唯一customer_token
-        if (!SLF.store.rawGet('customer_token')) {
+        if (!getStoredCustomerToken()) {
             state.customerToken = generateCustomerToken();
-            SLF.store.rawSet('customer_token', state.customerToken);
+            setStoredCustomerToken(state.customerToken);
         } else {
             state.customerToken = SLF.store.rawGet('customer_token');
         }
@@ -287,12 +335,11 @@
                 const query = new URLSearchParams(window.location.search);
                 let token = query.get('token');
                 // Keep the bearer session in local storage, not in the address bar or Referer header.
-                let sessionParam = query.get('session') || (!token ? SLF.store.rawGet('scan_session_token') : null);
+                let sessionParam = query.get('session') || (!token ? getStoredScanSessionToken() : null);
 
                 if (SLF.store.rawGet('customer_session_terminated')) {
                     SLF.store.rawRemove('customer_session_terminated');
-                    SLF.store.rawRemove('scan_session_token');
-                    SLF.store.rawRemove('scan_session_expires_at');
+                    clearStoredScanSession();
                     token = null;
                     sessionParam = null;
                     try {
@@ -311,8 +358,7 @@
                     state.scanToken = '';
                     state.scanSessionToken = info.sessionToken;
                     state.scanExpiresAt = info.expiresAt;
-                    SLF.store.rawSet('scan_session_token', info.sessionToken);
-                    SLF.store.rawSet('scan_session_expires_at', info.expiresAt);
+                    setStoredScanSession(info.sessionToken, info.expiresAt);
                     if (query.has('session')) {
                         const url = new URL(window.location.href);
                         url.searchParams.delete('session');
@@ -338,8 +384,7 @@
                     state.scanToken = token;
                     state.scanSessionToken = session.sessionToken;
                     state.scanExpiresAt = session.expiresAt;
-                    SLF.store.rawSet('scan_session_token', session.sessionToken);
-                    SLF.store.rawSet('scan_session_expires_at', session.expiresAt);
+                    setStoredScanSession(session.sessionToken, session.expiresAt);
                     if (session.customerToken) {
                         state.customerToken = session.customerToken;
                         SLF.store.rawSet('customer_token', session.customerToken);
@@ -365,8 +410,7 @@
                     state.scanToken = '';
                     state.scanSessionToken = '';
                     state.scanExpiresAt = '';
-                    SLF.store.rawRemove('scan_session_token');
-                    SLF.store.rawRemove('scan_session_expires_at');
+                    clearStoredScanSession();
                     state.storeId = 1;
                 }
 
