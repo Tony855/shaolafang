@@ -312,11 +312,11 @@ systemctl restart foodflow
 
 | 角色 | 账号 | 密码 | 登录地址 |
 |------|------|------|---------|
-| 超级管理员 | `superadmin` | `super123` | `/super` |
-| 商户管理员 | `admin` | `admin123` | `/login` |
+| 超级管理员 | `superadmin` | 首次初始化随机生成，见 `/var/lib/foodflow/initial-credentials.txt` | `/super` |
+| 商户管理员 | `admin` | 首次初始化随机生成，见 `/var/lib/foodflow/initial-credentials.txt` | `/login` |
 | 服务员 | 后台创建 | 后台设置 | `/waiter` |
 
-> ⚠️ 首次登录后请立即修改密码！
+> 首次初始化凭据由系统随机生成，请通过服务器本机安全渠道读取，并在首次登录后立即修改。
 
 ### 访问地址
 
