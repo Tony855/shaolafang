@@ -1365,7 +1365,7 @@
             // Socket（不传 token，走 public 房间）
             if (typeof io === 'function') {
                 const customerSocket = io({
-                    query: { storeId: state.storeId || 1, token: '' }
+                    query: { storeId: state.storeId || 1, token: state.scanSessionToken || '' }
                 });
                 customerSocket.on('item:updated', refreshCustomerOrdersIfOpen);
                 customerSocket.on('order:settled', refreshCustomerOrdersIfOpen);

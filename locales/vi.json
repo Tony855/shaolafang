@@ -243,7 +243,7 @@
   "confirmOperation": "Xác nhận thao tác",
   "confirmResetData": "Xác nhận đặt lại tất cả dữ liệu đơn hàng? Không thể hoàn tác",
   "confirmResetDataTitle": "Xác nhận đặt lại dữ liệu",
-  "confirmResetPassword": "Xác nhận đặt lại mật khẩu quản trị thương nhân thành admin123?",
+  "confirmResetPassword": "Xác nhận tạo mật khẩu quản trị ngẫu nhiên mới?",
   "dashboard": "Bảng điều khiển",
   "enterPassword": "Vui lòng nhập mật khẩu",
   "enterPasswordVerify": "Vui lòng nhập mật khẩu để xác minh",

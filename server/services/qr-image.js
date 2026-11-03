@@ -22,7 +22,9 @@ async function _readImage(buffer) {
 async function decodeQRFromImage(buffer) {
   const image = await _readImage(buffer);
   const { data, width, height } = image.bitmap;
-  const pixels = new Uint8ClampedArray(data.buffer || data);
+  const pixels = data instanceof Uint8Array
+    ? new Uint8ClampedArray(data.buffer, data.byteOffset, data.byteLength)
+    : new Uint8ClampedArray(data);
   const result = jsQR(pixels, width, height);
   if (!result) throw new Error('未识别到二维码，请上传清晰的二维码图片');
   return result.data;

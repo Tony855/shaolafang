@@ -3,12 +3,13 @@
  * 管理员认证中间件（从 server.js 抽出）
  */
 const { getAsync, runAsync, allAsync } = require('../db/helpers');
+const crypto = require('crypto');
 
 async function getWaiterFromRequest(req) {
   const token = req.get('X-Waiter-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
   const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-  if (!session || new Date(session.expires_at).getTime() <= Date.now()) return null;
+  if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
   return await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
 }
 
@@ -16,7 +17,7 @@ async function getCashierFromRequest(req) {
   const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
   const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
-  if (!session || new Date(session.expires_at).getTime() <= Date.now()) return null;
+  if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
   const cashiersData = await getAsync('SELECT value FROM settings WHERE `key` = ?', ['cashiers_' + session.store_id]);
   if (!cashiersData) return null;
   let cashiers = [];
@@ -32,7 +33,7 @@ async function authenticateAdmin(req) {
   if (token) {
     const session = await getAsync('SELECT * FROM admin_sessions WHERE token=?', [token]);
     if (session) {
-      if (new Date(session.expires_at).getTime() <= Date.now()) {
+      if (!Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
         await runAsync('DELETE FROM admin_sessions WHERE token=?', [token]).catch(() => {});
         return { error: '登录已过期，请重新登录' };
       }
@@ -64,39 +65,16 @@ async function authenticateAdmin(req) {
         }
       }
     }
-    try {
-      const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-      if (payload.adminId) {
-        const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [payload.adminId]);
-        if (admin) {
-          const merchant = await getAsync('SELECT * FROM merchants WHERE id=? AND status=1', [admin.merchant_id]);
-          if (merchant) {
-            const legacyStoreId = parseInt(req.get('X-Store-Id') || '0', 10);
-            let legacyValidStoreId = null;
-            if (legacyStoreId > 0) {
-              const _legacyStoreCheck = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=?', [legacyStoreId, admin.merchant_id]);
-              if (!_legacyStoreCheck) {
-                const _legacyValidStores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id ASC', [admin.merchant_id]);
-                return {
-                  error: '指定的门店不存在或不属于当前商户',
-                  code: 'STORE_NOT_IN_MERCHANT',
-                  requestedStoreId: legacyStoreId,
-                  validStores: _legacyValidStores,
-                  merchantId: admin.merchant_id
-                };
-              }
-              legacyValidStoreId = legacyStoreId;
-            }
-            return { adminId: admin.id, merchantId: admin.merchant_id, storeId: legacyValidStoreId };
-          }
-        }
-      }
-    } catch (e) { }
+
   }
   const providedKey = req.get('X-Admin-Key');
   const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
-  if (providedKey && setting && providedKey === setting.value) {
-    return { storeId: parseInt(req.get('X-Store-Id') || '1', 10) };
+  if (providedKey && setting && setting.value) {
+    const supplied = Buffer.from(String(providedKey));
+    const expected = Buffer.from(String(setting.value));
+    if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
+      return { storeId: parseInt(req.get('X-Store-Id') || '1', 10) };
+    }
   }
   return null;
 }
@@ -191,7 +169,7 @@ async function requireAdminOrWaiter(req, res, next) {
   const token = req.get('X-Waiter-Token') || bearerToken;
   if (token) {
     const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-    if (session && new Date(session.expires_at).getTime() > Date.now()) {
+    if (session && Number.isFinite(new Date(session.expires_at).getTime()) && new Date(session.expires_at).getTime() > Date.now()) {
       const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [session.waiter_id]);
       if (waiter) {
         req.waiter = waiter;

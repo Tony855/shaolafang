@@ -135,6 +135,13 @@ def frontend_handler_audit():
 def html_id_audit():
     title("【3】JS 引用 id → HTML 定义对账")
     dynamic_ids = set()
+    # These optional store-name labels are read only behind null guards; they are
+    # intentionally absent on deployments/pages where the related panel is disabled.
+    dynamic_ids.update({
+        'currencyCurrentStoreName',
+        'dispCurrentStoreName',
+        'khqrCurrentStoreName',
+    })
     for jp in ROOT.rglob('*.js'):
         if 'node_modules' in str(jp): continue
         js = read_file(jp)
@@ -417,7 +424,7 @@ def api_audit():
         warn(f"{len(missing)} 个前端 API 调用未在后端找到")
         if VERBOSE:
             for p in missing[:40]: print(f"       {color(p, C.GRAY)}")
-    return True
+    return not missing
 
 # ============ 主 ============
 if __name__ == '__main__':
@@ -431,10 +438,10 @@ if __name__ == '__main__':
     ok_all &= frontend_handler_audit()
     ok_all &= html_id_audit()
     ok_all &= backend_audit()
-    i18n_audit()
+    ok_all &= i18n_audit()
     css_class_audit()
     window_export_audit()
-    api_audit()
+    ok_all &= api_audit()
 
     print()
     print(color("═"*60, C.BLUE))

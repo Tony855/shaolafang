@@ -11,6 +11,20 @@ sql() {
   mysql -u root foodflow_system -N -e "$1" 2>/dev/null
 }
 
+CRED_FILE="${INIT_CRED_FILE:-/var/lib/foodflow/initial-credentials.txt}"
+load_credential() {
+  local role="$1" line
+  line=$(grep -m1 "^$role: " "$CRED_FILE" 2>/dev/null || true)
+  [ -n "$line" ] || return 1
+  CRED_USERNAME=$(printf '%s' "$line" | sed -E 's/^[^:]+: ([^ ]+) \/ .*/\1/')
+  CRED_PASSWORD=$(printf '%s' "$line" | sed -E 's/^[^:]+: [^ ]+ \/ //')
+}
+if [ -z "${CASHIER_USERNAME:-}" ] || [ -z "${CASHIER_PASSWORD:-}" ]; then
+  load_credential cashier || { echo "❌ 缺少收银员凭据：设置 CASHIER_USERNAME/CASHIER_PASSWORD 或提供 $CRED_FILE"; exit 1; }
+  CASHIER_USERNAME="${CASHIER_USERNAME:-$CRED_USERNAME}"
+  CASHIER_PASSWORD="${CASHIER_PASSWORD:-$CRED_PASSWORD}"
+fi
+
 TS=$(date +%s | tail -c 7)
 
 step "0. 准备测试数据"
@@ -41,11 +55,12 @@ S=$(sql "SELECT status FROM orders WHERE id=$ORDER_ID;")
 [ "$S" = "pending" ] && ok "status=pending" || bad "status=$S"
 
 step "4. 后厨标记菜品完成"
-WT=$(sql "SELECT token FROM waiter_sessions WHERE expires_at > NOW() ORDER BY id DESC LIMIT 1;")
-if [ -z "$WT" ]; then
-  # 没登录过 waiter，用收银 token 也能改状态（admin 权限）
-  WT=""
+if [ -z "${WAITER_USERNAME:-}" ] || [ -z "${WAITER_PASSWORD:-}" ]; then
+  load_credential waiter || { bad "缺少服务员凭据"; exit 1; }
+  WAITER_USERNAME="${WAITER_USERNAME:-$CRED_USERNAME}"
+  WAITER_PASSWORD="${WAITER_PASSWORD:-$CRED_PASSWORD}"
 fi
+WT=$(printf '{"username":"%s","password":"%s"}' "$WAITER_USERNAME" "$WAITER_PASSWORD" | curl -sS -X POST "$BASE/api/waiter/login" -H 'Content-Type: application/json' --data-binary @- | grep -oP '"token":"\K[^"]+')
 PUT_RESP=$(curl -sS -X PUT "$BASE/api/orders/$ORDER_ID/items/0" \
   -H "X-Waiter-Token: $WT" \
   -H 'Content-Type: application/json' \
@@ -65,8 +80,7 @@ else
 fi
 
 step "6. 收银员登录"
-CASHIER_TOKEN=$(curl -sS -X POST "$BASE/api/cashier/login" -H 'Content-Type: application/json' \
-  -d '{"username":"cashier","password":"123456"}' | grep -oP '"token":"\K[^"]+')
+CASHIER_TOKEN=$(printf '{"username":"%s","password":"%s"}' "$CASHIER_USERNAME" "$CASHIER_PASSWORD" | curl -sS -X POST "$BASE/api/cashier/login" -H 'Content-Type: application/json' --data-binary @- | grep -oP '"token":"\K[^"]+')
 if [ -n "$CASHIER_TOKEN" ]; then
   ok "登录成功"
   CASHIER_OK=1

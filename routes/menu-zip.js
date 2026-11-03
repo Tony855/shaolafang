@@ -29,8 +29,10 @@ module.exports = function(app, deps) {
       zip.addFile('menu.json', Buffer.from(JSON.stringify(payload, null, 2), 'utf8'));
       for (const m of menus) {
         if (!m.image) continue;
-        const fp = path.join(UPLOAD_DIR, m.image);
-        if (fs.existsSync(fp)) zip.addLocalFile(fp, 'images');
+        const imageName = path.basename(String(m.image));
+        const fp = path.resolve(UPLOAD_DIR, imageName);
+        const uploadRoot = path.resolve(UPLOAD_DIR);
+        if (fp.startsWith(uploadRoot + path.sep) && fs.existsSync(fp)) zip.addLocalFile(fp, 'images');
       }
       const buf = zip.toBuffer();
       res.setHeader('Content-Type', 'application/zip');
@@ -47,31 +49,67 @@ module.exports = function(app, deps) {
     try {
       if (!req.file) return res.status(400).json({ error: '请上传 ZIP 文件' });
       const zipPath = req.file.path;
+      if (fs.statSync(zipPath).size > 50 * 1024 * 1024) {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        return res.status(413).json({ error: 'ZIP 文件超过 50MB 限制' });
+      }
       let zip;
       try { zip = new AdmZip(zipPath); }
       catch (e) { try { fs.unlinkSync(zipPath); } catch (_) {} return res.status(400).json({ error: 'ZIP 解压失败：' + e.message }); }
+      const zipEntries = zip.getEntries();
+      if (zipEntries.length > 2000) {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        return res.status(413).json({ error: 'ZIP 文件条目数量超过 2000' });
+      }
+      let expandedBytes = 0;
+      for (const entry of zipEntries) {
+        const entrySize = Number(entry.header?.size || 0);
+        if (entrySize > 20 * 1024 * 1024) {
+          try { fs.unlinkSync(zipPath); } catch (_) {}
+          return res.status(413).json({ error: 'ZIP 内单个文件超过 20MB 限制' });
+        }
+        expandedBytes += entrySize;
+        if (expandedBytes > 100 * 1024 * 1024) {
+          try { fs.unlinkSync(zipPath); } catch (_) {}
+          return res.status(413).json({ error: 'ZIP 解压总量超过 100MB 限制' });
+        }
+      }
 
       const jsonEntry = zip.getEntry('menu.json');
+      if (jsonEntry && Number(jsonEntry.header?.size || 0) > 5 * 1024 * 1024) {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        return res.status(413).json({ error: 'menu.json 超过 5MB 限制' });
+      }
       if (!jsonEntry) { try { fs.unlinkSync(zipPath); } catch (_) {} return res.status(400).json({ error: 'ZIP 内缺少 menu.json' }); }
       let payload;
       try { payload = JSON.parse(jsonEntry.getData().toString('utf8')); }
       catch (e) { try { fs.unlinkSync(zipPath); } catch (_) {} return res.status(400).json({ error: 'menu.json 解析失败：' + e.message }); }
+      if (!payload || payload.format !== 'foodflow-menu' || payload.version !== 1) {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        return res.status(400).json({ error: '不支持的菜单 ZIP 格式或版本' });
+      }
       const items = Array.isArray(payload.menus) ? payload.menus : [];
+      if (items.length > 2000) {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        return res.status(413).json({ error: '单个 ZIP 最多导入 2000 个菜品' });
+      }
       if (!items.length) { try { fs.unlinkSync(zipPath); } catch (_) {} return res.status(400).json({ error: 'ZIP 内没有菜品数据' }); }
 
       const imageMap = {};
       const uploadsAbs = path.resolve(UPLOAD_DIR);
-      zip.getEntries().forEach(entry => {
-        const name = entry.entryName;
-        if (!name.startsWith('images/') || entry.isDirectory) return;
-        const base = path.basename(name);
-        if (!/\.(jpg|jpeg|png|gif|webp)$/i.test(base)) return;
-        const newName = 'zip_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) + path.extname(base).toLowerCase();
-        const dest = path.join(uploadsAbs, newName);
-        if (!path.resolve(dest).startsWith(uploadsAbs)) return;
-        try { fs.writeFileSync(dest, entry.getData()); imageMap[base] = newName; }
+      for (const entry of zipEntries) {
+        const normalizedName = String(entry.entryName || '').replace(/\\/g, '/');
+        const segments = normalizedName.split('/');
+        if (!normalizedName.startsWith('images/') || entry.isDirectory || segments.includes('..') || normalizedName.startsWith('/')) continue;
+        const base = path.basename(normalizedName);
+        if (!/\.(jpg|jpeg|png|gif|webp)$/i.test(base)) continue;
+        if (Number(entry.header?.size || 0) > 15 * 1024 * 1024) continue;
+        const newName = 'zip_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + path.extname(base).toLowerCase();
+        const dest = path.resolve(uploadsAbs, newName);
+        if (!dest.startsWith(uploadsAbs + path.sep)) continue;
+        try { fs.writeFileSync(dest, entry.getData(), { flag: 'wx', mode: 0o640 }); imageMap[base] = newName; }
         catch (e) { console.warn('[import-zip] 写图片失败:', base, e.message); }
-      });
+      }
 
       const cats = [...new Set(items.map(it => String(it.category || '').trim()).filter(Boolean))];
       const createdCategories = [];
@@ -89,15 +127,19 @@ module.exports = function(app, deps) {
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         try {
-          if (!it.name || it.price === undefined) { failed++; errors.push('第 ' + (i+1) + ' 行：name/price 必填'); continue; }
+          const itemName = typeof it.name === 'string' ? it.name.trim() : '';
+          const itemPrice = Number(it.price);
+          if (!itemName || itemName.length > 120 || !Number.isFinite(itemPrice) || itemPrice < 0 || itemPrice > 10000000) {
+            failed++; errors.push('第 ' + (i+1) + ' 行：菜品名称或价格无效'); continue;
+          }
           let imageName = '';
           const rawImg = String(it.image || '').trim();
           if (rawImg) {
             const base = path.basename(rawImg);
             imageName = imageMap[base] || (fs.existsSync(path.join(UPLOAD_DIR, base)) ? base : '');
           }
-          const ex = await getAsync('SELECT id FROM menus WHERE name=? AND store_id=?', [it.name, req.storeId || 1]);
-          const base10 = [it.emoji || '🍽️', parseFloat(it.price), it.category || '其他', it.desc || '', it.currency_code || 'USD', it.name_en || '', it.desc_en || '', it.unit || '份', it.show_dual ? 1 : 0, it.secondary_currency_code || ''];
+          const ex = await getAsync('SELECT id FROM menus WHERE name=? AND store_id=?', [itemName, req.storeId || 1]);
+          const base10 = [it.emoji || '🍽️', itemPrice, String(it.category || '其他').slice(0, 80), it.desc || '', it.currency_code || 'USD', it.name_en || '', it.desc_en || '', it.unit || '份', it.show_dual ? 1 : 0, it.secondary_currency_code || ''];
           const activeVal = it.active === 0 ? 0 : 1;
           if (ex) {
             if (imageName) {
@@ -106,7 +148,7 @@ module.exports = function(app, deps) {
               await runAsync('UPDATE menus SET emoji=?, price=?, category=?, `desc`=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=?, active=? WHERE id=? AND store_id=?', [...base10, activeVal, ex.id, req.storeId || 1]);
             }
           } else {
-            await runAsync('INSERT INTO menus (emoji, price, category, `desc`, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, active, image, name, store_id, merchant_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [...base10, activeVal, imageName, it.name, req.storeId || 1, req.merchantId]);
+            await runAsync('INSERT INTO menus (emoji, price, category, `desc`, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, active, image, name, store_id, merchant_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [...base10, activeVal, imageName, itemName, req.storeId || 1, req.merchantId]);
           }
           success++;
         } catch (e) { failed++; errors.push('第 ' + (i+1) + ' 行：' + e.message); }
@@ -115,6 +157,9 @@ module.exports = function(app, deps) {
       try { fs.unlinkSync(zipPath); } catch (_) {}
       res.json({ success, failed, errors, createdCategories, imagesImported: Object.keys(imageMap).length });
     } catch (e) {
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        try { fs.unlinkSync(req.file.path); } catch (_) {}
+      }
       console.error('import-zip failed:', e);
       res.status(500).json({ error: e.message });
     }

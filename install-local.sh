@@ -12,12 +12,7 @@
 
 set -e
 
-# 安全检查：如果当前目录的历史里有已泄露的 token 模式，警告
-if git log --all --oneline 2>/dev/null | grep -q "ghp_"; then
-    log_warn "⚠️  检测到 git 历史中可能存在已泄露的 GitHub Token（ghp_...）"
-    log_warn "    请确认已在 GitHub 侧撤销该 Token，并考虑用 git-filter-repo 重写历史"
-fi
-  
+
 # ===== 颜色输出 =====
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -29,6 +24,11 @@ log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# 安全检查：如果当前仓库历史中存在 GitHub Token 模式，提示运维人员检查。
+if git log --all --oneline 2>/dev/null | grep -q "ghp_"; then
+    log_warn "检测到 Git 历史中可能存在 GitHub Token 痕迹。请撤销相关凭据并检查历史。"
+fi
 
 # ===== 检查 root 权限 =====
 if [ "$EUID" -ne 0 ]; then
@@ -54,30 +54,9 @@ if [ ! -f "$APP_DIR/server.js" ]; then
     if [ ! -f server.js ]; then
         log_info "拉取仓库到 $APP_DIR..."
     
-        # 优先使用 SSH（推荐，无需 token）
-        # 若必须使用 HTTPS，通过环境变量 GITHUB_TOKEN 注入，切勿硬编码
-        REPO_URL=""
-        if git ls-remote git@github.com:Tony855/shaolafang.git HEAD >/dev/null 2>&1; then
-            REPO_URL="git@github.com:Tony855/shaolafang.git"
-            log_info "使用 SSH 方式拉取"
-        elif [ -n "$GITHUB_TOKEN" ]; then
-            REPO_URL="https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git"
-            log_info "使用 HTTPS + GITHUB_TOKEN 拉取"
-        else
-            log_error "无法拉取仓库：SSH 未配置且未提供 GITHUB_TOKEN 环境变量"
-            log_error "解决方案二选一："
-            log_error "  1) 配置 SSH 密钥：ssh-keygen -t ed25519 && cat ~/.ssh/id_ed25519.pub 添加到 GitHub"
-            log_error "  2) 运行脚本时携带 token：sudo GITHUB_TOKEN=ghp_xxx bash install-local.sh"
-            exit 1
-        fi
-    
+        REPO_URL="https://github.com/Tony855/shaolafang.git"
+        log_info "使用公开仓库 HTTPS 方式拉取"
         git clone "$REPO_URL" .
-        # clone 后立刻从 git 配置里剥离 token（防止写入 .git/config）
-        if [ -n "$GITHUB_TOKEN" ]; then
-            git remote set-url origin https://github.com/Tony855/shaolafang.git
-            # 关闭凭证缓存，避免 token 落到磁盘
-            git config --unset credential.helper 2>/dev/null || true
-        fi
     fi
     log_success "代码已就位: $APP_DIR"
 else
@@ -92,6 +71,13 @@ fi
 
 if [ ! -f "$APP_DIR/package.json" ]; then
     log_error "当前目录未找到 package.json"
+    exit 1
+fi
+
+# 本脚本仅用于首次初始化；已有 .env 的实例应使用安全升级流程。
+if [ -e "$APP_DIR/.env" ]; then
+    log_error "检测到已有 .env，拒绝执行首次安装以免重置生产配置。"
+    log_error "请使用 install.sh 的更新模式，或先完成独立备份和迁移。"
     exit 1
 fi
 
@@ -126,9 +112,8 @@ else
     # 清除 client-only 残骸，否则 apt 会跳过主包安装
     if command -v mariadb &>/dev/null || command -v mysql &>/dev/null; then
         log_warn "检测到 MariaDB client 残骸，先清理再重装..."
-        apt-get remove --purge -y 'mariadb-*' 'mysql-*' 2>/dev/null || true
-        apt-get autoremove -y 2>/dev/null || true
-        rm -rf /var/lib/mysql /etc/mysql /run/mysqld
+        log_warn "保留现有数据库目录和配置，不执行 purge 或删除 /var/lib/mysql。"
+        log_warn "将直接尝试安装 MariaDB Server；若失败请先人工检查数据库服务状态。"
     fi
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mariadb-server
     mkdir -p /run/mysqld
@@ -238,9 +223,15 @@ if [ -z "$MYSQL_CMD" ]; then
     exit 1
 fi
 
-# 7.4 创建数据库（先删除旧的，确保干净）
-log_info "创建数据库..."
-$MYSQL_CMD -e "DROP DATABASE IF EXISTS \`$DEFAULT_DB_NAME\`;"
+# 7.4 安全创建数据库：已有业务库时绝不自动删除或覆盖。
+log_info "检查数据库是否已存在..."
+DB_EXISTS=$($MYSQL_CMD -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$DEFAULT_DB_NAME';")
+if [ "${DB_EXISTS:-0}" -gt 0 ]; then
+    log_error "数据库 $DEFAULT_DB_NAME 已存在。为保护生产数据，安装程序拒绝 DROP/覆盖。"
+    log_error "请先完成独立备份；已有系统升级请使用升级流程，不要重新初始化数据库。"
+    exit 1
+fi
+log_info "创建全新数据库..."
 $MYSQL_CMD -e "CREATE DATABASE \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 7.5 创建数据库用户（先删除旧用户，确保密码正确）
@@ -283,6 +274,11 @@ rm -f "$APP_DIR/db-test.js"
 # 7.7 写入 .env 文件（始终覆盖）
 ENV_FILE="$APP_DIR/.env"
 log_info "写入环境变量配置..."
+if [ -e "$ENV_FILE" ]; then
+    log_error "检测到现有 .env。为避免覆盖生产密钥和数据库凭据，安装程序已停止。"
+    log_error "请备份并人工迁移现有配置后再进行首次初始化。"
+    exit 1
+fi
 
 cat > "$ENV_FILE" << EOF
 PORT=3000
@@ -315,7 +311,6 @@ apply_production_optimizations() {
     [ -f "$APP_DIR/server/config/env.js" ] && grep -q 'DB_CONNECTION_LIMIT' "$APP_DIR/server/config/env.js" ||       sed -i 's|\(DB_PORT: Number(process.env.DB_PORT) || 3306,\)|
   DB_CONNECTION_LIMIT: Number(process.env.DB_CONNECTION_LIMIT) || 50,|' "$APP_DIR/server/config/env.js" 2>/dev/null || true
     [ -f "$APP_DIR/server/db/pool.js" ] && sed -i -E 's|connectionLimit:\s*[0-9]+|connectionLimit: env.DB_CONNECTION_LIMIT|;s|queueLimit:\s*[0-9]+|queueLimit: 200|' "$APP_DIR/server/db/pool.js"
-    [ -f "$APP_DIR/server/middleware/password.js" ] && sed -i -E 's|bcrypt\.hashSync\(pwd, 10\)|bcrypt.hashSync(pwd, 8)|' "$APP_DIR/server/middleware/password.js"
     MC=""
     mariadb -u root -e "SELECT 1" >/dev/null 2>&1 && MC="mariadb -u root"
     [ -z "$MC" ] && mysql -u root -e "SELECT 1" >/dev/null 2>&1 && MC="mysql -u root"
@@ -351,6 +346,20 @@ fuser -k 3000/tcp 2>/dev/null || true
 sleep 1
 
 NODE_PATH=$(which node)
+if ! id foodflow >/dev/null 2>&1; then
+    useradd --system --no-create-home --home-dir "$APP_DIR" --shell /usr/sbin/nologin --gid www-data foodflow
+fi
+mkdir -p /var/lib/foodflow
+chown foodflow:www-data /var/lib/foodflow
+chmod 0700 /var/lib/foodflow
+chown -R root:www-data "$APP_DIR"
+for writable_dir in uploads backups logs; do
+    mkdir -p "$APP_DIR/$writable_dir"
+    chown -R foodflow:www-data "$APP_DIR/$writable_dir"
+    chmod 0770 "$APP_DIR/$writable_dir"
+done
+chown root:www-data "$ENV_FILE"
+chmod 0640 "$ENV_FILE"
 
 cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
@@ -359,7 +368,8 @@ After=network.target mariadb.service mysql.service redis.service
 
 [Service]
 Type=simple
-User=root
+User=foodflow
+Group=www-data
 WorkingDirectory=$APP_DIR
 ExecStart=$NODE_PATH server.js
 Restart=always
@@ -536,15 +546,12 @@ echo "访问地址:"
 echo "  本地: http://127.0.0.1"
 echo "  外网: http://$(hostname -I | awk '{print $1}')"
 echo ""
-echo "默认账号:"
-echo "  超级管理员: superadmin / super123"
-echo "  商户管理员: admin / admin123"
-echo "  服务员:     waiter / 123456"
-echo "  收银员:     cashier / 123456"
+echo "初始账号用户名：superadmin / admin / waiter"
+echo "初始密码：系统随机生成，见 /var/lib/foodflow/initial-credentials.txt"
 echo ""
 log_warn "重要提示："
 echo "  1. 数据库已自动配置，密码保存在 $ENV_FILE（权限600）"
-echo "  2. 请及时修改默认管理员密码"
+echo "  2. 首次登录后请立即修改所有初始密码"
 echo "  3. 建议配置 SSL 证书: sudo bash setup-nginx.sh"
 echo "  4. 服务日志: sudo journalctl -u foodflow -f"
 echo ""

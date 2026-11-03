@@ -34,14 +34,32 @@ const os = require('os');
 })();
 
 const app = express();
-app.set('trust proxy', true);
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
+const corsOrigins = new Set((process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean));
 
-// Socket.io
+// Socket.IO: same-host requests are allowed; cross-origin browser clients must be explicitly allowlisted.
 const http = require('http');
 const server = http.createServer(app);
 const { Server } = require('socket.io');
 const io = new Server(server, {
-  cors: { origin: '*' },
+  cors: {
+    origin: (origin, callback) => callback(null, !origin || corsOrigins.has(origin)),
+    credentials: false
+  },
+  allowRequest: (req, callback) => {
+    const origin = req.headers.origin;
+    if (!origin) return callback(null, true);
+    if (corsOrigins.has(origin)) return callback(null, true);
+    try {
+      const parsed = new URL(origin);
+      const requestHost = String(req.headers.host || '').toLowerCase();
+      const sameHost = parsed.host.toLowerCase() === requestHost &&
+        (parsed.protocol === 'http:' || parsed.protocol === 'https:');
+      return callback(sameHost ? null : 'origin not allowed', sameHost);
+    } catch (_) {
+      return callback('invalid origin', false);
+    }
+  },
   pingInterval: 10000,
   pingTimeout: 5000
 });
@@ -158,9 +176,22 @@ const { requireSuperAdmin, requireCashier, requireAdminOrCashier, requireAdminOr
 // ---------- 获取真实客户端IP ----------
 // ---------- IP地理位置查询 ----------
 // ---------- 中间件 ----------
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // Same-origin and non-browser clients do not need CORS headers.
+    if (!origin || corsOrigins.has(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: false
+}));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+app.use(express.json({ limit: '2mb', type: req => req.path !== '/api/super/backup/import' }));
+app.use(express.urlencoded({ extended: true, parameterLimit: 1000, limit: '1mb' }));
 // 静态资源：协商缓存（文件没变 304，变了 200 拿新版）
 // 不设 max-age，让浏览器每次都问服务器，改动即生效，不需要改文件名或版本号
 const staticOptions = {
@@ -224,22 +255,42 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, Date.now() + ext);
+    cb(null, crypto.randomBytes(16).toString('hex') + ext);
   }
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+    files: 5,
+    fields: 100,
+    parts: 120,
+    fieldNameSize: 100,
+    fieldSize: 1024 * 1024,
+    headerPairs: 2000
+  },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    // 允许图片 + zip（菜单打包导入）
-    if (ext === '.zip') return cb(null, true);
-    if (['.mp4','.webm','.ogg','.mov'].includes(ext)) return cb(null, true);
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extName = allowedTypes.test(ext);
-    const mimeType = allowedTypes.test(file.mimetype);
-    if (extName && mimeType) return cb(null, true);
-    cb(new Error('只允许上传图片文件（JPG/PNG/GIF/WEBP）或 ZIP 包'));
+    const imageMimes = {
+      '.jpg': ['image/jpeg'],
+      '.jpeg': ['image/jpeg'],
+      '.png': ['image/png'],
+      '.gif': ['image/gif'],
+      '.webp': ['image/webp']
+    };
+    const videoMimes = {
+      '.mp4': ['video/mp4', 'application/octet-stream'],
+      '.webm': ['video/webm', 'application/octet-stream'],
+      '.ogg': ['video/ogg', 'application/ogg'],
+      '.mov': ['video/quicktime', 'application/octet-stream']
+    };
+    if (ext === '.zip') {
+      if (['application/zip', 'application/x-zip-compressed', 'application/octet-stream'].includes(file.mimetype)) return cb(null, true);
+      return cb(new Error('ZIP 文件 MIME 类型不正确'));
+    }
+    if (imageMimes[ext]?.includes(file.mimetype)) return cb(null, true);
+    if (videoMimes[ext]?.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('不支持的文件格式或 MIME 类型不匹配'));
   }
 });
 
@@ -249,42 +300,35 @@ const upload = multer({
 // ---------- 常量 ----------
 const createTableToken = () => crypto.randomBytes(12).toString('base64url');
 
-// ---------- 登录限流器 ----------
-const loginAttempts = new Map();
-
-function getLoginAttempts(username, type) {
-  const key = `${username}|${type}`;
-  if (!loginAttempts.has(key)) {
-    loginAttempts.set(key, { count: 0, lockUntil: 0, firstAttempt: 0 });
-  }
-  return loginAttempts.get(key);
+// ---------- 登录限流器（跨进程/集群持久化） ----------
+// Every failed login is written to login_logs by the caller. Querying this table
+// makes the lockout effective across workers and cluster nodes, unlike a process-local Map.
+function recordLoginAttempt() {
+  // Intentionally no-op: the failed login row is written before this call.
 }
 
-function recordLoginAttempt(username, type) {
-  const attempt = getLoginAttempts(username, type);
-  attempt.count += 1;
-  if (attempt.firstAttempt === 0) attempt.firstAttempt = Date.now();
-  loginAttempts.set(`${username}|${type}`, attempt);
-}
-
-function resetLoginAttempts(username, type) {
-  loginAttempts.delete(`${username}|${type}`);
+function resetLoginAttempts() {
+  // Successful login rows form the reset boundary in isLoginLocked().
 }
 
 async function isLoginLocked(username, type) {
   const settings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_max_attempts'");
   const lockSettings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_lock_minutes'");
-  const maxAttempts = parseInt(settings?.value || '5', 10);
-  const lockMinutes = parseInt(lockSettings?.value || '15', 10);
-  const attempt = getLoginAttempts(username, type);
-  if (attempt.lockUntil > Date.now()) {
-    const remaining = Math.ceil((attempt.lockUntil - Date.now()) / 60000);
-    return { locked: true, remaining, maxAttempts, lockMinutes };
-  }
-  if (attempt.count >= maxAttempts) {
-    attempt.lockUntil = Date.now() + lockMinutes * 60 * 1000;
-    loginAttempts.set(`${username}|${type}`, attempt);
-    return { locked: true, remaining: lockMinutes, maxAttempts, lockMinutes };
+  const maxAttempts = Math.max(1, parseInt(settings?.value || '5', 10) || 5);
+  const lockMinutes = Math.max(1, parseInt(lockSettings?.value || '15', 10) || 15);
+  const cutoff = new Date(Date.now() - lockMinutes * 60 * 1000).toISOString();
+  const recent = await getAsync(
+    "SELECT COUNT(*) AS count, MAX(createdAt) AS last_attempt " +
+    "FROM login_logs WHERE username=? AND login_type=? AND success=0 " +
+    "AND createdAt >= ? " +
+    "AND createdAt > COALESCE((SELECT MAX(createdAt) FROM login_logs WHERE username=? AND login_type=? AND success=1), '')",
+    [String(username || '').slice(0, 100), type, cutoff, String(username || '').slice(0, 100), type]
+  );
+  const count = Number(recent?.count || 0);
+  if (count >= maxAttempts && recent.last_attempt) {
+    const lockUntil = new Date(recent.last_attempt).getTime() + lockMinutes * 60 * 1000;
+    const remaining = Math.ceil((lockUntil - Date.now()) / 60000);
+    if (remaining > 0) return { locked: true, remaining, maxAttempts, lockMinutes };
   }
   return { locked: false, maxAttempts, lockMinutes };
 }
@@ -292,39 +336,58 @@ async function isLoginLocked(username, type) {
 // ============================================================
 //  默认凭据集中定义 + 首次初始化凭据文件
 // ============================================================
+// Initial passwords are generated per first boot unless explicitly injected by the operator.
+// They are written once to a mode-0600 file; never ship predictable production defaults.
+const generateInitialPassword = () => crypto.randomBytes(24).toString('base64url');
 const DEFAULT_CREDENTIALS = {
   superAdmin: {
-    username:    process.env.INIT_SUPER_USERNAME   || 'superadmin',
-    password:    process.env.INIT_SUPER_PASSWORD   || 'super123',
+    username: process.env.INIT_SUPER_USERNAME || 'superadmin',
+    password: process.env.INIT_SUPER_PASSWORD || generateInitialPassword(),
     displayName: '超级管理员',
   },
   merchantAdmin: {
-    username:    process.env.INIT_ADMIN_USERNAME   || 'admin',
-    password:    process.env.INIT_ADMIN_PASSWORD   || 'admin123',
+    username: process.env.INIT_ADMIN_USERNAME || 'admin',
+    password: process.env.INIT_ADMIN_PASSWORD || generateInitialPassword(),
     displayName: 'FoodFlow管理员',
   },
   waiter: {
-    username:    process.env.INIT_WAITER_USERNAME  || 'waiter',
-    password:    process.env.INIT_WAITER_PASSWORD  || '123456',
+    username: process.env.INIT_WAITER_USERNAME || 'waiter',
+    password: process.env.INIT_WAITER_PASSWORD || generateInitialPassword(),
     displayName: '服务员A',
   },
   cashier: {
-    username:    process.env.INIT_CASHIER_USERNAME || 'cashier',
-    password:    process.env.INIT_CASHIER_PASSWORD || '123456',
+    username: process.env.INIT_CASHIER_USERNAME || 'cashier',
+    password: process.env.INIT_CASHIER_PASSWORD || generateInitialPassword(),
     displayName: '收银员',
   },
 };
 
 async function writeInitialCredentialsFile(credentials) {
-  const file = process.env.INIT_CRED_FILE || '/etc/foodflow/initial-credentials.txt';
+  const file = process.env.INIT_CRED_FILE || '/var/lib/foodflow/initial-credentials.txt';
+  const tempFile = file + '.tmp-' + process.pid;
   try {
     await fs.promises.mkdir(path.dirname(file), { recursive: true });
-    const content = Object.entries(credentials)
-      .map(([k, v]) => `${k}: ${v.username} / ${v.password}`)
+    const merged = new Map();
+    try {
+      const existing = await fs.promises.readFile(file, 'utf8');
+      for (const line of existing.split(/\r?\n/)) {
+        const match = line.match(/^([^:]+):\s+(\S+)\s+\/\s+(.+)$/);
+        if (match) merged.set(match[1], { username: match[2], password: match[3] });
+      }
+    } catch (readError) {
+      if (readError.code !== 'ENOENT') throw readError;
+    }
+    for (const [role, value] of Object.entries(credentials)) merged.set(role, value);
+    const content = Array.from(merged.entries())
+      .map(([role, value]) => `${role}: ${value.username} / ${value.password}`)
       .join('\n') + '\n';
-    await fs.promises.writeFile(file, content, { mode: 0o600 });
-    console.log(`  + 初始凭据已写入 ${file}（权限 600）`);
+    await fs.promises.writeFile(tempFile, content, { mode: 0o600, flag: 'wx' });
+    await fs.promises.chmod(tempFile, 0o600);
+    await fs.promises.rename(tempFile, file);
+    await fs.promises.chmod(file, 0o600);
+    console.log(`  + 初始凭据已安全写入 ${file}（权限 600）`);
   } catch (e) {
+    try { await fs.promises.unlink(tempFile); } catch (_) {}
     console.warn(`  ! 无法写入凭据文件 ${file}: ${e.message}（不影响服务启动）`);
   }
 }
@@ -620,6 +683,7 @@ async function initDatabase() {
       total DECIMAL(10,2) NOT NULL,
       status VARCHAR(20) DEFAULT 'pending',
       createdAt VARCHAR(50) NOT NULL,
+      settled_at VARCHAR(50) DEFAULT NULL,
       session_token VARCHAR(255),
       store_id INT NOT NULL DEFAULT 1,
       note VARCHAR(200) DEFAULT '',
@@ -652,6 +716,7 @@ async function initDatabase() {
   // ===== orders 支付/退款字段补全迁移（幂等）=====
   const ordersPaymentColumns = [
     ['order_no',          'VARCHAR(20) DEFAULT NULL'],
+    ['settled_at',        'VARCHAR(50) DEFAULT NULL'],
     ['pay_method',        "VARCHAR(20) DEFAULT ''"],
     ['cash_received',     'DECIMAL(10,2) DEFAULT 0'],
     ['cash_change',       'DECIMAL(10,2) DEFAULT 0'],
@@ -821,7 +886,7 @@ async function initDatabase() {
       "INSERT INTO super_admins (username, password_hash, display_name) VALUES (?, ?, ?)",
       [c.username, superHash, c.displayName]
     );
-    console.log(`  + 已创建超级管理员：${c.username} / ${c.password}`);
+    console.log(`  + 已创建超级管理员：${c.username}（密码已写入受保护的初始凭据文件）`);
     initialCredentials.superAdmin = c;
   }
 
@@ -841,7 +906,7 @@ async function initDatabase() {
       "INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)",
       [defaultMerchantId, ac.username, adminHash, ac.displayName]
     );
-    console.log(`  + 已创建商户管理员：${ac.username} / ${ac.password}`);
+    console.log(`  + 已创建商户管理员：${ac.username}（密码已写入受保护的初始凭据文件）`);
     initialCredentials.merchantAdmin = ac;
 
     // 默认店铺
@@ -904,7 +969,7 @@ async function initDatabase() {
       'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, active, store_id, merchant_id) VALUES (?, ?, ?, 1, 1, 1, 1, ?, ?)',
       [wc.username, waiterHash, wc.displayName, defaultStoreId, defaultMerchantId]
     );
-    console.log(`  + 已创建默认服务员：${wc.username} / ${wc.password}`);
+    console.log(`  + 已创建默认服务员：${wc.username}（密码已写入受保护的初始凭据文件）`);
     initialCredentials.waiter = wc;
 
     // 说明：默认收银员不再预置。
@@ -934,7 +999,7 @@ async function initDatabase() {
   const newOrderSound = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
   if (!newOrderSound) await runAsync("INSERT INTO settings (`key`, value) VALUES ('new_order_sound_enabled', '1')");
   const adminPassword = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
-  if (!adminPassword) await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_password', ?)", [hashPassword('admin123')]);
+  if (!adminPassword) await runAsync("INSERT INTO settings (`key`, value) VALUES ('admin_password', ?)", [hashPassword(DEFAULT_CREDENTIALS.merchantAdmin.password)]);
 
   const prefixDefaults = {
     'order_prefix_normal': '11',
@@ -1023,7 +1088,7 @@ require('./routes/admin-system.js')(app, { getAsync, allAsync, runAsync, require
 
 // ----- 服务员登录 -----
 // ----- 服务员+收银员 -----
-require('./routes/cashier.js')(app, { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io });
+require('./routes/cashier.js')(app, { getAsync, runAsync, allAsync, withTransaction, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io });
 
 
 // ----- 服务员概览 -----
@@ -1052,7 +1117,7 @@ if (typeof _advExport.attachAdvancedExport === 'function') {
 
 
 // ----- 全局配置+催单+管理员/收银员+重置 -----
-require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io });
+require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, withTransaction, syncTableStatus, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io });
 
 
 
@@ -1074,7 +1139,7 @@ app.use('/api', (req, res) => {
 app.use((err, req, res, next) => {
   console.error('未处理的错误:', err);
   if (res.headersSent) return next(err);
-  res.status(500).json({ error: '服务器内部错误', message: err.message });
+  res.status(500).json({ error: '服务器内部错误' });
 });
 
 // ============================================================
@@ -1085,16 +1150,22 @@ io.use(async (socket, next) => {
     const token = (socket.handshake.query.token || '').trim();
     const requestedStoreId = parseInt(socket.handshake.query.storeId, 10) || 1;
 
-    // 无 token：视为顾客端，允许连接但只能进公共房间
-    if (!token) {
+    // 顾客端必须持有有效扫码会话；禁止仅靠可伪造的 storeId 订阅整家门店事件。
+    if (!token) return next(new Error('unauthorized: table session required'));
+    const scanSession = await getAsync('SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?', [token]);
+    if (scanSession) {
+      if (new Date(scanSession.expires_at).getTime() <= Date.now()) {
+        return next(new Error('unauthorized: table session expired'));
+      }
       socket.data.role = 'public';
-      socket.data.storeId = requestedStoreId;
+      socket.data.storeId = scanSession.store_id || 1;
+      socket.data.tableName = scanSession.table_name;
       return next();
     }
 
     // 1) 服务员/后厨（共用 waiter_sessions）
-    const waiterSession = await getAsync('SELECT waiter_id FROM waiter_sessions WHERE token=?', [token]);
-    if (waiterSession) {
+    const waiterSession = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
+    if (waiterSession && new Date(waiterSession.expires_at).getTime() > Date.now()) {
       const waiter = await getAsync('SELECT * FROM waiters WHERE id=? AND active=1', [waiterSession.waiter_id]);
       if (waiter) {
         socket.data.role = 'waiter';
@@ -1105,8 +1176,8 @@ io.use(async (socket, next) => {
     }
 
     // 2) 收银员
-    const cashierSession = await getAsync('SELECT cashier_id, store_id FROM cashier_sessions WHERE token=?', [token]);
-    if (cashierSession) {
+    const cashierSession = await getAsync('SELECT cashier_id, store_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
+    if (cashierSession && new Date(cashierSession.expires_at).getTime() > Date.now()) {
       socket.data.role = 'cashier';
       socket.data.storeId = cashierSession.store_id || 1;
       socket.data.cashierId = cashierSession.cashier_id;
@@ -1114,8 +1185,8 @@ io.use(async (socket, next) => {
     }
 
     // 3) 管理员
-    const adminSession = await getAsync('SELECT admin_id FROM admin_sessions WHERE token=?', [token]);
-    if (adminSession) {
+    const adminSession = await getAsync('SELECT admin_id, expires_at FROM admin_sessions WHERE token=?', [token]);
+    if (adminSession && new Date(adminSession.expires_at).getTime() > Date.now()) {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [adminSession.admin_id]);
       if (admin) {
         socket.data.role = 'admin';
@@ -1154,7 +1225,7 @@ io.on('connection', (socket) => {
     socket.join('kitchen-' + storeId);
     socket.join('cashier-' + storeId);
   } else if (role === 'public') {
-    socket.join('public-store-' + storeId);
+    socket.join('public-table-' + storeId + '-' + socket.data.tableName);
   }
 
   socket.on('disconnect', () => { /* 可选日志 */ });

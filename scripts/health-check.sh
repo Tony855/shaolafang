@@ -70,9 +70,12 @@ check "merchant_id 与 store_id 一致" "0" "$MISMATCH"
 
 echo ""
 echo "=== 6. 关键 API 冒烟 ==="
-TOKEN=$(curl -sS -X POST "$BASE/api/admin/login" \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"admin123"}' 2>/dev/null | grep -oP '"token":"\K[^"]+')
+CRED_FILE="${INIT_CRED_FILE:-/var/lib/foodflow/initial-credentials.txt}"
+line=$(grep -m1 '^merchantAdmin: ' "$CRED_FILE" 2>/dev/null || true)
+ADMIN_USERNAME="${ADMIN_USERNAME:-$(printf '%s' "$line" | sed -E 's/^[^:]+: ([^ ]+) \/ .*/\1/')}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(printf '%s' "$line" | sed -E 's/^[^:]+: [^ ]+ \/ //')}"
+TOKEN=$(printf '{"username":"%s","password":"%s"}' "$ADMIN_USERNAME" "$ADMIN_PASSWORD" | curl -sS -X POST "$BASE/api/admin/login" \
+  -H 'Content-Type: application/json' --data-binary @- 2>/dev/null | grep -oP '"token":"\K[^"]+')
 check "admin 登录成功" "yes" "$([ -n "$TOKEN" ] && echo yes || echo no)"
 
 if [ -n "$TOKEN" ]; then

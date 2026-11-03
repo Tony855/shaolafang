@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const QRCode = require('qrcode');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
+  const { getAsync, runAsync, allAsync, withTransaction, syncTableStatus, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
 
   /* ===== KHQR 多收款码管理 ===== */
   // ★ 内存缓存：KHQR providers 读得多改得少，缓存 30 秒
@@ -138,7 +138,7 @@ module.exports = function(app, deps) {
     try {
       const { username, password, display_name, active, permissions } = req.body || {};
       if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写管理员资料' });
-      if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+      if (password.length < 12 || password.length > 128) return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
       const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [String(username).trim()]);
       if (exists) return res.status(400).json({ error: '用户名已存在' });
 
@@ -171,7 +171,7 @@ module.exports = function(app, deps) {
       if (display_name !== undefined) { fields.push('display_name=?'); values.push(display_name); }
       if (active !== undefined) { fields.push('active=?'); values.push(active ? 1 : 0); }
       if (password) {
-        if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+        if (password.length < 12 || password.length > 128) return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
         fields.push('password_hash=?'); values.push(hashPassword(password));
       }
       if (permissions && typeof permissions === 'object') {
@@ -509,6 +509,9 @@ module.exports = function(app, deps) {
   /* ===== 生成动态码 ===== */
   app.post('/api/cashier/khqr/generate', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
+      if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有生成收款码权限' });
+      if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
+      if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
       if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
@@ -518,7 +521,7 @@ module.exports = function(app, deps) {
       if (order.status !== 'pending') return res.status(400).json({ error: '订单已结算或已取消' });
 
       const expireRow = await getAsync('SELECT value FROM settings WHERE `key`=?', ['store_' + sid + '_khqr_expire_minutes']);
-      const expireMin = parseInt(expireRow ? expireRow.value : '10', 10) || 10;
+      const expireMin = Math.max(1, Math.min(60, parseInt(expireRow ? expireRow.value : '10', 10) || 10));
 
       // 选择哪个收款码
       const list = await loadKhqrProviders(sid);
@@ -584,9 +587,10 @@ module.exports = function(app, deps) {
       const expiresAt = new Date(Date.now() + expireMin * 60 * 1000).toISOString();
 
       // 保存到订单
-      await runAsync('UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=?',
-        ['khqr', dynamicPayload, expiresAt, order.id]);
-res.json({
+      const qrUpdate = await runAsync("UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=? AND store_id=? AND status='pending'",
+        ['khqr', dynamicPayload, expiresAt, order.id, sid]);
+      if (!qrUpdate.affectedRows) return res.status(409).json({ error: '订单状态已变化，无法生成新的收款码' });
+      res.json({
         qr_payload: dynamicPayload,
         qr_data_url: qrDataUrl,
         provider_id: provider.id,
@@ -610,28 +614,69 @@ res.json({
   /* ===== 到账确认 ===== */
   app.post('/api/cashier/khqr/confirm', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
+      if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有确认收款权限' });
+      if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
+      if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
-      const { order_id, role } = req.body || {};
+      const { order_id, pay_method, cash_received, cash_change } = req.body || {};
       if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
       if (order.status !== 'pending') return res.status(400).json({ error: '订单状态不允许确认' });
+      if (!Number(order.awaiting_confirm) && !order.pay_khqr_ref) {
+        return res.status(409).json({ error: '该订单尚未提交收款确认，也没有已生成的 KHQR 收款码' });
+      }
 
-      if (role === 'waiter') {
-        // 服务员只能标记待确认
-        await runAsync(
-        'UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=?',
-        [String(pay_method || '').slice(0, 20), Number(cash_received) || 0, Number(cash_change) || 0, order_id]
-      );
+      // 身份由服务端认证中间件决定，不能信任客户端传入的 role。
+      if (req.waiter) {
+        if (req.waiterStoreId !== sid && req.waiter.store_id !== sid) {
+          return res.status(403).json({ error: '不能操作其他门店的订单' });
+        }
+        const result = await runAsync(
+          "UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
+          [String(pay_method || '').slice(0, 20), Math.max(0, Number(cash_received) || 0), Math.max(0, Number(cash_change) || 0), order_id, sid]
+        );
+        if (!result.affectedRows) return res.status(409).json({ error: '订单状态已变化，请刷新后重试' });
         return res.json({ success: true, status: 'awaiting_confirm' });
       }
 
-      // 收银员直接结算
-      await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, paid_confirmed_by=? WHERE id=?",
-        [req.adminId || req.cashierId || 'unknown', order_id]);
-      await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id }), req.ip || '', new Date().toISOString()]);
+      // 只有已认证的管理员/收银员可人工确认到账；保留服务员提交的实际支付方式。
+      const paymentMethod = String(order.pay_method || 'khqr').trim().slice(0, 40);
+      const orderTotal = Number(order.total);
+      if (!Number.isFinite(orderTotal) || orderTotal <= 0) return res.status(400).json({ error: '订单金额无效' });
+      const cashReceived = paymentMethod.toLowerCase() === 'cash'
+        ? Number(req.body?.cash_received ?? order.cash_received)
+        : 0;
+      if (paymentMethod.toLowerCase() === 'cash' && (!Number.isFinite(cashReceived) || cashReceived < orderTotal)) {
+        return res.status(400).json({ error: '现金实收金额不足，请重新录入实收金额' });
+      }
+      const cashChange = paymentMethod.toLowerCase() === 'cash'
+        ? Math.round((cashReceived - orderTotal) * 100) / 100
+        : 0;
+      const settledAt = new Date().toISOString();
+      await withTransaction(async () => {
+        const result = await runAsync(
+          "UPDATE orders SET status='done', awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=?, settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
+          [paymentMethod, cashReceived, cashChange, settledAt, req.adminId || req.cashierId || 'unknown', order_id, sid]
+        );
+        if (!result.affectedRows) {
+          const error = new Error('订单状态已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
+        await syncTableStatus(order.table_name, sid);
+        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [order.table_name, sid]);
+        if (!stillPending || Number(stillPending.cnt) === 0) {
+          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [order.table_name, sid]);
+        }
+        await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
+      });
+      io.to('kitchen-' + sid).emit('order:settled', { orderId: Number(order_id) });
+      io.to('waiter-' + sid).emit('order:settled', { orderId: Number(order_id) });
+      io.to('cashier-' + sid).emit('order:settled', { orderId: Number(order_id) });
+      io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId: Number(order_id) });
       res.json({ success: true, status: 'done' });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
@@ -777,8 +822,9 @@ res.json({
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id } = req.body || {};
       if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
-      await runAsync('UPDATE orders SET awaiting_confirm=0, pay_khqr_ref=?, pay_expires_at=? WHERE id=? AND store_id=?',
-        ['', '', order_id, sid]);
+      const result = await runAsync("UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=1",
+        [order_id, sid]);
+      if (!result.affectedRows) return res.status(409).json({ error: '订单不存在或当前状态不允许取消待确认' });
       res.json({ success: true });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });

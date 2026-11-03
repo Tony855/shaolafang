@@ -27,22 +27,20 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 log_success() { echo -e "${GREEN}${BOLD}[SUCCESS]${NC}${NC} $1"; }
 
-# ===== 内嵌只读 deploy key（用于从私有仓库 clone）=====
-# 只读权限，泄露最多让别人读代码，不能推送
-FOODFLOW_REPO="git@github.com:Tony855/shaolafang.git"
-FOODFLOW_DEPLOY_KEY_B64="LS0tLS1CRUdJTiBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0KYjNCbGJuTnphQzFyWlhrdGRqRUFBQUFBQkc1dmJtVUFBQUFFYm05dVpRQUFBQUFBQUFBQkFBQUFNd0FBQUF0emMyZ3RaVwpReU5UVXhPUUFBQUNCS3V5MGh1Y0xma1VHbTNMb1U2U21YcFZ4WHRzMFh0ZEhHa3d4WVRDYVV3d0FBQUpqYnpDVUQyOHdsCkF3QUFBQXR6YzJndFpXUXlOVFV4T1FBQUFDQkt1eTBodWNMZmtVR20zTG9VNlNtWHBWeFh0czBYdGRIR2t3eFlUQ2FVd3cKQUFBRUJ0aWVCNVFNK1hkazROYkg0SjljMjRYUHRrb2thKzZqNWZod1pFMko5VzFFcTdMU0c1d3QrUlFhYmN1aFRwS1plbApYRmUyelJlMTBjYVRERmhNSnBUREFBQUFFR2x1YzNSaGJHd3RjbVZoWkc5dWJIa0JBZ01FQlE9PQotLS0tLUVORCBPUEVOU1NIIFBSSVZBVEUgS0VZLS0tLS0K"
+# 仓库为公开仓库，默认使用 HTTPS；绝不在代码中保存 SSH 私钥或 Token。
+FOODFLOW_REPO="https://github.com/Tony855/shaolafang.git"
 
 prepare_deploy_key() {
-    [ -n "${FOODFLOW_DEPLOY_KEY:-}" ] && return 0
-    FOODFLOW_DEPLOY_KEY=$(mktemp /tmp/.ff_key.XXXXXX)
-    chmod 600 "$FOODFLOW_DEPLOY_KEY"
-    echo "$FOODFLOW_DEPLOY_KEY_B64" | base64 -d > "$FOODFLOW_DEPLOY_KEY" 2>/dev/null || {
-        echo "[WARN] deploy key 解码失败，将回退到其他 clone 方式"
-        FOODFLOW_DEPLOY_KEY=""
+    # 仅在运维人员显式注入独立密钥文件时使用；公开仓库不需要部署密钥。
+    if [ -z "${FOODFLOW_DEPLOY_KEY:-}" ]; then
+        return 0
+    fi
+    if [ ! -r "$FOODFLOW_DEPLOY_KEY" ]; then
+        log_error "FOODFLOW_DEPLOY_KEY 指定的密钥文件不可读"
         return 1
-    }
-    trap 'rm -f "${FOODFLOW_DEPLOY_KEY:-}" 2>/dev/null' EXIT
-    export GIT_SSH_COMMAND="ssh -i $FOODFLOW_DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    fi
+    export FOODFLOW_REPO="git@github.com:Tony855/shaolafang.git"
+    export GIT_SSH_COMMAND="ssh -i $FOODFLOW_DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 }
 
 # ===== 已安装时的更新模式 =====
@@ -608,7 +606,8 @@ fi
     # ===== 9. 配置数据库 =====
     echo ""
     # 检查是否已安装过：如果 .env 存在，说明是更新模式，跳过数据库重建
-    if [ -f "$CONFIG_DIR/.env" ]; then
+    ENV_FILE="$APP_DIR/.env"
+    if [ -f "$ENV_FILE" ]; then
         log_info "检测到已安装（.env 存在），跳过数据库重建，保留所有数据！"
         SKIP_DB_INIT=1
     else
@@ -637,9 +636,23 @@ fi
         exit 1
     fi
 
+    if [ "$SKIP_DB_INIT" -eq 1 ]; then
+        DB_RANDOM_PASSWORD=$(sed -n 's/^DB_PASSWORD=//p' "$ENV_FILE" | tail -n 1)
+        if [ -z "$DB_RANDOM_PASSWORD" ]; then
+            log_error "现有 .env 缺少 DB_PASSWORD，拒绝使用随机密码覆盖生产数据库配置。"
+            exit 1
+        fi
+    fi
+
     if [ "$SKIP_DB_INIT" -eq 0 ]; then
-    log_info "创建数据库..."
-    $MYSQL_CMD -e "DROP DATABASE IF EXISTS \`$DEFAULT_DB_NAME\`;"
+    log_info "检查目标数据库是否已存在..."
+    DB_EXISTS=$($MYSQL_CMD -N -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$DEFAULT_DB_NAME';")
+    if [ "${DB_EXISTS:-0}" -gt 0 ]; then
+        log_error "数据库 $DEFAULT_DB_NAME 已存在但配置目录没有 .env。为保护数据，拒绝 DROP/覆盖。"
+        log_error "请恢复正确的 $CONFIG_DIR/.env 或执行经备份确认的迁移流程。"
+        exit 1
+    fi
+    log_info "创建全新数据库..."
     $MYSQL_CMD -e "CREATE DATABASE \`$DEFAULT_DB_NAME\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
     log_info "创建数据库用户..."
@@ -678,8 +691,9 @@ EOF
 
     # ===== 10. 写入 .env 配置文件 =====
     echo ""
-    log_info "写入环境变量配置..."
     ENV_FILE="$APP_DIR/.env"
+    if [ "$SKIP_DB_INIT" -eq 0 ]; then
+    log_info "创建首次安装 .env 配置..." 
     cat > "$ENV_FILE" << EOF
 PORT=3000
 DB_HOST=127.0.0.1
@@ -694,8 +708,12 @@ RUN_SCHEDULED_TASKS=true
 JWT_SECRET=$JWT_RANDOM_SECRET
 QR_DOMAIN=$DOMAIN
 EOF
-    chmod 600 "$ENV_FILE"
+    chmod 640 "$ENV_FILE"
+    chown root:www-data "$ENV_FILE"
     log_success ".env 配置文件已生成"
+    else
+        log_info "更新模式：保留现有 .env，不覆盖数据库密码和 JWT_SECRET。"
+    fi
 
     # ===== 11. 配置 Systemd 服务 =====
     echo ""
@@ -707,6 +725,19 @@ EOF
     sleep 1
 
     NODE_PATH=$(which node)
+    if ! id foodflow >/dev/null 2>&1; then
+        useradd --system --no-create-home --home-dir "$APP_DIR" --shell /usr/sbin/nologin --gid www-data foodflow
+    fi
+    mkdir -p /var/lib/foodflow
+    chown foodflow:www-data /var/lib/foodflow
+    chmod 0700 /var/lib/foodflow
+    chown -R root:www-data "$APP_DIR"
+    for writable_dir in uploads backups logs; do
+        mkdir -p "$APP_DIR/$writable_dir"
+        chown -R foodflow:www-data "$APP_DIR/$writable_dir"
+        chmod 0770 "$APP_DIR/$writable_dir"
+    done
+    [ -f "$ENV_FILE" ] && chown root:www-data "$ENV_FILE" && chmod 0640 "$ENV_FILE"
     cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
 Description=FoodFlow QR Ordering System
@@ -714,7 +745,8 @@ After=network.target mariadb.service mysql.service redis.service
 
 [Service]
 Type=simple
-User=root
+User=foodflow
+Group=www-data
 WorkingDirectory=$APP_DIR
 ExecStart=$NODE_PATH server.js
 Restart=always
@@ -809,11 +841,10 @@ EOF
         echo "  访问地址：https://$DOMAIN"
     fi
     echo ""
-    echo "默认账号:"
-    echo "  超级管理员: superadmin / super123"
-    echo "  商户管理员: admin / admin123"
+    echo "初始账号用户名：superadmin / admin"
+    echo "初始密码：系统随机生成，见 /var/lib/foodflow/initial-credentials.txt"
     echo ""
-    log_warn "请及时修改默认管理员密码"
+    log_warn "首次登录后请立即修改所有初始密码"
 }
 
 # ============================================================
@@ -893,7 +924,7 @@ show_post_install_guide() {
         echo "     商户后台：https://$DOMAIN/admin"
         echo "     服务员端：https://$DOMAIN/waiter"
         echo "     后厨端：  https://$DOMAIN/kitchen"
-        echo "     超管后台：https://$DOMAIN/super（默认 superadmin/super123，请尽快修改）"
+        echo "     超管后台：https://$DOMAIN/super（初始凭据见 /var/lib/foodflow/initial-credentials.txt）"
         echo ""
     else
         echo "  1. 在所有应用服务器节点上编辑环境变量："
@@ -917,7 +948,7 @@ show_post_install_guide() {
         if [ "$DEPLOY_MODE" == "enterprise-ultimate" ]; then
             echo "  6. 企业旗舰版超级管理员后台："
             echo "     https://$DOMAIN/super"
-            echo "     默认账号：superadmin / super123"
+            echo "     初始密码：随机生成，见 /var/lib/foodflow/initial-credentials.txt"
             echo "     （请尽快修改默认密码！）"
             echo ""
         fi

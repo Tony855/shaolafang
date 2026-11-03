@@ -2,6 +2,8 @@
    routes/super.js — 超级管理员路由
    ============================================================ */
 const crypto = require('crypto');
+const express = require('express');
+const { needsRehash } = require('../server/middleware/password');
 const os = require('os');
 const fs = require('fs');
 
@@ -39,7 +41,12 @@ app.post('/api/super/login', async (req, res) => {
     const isValid = verifyPassword(password, superAdmin.password_hash);
     if (!isValid) {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
+      recordLoginAttempt(username, 'super_admin');
       return res.status(401).json({ error: '用户名或密码错误' });
+    }
+    if (needsRehash(superAdmin.password_hash)) {
+      const upgradedHash = hashPassword(password);
+      await runAsync('UPDATE super_admins SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, superAdmin.id, superAdmin.password_hash]);
     }
     resetLoginAttempts(username, 'super_admin');
     await runAsync('UPDATE super_admins SET last_login_at=NOW() WHERE id=?', [superAdmin.id]);
@@ -72,56 +79,73 @@ app.get('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
   try {
     const { name, code, username, password, contact_name, contact_phone, max_stores, country } = req.body || {};
-    if (!name) return res.status(400).json({ error: '商户名称必填' });
-    if (!username || !username.trim()) return res.status(400).json({ error: '登录账号必填' });
-    const adminUsername = username.trim();
+    const merchantName = typeof name === 'string' ? name.trim() : '';
+    const adminUsername = typeof username === 'string' ? username.trim() : '';
+    if (!merchantName || merchantName.length > 120) return res.status(400).json({ error: '商户名称必填且不能超过 120 个字符' });
+    if (!adminUsername || adminUsername.length > 100) return res.status(400).json({ error: '登录账号必填且不能超过 100 个字符' });
+    const storeLimit = max_stores === undefined || max_stores === null || max_stores === '' ? 1 : Number(max_stores);
+    if (!Number.isSafeInteger(storeLimit) || storeLimit < 1 || storeLimit > 1000) {
+      return res.status(400).json({ error: '门店数量上限必须为 1 至 1000 的整数' });
+    }
+    const adminPassword = (password && String(password).trim())
+      ? String(password).trim()
+      : crypto.randomBytes(24).toString('base64url');
+    if (adminPassword.length < 12 || adminPassword.length > 128) {
+      return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
+    }
+
     const userExists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [adminUsername]);
     if (userExists) return res.status(400).json({ error: '登录账号已存在' });
-    let merchantCode = (code && code.trim()) ? code.trim() : '';
+    let merchantCode = (typeof code === 'string' && code.trim()) ? code.trim() : '';
+    if (merchantCode.length > 40) return res.status(400).json({ error: '商户编码不能超过 40 个字符' });
     if (merchantCode) {
       const codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [merchantCode]);
       if (codeExists) return res.status(400).json({ error: '商户编码已存在' });
     } else {
       const now = new Date();
-      const yy = String(now.getFullYear()).slice(-2);
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const monthPrefix = yy + mm;
+      const monthPrefix = String(now.getFullYear()).slice(-2) + String(now.getMonth() + 1).padStart(2, '0');
       const monthCountRow = await getAsync("SELECT COUNT(*) AS cnt FROM merchants WHERE code LIKE ?", [monthPrefix + '%']);
-      let seq = monthCountRow.cnt + 1;
-      let generatedCode, codeExists;
+      let seq = Number(monthCountRow?.cnt || 0) + 1;
       do {
-        generatedCode = monthPrefix + String(seq).padStart(4, '0');
-        codeExists = await getAsync('SELECT id FROM merchants WHERE code=?', [generatedCode]);
-        if (codeExists) seq++;
-      } while (codeExists);
-      merchantCode = generatedCode;
+        merchantCode = monthPrefix + String(seq).padStart(4, '0');
+        seq++;
+      } while (await getAsync('SELECT id FROM merchants WHERE code=?', [merchantCode]));
     }
-    const _country = String(country || '').trim().toUpperCase().slice(0, 4);
-    const result = await runAsync('INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status, country) VALUES (?, ?, ?, ?, ?, 1, ?)', [name, merchantCode, contact_name || '', contact_phone || '', max_stores || 1, _country]);
-    const newMerchantId = result.lastID;
-    let adminPassword = (password && password.trim()) ? password.trim() : '';
-    if (!adminPassword) {
-      const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      for (let i = 0; i < 8; i++) adminPassword += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    const adminHash = hashPassword(adminPassword);
-    await runAsync('INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)', [newMerchantId, adminUsername, adminHash, name + '管理员']);
-    for (const currency of [
-      ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
-      ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
-    ]) await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
-    const defaultStoreName = name + '总店';
-    const defaultStoreCode = merchantCode.toLowerCase() + '-main';
-    const storeRes = await runAsync('INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)', [newMerchantId, defaultStoreName, defaultStoreCode, '']);
-    // ★ 初始化商户级 + 默认门店级 settings
-    await initMerchantSettings(runAsync, newMerchantId);
-    await initStoreSettings(runAsync, storeRes.lastID);
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
-      `创建商户「${name}」(编码: ${merchantCode}, 账号: ${adminUsername})`, getClientIp(req));
-    res.json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
 
+    const countryCode = String(country || '').trim().toUpperCase().slice(0, 4);
+    const adminHash = hashPassword(adminPassword);
+    let newMerchantId;
+    await withTransaction(async () => {
+      const result = await runAsync(
+        'INSERT INTO merchants (name, code, contact_name, contact_phone, max_stores, status, country) VALUES (?, ?, ?, ?, ?, 1, ?)',
+        [merchantName, merchantCode, String(contact_name || '').slice(0, 120), String(contact_phone || '').slice(0, 40), storeLimit, countryCode]
+      );
+      newMerchantId = result.lastID;
+      await runAsync(
+        'INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name) VALUES (?, ?, ?, ?)',
+        [newMerchantId, adminUsername, adminHash, merchantName + '管理员']
+      );
+      for (const currency of [
+        ['USD', '$', '美元', 1, 1], ['CNY', '¥', '人民币', 7, 0], ['VND', '₫', '越南盾', 25000, 0],
+        ['THB', '฿', '泰铢', 32, 0], ['KHR', '៛', '柬埔寨瑞尔', 4000, 0]
+      ]) {
+        await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [newMerchantId, ...currency]);
+      }
+      const storeRes = await runAsync(
+        'INSERT INTO stores (merchant_id, name, code, address, active) VALUES (?, ?, ?, ?, 1)',
+        [newMerchantId, merchantName + '总店', merchantCode.toLowerCase() + '-main', '']
+      );
+      await initMerchantSettings(runAsync, newMerchantId);
+      await initStoreSettings(runAsync, storeRes.lastID);
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
+        `创建商户「${merchantName}」(编码: ${merchantCode}, 账号: ${adminUsername})`, getClientIp(req));
+    });
+    res.status(201).json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '商户编码或登录账号已存在，请刷新后重试' });
+    res.status(500).json({ error: '创建商户失败' });
+  }
+});
 app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
     const { name, username, password, contact_name, contact_phone, max_stores, status, country } = req.body || {};
@@ -183,9 +207,19 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (req, res) => {
   try {
     const { password } = req.body || {};
-    const newPwd = password || 'admin123';
+    const newPwd = (password === undefined || password === null || String(password).trim() === '')
+      ? crypto.randomBytes(24).toString('base64url')
+      : String(password);
+    if (newPwd.length < 12 || newPwd.length > 128) {
+      return res.status(400).json({ error: '新密码长度必须为 12 至 128 个字符' });
+    }
+    const merchant = await getAsync('SELECT id FROM merchants WHERE id=?', [req.params.id]);
+    if (!merchant) return res.status(404).json({ error: '商户不存在' });
     const hash = hashPassword(newPwd);
-    await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
+    await withTransaction(async () => {
+      await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
+      await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [req.params.id]);
+    });
     const merchantForLog = await getAsync('SELECT name, code FROM merchants WHERE id=?', [req.params.id]);
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', req.params.id,
       `重置商户「${merchantForLog?.name || '未知'}」的管理员密码`, getClientIp(req));
@@ -200,9 +234,9 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
     const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores');
     const orderCount = await getAsync('SELECT COUNT(*) as count FROM orders');
     const todayOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE()");
-    const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE SUBSTRING(createdAt, 1, 10)=CURDATE() AND status='done'");
-    const monthRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND MONTH(createdAt)=MONTH(CURDATE()) AND status='done'");
-    const yearRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND status='done'");
+    const todayRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE SUBSTRING(COALESCE(settled_at, createdAt), 1, 10)=CURDATE() AND status='done'");
+    const monthRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND MONTH(COALESCE(settled_at, createdAt))=MONTH(CURDATE()) AND status='done'");
+    const yearRevenue = await getAsync("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND status='done'");
     const monthOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND MONTH(createdAt)=MONTH(CURDATE())");
     const yearOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE())");
     const now = new Date().toISOString();
@@ -235,11 +269,11 @@ app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
       SELECT s.id AS store_id, s.name AS store_name, m.name AS merchant_name,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id) AS total_orders,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=?) AS today_orders,
-        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(o.createdAt,1,10)=? AND o.status='done') AS today_revenue,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND SUBSTRING(COALESCE(o.settled_at,o.createdAt),1,10)=? AND o.status='done') AS today_revenue,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND MONTH(o.createdAt)=MONTH(CURDATE())) AS month_orders,
-        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND MONTH(o.createdAt)=MONTH(CURDATE()) AND o.status='done') AS month_revenue,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(COALESCE(o.settled_at,o.createdAt))=YEAR(CURDATE()) AND MONTH(COALESCE(o.settled_at,o.createdAt))=MONTH(CURDATE()) AND o.status='done') AS month_revenue,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE())) AS year_orders,
-        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(o.createdAt)=YEAR(CURDATE()) AND o.status='done') AS year_revenue,
+        (SELECT COALESCE(SUM(o.total),0) FROM orders o WHERE o.store_id=s.id AND YEAR(COALESCE(o.settled_at,o.createdAt))=YEAR(CURDATE()) AND o.status='done') AS year_revenue,
         (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id) AS total_sessions,
         (SELECT COUNT(*) FROM scan_sessions ss WHERE ss.store_id=s.id AND ss.expires_at>?) AS online_count
       FROM stores s
@@ -509,13 +543,16 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body || {};
     if (!oldPassword || !newPassword) return res.status(400).json({ error: '请输入旧密码和新密码' });
-    if (newPassword.length < 6) return res.status(400).json({ error: '新密码至少6位' });
+    if (newPassword.length < 12 || newPassword.length > 128) return res.status(400).json({ error: '新密码长度必须为 12 至 128 个字符' });
     if (!verifyPassword(oldPassword, req.superAdmin.password_hash)) {
       return res.status(401).json({ error: '旧密码错误' });
     }
     const hash = hashPassword(newPassword);
-    await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
+    await withTransaction(async () => {
+      await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
+      await runAsync('DELETE FROM super_sessions WHERE super_admin_id=? AND token<>?', [req.superAdmin.id, req.superSessionToken || '']);
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
+    });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -529,25 +566,60 @@ app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/super/backup/import', requireSuperAdmin, async (req, res) => {
+app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '50mb' }), async (req, res) => {
   try {
     const data = req.body;
-    if (!data || !data.tables || typeof data.tables !== 'object') return res.status(400).json({ error: '备份文件格式无效' });
+    const tables = ['merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies', 'order_sequences', 'orders', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'];
+    if (!data || !data.tables || typeof data.tables !== 'object' || Array.isArray(data.tables)) {
+      return res.status(400).json({ error: '备份文件格式无效' });
+    }
+    // Older backups may not contain the order sequence table; restore it as empty for compatibility.
+    if (data.tables.order_sequences === undefined) data.tables.order_sequences = [];
+    // Reject incomplete or malformed backups before deleting a single production row.
+    for (const table of tables) {
+      if (!Array.isArray(data.tables[table])) {
+        return res.status(400).json({ error: `备份缺少有效数据表：${table}` });
+      }
+      if (data.tables[table].length > 100000) {
+        return res.status(413).json({ error: `数据表 ${table} 的记录数超过导入限制` });
+      }
+      if (data.tables[table].some(row => !row || typeof row !== 'object' || Array.isArray(row))) {
+        return res.status(400).json({ error: `数据表 ${table} 包含无效记录` });
+      }
+    }
     await withTransaction(async () => {
-      for (const table of ['menus', 'tables', 'orders', 'currencies', 'menu_categories', 'login_logs', 'audit_logs', 'scan_sessions', 'waiters', 'waiter_sessions', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins']) {
-        const rows = Array.isArray(data.tables[table]) ? data.tables[table] : [];
-        await runAsync(`DELETE FROM \`${table}\``);
+      for (const table of tables) {
+        const rows = data.tables[table];
+        const columns = await allAsync(`SHOW COLUMNS FROM \`${table}\``);
+        const allowedColumns = new Set(columns.map(column => column.Field));
         for (const row of rows) {
-          const keys = Object.keys(row).filter(k => !['id'].includes(k));
-          const placeholders = keys.map(() => '?').join(', ');
-          const values = keys.map(k => row[k]);
-          if (keys.length) {
-            await runAsync(`INSERT INTO \`${table}\` (${keys.map(k => `\`${k}\``).join(', ')}) VALUES (${placeholders})`, values);
+          const rowKeys = Object.keys(row);
+          const invalidKeys = rowKeys.filter(key => !allowedColumns.has(key));
+          if (invalidKeys.length) {
+            throw new Error(`备份表 ${table} 包含未知字段：${invalidKeys.join(', ')}`);
           }
         }
       }
+      for (const table of [...tables].reverse()) {
+        await runAsync(`DELETE FROM \`${table}\``);
+      }
+      for (const table of tables) {
+        const rows = data.tables[table];
+        for (const row of rows) {
+          // Preserve primary keys so store_id, merchant_id and order references remain intact.
+          const keys = Object.keys(row);
+          if (!keys.length) continue;
+          const placeholders = keys.map(() => '?').join(', ');
+          const values = keys.map(key => row[key]);
+          await runAsync(`INSERT INTO \`${table}\` (${keys.map(key => `\`${key}\``).join(', ')}) VALUES (${placeholders})`, values);
+        }
+      }
+      // Never restore live authentication/QR sessions from a backup; invalidate all old tokens.
+      for (const sessionTable of ['scan_sessions', 'waiter_sessions', 'cashier_sessions', 'admin_sessions', 'super_sessions']) {
+        await runAsync(`DELETE FROM \`${sessionTable}\``);
+      }
     });
-    res.json({ success: true, message: '备份已导入' });
+    res.json({ success: true, message: '备份已导入；所有旧登录和扫码会话已失效' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

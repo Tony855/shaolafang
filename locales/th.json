@@ -243,7 +243,7 @@
   "confirmOperation": "ยืนยันการดำเนินการ",
   "confirmResetData": "ยืนยันรีเซ็ตข้อมูลคำสั่งซื้อทั้งหมด? ไม่สามารถย้อนกลับได้",
   "confirmResetDataTitle": "ยืนยันรีเซ็ตข้อมูล",
-  "confirmResetPassword": "ยืนยันรีเซ็ตรหัสผ่านแอดมินเป็น admin123?",
+  "confirmResetPassword": "ยืนยันสร้างรหัสผ่านผู้ดูแลระบบแบบสุ่มใหม่หรือไม่?",
   "dashboard": "แดชบอร์ด",
   "enterPassword": "กรุณากรอกรหัสผ่าน",
   "enterPasswordVerify": "กรุณากรอกรหัสผ่านเพื่อยืนยันตัวตน",

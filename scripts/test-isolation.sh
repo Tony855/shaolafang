@@ -15,11 +15,19 @@ check() {
 }
 
 TS=$(date +%s | tail -c 6)
+WAITER_TEST_PASSWORD=$(openssl rand -hex 16)
 echo "=============== 创建测试商户 ==============="
 
-SUPER=$(curl -sS -X POST "$BASE/api/super/login" \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"superadmin","password":"super123"}' | grep -oP '"token":"\K[^"]+')
+CRED_FILE="${INIT_CRED_FILE:-/var/lib/foodflow/initial-credentials.txt}"
+line=$(grep -m1 '^superAdmin: ' "$CRED_FILE" 2>/dev/null || true)
+SUPER_USERNAME="${SUPER_USERNAME:-$(printf '%s' "$line" | sed -E 's/^[^:]+: ([^ ]+) \/ .*/\1/')}"
+SUPER_PASSWORD="${SUPER_PASSWORD:-$(printf '%s' "$line" | sed -E 's/^[^:]+: [^ ]+ \/ //')}"
+if [ -z "$SUPER_USERNAME" ] || [ -z "$SUPER_PASSWORD" ]; then
+  echo "缺少超级管理员凭据：请设置 SUPER_USERNAME/SUPER_PASSWORD 或提供 $CRED_FILE"
+  exit 1
+fi
+SUPER=$(printf '{"username":"%s","password":"%s"}' "$SUPER_USERNAME" "$SUPER_PASSWORD" | curl -sS -X POST "$BASE/api/super/login" \
+  -H 'Content-Type: application/json' --data-binary @- | grep -oP '"token":"\K[^"]+')
 
 # 创建商户 A 和 B
 for label in A B; do
