@@ -1110,7 +1110,7 @@ require('./routes/admin-printers.js')(app, { getAsync, allAsync, runAsync, requi
 // ----- 数据导出 -----
 // ----- 报表+导出 -----
 const _advExport = require('./routes/admin-reports.js');
-_advExport(app, { getAsync, allAsync, requireAdminKey, authenticateAdmin });
+_advExport(app, { getAsync, allAsync, requireAdminKey, requirePermission, authenticateAdmin });
 if (typeof _advExport.attachAdvancedExport === 'function') {
   _advExport.attachAdvancedExport(app, { getAsync, allAsync, requireAdminKey, requirePermission });
 }
