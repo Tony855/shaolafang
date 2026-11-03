@@ -364,15 +364,30 @@ const DEFAULT_CREDENTIALS = {
 
 async function writeInitialCredentialsFile(credentials) {
   const file = process.env.INIT_CRED_FILE || '/var/lib/foodflow/initial-credentials.txt';
+  const tempFile = file + '.tmp-' + process.pid;
   try {
     await fs.promises.mkdir(path.dirname(file), { recursive: true });
-    const content = Object.entries(credentials)
-      .map(([k, v]) => `${k}: ${v.username} / ${v.password}`)
+    const merged = new Map();
+    try {
+      const existing = await fs.promises.readFile(file, 'utf8');
+      for (const line of existing.split(/\r?\n/)) {
+        const match = line.match(/^([^:]+):\s+(\S+)\s+\/\s+(.+)$/);
+        if (match) merged.set(match[1], { username: match[2], password: match[3] });
+      }
+    } catch (readError) {
+      if (readError.code !== 'ENOENT') throw readError;
+    }
+    for (const [role, value] of Object.entries(credentials)) merged.set(role, value);
+    const content = Array.from(merged.entries())
+      .map(([role, value]) => `${role}: ${value.username} / ${value.password}`)
       .join('\n') + '\n';
-    await fs.promises.writeFile(file, content, { mode: 0o600 });
+    await fs.promises.writeFile(tempFile, content, { mode: 0o600, flag: 'wx' });
+    await fs.promises.chmod(tempFile, 0o600);
+    await fs.promises.rename(tempFile, file);
     await fs.promises.chmod(file, 0o600);
-    console.log(`  + 初始凭据已写入 ${file}（权限 600）`);
+    console.log(`  + 初始凭据已安全写入 ${file}（权限 600）`);
   } catch (e) {
+    try { await fs.promises.unlink(tempFile); } catch (_) {}
     console.warn(`  ! 无法写入凭据文件 ${file}: ${e.message}（不影响服务启动）`);
   }
 }
