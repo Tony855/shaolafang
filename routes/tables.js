@@ -9,8 +9,13 @@ const { compressImage } = require("../server/services/image-compress");
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
+  function requireTableAccess(req, res, next) {
+    if (!req.isAdmin || req.isPrimaryAdmin || req.adminPermissions?.can_manage_table) return next();
+    return res.status(403).json({ error: '没有桌台管理权限' });
+  }
+
 // Management table listing: never expose qr_token or allow a caller to select another store.
-app.get('/api/tables', requireAdminOrWaiter, async (req, res) => {
+app.get('/api/tables', requireAdminOrWaiter, requireTableAccess, async (req, res) => {
   try {
     const storeId = req.isAdmin ? Number(req.storeId) : Number(req.waiterStoreId);
     if (!Number.isSafeInteger(storeId) || storeId <= 0) {
@@ -58,7 +63,7 @@ app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), 
 });
 
 // ----- 整桌转移：把整个桌的所有未结算订单转到目标桌 -----
-app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
+app.post('/api/tables/move', requireAdminOrWaiter, requireTableAccess, async (req, res) => {
   try {
     if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_table)) {
       return res.status(403).json({ error: '没有桌台管理权限' });
@@ -85,7 +90,7 @@ app.post('/api/tables/move', requireAdminOrWaiter, async (req, res) => {
       const target = lockedTables.find(row => row.name === targetTable);
       if (!source) throw Object.assign(new Error('源桌不存在'), { status: 404 });
       if (!target) throw Object.assign(new Error('目标桌不存在'), { status: 404 });
-      if (!['available', 'occupied', 'reserved'].includes(target.status)) {
+      if (!['available', 'occupied'].includes(target.status)) {
         throw Object.assign(new Error('目标桌当前不可用'), { status: 409 });
       }
 
