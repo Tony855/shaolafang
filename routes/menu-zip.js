@@ -153,7 +153,7 @@ module.exports = function(app, deps) {
           let imageName = '';
           const rawImg = String(it.image || '').trim();
           if (rawImg) {
-            const base = path.basename(rawImg.replace(/\\\\/g, '/'));
+            const base = path.basename(rawImg.replace(/\\/g, '/'));
             if (imageMap[base]) {
               imageName = imageMap[base];
             } else {
