@@ -7,6 +7,8 @@ function response() {
   return {
     statusCode: 200,
     body: undefined,
+    headers: {},
+    setHeader(name, value) { this.headers[name.toLowerCase()] = value; return this; },
     status(code) { this.statusCode = code; return this; },
     json(value) { this.body = value; return this; }
   };
@@ -485,4 +487,28 @@ test('customer order lookup accepts bearer tokens in headers and disables cachin
   assert.deepEqual(sqlCalls[0].params, ['private-scan-session']);
   assert.deepEqual(sqlCalls[2].params.slice(0, 2), [7, 'private-customer-token']);
   assert.match(res.headers['Cache-Control'], /no-store/);
+});
+
+test('public QR scan credentials are never cacheable', async () => {
+  const { app, routes } = routeHarness();
+  require('../routes/public-session')(app, {
+    getAsync: async sql => {
+      if (sql.includes('FROM tables WHERE qr_token')) return { name: 'A1', store_id: 7 };
+      if (sql.includes('FROM stores')) return { id: 7 };
+      return null;
+    },
+    runAsync: async () => ({ affectedRows: 1, lastID: 1 }),
+    allAsync: async () => [],
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    formatOrder: row => row
+  });
+  const handler = routes.get('GET /api/public/table-token/:token').at(-1);
+  const res = response();
+  await handler({ params: { token: 'qr-token' }, protocol: 'https', get: name => name === 'host' ? 'foodflow.example' : '' }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers['cache-control'], 'no-store, private');
+  assert.equal(res.headers.pragma, 'no-cache');
+  assert.ok(res.body.sessionToken);
+  assert.ok(res.body.customerToken);
 });
