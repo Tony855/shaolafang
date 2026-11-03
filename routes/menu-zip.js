@@ -6,7 +6,7 @@ const AdmZip = require('adm-zip');
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, upload, UPLOAD_DIR } = deps;
 
-  app.get('/api/admin/menu/export-zip', requireAdminKey, async (req, res) => {
+  app.get('/api/admin/menu/export-zip', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
     try {
       const storeId = req.storeId || 1;
       const menus = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [storeId]);
