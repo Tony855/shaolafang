@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { createSocketAuthenticator, positiveSafeInteger } = require('../server/middleware/socket-auth');
 
 function makeSocket(token, storeId) {
-  return { handshake: { query: { token, ...(storeId === undefined ? {} : { storeId }) } }, data: {} };
+  return { handshake: { auth: { token }, query: { ...(storeId === undefined ? {} : { storeId }) } }, data: {} };
 }
 
 async function authenticate(getAsync, socket) {
