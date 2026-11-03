@@ -140,7 +140,9 @@ const cache = {
   }
 };
 async function checkAndSetCooldown(key, cooldownMs) {
-  const ttlSeconds = Math.max(1, Math.ceil(Number(cooldownMs) / 1000));
+  const interval = Number(cooldownMs);
+  if (!Number.isFinite(interval) || interval <= 0) return true;
+  const ttlSeconds = Math.max(1, Math.ceil(interval / 1000));
   return cache.setIfAbsent('cooldown:' + key, Date.now(), ttlSeconds);
 }
 
