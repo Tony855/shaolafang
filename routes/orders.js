@@ -294,7 +294,10 @@ app.post('/api/orders', async (req, res) => {
       if (!token) return res.status(401).json({ error: '请重新扫码后再下单' });
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [token]);
       if (!session) return res.status(401).json({ error: '请重新扫码后再下单' });
-      if (new Date(session.expires_at).getTime() < Date.now()) return res.status(410).json({ error: '二维码已过期，请重新扫码' });
+      const sessionExpiresAt = new Date(session.expires_at).getTime();
+      if (!Number.isFinite(sessionExpiresAt) || sessionExpiresAt <= Date.now()) {
+        return res.status(410).json({ error: '二维码已过期或会话有效期无效，请重新扫码' });
+      }
       table = await assertTableExists(req.body.table, session.store_id || 1);
       if (session.table_name !== table) return res.status(403).json({ error: '扫码桌号与下单桌号不一致' });
       sessionStoreId = session.store_id || 1;
