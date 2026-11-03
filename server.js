@@ -327,6 +327,7 @@ async function writeInitialCredentialsFile(credentials) {
       .join('\n') + '\n';
     await fs.promises.writeFile(file, content, { mode: 0o600 });
     await fs.promises.chmod(file, 0o600);
+    await fs.promises.chmod(file, 0o600);
     console.log(`  + 初始凭据已写入 ${file}（权限 600）`);
   } catch (e) {
     console.warn(`  ! 无法写入凭据文件 ${file}: ${e.message}（不影响服务启动）`);
