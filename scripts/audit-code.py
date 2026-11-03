@@ -135,6 +135,13 @@ def frontend_handler_audit():
 def html_id_audit():
     title("【3】JS 引用 id → HTML 定义对账")
     dynamic_ids = set()
+    # These optional store-name labels are read only behind null guards; they are
+    # intentionally absent on deployments/pages where the related panel is disabled.
+    dynamic_ids.update({
+        'currencyCurrentStoreName',
+        'dispCurrentStoreName',
+        'khqrCurrentStoreName',
+    })
     for jp in ROOT.rglob('*.js'):
         if 'node_modules' in str(jp): continue
         js = read_file(jp)
