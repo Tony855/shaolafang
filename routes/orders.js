@@ -516,9 +516,12 @@ app.post('/api/orders', async (req, res) => {
     }
 
     const orderData = formatOrder(newRow);
-    io.to('kitchen-' + (newRow.store_id || 1)).emit('order:new', orderData);
-    io.to('waiter-' + (newRow.store_id || 1)).emit('order:new', orderData);
-    io.to('cashier-' + (newRow.store_id || 1)).emit('order:new', orderData);
+    const staffOrderData = { ...orderData };
+    delete staffOrderData.sessionToken;
+    delete staffOrderData.customerToken;
+    io.to('kitchen-' + (newRow.store_id || 1)).emit('order:new', staffOrderData);
+    io.to('waiter-' + (newRow.store_id || 1)).emit('order:new', staffOrderData);
+    io.to('cashier-' + (newRow.store_id || 1)).emit('order:new', staffOrderData);
     io.to('public-table-' + (newRow.store_id || 1) + '-' + newRow.table_name).emit('order:new', {
       id: orderData.id,
       order_no: orderData.order_no,
