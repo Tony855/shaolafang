@@ -46,7 +46,8 @@ async function maybeAutoBackup() {
     ? Math.min(rawIntervalHours, 168)
     : 24;
   const lastRow = await getAsync("SELECT value FROM settings WHERE `key` = 'last_backup_at'");
-  const lastTime = lastRow ? new Date(lastRow.value).getTime() : 0;
+  const parsedLastTime = lastRow ? new Date(lastRow.value).getTime() : 0;
+  const lastTime = Number.isFinite(parsedLastTime) && parsedLastTime > 0 ? parsedLastTime : 0;
   if (Date.now() - lastTime >= intervalHours * 60 * 60 * 1000) {
     await autoBackupDatabase();
   }
