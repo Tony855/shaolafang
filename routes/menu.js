@@ -2,6 +2,8 @@
    routes/menu.js — 菜品 + 分类
    ============================================================ */
 const crypto = require("crypto");
+const dns = require("dns").promises;
+const net = require("net");
 const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
@@ -65,22 +67,98 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
 });
 
 // 批量导入菜品
+function isPrivateAddress(address) {
+  const version = net.isIP(address);
+  if (version === 4) {
+    const octets = address.split('.').map(Number);
+    const [a, b, d] = octets;
+    return a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 192 && b === 0) ||
+      (a === 192 && b === 0 && d === 0) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && d === 100) ||
+      (a === 203 && b === 0 && d === 113);
+  }
+  if (version === 6) {
+    const ip = address.toLowerCase();
+    if (ip.startsWith('::ffff:')) return isPrivateAddress(ip.slice(7));
+    return ip === '::' || ip === '::1' || ip.startsWith('fc') ||
+      ip.startsWith('fd') || /^fe[89ab]/.test(ip) ||
+      ip.startsWith('ff') || ip.startsWith('2001:db8:');
+  }
+  return true;
+}
+
+async function validateExternalImageUrl(value) {
+  const parsed = new URL(value);
+  if (parsed.protocol !== 'https:' || (parsed.port && parsed.port !== '443') ||
+      parsed.username || parsed.password) {
+    throw new Error('远程图片只允许 HTTPS 公网地址');
+  }
+  const hostname = parsed.hostname.toLowerCase();
+  if (!hostname || hostname === 'localhost' || hostname.endsWith('.localhost') ||
+      hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+    throw new Error('禁止访问本地或内网地址');
+  }
+  const addresses = net.isIP(hostname)
+    ? [{ address: hostname }]
+    : await dns.lookup(hostname, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some(item => isPrivateAddress(item.address))) {
+    throw new Error('远程图片地址解析到非公网 IP，已拒绝');
+  }
+  return parsed;
+}
+
 async function downloadImageToUploads(url) {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const ct = (res.headers.get('content-type') || '').split(';')[0].trim();
-    if (!/^image\//.test(ct)) throw new Error('非图片: ' + ct);
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 5 * 1024 * 1024) throw new Error('图片超过5MB');
+    let current = String(url);
+    let response = null;
+    for (let redirects = 0; redirects <= 3; redirects++) {
+      const parsed = await validateExternalImageUrl(current);
+      response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(15000) });
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get('location');
+        if (!location || redirects === 3) throw new Error('远程图片重定向次数过多或缺少目标地址');
+        current = new URL(location, parsed).toString();
+        continue;
+      }
+      break;
+    }
+    if (!response || !response.ok) throw new Error('HTTP ' + (response?.status || '请求失败'));
+    const ct = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
     const extMap = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp' };
-    const ext = extMap[ct] || '.jpg';
-    const filename = 'batch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + ext;
-    const fullPath = path.join(UPLOAD_DIR, filename);
-    await fs.promises.writeFile(fullPath, buf);
+    if (!extMap[ct]) throw new Error('不支持的图片类型: ' + ct);
+    const declaredSize = Number(response.headers.get('content-length') || 0);
+    if (declaredSize > 5 * 1024 * 1024) throw new Error('图片超过5MB');
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('远程图片响应为空');
+    const chunks = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > 5 * 1024 * 1024) {
+        await reader.cancel();
+        throw new Error('图片超过5MB');
+      }
+      chunks.push(Buffer.from(value));
+    }
+    if (!total) throw new Error('远程图片内容为空');
+    const buf = Buffer.concat(chunks, total);
+    const filename = 'batch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + extMap[ct];
+    const uploadRoot = path.resolve(UPLOAD_DIR);
+    await fs.promises.mkdir(uploadRoot, { recursive: true });
+    const fullPath = path.resolve(uploadRoot, filename);
+    if (!fullPath.startsWith(uploadRoot + path.sep)) throw new Error('图片保存路径无效');
+    await fs.promises.writeFile(fullPath, buf, { flag: 'wx', mode: 0o640 });
     return filename;
   } catch (e) {
-    console.warn('[batch] 下载图片失败:', url, e.message);
+    console.warn('[batch] 下载图片失败:', String(url).slice(0, 200), e.message);
     return null;
   }
 }
