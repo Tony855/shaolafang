@@ -42,8 +42,13 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
   try {
     const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code = 'USD' } = req.body;
     const video = req.files && req.files.video ? req.files.video[0].filename : '';
-    if (!name || !price) return res.status(400).json({ error: '名称和价格必填' });
-    const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [currency_code, req.merchantId]);
+    const cleanName = typeof name === 'string' ? name.trim() : '';
+    const numericPrice = typeof price === 'number' || typeof price === 'string' ? Number(price) : NaN;
+    const currencyCode = String(currency_code || 'USD').trim().toUpperCase();
+    if (!cleanName || cleanName.length > 120 || !Number.isFinite(numericPrice) || numericPrice <= 0) {
+      return res.status(400).json({ error: '菜品名称无效或价格必须是大于 0 的有效数字' });
+    }
+    const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [currencyCode, req.merchantId]);
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
     let image = req.files && req.files.image ? req.files.image[0].filename : '';
     // 后端兜底压缩（前端已压过，这里是保护）
@@ -57,7 +62,7 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
     }
     const result = await runAsync(
       'INSERT INTO menus (name, emoji, price, category, `desc`, image, video, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, emoji || '🍽️', parseFloat(price), category || '其他', desc || '', image, video || '', currency_code, name_en || '', desc_en || '', unit || '份', show_dual ? 1 : 0, secondary_currency_code || '', req.storeId || 1, req.merchantId]
+      [cleanName, emoji || '🍽️', numericPrice, category || '其他', desc || '', image, video || '', currencyCode, name_en || '', desc_en || '', unit || '份', show_dual ? 1 : 0, secondary_currency_code || '', req.storeId || 1, req.merchantId]
     );
     const newItem = await getAsync('SELECT * FROM menus WHERE id = ?', [result.lastID]);
     res.status(201).json(newItem);
@@ -298,7 +303,12 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
     const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code } = req.body;
     const current = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     if (!current) return res.status(404).json({ error: '菜品不存在' });
-    const nextCurrency = currency_code || current.currency_code || 'USD';
+    const nextCurrency = String(currency_code || current.currency_code || 'USD').trim().toUpperCase();
+    const nextName = name === undefined ? current.name : (typeof name === 'string' ? name.trim() : '');
+    const nextPrice = price === undefined ? Number(current.price) : (typeof price === 'number' || typeof price === 'string' ? Number(price) : NaN);
+    if (!nextName || nextName.length > 120 || !Number.isFinite(nextPrice) || nextPrice <= 0) {
+      return res.status(400).json({ error: '菜品名称无效或价格必须是大于 0 的有效数字' });
+    }
     const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [nextCurrency, req.merchantId]);
     if (!currency) return res.status(400).json({ error: '货币类型不存在' });
     let image = (req.files && req.files.image) ? req.files.image[0].filename : current.image;
@@ -318,7 +328,7 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
     }
     await runAsync(
       'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, video=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=? AND store_id=?',
-      [name || current.name, emoji || current.emoji, Number.isFinite(Number(price)) ? Number(price) : current.price, category || current.category, desc ?? current.desc, image, video, nextCurrency, name_en ?? current.name_en ?? '', desc_en ?? current.desc_en ?? '', unit || current.unit || '份', show_dual === undefined ? (current.show_dual || 0) : (show_dual ? 1 : 0), secondary_currency_code ?? current.secondary_currency_code ?? '', id, req.storeId]
+      [nextName, emoji || current.emoji, nextPrice, category || current.category, desc ?? current.desc, image, video, nextCurrency, name_en ?? current.name_en ?? '', desc_en ?? current.desc_en ?? '', unit || current.unit || '份', show_dual === undefined ? (current.show_dual || 0) : (show_dual ? 1 : 0), secondary_currency_code ?? current.secondary_currency_code ?? '', id, req.storeId]
     );
     const updated = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
     res.json(updated);
