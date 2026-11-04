@@ -15,7 +15,7 @@ function response() {
   };
 }
 
-function setup({ duplicateUsername = false, failOn } = {}) {
+function setup({ duplicateUsername = false, failOn, merchantExists = true } = {}) {
   const calls = [];
   let handler;
   let transactionCount = 0;
@@ -31,7 +31,7 @@ function setup({ duplicateUsername = false, failOn } = {}) {
   const deps = {
     getAsync: async sql => {
       calls.push({ type: 'get', sql });
-      if (sql.includes('FROM merchants') && sql.includes('SELECT country')) return { country: 'KH' };
+      if (sql.includes('FROM merchants') && sql.includes('SELECT country')) return merchantExists ? { country: 'KH' } : null;
       if (sql.includes('SELECT id, username FROM merchant_admins')) return { id: 55, username: 'old-admin' };
       if (sql.includes('SELECT id FROM merchant_admins WHERE username')) return duplicateUsername ? { id: 66 } : null;
       if (sql.includes('SELECT name, code FROM merchants')) return { name: 'Updated Merchant', code: 'T009' };
@@ -104,20 +104,19 @@ test('merchant profile, admin credentials and audit update in one transaction', 
 });
 
 test('merchant update returns not found without writes when merchant is missing', async () => {
-  const ctx = setup();
-  const originalGet = ctx.calls;
-  // Replace the route dependency through a fresh setup whose merchant lookup returns null.
-  const missing = setup();
+  const ctx = setup({ merchantExists: false });
   const res = response();
-  // Override the captured get behavior by using a request that is rejected by the test stub.
-  // The missing merchant path is covered by the explicit transaction lock check.
-  await missing.handler({
+  await ctx.handler({
     params: { id: '9' },
     body: { name: 'Updated Merchant' },
     superAdmin: { id: 1, username: 'root' }
   }, res);
-  assert.equal(res.statusCode, 200);
-  assert.ok(originalGet);
+
+  assert.equal(res.statusCode, 404);
+  assert.deepEqual(res.body, { error: '商户不存在' });
+  assert.equal(ctx.transactionCount, 1);
+  assert.equal(ctx.calls.some(call => call.type === 'run'), false);
+  assert.equal(ctx.calls.some(call => call.type === 'audit'), false);
 });
 
 test('merchant update rolls back when a later administrator write fails', async () => {
