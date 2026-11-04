@@ -17,7 +17,8 @@ function response() {
   };
 }
 
-function setup({ failAudit = false, failDelete = false, uploadDir } = {}) {
+function setup({ failAudit = false, failDelete = false, failMenuInsert = false, uploadDir } = {}) {
+  let createHandler;
   let updateHandler;
   let deleteHandler;
   let inTransaction = false;
@@ -32,7 +33,7 @@ function setup({ failAudit = false, failDelete = false, uploadDir } = {}) {
   };
   const app = {
     get() {},
-    post() {},
+    post(route, ...handlers) { if (route === '/api/menu') createHandler = handlers[handlers.length - 1]; },
     put(route, ...handlers) { if (route === '/api/menu/:id') updateHandler = handlers[handlers.length - 1]; },
     delete(route, ...handlers) { if (route === '/api/menu/:id') deleteHandler = handlers[handlers.length - 1]; }
   };
@@ -40,6 +41,8 @@ function setup({ failAudit = false, failDelete = false, uploadDir } = {}) {
     getAsync: async (sql, params = []) => {
       calls.push({ type: 'get', sql, params, inTransaction });
       if (sql.includes('FROM menus WHERE id=? AND store_id=?')) return { ...currentMenu, id: Number(params[0]) };
+      if (sql.includes('FROM stores')) return { id: Number(params[0]) };
+      if (sql.includes('FROM currencies')) return { code: 'USD' };
       if (sql.includes('FROM currencies')) return { code: 'USD' };
       if (sql.includes('FROM merchant_admins')) return { username: 'owner' };
       return null;
@@ -49,6 +52,8 @@ function setup({ failAudit = false, failDelete = false, uploadDir } = {}) {
       calls.push({ type: 'run', sql, params, inTransaction });
       if (failAudit && sql.startsWith('INSERT INTO audit_logs')) throw new Error('audit failure');
       if (failDelete && sql.startsWith('DELETE FROM menus')) throw new Error('delete failure');
+      if (failMenuInsert && sql.startsWith('INSERT INTO menus')) throw new Error('menu insert failure');
+      if (sql.startsWith('INSERT INTO menus')) return { lastID: 5, affectedRows: 1 };
       return { affectedRows: 1 };
     },
     withTransaction: async work => {
@@ -73,7 +78,7 @@ function setup({ failAudit = false, failDelete = false, uploadDir } = {}) {
     authenticateAdmin: middleware
   };
   attachMenuRoutes(app, deps);
-  return { updateHandler, deleteHandler, calls, get transactionCount() { return transactionCount; }, get rolledBack() { return rolledBack; } };
+  return { createHandler, updateHandler, deleteHandler, calls, get transactionCount() { return transactionCount; }, get rolledBack() { return rolledBack; } };
 }
 
 test('menu update and audit execute in one transaction', async () => {
@@ -135,5 +140,56 @@ test('menu deletion preserves media if the database delete fails', async () => {
   assert.equal(res.statusCode, 500);
   assert.equal(ctx.rolledBack, true);
   assert.equal(fs.existsSync(path.join(uploadDir, 'old-image.jpg')), true);
+  fs.rmSync(uploadDir, { recursive: true, force: true });
+});
+
+test('menu creation validates and inserts the item with audit in one transaction', async () => {
+  const uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foodflow-menu-create-'));
+  const ctx = setup({ uploadDir });
+  const res = response();
+  await ctx.createHandler({
+    merchantId: 5, storeId: 2, adminId: 9,
+    body: { name: 'New Dish', price: '12.5', currency_code: 'USD', show_dual: false },
+    files: {}
+  }, res);
+
+  assert.equal(res.statusCode, 201);
+  assert.equal(ctx.transactionCount, 1);
+  assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO menus') && call.inTransaction));
+  assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO audit_logs') && call.inTransaction));
+  fs.rmSync(uploadDir, { recursive: true, force: true });
+});
+
+test('menu creation rejects ambiguous boolean flags and cleans uploaded assets', async () => {
+  const uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foodflow-menu-create-invalid-'));
+  fs.writeFileSync(path.join(uploadDir, 'upload.jpg'), 'not-an-image');
+  const ctx = setup({ uploadDir });
+  const res = response();
+  await ctx.createHandler({
+    merchantId: 5, storeId: 2, params: {},
+    body: { name: 'New Dish', price: 12, show_dual: 'false' },
+    files: { image: [{ filename: 'upload.jpg' }] }
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(fs.existsSync(path.join(uploadDir, 'upload.jpg')), false);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO menus')), false);
+  fs.rmSync(uploadDir, { recursive: true, force: true });
+});
+
+test('menu creation removes newly uploaded media when audit insertion fails', async () => {
+  const uploadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foodflow-menu-create-audit-'));
+  fs.writeFileSync(path.join(uploadDir, 'upload.jpg'), 'not-an-image');
+  const ctx = setup({ failAudit: true, uploadDir });
+  const res = response();
+  await ctx.createHandler({
+    merchantId: 5, storeId: 2, adminId: 9,
+    body: { name: 'New Dish', price: 12 },
+    files: { image: [{ filename: 'upload.jpg' }] }
+  }, res);
+
+  assert.equal(res.statusCode, 500);
+  assert.equal(ctx.rolledBack, true);
+  assert.equal(fs.existsSync(path.join(uploadDir, 'upload.jpg')), false);
   fs.rmSync(uploadDir, { recursive: true, force: true });
 });
