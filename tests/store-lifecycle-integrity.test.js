@@ -136,7 +136,7 @@ test('empty non-primary store is deleted with settings cleanup and audit in one 
   assert.deepEqual(res.body, { success: true });
   assert.equal(ctx.rolledBack, false);
   assert.ok(ctx.calls.filter(call => call.type === 'run' && call.sql.startsWith('DELETE FROM')).every(call => call.inTransaction));
-  assert.ok(ctx.calls.some(call => call.type === 'audit' && call.inTransaction));
+  assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO audit_logs') && call.inTransaction));
 });
 
 test('store deletion refuses to orphan active cashier sessions', async () => {
