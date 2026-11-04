@@ -650,6 +650,9 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
         return res.status(400).json({ error: `数据表 ${table} 包含无效记录` });
       }
     }
+    if (data.tables.super_admins.length === 0) {
+      return res.status(400).json({ error: '备份中没有超级管理员账号，拒绝恢复以避免后台无法登录' });
+    }
     await withTransaction(async () => {
       for (const table of tables) {
         const rows = data.tables[table];
@@ -681,9 +684,11 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
       for (const sessionTable of ['scan_sessions', 'waiter_sessions', 'cashier_sessions', 'admin_sessions', 'super_sessions']) {
         await runAsync(`DELETE FROM \`${sessionTable}\``);
       }
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
+        'restore_backup', 'system', null, '导入数据库备份并使所有旧会话失效', getClientIp(req));
     });
     res.json({ success: true, message: '备份已导入；所有旧登录和扫码会话已失效' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '备份恢复失败，所有更改已回滚' }); }
 });
 
 app.get('/api/super/backup/settings', requireSuperAdmin, async (req, res) => {
