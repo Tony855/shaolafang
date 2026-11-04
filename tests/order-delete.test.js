@@ -63,10 +63,9 @@ function setup(status = 'pending', { failAudit = false, passwordValid = true } =
     verifyPassword: () => passwordValid,
     authenticateAdmin: async () => ({ adminId: 2, merchantId: 3, storeId: 7 }),
     checkAndSetCooldown: async () => true,
-    withTransaction: async work => work()
   };
   registerOrderRoutes(app, deps);
-  return { handler: handlers.get('DELETE /api/orders/:id(\\d+)'), calls, emissions };
+  return { handler: handlers.get('DELETE /api/orders/:id(\\d+)'), calls, emissions, get rolledBack() { return rolledBack; } };
 }
 
 function response() {
