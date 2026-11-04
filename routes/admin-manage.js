@@ -251,11 +251,12 @@ module.exports = function(app, deps) {
         const active = normalizeAdminFlag(body.active, Number(admin.active), 'active');
         if (id === Number(req.adminId) && active === 0) throw Object.assign(new Error('不能禁用当前登录账号'), { status: 400 });
         const assignments = [];
+        const changedFields = [];
         const values = [];
-        if (body.display_name !== undefined) { assignments.push('display_name=?'); values.push(body.display_name.trim()); }
-        if (body.active !== undefined) { assignments.push('active=?'); values.push(active); }
+        if (body.display_name !== undefined) { assignments.push('display_name=?'); changedFields.push('display_name'); values.push(body.display_name.trim()); }
+        if (body.active !== undefined) { assignments.push('active=?'); changedFields.push('active'); values.push(active); }
         const passwordChanged = typeof body.password === 'string' && body.password.length > 0;
-        if (passwordChanged) { assignments.push('password_hash=?'); values.push(hashPassword(body.password)); }
+        if (passwordChanged) { assignments.push('password_hash=?'); changedFields.push('password_hash'); values.push(hashPassword(body.password)); }
         let permissionsChanged = false;
         if (body.permissions !== undefined) {
           for (const field of permFields) {
@@ -263,6 +264,7 @@ module.exports = function(app, deps) {
               const value = normalizeAdminFlag(body.permissions[field], Number(admin[field]), field);
               if (value !== Number(admin[field])) permissionsChanged = true;
               assignments.push(field + '=?');
+              changedFields.push(field);
               values.push(value);
             }
           }
@@ -278,7 +280,7 @@ module.exports = function(app, deps) {
         await runAsync(
           'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
           ['merchant_admin', req.adminId || null, actor?.username || '', 'update_admin', 'merchant_admin', id,
-            JSON.stringify({ username: admin.username, changed_fields: assignments.map((_, index) => index) }),
+            JSON.stringify({ username: admin.username, changed_fields: changedFields }),
             getClientIp(req), new Date().toISOString()]
         );
         updatedAdmin = await getAsync(
