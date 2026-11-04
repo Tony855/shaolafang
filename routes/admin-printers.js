@@ -102,7 +102,12 @@ module.exports = function(app, deps) {
         const active = printerFlag(body.active, Number(current.active), 'active');
         const isDefault = printerFlag(body.is_default, Number(current.is_default), 'is_default');
 
-        if (isDefault === 1 && active === 0) throw Object.assign(new Error('停用的打印机不能设为默认打印机'), { status: 400 });
+        if (isDefault === 1 && active === 0) {
+          if (Number(current.is_default) === 1 && body.is_default === undefined) {
+            throw Object.assign(new Error('不能停用当前默认打印机，请先切换默认设备'), { status: 409 });
+          }
+          throw Object.assign(new Error('停用的打印机不能设为默认打印机'), { status: 400 });
+        }
         if (isDefault === 0 && Number(current.is_default) === 1) {
           const replacement = await getAsync(
             'SELECT id FROM printers WHERE store_id=? AND merchant_id=? AND id<>? AND active=1 ORDER BY id LIMIT 1 FOR UPDATE',
