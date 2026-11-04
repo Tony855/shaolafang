@@ -62,6 +62,10 @@ function setup({ failAudit = false } = {}) {
       calls.push({ audit: args, inTransaction });
       if (failAudit) throw new Error('audit write failed');
     },
+    logAuditStrict: async (...args) => {
+      calls.push({ audit: args, inTransaction, strict: true });
+      if (failAudit) throw new Error('strict audit write failed');
+    },
     getClientIp: () => '127.0.0.1',
     collectBackupData: async () => backup(),
     autoBackupDatabase: async () => ({})
@@ -90,6 +94,7 @@ test('backup restore writes its audit event and invalidates sessions in the same
   const audit = ctx.calls.find(call => call.audit);
   assert.ok(audit);
   assert.equal(audit.inTransaction, true);
+  assert.equal(audit.strict, true);
   assert.ok(ctx.calls.filter(call => call.sql?.startsWith('DELETE FROM')).every(call => call.inTransaction));
   assert.equal(ctx.rolledBack, false);
 });
