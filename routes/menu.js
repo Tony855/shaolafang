@@ -13,6 +13,30 @@ const { compressImage } = require("../server/services/image-compress");
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
+  function normalizeMenuFlag(value, field) {
+    if ([true, 1, '1'].includes(value)) return 1;
+    if ([false, 0, '0'].includes(value)) return 0;
+    throw Object.assign(new Error(field + ' 参数无效'), { status: 400 });
+  }
+
+  async function writeMenuAudit(req, action, menuId, details) {
+    const actor = req.adminId
+      ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
+      : null;
+    await runAsync(
+      'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ['merchant_admin', req.adminId || null, actor?.username || '', action, 'menu', menuId,
+        JSON.stringify(details), getClientIp(req), new Date().toISOString()]
+    );
+  }
+
+  function removeMenuAsset(name) {
+    const assetPath = resolveUploadFile(name);
+    if (assetPath && fs.existsSync(assetPath) && fs.statSync(assetPath).isFile()) {
+      try { fs.unlinkSync(assetPath); } catch (error) { console.warn('[menu] 资源清理失败:', error.message); }
+    }
+  }
+
   function resolveUploadFile(name) {
     const root = path.resolve(UPLOAD_DIR);
     const base = path.basename(String(name || '').split(String.fromCharCode(92)).join('/'));
@@ -341,59 +365,91 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
 });
 
 app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+  const uploadedAssets = [];
+  let oldAssets = [];
   try {
-    const id = parseInt(req.params.id);
-    const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code } = req.body;
-    const current = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
-    if (!current) return res.status(404).json({ error: '菜品不存在' });
-    const nextCurrency = String(currency_code || current.currency_code || 'USD').trim().toUpperCase();
-    const nextName = name === undefined ? current.name : (typeof name === 'string' ? name.trim() : '');
-    const nextPrice = price === undefined ? Number(current.price) : (typeof price === 'number' || typeof price === 'string' ? Number(price) : NaN);
-    if (!nextName || nextName.length > 120 || !Number.isFinite(nextPrice) || nextPrice <= 0 || nextPrice > 10000000) {
-      return res.status(400).json({ error: '菜品名称无效或价格必须是大于 0 的有效数字' });
+    const id = Number(req.params.id);
+    const storeId = Number(req.storeId);
+    const body = req.body || {};
+    const uploadedImage = req.files?.image?.[0]?.filename || '';
+    const uploadedVideo = req.files?.video?.[0]?.filename || '';
+    if (uploadedImage) uploadedAssets.push(uploadedImage);
+    if (uploadedVideo) uploadedAssets.push(uploadedVideo);
+    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0) {
+      for (const asset of uploadedAssets) removeMenuAsset(asset);
+      return res.status(400).json({ error: '菜品或门店编号无效' });
     }
-    if (!nextCurrency || nextCurrency.length > 10) return res.status(400).json({ error: '货币代码无效' });
-    const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [nextCurrency, req.merchantId]);
-    if (!currency) return res.status(400).json({ error: '货币类型不存在' });
-    let image = (req.files && req.files.image) ? req.files.image[0].filename : current.image;
-    let video = (req.files && req.files.video) ? req.files.video[0].filename : (current.video || '');
-    // 新上传的图片兜底压缩
-    if (req.files && req.files.image) {
+    let image = uploadedImage || '';
+    if (uploadedImage) {
       try {
-        const cp = await compressImage(path.join(UPLOAD_DIR, image));
-        if (!cp.skipped && cp.outPath) {
-          image = path.basename(cp.outPath);
+        const compressed = await compressImage(path.join(UPLOAD_DIR, uploadedImage));
+        if (!compressed.skipped && compressed.outPath) {
+          image = path.basename(compressed.outPath);
+          if (image && image !== uploadedImage) uploadedAssets.push(image);
         }
-      } catch (e) { console.warn('[PUT /api/menu/:id] 压缩失败:', e.message); }
+      } catch (error) { console.warn('[PUT /api/menu/:id] 压缩失败:', error.message); }
     }
-    if (req.files && req.files.image && current.image) {
-      const oldPath = resolveUploadFile(current.image);
-      if (oldPath && fs.existsSync(oldPath) && fs.statSync(oldPath).isFile()) fs.unlinkSync(oldPath);
-    }
-    await runAsync(
-      'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, video=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=? AND store_id=?',
-      [nextName, emoji || current.emoji, nextPrice, category || current.category, desc ?? current.desc, image, video, nextCurrency, name_en ?? current.name_en ?? '', desc_en ?? current.desc_en ?? '', unit || current.unit || '份', show_dual === undefined ? (current.show_dual || 0) : (show_dual ? 1 : 0), secondary_currency_code ?? current.secondary_currency_code ?? '', id, req.storeId]
-    );
-    const updated = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
+
+    let updated;
+    await withTransaction(async () => {
+      const current = await getAsync('SELECT * FROM menus WHERE id=? AND store_id=? FOR UPDATE', [id, storeId]);
+      if (!current) throw Object.assign(new Error('菜品不存在'), { status: 404 });
+      const nextCurrency = String(body.currency_code || current.currency_code || 'USD').trim().toUpperCase();
+      const nextName = body.name === undefined ? current.name : (typeof body.name === 'string' ? body.name.trim() : '');
+      const nextPrice = body.price === undefined ? Number(current.price) : (typeof body.price === 'number' || typeof body.price === 'string' ? Number(body.price) : NaN);
+      if (!nextName || nextName.length > 120 || !Number.isFinite(nextPrice) || nextPrice <= 0 || nextPrice > 10000000) {
+        throw Object.assign(new Error('菜品名称无效或价格必须是大于 0 的有效数字'), { status: 400 });
+      }
+      if (!nextCurrency || nextCurrency.length > 10) throw Object.assign(new Error('货币代码无效'), { status: 400 });
+      const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [nextCurrency, req.merchantId]);
+      if (!currency) throw Object.assign(new Error('货币类型不存在'), { status: 400 });
+
+      const nextImage = uploadedImage ? image : current.image;
+      const nextVideo = uploadedVideo || current.video || '';
+      await runAsync(
+        'UPDATE menus SET name=?, emoji=?, price=?, category=?, `desc`=?, image=?, video=?, currency_code=?, name_en=?, desc_en=?, unit=?, show_dual=?, secondary_currency_code=? WHERE id=? AND store_id=?',
+        [nextName, body.emoji || current.emoji, nextPrice, body.category || current.category, body.desc ?? current.desc,
+          nextImage, nextVideo, nextCurrency, body.name_en ?? current.name_en ?? '', body.desc_en ?? current.desc_en ?? '',
+          body.unit || current.unit || '份', body.show_dual === undefined ? (current.show_dual || 0) : normalizeMenuFlag(body.show_dual, 'show_dual'),
+          body.secondary_currency_code ?? current.secondary_currency_code ?? '', id, storeId]
+      );
+      await writeMenuAudit(req, 'update_menu', id, { name: nextName, imageChanged: !!uploadedImage, videoChanged: !!uploadedVideo });
+      updated = await getAsync('SELECT * FROM menus WHERE id=? AND store_id=?', [id, storeId]);
+      if (uploadedImage && current.image && current.image !== nextImage) oldAssets.push(current.image);
+      if (uploadedVideo && current.video && current.video !== nextVideo) oldAssets.push(current.video);
+    });
+    // Remove old assets only after the database commit has succeeded.
+    for (const asset of oldAssets) removeMenuAsset(asset);
+    // A successful compression may leave the original upload redundant.
+    if (uploadedImage && image !== uploadedImage) removeMenuAsset(uploadedImage);
     res.json(updated);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    for (const asset of uploadedAssets) removeMenuAsset(asset);
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '同一门店已存在同名菜品' });
+    res.status(e.status || 500).json({ error: e.status ? e.message : '更新菜品失败，所有更改已回滚' });
   }
 });
 
 app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const item = await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
-    if (!item) return res.status(404).json({ error: '菜品不存在' });
-    if (item.image) {
-      const imgPath = resolveUploadFile(item.image);
-      if (imgPath && fs.existsSync(imgPath) && fs.statSync(imgPath).isFile()) fs.unlinkSync(imgPath);
+    const id = Number(req.params.id);
+    const storeId = Number(req.storeId);
+    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0) {
+      return res.status(400).json({ error: '菜品或门店编号无效' });
     }
-    await runAsync('DELETE FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
+    let deletedItem;
+    await withTransaction(async () => {
+      deletedItem = await getAsync('SELECT * FROM menus WHERE id=? AND store_id=? FOR UPDATE', [id, storeId]);
+      if (!deletedItem) throw Object.assign(new Error('菜品不存在'), { status: 404 });
+      await runAsync('DELETE FROM menus WHERE id=? AND store_id=?', [id, storeId]);
+      await writeMenuAudit(req, 'delete_menu', id, { name: deletedItem.name, image: deletedItem.image || '', video: deletedItem.video || '' });
+    });
+    // Keep media intact if the database transaction fails.
+    removeMenuAsset(deletedItem.image);
+    removeMenuAsset(deletedItem.video);
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(e.status || 500).json({ error: e.status ? e.message : '删除菜品失败，所有更改已回滚' });
   }
 });
 
