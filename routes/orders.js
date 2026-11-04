@@ -806,6 +806,13 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
 
     let deletedOrder = null;
     await withTransaction(async () => {
+      const currentAdmin = await getAsync(
+        'SELECT id, username, password_hash FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE',
+        [req.adminId, req.merchantId]
+      );
+      if (!currentAdmin || !verifyPassword(password, currentAdmin.password_hash)) {
+        throw Object.assign(new Error('密码错误或管理员账号已停用'), { status: 401 });
+      }
       // Lock table -> order, consistent with settlement, transfer and table mutation.
       const lockedTable = await getAsync(
         'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
@@ -842,13 +849,6 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
         await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, req.storeId]);
       }
 
-      const currentAdmin = await getAsync(
-        'SELECT id, username, password_hash FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE',
-        [req.adminId, req.merchantId]
-      );
-      if (!currentAdmin || !verifyPassword(password, currentAdmin.password_hash)) {
-        throw Object.assign(new Error('密码错误或管理员账号已停用'), { status: 401 });
-      }
       await runAsync(
         'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         ['merchant_admin', req.adminId, currentAdmin.username, 'delete_order', 'order', id,
