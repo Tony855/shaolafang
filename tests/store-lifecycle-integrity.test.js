@@ -102,6 +102,8 @@ test('store creation and settings initialization roll back if audit fails', asyn
 
   assert.equal(res.statusCode, 500);
   assert.equal(ctx.rolledBack, true);
+  const insertStore = ctx.calls.find(call => call.type === 'run' && call.sql.startsWith('INSERT INTO stores'));
+  assert.match(insertStore.params[1], /^m5-[a-f0-9]{12}$/);
   assert.ok(ctx.calls.filter(call => call.type === 'run' && call.sql.startsWith('INSERT INTO settings')).every(call => call.inTransaction));
 });
 
@@ -135,4 +137,14 @@ test('empty non-primary store is deleted with settings cleanup and audit in one 
   assert.equal(ctx.rolledBack, false);
   assert.ok(ctx.calls.filter(call => call.type === 'run' && call.sql.startsWith('DELETE FROM')).every(call => call.inTransaction));
   assert.ok(ctx.calls.some(call => call.type === 'audit' && call.inTransaction));
+});
+
+test('store deletion refuses to orphan active cashier sessions', async () => {
+  const ctx = setup({ storeCount: 2, currentStoreId: 2, firstStoreId: 1, dependentTable: 'cashier_sessions' });
+  const res = response();
+  await ctx.deleteHandler({ merchantId: 5, params: { id: '2' }, adminId: 7, username: 'owner' }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /cashier_sessions/);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('DELETE FROM stores')), false);
 });
