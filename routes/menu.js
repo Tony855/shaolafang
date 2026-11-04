@@ -19,6 +19,28 @@ module.exports = function(app, deps) {
     throw Object.assign(new Error(field + ' 参数无效'), { status: 400 });
   }
 
+  async function lockMenuStore(req) {
+    const storeId = Number(req.storeId);
+    const merchantId = Number(req.merchantId);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+      throw Object.assign(new Error('商户或门店编号无效'), { status: 400 });
+    }
+    const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
+    if (!store) throw Object.assign(new Error('门店不存在或已停用'), { status: 404 });
+    return { storeId, merchantId };
+  }
+
+  async function writeMenuCategoryAudit(req, action, categoryId, details) {
+    const actor = req.adminId
+      ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
+      : null;
+    await runAsync(
+      'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ['merchant_admin', req.adminId || null, actor?.username || '', action, 'menu_category', categoryId || null,
+        JSON.stringify(details), getClientIp(req), new Date().toISOString()]
+    );
+  }
+
   async function writeMenuAudit(req, action, menuId, details) {
     const actor = req.adminId
       ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
@@ -502,15 +524,20 @@ app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'
 
 app.put('/api/menu/:id/status', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const item = await getAsync('SELECT id FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]);
-    if (!item) return res.status(404).json({ error: '菜品不存在' });
-    const active = req.body.active ? 1 : 0;
-    await runAsync('UPDATE menus SET active=? WHERE id=? AND store_id=?', [active, id, req.storeId]);
-    res.json(await getAsync('SELECT * FROM menus WHERE id = ? AND store_id = ?', [id, req.storeId]));
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) throw Object.assign(new Error('菜品编号无效'), { status: 400 });
+    const active = normalizeMenuFlag(req.body?.active, 'active');
+    let updated;
+    await withTransaction(async () => {
+      const { storeId } = await lockMenuStore(req);
+      const item = await getAsync('SELECT id, name, active FROM menus WHERE id=? AND store_id=? FOR UPDATE', [id, storeId]);
+      if (!item) throw Object.assign(new Error('菜品不存在'), { status: 404 });
+      await runAsync('UPDATE menus SET active=? WHERE id=? AND store_id=?', [active, id, storeId]);
+      await writeMenuAudit(req, 'update_menu_status', id, { name: item.name, active });
+      updated = await getAsync('SELECT * FROM menus WHERE id=? AND store_id=?', [id, storeId]);
+    });
+    res.json(updated);
+  } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新菜品状态失败，所有更改已回滚' }); }
 });
 
 // ----- 菜品分类 -----
@@ -518,75 +545,109 @@ app.get('/api/menu-categories', requireAdminKey, requirePermission('can_manage_m
   try {
     const rows = await allAsync('SELECT * FROM menu_categories WHERE store_id=? ORDER BY sort, id', [req.storeId]);
     res.json(rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/menu-categories', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const name = String(req.body.name || '').trim();
-    if (!name) return res.status(400).json({ error: '分类名称必填' });
-    const maxSort = await getAsync('SELECT MAX(sort) as max FROM menu_categories WHERE store_id=?', [req.storeId]);
-    const nextSort = (maxSort && maxSort.max !== null) ? maxSort.max + 1 : 0;
-    const result = await runAsync('INSERT INTO menu_categories (name, sort, store_id, merchant_id) VALUES (?, ?, ?, ?)', [name, nextSort, req.storeId, req.merchantId]);
-    const row = await getAsync('SELECT * FROM menu_categories WHERE id = ? AND store_id = ?', [result.lastID, req.storeId]);
-    res.status(201).json(row);
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    if (!name || name.length > 100) return res.status(400).json({ error: '分类名称必须为 1 至 100 个字符' });
+    let created;
+    await withTransaction(async () => {
+      const { storeId, merchantId } = await lockMenuStore(req);
+      const duplicate = await getAsync('SELECT id FROM menu_categories WHERE name=? AND store_id=? FOR UPDATE', [name, storeId]);
+      if (duplicate) throw Object.assign(new Error('分类已存在'), { status: 409 });
+      const maxSort = await getAsync('SELECT MAX(sort) AS max FROM menu_categories WHERE store_id=?', [storeId]);
+      const nextSort = maxSort?.max !== null && maxSort?.max !== undefined ? Number(maxSort.max) + 1 : 0;
+      const result = await runAsync(
+        'INSERT INTO menu_categories (name, sort, store_id, merchant_id) VALUES (?, ?, ?, ?)',
+        [name, nextSort, storeId, merchantId]
+      );
+      await writeMenuCategoryAudit(req, 'create_menu_category', result.lastID, { name, sort: nextSort });
+      created = await getAsync('SELECT * FROM menu_categories WHERE id=? AND store_id=?', [result.lastID, storeId]);
+    });
+    res.status(201).json(created);
   } catch (e) {
-    if (String(e.message).includes('Duplicate entry')) return res.status(409).json({ error: '分类已存在' });
-    res.status(500).json({ error: e.message });
+    if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: '分类已存在' });
+    res.status(e.status || 500).json({ error: e.status ? e.message : '创建分类失败，所有更改已回滚' });
   }
 });
 
 app.put('/api/menu-categories/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const name = String(req.body.name || '').trim();
-    if (!name) return res.status(400).json({ error: '分类名称必填' });
-    const current = await getAsync('SELECT name FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]);
-    if (!current) return res.status(404).json({ error: '分类不存在' });
+    const id = Number(req.params.id);
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '分类编号无效' });
+    if (!name || name.length > 100) return res.status(400).json({ error: '分类名称必须为 1 至 100 个字符' });
+    let updated;
     await withTransaction(async () => {
-      await runAsync('UPDATE menu_categories SET name=? WHERE id=? AND store_id=?', [name, id, req.storeId]);
-      await runAsync('UPDATE menus SET category=? WHERE category=? AND store_id=?', [name, current.name, req.storeId]);
+      const { storeId } = await lockMenuStore(req);
+      const current = await getAsync('SELECT id, name FROM menu_categories WHERE id=? AND store_id=? FOR UPDATE', [id, storeId]);
+      if (!current) throw Object.assign(new Error('分类不存在'), { status: 404 });
+      const duplicate = await getAsync('SELECT id FROM menu_categories WHERE name=? AND store_id=? AND id<>? FOR UPDATE', [name, storeId, id]);
+      if (duplicate) throw Object.assign(new Error('分类已存在'), { status: 409 });
+      await runAsync('UPDATE menu_categories SET name=? WHERE id=? AND store_id=?', [name, id, storeId]);
+      await runAsync('UPDATE menus SET category=? WHERE category=? AND store_id=?', [name, current.name, storeId]);
+      await writeMenuCategoryAudit(req, 'update_menu_category', id, { before: current.name, after: name });
+      updated = await getAsync('SELECT * FROM menu_categories WHERE id=? AND store_id=?', [id, storeId]);
     });
-    res.json(await getAsync('SELECT * FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]));
+    res.json(updated);
   } catch (e) {
-    if (String(e.message).includes('Duplicate entry')) return res.status(409).json({ error: '分类已存在' });
-    res.status(500).json({ error: e.message });
+    if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: '分类已存在' });
+    res.status(e.status || 500).json({ error: e.status ? e.message : '更新分类失败，所有更改已回滚' });
   }
 });
 
 app.delete('/api/menu-categories/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT name FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]);
-    if (!current) return res.status(404).json({ error: '分类不存在' });
-    const remaining = await getAsync("SELECT name FROM menu_categories WHERE id != ? AND store_id = ? ORDER BY sort, id LIMIT 1", [id, req.storeId]);
-    let fallback = remaining ? remaining.name : '其他';
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '分类编号无效' });
     await withTransaction(async () => {
-      if (!remaining) await runAsync("INSERT IGNORE INTO menu_categories (name, sort, store_id) VALUES ('其他', 0, ?)", [req.storeId]);
-      await runAsync('DELETE FROM menu_categories WHERE id = ? AND store_id = ?', [id, req.storeId]);
-      await runAsync('UPDATE menus SET category=? WHERE category=? AND store_id=?', [fallback, current.name, req.storeId]);
+      const { storeId, merchantId } = await lockMenuStore(req);
+      const current = await getAsync('SELECT id, name FROM menu_categories WHERE id=? AND store_id=? FOR UPDATE', [id, storeId]);
+      if (!current) throw Object.assign(new Error('分类不存在'), { status: 404 });
+      const remaining = await getAsync(
+        'SELECT id, name FROM menu_categories WHERE id<>? AND store_id=? ORDER BY sort, id LIMIT 1 FOR UPDATE',
+        [id, storeId]
+      );
+      if (!remaining && current.name === '其他') {
+        throw Object.assign(new Error('不能删除唯一的“其他”分类，请先创建其他分类'), { status: 409 });
+      }
+      let fallback = remaining?.name || '其他';
+      if (!remaining) {
+        await runAsync("INSERT INTO menu_categories (name, sort, store_id, merchant_id) VALUES ('其他', 0, ?, ?)", [storeId, merchantId]);
+      }
+      await runAsync('UPDATE menus SET category=? WHERE category=? AND store_id=?', [fallback, current.name, storeId]);
+      await runAsync('DELETE FROM menu_categories WHERE id=? AND store_id=?', [id, storeId]);
+      await writeMenuCategoryAudit(req, 'delete_menu_category', id, { name: current.name, fallback });
     });
     res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除分类失败，所有更改已回滚' }); }
 });
 
 app.post('/api/menu-categories/sort', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const { ids } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids must be a non-empty array' });
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > 500 ||
+        ids.some(id => !Number.isSafeInteger(Number(id)) || Number(id) <= 0) ||
+        new Set(ids.map(Number)).size !== ids.length) {
+      return res.status(400).json({ error: '分类排序编号无效' });
+    }
     await withTransaction(async () => {
-      for (let i = 0; i < ids.length; i++) {
-        await runAsync('UPDATE menu_categories SET sort = ? WHERE id = ? AND store_id = ?', [i, ids[i], req.storeId]);
+      const { storeId } = await lockMenuStore(req);
+      const categories = await allAsync('SELECT id FROM menu_categories WHERE store_id=? ORDER BY id FOR UPDATE', [storeId]);
+      const existing = categories.map(row => Number(row.id)).sort((a, b) => a - b);
+      const submitted = ids.map(Number).sort((a, b) => a - b);
+      if (existing.length !== submitted.length || existing.some((id, index) => id !== submitted[index])) {
+        throw Object.assign(new Error('分类列表已变化，请刷新后重试'), { status: 409 });
       }
+      for (let index = 0; index < ids.length; index++) {
+        await runAsync('UPDATE menu_categories SET sort=? WHERE id=? AND store_id=?', [index, Number(ids[index]), storeId]);
+      }
+      await writeMenuCategoryAudit(req, 'sort_menu_categories', null, { ids: ids.map(Number) });
     });
     res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '分类排序失败，所有更改已回滚' }); }
 });
 
 // ----- 桌号 -----
