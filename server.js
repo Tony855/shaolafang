@@ -209,6 +209,7 @@ const {
   requireAdminKey,
   requirePermission,
   logAudit,
+  logAuditStrict,
   requireAdminOrWaiter,
 } = require('./server/middleware/admin-auth');
 const { requireSuperAdmin, requireCashier, requireAdminOrCashier, requireAdminOrCashierOrWaiter } = require('./server/middleware/auth');
@@ -1124,7 +1125,7 @@ require('./routes/auth.js')(app, { getAsync, runAsync, isLoginLocked, recordLogi
 
 // ===== 超级管理员登录 =====
 // ----- 超管路由 -----
-require('./routes/super.js')(app, { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, collectBackupData, autoBackupDatabase, withTransaction });
+require('./routes/super.js')(app, { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, logAuditStrict, collectBackupData, autoBackupDatabase, withTransaction });
 
 
 // ----- 系统日志+登出+改密码 -----

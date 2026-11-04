@@ -155,11 +155,16 @@ function requirePermission(permKey) {
   };
 }
 
-async function logAudit(actorType, actorId, actorUsername, action, targetType, targetId, details, ip) {
-  try {
-    await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [actorType, actorId || null, actorUsername || '', action, targetType || null, targetId || null, details || '', ip || '', new Date().toISOString()]);
-  } catch (e) { console.warn('审计日志记录失败:', e.message); }
+async function logAuditStrict(actorType, actorId, actorUsername, action, targetType, targetId, details, ip) {
+  await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [actorType, actorId || null, actorUsername || '', action, targetType || null, targetId || null, details || '', ip || '', new Date().toISOString()]);
+}
+
+// Best-effort audit for non-transactional, informational events. Destructive
+// workflows must use logAuditStrict so an audit write failure can abort them.
+async function logAudit(...args) {
+  try { await logAuditStrict(...args); }
+  catch (e) { console.warn('审计日志记录失败:', e.message); }
 }
 
 async function requireAdminOrWaiter(req, res, next) {
@@ -230,5 +235,6 @@ module.exports = {
   requireAdminKey,
   requirePermission,
   logAudit,
+  logAuditStrict,
   requireAdminOrWaiter,
 };

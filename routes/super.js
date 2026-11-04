@@ -19,6 +19,7 @@ function boundedInteger(value, fallback, min, max) {
 
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, collectBackupData, autoBackupDatabase, withTransaction } = deps;
+  const writeAudit = deps.logAuditStrict || logAudit;
 
 app.post('/api/super/login', async (req, res) => {
   try {
@@ -146,7 +147,7 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
       );
       await initMerchantSettings(runAsync, newMerchantId);
       await initStoreSettings(runAsync, storeRes.lastID);
-      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'create_merchant', 'merchant', newMerchantId,
         `创建商户「${merchantName}」(编码: ${merchantCode}, 账号: ${adminUsername})`, getClientIp(req));
     });
     res.status(201).json({ success: true, id: newMerchantId, adminUsername, defaultPassword: adminPassword });
@@ -198,7 +199,7 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       }
 
       const updatedMerchant = await getAsync('SELECT name, code FROM merchants WHERE id=?', [merchantId]);
-      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_merchant', 'merchant', merchantId,
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_merchant', 'merchant', merchantId,
         `编辑商户「${updatedMerchant?.name || '未知'}」的信息`, getClientIp(req));
     });
 
@@ -244,7 +245,7 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       await runAsync('DELETE FROM stores WHERE merchant_id=?', [req.params.id]);
       await runAsync('DELETE FROM merchants WHERE id=?', [req.params.id]);
 
-      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'delete_merchant', 'merchant', req.params.id,
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'delete_merchant', 'merchant', req.params.id,
         `删除商户「${merchant.name || '未知'}」(编码: ${merchant.code || '-'})`, getClientIp(req));
     });
 
@@ -279,7 +280,7 @@ app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (re
       }
       await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
       await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [req.params.id]);
-      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', req.params.id,
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', req.params.id,
         `重置商户「${merchant.name || '未知'}」的管理员密码`, getClientIp(req));
     });
     res.json({ success: true, newPassword: newPwd });
@@ -578,7 +579,7 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
       const mins = Math.max(0, Math.min(120, parseInt(kitchen_auto_hide_minutes, 10) || 10));
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('kitchen_auto_hide_minutes', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
     }
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_settings', 'settings', null,
+    await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_settings', 'settings', null,
       '更新系统全局设置', getClientIp(req));
     });
     res.json({ success: true });
@@ -614,7 +615,7 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
     await withTransaction(async () => {
       await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
       await runAsync('DELETE FROM super_sessions WHERE super_admin_id=? AND token<>?', [req.superAdmin.id, req.superSessionToken || '']);
-      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
     });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -684,7 +685,7 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
       for (const sessionTable of ['scan_sessions', 'waiter_sessions', 'cashier_sessions', 'admin_sessions', 'super_sessions']) {
         await runAsync(`DELETE FROM \`${sessionTable}\``);
       }
-      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
         'restore_backup', 'system', null, '导入数据库备份并使所有旧会话失效', getClientIp(req));
     });
     res.json({ success: true, message: '备份已导入；所有旧登录和扫码会话已失效' });
@@ -740,7 +741,7 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
       await runAsync('DELETE FROM orders');
       await runAsync('DELETE FROM waiter_calls');
       await runAsync('DELETE FROM scan_sessions');
-      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_all_data', 'system', null, '重置所有订单数据', getClientIp(req));
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_all_data', 'system', null, '重置所有订单数据', getClientIp(req));
     });
 
     let sequenceReset = true;
@@ -830,7 +831,7 @@ app.put('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (re
         "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
         [`merchant_${mid}_payment_methods`, JSON.stringify(clean)]
       );
-      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
         'update_payment_methods', 'merchant', mid, JSON.stringify(clean), getClientIp(req));
     });
     res.json({ success: true, methods: clean });
