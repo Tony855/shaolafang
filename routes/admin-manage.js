@@ -559,8 +559,7 @@ module.exports = function(app, deps) {
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      const orderId = Number(order_id);
-      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
+      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
@@ -840,7 +839,8 @@ module.exports = function(app, deps) {
   app.post('/api/waiter/khqr/notify', requireAdminOrWaiter, async (req, res) => {
     try {
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+      const orderId = Number(order_id);
+      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
 
       let sid;
       let actorName = 'admin';
@@ -853,7 +853,7 @@ module.exports = function(app, deps) {
       }
       if (!sid) return res.status(400).json({ error: '未指定店铺' });
 
-      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
       if (order.status !== 'pending') return res.status(400).json({ error: '订单状态不允许通知' });
 
