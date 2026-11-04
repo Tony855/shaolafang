@@ -85,10 +85,10 @@ module.exports = function(app, deps) {
       const orderStats = await getAsync(`
         SELECT
           (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND createdAt >= ? AND createdAt <= ?) AS total_orders,
-          (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS completed_orders,
+          (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS completed_orders,
           (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='canceled' AND createdAt >= ? AND createdAt <= ?) AS canceled_orders,
-          (SELECT COALESCE(SUM(total - COALESCE(refund_amount, 0)), 0) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_revenue,
-          (SELECT AVG(total - COALESCE(refund_amount, 0)) FROM orders WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS avg_order_value
+          (SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_revenue,
+          (SELECT AVG(GREATEST(0, total - COALESCE(refund_amount, 0))) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS avg_order_value
       `, [
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
@@ -99,7 +99,7 @@ module.exports = function(app, deps) {
       const tableRevenue = await allAsync(`
         SELECT table_name, COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
         FROM orders
-        WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
+        WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
         GROUP BY table_name
         ORDER BY revenue DESC
       `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
@@ -110,7 +110,7 @@ module.exports = function(app, deps) {
         JOIN (${JSON_ITEM_INDEXES}) n
           ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
         JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
-        WHERE o.${swWhere.replace(/store_id/g, 'store_id')} AND o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?
+        WHERE o.${swWhere.replace(/store_id/g, 'store_id')} AND o.status IN ('done', 'refunded') AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?
         GROUP BY m.id, m.name, m.emoji
         HAVING quantity > 0
         ORDER BY quantity DESC
@@ -199,12 +199,12 @@ module.exports = function(app, deps) {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       const todayStats = await getAsync(`
-        SELECT COALESCE(SUM(total - COALESCE(refund_amount, 0)), 0) AS revenue, COUNT(*) AS orders
-        FROM orders WHERE store_id=? AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
+        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders
+        FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
       `, [req.storeId, todayStart.toISOString(), todayEnd.toISOString()]);
       const monthStats = await getAsync(`
-        SELECT COALESCE(SUM(total - COALESCE(refund_amount, 0)), 0) AS revenue, COUNT(*) AS orders
-        FROM orders WHERE store_id=? AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
+        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders
+        FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
       `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
       const topDishes = await allAsync(`
         SELECT m.id, m.name, m.emoji, m.price, m.category,
