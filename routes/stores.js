@@ -20,18 +20,52 @@ app.get('/api/admin/stores', requireAdminKey, requirePermission('can_manage_stor
 app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     const { name, code, address } = req.body || {};
-    if (!name) return res.status(400).json({ error: '店铺名称必填' });
-    const merchantId = req.merchantId || 1;
-    const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [merchantId]);
-    const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores WHERE merchant_id=?', [merchantId]);
-    if (merchant && storeCount.count >= merchant.max_stores) {
-      return res.status(403).json({ error: '已达到门店数量上限（' + merchant.max_stores + '家），请联系超级管理员升级' });
-    }
-    const result = await runAsync('INSERT INTO stores (name, code, address, active, merchant_id) VALUES (?, ?, ?, 1, ?)', [name, code || '', address || '', merchantId]);
-    // ★ 初始化门店级默认 settings
-    await initStoreSettings(runAsync, result.lastID);
-    res.status(201).json(await getAsync('SELECT * FROM stores WHERE id=?', [result.lastID]));
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const storeName = typeof name === 'string' ? name.trim() : '';
+    const requestedStoreCode = typeof code === 'string' ? code.trim() : '';
+    const storeCode = requestedStoreCode || ('m' + String(req.merchantId || 1) + '-' + crypto.randomBytes(6).toString('hex'));
+    const storeAddress = typeof address === 'string' ? address.trim() : '';
+    if (!storeName || storeName.length > 255) return res.status(400).json({ error: '店铺名称必填且不能超过 255 个字符' });
+    if (storeCode.length > 50) return res.status(400).json({ error: '店铺编码不能超过 50 个字符' });
+    if (storeAddress.length > 2000) return res.status(400).json({ error: '店铺地址不能超过 2000 个字符' });
+    const merchantId = Number(req.merchantId || 1);
+    if (!Number.isSafeInteger(merchantId) || merchantId <= 0) return res.status(403).json({ error: '商户信息无效' });
+
+    let storeId;
+    await withTransaction(async () => {
+      // Serialize store creation for this merchant; a pre-transaction COUNT
+      // allows concurrent requests to exceed max_stores.
+      const merchant = await getAsync('SELECT id, max_stores, status FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
+      if (!merchant || Number(merchant.status) !== 1) {
+        const error = new Error('商户不存在或已停用');
+        error.statusCode = 403;
+        throw error;
+      }
+      const storeCount = await getAsync('SELECT COUNT(*) AS count FROM stores WHERE merchant_id=?', [merchantId]);
+      if (Number(storeCount?.count || 0) >= Number(merchant.max_stores)) {
+        const error = new Error('已达到门店数量上限（' + merchant.max_stores + '家），请联系超级管理员升级');
+        error.statusCode = 403;
+        throw error;
+      }
+      const result = await runAsync(
+        'INSERT INTO stores (name, code, address, active, merchant_id) VALUES (?, ?, ?, 1, ?)',
+        [storeName, storeCode, storeAddress, merchantId]
+      );
+      storeId = result.lastID;
+      await initStoreSettings(runAsync, storeId);
+      const actor = req.adminId
+        ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId])
+        : null;
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', req.adminId || null, actor?.username || '', 'create_store', 'store', storeId,
+          JSON.stringify({ name: storeName, code: storeCode }), getClientIp(req), new Date().toISOString()]
+      );
+    });
+    res.status(201).json(await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [storeId, merchantId]));
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '店铺编码已存在' });
+    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '创建店铺失败，所有更改已回滚' });
+  }
 });
 
 app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
@@ -47,13 +81,48 @@ app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_
 
 app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [id, req.merchantId]);
-    if (!current) return res.status(404).json({ error: '店铺不存在' });
-    if (id === 1) return res.status(400).json({ error: '默认总店不能删除' });
-    await runAsync('DELETE FROM stores WHERE id=? AND merchant_id=?', [id, req.merchantId]);
+    const id = Number(req.params.id);
+    const merchantId = Number(req.merchantId || 1);
+    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+      return res.status(400).json({ error: '门店编号无效' });
+    }
+    await withTransaction(async () => {
+      const merchant = await getAsync('SELECT id FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
+      if (!merchant) throw Object.assign(new Error('商户不存在'), { statusCode: 404 });
+      const current = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=? FOR UPDATE', [id, merchantId]);
+      if (!current) throw Object.assign(new Error('店铺不存在'), { statusCode: 404 });
+      const merchantStores = await allAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id FOR UPDATE', [merchantId]);
+      if (merchantStores.length <= 1 || Number(merchantStores[0]?.id) === id) {
+        throw Object.assign(new Error('商户默认总店或最后一家门店不能删除'), { statusCode: 409 });
+      }
+
+      // Do not orphan operational or financial records. Deletion is allowed
+      // only after the store has been emptied through the supported workflows.
+      const dependentTables = ['orders', 'tables', 'menus', 'menu_categories', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'cashier_sessions'];
+      for (const table of dependentTables) {
+        const row = await getAsync(`SELECT COUNT(*) AS count FROM \`${table}\` WHERE store_id=?`, [id]);
+        if (Number(row?.count || 0) > 0) {
+          throw Object.assign(new Error('门店仍有关联业务数据（' + table + '），请先处理数据后再删除'), { statusCode: 409 });
+        }
+      }
+
+      const result = await runAsync('DELETE FROM stores WHERE id=? AND merchant_id=?', [id, merchantId]);
+      if (!result.affectedRows) throw Object.assign(new Error('店铺不存在或已被删除'), { statusCode: 404 });
+      await runAsync('DELETE FROM settings WHERE \`key\` LIKE ?', [`store_${id}_%`]);
+      await runAsync('DELETE FROM settings WHERE \`key\` = ?', [`cashiers_${id}`]);
+      const actor = req.adminId
+        ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId])
+        : null;
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', req.adminId || null, actor?.username || '', 'delete_store', 'store', id,
+          JSON.stringify({ name: current.name, code: current.code }), getClientIp(req), new Date().toISOString()]
+      );
+    });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '删除门店失败，所有更改已回滚' });
+  }
 });
 
 app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
