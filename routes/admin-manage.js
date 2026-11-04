@@ -559,7 +559,8 @@ module.exports = function(app, deps) {
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+      const orderId = Number(order_id);
+      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
@@ -861,10 +862,15 @@ module.exports = function(app, deps) {
         return res.json({ success: true, status: 'awaiting_confirm', already: true });
       }
 
-      await runAsync(
-        'UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=?',
-        [String(pay_method || '').slice(0, 20), Number(cash_received) || 0, Number(cash_change) || 0, order_id]
+      // Conditional update is the concurrency boundary: the order may have been
+      // settled/cancelled or notified after the read above. Never mutate by global ID alone.
+      const notified = await runAsync(
+        "UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
+        [String(pay_method || '').slice(0, 20), Number(cash_received) || 0, Number(cash_change) || 0, orderId, sid]
       );
+      if (!notified.affectedRows) {
+        return res.status(409).json({ error: '订单状态已变化或已提交收款确认，请刷新后重试' });
+      }
 
       // 广播给收银台
       io.to('cashier-' + sid).emit('khqr:awaiting', {
@@ -881,7 +887,7 @@ module.exports = function(app, deps) {
         [req.isAdmin ? 'admin' : 'waiter',
          req.isAdmin ? (req.adminId || 0) : (req.waiter ? req.waiter.id : 0),
          actorName, 'khqr_notify_awaiting',
-         JSON.stringify({ order_id: order.id, table: order.table_name }),
+         JSON.stringify({ order_id: orderId, table: order.table_name }),
          getClientIp(req), new Date().toISOString()]
       );
 
