@@ -39,7 +39,7 @@ function setup({ storeCount = 1, currentStoreId = 2, firstStoreId = 1, dependent
         return { id: Number(params[0]), merchant_id: 5, name: 'Branch', code: 'branch-2' };
       }
       if (sql.includes('COUNT(*) AS count FROM')) {
-        const table = sql.match(/FROM\s+([a-z_]+)/i)?.[1];
+        const table = sql.match(/FROM\s+`?([a-z_]+)/i)?.[1];
         return { count: table === dependentTable ? 1 : 0 };
       }
       return null;
