@@ -2,7 +2,25 @@
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
    ============================================================ */
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission } = deps;
+  const { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission, getClientIp } = deps;
+
+  function normalizeCurrencyFlag(value, fallback) {
+    if (value === undefined) return fallback;
+    if ([true, 1, '1'].includes(value)) return 1;
+    if ([false, 0, '0'].includes(value)) return 0;
+    throw Object.assign(new Error('默认货币标记必须为 true/false'), { status: 400 });
+  }
+
+  async function writeCurrencyAudit(req, action, currencyId, details) {
+    const actor = req.adminId
+      ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
+      : null;
+    await runAsync(
+      'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ['merchant_admin', req.adminId || null, actor?.username || '', action, 'currency', currencyId || null,
+        JSON.stringify(details), getClientIp(req), new Date().toISOString()]
+    );
+  }
 
   function normalizeCurrency(input) {
     const code = String(input?.code || '').trim().toUpperCase();
@@ -23,44 +41,108 @@ module.exports = function(app, deps) {
 
   app.post('/api/currencies', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
-      const normalized = normalizeCurrency(req.body || {});
+      const body = req.body || {};
+      const normalized = normalizeCurrency(body);
       if (normalized.error) return res.status(400).json({ error: normalized.error });
       const { code, symbol, name, rate } = normalized.value;
-      const is_default = !!req.body?.is_default;
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0) return res.status(403).json({ error: '商户信息无效' });
+      let isDefault = normalizeCurrencyFlag(body.is_default, 0);
       let createdCurrency;
       await withTransaction(async () => {
-        if (is_default) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [req.merchantId]);
-        const result = await runAsync('INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)', [req.merchantId, code, symbol, name, rate, is_default ? 1 : 0]);
-        createdCurrency = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [result.lastID, req.merchantId]);
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const countRow = await getAsync('SELECT COUNT(*) AS count FROM currencies WHERE merchant_id=?', [merchantId]);
+        if (Number(countRow?.count || 0) === 0) isDefault = 1;
+        if (isDefault) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [merchantId]);
+        const result = await runAsync(
+          'INSERT INTO currencies (merchant_id, code, symbol, name, rate, is_default) VALUES (?, ?, ?, ?, ?, ?)',
+          [merchantId, code, symbol, name, rate, isDefault]
+        );
+        createdCurrency = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [result.lastID, merchantId]);
+        await writeCurrencyAudit(req, 'create_currency', result.lastID, { code, name, rate, is_default: isDefault });
       });
       res.status(201).json(createdCurrency);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+      if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该商户已存在此货币代码' });
+      res.status(e.status || 500).json({ error: e.status ? e.message : '创建货币失败，所有更改已回滚' });
+    }
   });
 
   app.put('/api/currencies/:id', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
-      const current = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [req.params.id, req.merchantId]);
-      if (!current) return res.status(404).json({ error: '货币不存在' });
-      const next = normalizeCurrency({ ...current, ...(req.body || {}) });
-      if (next.error) return res.status(400).json({ error: next.error });
-      const { code, symbol, name, rate } = next.value;
-      const is_default = req.body?.is_default === undefined ? !!current.is_default : !!req.body.is_default;
+      const id = Number(req.params.id);
+      const merchantId = Number(req.merchantId);
+      const body = req.body || {};
+      if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '货币或商户编号无效' });
+      }
+      let updatedCurrency;
       await withTransaction(async () => {
-        if (is_default) await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [req.merchantId]);
-        await runAsync('UPDATE currencies SET code=?,symbol=?,name=?,rate=?,is_default=? WHERE id=? AND merchant_id=?', [code, symbol, name, rate, is_default ? 1 : 0, current.id, req.merchantId]);
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const current = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=? FOR UPDATE', [id, merchantId]);
+        if (!current) throw Object.assign(new Error('货币不存在'), { status: 404 });
+        const normalized = normalizeCurrency({ ...current, ...body });
+        if (normalized.error) throw Object.assign(new Error(normalized.error), { status: 400 });
+        const { code, symbol, name, rate } = normalized.value;
+        const isDefault = normalizeCurrencyFlag(body.is_default, Number(current.is_default));
+        if (isDefault === 0 && Number(current.is_default) === 1) {
+          const replacement = await getAsync(
+            'SELECT id FROM currencies WHERE merchant_id=? AND id<>? ORDER BY id LIMIT 1 FOR UPDATE',
+            [merchantId, id]
+          );
+          if (!replacement) throw Object.assign(new Error('至少保留一个默认货币，请先创建其他货币'), { status: 409 });
+          await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [merchantId]);
+          await runAsync('UPDATE currencies SET is_default=1 WHERE id=? AND merchant_id=?', [replacement.id, merchantId]);
+        } else if (isDefault === 1) {
+          await runAsync('UPDATE currencies SET is_default=0 WHERE merchant_id=?', [merchantId]);
+        }
+        await runAsync(
+          'UPDATE currencies SET code=?,symbol=?,name=?,rate=?,is_default=? WHERE id=? AND merchant_id=?',
+          [code, symbol, name, rate, isDefault, id, merchantId]
+        );
+        await writeCurrencyAudit(req, 'update_currency', id, { code, name, rate, is_default: isDefault });
+        updatedCurrency = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [id, merchantId]);
       });
-      res.json(await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [current.id, req.merchantId]));
-    } catch (e) { res.status(500).json({ error: e.message }); }
+      res.json(updatedCurrency);
+    } catch (e) {
+      if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该商户已存在此货币代码' });
+      res.status(e.status || 500).json({ error: e.status ? e.message : '更新货币失败，所有更改已回滚' });
+    }
   });
 
   app.delete('/api/currencies/:id', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
-      const current = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=?', [req.params.id, req.merchantId]);
-      if (!current) return res.status(404).json({ error: '货币不存在' });
-      if (current.is_default) return res.status(409).json({ error: '默认货币不能删除，请先设置其他默认货币' });
-      await runAsync('DELETE FROM currencies WHERE id=? AND merchant_id=?', [current.id, req.merchantId]);
+      const id = Number(req.params.id);
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '货币或商户编号无效' });
+      }
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const current = await getAsync('SELECT * FROM currencies WHERE id=? AND merchant_id=? FOR UPDATE', [id, merchantId]);
+        if (!current) throw Object.assign(new Error('货币不存在'), { status: 404 });
+        if (Number(current.is_default) === 1) throw Object.assign(new Error('默认货币不能删除，请先设置其他默认货币'), { status: 409 });
+        const usedByMenus = await getAsync('SELECT COUNT(*) AS count FROM menus WHERE currency_code=? AND merchant_id=?', [current.code, merchantId]);
+        if (Number(usedByMenus?.count || 0) > 0) {
+          throw Object.assign(new Error('该货币仍被菜品使用，不能删除'), { status: 409 });
+        }
+        const stores = await allAsync('SELECT id FROM stores WHERE merchant_id=?', [merchantId]);
+        for (const store of stores) {
+          for (const suffix of ['primary_currency_code', 'secondary_currency_code']) {
+            const setting = await getAsync('SELECT value FROM settings WHERE `key`=?', [`store_${store.id}_${suffix}`]);
+            if (setting?.value === current.code) {
+              throw Object.assign(new Error('该货币仍被门店显示设置使用，不能删除'), { status: 409 });
+            }
+          }
+        }
+        await runAsync('DELETE FROM currencies WHERE id=? AND merchant_id=?', [id, merchantId]);
+        await writeCurrencyAudit(req, 'delete_currency', id, { code: current.code, name: current.name });
+      });
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除货币失败，所有更改已回滚' }); }
   });
 
   // ----- 显示设置 -----
