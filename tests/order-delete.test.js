@@ -4,13 +4,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerOrderRoutes = require('../routes/orders');
 
-function setup() {
+function setup(status = 'pending') {
   const handlers = new Map();
   const calls = [];
   const emissions = [];
   const order = {
     id: 9, order_no: '110009', table_name: 'A01', store_id: 7,
-    status: 'done', total: 25, pay_method: 'cash', refund_amount: 0
+    status, total: 25, pay_method: 'cash', refund_amount: 0
   };
   const app = {
     post(path, ...callbacks) { handlers.set('POST ' + path, callbacks[callbacks.length - 1]); },
@@ -101,4 +101,21 @@ test('admin order deletion locks table and order, audits details and broadcasts 
     ['cashier-7', 'order:deleted'],
     ['public-table-7-A01', 'order:deleted']
   ]);
+});
+
+
+test('settled and refunded orders cannot be deleted', async () => {
+  for (const status of ['done', 'refunded']) {
+    const { handler, calls, emissions } = setup(status);
+    const res = response();
+    await handler({
+      params: { id: '9' }, body: { password: 'admin-password' },
+      adminId: 2, merchantId: 3, storeId: 7
+    }, res);
+    assert.equal(res.statusCode, 409, status);
+    assert.match(res.body.error, /不能删除/);
+    assert.equal(calls.some(x => x.type === 'run' && x.sql.startsWith('DELETE FROM orders')), false);
+    assert.equal(calls.some(x => x.type === 'audit'), false);
+    assert.deepEqual(emissions, []);
+  }
 });
