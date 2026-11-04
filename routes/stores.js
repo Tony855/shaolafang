@@ -51,8 +51,14 @@ app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_sto
       );
       storeId = result.lastID;
       await initStoreSettings(runAsync, storeId);
-      await logAudit('merchant_admin', req.adminId, req.username || '', 'create_store', 'store', storeId,
-        JSON.stringify({ name: storeName, code: storeCode }), getClientIp(req));
+      const actor = req.adminId
+        ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId])
+        : null;
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', req.adminId || null, actor?.username || '', 'create_store', 'store', storeId,
+          JSON.stringify({ name: storeName, code: storeCode }), getClientIp(req), new Date().toISOString()]
+      );
     });
     res.status(201).json(await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [storeId, merchantId]));
   } catch (e) {
@@ -103,8 +109,14 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
       if (!result.affectedRows) throw Object.assign(new Error('店铺不存在或已被删除'), { statusCode: 404 });
       await runAsync('DELETE FROM settings WHERE \`key\` LIKE ?', [`store_${id}_%`]);
       await runAsync('DELETE FROM settings WHERE \`key\` = ?', [`cashiers_${id}`]);
-      await logAudit('merchant_admin', req.adminId, req.username || '', 'delete_store', 'store', id,
-        JSON.stringify({ name: current.name, code: current.code }), getClientIp(req));
+      const actor = req.adminId
+        ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId])
+        : null;
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', req.adminId || null, actor?.username || '', 'delete_store', 'store', id,
+          JSON.stringify({ name: current.name, code: current.code }), getClientIp(req), new Date().toISOString()]
+      );
     });
     res.json({ success: true });
   } catch (e) {
