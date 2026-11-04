@@ -11,13 +11,13 @@ module.exports = function(app, deps) {
     throw Object.assign(new Error('默认货币标记必须为 true/false'), { status: 400 });
   }
 
-  async function writeCurrencyAudit(req, action, currencyId, details) {
+  async function writeCurrencyAudit(req, action, currencyId, details, targetType = 'currency') {
     const actor = req.adminId
       ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
       : null;
     await runAsync(
       'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      ['merchant_admin', req.adminId || null, actor?.username || '', action, 'currency', currencyId || null,
+      ['merchant_admin', req.adminId || null, actor?.username || '', action, targetType, currencyId || null,
         JSON.stringify(details), getClientIp(req), new Date().toISOString()]
     );
   }
@@ -160,52 +160,51 @@ module.exports = function(app, deps) {
 
   app.post('/api/admin/display-settings', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
-      const sid = req.storeId || 1;
-      const { primaryCurrencyCode, secondaryCurrencyCode } = req.body || {};
+      const body = req.body || {};
+      const merchantId = Number(req.merchantId);
+      const sid = Number(req.storeId || 1);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || !Number.isSafeInteger(sid) || sid <= 0) {
+        return res.status(400).json({ error: '商户或门店编号无效' });
+      }
+      const { primaryCurrencyCode, secondaryCurrencyCode } = body;
       const pCode = String(primaryCurrencyCode || 'USD').trim().toUpperCase();
       const sCode = String(secondaryCurrencyCode || '').trim().toUpperCase();
-
-      // 校验币种代码并确认两个币种均属于当前商户。
       if (!/^[A-Z0-9]{3,10}$/.test(pCode) || (sCode && !/^[A-Z0-9]{3,10}$/.test(sCode))) {
         return res.status(400).json({ error: '货币代码无效' });
       }
-      if (sCode && sCode === pCode) {
-        return res.status(400).json({ error: '副货币不能和主货币相同' });
-      }
-      const primaryCurrency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [pCode, req.merchantId]);
-      if (!primaryCurrency) return res.status(400).json({ error: '主货币不存在' });
-      if (sCode) {
-        const secondaryCurrency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [sCode, req.merchantId]);
-        if (!secondaryCurrency) return res.status(400).json({ error: '副货币不存在' });
-      }
+      if (sCode && sCode === pCode) return res.status(400).json({ error: '副货币不能和主货币相同' });
+      const applyAll = normalizeCurrencyFlag(body.applyAll, 0);
 
-      await runAsync(
-        "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
-        [`store_${sid}_primary_currency_code`, pCode]
-      );
-      await runAsync(
-        "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
-        [`store_${sid}_secondary_currency_code`, sCode]
-      );
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const currentStore = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [sid, merchantId]);
+        if (!currentStore) throw Object.assign(new Error('当前门店不存在或已停用'), { status: 404 });
+        const primaryCurrency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [pCode, merchantId]);
+        if (!primaryCurrency) throw Object.assign(new Error('主货币不存在'), { status: 400 });
+        if (sCode) {
+          const secondaryCurrency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [sCode, merchantId]);
+          if (!secondaryCurrency) throw Object.assign(new Error('副货币不存在'), { status: 400 });
+        }
 
-      // 可选：应用到所有店铺
-      if (req.body.applyAll) {
-        const stores = await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.merchantId || 1]);
-        for (const st of stores) {
-          if (String(st.id) === String(sid)) continue;
+        const stores = applyAll
+          ? await allAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id FOR UPDATE', [merchantId])
+          : [{ id: sid }];
+        for (const store of stores) {
           await runAsync(
             "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
-            [`store_${st.id}_primary_currency_code`, pCode]
+            [`store_${store.id}_primary_currency_code`, pCode]
           );
           await runAsync(
             "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
-            [`store_${st.id}_secondary_currency_code`, sCode]
+            [`store_${store.id}_secondary_currency_code`, sCode]
           );
         }
-      }
-
+        await writeCurrencyAudit(req, 'update_currency_display_settings', sid,
+          { primaryCurrencyCode: pCode, secondaryCurrencyCode: sCode, applyAll: !!applyAll }, 'store');
+      });
       res.json({ success: true, primaryCurrencyCode: pCode, secondaryCurrencyCode: sCode });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新货币显示设置失败，所有更改已回滚' }); }
   });
 
   // ----- 新订单提示音设置 -----
