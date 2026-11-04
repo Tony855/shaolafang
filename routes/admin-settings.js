@@ -222,10 +222,28 @@ module.exports = function(app, deps) {
 
   app.post('/api/admin/notification-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
-      const sid = req.storeId || 1;
-      const enabled = req.body.enabled ? '1' : '0';
-      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [`store_${sid}_new_order_sound_enabled`, enabled]);
+      const body = req.body || {};
+      const merchantId = Number(req.merchantId);
+      const storeId = Number(req.storeId);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0) {
+        return res.status(400).json({ error: '商户或门店编号无效' });
+      }
+      if (![true, false, 0, 1, '0', '1'].includes(body.enabled)) {
+        return res.status(400).json({ error: '提示音开关值无效' });
+      }
+      const enabled = [true, 1, '1'].includes(body.enabled) ? '1' : '0';
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
+        if (!store) throw Object.assign(new Error('门店不存在或已停用'), { status: 404 });
+        await runAsync(
+          "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+          [`store_${storeId}_new_order_sound_enabled`, enabled]
+        );
+        await writeCurrencyAudit(req, 'update_notification_setting', storeId, { new_order_sound_enabled: enabled === '1' }, 'store');
+      });
       res.json({ success: true, enabled: enabled === '1' });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新提示音设置失败，所有更改已回滚' }); }
   });
 };

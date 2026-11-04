@@ -19,6 +19,7 @@ function setup({ currencyCount = 1, menuReferences = 0, otherCurrency = null, fa
   let updateHandler;
   let deleteHandler;
   let displayHandler;
+  let notificationHandler;
   let inTransaction = false;
   let rolledBack = false;
   let transactionCount = 0;
@@ -28,6 +29,7 @@ function setup({ currencyCount = 1, menuReferences = 0, otherCurrency = null, fa
     post(route, ...handlers) {
       if (route === '/api/currencies') createHandler = handlers[handlers.length - 1];
       if (route === '/api/admin/display-settings') displayHandler = handlers[handlers.length - 1];
+      if (route === '/api/admin/notification-settings') notificationHandler = handlers[handlers.length - 1];
     },
     put(route, ...handlers) { if (route === '/api/currencies/:id') updateHandler = handlers[handlers.length - 1]; },
     delete(route, ...handlers) { if (route === '/api/currencies/:id') deleteHandler = handlers[handlers.length - 1]; }
@@ -71,7 +73,7 @@ function setup({ currencyCount = 1, menuReferences = 0, otherCurrency = null, fa
   };
   attachSettingsRoutes(app, deps);
   return {
-    createHandler, updateHandler, deleteHandler, displayHandler, calls,
+    createHandler, updateHandler, deleteHandler, displayHandler, notificationHandler, calls,
     get transactionCount() { return transactionCount; },
     get rolledBack() { return rolledBack; }
   };
@@ -150,4 +152,27 @@ test('currency creation rolls back when audit insertion fails', async () => {
   assert.equal(res.statusCode, 500);
   assert.equal(ctx.rolledBack, true);
   assert.match(res.body.error, /所有更改已回滚/);
+});
+
+test('notification settings reject truthy string false', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.notificationHandler({ merchantId: 5, storeId: 2, body: { enabled: 'false' } }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(ctx.transactionCount, 0);
+});
+
+test('notification settings write false explicitly and audit in one transaction', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.notificationHandler({ merchantId: 5, storeId: 2, adminId: 9, body: { enabled: false } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.enabled, false);
+  assert.equal(ctx.transactionCount, 1);
+  const setting = ctx.calls.find(call => call.type === 'run' && call.sql.startsWith('INSERT INTO settings'));
+  const audit = ctx.calls.find(call => call.type === 'run' && call.sql.startsWith('INSERT INTO audit_logs'));
+  assert.equal(setting.params[1], '0');
+  assert.ok(setting.inTransaction && audit.inTransaction);
 });
