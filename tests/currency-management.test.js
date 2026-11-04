@@ -14,7 +14,7 @@ function response() {
   };
 }
 
-function setup({ currencyCount = 1, menuReferences = 0, otherCurrency = null, failAudit = false } = {}) {
+function setup({ currencyCount = 1, menuReferences = 0, otherCurrency = null, failAudit = false, currentIsDefault = 1 } = {}) {
   let createHandler;
   let updateHandler;
   let deleteHandler;
@@ -38,7 +38,7 @@ function setup({ currencyCount = 1, menuReferences = 0, otherCurrency = null, fa
       if (sql.includes('FROM merchants')) return { id: 5 };
       if (sql.includes('COUNT(*) AS count FROM currencies')) return { count: currencyCount };
       if (sql.includes('SELECT * FROM currencies WHERE id=? AND merchant_id=?')) {
-        return { id: Number(params[0]), merchant_id: 5, code: 'USD', symbol: '$', name: 'US Dollar', rate: 1, is_default: 1 };
+        return { id: Number(params[0]), merchant_id: 5, code: 'USD', symbol: '$', name: 'US Dollar', rate: 1, is_default: currentIsDefault };
       }
       if (sql.includes('SELECT id FROM currencies WHERE merchant_id=? AND id<>?')) return otherCurrency;
       if (sql.includes('SELECT code FROM currencies')) return { code: params[0] };
@@ -103,7 +103,7 @@ test('last default currency cannot be unset', async () => {
 });
 
 test('currency deletion is blocked while a menu references it', async () => {
-  const ctx = setup({ menuReferences: 3 });
+  const ctx = setup({ menuReferences: 3, currentIsDefault: 0 });
   const res = response();
   await ctx.deleteHandler({ merchantId: 5, params: { id: '10' } }, res);
 
