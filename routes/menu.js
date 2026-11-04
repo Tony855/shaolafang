@@ -13,6 +13,12 @@ const { compressImage } = require("../server/services/image-compress");
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
+  function normalizeMenuFlag(value, field) {
+    if ([true, 1, '1'].includes(value)) return 1;
+    if ([false, 0, '0'].includes(value)) return 0;
+    throw Object.assign(new Error(field + ' 参数无效'), { status: 400 });
+  }
+
   async function writeMenuAudit(req, action, menuId, details) {
     const actor = req.adminId
       ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
@@ -364,14 +370,15 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
   try {
     const id = Number(req.params.id);
     const storeId = Number(req.storeId);
-    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0) {
-      return res.status(400).json({ error: '菜品或门店编号无效' });
-    }
     const body = req.body || {};
     const uploadedImage = req.files?.image?.[0]?.filename || '';
     const uploadedVideo = req.files?.video?.[0]?.filename || '';
     if (uploadedImage) uploadedAssets.push(uploadedImage);
     if (uploadedVideo) uploadedAssets.push(uploadedVideo);
+    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0) {
+      for (const asset of uploadedAssets) removeMenuAsset(asset);
+      return res.status(400).json({ error: '菜品或门店编号无效' });
+    }
     let image = uploadedImage || '';
     if (uploadedImage) {
       try {
