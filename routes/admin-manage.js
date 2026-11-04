@@ -321,51 +321,80 @@ module.exports = function(app, deps) {
   });
 
   // ----- 收银员管理（按商户聚合，跨店铺）-----
-  async function getCashiers(storeId) {
-    const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", ['cashiers_' + storeId]);
+  async function getCashiers(storeId, forUpdate = false) {
+    const row = await getAsync(
+      "SELECT value FROM settings WHERE `key` = ?" + (forUpdate ? ' FOR UPDATE' : ''),
+      ['cashiers_' + storeId]
+    );
     if (!row || !row.value) return [];
-    try { return JSON.parse(row.value); } catch (e) { return []; }
-  }
-  async function saveCashiers(storeId, cashiers) {
-    const exists = await getAsync("SELECT value FROM settings WHERE `key` = ?", ['cashiers_' + storeId]);
-    if (exists) {
-      await runAsync("UPDATE settings SET value=? WHERE `key`=?", [JSON.stringify(cashiers), 'cashiers_' + storeId]);
-    } else {
-      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?)", ['cashiers_' + storeId, JSON.stringify(cashiers)]);
-    }
+    let parsed;
+    try { parsed = JSON.parse(row.value); }
+    catch (_) { throw Object.assign(new Error('门店收银员数据损坏，已停止写入以防止覆盖原始数据'), { status: 500 }); }
+    if (!Array.isArray(parsed)) throw Object.assign(new Error('门店收银员数据格式无效，已停止写入'), { status: 500 });
+    return parsed;
   }
 
-  // 聚合查询本商户下所有店铺的收银员
-  async function getAllCashiersByMerchant(merchantId) {
-    const stores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id', [merchantId]);
+  async function saveCashiers(storeId, cashiers) {
+    await runAsync(
+      "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+      ['cashiers_' + storeId, JSON.stringify(cashiers)]
+    );
+  }
+
+  async function getAllCashiersByMerchant(merchantId, forUpdate = false) {
+    const stores = await allAsync(
+      'SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id' + (forUpdate ? ' FOR UPDATE' : ''),
+      [merchantId]
+    );
     const result = [];
-    for (const s of stores) {
-      const list = await getCashiers(s.id);
-      for (const c of list) {
+    for (const store of stores) {
+      const list = await getCashiers(store.id, forUpdate);
+      for (const cashier of list) {
         result.push({
-          id: c.id,
-          username: c.username,
-          display_name: c.display_name,
-          active: c.active,
-          permissions: c.permissions,
-          created_at: c.created_at,
-          store_id: s.id,
-          store_name: s.name
+          id: cashier.id, username: cashier.username, display_name: cashier.display_name,
+          active: cashier.active, permissions: cashier.permissions, created_at: cashier.created_at,
+          store_id: store.id, store_name: store.name
         });
       }
     }
     return result;
   }
 
-  // 根据 cashier.id 找到所在店铺
-  async function findCashierStore(merchantId, cashierId) {
-    const stores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id', [merchantId]);
-    for (const s of stores) {
-      const list = await getCashiers(s.id);
-      const idx = list.findIndex(c => c.id === cashierId);
-      if (idx !== -1) return { store: s, list, idx };
+  async function findCashierStore(merchantId, cashierId, forUpdate = false) {
+    const stores = await allAsync(
+      'SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id' + (forUpdate ? ' FOR UPDATE' : ''),
+      [merchantId]
+    );
+    for (const store of stores) {
+      const list = await getCashiers(store.id, forUpdate);
+      const idx = list.findIndex(cashier => String(cashier.id) === String(cashierId));
+      if (idx !== -1) return { store, list, idx };
     }
     return null;
+  }
+
+  async function writeCashierAudit(req, action, cashierId, details) {
+    const actor = req.adminId
+      ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
+      : null;
+    await runAsync(
+      'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ['merchant_admin', req.adminId || null, actor?.username || '', action, 'cashier', cashierId,
+        JSON.stringify(details), getClientIp(req), new Date().toISOString()]
+    );
+  }
+
+  function normalizeCashierPermissions(input, current = {}) {
+    if (input !== undefined && (!input || typeof input !== 'object' || Array.isArray(input))) {
+      throw Object.assign(new Error('收银员权限配置格式无效'), { status: 400 });
+    }
+    const permissions = {};
+    for (const [field, fallback] of [
+      ['can_settle', true], ['can_cancel', true], ['can_refund', false], ['can_view_report', true]
+    ]) {
+      permissions[field] = normalizeAdminFlag(input?.[field], current[field] === undefined ? (fallback ? 1 : 0) : (current[field] ? 1 : 0), field) === 1;
+    }
+    return permissions;
   }
 
   app.get('/api/admin/cashiers', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
@@ -377,109 +406,161 @@ module.exports = function(app, deps) {
 
   app.post('/api/admin/cashiers', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
-      const { username, password, display_name, permissions, active, store_id } = req.body || {};
-      if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写收银员资料' });
-      if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
-
-      const targetStoreId = parseInt(store_id, 10) || req.storeId || 1;
-
-      const store = await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
-      if (!store) return res.status(400).json({ error: '目标店铺不存在或不属于当前商户' });
-
-      const all = await getAllCashiersByMerchant(req.merchantId);
-      if (all.find(c => c.username === String(username).trim())) {
-        return res.status(400).json({ error: '该商户下已存在同名收银员账号' });
+      const body = req.body || {};
+      const username = typeof body.username === 'string' ? body.username.trim() : '';
+      const password = typeof body.password === 'string' ? body.password : '';
+      const displayName = typeof body.display_name === 'string' ? body.display_name.trim() : '';
+      const merchantId = Number(req.merchantId);
+      const targetStoreId = Number(body.store_id === undefined ? req.storeId : body.store_id);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || !Number.isSafeInteger(targetStoreId) || targetStoreId <= 0) {
+        return res.status(400).json({ error: '商户或门店编号无效' });
       }
-      const dupWaiter = await getAsync('SELECT id FROM waiters WHERE username=? LIMIT 1', [String(username).trim()]);
-      if (dupWaiter) return res.status(409).json({ error: '该用户名已被服务员账号使用，请换一个' });
+      if (!username || username.length > 50 || !displayName || displayName.length > 100) {
+        return res.status(400).json({ error: '收银员账号和姓名必填，账号最多 50 个字符，姓名最多 100 个字符' });
+      }
+      if (password.length < 6 || password.length > 128) return res.status(400).json({ error: '密码长度必须为 6 至 128 个字符' });
+      const active = normalizeAdminFlag(body.active, 1, 'active') === 1;
+      const permissions = normalizeCashierPermissions(body.permissions);
+      let newCashier;
+      let storeName = '';
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const store = await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [targetStoreId, merchantId]);
+        if (!store) throw Object.assign(new Error('目标店铺不存在或已停用'), { status: 400 });
+        const all = await getAllCashiersByMerchant(merchantId, true);
+        if (all.some(cashier => cashier.username === username)) {
+          throw Object.assign(new Error('该商户下已存在同名收银员账号'), { status: 409 });
+        }
+        const dupWaiter = await getAsync('SELECT id FROM waiters WHERE username=? LIMIT 1', [username]);
+        if (dupWaiter) throw Object.assign(new Error('该用户名已被服务员账号使用，请换一个'), { status: 409 });
 
-      const cashiers = await getCashiers(targetStoreId);
-      const newCashier = {
-        id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
-        username: String(username).trim(),
-        display_name,
-        password_hash: hashPassword(password),
-        active: active !== false,
-        permissions: {
-          can_settle: permissions?.can_settle !== false,
-          can_cancel: permissions?.can_cancel !== false,
-          can_refund: permissions?.can_refund === true,
-          can_view_report: permissions?.can_view_report !== false
-        },
-        created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
-      };
-      cashiers.push(newCashier);
-      await saveCashiers(targetStoreId, cashiers);
-      await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_cashier', 'cashier', newCashier.id, `创建收银员: ${username} (店铺 #${targetStoreId})`, getClientIp(req));
-      res.status(201).json({ success: true, cashier: { id: newCashier.id, username: newCashier.username, display_name: newCashier.display_name, active: newCashier.active, permissions: newCashier.permissions, created_at: newCashier.created_at, store_id: targetStoreId, store_name: store.name } });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+        const cashiers = await getCashiers(targetStoreId, true);
+        newCashier = {
+          id: crypto.randomBytes(6).readUIntBE(0, 6) || 1,
+          username,
+          display_name: displayName,
+          password_hash: hashPassword(password),
+          active,
+          permissions,
+          created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+        };
+        cashiers.push(newCashier);
+        await saveCashiers(targetStoreId, cashiers);
+        storeName = store.name;
+        await writeCashierAudit(req, 'create_cashier', newCashier.id, {
+          username, display_name: displayName, store_id: targetStoreId, active, permissions
+        });
+      });
+      res.status(201).json({
+        success: true,
+        cashier: { id: newCashier.id, username: newCashier.username, display_name: newCashier.display_name,
+          active: newCashier.active, permissions: newCashier.permissions, created_at: newCashier.created_at,
+          store_id: targetStoreId, store_name: storeName }
+      });
+    } catch (e) {
+      if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: e.status ? e.message : '收银员账号已存在' });
+      res.status(e.status || 500).json({ error: e.status ? e.message : '创建收银员失败，所有更改已回滚' });
+    }
   });
 
   app.put('/api/admin/cashiers/:id', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
-      const { display_name, password, permissions, active, store_id } = req.body || {};
+      const id = Number(req.params.id);
+      const merchantId = Number(req.merchantId);
+      const body = req.body || {};
+      if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '收银员或商户编号无效' });
+      }
+      if (body.display_name !== undefined && (typeof body.display_name !== 'string' || !body.display_name.trim() || body.display_name.trim().length > 100)) {
+        return res.status(400).json({ error: '收银员姓名必须为 1 至 100 个字符' });
+      }
+      if (body.password !== undefined && body.password !== '' &&
+          (typeof body.password !== 'string' || body.password.length < 6 || body.password.length > 128)) {
+        return res.status(400).json({ error: '密码长度必须为 6 至 128 个字符' });
+      }
+      let updatedCashier;
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const found = await findCashierStore(merchantId, id, true);
+        if (!found) throw Object.assign(new Error('收银员不存在'), { status: 404 });
+        const { store: oldStore, list: oldList, idx } = found;
+        const cashier = { ...oldList[idx], permissions: { ...(oldList[idx].permissions || {}) } };
+        const targetStoreId = body.store_id === undefined ? Number(oldStore.id) : Number(body.store_id);
+        if (!Number.isSafeInteger(targetStoreId) || targetStoreId <= 0) throw Object.assign(new Error('目标门店编号无效'), { status: 400 });
+        const storeChanged = targetStoreId !== Number(oldStore.id);
+        const newStore = storeChanged
+          ? await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [targetStoreId, merchantId])
+          : oldStore;
+        if (!newStore) throw Object.assign(new Error('目标店铺不存在或已停用'), { status: 400 });
 
-      const found = await findCashierStore(req.merchantId, id);
-      if (!found) return res.status(404).json({ error: '收银员不存在' });
-      const { store: oldStore, list: oldList, idx } = found;
-      const cashier = oldList[idx];
+        const previousActive = normalizeAdminFlag(cashier.active, 1, 'active') === 1;
+        const active = normalizeAdminFlag(body.active, previousActive ? 1 : 0, 'active') === 1;
+        const previousPermissions = normalizeCashierPermissions(undefined, cashier.permissions);
+        const permissions = normalizeCashierPermissions(body.permissions, cashier.permissions);
+        const passwordChanged = typeof body.password === 'string' && body.password.length > 0;
+        const permissionsChanged = Object.keys(permissions).some(field => permissions[field] !== previousPermissions[field]);
+        const accessChanged = passwordChanged || active !== previousActive || permissionsChanged || storeChanged;
+        if (body.display_name !== undefined) cashier.display_name = body.display_name.trim();
+        cashier.active = active;
+        cashier.permissions = permissions;
+        if (passwordChanged) cashier.password_hash = hashPassword(body.password);
 
-      const targetStoreId = parseInt(store_id, 10) || oldStore.id;
-      const storeChanged = targetStoreId !== oldStore.id;
-
-      let newStore = oldStore;
-      if (storeChanged) {
-        const s = await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
-        if (!s) return res.status(400).json({ error: '目标店铺不存在或不属于当前商户' });
-        newStore = s;
-        const all = await getAllCashiersByMerchant(req.merchantId);
-        if (all.find(c => c.id !== id && c.username === cashier.username)) {
-          return res.status(400).json({ error: '目标店铺已存在同名收银员' });
+        if (storeChanged) {
+          oldList.splice(idx, 1);
+          await saveCashiers(oldStore.id, oldList);
+          const targetList = await getCashiers(newStore.id, true);
+          if (targetList.some(item => item.username === cashier.username)) {
+            throw Object.assign(new Error('目标店铺已存在同名收银员'), { status: 409 });
+          }
+          targetList.push(cashier);
+          await saveCashiers(newStore.id, targetList);
+        } else {
+          oldList[idx] = cashier;
+          await saveCashiers(oldStore.id, oldList);
         }
-      }
-
-      if (display_name !== undefined) cashier.display_name = display_name;
-      if (active !== undefined) cashier.active = active !== false;
-      if (password) {
-        if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
-        cashier.password_hash = hashPassword(password);
-      }
-      if (permissions && typeof permissions === 'object') {
-        if (permissions.can_settle !== undefined) cashier.permissions.can_settle = permissions.can_settle !== false;
-        if (permissions.can_cancel !== undefined) cashier.permissions.can_cancel = permissions.can_cancel !== false;
-        if (permissions.can_refund !== undefined) cashier.permissions.can_refund = permissions.can_refund === true;
-        if (permissions.can_view_report !== undefined) cashier.permissions.can_view_report = permissions.can_view_report !== false;
-      }
-
-      if (storeChanged) {
-        oldList.splice(idx, 1);
-        await saveCashiers(oldStore.id, oldList);
-        const targetList = await getCashiers(newStore.id);
-        targetList.push(cashier);
-        await saveCashiers(newStore.id, targetList);
-      } else {
-        oldList[idx] = cashier;
-        await saveCashiers(oldStore.id, oldList);
-      }
-
-      await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_cashier', 'cashier', id, `更新收银员: ${cashier.username}${storeChanged ? ' (店铺 #' + oldStore.id + ' -> #' + newStore.id + ')' : ''}`, getClientIp(req));
-      res.json({ success: true, cashier: { id: cashier.id, username: cashier.username, display_name: cashier.display_name, active: cashier.active, permissions: cashier.permissions, created_at: cashier.created_at, store_id: newStore.id, store_name: newStore.name } });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+        if (accessChanged) {
+          await runAsync('DELETE FROM cashier_sessions WHERE cashier_id=? AND merchant_id=?', [id, merchantId]);
+        }
+        await writeCashierAudit(req, 'update_cashier', id, {
+          username: cashier.username, old_store_id: oldStore.id, new_store_id: newStore.id,
+          active, permissions, password_changed: passwordChanged
+        });
+        updatedCashier = {
+          id: cashier.id, username: cashier.username, display_name: cashier.display_name,
+          active: cashier.active, permissions: cashier.permissions, created_at: cashier.created_at,
+          store_id: newStore.id, store_name: newStore.name
+        };
+      });
+      res.json({ success: true, cashier: updatedCashier });
+    } catch (e) {
+      if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: e.status ? e.message : '收银员账号已存在' });
+      res.status(e.status || 500).json({ error: e.status ? e.message : '更新收银员失败，所有更改已回滚' });
+    }
   });
 
   app.delete('/api/admin/cashiers/:id', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
-      const found = await findCashierStore(req.merchantId, id);
-      if (!found) return res.status(404).json({ error: '收银员不存在' });
-      const { store, list, idx } = found;
-      const username = list[idx].username;
-      list.splice(idx, 1);
-      await saveCashiers(store.id, list);
-      await logAudit('cashier', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_cashier', 'cashier', id, `删除收银员: ${username} (店铺 #${store.id})`, getClientIp(req));
+      const id = Number(req.params.id);
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '收银员或商户编号无效' });
+      }
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const found = await findCashierStore(merchantId, id, true);
+        if (!found) throw Object.assign(new Error('收银员不存在'), { status: 404 });
+        const { store, list, idx } = found;
+        const cashier = list[idx];
+        await runAsync('DELETE FROM cashier_sessions WHERE cashier_id=? AND merchant_id=?', [id, merchantId]);
+        list.splice(idx, 1);
+        await saveCashiers(store.id, list);
+        await writeCashierAudit(req, 'delete_cashier', id, { username: cashier.username, store_id: store.id });
+      });
       res.json({ success: true });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除收银员失败，所有更改已回滚' }); }
   });
 
   app.post('/api/admin/reset-data', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
