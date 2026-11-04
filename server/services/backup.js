@@ -15,7 +15,7 @@ async function collectBackupData() {
   return withTransaction(async () => {
     const data = { exportedAt: new Date().toISOString(), tables: {} };
     for (const table of tables) {
-      data.tables[table] = await allAsync(`SELECT * FROM \`\${table}\``);
+      data.tables[table] = await allAsync(`SELECT * FROM \`${table}\``);
     }
     return data;
   });
