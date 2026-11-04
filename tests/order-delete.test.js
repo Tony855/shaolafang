@@ -137,7 +137,8 @@ test('order deletion does not write when the locked admin password is invalid', 
 });
 
 test('order deletion rolls back if strict audit insertion fails', async () => {
-  const { handler, calls, get rolledBack } = setup('pending', { failAudit: true });
+  const ctx = setup('pending', { failAudit: true });
+  const { handler, calls } = ctx;
   const res = response();
   await handler({
     params: { id: '9' }, body: { password: 'admin-password' },
@@ -145,6 +146,6 @@ test('order deletion rolls back if strict audit insertion fails', async () => {
   }, res);
 
   assert.equal(res.statusCode, 500);
-  assert.equal(rolledBack, true);
+  assert.equal(ctx.rolledBack, true);
   assert.ok(calls.some(x => x.type === 'run' && x.sql.startsWith('DELETE FROM orders')));
 });
