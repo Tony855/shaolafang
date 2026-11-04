@@ -34,7 +34,7 @@ function setup({ failAudit = false, primaryId = 1 } = {}) {
       if (sql.includes('FROM merchants')) return { id: 5 };
       if (sql.includes('SELECT id FROM merchant_admins WHERE username')) return null;
       if (sql.includes('SELECT MIN(id) AS min_id')) return { min_id: primaryId };
-      if (sql.includes('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?')) {
+      if (sql.includes('FROM merchant_admins WHERE id=? AND merchant_id=?') && !sql.startsWith('SELECT username')) {
         return { id: Number(params[0]), merchant_id: 5, username: 'secondary', display_name: 'Secondary',
           active: 1, can_manage_menu: 0, can_manage_table: 0, can_manage_order: 0, can_delete_order: 0,
           can_edit_order: 0, can_manage_store: 0, can_manage_waiter: 0, can_manage_currency: 0,
