@@ -60,7 +60,7 @@ test('waiter KHQR notification uses a store-scoped pending-state compare-and-set
   const res = response();
   await handler({
     body: { order_id: '42', pay_method: 'khqr', cash_received: 25, cash_change: 0 },
-    waiter: { id: 7, store_id: 9, display_name: 'QA waiter' },
+    waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
     waiterStoreId: 9
   }, res);
 
@@ -78,7 +78,7 @@ test('waiter KHQR notification rejects a concurrent state change without broadca
   const res = response();
   await handler({
     body: { order_id: 42, pay_method: 'khqr' },
-    waiter: { id: 7, store_id: 9, display_name: 'QA waiter' },
+    waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
     waiterStoreId: 9
   }, res);
 
@@ -92,7 +92,7 @@ test('waiter KHQR notification rejects invalid order identifiers before querying
   const res = response();
   await handler({
     body: { order_id: '42 OR 1=1' },
-    waiter: { id: 7, store_id: 9 },
+    waiter: { id: 7, store_id: 9, can_order: 1 },
     waiterStoreId: 9
   }, res);
 
