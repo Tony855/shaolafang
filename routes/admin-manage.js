@@ -496,9 +496,10 @@ module.exports = function(app, deps) {
         if (!newStore) throw Object.assign(new Error('目标店铺不存在或已停用'), { status: 400 });
 
         const active = normalizeAdminFlag(body.active, cashier.active === false ? 0 : 1, 'active') === 1;
+        const previousPermissions = normalizeCashierPermissions(undefined, cashier.permissions);
         const permissions = normalizeCashierPermissions(body.permissions, cashier.permissions);
         const passwordChanged = typeof body.password === 'string' && body.password.length > 0;
-        const permissionsChanged = Object.keys(permissions).some(field => permissions[field] !== (cashier.permissions[field] !== false));
+        const permissionsChanged = Object.keys(permissions).some(field => permissions[field] !== previousPermissions[field]);
         const accessChanged = passwordChanged || active !== (cashier.active !== false) || permissionsChanged || storeChanged;
         if (body.display_name !== undefined) cashier.display_name = body.display_name.trim();
         cashier.active = active;
