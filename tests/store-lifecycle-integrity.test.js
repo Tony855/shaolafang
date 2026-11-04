@@ -53,6 +53,7 @@ function setup({ storeCount = 1, currentStoreId = 2, firstStoreId = 1, dependent
     },
     runAsync: async (sql, params = []) => {
       calls.push({ type: 'run', sql, params, inTransaction });
+      if (failAudit && sql.startsWith('INSERT INTO audit_logs')) throw new Error('audit failure');
       if (sql.startsWith('INSERT INTO stores')) return { lastID: 99, affectedRows: 1 };
       if (sql.startsWith('DELETE FROM stores')) return { affectedRows: 1 };
       return { affectedRows: 1 };
