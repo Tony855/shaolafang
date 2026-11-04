@@ -4,6 +4,26 @@
  */
 const { getAsync, runAsync } = require('../db/helpers');
 
+function cashierIsActive(cashier) {
+  return !!cashier && (cashier.active === true || cashier.active === 1 ||
+    cashier.active === '1' || cashier.active === 'true');
+}
+
+function normalizeCashierPermissions(raw) {
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const enabled = (value, fallback) => {
+    if (value === undefined || value === null) return fallback;
+    return value === true || value === 1 || value === '1' || value === 'true';
+  };
+  return {
+    can_settle: enabled(source.can_settle, true),
+    can_cancel: enabled(source.can_cancel, true),
+    can_refund: enabled(source.can_refund, false),
+    can_view_report: enabled(source.can_view_report, true)
+  };
+}
+
+
 async function requireSuperAdmin(req, res, next) {
   try {
     let token = '';
@@ -52,9 +72,10 @@ async function requireCashier(req, res, next) {
     if (!cashiersData) return res.status(401).json({ error: '账号不存在' });
     let cashiers = [];
     try { cashiers = JSON.parse(cashiersData.value); } catch (e) { return res.status(401).json({ error: '账号数据异常' }); }
-    const cashier = cashiers.find(c => String(c.id) === String(session.cashier_id) && c.active);
+    if (!Array.isArray(cashiers)) return res.status(401).json({ error: '账号数据异常' });
+    const cashier = cashiers.find(c => String(c.id) === String(session.cashier_id) && cashierIsActive(c));
     if (!cashier) return res.status(401).json({ error: '账号不存在或已停用' });
-    req.cashier = { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
+    req.cashier = { ...cashier, active: true, permissions: normalizeCashierPermissions(cashier.permissions), store_id: session.store_id, merchant_id: session.merchant_id };
     req.storeId = Number(session.store_id);
     req.merchantId = Number(session.merchant_id);
     next();
@@ -114,9 +135,9 @@ async function requireAdminOrCashier(req, res, next) {
     if (!cashiersData) return res.status(401).json({ error: '账号不存在' });
     let list = [];
     try { list = JSON.parse(cashiersData.value); } catch (e) { return res.status(401).json({ error: '账号数据异常' }); }
-    const cashier = list.find(c => String(c.id) === String(session.cashier_id) && c.active);
+    const cashier = Array.isArray(list) ? list.find(c => String(c.id) === String(session.cashier_id) && cashierIsActive(c)) : null;
     if (!cashier) return res.status(401).json({ error: '账号不存在或已停用' });
-    req.cashier = { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
+    req.cashier = { ...cashier, active: true, permissions: normalizeCashierPermissions(cashier.permissions), store_id: session.store_id, merchant_id: session.merchant_id };
     req.cashierId = cashier.id;
     req.storeId = session.store_id;
     req.merchantId = session.merchant_id;
@@ -176,9 +197,9 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
         if (cashiersData) {
           let list = [];
           try { list = JSON.parse(cashiersData.value); } catch (e) {}
-          const cashier = list.find(c => String(c.id) === String(session.cashier_id) && c.active);
+          const cashier = Array.isArray(list) ? list.find(c => String(c.id) === String(session.cashier_id) && cashierIsActive(c)) : null;
           if (cashier) {
-            req.cashier = { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
+            req.cashier = { ...cashier, active: true, permissions: normalizeCashierPermissions(cashier.permissions), store_id: session.store_id, merchant_id: session.merchant_id };
             req.cashierId = cashier.id;
             req.storeId = session.store_id;
             req.merchantId = session.merchant_id;
