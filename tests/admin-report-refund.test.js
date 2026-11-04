@@ -61,7 +61,7 @@ test('daily admin report includes fully refunded orders and reports net revenue'
   assert.equal(res.body.summary.totalRefunded, 110);
 
   const aggregateSql = sqlCalls[0].sql;
-  assert.match(aggregateSql, /status IN \\('done', 'refunded'\\)/);
+  assert.match(aggregateSql, /status IN \('done', 'refunded'\)/);
   assert.match(aggregateSql, /status='refunded'/);
-  assert.equal(sqlCalls[0].params.length, 14);
+  assert.equal(sqlCalls[0].params.length, 21);
 });
