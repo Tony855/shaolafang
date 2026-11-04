@@ -681,19 +681,38 @@ app.post('/api/super/backup/now', requireSuperAdmin, async (req, res) => {
 
 app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
   try {
-    const { password } = req.body;
+    const { password } = req.body || {};
     if (!password) return res.status(400).json({ error: '请提供超级管理员密码' });
     if (!verifyPassword(password, req.superAdmin.password_hash)) {
       return res.status(401).json({ error: '密码错误，重置失败' });
     }
-    await runAsync('DELETE FROM orders');
-    await runAsync('ALTER TABLE orders AUTO_INCREMENT = 1');
-    await runAsync('DELETE FROM waiter_calls');
-    await runAsync('DELETE FROM scan_sessions');
-    await runAsync('ALTER TABLE scan_sessions AUTO_INCREMENT = 1');
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_all_data', 'system', null, '重置所有订单数据', getClientIp(req));
-    res.json({ success: true, message: '所有订单数据已重置' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+
+    // Keep all destructive DML and its audit record atomic. MySQL ALTER TABLE
+    // implicitly commits, so auto-increment maintenance must happen afterwards.
+    await withTransaction(async () => {
+      await runAsync('DELETE FROM orders');
+      await runAsync('DELETE FROM waiter_calls');
+      await runAsync('DELETE FROM scan_sessions');
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_all_data', 'system', null, '重置所有订单数据', getClientIp(req));
+    });
+
+    let sequenceReset = true;
+    try {
+      await runAsync('ALTER TABLE orders AUTO_INCREMENT = 1');
+    } catch (error) {
+      sequenceReset = false;
+    }
+    try {
+      await runAsync('ALTER TABLE scan_sessions AUTO_INCREMENT = 1');
+    } catch (error) {
+      sequenceReset = false;
+    }
+    res.json({
+      success: true,
+      message: sequenceReset ? '所有订单数据已重置' : '数据已重置，但部分自增序号未能重置',
+      sequenceReset
+    });
+  } catch (e) { res.status(500).json({ error: '数据重置失败，所有删除操作已回滚' }); }
 });
 
 
