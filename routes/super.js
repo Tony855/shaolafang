@@ -158,28 +158,57 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
     const { name, username, password, contact_name, contact_phone, max_stores, status, country } = req.body || {};
-    const _cur = await getAsync('SELECT country FROM merchants WHERE id=?', [req.params.id]);
-    const _nextCountry = (country !== undefined) ? String(country).trim().toUpperCase().slice(0, 4) : (_cur && _cur.country ? _cur.country : '');
-    await runAsync('UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=?, country=? WHERE id=?', [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, _nextCountry, req.params.id]);
-    const primaryAdmin = await getAsync('SELECT id, username FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.params.id]);
-    if (primaryAdmin) {
-      if (username && username.trim() && username.trim() !== primaryAdmin.username) {
-        const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=? AND id<>?', [username.trim(), primaryAdmin.id]);
-        if (exists) return res.status(400).json({ error: '登录账号已被使用' });
-        await runAsync('UPDATE merchant_admins SET username=? WHERE id=?', [username.trim(), primaryAdmin.id]);
-      }
-      if (password && password.trim()) {
-        const hash = hashPassword(password.trim());
-        await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=?', [hash, primaryAdmin.id]);
-      }
-    }
-    const updatedMerchant = await getAsync('SELECT name, code FROM merchants WHERE id=?', [req.params.id]);
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_merchant', 'merchant', req.params.id,
-      `编辑商户「${updatedMerchant?.name || '未知'}」的信息`, getClientIp(req));
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
+    const merchantId = req.params.id;
 
+    await withTransaction(async () => {
+      const current = await getAsync('SELECT country FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
+      if (!current) {
+        const error = new Error('商户不存在');
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const primaryAdmin = await getAsync('SELECT id, username FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1 FOR UPDATE', [merchantId]);
+      const nextUsername = typeof username === 'string' ? username.trim() : '';
+      if (primaryAdmin && nextUsername && nextUsername !== primaryAdmin.username) {
+        const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=? AND id<>?', [nextUsername, primaryAdmin.id]);
+        if (exists) {
+          const error = new Error('登录账号已被使用');
+          error.statusCode = 409;
+          throw error;
+        }
+      }
+
+      const nextCountry = country !== undefined
+        ? String(country).trim().toUpperCase().slice(0, 4)
+        : (current.country || '');
+      await runAsync(
+        'UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=?, country=? WHERE id=?',
+        [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, nextCountry, merchantId]
+      );
+
+      if (primaryAdmin) {
+        if (nextUsername && nextUsername !== primaryAdmin.username) {
+          await runAsync('UPDATE merchant_admins SET username=? WHERE id=?', [nextUsername, primaryAdmin.id]);
+        }
+        if (typeof password === 'string' && password.trim()) {
+          const hash = hashPassword(password.trim());
+          await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=?', [hash, primaryAdmin.id]);
+        }
+      }
+
+      const updatedMerchant = await getAsync('SELECT name, code FROM merchants WHERE id=?', [merchantId]);
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_merchant', 'merchant', merchantId,
+        `编辑商户「${updatedMerchant?.name || '未知'}」的信息`, getClientIp(req));
+    });
+
+    res.json({ success: true });
+  } catch (e) {
+    res.status(e.statusCode || 500).json({
+      error: e.statusCode === 404 || e.statusCode === 409 ? e.message : '更新商户失败，所有更改已回滚'
+    });
+  }
+});
 app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
     if (req.params.id === '1') return res.status(400).json({ error: '不能删除默认商户' });
