@@ -321,51 +321,80 @@ module.exports = function(app, deps) {
   });
 
   // ----- 收银员管理（按商户聚合，跨店铺）-----
-  async function getCashiers(storeId) {
-    const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", ['cashiers_' + storeId]);
+  async function getCashiers(storeId, forUpdate = false) {
+    const row = await getAsync(
+      "SELECT value FROM settings WHERE `key` = ?" + (forUpdate ? ' FOR UPDATE' : ''),
+      ['cashiers_' + storeId]
+    );
     if (!row || !row.value) return [];
-    try { return JSON.parse(row.value); } catch (e) { return []; }
-  }
-  async function saveCashiers(storeId, cashiers) {
-    const exists = await getAsync("SELECT value FROM settings WHERE `key` = ?", ['cashiers_' + storeId]);
-    if (exists) {
-      await runAsync("UPDATE settings SET value=? WHERE `key`=?", [JSON.stringify(cashiers), 'cashiers_' + storeId]);
-    } else {
-      await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?)", ['cashiers_' + storeId, JSON.stringify(cashiers)]);
-    }
+    let parsed;
+    try { parsed = JSON.parse(row.value); }
+    catch (_) { throw Object.assign(new Error('门店收银员数据损坏，已停止写入以防止覆盖原始数据'), { status: 500 }); }
+    if (!Array.isArray(parsed)) throw Object.assign(new Error('门店收银员数据格式无效，已停止写入'), { status: 500 });
+    return parsed;
   }
 
-  // 聚合查询本商户下所有店铺的收银员
-  async function getAllCashiersByMerchant(merchantId) {
-    const stores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id', [merchantId]);
+  async function saveCashiers(storeId, cashiers) {
+    await runAsync(
+      "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+      ['cashiers_' + storeId, JSON.stringify(cashiers)]
+    );
+  }
+
+  async function getAllCashiersByMerchant(merchantId, forUpdate = false) {
+    const stores = await allAsync(
+      'SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id' + (forUpdate ? ' FOR UPDATE' : ''),
+      [merchantId]
+    );
     const result = [];
-    for (const s of stores) {
-      const list = await getCashiers(s.id);
-      for (const c of list) {
+    for (const store of stores) {
+      const list = await getCashiers(store.id, forUpdate);
+      for (const cashier of list) {
         result.push({
-          id: c.id,
-          username: c.username,
-          display_name: c.display_name,
-          active: c.active,
-          permissions: c.permissions,
-          created_at: c.created_at,
-          store_id: s.id,
-          store_name: s.name
+          id: cashier.id, username: cashier.username, display_name: cashier.display_name,
+          active: cashier.active, permissions: cashier.permissions, created_at: cashier.created_at,
+          store_id: store.id, store_name: store.name
         });
       }
     }
     return result;
   }
 
-  // 根据 cashier.id 找到所在店铺
-  async function findCashierStore(merchantId, cashierId) {
-    const stores = await allAsync('SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id', [merchantId]);
-    for (const s of stores) {
-      const list = await getCashiers(s.id);
-      const idx = list.findIndex(c => c.id === cashierId);
-      if (idx !== -1) return { store: s, list, idx };
+  async function findCashierStore(merchantId, cashierId, forUpdate = false) {
+    const stores = await allAsync(
+      'SELECT id, name FROM stores WHERE merchant_id=? ORDER BY id' + (forUpdate ? ' FOR UPDATE' : ''),
+      [merchantId]
+    );
+    for (const store of stores) {
+      const list = await getCashiers(store.id, forUpdate);
+      const idx = list.findIndex(cashier => String(cashier.id) === String(cashierId));
+      if (idx !== -1) return { store, list, idx };
     }
     return null;
+  }
+
+  async function writeCashierAudit(req, action, cashierId, details) {
+    const actor = req.adminId
+      ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
+      : null;
+    await runAsync(
+      'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ['merchant_admin', req.adminId || null, actor?.username || '', action, 'cashier', cashierId,
+        JSON.stringify(details), getClientIp(req), new Date().toISOString()]
+    );
+  }
+
+  function normalizeCashierPermissions(input, current = {}) {
+    if (input !== undefined && (!input || typeof input !== 'object' || Array.isArray(input))) {
+      throw Object.assign(new Error('收银员权限配置格式无效'), { status: 400 });
+    }
+    const permissions = {};
+    for (const [field, fallback] of [
+      ['can_settle', true], ['can_cancel', true], ['can_refund', false], ['can_view_report', true]
+    ]) {
+      permissions[field] = normalizeAdminFlag(input?.[field], current[field] === undefined ? (fallback ? 1 : 0) : (current[field] ? 1 : 0), field) === 1;
+    }
+    return permissions;
   }
 
   app.get('/api/admin/cashiers', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
