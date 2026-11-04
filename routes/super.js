@@ -263,18 +263,29 @@ app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (re
     if (newPwd.length < 12 || newPwd.length > 128) {
       return res.status(400).json({ error: '新密码长度必须为 12 至 128 个字符' });
     }
-    const merchant = await getAsync('SELECT id FROM merchants WHERE id=?', [req.params.id]);
-    if (!merchant) return res.status(404).json({ error: '商户不存在' });
     const hash = hashPassword(newPwd);
     await withTransaction(async () => {
+      const merchant = await getAsync('SELECT id, name FROM merchants WHERE id=? FOR UPDATE', [req.params.id]);
+      if (!merchant) {
+        const error = new Error('商户不存在');
+        error.statusCode = 404;
+        throw error;
+      }
+      const admins = await allAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC FOR UPDATE', [req.params.id]);
+      if (!admins.length) {
+        const error = new Error('商户管理员账号不存在，无法重置密码');
+        error.statusCode = 409;
+        throw error;
+      }
       await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
       await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [req.params.id]);
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', req.params.id,
+        `重置商户「${merchant.name || '未知'}」的管理员密码`, getClientIp(req));
     });
-    const merchantForLog = await getAsync('SELECT name, code FROM merchants WHERE id=?', [req.params.id]);
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', req.params.id,
-      `重置商户「${merchantForLog?.name || '未知'}」的管理员密码`, getClientIp(req));
     res.json({ success: true, newPassword: newPwd });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '重置商户密码失败，所有更改已回滚' });
+  }
 });
 
 // 超管仪表盘统计
@@ -792,25 +803,35 @@ async function getMerchantBanks(merchantId) {
 
 app.put('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (req, res) => {
   try {
-    const mid = parseInt(req.params.id, 10);
-    const src = (req.body && req.body.methods) || {};
+    const mid = Number(req.params.id);
+    const src = req.body && req.body.methods;
+    if (!Number.isSafeInteger(mid) || mid <= 0) return res.status(400).json({ error: '商户编号无效' });
+    if (!src || typeof src !== 'object' || Array.isArray(src)) {
+      return res.status(400).json({ error: '支付方式配置格式无效' });
+    }
     const clean = {};
-    // 内置 4 种
     const builtin = ['cash', 'wechat', 'alipay', 'card'];
     builtin.forEach(k => { clean[k] = src[k] !== false; });
-    // 动态 bank 键（与当前商户可用的 bank 列表取交集，防止脏数据）
-    const banks = await getMerchantBanks(mid);
-    banks.forEach(b => { clean[b] = src[b] !== false; });
-    await runAsync(
-      "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
-      [`merchant_${mid}_payment_methods`, JSON.stringify(clean)]
-    );
-    try {
+    await withTransaction(async () => {
+      const merchant = await getAsync('SELECT id FROM merchants WHERE id=? FOR UPDATE', [mid]);
+      if (!merchant) {
+        const error = new Error('商户不存在');
+        error.statusCode = 404;
+        throw error;
+      }
+      const banks = await getMerchantBanks(mid);
+      banks.forEach(b => { clean[b] = src[b] !== false; });
+      await runAsync(
+        "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+        [`merchant_${mid}_payment_methods`, JSON.stringify(clean)]
+      );
       await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
         'update_payment_methods', 'merchant', mid, JSON.stringify(clean), getClientIp(req));
-    } catch (_) {}
+    });
     res.json({ success: true, methods: clean });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '更新支付方式失败，所有更改已回滚' });
+  }
 });
 
 // 新增：返回该商户所有可用的支付方式（内置 + 动态 bank）
