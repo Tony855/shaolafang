@@ -56,83 +56,123 @@ app.post('/api/waiter/login', async (req, res) => {
 // ----- 收银员登录 -----
 app.post('/api/cashier/login', async (req, res) => {
   try {
-    const { username, password, storeId } = req.body || {};
-    if (!username || !password) {
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username || '', 'cashier', '请输入账号和密码']);
-      return res.status(400).json({ error: '请输入收银员账号和密码' });
+    const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    const rawStoreId = req.body?.storeId;
+    let requestedStoreId = null;
+    if (rawStoreId !== undefined && rawStoreId !== null && rawStoreId !== '') {
+      requestedStoreId = Number(rawStoreId);
+      if (!Number.isSafeInteger(requestedStoreId) || requestedStoreId <= 0) {
+        return res.status(400).json({ error: '门店编号无效' });
+      }
+    }
+    if (!username || username.length > 50 || !password || password.length > 128) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [
+        new Date().toISOString(), getClientIp(req), username, 'cashier', '请输入有效账号和密码'
+      ]);
+      return res.status(400).json({ error: '请输入有效的收银员账号和密码' });
     }
     const lockStatus = await isLoginLocked(username, 'cashier');
-    if (lockStatus.locked) {
-      return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
-    }
+    if (lockStatus.locked) return res.status(429).json({ error: `登录失败次数过多，请${lockStatus.remaining}分钟后再试` });
+
     const allCashierSettings = await allAsync("SELECT `key`, value FROM settings WHERE `key` LIKE 'cashiers_%'");
-    let cashier = null;
-    let targetStoreId = storeId ? parseInt(storeId, 10) : 0;
     const candidates = [];
     for (const row of allCashierSettings) {
+      const sid = Number(String(row.key).replace(/^cashiers_/, ''));
+      if (!Number.isSafeInteger(sid) || sid <= 0 || (requestedStoreId && sid !== requestedStoreId)) continue;
       try {
-        const sid = parseInt(String(row.key).replace('cashiers_', ''), 10) || 1;
-        if (targetStoreId && sid !== targetStoreId) continue;
         const list = JSON.parse(row.value);
-        const found = list.find(c => c.username === String(username).trim() && c.active);
-        if (found) candidates.push({ cashier: found, storeId: sid });
-      } catch (e) { continue; }
-    }
-    for (const cand of candidates) {
-      if (verifyPassword(password, cand.cashier.password_hash)) {
-        cashier = cand.cashier;
-        targetStoreId = cand.storeId;
-        break;
-      }
-    }
-    if (!cashier) targetStoreId = targetStoreId || 1;
-    if (!cashier) {
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'cashier', '账号不存在']);
-      recordLoginAttempt(username, 'cashier');
-      return res.status(401).json({ error: '收银员账号或密码错误' });
-    }
-    if (!verifyPassword(password, cashier.password_hash)) {
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'cashier', '密码错误']);
-      recordLoginAttempt(username, 'cashier');
-      return res.status(401).json({ error: '收银员账号或密码错误' });
-    }
-    if (needsRehash(cashier.password_hash)) {
-      const settingKey = 'cashiers_' + targetStoreId;
-      const settingsRow = await getAsync('SELECT value FROM settings WHERE `key`=?', [settingKey]);
-      if (settingsRow) {
-        try {
-          const list = JSON.parse(settingsRow.value);
-          const index = list.findIndex(item => String(item.id) === String(cashier.id));
-          if (index >= 0 && list[index].password_hash === cashier.password_hash) {
-            list[index].password_hash = hashPassword(password);
-            await runAsync('UPDATE settings SET value=? WHERE `key`=?', [JSON.stringify(list), settingKey]);
+        if (!Array.isArray(list)) continue;
+        for (const candidate of list) {
+          const active = candidate?.active === true || candidate?.active === 1 ||
+            candidate?.active === '1' || candidate?.active === 'true';
+          if (candidate && candidate.username === username && active &&
+              verifyPassword(password, candidate.password_hash)) {
+            candidates.push({ cashier: candidate, storeId: sid });
           }
-        } catch (e) { console.warn('[cashier] legacy password migration skipped:', e.message); }
+        }
+      } catch (_) {
+        // A malformed settings row must not authenticate an account.
       }
     }
-    resetLoginAttempts(username, 'cashier');
-    const store = await getAsync('SELECT s.merchant_id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [targetStoreId]);
+    if (candidates.length === 0) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [
+        new Date().toISOString(), getClientIp(req), username, 'cashier', '账号或密码错误'
+      ]);
+      recordLoginAttempt(username, 'cashier');
+      return res.status(401).json({ error: '收银员账号或密码错误' });
+    }
+    if (candidates.length > 1) {
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [
+        new Date().toISOString(), getClientIp(req), username, 'cashier', '账号在多个门店匹配，请指定门店'
+      ]);
+      return res.status(409).json({ error: '该收银员账号在多个门店匹配，请先选择门店' });
+    }
+
+    const candidate = candidates[0];
+    const store = await getAsync(
+      'SELECT s.id, s.merchant_id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+      [candidate.storeId]
+    );
     if (!store) return res.status(403).json({ error: '收银员所属门店或商户已停用' });
     const merchantId = Number(store.merchant_id);
-    await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, merchantId, 'cashier', '收银员登录成功']);
     const token = crypto.randomBytes(24).toString('base64url');
     const cashierTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'cashier_session_timeout'");
     const configuredCashierTimeoutHours = Number(cashierTimeoutSetting?.value ?? 12);
-    const cashierTimeoutHours = Number.isSafeInteger(configuredCashierTimeoutHours) && configuredCashierTimeoutHours > 0 ? Math.min(configuredCashierTimeoutHours, 720) : 12;
+    const cashierTimeoutHours = Number.isSafeInteger(configuredCashierTimeoutHours) && configuredCashierTimeoutHours > 0
+      ? Math.min(configuredCashierTimeoutHours, 720) : 12;
     const expiresAt = new Date(Date.now() + cashierTimeoutHours * 60 * 60 * 1000).toISOString();
-    await runAsync('INSERT INTO cashier_sessions (cashier_id, store_id, merchant_id, token, expires_at) VALUES (?, ?, ?, ?, ?)', [cashier.id, targetStoreId, merchantId, token, expiresAt]);
-    res.json({
-      token,
-      storeId: targetStoreId,
-      storeName: store?.name || '',
-      cashier: {
-        id: cashier.id,
-        username: cashier.username,
-        display_name: cashier.display_name,
-        permissions: cashier.permissions || {}
+
+    let authenticatedCashier;
+    let authenticatedStoreName = store.name;
+    await withTransaction(async () => {
+      const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+      if (!merchant) throw Object.assign(new Error('商户已停用，请联系管理员'), { status: 403 });
+      const lockedStore = await getAsync(
+        'SELECT s.id, s.merchant_id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1 FOR UPDATE',
+        [candidate.storeId, merchantId]
+      );
+      if (!lockedStore) throw Object.assign(new Error('收银员所属门店或商户已停用'), { status: 403 });
+      authenticatedStoreName = lockedStore.name;
+
+      const settingKey = 'cashiers_' + candidate.storeId;
+      const settingsRow = await getAsync('SELECT value FROM settings WHERE `key`=? FOR UPDATE', [settingKey]);
+      let list;
+      try { list = settingsRow?.value ? JSON.parse(settingsRow.value) : []; }
+      catch (_) { throw Object.assign(new Error('收银员账号数据损坏，请联系管理员'), { status: 500 }); }
+      if (!Array.isArray(list)) throw Object.assign(new Error('收银员账号数据格式无效，请联系管理员'), { status: 500 });
+      const index = list.findIndex(item => String(item.id) === String(candidate.cashier.id) && item.username === username);
+      if (index < 0) throw Object.assign(new Error('收银员账号已变更，请重新登录'), { status: 401 });
+      const current = list[index];
+      const currentActive = current.active === true || current.active === 1 || current.active === '1' || current.active === 'true';
+      if (!currentActive || !verifyPassword(password, current.password_hash)) {
+        throw Object.assign(new Error('收银员账号或密码错误'), { status: 401 });
       }
+      if (needsRehash(current.password_hash)) {
+        current.password_hash = hashPassword(password);
+        await runAsync('UPDATE settings SET value=? WHERE `key`=?', [JSON.stringify(list), settingKey]);
+      }
+      authenticatedCashier = {
+        id: current.id, username: current.username, display_name: current.display_name,
+        permissions: current.permissions || {}
+      };
+      await runAsync(
+        'INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)',
+        [new Date().toISOString(), getClientIp(req), username, merchantId, 'cashier', '收银员登录成功']
+      );
+      await runAsync(
+        'INSERT INTO cashier_sessions (cashier_id, store_id, merchant_id, token, expires_at) VALUES (?, ?, ?, ?, ?)',
+        [current.id, candidate.storeId, merchantId, token, expiresAt]
+      );
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+
+    resetLoginAttempts(username, 'cashier');
+    res.json({
+      token, storeId: candidate.storeId, storeName: authenticatedStoreName, cashier: authenticatedCashier
+    });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.status ? e.message : '收银员登录失败' });
+  }
 });
 
 // ----- 收银员登出 -----

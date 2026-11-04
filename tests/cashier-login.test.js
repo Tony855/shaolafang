@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const registerCashierRoutes = require('../routes/cashier');
 const { hashPassword, verifyPassword } = require('../server/middleware/password');
 
-function setup() {
+function setup({ cashierRows = null, lockedCashierRows = null } = {}) {
   const handlers = new Map();
   const app = {
     post(path, ...callbacks) { handlers.set('POST ' + path, callbacks[callbacks.length - 1]); },
@@ -26,13 +26,15 @@ function setup() {
   const deps = {
     getAsync: async (sql) => {
       if (sql.includes('waiter_session_timeout') || sql.includes('cashier_session_timeout')) return { value: '12' };
+      if (sql.includes('FROM merchants')) return { id: 1 };
+      if (sql.includes('SELECT s.id, s.merchant_id, s.name FROM stores')) return { id: 1, merchant_id: 1, name: 'QA Store' };
+      if (sql.includes('SELECT value FROM settings') && sql.includes('FOR UPDATE')) return { value: JSON.stringify(lockedCashierRows || [cashier]) };
       if (sql.includes('SELECT name FROM stores')) return { name: 'QA Store' };
-      if (sql.includes('SELECT s.merchant_id, s.name FROM stores')) return { merchant_id: 1, name: 'QA Store' };
       return null;
     },
     allAsync: async (sql) => {
       if (sql.includes('FROM waiters w JOIN stores s')) return [waiter];
-      if (sql.includes("LIKE 'cashiers_%'")) return [{ key: 'cashiers_1', value: JSON.stringify([cashier]) }];
+      if (sql.includes("LIKE 'cashiers_%'")) return cashierRows || [{ key: 'cashiers_1', value: JSON.stringify([cashier]) }];
       return [];
     },
     runAsync: async (sql, params) => { calls.push({ sql, params }); return { affectedRows: 1 }; },
@@ -83,4 +85,45 @@ test('cashier login completes and creates a session using imported password migr
   assert.ok(res.body.token);
   assert.equal(res.body.cashier.id, 42);
   assert.ok(calls.some(call => call.sql.includes('INSERT INTO cashier_sessions')));
+});
+
+test('cashier login rejects ambiguous matching accounts when no store is selected', async () => {
+  const second = {
+    id: 43, username: 'qa-cashier', display_name: 'Other Store Cashier',
+    password_hash: hashPassword('qa-password-2026'), active: true, permissions: {}
+  };
+  const { handlers, calls } = setup({
+    cashierRows: [
+      { key: 'cashiers_1', value: JSON.stringify([{
+        id: 42, username: 'qa-cashier', display_name: 'QA Cashier',
+        password_hash: hashPassword('qa-password-2026'), active: true, permissions: {}
+      }]) },
+      { key: 'cashiers_2', value: JSON.stringify([second]) }
+    ]
+  });
+  const res = response();
+  await handlers.get('POST /api/cashier/login')({
+    body: { username: 'qa-cashier', password: 'qa-password-2026' }
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /多个门店/);
+  assert.equal(calls.some(call => call.sql.includes('INSERT INTO cashier_sessions')), false);
+});
+
+test('cashier login rechecks the current password hash under the settings row lock', async () => {
+  const updatedCashier = {
+    id: 42, username: 'qa-cashier', display_name: 'QA Cashier',
+    password_hash: hashPassword('new-password-after-reset'), active: true,
+    permissions: { can_settle: true }
+  };
+  const { handlers, calls } = setup({ lockedCashierRows: [updatedCashier] });
+  const res = response();
+  await handlers.get('POST /api/cashier/login')({
+    body: { username: 'qa-cashier', password: 'qa-password-2026' }
+  }, res);
+
+  assert.equal(res.statusCode, 401);
+  assert.match(res.body.error, /账号或密码错误/);
+  assert.equal(calls.some(call => call.sql.includes('INSERT INTO cashier_sessions')), false);
 });
