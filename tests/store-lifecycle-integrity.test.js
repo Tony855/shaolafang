@@ -14,17 +14,23 @@ function response() {
   };
 }
 
-function setup({ storeCount = 1, currentStoreId = 2, firstStoreId = 1, dependentTable = null, failAudit = false } = {}) {
+function setup({ storeCount = 1, currentStoreId = 2, firstStoreId = 1, dependentTable = null, failAudit = false, sourceMenus = [], existingMenus = [], failMenuInsert = false } = {}) {
   let createHandler;
   let deleteHandler;
+  let updateHandler;
+  let copyHandler;
   let transactionCount = 0;
   let rolledBack = false;
   let inTransaction = false;
   const calls = [];
   const app = {
-    get() {}, put() {},
+    get() {},
+    put(path, ...handlers) {
+      if (path === '/api/admin/stores/:id') updateHandler = handlers[handlers.length - 1];
+    },
     post(path, ...handlers) {
       if (path === '/api/admin/stores') createHandler = handlers[handlers.length - 1];
+      if (path === '/api/admin/stores/:id/copy-menu') copyHandler = handlers[handlers.length - 1];
     },
     delete(path, ...handlers) {
       if (path === '/api/admin/stores/:id') deleteHandler = handlers[handlers.length - 1];
@@ -35,6 +41,9 @@ function setup({ storeCount = 1, currentStoreId = 2, firstStoreId = 1, dependent
       calls.push({ type: 'get', sql, params, inTransaction });
       if (sql.includes('FROM merchants')) return { id: 5, max_stores: 2, status: 1 };
       if (sql.includes('COUNT(*) AS count FROM stores')) return { count: storeCount };
+      if (sql.includes('FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1')) return { id: firstStoreId };
+      if (sql.includes('FROM merchant_admins WHERE id=? AND merchant_id=?')) return { username: 'owner' };
+      if (sql.includes('FROM stores WHERE code=? AND id<>?')) return null;
       if (sql.includes('FROM stores WHERE id=? AND merchant_id=?')) {
         return { id: Number(params[0]), merchant_id: 5, name: 'Branch', code: 'branch-2' };
       }
@@ -46,6 +55,8 @@ function setup({ storeCount = 1, currentStoreId = 2, firstStoreId = 1, dependent
     },
     allAsync: async (sql) => {
       calls.push({ type: 'all', sql, inTransaction });
+      if (sql.includes('FROM menus WHERE store_id=? AND merchant_id=?')) return sourceMenus;
+      if (sql.includes('FROM menus WHERE store_id=?')) return existingMenus;
       if (sql.includes('FROM stores WHERE merchant_id=?')) {
         return Array.from({ length: storeCount }, (_, i) => ({ id: i === 0 ? firstStoreId : currentStoreId + i - 1 }));
       }
@@ -54,6 +65,7 @@ function setup({ storeCount = 1, currentStoreId = 2, firstStoreId = 1, dependent
     runAsync: async (sql, params = []) => {
       calls.push({ type: 'run', sql, params, inTransaction });
       if (failAudit && sql.startsWith('INSERT INTO audit_logs')) throw new Error('audit failure');
+      if (failMenuInsert && sql.startsWith('INSERT INTO menus')) throw new Error('menu insert failure');
       if (sql.startsWith('INSERT INTO stores')) return { lastID: 99, affectedRows: 1 };
       if (sql.startsWith('DELETE FROM stores')) return { affectedRows: 1 };
       return { affectedRows: 1 };
@@ -81,7 +93,7 @@ function setup({ storeCount = 1, currentStoreId = 2, firstStoreId = 1, dependent
     requireAdminOrWaiter: middleware
   };
   attachStoreRoutes(app, deps);
-  return { createHandler, deleteHandler, calls, get transactionCount() { return transactionCount; }, get rolledBack() { return rolledBack; } };
+  return { createHandler, deleteHandler, updateHandler, copyHandler, calls, get transactionCount() { return transactionCount; }, get rolledBack() { return rolledBack; } };
 }
 
 test('store creation locks merchant and checks limit inside the transaction', async () => {
@@ -147,4 +159,56 @@ test('store deletion refuses to orphan active cashier sessions', async () => {
   assert.equal(res.statusCode, 409);
   assert.match(res.body.error, /cashier_sessions/);
   assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('DELETE FROM stores')), false);
+});
+
+test('store update rejects ambiguous active values before starting a transaction', async () => {
+  const ctx = setup({ storeCount: 2 });
+  const res = response();
+  await ctx.updateHandler({ merchantId: 5, params: { id: '2' }, body: { active: 'false' } }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /门店状态/);
+  assert.equal(ctx.transactionCount, 0);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('UPDATE stores')), false);
+});
+
+test('store update and audit are committed in the same transaction', async () => {
+  const ctx = setup({ storeCount: 2 });
+  const res = response();
+  await ctx.updateHandler({ merchantId: 5, adminId: 7, params: { id: '2' }, body: { name: 'Renamed Branch', active: 0 } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(ctx.transactionCount, 1);
+  assert.equal(ctx.rolledBack, false);
+  assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('UPDATE stores') && call.inTransaction));
+  assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO audit_logs') && call.inTransaction));
+});
+
+test('menu copy inserts all rows in one transaction and audits the copy', async () => {
+  const ctx = setup({ storeCount: 2, sourceMenus: [{ id: 1, name: 'Roast Duck', price: 10, image: '' }] });
+  const res = response();
+  await ctx.copyHandler({ merchantId: 5, adminId: 7, params: { id: '2' } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.copied, 1);
+  assert.equal(ctx.transactionCount, 1);
+  assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO menus') && call.inTransaction));
+  assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO audit_logs') && call.inTransaction));
+});
+
+test('menu copy rolls back when a later menu insert fails', async () => {
+  const ctx = setup({
+    storeCount: 2,
+    sourceMenus: [
+      { id: 1, name: 'Roast Duck', price: 10, image: '' },
+      { id: 2, name: 'Char Siu', price: 8, image: '' }
+    ],
+    failMenuInsert: true
+  });
+  const res = response();
+  await ctx.copyHandler({ merchantId: 5, adminId: 7, params: { id: '2' } }, res);
+
+  assert.equal(res.statusCode, 500);
+  assert.match(res.body.error, /所有更改已回滚/);
+  assert.equal(ctx.rolledBack, true);
 });
