@@ -75,36 +75,83 @@ app.get('/api/admin/menu', requireAdminKey, requirePermission('can_manage_menu')
 });
 
 app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+  const uploadedAssets = [];
   try {
-    const { name, emoji, price, category, desc, name_en, desc_en, unit, show_dual, secondary_currency_code, currency_code = 'USD' } = req.body;
-    const video = req.files && req.files.video ? req.files.video[0].filename : '';
-    const cleanName = typeof name === 'string' ? name.trim() : '';
-    const numericPrice = typeof price === 'number' || typeof price === 'string' ? Number(price) : NaN;
-    const currencyCode = String(currency_code || 'USD').trim().toUpperCase();
-    if (!cleanName || cleanName.length > 120 || !Number.isFinite(numericPrice) || numericPrice <= 0 || numericPrice > 10000000) {
-      return res.status(400).json({ error: '菜品名称无效或价格必须是大于 0 的有效数字' });
+    const body = req.body || {};
+    const storeId = Number(req.storeId || 1);
+    const merchantId = Number(req.merchantId);
+    const uploadedImage = req.files?.image?.[0]?.filename || '';
+    const video = req.files?.video?.[0]?.filename || '';
+    if (uploadedImage) uploadedAssets.push(uploadedImage);
+    if (video) uploadedAssets.push(video);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+      throw Object.assign(new Error('商户或门店编号无效'), { status: 400 });
     }
-    const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [currencyCode, req.merchantId]);
-    if (!currencyCode || currencyCode.length > 10) return res.status(400).json({ error: '货币代码无效' });
-    if (!currency) return res.status(400).json({ error: '货币类型不存在' });
-    let image = req.files && req.files.image ? req.files.image[0].filename : '';
-    // 后端兜底压缩（前端已压过，这里是保护）
+
+    const cleanName = typeof body.name === 'string' ? body.name.trim() : '';
+    const numericPrice = typeof body.price === 'number' || typeof body.price === 'string' ? Number(body.price) : NaN;
+    const currencyCode = String(body.currency_code || 'USD').trim().toUpperCase();
+    const emoji = typeof body.emoji === 'string' && body.emoji.trim() ? body.emoji.trim() : '🍽️';
+    const category = typeof body.category === 'string' && body.category.trim() ? body.category.trim() : '其他';
+    const description = typeof body.desc === 'string' ? body.desc : '';
+    const nameEn = typeof body.name_en === 'string' ? body.name_en : '';
+    const descEn = typeof body.desc_en === 'string' ? body.desc_en : '';
+    const unit = typeof body.unit === 'string' && body.unit.trim() ? body.unit.trim() : '份';
+    const secondaryCurrencyCode = String(body.secondary_currency_code || '').trim().toUpperCase();
+    const showDual = body.show_dual === undefined ? 0 : normalizeMenuFlag(body.show_dual, 'show_dual');
+    if (!cleanName || cleanName.length > 120 || !Number.isFinite(numericPrice) || numericPrice <= 0 || numericPrice > 10000000) {
+      throw Object.assign(new Error('菜品名称无效或价格必须是大于 0 的有效数字'), { status: 400 });
+    }
+    if (!currencyCode || currencyCode.length > 10 || (secondaryCurrencyCode && secondaryCurrencyCode.length > 10)) {
+      throw Object.assign(new Error('货币代码无效'), { status: 400 });
+    }
+    if (emoji.length > 20 || category.length > 100 || description.length > 2000 ||
+        nameEn.length > 120 || descEn.length > 2000 || unit.length > 30) {
+      throw Object.assign(new Error('菜品描述、分类或单位长度超出限制'), { status: 400 });
+    }
+    if (secondaryCurrencyCode && secondaryCurrencyCode === currencyCode) {
+      throw Object.assign(new Error('副货币不能和主货币相同'), { status: 400 });
+    }
+
+    let image = uploadedImage;
     if (image) {
       try {
-        const cp = await compressImage(path.join(UPLOAD_DIR, image));
-        if (!cp.skipped && cp.outPath) {
-          image = path.basename(cp.outPath);
+        const compressed = await compressImage(path.join(UPLOAD_DIR, image));
+        if (!compressed.skipped && compressed.outPath) {
+          image = path.basename(compressed.outPath);
+          if (image && image !== uploadedImage) uploadedAssets.push(image);
         }
-      } catch (e) { console.warn('[POST /api/menu] 压缩失败:', e.message); }
+      } catch (error) { console.warn('[POST /api/menu] 压缩失败:', error.message); }
     }
-    const result = await runAsync(
-      'INSERT INTO menus (name, emoji, price, category, `desc`, image, video, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [cleanName, emoji || '🍽️', numericPrice, category || '其他', desc || '', image, video || '', currencyCode, name_en || '', desc_en || '', unit || '份', show_dual ? 1 : 0, secondary_currency_code || '', req.storeId || 1, req.merchantId]
-    );
-    const newItem = await getAsync('SELECT * FROM menus WHERE id = ?', [result.lastID]);
+
+    let newItem;
+    await withTransaction(async () => {
+      const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
+      if (!store) throw Object.assign(new Error('门店不存在或已停用'), { status: 404 });
+      const currency = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [currencyCode, merchantId]);
+      if (!currency) throw Object.assign(new Error('货币类型不存在'), { status: 400 });
+      if (secondaryCurrencyCode) {
+        const secondary = await getAsync('SELECT code FROM currencies WHERE code=? AND merchant_id=?', [secondaryCurrencyCode, merchantId]);
+        if (!secondary) throw Object.assign(new Error('副货币类型不存在'), { status: 400 });
+      }
+      const duplicate = await getAsync('SELECT id FROM menus WHERE name=? AND store_id=?', [cleanName, storeId]);
+      if (duplicate) throw Object.assign(new Error('该门店已存在同名菜品'), { status: 409 });
+      const result = await runAsync(
+        'INSERT INTO menus (name, emoji, price, category, `desc`, image, video, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [cleanName, emoji, numericPrice, category, description, image, video, currencyCode, nameEn, descEn,
+          unit, showDual, secondaryCurrencyCode, storeId, merchantId]
+      );
+      await writeMenuAudit(req, 'create_menu', result.lastID, {
+        name: cleanName, price: numericPrice, currency_code: currencyCode, store_id: storeId
+      });
+      newItem = await getAsync('SELECT * FROM menus WHERE id=? AND store_id=? AND merchant_id=?', [result.lastID, storeId, merchantId]);
+    });
+    if (uploadedImage && image !== uploadedImage) removeMenuAsset(uploadedImage);
     res.status(201).json(newItem);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    for (const asset of uploadedAssets) removeMenuAsset(asset);
+    if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: e.status ? e.message : '该门店已存在同名菜品' });
+    res.status(e.status || 500).json({ error: e.status ? e.message : '创建菜品失败，所有更改已回滚' });
   }
 });
 
