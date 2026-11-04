@@ -78,7 +78,7 @@ test('waiter KHQR notification rejects a concurrent state change without broadca
   const res = response();
   await handler({
     body: { order_id: 42, pay_method: 'khqr' },
-    waiter: { id: 7, store_id: 9, display_name: 'QA waiter' },
+    waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
     waiterStoreId: 9
   }, res);
 
