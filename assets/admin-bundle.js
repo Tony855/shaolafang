@@ -3072,9 +3072,13 @@ function updateOrderSummary() {
   const pendingAmountEl = document.getElementById('pendingOrderAmount');
   if (pendingCountEl) pendingCountEl.textContent = pending.length;
   if (pendingAmountEl) pendingAmountEl.textContent = SLF.money.primary(pendingTotal);
-  // 统计已结算订单
-  const done = orders.filter(o => o.status === 'done');
-  const doneTotal = done.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  // 已结算订单包含部分退款（done）和全额退款（refunded）；金额按退款后净额统计。
+  const done = orders.filter(o => o.status === 'done' || o.status === 'refunded');
+  const doneTotal = done.reduce((sum, o) => {
+    const total = Number(o.total) || 0;
+    const refunded = Number(o.refund_amount) || 0;
+    return sum + Math.max(0, total - refunded);
+  }, 0);
   const doneCountEl = document.getElementById('doneOrderCount');
   const doneAmountEl = document.getElementById('doneOrderAmount');
   if (doneCountEl) doneCountEl.textContent = done.length;
