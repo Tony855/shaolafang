@@ -474,6 +474,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
   try {
     const { super_idle_timeout, admin_idle_timeout, cashier_idle_timeout, kitchen_idle_timeout, qr_session_timeout, order_interval_seconds, waiter_refresh_interval, waiter_session_timeout, cashier_session_timeout, max_order_items, max_item_quantity, max_order_note_length, login_max_attempts, login_lock_minutes, super_ip_whitelist, call_limit_enabled, call_limit_max, call_limit_window_minutes, call_limit_cooldown_minutes, auto_clean_log_enabled, log_retention_days, clean_login_log, clean_audit_log, kitchen_auto_hide_minutes } = req.body || {};
+    await withTransaction(async () => {
     if (super_idle_timeout !== undefined) {
       const mins = boundedInteger(super_idle_timeout, 60, 1, 1440);
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('super_idle_timeout', ?) ON DUPLICATE KEY UPDATE value=?", [String(mins), String(mins)]);
@@ -568,6 +569,7 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
     }
     await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'update_settings', 'settings', null,
       '更新系统全局设置', getClientIp(req));
+    });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
