@@ -6,6 +6,13 @@ const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
 
+function normalizeWaiterFlag(value, fallback, field) {
+  if (value === undefined) return fallback;
+  if ([true, 1, '1'].includes(value)) return 1;
+  if ([false, 0, '0'].includes(value)) return 0;
+  throw Object.assign(new Error(field + ' 参数无效'), { statusCode: 400 });
+}
+
 async function cashierUsernameExists(allAsync, username) {
   const rows = await allAsync("SELECT \`key\`, value FROM settings WHERE \`key\` LIKE 'cashiers_%'");
   for (const row of rows) {
@@ -61,9 +68,9 @@ app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_wa
       }
       const result = await runAsync(
         'INSERT INTO waiters (username, password_hash, display_name, can_order, can_mark_item, can_complete_order, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [username, hashPassword(password), displayName, body.can_order === false || body.can_order === 0 ? 0 : 1,
-          body.can_mark_item === false || body.can_mark_item === 0 ? 0 : 1,
-          body.can_complete_order === false || body.can_complete_order === 0 ? 0 : 1,
+        [username, hashPassword(password), displayName, normalizeWaiterFlag(body.can_order, 1, 'can_order'),
+          normalizeWaiterFlag(body.can_mark_item, 1, 'can_mark_item'),
+          normalizeWaiterFlag(body.can_complete_order, 1, 'can_complete_order'),
           targetStoreId, merchantId]
       );
       waiterId = result.lastID;
@@ -102,13 +109,6 @@ app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage
         (typeof body.password !== 'string' || body.password.length < 6 || body.password.length > 128)) {
       return res.status(400).json({ error: '密码长度必须为 6 至 128 个字符' });
     }
-    const parseFlag = (value, fallback, field) => {
-      if (value === undefined) return fallback;
-      if ([true, 1, '1'].includes(value)) return 1;
-      if ([false, 0, '0'].includes(value)) return 0;
-      throw Object.assign(new Error(field + ' 参数无效'), { statusCode: 400 });
-    };
-
     let updatedWaiter;
     await withTransaction(async () => {
       const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
@@ -126,10 +126,10 @@ app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage
         throw Object.assign(new Error('该用户名已被收银员账号使用，请换一个'), { statusCode: 409 });
       }
 
-      const canOrder = parseFlag(body.can_order, Number(current.can_order), 'can_order');
-      const canMarkItem = parseFlag(body.can_mark_item, Number(current.can_mark_item), 'can_mark_item');
-      const canCompleteOrder = parseFlag(body.can_complete_order, Number(current.can_complete_order), 'can_complete_order');
-      const active = parseFlag(body.active, Number(current.active), 'active');
+      const canOrder = normalizeWaiterFlag(body.can_order, Number(current.can_order), 'can_order');
+      const canMarkItem = normalizeWaiterFlag(body.can_mark_item, Number(current.can_mark_item), 'can_mark_item');
+      const canCompleteOrder = normalizeWaiterFlag(body.can_complete_order, Number(current.can_complete_order), 'can_complete_order');
+      const active = normalizeWaiterFlag(body.active, Number(current.active), 'active');
       const passwordChanged = typeof body.password === 'string' && body.password.length > 0;
       const accessChanged = passwordChanged || username !== current.username ||
         targetStoreId !== Number(current.store_id) || active !== Number(current.active) ||
