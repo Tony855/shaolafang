@@ -126,7 +126,7 @@ module.exports = function(app, deps) {
         // 按日：24 小时内每 10 分钟聚合
         hourlyStats = await allAsync(`
           SELECT CONCAT(LPAD(HOUR(COALESCE(settled_at, createdAt)),2,'0'), ':', LPAD(FLOOR(MINUTE(COALESCE(settled_at, createdAt))/10)*10, 2, '0')) AS time_bucket,
-                 COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
+                 COUNT(*) AS orders, SUM(GREATEST(0, total - COALESCE(refund_amount, 0))) AS revenue
           FROM orders
           WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
@@ -136,7 +136,7 @@ module.exports = function(app, deps) {
         // 按月：每天聚合
         hourlyStats = await allAsync(`
           SELECT DATE(COALESCE(settled_at, createdAt)) AS time_bucket,
-                 COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
+                 COUNT(*) AS orders, SUM(GREATEST(0, total - COALESCE(refund_amount, 0))) AS revenue
           FROM orders
           WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
@@ -146,7 +146,7 @@ module.exports = function(app, deps) {
         // 按年：每月聚合
         hourlyStats = await allAsync(`
           SELECT DATE_FORMAT(COALESCE(settled_at, createdAt), '%Y-%m') AS time_bucket,
-                 COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
+                 COUNT(*) AS orders, SUM(GREATEST(0, total - COALESCE(refund_amount, 0))) AS revenue
           FROM orders
           WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
@@ -219,7 +219,7 @@ module.exports = function(app, deps) {
         JOIN (${JSON_ITEM_INDEXES}) n
           ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
         JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
-        WHERE o.store_id=? AND o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?
+        WHERE o.store_id=? AND o.status IN ('done', 'refunded') AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?
         GROUP BY m.id, m.name, m.emoji, m.price, m.category
         HAVING sales_count > 0
         ORDER BY sales_count DESC LIMIT 10
@@ -375,7 +375,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
         // ===== 按桌汇总 =====
         const stPlaceholders = statuses.map(() => '?').join(',');
         const rows = await allAsync(`
-          SELECT table_name, COUNT(*) AS order_count, SUM(total - COALESCE(refund_amount, 0)) AS revenue, AVG(total - COALESCE(refund_amount, 0)) AS avg_order
+          SELECT table_name, COUNT(*) AS order_count, SUM(GREATEST(0, total - COALESCE(refund_amount, 0))) AS revenue, AVG(total - COALESCE(refund_amount, 0)) AS avg_order
           FROM orders
           WHERE store_id=? AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ? AND status IN (${stPlaceholders})
           GROUP BY table_name
