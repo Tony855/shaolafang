@@ -4,6 +4,13 @@
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 
+function normalizeAdminFlag(value, fallback, field) {
+  if (value === undefined) return fallback;
+  if ([true, 1, '1'].includes(value)) return 1;
+  if ([false, 0, '0'].includes(value)) return 0;
+  throw Object.assign(new Error(field + ' 参数无效'), { status: 400 });
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, syncTableStatus, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
 
@@ -168,77 +175,149 @@ module.exports = function(app, deps) {
 
   app.post('/api/admin/admins', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
     try {
-      const { username, password, display_name, active, permissions } = req.body || {};
-      if (!username || !password || !display_name) return res.status(400).json({ error: '请完整填写管理员资料' });
+      const body = req.body || {};
+      const username = typeof body.username === 'string' ? body.username.trim() : '';
+      const password = typeof body.password === 'string' ? body.password : '';
+      const displayName = typeof body.display_name === 'string' ? body.display_name.trim() : '';
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0) return res.status(403).json({ error: '商户信息无效' });
+      if (!username || username.length > 50 || !displayName || displayName.length > 100) {
+        return res.status(400).json({ error: '管理员账号和姓名必填，账号最多 50 个字符，姓名最多 100 个字符' });
+      }
       if (password.length < 12 || password.length > 128) return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
-      const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [String(username).trim()]);
-      if (exists) return res.status(400).json({ error: '用户名已存在' });
+      if (body.permissions !== undefined && (!body.permissions || typeof body.permissions !== 'object' || Array.isArray(body.permissions))) {
+        return res.status(400).json({ error: '管理员权限配置格式无效' });
+      }
 
-      const p1 = permissions || {};
       const permFields = ['can_manage_menu','can_manage_table','can_manage_order','can_delete_order','can_edit_order','can_manage_store','can_manage_waiter','can_manage_currency','can_manage_printer','can_manage_admin','can_view_logs','can_manage_cashier'];
-      const permCols = permFields.join(', ');
-      const permVals = permFields.map(f => p1[f] ? 1 : 0);
-
-      const result = await runAsync(
-        'INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name, active, ' + permCols + ') VALUES (?, ?, ?, ?, ?, ' + permFields.map(() => '?').join(',') + ')',
-        [req.merchantId, String(username).trim(), hashPassword(password), display_name, active ? 1 : 0, ...permVals]
-      );
-      await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'create_admin', 'merchant_admin', result.lastID, `创建管理员: ${username}`, getClientIp(req));
-      res.status(201).json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE id=?', [result.lastID]));
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+      const active = normalizeAdminFlag(body.active, 1, 'active');
+      const permVals = permFields.map(field => normalizeAdminFlag(body.permissions?.[field], 0, field));
+      let adminId;
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const exists = await getAsync('SELECT id FROM merchant_admins WHERE username=?', [username]);
+        if (exists) throw Object.assign(new Error('用户名已存在'), { status: 409 });
+        const result = await runAsync(
+          'INSERT INTO merchant_admins (merchant_id, username, password_hash, display_name, active, ' + permFields.join(', ') + ') VALUES (?, ?, ?, ?, ?, ' + permFields.map(() => '?').join(',') + ')',
+          [merchantId, username, hashPassword(password), displayName, active, ...permVals]
+        );
+        adminId = result.lastID;
+        const actor = req.adminId ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId]) : null;
+        await runAsync(
+          'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          ['merchant_admin', req.adminId || null, actor?.username || '', 'create_admin', 'merchant_admin', adminId,
+            JSON.stringify({ username, display_name: displayName, active }), getClientIp(req), new Date().toISOString()]
+        );
+      });
+      res.status(201).json(await getAsync(
+        'SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE id=? AND merchant_id=?',
+        [adminId, merchantId]
+      ));
+    } catch (e) {
+      if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: '用户名已存在' });
+      res.status(e.status || 500).json({ error: e.status ? e.message : '创建管理员失败，所有更改已回滚' });
+    }
   });
 
   app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
-      const { display_name, active, password, permissions } = req.body || {};
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
-      if (!admin) return res.status(404).json({ error: '管理员不存在' });
-      const primaryAdminId = await getAsync('SELECT MIN(id) AS min_id FROM merchant_admins WHERE merchant_id=?', [req.merchantId]);
-      const isPrimaryAdmin = primaryAdminId && primaryAdminId.min_id === admin.id;
-      if (isPrimaryAdmin) return res.status(400).json({ error: '主管理员拥有全部权限，不可修改权限和状态' });
-      if (id === req.adminId && active === 0) return res.status(400).json({ error: '不能禁用当前登录账号' });
-      const fields = [];
-      const values = [];
-      if (display_name !== undefined) { fields.push('display_name=?'); values.push(display_name); }
-      if (active !== undefined) { fields.push('active=?'); values.push(active ? 1 : 0); }
-      if (password) {
-        if (password.length < 12 || password.length > 128) return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
-        fields.push('password_hash=?'); values.push(hashPassword(password));
+      const id = Number(req.params.id);
+      const merchantId = Number(req.merchantId);
+      const body = req.body || {};
+      if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '管理员或商户编号无效' });
       }
-      if (permissions && typeof permissions === 'object') {
-        const permFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'];
-        for (const field of permFields) {
-          if (permissions[field] !== undefined) {
-            fields.push(field + '=?');
-            values.push(permissions[field] ? 1 : 0);
+      if (body.display_name !== undefined && (typeof body.display_name !== 'string' || !body.display_name.trim() || body.display_name.trim().length > 100)) {
+        return res.status(400).json({ error: '管理员姓名必须为 1 至 100 个字符' });
+      }
+      if (body.password !== undefined && body.password !== '' &&
+          (typeof body.password !== 'string' || body.password.length < 12 || body.password.length > 128)) {
+        return res.status(400).json({ error: '管理员密码长度必须为 12 至 128 个字符' });
+      }
+      if (body.permissions !== undefined && (!body.permissions || typeof body.permissions !== 'object' || Array.isArray(body.permissions))) {
+        return res.status(400).json({ error: '管理员权限配置格式无效' });
+      }
+      const permFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'];
+      let updatedAdmin;
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=? FOR UPDATE', [id, merchantId]);
+        if (!admin) throw Object.assign(new Error('管理员不存在'), { status: 404 });
+        const primary = await getAsync('SELECT MIN(id) AS min_id FROM merchant_admins WHERE merchant_id=?', [merchantId]);
+        if (Number(primary?.min_id) === id) throw Object.assign(new Error('主管理员拥有全部权限，不可修改权限和状态'), { status: 400 });
+
+        const active = normalizeAdminFlag(body.active, Number(admin.active), 'active');
+        if (id === Number(req.adminId) && active === 0) throw Object.assign(new Error('不能禁用当前登录账号'), { status: 400 });
+        const assignments = [];
+        const changedFields = [];
+        const values = [];
+        if (body.display_name !== undefined) { assignments.push('display_name=?'); changedFields.push('display_name'); values.push(body.display_name.trim()); }
+        if (body.active !== undefined) { assignments.push('active=?'); changedFields.push('active'); values.push(active); }
+        const passwordChanged = typeof body.password === 'string' && body.password.length > 0;
+        if (passwordChanged) { assignments.push('password_hash=?'); changedFields.push('password_hash'); values.push(hashPassword(body.password)); }
+        let permissionsChanged = false;
+        if (body.permissions !== undefined) {
+          for (const field of permFields) {
+            if (body.permissions[field] !== undefined) {
+              const value = normalizeAdminFlag(body.permissions[field], Number(admin[field]), field);
+              if (value !== Number(admin[field])) permissionsChanged = true;
+              assignments.push(field + '=?');
+              changedFields.push(field);
+              values.push(value);
+            }
           }
         }
-      }
-      if (fields.length) {
-        values.push(id);
-        values.push(req.merchantId);
-        await runAsync(`UPDATE merchant_admins SET ${fields.join(',')} WHERE id=? AND merchant_id=?`, values);
-      }
-      await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'update_admin', 'merchant_admin', id, `更新管理员: ${admin.username}`, getClientIp(req));
-      res.json(await getAsync('SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]));
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+        if (assignments.length) {
+          values.push(id, merchantId);
+          await runAsync('UPDATE merchant_admins SET ' + assignments.join(',') + ' WHERE id=? AND merchant_id=?', values);
+        }
+        if (passwordChanged || (body.active !== undefined && active !== Number(admin.active)) || permissionsChanged) {
+          await runAsync('DELETE FROM admin_sessions WHERE admin_id=?', [id]);
+        }
+        const actor = req.adminId ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId]) : null;
+        await runAsync(
+          'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          ['merchant_admin', req.adminId || null, actor?.username || '', 'update_admin', 'merchant_admin', id,
+            JSON.stringify({ username: admin.username, changed_fields: changedFields }),
+            getClientIp(req), new Date().toISOString()]
+        );
+        updatedAdmin = await getAsync(
+          'SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE id=? AND merchant_id=?',
+          [id, merchantId]
+        );
+      });
+      res.json(updatedAdmin);
+    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新管理员失败，所有更改已回滚' }); }
   });
 
   app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (id === req.adminId) return res.status(400).json({ error: '不能删除当前登录账号' });
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
-      if (admin) {
-        const primaryAdminIdDel = await getAsync('SELECT MIN(id) AS min_id FROM merchant_admins WHERE merchant_id=?', [req.merchantId]);
-        if (primaryAdminIdDel && primaryAdminIdDel.min_id === admin.id) return res.status(400).json({ error: '主管理员不可删除' });
+      const id = Number(req.params.id);
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '管理员或商户编号无效' });
       }
-      if (!admin) return res.status(404).json({ error: '管理员不存在' });
-      await runAsync('DELETE FROM merchant_admins WHERE id=? AND merchant_id=?', [id, req.merchantId]);
-      await logAudit('merchant_admin', req.adminId, (await getAsync('SELECT username FROM merchant_admins WHERE id=?', [req.adminId]))?.username || '', 'delete_admin', 'merchant_admin', id, `删除管理员: ${admin.username}`, getClientIp(req));
+      if (id === Number(req.adminId)) return res.status(400).json({ error: '不能删除当前登录账号' });
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const admin = await getAsync('SELECT id, username FROM merchant_admins WHERE id=? AND merchant_id=? FOR UPDATE', [id, merchantId]);
+        if (!admin) throw Object.assign(new Error('管理员不存在'), { status: 404 });
+        const primary = await getAsync('SELECT MIN(id) AS min_id FROM merchant_admins WHERE merchant_id=?', [merchantId]);
+        if (Number(primary?.min_id) === id) throw Object.assign(new Error('主管理员不可删除'), { status: 400 });
+        await runAsync('DELETE FROM admin_sessions WHERE admin_id=?', [id]);
+        await runAsync('DELETE FROM merchant_admins WHERE id=? AND merchant_id=?', [id, merchantId]);
+        const actor = req.adminId ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId]) : null;
+        await runAsync(
+          'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          ['merchant_admin', req.adminId || null, actor?.username || '', 'delete_admin', 'merchant_admin', id,
+            JSON.stringify({ username: admin.username }), getClientIp(req), new Date().toISOString()]
+        );
+      });
       res.json({ success: true });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除管理员失败，所有更改已回滚' }); }
   });
 
   // ----- 收银员管理（按商户聚合，跨店铺）-----
