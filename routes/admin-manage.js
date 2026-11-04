@@ -898,11 +898,15 @@ module.exports = function(app, deps) {
   /* ===== 取消/退回待确认 ===== */
   app.post('/api/cashier/khqr/cancel', requireAdminOrCashierOrWaiter, async (req, res) => {
     try {
-      const { storeId: sid } = await resolveKhqrStore(req);
+      if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有取消收款确认权限' });
+      if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有取消收款确认权限' });
+      if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有取消收款确认权限' });
       const { order_id } = req.body || {};
-      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+      const orderId = Number(order_id);
+      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
+      const { storeId: sid } = await resolveKhqrStore(req);
       const result = await runAsync("UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=1",
-        [order_id, sid]);
+        [orderId, sid]);
       if (!result.affectedRows) return res.status(409).json({ error: '订单不存在或当前状态不允许取消待确认' });
       res.json({ success: true });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
