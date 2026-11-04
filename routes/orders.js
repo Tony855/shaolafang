@@ -828,6 +828,11 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
       if (lockedOrder.table_name !== existing.table_name) {
         throw Object.assign(new Error('订单桌台已变化，请刷新后重试'), { status: 409 });
       }
+      // Financially completed/refunded orders are immutable records. Keep deletion
+      // limited to unpaid or canceled orders so reports and refund history remain auditable.
+      if (!['pending', 'canceled'].includes(lockedOrder.status)) {
+        throw Object.assign(new Error('已结算或已退款订单不能删除，请保留财务记录'), { status: 409 });
+      }
 
       const result = await runAsync(
         'DELETE FROM orders WHERE id=? AND store_id=?',
