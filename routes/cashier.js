@@ -124,6 +124,7 @@ app.post('/api/cashier/login', async (req, res) => {
     const expiresAt = new Date(Date.now() + cashierTimeoutHours * 60 * 60 * 1000).toISOString();
 
     let authenticatedCashier;
+    let authenticatedStoreName = store.name;
     await withTransaction(async () => {
       const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
       if (!merchant) throw Object.assign(new Error('商户已停用，请联系管理员'), { status: 403 });
@@ -132,6 +133,7 @@ app.post('/api/cashier/login', async (req, res) => {
         [candidate.storeId, merchantId]
       );
       if (!lockedStore) throw Object.assign(new Error('收银员所属门店或商户已停用'), { status: 403 });
+      authenticatedStoreName = lockedStore.name;
 
       const settingKey = 'cashiers_' + candidate.storeId;
       const settingsRow = await getAsync('SELECT value FROM settings WHERE `key`=? FOR UPDATE', [settingKey]);
@@ -166,7 +168,7 @@ app.post('/api/cashier/login', async (req, res) => {
 
     resetLoginAttempts(username, 'cashier');
     res.json({
-      token, storeId: candidate.storeId, storeName: store.name, cashier: authenticatedCashier
+      token, storeId: candidate.storeId, storeName: authenticatedStoreName, cashier: authenticatedCashier
     });
   } catch (e) {
     res.status(e.status || 500).json({ error: e.status ? e.message : '收银员登录失败' });
