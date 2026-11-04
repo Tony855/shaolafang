@@ -838,6 +838,10 @@ module.exports = function(app, deps) {
   /* ===== 服务员：通知收银员核实到账 ===== */
   app.post('/api/waiter/khqr/notify', requireAdminOrWaiter, async (req, res) => {
     try {
+      if (req.waiter && !req.waiter.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
+      if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) {
+        return res.status(403).json({ error: '没有订单收款权限' });
+      }
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
       const orderId = Number(order_id);
       if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
