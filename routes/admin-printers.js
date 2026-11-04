@@ -2,7 +2,7 @@
    routes/admin-printers.js — 打印机 CRUD
    ============================================================ */
 module.exports = function(app, deps) {
-  const { getAsync, allAsync, runAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, formatOrder, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, EscPosBuilder, formatGlobalDateTime } = deps;
+  const { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission, requireAdminOrWaiter, formatOrder, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, EscPosBuilder, formatGlobalDateTime, getClientIp } = deps;
 
   app.get('/api/admin/printers', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
@@ -18,42 +18,149 @@ module.exports = function(app, deps) {
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
 
+  async function writePrinterAudit(req, action, printerId, details) {
+    const actor = req.adminId
+      ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
+      : null;
+    await runAsync(
+      'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ['merchant_admin', req.adminId || null, actor?.username || '', action, 'printer', printerId || null,
+        JSON.stringify(details), getClientIp(req), new Date().toISOString()]
+    );
+  }
+
+  function printerFlag(value, fallback, field) {
+    if (value === undefined) return fallback;
+    if ([true, 1, '1'].includes(value)) return 1;
+    if ([false, 0, '0'].includes(value)) return 0;
+    throw Object.assign(new Error(field + ' 参数无效'), { status: 400 });
+  }
+
+  function normalizePrinterFields(body, current = {}) {
+    const name = body.name === undefined ? current.name : (typeof body.name === 'string' ? body.name.trim() : '');
+    const type = body.type === undefined ? (current.type || 'network') : (typeof body.type === 'string' ? body.type.trim() : '');
+    const ipAddress = body.ip_address === undefined ? (current.ip_address || '') : (typeof body.ip_address === 'string' ? body.ip_address.trim() : null);
+    const port = body.port === undefined ? Number(current.port || 9100) : Number(body.port);
+    const paperWidth = body.paper_width === undefined ? Number(current.paper_width || 58) : Number(body.paper_width);
+    const brand = body.brand === undefined ? (current.brand || 'generic') : (typeof body.brand === 'string' ? body.brand.trim() : '');
+    if (!name || name.length > 100) throw Object.assign(new Error('打印机名称必须为 1 至 100 个字符'), { status: 400 });
+    if (!type || type.length > 20) throw Object.assign(new Error('打印机类型无效'), { status: 400 });
+    if (ipAddress === null || ipAddress.length > 50) throw Object.assign(new Error('打印机地址不能超过 50 个字符'), { status: 400 });
+    if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw Object.assign(new Error('打印机端口必须为 1 至 65535'), { status: 400 });
+    if (![58, 80].includes(paperWidth)) throw Object.assign(new Error('纸张宽度仅支持 58 或 80 毫米'), { status: 400 });
+    if (!brand || brand.length > 50) throw Object.assign(new Error('打印机品牌无效'), { status: 400 });
+    return { name, type, ipAddress, port, paperWidth, brand };
+  }
+
   app.post('/api/admin/printers', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
-      const { name, type, ip_address, port, paper_width, brand, is_default } = req.body || {};
-      if (!name) return res.status(400).json({ error: '打印机名称必填' });
-      if (is_default) await runAsync('UPDATE printers SET is_default=0 WHERE store_id=?', [req.storeId || 1]);
-      const result = await runAsync(
-        'INSERT INTO printers (name, type, ip_address, port, paper_width, brand, is_default, active, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)',
-        [name, type || 'network', ip_address || '', port || 9100, paper_width || 58, brand || 'generic', is_default ? 1 : 0, req.storeId || 1, req.merchantId]
-      );
-      res.status(201).json(await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [result.lastID, req.storeId || 1]));
-    } catch (e) { res.status(500).json({ error: e.message }); }
+      const body = req.body || {};
+      const storeId = Number(req.storeId || 1);
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(storeId) || storeId <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '商户或门店编号无效' });
+      }
+      const fields = normalizePrinterFields(body);
+      let isDefault = printerFlag(body.is_default, 0, 'is_default');
+      let createdPrinter;
+      await withTransaction(async () => {
+        const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
+        if (!store) throw Object.assign(new Error('门店不存在或已停用'), { status: 404 });
+        const count = await getAsync('SELECT COUNT(*) AS count FROM printers WHERE store_id=?', [storeId]);
+        if (Number(count?.count || 0) === 0) isDefault = 1;
+        if (isDefault) await runAsync('UPDATE printers SET is_default=0 WHERE store_id=?', [storeId]);
+        const result = await runAsync(
+          'INSERT INTO printers (name, type, ip_address, port, paper_width, brand, is_default, active, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)',
+          [fields.name, fields.type, fields.ipAddress, fields.port, fields.paperWidth, fields.brand, isDefault, storeId, merchantId]
+        );
+        await writePrinterAudit(req, 'create_printer', result.lastID, { ...fields, is_default: isDefault, store_id: storeId });
+        createdPrinter = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [result.lastID, storeId]);
+      });
+      res.status(201).json(createdPrinter);
+    } catch (e) {
+      res.status(e.status || 500).json({ error: e.status ? e.message : '创建打印机失败，所有更改已回滚' });
+    }
   });
 
   app.put('/api/admin/printers/:id', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const current = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [id, req.storeId]);
-      if (!current) return res.status(404).json({ error: '打印机不存在' });
-      const { name, type, ip_address, port, paper_width, brand, is_default, active } = req.body || {};
-      if (is_default) await runAsync('UPDATE printers SET is_default=0 WHERE store_id=?', [current.store_id]);
-      await runAsync(
-        'UPDATE printers SET name=?, type=?, ip_address=?, port=?, paper_width=?, brand=?, is_default=?, active=? WHERE id=? AND store_id=?',
-        [name || current.name, type || current.type, ip_address ?? current.ip_address, port || current.port, paper_width || current.paper_width, brand || current.brand, is_default !== undefined ? (is_default ? 1 : 0) : current.is_default, active !== undefined ? (active ? 1 : 0) : current.active, id, req.storeId]
-      );
-      res.json(await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [id, req.storeId]));
-    } catch (e) { res.status(500).json({ error: e.message }); }
+      const id = Number(req.params.id);
+      const storeId = Number(req.storeId);
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0 ||
+          !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '打印机、门店或商户编号无效' });
+      }
+      const body = req.body || {};
+      let updatedPrinter;
+      await withTransaction(async () => {
+        const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
+        if (!store) throw Object.assign(new Error('门店不存在或已停用'), { status: 404 });
+        const current = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=? AND merchant_id=? FOR UPDATE', [id, storeId, merchantId]);
+        if (!current) throw Object.assign(new Error('打印机不存在'), { status: 404 });
+        const fields = normalizePrinterFields(body, current);
+        const active = printerFlag(body.active, Number(current.active), 'active');
+        const isDefault = printerFlag(body.is_default, Number(current.is_default), 'is_default');
+
+        if (isDefault === 1 && active === 0) {
+          if (Number(current.is_default) === 1 && body.is_default === undefined) {
+            throw Object.assign(new Error('不能停用当前默认打印机，请先切换默认设备'), { status: 409 });
+          }
+          throw Object.assign(new Error('停用的打印机不能设为默认打印机'), { status: 400 });
+        }
+        if (isDefault === 0 && Number(current.is_default) === 1) {
+          const replacement = await getAsync(
+            'SELECT id FROM printers WHERE store_id=? AND merchant_id=? AND id<>? AND active=1 ORDER BY id LIMIT 1 FOR UPDATE',
+            [storeId, merchantId, id]
+          );
+          if (!replacement) throw Object.assign(new Error('至少保留一个启用的默认打印机'), { status: 409 });
+          await runAsync('UPDATE printers SET is_default=0 WHERE store_id=? AND merchant_id=?', [storeId, merchantId]);
+          await runAsync('UPDATE printers SET is_default=1 WHERE id=? AND store_id=? AND merchant_id=?', [replacement.id, storeId, merchantId]);
+        } else if (isDefault === 1) {
+          await runAsync('UPDATE printers SET is_default=0 WHERE store_id=? AND merchant_id=?', [storeId, merchantId]);
+        }
+        await runAsync(
+          'UPDATE printers SET name=?, type=?, ip_address=?, port=?, paper_width=?, brand=?, is_default=?, active=? WHERE id=? AND store_id=? AND merchant_id=?',
+          [fields.name, fields.type, fields.ipAddress, fields.port, fields.paperWidth, fields.brand,
+            isDefault === 1 && active === 1 ? 1 : (isDefault === 0 ? 0 : Number(current.is_default)),
+            active, id, storeId, merchantId]
+        );
+        await writePrinterAudit(req, 'update_printer', id, { ...fields, is_default: isDefault, active });
+        updatedPrinter = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [id, storeId]);
+      });
+      res.json(updatedPrinter);
+    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新打印机失败，所有更改已回滚' }); }
   });
 
   app.delete('/api/admin/printers/:id', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const current = await getAsync('SELECT id FROM printers WHERE id=? AND store_id=?', [id, req.storeId]);
-      if (!current) return res.status(404).json({ error: '打印机不存在' });
-      await runAsync('DELETE FROM printers WHERE id=? AND store_id=?', [id, req.storeId]);
+      const id = Number(req.params.id);
+      const storeId = Number(req.storeId);
+      const merchantId = Number(req.merchantId);
+      if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0 ||
+          !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+        return res.status(400).json({ error: '打印机、门店或商户编号无效' });
+      }
+      await withTransaction(async () => {
+        const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
+        if (!store) throw Object.assign(new Error('门店不存在或已停用'), { status: 404 });
+        const current = await getAsync('SELECT id, name, is_default FROM printers WHERE id=? AND store_id=? AND merchant_id=? FOR UPDATE', [id, storeId, merchantId]);
+        if (!current) throw Object.assign(new Error('打印机不存在'), { status: 404 });
+        if (Number(current.is_default) === 1) {
+          const replacement = await getAsync(
+            'SELECT id FROM printers WHERE store_id=? AND merchant_id=? AND id<>? AND active=1 ORDER BY id LIMIT 1 FOR UPDATE',
+            [storeId, merchantId, id]
+          );
+          if (replacement) {
+            await runAsync('UPDATE printers SET is_default=0 WHERE store_id=? AND merchant_id=?', [storeId, merchantId]);
+            await runAsync('UPDATE printers SET is_default=1 WHERE id=? AND store_id=? AND merchant_id=?', [replacement.id, storeId, merchantId]);
+          }
+        }
+        await runAsync('DELETE FROM printers WHERE id=? AND store_id=? AND merchant_id=?', [id, storeId, merchantId]);
+        await writePrinterAudit(req, 'delete_printer', id, { name: current.name, was_default: Number(current.is_default) === 1 });
+      });
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除打印机失败，所有更改已回滚' }); }
   });
 
   app.get('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) => {
