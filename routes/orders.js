@@ -156,11 +156,6 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     if (!req.isAdmin && req.waiter && !req.waiter.can_mark_item) {
       return res.status(403).json({ error: '该服务员没有标记菜品权限' });
     }
-    // Returning dishes changes the order total and menu sales counters; can_mark_item
-    // only grants kitchen-status updates, not financial/order-value adjustments.
-    if (req.waiter && req.body?.returnQty !== undefined && req.body?.returnQty !== null) {
-      return res.status(403).json({ error: '服务员没有退菜权限' });
-    }
 
     let updatedRow = null;
     let changed = false;
