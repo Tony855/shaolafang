@@ -801,18 +801,18 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
     const { password } = req.body || {};
     if (!password) return res.status(400).json({ error: '请输入管理员密码' });
 
-    const currentAdmin = await getAsync(
-      'SELECT password_hash, username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',
-      [req.adminId, req.merchantId]
-    );
-    if (!currentAdmin || !verifyPassword(password, currentAdmin.password_hash)) {
-      return res.status(401).json({ error: '密码错误' });
-    }
     const existing = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
 
     let deletedOrder = null;
     await withTransaction(async () => {
+      const currentAdmin = await getAsync(
+        'SELECT id, username, password_hash FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE',
+        [req.adminId, req.merchantId]
+      );
+      if (!currentAdmin || !verifyPassword(password, currentAdmin.password_hash)) {
+        throw Object.assign(new Error('密码错误或管理员账号已停用'), { status: 401 });
+      }
       // Lock table -> order, consistent with settlement, transfer and table mutation.
       const lockedTable = await getAsync(
         'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
@@ -849,22 +849,14 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
         await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, req.storeId]);
       }
 
-      await logAudit(
-        'merchant_admin',
-        req.adminId,
-        currentAdmin.username,
-        'delete_order',
-        'order',
-        id,
-        JSON.stringify({
-          order_no: lockedOrder.order_no,
-          table_name: lockedOrder.table_name,
-          status: lockedOrder.status,
-          total: lockedOrder.total,
-          pay_method: lockedOrder.pay_method,
-          refund_amount: lockedOrder.refund_amount
-        }),
-        getClientIp(req)
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', req.adminId, currentAdmin.username, 'delete_order', 'order', id,
+          JSON.stringify({
+            order_no: lockedOrder.order_no, table_name: lockedOrder.table_name,
+            status: lockedOrder.status, total: lockedOrder.total,
+            pay_method: lockedOrder.pay_method, refund_amount: lockedOrder.refund_amount
+          }), getClientIp(req), new Date().toISOString()]
       );
       deletedOrder = lockedOrder;
     });
