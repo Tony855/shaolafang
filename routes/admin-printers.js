@@ -119,9 +119,6 @@ module.exports = function(app, deps) {
         } else if (isDefault === 1) {
           await runAsync('UPDATE printers SET is_default=0 WHERE store_id=? AND merchant_id=?', [storeId, merchantId]);
         }
-        if (active === 0 && Number(current.is_default) === 1 && isDefault === 1) {
-          throw Object.assign(new Error('不能停用当前默认打印机，请先切换默认设备'), { status: 409 });
-        }
         await runAsync(
           'UPDATE printers SET name=?, type=?, ip_address=?, port=?, paper_width=?, brand=?, is_default=?, active=? WHERE id=? AND store_id=? AND merchant_id=?',
           [fields.name, fields.type, fields.ipAddress, fields.port, fields.paperWidth, fields.brand,
