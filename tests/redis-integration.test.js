@@ -48,15 +48,15 @@ test('Redis 6 client commands, atomic cooldown and pub/sub work against a live s
     const channel = prefix + ':channel';
     let resolveMessage;
     let subscriptionTimer;
-    const received = new Promise((resolve, reject) => {
-      resolveMessage = resolve;
-      subscriptionTimer = setTimeout(() => reject(new Error('Redis pub/sub message timed out')), 5000);
-    });
     // Await Redis' subscription acknowledgement before publishing; setImmediate
     // alone does not guarantee that the server has registered the subscription.
     await subscriber.subscribe(channel, message => {
       clearTimeout(subscriptionTimer);
       resolveMessage(message);
+    });
+    const received = new Promise((resolve, reject) => {
+      resolveMessage = resolve;
+      subscriptionTimer = setTimeout(() => reject(new Error('Redis pub/sub message timed out')), 5000);
     });
     await publisher.publish(channel, 'redis6-pubsub-ok');
     assert.equal(await received, 'redis6-pubsub-ok');
