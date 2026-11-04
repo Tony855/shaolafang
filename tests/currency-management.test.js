@@ -73,7 +73,7 @@ function setup({ currencyCount = 1, menuReferences = 0, otherCurrency = null, fa
   };
   attachSettingsRoutes(app, deps);
   return {
-    createHandler, updateHandler, deleteHandler, displayHandler, calls,
+    createHandler, updateHandler, deleteHandler, displayHandler, notificationHandler, calls,
     get transactionCount() { return transactionCount; },
     get rolledBack() { return rolledBack; }
   };
