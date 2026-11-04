@@ -70,13 +70,76 @@ app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_sto
 
 app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const current = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [id, req.merchantId]);
-    if (!current) return res.status(404).json({ error: '店铺不存在' });
-    const qrLanguages = req.body.qr_languages !== undefined ? (req.body.qr_languages || null) : current.qr_languages;
-    await runAsync('UPDATE stores SET name=?, code=?, address=?, active=?, qr_languages=? WHERE id=? AND merchant_id=?', [req.body.name || current.name, req.body.code || current.code, req.body.address ?? current.address, req.body.active === undefined ? current.active : (req.body.active ? 1 : 0), qrLanguages, id, req.merchantId]);
-    res.json(await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [id, req.merchantId]));
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const id = Number(req.params.id);
+    const merchantId = Number(req.merchantId || 1);
+    const body = req.body || {};
+    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+      return res.status(400).json({ error: '门店编号无效' });
+    }
+    const nextName = body.name === undefined ? undefined : (typeof body.name === 'string' ? body.name.trim() : null);
+    const nextCode = body.code === undefined ? undefined : (typeof body.code === 'string' ? body.code.trim() : null);
+    const nextAddress = body.address === undefined ? undefined : (typeof body.address === 'string' ? body.address.trim() : null);
+    if (nextName === null || nextName === '' || (nextName && nextName.length > 255)) {
+      return res.status(400).json({ error: '店铺名称必须为 1 至 255 个字符' });
+    }
+    if (nextCode === null || (nextCode !== undefined && nextCode.length > 50)) {
+      return res.status(400).json({ error: '店铺编码不能超过 50 个字符' });
+    }
+    if (nextAddress === null || (nextAddress !== undefined && nextAddress.length > 2000)) {
+      return res.status(400).json({ error: '店铺地址格式无效或超过 2000 个字符' });
+    }
+    let nextActive;
+    if (body.active !== undefined) {
+      if (![true, false, 0, 1, '0', '1'].includes(body.active)) {
+        return res.status(400).json({ error: '门店状态必须为启用或停用' });
+      }
+      nextActive = body.active === true || body.active === 1 || body.active === '1' ? 1 : 0;
+    }
+    let nextQrLanguages;
+    if (body.qr_languages !== undefined) {
+      if (body.qr_languages === null || body.qr_languages === '') nextQrLanguages = null;
+      else if (typeof body.qr_languages === 'string') nextQrLanguages = body.qr_languages;
+      else if (Array.isArray(body.qr_languages)) nextQrLanguages = JSON.stringify(body.qr_languages);
+      else return res.status(400).json({ error: '扫码语言配置格式无效' });
+      if (nextQrLanguages && nextQrLanguages.length > 50) return res.status(400).json({ error: '扫码语言配置不能超过 50 个字符' });
+    }
+
+    let updatedStore;
+    await withTransaction(async () => {
+      const merchant = await getAsync('SELECT id FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
+      if (!merchant) throw Object.assign(new Error('商户不存在'), { statusCode: 404 });
+      const current = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=? FOR UPDATE', [id, merchantId]);
+      if (!current) throw Object.assign(new Error('店铺不存在'), { statusCode: 404 });
+
+      const name = nextName === undefined ? current.name : nextName;
+      const code = nextCode === undefined || nextCode === '' ? current.code : nextCode;
+      const address = nextAddress === undefined ? current.address : nextAddress;
+      const active = nextActive === undefined ? current.active : nextActive;
+      const qrLanguages = nextQrLanguages === undefined ? current.qr_languages : nextQrLanguages;
+      if (code !== current.code) {
+        const duplicate = await getAsync('SELECT id FROM stores WHERE code=? AND id<>?', [code, id]);
+        if (duplicate) throw Object.assign(new Error('店铺编码已存在'), { statusCode: 409 });
+      }
+      await runAsync(
+        'UPDATE stores SET name=?, code=?, address=?, active=?, qr_languages=? WHERE id=? AND merchant_id=?',
+        [name, code, address, active, qrLanguages, id, merchantId]
+      );
+      const actor = req.adminId
+        ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId])
+        : null;
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', req.adminId || null, actor?.username || '', 'update_store', 'store', id,
+          JSON.stringify({ before: { name: current.name, code: current.code, active: current.active }, after: { name, code, active } }),
+          getClientIp(req), new Date().toISOString()]
+      );
+      updatedStore = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [id, merchantId]);
+    });
+    res.json(updatedStore);
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '店铺编码已存在' });
+    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '更新门店失败，所有更改已回滚' });
+  }
 });
 
 app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
@@ -126,64 +189,88 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
 });
 
 app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
+  const copiedFiles = [];
   try {
-    const targetStoreId = parseInt(req.params.id);
-    const targetStore = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [targetStoreId, req.merchantId]);
-    if (!targetStore) return res.status(404).json({ error: '店铺不存在' });
-    const sourceStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [req.merchantId]);
-    if (!sourceStore) return res.status(400).json({ error: '未找到源店铺' });
-    const sourceStoreId = sourceStore.id;
-    if (targetStoreId === sourceStoreId) return res.status(400).json({ error: '总店无需复制自身' });
-    const sourceMenus = await allAsync('SELECT * FROM menus WHERE store_id = ? AND merchant_id=?', [sourceStoreId, req.merchantId]);
-    if (sourceMenus.length === 0) return res.status(404).json({ error: '总店暂无菜品可复制' });
-    const existingMenus = await allAsync('SELECT name FROM menus WHERE store_id = ?', [targetStoreId]);
-    const existingNames = new Set(existingMenus.map(m => m.name));
-    const menusToCopy = sourceMenus.filter(menu => !existingNames.has(menu.name));
-    if (menusToCopy.length === 0) return res.json({ success: true, copied: 0, message: '目标店铺已包含全部菜品，无需复制' });
-    const uploadDir = UPLOAD_DIR;
-    let copiedCount = 0;
-    for (const menu of menusToCopy) {
-      let newImage = '';
-      if (menu.image) {
-        // Only copy a file whose resolved path remains inside UPLOAD_DIR.
-        // Legacy rows may contain absolute paths or traversal segments.
-        const uploadRoot = path.resolve(uploadDir);
-        const imageName = path.basename(String(menu.image));
-        const srcPath = path.resolve(uploadRoot, imageName);
-        if (srcPath.startsWith(uploadRoot + path.sep) && fs.existsSync(srcPath) && fs.statSync(srcPath).isFile()) {
-          const realRoot = fs.realpathSync(uploadRoot);
-          const realSource = fs.realpathSync(srcPath);
-          if (!realSource.startsWith(realRoot + path.sep)) continue;
-          const ext = path.extname(imageName).toLowerCase();
-          const newFilename = Date.now() + '_' + Math.random().toString(36).slice(2,6) + ext;
-          const destPath = path.resolve(uploadRoot, newFilename);
-          if (destPath.startsWith(uploadRoot + path.sep)) {
-            fs.copyFileSync(srcPath, destPath);
-            newImage = newFilename;
+    const targetStoreId = Number(req.params.id);
+    const merchantId = Number(req.merchantId || 1);
+    if (!Number.isSafeInteger(targetStoreId) || targetStoreId <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+      return res.status(400).json({ error: '门店编号无效' });
+    }
+    const uploadRoot = path.resolve(UPLOAD_DIR);
+    let result;
+    await withTransaction(async () => {
+      const merchant = await getAsync('SELECT id FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
+      if (!merchant) throw Object.assign(new Error('商户不存在'), { statusCode: 404 });
+      const targetStore = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? FOR UPDATE', [targetStoreId, merchantId]);
+      if (!targetStore) throw Object.assign(new Error('店铺不存在'), { statusCode: 404 });
+      const sourceStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1 FOR UPDATE', [merchantId]);
+      if (!sourceStore) throw Object.assign(new Error('未找到源店铺'), { statusCode: 400 });
+      const sourceStoreId = Number(sourceStore.id);
+      if (targetStoreId === sourceStoreId) throw Object.assign(new Error('总店无需复制自身'), { statusCode: 400 });
+
+      const sourceMenus = await allAsync(
+        'SELECT * FROM menus WHERE store_id=? AND merchant_id=? ORDER BY id FOR UPDATE',
+        [sourceStoreId, merchantId]
+      );
+      if (sourceMenus.length === 0) throw Object.assign(new Error('总店暂无菜品可复制'), { statusCode: 404 });
+      const existingMenus = await allAsync('SELECT name FROM menus WHERE store_id=? FOR UPDATE', [targetStoreId]);
+      const existingNames = new Set(existingMenus.map(menu => menu.name));
+      const menusToCopy = sourceMenus.filter(menu => !existingNames.has(menu.name));
+      if (menusToCopy.length === 0) {
+        result = { copied: 0, skipped: sourceMenus.length };
+        return;
+      }
+
+      for (const menu of menusToCopy) {
+        let newImage = '';
+        if (menu.image) {
+          const imageName = path.basename(String(menu.image));
+          const sourcePath = path.resolve(uploadRoot, imageName);
+          if (sourcePath.startsWith(uploadRoot + path.sep) && fs.existsSync(sourcePath) && fs.statSync(sourcePath).isFile()) {
+            const realRoot = fs.realpathSync(uploadRoot);
+            const realSource = fs.realpathSync(sourcePath);
+            if (realSource.startsWith(realRoot + path.sep)) {
+              const ext = path.extname(imageName).toLowerCase();
+              const newFilename = Date.now() + '_' + crypto.randomBytes(6).toString('hex') + ext;
+              const destinationPath = path.resolve(uploadRoot, newFilename);
+              if (destinationPath.startsWith(uploadRoot + path.sep)) {
+                fs.copyFileSync(sourcePath, destinationPath, fs.constants.COPYFILE_EXCL);
+                copiedFiles.push(destinationPath);
+                newImage = newFilename;
+              }
+            }
           }
         }
+        await runAsync(
+          `INSERT INTO menus (name, emoji, price, category, \`desc\`, image, currency_code, name_en, desc_en, active, unit, show_dual, secondary_currency_code, store_id, merchant_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            menu.name, menu.emoji, menu.price, menu.category, menu.desc, newImage,
+            menu.currency_code || 'USD', menu.name_en || '', menu.desc_en || '',
+            menu.active !== undefined ? menu.active : 1, menu.unit || '份',
+            menu.show_dual || 0, menu.secondary_currency_code || '', targetStoreId, merchantId
+          ]
+        );
       }
+
+      const actor = req.adminId
+        ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId])
+        : null;
       await runAsync(
-        `INSERT INTO menus (name, emoji, price, category, \`desc\`, image, currency_code, name_en, desc_en, active, unit, show_dual, secondary_currency_code, store_id, merchant_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          menu.name, menu.emoji, menu.price, menu.category, menu.desc,
-          newImage,
-          menu.currency_code || 'USD',
-          menu.name_en || '', menu.desc_en || '',
-          menu.active !== undefined ? menu.active : 1,
-          menu.unit || '份',
-          menu.show_dual || 0,
-          menu.secondary_currency_code || '',
-          targetStoreId,
-          req.merchantId
-        ]
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', req.adminId || null, actor?.username || '', 'copy_store_menu', 'store', targetStoreId,
+          JSON.stringify({ sourceStoreId, copied: menusToCopy.length, skipped: sourceMenus.length - menusToCopy.length }),
+          getClientIp(req), new Date().toISOString()]
       );
-      copiedCount++;
-    }
-    res.json({ success: true, copied: copiedCount, skipped: sourceMenus.length - copiedCount, message: `成功复制 ${copiedCount} 道菜品` });
+      result = { copied: menusToCopy.length, skipped: sourceMenus.length - menusToCopy.length };
+    });
+    res.json({ success: true, ...result, message: `成功复制 ${result.copied} 道菜品` });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    for (const file of copiedFiles) {
+      try { fs.unlinkSync(file); } catch (_) {}
+    }
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '目标门店存在同名菜品，请刷新后重试' });
+    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '复制菜单失败，所有更改已回滚' });
   }
 });
 
