@@ -269,7 +269,7 @@ module.exports = function(app, deps) {
           JOIN (${JSON_ITEM_INDEXES}) n
             ON JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) IS NOT NULL
           JOIN menus m ON m.id = CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].id')) AS UNSIGNED)
-          WHERE o.store_id=? AND o.status = 'done'
+          WHERE o.store_id=? AND o.status IN ('done', 'refunded')
           GROUP BY m.id, m.name, m.price
           ORDER BY total_qty DESC
         `, [req.storeId]);
