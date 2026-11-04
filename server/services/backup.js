@@ -4,16 +4,21 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { runAsync, getAsync, allAsync } = require('../db/helpers');
+const { runAsync, getAsync, allAsync, withTransaction } = require('../db/helpers');
 const { parseRetentionDays, pruneAutoBackups } = require('./backup-retention');
 
 async function collectBackupData() {
   const tables = ['menus', 'tables', 'orders', 'order_sequences', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'waiters', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
-  const data = { exportedAt: new Date().toISOString(), tables: {} };
-  for (const table of tables) {
-    data.tables[table] = await allAsync(`SELECT * FROM \`${table}\``);
-  }
-  return data;
+  // All table reads must share one InnoDB transaction. Otherwise concurrent
+  // writes can make a backup contain child rows without their parents (or
+  // omit rows created between individual SELECT statements).
+  return withTransaction(async () => {
+    const data = { exportedAt: new Date().toISOString(), tables: {} };
+    for (const table of tables) {
+      data.tables[table] = await allAsync(`SELECT * FROM \`${table}\``);
+    }
+    return data;
+  });
 }
 
 async function autoBackupDatabase() {
