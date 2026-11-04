@@ -88,8 +88,12 @@ module.exports = function(app, deps) {
           (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS completed_orders,
           (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='canceled' AND createdAt >= ? AND createdAt <= ?) AS canceled_orders,
           (SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_revenue,
-          (SELECT AVG(GREATEST(0, total - COALESCE(refund_amount, 0))) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS avg_order_value
+          (SELECT AVG(GREATEST(0, total - COALESCE(refund_amount, 0))) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS avg_order_value,
+          (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='refunded' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS refunded_orders,
+          (SELECT COALESCE(SUM(GREATEST(0, refund_amount)), 0) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_refunded
       `, [
+        ...swParams, rangeStart, rangeEnd,
+        ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
@@ -97,7 +101,7 @@ module.exports = function(app, deps) {
         ...swParams, rangeStart, rangeEnd
       ]);
       const tableRevenue = await allAsync(`
-        SELECT table_name, COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
+        SELECT table_name, COUNT(*) AS orders, SUM(GREATEST(0, total - COALESCE(refund_amount, 0))) AS revenue
         FROM orders
         WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
         GROUP BY table_name
@@ -124,7 +128,7 @@ module.exports = function(app, deps) {
           SELECT CONCAT(LPAD(HOUR(COALESCE(settled_at, createdAt)),2,'0'), ':', LPAD(FLOOR(MINUTE(COALESCE(settled_at, createdAt))/10)*10, 2, '0')) AS time_bucket,
                  COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
           FROM orders
-          WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
+          WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
           ORDER BY time_bucket
         `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
@@ -134,7 +138,7 @@ module.exports = function(app, deps) {
           SELECT DATE(COALESCE(settled_at, createdAt)) AS time_bucket,
                  COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
           FROM orders
-          WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
+          WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
           ORDER BY time_bucket
         `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
@@ -144,7 +148,7 @@ module.exports = function(app, deps) {
           SELECT DATE_FORMAT(COALESCE(settled_at, createdAt), '%Y-%m') AS time_bucket,
                  COUNT(*) AS orders, SUM(total - COALESCE(refund_amount, 0)) AS revenue
           FROM orders
-          WHERE ${swWhere} AND status='done' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
+          WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) < ?
           GROUP BY time_bucket
           ORDER BY time_bucket
         `, [...swParams, startOfDay.toISOString(), endOfDay.toISOString()]);
@@ -155,12 +159,12 @@ module.exports = function(app, deps) {
         storeBreakdown = await allAsync(`
           SELECT s.id AS store_id, s.name AS store_name,
                  SUM(CASE WHEN o.id IS NOT NULL AND o.createdAt >= ? AND o.createdAt <= ? THEN 1 ELSE 0 END) AS orders,
-                 SUM(CASE WHEN o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? THEN 1 ELSE 0 END) AS completed_orders,
+                 SUM(CASE WHEN o.status IN ('done', 'refunded') AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? THEN 1 ELSE 0 END) AS completed_orders,
                  SUM(CASE WHEN o.status='canceled' AND o.createdAt >= ? AND o.createdAt <= ? THEN 1 ELSE 0 END) AS canceled_orders,
-                 SUM(CASE WHEN o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? THEN (o.total - COALESCE(o.refund_amount, 0)) ELSE 0 END) AS revenue
+                 SUM(CASE WHEN o.status IN ('done', 'refunded') AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ? THEN GREATEST(0, o.total - COALESCE(o.refund_amount, 0)) ELSE 0 END) AS revenue
           FROM stores s
           LEFT JOIN orders o ON o.store_id = s.id
-              AND ((o.createdAt >= ? AND o.createdAt <= ?) OR (o.status='done' AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?))
+              AND ((o.createdAt >= ? AND o.createdAt <= ?) OR (o.status IN ('done', 'refunded') AND COALESCE(o.settled_at, o.createdAt) >= ? AND COALESCE(o.settled_at, o.createdAt) <= ?))
           WHERE s.merchant_id = ?
           GROUP BY s.id, s.name
           ORDER BY revenue DESC, s.id
@@ -182,6 +186,8 @@ module.exports = function(app, deps) {
           completedOrders: orderStats?.completed_orders || 0,
           canceledOrders: orderStats?.canceled_orders || 0,
           totalRevenue: Number(orderStats?.total_revenue || 0),
+          refundedOrders: Number(orderStats?.refunded_orders || 0),
+          totalRefunded: Number(orderStats?.total_refunded || 0),
           avgOrderValue: Number(orderStats?.avg_order_value || 0),
         },
         tableRevenue,
