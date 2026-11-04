@@ -21,7 +21,8 @@ app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_sto
   try {
     const { name, code, address } = req.body || {};
     const storeName = typeof name === 'string' ? name.trim() : '';
-    const storeCode = typeof code === 'string' ? code.trim() : '';
+    const requestedStoreCode = typeof code === 'string' ? code.trim() : '';
+    const storeCode = requestedStoreCode || ('m' + String(req.merchantId || 1) + '-' + crypto.randomBytes(6).toString('hex'));
     const storeAddress = typeof address === 'string' ? address.trim() : '';
     if (!storeName || storeName.length > 255) return res.status(400).json({ error: '店铺名称必填且不能超过 255 个字符' });
     if (storeCode.length > 50) return res.status(400).json({ error: '店铺编码不能超过 50 个字符' });
@@ -91,13 +92,13 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
       const current = await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=? FOR UPDATE', [id, merchantId]);
       if (!current) throw Object.assign(new Error('店铺不存在'), { statusCode: 404 });
       const merchantStores = await allAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id FOR UPDATE', [merchantId]);
-      if (merchantStores.length <= 1 || merchantStores[0]?.id === id) {
+      if (merchantStores.length <= 1 || Number(merchantStores[0]?.id) === id) {
         throw Object.assign(new Error('商户默认总店或最后一家门店不能删除'), { statusCode: 409 });
       }
 
       // Do not orphan operational or financial records. Deletion is allowed
       // only after the store has been emptied through the supported workflows.
-      const dependentTables = ['orders', 'tables', 'menus', 'menu_categories', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions'];
+      const dependentTables = ['orders', 'tables', 'menus', 'menu_categories', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'cashier_sessions'];
       for (const table of dependentTables) {
         const row = await getAsync(`SELECT COUNT(*) AS count FROM \`${table}\` WHERE store_id=?`, [id]);
         if (Number(row?.count || 0) > 0) {
