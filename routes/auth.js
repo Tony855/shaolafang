@@ -47,7 +47,7 @@ module.exports = function(app, deps) {
       const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
       await runAsync('INSERT INTO admin_sessions (admin_id, token, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [admin.id, token, expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
       // 该商户的第一个店铺（供前端默认选中）
-      const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
+      const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? AND active=1 ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
       const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
       const isPrimary = primaryAdmin && primaryAdmin.id === admin.id;
       res.json({ success: true, token, merchantId: admin.merchant_id, storeId: firstStore ? firstStore.id : null, merchantName: merchant.name, adminId: admin.id, username: admin.username, displayName: admin.display_name, isPrimary,
