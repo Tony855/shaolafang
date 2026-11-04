@@ -183,34 +183,46 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
     if (req.params.id === '1') return res.status(400).json({ error: '不能删除默认商户' });
-    const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [req.params.id]);
-    const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.params.id])).map(s => s.id);
 
-    // 清会话（必须在删 merchant_admins 之前）
-    await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [req.params.id]);
-    await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [req.params.id]);
-
-    // 清 settings 里的收银员配置和商户级设置
-    for (const sid of storeIds) {
-      await runAsync("DELETE FROM settings WHERE `key` = ?", ['cashiers_' + sid]);
-    }
-    await runAsync("DELETE FROM settings WHERE `key` LIKE ?", [`merchant_${req.params.id}_%`]);
-
-    await runAsync('DELETE FROM merchants WHERE id=?', [req.params.id]);
-    await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [req.params.id]);
-    await runAsync('DELETE FROM stores WHERE merchant_id=?', [req.params.id]);
-    await runAsync('DELETE FROM currencies WHERE merchant_id=?', [req.params.id]);
-    await runAsync('DELETE FROM login_logs WHERE merchant_id=?', [req.params.id]);
-    if (storeIds.length > 0) {
-      const placeholders = storeIds.map(() => '?').join(',');
-      for (const tbl of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
-        await runAsync(`DELETE FROM \`${tbl}\` WHERE store_id IN (${placeholders})`, storeIds);
+    await withTransaction(async () => {
+      // Lock the merchant row so the deletion is based on one consistent snapshot.
+      const merchant = await getAsync('SELECT * FROM merchants WHERE id=? FOR UPDATE', [req.params.id]);
+      if (!merchant) {
+        const error = new Error('商户不存在');
+        error.statusCode = 404;
+        throw error;
       }
-    }
-    await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'delete_merchant', 'merchant', req.params.id,
-      `删除商户「${merchant?.name || '未知'}」(编码: ${merchant?.code || '-'})`, getClientIp(req));
+      const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.params.id])).map(s => s.id);
+
+      // Remove store-scoped records before deleting their parent stores.
+      if (storeIds.length > 0) {
+        const placeholders = storeIds.map(() => '?').join(',');
+        for (const tbl of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
+          await runAsync(`DELETE FROM \`${tbl}\` WHERE store_id IN (${placeholders})`, storeIds);
+        }
+      }
+
+      // Remove sessions before administrator accounts, then merchant-scoped data.
+      await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [req.params.id]);
+      await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [req.params.id]);
+      for (const sid of storeIds) {
+        await runAsync("DELETE FROM settings WHERE `key` = ?", ['cashiers_' + sid]);
+      }
+      await runAsync("DELETE FROM settings WHERE `key` LIKE ?", [`merchant_${req.params.id}_%`]);
+      await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [req.params.id]);
+      await runAsync('DELETE FROM currencies WHERE merchant_id=?', [req.params.id]);
+      await runAsync('DELETE FROM login_logs WHERE merchant_id=?', [req.params.id]);
+      await runAsync('DELETE FROM stores WHERE merchant_id=?', [req.params.id]);
+      await runAsync('DELETE FROM merchants WHERE id=?', [req.params.id]);
+
+      await logAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'delete_merchant', 'merchant', req.params.id,
+        `删除商户「${merchant.name || '未知'}」(编码: ${merchant.code || '-'})`, getClientIp(req));
+    });
+
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ error: e.statusCode === 404 ? e.message : '删除商户失败，所有更改已回滚' });
+  }
 });
 
 app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (req, res) => {
