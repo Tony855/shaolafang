@@ -63,6 +63,15 @@ module.exports = function(app, deps) {
       let endDate = req.query.endDate || startDate;
 
       const scope = String(req.query.scope || 'current').toLowerCase();
+      if (!['current', 'all'].includes(scope)) return res.status(400).json({ error: '报表范围无效' });
+      const storeId = Number(req.storeId);
+      const merchantId = Number(req.merchantId);
+      if (scope === 'current' && (!Number.isSafeInteger(storeId) || storeId <= 0)) {
+        return res.status(403).json({ error: '当前门店信息无效' });
+      }
+      if (scope === 'all' && (!Number.isSafeInteger(merchantId) || merchantId <= 0)) {
+        return res.status(403).json({ error: '商户信息无效' });
+      }
       const sw = buildStoreWhere(req, scope);
       const swWhere = sw.where;
       const swParams = sw.params;
@@ -194,7 +203,7 @@ module.exports = function(app, deps) {
         dishRanking,
         hourlyStats,
       });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '报表请求失败，请稍后重试' }); }
   });
 
   app.get('/api/admin/reports/summary', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
@@ -229,7 +238,7 @@ module.exports = function(app, deps) {
         month: { revenue: Number(monthStats?.revenue || 0), orders: monthStats?.orders || 0 },
         topDishes,
       });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '报表请求失败，请稍后重试' }); }
   });
 
   app.get('/api/admin/info', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
@@ -238,19 +247,21 @@ module.exports = function(app, deps) {
       const merchant = await getAsync('SELECT id, name, code, contact_name, contact_phone, max_stores, status, created_at FROM merchants WHERE id=?', [admin?.merchant_id]);
       const storeCount = await getAsync('SELECT COUNT(*) as count FROM stores WHERE merchant_id=?', [admin?.merchant_id]);
       res.json({ admin, merchant, storeCount: storeCount?.count || 0 });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '报表请求失败，请稍后重试' }); }
   });
 
   app.get('/api/admin/export/:type', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
       const type = req.params.type;
+      const storeId = Number(req.storeId);
+      if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(403).json({ error: '当前门店信息无效' });
       const permission = type === 'menu' ? 'can_manage_menu' : 'can_view_logs';
       if (!req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions[permission])) {
         return res.status(403).json({ error: '没有导出该数据的权限' });
       }
       let rows = [], filename = '', headers = [];
       if (type === 'orders') {
-        rows = await allAsync('SELECT * FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000', [req.storeId]);
+        rows = await allAsync('SELECT * FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000', [storeId]);
         filename = `orders_${new Date().toISOString().slice(0,10)}.csv`;
         headers = ['订单号','桌号','状态','原金额','累计退款','净收入','备注','下单时间'];
       } else if (type === 'menu') {
@@ -292,7 +303,7 @@ module.exports = function(app, deps) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(csv);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '报表请求失败，请稍后重试' }); }
   });
 };
 
@@ -304,7 +315,8 @@ module.exports.attachAdvancedExport = function(app, deps) {
 
   app.get('/api/admin/export-advanced', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
-      const storeId = req.storeId || 1;
+      const storeId = Number(req.storeId);
+      if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(403).json({ error: '当前门店信息无效' });
       const endDate = req.query.endDate || new Date().toISOString().slice(0, 10);
       const startDate = req.query.startDate || endDate;
       const dimension = req.query.dimension || 'orders';     // orders | sales | tables
@@ -394,6 +406,6 @@ module.exports.attachAdvancedExport = function(app, deps) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(csv);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '报表请求失败，请稍后重试' }); }
   });
 };
