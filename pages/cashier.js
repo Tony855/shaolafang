@@ -48,6 +48,11 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   // 金额 HTML：主货币红色，副货币灰色
   const moneyHtml = SLF.money.formatHtml;
 
+  function isEnabledFlag(value, fallback = false) {
+    if (value === undefined || value === null) return fallback;
+    return value === true || value === 1 || value === '1' || value === 'true';
+  }
+
   /* ===== 加载商户启用的支付方式 ===== */
   async function loadPaymentMethods() {
     try {
@@ -522,9 +527,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     // 按钮
     const btnsEl = document.getElementById('detailButtons');
     const perms = (cashierInfo && cashierInfo.permissions) || {};
-    const allowSettle = perms.can_settle !== false;
-    const allowCancel = perms.can_cancel !== false;
-    const allowRefund = perms.can_refund === true;
+    const allowSettle = isEnabledFlag(perms.can_settle, true);
+    const allowCancel = isEnabledFlag(perms.can_cancel, true);
+    const allowRefund = isEnabledFlag(perms.can_refund, false);
     const canSettle = allowSettle && order.status === 'pending' && SLF.orderStatus.allItemsDone(order);
     const canCancel = allowCancel && order.status === 'pending';
     const canRefund = allowRefund && ['done', 'settled', 'paid', 'completed'].includes(order.status);
