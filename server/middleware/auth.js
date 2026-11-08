@@ -127,7 +127,7 @@ async function requireAdminOrCashier(req, res, next) {
     if (!cashiersData) return res.status(401).json({ error: '账号不存在' });
     let list = [];
     try { list = JSON.parse(cashiersData.value); } catch (e) { return res.status(401).json({ error: '账号数据异常' }); }
-    const cashier = list.find(c => c && String(c.id) === String(session.cashier_id) && (c.active === true || c.active === 1 || c.active === '1' || c.active === 'true'));
+    const cashier = Array.isArray(list) ? list.find(c => c && String(c.id) === String(session.cashier_id) && (c.active === true || c.active === 1 || c.active === '1' || c.active === 'true')) : null;
     if (!cashier) return res.status(401).json({ error: '账号不存在或已停用' });
     req.cashier = { ...cashier, active: true, permissions: normalizeCashierPermissions(cashier.permissions), store_id: session.store_id, merchant_id: session.merchant_id };
     req.cashierId = cashier.id;
