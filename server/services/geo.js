@@ -4,14 +4,11 @@
 const ipLocationCache = new Map();
 
 function getClientIp(req) {
-  const xff = req.headers['x-forwarded-for'];
-  if (xff) {
-    const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
-    if (ips.length > 0) return ips[0];
-  }
-  const xri = req.headers['x-real-ip'];
-  if (xri) return xri.trim();
-  return req.ip || req.connection.remoteAddress || 'unknown';
+  // Express has already applied the configured trust-proxy policy to req.ip.
+  // Never read forwarding headers directly: untrusted clients can spoof them.
+  const clientIp = typeof req.ip === 'string' ? req.ip.trim() : '';
+  if (clientIp) return clientIp;
+  return req.socket?.remoteAddress || req.connection?.remoteAddress || 'unknown';
 }
 
 async function getLocationByIp(ip) {
@@ -19,13 +16,15 @@ async function getLocationByIp(ip) {
   if (ipLocationCache.has(ip)) return ipLocationCache.get(ip);
   try {
     const http = require('http');
-    const url = 'http://ip-api.com/json/' + ip + '?lang=zh-CN&fields=status,country,regionName,city';
+    const url = 'http://ip-api.com/json/' + encodeURIComponent(ip) + '?lang=zh-CN&fields=status,country,regionName,city';
     const result = await new Promise((resolve, reject) => {
-      http.get(url, { timeout: 3000 }, (res) => {
+      const request = http.get(url, { timeout: 3000 }, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
-      }).on('error', reject).on('timeout', () => reject(new Error('timeout')));
+      });
+      request.on('error', reject);
+      request.on('timeout', () => request.destroy(new Error('timeout')));
     });
     if (result.status === 'success') {
       const location = (result.country || '') + ' ' + (result.regionName || '') + ' ' + (result.city || '');
