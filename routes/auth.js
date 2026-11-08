@@ -67,8 +67,9 @@ module.exports = function(app, deps) {
         }
       });
     } catch (e) {
-      await runAsync('INSERT INTO login_logs (createdAt, success, ip, message) VALUES (?, 0, ?, ?)', [new Date().toISOString(), getClientIp(req), e.message]).catch(() => {});
-      res.status(500).json({ error: e.message });
+      console.error('[admin/login] request failed:', e);
+      await runAsync('INSERT INTO login_logs (createdAt, success, ip, message) VALUES (?, 0, ?, ?)', [new Date().toISOString(), getClientIp(req), '登录处理失败']).catch(() => {});
+      res.status(500).json({ error: '登录处理失败，请稍后重试' });
     }
   });
 
@@ -78,6 +79,6 @@ module.exports = function(app, deps) {
         await runAsync('DELETE FROM admin_sessions WHERE token=?', [req.adminSessionToken]).catch(() => {});
       }
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '退出登录失败，请稍后重试' }); }
   });
 };
