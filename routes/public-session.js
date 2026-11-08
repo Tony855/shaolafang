@@ -66,7 +66,7 @@ module.exports = function(app, deps) {
       await runAsync('INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))', [table.name, sessionToken, expiresAt, new Date().toISOString(), storeId, storeId]);
       const customerToken = crypto.randomBytes(16).toString('base64url');
       res.json({ table: table.name, storeId, sessionToken, customerToken, expiresAt });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '扫码会话请求失败，请稍后重试' }); }
   });
 
   const getSessionToken = req => {
