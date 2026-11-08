@@ -208,6 +208,8 @@ module.exports = function(app, deps) {
 
   app.get('/api/admin/reports/summary', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
+      const storeId = Number(req.storeId);
+      if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(403).json({ error: '当前门店信息无效' });
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -216,11 +218,11 @@ module.exports = function(app, deps) {
       const todayStats = await getAsync(`
         SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders
         FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
-      `, [req.storeId, todayStart.toISOString(), todayEnd.toISOString()]);
+      `, [storeId, todayStart.toISOString(), todayEnd.toISOString()]);
       const monthStats = await getAsync(`
         SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders
         FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
-      `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
+      `, [storeId, monthStart.toISOString(), monthEnd.toISOString()]);
       const topDishes = await allAsync(`
         SELECT m.id, m.name, m.emoji, m.price, m.category,
                SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)))) AS sales_count
@@ -232,7 +234,7 @@ module.exports = function(app, deps) {
         GROUP BY m.id, m.name, m.emoji, m.price, m.category
         HAVING sales_count > 0
         ORDER BY sales_count DESC LIMIT 10
-      `, [req.storeId, monthStart.toISOString(), monthEnd.toISOString()]);
+      `, [storeId, monthStart.toISOString(), monthEnd.toISOString()]);
       res.json({
         today: { revenue: Number(todayStats?.revenue || 0), orders: todayStats?.orders || 0 },
         month: { revenue: Number(monthStats?.revenue || 0), orders: monthStats?.orders || 0 },
@@ -265,7 +267,7 @@ module.exports = function(app, deps) {
         filename = `orders_${new Date().toISOString().slice(0,10)}.csv`;
         headers = ['订单号','桌号','状态','原金额','累计退款','净收入','备注','下单时间'];
       } else if (type === 'menu') {
-        rows = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [req.storeId]);
+        rows = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [storeId]);
         filename = `menu_${new Date().toISOString().slice(0,10)}.csv`;
         headers = ['ID','名称','英文名','价格','货币','分类','单位','状态'];
       } else if (type === 'sales') {
@@ -283,7 +285,7 @@ module.exports = function(app, deps) {
           WHERE o.store_id=? AND o.status IN ('done', 'refunded')
           GROUP BY m.id, m.name, m.price
           ORDER BY total_qty DESC
-        `, [req.storeId]);
+        `, [storeId]);
         filename = `sales_${new Date().toISOString().slice(0,10)}.csv`;
         headers = ['菜品ID','菜品名称','单价','销量','销售额'];
       } else {
