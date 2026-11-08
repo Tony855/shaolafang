@@ -9,6 +9,11 @@ if (!ctx) return;
 
 const { $, api, tAdmin, esc, hasPermission, showConfirm, L } = ctx;
 
+function isEnabledFlag(value, fallback = false) {
+  if (value === undefined || value === null) return fallback;
+  return value === true || value === 1 || value === '1' || value === 'true';
+}
+
 let editingCashierId = null;
 let allCashiers = [];
 let allStores = [];
@@ -70,11 +75,11 @@ async function editCashier(cashierId) {
   document.getElementById('cashierName').value = cashier.display_name;
   document.getElementById('cashierPassword').value = '';
   document.getElementById('cashierPassword').placeholder = tAdmin('leaveBlankToKeep') || '留空则不修改密码';
-  document.getElementById('cashierActive').checked = cashier.active !== false;
-  document.getElementById('cashierCanSettle').checked = cashier.permissions?.can_settle !== false;
-  document.getElementById('cashierCanCancel').checked = cashier.permissions?.can_cancel !== false;
-  document.getElementById('cashierCanRefund').checked = cashier.permissions?.can_refund === true;
-  document.getElementById('cashierCanViewReport').checked = cashier.permissions?.can_view_report !== false;
+  document.getElementById('cashierActive').checked = isEnabledFlag(cashier.active, false);
+  document.getElementById('cashierCanSettle').checked = isEnabledFlag(cashier.permissions?.can_settle, true);
+  document.getElementById('cashierCanCancel').checked = isEnabledFlag(cashier.permissions?.can_cancel, true);
+  document.getElementById('cashierCanRefund').checked = isEnabledFlag(cashier.permissions?.can_refund, false);
+  document.getElementById('cashierCanViewReport').checked = isEnabledFlag(cashier.permissions?.can_view_report, true);
   populateStoreSelect(cashier.store_id);
   document.getElementById('cashierModal').classList.add('open');
 }
@@ -88,15 +93,15 @@ async function loadCashiers() {
   try {
     await ensureStores();
     const data = await api('/admin/cashiers');
-    const cashiers = data.cashiers || [];
+    const cashiers = Array.isArray(data?.cashiers) ? data.cashiers : [];
     allCashiers = cashiers;
     $('#cashierList').innerHTML = cashiers.length ?
       cashiers.map(c => {
         const perms = [];
-        if (c.permissions?.can_settle) perms.push(tAdmin('canSettle'));
-        if (c.permissions?.can_cancel) perms.push(tAdmin('canCancel'));
-        if (c.permissions?.can_refund) perms.push(tAdmin('canRefund'));
-        if (c.permissions?.can_view_report) perms.push(tAdmin('canViewReport'));
+        if (isEnabledFlag(c.permissions?.can_settle, true)) perms.push(tAdmin('canSettle'));
+        if (isEnabledFlag(c.permissions?.can_cancel, true)) perms.push(tAdmin('canCancel'));
+        if (isEnabledFlag(c.permissions?.can_refund, false)) perms.push(tAdmin('canRefund'));
+        if (isEnabledFlag(c.permissions?.can_view_report, true)) perms.push(tAdmin('canViewReport'));
         const storeTag = c.store_name
           ? '<span style="display:inline-block;background:rgba(52,152,219,.15);color:#5dade2;padding:1px 8px;border-radius:8px;font-size:11px;margin-left:6px;">🏪 ' + esc(c.store_name) + '</span>'
           : '';
@@ -104,7 +109,7 @@ async function loadCashiers() {
         '<div class="info">' +
           '<div class="title">' + esc(c.display_name) + ' · ' + esc(c.username) + storeTag + '</div>' +
           '<div class="sub">' +
-            (c.active?'<span style="color:#43e97b">' + tAdmin('cashierEnabled') + '</span>':'<span style="color:#f5576c">' + tAdmin('cashierDisabled') + '</span>') +
+            (isEnabledFlag(c.active, false)?'<span style="color:#43e97b">' + tAdmin('cashierEnabled') + '</span>':'<span style="color:#f5576c">' + tAdmin('cashierDisabled') + '</span>') +
             ' · ' + (perms.join(' / ') || tAdmin('noPermission')) +
           '</div>' +
         '</div>' +
