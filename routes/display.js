@@ -32,7 +32,7 @@ module.exports = function(app, deps) {
     if (NUMERIC_RANGES[key]) {
       const [min, max] = NUMERIC_RANGES[key];
       const text = typeof value === 'number' ? String(value) : value;
-      if (!(typeof text === 'string' && /^(0|[1-9]\\d*)$/.test(text))) {
+      if (!(typeof text === 'string' && /^(0|[1-9]\d*)$/.test(text))) {
         throw invalid('展示页数值配置无效');
       }
       const number = Number(text);
@@ -55,7 +55,7 @@ module.exports = function(app, deps) {
       return JSON.stringify([...new Set(languages)]);
     }
     if (typeof value !== 'string' || !value.trim() || value.length > 32 ||
-        /[\\u0000-\\u001f\\u007f]/.test(value)) {
+        /[\u0000-\u001f\u007f]/.test(value)) {
       throw invalid('展示页文本配置无效');
     }
     return value.trim();
@@ -63,13 +63,13 @@ module.exports = function(app, deps) {
 
   function parseStoreId(value) {
     const text = typeof value === 'number' ? String(value) : value;
-    if (typeof text !== 'string' || !/^[1-9]\\d*$/.test(text)) return null;
+    if (typeof text !== 'string' || !/^[1-9]\d*$/.test(text)) return null;
     const id = Number(text);
     return Number.isSafeInteger(id) && id > 0 ? id : null;
   }
 
   function applyRow(result, key, rawValue) {
-    const shortKey = key.replace(/^store_\\d+_/, '');
+    const shortKey = key.replace(/^store_\d+_/, '');
     if (!shortKey.startsWith('display_')) return;
     const settingKey = shortKey.slice('display_'.length);
     if (!KEYS.includes(settingKey)) return;
