@@ -178,13 +178,13 @@ function printViaBrowser(base64Data, orderOrId) {
     const retTag = ret > 0 ? ' <span style="color:#e74c3c;">(退' + ret + ')</span>' : '';
     itemsHtml +=
       '<div class="row">' +
-        '<span class="item-name">' + name + ' ×' + qty + retTag + '</span>' +
+        '<span class="item-name">' + esc(name) + ' ×' + qty + retTag + '</span>' +
         '<span class="item-amt">' + fmt(lineBase) + '</span>' +
       '</div>';
   });
 
   // 备注
-  const noteHtml = note ? '<div class="separator"></div><div class="note">' + tAdmin('orderNoteDisplay') + ': ' + note + '</div>' : '';
+  const noteHtml = note ? '<div class="separator"></div><div class="note">' + esc(tAdmin('orderNoteDisplay')) + ': ' + esc(note) + '</div>' : '';
 
   // 支付方式（可选）
   const payLabel = {
@@ -199,7 +199,7 @@ function printViaBrowser(base64Data, orderOrId) {
   const storePhone = (order._store && order._store.phone) ? order._store.phone : '';
 
   const html =
-    '<html><head><meta charset="UTF-8"><title>' + orderNo + '</title>' +
+    '<html><head><meta charset="UTF-8"><title>' + esc(orderNo) + '</title>' +
     '<style>' +
     '*{box-sizing:border-box}' +
     'body{font-family:"Courier New",monospace;font-size:13px;padding:10px;width:300px;margin:0 auto;color:#000;}' +
@@ -214,11 +214,11 @@ function printViaBrowser(base64Data, orderOrId) {
     '.note{font-size:12px;padding:4px 0;line-height:1.4;}' +
     '.footer{text-align:center;font-size:12px;color:#555;padding-top:8px;}' +
     '</style></head><body onload="window.print();setTimeout(function(){window.close()},800);">' +
-      '<div class="center big">' + storeName + '</div>' +
-      (storeAddr ? '<div class="center sub">' + storeAddr + '</div>' : '') +
-      (storePhone ? '<div class="center sub">' + storePhone + '</div>' : '') +
-      '<div class="center sub">' + (tAdmin('table') || 'Table') + ': ' + tableNo + '</div>' +
-      '<div class="center sub">' + (tAdmin('order') || 'Order') + ': ' + orderNo + '</div>' +
+      '<div class="center big">' + esc(storeName) + '</div>' +
+      (storeAddr ? '<div class="center sub">' + esc(storeAddr) + '</div>' : '') +
+      (storePhone ? '<div class="center sub">' + esc(storePhone) + '</div>' : '') +
+      '<div class="center sub">' + esc(tAdmin('table') || 'Table') + ': ' + esc(tableNo) + '</div>' +
+      '<div class="center sub">' + esc(tAdmin('order') || 'Order') + ': ' + esc(orderNo) + '</div>' +
       (timeStr ? '<div class="center sub">' + timeStr + '</div>' : '') +
       '<div class="separator"></div>' +
       itemsHtml +
@@ -226,7 +226,7 @@ function printViaBrowser(base64Data, orderOrId) {
       '<div class="separator"></div>' +
       '<div class="row total"><span>' + (tAdmin('total') || 'Total') + '</span><span>' + fmt(total) + '</span></div>' +
       (payHtml ? '<div class="separator"></div>' + payHtml : '') +
-      '<div class="footer">' + (tAdmin('printerConnectHint') || '') + '</div>' +
+      '<div class="footer">' + esc(tAdmin('printerConnectHint') || '') + '</div>' +
     '</body></html>';
 
   const printWindow = window.open('', '_blank', 'width=320,height=600');
