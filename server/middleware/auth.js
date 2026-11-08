@@ -4,6 +4,31 @@
  */
 const { getAsync, runAsync } = require('../db/helpers');
 
+function isPermissionEnabled(value) {
+  return value === true || value === 1 || value === '1' || value === 'true';
+}
+
+function buildAdminPermissions(admin, isPrimaryAdmin) {
+  const keys = [
+    'can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order',
+    'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency',
+    'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'
+  ];
+  return Object.fromEntries(keys.map(key => [key, isPrimaryAdmin || isPermissionEnabled(admin[key]) ? 1 : 0]));
+}
+
+function normalizeCashierPermissions(raw) {
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const enabled = (value, fallback) => value === undefined || value === null ? fallback : isPermissionEnabled(value);
+  return {
+    can_settle: enabled(source.can_settle, true),
+    can_cancel: enabled(source.can_cancel, true),
+    can_refund: enabled(source.can_refund, false),
+    can_view_report: enabled(source.can_view_report, true)
+  };
+}
+
+
 async function requireSuperAdmin(req, res, next) {
   try {
     let token = '';
@@ -52,14 +77,15 @@ async function requireCashier(req, res, next) {
     if (!cashiersData) return res.status(401).json({ error: '账号不存在' });
     let cashiers = [];
     try { cashiers = JSON.parse(cashiersData.value); } catch (e) { return res.status(401).json({ error: '账号数据异常' }); }
-    const cashier = cashiers.find(c => String(c.id) === String(session.cashier_id) && c.active);
+    const cashier = Array.isArray(cashiers) ? cashiers.find(c => c && String(c.id) === String(session.cashier_id) && (c.active === true || c.active === 1 || c.active === '1' || c.active === 'true')) : null;
     if (!cashier) return res.status(401).json({ error: '账号不存在或已停用' });
-    req.cashier = { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
+    req.cashier = { ...cashier, active: true, permissions: normalizeCashierPermissions(cashier.permissions), store_id: session.store_id, merchant_id: session.merchant_id };
     req.storeId = Number(session.store_id);
     req.merchantId = Number(session.merchant_id);
     next();
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('Cashier authentication failed:', e.message);
+    res.status(500).json({ error: '认证服务暂时不可用' });
   }
 }
 
@@ -78,20 +104,7 @@ async function requireAdminOrCashier(req, res, next) {
       if (!admin) return res.status(401).json({ error: '管理员账号已停用或不存在' });
       const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [adminResult.merchantId]);
       req.isPrimaryAdmin = Boolean(primaryAdmin && String(primaryAdmin.id) === String(admin.id));
-      req.adminPermissions = {
-        can_manage_menu: req.isPrimaryAdmin || admin.can_manage_menu ? 1 : 0,
-        can_manage_table: req.isPrimaryAdmin || admin.can_manage_table ? 1 : 0,
-        can_manage_order: req.isPrimaryAdmin || admin.can_manage_order ? 1 : 0,
-        can_delete_order: req.isPrimaryAdmin || admin.can_delete_order ? 1 : 0,
-        can_edit_order: req.isPrimaryAdmin || admin.can_edit_order ? 1 : 0,
-        can_manage_store: req.isPrimaryAdmin || admin.can_manage_store ? 1 : 0,
-        can_manage_waiter: req.isPrimaryAdmin || admin.can_manage_waiter ? 1 : 0,
-        can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
-        can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
-        can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-        can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
-          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
-      };
+      req.adminPermissions = buildAdminPermissions(admin, req.isPrimaryAdmin);
     }
     return next();
   }
@@ -114,16 +127,17 @@ async function requireAdminOrCashier(req, res, next) {
     if (!cashiersData) return res.status(401).json({ error: '账号不存在' });
     let list = [];
     try { list = JSON.parse(cashiersData.value); } catch (e) { return res.status(401).json({ error: '账号数据异常' }); }
-    const cashier = list.find(c => String(c.id) === String(session.cashier_id) && c.active);
+    const cashier = Array.isArray(list) ? list.find(c => c && String(c.id) === String(session.cashier_id) && (c.active === true || c.active === 1 || c.active === '1' || c.active === 'true')) : null;
     if (!cashier) return res.status(401).json({ error: '账号不存在或已停用' });
-    req.cashier = { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
+    req.cashier = { ...cashier, active: true, permissions: normalizeCashierPermissions(cashier.permissions), store_id: session.store_id, merchant_id: session.merchant_id };
     req.cashierId = cashier.id;
     req.storeId = session.store_id;
     req.merchantId = session.merchant_id;
     req.isCashier = true;
     return next();
   } catch (e) {
-    return res.status(500).json({ error: e.message });
+    return console.error('Authentication middleware failed:', e.message);
+    return res.status(500).json({ error: '认证服务暂时不可用' });
   }
 }
 
@@ -142,20 +156,7 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
       if (!admin) return res.status(401).json({ error: '管理员账号已停用或不存在' });
       const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [adminResult.merchantId]);
       req.isPrimaryAdmin = Boolean(primaryAdmin && String(primaryAdmin.id) === String(admin.id));
-      req.adminPermissions = {
-        can_manage_menu: req.isPrimaryAdmin || admin.can_manage_menu ? 1 : 0,
-        can_manage_table: req.isPrimaryAdmin || admin.can_manage_table ? 1 : 0,
-        can_manage_order: req.isPrimaryAdmin || admin.can_manage_order ? 1 : 0,
-        can_delete_order: req.isPrimaryAdmin || admin.can_delete_order ? 1 : 0,
-        can_edit_order: req.isPrimaryAdmin || admin.can_edit_order ? 1 : 0,
-        can_manage_store: req.isPrimaryAdmin || admin.can_manage_store ? 1 : 0,
-        can_manage_waiter: req.isPrimaryAdmin || admin.can_manage_waiter ? 1 : 0,
-        can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
-        can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
-        can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-        can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
-          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
-      };
+      req.adminPermissions = buildAdminPermissions(admin, req.isPrimaryAdmin);
     }
     return next();
   }
@@ -176,9 +177,9 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
         if (cashiersData) {
           let list = [];
           try { list = JSON.parse(cashiersData.value); } catch (e) {}
-          const cashier = list.find(c => String(c.id) === String(session.cashier_id) && c.active);
+          const cashier = Array.isArray(list) ? list.find(c => c && String(c.id) === String(session.cashier_id) && (c.active === true || c.active === 1 || c.active === '1' || c.active === 'true')) : null;
           if (cashier) {
-            req.cashier = { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
+            req.cashier = { ...cashier, active: true, permissions: normalizeCashierPermissions(cashier.permissions), store_id: session.store_id, merchant_id: session.merchant_id };
             req.cashierId = cashier.id;
             req.storeId = session.store_id;
             req.merchantId = session.merchant_id;
