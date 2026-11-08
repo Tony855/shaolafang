@@ -6,6 +6,20 @@ const { getAsync, runAsync, allAsync } = require('../db/helpers');
 const { getActiveWaiter } = require('../services/waiter-auth');
 const crypto = require('crypto');
 
+function isPermissionEnabled(value) {
+  return value === true || value === 1 || value === '1' || value === 'true';
+}
+
+function buildAdminPermissions(admin, isPrimaryAdmin) {
+  const keys = [
+    'can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order',
+    'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency',
+    'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'
+  ];
+  return Object.fromEntries(keys.map(key => [key, isPrimaryAdmin || isPermissionEnabled(admin[key]) ? 1 : 0]));
+}
+
+
 // Keep cashier activation and permission parsing identical across auth paths.
 // Legacy JSON may contain string values such as "false"; never rely on truthiness.
 function cashierIsActive(cashier) {
@@ -153,20 +167,7 @@ async function requireAdminKey(req, res, next) {
       if (admin) {
         const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [result.merchantId]);
         req.isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
-        req.adminPermissions = {
-          can_manage_menu: req.isPrimaryAdmin || admin.can_manage_menu ? 1 : 0,
-          can_manage_table: req.isPrimaryAdmin || admin.can_manage_table ? 1 : 0,
-          can_manage_order: req.isPrimaryAdmin || admin.can_manage_order ? 1 : 0,
-          can_delete_order: req.isPrimaryAdmin || admin.can_delete_order ? 1 : 0,
-          can_edit_order: req.isPrimaryAdmin || admin.can_edit_order ? 1 : 0,
-          can_manage_store: req.isPrimaryAdmin || admin.can_manage_store ? 1 : 0,
-          can_manage_waiter: req.isPrimaryAdmin || admin.can_manage_waiter ? 1 : 0,
-          can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
-          can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
-          can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
-          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
-        };
+        req.adminPermissions = buildAdminPermissions(admin, req.isPrimaryAdmin);
       }
     } catch (e) { console.warn('加载管理员权限失败:', e.message); }
     return next();
@@ -209,20 +210,7 @@ async function requireAdminOrWaiter(req, res, next) {
       if (admin) {
         const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [adminResult.merchantId]);
         req.isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
-        req.adminPermissions = {
-          can_manage_menu: req.isPrimaryAdmin || admin.can_manage_menu ? 1 : 0,
-          can_manage_table: req.isPrimaryAdmin || admin.can_manage_table ? 1 : 0,
-          can_manage_order: req.isPrimaryAdmin || admin.can_manage_order ? 1 : 0,
-          can_delete_order: req.isPrimaryAdmin || admin.can_delete_order ? 1 : 0,
-          can_edit_order: req.isPrimaryAdmin || admin.can_edit_order ? 1 : 0,
-          can_manage_store: req.isPrimaryAdmin || admin.can_manage_store ? 1 : 0,
-          can_manage_waiter: req.isPrimaryAdmin || admin.can_manage_waiter ? 1 : 0,
-          can_manage_currency: req.isPrimaryAdmin || admin.can_manage_currency ? 1 : 0,
-          can_manage_printer: req.isPrimaryAdmin || admin.can_manage_printer ? 1 : 0,
-          can_manage_admin: req.isPrimaryAdmin || admin.can_manage_admin ? 1 : 0,
-          can_view_logs: req.isPrimaryAdmin || admin.can_view_logs ? 1 : 0,
-          can_manage_cashier: req.isPrimaryAdmin || admin.can_manage_cashier ? 1 : 0
-        };
+        req.adminPermissions = buildAdminPermissions(admin, req.isPrimaryAdmin);
       }
     } catch (e) { console.warn('加载管理员权限失败:', e.message); }
     return next();
