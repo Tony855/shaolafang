@@ -6,7 +6,7 @@ module.exports = function(app, deps) {
 
   function boundedSetting(value, fallback, min, max) {
     const text = typeof value === 'number' ? String(value) : value;
-    if (typeof text !== 'string' || !/^(0|[1-9]\\d*)$/.test(text)) return fallback;
+    if (typeof text !== 'string' || !/^(0|[1-9]\d*)$/.test(text)) return fallback;
     const number = Number(text);
     return Number.isSafeInteger(number) && number >= min && number <= max ? number : fallback;
   }
