@@ -1,6 +1,7 @@
 /* routes/display.js — 展示页配置（按店铺隔离） */
 module.exports = function(app, deps) {
-  const { allAsync, runAsync, withTransaction, requireAdminKey, requirePermission } = deps;
+  const { allAsync, runAsync, requireAdminKey, requirePermission } = deps;
+  const withTransaction = deps.withTransaction || require('../server/db/helpers').withTransaction;
 
   const DEFAULTS = {
     mode: 'grid',
