@@ -177,7 +177,7 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
         if (cashiersData) {
           let list = [];
           try { list = JSON.parse(cashiersData.value); } catch (e) {}
-          const cashier = list.find(c => c && String(c.id) === String(session.cashier_id) && (c.active === true || c.active === 1 || c.active === '1' || c.active === 'true'));
+          const cashier = Array.isArray(list) ? list.find(c => c && String(c.id) === String(session.cashier_id) && (c.active === true || c.active === 1 || c.active === '1' || c.active === 'true')) : null;
           if (cashier) {
             req.cashier = { ...cashier, active: true, permissions: normalizeCashierPermissions(cashier.permissions), store_id: session.store_id, merchant_id: session.merchant_id };
             req.cashierId = cashier.id;
