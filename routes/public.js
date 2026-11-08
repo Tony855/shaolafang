@@ -4,6 +4,19 @@
 module.exports = function(app, deps) {
   const { getAsync, allAsync } = deps;
 
+  function boundedSetting(value, fallback, min, max) {
+    const text = typeof value === 'number' ? String(value) : value;
+    if (typeof text !== 'string' || !/^(0|[1-9]\d*)$/.test(text)) return fallback;
+    const number = Number(text);
+    return Number.isSafeInteger(number) && number >= min && number <= max ? number : fallback;
+  }
+
+  function settingFlag(value, fallback = true) {
+    if ([true, 1, '1', 'true'].includes(value)) return true;
+    if ([false, 0, '0', 'false'].includes(value)) return false;
+    return fallback;
+  }
+
   app.get('/api/public/config', async (req, res) => {
     try {
       const storeId = Number(req.query.store_id ?? 1);
@@ -38,16 +51,16 @@ module.exports = function(app, deps) {
       rows.forEach(r => { s[r.key] = r.value; });
       const constraints = {
         order: {
-          maxItemTypes: parseInt(s.max_order_items || '50', 10),
-          maxPerItem: parseInt(s.max_item_quantity || '100', 10),
-          maxNoteLength: parseInt(s.max_order_note_length || '200', 10),
-          minIntervalSec: parseInt(s.order_interval_seconds || '30', 10),
+          maxItemTypes: boundedSetting(s.max_order_items, 50, 1, 200),
+          maxPerItem: boundedSetting(s.max_item_quantity, 100, 1, 1000),
+          maxNoteLength: boundedSetting(s.max_order_note_length, 200, 0, 2000),
+          minIntervalSec: boundedSetting(s.order_interval_seconds, 30, 1, 3600),
         },
         call: {
-          enabled: (s.call_limit_enabled || '1') !== '0',
-          maxPerWindow: parseInt(s.call_limit_max || '3', 10),
-          windowMinutes: parseInt(s.call_limit_window_minutes || '5', 10),
-          cooldownMinutes: parseInt(s.call_limit_cooldown_minutes || '10', 10),
+          enabled: settingFlag(s.call_limit_enabled, true),
+          maxPerWindow: boundedSetting(s.call_limit_max, 3, 1, 100),
+          windowMinutes: boundedSetting(s.call_limit_window_minutes, 5, 1, 1440),
+          cooldownMinutes: boundedSetting(s.call_limit_cooldown_minutes, 10, 1, 1440),
         },
       };
       res.json({
@@ -59,13 +72,13 @@ module.exports = function(app, deps) {
         dualCurrency: { enabled: !!secondaryCurrency, currency: secondaryCurrency },
         newOrderSoundEnabled: soundRow ? soundRow.value === '1' : true,
         constraints,
-        waiter_refresh_interval: parseInt(s.waiter_refresh_interval || '8', 10),
-        kitchen_auto_hide_minutes: parseInt(s.kitchen_auto_hide_minutes || '10', 10),
+        waiter_refresh_interval: boundedSetting(s.waiter_refresh_interval, 8, 1, 300),
+        kitchen_auto_hide_minutes: boundedSetting(s.kitchen_auto_hide_minutes, 10, 0, 1440),
         max_order_items: constraints.order.maxItemTypes,
         max_item_quantity: constraints.order.maxPerItem,
         max_order_note_length: constraints.order.maxNoteLength,
       });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '读取公开配置失败' }); }
   });
 
   app.get('/api/public/store-info', async (req, res) => {
@@ -75,7 +88,7 @@ module.exports = function(app, deps) {
       const store = await getAsync('SELECT s.id, s.name, s.address FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       res.json(store);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '公开接口请求失败，请稍后重试' }); }
   });
 
   app.get('/api/public/categories', async (req, res) => {
@@ -86,7 +99,7 @@ module.exports = function(app, deps) {
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       const rows = await allAsync('SELECT id, name, sort FROM menu_categories WHERE store_id=? ORDER BY sort', [storeId]);
       res.json(rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '公开接口请求失败，请稍后重试' }); }
   });
 
   // ★ KHQR 银行列表（给前端拉取图标映射）
@@ -118,7 +131,7 @@ module.exports = function(app, deps) {
         defaultBank: { name: DEFAULT_BANK.name, icon: resolveIcon(DEFAULT_BANK.icon) },
       });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: '读取银行列表失败' });
     }
   });
 
