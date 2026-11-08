@@ -6,6 +6,27 @@ const { getAsync, runAsync, allAsync } = require('../db/helpers');
 const { getActiveWaiter } = require('../services/waiter-auth');
 const crypto = require('crypto');
 
+// Keep cashier activation and permission parsing identical across auth paths.
+// Legacy JSON may contain string values such as "false"; never rely on truthiness.
+function cashierIsActive(cashier) {
+  return !!cashier && (cashier.active === true || cashier.active === 1 ||
+    cashier.active === '1' || cashier.active === 'true');
+}
+
+function normalizeCashierPermissions(raw) {
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const enabled = (value, fallback) => {
+    if (value === undefined || value === null) return fallback;
+    return value === true || value === 1 || value === '1' || value === 'true';
+  };
+  return {
+    can_settle: enabled(source.can_settle, true),
+    can_cancel: enabled(source.can_cancel, true),
+    can_refund: enabled(source.can_refund, false),
+    can_view_report: enabled(source.can_view_report, true)
+  };
+}
+
 async function getWaiterFromRequest(req) {
   const token = req.get('X-Waiter-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
@@ -31,9 +52,16 @@ async function getCashierFromRequest(req) {
   if (!cashiersData) return null;
   let cashiers = [];
   try { cashiers = JSON.parse(cashiersData.value); } catch (e) { return null; }
-  const cashier = cashiers.find(c => String(c.id) === String(session.cashier_id) && c.active);
+  if (!Array.isArray(cashiers)) return null;
+  const cashier = cashiers.find(c => String(c.id) === String(session.cashier_id) && cashierIsActive(c));
   if (!cashier) return null;
-  return { ...cashier, store_id: session.store_id, merchant_id: session.merchant_id };
+  return {
+    ...cashier,
+    active: true,
+    permissions: normalizeCashierPermissions(cashier.permissions),
+    store_id: session.store_id,
+    merchant_id: session.merchant_id
+  };
 }
 
 async function authenticateAdmin(req) {
