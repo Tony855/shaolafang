@@ -88,7 +88,7 @@ module.exports = function(app, deps) {
       const store = await getAsync('SELECT s.id, s.name, s.address FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       res.json(store);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '公开接口请求失败，请稍后重试' }); }
   });
 
   app.get('/api/public/categories', async (req, res) => {
@@ -99,7 +99,7 @@ module.exports = function(app, deps) {
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       const rows = await allAsync('SELECT id, name, sort FROM menu_categories WHERE store_id=? ORDER BY sort', [storeId]);
       res.json(rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '公开接口请求失败，请稍后重试' }); }
   });
 
   // ★ KHQR 银行列表（给前端拉取图标映射）
