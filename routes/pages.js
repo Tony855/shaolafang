@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const QRCode = require('qrcode');
+const { escapeHtml, jsonForScript } = require('../server/utils/html');
 
 module.exports = function registerPageRoutes(app, ctx) {
   const { getAsync, requireAdminKey, requirePermission } = ctx;
@@ -91,28 +92,28 @@ module.exports = function registerPageRoutes(app, ctx) {
       if (!fs.existsSync(templatePath)) return res.status(500).send('QR template missing');
       const template = fs.readFileSync(templatePath, 'utf-8');
       const html = template
-        .replace(/{{lang}}/g, lang)
-        .replace(/{{table}}/g, table.name)
-        .replace(/{{storeName}}/g, storeName)
-        .replace(/{{qrCode}}/g, t.qrCode)
-        .replace(/{{tableLabel}}/g, t.table)
-        .replace(/{{orderingQrCode}}/g, t.orderingQrCode)
-        .replace(/{{scanToOrder}}/g, displayLangs.map(l => (i18nMap[l] || i18nMap.zh).scanToOrder).join('\n'))
-        .replace(/{{scanToOrderLines}}/g, displayLangs.map(l => '<div class="scan-line">' + (i18nMap[l] || i18nMap.zh).scanToOrder + '</div>').join(''))
-        .replace(/{{download}}/g, t.download)
-        .replace(/{{print}}/g, t.print)
-        .replace(/{{copy}}/g, t.copy)
-        .replace(/{{copied}}/g, t.copied)
-        .replace(/{{copyLink}}/g, t.copyLink)
-        .replace(/{{copyFailed}}/g, t.copyFailed)
-        .replace(/{{url}}/g, url)
-        .replace(/{{qrDataUrl}}/g, qrDataUrl)
-        .replace(/{{storeNameJson}}/g, JSON.stringify(storeName))
-        .replace(/{{tableJson}}/g, JSON.stringify(table.name))
-        .replace(/{{tableLabelJson}}/g, JSON.stringify(t.table))
-        .replace(/{{scanToOrderJson}}/g, JSON.stringify(displayLangs.map(l => (i18nMap[l] || i18nMap.zh).scanToOrder)))
-        .replace(/{{qrCodeJson}}/g, JSON.stringify(t.qrCode))
-        .replace(/{{qrDataUrlJson}}/g, JSON.stringify(qrDataUrl));
+        .replace(/{{lang}}/g, () => escapeHtml(lang))
+        .replace(/{{table}}/g, () => escapeHtml(table.name))
+        .replace(/{{storeName}}/g, () => escapeHtml(storeName))
+        .replace(/{{qrCode}}/g, () => escapeHtml(t.qrCode))
+        .replace(/{{tableLabel}}/g, () => escapeHtml(t.table))
+        .replace(/{{orderingQrCode}}/g, () => escapeHtml(t.orderingQrCode))
+        .replace(/{{scanToOrder}}/g, () => escapeHtml(displayLangs.map(l => (i18nMap[l] || i18nMap.zh).scanToOrder).join('\n')))
+        .replace(/{{scanToOrderLines}}/g, () => displayLangs.map(l => '<div class="scan-line">' + escapeHtml((i18nMap[l] || i18nMap.zh).scanToOrder) + '</div>').join(''))
+        .replace(/{{download}}/g, () => escapeHtml(t.download))
+        .replace(/{{print}}/g, () => escapeHtml(t.print))
+        .replace(/{{copy}}/g, () => escapeHtml(t.copy))
+        .replace(/{{copied}}/g, () => escapeHtml(t.copied))
+        .replace(/{{copyLink}}/g, () => escapeHtml(t.copyLink))
+        .replace(/{{copyFailed}}/g, () => escapeHtml(t.copyFailed))
+        .replace(/{{url}}/g, () => escapeHtml(url))
+        .replace(/{{qrDataUrl}}/g, () => escapeHtml(qrDataUrl))
+        .replace(/{{storeNameJson}}/g, () => jsonForScript(storeName))
+        .replace(/{{tableJson}}/g, () => jsonForScript(table.name))
+        .replace(/{{tableLabelJson}}/g, () => jsonForScript(t.table))
+        .replace(/{{scanToOrderJson}}/g, () => jsonForScript(displayLangs.map(l => (i18nMap[l] || i18nMap.zh).scanToOrder)))
+        .replace(/{{qrCodeJson}}/g, () => jsonForScript(t.qrCode))
+        .replace(/{{qrDataUrlJson}}/g, () => jsonForScript(qrDataUrl));
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(html);
     } catch (e) {

@@ -41,7 +41,7 @@ async function loadWaiterCalls() {
                 <div style="font-weight:700;font-size:16px;color:#fff;">${icon} ${tAdmin('table')} ${esc(c.table_name)} ${label}</div>
                 <div style="color:#b8b8c8;font-size:13px;margin-top:4px;">${esc(c.created_at)}${c.message ? ' · ' + esc(c.message) : ''}</div>
             </div>
-            <button onclick="handleWaiterCall('${c.id}')" style="background:${btnBg};color:#fff;border:0;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;">${tAdmin('handled')}</button>
+            <button onclick="handleWaiterCall(${Number(c.id)})" style="background:${btnBg};color:#fff;border:0;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;">${tAdmin('handled')}</button>
         </div>
     `;
     }).join('');

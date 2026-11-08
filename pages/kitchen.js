@@ -350,7 +350,7 @@
             <div class="urge-item-table">⚡ ${utils.esc(c.table_name)} ${t('urgeOrder', null, '催单')}</div>
             <div class="urge-item-msg">${utils.esc(c.message || '')}</div>
           </div>
-          <button class="urge-item-btn" onclick="handleUrge('${c.id}')">${t('handled', null, '已处理')}</button>
+          <button class="urge-item-btn" onclick="handleUrge(${Number(c.id)})">${t('handled', null, '已处理')}</button>
         </div>
       `).join('');
       $('#urgeList').innerHTML = list;

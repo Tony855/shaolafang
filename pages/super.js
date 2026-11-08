@@ -416,7 +416,7 @@ async function loadMerchants() {
         <td>
           <div class="merchant-actions">
             <button class="action-btn primary" onclick="editMerchant(${m.id})">编辑</button>
-            <button class="action-btn" onclick="openPaymentMethods(${m.id}, '${esc(m.name)}')" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#0a3d1a;">💳 支付</button>
+            <button class="action-btn" onclick="openPaymentMethods(${m.id}, this.dataset.name)" data-name="${esc(m.name)}" style="background:linear-gradient(135deg,#43e97b,#38f9d7);color:#0a3d1a;">💳 支付</button>
             <button class="action-btn warning" onclick="resetPassword(${m.id})">重置密码</button>
             ${m.id != 1 ? `<button class="action-btn danger" onclick="deleteMerchant(${m.id})">删除</button>` : ''}
           </div>
