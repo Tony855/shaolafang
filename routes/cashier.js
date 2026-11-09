@@ -502,8 +502,6 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: settledTableName, total: lockedOrder.total, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
     });
-    if (replayResponse) return res.json(replayResponse);
-    if (replayResponse) return res.json(replayResponse);
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
@@ -702,6 +700,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       );
     });
 
+    if (replayResponse) return res.json(replayResponse);
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
