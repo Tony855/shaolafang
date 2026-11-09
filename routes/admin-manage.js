@@ -913,7 +913,7 @@ module.exports = function(app, deps) {
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      const orderId = orderId;
+      const orderId = Number(order_id);
       if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
