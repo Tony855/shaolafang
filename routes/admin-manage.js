@@ -1277,8 +1277,8 @@ module.exports = function(app, deps) {
           throw error;
         }
         const result = await runAsync(
-          "UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=? AND pay_khqr_ref=?",
-          [orderId, sid, Number(order.awaiting_confirm) ? 1 : 0, String(order.pay_khqr_ref || '')]
+          "UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=? AND pay_khqr_ref <=> ?",
+          [orderId, sid, Number(order.awaiting_confirm) ? 1 : 0, order.pay_khqr_ref ?? null]
         );
         if (!result.affectedRows) {
           const error = new Error('订单状态已变化，请刷新后重试');
