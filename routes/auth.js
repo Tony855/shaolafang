@@ -35,7 +35,7 @@ module.exports = function(app, deps) {
         const upgradedHash = hashPassword(password);
         await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, admin.id, admin.password_hash]);
       }
-      resetLoginAttempts(username, 'merchant_admin');
+      await resetLoginAttempts(username, 'merchant_admin');
       await runAsync('UPDATE merchant_admins SET last_login_at=NOW() WHERE id=?', [admin.id]);
       const clientIp = getClientIp(req);
       const location = await getLocationByIp(clientIp);

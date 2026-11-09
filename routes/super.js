@@ -65,7 +65,7 @@ app.post('/api/super/login', async (req, res) => {
       const upgradedHash = hashPassword(password);
       await runAsync('UPDATE super_admins SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, superAdmin.id, superAdmin.password_hash]);
     }
-    resetLoginAttempts(username, 'super_admin');
+    await resetLoginAttempts(username, 'super_admin');
     await runAsync('UPDATE super_admins SET last_login_at=NOW() WHERE id=?', [superAdmin.id]);
     const superLocation = await getLocationByIp(clientIp);
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, superLocation, 'super_admin', '超级管理员登录成功: ' + username]);

@@ -3,6 +3,8 @@ const express = require('express');
 const poolModule = require('./server/db/pool');
 const { poolConfig, setPool } = poolModule;
 const { runAsync, getAsync, allAsync, withTransaction } = require('./server/db/helpers');
+const { createLoginRateLimiter } = require('./server/services/login-rate-limit');
+const { isLoginLocked, resetLoginAttempts } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
 const { initMerchantSettings, initStoreSettings } = require('./server/services/settings-init');
 const cors = require('cors');
@@ -343,37 +345,10 @@ const upload = multer({
 // ---------- 常量 ----------
 const createTableToken = () => crypto.randomBytes(12).toString('base64url');
 
-// ---------- 登录限流器（跨进程/集群持久化） ----------
-// Every failed login is written to login_logs by the caller. Querying this table
-// makes the lockout effective across workers and cluster nodes, unlike a process-local Map.
+// ---------- 登录限流器（InnoDB 行锁，跨进程/多实例原子执行） ----------
 function recordLoginAttempt() {
-  // Intentionally no-op: the failed login row is written before this call.
-}
-
-function resetLoginAttempts() {
-  // Successful login rows form the reset boundary in isLoginLocked().
-}
-
-async function isLoginLocked(username, type) {
-  const settings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_max_attempts'");
-  const lockSettings = await getAsync("SELECT value FROM settings WHERE `key` = 'login_lock_minutes'");
-  const maxAttempts = Math.max(1, parseInt(settings?.value || '5', 10) || 5);
-  const lockMinutes = Math.max(1, parseInt(lockSettings?.value || '15', 10) || 15);
-  const cutoff = new Date(Date.now() - lockMinutes * 60 * 1000).toISOString();
-  const recent = await getAsync(
-    "SELECT COUNT(*) AS count, MAX(createdAt) AS last_attempt " +
-    "FROM login_logs WHERE username=? AND login_type=? AND success=0 " +
-    "AND createdAt >= ? " +
-    "AND createdAt > COALESCE((SELECT MAX(createdAt) FROM login_logs WHERE username=? AND login_type=? AND success=1), '')",
-    [String(username || '').slice(0, 100), type, cutoff, String(username || '').slice(0, 100), type]
-  );
-  const count = Number(recent?.count || 0);
-  if (count >= maxAttempts && recent.last_attempt) {
-    const lockUntil = new Date(recent.last_attempt).getTime() + lockMinutes * 60 * 1000;
-    const remaining = Math.ceil((lockUntil - Date.now()) / 60000);
-    if (remaining > 0) return { locked: true, remaining, maxAttempts, lockMinutes };
-  }
-  return { locked: false, maxAttempts, lockMinutes };
+  // Attempt slots are reserved atomically by isLoginLocked before password verification.
+  // login_logs remains the audit trail; it is no longer the concurrency-control primitive.
 }
 
 // ============================================================
@@ -442,6 +417,19 @@ async function writeInitialCredentialsFile(credentials) {
 
 // ---------- 数据库初始化 ----------
 async function ensureOrderTables() {
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS login_rate_limits (
+      login_type VARCHAR(50) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      username VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+      failed_attempts INT UNSIGNED NOT NULL DEFAULT 0,
+      window_started_at DATETIME(3) NOT NULL,
+      locked_until DATETIME(3) DEFAULT NULL,
+      updated_at DATETIME(3) NOT NULL,
+      PRIMARY KEY (login_type, username),
+      KEY idx_login_rate_locked (locked_until)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   const missingTables = await allAsync(`
     SELECT DISTINCT o.table_name AS name, o.store_id AS store_id
     FROM orders o

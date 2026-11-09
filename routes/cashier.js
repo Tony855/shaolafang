@@ -68,7 +68,7 @@ app.post('/api/waiter/login', async (req, res) => {
       const upgradedHash = hashPassword(password);
       await runAsync('UPDATE waiters SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, waiter.id, waiter.password_hash]);
     }
-    resetLoginAttempts(username, 'waiter');
+    await resetLoginAttempts(username, 'waiter');
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '服务员登录成功']);
     const token = crypto.randomBytes(24).toString('base64url');
     const waiterTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
@@ -198,7 +198,7 @@ app.post('/api/cashier/login', async (req, res) => {
       );
     });
 
-    resetLoginAttempts(username, 'cashier');
+    await resetLoginAttempts(username, 'cashier');
     res.json({
       token, storeId: candidate.storeId, storeName: authenticatedStoreName, cashier: authenticatedCashier
     });
