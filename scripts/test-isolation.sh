@@ -191,6 +191,7 @@ echo "=============== 清理测试数据 ==============="
 
 if [ -n "${MID_A:-}" ] && [ -n "${MID_B:-}" ] && [ -n "${S_A:-}" ] && [ -n "${S_B:-}" ]; then
 mysql -u root foodflow_system -e "
+DELETE FROM refund_requests WHERE store_id IN ($S_A, $S_B);
 DELETE FROM orders WHERE store_id IN ($S_A, $S_B);
 DELETE FROM waiter_calls WHERE store_id IN ($S_A, $S_B);
 DELETE FROM scan_sessions WHERE store_id IN ($S_A, $S_B);

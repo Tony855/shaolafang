@@ -239,7 +239,7 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       // Remove store-scoped records before deleting their parent stores.
       if (storeIds.length > 0) {
         const placeholders = storeIds.map(() => '?').join(',');
-        for (const tbl of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
+        for (const tbl of ['menus', 'tables', 'refund_requests', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
           await runAsync(`DELETE FROM \`${tbl}\` WHERE store_id IN (${placeholders})`, storeIds);
         }
       }
@@ -660,12 +660,14 @@ app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '50mb' }), async (req, res) => {
   try {
     const data = req.body;
-    const tables = ['merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies', 'order_sequences', 'orders', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'];
+    const tables = ['merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies', 'order_sequences', 'orders', 'refund_requests', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'];
     if (!data || !data.tables || typeof data.tables !== 'object' || Array.isArray(data.tables)) {
       return res.status(400).json({ error: '备份文件格式无效' });
     }
     // Older backups may not contain the order sequence table; restore it as empty for compatibility.
     if (data.tables.order_sequences === undefined) data.tables.order_sequences = [];
+    // Older backups predate the refund idempotency ledger.
+    if (data.tables.refund_requests === undefined) data.tables.refund_requests = [];
     // Reject incomplete or malformed backups before deleting a single production row.
     for (const table of tables) {
       if (!Array.isArray(data.tables[table])) {
@@ -765,6 +767,7 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
     // Keep all destructive DML and its audit record atomic. MySQL ALTER TABLE
     // implicitly commits, so auto-increment maintenance must happen afterwards.
     await withTransaction(async () => {
+      await runAsync('DELETE FROM refund_requests');
       await runAsync('DELETE FROM orders');
       await runAsync('DELETE FROM waiter_calls');
       await runAsync('DELETE FROM scan_sessions');

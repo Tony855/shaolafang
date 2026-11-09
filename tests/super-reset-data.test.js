@@ -76,6 +76,7 @@ test('super data reset groups all deletes and audit in one transaction, then res
   assert.equal(ctx.transactionCount, 1);
   const dml = ctx.calls.filter(call => call.sql && call.sql.startsWith('DELETE'));
   assert.deepEqual(dml.map(call => call.sql), [
+    'DELETE FROM refund_requests',
     'DELETE FROM orders',
     'DELETE FROM waiter_calls',
     'DELETE FROM scan_sessions'

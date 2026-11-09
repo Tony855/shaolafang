@@ -139,6 +139,15 @@ test('store deletion refuses to orphan existing order history', async () => {
   assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('DELETE FROM stores')), false);
 });
 
+test('store deletion refuses to orphan refund idempotency records', async () => {
+  const ctx = setup({ storeCount: 2, currentStoreId: 2, firstStoreId: 1, dependentTable: 'refund_requests' });
+  const res = response();
+  await ctx.deleteHandler({ merchantId: 5, params: { id: '2' }, adminId: 7, username: 'owner' }, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /refund_requests/);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('DELETE FROM stores')), false);
+});
+
 test('empty non-primary store is deleted with settings cleanup and audit in one transaction', async () => {
   const ctx = setup({ storeCount: 2, currentStoreId: 2, firstStoreId: 1 });
   const res = response();
