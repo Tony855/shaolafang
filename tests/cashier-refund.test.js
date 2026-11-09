@@ -13,13 +13,25 @@ function setup(reportOrders = []) {
     delete(path, ...callbacks) { handlers.set('DELETE ' + path, callbacks[callbacks.length - 1]); }
   };
   const state = { id: 5, store_id: 1, table_name: 'A01', status: 'done', total: 100, refund_amount: 0 };
+  const idempotency = new Map();
+  let generatedRequestId = 0;
   const deps = {
-    getAsync: async (sql) => {
+    getAsync: async (sql, params) => {
+      if (sql.includes('FROM cashier_refund_requests')) return idempotency.get(params[1]) || null;
       if (sql.includes('FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return { ...state };
       return null;
     },
     allAsync: async sql => sql.includes("status IN ('done', 'refunded')") ? reportOrders : [],
     runAsync: async (sql, params) => {
+      if (sql.startsWith('INSERT IGNORE INTO cashier_refund_requests')) {
+        if (!idempotency.has(params[1])) idempotency.set(params[1], { order_id: params[2], request_hash: params[3], response_json: null });
+        return { affectedRows: 1 };
+      }
+      if (sql.startsWith('UPDATE cashier_refund_requests SET response_json=?')) {
+        const row = idempotency.get(params[2]);
+        if (row) row.response_json = params[0];
+        return { affectedRows: 1 };
+      }
       if (sql.startsWith('UPDATE orders SET status=?')) {
         state.status = params[0];
         state.refund_amount = Number(params[5]);
@@ -44,7 +56,13 @@ function setup(reportOrders = []) {
     io: { to: () => ({ emit() {} }) }
   };
   registerCashierRoutes(app, deps);
-  return { handler: handlers.get('PUT /api/cashier/orders/:id/refund'), reportHandler: handlers.get('GET /api/cashier/report/today'), state };
+  const rawRefundHandler = handlers.get('PUT /api/cashier/orders/:id/refund');
+  const handler = (req, res) => {
+    req.body = req.body || {};
+    if (!req.body.request_id) req.body.request_id = 'test-request-' + (++generatedRequestId).toString().padStart(16, '0');
+    return rawRefundHandler(req, res);
+  };
+  return { handler, reportHandler: handlers.get('GET /api/cashier/report/today'), state };
 }
 
 function response() {
@@ -189,4 +207,40 @@ test('refund route order IDs reject non-canonical numeric coercions', () => {
   for (const value of ['', '0', '-1', ' 5 ', '5abc', '5.0', '5e0', '9007199254740992', true, false, [], {}, null, undefined]) {
     assert.equal(parsePositiveOrderId(value), null, String(value));
   }
+});
+
+test('refund request retries return the original result without applying a second refund', async () => {
+  const { handler, state } = setup();
+  const req = {
+    params: { id: '5' }, storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
+    body: { amount: 30, reason: 'customer request', request_id: 'stable-refund-request-0001' }
+  };
+  const first = response();
+  await handler(req, first);
+  assert.equal(first.statusCode, 200);
+  assert.equal(state.refund_amount, 30);
+
+  const retry = response();
+  await handler(req, retry);
+  assert.equal(retry.statusCode, 200);
+  assert.deepEqual(retry.body, first.body);
+  assert.equal(state.refund_amount, 30);
+});
+
+test('a refund request key cannot be reused with different refund parameters', async () => {
+  const { handler, state } = setup();
+  const req = {
+    params: { id: '5' }, storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
+    body: { amount: 30, reason: 'customer request', request_id: 'stable-refund-request-0002' }
+  };
+  const first = response();
+  await handler(req, first);
+  assert.equal(first.statusCode, 200);
+  req.body.amount = 40;
+  const conflict = response();
+  await handler(req, conflict);
+  assert.equal(conflict.statusCode, 409);
+  assert.equal(state.refund_amount, 30);
 });
