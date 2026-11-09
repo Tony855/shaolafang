@@ -20,6 +20,7 @@ function setup({ initialOrder, lockedOrder = initialOrder } = {}) {
   const deps = {
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
+      if (sql.includes('SELECT id, table_name, status FROM orders WHERE id=? AND store_id=?')) return initialOrder;
       if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return lockedOrder;
       if (sql.includes('SELECT * FROM orders WHERE id = ? AND store_id = ?')) {
         if (!initialRead) { initialRead = true; return initialOrder; }
@@ -30,6 +31,7 @@ function setup({ initialOrder, lockedOrder = initialOrder } = {}) {
     },
     allAsync: async (sql, params) => {
       calls.push({ type: 'all', sql, params });
+      if (sql.includes('FROM tables WHERE store_id=? AND name IN (?, ?)')) return [{ id: 1, name: 'A01', status: 'occupied', active: 1 }, { id: 2, name: 'B01', status: 'available', active: 1 }];
       if (sql.includes('SELECT id, name FROM tables')) return [{ id: 1, name: 'A01' }];
       return [];
     },
@@ -59,7 +61,7 @@ function setup({ initialOrder, lockedOrder = initialOrder } = {}) {
     getWaiterFromRequest: async () => null
   };
   registerOrderRoutes(app, deps);
-  return { handler: handlers.get('PUT /api/orders/:id(\\d+)'), calls, events, transactions };
+  return { handler: handlers.get('PUT /api/orders/:id(\\d+)'), transferHandler: handlers.get('POST /api/orders/:id/transfer'), itemHandler: handlers.get('PUT /api/orders/:id/items/:index'), calls, events, transactions };
 }
 
 function response() {
@@ -211,4 +213,52 @@ test('waiter completion rejects sub-cent cash fields before transaction', async 
   assert.match(res.body.error, /两位小数/);
   assert.equal(calls.some(call => call.type === 'run'), false);
   assert.deepEqual(transactions, []);
+});
+
+
+test('admin cannot change order items while a KHQR QR code is still active', async () => {
+  const live = order({
+    pay_khqr_ref: 'active-dynamic-qr',
+    pay_expires_at: new Date(Date.now() + 60_000).toISOString()
+  });
+  const { itemHandler, calls, transactions, events } = setup({ initialOrder: live, lockedOrder: live });
+  const res = response();
+  await itemHandler({
+    params: { id: '9', index: '0' },
+    storeId: 1,
+    isAdmin: true,
+    isPrimaryAdmin: true,
+    adminId: 2,
+    body: { returnQty: 1 }
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /KHQR/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('UPDATE orders SET')), false);
+  assert.deepEqual(transactions, ['begin', 'rollback']);
+  assert.equal(events.length, 0);
+});
+
+test('admin cannot transfer an order while a KHQR QR code is still active', async () => {
+  const live = order({
+    pay_khqr_ref: 'active-dynamic-qr',
+    pay_expires_at: new Date(Date.now() + 60_000).toISOString()
+  });
+  const { transferHandler, calls, transactions, events } = setup({ initialOrder: live, lockedOrder: live });
+  const res = response();
+  await transferHandler({
+    params: { id: '9' },
+    storeId: 1,
+    isAdmin: true,
+    isPrimaryAdmin: true,
+    adminId: 2,
+    adminPermissions: { can_manage_order: true },
+    body: { target_table: 'B01' }
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /KHQR/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('UPDATE orders SET table_name=')), false);
+  assert.deepEqual(transactions, ['begin', 'rollback']);
+  assert.equal(events.length, 0);
 });

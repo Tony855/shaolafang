@@ -530,3 +530,74 @@ test('table QR code route rejects malformed table IDs before database access', a
   assert.equal(res.statusCode, 400);
   assert.equal(queries, 0);
 });
+
+
+test('whole-table move refuses to move orders with an active KHQR payload', async () => {
+  const { app, routes } = routeHarness();
+  const writes = [];
+  let transactionCalls = 0;
+  const emitted = [];
+  require('../routes/tables')(app, {
+    requireAdminOrWaiter: pass,
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    allAsync: async sql => {
+      if (sql.includes('FROM tables') && sql.includes('FOR UPDATE')) {
+        return [{ id: 1, name: 'A1', status: 'occupied' }, { id: 2, name: 'A2', status: 'available' }];
+      }
+      if (sql.includes('FROM orders') && sql.includes('FOR UPDATE')) {
+        return [{ id: 11, awaiting_confirm: 0, pay_khqr_ref: 'active-qr', pay_expires_at: new Date(Date.now() + 60000).toISOString() }];
+      }
+      return [];
+    },
+    getAsync: async () => null,
+    runAsync: async (sql, params) => { writes.push({ sql, params }); return { affectedRows: 1 }; },
+    withTransaction: async fn => { transactionCalls++; return fn(); },
+    syncTableStatus: async () => {},
+    io: { to: room => ({ emit: (event, payload) => emitted.push({ room, event, payload }) }) },
+    createTableToken: () => 'unused'
+  });
+
+  const res = response();
+  await routes.get('POST /api/tables/move').at(-1)({
+    isAdmin: true, isPrimaryAdmin: true, storeId: 7,
+    body: { from_table: 'A1', target_table: 'A2' }
+  }, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /KHQR/);
+  assert.equal(writes.some(x => x.sql.includes('UPDATE orders SET table_name=')), false);
+  assert.deepEqual(emitted, []);
+  assert.equal(transactionCalls, 1);
+});
+
+test('renaming a table refuses to move pending orders with an active KHQR payload', async () => {
+  const { app, routes } = routeHarness();
+  const writes = [];
+  let transactionCalls = 0;
+  require('../routes/tables')(app, {
+    requireAdminOrWaiter: pass,
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async sql => {
+      if (sql.includes('FROM tables WHERE id=? AND store_id=? FOR UPDATE')) return { id: 1, name: 'A1', status: 'occupied' };
+      return null;
+    },
+    allAsync: async sql => sql.includes('FROM orders') && sql.includes('FOR UPDATE')
+      ? [{ id: 11, awaiting_confirm: 0, pay_khqr_ref: 'active-qr', pay_expires_at: new Date(Date.now() + 60000).toISOString() }]
+      : [],
+    runAsync: async (sql, params) => { writes.push({ sql, params }); return { affectedRows: 1 }; },
+    withTransaction: async fn => { transactionCalls++; return fn(); },
+    syncTableStatus: async () => {},
+    io: { to: () => ({ emit() {} }) },
+    createTableToken: () => 'unused'
+  });
+
+  const res = response();
+  await routes.get('PUT /api/tables/:id').at(-1)({
+    storeId: 7, params: { id: '1' }, body: { name: 'A1-renamed' }
+  }, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /KHQR/);
+  assert.equal(writes.some(x => x.sql.startsWith('UPDATE tables SET name=')), false);
+  assert.equal(transactionCalls, 1);
+});
