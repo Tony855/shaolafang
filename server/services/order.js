@@ -4,9 +4,24 @@
 const { getAsync } = require('../db/helpers');
 const { hashPassword, verifyPassword, needsRehash } = require('../middleware/password');
 
+function moneyToCents(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const raw = String(value).trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) return null;
+  const [whole, fraction = ''] = raw.split('.');
+  const cents = Number(whole) * 100 + Number((fraction + '00').slice(0, 2));
+  return Number.isSafeInteger(cents) ? cents : null;
+}
+
 function formatOrder(row) {
   let items = row.items;
   let dataCorrupted = false;
+  const totalCents = moneyToCents(row.total);
+  const refundedCents = row.refund_amount === null || row.refund_amount === undefined || row.refund_amount === ''
+    ? 0
+    : moneyToCents(row.refund_amount);
+  const financialDataCorrupted = totalCents === null || totalCents < 0 ||
+    refundedCents === null || refundedCents < 0 || refundedCents > totalCents;
   if (typeof items === 'string') {
     try { items = JSON.parse(items); } catch (_) {
       console.warn(`订单 ${row.id} 的 items 解析失败，原始内容:`, items);
@@ -38,6 +53,7 @@ function formatOrder(row) {
     cash_received: Number(row.cash_received) || 0,
     cash_change: Number(row.cash_change) || 0,
     refund_amount: Number(row.refund_amount) || 0,
+    financialDataCorrupted,
     refund_reason: row.refund_reason || '',
     refunded_at: row.refunded_at || '',
     dataCorrupted
