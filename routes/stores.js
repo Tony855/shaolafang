@@ -162,7 +162,7 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
 
       // Do not orphan operational or financial records. Deletion is allowed
       // only after the store has been emptied through the supported workflows.
-      const dependentTables = ['orders', 'tables', 'menus', 'menu_categories', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'cashier_sessions'];
+      const dependentTables = ['orders', 'refund_requests', 'tables', 'menus', 'menu_categories', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'cashier_sessions'];
       for (const table of dependentTables) {
         const row = await getAsync(`SELECT COUNT(*) AS count FROM \`${table}\` WHERE store_id=?`, [id]);
         if (Number(row?.count || 0) > 0) {
