@@ -888,17 +888,65 @@ module.exports = function(app, deps) {
         return res.status(409).json({ error: '该订单尚未提交收款确认，也没有已生成的 KHQR 收款码' });
       }
 
-      // 身份由服务端认证中间件决定，不能信任客户端传入的 role。
+      // A waiter may request cashier confirmation, but must not settle the order.
+      // Keep the legacy endpoint consistent with /api/waiter/khqr/notify:
+      // state and audit are atomic, retries are idempotent, and broadcast follows commit.
       if (req.waiter) {
         if (req.waiterStoreId !== sid && req.waiter.store_id !== sid) {
           return res.status(403).json({ error: '不能操作其他门店的订单' });
         }
-        const result = await runAsync(
-          "UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
-          [String(pay_method || '').slice(0, 20), Math.max(0, Number(cash_received) || 0), Math.max(0, Number(cash_change) || 0), order_id, sid]
-        );
-        if (!result.affectedRows) return res.status(409).json({ error: '订单状态已变化，请刷新后重试' });
-        return res.json({ success: true, status: 'awaiting_confirm' });
+        const paymentMethod = typeof pay_method === 'string' && pay_method.trim()
+          ? pay_method.trim().slice(0, 40)
+          : String(order.pay_method || 'khqr').trim().slice(0, 40);
+        const received = Number(cash_received);
+        const change = Number(cash_change);
+        if ((cash_received !== undefined && (!Number.isFinite(received) || received < 0)) ||
+            (cash_change !== undefined && (!Number.isFinite(change) || change < 0))) {
+          return res.status(400).json({ error: '收款金额或找零金额无效' });
+        }
+
+        let alreadyNotified = false;
+        let notification = null;
+        await withTransaction(async () => {
+          const lockedOrder = await getAsync(
+            'SELECT id, status, awaiting_confirm, pay_khqr_ref, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+            [order_id, sid]
+          );
+          if (!lockedOrder || lockedOrder.status !== 'pending' ||
+              (!Number(lockedOrder.awaiting_confirm) && !lockedOrder.pay_khqr_ref)) {
+            const error = new Error('订单状态已变化或没有可确认的 KHQR 收款码');
+            error.status = 409;
+            throw error;
+          }
+          if (Number(lockedOrder.awaiting_confirm)) {
+            alreadyNotified = true;
+            return;
+          }
+          const result = await runAsync(
+            "UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
+            [paymentMethod, Number.isFinite(received) ? received : 0, Number.isFinite(change) ? change : 0, order_id, sid]
+          );
+          if (!result.affectedRows) {
+            const error = new Error('订单状态已变化，请刷新后重试');
+            error.status = 409;
+            throw error;
+          }
+          await runAsync(
+            'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            ['waiter', req.waiter.id || 0, req.waiter.display_name || req.waiter.username || 'waiter',
+             'khqr_notify_awaiting', JSON.stringify({ order_id: Number(order_id), table: lockedOrder.table_name }),
+             getClientIp(req), new Date().toISOString()]
+          );
+          notification = {
+            orderId: lockedOrder.id,
+            table: lockedOrder.table_name,
+            orderNo: lockedOrder.order_no,
+            total: lockedOrder.total,
+            storeId: sid
+          };
+        });
+        if (notification) io.to('cashier-' + sid).emit('khqr:awaiting', notification);
+        return res.json({ success: true, status: 'awaiting_confirm', ...(alreadyNotified ? { already: true } : {}) });
       }
 
       // 只有已认证的管理员/收银员可人工确认到账；表行先锁定，再锁订单，避免与转桌/改桌死锁。
