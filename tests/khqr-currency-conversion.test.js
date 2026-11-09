@@ -21,7 +21,7 @@ function staticKhqrPayload() {
   return body + khqr.crc16(body);
 }
 
-function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }], lockedOrderOverride = {} } = {}) {
+function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }], lockedOrderOverride = {}, orderTotal = 10 } = {}) {
   const handlers = new Map();
   const calls = [];
   const app = {
@@ -42,7 +42,7 @@ function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }]
       if (params && params[0] === 'store_9_khqr_expire_minutes') return { value: '10' };
       if (sql.includes('FROM orders WHERE id=? AND store_id=?')) {
         const order = {
-          id: 42, store_id: 9, status: 'pending', total: 10, awaiting_confirm: 0,
+          id: 42, store_id: 9, status: 'pending', total: orderTotal, awaiting_confirm: 0,
           pay_khqr_ref: '', pay_expires_at: '',
           items: JSON.stringify([{ currency_code: 'KHR', price: 40000, quantity: 1 }]),
           order_no: '110042'
@@ -156,5 +156,72 @@ test('KHQR generation refuses to replace a QR with an unknown expiry', async () 
 
   assert.equal(res.statusCode, 409);
   assert.match(res.body.error, /已有有效收款码/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('pay_khqr_ref')), false);
+});
+
+
+test('KHR KHQR amount is rounded to whole riels and matches the encoded payload', async () => {
+  const { handler } = setup({
+    rates: [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: '4000.005' }],
+    orderTotal: '10.01'
+  });
+  const res = response();
+  await handler({
+    storeId: 9,
+    merchantId: 77,
+    body: { order_id: 42, currency: 'KHR' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.amount, 40040);
+  assert.equal(khqr.extractInfo(khqr.parseTLV(res.body.qr_payload)).amount, '40040');
+  assert.equal(res.body.original_amount, 10.01);
+});
+
+test('USD KHQR response amount matches the exact two-decimal payload amount', async () => {
+  const { handler } = setup({ orderTotal: '10.01' });
+  const res = response();
+  await handler({
+    storeId: 9,
+    merchantId: 77,
+    body: { order_id: 42, currency: 'USD' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.amount, 10.01);
+  assert.equal(khqr.extractInfo(khqr.parseTLV(res.body.qr_payload)).amount, '10.01');
+});
+
+test('KHR conversion rejects unsupported rate precision instead of returning a mismatched amount', async () => {
+  const { handler, calls } = setup({
+    rates: [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: '4000.12345678901' }],
+    orderTotal: '10.01'
+  });
+  const res = response();
+  await handler({
+    storeId: 9,
+    merchantId: 77,
+    body: { order_id: 42, currency: 'KHR' }
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /汇率精度/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('pay_khqr_ref')), false);
+});
+
+test('KHQR generation compares locked order totals by exact cents', async () => {
+  const { handler, calls } = setup({
+    lockedOrderOverride: { total: '10.01' },
+    orderTotal: '10.00'
+  });
+  const res = response();
+  await handler({
+    storeId: 9,
+    merchantId: 77,
+    body: { order_id: 42, currency: 'USD' }
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /金额已变化/);
   assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('pay_khqr_ref')), false);
 });

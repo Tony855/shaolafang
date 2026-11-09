@@ -20,6 +20,19 @@ function toMoneyCents(value) {
   return Number.isSafeInteger(cents) ? cents : null;
 }
 
+function convertUsdCentsToKhr(usdCents, rateValue) {
+  if (!Number.isSafeInteger(usdCents) || usdCents <= 0) return null;
+  const rawRate = String(rateValue ?? '').trim();
+  if (!/^\d+(?:\.\d{1,10})?$/.test(rawRate)) return null;
+  const [whole, fraction = ''] = rawRate.split('.');
+  const rateScaled = BigInt(whole) * 10000000000n + BigInt((fraction + '0000000000').slice(0, 10));
+  if (rateScaled <= 0n) return null;
+  // USD cents / 100 * KHR per USD; round once to the whole-riel amount required by KHQR.
+  const khr = (BigInt(usdCents) * rateScaled + 500000000000n) / 1000000000000n;
+  if (khr <= 0n || khr > 999999999n) return null;
+  return Number(khr);
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, syncTableStatus, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
 
@@ -785,10 +798,11 @@ module.exports = function(app, deps) {
       // order is created (each item's base_price is price / its menu currency rate).
       // Never infer the order-total currency from items[0].currency_code: that is
       // the menu's display currency, not the persisted order total currency.
-      const baseUsdAmount = Number(order.total);
-      if (!Number.isFinite(baseUsdAmount) || baseUsdAmount <= 0) {
+      const baseUsdCents = toMoneyCents(order.total);
+      if (baseUsdCents === null || baseUsdCents <= 0) {
         return res.status(400).json({ error: '订单金额无效，无法生成收款码' });
       }
+      const baseUsdAmount = baseUsdCents / 100;
 
       let finalAmount = baseUsdAmount;
       if (targetCurrency === 'KHR') {
@@ -802,9 +816,13 @@ module.exports = function(app, deps) {
         if (!Number.isFinite(khrRate) || khrRate <= 0) {
           return res.status(409).json({ error: '当前商户的 KHR 汇率缺失或无效，请先检查货币设置' });
         }
-        finalAmount = baseUsdAmount * khrRate;
+        finalAmount = convertUsdCentsToKhr(baseUsdCents, khrRate);
+        if (finalAmount === null) {
+          return res.status(409).json({ error: 'KHR 汇率精度或换算金额无效，请检查货币设置' });
+        }
       }
-      if (!Number.isFinite(finalAmount) || finalAmount <= 0 || finalAmount > 999999999) {
+      if (!Number.isFinite(finalAmount) || finalAmount <= 0 || finalAmount > 999999999 ||
+          (targetCurrency === 'KHR' && !Number.isSafeInteger(finalAmount))) {
         return res.status(400).json({ error: '换算后的收款金额无效或超出允许范围' });
       }
 
@@ -828,8 +846,9 @@ module.exports = function(app, deps) {
           'SELECT status, total, awaiting_confirm, pay_khqr_ref, pay_expires_at FROM orders WHERE id=? AND store_id=? FOR UPDATE',
           [order.id, sid]
         );
+        const lockedTotalCents = lockedOrder ? toMoneyCents(lockedOrder.total) : null;
         if (!lockedOrder || lockedOrder.status !== 'pending' ||
-            Number(lockedOrder.total) !== Number(order.total)) {
+            lockedTotalCents === null || lockedTotalCents !== baseUsdCents) {
           const error = new Error('订单状态或金额已变化，无法生成收款码');
           error.status = 409;
           throw error;
@@ -865,8 +884,8 @@ module.exports = function(app, deps) {
         provider_id: provider.id,
         provider_label: provider.label,
         provider_bank: provider.bank,
-        amount: Number(finalAmount.toFixed(2)),
-        original_amount: Number(order.total),
+        amount: finalAmount,
+        original_amount: baseUsdAmount,
         original_currency: 'USD',
         currency,
         merchant_name: nameRow ? nameRow.value : '',
