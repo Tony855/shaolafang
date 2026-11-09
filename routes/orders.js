@@ -826,12 +826,16 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
 
 app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_delete_order'), async (req, res) => {
   try {
+    const storeId = Number(req.storeId);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0) {
+      return res.status(403).json({ error: '当前账号未绑定有效门店' });
+    }
     const id = Number(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '订单编号无效' });
     const { password } = req.body || {};
     if (!password) return res.status(400).json({ error: '请输入管理员密码' });
 
-    const existing = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
+    const existing = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, storeId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
 
     let deletedOrder = null;
@@ -846,13 +850,13 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
       // Lock table -> order, consistent with settlement, transfer and table mutation.
       const lockedTable = await getAsync(
         'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
-        [existing.table_name, req.storeId]
+        [existing.table_name, storeId]
       );
       if (!lockedTable) throw Object.assign(new Error('订单关联桌台已变化，删除操作已中止'), { status: 409 });
 
       const lockedOrder = await getAsync(
         'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
-        [id, req.storeId]
+        [id, storeId]
       );
       if (!lockedOrder) throw Object.assign(new Error('订单不存在或已被删除'), { status: 404 });
       if (lockedOrder.table_name !== existing.table_name) {
@@ -866,17 +870,17 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
 
       const result = await runAsync(
         'DELETE FROM orders WHERE id=? AND store_id=?',
-        [id, req.storeId]
+        [id, storeId]
       );
       if (!result.affectedRows) throw Object.assign(new Error('订单不存在或已被删除'), { status: 404 });
 
-      await syncTableStatus(lockedOrder.table_name, req.storeId);
+      await syncTableStatus(lockedOrder.table_name, storeId);
       const pending = await getAsync(
         "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
-        [lockedOrder.table_name, req.storeId]
+        [lockedOrder.table_name, storeId]
       );
       if (!pending || Number(pending.cnt) === 0) {
-        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, req.storeId]);
+        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, storeId]);
       }
 
       await runAsync(
@@ -892,10 +896,10 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
     });
 
     const payload = { orderId: id };
-    io.to('kitchen-' + req.storeId).emit('order:deleted', payload);
-    io.to('waiter-' + req.storeId).emit('order:deleted', payload);
-    io.to('cashier-' + req.storeId).emit('order:deleted', payload);
-    io.to('public-table-' + req.storeId + '-' + deletedOrder.table_name).emit('order:deleted', payload);
+    io.to('kitchen-' + storeId).emit('order:deleted', payload);
+    io.to('waiter-' + storeId).emit('order:deleted', payload);
+    io.to('cashier-' + storeId).emit('order:deleted', payload);
+    io.to('public-table-' + storeId + '-' + deletedOrder.table_name).emit('order:deleted', payload);
     res.json({ success: true });
   } catch (e) {
     sendOrderError(res, e);
