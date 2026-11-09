@@ -164,7 +164,7 @@ test('authorized waiter cancellation remains store-scoped and validates order id
   const res = response();
   await handler({
     body: { order_id: '42' }, storeId: 9, merchantId: 3,
-    isWaiter: true, waiter: { store_id: 9, can_order: 1 }, waiterStoreId: 8
+    isWaiter: true, waiter: { store_id: 8, can_order: 1 }, waiterStoreId: 8
   }, res);
   assert.equal(res.statusCode, 403);
   assert.equal(calls.some(call => call.type === 'run'), false);
