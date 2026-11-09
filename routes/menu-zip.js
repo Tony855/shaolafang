@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
+const { openZipArchive, readEntryBuffer, extractEntryToFile } = require('../server/services/safe-zip');
 const { cleanupUnreferencedImages } = require('../server/services/menu-zip-image-cleanup');
 
 module.exports = function(app, deps) {
@@ -63,9 +64,12 @@ module.exports = function(app, deps) {
         return res.status(413).json({ error: 'ZIP 文件超过 50MB 限制' });
       }
       let zip;
-      try { zip = new AdmZip(zipPath); }
-      catch (e) { try { fs.unlinkSync(zipPath); } catch (_) {} return res.status(400).json({ error: 'ZIP 解压失败：' + e.message }); }
-      const zipEntries = zip.getEntries();
+      try { zip = openZipArchive(zipPath, { maxEntries: 2000 }); }
+      catch (e) {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        return res.status(e.status === 413 ? 413 : 400).json({ error: e.status === 413 ? 'ZIP 文件条目数量超过 2000' : 'ZIP 文件结构无效：' + e.message });
+      }
+      const zipEntries = zip.entries;
       if (zipEntries.length > 2000) {
         try { fs.unlinkSync(zipPath); } catch (_) {}
         return res.status(413).json({ error: 'ZIP 文件条目数量超过 2000' });
@@ -84,15 +88,23 @@ module.exports = function(app, deps) {
         }
       }
 
-      const jsonEntry = zip.getEntry('menu.json');
+      const jsonEntry = zipEntries.find(entry => entry.entryName === 'menu.json');
       if (jsonEntry && Number(jsonEntry.header?.size || 0) > 5 * 1024 * 1024) {
         try { fs.unlinkSync(zipPath); } catch (_) {}
         return res.status(413).json({ error: 'menu.json 超过 5MB 限制' });
       }
       if (!jsonEntry) { try { fs.unlinkSync(zipPath); } catch (_) {} return res.status(400).json({ error: 'ZIP 内缺少 menu.json' }); }
       let payload;
-      try { payload = JSON.parse(jsonEntry.getData().toString('utf8')); }
-      catch (e) { try { fs.unlinkSync(zipPath); } catch (_) {} return res.status(400).json({ error: 'menu.json 解析失败：' + e.message }); }
+      let actualExpandedBytes = 0;
+      try {
+        const menuBuffer = await readEntryBuffer(zipPath, jsonEntry, 5 * 1024 * 1024);
+        actualExpandedBytes += menuBuffer.length;
+        if (actualExpandedBytes > 100 * 1024 * 1024) throw Object.assign(new Error('ZIP 解压总量超过 100MB 限制'), { status: 413 });
+        payload = JSON.parse(menuBuffer.toString('utf8'));
+      } catch (e) {
+        try { fs.unlinkSync(zipPath); } catch (_) {}
+        return res.status(e.status === 413 ? 413 : 400).json({ error: e.status === 413 ? 'ZIP 解压总量超过 100MB 限制' : 'menu.json 解析失败或 CRC 校验失败' });
+      }
       if (!payload || payload.format !== 'foodflow-menu' || payload.version !== 1) {
         try { fs.unlinkSync(zipPath); } catch (_) {}
         return res.status(400).json({ error: '不支持的菜单 ZIP 格式或版本' });
@@ -121,11 +133,19 @@ module.exports = function(app, deps) {
         const dest = path.resolve(uploadsAbs, newName);
         if (!dest.startsWith(uploadsAbs + path.sep)) continue;
         try {
-          fs.writeFileSync(dest, entry.getData(), { flag: 'wx', mode: 0o640 });
+          const extractedBytes = await extractEntryToFile(zipPath, entry, dest, 15 * 1024 * 1024);
+          actualExpandedBytes += extractedBytes;
+          if (actualExpandedBytes > 100 * 1024 * 1024) {
+            try { fs.unlinkSync(dest); } catch (_) {}
+            throw Object.assign(new Error('ZIP 解压总量超过 100MB 限制'), { status: 413 });
+          }
           createdImagePaths.add(dest);
           imageMap[base] = newName;
         }
-        catch (e) { console.warn('[import-zip] 写图片失败:', base, e.message); }
+        catch (e) {
+          if (e.status === 413) throw e;
+          console.warn('[import-zip] 写图片失败:', base, e.message);
+        }
       }
 
       const cats = [...new Set(items.map(it => String(it.category || '').trim()).filter(Boolean))];
@@ -206,6 +226,9 @@ module.exports = function(app, deps) {
       // Preserve files already referenced by successfully committed menu rows;
       // remove every other extracted file when the import aborts unexpectedly.
       cleanupUnreferencedImages(createdImagePaths, retainedImagePaths);
+      if (e.status === 413) {
+        return res.status(413).json({ error: 'ZIP 解压内容超过资源限制' });
+      }
       console.error('import-zip failed:', e);
       res.status(500).json({ error: '请求失败，请稍后重试' });
     }
