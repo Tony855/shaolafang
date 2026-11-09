@@ -366,7 +366,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
           await printToNetworkPrinter(printData, printer.ip_address, printer.port);
           printed = true;
         }
-      } catch (pe) { printError = pe.message; }
+      } catch (pe) { printError = '打印机连接失败，请检查设备连接和网络设置'; }
     }
     // Broadcast every settled order so KDS, waiter, cashier and customer views
     // converge immediately after a batch operation just like single settlement.
@@ -399,7 +399,7 @@ app.post('/api/cashier/orders/batch-print', requireCashier, async (req, res) => 
         await printToNetworkPrinter(printData, printer.ip_address, printer.port);
         return res.json({ success: true, printed: true, printer: printer.name });
       } catch (e) {
-        return res.status(502).json({ success: false, error: e.message, printData: printData.toString('base64') });
+        return res.status(502).json({ success: false, error: '打印机连接失败，请检查设备连接和网络设置', printData: printData.toString('base64') });
       }
     }
     res.json({ success: true, printed: false, printData: printData.toString('base64') });
