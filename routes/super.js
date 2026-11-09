@@ -660,12 +660,14 @@ app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '50mb' }), async (req, res) => {
   try {
     const data = req.body;
-    const tables = ['merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies', 'order_sequences', 'orders', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'];
+    const tables = ['merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies', 'order_sequences', 'orders', 'refund_requests', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'];
     if (!data || !data.tables || typeof data.tables !== 'object' || Array.isArray(data.tables)) {
       return res.status(400).json({ error: '备份文件格式无效' });
     }
     // Older backups may not contain the order sequence table; restore it as empty for compatibility.
     if (data.tables.order_sequences === undefined) data.tables.order_sequences = [];
+    // Older backups predate the refund idempotency ledger.
+    if (data.tables.refund_requests === undefined) data.tables.refund_requests = [];
     // Reject incomplete or malformed backups before deleting a single production row.
     for (const table of tables) {
       if (!Array.isArray(data.tables[table])) {
