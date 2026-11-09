@@ -1,3 +1,4 @@
+const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
    ============================================================ */
@@ -71,7 +72,7 @@ module.exports = function(app, deps) {
 
   app.put('/api/currencies/:id', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
       const merchantId = Number(req.merchantId);
       const body = req.body || {};
       if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
@@ -114,7 +115,7 @@ module.exports = function(app, deps) {
 
   app.delete('/api/currencies/:id', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
       const merchantId = Number(req.merchantId);
       if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
         return res.status(400).json({ error: '货币或商户编号无效' });
