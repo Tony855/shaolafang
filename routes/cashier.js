@@ -502,6 +502,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: settledTableName, total: lockedOrder.total, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
     });
+    if (replayResponse) return res.json(replayResponse);
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
@@ -584,7 +585,16 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       return res.status(400).json({ error: '退款金额最多只能有两位小数' });
     }
     const cleanNote = typeof note === 'string' ? note.slice(0, 200) : '';
+    const requestKey = typeof req.body?.request_id === 'string' ? req.body.request_id.trim() : '';
+    if (!/^[A-Za-z0-9._:-]{16,128}$/.test(requestKey)) {
+      return res.status(400).json({ error: '退款请求编号无效，请重试' });
+    }
+    const requestHash = crypto.createHash('sha256').update(JSON.stringify({
+      store_id: req.storeId, order_id: id, cashier: req.cashier.username || '',
+      amount_cents: requestedAmountCents, reason: cleanReason, note: cleanNote
+    })).digest('hex');
     const now = new Date().toISOString();
+    let replayResponse = null;
     let tableName = '';
     let orderTotal = 0;
     let refundAmount = 0;
@@ -593,6 +603,28 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     let fullyRefunded = false;
 
     await withTransaction(async () => {
+      await runAsync(
+        'INSERT IGNORE INTO cashier_refund_requests (store_id, request_key, order_id, request_hash, created_at) VALUES (?, ?, ?, ?, ?)',
+        [req.storeId, requestKey, id, requestHash, now]
+      );
+      const existingRequest = await getAsync(
+        'SELECT id, order_id, request_hash, response_json FROM cashier_refund_requests WHERE store_id=? AND request_key=? FOR UPDATE',
+        [req.storeId, requestKey]
+      );
+      if (!existingRequest || Number(existingRequest.order_id) !== id || existingRequest.request_hash !== requestHash) {
+        const error = new Error('退款请求编号已用于其他请求，请刷新后重试');
+        error.status = 409;
+        throw error;
+      }
+      if (existingRequest.response_json) {
+        try { replayResponse = JSON.parse(existingRequest.response_json); }
+        catch (_) {
+          const error = new Error('退款请求记录异常，请联系管理员核对');
+          error.status = 409;
+          throw error;
+        }
+        return;
+      }
       const lockedOrder = await getAsync(
         'SELECT status, total, refund_amount, table_name FROM orders WHERE id=? AND store_id=? FOR UPDATE',
         [id, req.storeId]
@@ -648,6 +680,18 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
+      const resultPayload = {
+        success: true,
+        message: fullyRefunded ? '订单已全额退款' : '部分退款成功',
+        refund_amount: refundAmount,
+        total_refunded: totalRefunded,
+        remaining_amount: remainingAmount,
+        fully_refunded: fullyRefunded
+      };
+      await runAsync(
+        'UPDATE cashier_refund_requests SET response_json=? WHERE store_id=? AND request_key=?',
+        [JSON.stringify(resultPayload), req.storeId, requestKey]
+      );
       await runAsync(
         'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['cashier', 0, req.cashier.username, 'refund_order',
@@ -660,14 +704,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('public-table-' + req.storeId + '-' + tableName).emit('order:settled', { orderId: id });
-    res.json({
-      success: true,
-      message: fullyRefunded ? '订单已全额退款' : '部分退款成功',
-      refund_amount: refundAmount,
-      total_refunded: totalRefunded,
-      remaining_amount: remainingAmount,
-      fully_refunded: fullyRefunded
-    });
+    res.json(resultPayload);
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
     res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
 });
