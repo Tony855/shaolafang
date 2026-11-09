@@ -5,6 +5,7 @@
 const { getAsync, runAsync, allAsync } = require('../db/helpers');
 const { getActiveWaiter } = require('../services/waiter-auth');
 const crypto = require('crypto');
+const { parsePositiveRouteId } = require('../services/route-id');
 
 function isPermissionEnabled(value) {
   return value === true || value === 1 || value === '1' || value === 'true';
@@ -102,10 +103,10 @@ async function authenticateAdmin(req) {
           const rawRequestedStoreId = req.get('X-Store-Id');
           const requestedStoreId = rawRequestedStoreId === undefined || rawRequestedStoreId === null || rawRequestedStoreId === ''
             ? 0
-            : Number(rawRequestedStoreId);
+            : parsePositiveRouteId(rawRequestedStoreId);
           let validStoreId = null;
           if (rawRequestedStoreId !== undefined && rawRequestedStoreId !== null && rawRequestedStoreId !== '' &&
-              (!Number.isSafeInteger(requestedStoreId) || requestedStoreId <= 0)) {
+              requestedStoreId === null) {
             return { error: '指定的门店编号无效', code: 'INVALID_STORE_ID' };
           }
           if (requestedStoreId > 0) {
@@ -144,8 +145,8 @@ async function authenticateAdmin(req) {
     const expected = Buffer.from(String(setting.value));
     if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
       const rawStoreId = req.get('X-Store-Id') ?? '1';
-      const storeId = typeof rawStoreId === 'string' && rawStoreId.trim() !== '' ? Number(rawStoreId) : NaN;
-      if (!Number.isSafeInteger(storeId) || storeId <= 0) {
+      const storeId = parsePositiveRouteId(rawStoreId);
+      if (storeId === null) {
         return { error: '指定的店铺编号无效', code: 'INVALID_STORE_ID' };
       }
       const store = await getAsync('SELECT s.id, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
