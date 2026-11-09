@@ -41,6 +41,13 @@ function normalizeCashierPermissions(raw) {
   };
 }
 
+function respondAuthUnavailable(res, context) {
+  // Do not expose database hosts, SQL, credentials, or driver messages to clients/logs.
+  console.error('[auth] ' + context + ' failed; authentication storage is unavailable');
+  if (res.headersSent) return;
+  return res.status(503).json({ error: '认证服务暂时不可用，请稍后重试' });
+}
+
 async function getWaiterFromRequest(req) {
   const token = req.get('X-Waiter-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
@@ -149,30 +156,38 @@ async function authenticateAdmin(req) {
   return null;
 }
 
+
 async function requireAdminKey(req, res, next) {
-  const result = await authenticateAdmin(req);
-  if (result && result.error) {
-    // 完整透传 code / validStores / requestedStoreId / merchantId
-    return res.status(401).json(result);
-  }
-  if (result) {
-    req.adminId = result.adminId;
-    req.merchantId = result.merchantId;
-    req.adminSessionToken = result.sessionToken;
-    req.storeId = Number.isSafeInteger(Number(result.storeId)) && Number(result.storeId) !== 0 ? Number(result.storeId) : -1;
-    // 未选店铺时已默认当前商户首店；无门店时使用 -1，防止旧路由回退到全局店铺 1
-    // 只要 X-Store-Id 存在但无效，authenticateAdmin 已经返回 error，不会走到这里
-    try {
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [result.adminId]);
-      if (admin) {
-        const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [result.merchantId]);
-        req.isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
+  try {
+    const result = await authenticateAdmin(req);
+    if (result && result.error) return res.status(401).json(result);
+    if (result) {
+      req.adminId = result.adminId;
+      req.merchantId = result.merchantId;
+      req.adminSessionToken = result.sessionToken;
+      req.storeId = Number.isSafeInteger(Number(result.storeId)) && Number(result.storeId) !== 0
+        ? Number(result.storeId) : -1;
+      // Legacy API-key auth has no individual admin identity; it does not receive
+      // a synthetic primary-admin role or inherited fine-grained permissions.
+      if (result.adminId) {
+        const admin = await getAsync(
+          'SELECT * FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',
+          [result.adminId, result.merchantId]
+        );
+        if (!admin) return res.status(401).json({ error: '管理员账号已停用或不存在' });
+        const primaryAdmin = await getAsync(
+          'SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1',
+          [result.merchantId]
+        );
+        req.isPrimaryAdmin = Boolean(primaryAdmin && String(primaryAdmin.id) === String(admin.id));
         req.adminPermissions = buildAdminPermissions(admin, req.isPrimaryAdmin);
       }
-    } catch (e) { console.warn('加载管理员权限失败:', e.message); }
-    return next();
+      return next();
+    }
+    return res.status(401).json({ error: '未登录或登录已过期' });
+  } catch (_) {
+    return respondAuthUnavailable(res, 'requireAdminKey');
   }
-  return res.status(401).json({ error: '未登录或登录已过期' });
 }
 
 function requirePermission(permKey) {
@@ -196,52 +211,66 @@ async function logAudit(...args) {
   catch (e) { console.warn('审计日志记录失败:', e.message); }
 }
 
+
 async function requireAdminOrWaiter(req, res, next) {
-  const adminResult = await authenticateAdmin(req);
-  if (adminResult && adminResult.error) return res.status(401).json(adminResult);
-  if (adminResult) {
-    req.adminId = adminResult.adminId;
-    req.merchantId = adminResult.merchantId;
-    req.isAdmin = true;
-    req.adminSessionToken = adminResult.sessionToken;
-    req.storeId = Number.isSafeInteger(Number(adminResult.storeId)) && Number(adminResult.storeId) !== 0 ? Number(adminResult.storeId) : -1;
-    try {
-      const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=?', [adminResult.adminId]);
-      if (admin) {
-        const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [adminResult.merchantId]);
-        req.isPrimaryAdmin = primaryAdmin && primaryAdmin.id === admin.id;
+  try {
+    const adminResult = await authenticateAdmin(req);
+    if (adminResult && adminResult.error) return res.status(401).json(adminResult);
+    if (adminResult) {
+      req.adminId = adminResult.adminId;
+      req.merchantId = adminResult.merchantId;
+      req.isAdmin = true;
+      req.adminSessionToken = adminResult.sessionToken;
+      req.storeId = Number.isSafeInteger(Number(adminResult.storeId)) && Number(adminResult.storeId) !== 0
+        ? Number(adminResult.storeId) : -1;
+      if (adminResult.adminId) {
+        const admin = await getAsync(
+          'SELECT * FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',
+          [adminResult.adminId, adminResult.merchantId]
+        );
+        if (!admin) return res.status(401).json({ error: '管理员账号已停用或不存在' });
+        const primaryAdmin = await getAsync(
+          'SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1',
+          [adminResult.merchantId]
+        );
+        req.isPrimaryAdmin = Boolean(primaryAdmin && String(primaryAdmin.id) === String(admin.id));
         req.adminPermissions = buildAdminPermissions(admin, req.isPrimaryAdmin);
       }
-    } catch (e) { console.warn('加载管理员权限失败:', e.message); }
-    return next();
-  }
-  const authHeader = req.get('Authorization') || '';
-  const bearerToken = authHeader.replace(/^Bearer\s+/i, '');
-  const token = req.get('X-Waiter-Token') || bearerToken;
-  if (token) {
-    const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
-    if (session && Number.isFinite(new Date(session.expires_at).getTime()) && new Date(session.expires_at).getTime() > Date.now()) {
-      const waiter = await getActiveWaiter(getAsync, session.waiter_id);
-      if (waiter) {
-        req.waiter = waiter;
-        req.waiterStoreId = Number(waiter.store_id);
-        req.storeId = Number(waiter.store_id);
-        req.merchantId = Number(waiter.merchant_id);
-        req.isWaiter = true;
-        req.isAdmin = false;
-        const expiresTime = new Date(session.expires_at).getTime();
-        if (expiresTime - Date.now() < 60 * 60 * 1000) {
-          const wTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
-          const configuredWaiterTimeoutHours = Number(wTimeoutSetting?.value ?? 12);
-          const wTimeoutHours = Number.isSafeInteger(configuredWaiterTimeoutHours) && configuredWaiterTimeoutHours > 0 ? Math.min(configuredWaiterTimeoutHours, 720) : 12;
-          const newExpires = new Date(Date.now() + wTimeoutHours * 60 * 60 * 1000).toISOString();
-          runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(()=>{});
+      return next();
+    }
+
+    const authHeader = req.get('Authorization') || '';
+    const bearerToken = authHeader.replace(/^Bearer\s+/i, '');
+    const token = req.get('X-Waiter-Token') || bearerToken;
+    if (token) {
+      const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
+      if (session && Number.isFinite(new Date(session.expires_at).getTime()) &&
+          new Date(session.expires_at).getTime() > Date.now()) {
+        const waiter = await getActiveWaiter(getAsync, session.waiter_id);
+        if (waiter) {
+          req.waiter = waiter;
+          req.waiterStoreId = Number(waiter.store_id);
+          req.storeId = Number(waiter.store_id);
+          req.merchantId = Number(waiter.merchant_id);
+          req.isWaiter = true;
+          req.isAdmin = false;
+          const expiresTime = new Date(session.expires_at).getTime();
+          if (expiresTime - Date.now() < 60 * 60 * 1000) {
+            const wTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
+            const configuredWaiterTimeoutHours = Number(wTimeoutSetting?.value ?? 12);
+            const wTimeoutHours = Number.isSafeInteger(configuredWaiterTimeoutHours) && configuredWaiterTimeoutHours > 0
+              ? Math.min(configuredWaiterTimeoutHours, 720) : 12;
+            const newExpires = new Date(Date.now() + wTimeoutHours * 60 * 60 * 1000).toISOString();
+            runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
+          }
+          return next();
         }
-        return next();
       }
     }
+    return res.status(401).json({ error: '无操作权限' });
+  } catch (_) {
+    return respondAuthUnavailable(res, 'requireAdminOrWaiter');
   }
-  return res.status(401).json({ error: '无操作权限' });
 }
 
 module.exports = {
