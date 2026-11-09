@@ -219,7 +219,7 @@ test('cashier cancellation refuses an order awaiting KHQR confirmation under the
   assert.match(res.body.error, /KHQR/);
   assert.equal(calls.some(call => call.type === 'run' && call.sql.includes("SET status='canceled'")), false);
   assert.deepEqual(transactions, ['begin', 'rollback']);
-  const lockedRead = calls.find(call => call.type === 'get' && call.sql.includes('FOR UPDATE'));
+  const lockedRead = calls.find(call => call.type === 'get' && call.sql.includes('FROM orders') && call.sql.includes('FOR UPDATE'));
   assert.match(lockedRead.sql, /awaiting_confirm, pay_khqr_ref, pay_expires_at/);
 });
 
