@@ -207,7 +207,7 @@ app.post('/api/cashier/logout', async (req, res) => {
       await runAsync('DELETE FROM cashier_sessions WHERE token=?', [token]).catch(() => {});
     }
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 
@@ -216,7 +216,7 @@ app.get('/api/cashier/orders', requireCashier, async (req, res) => {
   try {
     const rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND status != 'canceled' ORDER BY createdAt DESC", [req.storeId]);
     res.json({ orders: rows.map(row => formatStaffOrder(row, formatOrder)) });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/cashier/orders/:id', requireCashier, async (req, res) => {
@@ -225,7 +225,7 @@ app.get('/api/cashier/orders/:id', requireCashier, async (req, res) => {
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     res.json(formatStaffOrder(order, formatOrder));
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => {
@@ -378,7 +378,8 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
       io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', payload);
     }
     res.json({ success: true, settled: settlementOrders.length, total: totalAmount.toFixed(2), printed, printError });
-  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+    res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
 });
 
 app.post('/api/cashier/orders/batch-print', requireCashier, async (req, res) => {
@@ -402,7 +403,7 @@ app.post('/api/cashier/orders/batch-print', requireCashier, async (req, res) => 
       }
     }
     res.json({ success: true, printed: false, printData: printData.toString('base64') });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
@@ -496,7 +497,8 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('public-table-' + req.storeId + '-' + settledTableName).emit('order:settled', { orderId: id });
     res.json({ success: true, message: '结算成功' });
-  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+    res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
 });
 
 app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
@@ -547,7 +549,8 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     io.to('cashier-' + req.storeId).emit('order:cancelled', canceledPayload);
     io.to('public-table-' + req.storeId + '-' + canceledTableName).emit('order:cancelled', canceledPayload);
     res.json({ success: true, message: '取消成功' });
-  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+    res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
 });
 
 app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
@@ -654,7 +657,8 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       remaining_amount: remainingAmount,
       fully_refunded: fullyRefunded
     });
-  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+    res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
 });
 
 // ===== 单个订单打印小票 =====
@@ -674,7 +678,7 @@ app.post('/api/cashier/orders/:id(\\d+)/print', requireCashier, async (req, res)
     });
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: '请求失败，请稍后重试' });
   }
 });
 
@@ -719,7 +723,8 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
         : '0.00',
       orders: settledOrders.map(row => formatStaffOrder(row, formatOrder))
     });
-  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+  } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+    res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
 });
 
 // ----- 收银台获取本商户启用的支付方式 -----
@@ -755,7 +760,7 @@ app.get('/api/cashier/payment-methods', requireAdminOrCashierOrWaiter, async (re
       } catch (e) {}
     }
     res.json({ methods });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 // ----- 收银台获取本店铺启用的 KHQR 收款码 -----
@@ -786,7 +791,7 @@ app.get('/api/cashier/khqr/providers', requireAdminOrCashierOrWaiter, async (req
       });
     }
     res.json({ providers: out });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 };
