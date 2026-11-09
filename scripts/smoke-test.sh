@@ -103,6 +103,7 @@ step "8. 退款订单"
 if [ "$CASHIER_OK" = "1" ]; then
   curl -sS -X PUT "$BASE/api/cashier/orders/$ORDER_ID/refund" \
     -H "X-Cashier-Token: $CASHIER_TOKEN" -H 'Content-Type: application/json' \
+    -H "Idempotency-Key: smoke-refund-${ORDER_ID}-$(date +%s%N)" \
     -d "{\"amount\":$ORDER_TOTAL,\"reason\":\"smoke\"}" > /dev/null
 fi
 S=$(sql "SELECT status FROM orders WHERE id=$ORDER_ID;")
