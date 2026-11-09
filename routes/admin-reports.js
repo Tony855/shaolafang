@@ -263,7 +263,10 @@ module.exports = function(app, deps) {
       }
       let rows = [], filename = '', headers = [];
       if (type === 'orders') {
-        rows = await allAsync('SELECT * FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000', [storeId]);
+        rows = await allAsync(
+          'SELECT *, GREATEST(0, total - COALESCE(refund_amount, 0)) AS net_total FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000',
+          [storeId]
+        );
         filename = `orders_${new Date().toISOString().slice(0,10)}.csv`;
         headers = ['订单号','桌号','状态','原金额','累计退款','净收入','备注','下单时间'];
       } else if (type === 'menu') {
@@ -294,7 +297,7 @@ module.exports = function(app, deps) {
       const csvRows = [headers.join(',')];
       for (const row of rows) {
         if (type === 'orders') {
-          csvRows.push(csvRow([row.id, row.table_name, row.status, row.total, row.refund_amount || 0, Math.max(0, Number(row.total) - Number(row.refund_amount || 0)), row.note, row.createdAt]));
+          csvRows.push(csvRow([row.id, row.table_name, row.status, row.total, row.refund_amount || 0, row.net_total, row.note, row.createdAt]));
         } else if (type === 'menu') {
           csvRows.push(csvRow([row.id, row.name, row.name_en || '', row.price, row.currency_code, row.category || '', row.unit, row.active]));
         } else if (type === 'sales') {

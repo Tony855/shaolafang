@@ -682,8 +682,28 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
     }
     const today = new Date().toISOString().split('T')[0];
     const settledOrders = await allAsync("SELECT * FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND SUBSTRING(COALESCE(settled_at, createdAt), 1, 10)=? ORDER BY COALESCE(settled_at, createdAt) DESC", [req.storeId, today]);
-    const totalRevenue = settledOrders.reduce((sum, o) => sum + Math.max(0, (Number(o.total) || 0) - (Number(o.refund_amount) || 0)), 0);
-    const totalRefunded = settledOrders.reduce((sum, o) => sum + Math.max(0, Number(o.refund_amount) || 0), 0);
+    const reportAmounts = settledOrders.map(order => {
+      const orderTotalCents = toMoneyCents(order.total);
+      const refundedCents = order.refund_amount === null || order.refund_amount === undefined || order.refund_amount === ''
+        ? 0
+        : toMoneyCents(order.refund_amount);
+      if (orderTotalCents === null || orderTotalCents < 0 ||
+          refundedCents === null || refundedCents < 0 || refundedCents > orderTotalCents) {
+        const error = new Error('订单金额或历史退款金额异常，无法生成报表');
+        error.status = 409;
+        throw error;
+      }
+      return { revenueCents: orderTotalCents - refundedCents, refundedCents };
+    });
+    const totalRevenueCents = reportAmounts.reduce((sum, amount) => sum + amount.revenueCents, 0);
+    const totalRefundedCents = reportAmounts.reduce((sum, amount) => sum + amount.refundedCents, 0);
+    if (!Number.isSafeInteger(totalRevenueCents) || !Number.isSafeInteger(totalRefundedCents)) {
+      const error = new Error('报表金额超出安全范围');
+      error.status = 409;
+      throw error;
+    }
+    const totalRevenue = totalRevenueCents / 100;
+    const totalRefunded = totalRefundedCents / 100;
     const refundedOrderCount = settledOrders.filter(o => o.status === 'refunded').length;
     res.json({
       date: today,
@@ -691,10 +711,12 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
       totalRevenue: totalRevenue.toFixed(2),
       totalRefunded: totalRefunded.toFixed(2),
       refundedOrderCount,
-      avgOrderValue: settledOrders.length > 0 ? (totalRevenue / settledOrders.length).toFixed(2) : '0.00',
+      avgOrderValue: settledOrders.length > 0
+        ? (Math.round(totalRevenueCents / settledOrders.length) / 100).toFixed(2)
+        : '0.00',
       orders: settledOrders.map(row => formatStaffOrder(row, formatOrder))
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
 // ----- 收银台获取本商户启用的支付方式 -----

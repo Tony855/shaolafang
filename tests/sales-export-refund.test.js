@@ -53,3 +53,36 @@ test('sales CSV export includes refunded orders and respects returned quantities
   assert.match(res.body, /Noodle/);
   assert.match(res.body, /42/);
 });
+
+
+test('order CSV export uses the database decimal net total instead of JS float subtraction', async () => {
+  const routes = new Map();
+  const calls = [];
+  const app = {
+    get(path, ...handlers) {
+      routes.set(path, handlers[handlers.length - 1]);
+    }
+  };
+  attachAdminReports(app, {
+    getAsync: async () => ({}),
+    allAsync: async (sql, params) => {
+      calls.push({ sql, params });
+      return [{
+        id: 42, table_name: 'A01', status: 'done',
+        total: '0.30', refund_amount: '0.10', net_total: '0.20',
+        note: '', createdAt: '2026-11-09T00:00:00.000Z'
+      }];
+    },
+    requireAdminKey: middleware,
+    requirePermission: () => middleware(),
+    authenticateAdmin: middleware
+  });
+
+  const handler = routes.get('/api/admin/export/:type');
+  const res = createResponse();
+  await handler({ params: { type: 'orders' }, storeId: 7, isPrimaryAdmin: true }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.match(calls[0].sql, /GREATEST\(0, total - COALESCE\(refund_amount, 0\)\) AS net_total/);
+  assert.match(res.body, /"0.20"/);
+});
