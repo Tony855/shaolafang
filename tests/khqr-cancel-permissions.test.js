@@ -108,7 +108,7 @@ test('authorized waiter can cancel an unsubmitted QR with row lock and audit', a
   assert.match(locked.sql, /WHERE id=\? AND store_id=\? FOR UPDATE/);
   const update = calls.find(call => call.type === 'run' && call.sql.startsWith('UPDATE orders SET awaiting_confirm=0'));
   assert.ok(update);
-  assert.match(update.sql, /AND status='pending' AND awaiting_confirm=\? AND pay_khqr_ref=\?/);
+  assert.match(update.sql, /AND status='pending' AND awaiting_confirm=\? AND pay_khqr_ref <=> \?/);
   const audit = calls.find(call => call.type === 'run' && call.sql.includes('INSERT INTO audit_logs'));
   assert.ok(audit);
   assert.equal(audit.params[0], 'waiter');
