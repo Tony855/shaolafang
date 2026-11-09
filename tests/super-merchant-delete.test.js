@@ -77,7 +77,7 @@ test('merchant deletion is one transaction and deletes child rows before parent 
   const orderDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM `orders`'));
   const storesDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM stores'));
   const merchantDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM merchants'));
-  assert.ok(orderDelete >= 0 && storesDelete > orderDelete && merchantDelete > storesDelete);
+  assert.ok(refundDelete >= 0 && orderDelete > refundDelete && storesDelete > orderDelete && merchantDelete > storesDelete);
   assert.ok(ctx.calls.indexOf('AUDIT') > merchantDelete);
 });
 
