@@ -153,3 +153,30 @@ test('corrupt cashier settings are not silently overwritten as an empty list', a
   assert.match(res.body.error, /数据损坏/);
   assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO settings')), false);
 });
+
+
+test('cashier creation rejects coerced target store IDs before opening a transaction', async () => {
+  for (const store_id of ['2.0', '2e0', ' 2 ', '2abc', '0', '-2', '9007199254740992', true, [], {}]) {
+    const ctx = setup();
+    const res = response();
+    await ctx.createHandler({
+      merchantId: 5, storeId: 2, adminId: 9,
+      body: { username: 'cashier-one', password: 'secret123', display_name: 'Cashier One', store_id }
+    }, res);
+    assert.equal(res.statusCode, 400, String(store_id));
+    assert.match(res.body.error, /门店编号无效/);
+    assert.equal(ctx.transactionCount, 0);
+    assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO settings')), false);
+  }
+});
+
+test('cashier creation accepts a canonical target store ID', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.createHandler({
+    merchantId: 5, storeId: 2, adminId: 9,
+    body: { username: 'cashier-one', password: 'secret123', display_name: 'Cashier One', store_id: '2' }
+  }, res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(ctx.transactionCount, 1);
+});
