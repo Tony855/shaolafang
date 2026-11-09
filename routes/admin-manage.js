@@ -11,6 +11,14 @@ function normalizeAdminFlag(value, fallback, field) {
   throw Object.assign(new Error(field + ' 参数无效'), { status: 400 });
 }
 
+function parsePositiveOrderId(value) {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  const raw = String(value).trim();
+  if (!/^[1-9]\\d*$/.test(raw)) return null;
+  const id = Number(raw);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
 function toMoneyCents(value) {
   if (value === null || value === undefined || value === '') return null;
   const raw = String(value).trim();
@@ -758,8 +766,8 @@ module.exports = function(app, deps) {
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
       const { order_id } = req.body || {};
-      const orderId = Number(order_id);
-      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
+      const orderId = parsePositiveOrderId(order_id);
+      if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
       const { storeId: sid } = await resolveKhqrStore(req);
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
