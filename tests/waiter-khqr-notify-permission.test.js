@@ -23,6 +23,7 @@ function setup({ affectedRows = 1 } = {}) {
       calls.push({ sql, params });
       return { affectedRows };
     },
+    withTransaction: async work => work(),
     allAsync: async () => [],
     requireAdminOrWaiter: (_req, _res, next) => next(),
     requireAdminKey: (_req, _res, next) => next(),
@@ -91,6 +92,6 @@ test('waiter KHQR notification returns conflict when order state changes concurr
   }, res);
 
   assert.equal(res.statusCode, 409);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.filter(call => call.sql.startsWith('UPDATE orders SET awaiting_confirm=1')).length, 1);
   assert.equal(events.length, 0);
 });
