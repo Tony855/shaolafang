@@ -93,7 +93,7 @@ app.get('/api/admin/menu', requireAdminKey, requirePermission('can_manage_menu')
     const rows = await allAsync('SELECT * FROM menus WHERE store_id=? ORDER BY id', [req.storeId || 1]);
     res.json(rows);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: '请求失败，请稍后重试' });
   }
 });
 
@@ -430,7 +430,7 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
     
     res.json({ success, failed, errors, createdCategories });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: '请求失败，请稍后重试' });
   }
 });
 
@@ -546,7 +546,7 @@ app.get('/api/menu-categories', requireAdminKey, requirePermission('can_manage_m
   try {
     const rows = await allAsync('SELECT * FROM menu_categories WHERE store_id=? ORDER BY sort, id', [req.storeId]);
     res.json(rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.post('/api/menu-categories', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
