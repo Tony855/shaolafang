@@ -109,3 +109,14 @@ test('backup restore rolls back when its audit event cannot be written', async (
   assert.match(res.body.error, /所有更改已回滚/);
   assert.equal(ctx.inTransaction, false);
 });
+
+test('backup restore accepts legacy backups without the refund request ledger', async () => {
+  const ctx = setup();
+  const legacy = backup();
+  delete legacy.tables.refund_requests;
+  const res = response();
+  await ctx.handler({ body: legacy, superAdmin: { id: 7, username: 'root' } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `refund_requests`'));
+});
