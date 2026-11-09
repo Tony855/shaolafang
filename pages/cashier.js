@@ -986,12 +986,12 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     refundOrderId = order.id;
     const total = Number(order.total) || 0;
     const remaining = Math.max(0, total - Number(order.refund_amount || 0));
-    if (remaining <= 0) { SLF.ui.toast('❌ ' + (t('refundAlreadyComplete') || '订单已全额退款')); return; }
+    const pendingRefund = loadPendingRefund(order.id);
+    if (remaining <= 0 && !pendingRefund) { SLF.ui.toast('❌ ' + (t('refundAlreadyComplete') || '订单已全额退款')); return; }
     document.getElementById('refundAmount').innerHTML = moneyHtml(remaining);
     const _inp = document.getElementById('refundInput');
     if (_inp) _inp.value = remaining.toFixed(2);
     const reasonInput = document.getElementById('refundReason');
-    const pendingRefund = loadPendingRefund(order.id);
     if (pendingRefund) {
       if (_inp) _inp.value = Number(pendingRefund.amount).toFixed(2);
       reasonInput.value = pendingRefund.reason;
@@ -1029,7 +1029,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     const amount = pendingRefund ? Number(pendingRefund.amount) : (_inpEl ? (Number(_inpEl.value) || 0) : remaining);
 
     if (amount <= 0) { SLF.ui.toast('❌ ' + (t('refundMustBePositive') || '退款金额必须大于 0')); return; }
-    if (amount > remaining) { SLF.ui.toast('❌ ' + (t('refundExceedsTotal') || '退款金额不能超过剩余可退款金额')); return; }
+    if (!pendingRefund && amount > remaining) { SLF.ui.toast('❌ ' + (t('refundExceedsTotal') || '退款金额不能超过剩余可退款金额')); return; }
 
     const btn = document.getElementById('confirmRefundBtn');
     const idempotencyKey = pendingRefund?.idempotencyKey || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'rf_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
