@@ -4,9 +4,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerAdminManageRoutes = require('../routes/admin-manage');
 
-function setup() {
+function setup({ order = { id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'qr-payload', pay_expires_at: '2030-01-01T00:00:00.000Z', table_name: 'A01' }, affectedRows = 1, failAudit = false } = {}) {
   const handlers = new Map();
   const calls = [];
+  const transactionEvents = [];
   const app = {
     get() {},
     put() {},
@@ -14,14 +15,29 @@ function setup() {
     post(path, ...callbacks) { handlers.set(path, callbacks[callbacks.length - 1]); }
   };
   const deps = {
-    getAsync: async sql => sql.includes('FROM stores WHERE id=? AND merchant_id=?')
-      ? { id: 9, name: 'Test Store' }
-      : null,
-    runAsync: async (sql, params) => {
-      calls.push({ sql, params });
-      return { affectedRows: 1 };
+    getAsync: async (sql, params = []) => {
+      calls.push({ type: 'get', sql, params });
+      if (sql.includes('FROM stores WHERE id=? AND merchant_id=?')) return { id: 9, name: 'Test Store' };
+      if (sql.includes('FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return { ...order };
+      return null;
+    },
+    runAsync: async (sql, params = []) => {
+      calls.push({ type: 'run', sql, params });
+      if (failAudit && sql.includes('INSERT INTO audit_logs')) throw new Error('audit failure');
+      return { affectedRows: sql.startsWith('UPDATE orders SET awaiting_confirm=0') ? affectedRows : 1 };
     },
     allAsync: async () => [],
+    withTransaction: async work => {
+      transactionEvents.push('begin');
+      try {
+        const result = await work();
+        transactionEvents.push('commit');
+        return result;
+      } catch (error) {
+        transactionEvents.push('rollback');
+        throw error;
+      }
+    },
     requireAdminOrWaiter: (_req, _res, next) => next(),
     requireAdminKey: (_req, _res, next) => next(),
     requirePermission: () => (_req, _res, next) => next(),
@@ -35,7 +51,7 @@ function setup() {
     io: { to: () => ({ emit() {} }) }
   };
   registerAdminManageRoutes(app, deps);
-  return { handler: handlers.get('/api/cashier/khqr/cancel'), calls };
+  return { handler: handlers.get('/api/cashier/khqr/cancel'), calls, transactionEvents };
 }
 
 function response() {
@@ -80,14 +96,89 @@ test('non-primary admin without order management permission cannot cancel a KHQR
   assert.equal(calls.length, 0);
 });
 
+test('authorized waiter can cancel an unsubmitted QR with row lock and audit', async () => {
+  const { handler, calls, transactionEvents } = setup();
+  const res = response();
+  await handler({
+    body: { order_id: '42' }, storeId: 9, merchantId: 3,
+    isWaiter: true, waiter: { id: 7, store_id: 9, can_order: 1, display_name: 'QA waiter' }, waiterStoreId: 9
+  }, res);
+  assert.equal(res.statusCode, 200);
+  const locked = calls.find(call => call.type === 'get' && call.sql.includes('FROM orders'));
+  assert.match(locked.sql, /WHERE id=\? AND store_id=\? FOR UPDATE/);
+  const update = calls.find(call => call.type === 'run' && call.sql.startsWith('UPDATE orders SET awaiting_confirm=0'));
+  assert.ok(update);
+  assert.match(update.sql, /AND status='pending' AND awaiting_confirm=\? AND pay_khqr_ref <=> \?/);
+  const audit = calls.find(call => call.type === 'run' && call.sql.includes('INSERT INTO audit_logs'));
+  assert.ok(audit);
+  assert.equal(audit.params[0], 'waiter');
+  assert.equal(audit.params[3], 'khqr_cancel');
+  assert.deepEqual(transactionEvents, ['begin', 'commit']);
+});
+
+test('waiter cannot cancel a payment already submitted for cashier confirmation', async () => {
+  const { handler, calls, transactionEvents } = setup({
+    order: { id: 42, status: 'pending', awaiting_confirm: 1, pay_khqr_ref: 'qr-payload', table_name: 'A01' }
+  });
+  const res = response();
+  await handler({
+    body: { order_id: 42 }, storeId: 9, merchantId: 3,
+    isWaiter: true, waiter: { id: 7, store_id: 9, can_order: 1 }, waiterStoreId: 9
+  }, res);
+  assert.equal(res.statusCode, 403);
+  assert.equal(calls.some(call => call.type === 'run'), false);
+  assert.deepEqual(transactionEvents, ['begin', 'rollback']);
+});
+
+test('authorized cashier can cancel a submitted confirmation and the action is audited', async () => {
+  const { handler, calls, transactionEvents } = setup({
+    order: { id: 42, status: 'pending', awaiting_confirm: 1, pay_khqr_ref: 'qr-payload', table_name: 'A01' }
+  });
+  const res = response();
+  await handler({
+    body: { order_id: 42 }, storeId: 9, merchantId: 3,
+    isCashier: true, cashier: { id: 8, username: 'qa-cashier', permissions: { can_settle: true } }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  const audit = calls.find(call => call.type === 'run' && call.sql.includes('INSERT INTO audit_logs'));
+  assert.ok(audit);
+  assert.equal(audit.params[0], 'cashier');
+  assert.equal(audit.params[2], 'qa-cashier');
+  assert.deepEqual(transactionEvents, ['begin', 'commit']);
+});
+
+test('KHQR cancellation rolls back when the audit record cannot be written', async () => {
+  const { handler, calls, transactionEvents } = setup({ failAudit: true });
+  const res = response();
+  await handler({
+    body: { order_id: 42 }, storeId: 9, merchantId: 3,
+    isAdmin: true, isPrimaryAdmin: true, adminId: 1, username: 'root'
+  }, res);
+  assert.equal(res.statusCode, 500);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.startsWith('UPDATE orders')));
+  assert.deepEqual(transactionEvents, ['begin', 'rollback']);
+});
+
 test('authorized waiter cancellation remains store-scoped and validates order id', async () => {
   const { handler, calls } = setup();
   const res = response();
   await handler({
     body: { order_id: '42' }, storeId: 9, merchantId: 3,
-    isWaiter: true, waiter: { store_id: 9, can_order: 1 }, waiterStoreId: 9
+    isWaiter: true, waiter: { store_id: 8, can_order: 1 }, waiterStoreId: 8
   }, res);
-  assert.equal(res.statusCode, 200);
-  assert.deepEqual(calls[0].params, [42, 9]);
-  assert.match(calls[0].sql, /WHERE id=\? AND store_id=\? AND status='pending' AND \(awaiting_confirm=1 OR pay_khqr_ref<>''\)/);
+  assert.equal(res.statusCode, 403);
+  assert.equal(calls.some(call => call.type === 'run'), false);
+});
+
+test('KHQR cancellation rejects coercible non-numeric identifiers before querying', async () => {
+  for (const orderId of [true, false, [], {}, null, ' 42 ', '4.2', '4e1']) {
+    const { handler, calls } = setup();
+    const res = response();
+    await handler({
+      body: { order_id: orderId },
+      isAdmin: true, isPrimaryAdmin: true, storeId: 9, merchantId: 5, adminId: 1
+    }, res);
+    assert.equal(res.statusCode, 400, String(orderId));
+    assert.equal(calls.length, 0);
+  }
 });
