@@ -750,6 +750,20 @@ async function initDatabase() {
   try {
     await runAsync('ALTER TABLE menus ADD COLUMN video VARCHAR(255) DEFAULT NULL');
   } catch (e) { if (!/duplicate column/i.test(e.message || '')) console.log('  ! menus.video:', e.message); }
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS cashier_refund_requests (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      store_id INT NOT NULL,
+      request_key VARCHAR(128) NOT NULL,
+      order_id INT NOT NULL,
+      request_hash CHAR(64) NOT NULL,
+      response_json LONGTEXT DEFAULT NULL,
+      created_at VARCHAR(50) NOT NULL,
+      UNIQUE KEY uq_refund_store_request (store_id, request_key),
+      INDEX idx_refund_order (store_id, order_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   try {
     await runAsync('ALTER TABLE orders ADD COLUMN refund_amount DECIMAL(10,2) DEFAULT NULL');
   } catch (e) { if (!/duplicate column/i.test(e.message || '')) console.log('  ! refund_amount:', e.message); }
