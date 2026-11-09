@@ -22,7 +22,7 @@ function setup(reportOrders = []) {
     runAsync: async (sql, params) => {
       if (sql.startsWith('UPDATE orders SET status=?')) {
         state.status = params[0];
-        state.refund_amount = params[5];
+        state.refund_amount = Number(params[5]);
         return { affectedRows: 1 };
       }
       return { affectedRows: 1 };
@@ -111,4 +111,46 @@ test('daily cashier report includes fully refunded orders and separates refund t
   assert.equal(res.body.totalRefunded, '110.00');
   assert.equal(res.body.refundedOrderCount, 1);
   assert.equal(res.body.orders.length, 2);
+});
+
+
+test('refund amount rejects fractions smaller than one cent instead of rounding them', async () => {
+  const { handler, state } = setup();
+  for (const amount of [0.001, 1.005, '2.999']) {
+    const res = response();
+    await handler({
+      params: { id: '5' },
+      storeId: 1,
+      cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
+      body: { amount, reason: 'precision validation' }
+    }, res);
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.error, /两位小数/);
+    assert.equal(state.refund_amount, 0);
+  }
+});
+
+test('refund calculations persist exact decimal cents and reject corrupt historical refund totals', async () => {
+  const { handler, state } = setup();
+  const res = response();
+  await handler({
+    params: { id: '5' },
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
+    body: { amount: '0.10', reason: 'small exact refund' }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.total_refunded, 0.1);
+  assert.equal(state.refund_amount, 0.1);
+
+  state.refund_amount = -0.01;
+  const corrupt = response();
+  await handler({
+    params: { id: '5' },
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
+    body: { amount: '0.10', reason: 'invalid history' }
+  }, corrupt);
+  assert.equal(corrupt.statusCode, 409);
+  assert.equal(state.refund_amount, -0.01);
 });
