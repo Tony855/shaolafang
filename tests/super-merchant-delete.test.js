@@ -73,10 +73,14 @@ test('merchant deletion is one transaction and deletes child rows before parent 
   assert.deepEqual(res.body, { success: true });
   assert.equal(ctx.transactionCount, 1);
   assert.equal(ctx.rolledBack, false);
+  const waiterSessionDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM waiter_sessions'));
+  const waiterDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM `waiters`'));
   const refundDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM `refund_requests`'));
   const orderDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM `orders`'));
   const storesDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM stores'));
   const merchantDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM merchants'));
+  assert.ok(waiterSessionDelete >= 0 && waiterDelete > waiterSessionDelete,
+    'waiter sessions must be revoked before waiter accounts are deleted');
   assert.ok(refundDelete >= 0 && orderDelete > refundDelete && storesDelete > orderDelete && merchantDelete > storesDelete);
   assert.ok(ctx.calls.indexOf('AUDIT') > merchantDelete);
 });

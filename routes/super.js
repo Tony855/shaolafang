@@ -236,6 +236,17 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       }
       const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [merchantId])).map(s => s.id);
 
+      // Waiter sessions are keyed by waiter_id rather than store_id. Revoke
+      // them before deleting waiter rows so merchant removal leaves no stale
+      // bearer tokens in the authentication store.
+      if (storeIds.length > 0) {
+        const placeholders = storeIds.map(() => '?').join(',');
+        await runAsync(
+          'DELETE FROM waiter_sessions WHERE waiter_id IN (SELECT id FROM waiters WHERE store_id IN (' + placeholders + '))',
+          storeIds
+        );
+      }
+
       // Remove store-scoped records before deleting their parent stores.
       if (storeIds.length > 0) {
         const placeholders = storeIds.map(() => '?').join(',');
