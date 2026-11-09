@@ -678,6 +678,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     const { table, items, status, note, pay_method } = req.body || {};
     const orderStoreId = resolveOrderStoreId(req);
     if (!orderStoreId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
+    if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
     if (existing.status !== 'pending') return res.status(409).json({ error: '只有待处理订单可以编辑' });
@@ -903,7 +904,7 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
     if (!Number.isSafeInteger(storeId) || storeId <= 0) {
       return res.status(403).json({ error: '当前账号未绑定有效门店' });
     }
-    const id = Number(req.params.id);
+    const id = parsePositiveOrderRouteId(req.params.id);
     if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const { password } = req.body || {};
     if (!password) return res.status(400).json({ error: '请输入管理员密码' });
