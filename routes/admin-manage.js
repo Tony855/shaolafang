@@ -758,10 +758,11 @@ module.exports = function(app, deps) {
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
-      const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+      const { order_id } = req.body || {};
+      const orderId = Number(order_id);
+      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
 
-      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
       if (order.status !== 'pending') return res.status(400).json({ error: '订单已结算或已取消' });
 
@@ -912,9 +913,10 @@ module.exports = function(app, deps) {
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+      const orderId = orderId;
+      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
 
-      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
       if (order.status !== 'pending') return res.status(400).json({ error: '订单状态不允许确认' });
       if (!Number(order.awaiting_confirm) && !order.pay_khqr_ref) {
@@ -945,7 +947,7 @@ module.exports = function(app, deps) {
         await withTransaction(async () => {
           const lockedOrder = await getAsync(
             'SELECT id, status, awaiting_confirm, pay_khqr_ref, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
-            [order_id, sid]
+            [orderId, sid]
           );
           if (!lockedOrder || lockedOrder.status !== 'pending' ||
               (!Number(lockedOrder.awaiting_confirm) && !lockedOrder.pay_khqr_ref)) {
@@ -1042,9 +1044,9 @@ module.exports = function(app, deps) {
           await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, sid]);
         }
         await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
+          [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id: orderId, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
       });
-      io.to('kitchen-' + sid).emit('order:settled', { orderId: Number(order_id) });
+      io.to('kitchen-' + sid).emit('order:settled', { orderId });
       io.to('waiter-' + sid).emit('order:settled', { orderId: Number(order_id) });
       io.to('cashier-' + sid).emit('order:settled', { orderId: Number(order_id) });
       io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId: Number(order_id) });
