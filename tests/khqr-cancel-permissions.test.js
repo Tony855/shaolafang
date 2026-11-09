@@ -89,5 +89,5 @@ test('authorized waiter cancellation remains store-scoped and validates order id
   }, res);
   assert.equal(res.statusCode, 200);
   assert.deepEqual(calls[0].params, [42, 9]);
-  assert.match(calls[0].sql, /WHERE id=\? AND store_id=\? AND status='pending' AND awaiting_confirm=1/);
+  assert.match(calls[0].sql, /WHERE id=\? AND store_id=\? AND status='pending' AND \(awaiting_confirm=1 OR pay_khqr_ref<>''\)/);
 });

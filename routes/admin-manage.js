@@ -811,10 +811,45 @@ module.exports = function(app, deps) {
       });
       const expiresAt = new Date(Date.now() + expireMin * 60 * 1000).toISOString();
 
-      // 保存到订单
-      const qrUpdate = await runAsync("UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=? AND store_id=? AND status='pending'",
-        ['khqr', dynamicPayload, expiresAt, order.id, sid]);
-      if (!qrUpdate.affectedRows) return res.status(409).json({ error: '订单状态已变化，无法生成新的收款码' });
+      // Serialize QR generation on the order row. Without this lock, two concurrent
+      // requests can each return a different valid QR while only the last payload is
+      // persisted, making a payment to the first QR impossible to reconcile.
+      await withTransaction(async () => {
+        const lockedOrder = await getAsync(
+          'SELECT status, total, awaiting_confirm, pay_khqr_ref, pay_expires_at FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+          [order.id, sid]
+        );
+        if (!lockedOrder || lockedOrder.status !== 'pending' ||
+            Number(lockedOrder.total) !== Number(order.total)) {
+          const error = new Error('订单状态或金额已变化，无法生成收款码');
+          error.status = 409;
+          throw error;
+        }
+        if (Number(lockedOrder.awaiting_confirm)) {
+          const error = new Error('该订单已提交收款确认，请先处理当前确认请求');
+          error.status = 409;
+          throw error;
+        }
+        if (lockedOrder.pay_khqr_ref) {
+          const existingExpiry = Date.parse(lockedOrder.pay_expires_at || '');
+          // Treat an unknown expiry as active: replacing a QR whose validity cannot
+          // be established could orphan a payment already made by the customer.
+          if (!Number.isFinite(existingExpiry) || existingExpiry > Date.now()) {
+            const error = new Error('该订单已有有效收款码，请先取消或等待收款码过期');
+            error.status = 409;
+            throw error;
+          }
+        }
+        const qrUpdate = await runAsync(
+          "UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
+          ['khqr', dynamicPayload, expiresAt, order.id, sid]
+        );
+        if (!qrUpdate.affectedRows) {
+          const error = new Error('订单状态已变化，无法生成新的收款码');
+          error.status = 409;
+          throw error;
+        }
+      });
       res.json({
         qr_payload: dynamicPayload,
         qr_data_url: qrDataUrl,
@@ -832,7 +867,7 @@ module.exports = function(app, deps) {
       });
     } catch (e) {
       console.error('[khqr/generate]', e);
-      res.status(500).json({ error: e.message });
+      res.status(e.status || 500).json({ error: e.message });
     }
   });
 
@@ -1089,7 +1124,7 @@ module.exports = function(app, deps) {
       const orderId = Number(order_id);
       if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
       const { storeId: sid } = await resolveKhqrStore(req);
-      const result = await runAsync("UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=1",
+      const result = await runAsync("UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND (awaiting_confirm=1 OR pay_khqr_ref<>'')",
         [orderId, sid]);
       if (!result.affectedRows) return res.status(409).json({ error: '订单不存在或当前状态不允许取消待确认' });
       res.json({ success: true });

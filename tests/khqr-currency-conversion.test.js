@@ -21,7 +21,7 @@ function staticKhqrPayload() {
   return body + khqr.crc16(body);
 }
 
-function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }] } = {}) {
+function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }], lockedOrderOverride = {} } = {}) {
   const handlers = new Map();
   const calls = [];
   const app = {
@@ -41,11 +41,13 @@ function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }]
       if (params && params[0] === 'store_9_khqr_providers') return { value: JSON.stringify([provider]) };
       if (params && params[0] === 'store_9_khqr_expire_minutes') return { value: '10' };
       if (sql.includes('FROM orders WHERE id=? AND store_id=?')) {
-        return {
-          id: 42, store_id: 9, status: 'pending', total: 10,
+        const order = {
+          id: 42, store_id: 9, status: 'pending', total: 10, awaiting_confirm: 0,
+          pay_khqr_ref: '', pay_expires_at: '',
           items: JSON.stringify([{ currency_code: 'KHR', price: 40000, quantity: 1 }]),
           order_no: '110042'
         };
+        return sql.includes('FOR UPDATE') ? { ...order, ...lockedOrderOverride } : order;
       }
       return null;
     },
@@ -115,4 +117,44 @@ test('KHQR conversion never falls back to merchant 1 or a fabricated 1:1 KHR rat
   assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('pay_khqr_ref')), false);
   const rateQuery = calls.find(call => call.type === 'all' && call.sql.includes('currencies'));
   assert.deepEqual(rateQuery.params, [77]);
+});
+
+
+test('concurrent KHQR generation cannot replace a QR created after the initial order read', async () => {
+  const { handler, calls } = setup({
+    lockedOrderOverride: {
+      pay_khqr_ref: 'already-issued-dynamic-payload',
+      pay_expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString()
+    }
+  });
+  const res = response();
+  await handler({
+    storeId: 9,
+    merchantId: 77,
+    body: { order_id: 42, currency: 'KHR' }
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /已有有效收款码/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('pay_khqr_ref')), false);
+  assert.ok(calls.some(call => call.type === 'get' && call.sql.includes('FOR UPDATE')));
+});
+
+test('KHQR generation refuses to replace a QR with an unknown expiry', async () => {
+  const { handler, calls } = setup({
+    lockedOrderOverride: {
+      pay_khqr_ref: 'legacy-dynamic-payload',
+      pay_expires_at: ''
+    }
+  });
+  const res = response();
+  await handler({
+    storeId: 9,
+    merchantId: 77,
+    body: { order_id: 42, currency: 'KHR' }
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /已有有效收款码/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('pay_khqr_ref')), false);
 });
