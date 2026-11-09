@@ -1008,7 +1008,7 @@ module.exports = function(app, deps) {
         }
         const lockedOrder = await getAsync(
           'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
-          [order_id, sid]
+          [orderId, sid]
         );
         if (!lockedOrder || lockedOrder.status !== 'pending' ||
             lockedOrder.table_name !== order.table_name ||
@@ -1057,7 +1057,7 @@ module.exports = function(app, deps) {
       io.to('kitchen-' + sid).emit('order:settled', { orderId });
       io.to('waiter-' + sid).emit('order:settled', { orderId });
       io.to('cashier-' + sid).emit('order:settled', { orderId });
-      io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId: Number(order_id) });
+      io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId });
       res.json({ success: true, status: 'done' });
     } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
       res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
