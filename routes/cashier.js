@@ -569,8 +569,8 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     if (!req.cashier.permissions?.can_refund) {
       return res.status(403).json({ error: '没有退款权限' });
     }
-    const id = Number(req.params.id);
-    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '订单编号无效' });
+    const id = parsePositiveOrderId(req.params.id);
+    if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const { amount, reason, note } = req.body || {};
     const cleanReason = typeof reason === 'string' ? reason.trim().slice(0, 100) : '';
     if (!cleanReason) return res.status(400).json({ error: '请选择退款原因' });
@@ -807,3 +807,5 @@ app.get('/api/cashier/khqr/providers', requireAdminOrCashierOrWaiter, async (req
 });
 
 };
+
+module.exports.parsePositiveOrderId = parsePositiveOrderId;
