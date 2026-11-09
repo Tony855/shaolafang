@@ -22,6 +22,7 @@ function setup({ initialOrder = null, lockedOrder = null, affectedRows = 1 } = {
   const deps = {
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
+      if (sql.includes('SELECT id, name FROM stores')) return { id: 9, name: 'Test Store' };
       if (sql.includes('FOR UPDATE')) return lockedOrder || initialOrder || defaultOrder;
       return initialOrder || defaultOrder;
     },
@@ -74,6 +75,8 @@ function response() {
 
 const waiterRequest = body => ({
   body: { order_id: 42, pay_method: 'khqr', ...body },
+  storeId: 9,
+  merchantId: 1,
   waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
   waiterStoreId: 9
 });
