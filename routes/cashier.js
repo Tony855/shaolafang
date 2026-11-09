@@ -7,7 +7,7 @@ const { hashPassword, needsRehash } = require('../server/middleware/password');
 function parsePositiveOrderId(value) {
   if (typeof value !== 'number' && typeof value !== 'string') return null;
   const raw = String(value);
-  if (!/^[1-9]\\d*$/.test(raw)) return null;
+  if (!/^[1-9]\d*$/.test(raw)) return null;
   const id = Number(raw);
   return Number.isSafeInteger(id) ? id : null;
 }
