@@ -52,7 +52,11 @@ function setup({ affectedRows = 1, order = null } = {}) {
     io: { to(room) { return { emit(event, payload) { events.push({ room, event, payload }); } }; } }
   };
   registerAdminManageRoutes(app, deps);
-  return { handler: handlers.get('/api/waiter/khqr/notify'), calls, events, transactionEvents };
+  return {
+    handler: handlers.get('/api/waiter/khqr/notify'),
+    cancelHandler: handlers.get('/api/cashier/khqr/cancel'),
+    calls, events, transactionEvents
+  };
 }
 
 function response() {
@@ -145,4 +149,31 @@ test('waiter KHQR notification rejects non-finite tender values before starting 
   assert.equal(res.statusCode, 400);
   assert.equal(calls.length, 0);
   assert.equal(transactionEvents.length, 0);
+});
+
+test('waiter KHQR notification rejects coercible non-numeric identifiers before querying', async () => {
+  for (const orderId of [true, false, [], {}, null, ' 42 ', '4.2', '4e1']) {
+    const { handler, calls } = setup();
+    const res = response();
+    await handler({
+      body: { order_id: orderId, pay_method: 'khqr' },
+      waiter: { id: 7, store_id: 9, can_order: 1 },
+      waiterStoreId: 9
+    }, res);
+    assert.equal(res.statusCode, 400, String(orderId));
+    assert.equal(calls.length, 0);
+  }
+});
+
+test('KHQR cancellation rejects coercible non-numeric identifiers before querying', async () => {
+  for (const orderId of [true, false, [], {}, null, ' 42 ', '4.2', '4e1']) {
+    const { cancelHandler, calls } = setup();
+    const res = response();
+    await cancelHandler({
+      body: { order_id: orderId },
+      isAdmin: true, isPrimaryAdmin: true, storeId: 9, merchantId: 5, adminId: 1
+    }, res);
+    assert.equal(res.statusCode, 400, String(orderId));
+    assert.equal(calls.length, 0);
+  }
 });
