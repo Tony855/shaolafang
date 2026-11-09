@@ -770,11 +770,15 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         : JSON.stringify(lockedOrder?.items || []);
       const lockedTotalCents = lockedOrder ? toMoneyCents(lockedOrder.total) : null;
       const existingTotalCents = toMoneyCents(existing.total);
+      if (lockedOrder && hasActiveKhqr(lockedOrder)) {
+        const error = new Error('订单仍有待确认或有效 KHQR 收款码，请先完成确认或取消收款码');
+        error.status = 409;
+        throw error;
+      }
       if (!lockedOrder || lockedOrder.status !== 'pending' ||
           lockedOrder.table_name !== existing.table_name ||
           lockedTotalCents === null || lockedTotalCents !== existingTotalCents ||
-          lockedItemsSnapshot !== snapshotItems ||
-          hasActiveKhqr(lockedOrder)) {
+          lockedItemsSnapshot !== snapshotItems) {
         const error = new Error('订单状态或内容已变化，请刷新后重试');
         error.status = 409;
         throw error;
