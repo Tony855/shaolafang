@@ -48,8 +48,11 @@ function loadPendingRefund(orderId) {
       // Migrate pending requests created by the previous sessionStorage-only UI.
       saved = sessionStorage.getItem(legacyKey);
       if (saved) {
-        try { localStorage.setItem(key, saved); } catch (_) {}
-        try { sessionStorage.removeItem(legacyKey); } catch (_) {}
+        let migrated = false;
+        try { localStorage.setItem(key, saved); migrated = true; } catch (_) {}
+        if (migrated) {
+          try { sessionStorage.removeItem(legacyKey); } catch (_) {}
+        }
       }
     }
     if (saved) {
