@@ -124,7 +124,7 @@ SMID=$(sql "SELECT merchant_id FROM stores WHERE id=$SID;")
 [ "$MID" = "$SMID" ] && ok "merchant_id 一致" || bad "merchant_id $MID ≠ $SMID"
 
 step "11. 清理"
-sql "DELETE FROM waiter_calls WHERE message LIKE '%#$ORDER_ID%'; DELETE FROM orders WHERE id=$ORDER_ID; DELETE FROM scan_sessions WHERE token='$SESSION_TOKEN';"
+sql "DELETE FROM refund_requests WHERE store_id=$SID AND order_id=$ORDER_ID; DELETE FROM waiter_calls WHERE message LIKE '%#$ORDER_ID%'; DELETE FROM orders WHERE id=$ORDER_ID; DELETE FROM scan_sessions WHERE token='$SESSION_TOKEN';"
 ok "已清理 #$ORDER_ID"
 
 echo ""
