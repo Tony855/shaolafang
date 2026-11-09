@@ -48,7 +48,7 @@ test('sales CSV export includes refunded orders and respects returned quantities
   await handler({ params: { type: 'sales' }, storeId: 7, isPrimaryAdmin: true }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.match(calls[1].sql, /o\.status IN \('done', 'refunded'\)/);
+  assert.match(calls[0].sql, /o\.status IN \('done', 'refunded'\)/);
   assert.deepEqual(calls[0].params, [7]);
   assert.match(res.body, /Noodle/);
   assert.match(res.body, /42/);
@@ -83,6 +83,6 @@ test('order CSV export uses the database decimal net total instead of JS float s
   await handler({ params: { type: 'orders' }, storeId: 7, isPrimaryAdmin: true }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.match(calls[1].sql, /GREATEST\(0, total - COALESCE\(refund_amount, 0\)\) AS net_total/);
+  assert.match(calls[0].sql, /GREATEST\(0, total - COALESCE\(refund_amount, 0\)\) AS net_total/);
   assert.match(res.body, /"0.20"/);
 });
