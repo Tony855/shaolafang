@@ -3,6 +3,18 @@
    ============================================================ */
 const crypto = require('crypto');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
+ 
+// Orders use the normalized USD accounting amount. Keep refund arithmetic in
+// integer cents and reject sub-cent input instead of silently rounding it.
+function toMoneyCents(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const raw = String(value).trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) return null;
+  const [whole, fraction = ''] = raw.split('.');
+  const cents = Number(whole) * 100 + Number((fraction + '00').slice(0, 2));
+  return Number.isSafeInteger(cents) ? cents : null;
+}
+
 
 function formatStaffOrder(row, formatOrder) {
   const formatted = formatOrder(row);
@@ -494,11 +506,14 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     const { amount, reason, note } = req.body || {};
     const cleanReason = typeof reason === 'string' ? reason.trim().slice(0, 100) : '';
     if (!cleanReason) return res.status(400).json({ error: '请选择退款原因' });
-    const requestedAmount = amount === undefined || amount === null || amount === ''
+    const requestedAmountCents = amount === undefined || amount === null || amount === ''
       ? null
-      : Number(amount);
-    if (requestedAmount !== null && (!Number.isFinite(requestedAmount) || requestedAmount <= 0)) {
-      return res.status(400).json({ error: '退款金额必须是大于 0 的有效数字' });
+      : toMoneyCents(amount);
+    if (requestedAmountCents !== null && requestedAmountCents <= 0) {
+      return res.status(400).json({ error: '退款金额必须是大于 0 的有效金额' });
+    }
+    if (amount !== undefined && amount !== null && amount !== '' && requestedAmountCents === null) {
+      return res.status(400).json({ error: '退款金额最多只能有两位小数' });
     }
     const cleanNote = typeof note === 'string' ? note.slice(0, 200) : '';
     const now = new Date().toISOString();
@@ -525,28 +540,40 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         throw error;
       }
 
-      orderTotal = Number(lockedOrder.total);
-      const alreadyRefunded = Math.max(0, Number(lockedOrder.refund_amount) || 0);
-      const available = Math.round((orderTotal - alreadyRefunded) * 100) / 100;
-      if (!Number.isFinite(orderTotal) || orderTotal <= 0 || available <= 0) {
+      const orderTotalCents = toMoneyCents(lockedOrder.total);
+      const alreadyRefundedCents = lockedOrder.refund_amount === null || lockedOrder.refund_amount === undefined || lockedOrder.refund_amount === ''
+        ? 0
+        : toMoneyCents(lockedOrder.refund_amount);
+      if (orderTotalCents === null || orderTotalCents <= 0 ||
+          alreadyRefundedCents === null || alreadyRefundedCents < 0 || alreadyRefundedCents > orderTotalCents) {
+        const error = new Error('订单金额或历史退款金额无效，无法退款');
+        error.status = 409;
+        throw error;
+      }
+      const availableCents = orderTotalCents - alreadyRefundedCents;
+      if (availableCents <= 0) {
         const error = new Error('订单没有可退款余额');
         error.status = 409;
         throw error;
       }
-      refundAmount = requestedAmount === null ? available : Math.round(requestedAmount * 100) / 100;
-      if (refundAmount <= 0 || refundAmount > available) {
-        const error = new Error('退款金额不能超过剩余可退款金额 ' + available.toFixed(2));
+      const refundAmountCents = requestedAmountCents === null ? availableCents : requestedAmountCents;
+      if (refundAmountCents <= 0 || refundAmountCents > availableCents) {
+        const error = new Error('退款金额不能超过剩余可退款金额 ' + (availableCents / 100).toFixed(2));
         error.status = 400;
         throw error;
       }
 
-      totalRefunded = Math.round((alreadyRefunded + refundAmount) * 100) / 100;
-      fullyRefunded = totalRefunded >= Math.round(orderTotal * 100) / 100;
-      remainingAmount = Math.max(0, Math.round((orderTotal - totalRefunded) * 100) / 100);
+      const totalRefundedCents = alreadyRefundedCents + refundAmountCents;
+      const remainingCents = orderTotalCents - totalRefundedCents;
+      orderTotal = orderTotalCents / 100;
+      refundAmount = refundAmountCents / 100;
+      totalRefunded = totalRefundedCents / 100;
+      fullyRefunded = remainingCents === 0;
+      remainingAmount = remainingCents / 100;
       tableName = lockedOrder.table_name;
       const refundUpdate = await runAsync(
         "UPDATE orders SET status=?, refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=? AND status='done'",
-        [fullyRefunded ? 'refunded' : 'done', cleanReason, cleanNote, now, req.cashier.username || '', totalRefunded, id, req.storeId]
+        [fullyRefunded ? 'refunded' : 'done', cleanReason, cleanNote, now, req.cashier.username || '', totalRefunded.toFixed(2), id, req.storeId]
       );
       if (!refundUpdate.affectedRows) {
         const error = new Error('订单状态已变化，退款操作已回滚');

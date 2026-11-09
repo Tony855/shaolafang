@@ -8,6 +8,7 @@ function setup({ affectedRows = 1, order = null } = {}) {
   const handlers = new Map();
   const calls = [];
   const events = [];
+  const transactionEvents = [];
   const app = {
     get() {},
     put() {},
@@ -17,16 +18,24 @@ function setup({ affectedRows = 1, order = null } = {}) {
     }
   };
   const deps = {
-    getAsync: async () => order || {
-      id: 42, status: 'pending', awaiting_confirm: 0,
-      table_name: 'A01', order_no: '110042', total: 25
+    getAsync: async (sql, params) => {
+      calls.push({ type: 'get', sql, params });
+      return order || {
+        id: 42, status: 'pending', awaiting_confirm: 0,
+        table_name: 'A01', order_no: '110042', total: 25
+      };
     },
     runAsync: async (sql, params) => {
-      calls.push({ sql, params });
+      calls.push({ type: 'run', sql, params });
       if (sql.startsWith('UPDATE orders SET awaiting_confirm=1')) {
         return { affectedRows };
       }
       return { affectedRows: 1 };
+    },
+    withTransaction: async work => {
+      transactionEvents.push('begin');
+      try { const result = await work(); transactionEvents.push('commit'); return result; }
+      catch (error) { transactionEvents.push('rollback'); throw error; }
     },
     allAsync: async () => [],
     requireAdminOrWaiter: (_req, _res, next) => next(),
@@ -43,7 +52,7 @@ function setup({ affectedRows = 1, order = null } = {}) {
     io: { to(room) { return { emit(event, payload) { events.push({ room, event, payload }); } }; } }
   };
   registerAdminManageRoutes(app, deps);
-  return { handler: handlers.get('/api/waiter/khqr/notify'), calls, events };
+  return { handler: handlers.get('/api/waiter/khqr/notify'), calls, events, transactionEvents };
 }
 
 function response() {
@@ -55,8 +64,8 @@ function response() {
   };
 }
 
-test('waiter KHQR notification uses a store-scoped pending-state compare-and-set', async () => {
-  const { handler, calls, events } = setup();
+test('waiter KHQR notification locks order and commits state plus audit before broadcasting', async () => {
+  const { handler, calls, events, transactionEvents } = setup();
   const res = response();
   await handler({
     body: { order_id: '42', pay_method: 'khqr', cash_received: 25, cash_change: 0 },
@@ -66,15 +75,19 @@ test('waiter KHQR notification uses a store-scoped pending-state compare-and-set
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.status, 'awaiting_confirm');
-  const update = calls.find(call => call.sql.startsWith('UPDATE orders SET awaiting_confirm=1'));
+  const lockedRead = calls.find(call => call.type === 'get');
+  assert.match(lockedRead.sql, /WHERE id=\? AND store_id=\? FOR UPDATE/);
+  const update = calls.find(call => call.type === 'run' && call.sql.startsWith('UPDATE orders SET awaiting_confirm=1'));
   assert.ok(update);
   assert.match(update.sql, /WHERE id=\? AND store_id=\? AND status='pending' AND awaiting_confirm=0/);
   assert.deepEqual(update.params, ['khqr', 25, 0, 42, 9]);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO audit_logs')));
+  assert.deepEqual(transactionEvents, ['begin', 'commit']);
   assert.equal(events.length, 1);
 });
 
 test('waiter KHQR notification rejects a concurrent state change without broadcasting or auditing', async () => {
-  const { handler, calls, events } = setup({ affectedRows: 0 });
+  const { handler, calls, events, transactionEvents } = setup({ affectedRows: 0 });
   const res = response();
   await handler({
     body: { order_id: 42, pay_method: 'khqr' },
@@ -84,7 +97,8 @@ test('waiter KHQR notification rejects a concurrent state change without broadca
 
   assert.equal(res.statusCode, 409);
   assert.equal(events.length, 0);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.filter(call => call.type === 'run').length, 1);
+  assert.deepEqual(transactionEvents, ['begin', 'rollback']);
 });
 
 test('waiter KHQR notification rejects invalid order identifiers before querying', async () => {
@@ -98,4 +112,37 @@ test('waiter KHQR notification rejects invalid order identifiers before querying
 
   assert.equal(res.statusCode, 400);
   assert.equal(calls.length, 0);
+});
+
+
+test('repeated waiter KHQR notification is idempotent and does not duplicate audit or broadcast', async () => {
+  const { handler, calls, events, transactionEvents } = setup({
+    order: { id: 42, status: 'pending', awaiting_confirm: 1, table_name: 'A01', order_no: '110042', total: 25 }
+  });
+  const res = response();
+  await handler({
+    body: { order_id: 42, pay_method: 'khqr' },
+    waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
+    waiterStoreId: 9
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.already, true);
+  assert.equal(calls.some(call => call.type === 'run'), false);
+  assert.deepEqual(transactionEvents, ['begin', 'commit']);
+  assert.equal(events.length, 0);
+});
+
+test('waiter KHQR notification rejects non-finite tender values before starting transaction', async () => {
+  const { handler, calls, transactionEvents } = setup();
+  const res = response();
+  await handler({
+    body: { order_id: 42, pay_method: 'cash', cash_received: 'Infinity' },
+    waiter: { id: 7, store_id: 9, can_order: 1 },
+    waiterStoreId: 9
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(calls.length, 0);
+  assert.equal(transactionEvents.length, 0);
 });
