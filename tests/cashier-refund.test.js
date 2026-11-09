@@ -45,7 +45,17 @@ function setup(reportOrders = []) {
       }
       return { affectedRows: 1 };
     },
-    withTransaction: async work => work(),
+    withTransaction: async work => {
+      const stateSnapshot = { ...state };
+      const requestsSnapshot = new Map(Array.from(refundRequests, ([key, value]) => [key, { ...value }]));
+      try { return await work(); }
+      catch (error) {
+        Object.assign(state, stateSnapshot);
+        refundRequests.clear();
+        for (const [key, value] of requestsSnapshot) refundRequests.set(key, value);
+        throw error;
+      }
+    },
     isLoginLocked: async () => ({ locked: false }),
     recordLoginAttempt() {},
     resetLoginAttempts() {},
@@ -112,6 +122,7 @@ test('refunds cannot exceed the remaining refundable balance or repeat after ful
   const repeated = response();
   await handler(req, repeated);
   assert.equal(repeated.statusCode, 409);
+  assert.equal(state.refundUpdates, 0);
 });
 
 
