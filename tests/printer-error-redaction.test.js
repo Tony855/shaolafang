@@ -8,7 +8,7 @@ test('printer errors never expose internal IPs, ports, or socket diagnostics', (
   const internalError = new Error('connect ECONNREFUSED 10.20.30.40:9100');
   const publicMessage = sanitizePrinterError(internalError);
   assert.equal(publicMessage, '打印机连接失败，请检查设备连接和网络设置');
-  assert.doesNotMatch(publicMessage, /10\\.20\\.30\\.40|9100|ECONNREFUSED/);
+  assert.doesNotMatch(publicMessage, /10\.20\.30\.40|9100|ECONNREFUSED/);
 });
 
 test('printer error redaction is stable for timeout and DNS failures', () => {
