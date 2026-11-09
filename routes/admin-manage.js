@@ -757,10 +757,10 @@ module.exports = function(app, deps) {
       if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有生成收款码权限' });
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
-      const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id } = req.body || {};
       const orderId = Number(order_id);
       if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
+      const { storeId: sid } = await resolveKhqrStore(req);
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
@@ -911,10 +911,10 @@ module.exports = function(app, deps) {
       if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有确认收款权限' });
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
-      const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
       const orderId = Number(order_id);
       if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
+      const { storeId: sid } = await resolveKhqrStore(req);
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
