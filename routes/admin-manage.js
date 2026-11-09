@@ -11,6 +11,14 @@ function normalizeAdminFlag(value, fallback, field) {
   throw Object.assign(new Error(field + ' 参数无效'), { status: 400 });
 }
 
+function parsePositiveOrderId(value) {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  const raw = String(value).trim();
+  if (!/^[1-9]\d*$/.test(raw)) return null;
+  const id = Number(raw);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
 function toMoneyCents(value) {
   if (value === null || value === undefined || value === '') return null;
   const raw = String(value).trim();
@@ -757,11 +765,12 @@ module.exports = function(app, deps) {
       if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有生成收款码权限' });
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
+      const { order_id } = req.body || {};
+      const orderId = parsePositiveOrderId(order_id);
+      if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
       const { storeId: sid } = await resolveKhqrStore(req);
-      const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
 
-      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
       if (order.status !== 'pending') return res.status(400).json({ error: '订单已结算或已取消' });
 
@@ -910,11 +919,12 @@ module.exports = function(app, deps) {
       if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有确认收款权限' });
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
-      const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+      const orderId = parsePositiveOrderId(order_id);
+      if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
+      const { storeId: sid } = await resolveKhqrStore(req);
 
-      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
       if (!order) return res.status(404).json({ error: '订单不存在' });
       if (order.status !== 'pending') return res.status(400).json({ error: '订单状态不允许确认' });
       if (!Number(order.awaiting_confirm) && !order.pay_khqr_ref) {
@@ -945,7 +955,7 @@ module.exports = function(app, deps) {
         await withTransaction(async () => {
           const lockedOrder = await getAsync(
             'SELECT id, status, awaiting_confirm, pay_khqr_ref, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
-            [order_id, sid]
+            [orderId, sid]
           );
           if (!lockedOrder || lockedOrder.status !== 'pending' ||
               (!Number(lockedOrder.awaiting_confirm) && !lockedOrder.pay_khqr_ref)) {
@@ -959,7 +969,7 @@ module.exports = function(app, deps) {
           }
           const result = await runAsync(
             "UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
-            [paymentMethod, Number.isFinite(received) ? received : 0, Number.isFinite(change) ? change : 0, order_id, sid]
+            [paymentMethod, Number.isFinite(received) ? received : 0, Number.isFinite(change) ? change : 0, orderId, sid]
           );
           if (!result.affectedRows) {
             const error = new Error('订单状态已变化，请刷新后重试');
@@ -969,7 +979,7 @@ module.exports = function(app, deps) {
           await runAsync(
             'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
             ['waiter', req.waiter.id || 0, req.waiter.display_name || req.waiter.username || 'waiter',
-             'khqr_notify_awaiting', JSON.stringify({ order_id: Number(order_id), table: lockedOrder.table_name }),
+             'khqr_notify_awaiting', JSON.stringify({ order_id: orderId, table: lockedOrder.table_name }),
              getClientIp(req), new Date().toISOString()]
           );
           notification = {
@@ -998,7 +1008,7 @@ module.exports = function(app, deps) {
         }
         const lockedOrder = await getAsync(
           'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
-          [order_id, sid]
+          [orderId, sid]
         );
         if (!lockedOrder || lockedOrder.status !== 'pending' ||
             lockedOrder.table_name !== order.table_name ||
@@ -1042,12 +1052,12 @@ module.exports = function(app, deps) {
           await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, sid]);
         }
         await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
+          [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id: orderId, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
       });
-      io.to('kitchen-' + sid).emit('order:settled', { orderId: Number(order_id) });
-      io.to('waiter-' + sid).emit('order:settled', { orderId: Number(order_id) });
-      io.to('cashier-' + sid).emit('order:settled', { orderId: Number(order_id) });
-      io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId: Number(order_id) });
+      io.to('kitchen-' + sid).emit('order:settled', { orderId });
+      io.to('waiter-' + sid).emit('order:settled', { orderId });
+      io.to('cashier-' + sid).emit('order:settled', { orderId });
+      io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId });
       res.json({ success: true, status: 'done' });
     } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
       res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }

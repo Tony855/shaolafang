@@ -63,7 +63,11 @@ function setup({ initialOrder = null, lockedOrder = null, affectedRows = 1 } = {
     } }; } }
   };
   registerAdminManageRoutes(app, deps);
-  return { handler: handlers.get('/api/cashier/khqr/confirm'), calls, events, transactions };
+  return {
+    handler: handlers.get('/api/cashier/khqr/confirm'),
+    generateHandler: handlers.get('/api/cashier/khqr/generate'),
+    calls, events, transactions
+  };
 }
 
 function response() {
@@ -244,4 +248,34 @@ test('waiter KHQR notification rejects sub-cent cash amounts before transaction'
   assert.equal(calls.some(call => call.type === 'run'), false);
   assert.deepEqual(transactions, []);
   assert.equal(events.length, 0);
+});
+
+test('KHQR confirmation rejects non-canonical order identifiers before database access', async () => {
+  const { handler, calls, transactions } = setup();
+  const res = response();
+  await handler({ body: { order_id: '42abc' }, storeId: 9, isAdmin: true, isPrimaryAdmin: true, adminId: 3 }, res);
+  assert.equal(res.statusCode, 400);
+  assert.equal(calls.length, 0);
+  assert.deepEqual(transactions, []);
+});
+
+test('KHQR generation rejects non-positive or non-integer order identifiers before database access', async () => {
+  const { generateHandler, calls, transactions } = setup();
+  for (const orderId of ['42abc', '0', '-1', '1.5', '9007199254740992', true, [], null]) {
+    const res = response();
+    await generateHandler({ body: { order_id: orderId }, storeId: 9, isAdmin: true, isPrimaryAdmin: true, adminId: 3 }, res);
+    assert.equal(res.statusCode, 400, String(orderId));
+  }
+  assert.equal(calls.length, 0);
+  assert.deepEqual(transactions, []);
+});
+
+test('KHQR confirmation rejects non-string and non-number identifiers', async () => {
+  for (const orderId of [true, [], {}, null]) {
+    const { handler, calls } = setup();
+    const res = response();
+    await handler({ body: { order_id: orderId }, storeId: 9, isAdmin: true, isPrimaryAdmin: true, adminId: 3 }, res);
+    assert.equal(res.statusCode, 400);
+    assert.equal(calls.length, 0);
+  }
 });

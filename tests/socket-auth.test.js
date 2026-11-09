@@ -112,3 +112,34 @@ test('socket auth refuses credentials supplied only in URL query strings', async
   await middleware(socket, value => { error = value || null; });
   assert.match(error.message, /session token required/);
 });
+
+test('cashier socket rejects string and numeric inactive flags consistently with HTTP auth', async () => {
+  const expires = new Date(Date.now() + 60000).toISOString();
+  for (const active of [false, 0, '0', 'false', null]) {
+    const error = await authenticate(async sql => {
+      if (sql.includes('FROM scan_sessions') || sql.includes('FROM waiter_sessions')) return null;
+      if (sql.includes('FROM cashier_sessions')) return { cashier_id: 3, store_id: 7, merchant_id: 9, expires_at: expires };
+      if (sql.includes('FROM stores')) return { id: 7 };
+      if (sql.includes('FROM settings')) return { value: JSON.stringify([{ id: 3, active }]) };
+      return null;
+    }, makeSocket('cashier-token'));
+    assert.match(error.message, /token invalid or expired/, String(active));
+  }
+});
+
+test('cashier socket accepts only the explicit active flag values used by HTTP auth', async () => {
+  const expires = new Date(Date.now() + 60000).toISOString();
+  for (const active of [true, 1, '1', 'true']) {
+    const socket = makeSocket('cashier-token');
+    const error = await authenticate(async sql => {
+      if (sql.includes('FROM scan_sessions') || sql.includes('FROM waiter_sessions')) return null;
+      if (sql.includes('FROM cashier_sessions')) return { cashier_id: 3, store_id: 7, merchant_id: 9, expires_at: expires };
+      if (sql.includes('FROM stores')) return { id: 7 };
+      if (sql.includes('FROM settings')) return { value: JSON.stringify([{ id: 3, active }]) };
+      return null;
+    }, socket);
+    assert.equal(error, null);
+    assert.equal(socket.data.role, 'cashier');
+    assert.equal(socket.data.storeId, 7);
+  }
+});

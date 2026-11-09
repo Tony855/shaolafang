@@ -83,7 +83,8 @@ function createSocketAuthenticator({ getAsync, logger = console }) {
             : null;
           let cashiers = [];
           try { cashiers = JSON.parse(settings?.value || '[]'); } catch (_) {}
-          const cashier = cashiers.find(item => String(item.id) === String(cashierSession.cashier_id) && item.active);
+          const cashier = cashiers.find(item => String(item.id) === String(cashierSession.cashier_id) &&
+            (item.active === true || item.active === 1 || item.active === '1' || item.active === 'true'));
           if (cashier) {
             socket.data.role = 'cashier';
             socket.data.storeId = storeId;
