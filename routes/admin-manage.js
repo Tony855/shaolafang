@@ -255,7 +255,7 @@ module.exports = function(app, deps) {
 
   app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
       const merchantId = Number(req.merchantId);
       const body = req.body || {};
       if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
@@ -521,8 +521,8 @@ module.exports = function(app, deps) {
         if (!found) throw Object.assign(new Error('收银员不存在'), { status: 404 });
         const { store: oldStore, list: oldList, idx } = found;
         const cashier = { ...oldList[idx], permissions: { ...(oldList[idx].permissions || {}) } };
-        const targetStoreId = body.store_id === undefined ? Number(oldStore.id) : Number(body.store_id);
-        if (!Number.isSafeInteger(targetStoreId) || targetStoreId <= 0) throw Object.assign(new Error('目标门店编号无效'), { status: 400 });
+        const targetStoreId = parsePositiveRouteId(body.store_id === undefined ? oldStore.id : body.store_id);
+        if (targetStoreId === null) throw Object.assign(new Error('目标门店编号无效'), { status: 400 });
         const storeChanged = targetStoreId !== Number(oldStore.id);
         const newStore = storeChanged
           ? await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [targetStoreId, merchantId])
