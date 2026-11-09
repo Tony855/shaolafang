@@ -563,7 +563,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     const allowRefund = isEnabledFlag(perms.can_refund, false);
     const canSettle = !financialDataCorrupted && allowSettle && order.status === 'pending' && SLF.orderStatus.allItemsDone(order);
     const canCancel = allowCancel && order.status === 'pending';
-    const canRefund = !financialDataCorrupted && allowRefund && ['done', 'settled', 'paid', 'completed'].includes(order.status);
+    const hasPendingRefund = !!loadPendingRefund(order.id);
+    const canRefund = !financialDataCorrupted && allowRefund && (['done', 'settled', 'paid', 'completed'].includes(order.status) || hasPendingRefund);
     let btns = '';
     if (canSettle) {
       btns += `<button class="btn btn-pay" onclick="openPaymentModal(${order.id})">💵 ${t('settleOrder')}</button>`;
