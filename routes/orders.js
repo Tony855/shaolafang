@@ -10,7 +10,7 @@ const { resolveOrderStoreId } = require("../server/services/order-store-scope");
 function parsePositiveOrderRouteId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
   const raw = String(value);
-  if (!/^[1-9]\\d*$/.test(raw)) return null;
+  if (!/^[1-9]\d*$/.test(raw)) return null;
   const id = Number(raw);
   return Number.isSafeInteger(id) ? id : null;
 }
@@ -18,7 +18,7 @@ function parsePositiveOrderRouteId(value) {
 function parseNonNegativeRouteIndex(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
   const raw = String(value);
-  if (!/^(?:0|[1-9]\\d*)$/.test(raw)) return null;
+  if (!/^(?:0|[1-9]\d*)$/.test(raw)) return null;
   const index = Number(raw);
   return Number.isSafeInteger(index) ? index : null;
 }
