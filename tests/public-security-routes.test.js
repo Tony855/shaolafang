@@ -512,3 +512,21 @@ test('public QR scan credentials are never cacheable', async () => {
   assert.ok(res.body.sessionToken);
   assert.ok(res.body.customerToken);
 });
+
+test('table QR code route rejects malformed table IDs before database access', async () => {
+  const { app, routes } = routeHarness();
+  let queries = 0;
+  require('../routes/public-session')(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async () => { queries++; return null; },
+    runAsync: async () => ({ affectedRows: 0 }),
+    allAsync: async () => [],
+    formatOrder: row => row
+  });
+  const handler = routes.get('GET /api/tables/:id/qrcode').at(-1);
+  const res = response();
+  await handler({ params: { id: '42junk' }, storeId: 7, protocol: 'https', get: () => 'foodflow.example' }, res);
+  assert.equal(res.statusCode, 400);
+  assert.equal(queries, 0);
+});
