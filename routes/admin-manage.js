@@ -98,7 +98,8 @@ module.exports = function(app, deps) {
         cashier_idle_timeout: parseInt(cashierIdle?.value || '30', 10),
         kitchen_idle_timeout: parseInt(kitchenIdle?.value || '120', 10),
       });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   // ----- 催单（需要 session 校验 + 限流）-----
@@ -192,7 +193,8 @@ module.exports = function(app, deps) {
     try {
       const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, (id = (SELECT MIN(id) FROM merchant_admins ma2 WHERE ma2.merchant_id = merchant_admins.merchant_id)) AS is_primary, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
       res.json(rows);
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   app.post('/api/admin/admins', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
@@ -423,7 +425,8 @@ module.exports = function(app, deps) {
     try {
       const list = await getAllCashiersByMerchant(req.merchantId);
       res.json({ cashiers: list });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   app.post('/api/admin/cashiers', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
@@ -744,7 +747,8 @@ module.exports = function(app, deps) {
         bakongId: bakong ? bakong.value : '',
         payloadPreview: payload ? payload.value.slice(0, 30) + '...' : '',
       });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   /* ===== 生成动态码 ===== */
@@ -895,7 +899,8 @@ module.exports = function(app, deps) {
       });
     } catch (e) {
       console.error('[khqr/generate]', e);
-      res.status(e.status || 500).json({ error: e.message });
+      const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message });
     }
   });
 
@@ -1044,7 +1049,8 @@ module.exports = function(app, deps) {
       io.to('cashier-' + sid).emit('order:settled', { orderId: Number(order_id) });
       io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId: Number(order_id) });
       res.json({ success: true, status: 'done' });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
 
@@ -1054,7 +1060,8 @@ module.exports = function(app, deps) {
       const { storeId: sid } = await resolveKhqrStore(req);
       const list = await loadKhqrProviders(sid);
       res.json({ providers: list });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   /* ===== 删除某个 provider ===== */
@@ -1070,7 +1077,8 @@ module.exports = function(app, deps) {
       if (removed.isDefault && list.length > 0) list[0].isDefault = true;
       await saveKhqrProviders(sid, list);
       res.json({ success: true, remaining: list.length });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   /* ===== 设为默认 ===== */
@@ -1087,7 +1095,8 @@ module.exports = function(app, deps) {
       if (!found) return res.status(404).json({ error: '收款码不存在' });
       await saveKhqrProviders(sid, list);
       res.json({ success: true });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   /* ===== 启用/禁用 ===== */
@@ -1101,7 +1110,8 @@ module.exports = function(app, deps) {
       p.enabled = !p.enabled;
       await saveKhqrProviders(sid, list);
       res.json({ success: true, enabled: p.enabled });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   /* ===== 二维码图片（PNG） ===== */
@@ -1125,7 +1135,8 @@ module.exports = function(app, deps) {
       res.setHeader('Content-Type', 'image/png');
       res.setHeader('Cache-Control', 'no-store, no-cache');
       res.send(buf);
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   /* ===== 服务员：通知收银员核实到账 ===== */
@@ -1217,7 +1228,8 @@ module.exports = function(app, deps) {
         io.to('cashier-' + sid).emit('khqr:awaiting', notification);
       }
       res.json({ success: true, status: 'awaiting_confirm', ...(alreadyNotified ? { already: true } : {}) });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
   /* ===== 取消/退回待确认 ===== */
@@ -1234,7 +1246,8 @@ module.exports = function(app, deps) {
         [orderId, sid]);
       if (!result.affectedRows) return res.status(409).json({ error: '订单不存在或当前状态不允许取消待确认' });
       res.json({ success: true });
-    } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+    } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
   });
 
 };
