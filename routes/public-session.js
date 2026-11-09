@@ -3,6 +3,7 @@
    ============================================================ */
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+const { parsePositiveRouteId } = require('../server/services/route-id');
 
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder } = deps;
@@ -21,7 +22,9 @@ module.exports = function(app, deps) {
 
   app.get('/api/tables/:id/qrcode', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
     try {
-      const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ? AND store_id = ?', [req.params.id, req.storeId]);
+      const tableId = parsePositiveRouteId(req.params.id);
+      if (tableId === null) return res.status(400).json({ error: '桌台编号无效' });
+      const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ? AND store_id = ?', [tableId, req.storeId]);
       if (!table) return res.status(404).json({ error: '桌号不存在' });
       const store = await getAsync('SELECT s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [table.store_id]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
