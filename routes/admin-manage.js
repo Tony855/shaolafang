@@ -1135,12 +1135,18 @@ module.exports = function(app, deps) {
     try {
       const { storeId: sid } = await resolveKhqrStore(req);
       const { order_id, size } = req.query;
-      if (!order_id) return res.status(400).json({ error: '缺少订单 ID' });
+      if (order_id === undefined || order_id === null || order_id === '') {
+        return res.status(400).json({ error: '缺少订单 ID' });
+      }
+      const orderId = parsePositiveOrderId(order_id);
+      if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
+      const requestedSize = size === undefined ? 240 : parsePositiveOrderId(size);
+      if (requestedSize === null) return res.status(400).json({ error: '二维码尺寸无效' });
 
-      const order = await getAsync('SELECT pay_khqr_ref FROM orders WHERE id=? AND store_id=?', [order_id, sid]);
+      const order = await getAsync('SELECT pay_khqr_ref FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
       if (!order || !order.pay_khqr_ref) return res.status(404).json({ error: '未生成动态码' });
 
-      const px = Math.max(120, Math.min(1024, parseInt(size, 10) || 240));
+      const px = Math.max(120, Math.min(1024, requestedSize));
       const dataUrl = await QRCode.toDataURL(order.pay_khqr_ref, {
         errorCorrectionLevel: 'M',
         margin: 1,
