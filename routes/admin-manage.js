@@ -772,25 +772,31 @@ module.exports = function(app, deps) {
 
       const requestedCurrency = String((req.body && req.body.currency) || '').trim().toUpperCase();
       const targetCurrency = ['USD', 'KHR'].includes(requestedCurrency) ? requestedCurrency : staticCurrency;
-      // 订单原始币种
-      let orderCurrency = 'USD';
-      try {
-        const items = JSON.parse(order.items || '[]');
-        if (items[0] && items[0].currency_code) orderCurrency = items[0].currency_code;
-      } catch (e) {}
+      // orders.total is normalized to the merchant's USD base currency when the
+      // order is created (each item's base_price is price / its menu currency rate).
+      // Never infer the order-total currency from items[0].currency_code: that is
+      // the menu's display currency, not the persisted order total currency.
+      const baseUsdAmount = Number(order.total);
+      if (!Number.isFinite(baseUsdAmount) || baseUsdAmount <= 0) {
+        return res.status(400).json({ error: '订单金额无效，无法生成收款码' });
+      }
 
-      // 换算：静态码币种 != 订单币种 时，按汇率转
-      let finalAmount = Number(order.total);
-      if (orderCurrency !== targetCurrency) {
-        const rates = await allAsync('SELECT code, rate FROM currencies WHERE merchant_id=?', [req.merchantId || 1]);
-        const rateMap = {};
-        for (const r of rates) rateMap[r.code] = Number(r.rate) || 1;
-        // rate = 该币兑 USD 汇率
-        const usdRateOfOrder = rateMap[orderCurrency] || 1;
-        const usdRateOfStatic = rateMap[targetCurrency] || 1;
-        // 订单币种 → USD → 静态码币种
-        const usdAmount = Number(order.total) / usdRateOfOrder;
-        finalAmount = usdAmount * usdRateOfStatic;
+      let finalAmount = baseUsdAmount;
+      if (targetCurrency === 'KHR') {
+        const merchantId = Number(req.merchantId);
+        if (!Number.isSafeInteger(merchantId) || merchantId <= 0) {
+          return res.status(403).json({ error: '商户信息无效，无法计算收款金额' });
+        }
+        const rates = await allAsync('SELECT code, rate FROM currencies WHERE merchant_id=?', [merchantId]);
+        const khrRateRow = rates.find(row => String(row.code).toUpperCase() === 'KHR');
+        const khrRate = Number(khrRateRow && khrRateRow.rate);
+        if (!Number.isFinite(khrRate) || khrRate <= 0) {
+          return res.status(409).json({ error: '当前商户的 KHR 汇率缺失或无效，请先检查货币设置' });
+        }
+        finalAmount = baseUsdAmount * khrRate;
+      }
+      if (!Number.isFinite(finalAmount) || finalAmount <= 0 || finalAmount > 999999999) {
+        return res.status(400).json({ error: '换算后的收款金额无效或超出允许范围' });
       }
 
       const orderNo = order.order_no || ('#' + order.id);
@@ -817,7 +823,7 @@ module.exports = function(app, deps) {
         provider_bank: provider.bank,
         amount: Number(finalAmount.toFixed(2)),
         original_amount: Number(order.total),
-        original_currency: orderCurrency,
+        original_currency: 'USD',
         currency,
         merchant_name: nameRow ? nameRow.value : '',
         order_no: orderNo,
