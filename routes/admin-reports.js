@@ -99,8 +99,10 @@ module.exports = function(app, deps) {
           (SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_revenue,
           (SELECT AVG(GREATEST(0, total - COALESCE(refund_amount, 0))) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS avg_order_value,
           (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='refunded' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS refunded_orders,
-          (SELECT COALESCE(SUM(GREATEST(0, refund_amount)), 0) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_refunded
+          (SELECT COALESCE(SUM(GREATEST(0, refund_amount)), 0) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_refunded,
+          (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ? AND (total IS NULL OR total < 0 OR COALESCE(refund_amount, 0) < 0 OR COALESCE(refund_amount, 0) > total)) AS invalid_refund_orders
       `, [
+        ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
@@ -109,6 +111,9 @@ module.exports = function(app, deps) {
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd
       ]);
+      if (Number(orderStats?.invalid_refund_orders || 0) > 0) {
+        return res.status(409).json({ error: '订单退款数据异常，请先核对历史退款记录后再生成报表' });
+      }
       const tableRevenue = await allAsync(`
         SELECT table_name, COUNT(*) AS orders, SUM(GREATEST(0, total - COALESCE(refund_amount, 0))) AS revenue
         FROM orders
