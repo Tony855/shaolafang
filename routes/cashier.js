@@ -700,10 +700,11 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         remaining_amount: remainingAmount,
         fully_refunded: fullyRefunded
       };
-      await runAsync(
+      const savedRequest = await runAsync(
         'UPDATE refund_requests SET response_json=? WHERE store_id=? AND idempotency_key=? AND request_hash=?',
         [JSON.stringify(responsePayload), req.storeId, idempotencyKey, requestHash]
       );
+      if (!savedRequest.affectedRows) throw new Error('退款结果保存失败，操作已回滚');
     });
 
     if (replayedResponse) return res.json({ ...replayedResponse, idempotent_replay: true });
