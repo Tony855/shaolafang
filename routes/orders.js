@@ -145,7 +145,7 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, requireOrderTransferA
         error.status = 404;
         throw error;
       }
-      if (order.table_name !== initialOrder.table_name || order.status !== 'pending' || order.awaiting_confirm) {
+      if (order.table_name !== initialOrder.table_name || order.status !== 'pending' || hasActiveKhqr(order)) {
         const error = new Error('订单状态或桌台已变化，请刷新后重试');
         error.status = 409;
         throw error;
@@ -241,7 +241,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
         error.status = 409;
         throw error;
       }
-      if (!req.isAdmin && row.awaiting_confirm) {
+      if (hasActiveKhqr(row)) {
         const error = new Error('订单已通知收银员，无法修改菜品');
         error.status = 409;
         throw error;
