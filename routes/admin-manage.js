@@ -961,7 +961,7 @@ module.exports = function(app, deps) {
           }
           const result = await runAsync(
             "UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
-            [paymentMethod, Number.isFinite(received) ? received : 0, Number.isFinite(change) ? change : 0, order_id, sid]
+            [paymentMethod, Number.isFinite(received) ? received : 0, Number.isFinite(change) ? change : 0, orderId, sid]
           );
           if (!result.affectedRows) {
             const error = new Error('订单状态已变化，请刷新后重试');
@@ -971,7 +971,7 @@ module.exports = function(app, deps) {
           await runAsync(
             'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
             ['waiter', req.waiter.id || 0, req.waiter.display_name || req.waiter.username || 'waiter',
-             'khqr_notify_awaiting', JSON.stringify({ order_id: Number(order_id), table: lockedOrder.table_name }),
+             'khqr_notify_awaiting', JSON.stringify({ order_id: orderId, table: lockedOrder.table_name }),
              getClientIp(req), new Date().toISOString()]
           );
           notification = {
@@ -1047,7 +1047,7 @@ module.exports = function(app, deps) {
           [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id: orderId, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
       });
       io.to('kitchen-' + sid).emit('order:settled', { orderId });
-      io.to('waiter-' + sid).emit('order:settled', { orderId: Number(order_id) });
+      io.to('waiter-' + sid).emit('order:settled', { orderId });
       io.to('cashier-' + sid).emit('order:settled', { orderId: Number(order_id) });
       io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId: Number(order_id) });
       res.json({ success: true, status: 'done' });
