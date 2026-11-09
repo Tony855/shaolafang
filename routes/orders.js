@@ -24,9 +24,26 @@ module.exports = function(app, deps) {
     return formatted;
   }
 
+  function resolveOrderStoreId(req) {
+    const raw = req.isAdmin
+      ? req.storeId
+      : (req.waiterStoreId ?? req.waiter?.store_id);
+    const storeId = Number(raw);
+    return Number.isSafeInteger(storeId) && storeId > 0 ? storeId : null;
+  }
+
+  function sendOrderError(res, error) {
+    const status = Number(error && error.status);
+    if (Number.isInteger(status) && status >= 400 && status < 500) {
+      return res.status(status).json({ error: error.message || '订单请求无效' });
+    }
+    return res.status(500).json({ error: '订单服务暂时不可用，请稍后重试' });
+  }
+
 app.post('/api/orders/:id/transfer', requireAdminOrWaiter, requireOrderTransferAccess, async (req, res) => {
   try {
-    const storeId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    const storeId = resolveOrderStoreId(req);
+    if (!storeId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
     const orderId = Number(req.params.id);
     const targetTable = typeof req.body?.target_table === 'string' ? req.body.target_table.trim() : '';
     if (!Number.isSafeInteger(orderId) || orderId <= 0 || !targetTable || targetTable.length > 50) {
@@ -137,7 +154,7 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, requireOrderTransferA
     io.to('cashier-' + storeId).emit('order:transfer', { orderId, from: oldTable, to: targetTable });
     res.json({ success: true, from: oldTable, to: targetTable, targetHasOrders });
   } catch (e) {
-    res.status(e.status || 500).json({ error: e.message });
+    sendOrderError(res, e);
   }
 });
 
@@ -145,7 +162,8 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
   try {
     const id = Number(req.params.id);
     const index = Number(req.params.index);
-    const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    const orderStoreId = resolveOrderStoreId(req);
+    if (!orderStoreId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(index) || index < 0) {
       return res.status(400).json({ error: '订单或菜品序号无效' });
     }
@@ -252,7 +270,8 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
 
     const updatedOrder = formatStaffOrder(updatedRow);
     if (changed) {
-      const storeId = updatedRow.store_id || 1;
+      const storeId = Number(updatedRow.store_id);
+      if (!Number.isSafeInteger(storeId) || storeId <= 0) throw new Error('订单门店信息无效');
       io.to('kitchen-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
       io.to('waiter-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
       io.to('cashier-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
@@ -280,9 +299,11 @@ app.get('/api/orders', requireAdminOrWaiter, async (req, res) => {
   try {
     let storeId;
     if (req.isAdmin) {
-      storeId = req.storeId || 1;
+      storeId = resolveOrderStoreId(req);
+      if (!storeId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
     } else {
-      storeId = req.waiterStoreId || 1;
+      storeId = resolveOrderStoreId(req);
+      if (!storeId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
     }
     const status = req.query.status;
     let sql = 'SELECT * FROM orders WHERE store_id=?';
@@ -296,7 +317,7 @@ app.get('/api/orders', requireAdminOrWaiter, async (req, res) => {
     const formatted = rows.map(formatStaffOrder);
     res.json(formatted);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendOrderError(res, e);
   }
 });
 
@@ -323,7 +344,11 @@ app.post('/api/orders', async (req, res) => {
     if (isAdmin) {
       req.adminId = adminAuth.adminId || null;
       req.merchantId = adminAuth.merchantId || null;
-      req.storeId = adminAuth.storeId || parseInt(req.get('X-Store-Id') || '1', 10);
+      const requestedStoreId = adminAuth.storeId ?? req.get('X-Store-Id');
+      req.storeId = Number(requestedStoreId);
+      if (!Number.isSafeInteger(req.storeId) || req.storeId <= 0) {
+        return res.status(403).json({ error: '管理员凭证未绑定有效门店，请指定有效门店后重试' });
+      }
       // A configured legacy API key is an explicit store-scoped integration credential.
       // It is not a merchant-admin account and must not inherit or fabricate admin permissions.
       if (req.adminId && req.merchantId) {
@@ -376,8 +401,18 @@ app.post('/api/orders', async (req, res) => {
       }
       table = await assertTableExists(requestedTable, orderStoreId);
     }
-    const tableStore = await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, sessionStoreId || req.storeId]);
-    const storeId = tableStore?.store_id || sessionStoreId || req.storeId || 1;
+    const authenticatedStoreId = isAdmin ? req.storeId : (isWaiter ? Number(waiter.store_id) : sessionStoreId);
+    if (!Number.isSafeInteger(Number(authenticatedStoreId)) || Number(authenticatedStoreId) <= 0) {
+      return res.status(403).json({ error: '当前账号未绑定有效门店' });
+    }
+    const tableStore = await getAsync(
+      'SELECT store_id FROM tables WHERE name=? AND store_id=?',
+      [table, Number(authenticatedStoreId)]
+    );
+    const storeId = Number(tableStore?.store_id);
+    if (!Number.isSafeInteger(storeId) || storeId <= 0) {
+      return res.status(404).json({ error: '桌台不存在或不属于当前门店' });
+    }
     if (isWaiter && waiter.store_id !== storeId) return res.status(403).json({ error: '不能为其他店铺的桌号下单' });
     const finalStoreId = sessionStoreId || storeId;
 
@@ -557,10 +592,10 @@ app.post('/api/orders', async (req, res) => {
     const staffOrderData = { ...orderData };
     delete staffOrderData.sessionToken;
     delete staffOrderData.customerToken;
-    io.to('kitchen-' + (newRow.store_id || 1)).emit('order:new', staffOrderData);
-    io.to('waiter-' + (newRow.store_id || 1)).emit('order:new', staffOrderData);
-    io.to('cashier-' + (newRow.store_id || 1)).emit('order:new', staffOrderData);
-    io.to('public-table-' + (newRow.store_id || 1) + '-' + newRow.table_name).emit('order:new', {
+    io.to('kitchen-' + finalStoreId).emit('order:new', staffOrderData);
+    io.to('waiter-' + finalStoreId).emit('order:new', staffOrderData);
+    io.to('cashier-' + finalStoreId).emit('order:new', staffOrderData);
+    io.to('public-table-' + finalStoreId + '-' + newRow.table_name).emit('order:new', {
       id: orderData.id,
       order_no: orderData.order_no,
       table_name: orderData.table_name,
