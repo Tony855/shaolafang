@@ -765,6 +765,7 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
     // Keep all destructive DML and its audit record atomic. MySQL ALTER TABLE
     // implicitly commits, so auto-increment maintenance must happen afterwards.
     await withTransaction(async () => {
+      await runAsync('DELETE FROM cashier_refund_requests');
       await runAsync('DELETE FROM orders');
       await runAsync('DELETE FROM waiter_calls');
       await runAsync('DELETE FROM scan_sessions');
