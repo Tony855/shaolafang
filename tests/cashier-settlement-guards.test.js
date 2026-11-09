@@ -58,6 +58,7 @@ function setup({ orders = [], lockedOrders = orders, singleOrder = orders[0] || 
   return {
     batchHandler: handlers.get('PUT /api/cashier/orders/batch-settle'),
     singleHandler: handlers.get('PUT /api/cashier/orders/:id/settle'),
+    cancelHandler: handlers.get('PUT /api/cashier/orders/:id/cancel'),
     calls, transactions
   };
 }
@@ -167,4 +168,34 @@ test('batch settlement rechecks for a newly-created KHQR under the order lock', 
   assert.match(res.body.error, /KHQR/);
   assert.equal(calls.some(call => call.type === 'run' && call.sql.includes("SET status='done'")), false);
   assert.deepEqual(transactions, ['begin', 'rollback']);
+});
+
+test('batch settlement rejects coercible non-numeric order IDs before querying', async () => {
+  for (const id of [true, false, [], {}, null, ' 5 ', '5.0', '5e0']) {
+    const { batchHandler, calls, transactions } = setup({ orders: [pendingOrder()] });
+    const res = response();
+    await batchHandler(cashierRequest({ order_ids: [id], pay_method: 'cash', cash_received: 10 }), res);
+    assert.equal(res.statusCode, 400, String(id));
+    assert.equal(calls.length, 0);
+    assert.equal(transactions.length, 0);
+  }
+});
+
+test('single settlement and cancellation reject partial order path IDs before querying', async () => {
+  const invalidParams = { id: '5garbage' };
+  const settle = setup({ orders: [pendingOrder()] });
+  const settleRes = response();
+  await settle.singleHandler({ ...cashierRequest({ pay_method: 'cash', cash_received: 10 }), params: invalidParams }, settleRes);
+  assert.equal(settleRes.statusCode, 400);
+  assert.equal(settle.calls.length, 0);
+  assert.equal(settle.transactions.length, 0);
+
+  const cancel = setup({ orders: [pendingOrder()] });
+  const cancelRes = response();
+  await cancel.cancelHandler({
+    storeId: 1, cashier: { username: 'qa-cashier', permissions: { can_cancel: true } }, params: invalidParams
+  }, cancelRes);
+  assert.equal(cancelRes.statusCode, 400);
+  assert.equal(cancel.calls.length, 0);
+  assert.equal(cancel.transactions.length, 0);
 });
