@@ -449,7 +449,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
       }
       settledTableName = lockedOrder.table_name;
       const settled = await runAsync(
-        "UPDATE orders SET status='done', awaiting_confirm=0, settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'",
+        "UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'",
         [settledAt, paymentMethod, cashReceived, cashChange, id, req.storeId]
       );
       if (!settled.affectedRows) {
