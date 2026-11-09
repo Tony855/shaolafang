@@ -239,7 +239,7 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       // Remove store-scoped records before deleting their parent stores.
       if (storeIds.length > 0) {
         const placeholders = storeIds.map(() => '?').join(',');
-        for (const tbl of ['menus', 'tables', 'orders', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
+        for (const tbl of ['menus', 'tables', 'orders', 'refund_requests', 'waiters', 'printers', 'reservations', 'waiter_calls', 'scan_sessions', 'menu_categories']) {
           await runAsync(`DELETE FROM \`${tbl}\` WHERE store_id IN (${placeholders})`, storeIds);
         }
       }
