@@ -38,7 +38,7 @@ app.get('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_wai
       [req.merchantId]
     );
     res.json(rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_waiter'), async (req, res) => {
