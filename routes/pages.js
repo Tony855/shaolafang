@@ -52,6 +52,13 @@ module.exports = function registerPageRoutes(app, ctx) {
   app.get('/waiter', (req, res) => sendHtml(res, 'waiter.html'));
   app.get('/kitchen', (req, res) => sendHtml(res, 'kitchen.html'));
   app.get('/admin', (req, res) => sendHtml(res, 'admin.html'));
+  app.get('/super/login', (req, res) => {
+    const html = fs.readFileSync(path.join(ROOT, 'super-login.html'), 'utf-8');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.send(html);
+  });
   app.get('/super', (req, res) => sendHtml(res, 'super.html'));
   app.get('/cashier', (req, res) => sendHtml(res, 'cashier.html'));
   app.get('/display', (req, res) => sendHtml(res, 'menu-display.html'));

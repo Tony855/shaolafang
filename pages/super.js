@@ -44,8 +44,6 @@ async function changeSuperLang(lang) {
 }
 
 function applyI18n() {
-  const loginSel = document.getElementById('loginLangSelect');
-  if (loginSel) loginSel.value = currentLang;
   const adminSel = document.getElementById('adminLangSelect');
   if (adminSel) adminSel.value = currentLang;
 
@@ -78,17 +76,6 @@ function applyI18n() {
   const navLogsText = document.getElementById('navLogsText');
   if (navLogsText) navLogsText.textContent = t('logs', null, '日志');
 
-  const loginTitle = document.querySelector('.login-card h1');
-  if (loginTitle) loginTitle.textContent = '🔐 ' + t('superAdmin', null, t('superAdmin'));
-  const loginLabels = document.querySelectorAll('.login-card .form-group label');
-  if (loginLabels && loginLabels[0]) loginLabels[0].textContent = t('username', null, t('username'));
-  if (loginLabels && loginLabels[1]) loginLabels[1].textContent = t('password', null, '密码');
-  const loginUsername = document.getElementById('loginUsername');
-  if (loginUsername) loginUsername.placeholder = t('username', null, '请输入用户名');
-  const loginPassword = document.getElementById('loginPassword');
-  if (loginPassword) loginPassword.placeholder = t('password', null, t('enterPassword'));
-  const loginBtn = document.querySelector('.login-btn');
-  if (loginBtn) loginBtn.textContent = t('login', null, '登录');
 
   const adminName = document.getElementById('adminName');
   if (adminName) adminName.textContent = t('superAdmin', null, t('superAdmin'));
@@ -106,12 +93,6 @@ function applyI18n() {
     if (titles[currentModule]) titleEl.textContent = titles[currentModule];
   }
 
-  const errorModalTitle = document.getElementById('errorModalTitle');
-  if (errorModalTitle) errorModalTitle.textContent = t('loginFailed', null, t('loginFailed'));
-  const errorModalMessage = document.getElementById('errorModalMessage');
-  if (errorModalMessage) errorModalMessage.textContent = t('loginError', null, t('loginError'));
-  const errorModalBtn = document.querySelector('.error-modal-btn');
-  if (errorModalBtn) errorModalBtn.textContent = t('confirm', null, '确定');
 }
 
 // 移动端侧边栏
@@ -151,43 +132,8 @@ async function startIdleCheck() {
   }, 10000);
 }
 
-async function doLogin() {
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  if (!username || !password) {
-    showError(t('pleaseEnterCredentials', null, t('pleaseEnterCredentials')));
-    return;
-  }
-  try {
-    const data = await SLF.api.post('/super/login', { username, password });
-    if (!data || !data.token) {
-      throw new Error((data && data.error) || t('loginFailed', null, t('loginFailed')));
-    }
-    token = data.token;
-    SLF.store.rawSet('superToken', token);
-    SLF.store.rawSet('superAdmin', JSON.stringify(data.admin || {}));
-    showApp();
-  } catch (e) {
-    showError(e.message || t('loginError', null, t('loginError')));
-  }
-}
-
-function showError(msg, title) {
-  document.getElementById('errorModalTitle').textContent = title || t('loginFailed', null, t('loginFailed'));
-  document.getElementById('errorModalMessage').textContent = msg || t('loginError', null, t('loginError'));
-  document.getElementById('errorModal').classList.add('open');
-}
-function hideErrorModal() {
-  document.getElementById('errorModal').classList.remove('open');
-}
-window.hideErrorModal = hideErrorModal;
-document.getElementById('errorModal').addEventListener('click', function(e) {
-  if (e.target === this) hideErrorModal();
-});
-
 function showApp() {
   applyI18n();
-  document.getElementById('loginPage').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   const admin = JSON.parse(SLF.store.rawGet('superAdmin') || '{}');
   document.getElementById('adminName').textContent = admin.display_name || t('superAdmin', null, t('superAdmin'));
@@ -242,7 +188,7 @@ async function api(path, options = {}) {
     if (method === 'DELETE') return await SLF.api.del(path, options);
     return await SLF.api._request(method, path, options);
   } catch (e) {
-    // super 页面 401 → 回本页登录卡片，不跳 /login
+    // 401 on the super-admin app always returns to the dedicated login page.
     if (e && (e.status === 401 || /登录已过期|未登录|无操作权限/.test(e.message || ''))) {
       SLF.store.rawRemove('superToken');
       SLF.store.rawRemove('superAdmin');
@@ -255,10 +201,7 @@ async function api(path, options = {}) {
 }
 
 function showLoginPage() {
-  const lp = document.getElementById('loginPage');
-  const ap = document.getElementById('app');
-  if (lp) lp.style.display = 'flex';
-  if (ap) ap.style.display = 'none';
+  window.location.replace('/super/login');
 }
 
 function formatDateTime(dateStr) {
@@ -946,11 +889,10 @@ async function backupNow() {
 window.backupNow = backupNow;
 
 // 登录回车
-document.getElementById('loginPassword').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
-
 // 初始化
 applyI18n();
 if (token) showApp();
+else window.location.replace('/super/login');
 
 // 汉堡按钮拖动+磁吸
 (function() {
@@ -999,12 +941,10 @@ if (token) showApp();
     try { window.closeOnlineSessions = closeOnlineSessions; } catch(err) {}
     try { window.closeSidebar = closeSidebar; } catch(err) {}
     try { window.deleteMerchant = deleteMerchant; } catch(err) {}
-    try { window.doLogin = doLogin; } catch(err) {}
     try { window.editMerchant = editMerchant; } catch(err) {}
     try { window.executePasswordModal = executePasswordModal; } catch(err) {}
     try { window.exportBackup = exportBackup; } catch(err) {}
     try { window.hideConfirm = hideConfirm; } catch(err) {}
-    try { window.hideErrorModal = hideErrorModal; } catch(err) {}
     try { window.hidePasswordModal = hidePasswordModal; } catch(err) {}
     try { window.importBackup = importBackup; } catch(err) {}
     try { window.logout = logout; } catch(err) {}
@@ -1161,12 +1101,10 @@ window.closeOnlineSessions = closeOnlineSessions;
     try { window.closeOnlineSessions = closeOnlineSessions; } catch(err) {}
     try { window.closeSidebar = closeSidebar; } catch(err) {}
     try { window.deleteMerchant = deleteMerchant; } catch(err) {}
-    try { window.doLogin = doLogin; } catch(err) {}
     try { window.editMerchant = editMerchant; } catch(err) {}
     try { window.executePasswordModal = executePasswordModal; } catch(err) {}
     try { window.exportBackup = exportBackup; } catch(err) {}
     try { window.hideConfirm = hideConfirm; } catch(err) {}
-    try { window.hideErrorModal = hideErrorModal; } catch(err) {}
     try { window.hidePasswordModal = hidePasswordModal; } catch(err) {}
     try { window.importBackup = importBackup; } catch(err) {}
     try { window.logout = logout; } catch(err) {}

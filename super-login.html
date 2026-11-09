@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>FoodFlow · 超级管理员登录</title>
+  <link rel="stylesheet" href="assets/super-login.css">
+  <script src="languages.min.js" defer></script>
+  <script src="assets/core.js" defer></script>
+  <script src="pages/super-login.js" defer></script>
+</head>
+<body>
+  <main class="super-login-shell">
+    <section class="super-login-card" aria-labelledby="loginTitle">
+      <div class="super-login-mark" aria-hidden="true">🔐</div>
+      <p class="eyebrow">FOODFLOW · SYSTEM CONTROL</p>
+      <h1 id="loginTitle" data-i18n="superAdmin">超级管理员</h1>
+      <p class="subtitle" data-i18n="superLoginSubtitle">独立管理入口 · 请验证超级管理员身份</p>
+      <form id="superLoginForm" autocomplete="on">
+        <label for="loginUsername" data-i18n="username">用户名</label>
+        <input id="loginUsername" name="username" type="text" autocomplete="username"
+          maxlength="100" required autofocus placeholder="请输入超级管理员用户名">
+        <label for="loginPassword" data-i18n="password">密码</label>
+        <input id="loginPassword" name="password" type="password" autocomplete="current-password"
+          required placeholder="请输入密码">
+        <p class="login-error" id="loginError" role="alert" aria-live="polite"></p>
+        <button id="loginBtn" type="submit" data-i18n="login">登录</button>
+      </form>
+      <div class="login-footer">
+        <label class="sr-only" for="loginLangSelect">Language</label>
+        <select id="loginLangSelect" aria-label="Language">
+          <option value="zh">🇨🇳 中文</option>
+          <option value="en">🇬🇧 English</option>
+          <option value="vi">🇻🇳 Tiếng Việt</option>
+          <option value="th">🇹🇭 ภาษาไทย</option>
+          <option value="km">🇰🇭 ភាសាខ្មែរ</option>
+        </select>
+        <a href="/login" data-i18n="backToLogin">返回普通登录</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
