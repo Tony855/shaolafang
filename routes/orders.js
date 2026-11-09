@@ -941,6 +941,9 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
       if (!['pending', 'canceled'].includes(lockedOrder.status)) {
         throw Object.assign(new Error('已结算或已退款订单不能删除，请保留财务记录'), { status: 409 });
       }
+      if (hasActiveKhqr(lockedOrder)) {
+        throw Object.assign(new Error('订单仍有待确认或有效 KHQR 收款码，请先取消收款码后再删除订单'), { status: 409 });
+      }
 
       await runAsync('DELETE FROM refund_requests WHERE order_id=? AND store_id=?', [id, storeId]);
       const result = await runAsync(
