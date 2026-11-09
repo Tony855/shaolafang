@@ -44,8 +44,6 @@ async function changeSuperLang(lang) {
 }
 
 function applyI18n() {
-  const loginSel = document.getElementById('loginLangSelect');
-  if (loginSel) loginSel.value = currentLang;
   const adminSel = document.getElementById('adminLangSelect');
   if (adminSel) adminSel.value = currentLang;
 
@@ -78,17 +76,6 @@ function applyI18n() {
   const navLogsText = document.getElementById('navLogsText');
   if (navLogsText) navLogsText.textContent = t('logs', null, '日志');
 
-  const loginTitle = document.querySelector('.login-card h1');
-  if (loginTitle) loginTitle.textContent = '🔐 ' + t('superAdmin', null, t('superAdmin'));
-  const loginLabels = document.querySelectorAll('.login-card .form-group label');
-  if (loginLabels && loginLabels[0]) loginLabels[0].textContent = t('username', null, t('username'));
-  if (loginLabels && loginLabels[1]) loginLabels[1].textContent = t('password', null, '密码');
-  const loginUsername = document.getElementById('loginUsername');
-  if (loginUsername) loginUsername.placeholder = t('username', null, '请输入用户名');
-  const loginPassword = document.getElementById('loginPassword');
-  if (loginPassword) loginPassword.placeholder = t('password', null, t('enterPassword'));
-  const loginBtn = document.querySelector('.login-btn');
-  if (loginBtn) loginBtn.textContent = t('login', null, '登录');
 
   const adminName = document.getElementById('adminName');
   if (adminName) adminName.textContent = t('superAdmin', null, t('superAdmin'));
@@ -106,12 +93,6 @@ function applyI18n() {
     if (titles[currentModule]) titleEl.textContent = titles[currentModule];
   }
 
-  const errorModalTitle = document.getElementById('errorModalTitle');
-  if (errorModalTitle) errorModalTitle.textContent = t('loginFailed', null, t('loginFailed'));
-  const errorModalMessage = document.getElementById('errorModalMessage');
-  if (errorModalMessage) errorModalMessage.textContent = t('loginError', null, t('loginError'));
-  const errorModalBtn = document.querySelector('.error-modal-btn');
-  if (errorModalBtn) errorModalBtn.textContent = t('confirm', null, '确定');
 }
 
 // 移动端侧边栏
