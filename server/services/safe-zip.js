@@ -67,6 +67,7 @@ function openZipArchive(zipPath, options = {}) {
       throw new Error('暂不支持 ZIP64 文件');
     }
     if (totalEntries > maxEntries) throw Object.assign(new Error('ZIP 文件条目数量超过限制'), { status: 413 });
+    if (centralSize > 4 * 1024 * 1024) throw Object.assign(new Error('ZIP 中央目录超过限制'), { status: 413 });
     if (centralOffset + centralSize > eocdAbsolute || centralOffset < 0) throw new Error('ZIP 中央目录越界');
     const central = readAt(fd, centralSize, centralOffset);
     const entries = [];
@@ -103,9 +104,10 @@ function openZipArchive(zipPath, options = {}) {
       const localNameLength = local.readUInt16LE(26);
       const localExtraLength = local.readUInt16LE(28);
       if ((localFlags & 0x0001) || localMethod !== method) throw new Error('ZIP 本地文件头与中央目录不一致');
+      const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+      if (dataStart > centralOffset) throw new Error('ZIP 本地文件头扩展字段越界');
       const localName = readAt(fd, localNameLength, localOffset + 30).toString('utf8');
       if (localName !== name) throw new Error('ZIP 文件名与本地文件头不一致');
-      const dataStart = localOffset + 30 + localNameLength + localExtraLength;
       const dataEnd = dataStart + compressedSize;
       if (dataStart < localOffset || dataEnd > centralOffset || dataEnd > stat.size) throw new Error('ZIP 压缩数据越界');
       entries.push({
