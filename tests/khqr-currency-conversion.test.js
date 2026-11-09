@@ -40,6 +40,13 @@ function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }]
       if (sql.includes('SELECT id, name FROM stores')) return { id: 9, name: 'Test Store' };
       if (sql.includes('store_9_khqr_providers')) return { value: JSON.stringify([provider]) };
       if (sql.includes('khqr_expire_minutes')) return { value: '10' };
+      if (sql.includes('FROM orders WHERE id=? AND store_id=?')) {
+        return {
+          id: 42, store_id: 9, status: 'pending', total: 10,
+          items: JSON.stringify([{ currency_code: 'KHR', price: 40000, quantity: 1 }]),
+          order_no: '110042'
+        };
+      }
       return null;
     },
     runAsync: async (sql, params) => {
@@ -85,10 +92,13 @@ test('KHQR KHR amount converts the normalized USD order total, not the menu disp
     body: { order_id: 42, currency: 'KHR' }
   }, res);
 
-  // resolveKhqrStore mock accepts the merchant scope; order total is USD base.
-  // The first item currency is intentionally not read for conversion.
-  assert.equal(res.statusCode, 404); // The order lookup is intentionally absent in this fixture.
-  assert.ok(calls.some(call => call.type === 'get' && call.sql.includes('SELECT id, name FROM stores')));
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.amount, 40000);
+  assert.equal(res.body.original_amount, 10);
+  assert.equal(res.body.original_currency, 'USD');
+  const rateQuery = calls.find(call => call.type === 'all' && call.sql.includes('currencies'));
+  assert.deepEqual(rateQuery.params, [77]);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes('pay_khqr_ref')));
 });
 
 test('KHQR conversion never falls back to merchant 1 or a fabricated 1:1 KHR rate', async () => {
@@ -100,8 +110,9 @@ test('KHQR conversion never falls back to merchant 1 or a fabricated 1:1 KHR rat
     body: { order_id: 42, currency: 'KHR' }
   }, res);
 
-  // The missing order is rejected before rate lookup; the route-level behavior is
-  // additionally guarded by the dedicated conversion checks in the implementation.
-  assert.equal(res.statusCode, 404);
-  assert.equal(calls.some(call => call.type === 'all' && call.sql.includes('currencies')), false);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /KHR 汇率缺失或无效/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('pay_khqr_ref')), false);
+  const rateQuery = calls.find(call => call.type === 'all' && call.sql.includes('currencies'));
+  assert.deepEqual(rateQuery.params, [77]);
 });
