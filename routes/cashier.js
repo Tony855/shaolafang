@@ -4,6 +4,14 @@
 const crypto = require('crypto');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
  
+function parsePositiveOrderId(value) {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  const raw = String(value);
+  if (!/^[1-9]\\d*$/.test(raw)) return null;
+  const id = Number(raw);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
 // Orders use the normalized USD accounting amount. Keep refund arithmetic in
 // integer cents and reject sub-cent input instead of silently rounding it.
 function toMoneyCents(value) {
@@ -221,7 +229,8 @@ app.get('/api/cashier/orders', requireCashier, async (req, res) => {
 
 app.get('/api/cashier/orders/:id', requireCashier, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parsePositiveOrderId(req.params.id);
+    if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     res.json(formatStaffOrder(order, formatOrder));
@@ -234,8 +243,8 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     const rawOrderIds = Array.isArray(req.body?.order_ids) ? req.body.order_ids : [];
     if (!rawOrderIds.length) return res.status(400).json({ error: '请选择要结算的订单' });
     if (rawOrderIds.length > 100) return res.status(400).json({ error: '单次最多结算 100 笔订单' });
-    const parsedOrderIds = rawOrderIds.map(id => Number(id));
-    if (parsedOrderIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
+    const parsedOrderIds = rawOrderIds.map(parsePositiveOrderId);
+    if (parsedOrderIds.some(id => id === null)) {
       return res.status(400).json({ error: '订单列表包含无效编号，请刷新后重试' });
     }
     const orderIds = [...new Set(parsedOrderIds)];
@@ -411,7 +420,8 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     if (!req.cashier.permissions?.can_settle) {
       return res.status(403).json({ error: '没有结算订单权限' });
     }
-    const id = parseInt(req.params.id);
+    const id = parsePositiveOrderId(req.params.id);
+    if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status === 'done') return res.status(400).json({ error: '订单已结算' });
@@ -506,7 +516,8 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     if (!req.cashier.permissions?.can_cancel) {
       return res.status(403).json({ error: '没有取消订单权限' });
     }
-    const id = parseInt(req.params.id);
+    const id = parsePositiveOrderId(req.params.id);
+    if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
@@ -664,7 +675,8 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
 // ===== 单个订单打印小票 =====
 app.post('/api/cashier/orders/:id(\\d+)/print', requireCashier, async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parsePositiveOrderId(req.params.id);
+    if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
     const formattedOrder = formatOrder(order);
