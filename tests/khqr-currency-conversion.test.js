@@ -25,7 +25,7 @@ function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }]
   const handlers = new Map();
   const calls = [];
   const app = {
-    get() {},
+    get(path, ...callbacks) { handlers.set(path, callbacks[callbacks.length - 1]); },
     put() {},
     delete() {},
     post(path, ...callbacks) { handlers.set(path, callbacks[callbacks.length - 1]); }
@@ -38,6 +38,7 @@ function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }]
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
       if (sql.includes('SELECT id, name FROM stores')) return { id: 9, name: 'Test Store' };
+      if (sql.includes('SELECT pay_khqr_ref FROM orders')) return { pay_khqr_ref: 'dynamic-qr-payload' };
       if (params && params[0] === 'store_9_khqr_providers') return { value: JSON.stringify([provider]) };
       if (params && params[0] === 'store_9_khqr_expire_minutes') return { value: '10' };
       if (sql.includes('FROM orders WHERE id=? AND store_id=?')) {
@@ -73,7 +74,7 @@ function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }]
     io: { to: () => ({ emit() {} }) }
   };
   registerAdminManageRoutes(app, deps);
-  return { handler: handlers.get('/api/cashier/khqr/generate'), calls };
+  return { handler: handlers.get('/api/cashier/khqr/generate'), qrImageHandler: handlers.get('/api/cashier/khqr/qrimage'), calls };
 }
 
 function response() {
@@ -224,4 +225,33 @@ test('KHQR generation compares locked order totals by exact cents', async () => 
   assert.equal(res.statusCode, 409);
   assert.match(res.body.error, /金额已变化/);
   assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('pay_khqr_ref')), false);
+});
+
+
+test('KHQR QR image endpoint rejects non-canonical order IDs before querying orders', async () => {
+  const { qrImageHandler, calls } = setup();
+  const res = response();
+  await qrImageHandler({
+    storeId: 9,
+    merchantId: 77,
+    query: { order_id: '4e1' }
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /订单编号无效/);
+  assert.equal(calls.some(call => call.sql.includes('SELECT pay_khqr_ref FROM orders')), false);
+});
+
+test('KHQR QR image endpoint rejects malformed dimensions instead of parseInt coercion', async () => {
+  const { qrImageHandler, calls } = setup();
+  const res = response();
+  await qrImageHandler({
+    storeId: 9,
+    merchantId: 77,
+    query: { order_id: '42', size: '240px' }
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /二维码尺寸无效/);
+  assert.equal(calls.some(call => call.sql.includes('SELECT pay_khqr_ref FROM orders')), false);
 });

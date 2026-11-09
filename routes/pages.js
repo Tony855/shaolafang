@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const QRCode = require('qrcode');
 const { escapeHtml, jsonForScript } = require('../server/utils/html');
+const { parsePositiveRouteId } = require('../server/services/route-id');
 
 module.exports = function registerPageRoutes(app, ctx) {
   const { getAsync, requireAdminKey, requirePermission } = ctx;
@@ -66,9 +67,9 @@ module.exports = function registerPageRoutes(app, ctx) {
   app.get('/qr-print', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, private');
-      const tableId = parseInt(req.query.tableId || '0', 10);
+      const tableId = parsePositiveRouteId(req.query.tableId);
       const lang = ['zh','en','vi','th','km'].includes(req.query.lang) ? req.query.lang : 'zh';
-      if (!tableId) return res.status(400).send('Invalid tableId');
+      if (tableId === null) return res.status(400).send('Invalid tableId');
       const table = await getAsync('SELECT name, qr_token, store_id FROM tables WHERE id = ? AND store_id = ?', [tableId, req.storeId]);
       if (!table) return res.status(404).send('Table not found');
       const store = await getAsync('SELECT name, qr_languages FROM stores WHERE id = ? AND merchant_id = ?', [table.store_id || 1, req.merchantId]);

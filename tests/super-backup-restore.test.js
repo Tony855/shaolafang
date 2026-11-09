@@ -29,19 +29,23 @@ function backup({ superAdmins = [{ id: 1, username: 'root', password_hash: 'hash
 
 function setup({ failAudit = false } = {}) {
   let handler;
+  const handlers = new Map();
+  const allCalls = [];
   let inTransaction = false;
   let rolledBack = false;
   const calls = [];
   const app = {
-    post(path, ...handlers) {
-      if (path === '/api/super/backup/import') handler = handlers[handlers.length - 1];
+    post(path, ...callbacks) {
+      if (path === '/api/super/backup/import') handler = callbacks[callbacks.length - 1];
     },
-    get() {}, put() {}, delete() {}
+    get(path, ...callbacks) { handlers.set(path, callbacks[callbacks.length - 1]); },
+    put() {}, delete() {}
   };
   attachSuperRoutes(app, {
     getAsync: async () => null,
-    allAsync: async sql => {
-      assert.equal(inTransaction, true);
+    allAsync: async (sql, params) => {
+      allCalls.push({ sql, params, inTransaction });
+      if (sql.startsWith('SHOW COLUMNS')) assert.equal(inTransaction, true);
       if (sql.startsWith('SHOW COLUMNS')) {
         return [{ Field: 'id' }, { Field: 'username' }, { Field: 'password_hash' }];
       }
@@ -70,7 +74,7 @@ function setup({ failAudit = false } = {}) {
     collectBackupData: async () => backup(),
     autoBackupDatabase: async () => ({})
   });
-  return { handler, calls, get inTransaction() { return inTransaction; }, get rolledBack() { return rolledBack; } };
+  return { handler, handlers, calls, allCalls, get inTransaction() { return inTransaction; }, get rolledBack() { return rolledBack; } };
 }
 
 test('backup restore rejects an empty super-admin table before deleting live data', async () => {
@@ -119,4 +123,28 @@ test('backup restore accepts legacy backups without the refund request ledger', 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.success, true);
   assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `refund_requests`'));
+});
+
+
+test('super-admin login and audit log endpoints cap requested rows at 1000', async () => {
+  const ctx = setup();
+  for (const path of ['/api/super/login-logs', '/api/super/audit-logs']) {
+    const res = response();
+    await ctx.handlers.get(path)({ query: { limit: '999999999999' } }, res);
+    assert.equal(res.statusCode, 200);
+    const call = ctx.allCalls.at(-1);
+    assert.match(call.sql, /LIMIT \?/);
+    assert.deepEqual(call.params, [1000]);
+  }
+});
+
+test('super-admin log endpoints clamp non-positive limits and reject numeric coercion', async () => {
+  const ctx = setup();
+  const loginRes = response();
+  await ctx.handlers.get('/api/super/login-logs')({ query: { limit: '-5' } }, loginRes);
+  assert.deepEqual(ctx.allCalls.at(-1).params, [1]);
+
+  const auditRes = response();
+  await ctx.handlers.get('/api/super/audit-logs')({ query: { limit: '2.5' } }, auditRes);
+  assert.deepEqual(ctx.allCalls.at(-1).params, [200]);
 });
