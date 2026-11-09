@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
+const { resolveOrderStoreId } = require("../server/services/order-store-scope");
 
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
@@ -22,14 +23,6 @@ module.exports = function(app, deps) {
     delete formatted.sessionToken;
     delete formatted.customerToken;
     return formatted;
-  }
-
-  function resolveOrderStoreId(req) {
-    const raw = req.isAdmin
-      ? req.storeId
-      : (req.waiterStoreId ?? req.waiter?.store_id);
-    const storeId = Number(raw);
-    return Number.isSafeInteger(storeId) && storeId > 0 ? storeId : null;
   }
 
   function sendOrderError(res, error) {
