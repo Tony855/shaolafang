@@ -23,6 +23,36 @@
   let paymentOrderId = null;
   let payMethod = 'cash';
 let refundOrderId = null;
+const refundPendingPrefix = 'foodflow:refund-pending:';
+const refundPendingMemory = new Map();
+function refundPendingStorageKey(orderId) {
+  const storeId = SLF.store.rawGet('storeId') || '1';
+  return refundPendingPrefix + storeId + ':' + orderId;
+}
+function loadPendingRefund(orderId) {
+  const key = refundPendingStorageKey(orderId);
+  try {
+    const saved = sessionStorage.getItem(key);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed.idempotencyKey === 'string' && typeof parsed.reason === 'string' && Number.isFinite(Number(parsed.amount))) {
+        refundPendingMemory.set(key, parsed);
+        return parsed;
+      }
+    }
+  } catch (_) {}
+  return refundPendingMemory.get(key) || null;
+}
+function savePendingRefund(orderId, pending) {
+  const key = refundPendingStorageKey(orderId);
+  refundPendingMemory.set(key, pending);
+  try { sessionStorage.setItem(key, JSON.stringify(pending)); } catch (_) {}
+}
+function clearPendingRefund(orderId) {
+  const key = refundPendingStorageKey(orderId);
+  refundPendingMemory.delete(key);
+  try { sessionStorage.removeItem(key); } catch (_) {}
+}
 
 // KHQR 支付弹窗状态
 let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '' };
@@ -960,9 +990,21 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     document.getElementById('refundAmount').innerHTML = moneyHtml(remaining);
     const _inp = document.getElementById('refundInput');
     if (_inp) _inp.value = remaining.toFixed(2);
-    document.getElementById('refundReason').value = '';
+    const reasonInput = document.getElementById('refundReason');
+    const pendingRefund = loadPendingRefund(order.id);
+    if (pendingRefund) {
+      if (_inp) _inp.value = Number(pendingRefund.amount).toFixed(2);
+      reasonInput.value = pendingRefund.reason;
+      if (_inp) _inp.disabled = true;
+      reasonInput.disabled = true;
+      SLF.ui.toast('⚠️ 上次退款请求结果待确认，将使用原请求安全重试');
+    } else {
+      reasonInput.value = '';
+      if (_inp) _inp.disabled = false;
+      reasonInput.disabled = false;
+    }
     document.getElementById('refundModal').classList.add('show');
-    setTimeout(() => { const el = document.getElementById('refundInput'); if (el) el.focus(); }, 100);
+    setTimeout(() => { const el = document.getElementById('refundInput'); if (el && !el.disabled) el.focus(); }, 100);
   }
 
   function closeRefundModal() {
@@ -979,22 +1021,27 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       SLF.ui.toast('❌ 订单金额或退款记录异常，暂不能退款，请先核对订单数据');
       return;
     }
-    const reason = document.getElementById('refundReason').value.trim();
+    const pendingRefund = loadPendingRefund(order.id);
+    const reason = pendingRefund ? pendingRefund.reason : document.getElementById('refundReason').value.trim();
     const total = Number(order.total) || 0;
     const remaining = Math.max(0, total - Number(order.refund_amount || 0));
     const _inpEl = document.getElementById('refundInput');
-    const amount = _inpEl ? (Number(_inpEl.value) || 0) : remaining;
+    const amount = pendingRefund ? Number(pendingRefund.amount) : (_inpEl ? (Number(_inpEl.value) || 0) : remaining);
 
     if (amount <= 0) { SLF.ui.toast('❌ ' + (t('refundMustBePositive') || '退款金额必须大于 0')); return; }
     if (amount > remaining) { SLF.ui.toast('❌ ' + (t('refundExceedsTotal') || '退款金额不能超过剩余可退款金额')); return; }
 
     const btn = document.getElementById('confirmRefundBtn');
+    const idempotencyKey = pendingRefund?.idempotencyKey || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'rf_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+    if (!pendingRefund) savePendingRefund(order.id, { idempotencyKey, amount, reason });
     btn.disabled = true;
     try {
       await api('/cashier/orders/' + refundOrderId + '/refund', {
         method: 'PUT',
+        headers: { 'Idempotency-Key': idempotencyKey },
         body: { amount, reason }
       });
+      clearPendingRefund(order.id);
       SLF.ui.toast('✅ ' + (t('refundSuccess') || '退款成功'));
       closeRefundModal();
       selectedOrderId = null;
