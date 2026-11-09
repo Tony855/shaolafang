@@ -15,6 +15,15 @@ function toMoneyCents(value) {
   return Number.isSafeInteger(cents) ? cents : null;
 }
 
+function hasActiveKhqr(order) {
+  if (Number(order?.awaiting_confirm)) return true;
+  if (!order?.pay_khqr_ref) return false;
+  const expiresAt = Date.parse(order.pay_expires_at || '');
+  // Unknown expiry is treated as active so settlement cannot orphan a QR
+  // that may already have been presented to the customer.
+  return !Number.isFinite(expiresAt) || expiresAt > Date.now();
+}
+
 
 function formatStaffOrder(row, formatOrder) {
   const formatted = formatOrder(row);
@@ -219,12 +228,20 @@ app.get('/api/cashier/orders/:id', requireCashier, async (req, res) => {
 app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => {
   try {
     if (!req.cashier.permissions?.can_settle) return res.status(403).json({ error: '没有结算订单权限' });
-    const orderIds = [...new Set((Array.isArray(req.body?.order_ids) ? req.body.order_ids : []).map(id => Number(id)).filter(id => Number.isSafeInteger(id) && id > 0))];
-    if (!orderIds.length) return res.status(400).json({ error: '请选择要结算的订单' });
-    if (orderIds.length > 100) return res.status(400).json({ error: '单次最多结算 100 笔订单' });
+    const rawOrderIds = Array.isArray(req.body?.order_ids) ? req.body.order_ids : [];
+    if (!rawOrderIds.length) return res.status(400).json({ error: '请选择要结算的订单' });
+    if (rawOrderIds.length > 100) return res.status(400).json({ error: '单次最多结算 100 笔订单' });
+    const parsedOrderIds = rawOrderIds.map(id => Number(id));
+    if (parsedOrderIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
+      return res.status(400).json({ error: '订单列表包含无效编号，请刷新后重试' });
+    }
+    const orderIds = [...new Set(parsedOrderIds)];
     const placeholders = orderIds.map(() => '?').join(',');
     const orders = await allAsync("SELECT * FROM orders WHERE id IN (" + placeholders + ") AND store_id=? AND status='pending'", [...orderIds, req.storeId]);
     if (orders.length !== orderIds.length) return res.status(409).json({ error: '部分订单不存在、已处理或不属于当前门店，请刷新后重试' });
+    if (orders.some(hasActiveKhqr)) {
+      return res.status(409).json({ error: '部分订单仍有待确认或有效 KHQR 收款码，请先完成确认或取消收款码' });
+    }
     for (const o of orders) {
       try {
         const items = JSON.parse(o.items || '[]');
@@ -271,6 +288,11 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         error.status = 409;
         throw error;
       }
+      if (lockedOrders.some(hasActiveKhqr)) {
+        const error = new Error('订单仍有待确认或有效 KHQR 收款码，请先完成确认或取消收款码');
+        error.status = 409;
+        throw error;
+      }
       const lockedTotal = Math.round(lockedOrders.reduce((sum, item) => sum + Number(item.total), 0) * 100) / 100;
       if (!Number.isFinite(lockedTotal) || lockedTotal !== totalAmount ||
           (paymentMethod.toLowerCase() === 'cash' && cashReceived < lockedTotal)) {
@@ -295,7 +317,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         // reconcile with the aggregate cash tendered and change in the audit log.
         const orderCashChange = paymentMethod.toLowerCase() === 'cash' && index === settlementOrders.length - 1 ? cashChange : 0;
         const orderCashReceived = paymentMethod.toLowerCase() === 'cash' ? Number(order.total) + orderCashChange : 0;
-        const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [now, paymentMethod, orderCashReceived, orderCashChange, order.id, req.storeId]);
+        const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [now, paymentMethod, orderCashReceived, orderCashChange, order.id, req.storeId]);
         if (!updated.affectedRows) {
           const error = new Error('订单状态已变化，批量结算已回滚，请刷新后重试');
           error.status = 409;
@@ -370,6 +392,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     if (!order) return res.status(404).json({ error: '订单不存在' });
     if (order.status === 'done') return res.status(400).json({ error: '订单已结算' });
     if (order.status === 'canceled') return res.status(400).json({ error: '订单已取消' });
+    if (hasActiveKhqr(order)) return res.status(409).json({ error: '订单仍有待确认或有效 KHQR 收款码，请先完成确认或取消收款码' });
     try {
       const items = JSON.parse(order.items || '[]');
       if (!Array.isArray(items) || !items.length || !items.every(it => it.itemStatus === 'done')) return res.status(400).json({ error: '存在未完成菜品或没有有效菜品，无法结算' });
@@ -401,6 +424,11 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
       const lockedOrder = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE', [id, req.storeId]);
       if (!lockedOrder || lockedOrder.status !== 'pending' || lockedOrder.table_name !== order.table_name) {
         const error = new Error('订单状态已变化，请刷新后重试');
+        error.status = 409;
+        throw error;
+      }
+      if (hasActiveKhqr(lockedOrder)) {
+        const error = new Error('订单已有待确认或有效 KHQR 收款码，请先完成确认或取消收款码');
         error.status = 409;
         throw error;
       }
