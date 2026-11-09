@@ -24,6 +24,7 @@
   let payMethod = 'cash';
 let refundOrderId = null;
 let refundRequestId = null;
+let refundRequestSignature = null;
 
 // KHQR 支付弹窗状态
 let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '' };
@@ -991,7 +992,19 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     if (amount > remaining) { SLF.ui.toast('❌ ' + (t('refundExceedsTotal') || '退款金额不能超过剩余可退款金额')); return; }
 
     const btn = document.getElementById('confirmRefundBtn');
-    if (!refundRequestId) refundRequestId = window.crypto.randomUUID();
+    const refundSignature = JSON.stringify({ orderId: refundOrderId, amount, reason });
+    const refundStorageKey = 'cashierRefundRequest:' + (SLF.store.rawGet('cashierStoreId') || SLF.store.rawGet('storeId') || '1') + ':' + refundOrderId;
+    if (!refundRequestId || refundRequestSignature !== refundSignature) {
+      let savedRequest = null;
+      try { savedRequest = JSON.parse(SLF.store.rawGet(refundStorageKey) || 'null'); } catch (_) {}
+      if (savedRequest && savedRequest.signature === refundSignature && typeof savedRequest.requestId === 'string') {
+        refundRequestId = savedRequest.requestId;
+      } else {
+        refundRequestId = window.crypto.randomUUID();
+        try { SLF.store.rawSet(refundStorageKey, JSON.stringify({ signature: refundSignature, requestId: refundRequestId })); } catch (_) {}
+      }
+      refundRequestSignature = refundSignature;
+    }
     btn.disabled = true;
     try {
       await api('/cashier/orders/' + refundOrderId + '/refund', {
@@ -999,6 +1012,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
         body: { amount, reason, request_id: refundRequestId }
       });
       SLF.ui.toast('✅ ' + (t('refundSuccess') || '退款成功'));
+      try { SLF.store.rawSet(refundStorageKey, ''); } catch (_) {}
       closeRefundModal();
       selectedOrderId = null;
       document.body.classList.remove('pos-detail-open');
