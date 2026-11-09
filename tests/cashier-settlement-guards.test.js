@@ -18,7 +18,7 @@ function setup({ orders = [], lockedOrders = orders, singleOrder = orders[0] || 
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
       if (sql.includes('SELECT id FROM tables')) return { id: 1 };
-      if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return singleOrder;
+      if (sql.includes('FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return singleOrder;
       if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=?')) return singleOrder;
       if (sql.includes('SELECT COUNT(*) AS cnt')) return { cnt: 1 };
       return null;
