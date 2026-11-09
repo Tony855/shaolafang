@@ -192,6 +192,10 @@ function buildKitchenTicket(order, store, printer) {
   return pos.build();
 }
 
+function sanitizePrinterError() {
+  return '打印机连接失败，请检查设备连接和网络设置';
+}
+
 async function printToNetworkPrinter(data, ip, port) {
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
@@ -252,7 +256,7 @@ async function dispatchPrint(opts) {
       else if (type === 'batch') printData = buildBatchReceipt(orders, store, null);
       else printData = buildReceipt(order, store, null);
     } catch (e) {
-      return { success: false, printed: false, error: '构建打印数据失败: ' + e.message };
+      return { success: false, printed: false, error: '打印任务生成失败，请检查订单数据' };
     }
     return {
       success: true,
@@ -283,7 +287,7 @@ async function dispatchPrint(opts) {
       return {
         success: false,
         printed: false,
-        error: e.message,
+        error: sanitizePrinterError(),
         printer: targetPrinter.name,
         printData: printData.toString('base64'),
         store: storeInfo
@@ -309,4 +313,5 @@ module.exports = {
   buildKitchenTicket,
   printToNetworkPrinter,
   dispatchPrint,
+  sanitizePrinterError,
 };
