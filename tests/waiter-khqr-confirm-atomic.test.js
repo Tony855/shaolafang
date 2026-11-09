@@ -203,3 +203,45 @@ test('cashier KHQR confirmation stores exact cents and clears confirmed QR metad
   assert.ok(calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO audit_logs')));
   assert.equal(events.length, 4);
 });
+
+
+test('waiter KHQR notification rejects sub-cent cash amounts before transaction', async () => {
+  const order = {
+    id: 42, status: 'pending', awaiting_confirm: 0,
+    pay_khqr_ref: 'dynamic-payload', table_name: 'A01',
+    order_no: '110042', total: 25, pay_method: 'khqr'
+  };
+  const { handler, calls, transactions, events } = setup({ initialOrder: order, lockedOrder: order });
+  const res = response();
+  const req = waiterRequest({ pay_method: 'cash', cash_received: '25.005', cash_change: '0.005' });
+  // The notification route is registered separately from the legacy confirm route.
+  const notificationHandlers = new Map();
+  const app = {
+    get() {}, put() {}, delete() {},
+    post(path, ...callbacks) { notificationHandlers.set(path, callbacks[callbacks.length - 1]); }
+  };
+  const deps = {
+    getAsync: async () => order,
+    runAsync: async (sql, params) => { calls.push({ type: 'run', sql, params }); return { affectedRows: 1 }; },
+    allAsync: async () => [],
+    withTransaction: async work => { transactions.push('begin'); return work(); },
+    requireAdminOrCashierOrWaiter: (_req, _res, next) => next(),
+    requireAdminOrWaiter: (_req, _res, next) => next(),
+    requireAdminKey: (_req, _res, next) => next(),
+    requirePermission: () => (_req, _res, next) => next(),
+    requireAdminOrCashier: (_req, _res, next) => next(),
+    hashPassword: value => value,
+    verifyPassword: () => true,
+    logAudit: async () => {},
+    getClientIp: () => '127.0.0.1',
+    syncTableStatus: async () => {},
+    io: { to() { return { emit(event, payload) { events.push({ event, payload }); } }; } }
+  };
+  registerAdminManageRoutes(app, deps);
+  await notificationHandlers.get('/api/waiter/khqr/notify')(req, res);
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /两位小数/);
+  assert.equal(calls.some(call => call.type === 'run'), false);
+  assert.deepEqual(transactions, []);
+  assert.equal(events.length, 0);
+});
