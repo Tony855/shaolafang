@@ -891,3 +891,5 @@ app.get('/api/super/merchants/:id/available-methods', requireSuperAdmin, async (
 });
 
 };
+
+module.exports.parsePositiveRouteId = parsePositiveRouteId;
