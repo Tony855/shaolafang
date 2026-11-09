@@ -7,6 +7,22 @@ const { hashPassword, verifyPassword } = require("../server/middleware/password"
 const { compressImage } = require("../server/services/image-compress");
 const { resolveOrderStoreId } = require("../server/services/order-store-scope");
 
+function parsePositiveOrderRouteId(value) {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const raw = String(value);
+  if (!/^[1-9]\\d*$/.test(raw)) return null;
+  const id = Number(raw);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
+function parseNonNegativeRouteIndex(value) {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const raw = String(value);
+  if (!/^(?:0|[1-9]\\d*)$/.test(raw)) return null;
+  const index = Number(raw);
+  return Number.isSafeInteger(index) ? index : null;
+}
+
 function toMoneyCents(value) {
   if (value === null || value === undefined || value === '') return null;
   const raw = String(value).trim();
@@ -80,9 +96,9 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, requireOrderTransferA
   try {
     const storeId = resolveOrderStoreId(req);
     if (!storeId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
-    const orderId = Number(req.params.id);
+    const orderId = parsePositiveOrderRouteId(req.params.id);
     const targetTable = typeof req.body?.target_table === 'string' ? req.body.target_table.trim() : '';
-    if (!Number.isSafeInteger(orderId) || orderId <= 0 || !targetTable || targetTable.length > 50) {
+    if (orderId === null || !targetTable || targetTable.length > 50) {
       return res.status(400).json({ error: '订单或目标桌号无效' });
     }
 
@@ -196,11 +212,11 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, requireOrderTransferA
 
 app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const index = Number(req.params.index);
+    const id = parsePositiveOrderRouteId(req.params.id);
+    const index = parseNonNegativeRouteIndex(req.params.index);
     const orderStoreId = resolveOrderStoreId(req);
     if (!orderStoreId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
-    if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(index) || index < 0) {
+    if (id === null || index === null) {
       return res.status(400).json({ error: '订单或菜品序号无效' });
     }
     if (req.isAdmin && req.adminId && !req.isPrimaryAdmin &&
@@ -356,7 +372,9 @@ app.get('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   try {
     const orderStoreId = resolveOrderStoreId(req);
     if (!orderStoreId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
-    const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [req.params.id, orderStoreId]);
+    const orderId = parsePositiveOrderRouteId(req.params.id);
+    if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
+    const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [orderId, orderStoreId]);
     if (!row) return res.status(404).json({ error: '订单不存在' });
     res.json(formatStaffOrder(row));
   } catch (e) {
@@ -656,7 +674,7 @@ app.post('/api/orders', async (req, res) => {
 
 app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveOrderRouteId(req.params.id);
     const { table, items, status, note, pay_method } = req.body || {};
     const orderStoreId = resolveOrderStoreId(req);
     if (!orderStoreId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
@@ -886,7 +904,7 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
       return res.status(403).json({ error: '当前账号未绑定有效门店' });
     }
     const id = Number(req.params.id);
-    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '订单编号无效' });
+    if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const { password } = req.body || {};
     if (!password) return res.status(400).json({ error: '请输入管理员密码' });
 
@@ -964,3 +982,6 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
 // ----- 呼叫服务员 -----
 
 };
+
+module.exports.parsePositiveOrderRouteId = parsePositiveOrderRouteId;
+module.exports.parseNonNegativeRouteIndex = parseNonNegativeRouteIndex;
