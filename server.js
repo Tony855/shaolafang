@@ -656,7 +656,7 @@ async function initDatabase() {
       id BIGINT PRIMARY KEY AUTO_INCREMENT,
       store_id INT NOT NULL,
       order_id INT NOT NULL,
-      idempotency_key VARCHAR(128) NOT NULL,
+      idempotency_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
       request_hash CHAR(64) NOT NULL,
       response_json LONGTEXT DEFAULT NULL,
       cashier_username VARCHAR(100) DEFAULT '',
