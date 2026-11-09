@@ -144,6 +144,7 @@ test('legacy waiter KHQR confirm rejects cross-store access', async () => {
   const res = response();
   const req = waiterRequest({});
   req.waiterStoreId = 10;
+  req.waiter.store_id = 10;
   await handler(req, res);
 
   assert.equal(res.statusCode, 403);
