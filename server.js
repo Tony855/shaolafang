@@ -652,6 +652,21 @@ async function initDatabase() {
   `);
 
   await runAsync(`
+    CREATE TABLE IF NOT EXISTS refund_requests (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      store_id INT NOT NULL,
+      order_id INT NOT NULL,
+      idempotency_key VARCHAR(128) NOT NULL,
+      request_hash CHAR(64) NOT NULL,
+      response_json LONGTEXT DEFAULT NULL,
+      cashier_username VARCHAR(100) DEFAULT '',
+      created_at VARCHAR(50) NOT NULL,
+      UNIQUE KEY unique_store_idempotency (store_id, idempotency_key),
+      KEY idx_refund_order (store_id, order_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await runAsync(`
     CREATE TABLE IF NOT EXISTS scan_sessions (
       id INT PRIMARY KEY AUTO_INCREMENT,
       table_name VARCHAR(50) NOT NULL,
