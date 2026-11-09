@@ -1050,6 +1050,18 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       document.body.classList.remove('pos-detail-open');
       await loadOrders();
     } catch (e) {
+      // A definitive 4xx business rejection means the transaction rolled back;
+      // release the immutable pending payload so the cashier can correct it.
+      // Keep the key for ambiguous/network/5xx outcomes and retry the exact payload.
+      const definitiveRejection = e.status >= 400 && e.status < 500 &&
+        !/退款请求标识|仍在处理中|请求记录损坏/.test(e.message || '');
+      if (definitiveRejection) {
+        clearPendingRefund(order.id);
+        const amountInput = document.getElementById('refundInput');
+        const reasonInput = document.getElementById('refundReason');
+        if (amountInput) amountInput.disabled = false;
+        if (reasonInput) reasonInput.disabled = false;
+      }
       SLF.ui.toast('❌ ' + e.message);
     } finally {
       btn.disabled = false;
