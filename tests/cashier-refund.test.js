@@ -12,15 +12,33 @@ function setup(reportOrders = []) {
     put(path, ...callbacks) { handlers.set('PUT ' + path, callbacks[callbacks.length - 1]); },
     delete(path, ...callbacks) { handlers.set('DELETE ' + path, callbacks[callbacks.length - 1]); }
   };
-  const state = { id: 5, store_id: 1, table_name: 'A01', status: 'done', total: 100, refund_amount: 0 };
+  const state = { id: 5, store_id: 1, table_name: 'A01', status: 'done', total: 100, refund_amount: 0, refundUpdates: 0 };
+  const refundRequests = new Map();
   const deps = {
-    getAsync: async (sql) => {
+    getAsync: async (sql, params = []) => {
+      if (sql.includes('FROM refund_requests WHERE store_id=? AND idempotency_key=? FOR UPDATE')) {
+        const row = refundRequests.get(String(params[0]) + ':' + String(params[1]));
+        return row ? { ...row } : null;
+      }
       if (sql.includes('FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return { ...state };
       return null;
     },
     allAsync: async sql => sql.includes("status IN ('done', 'refunded')") ? reportOrders : [],
     runAsync: async (sql, params) => {
+      if (sql.startsWith('INSERT IGNORE INTO refund_requests')) {
+        const key = String(params[0]) + ':' + String(params[2]);
+        if (refundRequests.has(key)) return { affectedRows: 0 };
+        refundRequests.set(key, { request_hash: params[3], response_json: null, order_id: params[1] });
+        return { affectedRows: 1 };
+      }
+      if (sql.startsWith('UPDATE refund_requests SET response_json=?')) {
+        const key = String(params[1]) + ':' + String(params[2]);
+        const row = refundRequests.get(key);
+        if (row && row.request_hash === params[3]) row.response_json = params[0];
+        return { affectedRows: row ? 1 : 0 };
+      }
       if (sql.startsWith('UPDATE orders SET status=?')) {
+        state.refundUpdates++;
         state.status = params[0];
         state.refund_amount = Number(params[5]);
         return { affectedRows: 1 };
@@ -58,7 +76,7 @@ function response() {
 
 test('partial refunds accumulate without closing the order until the full amount is refunded', async () => {
   const { handler, state } = setup();
-  const req = { params: { id: '5' }, storeId: 1, cashier: { username: 'qa-cashier', permissions: { can_refund: true } }, body: { amount: 30, reason: 'customer request' } };
+  const req = { params: { id: '5' }, headers: { 'idempotency-key': 'refund-test-partial-0001' }, storeId: 1, cashier: { username: 'qa-cashier', permissions: { can_refund: true } }, body: { amount: 30, reason: 'customer request' } };
   const first = response();
   await handler(req, first);
   assert.equal(first.statusCode, 200);
@@ -82,7 +100,7 @@ test('partial refunds accumulate without closing the order until the full amount
 test('refunds cannot exceed the remaining refundable balance or repeat after full refund', async () => {
   const { handler, state } = setup();
   state.refund_amount = 80;
-  const req = { params: { id: '5' }, storeId: 1, cashier: { username: 'qa-cashier', permissions: { can_refund: true } }, body: { amount: 25, reason: 'customer request' } };
+  const req = { params: { id: '5' }, headers: { 'idempotency-key': 'refund-test-over-00001' }, storeId: 1, cashier: { username: 'qa-cashier', permissions: { can_refund: true } }, body: { amount: 25, reason: 'customer request' } };
   const over = response();
   await handler(req, over);
   assert.equal(over.statusCode, 400);
@@ -120,6 +138,7 @@ test('refund amount rejects fractions smaller than one cent instead of rounding 
     const res = response();
     await handler({
       params: { id: '5' },
+      headers: { 'idempotency-key': 'refund-test-precision-' + String(amount).replace(/[^a-z0-9]/gi, '') },
       storeId: 1,
       cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
       body: { amount, reason: 'precision validation' }
@@ -135,6 +154,7 @@ test('refund calculations persist exact decimal cents and reject corrupt histori
   const res = response();
   await handler({
     params: { id: '5' },
+    headers: { 'idempotency-key': 'refund-test-exact-000001' },
     storeId: 1,
     cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
     body: { amount: '0.10', reason: 'small exact refund' }
@@ -147,6 +167,7 @@ test('refund calculations persist exact decimal cents and reject corrupt histori
   const corrupt = response();
   await handler({
     params: { id: '5' },
+    headers: { 'idempotency-key': 'refund-test-corrupt-0001' },
     storeId: 1,
     cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
     body: { amount: '0.10', reason: 'invalid history' }
@@ -189,4 +210,54 @@ test('refund route order IDs reject non-canonical numeric coercions', () => {
   for (const value of ['', '0', '-1', ' 5 ', '5abc', '5.0', '5e0', '9007199254740992', true, false, [], {}, null, undefined]) {
     assert.equal(parsePositiveOrderId(value), null, String(value));
   }
+});
+
+test('same refund idempotency key replays the original result without a second financial update', async () => {
+  const { handler, state } = setup();
+  const req = {
+    params: { id: '5' },
+    headers: { 'idempotency-key': 'refund-idempotent-replay-01' },
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
+    body: { amount: '30.00', reason: 'customer request' }
+  };
+  const first = response();
+  await handler(req, first);
+  assert.equal(first.statusCode, 200);
+  assert.equal(first.body.total_refunded, 30);
+  const second = response();
+  await handler(req, second);
+  assert.equal(second.statusCode, 200);
+  assert.equal(second.body.idempotent_replay, true);
+  assert.equal(second.body.total_refunded, 30);
+  assert.equal(state.refund_amount, 30);
+  assert.equal(state.refundUpdates, 1);
+});
+
+test('reusing a refund idempotency key with a different payload is rejected', async () => {
+  const { handler, state } = setup();
+  const req = {
+    params: { id: '5' },
+    headers: { 'idempotency-key': 'refund-idempotent-conflict-01' },
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
+    body: { amount: 30, reason: 'customer request' }
+  };
+  const first = response();
+  await handler(req, first);
+  assert.equal(first.statusCode, 200);
+  req.body.amount = 20;
+  const conflict = response();
+  await handler(req, conflict);
+  assert.equal(conflict.statusCode, 409);
+  assert.equal(state.refund_amount, 30);
+  assert.equal(state.refundUpdates, 1);
+});
+
+test('refund route requires a bounded idempotency key before database access', async () => {
+  const { handler, state } = setup();
+  const res = response();
+  await handler({ params: { id: '5' }, storeId: 1, cashier: { username: 'qa-cashier', permissions: { can_refund: true } }, body: { amount: 10, reason: 'test' } }, res);
+  assert.equal(res.statusCode, 400);
+  assert.equal(state.refundUpdates, 0);
 });
