@@ -220,18 +220,19 @@ test('same refund idempotency key replays the original result without a second f
     headers: { 'idempotency-key': 'refund-idempotent-replay-01' },
     storeId: 1,
     cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
-    body: { amount: '30.00', reason: 'customer request' }
+    body: { amount: '100.00', reason: 'customer request' }
   };
   const first = response();
   await handler(req, first);
   assert.equal(first.statusCode, 200);
-  assert.equal(first.body.total_refunded, 30);
+  assert.equal(first.body.total_refunded, 100);
+  assert.equal(state.status, 'refunded');
   const second = response();
   await handler(req, second);
   assert.equal(second.statusCode, 200);
   assert.equal(second.body.idempotent_replay, true);
-  assert.equal(second.body.total_refunded, 30);
-  assert.equal(state.refund_amount, 30);
+  assert.equal(second.body.total_refunded, 100);
+  assert.equal(state.refund_amount, 100);
   assert.equal(state.refundUpdates, 1);
 });
 
