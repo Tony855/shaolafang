@@ -38,8 +38,8 @@ function setup({ rates = [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: 4000 }]
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
       if (sql.includes('SELECT id, name FROM stores')) return { id: 9, name: 'Test Store' };
-      if (sql.includes('store_9_khqr_providers')) return { value: JSON.stringify([provider]) };
-      if (sql.includes('khqr_expire_minutes')) return { value: '10' };
+      if (params && params[0] === 'store_9_khqr_providers') return { value: JSON.stringify([provider]) };
+      if (params && params[0] === 'store_9_khqr_expire_minutes') return { value: '10' };
       if (sql.includes('FROM orders WHERE id=? AND store_id=?')) {
         return {
           id: 42, store_id: 9, status: 'pending', total: 10,
