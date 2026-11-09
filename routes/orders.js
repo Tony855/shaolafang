@@ -258,7 +258,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
       }
 
       if (req.body.returnQty !== undefined && req.body.returnQty !== null) {
-        const returnQty = Number(req.body.returnQty);
+        const returnQty = parseNonNegativeRouteIndex(req.body.returnQty);
         const quantity = Number(items[index].quantity) || 1;
         if (!Number.isSafeInteger(returnQty) || returnQty < 0 || returnQty > quantity) {
           const error = new Error('退回数量必须为 0 至菜品数量之间的整数');
