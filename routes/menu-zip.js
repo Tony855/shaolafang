@@ -67,7 +67,7 @@ module.exports = function(app, deps) {
       try { zip = openZipArchive(zipPath, { maxEntries: 2000 }); }
       catch (e) {
         try { fs.unlinkSync(zipPath); } catch (_) {}
-        return res.status(e.status === 413 ? 413 : 400).json({ error: e.status === 413 ? 'ZIP 文件条目数量超过 2000' : 'ZIP 文件结构无效：' + e.message });
+        return res.status(e.status === 413 ? 413 : 400).json({ error: e.status === 413 ? 'ZIP 结构或条目数量超过资源限制' : 'ZIP 文件结构无效：' + e.message });
       }
       const zipEntries = zip.entries;
       if (zipEntries.length > 2000) {
