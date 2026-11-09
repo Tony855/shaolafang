@@ -1,3 +1,4 @@
+const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/menu.js — 菜品 + 分类
    ============================================================ */
@@ -438,7 +439,7 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
   const uploadedAssets = [];
   let oldAssets = [];
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     const storeId = Number(req.storeId);
     const body = req.body || {};
     const uploadedImage = req.files?.image?.[0]?.filename || '';
@@ -502,7 +503,7 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
 
 app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     const storeId = Number(req.storeId);
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0) {
       return res.status(400).json({ error: '菜品或门店编号无效' });
@@ -525,7 +526,7 @@ app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'
 
 app.put('/api/menu/:id/status', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) throw Object.assign(new Error('菜品编号无效'), { status: 400 });
     const active = normalizeMenuFlag(req.body?.active, 'active');
     let updated;
@@ -576,7 +577,7 @@ app.post('/api/menu-categories', requireAdminKey, requirePermission('can_manage_
 
 app.put('/api/menu-categories/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
     if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '分类编号无效' });
     if (!name || name.length > 100) return res.status(400).json({ error: '分类名称必须为 1 至 100 个字符' });
@@ -601,7 +602,7 @@ app.put('/api/menu-categories/:id', requireAdminKey, requirePermission('can_mana
 
 app.delete('/api/menu-categories/:id', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '分类编号无效' });
     await withTransaction(async () => {
       const { storeId, merchantId } = await lockMenuStore(req);

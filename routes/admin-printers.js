@@ -1,3 +1,4 @@
+const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/admin-printers.js — 打印机 CRUD
    ============================================================ */
@@ -84,7 +85,7 @@ module.exports = function(app, deps) {
 
   app.put('/api/admin/printers/:id', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
       const storeId = Number(req.storeId);
       const merchantId = Number(req.merchantId);
       if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0 ||
@@ -134,7 +135,7 @@ module.exports = function(app, deps) {
 
   app.delete('/api/admin/printers/:id', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
       const storeId = Number(req.storeId);
       const merchantId = Number(req.merchantId);
       if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0 ||

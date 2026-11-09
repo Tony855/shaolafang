@@ -1,3 +1,4 @@
+const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/stores.js — 门店管理
    ============================================================ */
@@ -70,7 +71,7 @@ app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_sto
 
 app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     const merchantId = Number(req.merchantId || 1);
     const body = req.body || {};
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
@@ -144,7 +145,7 @@ app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_
 
 app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     const merchantId = Number(req.merchantId || 1);
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
       return res.status(400).json({ error: '门店编号无效' });
@@ -191,7 +192,7 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
 app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   const copiedFiles = [];
   try {
-    const targetStoreId = Number(req.params.id);
+    const targetStoreId = parsePositiveRouteId(req.params.id);
     const merchantId = Number(req.merchantId || 1);
     if (!Number.isSafeInteger(targetStoreId) || targetStoreId <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
       return res.status(400).json({ error: '门店编号无效' });

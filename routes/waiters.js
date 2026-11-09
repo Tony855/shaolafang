@@ -1,3 +1,4 @@
+const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/waiters.js — 服务员管理
    ============================================================ */
@@ -93,7 +94,7 @@ app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_wa
 
 app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage_waiter'), async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     const merchantId = Number(req.merchantId);
     const body = req.body || {};
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
@@ -166,7 +167,7 @@ app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage
 
 app.delete('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage_waiter'), async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     const merchantId = Number(req.merchantId);
     if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
       return res.status(400).json({ error: '服务员或商户编号无效' });

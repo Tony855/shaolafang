@@ -1,3 +1,4 @@
+const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/tables.js — 桌台管理
    ============================================================ */
@@ -166,7 +167,7 @@ app.post('/api/tables/move', requireAdminOrWaiter, requireTableAccess, async (re
 app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
   try {
     const storeId = Number(req.storeId);
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     if (!Number.isSafeInteger(storeId) || storeId <= 0 || !Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ error: '桌台或店铺信息无效' });
     }
@@ -218,7 +219,7 @@ app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'
 app.delete('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
   try {
     const storeId = Number(req.storeId);
-    const id = Number(req.params.id);
+    const id = parsePositiveRouteId(req.params.id);
     if (!Number.isSafeInteger(storeId) || storeId <= 0 || !Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ error: '桌台或店铺信息无效' });
     }
