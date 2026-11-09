@@ -139,9 +139,9 @@ test('route handlers never return raw exception messages for internal server err
   const routeDir = path.join(__dirname, '..', 'routes');
   const files = fs.readdirSync(routeDir).filter(name => name.endsWith('.js'));
   const unsafePatterns = [
-    /res\\.status\\(\\s*500\\s*\\)\\s*\\.json\\(\\s*\\{\\s*error\\s*:\\s*(?:e|error)\\.message\\b/,
-    /res\\.status\\(\\s*(?:e|error)\\.status\\s*\\|\\|\\s*500\\s*\\)\\s*\\.json\\(\\s*\\{\\s*error\\s*:\\s*(?:e|error)\\.message\\b/,
-    /res\\.status\\(\\s*(?:e|error)\\.statusCode\\s*\\|\\|\\s*500\\s*\\)\\s*\\.json\\(\\s*\\{\\s*error\\s*:\\s*(?:e|error)\\.message\\b/
+    /res\.status\(\s*500\s*\)\s*\.json\(\s*\{\s*error\s*:\s*(?:e|error)\.message\b/,
+    /res\.status\(\s*(?:e|error)\.status\s*\|\|\s*500\s*\)\s*\.json\(\s*\{\s*error\s*:\s*(?:e|error)\.message\b/,
+    /res\.status\(\s*(?:e|error)\.statusCode\s*\|\|\s*500\s*\)\s*\.json\(\s*\{\s*error\s*:\s*(?:e|error)\.message\b/
   ];
   const violations = [];
   for (const file of files) {
