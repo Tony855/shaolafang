@@ -17,6 +17,14 @@ function boundedInteger(value, fallback, min, max) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+function parsePositiveRouteId(value) {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const raw = String(value);
+  if (!/^[1-9]\d*$/.test(raw)) return null;
+  const id = Number(raw);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, collectBackupData, autoBackupDatabase, withTransaction } = deps;
   const writeAudit = deps.logAuditStrict || logAudit;
@@ -160,7 +168,8 @@ app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
 app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
     const { name, username, password, contact_name, contact_phone, max_stores, status, country } = req.body || {};
-    const merchantId = req.params.id;
+    const merchantId = parsePositiveRouteId(req.params.id);
+    if (merchantId === null) return res.status(400).json({ error: '商户编号无效' });
 
     await withTransaction(async () => {
       const current = await getAsync('SELECT country FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
@@ -213,17 +222,19 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 });
 app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
-    if (req.params.id === '1') return res.status(400).json({ error: '不能删除默认商户' });
+    const merchantId = parsePositiveRouteId(merchantId);
+    if (merchantId === null) return res.status(400).json({ error: '商户编号无效' });
+    if (merchantId === 1) return res.status(400).json({ error: '不能删除默认商户' });
 
     await withTransaction(async () => {
       // Lock the merchant row so the deletion is based on one consistent snapshot.
-      const merchant = await getAsync('SELECT * FROM merchants WHERE id=? FOR UPDATE', [req.params.id]);
+      const merchant = await getAsync('SELECT * FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
       if (!merchant) {
         const error = new Error('商户不存在');
         error.statusCode = 404;
         throw error;
       }
-      const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [req.params.id])).map(s => s.id);
+      const storeIds = (await allAsync('SELECT id FROM stores WHERE merchant_id=?', [merchantId])).map(s => s.id);
 
       // Remove store-scoped records before deleting their parent stores.
       if (storeIds.length > 0) {
@@ -234,19 +245,19 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       }
 
       // Remove sessions before administrator accounts, then merchant-scoped data.
-      await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [req.params.id]);
-      await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [req.params.id]);
+      await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [merchantId]);
+      await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [merchantId]);
       for (const sid of storeIds) {
         await runAsync("DELETE FROM settings WHERE `key` = ?", ['cashiers_' + sid]);
       }
-      await runAsync("DELETE FROM settings WHERE `key` LIKE ?", [`merchant_${req.params.id}_%`]);
-      await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [req.params.id]);
-      await runAsync('DELETE FROM currencies WHERE merchant_id=?', [req.params.id]);
-      await runAsync('DELETE FROM login_logs WHERE merchant_id=?', [req.params.id]);
-      await runAsync('DELETE FROM stores WHERE merchant_id=?', [req.params.id]);
-      await runAsync('DELETE FROM merchants WHERE id=?', [req.params.id]);
+      await runAsync("DELETE FROM settings WHERE `key` LIKE ?", [`merchant_${merchantId}_%`]);
+      await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [merchantId]);
+      await runAsync('DELETE FROM currencies WHERE merchant_id=?', [merchantId]);
+      await runAsync('DELETE FROM login_logs WHERE merchant_id=?', [merchantId]);
+      await runAsync('DELETE FROM stores WHERE merchant_id=?', [merchantId]);
+      await runAsync('DELETE FROM merchants WHERE id=?', [merchantId]);
 
-      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'delete_merchant', 'merchant', req.params.id,
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'delete_merchant', 'merchant', merchantId,
         `删除商户「${merchant.name || '未知'}」(编码: ${merchant.code || '-'})`, getClientIp(req));
     });
 
@@ -258,6 +269,8 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 
 app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (req, res) => {
   try {
+    const merchantId = parsePositiveRouteId(merchantId);
+    if (merchantId === null) return res.status(400).json({ error: '商户编号无效' });
     const { password } = req.body || {};
     const newPwd = (password === undefined || password === null || String(password).trim() === '')
       ? crypto.randomBytes(24).toString('base64url')
@@ -267,21 +280,21 @@ app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (re
     }
     const hash = hashPassword(newPwd);
     await withTransaction(async () => {
-      const merchant = await getAsync('SELECT id, name FROM merchants WHERE id=? FOR UPDATE', [req.params.id]);
+      const merchant = await getAsync('SELECT id, name FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
       if (!merchant) {
         const error = new Error('商户不存在');
         error.statusCode = 404;
         throw error;
       }
-      const admins = await allAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC FOR UPDATE', [req.params.id]);
+      const admins = await allAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC FOR UPDATE', [merchantId]);
       if (!admins.length) {
         const error = new Error('商户管理员账号不存在，无法重置密码');
         error.statusCode = 409;
         throw error;
       }
-      await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, req.params.id]);
-      await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [req.params.id]);
-      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', req.params.id,
+      await runAsync('UPDATE merchant_admins SET password_hash=? WHERE merchant_id=?', [hash, merchantId]);
+      await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [merchantId]);
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'reset_merchant_password', 'merchant', merchantId,
         `重置商户「${merchant.name || '未知'}」的管理员密码`, getClientIp(req));
     });
     res.json({ success: true, newPassword: newPwd });
@@ -379,7 +392,8 @@ app.get('/api/super/online-sessions', requireSuperAdmin, async (req, res) => {
 
 app.get('/api/super/online-sessions/:storeId', requireSuperAdmin, async (req, res) => {
   try {
-    const storeId = parseInt(req.params.storeId, 10);
+    const storeId = parsePositiveRouteId(req.params.storeId);
+    if (storeId === null) return res.status(400).json({ error: '门店编号无效' });
     const now = new Date().toISOString();
     const store = await getAsync('SELECT s.*, m.name AS merchant_name FROM stores s LEFT JOIN merchants m ON m.id=s.merchant_id WHERE s.id=?', [storeId]);
     if (!store) return res.status(404).json({ error: '门店不存在' });
@@ -780,7 +794,8 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
 // ===== 商户支付方式配置 =====
 app.get('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (req, res) => {
   try {
-    const mid = parseInt(req.params.id, 10);
+    const mid = parsePositiveRouteId(req.params.id);
+    if (mid === null) return res.status(400).json({ error: '商户编号无效' });
     const row = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${mid}_payment_methods`]);
     const methods = {};
     // 内置 4 种默认全开
@@ -822,9 +837,9 @@ async function getMerchantBanks(merchantId) {
 
 app.put('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (req, res) => {
   try {
-    const mid = Number(req.params.id);
+    const mid = parsePositiveRouteId(req.params.id);
     const src = req.body && req.body.methods;
-    if (!Number.isSafeInteger(mid) || mid <= 0) return res.status(400).json({ error: '商户编号无效' });
+    if (mid === null) return res.status(400).json({ error: '商户编号无效' });
     if (!src || typeof src !== 'object' || Array.isArray(src)) {
       return res.status(400).json({ error: '支付方式配置格式无效' });
     }
@@ -856,7 +871,8 @@ app.put('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (re
 // 新增：返回该商户所有可用的支付方式（内置 + 动态 bank）
 app.get('/api/super/merchants/:id/available-methods', requireSuperAdmin, async (req, res) => {
   try {
-    const mid = parseInt(req.params.id, 10);
+    const mid = parsePositiveRouteId(req.params.id);
+    if (mid === null) return res.status(400).json({ error: '商户编号无效' });
     const builtin = [
       { key: 'cash',   label: '现金',       icon: '💵' },
       { key: 'wechat', label: '微信支付',   icon: '💚' },
