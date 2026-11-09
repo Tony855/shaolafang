@@ -59,7 +59,7 @@ function setup(reportOrders = []) {
   const rawRefundHandler = handlers.get('PUT /api/cashier/orders/:id/refund');
   const handler = (req, res) => {
     req.body = req.body || {};
-    if (!req.body.request_id) req.body.request_id = 'test-request-' + (++generatedRequestId).toString().padStart(16, '0');
+    if (!req.body.request_id || req.body.request_id.startsWith('test-request-')) req.body.request_id = 'test-request-' + (++generatedRequestId).toString().padStart(16, '0');
     return rawRefundHandler(req, res);
   };
   return { handler, reportHandler: handlers.get('GET /api/cashier/report/today'), state };
