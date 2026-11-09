@@ -1258,9 +1258,45 @@ module.exports = function(app, deps) {
       const orderId = parsePositiveOrderId(order_id);
       if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
       const { storeId: sid } = await resolveKhqrStore(req);
-      const result = await runAsync("UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND (awaiting_confirm=1 OR pay_khqr_ref<>'')",
-        [orderId, sid]);
-      if (!result.affectedRows) return res.status(409).json({ error: '订单不存在或当前状态不允许取消待确认' });
+      if (req.waiter && req.waiterStoreId !== sid && req.waiter.store_id !== sid) {
+        return res.status(403).json({ error: '不能操作其他门店的订单' });
+      }
+      await withTransaction(async () => {
+        const order = await getAsync(
+          'SELECT id, status, awaiting_confirm, pay_khqr_ref, pay_expires_at, table_name FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+          [orderId, sid]
+        );
+        if (!order || order.status !== 'pending' || (!Number(order.awaiting_confirm) && !order.pay_khqr_ref)) {
+          const error = new Error('订单不存在或当前状态不允许取消待确认');
+          error.status = 409;
+          throw error;
+        }
+        if (req.waiter && Number(order.awaiting_confirm)) {
+          const error = new Error('该订单已提交到账确认，只能由收银员或管理员取消');
+          error.status = 403;
+          throw error;
+        }
+        const result = await runAsync(
+          "UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=? AND pay_khqr_ref=?",
+          [orderId, sid, Number(order.awaiting_confirm) ? 1 : 0, String(order.pay_khqr_ref || '')]
+        );
+        if (!result.affectedRows) {
+          const error = new Error('订单状态已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
+        const actorType = req.waiter ? 'waiter' : req.isCashier ? 'cashier' : 'admin';
+        const actorId = req.waiter ? (req.waiter.id || 0) : req.isCashier ? (req.cashier?.id || 0) : (req.adminId || 0);
+        const actorUsername = req.waiter
+          ? (req.waiter.display_name || req.waiter.username || 'waiter')
+          : req.isCashier ? (req.cashier?.username || 'cashier') : (req.admin?.username || req.username || 'admin');
+        await runAsync(
+          'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [actorType, actorId, actorUsername, 'khqr_cancel',
+           JSON.stringify({ order_id: orderId, table: order.table_name, was_awaiting_confirm: !!Number(order.awaiting_confirm), had_qr_reference: !!order.pay_khqr_ref }),
+           getClientIp(req), new Date().toISOString()]
+        );
+      });
       res.json({ success: true });
     } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
       res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
