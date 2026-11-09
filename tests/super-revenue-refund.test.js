@@ -17,7 +17,7 @@ function response() {
   };
 }
 
-function setup() {
+function setup({ invalidRefundCount = 0 } = {}) {
   const handlers = new Map();
   const calls = [];
   const app = {
@@ -29,6 +29,7 @@ function setup() {
   const deps = {
     getAsync: async sql => {
       calls.push({ type: 'get', sql });
+      if (sql.includes('invalid_count')) return { invalid_count: invalidRefundCount };
       if (sql.includes('SUM(GREATEST')) return { total: '40.00' };
       return { count: 1, total: '40.00' };
     },
@@ -81,4 +82,22 @@ test('super store revenue breakdown includes refunded orders with non-negative n
   assert.ok(query);
   assert.equal((query.sql.match(/GREATEST\(0, o\.total - COALESCE\(o\.refund_amount,0\)\)/g) || []).length, 3);
   assert.equal((query.sql.match(/o\.status IN \('done','refunded'\)/g) || []).length, 3);
+});
+
+
+test('super dashboard stats fail closed on corrupt refund history', async () => {
+  const { handlers } = setup({ invalidRefundCount: 1 });
+  const res = response();
+  await handlers.get('GET /api/super/stats')({}, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /退款数据异常/);
+});
+
+test('super store breakdown fails closed on corrupt refund history', async () => {
+  const { handlers, calls } = setup({ invalidRefundCount: 2 });
+  const res = response();
+  await handlers.get('GET /api/super/store-breakdown')({}, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /退款数据异常/);
+  assert.equal(calls.some(call => call.type === 'all'), false);
 });
