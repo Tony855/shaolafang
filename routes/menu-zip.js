@@ -52,6 +52,8 @@ module.exports = function(app, deps) {
   });
 
   app.post('/api/admin/menu/import-zip', requireAdminKey, requirePermission('can_manage_menu'), upload.single('file'), async (req, res) => {
+    const createdImagePaths = new Set();
+    const retainedImagePaths = new Set();
     try {
       if (!req.file) return res.status(400).json({ error: '请上传 ZIP 文件' });
       const zipPath = req.file.path;
@@ -117,7 +119,11 @@ module.exports = function(app, deps) {
         const newName = 'zip_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + path.extname(base).toLowerCase();
         const dest = path.resolve(uploadsAbs, newName);
         if (!dest.startsWith(uploadsAbs + path.sep)) continue;
-        try { fs.writeFileSync(dest, entry.getData(), { flag: 'wx', mode: 0o640 }); imageMap[base] = newName; }
+        try {
+          fs.writeFileSync(dest, entry.getData(), { flag: 'wx', mode: 0o640 });
+          createdImagePaths.add(dest);
+          imageMap[base] = newName;
+        }
         catch (e) { console.warn('[import-zip] 写图片失败:', base, e.message); }
       }
 
@@ -180,15 +186,31 @@ module.exports = function(app, deps) {
           } else {
             await runAsync('INSERT INTO menus (emoji, price, category, `desc`, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, active, image, name, store_id, merchant_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [...base10, activeVal, imageName, itemName, req.storeId || 1, req.merchantId]);
           }
+          if (imageName && imageMap[Object.keys(imageMap).find(key => imageMap[key] === imageName)]) {
+            retainedImagePaths.add(path.resolve(uploadsAbs, imageName));
+          }
           success++;
         } catch (e) { failed++; errors.push('第 ' + (i+1) + ' 行：' + e.message); }
       }
 
+      // Keep only newly extracted images referenced by rows that were actually saved.
+      for (const imagePath of createdImagePaths) {
+        if (!retainedImagePaths.has(imagePath)) {
+          try { fs.unlinkSync(imagePath); } catch (_) {}
+        }
+      }
       try { fs.unlinkSync(zipPath); } catch (_) {}
       res.json({ success, failed, errors, createdCategories, imagesImported: Object.keys(imageMap).length });
     } catch (e) {
       if (req.file?.path && fs.existsSync(req.file.path)) {
         try { fs.unlinkSync(req.file.path); } catch (_) {}
+      }
+      // Preserve files already referenced by successfully committed menu rows;
+      // remove every other extracted file when the import aborts unexpectedly.
+      for (const imagePath of createdImagePaths) {
+        if (!retainedImagePaths.has(imagePath)) {
+          try { fs.unlinkSync(imagePath); } catch (_) {}
+        }
       }
       console.error('import-zip failed:', e);
       res.status(500).json({ error: '请求失败，请稍后重试' });
