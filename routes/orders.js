@@ -291,7 +291,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     return res.json(updatedOrder);
   } catch (e) {
     console.error('切换菜品状态失败:', e);
-    res.status(e.status || 500).json({ error: e.message });
+    sendOrderError(res, e);
   }
 });
 
@@ -323,12 +323,13 @@ app.get('/api/orders', requireAdminOrWaiter, async (req, res) => {
 
 app.get('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   try {
-    const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    const orderStoreId = resolveOrderStoreId(req);
+    if (!orderStoreId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
     const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [req.params.id, orderStoreId]);
     if (!row) return res.status(404).json({ error: '订单不存在' });
     res.json(formatStaffOrder(row));
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendOrderError(res, e);
   }
 });
 
@@ -618,7 +619,7 @@ app.post('/api/orders', async (req, res) => {
     res.status(201).json(responseData);
   } catch (e) {
     console.error('[POST /api/orders] 错误:', e);
-    res.status(e.status || 500).json({ error: e.message });
+    sendOrderError(res, e);
   }
 });
 
@@ -626,7 +627,8 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const { table, items, status, note, pay_method } = req.body || {};
-    const orderStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
+    const orderStoreId = resolveOrderStoreId(req);
+    if (!orderStoreId) return res.status(403).json({ error: '当前账号未绑定有效门店' });
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
     if (existing.status !== 'pending') return res.status(409).json({ error: '只有待处理订单可以编辑' });
@@ -825,7 +827,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     res.json(formatStaffOrder(updatedRow));
   } catch (e) {
     console.error('更新订单失败:', e);
-    res.status(e.status || 500).json({ error: e.message });
+    sendOrderError(res, e);
   }
 });
 
@@ -903,7 +905,7 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
     io.to('public-table-' + req.storeId + '-' + deletedOrder.table_name).emit('order:deleted', payload);
     res.json({ success: true });
   } catch (e) {
-    res.status(e.status || 500).json({ error: e.message });
+    sendOrderError(res, e);
   }
 });
 
