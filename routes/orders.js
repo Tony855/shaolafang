@@ -942,6 +942,7 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
         throw Object.assign(new Error('已结算或已退款订单不能删除，请保留财务记录'), { status: 409 });
       }
 
+      await runAsync('DELETE FROM refund_requests WHERE order_id=? AND store_id=?', [id, storeId]);
       const result = await runAsync(
         'DELETE FROM orders WHERE id=? AND store_id=?',
         [id, storeId]
