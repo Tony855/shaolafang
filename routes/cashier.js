@@ -249,16 +249,26 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
       } catch(e) { return res.status(400).json({ error: '订单 ' + (o.order_no || o.id) + ' 数据异常' }); }
     }
     const now = new Date().toISOString();
-    const totalAmount = Math.round(orders.reduce((s, o) => s + Number(o.total), 0) * 100) / 100;
-    if (!Number.isFinite(totalAmount) || totalAmount <= 0) return res.status(400).json({ error: '订单金额无效，无法批量结算' });
+    const orderTotalCents = orders.map(order => toMoneyCents(order.total));
+    if (orderTotalCents.some(cents => cents === null || cents <= 0)) {
+      return res.status(400).json({ error: '订单金额无效，无法批量结算' });
+    }
+    const totalAmountCents = orderTotalCents.reduce((sum, cents) => sum + cents, 0);
+    if (!Number.isSafeInteger(totalAmountCents) || totalAmountCents <= 0) {
+      return res.status(400).json({ error: '订单金额超出安全范围，无法批量结算' });
+    }
+    const totalAmount = totalAmountCents / 100;
     const { pay_method, cash_received } = req.body || {};
     const paymentMethod = typeof pay_method === 'string' ? pay_method.trim().slice(0, 40) : '';
     if (!paymentMethod) return res.status(400).json({ error: '请选择收款方式' });
-    const cashReceived = paymentMethod.toLowerCase() === 'cash' ? Number(cash_received) : 0;
-    if (paymentMethod.toLowerCase() === 'cash' && (!Number.isFinite(cashReceived) || cashReceived < totalAmount)) {
-      return res.status(400).json({ error: '现金实收金额不足' });
+    const isCashPayment = paymentMethod.toLowerCase() === 'cash';
+    const cashReceivedCents = isCashPayment ? toMoneyCents(cash_received) : 0;
+    if (isCashPayment && (cashReceivedCents === null || cashReceivedCents < totalAmountCents)) {
+      return res.status(400).json({ error: '现金实收金额不足或格式无效，最多只能有两位小数' });
     }
-    const cashChange = paymentMethod.toLowerCase() === 'cash' ? Math.round((cashReceived - totalAmount) * 100) / 100 : 0;
+    const cashChangeCents = isCashPayment ? cashReceivedCents - totalAmountCents : 0;
+    const cashReceived = isCashPayment ? cashReceivedCents / 100 : 0;
+    const cashChange = cashChangeCents / 100;
     let settlementOrders = orders;
     let tableNames = [...new Set(orders.map(o => o.table_name))];
     await withTransaction(async () => {
@@ -293,9 +303,12 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         error.status = 409;
         throw error;
       }
-      const lockedTotal = Math.round(lockedOrders.reduce((sum, item) => sum + Number(item.total), 0) * 100) / 100;
-      if (!Number.isFinite(lockedTotal) || lockedTotal !== totalAmount ||
-          (paymentMethod.toLowerCase() === 'cash' && cashReceived < lockedTotal)) {
+      const lockedOrderTotalCents = lockedOrders.map(order => toMoneyCents(order.total));
+      const lockedTotalCents = lockedOrderTotalCents.some(cents => cents === null || cents <= 0)
+        ? null
+        : lockedOrderTotalCents.reduce((sum, cents) => sum + cents, 0);
+      if (!Number.isSafeInteger(lockedTotalCents) || lockedTotalCents !== totalAmountCents ||
+          (isCashPayment && cashReceivedCents < lockedTotalCents)) {
         const error = new Error('订单金额已变化，请刷新后重新核对收款金额');
         error.status = 409;
         throw error;
@@ -315,8 +328,15 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         const order = settlementOrders[index];
         // Allocate any batch cash change to the final order so per-order totals
         // reconcile with the aggregate cash tendered and change in the audit log.
-        const orderCashChange = paymentMethod.toLowerCase() === 'cash' && index === settlementOrders.length - 1 ? cashChange : 0;
-        const orderCashReceived = paymentMethod.toLowerCase() === 'cash' ? Number(order.total) + orderCashChange : 0;
+        const orderCents = toMoneyCents(order.total);
+        if (orderCents === null || orderCents <= 0) {
+          const error = new Error('订单金额无效，批量结算已取消');
+          error.status = 409;
+          throw error;
+        }
+        const orderCashChangeCents = isCashPayment && index === settlementOrders.length - 1 ? cashChangeCents : 0;
+        const orderCashChange = orderCashChangeCents / 100;
+        const orderCashReceived = isCashPayment ? (orderCents + orderCashChangeCents) / 100 : 0;
         const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [now, paymentMethod, orderCashReceived, orderCashChange, order.id, req.storeId]);
         if (!updated.affectedRows) {
           const error = new Error('订单状态已变化，批量结算已回滚，请刷新后重试');
@@ -400,13 +420,16 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     const { pay_method, cash_received } = req.body || {};
     const paymentMethod = typeof pay_method === 'string' ? pay_method.trim().slice(0, 40) : '';
     if (!paymentMethod) return res.status(400).json({ error: '请选择收款方式' });
-    const orderTotal = Number(order.total);
-    if (!Number.isFinite(orderTotal) || orderTotal <= 0) return res.status(400).json({ error: '订单金额无效' });
-    const cashReceived = paymentMethod.toLowerCase() === 'cash' ? Number(cash_received) : 0;
-    if (paymentMethod.toLowerCase() === 'cash' && (!Number.isFinite(cashReceived) || cashReceived < orderTotal)) {
-      return res.status(400).json({ error: '现金实收金额不足' });
+    const orderTotalCents = toMoneyCents(order.total);
+    if (orderTotalCents === null || orderTotalCents <= 0) return res.status(400).json({ error: '订单金额无效' });
+    const isCashPayment = paymentMethod.toLowerCase() === 'cash';
+    const cashReceivedCents = isCashPayment ? toMoneyCents(cash_received) : 0;
+    if (isCashPayment && (cashReceivedCents === null || cashReceivedCents < orderTotalCents)) {
+      return res.status(400).json({ error: '现金实收金额不足或格式无效，最多只能有两位小数' });
     }
-    const cashChange = paymentMethod.toLowerCase() === 'cash' ? Math.round((cashReceived - orderTotal) * 100) / 100 : 0;
+    const cashChangeCents = isCashPayment ? cashReceivedCents - orderTotalCents : 0;
+    const cashReceived = isCashPayment ? cashReceivedCents / 100 : 0;
+    const cashChange = cashChangeCents / 100;
     const settledAt = new Date().toISOString();
     let settledTableName = order.table_name;
     await withTransaction(async () => {
@@ -432,17 +455,17 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
-      const lockedTotal = Number(lockedOrder.total);
+      const lockedTotalCents = toMoneyCents(lockedOrder.total);
       let lockedItems;
       try { lockedItems = JSON.parse(lockedOrder.items || '[]'); } catch (_) { lockedItems = null; }
-      if (!Number.isFinite(lockedTotal) || lockedTotal <= 0 ||
-          Math.round(lockedTotal * 100) !== Math.round(orderTotal * 100) ||
+      if (lockedTotalCents === null || lockedTotalCents <= 0 ||
+          lockedTotalCents !== orderTotalCents ||
           !Array.isArray(lockedItems) || !lockedItems.length || !lockedItems.every(item => item.itemStatus === 'done')) {
         const error = new Error('订单内容或金额已变化，请刷新后重新核对');
         error.status = 409;
         throw error;
       }
-      if (paymentMethod.toLowerCase() === 'cash' && cashReceived < lockedTotal) {
+      if (isCashPayment && cashReceivedCents < lockedTotalCents) {
         const error = new Error('现金实收金额不足，请重新录入');
         error.status = 400;
         throw error;
