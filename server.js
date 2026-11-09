@@ -213,7 +213,7 @@ const {
   requireAdminOrWaiter,
 } = require('./server/middleware/admin-auth');
 const { requireSuperAdmin, requireCashier, requireAdminOrCashier, requireAdminOrCashierOrWaiter } = require('./server/middleware/auth');
-const { createSocketAuthenticator } = require('./server/middleware/socket-auth');
+const { createSocketAuthenticator, scheduleSocketRevalidation } = require('./server/middleware/socket-auth');
 
 // ---------- 获取真实客户端IP ----------
 // ---------- IP地理位置查询 ----------
@@ -1191,8 +1191,12 @@ app.use((err, req, res, next) => {
 // ============================================================
 //  Socket.io 握手鉴权
 // ============================================================
-io.use(createSocketAuthenticator({ getAsync, logger: console }));
+const socketAuthenticator = createSocketAuthenticator({ getAsync, logger: console });
+io.use(socketAuthenticator);
 io.on('connection', (socket) => {
+  // Re-check persisted session state while connected; disconnect immediately on
+  // expiry, logout/revocation, account deactivation, or auth-store failure.
+  scheduleSocketRevalidation(socket, socketAuthenticator);
   const { role, storeId } = socket.data;
   console.log(`[socket] connected role=${role} store=${storeId} id=${socket.id}`);
 

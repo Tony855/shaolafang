@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createSocketAuthenticator, positiveSafeInteger } = require('../server/middleware/socket-auth');
+const { createSocketAuthenticator, positiveSafeInteger, scheduleSocketRevalidation } = require('../server/middleware/socket-auth');
 
 function makeSocket(token, storeId) {
   return { handshake: { auth: { token }, query: { ...(storeId === undefined ? {} : { storeId }) } }, data: {} };
@@ -142,4 +142,77 @@ test('cashier socket accepts only the explicit active flag values used by HTTP a
     assert.equal(socket.data.role, 'cashier');
     assert.equal(socket.data.storeId, 7);
   }
+});
+
+test('live socket sessions are revalidated and disconnected after revocation', () => {
+  const scheduled = [];
+  let disconnected = false;
+  const listeners = {};
+  const socket = {
+    data: { role: 'cashier', storeId: 7, merchantId: 9, cashierId: 3, expiresAt: 'later' },
+    once(event, callback) { listeners[event] = callback; },
+    disconnect(force) { assert.equal(force, true); disconnected = true; listeners.disconnect?.(); }
+  };
+  let authenticationCalls = 0;
+  const authenticateSocket = (_socket, next) => {
+    authenticationCalls += 1;
+    next(new Error('unauthorized: token invalid or expired'));
+  };
+  scheduleSocketRevalidation(socket, authenticateSocket, {
+    intervalMs: 1000,
+    setTimeoutFn(callback, delay) { const timer = { callback, delay, unref() {} }; scheduled.push(timer); return timer; },
+    clearTimeoutFn(timer) { timer.cancelled = true; }
+  });
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0].delay, 1000);
+  scheduled[0].callback();
+  assert.equal(authenticationCalls, 1);
+  assert.equal(disconnected, true);
+  assert.equal(scheduled.length, 1, 'revoked socket must not schedule another check');
+});
+
+test('live socket revalidation keeps the connection only when identity remains unchanged', () => {
+  const scheduled = [];
+  let disconnected = false;
+  const listeners = {};
+  const socket = {
+    data: { role: 'waiter', storeId: 7, waiterId: 4, expiresAt: 'old' },
+    once(event, callback) { listeners[event] = callback; },
+    disconnect() { disconnected = true; listeners.disconnect?.(); }
+  };
+  scheduleSocketRevalidation(socket, (current, next) => {
+    current.data.expiresAt = 'refreshed';
+    next(null);
+  }, {
+    intervalMs: 1000,
+    setTimeoutFn(callback) { const timer = { callback, unref() {} }; scheduled.push(timer); return timer; },
+    clearTimeoutFn(timer) { timer.cancelled = true; }
+  });
+  scheduled[0].callback();
+  assert.equal(disconnected, false);
+  assert.equal(socket.data.expiresAt, 'refreshed');
+  assert.equal(scheduled.length, 2, 'valid session should schedule the next revalidation');
+  listeners.disconnect();
+  assert.equal(scheduled[1].cancelled, true);
+});
+
+test('live socket revalidation disconnects if the authenticated identity changes', () => {
+  const scheduled = [];
+  let disconnected = false;
+  const socket = {
+    data: { role: 'admin', storeId: 7, merchantId: 9, adminId: 2 },
+    once() {},
+    disconnect() { disconnected = true; }
+  };
+  scheduleSocketRevalidation(socket, (current, next) => {
+    current.data.storeId = 8;
+    next(null);
+  }, {
+    intervalMs: 1000,
+    setTimeoutFn(callback) { const timer = { callback, unref() {} }; scheduled.push(timer); return timer; },
+    clearTimeoutFn() {}
+  });
+  scheduled[0].callback();
+  assert.equal(disconnected, true);
+  assert.equal(scheduled.length, 1);
 });

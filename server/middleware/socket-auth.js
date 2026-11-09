@@ -143,4 +143,47 @@ function createSocketAuthenticator({ getAsync, logger = console }) {
   };
 }
 
-module.exports = { createSocketAuthenticator, isLiveSession, positiveSafeInteger };
+function socketIdentity(socket) {
+  const data = socket.data || {};
+  return [data.role, data.storeId, data.merchantId, data.adminId, data.cashierId, data.waiterId, data.tableName];
+}
+
+// Handshake authentication alone leaves established sockets alive after logout,
+// expiry, account deactivation, or session revocation. Re-run the same DB-backed
+// authenticator periodically and fail closed if the session can no longer be verified.
+function scheduleSocketRevalidation(socket, authenticateSocket, options = {}) {
+  const intervalMs = Number.isSafeInteger(options.intervalMs) && options.intervalMs >= 1000
+    ? options.intervalMs : 30000;
+  const schedule = options.setTimeoutFn || setTimeout;
+  const cancel = options.clearTimeoutFn || clearTimeout;
+  const initialIdentity = socketIdentity(socket);
+  let timer = null;
+  let closed = false;
+
+  const stop = () => {
+    closed = true;
+    if (timer) cancel(timer);
+    timer = null;
+  };
+  socket.once('disconnect', stop);
+
+  const revalidate = () => {
+    if (closed) return;
+    authenticateSocket(socket, error => {
+      if (closed) return;
+      const currentIdentity = socketIdentity(socket);
+      if (error || currentIdentity.some((value, index) => value !== initialIdentity[index])) {
+        socket.disconnect(true);
+        return;
+      }
+      timer = schedule(revalidate, intervalMs);
+      if (timer && typeof timer.unref === 'function') timer.unref();
+    });
+  };
+
+  timer = schedule(revalidate, intervalMs);
+  if (timer && typeof timer.unref === 'function') timer.unref();
+  return stop;
+}
+
+module.exports = { createSocketAuthenticator, isLiveSession, positiveSafeInteger, scheduleSocketRevalidation };
