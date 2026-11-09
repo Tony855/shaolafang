@@ -520,7 +520,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     }).join('') || '<div style="text-align:center;padding:20px;color:#9ca3af;">' + (t('noDishes') || '无菜品') + '</div>';
 
     // 金额
-    const totalDisplay = moneyHtml(Number(order.total) || 0);
+    const financialDataCorrupted = order.financialDataCorrupted === true;
+    const totalDisplay = financialDataCorrupted ? '数据异常' : moneyHtml(Number(order.total) || 0);
     document.getElementById('detailTotal').innerHTML = totalDisplay;
     document.getElementById('detailDue').innerHTML = totalDisplay;
 
@@ -530,9 +531,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     const allowSettle = isEnabledFlag(perms.can_settle, true);
     const allowCancel = isEnabledFlag(perms.can_cancel, true);
     const allowRefund = isEnabledFlag(perms.can_refund, false);
-    const canSettle = allowSettle && order.status === 'pending' && SLF.orderStatus.allItemsDone(order);
+    const canSettle = !financialDataCorrupted && allowSettle && order.status === 'pending' && SLF.orderStatus.allItemsDone(order);
     const canCancel = allowCancel && order.status === 'pending';
-    const canRefund = allowRefund && ['done', 'settled', 'paid', 'completed'].includes(order.status);
+    const canRefund = !financialDataCorrupted && allowRefund && ['done', 'settled', 'paid', 'completed'].includes(order.status);
     let btns = '';
     if (canSettle) {
       btns += `<button class="btn btn-pay" onclick="openPaymentModal(${order.id})">💵 ${t('settleOrder')}</button>`;
@@ -545,6 +546,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     }
     if (canCancel) {
       btns += `<button class="btn btn-cancel-order" onclick="cancelOrder(${order.id})" title="${t('cancelOrder') || '取消'}">✕</button>`;
+    }
+    if (financialDataCorrupted) {
+      btns += '<span class="pos-detail-warning" role="alert" style="color:#b45309;font-size:13px;">⚠️ 订单金额或退款记录异常，已禁用收款和退款</span>';
     }
     btnsEl.innerHTML = btns;
 
@@ -861,6 +865,10 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   function refundOrder(id) {
     const order = orders.find(o => o.id === id);
     if (!order) return;
+    if (order.financialDataCorrupted === true) {
+      SLF.ui.toast('❌ 订单金额或退款记录异常，暂不能退款，请先核对订单数据');
+      return;
+    }
     if (order.status !== 'done') {
       SLF.ui.toast('⚠️ ' + (t('onlySettledRefund', null, '只有已结算订单才能退款')));
       return;
@@ -941,6 +949,10 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   function openRefundModal(orderId) {
     const order = orders.find(o => String(o.id) === String(orderId));
     if (!order) { SLF.ui.toast('❌ ' + (t('orderNotFound') || '未找到订单')); return; }
+    if (order.financialDataCorrupted === true) {
+      SLF.ui.toast('❌ 订单金额或退款记录异常，暂不能退款，请先核对订单数据');
+      return;
+    }
     refundOrderId = order.id;
     const total = Number(order.total) || 0;
     const remaining = Math.max(0, total - Number(order.refund_amount || 0));
@@ -962,6 +974,11 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     if (!refundOrderId) return;
     const order = orders.find(o => String(o.id) === String(refundOrderId));
     if (!order) { SLF.ui.toast('❌ ' + (t('orderNotFound') || '未找到订单')); return; }
+    if (order.financialDataCorrupted === true) {
+      closeRefundModal();
+      SLF.ui.toast('❌ 订单金额或退款记录异常，暂不能退款，请先核对订单数据');
+      return;
+    }
     const reason = document.getElementById('refundReason').value.trim();
     const total = Number(order.total) || 0;
     const remaining = Math.max(0, total - Number(order.refund_amount || 0));
