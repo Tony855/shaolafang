@@ -513,6 +513,10 @@ module.exports = function(app, deps) {
           (typeof body.password !== 'string' || body.password.length < 6 || body.password.length > 128)) {
         return res.status(400).json({ error: '密码长度必须为 6 至 128 个字符' });
       }
+      const requestedTargetStoreId = body.store_id === undefined ? null : parsePositiveRouteId(body.store_id);
+      if (body.store_id !== undefined && requestedTargetStoreId === null) {
+        return res.status(400).json({ error: '目标门店编号无效' });
+      }
       let updatedCashier;
       await withTransaction(async () => {
         const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
@@ -521,7 +525,7 @@ module.exports = function(app, deps) {
         if (!found) throw Object.assign(new Error('收银员不存在'), { status: 404 });
         const { store: oldStore, list: oldList, idx } = found;
         const cashier = { ...oldList[idx], permissions: { ...(oldList[idx].permissions || {}) } };
-        const targetStoreId = parsePositiveRouteId(body.store_id === undefined ? oldStore.id : body.store_id);
+        const targetStoreId = requestedTargetStoreId === null ? parsePositiveRouteId(oldStore.id) : requestedTargetStoreId;
         if (targetStoreId === null) throw Object.assign(new Error('目标门店编号无效'), { status: 400 });
         const storeChanged = targetStoreId !== Number(oldStore.id);
         const newStore = storeChanged
