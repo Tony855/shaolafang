@@ -17,7 +17,7 @@ function response() {
 
 const tableNames = [
   'merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies',
-  'order_sequences', 'orders', 'settings', 'login_logs', 'audit_logs', 'waiters',
+  'order_sequences', 'orders', 'refund_requests', 'settings', 'login_logs', 'audit_logs', 'waiters',
   'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'
 ];
 
