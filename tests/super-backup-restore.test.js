@@ -134,7 +134,7 @@ test('super-admin login and audit log endpoints cap requested rows at 1000', asy
     assert.equal(res.statusCode, 200);
     const call = ctx.allCalls.at(-1);
     assert.match(call.sql, /LIMIT \?/);
-    assert.deepEqual(call.params, [200]);
+    assert.deepEqual(call.params, [1000]);
   }
 });
 
