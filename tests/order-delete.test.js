@@ -96,7 +96,7 @@ test('admin order deletion locks table and order, audits details and broadcasts 
   const deleteRefundRequests = calls.findIndex(x => x.type === 'run' && x.sql.startsWith('DELETE FROM refund_requests'));
   const deleteOrder = calls.findIndex(x => x.type === 'run' && x.sql.startsWith('DELETE FROM orders'));
   const audit = calls.find(x => x.type === 'run' && x.sql.startsWith('INSERT INTO audit_logs'));
-  assert.ok(lockAdmin >= 0 && lockTable > lockAdmin && lockOrder > lockTable && deleteOrder > lockOrder);
+  assert.ok(lockAdmin >= 0 && lockTable > lockAdmin && lockOrder > lockTable && deleteRefundRequests > lockOrder && deleteOrder > deleteRefundRequests);
   assert.ok(audit);
   assert.equal(audit.params[3], 'delete_order');
   assert.equal(audit.params[5], 9);
