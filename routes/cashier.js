@@ -606,8 +606,8 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     let replayedResponse = null;
 
     await withTransaction(async () => {
-      await runAsync(
-        'INSERT INTO refund_requests (store_id, order_id, idempotency_key, request_hash, response_json, cashier_username, created_at) VALUES (?, ?, ?, ?, NULL, ?, ?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',
+      const insertRequest = await runAsync(
+        'INSERT IGNORE INTO refund_requests (store_id, order_id, idempotency_key, request_hash, response_json, cashier_username, created_at) VALUES (?, ?, ?, ?, NULL, ?, ?)',
         [req.storeId, id, idempotencyKey, requestHash, req.cashier.username || '', now]
       );
       const existingRequest = await getAsync(
@@ -624,6 +624,11 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         try { replayedResponse = JSON.parse(existingRequest.response_json); }
         catch (_) { throw new Error('退款请求记录损坏，请联系管理员核对'); }
         return;
+      }
+      if (Number(insertRequest.affectedRows) !== 1) {
+        const error = new Error('该退款请求仍在处理中或记录不完整，请稍后使用原请求标识重试');
+        error.status = 409;
+        throw error;
       }
 
       const lockedOrder = await getAsync(
