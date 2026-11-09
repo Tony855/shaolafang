@@ -716,7 +716,7 @@ app.get('/api/cashier/report/today', requireCashier, async (req, res) => {
         : '0.00',
       orders: settledOrders.map(row => formatStaffOrder(row, formatOrder))
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
 // ----- 收银台获取本商户启用的支付方式 -----
