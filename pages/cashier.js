@@ -27,7 +27,8 @@ const refundPendingPrefix = 'foodflow:refund-pending:';
 const refundPendingMemory = new Map();
 function refundPendingStorageKey(orderId) {
   const storeId = SLF.store.rawGet('storeId') || '1';
-  return refundPendingPrefix + storeId + ':' + orderId;
+  const cashierName = String(cashierInfo?.username || 'cashier').toLowerCase();
+  return refundPendingPrefix + storeId + ':' + cashierName + ':' + orderId;
 }
 function loadPendingRefund(orderId) {
   const key = refundPendingStorageKey(orderId);
