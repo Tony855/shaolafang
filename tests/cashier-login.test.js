@@ -127,3 +127,29 @@ test('cashier login rechecks the current password hash under the settings row lo
   assert.match(res.body.error, /账号或密码错误/);
   assert.equal(calls.some(call => call.sql.includes('INSERT INTO cashier_sessions')), false);
 });
+
+
+test('cashier login rejects non-canonical store identifiers before reading cashier settings', async () => {
+  for (const storeId of ['1.0', '1e0', ' 1 ', '1abc', '0', '-1', '9007199254740992', true, [], {}]) {
+    const { handlers, calls } = setup();
+    const res = response();
+    await handlers.get('POST /api/cashier/login')({
+      body: { username: 'qa-cashier', password: 'qa-password-2026', storeId }
+    }, res);
+    assert.equal(res.statusCode, 400, String(storeId));
+    assert.match(res.body.error, /门店编号无效/);
+    assert.equal(calls.some(call => call.sql.includes("LIKE 'cashiers_%'")), false);
+    assert.equal(calls.some(call => call.sql.includes('INSERT INTO cashier_sessions')), false);
+  }
+});
+
+test('cashier login accepts canonical positive store identifiers', async () => {
+  const { handlers, calls } = setup();
+  const res = response();
+  await handlers.get('POST /api/cashier/login')({
+    body: { username: 'qa-cashier', password: 'qa-password-2026', storeId: '1' }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.storeId, 1);
+  assert.ok(calls.some(call => call.sql.includes('INSERT INTO cashier_sessions')));
+});
