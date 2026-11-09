@@ -1157,8 +1157,8 @@ module.exports = function(app, deps) {
         return res.status(403).json({ error: '没有订单收款权限' });
       }
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      const orderId = Number(order_id);
-      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
+      const orderId = parsePositiveOrderId(order_id);
+      if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
 
       let sid;
       let actorName = 'admin';
@@ -1249,8 +1249,8 @@ module.exports = function(app, deps) {
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有取消收款确认权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有取消收款确认权限' });
       const { order_id } = req.body || {};
-      const orderId = Number(order_id);
-      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
+      const orderId = parsePositiveOrderId(order_id);
+      if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
       const { storeId: sid } = await resolveKhqrStore(req);
       const result = await runAsync("UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND (awaiting_confirm=1 OR pay_khqr_ref<>'')",
         [orderId, sid]);
