@@ -93,8 +93,8 @@ app.post('/api/cashier/login', async (req, res) => {
     const rawStoreId = req.body?.storeId;
     let requestedStoreId = null;
     if (rawStoreId !== undefined && rawStoreId !== null && rawStoreId !== '') {
-      requestedStoreId = Number(rawStoreId);
-      if (!Number.isSafeInteger(requestedStoreId) || requestedStoreId <= 0) {
+      requestedStoreId = parsePositiveOrderId(rawStoreId);
+      if (requestedStoreId === null) {
         return res.status(400).json({ error: '门店编号无效' });
       }
     }
