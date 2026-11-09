@@ -300,6 +300,12 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
     const todayRevenue = await getAsync("SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount,0))),0) as total FROM orders WHERE SUBSTRING(COALESCE(settled_at, createdAt), 1, 10)=CURDATE() AND status IN ('done','refunded')");
     const monthRevenue = await getAsync("SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount,0))),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND MONTH(COALESCE(settled_at, createdAt))=MONTH(CURDATE()) AND status IN ('done','refunded')");
     const yearRevenue = await getAsync("SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount,0))),0) as total FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND status IN ('done','refunded')");
+    const invalidRefunds = await getAsync(
+      "SELECT COUNT(*) AS invalid_count FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND status IN ('done','refunded') AND (total IS NULL OR total < 0 OR COALESCE(refund_amount,0) < 0 OR COALESCE(refund_amount,0) > total)"
+    );
+    if (Number(invalidRefunds?.invalid_count || 0) > 0) {
+      return res.status(409).json({ error: '订单退款数据异常，请先核对历史退款记录后再查看经营统计' });
+    }
     const monthOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE()) AND MONTH(createdAt)=MONTH(CURDATE())");
     const yearOrders = await getAsync("SELECT COUNT(*) as count FROM orders WHERE YEAR(createdAt)=YEAR(CURDATE())");
     const now = new Date().toISOString();
@@ -328,6 +334,12 @@ app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
   try {
     const now = new Date().toISOString();
     const today = new Date().toISOString().split('T')[0];
+    const invalidRefunds = await getAsync(
+      "SELECT COUNT(*) AS invalid_count FROM orders WHERE YEAR(COALESCE(settled_at, createdAt))=YEAR(CURDATE()) AND status IN ('done','refunded') AND (total IS NULL OR total < 0 OR COALESCE(refund_amount,0) < 0 OR COALESCE(refund_amount,0) > total)"
+    );
+    if (Number(invalidRefunds?.invalid_count || 0) > 0) {
+      return res.status(409).json({ error: '订单退款数据异常，请先核对历史退款记录后再查看门店统计' });
+    }
     const rows = await allAsync(`
       SELECT s.id AS store_id, s.name AS store_name, m.name AS merchant_name,
         (SELECT COUNT(*) FROM orders o WHERE o.store_id=s.id) AS total_orders,
