@@ -9,7 +9,7 @@ module.exports = function(app, deps) {
       const merchantId = req.merchantId || 1;
       const rows = await allAsync('SELECT * FROM login_logs WHERE merchant_id = ? ORDER BY id DESC LIMIT 200', [merchantId]);
       res.json(rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.get('/api/admin/audit-logs', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
@@ -19,7 +19,7 @@ module.exports = function(app, deps) {
         [req.merchantId]
       );
       res.json(rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.post('/api/admin/change-password', requireAdminKey, async (req, res) => {
