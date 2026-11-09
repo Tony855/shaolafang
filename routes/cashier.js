@@ -503,6 +503,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
         ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: settledTableName, total: lockedOrder.total, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
     });
     if (replayResponse) return res.json(replayResponse);
+    if (replayResponse) return res.json(replayResponse);
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
@@ -595,6 +596,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     })).digest('hex');
     const now = new Date().toISOString();
     let replayResponse = null;
+    let resultPayload = null;
     let tableName = '';
     let orderTotal = 0;
     let refundAmount = 0;
@@ -680,7 +682,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
-      const resultPayload = {
+      resultPayload = {
         success: true,
         message: fullyRefunded ? '订单已全额退款' : '部分退款成功',
         refund_amount: refundAmount,
