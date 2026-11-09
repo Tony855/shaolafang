@@ -14,7 +14,7 @@ module.exports = function(app, deps) {
 app.get('/api/admin/stores', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
     res.json(await allAsync('SELECT * FROM stores WHERE merchant_id=? ORDER BY id', [req.merchantId]));
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {

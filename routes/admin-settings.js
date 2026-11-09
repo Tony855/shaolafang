@@ -36,7 +36,7 @@ module.exports = function(app, deps) {
 
   app.get('/api/currencies', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
     try { res.json(await allAsync('SELECT * FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code', [req.merchantId])); }
-    catch (e) { res.status(500).json({ error: e.message }); }
+    catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.post('/api/currencies', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
@@ -155,7 +155,7 @@ module.exports = function(app, deps) {
         primaryCurrencyCode: (primaryRow && primaryRow.value) || 'USD',
         secondaryCurrencyCode: (secondaryRow && secondaryRow.value) || '',
       });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.post('/api/admin/display-settings', requireAdminKey, requirePermission('can_manage_currency'), async (req, res) => {
@@ -217,7 +217,7 @@ module.exports = function(app, deps) {
       const globalRow = await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
       const row = storeRow || merRow || globalRow;
       res.json({ enabled: row ? row.value === '1' : true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.post('/api/admin/notification-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {

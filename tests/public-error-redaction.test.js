@@ -133,3 +133,22 @@ test('super-admin login returns a generic server error when authentication stora
   assert.deepEqual(res.body, { error: '超级管理员登录失败，请稍后重试' });
   assert.doesNotMatch(JSON.stringify(res.body), /ER_ACCESS_DENIED|db\.internal|password=/i);
 });
+
+
+test('route handlers never return raw exception messages for internal server errors', () => {
+  const routeDir = path.join(__dirname, '..', 'routes');
+  const files = fs.readdirSync(routeDir).filter(name => name.endsWith('.js'));
+  const unsafePatterns = [
+    /res\.status\(\s*500\s*\)\s*\.json\(\s*\{\s*error\s*:\s*(?:e|error)\.message\b/,
+    /res\.status\(\s*(?:e|error)\.status\s*\|\|\s*500\s*\)\s*\.json\(\s*\{\s*error\s*:\s*(?:e|error)\.message\b/,
+    /res\.status\(\s*(?:e|error)\.statusCode\s*\|\|\s*500\s*\)\s*\.json\(\s*\{\s*error\s*:\s*(?:e|error)\.message\b/
+  ];
+  const violations = [];
+  for (const file of files) {
+    const source = fs.readFileSync(path.join(routeDir, file), 'utf8');
+    for (const pattern of unsafePatterns) {
+      if (pattern.test(source)) violations.push(file + ': ' + pattern);
+    }
+  }
+  assert.deepEqual(violations, []);
+});

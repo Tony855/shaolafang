@@ -47,7 +47,7 @@ module.exports = function(app, deps) {
       res.send(buf);
     } catch (e) {
       console.error('export-zip failed:', e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: '请求失败，请稍后重试' });
     }
   });
 
@@ -191,7 +191,7 @@ module.exports = function(app, deps) {
         try { fs.unlinkSync(req.file.path); } catch (_) {}
       }
       console.error('import-zip failed:', e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: '请求失败，请稍后重试' });
     }
   });
 };

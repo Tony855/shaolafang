@@ -15,7 +15,7 @@ module.exports = function(app, deps) {
         [req.storeId || 1]
       );
       res.json(rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   async function writePrinterAudit(req, action, printerId, details) {
@@ -171,7 +171,7 @@ module.exports = function(app, deps) {
       const order = formatOrder(row);
       const store = await getAsync('SELECT name, address FROM stores WHERE id=?', [row.store_id || 1]);
       res.json({ order, store: store || { name: 'FoodFlow', address: '' }, printedAt: new Date().toISOString() });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.post('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) => {
@@ -194,7 +194,7 @@ module.exports = function(app, deps) {
         order, type: 'receipt', store, printer, getAsync,
       });
       res.json(result);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.post('/api/orders/:id(\\d+)/print-kitchen', requireAdminOrWaiter, async (req, res) => {
@@ -210,7 +210,7 @@ module.exports = function(app, deps) {
         order, type: 'kitchen', store, getAsync,
       });
       res.json(result);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.get('/api/admin/settings/auto-print', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
@@ -221,7 +221,7 @@ module.exports = function(app, deps) {
       const row = await getAsync("SELECT value FROM settings WHERE `key` = ?", [key]);
       const enabled = row ? (row.value === '1' || row.value === 'true') : false;
       res.json({ enabled });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.get('/api/admin/order-prefixes', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
@@ -241,7 +241,7 @@ module.exports = function(app, deps) {
       result.order_prefix_vip = result.order_prefix_vip || '61';
       result.order_no_reset_period = result.order_no_reset_period || 'never';
       res.json(result);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.post('/api/admin/order-prefixes', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
@@ -259,7 +259,7 @@ module.exports = function(app, deps) {
         await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)", [k, v]);
       }
       res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.post('/api/admin/settings/auto-print', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
@@ -274,7 +274,7 @@ module.exports = function(app, deps) {
         await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?)", [key, enabled ? '1' : '0']);
       }
       res.json({ success: true, enabled });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 
   app.post('/api/admin/printers/test', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
@@ -303,6 +303,6 @@ module.exports = function(app, deps) {
       pos.cut(1);
       await printToNetworkPrinter(pos.build(), printer.ip_address, printer.port);
       res.json({ success: true, message: '测试打印已发送' });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
   });
 };

@@ -84,7 +84,7 @@ app.get('/api/super/merchants', requireSuperAdmin, async (req, res) => {
       (SELECT display_name FROM merchant_admins WHERE merchant_id=m.id LIMIT 1) as admin_display_name
       FROM merchants m ORDER BY m.code ASC`);
     res.json(rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.post('/api/super/merchants', requireSuperAdmin, async (req, res) => {
@@ -320,7 +320,7 @@ app.get('/api/super/stats', requireSuperAdmin, async (req, res) => {
       totalScanSessions: totalScanSessions.count,
       todayScanSessions: todayScanSessions.count
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 // 超管：按门店综合统计
@@ -344,7 +344,7 @@ app.get('/api/super/store-breakdown', requireSuperAdmin, async (req, res) => {
       ORDER BY s.id
     `, [today, today, now]);
     res.json({ stores: rows });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/super/online-sessions', requireSuperAdmin, async (req, res) => {
@@ -362,7 +362,7 @@ app.get('/api/super/online-sessions', requireSuperAdmin, async (req, res) => {
       ORDER BY online_count DESC, s.id
     `, [now]);
     res.json({ sessions: rows });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/super/online-sessions/:storeId', requireSuperAdmin, async (req, res) => {
@@ -380,7 +380,7 @@ app.get('/api/super/online-sessions/:storeId', requireSuperAdmin, async (req, re
       ORDER BY ss.created_at DESC
     `, [storeId, now]);
     res.json({ store: { id: store.id, name: store.name, merchant_name: store.merchant_name }, sessions });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
@@ -432,14 +432,14 @@ app.get('/api/super/server-stats', requireSuperAdmin, async (req, res) => {
         nodeVersion: process.version
       }
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/super/stores', requireSuperAdmin, async (req, res) => {
   try {
     const stores = await allAsync('SELECT s.*, m.name as merchant_name FROM stores s LEFT JOIN merchants m ON s.merchant_id = m.id ORDER BY s.id');
     res.json(stores);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
@@ -447,7 +447,7 @@ app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
     const limit = parseInt(req.query.limit) || 200;
     const logs = await allAsync('SELECT l.*, m.name as merchant_name FROM login_logs l LEFT JOIN merchants m ON l.merchant_id = m.id ORDER BY l.id DESC LIMIT ?', [limit]);
     res.json(logs);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
@@ -481,7 +481,7 @@ app.get('/api/super/settings', requireSuperAdmin, async (req, res) => {
       clean_audit_log: (settings.clean_audit_log || '1') !== '0',
       kitchen_auto_hide_minutes: parseInt(settings.kitchen_auto_hide_minutes || '10', 10),
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
@@ -584,7 +584,7 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
       '更新系统全局设置', getClientIp(req));
     });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/super/audit-logs', requireSuperAdmin, async (req, res) => {
@@ -592,7 +592,7 @@ app.get('/api/super/audit-logs', requireSuperAdmin, async (req, res) => {
     const limit = parseInt(req.query.limit) || 200;
     const logs = await allAsync('SELECT * FROM audit_logs ORDER BY id DESC LIMIT ?', [limit]);
     res.json(logs);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.post('/api/super/logout', requireSuperAdmin, async (req, res) => {
@@ -601,7 +601,7 @@ app.post('/api/super/logout', requireSuperAdmin, async (req, res) => {
       await runAsync('DELETE FROM super_sessions WHERE token=?', [req.superSessionToken]).catch(() => {});
     }
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
@@ -619,7 +619,7 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
       await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
     });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
@@ -628,7 +628,7 @@ app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="foodflow-full-backup-${new Date().toISOString().slice(0,10)}.json"`);
     res.json(data);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '50mb' }), async (req, res) => {
@@ -703,7 +703,7 @@ app.get('/api/super/backup/settings', requireSuperAdmin, async (req, res) => {
       retentionDays: parseInt(retentionRow?.value || '30', 10),
       lastBackupAt: lastBackupRow?.value || null
     });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.put('/api/super/backup/settings', requireSuperAdmin, async (req, res) => {
@@ -718,14 +718,14 @@ app.put('/api/super/backup/settings', requireSuperAdmin, async (req, res) => {
       await runAsync("INSERT INTO settings (`key`, value) VALUES ('backup_retention_days', ?) ON DUPLICATE KEY UPDATE value=?", [String(days), String(days)]);
     }
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.post('/api/super/backup/now', requireSuperAdmin, async (req, res) => {
   try {
     await autoBackupDatabase();
     res.json({ success: true, message: '备份已生成' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
@@ -785,7 +785,7 @@ app.get('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (re
       } catch (e) {}
     }
     res.json({ methods });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 // 辅助：读取该商户所有 store 下配置的 KHQR bank 名（去重、小写、无空格）
@@ -859,7 +859,7 @@ app.get('/api/super/merchants/:id/available-methods', requireSuperAdmin, async (
       isBank: true,
     }));
     res.json({ builtin, banks: bankMethods });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 };

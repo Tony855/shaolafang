@@ -121,7 +121,7 @@ app.get('/api/waiter-calls', requireAdminOrWaiter, async (req, res) => {
       [storeId]
     );
     res.json(rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.put('/api/waiter-calls/:id/handle', requireAdminOrWaiter, async (req, res) => {
@@ -136,7 +136,7 @@ app.put('/api/waiter-calls/:id/handle', requireAdminOrWaiter, async (req, res) =
       ['handled', handler, new Date().toISOString(), id, storeId]
     );
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.get('/api/admin/reservations', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
@@ -147,7 +147,7 @@ app.get('/api/admin/reservations', requireAdminKey, requirePermission('can_manag
       [storeId]
     );
     res.json(rows);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
@@ -168,7 +168,7 @@ app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_m
       }
     }
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
 // ----- 订单打印 -----
