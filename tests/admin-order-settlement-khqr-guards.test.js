@@ -10,6 +10,7 @@ function setup({ initialOrder, lockedOrder = initialOrder } = {}) {
   const events = [];
   const transactions = [];
   let settledOrder = null;
+  let initialRead = false;
   const app = {
     get(path, ...callbacks) { handlers.set('GET ' + path, callbacks[callbacks.length - 1]); },
     post(path, ...callbacks) { handlers.set('POST ' + path, callbacks[callbacks.length - 1]); },
@@ -19,10 +20,11 @@ function setup({ initialOrder, lockedOrder = initialOrder } = {}) {
   const deps = {
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
-      if (sql.includes('SELECT * FROM orders WHERE id = ? AND store_id = ?')) return settledOrder || lockedOrder;
-      if (sql.includes('SELECT * FROM orders WHERE id = ? AND store_id = ?') && settledOrder) return settledOrder;
       if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return lockedOrder;
-      if (sql.includes('SELECT * FROM orders WHERE id = ? AND store_id = ?')) return settledOrder || initialOrder;
+      if (sql.includes('SELECT * FROM orders WHERE id = ? AND store_id = ?')) {
+        if (!initialRead) { initialRead = true; return initialOrder; }
+        return settledOrder || lockedOrder;
+      }
       if (sql.includes('SELECT COUNT(*) AS cnt')) return { cnt: 1 };
       return null;
     },
