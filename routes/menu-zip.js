@@ -187,8 +187,9 @@ module.exports = function(app, deps) {
           } else {
             await runAsync('INSERT INTO menus (emoji, price, category, `desc`, currency_code, name_en, desc_en, unit, show_dual, secondary_currency_code, active, image, name, store_id, merchant_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [...base10, activeVal, imageName, itemName, req.storeId || 1, req.merchantId]);
           }
-          if (imageName && imageMap[Object.keys(imageMap).find(key => imageMap[key] === imageName)]) {
-            retainedImagePaths.add(path.resolve(uploadsAbs, imageName));
+          const importedImagePath = imageName ? path.resolve(uploadsAbs, imageName) : '';
+          if (importedImagePath && createdImagePaths.has(importedImagePath)) {
+            retainedImagePaths.add(importedImagePath);
           }
           success++;
         } catch (e) { failed++; errors.push('第 ' + (i+1) + ' 行：' + e.message); }
