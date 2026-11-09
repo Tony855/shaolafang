@@ -1,6 +1,8 @@
 /* ============================================================
    routes/public.js — 公开接口（无需登录）
    ============================================================ */
+const { parsePositiveRouteId } = require('../server/services/route-id');
+
 module.exports = function(app, deps) {
   const { getAsync, allAsync } = deps;
 
@@ -19,8 +21,9 @@ module.exports = function(app, deps) {
 
   app.get('/api/public/config', async (req, res) => {
     try {
-      const storeId = Number(req.query.store_id ?? 1);
-      if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(400).json({ error: '店铺编号无效' });
+      const rawStoreId = req.query.store_id === undefined ? '1' : req.query.store_id;
+      const storeId = parsePositiveRouteId(rawStoreId);
+      if (storeId === null) return res.status(400).json({ error: '店铺编号无效' });
       const store = await getAsync('SELECT s.id, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       const merchantId = store.merchant_id;
