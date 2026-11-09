@@ -735,6 +735,17 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         throw error;
       }
 
+      if (status === 'done' && req.isAdmin) {
+        const qrExpiry = Date.parse(lockedOrder.pay_expires_at || '');
+        const hasActiveKhqr = Number(lockedOrder.awaiting_confirm) ||
+          (Boolean(lockedOrder.pay_khqr_ref) && (!Number.isFinite(qrExpiry) || qrExpiry > Date.now()));
+        if (hasActiveKhqr) {
+          const error = new Error('订单仍有待确认或有效 KHQR 收款码，请先完成确认或取消收款码');
+          error.status = 409;
+          throw error;
+        }
+      }
+
       let nextSessionToken = lockedOrder.session_token || '';
       if (nextTable !== existing.table_name) {
         const nowMs = Date.now();
@@ -765,8 +776,14 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         );
       } else if (status === 'done' && req.isAdmin) {
         update = await runAsync(
-          "UPDATE orders SET table_name=?, session_token=?, items=?, total=?, status='done', note=?, awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=?, settled_at=? WHERE id=? AND store_id=? AND status='pending'",
+          "UPDATE orders SET table_name=?, session_token=?, items=?, total=?, status='done', note=?, awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_method=?, cash_received=?, cash_change=?, settled_at=? WHERE id=? AND store_id=? AND status='pending'",
           [nextTable, nextSessionToken, itemsJson, calculatedTotal, nextNote, paymentMethod, cashReceived, cashChange, now, id, orderStoreId]
+        );
+        await runAsync(
+          'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          ['admin', req.adminId || 0, req.adminUsername || 'admin', 'settle_order',
+            JSON.stringify({ order_id: id, table: nextTable, total: calculatedTotal, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }),
+            getClientIp(req) || 'unknown', now]
         );
       } else {
         update = await runAsync(
