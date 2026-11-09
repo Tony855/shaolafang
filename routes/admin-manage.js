@@ -1132,12 +1132,14 @@ module.exports = function(app, deps) {
 
       const paymentMethod = typeof pay_method === 'string' ? pay_method.trim().slice(0, 40) : '';
       if (!paymentMethod) return res.status(400).json({ error: '请选择收款方式' });
-      const received = Number(cash_received);
-      const change = Number(cash_change);
-      if ((cash_received !== undefined && (!Number.isFinite(received) || received < 0)) ||
-          (cash_change !== undefined && (!Number.isFinite(change) || change < 0))) {
-        return res.status(400).json({ error: '收款金额或找零金额无效' });
+      const receivedCents = cash_received === undefined ? null : toMoneyCents(cash_received);
+      const changeCents = cash_change === undefined ? null : toMoneyCents(cash_change);
+      if ((cash_received !== undefined && (receivedCents === null || receivedCents < 0)) ||
+          (cash_change !== undefined && (changeCents === null || changeCents < 0))) {
+        return res.status(400).json({ error: '收款金额或找零金额无效，最多只能有两位小数' });
       }
+      const received = receivedCents === null ? 0 : receivedCents / 100;
+      const change = changeCents === null ? 0 : changeCents / 100;
 
       let notification = null;
       let alreadyNotified = false;
