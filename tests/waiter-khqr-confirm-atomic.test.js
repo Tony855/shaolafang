@@ -279,3 +279,19 @@ test('KHQR confirmation rejects non-string and non-number identifiers', async ()
     assert.equal(calls.length, 0);
   }
 });
+
+test('cashier KHQR confirmation writes the parsed safe order ID, not the raw request value', async () => {
+  const order = {
+    id: 42, status: 'pending', awaiting_confirm: 1,
+    pay_khqr_ref: 'dynamic-payload', pay_expires_at: new Date(Date.now() + 60000).toISOString(),
+    table_name: 'A01', total: '25.00', pay_method: 'khqr'
+  };
+  const { handler, calls } = setup({ initialOrder: order, lockedOrder: order });
+  const res = response();
+  await handler(adminRequest({ order_id: '42' }), res);
+  assert.equal(res.statusCode, 200);
+  const update = calls.find(call => call.type === 'run' && call.sql.startsWith("UPDATE orders SET status='done'"));
+  assert.ok(update);
+  assert.equal(update.params[5], 42);
+  assert.equal(typeof update.params[5], 'number');
+});

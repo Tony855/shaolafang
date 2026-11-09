@@ -6,6 +6,14 @@ const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
 
+function parsePositiveReservationId(value) {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const raw = String(value);
+  if (!/^[1-9]\d*$/.test(raw)) return null;
+  const id = Number(raw);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
@@ -152,7 +160,8 @@ app.get('/api/admin/reservations', requireAdminKey, requirePermission('can_manag
 
 app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parsePositiveReservationId(req.params.id);
+    if (id === null) return res.status(400).json({ error: '预约编号无效' });
     const { status } = req.body || {};
     const reservation = await getAsync('SELECT * FROM reservations WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!reservation) return res.status(404).json({ error: '预约不存在' });
@@ -173,3 +182,5 @@ app.put('/api/admin/reservations/:id', requireAdminKey, requirePermission('can_m
 
 // ----- 订单打印 -----
 };
+
+module.exports.parsePositiveReservationId = parsePositiveReservationId;
