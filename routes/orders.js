@@ -7,6 +7,49 @@ const { hashPassword, verifyPassword } = require("../server/middleware/password"
 const { compressImage } = require("../server/services/image-compress");
 const { resolveOrderStoreId } = require("../server/services/order-store-scope");
 
+function toMoneyCents(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const raw = String(value).trim();
+  if (!/^\\d+(?:\\.\\d{1,2})?$/.test(raw)) return null;
+  const [whole, fraction = ''] = raw.split('.');
+  const cents = Number(whole) * 100 + Number((fraction + '00').slice(0, 2));
+  return Number.isSafeInteger(cents) ? cents : null;
+}
+
+function hasActiveKhqr(order) {
+  if (Number(order?.awaiting_confirm)) return true;
+  if (!order?.pay_khqr_ref) return false;
+  const expiresAt = Date.parse(order.pay_expires_at || '');
+  return !Number.isFinite(expiresAt) || expiresAt > Date.now();
+}
+
+// Keep normalized USD order totals deterministic while retaining the existing
+// single-rounding behavior across all remaining item quantities.
+function calculateOrderTotalCents(items) {
+  if (!Array.isArray(items) || !items.length) return null;
+  let scaledTotal = 0n;
+  for (const item of items) {
+    const unitPrice = Number(item?.base_price ?? item?.price);
+    const quantity = Number(item?.quantity);
+    const returnedQty = item?.returnedQty === undefined || item?.returnedQty === null
+      ? 0
+      : Number(item.returnedQty);
+    if (!Number.isFinite(unitPrice) || unitPrice < 0 || unitPrice > 1000000000 ||
+        !Number.isSafeInteger(quantity) || quantity <= 0 ||
+        !Number.isSafeInteger(returnedQty) || returnedQty < 0 || returnedQty > quantity) {
+      return null;
+    }
+    const remainingQty = quantity - returnedQty;
+    if (!remainingQty) continue;
+    const [whole, fraction] = unitPrice.toFixed(10).split('.');
+    const unitScaled = BigInt(whole) * 10000000000n + BigInt(fraction);
+    scaledTotal += unitScaled * BigInt(remainingQty);
+  }
+  const cents = (scaledTotal + 50000000n) / 100000000n;
+  if (cents > 100000000000n || cents > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  return Number(cents);
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
@@ -210,18 +253,13 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
         const returnDelta = returnQty - previousReturnQty;
         if (returnDelta !== 0) {
           items[index].returnedQty = returnQty;
-          const newTotalRaw = items.reduce((sum, item) => {
-            const unitPrice = Number(item.base_price ?? item.price);
-            const itemQty = Number(item.quantity) || 0;
-            const returned = Math.max(0, Math.min(Number(item.returnedQty) || 0, itemQty));
-            return sum + unitPrice * (itemQty - returned);
-          }, 0);
-          if (!Number.isFinite(newTotalRaw) || newTotalRaw < 0) {
-            const error = new Error('退菜后订单金额无效');
+          const newTotalCents = calculateOrderTotalCents(items);
+          if (newTotalCents === null) {
+            const error = new Error('退菜后订单金额无效或超出允许范围');
             error.status = 400;
             throw error;
           }
-          const newTotal = Math.round(newTotalRaw * 100) / 100;
+          const newTotal = newTotalCents / 100;
           if (items[index].id && returnDelta > 0) {
             await runAsync('UPDATE menus SET sales_count=GREATEST(0, sales_count-?) WHERE id=? AND store_id=?', [returnDelta, items[index].id, orderStoreId]);
           } else if (items[index].id && returnDelta < 0) {
@@ -443,11 +481,11 @@ app.post('/api/orders', async (req, res) => {
       }
     }
     const items = await normalizeOrderItems(rawItems, finalStoreId);
-    const rawTotal = items.reduce((sum, item) => sum + Number(item.base_price) * item.quantity, 0);
-    if (!Number.isFinite(rawTotal) || rawTotal < 0 || rawTotal > 1000000000) {
-      return res.status(400).json({ error: '订单金额超出允许范围' });
+    const calculatedTotalCents = calculateOrderTotalCents(items);
+    if (calculatedTotalCents === null) {
+      return res.status(400).json({ error: '订单金额无效或超出允许范围' });
     }
-    const calculatedTotal = Math.round(rawTotal * 100) / 100;   // 强制保留 2 位小数
+    const calculatedTotal = calculatedTotalCents / 100;
     const itemsJson = JSON.stringify(items);
     const createdAt = new Date().toISOString();
 
@@ -670,15 +708,11 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       return res.status(400).json({ error: '订单至少需要一道菜品' });
     }
 
-    const calculatedTotal = newItems.reduce((sum, item) => {
-      const unitPrice = Number(item.base_price ?? item.price);
-      const quantity = Number(item.quantity);
-      const returnedQty = Math.max(0, Math.min(Number(item.returnedQty) || 0, quantity));
-      return sum + unitPrice * (quantity - returnedQty);
-    }, 0);
-    if (!Number.isFinite(calculatedTotal) || calculatedTotal < 0 || calculatedTotal > 1000000000) {
+    const calculatedTotalCents = calculateOrderTotalCents(newItems);
+    if (calculatedTotalCents === null) {
       return res.status(400).json({ error: '订单金额无效或超出允许范围' });
     }
+    const calculatedTotal = calculatedTotalCents / 100;
     if (status === 'done' && newItems.some(item => item.itemStatus !== 'done')) {
       return res.status(409).json({ error: '存在未完成菜品，请先完成或删除该菜品后再结算订单' });
     }
@@ -693,15 +727,24 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     if (status === 'done' && req.isAdmin) {
       if (!paymentMethod) return res.status(400).json({ error: '管理员直接结算必须指定收款方式' });
       if (paymentMethod.toLowerCase() === 'cash') {
-        cashReceived = Number(req.body.cash_received);
-        if (!Number.isFinite(cashReceived) || cashReceived < calculatedTotal) {
-          return res.status(400).json({ error: '现金实收金额不足' });
+        const cashReceivedCents = toMoneyCents(req.body.cash_received);
+        if (cashReceivedCents === null || cashReceivedCents < calculatedTotalCents) {
+          return res.status(400).json({ error: '现金实收金额不足或格式无效，最多只能有两位小数' });
         }
-        cashChange = Math.round((cashReceived - calculatedTotal) * 100) / 100;
+        cashReceived = cashReceivedCents / 100;
+        cashChange = (cashReceivedCents - calculatedTotalCents) / 100;
       }
     } else if (waiterCompletion) {
-      cashReceived = Math.max(0, Number(req.body.cash_received) || 0);
-      cashChange = Math.max(0, Number(req.body.cash_change) || 0);
+      const hasCashReceived = req.body.cash_received !== undefined && req.body.cash_received !== null && req.body.cash_received !== '';
+      const hasCashChange = req.body.cash_change !== undefined && req.body.cash_change !== null && req.body.cash_change !== '';
+      const cashReceivedCents = hasCashReceived ? toMoneyCents(req.body.cash_received) : 0;
+      const cashChangeCents = hasCashChange ? toMoneyCents(req.body.cash_change) : 0;
+      if (cashReceivedCents === null || cashChangeCents === null ||
+          cashReceivedCents < 0 || cashChangeCents < 0) {
+        return res.status(400).json({ error: '收款金额或找零金额无效，最多只能有两位小数' });
+      }
+      cashReceived = cashReceivedCents / 100;
+      cashChange = cashChangeCents / 100;
     }
 
     await withTransaction(async () => {
@@ -725,25 +768,16 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       const lockedItemsSnapshot = typeof lockedOrder?.items === 'string'
         ? lockedOrder.items
         : JSON.stringify(lockedOrder?.items || []);
+      const lockedTotalCents = lockedOrder ? toMoneyCents(lockedOrder.total) : null;
+      const existingTotalCents = toMoneyCents(existing.total);
       if (!lockedOrder || lockedOrder.status !== 'pending' ||
           lockedOrder.table_name !== existing.table_name ||
-          Number(lockedOrder.total) !== Number(existing.total) ||
+          lockedTotalCents === null || lockedTotalCents !== existingTotalCents ||
           lockedItemsSnapshot !== snapshotItems ||
-          (!req.isAdmin && !waiterCompletion && lockedOrder.awaiting_confirm)) {
+          hasActiveKhqr(lockedOrder)) {
         const error = new Error('订单状态或内容已变化，请刷新后重试');
         error.status = 409;
         throw error;
-      }
-
-      if (status === 'done' && req.isAdmin) {
-        const qrExpiry = Date.parse(lockedOrder.pay_expires_at || '');
-        const hasActiveKhqr = Number(lockedOrder.awaiting_confirm) ||
-          (Boolean(lockedOrder.pay_khqr_ref) && (!Number.isFinite(qrExpiry) || qrExpiry > Date.now()));
-        if (hasActiveKhqr) {
-          const error = new Error('订单仍有待确认或有效 KHQR 收款码，请先完成确认或取消收款码');
-          error.status = 409;
-          throw error;
-        }
       }
 
       let nextSessionToken = lockedOrder.session_token || '';
