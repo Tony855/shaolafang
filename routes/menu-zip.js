@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
+const { cleanupUnreferencedImages } = require('../server/services/menu-zip-image-cleanup');
 
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, upload, UPLOAD_DIR } = deps;
@@ -194,11 +195,7 @@ module.exports = function(app, deps) {
       }
 
       // Keep only newly extracted images referenced by rows that were actually saved.
-      for (const imagePath of createdImagePaths) {
-        if (!retainedImagePaths.has(imagePath)) {
-          try { fs.unlinkSync(imagePath); } catch (_) {}
-        }
-      }
+      cleanupUnreferencedImages(createdImagePaths, retainedImagePaths);
       try { fs.unlinkSync(zipPath); } catch (_) {}
       res.json({ success, failed, errors, createdCategories, imagesImported: Object.keys(imageMap).length });
     } catch (e) {
@@ -207,11 +204,7 @@ module.exports = function(app, deps) {
       }
       // Preserve files already referenced by successfully committed menu rows;
       // remove every other extracted file when the import aborts unexpectedly.
-      for (const imagePath of createdImagePaths) {
-        if (!retainedImagePaths.has(imagePath)) {
-          try { fs.unlinkSync(imagePath); } catch (_) {}
-        }
-      }
+      cleanupUnreferencedImages(createdImagePaths, retainedImagePaths);
       console.error('import-zip failed:', e);
       res.status(500).json({ error: '请求失败，请稍后重试' });
     }
