@@ -617,6 +617,7 @@ module.exports = function(app, deps) {
           throw Object.assign(new Error('密码错误，重置失败'), { status: 401 });
         }
 
+        await runAsync('DELETE FROM refund_requests WHERE store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [merchantId]);
         const deletedOrders = await runAsync('DELETE FROM orders WHERE merchant_id=?', [merchantId]);
         const deletedWaiterCalls = await runAsync('DELETE FROM waiter_calls WHERE merchant_id=?', [merchantId]);
         const deletedScanSessions = await runAsync('DELETE FROM scan_sessions WHERE merchant_id=?', [merchantId]);
