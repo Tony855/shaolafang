@@ -144,3 +144,71 @@ test('admin direct settlement clears expired QR and writes audit in the same tra
   assert.deepEqual(transactions, ['begin', 'commit']);
   assert.ok(events.some(event => event.event === 'order:settled'));
 });
+
+
+test('admin direct cash settlement rejects sub-cent tender before transaction', async () => {
+  const initial = order();
+  const { handler, calls, transactions } = setup({ initialOrder: initial, lockedOrder: initial });
+  const res = response();
+  await handler(adminRequest({ cash_received: '12.005' }), res);
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /两位小数/);
+  assert.equal(calls.some(call => call.type === 'run'), false);
+  assert.deepEqual(transactions, []);
+});
+
+test('admin direct cash settlement persists exact cents and change', async () => {
+  const initial = order({
+    total: '10.01',
+    items: JSON.stringify([{ id: 3, name: 'Tea', price: 10.01, base_price: 10.01, quantity: 1, itemStatus: 'done' }])
+  });
+  const { handler, calls, transactions } = setup({ initialOrder: initial, lockedOrder: initial });
+  const res = response();
+  await handler(adminRequest({ cash_received: '12.34' }), res);
+  assert.equal(res.statusCode, 200);
+  const update = calls.find(call => call.type === 'run' && call.sql.includes("status='done'"));
+  assert.ok(update);
+  assert.equal(update.params[6], 12.34);
+  assert.equal(update.params[7], 2.33);
+  assert.deepEqual(transactions, ['begin', 'commit']);
+});
+
+test('waiter completion cannot edit an order while its KHQR payload is active', async () => {
+  const live = order({
+    pay_khqr_ref: 'active-dynamic-qr',
+    pay_expires_at: new Date(Date.now() + 60_000).toISOString()
+  });
+  const { handler, calls, transactions, events } = setup({ initialOrder: live, lockedOrder: live });
+  const res = response();
+  await handler({
+    params: { id: '9' },
+    storeId: 1,
+    isAdmin: false,
+    waiterStoreId: 1,
+    waiter: { id: 7, store_id: 1, can_order: true, can_complete_order: true },
+    body: { status: 'done', pay_method: 'cash', cash_received: '12.00' }
+  }, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /KHQR/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('UPDATE orders SET')), false);
+  assert.deepEqual(transactions, ['begin', 'rollback']);
+  assert.equal(events.length, 0);
+});
+
+test('waiter completion rejects sub-cent cash fields before transaction', async () => {
+  const initial = order();
+  const { handler, calls, transactions } = setup({ initialOrder: initial, lockedOrder: initial });
+  const res = response();
+  await handler({
+    params: { id: '9' },
+    storeId: 1,
+    isAdmin: false,
+    waiterStoreId: 1,
+    waiter: { id: 7, store_id: 1, can_order: true, can_complete_order: true },
+    body: { status: 'done', pay_method: 'cash', cash_received: '12.005', cash_change: '0.005' }
+  }, res);
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /两位小数/);
+  assert.equal(calls.some(call => call.type === 'run'), false);
+  assert.deepEqual(transactions, []);
+});
