@@ -68,8 +68,9 @@ app.post('/api/super/login', async (req, res) => {
     const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
     await runAsync('INSERT INTO super_sessions (super_admin_id, token, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [superAdmin.id, token, expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
     res.json({ success: true, token, admin: { id: superAdmin.id, username: superAdmin.username, display_name: superAdmin.display_name } });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch (_) {
+    console.error('[super/login] request failed');
+    res.status(500).json({ error: '超级管理员登录失败，请稍后重试' });
   }
 });
 

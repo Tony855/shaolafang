@@ -82,8 +82,9 @@ app.get('/api/menu', async (req, res) => {
     if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
     const rows = await allAsync('SELECT * FROM menus WHERE active = 1 AND store_id = ? ORDER BY id', [storeId]);
     res.json(rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch (_) {
+    console.error('[public/menu] request failed');
+    res.status(500).json({ error: '菜单加载失败，请稍后重试' });
   }
 });
 

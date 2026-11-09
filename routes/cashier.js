@@ -71,7 +71,10 @@ app.post('/api/waiter/login', async (req, res) => {
     const store = await getAsync('SELECT name FROM stores WHERE id=? AND merchant_id=? AND active=1', [waiter.store_id, waiter.merchant_id]);
     if (!store) return res.status(403).json({ error: '服务员所属门店已停用' });
     res.json({ token, storeId: Number(waiter.store_id), storeName: store.name, waiter: { id: waiter.id, username: waiter.username, display_name: waiter.display_name, can_order: waiter.can_order, can_mark_item: waiter.can_mark_item, can_complete_order: waiter.can_complete_order, store_id: waiter.store_id } });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (_) {
+    console.error('[waiter/login] request failed');
+    res.status(500).json({ error: '服务员登录失败，请稍后重试' });
+  }
 });
 
 // ----- 收银员登录 -----
