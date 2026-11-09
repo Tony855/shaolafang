@@ -3,6 +3,7 @@
    ============================================================ */
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+const { parsePositiveRouteId } = require('../server/services/route-id');
 
 function normalizeAdminFlag(value, fallback, field) {
   if (value === undefined) return fallback;
@@ -444,8 +445,8 @@ module.exports = function(app, deps) {
       const password = typeof body.password === 'string' ? body.password : '';
       const displayName = typeof body.display_name === 'string' ? body.display_name.trim() : '';
       const merchantId = Number(req.merchantId);
-      const targetStoreId = Number(body.store_id === undefined ? req.storeId : body.store_id);
-      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || !Number.isSafeInteger(targetStoreId) || targetStoreId <= 0) {
+      const targetStoreId = parsePositiveRouteId(body.store_id === undefined ? req.storeId : body.store_id);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || targetStoreId === null) {
         return res.status(400).json({ error: '商户或门店编号无效' });
       }
       if (!username || username.length > 50 || !displayName || displayName.length > 100) {
