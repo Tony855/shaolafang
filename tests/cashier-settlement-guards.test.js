@@ -152,3 +152,19 @@ test('expired KHQR payload may be settled and is cleared from the order', async 
   assert.match(update.sql, /pay_khqr_ref='', pay_expires_at=''/);
   assert.deepEqual(transactions, ['begin', 'commit']);
 });
+
+
+test('batch settlement rechecks for a newly-created KHQR under the order lock', async () => {
+  const initial = pendingOrder();
+  const locked = pendingOrder({
+    pay_khqr_ref: 'qr-created-after-initial-read',
+    pay_expires_at: new Date(Date.now() + 60_000).toISOString()
+  });
+  const { batchHandler, calls, transactions } = setup({ orders: [initial], lockedOrders: [locked] });
+  const res = response();
+  await batchHandler(cashierRequest({ order_ids: [5], pay_method: 'cash', cash_received: 10 }), res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /KHQR/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes("SET status='done'")), false);
+  assert.deepEqual(transactions, ['begin', 'rollback']);
+});
