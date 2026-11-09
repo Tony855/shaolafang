@@ -153,3 +153,58 @@ test('corrupt cashier settings are not silently overwritten as an empty list', a
   assert.match(res.body.error, /数据损坏/);
   assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO settings')), false);
 });
+
+
+test('cashier creation rejects coerced target store IDs before opening a transaction', async () => {
+  for (const store_id of ['2.0', '2e0', ' 2 ', '2abc', '0', '-2', '9007199254740992', true, [], {}]) {
+    const ctx = setup();
+    const res = response();
+    await ctx.createHandler({
+      merchantId: 5, storeId: 2, adminId: 9,
+      body: { username: 'cashier-one', password: 'secret123', display_name: 'Cashier One', store_id }
+    }, res);
+    assert.equal(res.statusCode, 400, String(store_id));
+    assert.match(res.body.error, /门店编号无效/);
+    assert.equal(ctx.transactionCount, 0);
+    assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO settings')), false);
+  }
+});
+
+test('cashier creation accepts a canonical target store ID', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.createHandler({
+    merchantId: 5, storeId: 2, adminId: 9,
+    body: { username: 'cashier-one', password: 'secret123', display_name: 'Cashier One', store_id: '2' }
+  }, res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(ctx.transactionCount, 1);
+});
+
+
+test('cashier update rejects coerced target store IDs before opening a transaction', async () => {
+  for (const store_id of ['3.0', '3e0', ' 3 ', '3abc', '0', '-3', '9007199254740992', true, [], {}]) {
+    const ctx = setup({ initialCashiers: { 2: JSON.stringify([{ id: 77, username: 'cashier', display_name: 'Cashier', active: true, permissions: {} }]) } });
+    const res = response();
+    await ctx.updateHandler({ merchantId: 5, params: { id: '77' }, body: { store_id } }, res);
+    assert.equal(res.statusCode, 400, String(store_id));
+    assert.match(res.body.error, /目标门店编号无效/);
+    assert.equal(ctx.transactionCount, 0);
+  }
+});
+
+test('cashier update and delete reject non-canonical cashier route IDs before transactions', async () => {
+  for (const id of ['77junk', '7.7', '7e1', ' 77 ', '0', '-77', '9007199254740992']) {
+    const update = setup({ initialCashiers: { 2: JSON.stringify([{ id: 77, username: 'cashier', display_name: 'Cashier', active: true, permissions: {} }]) } });
+    const updateRes = response();
+    await update.updateHandler({ merchantId: 5, params: { id }, body: { display_name: 'Changed' } }, updateRes);
+    assert.equal(updateRes.statusCode, 400, String(id));
+    assert.equal(update.transactionCount, 0);
+
+    const deletion = setup({ initialCashiers: { 2: JSON.stringify([{ id: 77, username: 'cashier', display_name: 'Cashier', active: true, permissions: {} }]) } });
+    const deleteRes = response();
+    await deletion.deleteHandler({ merchantId: 5, params: { id } }, deleteRes);
+    assert.equal(deleteRes.statusCode, 400, String(id));
+    assert.equal(deletion.transactionCount, 0);
+  }
+});

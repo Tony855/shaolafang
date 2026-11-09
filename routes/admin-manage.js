@@ -3,6 +3,7 @@
    ============================================================ */
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+const { parsePositiveRouteId } = require('../server/services/route-id');
 
 function normalizeAdminFlag(value, fallback, field) {
   if (value === undefined) return fallback;
@@ -254,7 +255,7 @@ module.exports = function(app, deps) {
 
   app.put('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
       const merchantId = Number(req.merchantId);
       const body = req.body || {};
       if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
@@ -444,8 +445,8 @@ module.exports = function(app, deps) {
       const password = typeof body.password === 'string' ? body.password : '';
       const displayName = typeof body.display_name === 'string' ? body.display_name.trim() : '';
       const merchantId = Number(req.merchantId);
-      const targetStoreId = Number(body.store_id === undefined ? req.storeId : body.store_id);
-      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || !Number.isSafeInteger(targetStoreId) || targetStoreId <= 0) {
+      const targetStoreId = parsePositiveRouteId(body.store_id === undefined ? req.storeId : body.store_id);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || targetStoreId === null) {
         return res.status(400).json({ error: '商户或门店编号无效' });
       }
       if (!username || username.length > 50 || !displayName || displayName.length > 100) {
@@ -499,7 +500,7 @@ module.exports = function(app, deps) {
 
   app.put('/api/admin/cashiers/:id', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
       const merchantId = Number(req.merchantId);
       const body = req.body || {};
       if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
@@ -512,6 +513,10 @@ module.exports = function(app, deps) {
           (typeof body.password !== 'string' || body.password.length < 6 || body.password.length > 128)) {
         return res.status(400).json({ error: '密码长度必须为 6 至 128 个字符' });
       }
+      const requestedTargetStoreId = body.store_id === undefined ? null : parsePositiveRouteId(body.store_id);
+      if (body.store_id !== undefined && requestedTargetStoreId === null) {
+        return res.status(400).json({ error: '目标门店编号无效' });
+      }
       let updatedCashier;
       await withTransaction(async () => {
         const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
@@ -520,8 +525,8 @@ module.exports = function(app, deps) {
         if (!found) throw Object.assign(new Error('收银员不存在'), { status: 404 });
         const { store: oldStore, list: oldList, idx } = found;
         const cashier = { ...oldList[idx], permissions: { ...(oldList[idx].permissions || {}) } };
-        const targetStoreId = body.store_id === undefined ? Number(oldStore.id) : Number(body.store_id);
-        if (!Number.isSafeInteger(targetStoreId) || targetStoreId <= 0) throw Object.assign(new Error('目标门店编号无效'), { status: 400 });
+        const targetStoreId = requestedTargetStoreId === null ? parsePositiveRouteId(oldStore.id) : requestedTargetStoreId;
+        if (targetStoreId === null) throw Object.assign(new Error('目标门店编号无效'), { status: 400 });
         const storeChanged = targetStoreId !== Number(oldStore.id);
         const newStore = storeChanged
           ? await getAsync('SELECT id, name FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [targetStoreId, merchantId])
@@ -575,7 +580,7 @@ module.exports = function(app, deps) {
 
   app.delete('/api/admin/cashiers/:id', requireAdminKey, requirePermission('can_manage_cashier'), async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
       const merchantId = Number(req.merchantId);
       if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
         return res.status(400).json({ error: '收银员或商户编号无效' });
