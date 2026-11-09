@@ -182,3 +182,11 @@ test('daily cashier report fails closed on corrupt historical refund precision',
   assert.equal(res.statusCode, 409);
   assert.match(res.body.error, /退款金额异常/);
 });
+
+test('refund route order IDs reject non-canonical numeric coercions', () => {
+  const { parsePositiveOrderId } = require('../routes/cashier');
+  for (const value of ['1', '42', 42]) assert.equal(parsePositiveOrderId(value), Number(value));
+  for (const value of ['', '0', '-1', ' 5 ', '5abc', '5.0', '5e0', '9007199254740992', true, false, [], {}, null, undefined]) {
+    assert.equal(parsePositiveOrderId(value), null, String(value));
+  }
+});
