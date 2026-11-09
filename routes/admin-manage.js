@@ -258,7 +258,7 @@ module.exports = function(app, deps) {
       const id = parsePositiveRouteId(req.params.id);
       const merchantId = Number(req.merchantId);
       const body = req.body || {};
-      if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
+      if (id === null || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
         return res.status(400).json({ error: '管理员或商户编号无效' });
       }
       if (body.display_name !== undefined && (typeof body.display_name !== 'string' || !body.display_name.trim() || body.display_name.trim().length > 100)) {
@@ -327,7 +327,7 @@ module.exports = function(app, deps) {
 
   app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
     try {
-      const id = Number(req.params.id);
+      const id = parsePositiveRouteId(req.params.id);
       const merchantId = Number(req.merchantId);
       if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(merchantId) || merchantId <= 0) {
         return res.status(400).json({ error: '管理员或商户编号无效' });
