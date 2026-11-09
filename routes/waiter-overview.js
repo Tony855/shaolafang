@@ -35,7 +35,7 @@ app.get('/api/waiter/overview', async (req, res) => {
     });
     res.json({ waiter: safeWaiter, storeName: store.name, tables, orders });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: '请求失败，请稍后重试' });
   }
 });
 
