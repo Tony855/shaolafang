@@ -4,14 +4,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerOrderRoutes = require('../routes/orders');
 
-function setup(status = 'pending', { failAudit = false, passwordValid = true } = {}) {
+function setup(status = 'pending', { failAudit = false, passwordValid = true, orderOverrides = {} } = {}) {
   const handlers = new Map();
   const calls = [];
   const emissions = [];
   let rolledBack = false;
   const order = {
     id: 9, order_no: '110009', table_name: 'A01', store_id: 7,
-    status, total: 25, pay_method: 'cash', refund_amount: 0
+    status, total: 25, pay_method: 'cash', refund_amount: 0,
+    awaiting_confirm: 0, pay_khqr_ref: '', pay_expires_at: '',
+    ...orderOverrides
   };
   const app = {
     post(path, ...callbacks) { handlers.set('POST ' + path, callbacks[callbacks.length - 1]); },
@@ -149,4 +151,26 @@ test('order deletion rolls back if strict audit insertion fails', async () => {
   assert.equal(res.statusCode, 500);
   assert.equal(ctx.rolledBack, true);
   assert.ok(calls.some(x => x.type === 'run' && x.sql.startsWith('DELETE FROM orders')));
+});
+
+
+test('admin order deletion refuses a pending order with active KHQR payment', async () => {
+  const { handler, calls, emissions } = setup('pending', {
+    orderOverrides: {
+      awaiting_confirm: 1,
+      pay_khqr_ref: 'submitted-qr',
+      pay_expires_at: new Date(Date.now() + 60_000).toISOString()
+    }
+  });
+  const res = response();
+  await handler({
+    params: { id: '9' }, body: { password: 'admin-password' },
+    adminId: 2, merchantId: 3, storeId: 7
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /KHQR/);
+  assert.equal(calls.some(x => x.type === 'run' && x.sql.startsWith('DELETE FROM refund_requests')), false);
+  assert.equal(calls.some(x => x.type === 'run' && x.sql.startsWith('DELETE FROM orders')), false);
+  assert.deepEqual(emissions, []);
 });
