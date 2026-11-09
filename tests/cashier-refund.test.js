@@ -154,3 +154,31 @@ test('refund calculations persist exact decimal cents and reject corrupt histori
   assert.equal(corrupt.statusCode, 409);
   assert.equal(state.refund_amount, -0.01);
 });
+
+
+test('daily cashier report aggregates revenue and refunds using integer cents', async () => {
+  const settledAt = new Date().toISOString();
+  const reportOrders = Array.from({ length: 10 }, (_, index) => ({
+    id: index + 1, store_id: 1, status: 'done',
+    total: '0.10', refund_amount: '0.01', settled_at: settledAt
+  }));
+  const { reportHandler } = setup(reportOrders);
+  const res = response();
+  await reportHandler({ storeId: 1, cashier: { permissions: { can_view_report: true } } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.totalRevenue, '0.90');
+  assert.equal(res.body.totalRefunded, '0.10');
+  assert.equal(res.body.avgOrderValue, '0.09');
+});
+
+test('daily cashier report fails closed on corrupt historical refund precision', async () => {
+  const settledAt = new Date().toISOString();
+  const { reportHandler } = setup([{
+    id: 7, store_id: 1, status: 'done',
+    total: '10.00', refund_amount: '10.005', settled_at: settledAt
+  }]);
+  const res = response();
+  await reportHandler({ storeId: 1, cashier: { permissions: { can_view_report: true } } }, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /退款金额异常/);
+});
