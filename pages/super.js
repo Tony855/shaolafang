@@ -151,43 +151,8 @@ async function startIdleCheck() {
   }, 10000);
 }
 
-async function doLogin() {
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  if (!username || !password) {
-    showError(t('pleaseEnterCredentials', null, t('pleaseEnterCredentials')));
-    return;
-  }
-  try {
-    const data = await SLF.api.post('/super/login', { username, password });
-    if (!data || !data.token) {
-      throw new Error((data && data.error) || t('loginFailed', null, t('loginFailed')));
-    }
-    token = data.token;
-    SLF.store.rawSet('superToken', token);
-    SLF.store.rawSet('superAdmin', JSON.stringify(data.admin || {}));
-    showApp();
-  } catch (e) {
-    showError(e.message || t('loginError', null, t('loginError')));
-  }
-}
-
-function showError(msg, title) {
-  document.getElementById('errorModalTitle').textContent = title || t('loginFailed', null, t('loginFailed'));
-  document.getElementById('errorModalMessage').textContent = msg || t('loginError', null, t('loginError'));
-  document.getElementById('errorModal').classList.add('open');
-}
-function hideErrorModal() {
-  document.getElementById('errorModal').classList.remove('open');
-}
-window.hideErrorModal = hideErrorModal;
-document.getElementById('errorModal').addEventListener('click', function(e) {
-  if (e.target === this) hideErrorModal();
-});
-
 function showApp() {
   applyI18n();
-  document.getElementById('loginPage').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   const admin = JSON.parse(SLF.store.rawGet('superAdmin') || '{}');
   document.getElementById('adminName').textContent = admin.display_name || t('superAdmin', null, t('superAdmin'));
@@ -242,7 +207,7 @@ async function api(path, options = {}) {
     if (method === 'DELETE') return await SLF.api.del(path, options);
     return await SLF.api._request(method, path, options);
   } catch (e) {
-    // super 页面 401 → 回本页登录卡片，不跳 /login
+    // 401 on the super-admin app always returns to the dedicated login page.
     if (e && (e.status === 401 || /登录已过期|未登录|无操作权限/.test(e.message || ''))) {
       SLF.store.rawRemove('superToken');
       SLF.store.rawRemove('superAdmin');
@@ -255,10 +220,7 @@ async function api(path, options = {}) {
 }
 
 function showLoginPage() {
-  const lp = document.getElementById('loginPage');
-  const ap = document.getElementById('app');
-  if (lp) lp.style.display = 'flex';
-  if (ap) ap.style.display = 'none';
+  window.location.replace('/super/login');
 }
 
 function formatDateTime(dateStr) {
@@ -946,11 +908,10 @@ async function backupNow() {
 window.backupNow = backupNow;
 
 // 登录回车
-document.getElementById('loginPassword').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
-
 // 初始化
 applyI18n();
 if (token) showApp();
+else window.location.replace('/super/login');
 
 // 汉堡按钮拖动+磁吸
 (function() {
