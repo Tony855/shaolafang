@@ -93,6 +93,7 @@ test('admin order deletion locks table and order, audits details and broadcasts 
   const lockAdmin = calls.findIndex(x => x.type === 'get' && x.sql.includes('FROM merchant_admins') && x.sql.includes('FOR UPDATE'));
   const lockTable = calls.findIndex(x => x.type === 'get' && x.sql.includes('SELECT id FROM tables') && x.sql.includes('FOR UPDATE'));
   const lockOrder = calls.findIndex(x => x.type === 'get' && x.sql.includes('SELECT * FROM orders') && x.sql.includes('FOR UPDATE'));
+  const deleteRefundRequests = calls.findIndex(x => x.type === 'run' && x.sql.startsWith('DELETE FROM refund_requests'));
   const deleteOrder = calls.findIndex(x => x.type === 'run' && x.sql.startsWith('DELETE FROM orders'));
   const audit = calls.find(x => x.type === 'run' && x.sql.startsWith('INSERT INTO audit_logs'));
   assert.ok(lockAdmin >= 0 && lockTable > lockAdmin && lockOrder > lockTable && deleteOrder > lockOrder);
