@@ -222,7 +222,7 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 });
 app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
   try {
-    const merchantId = parsePositiveRouteId(merchantId);
+    const merchantId = parsePositiveRouteId(req.params.id);
     if (merchantId === null) return res.status(400).json({ error: '商户编号无效' });
     if (merchantId === 1) return res.status(400).json({ error: '不能删除默认商户' });
 
@@ -269,7 +269,7 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 
 app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (req, res) => {
   try {
-    const merchantId = parsePositiveRouteId(merchantId);
+    const merchantId = parsePositiveRouteId(req.params.id);
     if (merchantId === null) return res.status(400).json({ error: '商户编号无效' });
     const { password } = req.body || {};
     const newPwd = (password === undefined || password === null || String(password).trim() === '')
