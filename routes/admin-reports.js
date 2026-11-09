@@ -221,13 +221,16 @@ module.exports = function(app, deps) {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       const todayStats = await getAsync(`
-        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders
+        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders, SUM(CASE WHEN total IS NULL OR total < 0 OR COALESCE(refund_amount, 0) < 0 OR COALESCE(refund_amount, 0) > total THEN 1 ELSE 0 END) AS invalid_refunds
         FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
       `, [storeId, todayStart.toISOString(), todayEnd.toISOString()]);
       const monthStats = await getAsync(`
-        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders
+        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders, SUM(CASE WHEN total IS NULL OR total < 0 OR COALESCE(refund_amount, 0) < 0 OR COALESCE(refund_amount, 0) > total THEN 1 ELSE 0 END) AS invalid_refunds
         FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
       `, [storeId, monthStart.toISOString(), monthEnd.toISOString()]);
+      if (Number(todayStats?.invalid_refunds || 0) > 0 || Number(monthStats?.invalid_refunds || 0) > 0) {
+        return res.status(409).json({ error: '订单退款数据异常，请先核对历史退款记录后再生成报表' });
+      }
       const topDishes = await allAsync(`
         SELECT m.id, m.name, m.emoji, m.price, m.category,
                SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)))) AS sales_count
