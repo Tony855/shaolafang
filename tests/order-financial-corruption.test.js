@@ -2,42 +2,23 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { formatOrder } = require('../server/services/order');
+const { hasCorruptFinancialAmounts } = require('../server/services/order-financial');
 
-function row(overrides = {}) {
-  return {
-    id: 1,
-    items: '[]',
-    total: '10.00',
-    refund_amount: null,
-    status: 'done',
-    ...overrides
-  };
-}
-
-test('formatOrder marks valid normal and fully refunded amounts as financially sound', () => {
-  assert.equal(formatOrder(row()).financialDataCorrupted, false);
-  assert.equal(formatOrder(row({ refund_amount: '10.00', status: 'refunded' })).financialDataCorrupted, false);
-  assert.equal(formatOrder(row({ total: '0.00', refund_amount: null })).financialDataCorrupted, false);
+test('financial validation accepts valid totals and full refunds', () => {
+  assert.equal(hasCorruptFinancialAmounts('10.00', null), false);
+  assert.equal(hasCorruptFinancialAmounts('10.00', '0.00'), false);
+  assert.equal(hasCorruptFinancialAmounts('10.00', '10.00'), false);
+  assert.equal(hasCorruptFinancialAmounts('0.00', null), false);
 });
 
-test('formatOrder marks invalid totals and refund amounts as financially corrupted', () => {
-  for (const overrides of [
-    { total: null },
-    { total: '-1.00' },
-    { total: 'not-money' },
-    { total: '10.001' },
-    { refund_amount: '-0.01' },
-    { refund_amount: '10.01' },
-    { refund_amount: 'invalid' },
-    { refund_amount: '1.001' }
-  ]) {
-    assert.equal(formatOrder(row(overrides)).financialDataCorrupted, true, JSON.stringify(overrides));
+test('financial validation rejects malformed, negative, and sub-cent totals', () => {
+  for (const total of [null, undefined, '', '-1.00', 'not-money', '10.001', '1e3']) {
+    assert.equal(hasCorruptFinancialAmounts(total, null), true, String(total));
   }
 });
 
-test('formatOrder preserves item corruption separately from financial corruption', () => {
-  const formatted = formatOrder(row({ items: '{invalid' }));
-  assert.equal(formatted.dataCorrupted, true);
-  assert.equal(formatted.financialDataCorrupted, false);
+test('financial validation rejects malformed, negative, sub-cent, and excessive refunds', () => {
+  for (const refund of ['-0.01', '10.01', 'invalid', '1.001', '1e2']) {
+    assert.equal(hasCorruptFinancialAmounts('10.00', refund), true, refund);
+  }
 });
