@@ -920,8 +920,8 @@ module.exports = function(app, deps) {
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
       const { order_id, pay_method, cash_received, cash_change } = req.body || {};
-      const orderId = Number(order_id);
-      if (!Number.isSafeInteger(orderId) || orderId <= 0) return res.status(400).json({ error: '订单编号无效' });
+      const orderId = parsePositiveOrderId(order_id);
+      if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
       const { storeId: sid } = await resolveKhqrStore(req);
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
@@ -1056,7 +1056,7 @@ module.exports = function(app, deps) {
       });
       io.to('kitchen-' + sid).emit('order:settled', { orderId });
       io.to('waiter-' + sid).emit('order:settled', { orderId });
-      io.to('cashier-' + sid).emit('order:settled', { orderId: Number(order_id) });
+      io.to('cashier-' + sid).emit('order:settled', { orderId });
       io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId: Number(order_id) });
       res.json({ success: true, status: 'done' });
     } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
