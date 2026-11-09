@@ -28,12 +28,33 @@ const refundPendingMemory = new Map();
 function refundPendingStorageKey(orderId) {
   const storeId = SLF.store.rawGet('storeId') || '1';
   const cashierName = String(cashierInfo?.username || 'cashier').toLowerCase();
+  const order = orders.find(item => String(item.id) === String(orderId));
+  const orderIdentity = order
+    ? [order.order_no || '', order.createdAt || order.created_at || ''].join(':')
+    : String(orderId);
+  return refundPendingPrefix + storeId + ':' + cashierName + ':' + orderId + ':' + encodeURIComponent(orderIdentity);
+}
+function legacyRefundPendingStorageKey(orderId) {
+  const storeId = SLF.store.rawGet('storeId') || '1';
+  const cashierName = String(cashierInfo?.username || 'cashier').toLowerCase();
   return refundPendingPrefix + storeId + ':' + cashierName + ':' + orderId;
 }
 function loadPendingRefund(orderId) {
   const key = refundPendingStorageKey(orderId);
+  const legacyKey = legacyRefundPendingStorageKey(orderId);
   try {
-    const saved = sessionStorage.getItem(key);
+    let saved = localStorage.getItem(key);
+    if (!saved) {
+      // Migrate pending requests created by the previous sessionStorage-only UI.
+      saved = sessionStorage.getItem(legacyKey);
+      if (saved) {
+        let migrated = false;
+        try { localStorage.setItem(key, saved); migrated = true; } catch (_) {}
+        if (migrated) {
+          try { sessionStorage.removeItem(legacyKey); } catch (_) {}
+        }
+      }
+    }
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed.idempotencyKey === 'string' && typeof parsed.reason === 'string' && Number.isFinite(Number(parsed.amount))) {
@@ -41,18 +62,34 @@ function loadPendingRefund(orderId) {
         return parsed;
       }
     }
-  } catch (_) {}
+  } catch (_) {
+    try {
+      const saved = sessionStorage.getItem(key) || sessionStorage.getItem(legacyKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.idempotencyKey === 'string' && typeof parsed.reason === 'string' && Number.isFinite(Number(parsed.amount))) {
+          refundPendingMemory.set(key, parsed);
+          return parsed;
+        }
+      }
+    } catch (_) {}
+  }
   return refundPendingMemory.get(key) || null;
 }
 function savePendingRefund(orderId, pending) {
   const key = refundPendingStorageKey(orderId);
   refundPendingMemory.set(key, pending);
-  try { sessionStorage.setItem(key, JSON.stringify(pending)); } catch (_) {}
+  const serialized = JSON.stringify(pending);
+  try { localStorage.setItem(key, serialized); }
+  catch (_) { try { sessionStorage.setItem(key, serialized); } catch (_) {} }
 }
 function clearPendingRefund(orderId) {
   const key = refundPendingStorageKey(orderId);
+  const legacyKey = legacyRefundPendingStorageKey(orderId);
   refundPendingMemory.delete(key);
+  try { localStorage.removeItem(key); } catch (_) {}
   try { sessionStorage.removeItem(key); } catch (_) {}
+  try { sessionStorage.removeItem(legacyKey); } catch (_) {}
 }
 
 // KHQR 支付弹窗状态
