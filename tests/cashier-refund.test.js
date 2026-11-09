@@ -87,6 +87,7 @@ test('partial refunds accumulate without closing the order until the full amount
   assert.equal(state.refund_amount, 30);
 
   req.body.amount = 70;
+  req.headers['idempotency-key'] = 'refund-test-partial-0002';
   const second = response();
   await handler(req, second);
   assert.equal(second.statusCode, 200);
