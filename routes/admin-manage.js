@@ -867,7 +867,7 @@ module.exports = function(app, deps) {
       });
     } catch (e) {
       console.error('[khqr/generate]', e);
-      res.status(500).json({ error: e.message });
+      res.status(e.status || 500).json({ error: e.message });
     }
   });
 
