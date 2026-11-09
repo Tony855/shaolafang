@@ -26,8 +26,8 @@ function setup() {
     getAsync: async sql => {
       if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=?')) return { ...order };
       if (sql.includes('SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE')) return { id: 1 };
-      if (sql.includes('SELECT table_name, status FROM orders WHERE id=? AND store_id=? FOR UPDATE')) {
-        return { table_name: order.table_name, status: order.status };
+      if (sql.includes('FROM orders WHERE id=? AND store_id=? FOR UPDATE')) {
+        return { ...order, awaiting_confirm: 0, pay_khqr_ref: '', pay_expires_at: '' };
       }
       if (sql.includes('SELECT COUNT(*) AS cnt FROM orders')) return { cnt: 1 };
       if (sql.includes('SELECT value FROM settings')) return null;

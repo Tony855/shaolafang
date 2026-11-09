@@ -18,7 +18,7 @@ function setup({ orders = [], lockedOrders = orders, singleOrder = orders[0] || 
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
       if (sql.includes('SELECT id FROM tables')) return { id: 1 };
-      if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return singleOrder;
+      if (sql.includes('FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return singleOrder;
       if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=?')) return singleOrder;
       if (sql.includes('SELECT COUNT(*) AS cnt')) return { cnt: 1 };
       return null;
@@ -198,4 +198,47 @@ test('single settlement and cancellation reject partial order path IDs before qu
   assert.equal(cancelRes.statusCode, 400);
   assert.equal(cancel.calls.length, 0);
   assert.equal(cancel.transactions.length, 0);
+});
+
+
+test('cashier cancellation refuses an order awaiting KHQR confirmation under the order lock', async () => {
+  const order = pendingOrder({
+    awaiting_confirm: 1,
+    pay_khqr_ref: 'submitted-qr',
+    pay_expires_at: new Date(Date.now() + 60_000).toISOString()
+  });
+  const { cancelHandler, calls, transactions } = setup({ singleOrder: order });
+  const res = response();
+  await cancelHandler({
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_cancel: true } },
+    params: { id: '5' }
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /KHQR/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes("SET status='canceled'")), false);
+  assert.deepEqual(transactions, ['begin', 'rollback']);
+  const lockedRead = calls.find(call => call.type === 'get' && call.sql.includes('FROM orders') && call.sql.includes('FOR UPDATE'));
+  assert.match(lockedRead.sql, /awaiting_confirm, pay_khqr_ref, pay_expires_at/);
+});
+
+test('cashier cancellation clears an expired KHQR payload atomically', async () => {
+  const order = pendingOrder({
+    pay_khqr_ref: 'expired-qr',
+    pay_expires_at: new Date(Date.now() - 60_000).toISOString()
+  });
+  const { cancelHandler, calls, transactions } = setup({ singleOrder: order });
+  const res = response();
+  await cancelHandler({
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_cancel: true } },
+    params: { id: '5' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  const update = calls.find(call => call.type === 'run' && call.sql.includes("SET status='canceled'"));
+  assert.ok(update);
+  assert.match(update.sql, /awaiting_confirm=0, pay_khqr_ref='', pay_expires_at=''/);
+  assert.deepEqual(transactions, ['begin', 'commit']);
 });

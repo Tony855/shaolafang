@@ -534,15 +534,25 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
-      const lockedOrder = await getAsync('SELECT table_name, status FROM orders WHERE id=? AND store_id=? FOR UPDATE', [id, req.storeId]);
+      const lockedOrder = await getAsync(
+        'SELECT table_name, status, awaiting_confirm, pay_khqr_ref, pay_expires_at FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+        [id, req.storeId]
+      );
       if (!lockedOrder || lockedOrder.status !== 'pending' || lockedOrder.table_name !== order.table_name) {
         const error = new Error('订单状态已变化，取消操作已中止');
         error.status = 409;
         throw error;
       }
+      // Do not cancel an order while a customer may still complete its KHQR payment.
+      // Recheck after acquiring the order lock to close the race with QR generation/notification.
+      if (hasActiveKhqr(lockedOrder)) {
+        const error = new Error('订单仍有待确认或有效 KHQR 收款码，请先取消收款码后再取消订单');
+        error.status = 409;
+        throw error;
+      }
       canceledTableName = lockedOrder.table_name;
       const canceled = await runAsync(
-        "UPDATE orders SET status='canceled' WHERE id=? AND store_id=? AND status='pending'",
+        "UPDATE orders SET status='canceled', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending'",
         [id, req.storeId]
       );
       if (!canceled.affectedRows) {
