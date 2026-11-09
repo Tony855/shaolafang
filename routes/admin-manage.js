@@ -1065,52 +1065,78 @@ module.exports = function(app, deps) {
       let actorName = 'admin';
       if (req.isAdmin) {
         sid = req.storeId;
-        actorName = 'admin';
       } else if (req.waiter) {
         sid = req.waiterStoreId || req.waiter.store_id;
         actorName = req.waiter.display_name || req.waiter.username || 'waiter';
       }
       if (!sid) return res.status(400).json({ error: '未指定店铺' });
 
-      const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
-      if (!order) return res.status(404).json({ error: '订单不存在' });
-      if (order.status !== 'pending') return res.status(400).json({ error: '订单状态不允许通知' });
-
-      // 幂等：已通知过直接返回
-      if (order.awaiting_confirm) {
-        return res.json({ success: true, status: 'awaiting_confirm', already: true });
+      const paymentMethod = typeof pay_method === 'string' ? pay_method.trim().slice(0, 40) : '';
+      if (!paymentMethod) return res.status(400).json({ error: '请选择收款方式' });
+      const received = Number(cash_received);
+      const change = Number(cash_change);
+      if ((cash_received !== undefined && (!Number.isFinite(received) || received < 0)) ||
+          (cash_change !== undefined && (!Number.isFinite(change) || change < 0))) {
+        return res.status(400).json({ error: '收款金额或找零金额无效' });
       }
 
-      // Conditional update is the concurrency boundary: the order may have been
-      // settled/cancelled or notified after the read above. Never mutate by global ID alone.
-      const notified = await runAsync(
-        "UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
-        [String(pay_method || '').slice(0, 20), Number(cash_received) || 0, Number(cash_change) || 0, orderId, sid]
-      );
-      if (!notified.affectedRows) {
-        return res.status(409).json({ error: '订单状态已变化或已提交收款确认，请刷新后重试' });
-      }
+      let notification = null;
+      let alreadyNotified = false;
+      await withTransaction(async () => {
+        const order = await getAsync(
+          'SELECT id, status, awaiting_confirm, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+          [orderId, sid]
+        );
+        if (!order) {
+          const error = new Error('订单不存在');
+          error.status = 404;
+          throw error;
+        }
+        if (order.status !== 'pending') {
+          const error = new Error('订单状态不允许通知');
+          error.status = 409;
+          throw error;
+        }
 
-      // 广播给收银台
-      io.to('cashier-' + sid).emit('khqr:awaiting', {
-        orderId: order.id,
-        table: order.table_name,
-        orderNo: order.order_no,
-        total: order.total,
-        storeId: sid,
+        // A retry after a committed notification is idempotent: do not duplicate
+        // the audit entry or broadcast the same notification again.
+        if (Number(order.awaiting_confirm)) {
+          alreadyNotified = true;
+          return;
+        }
+
+        const notified = await runAsync(
+          "UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
+          [paymentMethod, Number.isFinite(received) ? received : 0, Number.isFinite(change) ? change : 0, orderId, sid]
+        );
+        if (!notified.affectedRows) {
+          const error = new Error('订单状态已变化或已提交收款确认，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
+
+        const now = new Date().toISOString();
+        await runAsync(
+          'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [req.isAdmin ? 'admin' : 'waiter',
+           req.isAdmin ? (req.adminId || 0) : (req.waiter ? req.waiter.id : 0),
+           actorName, 'khqr_notify_awaiting',
+           JSON.stringify({ order_id: orderId, table: order.table_name }),
+           getClientIp(req), now]
+        );
+        notification = {
+          orderId: order.id,
+          table: order.table_name,
+          orderNo: order.order_no,
+          total: order.total,
+          storeId: sid
+        };
       });
 
-      // 审计日志
-      await runAsync(
-        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [req.isAdmin ? 'admin' : 'waiter',
-         req.isAdmin ? (req.adminId || 0) : (req.waiter ? req.waiter.id : 0),
-         actorName, 'khqr_notify_awaiting',
-         JSON.stringify({ order_id: orderId, table: order.table_name }),
-         getClientIp(req), new Date().toISOString()]
-      );
-
-      res.json({ success: true, status: 'awaiting_confirm' });
+      if (notification) {
+        io.to('cashier-' + sid).emit('khqr:awaiting', notification);
+      }
+      res.json({ success: true, status: 'awaiting_confirm', ...(alreadyNotified ? { already: true } : {}) });
     } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
   });
 
