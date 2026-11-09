@@ -7,6 +7,13 @@ const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
 
+function hasActiveKhqr(order) {
+  if (Number(order?.awaiting_confirm)) return true;
+  if (!order?.pay_khqr_ref) return false;
+  const expiresAt = Date.parse(order.pay_expires_at || '');
+  return !Number.isFinite(expiresAt) || expiresAt > Date.now();
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
@@ -93,6 +100,17 @@ app.post('/api/tables/move', requireAdminOrWaiter, requireTableAccess, async (re
       if (!target) throw Object.assign(new Error('目标桌不存在'), { status: 404 });
       if (!['available', 'occupied'].includes(target.status)) {
         throw Object.assign(new Error('目标桌当前不可用'), { status: 409 });
+      }
+
+      // Lock every pending order on the source table before moving the table's
+      // session context. A still-valid QR must remain attached to its original
+      // order/table context until payment is resolved or the QR expires.
+      const pendingOrders = await allAsync(
+        "SELECT id, awaiting_confirm, pay_khqr_ref, pay_expires_at FROM orders WHERE table_name=? AND store_id=? AND status='pending' ORDER BY id FOR UPDATE",
+        [fromTable, storeId]
+      );
+      if (pendingOrders.some(hasActiveKhqr)) {
+        throw Object.assign(new Error('源桌仍有待确认或有效 KHQR 收款码，无法整桌转移'), { status: 409 });
       }
 
       const now = Date.now();
@@ -187,6 +205,15 @@ app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'
         throw Object.assign(new Error('无效的桌号状态'), { status: 400 });
       }
 
+      if (newName !== existing.name) {
+        const pendingOrders = await allAsync(
+          "SELECT id, awaiting_confirm, pay_khqr_ref, pay_expires_at FROM orders WHERE table_name=? AND store_id=? AND status='pending' ORDER BY id FOR UPDATE",
+          [existing.name, storeId]
+        );
+        if (pendingOrders.some(hasActiveKhqr)) {
+          throw Object.assign(new Error('该桌仍有待确认或有效 KHQR 收款码，不能修改桌号'), { status: 409 });
+        }
+      }
       await runAsync('UPDATE tables SET name=?, status=? WHERE id=? AND store_id=?', [newName, newStatus, id, storeId]);
       if (newName !== existing.name) {
         // Keep every active reference aligned with the renamed table in the same transaction.
