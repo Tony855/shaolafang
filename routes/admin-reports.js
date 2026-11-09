@@ -99,8 +99,10 @@ module.exports = function(app, deps) {
           (SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_revenue,
           (SELECT AVG(GREATEST(0, total - COALESCE(refund_amount, 0))) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS avg_order_value,
           (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status='refunded' AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS refunded_orders,
-          (SELECT COALESCE(SUM(GREATEST(0, refund_amount)), 0) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_refunded
+          (SELECT COALESCE(SUM(GREATEST(0, refund_amount)), 0) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?) AS total_refunded,
+          (SELECT COUNT(*) FROM orders WHERE ${swWhere} AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ? AND (total IS NULL OR total < 0 OR COALESCE(refund_amount, 0) < 0 OR COALESCE(refund_amount, 0) > total)) AS invalid_refund_orders
       `, [
+        ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd,
@@ -109,6 +111,9 @@ module.exports = function(app, deps) {
         ...swParams, rangeStart, rangeEnd,
         ...swParams, rangeStart, rangeEnd
       ]);
+      if (Number(orderStats?.invalid_refund_orders || 0) > 0) {
+        return res.status(409).json({ error: '订单退款数据异常，请先核对历史退款记录后再生成报表' });
+      }
       const tableRevenue = await allAsync(`
         SELECT table_name, COUNT(*) AS orders, SUM(GREATEST(0, total - COALESCE(refund_amount, 0))) AS revenue
         FROM orders
@@ -216,13 +221,16 @@ module.exports = function(app, deps) {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       const todayStats = await getAsync(`
-        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders
+        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders, SUM(CASE WHEN total IS NULL OR total < 0 OR COALESCE(refund_amount, 0) < 0 OR COALESCE(refund_amount, 0) > total THEN 1 ELSE 0 END) AS invalid_refunds
         FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
       `, [storeId, todayStart.toISOString(), todayEnd.toISOString()]);
       const monthStats = await getAsync(`
-        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders
+        SELECT COALESCE(SUM(GREATEST(0, total - COALESCE(refund_amount, 0))), 0) AS revenue, COUNT(*) AS orders, SUM(CASE WHEN total IS NULL OR total < 0 OR COALESCE(refund_amount, 0) < 0 OR COALESCE(refund_amount, 0) > total THEN 1 ELSE 0 END) AS invalid_refunds
         FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
       `, [storeId, monthStart.toISOString(), monthEnd.toISOString()]);
+      if (Number(todayStats?.invalid_refunds || 0) > 0 || Number(monthStats?.invalid_refunds || 0) > 0) {
+        return res.status(409).json({ error: '订单退款数据异常，请先核对历史退款记录后再生成报表' });
+      }
       const topDishes = await allAsync(`
         SELECT m.id, m.name, m.emoji, m.price, m.category,
                SUM(GREATEST(0, CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED) - LEAST(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].quantity')) AS UNSIGNED), COALESCE(CAST(JSON_EXTRACT(o.items, CONCAT('$[', n.idx, '].returnedQty')) AS UNSIGNED), 0)))) AS sales_count
@@ -262,6 +270,15 @@ module.exports = function(app, deps) {
         return res.status(403).json({ error: '没有导出该数据的权限' });
       }
       let rows = [], filename = '', headers = [];
+      if (type === 'orders' || type === 'sales') {
+        const invalidRefunds = await getAsync(
+          "SELECT COUNT(*) AS invalid_count FROM orders WHERE store_id=? AND status IN ('done', 'refunded') AND (total IS NULL OR total < 0 OR COALESCE(refund_amount, 0) < 0 OR COALESCE(refund_amount, 0) > total)",
+          [storeId]
+        );
+        if (Number(invalidRefunds?.invalid_count || 0) > 0) {
+          return res.status(409).json({ error: '订单退款数据异常，请先核对历史退款记录后再导出' });
+        }
+      }
       if (type === 'orders') {
         rows = await allAsync(
           'SELECT *, GREATEST(0, total - COALESCE(refund_amount, 0)) AS net_total FROM orders WHERE store_id=? ORDER BY id DESC LIMIT 1000',
@@ -338,6 +355,20 @@ module.exports.attachAdvancedExport = function(app, deps) {
       if (!dateRange) return res.status(400).json({ error: '日期范围无效，最多支持 1095 天' });
       const startIso = dateRange.start;
       const endIso = dateRange.end;
+      const settledStatuses = statuses.filter(status => status === 'done' || status === 'refunded');
+      if (settledStatuses.length) {
+        const statusPlaceholders = settledStatuses.map(() => '?').join(',');
+        const invalidRefunds = await getAsync(
+          `SELECT COUNT(*) AS invalid_count FROM orders
+           WHERE store_id=? AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ?
+             AND status IN (${statusPlaceholders})
+             AND (total IS NULL OR total < 0 OR COALESCE(refund_amount, 0) < 0 OR COALESCE(refund_amount, 0) > total)`,
+          [storeId, startIso, endIso, ...settledStatuses]
+        );
+        if (Number(invalidRefunds?.invalid_count || 0) > 0) {
+          return res.status(409).json({ error: '订单退款数据异常，请先核对历史退款记录后再导出' });
+        }
+      }
 
       let csv = '';
       let filename = '';
@@ -346,7 +377,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
         // ===== 订单明细 =====
         const stPlaceholders = statuses.map(() => '?').join(',');
         const params = [storeId, startIso, endIso, ...statuses];
-        let sql = `SELECT id, order_no, table_name, total, COALESCE(refund_amount, 0) AS refund_amount, (total - COALESCE(refund_amount, 0)) AS net_total, status, pay_method, note, createdAt, settled_at FROM orders
+        let sql = `SELECT id, order_no, table_name, total, COALESCE(refund_amount, 0) AS refund_amount, GREATEST(0, total - COALESCE(refund_amount, 0)) AS net_total, status, pay_method, note, createdAt, settled_at FROM orders
                    WHERE store_id=? AND COALESCE(settled_at, createdAt) >= ? AND COALESCE(settled_at, createdAt) <= ? AND status IN (${stPlaceholders})`;
         if (payMethods.length) {
           sql += ` AND pay_method IN (${payMethods.map(() => '?').join(',')})`;
