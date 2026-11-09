@@ -23,6 +23,7 @@
   let paymentOrderId = null;
   let payMethod = 'cash';
 let refundOrderId = null;
+let refundRequestId = null;
 
 // KHQR 支付弹窗状态
 let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '' };
@@ -968,6 +969,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   function closeRefundModal() {
     document.getElementById('refundModal').classList.remove('show');
     refundOrderId = null;
+    refundRequestId = null;
   }
 
   async function confirmRefund() {
@@ -989,11 +991,12 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     if (amount > remaining) { SLF.ui.toast('❌ ' + (t('refundExceedsTotal') || '退款金额不能超过剩余可退款金额')); return; }
 
     const btn = document.getElementById('confirmRefundBtn');
+    if (!refundRequestId) refundRequestId = window.crypto.randomUUID();
     btn.disabled = true;
     try {
       await api('/cashier/orders/' + refundOrderId + '/refund', {
         method: 'PUT',
-        body: { amount, reason }
+        body: { amount, reason, request_id: refundRequestId }
       });
       SLF.ui.toast('✅ ' + (t('refundSuccess') || '退款成功'));
       closeRefundModal();
