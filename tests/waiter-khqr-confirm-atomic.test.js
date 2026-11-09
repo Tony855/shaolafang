@@ -23,6 +23,8 @@ function setup({ initialOrder = null, lockedOrder = null, affectedRows = 1 } = {
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
       if (sql.includes('SELECT id, name FROM stores')) return { id: 9, name: 'Test Store' };
+      if (sql.includes('SELECT id FROM tables')) return { id: 1 };
+      if (sql.includes('SELECT COUNT(*) AS cnt')) return { cnt: 0 };
       if (sql.includes('FOR UPDATE')) return lockedOrder || initialOrder || defaultOrder;
       return initialOrder || defaultOrder;
     },
@@ -150,4 +152,54 @@ test('legacy waiter KHQR confirm rejects cross-store access', async () => {
   assert.equal(res.statusCode, 403);
   assert.equal(calls.some(call => call.type === 'run'), false);
   assert.equal(transactions.length, 0);
+});
+
+
+function adminRequest(body = {}) {
+  return {
+    body: { order_id: 42, ...body },
+    storeId: 9,
+    merchantId: 1,
+    isAdmin: true,
+    isPrimaryAdmin: true,
+    adminId: 3
+  };
+}
+
+test('cashier KHQR confirmation rejects cash amounts with sub-cent precision', async () => {
+  const order = {
+    id: 42, status: 'pending', awaiting_confirm: 1,
+    pay_khqr_ref: 'dynamic-payload', pay_expires_at: new Date(Date.now() + 60000).toISOString(),
+    table_name: 'A01', total: '25.00', pay_method: 'cash', cash_received: '25.00'
+  };
+  const { handler, calls, transactions, events } = setup({ initialOrder: order, lockedOrder: order });
+  const res = response();
+  await handler(adminRequest({ cash_received: '25.005' }), res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /两位小数/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.startsWith("UPDATE orders SET status='done'")), false);
+  assert.deepEqual(transactions, ['begin', 'rollback']);
+  assert.equal(events.length, 0);
+});
+
+test('cashier KHQR confirmation stores exact cents and clears confirmed QR metadata', async () => {
+  const order = {
+    id: 42, status: 'pending', awaiting_confirm: 1,
+    pay_khqr_ref: 'dynamic-payload', pay_expires_at: new Date(Date.now() + 60000).toISOString(),
+    table_name: 'A01', total: '25.00', pay_method: 'cash', cash_received: '30.00'
+  };
+  const { handler, calls, transactions, events } = setup({ initialOrder: order, lockedOrder: order });
+  const res = response();
+  await handler(adminRequest({ cash_received: '30.00' }), res);
+
+  assert.equal(res.statusCode, 200);
+  const update = calls.find(call => call.type === 'run' && call.sql.startsWith("UPDATE orders SET status='done'"));
+  assert.ok(update);
+  assert.match(update.sql, /pay_khqr_ref='', pay_expires_at=''/);
+  assert.equal(update.params[1], 30);
+  assert.equal(update.params[2], 5);
+  assert.deepEqual(transactions, ['begin', 'commit']);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO audit_logs')));
+  assert.equal(events.length, 4);
 });

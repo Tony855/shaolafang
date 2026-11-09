@@ -11,6 +11,15 @@ function normalizeAdminFlag(value, fallback, field) {
   throw Object.assign(new Error(field + ' 参数无效'), { status: 400 });
 }
 
+function toMoneyCents(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const raw = String(value).trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) return null;
+  const [whole, fraction = ''] = raw.split('.');
+  const cents = Number(whole) * 100 + Number((fraction + '00').slice(0, 2));
+  return Number.isSafeInteger(cents) ? cents : null;
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, syncTableStatus, requireAdminKey, requirePermission, requireAdminOrCashier, requireAdminOrCashierOrWaiter, requireAdminOrWaiter, hashPassword, verifyPassword, logAudit, getClientIp, io } = deps;
 
@@ -898,12 +907,14 @@ module.exports = function(app, deps) {
         const paymentMethod = typeof pay_method === 'string' && pay_method.trim()
           ? pay_method.trim().slice(0, 40)
           : String(order.pay_method || 'khqr').trim().slice(0, 40);
-        const received = Number(cash_received);
-        const change = Number(cash_change);
-        if ((cash_received !== undefined && (!Number.isFinite(received) || received < 0)) ||
-            (cash_change !== undefined && (!Number.isFinite(change) || change < 0))) {
-          return res.status(400).json({ error: '收款金额或找零金额无效' });
+        const receivedCents = cash_received === undefined ? null : toMoneyCents(cash_received);
+        const changeCents = cash_change === undefined ? null : toMoneyCents(cash_change);
+        if ((cash_received !== undefined && (receivedCents === null || receivedCents < 0)) ||
+            (cash_change !== undefined && (changeCents === null || changeCents < 0))) {
+          return res.status(400).json({ error: '收款金额或找零金额无效，最多只能有两位小数' });
         }
+        const received = receivedCents === null ? 0 : receivedCents / 100;
+        const change = changeCents === null ? 0 : changeCents / 100;
 
         let alreadyNotified = false;
         let notification = null;
@@ -974,26 +985,26 @@ module.exports = function(app, deps) {
         }
 
         const paymentMethod = String(lockedOrder.pay_method || 'khqr').trim().slice(0, 40);
-        const orderTotal = Number(lockedOrder.total);
-        if (!Number.isFinite(orderTotal) || orderTotal <= 0) {
+        const orderTotalCents = toMoneyCents(lockedOrder.total);
+        if (orderTotalCents === null || orderTotalCents <= 0) {
           const error = new Error('订单金额无效');
           error.status = 400;
           throw error;
         }
-        const cashReceived = paymentMethod.toLowerCase() === 'cash'
-          ? Number(req.body?.cash_received ?? lockedOrder.cash_received)
-          : 0;
-        if (paymentMethod.toLowerCase() === 'cash' && (!Number.isFinite(cashReceived) || cashReceived < orderTotal)) {
-          const error = new Error('现金实收金额不足，请重新录入实收金额');
+        const isCash = paymentMethod.toLowerCase() === 'cash';
+        const rawCashReceived = req.body?.cash_received ?? lockedOrder.cash_received;
+        const cashReceivedCents = isCash ? toMoneyCents(rawCashReceived) : 0;
+        if (isCash && (cashReceivedCents === null || cashReceivedCents < orderTotalCents)) {
+          const error = new Error('现金实收金额不足或格式无效，最多只能有两位小数');
           error.status = 400;
           throw error;
         }
-        const cashChange = paymentMethod.toLowerCase() === 'cash'
-          ? Math.round((cashReceived - orderTotal) * 100) / 100
-          : 0;
+        const cashChangeCents = isCash ? cashReceivedCents - orderTotalCents : 0;
+        const cashReceived = isCash ? cashReceivedCents / 100 : 0;
+        const cashChange = cashChangeCents / 100;
 
         const result = await runAsync(
-          "UPDATE orders SET status='done', awaiting_confirm=0, pay_method=?, cash_received=?, cash_change=?, settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
+          "UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_method=?, cash_received=?, cash_change=?, settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
           [paymentMethod, cashReceived, cashChange, settledAt, req.adminId || req.cashierId || 'unknown', order_id, sid]
         );
         if (!result.affectedRows) {
