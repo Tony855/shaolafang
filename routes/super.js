@@ -470,7 +470,7 @@ app.get('/api/super/stores', requireSuperAdmin, async (req, res) => {
 
 app.get('/api/super/login-logs', requireSuperAdmin, async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 200;
+    const limit = boundedInteger(req.query.limit, 200, 1, 1000);
     const logs = await allAsync('SELECT l.*, m.name as merchant_name FROM login_logs l LEFT JOIN merchants m ON l.merchant_id = m.id ORDER BY l.id DESC LIMIT ?', [limit]);
     res.json(logs);
   } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
@@ -615,7 +615,7 @@ app.put('/api/super/settings', requireSuperAdmin, async (req, res) => {
 
 app.get('/api/super/audit-logs', requireSuperAdmin, async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 200;
+    const limit = boundedInteger(req.query.limit, 200, 1, 1000);
     const logs = await allAsync('SELECT * FROM audit_logs ORDER BY id DESC LIMIT ?', [limit]);
     res.json(logs);
   } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
