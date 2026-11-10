@@ -129,3 +129,61 @@ test('printer create rolls back if audit insertion fails', async () => {
   assert.equal(ctx.rolledBack, true);
   assert.match(res.body.error, /所有更改已回滚/);
 });
+
+
+test('print endpoints and printer payloads never expose customer bearer tokens', async () => {
+  const handlers = new Map();
+  const dispatches = [];
+  const row = {
+    id: 44, store_id: 2, session_token: 'private-session-token',
+    customer_token: 'private-customer-token', total: 12
+  };
+  const app = {
+    get(route, ...callbacks) {
+      if (route === '/api/orders/:id(\\\\d+)/print') handlers.set('GET', callbacks[callbacks.length - 1]);
+    },
+    post(route, ...callbacks) {
+      if (route === '/api/orders/:id(\\\\d+)/print' || route === '/api/orders/:id(\\\\d+)/print-kitchen') {
+        handlers.set(route.endsWith('print-kitchen') ? 'KITCHEN' : 'POST', callbacks[callbacks.length - 1]);
+      }
+    },
+    put() {}, delete() {}
+  };
+  attachPrinterRoutes(app, {
+    getAsync: async sql => sql.includes('FROM orders') ? row : { name: 'Test Store', address: 'Main St' },
+    allAsync: async () => [],
+    runAsync: async () => ({ affectedRows: 1 }),
+    withTransaction: async work => work(),
+    requireAdminKey: middleware,
+    requirePermission: () => middleware,
+    requireAdminOrWaiter: middleware,
+    formatOrder: value => ({
+      id: value.id, total: value.total,
+      sessionToken: value.session_token,
+      customerToken: value.customer_token
+    }),
+    dispatchPrint: async payload => {
+      dispatches.push(payload.order);
+      return { printed: true };
+    },
+    getClientIp: () => '127.0.0.1'
+  });
+
+  const req = { isAdmin: true, storeId: 2, params: { id: '44' }, body: {} };
+  const getRes = response();
+  await handlers.get('GET')(req, getRes);
+  assert.equal(getRes.statusCode, 200);
+  assert.equal(Object.hasOwn(getRes.body.order, 'sessionToken'), false);
+  assert.equal(Object.hasOwn(getRes.body.order, 'customerToken'), false);
+
+  for (const key of ['POST', 'KITCHEN']) {
+    const postRes = response();
+    await handlers.get(key)(req, postRes);
+    assert.equal(postRes.body.printed, true);
+  }
+  assert.equal(dispatches.length, 2);
+  for (const order of dispatches) {
+    assert.equal(Object.hasOwn(order, 'sessionToken'), false);
+    assert.equal(Object.hasOwn(order, 'customerToken'), false);
+  }
+});
