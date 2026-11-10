@@ -465,8 +465,12 @@ function stopKhqrTimers() {
 }
 
 window.confirmKhqrReceived = async function() {
-  if (!khqrState.orderId) return;
+  if (!khqrState.orderId || !khqrState.qrGenerationId) {
+    SLF.ui.toast('二维码生成批次已失效，请刷新后重试');
+    return;
+  }
   const id = khqrState.orderId;
+  const expectedQrGenerationId = khqrState.qrGenerationId;
   const btn = $('#khqrConfirmBtn');
   btn.disabled = true;
   btn.textContent = t('khqrConfirming');
@@ -475,6 +479,7 @@ window.confirmKhqrReceived = async function() {
     await apiCall('/waiter/khqr/notify', { method: 'POST', body: {
       order_id: id,
       payment_channel: 'khqr',
+      expected_qr_generation_id: expectedQrGenerationId,
       pay_method: (khqrState.bankName || 'aba').toLowerCase(),
     }});
     SLF.ui.toast('🔔 ' + (t('notifyCashierConfirm') || '已通知收银员确认'));
