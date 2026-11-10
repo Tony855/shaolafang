@@ -641,7 +641,7 @@
         </div>
       `).join('');
     } catch (e) {
-      document.getElementById('orderHistoryList').innerHTML = '<div style="text-align:center;padding:20px;color:#e74c3c;">' + e.message + '</div>';
+      document.getElementById('orderHistoryList').innerHTML = '<div style="text-align:center;padding:20px;color:#e74c3c;">' + esc(e.message) + '</div>';
     }
   }
 
