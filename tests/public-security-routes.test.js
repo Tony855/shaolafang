@@ -33,7 +33,7 @@ function registerPublicSession(app, deps) {
     consume: async () => 0,
     cleanup: async () => {}
   };
-  return registerPublicSession(app, { ...deps, scanSessionRateLimiter });
+  return require('../routes/public-session')(app, { ...deps, scanSessionRateLimiter });
 }
 
 test('table listing is authenticated, store-scoped and never selects QR credentials', async () => {
