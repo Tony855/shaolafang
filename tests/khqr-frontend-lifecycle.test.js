@@ -25,6 +25,15 @@ test('cashier and waiter close only cancel a QR they actually received', () => {
   }
 });
 
+test('cashier and waiter submit the QR generation ID with their confirmation requests', () => {
+  const cashier = source('pages', 'cashier.js');
+  const waiter = source('pages', 'waiter-payment.js');
+  assert.match(cashier, /if \(!khqrState\.orderId \|\| !khqrState\.qrGenerationId\)/);
+  assert.match(cashier, /expected_qr_generation_id: expectedQrGenerationId/);
+  assert.match(waiter, /if \(!khqrState\.orderId \|\| !khqrState\.qrGenerationId\)/);
+  assert.match(waiter, /expected_qr_generation_id: expectedQrGenerationId/);
+});
+
 test('currency switching cancels the exact current QR before requesting the new currency', () => {
   for (const file of [
     ['pages', 'cashier.js'],

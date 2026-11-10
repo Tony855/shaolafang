@@ -21,7 +21,7 @@ function setup({ affectedRows = 1, order = null } = {}) {
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
       return order || {
-        id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'issued-dynamic-payload',
+        id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'issued-dynamic-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         table_name: 'A01', order_no: '110042', total: 25
       };
     },
@@ -72,7 +72,7 @@ test('waiter KHQR notification locks order and commits state plus audit before b
   const { handler, calls, events, transactionEvents } = setup();
   const res = response();
   await handler({
-    body: { order_id: '42', pay_method: 'khqr', cash_received: 25, cash_change: 0 },
+    body: { order_id: '42', pay_method: 'khqr', payment_channel: 'khqr', expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', cash_received: 25, cash_change: 0 },
     waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
     waiterStoreId: 9
   }, res);
@@ -100,13 +100,13 @@ test('waiter KHQR notification rejects an order without an issued QR before stat
   });
   const res = response();
   await handler({
-    body: { order_id: 42, payment_channel: 'khqr', pay_method: 'aba' },
+    body: { order_id: 42, payment_channel: 'khqr', expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', pay_method: 'aba' },
     waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
     waiterStoreId: 9
   }, res);
 
   assert.equal(res.statusCode, 409);
-  assert.match(res.body.error, /尚未生成 KHQR/);
+  assert.match(res.body.error, /二维码已变化或已失效/);
   assert.equal(calls.some(call => call.type === 'run'), false);
   assert.equal(events.length, 0);
   assert.deepEqual(transactionEvents, ['begin', 'rollback']);
@@ -137,7 +137,7 @@ test('waiter KHQR notification rejects a concurrent state change without broadca
   const { handler, calls, events, transactionEvents } = setup({ affectedRows: 0 });
   const res = response();
   await handler({
-    body: { order_id: 42, pay_method: 'khqr' },
+    body: { order_id: 42, payment_channel: 'khqr', expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', pay_method: 'khqr' },
     waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
     waiterStoreId: 9
   }, res);
@@ -164,7 +164,7 @@ test('waiter KHQR notification rejects invalid order identifiers before querying
 
 test('repeated waiter KHQR notification is idempotent and does not duplicate audit or broadcast', async () => {
   const { handler, calls, events, transactionEvents } = setup({
-    order: { id: 42, status: 'pending', awaiting_confirm: 1, pay_khqr_ref: 'issued-dynamic-payload', table_name: 'A01', order_no: '110042', total: 25 }
+    order: { id: 42, status: 'pending', awaiting_confirm: 1, pay_khqr_ref: 'issued-dynamic-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', table_name: 'A01', order_no: '110042', total: 25 }
   });
   const res = response();
   await handler({
@@ -178,6 +178,48 @@ test('repeated waiter KHQR notification is idempotent and does not duplicate aud
   assert.equal(calls.some(call => call.type === 'run'), false);
   assert.deepEqual(transactionEvents, ['begin', 'commit']);
   assert.equal(events.length, 0);
+});
+
+test('KHQR waiter notification requires a generation identity', async () => {
+  const { handler, calls, events, transactionEvents } = setup();
+  const res = response();
+  await handler({
+    body: { order_id: 42, payment_channel: 'khqr', pay_method: 'aba' },
+    waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
+    waiterStoreId: 9
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /缺少有效的二维码生成标识/);
+  assert.equal(calls.length, 0);
+  assert.equal(events.length, 0);
+  assert.deepEqual(transactionEvents, []);
+});
+
+test('stale waiter notification cannot target a replacement QR generation with identical payload', async () => {
+  const { handler, calls, events, transactionEvents } = setup({
+    order: {
+      id: 42, status: 'pending', awaiting_confirm: 0,
+      pay_khqr_ref: 'same-dynamic-payload',
+      pay_qr_generation_id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      table_name: 'A01', order_no: '110042', total: 25
+    }
+  });
+  const res = response();
+  await handler({
+    body: {
+      order_id: 42, payment_channel: 'khqr', pay_method: 'aba',
+      expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    },
+    waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
+    waiterStoreId: 9
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /二维码已变化/);
+  assert.equal(calls.some(call => call.type === 'run'), false);
+  assert.equal(events.length, 0);
+  assert.deepEqual(transactionEvents, ['begin', 'rollback']);
 });
 
 test('waiter KHQR notification rejects non-finite tender values before starting transaction', async () => {

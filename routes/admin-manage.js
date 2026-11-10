@@ -931,9 +931,12 @@ module.exports = function(app, deps) {
       if (req.isCashier && !req.cashier?.permissions?.can_settle) return res.status(403).json({ error: '没有确认收款权限' });
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) return res.status(403).json({ error: '没有订单收款权限' });
       if (req.isWaiter && !req.waiter?.can_order) return res.status(403).json({ error: '该服务员没有提交收款确认权限' });
-      const { order_id, pay_method, cash_received, cash_change } = req.body || {};
+      const { order_id, pay_method, cash_received, cash_change, expected_qr_generation_id: expectedQrGenerationId } = req.body || {};
       const orderId = parsePositiveOrderId(order_id);
       if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
+      if (expectedQrGenerationId !== undefined && (typeof expectedQrGenerationId !== 'string' || !/^[a-f0-9]{48,64}$/.test(expectedQrGenerationId))) {
+        return res.status(400).json({ error: '二维码生成标识无效' });
+      }
       const { storeId: sid } = await resolveKhqrStore(req);
 
       const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, sid]);
@@ -966,9 +969,15 @@ module.exports = function(app, deps) {
         let notification = null;
         await withTransaction(async () => {
           const lockedOrder = await getAsync(
-            'SELECT id, status, awaiting_confirm, pay_khqr_ref, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+            'SELECT id, status, awaiting_confirm, pay_khqr_ref, pay_qr_generation_id, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
             [orderId, sid]
           );
+          if (Boolean(lockedOrder?.pay_khqr_ref) !== Boolean(expectedQrGenerationId) ||
+              (expectedQrGenerationId && lockedOrder?.pay_qr_generation_id !== expectedQrGenerationId)) {
+            const error = new Error('二维码已变化或已失效，请刷新后重新确认');
+            error.status = 409;
+            throw error;
+          }
           if (!lockedOrder || lockedOrder.status !== 'pending' ||
               (!Number(lockedOrder.awaiting_confirm) && !lockedOrder.pay_khqr_ref)) {
             const error = new Error('订单状态已变化或没有可确认的 KHQR 收款码');
@@ -1022,6 +1031,12 @@ module.exports = function(app, deps) {
           'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
           [orderId, sid]
         );
+        if (Boolean(lockedOrder?.pay_khqr_ref) !== Boolean(expectedQrGenerationId) ||
+              (expectedQrGenerationId && lockedOrder?.pay_qr_generation_id !== expectedQrGenerationId)) {
+          const error = new Error('二维码已变化或已失效，拒绝使用旧确认请求结算');
+          error.status = 409;
+          throw error;
+        }
         if (!lockedOrder || lockedOrder.status !== 'pending' ||
             lockedOrder.table_name !== order.table_name ||
             (!Number(lockedOrder.awaiting_confirm) && !lockedOrder.pay_khqr_ref)) {
@@ -1174,11 +1189,14 @@ module.exports = function(app, deps) {
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) {
         return res.status(403).json({ error: '没有订单收款权限' });
       }
-      const { order_id, pay_method, cash_received, cash_change, payment_channel } = req.body || {};
+      const { order_id, pay_method, cash_received, cash_change, payment_channel, expected_qr_generation_id: expectedQrGenerationId } = req.body || {};
       const paymentChannel = payment_channel === undefined ? 'manual' : payment_channel;
       if (!['manual', 'khqr'].includes(paymentChannel)) return res.status(400).json({ error: '收款渠道无效' });
       const orderId = parsePositiveOrderId(order_id);
       if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
+      if (paymentChannel === 'khqr' && (typeof expectedQrGenerationId !== 'string' || !/^[a-f0-9]{48,64}$/.test(expectedQrGenerationId))) {
+        return res.status(400).json({ error: '缺少有效的二维码生成标识，请刷新二维码后重试' });
+      }
 
       let sid;
       let actorName = 'admin';
@@ -1205,7 +1223,7 @@ module.exports = function(app, deps) {
       let alreadyNotified = false;
       await withTransaction(async () => {
         const order = await getAsync(
-          'SELECT id, status, awaiting_confirm, pay_khqr_ref, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+          'SELECT id, status, awaiting_confirm, pay_khqr_ref, pay_qr_generation_id, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
           [orderId, sid]
         );
         if (!order) {
@@ -1215,6 +1233,12 @@ module.exports = function(app, deps) {
         }
         if (order.status !== 'pending') {
           const error = new Error('订单状态不允许通知');
+          error.status = 409;
+          throw error;
+        }
+
+        if (paymentChannel === 'khqr' && (!order.pay_khqr_ref || order.pay_qr_generation_id !== expectedQrGenerationId)) {
+          const error = new Error('二维码已变化或已失效，请刷新后重新确认');
           error.status = 409;
           throw error;
         }
@@ -1229,12 +1253,6 @@ module.exports = function(app, deps) {
         // A waiter may only ask the cashier to verify a payment against a QR
         // that was actually issued for this order. Never create a payable state
         // from a bare notification request.
-        if (paymentChannel === 'khqr' && !order.pay_khqr_ref) {
-          const error = new Error('该订单尚未生成 KHQR 收款码，不能提交到账确认');
-          error.status = 409;
-          throw error;
-        }
-
         const notified = await runAsync(
           "UPDATE orders SET awaiting_confirm=1, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
           [paymentMethod, Number.isFinite(received) ? received : 0, Number.isFinite(change) ? change : 0, orderId, sid]

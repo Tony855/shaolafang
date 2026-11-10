@@ -933,14 +933,18 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   }
 
   async function confirmKhqrReceived() {
-    if (!khqrState.orderId) return;
+    if (!khqrState.orderId || !khqrState.qrGenerationId) {
+      SLF.ui.toast('二维码生成批次已失效，请刷新后重试');
+      return;
+    }
+    const expectedQrGenerationId = khqrState.qrGenerationId;
     const btn = document.getElementById('khqrConfirmBtn');
     btn.disabled = true;
     btn.textContent = t('khqrConfirming');
     try {
       const res = await api('/cashier/khqr/confirm', {
         method: 'POST',
-        body: { order_id: khqrState.orderId, role: 'cashier' }
+        body: { order_id: khqrState.orderId, expected_qr_generation_id: expectedQrGenerationId, role: 'cashier' }
       });
       SLF.ui.toast('✅ ' + (t('settleSuccess') || '已收款'));
       closeKhqrModalSilent();
