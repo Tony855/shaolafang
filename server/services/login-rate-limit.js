@@ -112,7 +112,7 @@ function createLoginRateLimiter({ getAsync, runAsync, withTransaction }) {
       );
       if (!changed?.affectedRows) return false;
       await runAsync(
-        'UPDATE login_rate_limits SET failed_attempts=failed_attempts+1, locked_until=IF(failed_attempts+1 >= ?, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? MINUTE), locked_until), updated_at=UTC_TIMESTAMP(3) WHERE login_type=? AND username=?',
+        'UPDATE login_rate_limits SET failed_attempts=failed_attempts+1, locked_until=IF(failed_attempts >= ?, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? MINUTE), locked_until), updated_at=UTC_TIMESTAMP(3) WHERE login_type=? AND username=?',
         [maxAttempts, lockMinutes, loginType, key]
       );
       return true;
