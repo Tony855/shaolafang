@@ -9,6 +9,63 @@ const { parsePositiveRouteId } = require('../server/services/route-id');
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder } = deps;
 
+  // Public QR scans create bearer sessions. Bound unauthenticated session
+  // creation per client IP and periodically remove expired credentials.
+  const scanSessionRateBuckets = new Map();
+  const SCAN_SESSION_RATE_LIMIT = 60;
+  const SCAN_SESSION_RATE_WINDOW_MS = 60 * 1000;
+  const SCAN_SESSION_CLEANUP_INTERVAL_MS = 60 * 1000;
+  let lastScanSessionCleanupAt = 0;
+  let scanSessionCleanupPromise = null;
+
+  function consumeScanSessionRateLimit(req) {
+    const ip = typeof req.ip === 'string' && req.ip.trim()
+      ? req.ip.trim()
+      : (typeof req.socket?.remoteAddress === 'string' ? req.socket.remoteAddress : 'unknown');
+    const now = Date.now();
+    let bucket = scanSessionRateBuckets.get(ip);
+    if (!bucket || bucket.resetAt <= now) {
+      bucket = { count: 0, resetAt: now + SCAN_SESSION_RATE_WINDOW_MS };
+      scanSessionRateBuckets.set(ip, bucket);
+    }
+    if (bucket.count >= SCAN_SESSION_RATE_LIMIT) {
+      return Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+    }
+    bucket.count += 1;
+
+    if (scanSessionRateBuckets.size > 4096) {
+      for (const [key, value] of scanSessionRateBuckets) {
+        if (value.resetAt <= now) scanSessionRateBuckets.delete(key);
+      }
+      if (scanSessionRateBuckets.size > 4096) {
+        scanSessionRateBuckets.delete(scanSessionRateBuckets.keys().next().value);
+      }
+    }
+    return 0;
+  }
+
+  async function cleanupExpiredScanSessions() {
+    const now = Date.now();
+    if (now - lastScanSessionCleanupAt < SCAN_SESSION_CLEANUP_INTERVAL_MS) return;
+    if (scanSessionCleanupPromise) return scanSessionCleanupPromise;
+
+    const cleanupAt = now;
+    scanSessionCleanupPromise = runAsync(
+      'DELETE FROM scan_sessions WHERE expires_at < ?',
+      [new Date(cleanupAt).toISOString()]
+    ).then(() => {
+      lastScanSessionCleanupAt = cleanupAt;
+    }).catch(error => {
+      // Cleanup is best-effort: a cleanup outage must not prevent a guest
+      // from opening a valid table QR session.
+      lastScanSessionCleanupAt = cleanupAt;
+      console.error('[scan-session] expired-session cleanup failed:', error.message);
+    }).finally(() => {
+      scanSessionCleanupPromise = null;
+    });
+    return scanSessionCleanupPromise;
+  }
+
   app.get('/api/qrcode/:table', requireAdminKey, requirePermission('can_manage_table'), async (req, res) => {
     try {
       const storeId = Number(req.storeId);
@@ -46,6 +103,12 @@ module.exports = function(app, deps) {
       res.setHeader('Pragma', 'no-cache');
       const qrToken = typeof req.params.token === 'string' ? req.params.token : '';
       if (!qrToken || qrToken.length > 255) return res.status(400).json({ error: '桌码无效' });
+      const retryAfter = consumeScanSessionRateLimit(req);
+      if (retryAfter > 0) {
+        res.setHeader('Retry-After', String(retryAfter));
+        return res.status(429).json({ error: '扫码请求过于频繁，请稍后重试' });
+      }
+      await cleanupExpiredScanSessions();
       const table = await getAsync('SELECT name, store_id FROM tables WHERE qr_token=?', [qrToken]);
       if (!table) return res.status(404).json({ error: '无效或已失效的桌码' });
       const storeId = Number(table.store_id);
