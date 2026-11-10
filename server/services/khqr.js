@@ -493,9 +493,9 @@ function buildDynamicPayload(staticPayload, amount, currencyCode, orderNo) {
     parts.push(tlv('62', t62Value));
   }
 
-  // NBC KHQR guidance defines top-level Tag 99 as a millisecond timestamp.
-  // Expiration is enforced by the order record, not by non-standard nested tags.
-  parts.push(tlv('99', String(nowMs)));
+  // KHQR Tag 99 contains subtag 00 with the millisecond timestamp.
+  // Do not retain the source Tag 99 or append a non-standard expiry subtag 01.
+  parts.push(tlv('99', tlv('00', String(nowMs))));
 
   parts.sort(
     (a, b) => parseInt(a.slice(0, 2), 10) - parseInt(b.slice(0, 2), 10)
