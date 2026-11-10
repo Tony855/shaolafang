@@ -28,3 +28,12 @@ test('super-admin store names are passed through data attributes, not inline Jav
   assert.doesNotMatch(superSource, /esc\(s\.store_name\|\|''\)\.replace\(\/['"]\/g/);
   assert.match(superSource, /button\.addEventListener\('click'/);
 });
+
+
+test('HTML escaping fallbacks remain safe when shared core utilities are unavailable', () => {
+  assert.ok(kitchenSource.includes("esc: s => String(s ?? '').replace(/[&<>"));
+  assert.ok(adminContextSource.includes("esc: (s) => String(s ?? '').replace(/[&<>"));
+  assert.ok(adminBundleSource.includes("esc: (s) => String(s ?? '').replace(/[&<>"));
+  assert.equal(adminContextSource.includes('window.esc || String'), false);
+  assert.equal(adminBundleSource.includes('window.esc || String'), false);
+});
