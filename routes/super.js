@@ -46,7 +46,8 @@ app.post('/api/super/login', async (req, res) => {
       const whitelist = ipWhitelistSetting.value.split(',').map(ip => ip.trim()).filter(Boolean);
       if (whitelist.length > 0 && !whitelist.includes(clientIp)) {
         await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', 'IP不在白名单内']);
-        await cancelLoginAttempt(username, 'super_admin', lockStatus.reservationId);\n        return res.status(403).json({ error: '当前IP不允许登录超级管理员后台' });
+        await cancelLoginAttempt(username, 'super_admin', lockStatus.reservationId);
+      return res.status(403).json({ error: '当前IP不允许登录超级管理员后台' });
       }
     }
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE username=?', [username]);
