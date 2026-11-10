@@ -8,6 +8,9 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const waiterSource = fs.readFileSync(path.join(root, 'pages/waiter.js'), 'utf8');
 const superSource = fs.readFileSync(path.join(root, 'pages/super.js'), 'utf8');
+const kitchenSource = fs.readFileSync(path.join(root, 'pages/kitchen.js'), 'utf8');
+const adminContextSource = fs.readFileSync(path.join(root, 'pages/admin/context.js'), 'utf8');
+const adminBundleSource = fs.readFileSync(path.join(root, 'assets/admin-bundle.js'), 'utf8');
 
 test('waiter table names are passed through data attributes, not inline JavaScript', () => {
   assert.match(waiterSource, /data-open-table="\$\{esc\(table\.name\)\}"/);
