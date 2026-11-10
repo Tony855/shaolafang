@@ -1297,6 +1297,11 @@ module.exports = function(app, deps) {
           error.status = 409;
           throw error;
         }
+        if (req.waiter && Number(order.awaiting_confirm)) {
+          const error = new Error('该订单已提交到账确认，只能由收银员或管理员取消');
+          error.status = 403;
+          throw error;
+        }
         // Never let a close request without an ownership reference clear an
         // active QR: another terminal may have created it after this client
         // started its own generation request.
@@ -1310,11 +1315,6 @@ module.exports = function(app, deps) {
         if (expectedQrRef !== undefined && order.pay_khqr_ref !== expectedQrRef) {
           const error = new Error('二维码已变化，请刷新后重试');
           error.status = 409;
-          throw error;
-        }
-        if (req.waiter && Number(order.awaiting_confirm)) {
-          const error = new Error('该订单已提交到账确认，只能由收银员或管理员取消');
-          error.status = 403;
           throw error;
         }
         const result = await runAsync(
