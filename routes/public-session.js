@@ -74,18 +74,12 @@ module.exports = function(app, deps) {
 
   const getSessionToken = req => {
     const headerToken = typeof req.get === 'function' ? req.get('X-Scan-Session') : req.headers?.['x-scan-session'];
-    const value = typeof headerToken === 'string' && headerToken.trim()
-      ? headerToken.trim()
-      : (typeof req.params?.token === 'string' ? req.params.token : '');
-    return value;
+    return typeof headerToken === 'string' ? headerToken.trim() : '';
   };
 
   const getCustomerToken = req => {
     const headerToken = typeof req.get === 'function' ? req.get('X-Customer-Token') : req.headers?.['x-customer-token'];
-    const value = typeof headerToken === 'string' && headerToken.trim()
-      ? headerToken.trim()
-      : (typeof req.query?.ct === 'string' ? req.query.ct.trim() : '');
-    return value;
+    return typeof headerToken === 'string' ? headerToken.trim() : '';
   };
 
   // Public order responses must never disclose bearer credentials stored on rows.
@@ -115,14 +109,13 @@ module.exports = function(app, deps) {
       );
       if (!activeStore) return res.status(404).json({ error: '店铺不存在或已停用' });
       const customerToken = getCustomerToken(req);
+      if (!customerToken) return res.status(401).json({ error: '请提供顾客会话令牌' });
       if (customerToken.length > 128) return res.status(400).json({ error: '顾客会话令牌无效' });
-      let rows;
-      if (customerToken) {
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND table_name=? AND session_token=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC", [sessionStoreId, session.table_name, sessionToken, customerToken, sevenDaysAgo]);
-      } else {
-        rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, sessionStoreId, sessionToken]);
-      }
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const rows = await allAsync(
+        "SELECT * FROM orders WHERE store_id=? AND table_name=? AND session_token=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC",
+        [sessionStoreId, session.table_name, sessionToken, customerToken, sevenDaysAgo]
+      );
       res.json({ table: session.table_name, orders: rows.map(formatPublicOrder) });
     } catch (error) {
       res.status(500).json({ error: '查询订单失败' });
@@ -144,7 +137,8 @@ module.exports = function(app, deps) {
         [sessionStoreId]
       );
       if (!activeStore) return res.status(404).json({ error: '店铺不存在或已停用' });
-      res.json({ table: session.table_name, storeId: sessionStoreId, sessionToken, expiresAt: session.expires_at });
+      // The bearer token was supplied in X-Scan-Session; never echo it in the response.
+      res.json({ table: session.table_name, storeId: sessionStoreId, expiresAt: session.expires_at });
     } catch (error) {
       res.status(500).json({ error: '读取扫码会话失败' });
     }
@@ -167,8 +161,6 @@ module.exports = function(app, deps) {
   app.get('/api/public/table-session/info', getSessionInfo);
   app.delete('/api/public/table-session', deleteSession);
 
-  // Legacy path/query aliases remain for older clients during rollout.
-  app.get('/api/public/table-session/:token/orders', getSessionOrders);
-  app.get('/api/public/table-session/:token/info', getSessionInfo);
-  app.delete('/api/public/table-session/:token', deleteSession);
+  // Do not accept bearer credentials in URL paths: reverse proxies and access logs
+  // commonly record full request URLs. Clients must use the X-Scan-Session header.
 };

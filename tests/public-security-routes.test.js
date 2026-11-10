@@ -479,6 +479,18 @@ test('public order creation never echoes scan-session or customer bearer tokens'
   const serialized = JSON.stringify({ response: res.body, emitted });
   assert.equal(serialized.includes(sessionToken), false);
   assert.equal(serialized.includes(customerToken), false);
+
+  const missingCustomerTokenResponse = response();
+  await handler({
+    body: {
+      table: 'A1',
+      sessionToken,
+      items: [{ id: 1, quantity: 1 }]
+    },
+    get: () => ''
+  }, missingCustomerTokenResponse);
+  assert.equal(missingCustomerTokenResponse.statusCode, 400);
+  assert.match(missingCustomerTokenResponse.body.error, /顾客会话令牌/);
 });
 
 test('QR credential generation requires table-management permission', () => {
@@ -745,4 +757,80 @@ test('renaming a table refuses to move pending orders with an active KHQR payloa
   assert.match(res.body.error, /KHQR/);
   assert.equal(writes.some(x => x.sql.startsWith('UPDATE tables SET name=')), false);
   assert.equal(transactionCalls, 1);
+});
+
+
+test('public scan-session credentials are never accepted or returned in URL paths', async () => {
+  const { app, routes } = routeHarness();
+  require('../routes/public-session')(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async sql => {
+      if (sql.includes('FROM scan_sessions')) {
+        return {
+          table_name: 'A1',
+          store_id: 7,
+          expires_at: new Date(Date.now() + 60000).toISOString()
+        };
+      }
+      if (sql.includes('FROM stores')) return { id: 7 };
+      return null;
+    },
+    allAsync: async () => [],
+    runAsync: async () => ({ affectedRows: 1 }),
+    formatOrder: row => row
+  });
+
+  assert.equal(routes.has('GET /api/public/table-session/:token/orders'), false);
+  assert.equal(routes.has('GET /api/public/table-session/:token/info'), false);
+  assert.equal(routes.has('DELETE /api/public/table-session/:token'), false);
+
+  const token = 'header-only-bearer-token';
+  const res = response();
+  await routes.get('GET /api/public/table-session/info').at(-1)({
+    get: name => name === 'X-Scan-Session' ? token : '',
+    params: {},
+    query: {}
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {
+    table: 'A1',
+    storeId: 7,
+    expiresAt: res.body.expiresAt
+  });
+  assert.equal(Object.hasOwn(res.body, 'sessionToken'), false);
+  assert.equal(JSON.stringify(res.body).includes(token), false);
+  assert.match(res.headers['Cache-Control'], /no-store/);
+});
+
+
+test('public order history requires the per-customer bearer token', async () => {
+  const { app, routes } = routeHarness();
+  let orderQueries = 0;
+  require('../routes/public-session')(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async sql => {
+      if (sql.includes('FROM scan_sessions')) {
+        return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
+      }
+      if (sql.includes('FROM stores')) return { id: 7 };
+      return null;
+    },
+    allAsync: async () => { orderQueries++; return []; },
+    runAsync: async () => ({ affectedRows: 1 }),
+    formatOrder: row => row
+  });
+
+  const res = response();
+  await routes.get('GET /api/public/table-session/orders').at(-1)({
+    get: name => name === 'X-Scan-Session' ? 'valid-scan-session' : '',
+    params: { token: 'legacy-path-token' },
+    query: { ct: 'legacy-query-customer-token' }
+  }, res);
+
+  assert.equal(res.statusCode, 401);
+  assert.equal(orderQueries, 0);
+  assert.match(res.headers['Cache-Control'], /no-store/);
 });
