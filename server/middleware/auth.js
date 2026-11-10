@@ -43,13 +43,18 @@ async function requireSuperAdmin(req, res, next) {
       await runAsync('DELETE FROM super_sessions WHERE token_hash=?', [hashSessionToken(token)]).catch(() => {});
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
+    // Re-check the account's active flag on every request. Disabling a
+    // super-admin must revoke access immediately, including already-issued sessions.
+    const superAdmin = await getAsync('SELECT * FROM super_admins WHERE id=? AND active=1', [session.super_admin_id]);
+    if (!superAdmin) {
+      await runAsync('DELETE FROM super_sessions WHERE token_hash=?', [hashSessionToken(token)]).catch(() => {});
+      return res.status(401).json({ error: '账号已停用或登录已过期，请重新登录' });
+    }
     const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_idle_timeout'");
     const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 60);
     const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 60;
     const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
     runAsync('UPDATE super_sessions SET expires_at=? WHERE token_hash=?', [newExpires, hashSessionToken(token)]).catch(() => {});
-    const superAdmin = await getAsync('SELECT * FROM super_admins WHERE id=?', [session.super_admin_id]);
-    if (!superAdmin) return res.status(401).json({ error: '登录已过期' });
     req.superAdmin = superAdmin;
     req.superSessionToken = token;
     next();
