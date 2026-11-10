@@ -15,6 +15,7 @@ test('waiter table names are passed through data attributes, not inline JavaScri
   assert.match(waiterSource, /card\.addEventListener\('click'/);
   assert.match(waiterSource, /tableLabel = .*\+ esc\(table\);/);
   assert.doesNotMatch(waiterSource, /tableLabel = .*\+ table;/);
+  assert.match(waiterSource, /orderHistoryList'\)\.innerHTML = .*\+ esc\(e\.message\)/);
 });
 
 test('super-admin store names are passed through data attributes, not inline JavaScript', () => {
