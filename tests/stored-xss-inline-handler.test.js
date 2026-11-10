@@ -21,6 +21,12 @@ test('waiter table names are passed through data attributes, not inline JavaScri
   assert.match(waiterSource, /orderHistoryList'\)\.innerHTML = .*\+ esc\(e\.message\)/);
 });
 
+test('waiter menu category names are passed through data attributes, not inline JavaScript', () => {
+  assert.match(waiterSource, /data-category="\$\{esc\(cat\)\}"/);
+  assert.doesNotMatch(waiterSource, /onclick="setDishCategory\('/);
+  assert.match(waiterSource, /button\.addEventListener\('click', \(\) => setDishCategory\(button\.dataset\.category/);
+});
+
 test('super-admin store names are passed through data attributes, not inline JavaScript', () => {
   assert.match(superSource, /class="show-store-sessions-btn" data-store-id=/);
   assert.match(superSource, /data-store-name="' \+ esc\(s\.store_name \|\| ''\) \+ '"/);
