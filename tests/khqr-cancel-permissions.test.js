@@ -177,6 +177,23 @@ test('authorized cashier can cancel a submitted confirmation and the action is a
   assert.deepEqual(transactionEvents, ['begin', 'commit']);
 });
 
+test('cashier can cancel a manual payment confirmation that has no dynamic QR', async () => {
+  const { handler, calls, transactionEvents } = setup({
+    order: { id: 42, status: 'pending', awaiting_confirm: 1, pay_khqr_ref: '', pay_qr_generation_id: '', table_name: 'A01' }
+  });
+  const res = response();
+  await handler({
+    body: { order_id: 42 }, storeId: 9, merchantId: 3,
+    isCashier: true, cashier: { id: 8, username: 'qa-cashier', permissions: { can_settle: true } }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  const update = calls.find(call => call.type === 'run' && call.sql.startsWith('UPDATE orders SET awaiting_confirm=0'));
+  assert.ok(update);
+  assert.equal(update.params[4], '');
+  assert.deepEqual(transactionEvents, ['begin', 'commit']);
+});
+
 test('KHQR cancellation rolls back when the audit record cannot be written', async () => {
   const { handler, calls, transactionEvents } = setup({ failAudit: true });
   const res = response();
