@@ -489,6 +489,44 @@ test('customer order lookup accepts bearer tokens in headers and disables cachin
   assert.match(res.headers['Cache-Control'], /no-store/);
 });
 
+test('public order lookup never returns scan or customer bearer tokens', async () => {
+  const { app, routes } = routeHarness();
+  const sourceOrder = {
+    id: 99, session_token: 'private-session-token', customer_token: 'private-customer-token'
+  };
+  require('../routes/public-session')(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async (sql) => {
+      if (sql.includes('FROM scan_sessions')) {
+        return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
+      }
+      if (sql.includes('FROM stores')) return { id: 7 };
+      return null;
+    },
+    allAsync: async () => [sourceOrder],
+    runAsync: async () => ({ affectedRows: 1 }),
+    formatOrder: row => ({
+      id: row.id,
+      sessionToken: row.session_token,
+      customerToken: row.customer_token,
+      status: 'pending'
+    })
+  });
+
+  const handler = routes.get('GET /api/public/table-session/orders').at(-1);
+  const res = response();
+  await handler({
+    get: name => ({ 'X-Scan-Session': 'private-session-token', 'X-Customer-Token': 'private-customer-token' }[name] || ''),
+    query: {}, params: {}
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.orders, [{ id: 99, status: 'pending' }]);
+  assert.equal(JSON.stringify(res.body).includes('private-session-token'), false);
+  assert.equal(JSON.stringify(res.body).includes('private-customer-token'), false);
+});
+
 test('public QR scan credentials are never cacheable', async () => {
   const { app, routes } = routeHarness();
   require('../routes/public-session')(app, {
