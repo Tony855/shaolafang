@@ -628,7 +628,7 @@ app.post('/api/orders', async (req, res) => {
       if (autoPrintEnabled) {
         const storeInfo = await getAsync('SELECT * FROM stores WHERE id=?', [finalStoreId]);
         const result = await dispatchPrint({
-          order: formatOrder(newRow),
+          order: formatStaffOrder(newRow),
           type: 'kitchen',
           store: storeInfo,
           getAsync,

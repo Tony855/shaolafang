@@ -735,7 +735,7 @@ app.post('/api/cashier/orders/:id(\\d+)/print', requireCashier, async (req, res)
     if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const order = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [id, req.storeId]);
     if (!order) return res.status(404).json({ error: '订单不存在' });
-    const formattedOrder = formatOrder(order);
+    const formattedOrder = formatStaffOrder(order, formatOrder);
     const store = await getAsync('SELECT name, address, phone FROM stores WHERE id=?', [req.storeId]);
 
     const result = await dispatchPrint({
