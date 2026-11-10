@@ -47,7 +47,7 @@ async function requireSuperAdmin(req, res, next) {
     const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 60);
     const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 60;
     const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
-    runAsync('UPDATE super_sessions SET expires_at=? WHERE token_hash=?', [newExpires, token]).catch(() => {});
+    runAsync('UPDATE super_sessions SET expires_at=? WHERE token_hash=?', [newExpires, hashSessionToken(token)]).catch(() => {});
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE id=?', [session.super_admin_id]);
     if (!superAdmin) return res.status(401).json({ error: '登录已过期' });
     req.superAdmin = superAdmin;
@@ -201,7 +201,7 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
     if (cashierToken) {
       const session = await getAsync(
         'SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token_hash=?',
-        [cashierToken]
+        [hashSessionToken(cashierToken)]
       );
       if (session && Number.isFinite(new Date(session.expires_at).getTime()) &&
           new Date(session.expires_at).getTime() > Date.now()) {
@@ -242,7 +242,7 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
     if (waiterToken) {
       const session = await getAsync(
         'SELECT waiter_id, expires_at FROM waiter_sessions WHERE token_hash=?',
-        [waiterToken]
+        [hashSessionToken(waiterToken)]
       );
       if (session && Number.isFinite(new Date(session.expires_at).getTime()) &&
           new Date(session.expires_at).getTime() > Date.now()) {
