@@ -119,7 +119,7 @@ module.exports = function(app, deps) {
       let rows;
       if (customerToken) {
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC", [sessionStoreId, customerToken, sevenDaysAgo]);
+        rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND table_name=? AND session_token=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC", [sessionStoreId, session.table_name, sessionToken, customerToken, sevenDaysAgo]);
       } else {
         rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, sessionStoreId, sessionToken]);
       }
