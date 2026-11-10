@@ -39,7 +39,7 @@ test('dynamic KHQR replaces the static Tag 99 with one standard millisecond time
   const tag99Fields = khqr.parseTLV(tag99[0].value);
   assert.equal(tag99Fields.length, 1, 'Tag 99 must contain only the standard timestamp subtag');
   assert.equal(tag99Fields[0].tag, '00');
-  assert.match(tag99Fields[0].value, /^\\d{13}$/, 'Tag 99 subtag 00 must contain a millisecond timestamp');
+  assert.match(tag99Fields[0].value, /^\d{13}$/, 'Tag 99 subtag 00 must contain a millisecond timestamp');
   assert.ok(Number(tag99Fields[0].value) >= before && Number(tag99Fields[0].value) <= after);
   assert.equal(fields.find(item => item.tag === '01')?.value, '12');
   assert.equal(fields.find(item => item.tag === '53')?.value, '840');
@@ -73,7 +73,7 @@ test('dynamic KHQR emits Tag 99 even when the static payload omitted it', () => 
   const tag99Fields = khqr.parseTLV(parsed.find(item => item.tag === '99').value);
   assert.equal(tag99Fields.length, 1);
   assert.equal(tag99Fields[0].tag, '00');
-  assert.match(tag99Fields[0].value, /^\\d{13}$/);
+  assert.match(tag99Fields[0].value, /^\d{13}$/);
   assert.equal(parsed.find(item => item.tag === '54')?.value, '1000');
   assert.equal(parsed.find(item => item.tag === '53')?.value, '116');
   assert.equal(khqr.validateCrc(dynamicPayload), true);
