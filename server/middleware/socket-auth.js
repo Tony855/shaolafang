@@ -1,5 +1,7 @@
 'use strict';
 
+const { hashSessionToken } = require('../services/session-token');
+
 function isLiveSession(session) {
   if (!session) return false;
   const expiresAt = new Date(session.expires_at).getTime();
@@ -19,11 +21,12 @@ function createSocketAuthenticator({ getAsync, logger = console }) {
       // Keep bearer credentials out of the URL/query string and reverse-proxy access logs.
       const rawToken = socket.handshake?.auth?.token;
       const token = typeof rawToken === 'string' ? rawToken.trim() : '';
+      const tokenHash = hashSessionToken(token);
       if (!token || token.length > 256) return next(new Error('unauthorized: valid session token required'));
 
       const scanSession = await getAsync(
-        'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?',
-        [token]
+        'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token_hash=?',
+        [tokenHash]
       );
       if (scanSession) {
         if (!isLiveSession(scanSession)) return next(new Error('unauthorized: table session expired'));
@@ -47,8 +50,8 @@ function createSocketAuthenticator({ getAsync, logger = console }) {
       }
 
       const waiterSession = await getAsync(
-        'SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?',
-        [token]
+        'SELECT waiter_id, expires_at FROM waiter_sessions WHERE token_hash=?',
+        [tokenHash]
       );
       if (isLiveSession(waiterSession)) {
         const waiter = await getAsync(
@@ -67,8 +70,8 @@ function createSocketAuthenticator({ getAsync, logger = console }) {
       }
 
       const cashierSession = await getAsync(
-        'SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?',
-        [token]
+        'SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token_hash=?',
+        [tokenHash]
       );
       if (isLiveSession(cashierSession)) {
         const storeId = positiveSafeInteger(cashierSession.store_id);
@@ -96,8 +99,8 @@ function createSocketAuthenticator({ getAsync, logger = console }) {
       }
 
       const adminSession = await getAsync(
-        'SELECT admin_id, expires_at FROM admin_sessions WHERE token=?',
-        [token]
+        'SELECT admin_id, expires_at FROM admin_sessions WHERE token_hash=?',
+        [tokenHash]
       );
       if (isLiveSession(adminSession)) {
         const admin = await getAsync(
