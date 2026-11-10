@@ -784,7 +784,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
         khqrState.qrPayload = res.qr_payload || '';
         khqrState.qrGenerationId = res.qr_generation_id || '';
         const currencySwitch = document.getElementById('khqrCurrencySwitch');
-        if (currencySwitch) currencySwitch.disabled = !khqrState.qrPayload;
+        if (currencySwitch) currencySwitch.disabled = !khqrState.qrPayload || !khqrState.qrGenerationId;
         // 优先用后端返回的 base64（<img> 无法带 token，不能直接用 URL 接口）
         if (res.qr_data_url) {
           document.getElementById('khqrImage').src = res.qr_data_url;
