@@ -19,7 +19,7 @@ function staticKhqrWithTimestamp() {
     tlv('58', 'KH'),
     tlv('59', 'Lucky Supermarket'),
     tlv('60', 'Phnom Penh'),
-    tlv('99', '1700000000000')
+    tlv('99', tlv('00', '1700000000000'))
   ].join('');
   return body + '6304' + khqr.crc16(body + '6304');
 }
