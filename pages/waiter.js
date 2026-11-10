@@ -631,7 +631,7 @@
         <div onclick="showOrderDetail(${o.id})" style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .2s;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <div style="font-weight:700;font-size:15px;">${esc(o.order_no || ("#"+o.id))} ${t('table', null, '桌号')} ${esc(o.table) || '-'}</div>
-            <span style="background:${o.status === 'done' ? '#27ae60' : o.status === 'canceled' ? '#95a5a6' : '#f39c12'};color:#fff;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;">${statusMap[o.status] || o.status}</span>
+            <span style="background:${o.status === 'done' ? '#27ae60' : o.status === 'canceled' ? '#95a5a6' : '#f39c12'};color:#fff;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;">${statusMap[o.status] || esc(o.status)}</span>
           </div>
           <div style="color:#666;font-size:13px;">${SLF.utils.formatDateTime(o.createdAt)}</div>
           <div style="display:flex;justify-content:space-between;margin-top:8px;">
@@ -655,7 +655,7 @@
     content.innerHTML = `
       <div style="margin-bottom:15px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('table', null, '桌号')}</span><span style="font-weight:600;">${esc(order.table) || '-'}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('status', null, '状态')}</span><span style="font-weight:600;">${statusMap[order.status] || order.status}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('status', null, '状态')}</span><span style="font-weight:600;">${statusMap[order.status] || esc(order.status)}</span></div>
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('orderTime', null, '下单时间')}</span><span>${SLF.utils.formatDateTime(order.createdAt)}</span></div>
         ${order.note ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:#666;">${t('note', null, '备注')}</span><span>${esc(order.note)}</span></div>` : ''}
       </div>
