@@ -73,6 +73,10 @@ function createLoginRateLimiter({ getAsync, runAsync, withTransaction }) {
         "UPDATE login_rate_limit_attempts SET state='expired', updated_at=UTC_TIMESTAMP(3) WHERE login_type=? AND username=? AND state='pending' AND created_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 10 MINUTE)",
         [loginType, key]
       );
+      await runAsync(
+        "DELETE FROM login_rate_limit_attempts WHERE login_type=? AND username=? AND state <> 'pending' AND created_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 30 DAY)",
+        [loginType, key]
+      );
       const counts = await getAsync(
         "SELECT COUNT(*) AS pending_count FROM login_rate_limit_attempts WHERE login_type=? AND username=? AND state='pending'",
         [loginType, key]
@@ -101,7 +105,7 @@ function createLoginRateLimiter({ getAsync, runAsync, withTransaction }) {
     if (!key || typeof reservationId !== 'string' || !reservationId) return false;
     const { maxAttempts, lockMinutes } = await readPolicy();
     return withTransaction(async () => {
-      await ensureRateRow(loginType, key);
+      await ensureRateRow(loginType, key, lockMinutes);
       const changed = await runAsync(
         "UPDATE login_rate_limit_attempts SET state='failed', updated_at=UTC_TIMESTAMP(3) WHERE id=? AND login_type=? AND username=? AND state='pending'",
         [reservationId, loginType, key]
@@ -119,8 +123,9 @@ function createLoginRateLimiter({ getAsync, runAsync, withTransaction }) {
     const key = normalizeUsername(username);
     const loginType = normalizeType(type);
     if (!key || typeof reservationId !== 'string' || !reservationId) return false;
+    const { lockMinutes } = await readPolicy();
     return withTransaction(async () => {
-      await ensureRateRow(loginType, key);
+      await ensureRateRow(loginType, key, lockMinutes);
       const changed = await runAsync(
         "UPDATE login_rate_limit_attempts SET state='succeeded', updated_at=UTC_TIMESTAMP(3) WHERE id=? AND login_type=? AND username=? AND state='pending'",
         [reservationId, loginType, key]
@@ -138,7 +143,9 @@ function createLoginRateLimiter({ getAsync, runAsync, withTransaction }) {
     const key = normalizeUsername(username);
     const loginType = normalizeType(type);
     if (!key || typeof reservationId !== 'string' || !reservationId) return false;
+    const { lockMinutes } = await readPolicy();
     return withTransaction(async () => {
+      await ensureRateRow(loginType, key, lockMinutes);
       const changed = await runAsync(
         "UPDATE login_rate_limit_attempts SET state='cancelled', updated_at=UTC_TIMESTAMP(3) WHERE id=? AND login_type=? AND username=? AND state='pending'",
         [reservationId, loginType, key]
