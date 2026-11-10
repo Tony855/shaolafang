@@ -24,8 +24,8 @@ test('session storage migration adds unique digest columns and clears legacy cre
   const withTransaction = async work => { transactionCount++; return work(); };
   const allAsync = async sql => {
     queries.push(sql);
-    if (sql.startsWith('SHOW COLUMNS')) return [{ Field: 'token', Null: 'NO' }, { Field: 'expires_at', Null: 'NO' }];
-    if (sql.startsWith('SHOW INDEX')) return [];
+    if (sql.includes('information_schema.COLUMNS')) return [{ Field: 'token', Null: 'NO' }, { Field: 'expires_at', Null: 'NO' }];
+    if (sql.includes('information_schema.STATISTICS')) return [];
     if (sql.startsWith('SELECT value FROM settings')) return [];
     throw new Error('unexpected metadata query: ' + sql);
   };
@@ -49,8 +49,8 @@ test('session storage migration is safe to rerun after digest columns and indexe
   const runAsync = async sql => { writes.push(sql); return { affectedRows: 0 }; };
   let transactionCount = 0;
   const withTransaction = async work => { transactionCount++; return work(); };
-  const allAsync = async sql => {
-    if (sql.startsWith('SHOW COLUMNS')) return [
+  const allAsync = async (sql, params = []) => {
+    if (sql.includes('information_schema.COLUMNS')) return [
       { Field: 'token', Null: 'YES' },
       { Field: 'token_hash', Null: 'YES' },
       { Field: 'expires_at', Null: 'NO' }
