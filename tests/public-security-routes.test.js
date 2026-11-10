@@ -495,6 +495,8 @@ test('public order lookup never returns scan or customer bearer tokens', async (
     id: 99, session_token: 'private-session-token', customer_token: 'private-customer-token'
   };
   require('../routes/public-session')(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
     getAsync: async (sql) => {
       if (sql.includes('FROM scan_sessions')) {
         return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
