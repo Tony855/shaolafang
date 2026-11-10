@@ -131,7 +131,7 @@ async function authenticateAdmin(req) {
           const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 30);
           const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 30;
           const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
-          runAsync('UPDATE admin_sessions SET expires_at=? WHERE token_hash=?', [newExpires, token]).catch(() => {});
+          runAsync('UPDATE admin_sessions SET expires_at=? WHERE token_hash=?', [newExpires, hashSessionToken(token)]).catch(() => {});
           return { adminId: admin.id, merchantId: admin.merchant_id, storeId: validStoreId, sessionToken: token };
         }
       }
