@@ -1331,8 +1331,8 @@ module.exports = function(app, deps) {
           throw error;
         }
         const result = await runAsync(
-          "UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=? AND pay_khqr_ref <=> ? AND pay_qr_generation_id <=> ?",
-          [orderId, sid, Number(order.awaiting_confirm) ? 1 : 0, order.pay_khqr_ref ?? null, order.pay_qr_generation_id ?? null]
+          "UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=? AND pay_khqr_ref <=> ? AND COALESCE(pay_qr_generation_id, '') = ?",
+          [orderId, sid, Number(order.awaiting_confirm) ? 1 : 0, order.pay_khqr_ref ?? null, order.pay_qr_generation_id || '']
         );
         if (!result.affectedRows) {
           const error = new Error('订单状态已变化，请刷新后重试');
