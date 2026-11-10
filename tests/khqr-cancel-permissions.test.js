@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerAdminManageRoutes = require('../routes/admin-manage');
 
-function setup({ order = { id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'qr-payload', pay_expires_at: '2030-01-01T00:00:00.000Z', table_name: 'A01' }, affectedRows = 1, failAudit = false } = {}) {
+function setup({ order = { id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'qr-payload', pay_expires_at: '2030-01-01T00:00:00.000Z', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', table_name: 'A01' }, affectedRows = 1, failAudit = false } = {}) {
   const handlers = new Map();
   const calls = [];
   const transactionEvents = [];
@@ -98,16 +98,16 @@ test('non-primary admin without order management permission cannot cancel a KHQR
 
 test('conditional KHQR cancellation refuses to clear a different QR issued after the close request', async () => {
   const { handler, calls, transactionEvents } = setup({
-    order: { id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'newer-qr-payload', pay_expires_at: '2030-01-01T00:00:00.000Z', table_name: 'A01' }
+    order: { id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'newer-qr-payload', pay_expires_at: '2030-01-01T00:00:00.000Z', pay_qr_generation_id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', table_name: 'A01' }
   });
   const res = response();
   await handler({
-    body: { order_id: 42, expected_qr_ref: 'older-qr-payload' },
+    body: { order_id: 42, expected_qr_ref: 'older-qr-payload', expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
     isAdmin: true, isPrimaryAdmin: true, storeId: 9, merchantId: 3, adminId: 1
   }, res);
 
   assert.equal(res.statusCode, 409);
-  assert.match(res.body.error, /二维码已变化/);
+  assert.match(res.body.error, /二维码生成批次已变化/);
   assert.equal(calls.some(call => call.type === 'run'), false);
   assert.deepEqual(transactionEvents, ['begin', 'rollback']);
 });
@@ -121,7 +121,7 @@ test('active QR cannot be canceled by an unqualified stale close request', async
   }, res);
 
   assert.equal(res.statusCode, 409);
-  assert.match(res.body.error, /缺少二维码引用/);
+  assert.match(res.body.error, /缺少二维码生成标识/);
   assert.equal(calls.some(call => call.type === 'run' && call.sql.startsWith('UPDATE orders SET awaiting_confirm=0')), false);
   assert.deepEqual(transactionEvents, ['begin', 'rollback']);
 });
@@ -130,7 +130,7 @@ test('authorized waiter can cancel an unsubmitted QR with row lock and audit', a
   const { handler, calls, transactionEvents } = setup();
   const res = response();
   await handler({
-    body: { order_id: '42', expected_qr_ref: 'qr-payload' }, storeId: 9, merchantId: 3,
+    body: { order_id: '42', expected_qr_ref: 'qr-payload', expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, storeId: 9, merchantId: 3,
     isWaiter: true, waiter: { id: 7, store_id: 9, can_order: 1, display_name: 'QA waiter' }, waiterStoreId: 9
   }, res);
   assert.equal(res.statusCode, 200);
@@ -166,7 +166,7 @@ test('authorized cashier can cancel a submitted confirmation and the action is a
   });
   const res = response();
   await handler({
-    body: { order_id: 42, expected_qr_ref: 'qr-payload' }, storeId: 9, merchantId: 3,
+    body: { order_id: 42, expected_qr_ref: 'qr-payload', expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, storeId: 9, merchantId: 3,
     isCashier: true, cashier: { id: 8, username: 'qa-cashier', permissions: { can_settle: true } }
   }, res);
   assert.equal(res.statusCode, 200);
