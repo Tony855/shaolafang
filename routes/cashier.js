@@ -138,7 +138,8 @@ app.post('/api/cashier/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [
         new Date().toISOString(), getClientIp(req), username, 'cashier', '账号在多个门店匹配，请指定门店'
       ]);
-      await cancelLoginAttempt(username, 'cashier', lockStatus.reservationId);\n      return res.status(409).json({ error: '该收银员账号在多个门店匹配，请先选择门店' });
+      await cancelLoginAttempt(username, 'cashier', lockStatus.reservationId);
+      return res.status(409).json({ error: '该收银员账号在多个门店匹配，请先选择门店' });
     }
 
     const candidate = candidates[0];
