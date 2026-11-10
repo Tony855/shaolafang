@@ -286,9 +286,12 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       await runAsync('DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)', [merchantId]);
       await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [merchantId]);
       for (const sid of storeIds) {
+        const storeSettingsPrefix = `store_${sid}_`;
+        await runAsync('DELETE FROM settings WHERE LEFT(`key`, CHAR_LENGTH(?)) = ?', [storeSettingsPrefix, storeSettingsPrefix]);
         await runAsync("DELETE FROM settings WHERE `key` = ?", ['cashiers_' + sid]);
       }
-      await runAsync("DELETE FROM settings WHERE `key` LIKE ?", [`merchant_${merchantId}_%`]);
+      const merchantSettingsPrefix = `merchant_${merchantId}_`;
+      await runAsync('DELETE FROM settings WHERE LEFT(`key`, CHAR_LENGTH(?)) = ?', [merchantSettingsPrefix, merchantSettingsPrefix]);
       await runAsync('DELETE FROM merchant_admins WHERE merchant_id=?', [merchantId]);
       await runAsync('DELETE FROM currencies WHERE merchant_id=?', [merchantId]);
       await runAsync('DELETE FROM login_logs WHERE merchant_id=?', [merchantId]);
