@@ -115,14 +115,13 @@ module.exports = function(app, deps) {
       );
       if (!activeStore) return res.status(404).json({ error: '店铺不存在或已停用' });
       const customerToken = getCustomerToken(req);
+      if (!customerToken) return res.status(401).json({ error: '请提供顾客会话令牌' });
       if (customerToken.length > 128) return res.status(400).json({ error: '顾客会话令牌无效' });
-      let rows;
-      if (customerToken) {
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        rows = await allAsync("SELECT * FROM orders WHERE store_id=? AND table_name=? AND session_token=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC", [sessionStoreId, session.table_name, sessionToken, customerToken, sevenDaysAgo]);
-      } else {
-        rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, sessionStoreId, sessionToken]);
-      }
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const rows = await allAsync(
+        "SELECT * FROM orders WHERE store_id=? AND table_name=? AND session_token=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC",
+        [sessionStoreId, session.table_name, sessionToken, customerToken, sevenDaysAgo]
+      );
       res.json({ table: session.table_name, orders: rows.map(formatPublicOrder) });
     } catch (error) {
       res.status(500).json({ error: '查询订单失败' });
