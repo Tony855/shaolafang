@@ -835,7 +835,7 @@ async function initDatabase() {
 
   // Persist only SHA-256 digests for bearer sessions. Existing raw tokens are
   // backfilled before the legacy token columns are cleared, preserving live sessions.
-  await migrateSessionTokenStorage({ runAsync, allAsync });
+  await migrateSessionTokenStorage({ runAsync, allAsync, withTransaction });
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS reservations (
