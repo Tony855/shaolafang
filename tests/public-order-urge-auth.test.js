@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const attachAdminManageRoutes = require('../routes/admin-manage');
+const { hashSessionToken } = require('../server/services/session-token');
 
 const pass = (_req, _res, next) => next();
 
@@ -84,7 +85,7 @@ test('public order urge cannot target another customer or another scan session o
   const orderLookup = ctx.calls.find(call => call.type === 'get' && call.sql.includes('FROM orders'));
   assert.ok(orderLookup);
   assert.match(orderLookup.sql, /session_token=\? AND customer_token=\?/);
-  assert.deepEqual(orderLookup.params, [42, 7, 'A01', 'session-A', 'customer-B']);
+  assert.deepEqual(orderLookup.params, [42, 7, 'A01', hashSessionToken('session-A'), hashSessionToken('customer-B')]);
   assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO waiter_calls')), false);
 });
 
