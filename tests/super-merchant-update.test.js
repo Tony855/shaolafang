@@ -167,6 +167,10 @@ test('merchant status transition revokes all merchant-scoped sessions', async ()
     assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM ' + table)),
       table + ' must be revoked when merchant status changes');
   }
+  const waiterRevoke = ctx.calls.find(call => call.type === 'run' && call.sql.includes('DELETE FROM waiter_sessions'));
+  assert.match(waiterRevoke.sql, /INNER JOIN stores st ON st.id=w.store_id WHERE st.merchant_id=/);
+  const scanRevoke = ctx.calls.find(call => call.type === 'run' && call.sql.includes('DELETE FROM scan_sessions'));
+  assert.match(scanRevoke.sql, /WHERE store_id IN \(SELECT id FROM stores WHERE merchant_id=/);
 });
 
 test('merchant profile-only update does not revoke active sessions', async () => {
