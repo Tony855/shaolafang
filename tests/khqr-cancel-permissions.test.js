@@ -198,7 +198,7 @@ test('KHQR cancellation rolls back when the audit record cannot be written', asy
   const { handler, calls, transactionEvents } = setup({ failAudit: true });
   const res = response();
   await handler({
-    body: { order_id: 42, expected_qr_ref: 'qr-payload' }, storeId: 9, merchantId: 3,
+    body: { order_id: 42, expected_qr_ref: 'qr-payload', expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, storeId: 9, merchantId: 3,
     isAdmin: true, isPrimaryAdmin: true, adminId: 1, username: 'root'
   }, res);
   assert.equal(res.statusCode, 500);
