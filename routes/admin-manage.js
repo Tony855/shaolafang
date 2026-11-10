@@ -860,13 +860,14 @@ module.exports = function(app, deps) {
         width: 240,
       });
       const expiresAt = new Date(Date.now() + expireMin * 60 * 1000).toISOString();
+      const qrGenerationId = crypto.randomBytes(24).toString('hex');
 
       // Serialize QR generation on the order row. Without this lock, two concurrent
       // requests can each return a different valid QR while only the last payload is
       // persisted, making a payment to the first QR impossible to reconcile.
       await withTransaction(async () => {
         const lockedOrder = await getAsync(
-          'SELECT status, total, awaiting_confirm, pay_khqr_ref, pay_expires_at FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+          'SELECT status, total, awaiting_confirm, pay_khqr_ref, pay_expires_at, pay_qr_generation_id FROM orders WHERE id=? AND store_id=? FOR UPDATE',
           [order.id, sid]
         );
         const lockedTotalCents = lockedOrder ? toMoneyCents(lockedOrder.total) : null;
@@ -892,8 +893,8 @@ module.exports = function(app, deps) {
           }
         }
         const qrUpdate = await runAsync(
-          "UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
-          ['khqr', dynamicPayload, expiresAt, order.id, sid]
+          "UPDATE orders SET pay_method=?, pay_khqr_ref=?, pay_expires_at=?, pay_qr_generation_id=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
+          ['khqr', dynamicPayload, expiresAt, qrGenerationId, order.id, sid]
         );
         if (!qrUpdate.affectedRows) {
           const error = new Error('订单状态已变化，无法生成新的收款码');
@@ -903,6 +904,7 @@ module.exports = function(app, deps) {
       });
       res.json({
         qr_payload: dynamicPayload,
+        qr_generation_id: qrGenerationId,
         qr_data_url: qrDataUrl,
         provider_id: provider.id,
         provider_label: provider.label,
