@@ -106,7 +106,7 @@ test('online session details never select or expose the bearer token', async () 
   assert.deepEqual(res.body.sessions, []);
   const query = ctx.allCalls.find(call => call.sql.includes('FROM scan_sessions ss'));
   assert.ok(query);
-  assert.doesNotMatch(query.sql, /ss\\.token/);
+  assert.doesNotMatch(query.sql, /ss\.token/);
 });
 
 test('backup restore rejects an empty super-admin table before deleting live data', async () => {
