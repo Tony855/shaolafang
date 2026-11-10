@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerCashierRoutes = require('../routes/cashier');
 const { hashPassword, verifyPassword } = require('../server/middleware/password');
+const { hashSessionToken } = require('../server/services/session-token');
 
 function setup({ cashierRows = null, lockedCashierRows = null } = {}) {
   const handlers = new Map();
@@ -75,7 +76,9 @@ test('waiter login completes and creates a session using imported password migra
   assert.equal(res.statusCode, 200);
   assert.ok(res.body.token);
   assert.equal(res.body.waiter.id, 7);
-  assert.ok(calls.some(call => call.sql.includes('INSERT INTO waiter_sessions')));
+  const sessionInsert = calls.find(call => call.sql.includes('INSERT INTO waiter_sessions'));
+  assert.ok(sessionInsert);
+  assert.equal(sessionInsert.params[1], hashSessionToken(res.body.token));
 });
 
 test('cashier login completes and creates a session using imported password migration helpers', async () => {
@@ -85,7 +88,9 @@ test('cashier login completes and creates a session using imported password migr
   assert.equal(res.statusCode, 200);
   assert.ok(res.body.token);
   assert.equal(res.body.cashier.id, 42);
-  assert.ok(calls.some(call => call.sql.includes('INSERT INTO cashier_sessions')));
+  const sessionInsert = calls.find(call => call.sql.includes('INSERT INTO cashier_sessions'));
+  assert.ok(sessionInsert);
+  assert.equal(sessionInsert.params[3], hashSessionToken(res.body.token));
 });
 
 test('cashier login rejects ambiguous matching accounts when no store is selected', async () => {

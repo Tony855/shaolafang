@@ -4,6 +4,7 @@ const poolModule = require('./server/db/pool');
 const { poolConfig, setPool } = poolModule;
 const { runAsync, getAsync, allAsync, withTransaction } = require('./server/db/helpers');
 const { createLoginRateLimiter } = require('./server/services/login-rate-limit');
+const { migrateSessionTokenStorage } = require('./server/services/session-token');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
 const { initMerchantSettings, initStoreSettings } = require('./server/services/settings-init');
@@ -831,6 +832,10 @@ async function initDatabase() {
   `);
   try { await runAsync('ALTER TABLE waiter_calls ADD COLUMN type VARCHAR(20) DEFAULT "call"'); } catch (e) { /* 已存在 */ }
   try { await runAsync('ALTER TABLE waiter_calls ADD COLUMN message VARCHAR(255)'); } catch (e) { /* 已存在 */ }
+
+  // Persist only SHA-256 digests for bearer sessions. Existing raw tokens are
+  // backfilled before the legacy token columns are cleared, preserving live sessions.
+  await migrateSessionTokenStorage({ runAsync, allAsync, withTransaction });
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS reservations (

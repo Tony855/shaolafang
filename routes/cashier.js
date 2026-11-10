@@ -2,6 +2,7 @@
    routes/cashier.js — 服务员登录 + 收银员路由
    ============================================================ */
 const crypto = require('crypto');
+const { hashSessionToken } = require('../server/services/session-token');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
  
 function parsePositiveOrderId(value) {
@@ -75,7 +76,7 @@ app.post('/api/waiter/login', async (req, res) => {
     const configuredWaiterTimeoutHours = Number(waiterTimeoutSetting?.value ?? 12);
     const waiterTimeoutHours = Number.isSafeInteger(configuredWaiterTimeoutHours) && configuredWaiterTimeoutHours > 0 ? Math.min(configuredWaiterTimeoutHours, 720) : 12;
     const expiresAt = new Date(Date.now() + waiterTimeoutHours * 60 * 60 * 1000).toISOString();
-    await runAsync('INSERT INTO waiter_sessions (waiter_id, token, expires_at) VALUES (?, ?, ?)', [waiter.id, token, expiresAt]);
+    await runAsync('INSERT INTO waiter_sessions (waiter_id, token_hash, expires_at) VALUES (?, ?, ?)', [waiter.id, hashSessionToken(token), expiresAt]);
     const store = await getAsync('SELECT name FROM stores WHERE id=? AND merchant_id=? AND active=1', [waiter.store_id, waiter.merchant_id]);
     if (!store) return res.status(403).json({ error: '服务员所属门店已停用' });
     res.json({ token, storeId: Number(waiter.store_id), storeName: store.name, waiter: { id: waiter.id, username: waiter.username, display_name: waiter.display_name, can_order: waiter.can_order, can_mark_item: waiter.can_mark_item, can_complete_order: waiter.can_complete_order, store_id: waiter.store_id } });
@@ -194,8 +195,8 @@ app.post('/api/cashier/login', async (req, res) => {
         [new Date().toISOString(), getClientIp(req), username, merchantId, 'cashier', '收银员登录成功']
       );
       await runAsync(
-        'INSERT INTO cashier_sessions (cashier_id, store_id, merchant_id, token, expires_at) VALUES (?, ?, ?, ?, ?)',
-        [current.id, candidate.storeId, merchantId, token, expiresAt]
+        'INSERT INTO cashier_sessions (cashier_id, store_id, merchant_id, token_hash, expires_at) VALUES (?, ?, ?, ?, ?)',
+        [current.id, candidate.storeId, merchantId, hashSessionToken(token), expiresAt]
       );
     });
 
@@ -213,7 +214,7 @@ app.post('/api/cashier/logout', async (req, res) => {
   try {
     const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
     if (token) {
-      await runAsync('DELETE FROM cashier_sessions WHERE token=?', [token]).catch(() => {});
+      await runAsync('DELETE FROM cashier_sessions WHERE token_hash=?', [hashSessionToken(token)]).catch(() => {});
     }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }

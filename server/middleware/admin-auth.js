@@ -3,6 +3,7 @@
  * 管理员认证中间件（从 server.js 抽出）
  */
 const { getAsync, runAsync, allAsync } = require('../db/helpers');
+const { hashSessionToken } = require('../services/session-token');
 const { getActiveWaiter } = require('../services/waiter-auth');
 const crypto = require('crypto');
 const { parsePositiveRouteId } = require('../services/route-id');
@@ -52,7 +53,7 @@ function respondAuthUnavailable(res, context) {
 async function getWaiterFromRequest(req) {
   const token = req.get('X-Waiter-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
-  const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
+  const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token_hash=?', [hashSessionToken(token)]);
   if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
   return await getAsync(
     'SELECT w.* FROM waiters w JOIN stores s ON s.id=w.store_id AND s.merchant_id=w.merchant_id AND s.active=1 JOIN merchants m ON m.id=w.merchant_id AND m.status=1 WHERE w.id=? AND w.active=1',
@@ -63,7 +64,7 @@ async function getWaiterFromRequest(req) {
 async function getCashierFromRequest(req) {
   const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
   if (!token) return null;
-  const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
+  const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token_hash=?', [hashSessionToken(token)]);
   if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return null;
   const activeStore = await getAsync(
     'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
@@ -90,10 +91,10 @@ async function authenticateAdmin(req) {
   const authHeader = req.get('Authorization') || '';
   const token = authHeader.replace(/^Bearer\s+/i, '');
   if (token) {
-    const session = await getAsync('SELECT * FROM admin_sessions WHERE token=?', [token]);
+    const session = await getAsync('SELECT * FROM admin_sessions WHERE token_hash=?', [hashSessionToken(token)]);
     if (session) {
       if (!Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
-        await runAsync('DELETE FROM admin_sessions WHERE token=?', [token]).catch(() => {});
+        await runAsync('DELETE FROM admin_sessions WHERE token_hash=?', [hashSessionToken(token)]).catch(() => {});
         return { error: '登录已过期，请重新登录' };
       }
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE id=? AND active=1', [session.admin_id]);
@@ -131,7 +132,7 @@ async function authenticateAdmin(req) {
           const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 30);
           const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 30;
           const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
-          runAsync('UPDATE admin_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
+          runAsync('UPDATE admin_sessions SET expires_at=? WHERE token_hash=?', [newExpires, hashSessionToken(token)]).catch(() => {});
           return { adminId: admin.id, merchantId: admin.merchant_id, storeId: validStoreId, sessionToken: token };
         }
       }
@@ -257,7 +258,7 @@ async function requireAdminOrWaiter(req, res, next) {
     const bearerToken = authHeader.replace(/^Bearer\s+/i, '');
     const token = req.get('X-Waiter-Token') || bearerToken;
     if (token) {
-      const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?', [token]);
+      const session = await getAsync('SELECT waiter_id, expires_at FROM waiter_sessions WHERE token_hash=?', [hashSessionToken(token)]);
       if (session && Number.isFinite(new Date(session.expires_at).getTime()) &&
           new Date(session.expires_at).getTime() > Date.now()) {
         const waiter = await getActiveWaiter(getAsync, session.waiter_id);
@@ -275,7 +276,7 @@ async function requireAdminOrWaiter(req, res, next) {
             const wTimeoutHours = Number.isSafeInteger(configuredWaiterTimeoutHours) && configuredWaiterTimeoutHours > 0
               ? Math.min(configuredWaiterTimeoutHours, 720) : 12;
             const newExpires = new Date(Date.now() + wTimeoutHours * 60 * 60 * 1000).toISOString();
-            runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
+            runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token_hash=?', [newExpires, hashSessionToken(token)]).catch(() => {});
           }
           return next();
         }

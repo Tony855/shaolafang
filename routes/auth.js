@@ -2,6 +2,7 @@
    routes/auth.js — 登录/登出
    ============================================================ */
 const crypto = require('crypto');
+const { hashSessionToken } = require('../server/services/session-token');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
 
 module.exports = function(app, deps) {
@@ -45,7 +46,7 @@ module.exports = function(app, deps) {
       const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 30);
       const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 30;
       const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
-      await runAsync('INSERT INTO admin_sessions (admin_id, token, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [admin.id, token, expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
+      await runAsync('INSERT INTO admin_sessions (admin_id, token_hash, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [admin.id, hashSessionToken(token), expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
       // 该商户的第一个店铺（供前端默认选中）
       const firstStore = await getAsync('SELECT id FROM stores WHERE merchant_id=? AND active=1 ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
       const primaryAdmin = await getAsync('SELECT id FROM merchant_admins WHERE merchant_id=? ORDER BY id ASC LIMIT 1', [admin.merchant_id]);
@@ -76,7 +77,7 @@ module.exports = function(app, deps) {
   app.post('/api/admin/logout', requireAdminKey, async (req, res) => {
     try {
       if (req.adminSessionToken) {
-        await runAsync('DELETE FROM admin_sessions WHERE token=?', [req.adminSessionToken]).catch(() => {});
+        await runAsync('DELETE FROM admin_sessions WHERE token_hash=?', [hashSessionToken(req.adminSessionToken)]).catch(() => {});
       }
       res.json({ success: true });
     } catch (e) { res.status(500).json({ error: '退出登录失败，请稍后重试' }); }

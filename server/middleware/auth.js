@@ -3,6 +3,7 @@
  * 精简版：只保留被 server.js 引用的 requireSuperAdmin 和 requireCashier。
  */
 const { getAsync, runAsync } = require('../db/helpers');
+const { hashSessionToken } = require('../services/session-token');
 
 function isPermissionEnabled(value) {
   return value === true || value === 1 || value === '1' || value === 'true';
@@ -36,17 +37,17 @@ async function requireSuperAdmin(req, res, next) {
     if (auth) token = auth.replace(/^Bearer\s+/i, '').trim();
     if (!token && req.headers['x-super-token']) token = String(req.headers['x-super-token']).trim();
     if (!token) return res.status(401).json({ error: '未登录' });
-    const session = await getAsync('SELECT * FROM super_sessions WHERE token=?', [token]);
+    const session = await getAsync('SELECT * FROM super_sessions WHERE token_hash=?', [hashSessionToken(token)]);
     if (!session) return res.status(401).json({ error: '登录已过期，请重新登录' });
     if (!Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
-      await runAsync('DELETE FROM super_sessions WHERE token=?', [token]).catch(() => {});
+      await runAsync('DELETE FROM super_sessions WHERE token_hash=?', [hashSessionToken(token)]).catch(() => {});
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
     const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_idle_timeout'");
     const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 60);
     const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 60;
     const newExpires = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
-    runAsync('UPDATE super_sessions SET expires_at=? WHERE token=?', [newExpires, token]).catch(() => {});
+    runAsync('UPDATE super_sessions SET expires_at=? WHERE token_hash=?', [newExpires, hashSessionToken(token)]).catch(() => {});
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE id=?', [session.super_admin_id]);
     if (!superAdmin) return res.status(401).json({ error: '登录已过期' });
     req.superAdmin = superAdmin;
@@ -62,7 +63,7 @@ async function requireCashier(req, res, next) {
   try {
     const token = req.get('X-Cashier-Token') || req.get('Authorization')?.replace(/^Bearer\s+/i, '');
     if (!token) return res.status(401).json({ error: '请先登录收银员账号' });
-    const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?', [token]);
+    const session = await getAsync('SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token_hash=?', [hashSessionToken(token)]);
     if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
       return res.status(401).json({ error: '登录已过期，请重新登录' });
     }
@@ -128,8 +129,8 @@ async function requireAdminOrCashier(req, res, next) {
     const token = req.get('X-Cashier-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     if (!token) return res.status(401).json({ error: '未登录' });
     const session = await getAsync(
-      'SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?',
-      [token]
+      'SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token_hash=?',
+      [hashSessionToken(token)]
     );
     if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) ||
         new Date(session.expires_at).getTime() <= Date.now()) {
@@ -199,8 +200,8 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
     const cashierToken = req.get('X-Cashier-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     if (cashierToken) {
       const session = await getAsync(
-        'SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token=?',
-        [cashierToken]
+        'SELECT cashier_id, store_id, merchant_id, expires_at FROM cashier_sessions WHERE token_hash=?',
+        [hashSessionToken(cashierToken)]
       );
       if (session && Number.isFinite(new Date(session.expires_at).getTime()) &&
           new Date(session.expires_at).getTime() > Date.now()) {
@@ -240,8 +241,8 @@ async function requireAdminOrCashierOrWaiter(req, res, next) {
     const waiterToken = req.get('X-Waiter-Token') || (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     if (waiterToken) {
       const session = await getAsync(
-        'SELECT waiter_id, expires_at FROM waiter_sessions WHERE token=?',
-        [waiterToken]
+        'SELECT waiter_id, expires_at FROM waiter_sessions WHERE token_hash=?',
+        [hashSessionToken(waiterToken)]
       );
       if (session && Number.isFinite(new Date(session.expires_at).getTime()) &&
           new Date(session.expires_at).getTime() > Date.now()) {

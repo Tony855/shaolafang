@@ -2,6 +2,7 @@
    routes/calls.js — 呼叫 + 预约
    ============================================================ */
 const crypto = require("crypto");
+const { hashSessionToken } = require('../server/services/session-token');
 const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
@@ -26,8 +27,8 @@ app.post('/api/public/call-waiter', async (req, res) => {
     if (sessionToken.length > 256) return res.status(400).json({ error: '扫码会话令牌无效' });
 
     const initialSession = await getAsync(
-      'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?',
-      [sessionToken]
+      'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token_hash=?',
+      [hashSessionToken(sessionToken)]
     );
     if (!initialSession) return res.status(401).json({ error: '扫码会话不存在，请重新扫码' });
     const initialStoreId = Number(initialSession.store_id);
@@ -71,8 +72,8 @@ app.post('/api/public/call-waiter', async (req, res) => {
       );
       if (!activeStore) throw Object.assign(new Error('店铺已停用，暂时无法呼叫服务员'), { status: 404 });
       const session = await getAsync(
-        'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=? FOR UPDATE',
-        [sessionToken]
+        'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token_hash=? FOR UPDATE',
+        [hashSessionToken(sessionToken)]
       );
       if (!session) throw Object.assign(new Error('扫码会话已失效，请重新扫码'), { status: 401 });
       const expiresAt = new Date(session.expires_at).getTime();
@@ -109,7 +110,7 @@ app.post('/api/public/call-waiter', async (req, res) => {
       const callId = crypto.randomBytes(16).toString('hex');
       await runAsync(
         'INSERT INTO waiter_calls (id, table_name, store_id, session_token, status, type, created_at, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-        [callId, table, tableRow.store_id, sessionToken, 'pending', 'call', new Date().toISOString(), tableRow.store_id]
+        [callId, table, tableRow.store_id, hashSessionToken(sessionToken), 'pending', 'call', new Date().toISOString(), tableRow.store_id]
       );
       return { limited: false, callId };
     });

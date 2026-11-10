@@ -6,6 +6,7 @@ const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
 const { resolveOrderStoreId } = require("../server/services/order-store-scope");
+const { hashSessionToken } = require('../server/services/session-token');
 
 function parsePositiveOrderRouteId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -113,7 +114,7 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, requireOrderTransferA
 
     let oldTable = '';
     let targetHasOrders = false;
-    let newToken = '';
+    let newTokenHash = '';
     await withTransaction(async () => {
       // Lock tables first, in stable ID order, then lock the order and QR session.
       // This matches table move/create/call lock ordering and avoids stale source-table races.
@@ -165,24 +166,25 @@ app.post('/api/orders/:id/transfer', requireAdminOrWaiter, requireOrderTransferA
       const now = Date.now();
       const nowIso = new Date(now).toISOString();
       const targetSession = await getAsync(
-        'SELECT token, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+        'SELECT token_hash, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
         [targetTable, storeId, nowIso]
       );
       const targetExpiry = targetSession ? new Date(targetSession.expires_at).getTime() : NaN;
       if (targetSession && Number.isFinite(targetExpiry) && targetExpiry > now) {
-        newToken = targetSession.token;
+        newTokenHash = targetSession.token_hash;
       } else {
-        newToken = crypto.randomBytes(32).toString('base64url');
+        const newToken = crypto.randomBytes(32).toString('base64url');
+        newTokenHash = hashSessionToken(newToken);
         const expiresAt = new Date(now + 2 * 60 * 60 * 1000).toISOString();
         await runAsync(
-          'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-          [targetTable, newToken, expiresAt, nowIso, storeId, storeId]
+          'INSERT INTO scan_sessions (table_name, token_hash, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+          [targetTable, newTokenHash, expiresAt, nowIso, storeId, storeId]
         );
       }
 
       const moved = await runAsync(
         "UPDATE orders SET table_name=?, session_token=? WHERE id=? AND store_id=? AND status='pending'",
-        [targetTable, newToken, orderId, storeId]
+        [targetTable, newTokenHash, orderId, storeId]
       );
       if (!moved.affectedRows) {
         const error = new Error('订单状态已变化，转桌操作已取消');
@@ -420,7 +422,9 @@ app.post('/api/orders', async (req, res) => {
 
     // ---------- 2. 会话/桌号校验 ----------
     let sessionToken = null;
+    let sessionTokenHash = null;
     let customerToken = '';
+    let customerTokenHash = '';
     let sessionStoreId = null;
     let table;
     const requestedTable = typeof req.body.table === 'string' ? req.body.table.trim() : '';
@@ -430,9 +434,10 @@ app.post('/api/orders', async (req, res) => {
     if (!isAdmin && !isWaiter) {
       const token = typeof req.body.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
       customerToken = typeof req.body.customerToken === 'string' ? req.body.customerToken.trim() : '';
+      customerTokenHash = hashSessionToken(customerToken);
       if (!token || token.length > 256) return res.status(401).json({ error: '请重新扫码后再下单' });
       if (!customerToken || customerToken.length > 128) return res.status(400).json({ error: '顾客会话令牌无效，请刷新页面后重试' });
-      const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [token]);
+      const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token_hash=?', [hashSessionToken(token)]);
       if (!session) return res.status(401).json({ error: '请重新扫码后再下单' });
       const sessionExpiresAt = new Date(session.expires_at).getTime();
       if (!Number.isFinite(sessionExpiresAt) || sessionExpiresAt <= Date.now()) {
@@ -450,6 +455,7 @@ app.post('/api/orders', async (req, res) => {
       table = await assertTableExists(requestedTable, sessionStoreId);
       if (session.table_name !== table) return res.status(403).json({ error: '扫码桌号与下单桌号不一致' });
       sessionToken = token;
+      sessionTokenHash = hashSessionToken(token);
     } else {
       const orderStoreId = Number(req.storeId);
       if (!Number.isSafeInteger(orderStoreId) || orderStoreId <= 0) {
@@ -540,7 +546,7 @@ app.post('/api/orders', async (req, res) => {
     // ---------- 7. 原子冷却检查 ----------
     // Acquire the cooldown only after the payload has passed validation. Invalid
     // requests must not lock a customer's QR session and block a valid order.
-    const cooldownKey = sessionToken || ('store:' + finalStoreId + ':table:' + table);
+    const cooldownKey = sessionTokenHash || ('store:' + finalStoreId + ':table:' + table);
     const cooldownMs = await getOrderCooldownMs();
     const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs);
     if (canSubmit === null) {
@@ -570,8 +576,8 @@ app.post('/api/orders', async (req, res) => {
         if (!activeStore) throw Object.assign(new Error('店铺已停用，暂时无法下单'), { status: 404 });
         if (sessionToken) {
           const lockedSession = await getAsync(
-            'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=? FOR UPDATE',
-            [sessionToken]
+            'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token_hash=? FOR UPDATE',
+            [sessionTokenHash]
           );
           if (!lockedSession) {
             throw Object.assign(new Error('扫码会话已失效，请重新扫码'), { status: 401 });
@@ -588,7 +594,7 @@ app.post('/api/orders', async (req, res) => {
         const orderNo = await allocateOrderNo(seqPrefix);
         const result = await runAsync(
           'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-          [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionToken, customerToken, finalStoreId, note, finalStoreId]
+          [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionTokenHash, customerTokenHash, finalStoreId, note, finalStoreId]
         );
         for (const item of items) {
           if (item.id) {
@@ -606,7 +612,7 @@ app.post('/api/orders', async (req, res) => {
           const qrTimeoutMins = Number.isSafeInteger(parsedQrTimeout) && parsedQrTimeout >= 0 ? Math.min(parsedQrTimeout, 1440) : 45;
           if (qrTimeoutMins > 0) {
             const newExpires = new Date(Date.now() + qrTimeoutMins * 60 * 1000).toISOString();
-            await runAsync('UPDATE scan_sessions SET expires_at=? WHERE token=?', [newExpires, sessionToken]);
+            await runAsync('UPDATE scan_sessions SET expires_at=? WHERE token_hash=?', [newExpires, sessionTokenHash]);
           }
         }
         return { orderId: result.lastID, orderNo };
@@ -669,7 +675,7 @@ app.post('/api/orders', async (req, res) => {
       order: staffOrderData
     };
     if (sessionToken) {
-      const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
+      const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token_hash=?', [sessionTokenHash]);
       if (updatedSession) responseData.newExpiresAt = updatedSession.expires_at;
     }
     res.status(201).json(responseData);
@@ -815,17 +821,18 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         const nowMs = Date.now();
         const nowIso = new Date(nowMs).toISOString();
         const targetSession = await getAsync(
-          'SELECT token, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+          'SELECT token_hash, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
           [nextTable, orderStoreId, nowIso]
         );
         const targetExpiry = targetSession ? new Date(targetSession.expires_at).getTime() : NaN;
         if (targetSession && Number.isFinite(targetExpiry) && targetExpiry > nowMs) {
-          nextSessionToken = targetSession.token;
+          nextSessionToken = targetSession.token_hash;
         } else {
-          nextSessionToken = crypto.randomBytes(32).toString('base64url');
+          const newSessionToken = crypto.randomBytes(32).toString('base64url');
+          nextSessionToken = hashSessionToken(newSessionToken);
           const expiresAt = new Date(nowMs + 2 * 60 * 60 * 1000).toISOString();
           await runAsync(
-            'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+            'INSERT INTO scan_sessions (table_name, token_hash, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
             [nextTable, nextSessionToken, expiresAt, nowIso, orderStoreId, orderStoreId]
           );
         }
