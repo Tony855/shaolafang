@@ -46,8 +46,8 @@ function setup({ failAudit = false } = {}) {
     getAsync: async sql => sql.includes('FROM stores') ? { id: 9, name: 'Test Store', merchant_name: 'Test Merchant' } : null,
     allAsync: async (sql, params) => {
       allCalls.push({ sql, params, inTransaction });
-      if (sql.startsWith('SHOW COLUMNS')) assert.equal(inTransaction, true);
-      if (sql.startsWith('SHOW COLUMNS')) {
+      if (sql.includes('information_schema.COLUMNS')) assert.equal(inTransaction, true);
+      if (sql.includes('information_schema.COLUMNS')) {
         return [{ Field: 'id' }, { Field: 'username' }, { Field: 'password_hash' }];
       }
       return [];
@@ -132,6 +132,9 @@ test('backup restore writes its audit event and invalidates sessions in the same
   assert.equal(audit.inTransaction, true);
   assert.equal(audit.strict, true);
   assert.ok(ctx.calls.filter(call => call.sql?.startsWith('DELETE FROM')).every(call => call.inTransaction));
+  const metadataQueries = ctx.allCalls.filter(call => call.sql.includes('information_schema.COLUMNS'));
+  assert.equal(metadataQueries.length, tableNames.length);
+  assert.deepEqual(metadataQueries.map(call => call.params[0]), tableNames);
   assert.equal(ctx.rolledBack, false);
 });
 
