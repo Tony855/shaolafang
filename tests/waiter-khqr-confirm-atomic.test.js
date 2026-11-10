@@ -192,6 +192,25 @@ test('cashier cannot settle a replacement QR generation using a stale confirmati
   assert.equal(events.length, 0);
 });
 
+test('stale QR confirmation cannot settle a later manual confirmation after QR cancellation', async () => {
+  const manualOrder = {
+    id: 42, status: 'pending', awaiting_confirm: 1,
+    pay_khqr_ref: '', pay_qr_generation_id: '',
+    table_name: 'A01', total: '25.00', pay_method: 'cash', cash_received: '30.00'
+  };
+  const { handler, calls, transactions, events } = setup({ initialOrder: manualOrder, lockedOrder: manualOrder });
+  const res = response();
+  await handler(adminRequest({
+    expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+  }), res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /二维码已变化/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.startsWith("UPDATE orders SET status='done'")), false);
+  assert.deepEqual(transactions, ['begin', 'rollback']);
+  assert.equal(events.length, 0);
+});
+
 test('cashier KHQR confirmation rejects cash amounts with sub-cent precision', async () => {
   const order = {
     id: 42, status: 'pending', awaiting_confirm: 1,
