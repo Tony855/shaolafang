@@ -41,7 +41,7 @@ test('audit-log retention always preserves per-refund financial audit records', 
   // Read the source rather than requiring backup.js: that module intentionally
   // initializes database helpers and requires production DB configuration.
   const backupSource = fs.readFileSync(path.join(__dirname, '../server/services/backup.js'), 'utf8');
-  assert.match(backupSource, /function buildAuditLogCleanupSql\\(\\)/);
-  assert.match(backupSource, /return "DELETE FROM audit_logs WHERE created_at < \\? AND action <> 'refund_order'"/);
-  assert.match(backupSource, /runAsync\\(buildAuditLogCleanupSql\\(\\), \\[cutoff\\]\\)/);
+  assert.ok(backupSource.includes('function buildAuditLogCleanupSql()'));
+  assert.ok(backupSource.includes("return \"DELETE FROM audit_logs WHERE created_at < ? AND action <> 'refund_order'\""));
+  assert.ok(backupSource.includes('runAsync(buildAuditLogCleanupSql(), [cutoff])'));
 });
