@@ -67,6 +67,12 @@ function calculateOrderTotalCents(items) {
   return Number(cents);
 }
 
+// Public table sockets are shared by every customer scanning the same table.
+// Send invalidation-only events; per-customer order details are fetched via bearer-scoped HTTP.
+function publicOrderChangedPayload(orderId) {
+  return { orderId: Number(orderId) };
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
@@ -329,18 +335,9 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
       io.to('kitchen-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
       io.to('waiter-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
       io.to('cashier-' + storeId).emit('item:updated', { orderId: id, order: updatedOrder });
-      io.to('public-table-' + storeId + '-' + updatedRow.table_name).emit('item:updated', {
-        orderId: id,
-        order: {
-          id: updatedOrder.id,
-          order_no: updatedOrder.order_no,
-          table_name: updatedOrder.table_name,
-          items: updatedOrder.items.map(item => ({ id: item.id, name: item.name, quantity: item.quantity, itemStatus: item.itemStatus, returnedQty: item.returnedQty || 0 })),
-          total: updatedOrder.total,
-          status: updatedOrder.status,
-          createdAt: updatedOrder.createdAt
-        }
-      });
+      io.to('public-table-' + storeId + '-' + updatedRow.table_name).emit(
+        'item:updated', publicOrderChangedPayload(id)
+      );
     }
     return res.json(updatedOrder);
   } catch (e) {
@@ -657,15 +654,9 @@ app.post('/api/orders', async (req, res) => {
     io.to('kitchen-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('waiter-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('cashier-' + finalStoreId).emit('order:new', staffOrderData);
-    io.to('public-table-' + finalStoreId + '-' + newRow.table_name).emit('order:new', {
-      id: orderData.id,
-      order_no: orderData.order_no,
-      table_name: orderData.table_name,
-      items: orderData.items.map(item => ({ id: item.id, name: item.name, quantity: item.quantity, itemStatus: item.itemStatus })),
-      total: orderData.total,
-      status: orderData.status,
-      createdAt: orderData.createdAt
-    });
+    io.to('public-table-' + finalStoreId + '-' + newRow.table_name).emit(
+      'order:new', publicOrderChangedPayload(orderData.id)
+    );
 
     const responseData = {
       success: true,
@@ -1004,3 +995,5 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
 
 module.exports.parsePositiveOrderRouteId = parsePositiveOrderRouteId;
 module.exports.parseNonNegativeRouteIndex = parseNonNegativeRouteIndex;
+
+module.exports.publicOrderChangedPayload = publicOrderChangedPayload;
