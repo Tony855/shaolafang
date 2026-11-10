@@ -360,9 +360,9 @@
                     state.table = info.table;
                     state.storeId = info.storeId || 1;
                     state.scanToken = '';
-                    state.scanSessionToken = info.sessionToken;
+                    state.scanSessionToken = sessionParam;
                     state.scanExpiresAt = info.expiresAt;
-                    setStoredScanSession(info.sessionToken, info.expiresAt);
+                    setStoredScanSession(sessionParam, info.expiresAt);
                     if (query.has('session')) {
                         const url = new URL(window.location.href);
                         url.searchParams.delete('session');
