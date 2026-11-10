@@ -35,6 +35,6 @@ test('currency switching cancels the exact current QR before requesting the new 
     assert.ok(text.includes('body: { order_id: orderId, expected_qr_ref: currentQr, expected_qr_generation_id: khqrState.qrGenerationId }'));
     assert.ok(text.includes('openKhqrModal(orderId, providerId, nextCurrency);'));
     assert.ok(text.includes('sw.disabled = true;'));
-    assert.ok(text.includes('currencySwitch.disabled = !khqrState.qrPayload;'));
+    assert.ok(text.includes('currencySwitch.disabled = !khqrState.qrPayload || !khqrState.qrGenerationId;'));
   }
 });
