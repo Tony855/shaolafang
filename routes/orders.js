@@ -821,17 +821,18 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         const nowMs = Date.now();
         const nowIso = new Date(nowMs).toISOString();
         const targetSession = await getAsync(
-          'SELECT token, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+          'SELECT token_hash, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
           [nextTable, orderStoreId, nowIso]
         );
         const targetExpiry = targetSession ? new Date(targetSession.expires_at).getTime() : NaN;
         if (targetSession && Number.isFinite(targetExpiry) && targetExpiry > nowMs) {
-          nextSessionToken = targetSession.token;
+          nextSessionToken = targetSession.token_hash;
         } else {
-          nextSessionToken = crypto.randomBytes(32).toString('base64url');
+          const newSessionToken = crypto.randomBytes(32).toString('base64url');
+          nextSessionToken = hashSessionToken(newSessionToken);
           const expiresAt = new Date(nowMs + 2 * 60 * 60 * 1000).toISOString();
           await runAsync(
-            'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+            'INSERT INTO scan_sessions (table_name, token_hash, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
             [nextTable, nextSessionToken, expiresAt, nowIso, orderStoreId, orderStoreId]
           );
         }
