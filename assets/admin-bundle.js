@@ -63,7 +63,7 @@ window.SLF.admin = {
   },
   tAdmin: (key) => (SLF.i18n && SLF.i18n.t ? SLF.i18n.t(key) : key),
   L: (key) => (SLF.i18n && SLF.i18n.t ? SLF.i18n.t(key) : key),
-  esc: (s) => (window.esc || String)(s),
+  esc: (s) => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[c])),
   hasPermission: () => true,
   applyPermissions: () => {},
   showConfirm: (msg, cb) => cb && cb(),

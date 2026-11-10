@@ -641,7 +641,7 @@
         </div>
       `).join('');
     } catch (e) {
-      document.getElementById('orderHistoryList').innerHTML = '<div style="text-align:center;padding:20px;color:#e74c3c;">' + e.message + '</div>';
+      document.getElementById('orderHistoryList').innerHTML = '<div style="text-align:center;padding:20px;color:#e74c3c;">' + esc(e.message) + '</div>';
     }
   }
 
@@ -770,8 +770,14 @@
       const actions = (newBtn || transferBtn)
         ? `<div class="table-card-actions">${newBtn}${transferBtn}</div>`
         : '';
-      return `<div class="table-card" onclick="openModal('${esc(table.name)}')"><div class="name"><span class="name-left">🍽️ ${esc(table.name)} <span class="status ${statusClass}">${statusText}</span></span>${actions}</div><div class="bill">${bill(table)}</div></div>`;
+      return `<div class="table-card" data-open-table="${esc(table.name)}"><div class="name"><span class="name-left">🍽️ ${esc(table.name)} <span class="status ${statusClass}">${statusText}</span></span>${actions}</div><div class="bill">${bill(table)}</div></div>`;
     }).join('') || `<div style="color:#c8c8d0;text-align:center;padding:40px;grid-column:1/-1;">${state.tableSearchQuery || state.tableFilter !== 'all' ? '🔍 ' + t('noData', null, '无匹配结果') : t('noTables', null, '暂无桌号')}</div>`;
+    document.querySelectorAll('.table-card[data-open-table]').forEach(card => {
+      card.addEventListener('click', function(e) {
+        if (e.target.closest('.table-card-actions')) return;
+        openModal(this.dataset.openTable || '');
+      });
+    });
     $('#submitBtn').style.display = state.waiter && state.waiter.can_order ? 'block' : 'none';
     document.querySelectorAll('.transfer-btn').forEach(btn => {
       btn.addEventListener('click', function(e) {
@@ -827,7 +833,7 @@
         state.cartMeta[itemId] = menuItem || i;
       });
     }
-    let tableLabel = '<span data-i18n="currentTable">' + t('currentTable', null, '当前桌号') + '</span>：' + table;
+    let tableLabel = '<span data-i18n="currentTable">' + t('currentTable', null, '当前桌号') + '</span>：' + esc(table);
     // 有订单时显示订单号
     if (order && (order.order_no || order.id)) {
       const orderNoText = order.order_no || ('#' + order.id);

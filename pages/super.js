@@ -1050,11 +1050,18 @@ async function showOnlineSessions() {
         + '<td style="padding:12px;color:#888;">' + esc(s.merchant_name||'-') + '</td>'
         + '<td style="padding:12px;text-align:center;font-weight:600;color:#27ae60;">' + (s.online_count||0) + '</td>'
         + '<td style="padding:12px;text-align:center;">' + (s.pending_orders||0) + '</td>'
-        + '<td style="padding:12px;text-align:right;"><button onclick="showStoreSessions(' + s.store_id + ',\'' + esc(s.store_name||'').replace(/'/g,"") + '\')" style="padding:6px 14px;border:none;border-radius:8px;background:#667eea;color:#fff;cursor:pointer;font-size:12px;font-weight:600;">' + t('details') + '</button></td>'
+        + '<td style="padding:12px;text-align:right;"><button type="button" class="show-store-sessions-btn" data-store-id="' + Number(s.store_id || 0) + '" data-store-name="' + esc(s.store_name || '') + '" style="padding:6px 14px;border:none;border-radius:8px;background:#667eea;color:#fff;cursor:pointer;font-size:12px;font-weight:600;">' + t('details') + '</button></td>'
         + '</tr>';
     });
     html += '</table>';
     document.getElementById('osModalBody').innerHTML = html;
+    document.querySelectorAll('#osModalBody .show-store-sessions-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const storeId = Number(this.dataset.storeId);
+        if (!Number.isSafeInteger(storeId) || storeId <= 0) return;
+        showStoreSessions(storeId, this.dataset.storeName || '');
+      });
+    });
   } catch (e) {
     document.getElementById('osModalBody').innerHTML = '<p style="color:#e74c3c;">' + esc(e.message) + '</p>';
   }
