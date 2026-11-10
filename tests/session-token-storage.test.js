@@ -55,10 +55,11 @@ test('session storage migration is safe to rerun after digest columns and indexe
       { Field: 'token_hash', Null: 'YES' },
       { Field: 'expires_at', Null: 'NO' }
     ];
-    if (sql.startsWith('SHOW INDEX')) {
-      const table = sql.match(/FROM `([^\`]+)`/)[1];
+    if (sql.includes('information_schema.STATISTICS')) {
+      const table = params[0];
       return [{ Key_name: `uq_${table}_token_hash`, Non_unique: 0 }];
     }
+    if (sql.startsWith('SELECT value FROM settings')) return [{ value: 'done' }];
     throw new Error('unexpected metadata query: ' + sql);
   };
 
