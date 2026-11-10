@@ -1281,9 +1281,14 @@ module.exports = function(app, deps) {
       const orderId = parsePositiveOrderId(order_id);
       if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
       const expectedQrRef = req.body?.expected_qr_ref;
+      const expectedQrGenerationId = req.body?.expected_qr_generation_id;
       if (expectedQrRef !== undefined &&
           (typeof expectedQrRef !== 'string' || expectedQrRef.length === 0 || expectedQrRef.length > 2048)) {
         return res.status(400).json({ error: '二维码引用无效' });
+      }
+      if (expectedQrGenerationId !== undefined &&
+          (typeof expectedQrGenerationId !== 'string' || !/^[a-f0-9]{48,64}$/.test(expectedQrGenerationId))) {
+        return res.status(400).json({ error: '二维码生成标识无效' });
       }
       const { storeId: sid } = await resolveKhqrStore(req);
       if (req.waiter && req.waiterStoreId !== sid && req.waiter.store_id !== sid) {
@@ -1291,7 +1296,7 @@ module.exports = function(app, deps) {
       }
       await withTransaction(async () => {
         const order = await getAsync(
-          'SELECT id, status, awaiting_confirm, pay_khqr_ref, pay_expires_at, table_name FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+          'SELECT id, status, awaiting_confirm, pay_khqr_ref, pay_expires_at, pay_qr_generation_id, table_name FROM orders WHERE id=? AND store_id=? FOR UPDATE',
           [orderId, sid]
         );
         if (!order || order.status !== 'pending' || (!Number(order.awaiting_confirm) && !order.pay_khqr_ref)) {
@@ -1307,21 +1312,27 @@ module.exports = function(app, deps) {
         // Never let a close request without an ownership reference clear an
         // active QR: another terminal may have created it after this client
         // started its own generation request.
-        if (order.pay_khqr_ref && expectedQrRef === undefined) {
-          const error = new Error('取消请求缺少二维码引用，请刷新后重试');
+        if (order.pay_khqr_ref && expectedQrGenerationId === undefined) {
+          const error = new Error('取消请求缺少二维码生成标识，请刷新后重试');
           error.status = 409;
           throw error;
         }
-        // A delayed close request may arrive after another QR has been issued.
-        // Only clear the exact QR that the closing client received.
+        // QR payloads can be deterministic for the same order and amount. Use a
+        // random generation ID so an old response cannot cancel a later QR even
+        // when both payload strings are identical.
+        if (order.pay_khqr_ref && order.pay_qr_generation_id !== expectedQrGenerationId) {
+          const error = new Error('二维码生成批次已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
         if (expectedQrRef !== undefined && order.pay_khqr_ref !== expectedQrRef) {
           const error = new Error('二维码已变化，请刷新后重试');
           error.status = 409;
           throw error;
         }
         const result = await runAsync(
-          "UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=? AND pay_khqr_ref <=> ?",
-          [orderId, sid, Number(order.awaiting_confirm) ? 1 : 0, order.pay_khqr_ref ?? null]
+          "UPDATE orders SET awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='' WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=? AND pay_khqr_ref <=> ? AND pay_qr_generation_id <=> ?",
+          [orderId, sid, Number(order.awaiting_confirm) ? 1 : 0, order.pay_khqr_ref ?? null, order.pay_qr_generation_id ?? null]
         );
         if (!result.affectedRows) {
           const error = new Error('订单状态已变化，请刷新后重试');
