@@ -746,3 +746,48 @@ test('renaming a table refuses to move pending orders with an active KHQR payloa
   assert.equal(writes.some(x => x.sql.startsWith('UPDATE tables SET name=')), false);
   assert.equal(transactionCalls, 1);
 });
+
+
+test('public scan-session credentials are never accepted or returned in URL paths', async () => {
+  const { app, routes } = routeHarness();
+  require('../routes/public-session')(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async sql => {
+      if (sql.includes('FROM scan_sessions')) {
+        return {
+          table_name: 'A1',
+          store_id: 7,
+          expires_at: new Date(Date.now() + 60000).toISOString()
+        };
+      }
+      if (sql.includes('FROM stores')) return { id: 7 };
+      return null;
+    },
+    allAsync: async () => [],
+    runAsync: async () => ({ affectedRows: 1 }),
+    formatOrder: row => row
+  });
+
+  assert.equal(routes.has('GET /api/public/table-session/:token/orders'), false);
+  assert.equal(routes.has('GET /api/public/table-session/:token/info'), false);
+  assert.equal(routes.has('DELETE /api/public/table-session/:token'), false);
+
+  const token = 'header-only-bearer-token';
+  const res = response();
+  await routes.get('GET /api/public/table-session/info').at(-1)({
+    get: name => name === 'X-Scan-Session' ? token : '',
+    params: {},
+    query: {}
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, {
+    table: 'A1',
+    storeId: 7,
+    expiresAt: res.body.expiresAt
+  });
+  assert.equal(Object.hasOwn(res.body, 'sessionToken'), false);
+  assert.equal(JSON.stringify(res.body).includes(token), false);
+  assert.match(res.headers['Cache-Control'], /no-store/);
+});
