@@ -41,7 +41,7 @@ function formatStaffOrder(row, formatOrder) {
 }
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, withTransaction, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io } = deps;
+  const { getAsync, runAsync, allAsync, withTransaction, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io } = deps;
 
 app.post('/api/waiter/login', async (req, res) => {
   try {
@@ -61,14 +61,14 @@ app.post('/api/waiter/login', async (req, res) => {
     }
     if (!waiter) {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'waiter', '账号或密码错误']);
-      recordLoginAttempt(username, 'waiter');
+      await recordLoginAttempt(username, 'waiter', lockStatus.reservationId);
       return res.status(401).json({ error: '服务员账号或密码错误' });
     }
     if (needsRehash(waiter.password_hash)) {
       const upgradedHash = hashPassword(password);
       await runAsync('UPDATE waiters SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, waiter.id, waiter.password_hash]);
     }
-    await resetLoginAttempts(username, 'waiter');
+    await resetLoginAttempts(username, 'waiter', lockStatus.reservationId);
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, merchant_id, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, waiter.merchant_id, 'waiter', '服务员登录成功']);
     const token = crypto.randomBytes(24).toString('base64url');
     const waiterTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'waiter_session_timeout'");
@@ -131,14 +131,14 @@ app.post('/api/cashier/login', async (req, res) => {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [
         new Date().toISOString(), getClientIp(req), username, 'cashier', '账号或密码错误'
       ]);
-      recordLoginAttempt(username, 'cashier');
+      await recordLoginAttempt(username, 'cashier', lockStatus.reservationId);
       return res.status(401).json({ error: '收银员账号或密码错误' });
     }
     if (candidates.length > 1) {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [
         new Date().toISOString(), getClientIp(req), username, 'cashier', '账号在多个门店匹配，请指定门店'
       ]);
-      return res.status(409).json({ error: '该收银员账号在多个门店匹配，请先选择门店' });
+      await cancelLoginAttempt(username, 'cashier', lockStatus.reservationId);\n      return res.status(409).json({ error: '该收银员账号在多个门店匹配，请先选择门店' });
     }
 
     const candidate = candidates[0];
@@ -146,7 +146,7 @@ app.post('/api/cashier/login', async (req, res) => {
       'SELECT s.id, s.merchant_id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
       [candidate.storeId]
     );
-    if (!store) return res.status(403).json({ error: '收银员所属门店或商户已停用' });
+    if (!store) { await cancelLoginAttempt(username, 'cashier', lockStatus.reservationId); return res.status(403).json({ error: '收银员所属门店或商户已停用' }); }
     const merchantId = Number(store.merchant_id);
     const token = crypto.randomBytes(24).toString('base64url');
     const cashierTimeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'cashier_session_timeout'");
@@ -198,7 +198,7 @@ app.post('/api/cashier/login', async (req, res) => {
       );
     });
 
-    await resetLoginAttempts(username, 'cashier');
+    await resetLoginAttempts(username, 'cashier', lockStatus.reservationId);
     res.json({
       token, storeId: candidate.storeId, storeName: authenticatedStoreName, cashier: authenticatedCashier
     });
