@@ -663,6 +663,14 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
 app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
   try {
     const data = await collectBackupData();
+    // Backups contain password hashes and sensitive merchant/store settings.
+    // Do not allow browsers or shared intermediaries to cache the download,
+    // and record every successful export in the immutable audit trail.
+    await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
+      'export_backup', 'system', null, '导出完整数据库备份（包含敏感认证资料）', getClientIp(req));
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="foodflow-full-backup-${new Date().toISOString().slice(0,10)}.json"`);
     res.json(data);

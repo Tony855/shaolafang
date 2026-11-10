@@ -9,9 +9,10 @@ function response() {
   return {
     statusCode: 200,
     body: null,
+    headers: {},
     status(code) { this.statusCode = code; return this; },
     json(value) { this.body = value; return this; },
-    setHeader() {}
+    setHeader(name, value) { this.headers[name] = value; }
   };
 }
 
@@ -76,6 +77,24 @@ function setup({ failAudit = false } = {}) {
   });
   return { handler, handlers, calls, allCalls, get inTransaction() { return inTransaction; }, get rolledBack() { return rolledBack; } };
 }
+
+test('backup export is audited and sends no-store security headers', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.handlers.get('/api/super/backup/export')({
+    superAdmin: { id: 7, username: 'root' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.tables);
+  assert.equal(res.headers['Cache-Control'], 'no-store, no-cache, must-revalidate, private');
+  assert.equal(res.headers.Pragma, 'no-cache');
+  assert.equal(res.headers['X-Content-Type-Options'], 'nosniff');
+  const audit = ctx.calls.find(call => call.audit?.[3] === 'export_backup');
+  assert.ok(audit);
+  assert.equal(audit.inTransaction, false);
+  assert.equal(audit.strict, true);
+});
 
 test('backup restore rejects an empty super-admin table before deleting live data', async () => {
   const ctx = setup();
