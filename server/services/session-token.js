@@ -45,7 +45,7 @@ async function migrateSessionTokenStorage({ runAsync, allAsync }) {
     // One-time, idempotent migration: existing clients keep their active token,
     // while the database retains only its digest after this statement commits.
     await runAsync(
-      `UPDATE \`${table}\` SET token_hash=SHA2(token, 256), token=NULL WHERE token IS NOT NULL AND token<>'' AND (token_hash IS NULL OR token_hash='')`
+      `UPDATE \`${table}\` SET token_hash=COALESCE(NULLIF(token_hash, ''), SHA2(token, 256)), token=NULL WHERE token IS NOT NULL AND token<>''`
     );
   }
 
