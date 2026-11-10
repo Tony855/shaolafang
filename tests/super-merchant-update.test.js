@@ -15,7 +15,7 @@ function response() {
   };
 }
 
-function setup({ duplicateUsername = false, failOn, merchantExists = true } = {}) {
+function setup({ duplicateUsername = false, failOn, merchantExists = true, merchantStatus = 1 } = {}) {
   const calls = [];
   let handler;
   let transactionCount = 0;
@@ -31,7 +31,7 @@ function setup({ duplicateUsername = false, failOn, merchantExists = true } = {}
   const deps = {
     getAsync: async sql => {
       calls.push({ type: 'get', sql });
-      if (sql.includes('FROM merchants') && sql.includes('SELECT country')) return merchantExists ? { country: 'KH' } : null;
+      if (sql.includes('FROM merchants') && sql.includes('SELECT country')) return merchantExists ? { country: 'KH', status: merchantStatus } : null;
       if (sql.includes('SELECT id, username FROM merchant_admins')) return { id: 55, username: 'old-admin' };
       if (sql.includes('SELECT id FROM merchant_admins WHERE username')) return duplicateUsername ? { id: 66 } : null;
       if (sql.includes('SELECT name, code FROM merchants')) return { name: 'Updated Merchant', code: 'T009' };
@@ -100,6 +100,7 @@ test('merchant profile, admin credentials and audit update in one transaction', 
   assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('UPDATE merchants')));
   assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('UPDATE merchant_admins SET username')));
   assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('UPDATE merchant_admins SET password_hash')));
+  assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM admin_sessions')));
   assert.ok(ctx.calls.some(call => call.type === 'audit'));
 });
 
@@ -133,4 +134,53 @@ test('merchant update rolls back when a later administrator write fails', async 
   assert.equal(ctx.transactionCount, 1);
   assert.equal(ctx.rolledBack, true);
   assert.equal(ctx.calls.some(call => call.type === 'audit'), false);
+});
+
+test('merchant password change revokes all existing administrator sessions', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.handler({
+    params: { id: '9' },
+    body: { password: 'replacement-password-123' },
+    superAdmin: { id: 1, username: 'root' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(ctx.calls.some(call => call.type === 'run' &&
+    call.sql.includes('DELETE FROM admin_sessions WHERE admin_id IN')));
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM cashier_sessions')), false);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM waiter_sessions')), false);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM scan_sessions')), false);
+});
+
+test('merchant status transition revokes all merchant-scoped sessions', async () => {
+  const ctx = setup({ merchantStatus: 1 });
+  const res = response();
+  await ctx.handler({
+    params: { id: '9' },
+    body: { status: 0 },
+    superAdmin: { id: 1, username: 'root' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  for (const table of ['admin_sessions', 'cashier_sessions', 'waiter_sessions', 'scan_sessions']) {
+    assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM ' + table)),
+      table + ' must be revoked when merchant status changes');
+  }
+});
+
+test('merchant profile-only update does not revoke active sessions', async () => {
+  const ctx = setup({ merchantStatus: 1 });
+  const res = response();
+  await ctx.handler({
+    params: { id: '9' },
+    body: { name: 'Updated Merchant', contact_name: 'Contact' },
+    superAdmin: { id: 1, username: 'root' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM admin_sessions')), false);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM cashier_sessions')), false);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM waiter_sessions')), false);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM scan_sessions')), false);
 });
