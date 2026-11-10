@@ -225,10 +225,13 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       if (merchantStatusChanged) {
         await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [merchantId]);
         await runAsync(
-          'DELETE FROM waiter_sessions WHERE waiter_id IN (SELECT id FROM waiters WHERE merchant_id=?)',
+          'DELETE FROM waiter_sessions WHERE waiter_id IN (SELECT w.id FROM waiters w INNER JOIN stores st ON st.id=w.store_id WHERE st.merchant_id=?)',
           [merchantId]
         );
-        await runAsync('DELETE FROM scan_sessions WHERE merchant_id=?', [merchantId]);
+        await runAsync(
+          'DELETE FROM scan_sessions WHERE store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId]
+        );
       }
 
       const updatedMerchant = await getAsync('SELECT name, code FROM merchants WHERE id=?', [merchantId]);
