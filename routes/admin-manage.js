@@ -1050,7 +1050,7 @@ module.exports = function(app, deps) {
         const cashChange = cashChangeCents / 100;
 
         const result = await runAsync(
-          "UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_method=?, cash_received=?, cash_change=?, settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
+          "UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='', pay_method=?, cash_received=?, cash_change=?, settled_at=?, paid_confirmed_by=? WHERE id=? AND store_id=? AND status='pending'",
           [paymentMethod, cashReceived, cashChange, settledAt, req.adminId || req.cashierId || 'unknown', orderId, sid]
         );
         if (!result.affectedRows) {
