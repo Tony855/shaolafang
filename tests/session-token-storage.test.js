@@ -20,14 +20,18 @@ test('session storage migration adds unique digest columns and clears legacy cre
   const writes = [];
   const queries = [];
   const runAsync = async sql => { writes.push(sql); return { affectedRows: 1 }; };
+  let transactionCount = 0;
+  const withTransaction = async work => { transactionCount++; return work(); };
   const allAsync = async sql => {
     queries.push(sql);
     if (sql.startsWith('SHOW COLUMNS')) return [{ Field: 'token', Null: 'NO' }, { Field: 'expires_at', Null: 'NO' }];
     if (sql.startsWith('SHOW INDEX')) return [];
+    if (sql.includes('session_token_references_hashed_v1')) return [];
     throw new Error('unexpected metadata query: ' + sql);
   };
 
-  await migrateSessionTokenStorage({ runAsync, allAsync });
+  await migrateSessionTokenStorage({ runAsync, allAsync, withTransaction });
+  assert.equal(transactionCount, 1);
 
   for (const table of ['admin_sessions', 'super_sessions', 'waiter_sessions', 'cashier_sessions', 'scan_sessions']) {
     assert.ok(writes.some(sql => sql.includes(`ALTER TABLE \`${table}\` ADD COLUMN token_hash CHAR(64)`)), table);
@@ -43,6 +47,8 @@ test('session storage migration adds unique digest columns and clears legacy cre
 test('session storage migration is safe to rerun after digest columns and indexes exist', async () => {
   const writes = [];
   const runAsync = async sql => { writes.push(sql); return { affectedRows: 0 }; };
+  let transactionCount = 0;
+  const withTransaction = async work => { transactionCount++; return work(); };
   const allAsync = async sql => {
     if (sql.startsWith('SHOW COLUMNS')) return [
       { Field: 'token', Null: 'YES' },
@@ -60,5 +66,5 @@ test('session storage migration is safe to rerun after digest columns and indexe
   assert.equal(writes.some(sql => /ADD COLUMN token_hash/.test(sql)), false);
   assert.equal(writes.some(sql => /MODIFY token VARCHAR/.test(sql)), false);
   assert.equal(writes.some(sql => /CREATE UNIQUE INDEX/.test(sql)), false);
-  assert.equal(writes.filter(sql => sql.startsWith('UPDATE')).length, 8);
+  assert.equal(writes.filter(sql => sql.startsWith('UPDATE')).length, 5);
 });
