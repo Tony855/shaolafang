@@ -13,8 +13,8 @@ test('waiter table names are passed through data attributes, not inline JavaScri
   assert.match(waiterSource, /data-open-table="\$\{esc\(table\.name\)\}"/);
   assert.doesNotMatch(waiterSource, /onclick="openModal\('\$\{esc\(table\.name\)\}'\)"/);
   assert.match(waiterSource, /card\.addEventListener\('click'/);
-  assert.match(waiterSource, /tableLabel = .*\\+ esc\\(table\\);/);
-  assert.doesNotMatch(waiterSource, /tableLabel = .*\\+ table;/);
+  assert.match(waiterSource, /tableLabel = .*\+ esc\(table\);/);
+  assert.doesNotMatch(waiterSource, /tableLabel = .*\+ table;/);
 });
 
 test('super-admin store names are passed through data attributes, not inline JavaScript', () => {
