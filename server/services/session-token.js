@@ -23,7 +23,10 @@ async function migrateSessionTokenStorage({ runAsync, allAsync, withTransaction 
   ];
 
   for (const table of sessionTables) {
-    const columns = await allAsync(`SHOW COLUMNS FROM \`${table}\``);
+    const columns = await allAsync(
+      'SELECT COLUMN_NAME AS Field, IS_NULLABLE AS `Null` FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',
+      [table]
+    );
     const names = new Set(columns.map(column => column.Field));
     if (!names.has('token_hash')) {
       await runAsync(`ALTER TABLE \`${table}\` ADD COLUMN token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL`);
@@ -36,7 +39,10 @@ async function migrateSessionTokenStorage({ runAsync, allAsync, withTransaction 
       await runAsync(`ALTER TABLE \`${table}\` MODIFY token VARCHAR(255) NULL`);
     }
 
-    const indexes = await allAsync(`SHOW INDEX FROM \`${table}\``);
+    const indexes = await allAsync(
+      'SELECT INDEX_NAME AS Key_name, NON_UNIQUE AS Non_unique FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',
+      [table]
+    );
     const indexName = `uq_${table}_token_hash`;
     if (!indexes.some(index => index.Key_name === indexName && Number(index.Non_unique) === 0)) {
       await runAsync(`CREATE UNIQUE INDEX \`${indexName}\` ON \`${table}\` (token_hash)`);
