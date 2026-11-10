@@ -3,6 +3,7 @@
  * 管理员认证中间件（从 server.js 抽出）
  */
 const { getAsync, runAsync, allAsync } = require('../db/helpers');
+const { hashSessionToken } = require('../services/session-token');
 const { getActiveWaiter } = require('../services/waiter-auth');
 const crypto = require('crypto');
 const { parsePositiveRouteId } = require('../services/route-id');
