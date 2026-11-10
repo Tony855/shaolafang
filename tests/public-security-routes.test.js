@@ -485,7 +485,8 @@ test('customer order lookup accepts bearer tokens in headers and disables cachin
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.orders[0].id, 99);
   assert.deepEqual(sqlCalls[0].params, ['private-scan-session']);
-  assert.deepEqual(sqlCalls[2].params.slice(0, 2), [7, 'private-customer-token']);
+  assert.match(sqlCalls[2].sql, /table_name=\? AND session_token=\? AND customer_token=\?/);
+  assert.deepEqual(sqlCalls[2].params.slice(0, 4), [7, 'A1', 'private-scan-session', 'private-customer-token']);
   assert.match(res.headers['Cache-Control'], /no-store/);
 });
 
