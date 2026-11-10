@@ -422,6 +422,7 @@ app.post('/api/orders', async (req, res) => {
 
     // ---------- 2. 会话/桌号校验 ----------
     let sessionToken = null;
+    let sessionToken = null;
     let sessionTokenHash = null;
     let customerToken = '';
     let customerTokenHash = '';
