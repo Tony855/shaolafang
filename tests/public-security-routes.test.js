@@ -375,6 +375,112 @@ test('order creation rechecks the QR session after locking the table', async () 
 });
 
 
+test('public order creation never echoes scan-session or customer bearer tokens', async () => {
+  const { app, routes } = routeHarness();
+  const sessionToken = 'private-scan-session-token';
+  const customerToken = 'private-customer-bearer-token';
+  const session = {
+    table_name: 'A1',
+    store_id: 7,
+    expires_at: new Date(Date.now() + 60000).toISOString()
+  };
+  const orderRow = {
+    id: 99,
+    store_id: 7,
+    merchant_id: 7,
+    table_name: 'A1',
+    order_no: '11000001',
+    items: [{ id: 1, name: 'Tea', quantity: 1, itemStatus: 'pending' }],
+    total: 2,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    session_token: sessionToken,
+    customer_token: customerToken
+  };
+  const emitted = [];
+
+  require('../routes/orders')(app, {
+    authenticateAdmin: async () => null,
+    getWaiterFromRequest: async () => null,
+    getAsync: async (sql, params = []) => {
+      if (sql.includes('SELECT expires_at FROM scan_sessions')) return session;
+      if (sql.includes('FROM scan_sessions')) return session;
+      if (sql.includes('JOIN merchants')) return { id: 7 };
+      if (sql.includes('FROM tables') && sql.includes('FOR UPDATE')) return { id: 1 };
+      if (sql.includes('FROM tables')) return { id: 1, store_id: 7 };
+      if (sql.includes('max_order_items')) return { value: '50' };
+      if (sql.includes('max_item_quantity')) return { value: '100' };
+      if (sql.includes('max_order_note_length')) return { value: '200' };
+      if (sql.includes('SELECT merchant_id FROM stores')) return { merchant_id: 7 };
+      if (sql.includes('order_prefix_normal')) return { value: '11' };
+      if (sql.includes('order_no_reset_period')) return { value: 'never' };
+      if (sql.includes('qr_session_timeout')) return { value: '45' };
+      if (params[0] && String(params[0]).startsWith('auto_print_kitchen_')) return null;
+      if (sql.includes('SELECT * FROM orders')) return orderRow;
+      return null;
+    },
+    runAsync: async () => ({ lastID: 99, affectedRows: 1 }),
+    allAsync: async () => [],
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    requireAdminOrWaiter: pass,
+    formatOrder: row => ({
+      id: row.id,
+      order_no: row.order_no,
+      table_name: row.table_name,
+      items: row.items,
+      total: row.total,
+      status: row.status,
+      createdAt: row.createdAt,
+      sessionToken: row.session_token,
+      customerToken: row.customer_token
+    }),
+    normalizeOrderItems: async () => [
+      { id: 1, name: 'Tea', quantity: 1, base_price: 2, itemStatus: 'pending' }
+    ],
+    assertTableExists: async () => 'A1',
+    syncTableStatus: async () => {},
+    ensureOrderTables: async () => {},
+    io: { to: room => ({ emit: (event, payload) => emitted.push({ room, event, payload }) }) },
+    getClientIp: () => '127.0.0.1',
+    logAudit: async () => {},
+    upload: {},
+    UPLOAD_DIR: '/tmp',
+    path: require('node:path'),
+    allocateOrderNo: async () => '11000001',
+    getOrderCooldownMs: async () => 0,
+    createTableToken: () => 'unused',
+    buildReceipt: () => Buffer.from(''),
+    buildKitchenTicket: () => Buffer.from(''),
+    printToNetworkPrinter: async () => {},
+    dispatchPrint: async () => ({ printed: false }),
+    verifyPassword: () => true,
+    checkAndSetCooldown: async () => true,
+    withTransaction: async fn => fn()
+  });
+
+  const handler = routes.get('POST /api/orders').at(-1);
+  const res = response();
+  await handler({
+    body: {
+      table: 'A1',
+      sessionToken,
+      customerToken,
+      items: [{ id: 1, quantity: 1 }]
+    },
+    get: () => ''
+  }, res);
+
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.order.id, 99);
+  assert.equal(Object.hasOwn(res.body.order, 'sessionToken'), false);
+  assert.equal(Object.hasOwn(res.body.order, 'customerToken'), false);
+  const serialized = JSON.stringify({ response: res.body, emitted });
+  assert.equal(serialized.includes(sessionToken), false);
+  assert.equal(serialized.includes(customerToken), false);
+});
+
 test('QR credential generation requires table-management permission', () => {
   const { app, routes } = routeHarness();
   const auth = () => {};

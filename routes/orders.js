@@ -664,7 +664,8 @@ app.post('/api/orders', async (req, res) => {
       success: true,
       orderId: newRow.id,
       orderNo: newRow.order_no || '',
-      order: orderData
+      // Do not echo QR/customer bearer credentials in the public order response.
+      order: staffOrderData
     };
     if (sessionToken) {
       const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token=?', [sessionToken]);
