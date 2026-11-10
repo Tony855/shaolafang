@@ -43,7 +43,7 @@ function setup({ failAudit = false } = {}) {
     put() {}, delete() {}
   };
   attachSuperRoutes(app, {
-    getAsync: async () => null,
+    getAsync: async sql => sql.includes('FROM stores') ? { id: 9, name: 'Test Store', merchant_name: 'Test Merchant' } : null,
     allAsync: async (sql, params) => {
       allCalls.push({ sql, params, inTransaction });
       if (sql.startsWith('SHOW COLUMNS')) assert.equal(inTransaction, true);
@@ -94,6 +94,19 @@ test('backup export is audited and sends no-store security headers', async () =>
   assert.ok(audit);
   assert.equal(audit.inTransaction, false);
   assert.equal(audit.strict, true);
+});
+
+
+test('online session details never select or expose the bearer token', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.handlers.get('/api/super/online-sessions/:storeId')({ params: { storeId: '9' } }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.sessions, []);
+  const query = ctx.allCalls.find(call => call.sql.includes('FROM scan_sessions ss'));
+  assert.ok(query);
+  assert.doesNotMatch(query.sql, /ss\\.token/);
 });
 
 test('backup restore rejects an empty super-admin table before deleting live data', async () => {
