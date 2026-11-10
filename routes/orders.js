@@ -429,8 +429,9 @@ app.post('/api/orders', async (req, res) => {
     }
     if (!isAdmin && !isWaiter) {
       const token = typeof req.body.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
-      customerToken = typeof req.body.customerToken === 'string' ? req.body.customerToken.trim().slice(0, 128) : '';
+      customerToken = typeof req.body.customerToken === 'string' ? req.body.customerToken.trim() : '';
       if (!token || token.length > 256) return res.status(401).json({ error: '请重新扫码后再下单' });
+      if (!customerToken || customerToken.length > 128) return res.status(400).json({ error: '顾客会话令牌无效，请刷新页面后重试' });
       const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [token]);
       if (!session) return res.status(401).json({ error: '请重新扫码后再下单' });
       const sessionExpiresAt = new Date(session.expires_at).getTime();
