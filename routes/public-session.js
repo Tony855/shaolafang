@@ -144,7 +144,8 @@ module.exports = function(app, deps) {
         [sessionStoreId]
       );
       if (!activeStore) return res.status(404).json({ error: '店铺不存在或已停用' });
-      res.json({ table: session.table_name, storeId: sessionStoreId, sessionToken, expiresAt: session.expires_at });
+      // The bearer token was supplied in X-Scan-Session; never echo it in the response.
+      res.json({ table: session.table_name, storeId: sessionStoreId, expiresAt: session.expires_at });
     } catch (error) {
       res.status(500).json({ error: '读取扫码会话失败' });
     }
@@ -167,8 +168,6 @@ module.exports = function(app, deps) {
   app.get('/api/public/table-session/info', getSessionInfo);
   app.delete('/api/public/table-session', deleteSession);
 
-  // Legacy path/query aliases remain for older clients during rollout.
-  app.get('/api/public/table-session/:token/orders', getSessionOrders);
-  app.get('/api/public/table-session/:token/info', getSessionInfo);
-  app.delete('/api/public/table-session/:token', deleteSession);
+  // Do not accept bearer credentials in URL paths: reverse proxies and access logs
+  // commonly record full request URLs. Clients must use the X-Scan-Session header.
 };
