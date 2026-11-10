@@ -5,6 +5,16 @@ const { parsePositiveRouteId } = require('../server/services/route-id');
 module.exports = function(app, deps) {
   const { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission, requireAdminOrWaiter, formatOrder, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, EscPosBuilder, formatGlobalDateTime, getClientIp } = deps;
 
+  // Customer/session bearer credentials are needed only for server-side
+  // authorization and must never leave the order service in print payloads.
+  function formatPrintOrder(row) {
+    const order = formatPrintOrder(row);
+    if (!order || typeof order !== 'object') return order;
+    delete order.sessionToken;
+    delete order.customerToken;
+    return order;
+  }
+
   app.get('/api/admin/printers', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
     try {
       const rows = await allAsync(
