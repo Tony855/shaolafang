@@ -88,6 +88,17 @@ module.exports = function(app, deps) {
     return value;
   };
 
+  // Public order responses must never disclose bearer credentials stored on rows.
+  // customerToken and sessionToken are authentication secrets, not display data.
+  const formatPublicOrder = row => {
+    const formatted = formatOrder(row);
+    if (!formatted || typeof formatted !== 'object') return formatted;
+    const safe = { ...formatted };
+    delete safe.sessionToken;
+    delete safe.customerToken;
+    return safe;
+  };
+
   const getSessionOrders = async (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, private');
@@ -112,7 +123,7 @@ module.exports = function(app, deps) {
       } else {
         rows = await allAsync("SELECT * FROM orders WHERE table_name=? AND store_id=? AND session_token=? AND status!='canceled' ORDER BY createdAt DESC", [session.table_name, sessionStoreId, sessionToken]);
       }
-      res.json({ table: session.table_name, orders: rows.map(formatOrder) });
+      res.json({ table: session.table_name, orders: rows.map(formatPublicOrder) });
     } catch (error) {
       res.status(500).json({ error: '查询订单失败' });
     }
