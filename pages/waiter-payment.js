@@ -14,7 +14,7 @@ const apiCall = (path, opt) => SLF.api.page(path, opt);
 
 let paymentOrderId = null;
 let payMethod = 'cash';
-let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '', qrPayload: '', generationRequestId: 0 };
+let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '', qrPayload: '', qrGenerationId: '', generationRequestId: 0 };
 let khqrProviders = [];
 let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
 
@@ -274,6 +274,7 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
   const generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
   khqrState.generationRequestId = generationRequestId;
   khqrState.qrPayload = '';
+  khqrState.qrGenerationId = '';
   khqrState.orderId = orderId;
   khqrState.providerId = providerId || null;
   $('#khqrImage').src = '';
@@ -296,14 +297,14 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
     sw.style.cssText = 'display:block;width:100%;max-width:360px;margin:12px auto;padding:14px 18px;border-radius:12px;border:2px solid #16a34a;background:#166534;color:#fff;font-size:17px;font-weight:800;cursor:pointer;';
     sw.disabled = true;
     sw.onclick = () => {
-      if (window.__khqrSwitchBusy || !khqrState.qrPayload) return;
+      if (window.__khqrSwitchBusy || !khqrState.qrPayload || !khqrState.qrGenerationId) return;
       const currentQr = khqrState.qrPayload;
       const nextCurrency = selectedCurrency === 'USD' ? 'KHR' : 'USD';
       window.__khqrSwitchBusy = true;
       sw.disabled = true;
       apiCall('/cashier/khqr/cancel', {
         method: 'POST',
-        body: { order_id: orderId, expected_qr_ref: currentQr }
+        body: { order_id: orderId, expected_qr_ref: currentQr, expected_qr_generation_id: khqrState.qrGenerationId }
       }).then(() => {
         if (khqrState.orderId !== orderId || khqrState.qrPayload !== currentQr) return;
         openKhqrModal(orderId, providerId, nextCurrency);
@@ -327,11 +328,12 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
       if (khqrState.generationRequestId !== generationRequestId ||
           !$('#khqrModal').classList.contains('show')) {
         if (res.qr_payload) {
-          apiCall('/cashier/khqr/cancel', { method: 'POST', body: { order_id: orderId, expected_qr_ref: res.qr_payload } }).catch(() => {});
+          apiCall('/cashier/khqr/cancel', { method: 'POST', body: { order_id: orderId, expected_qr_ref: res.qr_payload, expected_qr_generation_id: res.qr_generation_id } }).catch(() => {});
         }
         return;
       }
       khqrState.qrPayload = res.qr_payload || '';
+      khqrState.qrGenerationId = res.qr_generation_id || '';
       const currencySwitch = $('#khqrCurrencySwitch');
       if (currencySwitch) currencySwitch.disabled = !khqrState.qrPayload;
       if (res.qr_data_url) $('#khqrImage').src = res.qr_data_url;
@@ -391,17 +393,19 @@ window.closeKhqrModal = function() {
   stopKhqrTimers();
   const orderId = khqrState.orderId;
   const qrPayload = khqrState.qrPayload;
+  const qrGenerationId = khqrState.qrGenerationId;
   khqrState.generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
   // Do not send an unqualified cancel while QR generation is pending.
   // Its stale response handler will cancel only the QR it actually created.
-  if (orderId && qrPayload) {
+  if (orderId && qrPayload && qrGenerationId) {
     apiCall('/cashier/khqr/cancel', {
       method: 'POST',
-      body: { order_id: orderId, expected_qr_ref: qrPayload }
+      body: { order_id: orderId, expected_qr_ref: qrPayload, expected_qr_generation_id: qrGenerationId }
     }).catch(() => {});
   }
   khqrState.orderId = null;
   khqrState.qrPayload = '';
+  khqrState.qrGenerationId = '';
 };
 
 function closeKhqrModalSilent() {
@@ -410,6 +414,7 @@ function closeKhqrModalSilent() {
   khqrState.generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
   khqrState.orderId = null;
   khqrState.qrPayload = '';
+  khqrState.qrGenerationId = '';
 }
 
 function startKhqrCountdown() {
