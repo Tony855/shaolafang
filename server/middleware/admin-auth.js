@@ -144,12 +144,25 @@ async function authenticateAdmin(req) {
     const supplied = Buffer.from(String(providedKey));
     const expected = Buffer.from(String(setting.value));
     if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
-      const rawStoreId = req.get('X-Store-Id') ?? '1';
-      const storeId = parsePositiveRouteId(rawStoreId);
-      if (storeId === null) {
+      // The legacy key is a single integration credential, not a global
+      // super-admin credential. Bind it to one configured store so changing
+      // X-Store-Id cannot turn it into a cross-merchant access key.
+      const scopeSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key_store_id'");
+      const scopedStoreId = parsePositiveRouteId(String(scopeSetting?.value ?? '1'));
+      if (scopedStoreId === null) {
+        return { error: '管理员 API 密钥门店绑定配置无效', code: 'INVALID_API_KEY_STORE_SCOPE' };
+      }
+      const rawStoreId = req.get('X-Store-Id');
+      const requestedStoreId = rawStoreId === undefined || rawStoreId === null || rawStoreId === ''
+        ? scopedStoreId
+        : parsePositiveRouteId(rawStoreId);
+      if (requestedStoreId === null) {
         return { error: '指定的店铺编号无效', code: 'INVALID_STORE_ID' };
       }
-      const store = await getAsync('SELECT s.id, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
+      if (requestedStoreId !== scopedStoreId) {
+        return { error: '管理员 API 密钥未授权访问该门店', code: 'STORE_NOT_IN_API_KEY_SCOPE' };
+      }
+      const store = await getAsync('SELECT s.id, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [scopedStoreId]);
       if (!store) return { error: '指定的店铺不存在或已停用', code: 'STORE_NOT_ACTIVE' };
       return { storeId: Number(store.id), merchantId: store.merchant_id, legacyApiKey: true };
     }

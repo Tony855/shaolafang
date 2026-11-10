@@ -1089,7 +1089,8 @@ async function initDatabase() {
     'clean_login_log': '0',
     'clean_audit_log': '0',
     'super_ip_whitelist': '',
-    'admin_access_key': ''
+    'admin_access_key': '',
+    'admin_access_key_store_id': '1'
   };
   for (const [key, value] of Object.entries(prefixDefaults)) {
     await runAsync("INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=value", [key, value]);
