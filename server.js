@@ -4,7 +4,7 @@ const poolModule = require('./server/db/pool');
 const { poolConfig, setPool } = poolModule;
 const { runAsync, getAsync, allAsync, withTransaction } = require('./server/db/helpers');
 const { createLoginRateLimiter } = require('./server/services/login-rate-limit');
-const { isLoginLocked, resetLoginAttempts } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
+const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
 const { initMerchantSettings, initStoreSettings } = require('./server/services/settings-init');
 const cors = require('cors');
@@ -427,6 +427,19 @@ async function ensureOrderTables() {
       updated_at DATETIME(3) NOT NULL,
       PRIMARY KEY (login_type, username),
       KEY idx_login_rate_locked (locked_until)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS login_rate_limit_attempts (
+      id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      login_type VARCHAR(50) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      username VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+      state ENUM('pending','failed','succeeded','cancelled','expired') NOT NULL,
+      created_at DATETIME(3) NOT NULL,
+      updated_at DATETIME(3) NOT NULL,
+      PRIMARY KEY (id),
+      KEY idx_login_attempt_owner_state (login_type, username, state, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
@@ -1123,12 +1136,12 @@ require('./routes/public.js')(app, { getAsync, allAsync, runAsync });
 
 // ----- 商户管理员登录 -----
 // ----- 管理员登录 -----
-require('./routes/auth.js')(app, { getAsync, runAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, getLocationByIp, requireAdminKey });
+require('./routes/auth.js')(app, { getAsync, runAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt, verifyPassword, getClientIp, getLocationByIp, requireAdminKey });
 
 
 // ===== 超级管理员登录 =====
 // ----- 超管路由 -----
-require('./routes/super.js')(app, { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, logAuditStrict, collectBackupData, autoBackupDatabase, withTransaction });
+require('./routes/super.js')(app, { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, logAuditStrict, collectBackupData, autoBackupDatabase, withTransaction });
 
 
 // ----- 系统日志+登出+改密码 -----
@@ -1137,7 +1150,7 @@ require('./routes/admin-system.js')(app, { getAsync, allAsync, runAsync, require
 
 // ----- 服务员登录 -----
 // ----- 服务员+收银员 -----
-require('./routes/cashier.js')(app, { getAsync, runAsync, allAsync, withTransaction, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io });
+require('./routes/cashier.js')(app, { getAsync, runAsync, allAsync, withTransaction, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt, verifyPassword, getClientIp, requireCashier, requireAdminOrCashierOrWaiter, formatOrder, syncTableStatus, buildBatchReceipt, buildReceipt, printToNetworkPrinter, dispatchPrint, io });
 
 
 // ----- 服务员概览 -----
