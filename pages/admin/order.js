@@ -70,12 +70,19 @@ async function loadOrders() {
           <div class="actions">
             ${o.status==='done' || o.status==='canceled' ? '' : (hasPermission('can_edit_order') ? `<button class="edit" onclick="editOrder(${o.id})">${L('edit')}</button>` : '')}
             <button onclick="printOrder(${o.id})" style="background:#3498db;">🖨️ ${tAdmin('print')}</button>
-            ${o.status==='pending' ? `<button class="settle-order-btn" onclick="confirmSettleOrder(${o.id})">💰 ${tAdmin('settleOrder')}</button><button onclick="showTransferModal(${o.id},'${o.table_name}')" style="background:#9b59b6;">↔ ${tAdmin('transferOrder')}</button>${hasPermission('can_delete_order') ? `<button class="cancel-order-btn" onclick="confirmCancelOrder(${o.id})">🗑️ ${tAdmin('cancelOrder')}</button>` : ''}` : ''}
+            ${o.status==='pending' ? `<button class="settle-order-btn" onclick="confirmSettleOrder(${o.id})">💰 ${tAdmin('settleOrder')}</button><button class="admin-transfer-order-btn" data-transfer-order-id="${Number(o.id)}" data-transfer-from-table="${esc(o.table_name || '')}" style="background:#9b59b6;">↔ ${tAdmin('transferOrder')}</button>${hasPermission('can_delete_order') ? `<button class="cancel-order-btn" onclick="confirmCancelOrder(${o.id})">🗑️ ${tAdmin('cancelOrder')}</button>` : ''}` : ''}
             ${hasPermission('can_delete_order') ? `<button class="danger" onclick="removeOrder(${o.id})">${L('delete')}</button>` : ''}
           </div>
         </div>
       </div>
     `).join('') || `<div class="empty-hint">${tAdmin('noOrders')}</div>`;
+  document.querySelectorAll('#orders .admin-transfer-order-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const orderId = Number(this.dataset.transferOrderId);
+      if (!Number.isSafeInteger(orderId) || orderId <= 0) return;
+      showTransferModal(orderId, this.dataset.transferFromTable || '');
+    });
+  });
   if (typeof window.updateOrderSummary === 'function') window.updateOrderSummary();
 }
 window.loadOrders = loadOrders;
