@@ -166,7 +166,7 @@ test('authorized cashier can cancel a submitted confirmation and the action is a
   });
   const res = response();
   await handler({
-    body: { order_id: 42 }, storeId: 9, merchantId: 3,
+    body: { order_id: 42, expected_qr_ref: 'qr-payload' }, storeId: 9, merchantId: 3,
     isCashier: true, cashier: { id: 8, username: 'qa-cashier', permissions: { can_settle: true } }
   }, res);
   assert.equal(res.statusCode, 200);
@@ -181,7 +181,7 @@ test('KHQR cancellation rolls back when the audit record cannot be written', asy
   const { handler, calls, transactionEvents } = setup({ failAudit: true });
   const res = response();
   await handler({
-    body: { order_id: 42 }, storeId: 9, merchantId: 3,
+    body: { order_id: 42, expected_qr_ref: 'qr-payload' }, storeId: 9, merchantId: 3,
     isAdmin: true, isPrimaryAdmin: true, adminId: 1, username: 'root'
   }, res);
   assert.equal(res.statusCode, 500);
