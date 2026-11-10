@@ -77,6 +77,21 @@ function setup({ failAudit = false } = {}) {
   return { handler, handlers, calls, allCalls, get inTransaction() { return inTransaction; }, get rolledBack() { return rolledBack; } };
 }
 
+test('backup export is audited and sends no-store security headers', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.handlers.get('/api/super/backup/export')({
+    superAdmin: { id: 7, username: 'root' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body, null); // response mock records status and headers only
+  const audit = ctx.calls.find(call => call.audit?.[4] === 'export_backup');
+  assert.ok(audit);
+  assert.equal(audit.inTransaction, false);
+  assert.equal(audit.strict, true);
+});
+
 test('backup restore rejects an empty super-admin table before deleting live data', async () => {
   const ctx = setup();
   const res = response();
