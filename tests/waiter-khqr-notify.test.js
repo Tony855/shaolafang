@@ -21,7 +21,7 @@ function setup({ affectedRows = 1, order = null } = {}) {
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
       return order || {
-        id: 42, status: 'pending', awaiting_confirm: 0,
+        id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'issued-dynamic-payload',
         table_name: 'A01', order_no: '110042', total: 25
       };
     },
@@ -90,6 +90,28 @@ test('waiter KHQR notification locks order and commits state plus audit before b
   assert.equal(events.length, 1);
 });
 
+
+test('waiter KHQR notification rejects an order without an issued QR before state or audit writes', async () => {
+  const { handler, calls, events, transactionEvents } = setup({
+    order: {
+      id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: '',
+      table_name: 'A01', order_no: '110042', total: 25
+    }
+  });
+  const res = response();
+  await handler({
+    body: { order_id: 42, pay_method: 'khqr' },
+    waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
+    waiterStoreId: 9
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /尚未生成 KHQR/);
+  assert.equal(calls.some(call => call.type === 'run'), false);
+  assert.equal(events.length, 0);
+  assert.deepEqual(transactionEvents, ['begin', 'rollback']);
+});
+
 test('waiter KHQR notification rejects a concurrent state change without broadcasting or auditing', async () => {
   const { handler, calls, events, transactionEvents } = setup({ affectedRows: 0 });
   const res = response();
@@ -121,7 +143,7 @@ test('waiter KHQR notification rejects invalid order identifiers before querying
 
 test('repeated waiter KHQR notification is idempotent and does not duplicate audit or broadcast', async () => {
   const { handler, calls, events, transactionEvents } = setup({
-    order: { id: 42, status: 'pending', awaiting_confirm: 1, table_name: 'A01', order_no: '110042', total: 25 }
+    order: { id: 42, status: 'pending', awaiting_confirm: 1, pay_khqr_ref: 'issued-dynamic-payload', table_name: 'A01', order_no: '110042', total: 25 }
   });
   const res = response();
   await handler({

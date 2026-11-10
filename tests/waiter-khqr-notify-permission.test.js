@@ -16,7 +16,7 @@ function setup({ affectedRows = 1 } = {}) {
   };
   const deps = {
     getAsync: async () => ({
-      id: 42, status: 'pending', awaiting_confirm: 0,
+      id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'issued-dynamic-payload',
       table_name: 'A01', order_no: '110042', total: 25
     }),
     runAsync: async (sql, params) => {

@@ -96,6 +96,22 @@ test('non-primary admin without order management permission cannot cancel a KHQR
   assert.equal(calls.length, 0);
 });
 
+test('conditional KHQR cancellation refuses to clear a different QR issued after the close request', async () => {
+  const { handler, calls, transactionEvents } = setup({
+    order: { id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'newer-qr-payload', pay_expires_at: '2030-01-01T00:00:00.000Z', table_name: 'A01' }
+  });
+  const res = response();
+  await handler({
+    body: { order_id: 42, expected_qr_ref: 'older-qr-payload' },
+    isAdmin: true, isPrimaryAdmin: true, storeId: 9, merchantId: 3, adminId: 1
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /二维码已变化/);
+  assert.equal(calls.some(call => call.type === 'run'), false);
+  assert.deepEqual(transactionEvents, ['begin', 'rollback']);
+});
+
 test('authorized waiter can cancel an unsubmitted QR with row lock and audit', async () => {
   const { handler, calls, transactionEvents } = setup();
   const res = response();

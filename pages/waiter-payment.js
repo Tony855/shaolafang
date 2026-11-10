@@ -14,7 +14,7 @@ const apiCall = (path, opt) => SLF.api.page(path, opt);
 
 let paymentOrderId = null;
 let payMethod = 'cash';
-let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '' };
+let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '', qrPayload: '', generationRequestId: 0 };
 let khqrProviders = [];
 let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
 
@@ -271,6 +271,9 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
   if (typeof stopKhqrTimers === 'function') stopKhqrTimers();
   selectedCurrency = String(selectedCurrency || "USD").toUpperCase();
   if (!["USD", "KHR"].includes(selectedCurrency)) selectedCurrency = "USD";
+  const generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
+  khqrState.generationRequestId = generationRequestId;
+  khqrState.qrPayload = '';
   khqrState.orderId = orderId;
   khqrState.providerId = providerId || null;
   $('#khqrImage').src = '';
@@ -307,6 +310,14 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
 
   apiCall('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId, provider_id: providerId || undefined, currency: selectedCurrency } })
     .then(res => {
+      if (khqrState.generationRequestId !== generationRequestId ||
+          !$('#khqrModal').classList.contains('show')) {
+        if (res.qr_payload) {
+          apiCall('/cashier/khqr/cancel', { method: 'POST', body: { order_id: orderId, expected_qr_ref: res.qr_payload } }).catch(() => {});
+        }
+        return;
+      }
+      khqrState.qrPayload = res.qr_payload || '';
       if (res.qr_data_url) $('#khqrImage').src = res.qr_data_url;
       else {
         const size = Math.min(560, Math.max(280, Math.floor(window.innerWidth * 0.7)));
@@ -353,6 +364,7 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
       $('#khqrStatusBar').innerHTML = '<span>' + t('khqrWaitingScan') + '</span>';
     })
     .catch(e => {
+      if (khqrState.generationRequestId !== generationRequestId) return;
       $('#khqrStatusBar').innerHTML = '<span style="color:#e74c3c;">❌ ' + esc(e.message || t('khqrGenerateFailed')) + '</span>';
       btn.textContent = '❌ ' + t('khqrGenerateFailed');
     });
@@ -361,16 +373,24 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
 window.closeKhqrModal = function() {
   $('#khqrModal').classList.remove('show');
   stopKhqrTimers();
-  if (khqrState.orderId) {
-    apiCall('/cashier/khqr/cancel', { method: 'POST', body: { order_id: khqrState.orderId } }).catch(() => {});
+  const orderId = khqrState.orderId;
+  const qrPayload = khqrState.qrPayload;
+  khqrState.generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
+  if (orderId) {
+    const body = { order_id: orderId };
+    if (qrPayload) body.expected_qr_ref = qrPayload;
+    apiCall('/cashier/khqr/cancel', { method: 'POST', body }).catch(() => {});
   }
   khqrState.orderId = null;
+  khqrState.qrPayload = '';
 };
 
 function closeKhqrModalSilent() {
   $('#khqrModal').classList.remove('show');
   stopKhqrTimers();
+  khqrState.generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
   khqrState.orderId = null;
+  khqrState.qrPayload = '';
 }
 
 function startKhqrCountdown() {

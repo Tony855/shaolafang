@@ -93,7 +93,7 @@ function clearPendingRefund(orderId) {
 }
 
 // KHQR 支付弹窗状态
-let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '' };
+let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '', qrPayload: '', generationRequestId: 0 };
 let khqrProviders = [];
 let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
   const awaitingOrders = new Map();  // 收银员待确认订单（服务员已标记，等待确认到账）
@@ -715,6 +715,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
 
     // 保留底下的收款弹窗，KHQR 叠在其上；点取消可回到上一级
 
+    const generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
+    khqrState.generationRequestId = generationRequestId;
+    khqrState.qrPayload = '';
     khqrState.orderId = orderId;
     khqrState.providerId = providerId || null;
     document.getElementById('khqrImage').src = '';
@@ -754,6 +757,16 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     // 请求生成
     api('/cashier/khqr/generate', { method: 'POST', body: { order_id: orderId, provider_id: providerId || undefined, currency: selectedCurrency } })
       .then(res => {
+        // A close can race QR creation. Cancel this exact late QR instead of
+        // leaving an invisible active payment request on the order.
+        if (khqrState.generationRequestId !== generationRequestId ||
+            !document.getElementById('khqrModal').classList.contains('show')) {
+          if (res.qr_payload) {
+            api('/cashier/khqr/cancel', { method: 'POST', body: { order_id: orderId, expected_qr_ref: res.qr_payload } }).catch(() => {});
+          }
+          return;
+        }
+        khqrState.qrPayload = res.qr_payload || '';
         // 优先用后端返回的 base64（<img> 无法带 token，不能直接用 URL 接口）
         if (res.qr_data_url) {
           document.getElementById('khqrImage').src = res.qr_data_url;
@@ -809,6 +822,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
           '<span>' + t('khqrWaitingScan') + '</span>';
       })
       .catch(e => {
+        if (khqrState.generationRequestId !== generationRequestId) return;
         document.getElementById('khqrStatusBar').innerHTML =
           '<span style="color:#e74c3c;">❌ ' + esc(e.message || t('khqrGenerateFailed')) + '</span>';
         btn.textContent = '❌ ' + t('khqrGenerateFailed');
@@ -818,11 +832,18 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   function closeKhqrModal() {
     document.getElementById('khqrModal').classList.remove('show');
     stopKhqrTimers();
-    // 取消本次支付（清掉 pay_khqr_ref）
-    if (khqrState.orderId) {
-      api('/cashier/khqr/cancel', { method: 'POST', body: { order_id: khqrState.orderId } }).catch(() => {});
+    const orderId = khqrState.orderId;
+    const qrPayload = khqrState.qrPayload;
+    // Invalidate an in-flight generate response; its handler cancels the exact
+    // QR if the server commits after this close request.
+    khqrState.generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
+    if (orderId) {
+      const body = { order_id: orderId };
+      if (qrPayload) body.expected_qr_ref = qrPayload;
+      api('/cashier/khqr/cancel', { method: 'POST', body }).catch(() => {});
     }
     khqrState.orderId = null;
+    khqrState.qrPayload = '';
   }
 
   function startKhqrCountdown() {
@@ -882,7 +903,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
   function closeKhqrModalSilent() {
     document.getElementById('khqrModal').classList.remove('show');
     stopKhqrTimers();
+    khqrState.generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
     khqrState.orderId = null;
+    khqrState.qrPayload = '';
   }
 
   async function confirmKhqrReceived() {
