@@ -450,6 +450,7 @@ window.confirmKhqrReceived = async function() {
     // ★ 不再直接结算，改为通知收银员确认
     await apiCall('/waiter/khqr/notify', { method: 'POST', body: {
       order_id: id,
+      payment_channel: 'khqr',
       pay_method: (khqrState.bankName || 'aba').toLowerCase(),
     }});
     SLF.ui.toast('🔔 ' + (t('notifyCashierConfirm') || '已通知收银员确认'));
