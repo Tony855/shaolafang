@@ -683,7 +683,7 @@ app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
     const hash = hashPassword(newPassword);
     await withTransaction(async () => {
       await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
-      await runAsync('DELETE FROM super_sessions WHERE super_admin_id=? AND token<>?', [req.superAdmin.id, req.superSessionToken || '']);
+      await runAsync('DELETE FROM super_sessions WHERE super_admin_id=? AND token_hash<>?', [req.superAdmin.id, hashSessionToken(req.superSessionToken || '')]);
       await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
     });
     res.json({ success: true });
