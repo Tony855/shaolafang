@@ -1297,6 +1297,14 @@ module.exports = function(app, deps) {
           error.status = 409;
           throw error;
         }
+        // Never let a close request without an ownership reference clear an
+        // active QR: another terminal may have created it after this client
+        // started its own generation request.
+        if (order.pay_khqr_ref && expectedQrRef === undefined) {
+          const error = new Error('取消请求缺少二维码引用，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
         // A delayed close request may arrive after another QR has been issued.
         // Only clear the exact QR that the closing client received.
         if (expectedQrRef !== undefined && order.pay_khqr_ref !== expectedQrRef) {
