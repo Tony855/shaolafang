@@ -76,9 +76,16 @@ function renderCategoryList() {
   box.innerHTML = cats.length ?
     cats.map(c => `<div class="category-row" draggable="true" data-id="${c.id}">
       <span class="name">${esc(categoryText(c.name))}</span>
-      <div class="actions"><button onclick="editCategory(${c.id},'${esc(c.name)}')">${L('edit')}</button><button class="danger" onclick="deleteCategory(${c.id})">${L('delete')}</button></div>
+      <div class="actions"><button class="edit-category-btn" data-category-id="${Number(c.id)}" data-category-name="${esc(c.name)}">${L('edit')}</button><button class="danger" onclick="deleteCategory(${c.id})">${L('delete')}</button></div>
     </div>`).join('') :
     `<div class="empty-hint">${tAdmin('noData')}</div>`;
+  box.querySelectorAll('.edit-category-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const categoryId = Number(this.dataset.categoryId);
+      if (!Number.isSafeInteger(categoryId) || categoryId <= 0) return;
+      editCategory(categoryId, this.dataset.categoryName || '');
+    });
+  });
 }
 
 let editingMenuId = null;
