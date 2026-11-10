@@ -972,7 +972,8 @@ module.exports = function(app, deps) {
             'SELECT id, status, awaiting_confirm, pay_khqr_ref, pay_qr_generation_id, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
             [orderId, sid]
           );
-          if (lockedOrder?.pay_khqr_ref && (!expectedQrGenerationId || lockedOrder.pay_qr_generation_id !== expectedQrGenerationId)) {
+          if (Boolean(lockedOrder?.pay_khqr_ref) !== Boolean(expectedQrGenerationId) ||
+              (expectedQrGenerationId && lockedOrder?.pay_qr_generation_id !== expectedQrGenerationId)) {
             const error = new Error('二维码已变化或已失效，请刷新后重新确认');
             error.status = 409;
             throw error;
@@ -1030,7 +1031,8 @@ module.exports = function(app, deps) {
           'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
           [orderId, sid]
         );
-        if (lockedOrder?.pay_khqr_ref && (!expectedQrGenerationId || lockedOrder.pay_qr_generation_id !== expectedQrGenerationId)) {
+        if (Boolean(lockedOrder?.pay_khqr_ref) !== Boolean(expectedQrGenerationId) ||
+              (expectedQrGenerationId && lockedOrder?.pay_qr_generation_id !== expectedQrGenerationId)) {
           const error = new Error('二维码已变化或已失效，拒绝使用旧确认请求');
           error.status = 409;
           throw error;
