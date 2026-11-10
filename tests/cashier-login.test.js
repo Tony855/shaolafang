@@ -42,6 +42,7 @@ function setup({ cashierRows = null, lockedCashierRows = null } = {}) {
     isLoginLocked: async () => ({ locked: false }),
     recordLoginAttempt() {},
     resetLoginAttempts() {},
+    cancelLoginAttempt() {},
     verifyPassword,
     getClientIp: () => '127.0.0.1',
     requireCashier: (_req, _res, next) => next(),
