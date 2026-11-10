@@ -62,7 +62,8 @@ test('session storage migration is safe to rerun after digest columns and indexe
     throw new Error('unexpected metadata query: ' + sql);
   };
 
-  await migrateSessionTokenStorage({ runAsync, allAsync });
+  await migrateSessionTokenStorage({ runAsync, allAsync, withTransaction });
+  assert.equal(transactionCount, 1);
   assert.equal(writes.some(sql => /ADD COLUMN token_hash/.test(sql)), false);
   assert.equal(writes.some(sql => /MODIFY token VARCHAR/.test(sql)), false);
   assert.equal(writes.some(sql => /CREATE UNIQUE INDEX/.test(sql)), false);
