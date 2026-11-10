@@ -294,14 +294,28 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
     sw.textContent = selectedCurrency === 'USD' ? '$ USD  ⇄  ៛ KHR' : '៛ KHR  ⇄  $ USD';
     sw.setAttribute('aria-label', '切换 KHQR 收款币种');
     sw.style.cssText = 'display:block;width:100%;max-width:360px;margin:12px auto;padding:14px 18px;border-radius:12px;border:2px solid #16a34a;background:#166534;color:#fff;font-size:17px;font-weight:800;cursor:pointer;';
+    sw.disabled = true;
     sw.onclick = () => {
-      if (typeof window.__khqrSwitchBusy !== 'undefined' && window.__khqrSwitchBusy) return;
+      if (window.__khqrSwitchBusy || !khqrState.qrPayload) return;
+      const currentQr = khqrState.qrPayload;
+      const nextCurrency = selectedCurrency === 'USD' ? 'KHR' : 'USD';
       window.__khqrSwitchBusy = true;
-      try {
-        openKhqrModal(orderId, providerId, selectedCurrency === 'USD' ? 'KHR' : 'USD');
-      } finally {
-        setTimeout(() => { window.__khqrSwitchBusy = false; }, 500);
-      }
+      sw.disabled = true;
+      apiCall('/cashier/khqr/cancel', {
+        method: 'POST',
+        body: { order_id: orderId, expected_qr_ref: currentQr }
+      }).then(() => {
+        if (khqrState.orderId !== orderId || khqrState.qrPayload !== currentQr) return;
+        openKhqrModal(orderId, providerId, nextCurrency);
+      }).catch(e => {
+        if (khqrState.orderId === orderId && khqrState.qrPayload === currentQr) {
+          sw.disabled = false;
+          const bar = $('#khqrStatusBar');
+          if (bar) bar.innerHTML = '<span style="color:#e74c3c;">' + esc(e.message || t('khqrGenerateFailed')) + '</span>';
+        }
+      }).finally(() => {
+        window.__khqrSwitchBusy = false;
+      });
     };
     const amountEl = document.getElementById('khqrAmount');
     if (amountEl && amountEl.parentNode) amountEl.parentNode.insertBefore(sw, amountEl);
@@ -318,6 +332,8 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
         return;
       }
       khqrState.qrPayload = res.qr_payload || '';
+      const currencySwitch = $('#khqrCurrencySwitch');
+      if (currencySwitch) currencySwitch.disabled = !khqrState.qrPayload;
       if (res.qr_data_url) $('#khqrImage').src = res.qr_data_url;
       else {
         const size = Math.min(560, Math.max(280, Math.floor(window.innerWidth * 0.7)));
@@ -376,10 +392,13 @@ window.closeKhqrModal = function() {
   const orderId = khqrState.orderId;
   const qrPayload = khqrState.qrPayload;
   khqrState.generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
-  if (orderId) {
-    const body = { order_id: orderId };
-    if (qrPayload) body.expected_qr_ref = qrPayload;
-    apiCall('/cashier/khqr/cancel', { method: 'POST', body }).catch(() => {});
+  // Do not send an unqualified cancel while QR generation is pending.
+  // Its stale response handler will cancel only the QR it actually created.
+  if (orderId && qrPayload) {
+    apiCall('/cashier/khqr/cancel', {
+      method: 'POST',
+      body: { order_id: orderId, expected_qr_ref: qrPayload }
+    }).catch(() => {});
   }
   khqrState.orderId = null;
   khqrState.qrPayload = '';
