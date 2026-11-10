@@ -132,6 +132,7 @@ test('backup restore writes its audit event and invalidates sessions in the same
   assert.equal(audit.inTransaction, true);
   assert.equal(audit.strict, true);
   assert.ok(ctx.calls.filter(call => call.sql?.startsWith('DELETE FROM')).every(call => call.inTransaction));
+  assert.ok(ctx.calls.some(call => call.sql?.includes('UPDATE orders SET pay_qr_generation_id=SHA2')));
   assert.equal(ctx.rolledBack, false);
 });
 

@@ -788,6 +788,7 @@ async function initDatabase() {
     ['awaiting_confirm',  'TINYINT NOT NULL DEFAULT 0'],
     ['pay_khqr_ref',      "VARCHAR(255) DEFAULT ''"],
     ['pay_expires_at',    "VARCHAR(50) DEFAULT ''"],
+    ['pay_qr_generation_id', "VARCHAR(64) DEFAULT ''"],
     ['paid_confirmed_by', "VARCHAR(100) DEFAULT ''"],
     ['refund_amount',     'DECIMAL(10,2) DEFAULT NULL'],
     ['refund_reason',     "VARCHAR(100) DEFAULT ''"],
@@ -799,6 +800,9 @@ async function initDatabase() {
     try { await runAsync(`ALTER TABLE orders ADD COLUMN ${col} ${def}`); }
     catch (e) { if (!/duplicate column/i.test(e.message || '')) console.log(`  ! orders.${col}: ${e.message}`); }
   }
+
+  // Give legacy active QR payloads a stable per-generation ownership token.
+  await runAsync("UPDATE orders SET pay_qr_generation_id=SHA2(CONCAT(id, ':', COALESCE(pay_khqr_ref, ''), ':', COALESCE(pay_expires_at, ''), ':', UUID()), 256) WHERE pay_khqr_ref<>'' AND (pay_qr_generation_id IS NULL OR pay_qr_generation_id='')");
   try {
     await runAsync('ALTER TABLE orders ADD UNIQUE INDEX idx_order_no (order_no)');
   } catch (e) {
@@ -1314,7 +1318,7 @@ initDatabase().then(async () => {
         try {
           const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
           const result = await runAsync(
-            "UPDATE orders SET pay_khqr_ref='', pay_expires_at='' " +
+            "UPDATE orders SET pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='' " +
             "WHERE status='pending' AND awaiting_confirm=0 " +
             "AND pay_expires_at != '' AND pay_expires_at < ?",
             [cutoff]

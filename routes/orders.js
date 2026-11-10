@@ -842,12 +842,12 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       if (waiterCompletion) {
         // A waiter may request settlement, but must never transiently mark an order as paid.
         update = await runAsync(
-          "UPDATE orders SET table_name=?, session_token=?, items=?, total=?, note=?, status='pending', awaiting_confirm=1, pay_khqr_ref='', pay_expires_at='', pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
+          "UPDATE orders SET table_name=?, session_token=?, items=?, total=?, note=?, status='pending', awaiting_confirm=1, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='', pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending' AND awaiting_confirm=0",
           [nextTable, nextSessionToken, itemsJson, calculatedTotal, nextNote, paymentMethod, cashReceived, cashChange, id, orderStoreId]
         );
       } else if (status === 'done' && req.isAdmin) {
         update = await runAsync(
-          "UPDATE orders SET table_name=?, session_token=?, items=?, total=?, status='done', note=?, awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_method=?, cash_received=?, cash_change=?, settled_at=? WHERE id=? AND store_id=? AND status='pending'",
+          "UPDATE orders SET table_name=?, session_token=?, items=?, total=?, status='done', note=?, awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='', pay_method=?, cash_received=?, cash_change=?, settled_at=? WHERE id=? AND store_id=? AND status='pending'",
           [nextTable, nextSessionToken, itemsJson, calculatedTotal, nextNote, paymentMethod, cashReceived, cashChange, now, id, orderStoreId]
         );
         await runAsync(

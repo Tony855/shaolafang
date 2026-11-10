@@ -93,7 +93,7 @@ function clearPendingRefund(orderId) {
 }
 
 // KHQR 支付弹窗状态
-let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '', qrPayload: '', generationRequestId: 0 };
+let khqrState = { orderId: null, expiresAt: 0, timer: null, pollTimer: null, providerId: null, bankName: '', qrPayload: '', qrGenerationId: '', generationRequestId: 0 };
 let khqrProviders = [];
 let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: false, khqr: false };
   const awaitingOrders = new Map();  // 收银员待确认订单（服务员已标记，等待确认到账）
@@ -718,6 +718,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     const generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
     khqrState.generationRequestId = generationRequestId;
     khqrState.qrPayload = '';
+    khqrState.qrGenerationId = '';
     khqrState.orderId = orderId;
     khqrState.providerId = providerId || null;
     document.getElementById('khqrImage').src = '';
@@ -740,14 +741,28 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       sw.textContent = selectedCurrency === 'USD' ? '$ USD  ⇄  ៛ KHR' : '៛ KHR  ⇄  $ USD';
       sw.setAttribute('aria-label', '切换 KHQR 收款币种');
       sw.style.cssText = 'display:block;width:100%;max-width:360px;margin:12px auto;padding:14px 18px;border-radius:12px;border:2px solid #16a34a;background:#166534;color:#fff;font-size:17px;font-weight:800;cursor:pointer;';
+      sw.disabled = true;
       sw.onclick = () => {
-        if (typeof window.__khqrSwitchBusy !== 'undefined' && window.__khqrSwitchBusy) return;
+        if (window.__khqrSwitchBusy || !khqrState.qrPayload || !khqrState.qrGenerationId) return;
+        const currentQr = khqrState.qrPayload;
+        const nextCurrency = selectedCurrency === 'USD' ? 'KHR' : 'USD';
         window.__khqrSwitchBusy = true;
-        try {
-          openKhqrModal(orderId, providerId, selectedCurrency === 'USD' ? 'KHR' : 'USD');
-        } finally {
-          setTimeout(() => { window.__khqrSwitchBusy = false; }, 500);
-        }
+        sw.disabled = true;
+        api('/cashier/khqr/cancel', {
+          method: 'POST',
+          body: { order_id: orderId, expected_qr_ref: currentQr, expected_qr_generation_id: khqrState.qrGenerationId }
+        }).then(() => {
+          if (khqrState.orderId !== orderId || khqrState.qrPayload !== currentQr) return;
+          openKhqrModal(orderId, providerId, nextCurrency);
+        }).catch(e => {
+          if (khqrState.orderId === orderId && khqrState.qrPayload === currentQr) {
+            sw.disabled = false;
+            const bar = document.getElementById('khqrStatusBar');
+            if (bar) bar.innerHTML = '<span style="color:#e74c3c;">' + esc(e.message || t('khqrGenerateFailed')) + '</span>';
+          }
+        }).finally(() => {
+          window.__khqrSwitchBusy = false;
+        });
       };
       const amountEl = document.getElementById('khqrAmount');
       if (amountEl && amountEl.parentNode) amountEl.parentNode.insertBefore(sw, amountEl);
@@ -762,11 +777,14 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
         if (khqrState.generationRequestId !== generationRequestId ||
             !document.getElementById('khqrModal').classList.contains('show')) {
           if (res.qr_payload) {
-            api('/cashier/khqr/cancel', { method: 'POST', body: { order_id: orderId, expected_qr_ref: res.qr_payload } }).catch(() => {});
+            api('/cashier/khqr/cancel', { method: 'POST', body: { order_id: orderId, expected_qr_ref: res.qr_payload, expected_qr_generation_id: res.qr_generation_id } }).catch(() => {});
           }
           return;
         }
         khqrState.qrPayload = res.qr_payload || '';
+        khqrState.qrGenerationId = res.qr_generation_id || '';
+        const currencySwitch = document.getElementById('khqrCurrencySwitch');
+        if (currencySwitch) currencySwitch.disabled = !khqrState.qrPayload || !khqrState.qrGenerationId;
         // 优先用后端返回的 base64（<img> 无法带 token，不能直接用 URL 接口）
         if (res.qr_data_url) {
           document.getElementById('khqrImage').src = res.qr_data_url;
@@ -834,16 +852,21 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     stopKhqrTimers();
     const orderId = khqrState.orderId;
     const qrPayload = khqrState.qrPayload;
+    const qrGenerationId = khqrState.qrGenerationId;
     // Invalidate an in-flight generate response; its handler cancels the exact
     // QR if the server commits after this close request.
     khqrState.generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
-    if (orderId) {
-      const body = { order_id: orderId };
-      if (qrPayload) body.expected_qr_ref = qrPayload;
-      api('/cashier/khqr/cancel', { method: 'POST', body }).catch(() => {});
+    // If generation is still pending, do not send an unqualified cancel.
+    // The stale response handler will cancel only the QR it actually created.
+    if (orderId && qrPayload && qrGenerationId) {
+      api('/cashier/khqr/cancel', {
+        method: 'POST',
+        body: { order_id: orderId, expected_qr_ref: qrPayload, expected_qr_generation_id: qrGenerationId }
+      }).catch(() => {});
     }
     khqrState.orderId = null;
     khqrState.qrPayload = '';
+    khqrState.qrGenerationId = '';
   }
 
   function startKhqrCountdown() {
@@ -906,6 +929,7 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     khqrState.generationRequestId = (Number(khqrState.generationRequestId) || 0) + 1;
     khqrState.orderId = null;
     khqrState.qrPayload = '';
+    khqrState.qrGenerationId = '';
   }
 
   async function confirmKhqrReceived() {
