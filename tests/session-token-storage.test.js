@@ -26,7 +26,7 @@ test('session storage migration adds unique digest columns and clears legacy cre
     queries.push(sql);
     if (sql.startsWith('SHOW COLUMNS')) return [{ Field: 'token', Null: 'NO' }, { Field: 'expires_at', Null: 'NO' }];
     if (sql.startsWith('SHOW INDEX')) return [];
-    if (sql.includes('session_token_references_hashed_v1')) return [];
+    if (sql.startsWith('SELECT value FROM settings')) return [];
     throw new Error('unexpected metadata query: ' + sql);
   };
 
