@@ -21,7 +21,7 @@ function staticKhqrWithTimestamp() {
     tlv('60', 'Phnom Penh'),
     tlv('99', '1700000000000')
   ].join('');
-  return body + '6304' + khqr.crc16(body);
+  return body + '6304' + khqr.crc16(body + '6304');
 }
 
 test('dynamic KHQR replaces the static Tag 99 with one standard millisecond timestamp', () => {
@@ -62,7 +62,7 @@ test('dynamic KHQR emits Tag 99 even when the static payload omitted it', () => 
     tlv('60', 'Phnom Penh')
   ];
   const body = fields.join('');
-  const staticPayload = body + '6304' + khqr.crc16(body);
+  const staticPayload = body + '6304' + khqr.crc16(body + '6304');
   const dynamicPayload = khqr.buildDynamicPayload(staticPayload, 1000, 'KHR', 'ORDER-456');
   const parsed = khqr.parseTLV(dynamicPayload);
 
