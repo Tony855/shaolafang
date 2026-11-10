@@ -26,7 +26,7 @@ function parsePositiveRouteId(value) {
 }
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, collectBackupData, autoBackupDatabase, withTransaction } = deps;
+  const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, collectBackupData, autoBackupDatabase, withTransaction } = deps;
   const writeAudit = deps.logAuditStrict || logAudit;
 
 app.post('/api/super/login', async (req, res) => {
@@ -46,26 +46,26 @@ app.post('/api/super/login', async (req, res) => {
       const whitelist = ipWhitelistSetting.value.split(',').map(ip => ip.trim()).filter(Boolean);
       if (whitelist.length > 0 && !whitelist.includes(clientIp)) {
         await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', 'IP不在白名单内']);
-        return res.status(403).json({ error: '当前IP不允许登录超级管理员后台' });
+        await cancelLoginAttempt(username, 'super_admin', lockStatus.reservationId);\n        return res.status(403).json({ error: '当前IP不允许登录超级管理员后台' });
       }
     }
     const superAdmin = await getAsync('SELECT * FROM super_admins WHERE username=?', [username]);
     if (!superAdmin) {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '用户名不存在']);
-      recordLoginAttempt(username, 'super_admin');
+      await recordLoginAttempt(username, 'super_admin', lockStatus.reservationId);
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     const isValid = verifyPassword(password, superAdmin.password_hash);
     if (!isValid) {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '密码错误']);
-      recordLoginAttempt(username, 'super_admin');
+      await recordLoginAttempt(username, 'super_admin', lockStatus.reservationId);
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     if (needsRehash(superAdmin.password_hash)) {
       const upgradedHash = hashPassword(password);
       await runAsync('UPDATE super_admins SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, superAdmin.id, superAdmin.password_hash]);
     }
-    await resetLoginAttempts(username, 'super_admin');
+    await resetLoginAttempts(username, 'super_admin', lockStatus.reservationId);
     await runAsync('UPDATE super_admins SET last_login_at=NOW() WHERE id=?', [superAdmin.id]);
     const superLocation = await getLocationByIp(clientIp);
     await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, location, login_type, message) VALUES (?, 1, ?, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, superLocation, 'super_admin', '超级管理员登录成功: ' + username]);
