@@ -826,8 +826,8 @@ test('public order history requires the per-customer bearer token', async () => 
   const res = response();
   await routes.get('GET /api/public/table-session/orders').at(-1)({
     get: name => name === 'X-Scan-Session' ? 'valid-scan-session' : '',
-    params: {},
-    query: {}
+    params: { token: 'legacy-path-token' },
+    query: { ct: 'legacy-query-customer-token' }
   }, res);
 
   assert.equal(res.statusCode, 401);
