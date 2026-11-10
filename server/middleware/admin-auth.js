@@ -275,7 +275,7 @@ async function requireAdminOrWaiter(req, res, next) {
             const wTimeoutHours = Number.isSafeInteger(configuredWaiterTimeoutHours) && configuredWaiterTimeoutHours > 0
               ? Math.min(configuredWaiterTimeoutHours, 720) : 12;
             const newExpires = new Date(Date.now() + wTimeoutHours * 60 * 60 * 1000).toISOString();
-            runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token_hash=?', [newExpires, token]).catch(() => {});
+            runAsync('UPDATE waiter_sessions SET expires_at=? WHERE token_hash=?', [newExpires, hashSessionToken(token)]).catch(() => {});
           }
           return next();
         }
