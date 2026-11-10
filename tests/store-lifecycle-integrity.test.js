@@ -160,6 +160,22 @@ test('empty non-primary store is deleted with settings cleanup and audit in one 
   assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO audit_logs') && call.inTransaction));
 });
 
+test('store deletion removes only settings with the exact store prefix', async () => {
+  const ctx = setup({ storeCount: 21, currentStoreId: 2, firstStoreId: 1 });
+  const res = response();
+  await ctx.deleteHandler({ merchantId: 5, params: { id: '2' }, adminId: 7, username: 'owner' }, res);
+
+  assert.equal(res.statusCode, 200);
+  const cleanup = ctx.calls.find(call =>
+    call.type === 'run' &&
+    call.sql.startsWith('DELETE FROM settings') &&
+    call.sql.includes('LEFT(')
+  );
+  assert.ok(cleanup);
+  assert.deepEqual(cleanup.params, ['store_2_', 'store_2_']);
+  assert.doesNotMatch(cleanup.sql, /LIKE/);
+});
+
 test('store deletion refuses to orphan active cashier sessions', async () => {
   const ctx = setup({ storeCount: 2, currentStoreId: 2, firstStoreId: 1, dependentTable: 'cashier_sessions' });
   const res = response();
