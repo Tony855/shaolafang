@@ -414,7 +414,7 @@ app.get('/api/super/online-sessions/:storeId', requireSuperAdmin, async (req, re
     const store = await getAsync('SELECT s.*, m.name AS merchant_name FROM stores s LEFT JOIN merchants m ON m.id=s.merchant_id WHERE s.id=?', [storeId]);
     if (!store) return res.status(404).json({ error: '门店不存在' });
     const sessions = await allAsync(`
-      SELECT ss.table_name, ss.token, ss.created_at, ss.expires_at,
+      SELECT ss.table_name, ss.created_at, ss.expires_at,
              (SELECT o.order_no FROM orders o WHERE o.table_name=ss.table_name AND o.store_id=ss.store_id AND o.status='pending' ORDER BY o.id DESC LIMIT 1) AS active_order_no,
              (SELECT o.total FROM orders o WHERE o.table_name=ss.table_name AND o.store_id=ss.store_id AND o.status='pending' ORDER BY o.id DESC LIMIT 1) AS active_order_total
       FROM scan_sessions ss
