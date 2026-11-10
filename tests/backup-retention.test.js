@@ -35,3 +35,11 @@ test('automatic backup pruning removes only expired automatic backup files', () 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+test('audit-log retention always preserves per-refund financial audit records', () => {
+  const { buildAuditLogCleanupSql } = require('../server/services/backup');
+  const sql = buildAuditLogCleanupSql();
+  assert.match(sql, /DELETE FROM audit_logs WHERE created_at < \?/);
+  assert.match(sql, /action <> 'refund_order'/);
+});
