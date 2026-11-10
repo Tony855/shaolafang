@@ -9,9 +9,10 @@ function response() {
   return {
     statusCode: 200,
     body: null,
+    headers: {},
     status(code) { this.statusCode = code; return this; },
     json(value) { this.body = value; return this; },
-    setHeader() {}
+    setHeader(name, value) { this.headers[name] = value; }
   };
 }
 
@@ -85,8 +86,11 @@ test('backup export is audited and sends no-store security headers', async () =>
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body, null); // response mock records status and headers only
-  const audit = ctx.calls.find(call => call.audit?.[4] === 'export_backup');
+  assert.ok(res.body.tables);
+  assert.equal(res.headers['Cache-Control'], 'no-store, no-cache, must-revalidate, private');
+  assert.equal(res.headers.Pragma, 'no-cache');
+  assert.equal(res.headers['X-Content-Type-Options'], 'nosniff');
+  const audit = ctx.calls.find(call => call.audit?.[3] === 'export_backup');
   assert.ok(audit);
   assert.equal(audit.inTransaction, false);
   assert.equal(audit.strict, true);
