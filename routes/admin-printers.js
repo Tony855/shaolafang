@@ -8,7 +8,7 @@ module.exports = function(app, deps) {
   // Customer/session bearer credentials are needed only for server-side
   // authorization and must never leave the order service in print payloads.
   function formatPrintOrder(row) {
-    const order = formatPrintOrder(row);
+    const order = formatOrder(row);
     if (!order || typeof order !== 'object') return order;
     delete order.sessionToken;
     delete order.customerToken;
@@ -179,7 +179,7 @@ module.exports = function(app, deps) {
       const printStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
       const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [req.params.id, printStoreId]);
       if (!row) return res.status(404).json({ error: '订单不存在' });
-      const order = formatOrder(row);
+      const order = formatPrintOrder(row);
       const store = await getAsync('SELECT name, address FROM stores WHERE id=?', [row.store_id || 1]);
       res.json({ order, store: store || { name: 'FoodFlow', address: '' }, printedAt: new Date().toISOString() });
     } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
@@ -191,7 +191,7 @@ module.exports = function(app, deps) {
       const printStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
       const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, printStoreId]);
       if (!row) return res.status(404).json({ error: '订单不存在' });
-      const order = formatOrder(row);
+      const order = formatPrintOrder(row);
       const store = await getAsync('SELECT name, address, phone FROM stores WHERE id=?', [row.store_id || 1]);
 
       // 可选：指定打印机
@@ -214,7 +214,7 @@ module.exports = function(app, deps) {
       const printStoreId = req.isAdmin ? (req.storeId || 1) : (req.waiterStoreId || 1);
       const row = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, printStoreId]);
       if (!row) return res.status(404).json({ error: '订单不存在' });
-      const order = formatOrder(row);
+      const order = formatPrintOrder(row);
       const store = await getAsync('SELECT name, address, phone FROM stores WHERE id=?', [row.store_id || 1]);
 
       const result = await dispatchPrint({
