@@ -7,6 +7,27 @@ const crypto = require('crypto');
 const { runAsync, getAsync, allAsync, withTransaction } = require('../db/helpers');
 const { parseRetentionDays, pruneAutoBackups } = require('./backup-retention');
 
+// Scan sessions are intentionally not included in backups. Their bearer
+// credentials embedded in historical orders/calls are therefore unusable after
+// restore and must not be copied into downloadable or automatic backup files.
+function redactExpiredSessionCredentials(tables) {
+  for (const [table, fields] of [
+    ['orders', ['session_token', 'customer_token']],
+    ['waiter_calls', ['session_token']]
+  ]) {
+    if (!Array.isArray(tables[table])) continue;
+    tables[table] = tables[table].map(row => {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) return row;
+      const sanitized = { ...row };
+      for (const field of fields) {
+        if (Object.prototype.hasOwnProperty.call(sanitized, field)) sanitized[field] = '';
+      }
+      return sanitized;
+    });
+  }
+  return tables;
+}
+
 async function collectBackupData() {
   const tables = ['menus', 'tables', 'orders', 'refund_requests', 'order_sequences', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'waiters', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
   // All table reads must share one InnoDB transaction. Otherwise concurrent
@@ -15,8 +36,9 @@ async function collectBackupData() {
   return withTransaction(async () => {
     const data = { exportedAt: new Date().toISOString(), tables: {} };
     for (const table of tables) {
-      data.tables[table] = await allAsync(`SELECT * FROM \`${table}\``);
+      data.tables[table] = await allAsync(`SELECT * FROM \u0060${table}\u0060`);
     }
+    redactExpiredSessionCredentials(data.tables);
     return data;
   });
 }
@@ -91,4 +113,4 @@ async function autoCleanLogs() {
   }
 }
 
-module.exports = { collectBackupData, autoBackupDatabase, maybeAutoBackup, autoCleanLogs };
+module.exports = { collectBackupData, autoBackupDatabase, maybeAutoBackup, autoCleanLogs, redactExpiredSessionCredentials };
