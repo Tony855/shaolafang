@@ -313,7 +313,7 @@ function buildDynamicPayload(staticPayload, amount, currencyCode, orderNo) {
 
   const tlvs = parseTLV(staticPayload);
 
-  const clean = tlvs.filter(t => !['54', '63'].includes(t.tag));
+  const clean = tlvs.filter(t => !['54', '63', '99'].includes(t.tag));
 
   const t62Orig = tlvs.find(t => t.tag === '62');
   const t62Subs = t62Orig ? parseNestedTLV(t62Orig.value) : [];
@@ -472,12 +472,6 @@ function buildDynamicPayload(staticPayload, amount, currencyCode, orderNo) {
   }
 
   const nowMs = Date.now();
-  const expireMs = nowMs + 10 * 60 * 1000;
-
-  let t99Value = '';
-
-  t99Value += tlv('00', String(nowMs));
-  t99Value += tlv('01', String(expireMs));
 
   const parts = [];
   let inserted54 = false;
@@ -499,9 +493,9 @@ function buildDynamicPayload(staticPayload, amount, currencyCode, orderNo) {
     parts.push(tlv('62', t62Value));
   }
 
-  if (t99Value) {
-    parts.push(tlv('99', t99Value));
-  }
+  // KHQR Tag 99 contains subtag 00 with the millisecond timestamp.
+  // Do not retain the source Tag 99 or append a non-standard expiry subtag 01.
+  parts.push(tlv('99', tlv('00', String(nowMs))));
 
   parts.sort(
     (a, b) => parseInt(a.slice(0, 2), 10) - parseInt(b.slice(0, 2), 10)
