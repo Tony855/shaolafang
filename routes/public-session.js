@@ -2,6 +2,7 @@
    routes/public-session.js — 二维码 + 桌台 session
    ============================================================ */
 const crypto = require('crypto');
+const { hashSessionToken } = require('../server/services/session-token');
 const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 
@@ -66,7 +67,7 @@ module.exports = function(app, deps) {
       const expiresAt = qrTimeoutMinutes > 0
         ? new Date(Date.now() + qrTimeoutMinutes * 60 * 1000).toISOString()
         : new Date('9999-12-31T23:59:59Z').toISOString();
-      await runAsync('INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))', [table.name, sessionToken, expiresAt, new Date().toISOString(), storeId, storeId]);
+      await runAsync('INSERT INTO scan_sessions (table_name, token_hash, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))', [table.name, hashSessionToken(sessionToken), expiresAt, new Date().toISOString(), storeId, storeId]);
       const customerToken = crypto.randomBytes(16).toString('base64url');
       res.json({ table: table.name, storeId, sessionToken, customerToken, expiresAt });
     } catch (e) { res.status(500).json({ error: '扫码会话请求失败，请稍后重试' }); }
@@ -98,7 +99,7 @@ module.exports = function(app, deps) {
       res.setHeader('Cache-Control', 'no-store, private');
       const sessionToken = getSessionToken(req);
       if (!sessionToken || sessionToken.length > 256) return res.status(400).json({ error: '扫码会话令牌无效' });
-      const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [sessionToken]);
+      const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token_hash=?', [hashSessionToken(sessionToken)]);
       if (!session) return res.status(404).json({ error: '扫码会话不存在，请重新扫码' });
       if (!Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return res.status(410).json({ error: '二维码已过期，请重新扫码' });
       const sessionStoreId = Number(session.store_id);
@@ -127,7 +128,7 @@ module.exports = function(app, deps) {
       res.setHeader('Cache-Control', 'no-store, private');
       const sessionToken = getSessionToken(req);
       if (!sessionToken || sessionToken.length > 256) return res.status(400).json({ error: '扫码会话令牌无效' });
-      const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token=?', [sessionToken]);
+      const session = await getAsync('SELECT table_name, expires_at, store_id FROM scan_sessions WHERE token_hash=?', [hashSessionToken(sessionToken)]);
       if (!session) return res.status(404).json({ error: '会话不存在' });
       if (!Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return res.status(410).json({ error: '会话已过期' });
       const sessionStoreId = Number(session.store_id);
@@ -149,7 +150,7 @@ module.exports = function(app, deps) {
       res.setHeader('Cache-Control', 'no-store, private');
       const sessionToken = getSessionToken(req);
       if (!sessionToken || sessionToken.length > 256) return res.status(400).json({ error: '扫码会话令牌无效' });
-      await runAsync('DELETE FROM scan_sessions WHERE token=?', [sessionToken]);
+      await runAsync('DELETE FROM scan_sessions WHERE token_hash=?', [hashSessionToken(sessionToken)]);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: '结束扫码会话失败' });
