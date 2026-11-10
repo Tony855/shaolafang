@@ -100,7 +100,7 @@ test('waiter KHQR notification rejects an order without an issued QR before stat
   });
   const res = response();
   await handler({
-    body: { order_id: 42, pay_method: 'khqr' },
+    body: { order_id: 42, payment_channel: 'khqr', pay_method: 'aba' },
     waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
     waiterStoreId: 9
   }, res);
@@ -110,6 +110,27 @@ test('waiter KHQR notification rejects an order without an issued QR before stat
   assert.equal(calls.some(call => call.type === 'run'), false);
   assert.equal(events.length, 0);
   assert.deepEqual(transactionEvents, ['begin', 'rollback']);
+});
+
+test('manual cash notification remains available without a dynamic KHQR QR', async () => {
+  const { handler, calls, events, transactionEvents } = setup({
+    order: {
+      id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: '',
+      table_name: 'A01', order_no: '110042', total: 25
+    }
+  });
+  const res = response();
+  await handler({
+    body: { order_id: 42, payment_channel: 'manual', pay_method: 'cash', cash_received: '30.00', cash_change: '5.00' },
+    waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
+    waiterStoreId: 9
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes('UPDATE orders SET awaiting_confirm=1')));
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO audit_logs')));
+  assert.equal(events.length, 1);
+  assert.deepEqual(transactionEvents, ['begin', 'commit']);
 });
 
 test('waiter KHQR notification rejects a concurrent state change without broadcasting or auditing', async () => {
