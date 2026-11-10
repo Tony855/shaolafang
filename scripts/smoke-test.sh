@@ -71,7 +71,7 @@ ITEM_STATUS=$(echo "$PUT_RESP" | grep -oP '"itemStatus":"\K[^"]+' | head -1)
 step "5. 顾客催单（订单还是 pending）"
 URGE_RESP=$(curl -sS -X POST "$BASE/api/orders/$ORDER_ID/urge" \
   -H 'Content-Type: application/json' \
-  -d "{\"sessionToken\":\"$SESSION_TOKEN\"}")
+  -d \"{\\\"sessionToken\\\":\\\"$SESSION_TOKEN\\\",\\\"customerToken\\\":\\\"$CUSTOMER_TOKEN\\\"}\")
 CNT=$(sql "SELECT COUNT(*) FROM waiter_calls WHERE message LIKE '%#$ORDER_ID%';")
 if [ "$CNT" -gt 0 ]; then
   ok "waiter_calls 写入 $CNT 条"

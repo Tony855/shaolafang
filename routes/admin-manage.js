@@ -116,8 +116,11 @@ module.exports = function(app, deps) {
     try {
       const id = Number(req.params.id);
       const sessionToken = typeof req.body?.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
+      const customerToken = typeof req.body?.customerToken === 'string' ? req.body.customerToken.trim() : '';
       if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '订单编号无效' });
-      if (!sessionToken) return res.status(401).json({ error: '请重新扫码后再催单' });
+      if (!sessionToken || sessionToken.length > 256 || !customerToken || customerToken.length > 128) {
+        return res.status(401).json({ error: '顾客会话已失效，请重新扫码后再催单' });
+      }
 
       const initialSession = await getAsync(
         'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?',
@@ -157,8 +160,8 @@ module.exports = function(app, deps) {
         }
 
         const order = await getAsync(
-          'SELECT * FROM orders WHERE id=? AND store_id=? AND table_name=? FOR UPDATE',
-          [id, session.store_id, session.table_name]
+          'SELECT * FROM orders WHERE id=? AND store_id=? AND table_name=? AND session_token=? AND customer_token=? FOR UPDATE',
+          [id, session.store_id, session.table_name, sessionToken, customerToken]
         );
         if (!order) throw Object.assign(new Error('订单不存在或已转移'), { status: 404 });
         if (order.status !== 'pending') throw Object.assign(new Error('订单已完成或已取消'), { status: 400 });
