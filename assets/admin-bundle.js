@@ -1922,7 +1922,7 @@ async function loadDailyReport(rangeStart, rangeEnd) {
       html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🔥 ${tAdmin('topDishes')}</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:20px;">`;
       data.dishRanking.forEach((d, i) => {
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-        html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);align-items:center;"><span style="color:#fff;font-weight:600;font-size:14px;">${medal} ${d.emoji || ''} ${esc(d.name)}</span><span style="font-weight:700;color:#ffd93d;font-size:14px;">${d.quantity || 0} ${tAdmin('portion')}</span></div>`;
+        html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);align-items:center;"><span style="color:#fff;font-weight:600;font-size:14px;">${medal} ${esc(d.emoji || '')} ${esc(d.name)}</span><span style="font-weight:700;color:#ffd93d;font-size:14px;">${d.quantity || 0} ${tAdmin('portion')}</span></div>`;
       });
       html += `</div>`;
     }
