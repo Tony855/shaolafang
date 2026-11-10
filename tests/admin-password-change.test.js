@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const attachAdminSystemRoutes = require('../routes/admin-system');
+const { hashSessionToken } = require('../server/services/session-token');
 
 function middleware() { return (_req, _res, next) => next(); }
 function response() {
@@ -69,7 +70,8 @@ test('administrator password change updates hash, preserves current session, and
   const audit = ctx.calls.find(call => call.type === 'run' && call.sql.startsWith('INSERT INTO audit_logs'));
   assert.ok(update && sessions && audit);
   assert.ok(update.inTransaction && sessions.inTransaction && audit.inTransaction);
-  assert.equal(sessions.params[1], 'current-session');
+  assert.match(sessions.sql, /token_hash<>\?/);
+  assert.equal(sessions.params[1], hashSessionToken('current-session'));
 });
 
 test('administrator password change rejects an incorrect old password without writes', async () => {
