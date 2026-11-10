@@ -802,7 +802,7 @@ async function initDatabase() {
   }
 
   // Give legacy active QR payloads a stable per-generation ownership token.
-  await runAsync("UPDATE orders SET pay_qr_generation_id=SHA2(CONCAT(id, ':', pay_khqr_ref, ':', pay_expires_at, ':', UUID()), 256) WHERE pay_khqr_ref<>'' AND (pay_qr_generation_id IS NULL OR pay_qr_generation_id='')");
+  await runAsync("UPDATE orders SET pay_qr_generation_id=SHA2(CONCAT(id, ':', COALESCE(pay_khqr_ref, ''), ':', COALESCE(pay_expires_at, ''), ':', UUID()), 256) WHERE pay_khqr_ref<>'' AND (pay_qr_generation_id IS NULL OR pay_qr_generation_id='')");
   try {
     await runAsync('ALTER TABLE orders ADD UNIQUE INDEX idx_order_no (order_no)');
   } catch (e) {
