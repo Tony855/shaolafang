@@ -493,6 +493,10 @@ test('public order creation never echoes scan-session or customer bearer tokens'
   const serialized = JSON.stringify({ response: res.body, emitted });
   assert.equal(serialized.includes(sessionToken), false);
   assert.equal(serialized.includes(customerToken), false);
+  const publicOrderEvent = emitted.find(event => event.room === 'public-table-7-A1' && event.event === 'order:new');
+  assert.deepEqual(publicOrderEvent?.payload, { orderId: 99 });
+  assert.equal(JSON.stringify(publicOrderEvent?.payload).includes('Tea'), false);
+  assert.equal(JSON.stringify(publicOrderEvent?.payload).includes('2'), false);
 
   const missingCustomerTokenResponse = response();
   await handler({
@@ -898,4 +902,14 @@ test('public order history requires the per-customer bearer token', async () => 
   assert.equal(res.statusCode, 401);
   assert.equal(orderQueries, 0);
   assert.match(res.headers['Cache-Control'], /no-store/);
+});
+
+
+test('public table socket change payloads never contain another customer order details', () => {
+  const { publicOrderChangedPayload } = require('../routes/orders');
+  const payload = publicOrderChangedPayload(123);
+  assert.deepEqual(payload, { orderId: 123 });
+  for (const privateField of ['order', 'items', 'total', 'order_no', 'table_name', 'customerToken', 'sessionToken']) {
+    assert.equal(Object.hasOwn(payload, privateField), false, privateField);
+  }
 });
