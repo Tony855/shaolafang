@@ -51,7 +51,7 @@ app.post('/api/super/login', async (req, res) => {
       return res.status(403).json({ error: '当前IP不允许登录超级管理员后台' });
       }
     }
-    const superAdmin = await getAsync('SELECT * FROM super_admins WHERE username=?', [username]);
+    const superAdmin = await getAsync('SELECT * FROM super_admins WHERE username=? AND active=1', [username]);
     if (!superAdmin) {
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), clientIp, username, 'super_admin', '用户名不存在']);
       await recordLoginAttempt(username, 'super_admin', lockStatus.reservationId);
