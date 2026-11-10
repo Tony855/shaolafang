@@ -115,7 +115,7 @@ module.exports = function(app, deps) {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const rows = await allAsync(
         "SELECT * FROM orders WHERE store_id=? AND table_name=? AND session_token=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC",
-        [sessionStoreId, session.table_name, sessionToken, customerToken, sevenDaysAgo]
+        [sessionStoreId, session.table_name, hashSessionToken(sessionToken), hashSessionToken(customerToken), sevenDaysAgo]
       );
       res.json({ table: session.table_name, orders: rows.map(formatPublicOrder) });
     } catch (error) {
