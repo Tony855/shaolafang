@@ -35,3 +35,13 @@ test('automatic backup pruning removes only expired automatic backup files', () 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+test('audit-log retention always preserves per-refund financial audit records', () => {
+  // Read the source rather than requiring backup.js: that module intentionally
+  // initializes database helpers and requires production DB configuration.
+  const backupSource = fs.readFileSync(path.join(__dirname, '../server/services/backup.js'), 'utf8');
+  assert.ok(backupSource.includes('function buildAuditLogCleanupSql()'));
+  assert.ok(backupSource.includes("return \"DELETE FROM audit_logs WHERE created_at < ? AND action <> 'refund_order'\""));
+  assert.ok(backupSource.includes('runAsync(buildAuditLogCleanupSql(), [cutoff])'));
+});

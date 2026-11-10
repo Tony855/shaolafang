@@ -83,6 +83,12 @@ async function maybeAutoBackup() {
   }
 }
 
+function buildAuditLogCleanupSql() {
+  // Refund audit rows are the only durable per-refund detail ledger. Keep them
+  // indefinitely even when ordinary audit-log retention is explicitly enabled.
+  return "DELETE FROM audit_logs WHERE created_at < ? AND action <> 'refund_order'";
+}
+
 async function autoCleanLogs() {
   try {
     const enabledRow = await getAsync("SELECT value FROM settings WHERE `key` = 'auto_clean_log_enabled'");
@@ -101,7 +107,7 @@ async function autoCleanLogs() {
     }
     if (!cleanAuditRow || cleanAuditRow.value === '1' || cleanAuditRow.value === 'true') {
       try {
-        const result = await runAsync('DELETE FROM audit_logs WHERE created_at < ?', [cutoff]);
+        const result = await runAsync(buildAuditLogCleanupSql(), [cutoff]);
         cleaned += result.affectedRows || 0;
       } catch (e) { console.warn('清理审计日志失败:', e.message); }
     }
@@ -113,4 +119,4 @@ async function autoCleanLogs() {
   }
 }
 
-module.exports = { collectBackupData, autoBackupDatabase, maybeAutoBackup, autoCleanLogs, redactExpiredSessionCredentials };
+module.exports = { collectBackupData, autoBackupDatabase, maybeAutoBackup, autoCleanLogs, redactExpiredSessionCredentials, buildAuditLogCleanupSql };
