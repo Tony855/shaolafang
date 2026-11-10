@@ -112,11 +112,25 @@ test('conditional KHQR cancellation refuses to clear a different QR issued after
   assert.deepEqual(transactionEvents, ['begin', 'rollback']);
 });
 
+test('active QR cannot be canceled by an unqualified stale close request', async () => {
+  const { handler, calls, transactionEvents } = setup();
+  const res = response();
+  await handler({
+    body: { order_id: 42 }, storeId: 9, merchantId: 3,
+    isWaiter: true, waiter: { id: 7, store_id: 9, can_order: 1 }, waiterStoreId: 9
+  }, res);
+
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /缺少二维码引用/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.startsWith('UPDATE orders SET awaiting_confirm=0')), false);
+  assert.deepEqual(transactionEvents, ['begin', 'rollback']);
+});
+
 test('authorized waiter can cancel an unsubmitted QR with row lock and audit', async () => {
   const { handler, calls, transactionEvents } = setup();
   const res = response();
   await handler({
-    body: { order_id: '42' }, storeId: 9, merchantId: 3,
+    body: { order_id: '42', expected_qr_ref: 'qr-payload' }, storeId: 9, merchantId: 3,
     isWaiter: true, waiter: { id: 7, store_id: 9, can_order: 1, display_name: 'QA waiter' }, waiterStoreId: 9
   }, res);
   assert.equal(res.statusCode, 200);
