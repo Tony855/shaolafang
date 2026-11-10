@@ -1318,7 +1318,7 @@ initDatabase().then(async () => {
         try {
           const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
           const result = await runAsync(
-            "UPDATE orders SET pay_khqr_ref='', pay_expires_at='' " +
+            "UPDATE orders SET pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='' " +
             "WHERE status='pending' AND awaiting_confirm=0 " +
             "AND pay_expires_at != '' AND pay_expires_at < ?",
             [cutoff]
