@@ -839,7 +839,7 @@ function applyAdminLanguage() {
                         const rankText = i < 3 ? ['🥇','🥈','🥉'][i] : (i + 1);
                         return `<div class="hot-dish-item">
                             <div class="hot-dish-rank ${rankClass}">${rankText}</div>
-                            <span class="hot-dish-emoji">${d.emoji || '🍽️'}</span>
+                            <span class="hot-dish-emoji">${esc(d.emoji || '🍽️')}</span>
                             <span class="hot-dish-name">${esc(d.name)}</span>
                             <span class="hot-dish-sales">${d.sales_count}</span>
                         </div>`;
