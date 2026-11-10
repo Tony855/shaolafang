@@ -479,6 +479,18 @@ test('public order creation never echoes scan-session or customer bearer tokens'
   const serialized = JSON.stringify({ response: res.body, emitted });
   assert.equal(serialized.includes(sessionToken), false);
   assert.equal(serialized.includes(customerToken), false);
+
+  const missingCustomerTokenResponse = response();
+  await handler({
+    body: {
+      table: 'A1',
+      sessionToken,
+      items: [{ id: 1, quantity: 1 }]
+    },
+    get: () => ''
+  }, missingCustomerTokenResponse);
+  assert.equal(missingCustomerTokenResponse.statusCode, 400);
+  assert.match(missingCustomerTokenResponse.body.error, /顾客会话令牌/);
 });
 
 test('QR credential generation requires table-management permission', () => {
