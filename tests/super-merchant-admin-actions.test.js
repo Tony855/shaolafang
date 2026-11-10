@@ -6,6 +6,8 @@ function response() {
   return {
     statusCode: 200,
     body: null,
+    headers: {},
+    setHeader(name, value) { this.headers[name.toLowerCase()] = value; return this; },
     status(code) { this.statusCode = code; return this; },
     json(value) { this.body = value; return this; }
   };
@@ -74,6 +76,9 @@ test('merchant password reset and audit are atomic and invalidate sessions', asy
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.success, true);
+  assert.equal(res.headers['cache-control'], 'no-store, private');
+  assert.equal(res.headers.pragma, 'no-cache');
+  assert.equal(res.headers['x-content-type-options'], 'nosniff');
   assert.equal(ctx.transactionCount, 1);
   assert.equal(ctx.rolledBack, false);
   assert.ok(ctx.calls.some(call => call.type === 'get' && call.sql.includes('FOR UPDATE')));
