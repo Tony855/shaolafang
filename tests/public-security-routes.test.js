@@ -791,3 +791,34 @@ test('public scan-session credentials are never accepted or returned in URL path
   assert.equal(JSON.stringify(res.body).includes(token), false);
   assert.match(res.headers['Cache-Control'], /no-store/);
 });
+
+
+test('public order history requires the per-customer bearer token', async () => {
+  const { app, routes } = routeHarness();
+  let orderQueries = 0;
+  require('../routes/public-session')(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async sql => {
+      if (sql.includes('FROM scan_sessions')) {
+        return { table_name: 'A1', store_id: 7, expires_at: new Date(Date.now() + 60000).toISOString() };
+      }
+      if (sql.includes('FROM stores')) return { id: 7 };
+      return null;
+    },
+    allAsync: async () => { orderQueries++; return []; },
+    runAsync: async () => ({ affectedRows: 1 }),
+    formatOrder: row => row
+  });
+
+  const res = response();
+  await routes.get('GET /api/public/table-session/orders').at(-1)({
+    get: name => name === 'X-Scan-Session' ? 'valid-scan-session' : '',
+    params: {},
+    query: {}
+  }, res);
+
+  assert.equal(res.statusCode, 401);
+  assert.equal(orderQueries, 0);
+  assert.match(res.headers['Cache-Control'], /no-store/);
+});
