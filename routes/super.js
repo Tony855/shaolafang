@@ -763,6 +763,9 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
           await runAsync(`INSERT INTO \`${table}\` (${keys.map(key => `\`${key}\``).join(', ')}) VALUES (${placeholders})`, values);
         }
       }
+      // Older backups may contain active QR payloads but predate the generation
+      // ownership column. Backfill unique IDs so those QR codes remain safely cancellable.
+      await runAsync("UPDATE orders SET pay_qr_generation_id=SHA2(CONCAT(id, ':', pay_khqr_ref, ':', pay_expires_at, ':', UUID()), 256) WHERE pay_khqr_ref<>'' AND (pay_qr_generation_id IS NULL OR pay_qr_generation_id='')");
       // Never restore live authentication/QR sessions from a backup; invalidate all old tokens.
       for (const sessionTable of ['scan_sessions', 'waiter_sessions', 'cashier_sessions', 'admin_sessions', 'super_sessions']) {
         await runAsync(`DELETE FROM \`${sessionTable}\``);
