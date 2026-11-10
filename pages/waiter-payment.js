@@ -335,7 +335,7 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
       khqrState.qrPayload = res.qr_payload || '';
       khqrState.qrGenerationId = res.qr_generation_id || '';
       const currencySwitch = $('#khqrCurrencySwitch');
-      if (currencySwitch) currencySwitch.disabled = !khqrState.qrPayload;
+      if (currencySwitch) currencySwitch.disabled = !khqrState.qrPayload || !khqrState.qrGenerationId;
       if (res.qr_data_url) $('#khqrImage').src = res.qr_data_url;
       else {
         const size = Math.min(560, Math.max(280, Math.floor(window.innerWidth * 0.7)));
