@@ -106,7 +106,7 @@ test('waiter KHQR notification rejects an order without an issued QR before stat
   }, res);
 
   assert.equal(res.statusCode, 409);
-  assert.match(res.body.error, /尚未生成 KHQR/);
+  assert.match(res.body.error, /二维码已变化或已失效/);
   assert.equal(calls.some(call => call.type === 'run'), false);
   assert.equal(events.length, 0);
   assert.deepEqual(transactionEvents, ['begin', 'rollback']);
@@ -178,6 +178,22 @@ test('repeated waiter KHQR notification is idempotent and does not duplicate aud
   assert.equal(calls.some(call => call.type === 'run'), false);
   assert.deepEqual(transactionEvents, ['begin', 'commit']);
   assert.equal(events.length, 0);
+});
+
+test('KHQR waiter notification requires a generation identity', async () => {
+  const { handler, calls, events, transactionEvents } = setup();
+  const res = response();
+  await handler({
+    body: { order_id: 42, payment_channel: 'khqr', pay_method: 'aba' },
+    waiter: { id: 7, store_id: 9, display_name: 'QA waiter', can_order: 1 },
+    waiterStoreId: 9
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /缺少有效的二维码生成标识/);
+  assert.equal(calls.length, 0);
+  assert.equal(events.length, 0);
+  assert.deepEqual(transactionEvents, []);
 });
 
 test('stale waiter notification cannot target a replacement QR generation with identical payload', async () => {
