@@ -671,9 +671,15 @@ async function initDatabase() {
       token VARCHAR(255) UNIQUE NOT NULL,
       expires_at VARCHAR(50) NOT NULL,
       created_at VARCHAR(50) NOT NULL,
-      store_id INT NOT NULL DEFAULT 1
+      store_id INT NOT NULL DEFAULT 1,
+      KEY idx_scan_sessions_expires (expires_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  const scanSessionExpiryIndexes = await allAsync('SHOW INDEX FROM scan_sessions');
+  if (!scanSessionExpiryIndexes.some(index => index.Key_name === 'idx_scan_sessions_expires')) {
+    await runAsync('CREATE INDEX idx_scan_sessions_expires ON scan_sessions (expires_at)');
+  }
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS waiters (

@@ -172,7 +172,8 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
 
       const result = await runAsync('DELETE FROM stores WHERE id=? AND merchant_id=?', [id, merchantId]);
       if (!result.affectedRows) throw Object.assign(new Error('店铺不存在或已被删除'), { statusCode: 404 });
-      await runAsync('DELETE FROM settings WHERE \`key\` LIKE ?', [`store_${id}_%`]);
+      const storeSettingsPrefix = `store_${id}_`;
+      await runAsync('DELETE FROM settings WHERE LEFT(`key`, CHAR_LENGTH(?)) = ?', [storeSettingsPrefix, storeSettingsPrefix]);
       await runAsync('DELETE FROM settings WHERE \`key\` = ?', [`cashiers_${id}`]);
       const actor = req.adminId
         ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId])

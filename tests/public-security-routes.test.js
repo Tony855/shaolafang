@@ -676,6 +676,52 @@ test('public QR scan credentials are never cacheable', async () => {
   assert.ok(res.body.customerToken);
 });
 
+test('public QR session creation is rate limited per IP and expired sessions are cleaned', async () => {
+  const { app, routes } = routeHarness();
+  const writes = [];
+  require('../routes/public-session')(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    getAsync: async sql => {
+      if (sql.includes('FROM tables WHERE qr_token')) return { name: 'A1', store_id: 7 };
+      if (sql.includes('FROM stores')) return { id: 7 };
+      return null;
+    },
+    runAsync: async (sql, params = []) => {
+      writes.push({ sql, params });
+      return { affectedRows: 1, lastID: 1 };
+    },
+    allAsync: async () => [],
+    formatOrder: value => value
+  });
+
+  const handler = routes.get('GET /api/public/table-token/:token').at(-1);
+  const request = () => ({
+    params: { token: 'qr-token' },
+    ip: '198.51.100.25',
+    protocol: 'https',
+    get: name => name === 'host' ? 'foodflow.example' : ''
+  });
+
+  for (let i = 0; i < 60; i++) {
+    const res = response();
+    await handler(request(), res);
+    assert.equal(res.statusCode, 200);
+  }
+
+  const limited = response();
+  await handler(request(), limited);
+  assert.equal(limited.statusCode, 429);
+  assert.ok(Number(limited.headers['Retry-After']) >= 1);
+  assert.match(limited.body.error, /过于频繁/);
+
+  const cleanup = writes.filter(write => write.sql.startsWith('DELETE FROM scan_sessions'));
+  const inserts = writes.filter(write => write.sql.startsWith('INSERT INTO scan_sessions'));
+  assert.equal(cleanup.length, 1);
+  assert.match(cleanup[0].sql, /expires_at < ?/);
+  assert.equal(inserts.length, 60);
+});
+
 test('table QR code route rejects malformed table IDs before database access', async () => {
   const { app, routes } = routeHarness();
   let queries = 0;
