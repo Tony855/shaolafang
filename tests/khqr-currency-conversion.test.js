@@ -162,7 +162,7 @@ test('KHQR generation refuses to replace a QR with an unknown expiry', async () 
 
 
 test('KHR KHQR amount is rounded to whole riels and matches the encoded payload', async () => {
-  const { handler } = setup({
+  const { handler, calls } = setup({
     rates: [{ code: 'USD', rate: 1 }, { code: 'KHR', rate: '4000.005' }],
     orderTotal: '10.01'
   });
@@ -177,6 +177,10 @@ test('KHR KHQR amount is rounded to whole riels and matches the encoded payload'
   assert.equal(res.body.amount, 40040);
   assert.equal(khqr.extractInfo(khqr.parseTLV(res.body.qr_payload)).amount, '40040');
   assert.equal(res.body.original_amount, 10.01);
+  assert.match(res.body.qr_generation_id, /^[a-f0-9]{48}$/);
+  const qrUpdate = calls.find(call => call.type === 'run' && call.sql.includes('pay_qr_generation_id=?'));
+  assert.ok(qrUpdate);
+  assert.equal(qrUpdate.params[3], res.body.qr_generation_id);
 });
 
 test('USD KHQR response amount matches the exact two-decimal payload amount', async () => {
