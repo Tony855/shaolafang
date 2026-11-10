@@ -60,6 +60,25 @@ async function migrateSessionTokenStorage({ runAsync, allAsync, withTransaction 
   const needsReferenceMigration = !referenceMigration.length;
 
   await withTransaction(async () => {
+    // The legacy integration key is also a bearer credential. Hash and clear
+    // any configured plaintext value under a row lock so concurrent app
+    // instances cannot race the one-time migration or lose a key rotation.
+    const adminKeyRows = await allAsync(
+      "SELECT `key`, value FROM settings WHERE `key` IN (?, ?) FOR UPDATE",
+      ['admin_access_key', 'admin_access_key_hash']
+    );
+    const legacyAdminKey = adminKeyRows.find(row => row.key === 'admin_access_key')?.value;
+    if (typeof legacyAdminKey === 'string' && legacyAdminKey.length > 0) {
+      await runAsync(
+        "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+        ['admin_access_key_hash', hashSessionToken(legacyAdminKey)]
+      );
+      await runAsync(
+        "UPDATE settings SET value='' WHERE `key`='admin_access_key' AND value=?",
+        [legacyAdminKey]
+      );
+    }
+
     for (const table of sessionTables) {
       await runAsync(
         `UPDATE \`${table}\` SET token_hash=COALESCE(NULLIF(token_hash, ''), SHA2(token, 256)), token=NULL WHERE token IS NOT NULL AND token<>''`

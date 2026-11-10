@@ -140,11 +140,11 @@ async function authenticateAdmin(req) {
 
   }
   const providedKey = req.get('X-Admin-Key');
-  const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key'");
+  const setting = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_access_key_hash'");
   if (providedKey && setting && setting.value) {
-    const supplied = Buffer.from(String(providedKey));
-    const expected = Buffer.from(String(setting.value));
-    if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
+    const supplied = Buffer.from(hashSessionToken(String(providedKey)), 'ascii');
+    const expected = Buffer.from(String(setting.value), 'ascii');
+    if (supplied.length === 64 && expected.length === 64 && crypto.timingSafeEqual(supplied, expected)) {
       // The legacy key is a single integration credential, not a global
       // super-admin credential. Bind it to one configured store so changing
       // X-Store-Id cannot turn it into a cross-merchant access key.
