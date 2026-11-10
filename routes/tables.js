@@ -120,20 +120,21 @@ app.post('/api/tables/move', requireAdminOrWaiter, requireTableAccess, async (re
         'SELECT token_hash, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
         [targetTable, storeId, nowIso]
       );
-      let newToken = targetSession && Number.isFinite(new Date(targetSession.expires_at).getTime()) &&
-        new Date(targetSession.expires_at).getTime() > now ? targetSession.token : null;
-      if (!newToken) {
-        newToken = crypto.randomBytes(32).toString('base64url');
+      let newTokenHash = targetSession && Number.isFinite(new Date(targetSession.expires_at).getTime()) &&
+        new Date(targetSession.expires_at).getTime() > now ? targetSession.token_hash : null;
+      if (!newTokenHash) {
+        const newToken = crypto.randomBytes(32).toString('base64url');
+        newTokenHash = hashSessionToken(newToken);
         const expiresAt = new Date(now + 2 * 60 * 60 * 1000).toISOString();
         await runAsync(
           'INSERT INTO scan_sessions (table_name, token_hash, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-          [targetTable, hashSessionToken(newToken), expiresAt, nowIso, storeId, storeId]
+          [targetTable, newTokenHash, expiresAt, nowIso, storeId, storeId]
         );
       }
 
       const result = await runAsync(
         "UPDATE orders SET table_name=?, session_token=? WHERE table_name=? AND store_id=? AND status='pending'",
-        [targetTable, hashSessionToken(newToken), fromTable, storeId]
+        [targetTable, newTokenHash, fromTable, storeId]
       );
       if (result.affectedRows === 0) {
         throw Object.assign(new Error('当前桌没有未结算订单可以转移'), { status: 400 });
