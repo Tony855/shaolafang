@@ -833,7 +833,7 @@
         state.cartMeta[itemId] = menuItem || i;
       });
     }
-    let tableLabel = '<span data-i18n="currentTable">' + t('currentTable', null, '当前桌号') + '</span>：' + table;
+    let tableLabel = '<span data-i18n="currentTable">' + t('currentTable', null, '当前桌号') + '</span>：' + esc(table);
     // 有订单时显示订单号
     if (order && (order.order_no || order.id)) {
       const orderNoText = order.order_no || ('#' + order.id);
