@@ -32,7 +32,7 @@ function createLoginRateLimiter({ getAsync, runAsync, withTransaction }) {
     return { maxAttempts: parse(attemptSetting?.value, 5), lockMinutes: parse(lockSetting?.value, 15) };
   }
 
-  async function ensureRateRow(loginType, key) {
+  async function ensureRateRow(loginType, key, windowMinutes) {
     await runAsync(
       'INSERT IGNORE INTO login_rate_limits (login_type, username, failed_attempts, window_started_at, locked_until, updated_at) VALUES (?, ?, 0, UTC_TIMESTAMP(3), NULL, UTC_TIMESTAMP(3))',
       [loginType, key]
@@ -42,7 +42,7 @@ function createLoginRateLimiter({ getAsync, runAsync, withTransaction }) {
       'GREATEST(1, CEIL(TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(3), locked_until) / 60)) AS remaining, ' +
       '(window_started_at <= DATE_SUB(UTC_TIMESTAMP(3), INTERVAL ? MINUTE)) AS window_expired ' +
       'FROM login_rate_limits WHERE login_type=? AND username=? FOR UPDATE',
-      [15, loginType, key]
+      [windowMinutes, loginType, key]
     );
     if (!row) throw new Error('Login rate-limit row could not be locked');
     return row;
@@ -55,7 +55,7 @@ function createLoginRateLimiter({ getAsync, runAsync, withTransaction }) {
     const { maxAttempts, lockMinutes } = await readPolicy();
 
     return withTransaction(async () => {
-      const row = await ensureRateRow(loginType, key);
+      const row = await ensureRateRow(loginType, key, lockMinutes);
       if (Number(row.is_locked) === 1) {
         return { locked: true, remaining: Math.max(1, Number(row.remaining) || lockMinutes), maxAttempts, lockMinutes };
       }
