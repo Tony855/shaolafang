@@ -28,6 +28,14 @@ function routeHarness() {
 
 const pass = (req, res, next) => next && next();
 
+function registerPublicSession(app, deps) {
+  const scanSessionRateLimiter = deps.scanSessionRateLimiter || {
+    consume: async () => 0,
+    cleanup: async () => {}
+  };
+  return require('../routes/public-session')(app, { ...deps, scanSessionRateLimiter });
+}
+
 test('table listing is authenticated, store-scoped and never selects QR credentials', async () => {
   const { app, routes } = routeHarness();
   let query;
@@ -503,7 +511,7 @@ test('QR credential generation requires table-management permission', () => {
   const { app, routes } = routeHarness();
   const auth = () => {};
   const permission = () => {};
-  require('../routes/public-session')(app, {
+  registerPublicSession(app, {
     requireAdminKey: auth,
     requirePermission: key => {
       assert.equal(key, 'can_manage_table');
@@ -575,7 +583,7 @@ test('QR print page is authenticated and scoped to the active store', async () =
 test('customer order lookup accepts bearer tokens in headers and disables caching', async () => {
   const { app, routes } = routeHarness();
   const sqlCalls = [];
-  require('../routes/public-session')(app, {
+  registerPublicSession(app, {
     requireAdminKey: pass,
     requirePermission: () => pass,
     getAsync: async (sql, params) => {
@@ -619,7 +627,7 @@ test('public order lookup never returns scan or customer bearer tokens', async (
   const sourceOrder = {
     id: 99, session_token: 'private-session-token', customer_token: 'private-customer-token'
   };
-  require('../routes/public-session')(app, {
+  registerPublicSession(app, {
     requireAdminKey: pass,
     requirePermission: () => pass,
     getAsync: async (sql) => {
@@ -654,7 +662,7 @@ test('public order lookup never returns scan or customer bearer tokens', async (
 
 test('public QR scan credentials are never cacheable', async () => {
   const { app, routes } = routeHarness();
-  require('../routes/public-session')(app, {
+  registerPublicSession(app, {
     getAsync: async sql => {
       if (sql.includes('FROM tables WHERE qr_token')) return { name: 'A1', store_id: 7 };
       if (sql.includes('FROM stores')) return { id: 7 };
@@ -679,7 +687,12 @@ test('public QR scan credentials are never cacheable', async () => {
 test('public QR session creation is rate limited per IP and expired sessions are cleaned', async () => {
   const { app, routes } = routeHarness();
   const writes = [];
-  require('../routes/public-session')(app, {
+  let rateRequests = 0;
+  registerPublicSession(app, {
+    scanSessionRateLimiter: {
+      consume: async () => (++rateRequests > 60 ? 1 : 0),
+      cleanup: async () => {}
+    },
     requireAdminKey: pass,
     requirePermission: () => pass,
     getAsync: async sql => {
@@ -725,7 +738,7 @@ test('public QR session creation is rate limited per IP and expired sessions are
 test('table QR code route rejects malformed table IDs before database access', async () => {
   const { app, routes } = routeHarness();
   let queries = 0;
-  require('../routes/public-session')(app, {
+  registerPublicSession(app, {
     requireAdminKey: pass,
     requirePermission: () => pass,
     getAsync: async () => { queries++; return null; },
@@ -814,7 +827,7 @@ test('renaming a table refuses to move pending orders with an active KHQR payloa
 
 test('public scan-session credentials are never accepted or returned in URL paths', async () => {
   const { app, routes } = routeHarness();
-  require('../routes/public-session')(app, {
+  registerPublicSession(app, {
     requireAdminKey: pass,
     requirePermission: () => pass,
     getAsync: async sql => {
@@ -860,7 +873,7 @@ test('public scan-session credentials are never accepted or returned in URL path
 test('public order history requires the per-customer bearer token', async () => {
   const { app, routes } = routeHarness();
   let orderQueries = 0;
-  require('../routes/public-session')(app, {
+  registerPublicSession(app, {
     requireAdminKey: pass,
     requirePermission: () => pass,
     getAsync: async sql => {

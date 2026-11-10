@@ -7,13 +7,13 @@ const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder } = deps;
+  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter } = deps;
+  if (!scanSessionRateLimiter || typeof scanSessionRateLimiter.consume !== 'function' || typeof scanSessionRateLimiter.cleanup !== 'function') {
+    throw new TypeError('scanSessionRateLimiter with consume() and cleanup() is required');
+  }
 
-  // Public QR scans create bearer sessions. Bound unauthenticated session
-  // creation per client IP and periodically remove expired credentials.
-  const scanSessionRateBuckets = new Map();
-  const SCAN_SESSION_RATE_LIMIT = 60;
-  const SCAN_SESSION_RATE_WINDOW_MS = 60 * 1000;
+  // Public QR scans create bearer sessions. Use shared database-backed throttling
+  // so requests cannot bypass the limit by reaching different app instances.
   const SCAN_SESSION_CLEANUP_INTERVAL_MS = 60 * 1000;
   let lastScanSessionCleanupAt = 0;
   let scanSessionCleanupPromise = null;
@@ -22,26 +22,7 @@ module.exports = function(app, deps) {
     const ip = typeof req.ip === 'string' && req.ip.trim()
       ? req.ip.trim()
       : (typeof req.socket?.remoteAddress === 'string' ? req.socket.remoteAddress : 'unknown');
-    const now = Date.now();
-    let bucket = scanSessionRateBuckets.get(ip);
-    if (!bucket || bucket.resetAt <= now) {
-      bucket = { count: 0, resetAt: now + SCAN_SESSION_RATE_WINDOW_MS };
-      scanSessionRateBuckets.set(ip, bucket);
-    }
-    if (bucket.count >= SCAN_SESSION_RATE_LIMIT) {
-      return Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
-    }
-    bucket.count += 1;
-
-    if (scanSessionRateBuckets.size > 4096) {
-      for (const [key, value] of scanSessionRateBuckets) {
-        if (value.resetAt <= now) scanSessionRateBuckets.delete(key);
-      }
-      if (scanSessionRateBuckets.size > 4096) {
-        scanSessionRateBuckets.delete(scanSessionRateBuckets.keys().next().value);
-      }
-    }
-    return 0;
+    return scanSessionRateLimiter.consume(ip);
   }
 
   async function cleanupExpiredScanSessions() {
@@ -50,10 +31,10 @@ module.exports = function(app, deps) {
     if (scanSessionCleanupPromise) return scanSessionCleanupPromise;
 
     const cleanupAt = now;
-    scanSessionCleanupPromise = runAsync(
-      'DELETE FROM scan_sessions WHERE expires_at < ?',
-      [new Date(cleanupAt).toISOString()]
-    ).then(() => {
+    scanSessionCleanupPromise = Promise.all([
+      runAsync('DELETE FROM scan_sessions WHERE expires_at < ?', [new Date(cleanupAt).toISOString()]),
+      scanSessionRateLimiter.cleanup()
+    ]).then(() => {
       lastScanSessionCleanupAt = cleanupAt;
     }).catch(error => {
       // Cleanup is best-effort: a cleanup outage must not prevent a guest
@@ -103,7 +84,7 @@ module.exports = function(app, deps) {
       res.setHeader('Pragma', 'no-cache');
       const qrToken = typeof req.params.token === 'string' ? req.params.token : '';
       if (!qrToken || qrToken.length > 255) return res.status(400).json({ error: '桌码无效' });
-      const retryAfter = consumeScanSessionRateLimit(req);
+      const retryAfter = await consumeScanSessionRateLimit(req);
       if (retryAfter > 0) {
         res.setHeader('Retry-After', String(retryAfter));
         return res.status(429).json({ error: '扫码请求过于频繁，请稍后重试' });
@@ -133,7 +114,10 @@ module.exports = function(app, deps) {
       await runAsync('INSERT INTO scan_sessions (table_name, token_hash, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))', [table.name, hashSessionToken(sessionToken), expiresAt, new Date().toISOString(), storeId, storeId]);
       const customerToken = crypto.randomBytes(16).toString('base64url');
       res.json({ table: table.name, storeId, sessionToken, customerToken, expiresAt });
-    } catch (e) { res.status(500).json({ error: '扫码会话请求失败，请稍后重试' }); }
+    } catch (e) {
+      if (e && e.status === 503) return res.status(503).json({ error: '扫码服务暂时不可用，请稍后重试' });
+      res.status(500).json({ error: '扫码会话请求失败，请稍后重试' });
+    }
   });
 
   const getSessionToken = req => {
