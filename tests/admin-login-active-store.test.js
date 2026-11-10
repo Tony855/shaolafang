@@ -47,6 +47,7 @@ test('admin login returns the first active store, never an inactive one', async 
     isLoginLocked: async () => ({ locked: false }),
     recordLoginAttempt() {},
     resetLoginAttempts() {},
+    cancelLoginAttempt() {},
     verifyPassword: () => true,
     getClientIp: () => '127.0.0.1',
     getLocationByIp: async () => '',

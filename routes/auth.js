@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts,
+  const { getAsync, runAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt,
           verifyPassword, getClientIp, getLocationByIp, requireAdminKey } = deps;
 
   app.post('/api/admin/login', async (req, res) => {
@@ -20,22 +20,22 @@ module.exports = function(app, deps) {
       const admin = await getAsync('SELECT * FROM merchant_admins WHERE username=? AND active=1', [username]);
       if (!admin) {
         await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '用户名不存在']);
-        recordLoginAttempt(username, 'merchant_admin');
+        await recordLoginAttempt(username, 'merchant_admin', lockStatus.reservationId);
         return res.status(401).json({ error: '用户名或密码错误' });
       }
       const isValid = verifyPassword(password, admin.password_hash);
       if (!isValid) {
         await runAsync('INSERT INTO login_logs (createdAt, success, ip, username, login_type, message) VALUES (?, 0, ?, ?, ?, ?)', [new Date().toISOString(), getClientIp(req), username, 'merchant_admin', '密码错误']);
-        recordLoginAttempt(username, 'merchant_admin');
+        await recordLoginAttempt(username, 'merchant_admin', lockStatus.reservationId);
         return res.status(401).json({ error: '用户名或密码错误' });
       }
       const merchant = await getAsync('SELECT * FROM merchants WHERE id=?', [admin.merchant_id]);
-      if (!merchant || merchant.status !== 1) return res.status(403).json({ error: '商户账号已被禁用，请联系超级管理员' });
+      if (!merchant || merchant.status !== 1) { await cancelLoginAttempt(username, 'merchant_admin', lockStatus.reservationId); return res.status(403).json({ error: '商户账号已被禁用，请联系超级管理员' }); }
       if (needsRehash(admin.password_hash)) {
         const upgradedHash = hashPassword(password);
         await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=? AND password_hash=?', [upgradedHash, admin.id, admin.password_hash]);
       }
-      await resetLoginAttempts(username, 'merchant_admin');
+      await resetLoginAttempts(username, 'merchant_admin', lockStatus.reservationId);
       await runAsync('UPDATE merchant_admins SET last_login_at=NOW() WHERE id=?', [admin.id]);
       const clientIp = getClientIp(req);
       const location = await getLocationByIp(clientIp);
