@@ -351,7 +351,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         const orderCashChangeCents = isCashPayment && index === settlementOrders.length - 1 ? cashChangeCents : 0;
         const orderCashChange = orderCashChangeCents / 100;
         const orderCashReceived = isCashPayment ? (orderCents + orderCashChangeCents) / 100 : 0;
-        const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [now, paymentMethod, orderCashReceived, orderCashChange, order.id, req.storeId]);
+        const updated = await runAsync("UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='', settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'", [now, paymentMethod, orderCashReceived, orderCashChange, order.id, req.storeId]);
         if (!updated.affectedRows) {
           const error = new Error('订单状态已变化，批量结算已回滚，请刷新后重试');
           error.status = 409;
@@ -488,7 +488,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
       }
       settledTableName = lockedOrder.table_name;
       const settled = await runAsync(
-        "UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'",
+        "UPDATE orders SET status='done', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='', settled_at=?, pay_method=?, cash_received=?, cash_change=? WHERE id=? AND store_id=? AND status='pending'",
         [settledAt, paymentMethod, cashReceived, cashChange, id, req.storeId]
       );
       if (!settled.affectedRows) {
@@ -554,7 +554,7 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
       }
       canceledTableName = lockedOrder.table_name;
       const canceled = await runAsync(
-        "UPDATE orders SET status='canceled', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='' WHERE id=? AND store_id=? AND status='pending'",
+        "UPDATE orders SET status='canceled', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='' WHERE id=? AND store_id=? AND status='pending'",
         [id, req.storeId]
       );
       if (!canceled.affectedRows) {
