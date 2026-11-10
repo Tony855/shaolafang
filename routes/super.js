@@ -173,7 +173,7 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
     if (merchantId === null) return res.status(400).json({ error: '商户编号无效' });
 
     await withTransaction(async () => {
-      const current = await getAsync('SELECT country FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
+      const current = await getAsync('SELECT country, status FROM merchants WHERE id=? FOR UPDATE', [merchantId]);
       if (!current) {
         const error = new Error('商户不存在');
         error.statusCode = 404;
@@ -194,19 +194,44 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
       const nextCountry = country !== undefined
         ? String(country).trim().toUpperCase().slice(0, 4)
         : (current.country || '');
+      const nextStatus = status ?? current.status ?? 1;
+      const passwordChanged = typeof password === 'string' && password.trim().length > 0;
+      const usernameChanged = Boolean(primaryAdmin && nextUsername && nextUsername !== primaryAdmin.username);
+      const merchantStatusChanged = Number(nextStatus) !== Number(current.status);
       await runAsync(
         'UPDATE merchants SET name=?, contact_name=?, contact_phone=?, max_stores=?, status=?, country=? WHERE id=?',
-        [name, contact_name || '', contact_phone || '', max_stores || 1, status ?? 1, nextCountry, merchantId]
+        [name, contact_name || '', contact_phone || '', max_stores || 1, nextStatus, nextCountry, merchantId]
       );
 
       if (primaryAdmin) {
-        if (nextUsername && nextUsername !== primaryAdmin.username) {
+        if (usernameChanged) {
           await runAsync('UPDATE merchant_admins SET username=? WHERE id=?', [nextUsername, primaryAdmin.id]);
         }
-        if (typeof password === 'string' && password.trim()) {
+        if (passwordChanged) {
           const hash = hashPassword(password.trim());
           await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=?', [hash, primaryAdmin.id]);
         }
+      }
+
+      // Credential changes revoke administrator sessions immediately. A merchant
+      // status transition revokes every merchant-scoped session so re-enabling the
+      // merchant cannot silently reactivate credentials issued before suspension.
+      if (passwordChanged || usernameChanged || merchantStatusChanged) {
+        await runAsync(
+          'DELETE FROM admin_sessions WHERE admin_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)',
+          [merchantId]
+        );
+      }
+      if (merchantStatusChanged) {
+        await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [merchantId]);
+        await runAsync(
+          'DELETE FROM waiter_sessions WHERE waiter_id IN (SELECT w.id FROM waiters w INNER JOIN stores st ON st.id=w.store_id WHERE st.merchant_id=?)',
+          [merchantId]
+        );
+        await runAsync(
+          'DELETE FROM scan_sessions WHERE store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId]
+        );
       }
 
       const updatedMerchant = await getAsync('SELECT name, code FROM merchants WHERE id=?', [merchantId]);
