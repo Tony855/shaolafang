@@ -9,8 +9,8 @@ function readRepoFile(...parts) {
 
 test('waiter history escapes unknown order statuses before inserting HTML', () => {
   const source = readRepoFile('pages', 'waiter.js');
-  assert.match(source, /statusMap\\[o\\.status\\]\\s*\\|\\|\\s*esc\\(o\\.status\\)/);
-  assert.match(source, /statusMap\\[order\\.status\\]\\s*\\|\\|\\s*esc\\(order\\.status\\)/);
+  assert.ok(source.includes('${statusMap[o.status] || esc(o.status)}'));
+  assert.ok(source.includes('${statusMap[order.status] || esc(order.status)}'));
 });
 
 test('KHQR provider identifiers are escaped in source and generated admin bundle', () => {
@@ -19,7 +19,7 @@ test('KHQR provider identifiers are escaped in source and generated admin bundle
     ['assets', 'admin-bundle.js']
   ]) {
     const source = readRepoFile(...file);
-    assert.equal((source.match(/data-id="\\$\\{esc\\(p\\.id\\)\\}"/g) || []).length, 2);
+    assert.equal(source.split('data-id="${esc(p.id)}"').length - 1, 2);
     assert.equal(source.includes('data-id="${p.id}"'), false);
   }
 });
