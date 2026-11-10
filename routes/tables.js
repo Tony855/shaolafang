@@ -3,6 +3,7 @@ const { parsePositiveRouteId } = require('../server/services/route-id');
    routes/tables.js — 桌台管理
    ============================================================ */
 const crypto = require("crypto");
+const { hashSessionToken } = require('../server/services/session-token');
 const fs = require("fs");
 const { hashPassword, verifyPassword } = require("../server/middleware/password");
 const { compressImage } = require("../server/services/image-compress");
@@ -116,7 +117,7 @@ app.post('/api/tables/move', requireAdminOrWaiter, requireTableAccess, async (re
       const now = Date.now();
       const nowIso = new Date(now).toISOString();
       const targetSession = await getAsync(
-        'SELECT token, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
+        'SELECT token_hash, expires_at FROM scan_sessions WHERE table_name=? AND store_id=? AND expires_at>? ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
         [targetTable, storeId, nowIso]
       );
       let newToken = targetSession && Number.isFinite(new Date(targetSession.expires_at).getTime()) &&
@@ -125,14 +126,14 @@ app.post('/api/tables/move', requireAdminOrWaiter, requireTableAccess, async (re
         newToken = crypto.randomBytes(32).toString('base64url');
         const expiresAt = new Date(now + 2 * 60 * 60 * 1000).toISOString();
         await runAsync(
-          'INSERT INTO scan_sessions (table_name, token, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-          [targetTable, newToken, expiresAt, nowIso, storeId, storeId]
+          'INSERT INTO scan_sessions (table_name, token_hash, expires_at, created_at, store_id, merchant_id) VALUES (?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
+          [targetTable, hashSessionToken(newToken), expiresAt, nowIso, storeId, storeId]
         );
       }
 
       const result = await runAsync(
         "UPDATE orders SET table_name=?, session_token=? WHERE table_name=? AND store_id=? AND status='pending'",
-        [targetTable, newToken, fromTable, storeId]
+        [targetTable, hashSessionToken(newToken), fromTable, storeId]
       );
       if (result.affectedRows === 0) {
         throw Object.assign(new Error('当前桌没有未结算订单可以转移'), { status: 400 });
