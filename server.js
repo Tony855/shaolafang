@@ -4,8 +4,10 @@ const poolModule = require('./server/db/pool');
 const { poolConfig, setPool } = poolModule;
 const { runAsync, getAsync, allAsync, withTransaction } = require('./server/db/helpers');
 const { createLoginRateLimiter } = require('./server/services/login-rate-limit');
+const { createScanSessionRateLimiter } = require('./server/services/scan-session-rate-limit');
 const { migrateSessionTokenStorage } = require('./server/services/session-token');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
+const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
 const { initMerchantSettings, initStoreSettings } = require('./server/services/settings-init');
 const cors = require('cors');
@@ -676,6 +678,18 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Shared per-IP scan-session throttling works across every application instance.
+  // Only a one-way IP digest is persisted; stale counters are periodically pruned.
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS scan_session_rate_limits (
+      ip_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+      window_started_at DATETIME(3) NOT NULL,
+      request_count INT UNSIGNED NOT NULL DEFAULT 0,
+      updated_at DATETIME(3) NOT NULL,
+      KEY idx_scan_session_rate_limits_window (window_started_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   const scanSessionExpiryIndexes = await allAsync('SHOW INDEX FROM scan_sessions');
   if (!scanSessionExpiryIndexes.some(index => index.Key_name === 'idx_scan_sessions_expires')) {
     await runAsync('CREATE INDEX idx_scan_sessions_expires ON scan_sessions (expires_at)');
@@ -1202,7 +1216,7 @@ require('./routes/admin-settings.js')(app, { getAsync, runAsync, allAsync, withT
 
 // ----- 二维码 -----
 // ----- 二维码+桌台session -----
-require('./routes/public-session.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder });
+require('./routes/public-session.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter });
 
 
 // ---------- 全局错误处理 ----------
