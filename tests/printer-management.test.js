@@ -140,10 +140,10 @@ test('print endpoints and printer payloads never expose customer bearer tokens',
   };
   const app = {
     get(route, ...callbacks) {
-      if (route === '/api/orders/:id(\\\\d+)/print') handlers.set('GET', callbacks[callbacks.length - 1]);
+      if (route.includes('/api/orders/') && route.endsWith('/print')) handlers.set('GET', callbacks[callbacks.length - 1]);
     },
     post(route, ...callbacks) {
-      if (route === '/api/orders/:id(\\\\d+)/print' || route === '/api/orders/:id(\\\\d+)/print-kitchen') {
+      if (route.includes('/api/orders/') && route.includes('/print')) {
         handlers.set(route.endsWith('print-kitchen') ? 'KITCHEN' : 'POST', callbacks[callbacks.length - 1]);
       }
     },
