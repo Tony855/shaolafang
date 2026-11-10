@@ -18,14 +18,16 @@ test('session bearer tokens are represented by deterministic SHA-256 digests', (
 
 test('session storage migration adds unique digest columns and clears legacy credentials', async () => {
   const writes = [];
+  const writeParams = [];
   const queries = [];
-  const runAsync = async sql => { writes.push(sql); return { affectedRows: 1 }; };
+  const runAsync = async (sql, params = []) => { writes.push(sql); writeParams.push(params); return { affectedRows: 1 }; };
   let transactionCount = 0;
   const withTransaction = async work => { transactionCount++; return work(); };
   const allAsync = async sql => {
     queries.push(sql);
     if (sql.includes('information_schema.COLUMNS')) return [{ Field: 'token', Null: 'NO' }, { Field: 'expires_at', Null: 'NO' }];
     if (sql.includes('information_schema.STATISTICS')) return [];
+    if (sql.startsWith('SELECT `key`, value FROM settings')) return [{ key: 'admin_access_key', value: 'legacy-integration-secret' }];
     if (sql.startsWith('SELECT value FROM settings')) return [];
     throw new Error('unexpected metadata query: ' + sql);
   };
@@ -42,6 +44,8 @@ test('session storage migration adds unique digest columns and clears legacy cre
   assert.ok(writes.some(sql => sql.includes('UPDATE orders SET session_token=SHA2(session_token, 256)')));
   assert.ok(writes.some(sql => sql.includes('UPDATE orders SET customer_token=SHA2(customer_token, 256)')));
   assert.ok(writes.some(sql => sql.includes('UPDATE waiter_calls SET session_token=SHA2(session_token, 256)')));
+  assert.ok(writes.some((sql, i) => sql.includes('INSERT INTO settings (`key`, value) VALUES (?, ?)') && writeParams[i][0] === 'admin_access_key_hash' && writeParams[i][1] === hashSessionToken('legacy-integration-secret')));
+  assert.ok(writes.some((sql, i) => sql.includes("UPDATE settings SET value='' WHERE `key`='admin_access_key'") && writeParams[i][0] === 'legacy-integration-secret'));
 });
 
 test('session storage migration is safe to rerun after digest columns and indexes exist', async () => {
@@ -59,6 +63,7 @@ test('session storage migration is safe to rerun after digest columns and indexe
       const table = params[0];
       return [{ Key_name: `uq_${table}_token_hash`, Non_unique: 0 }];
     }
+    if (sql.startsWith('SELECT `key`, value FROM settings')) return [];
     if (sql.startsWith('SELECT value FROM settings')) return [{ value: 'done' }];
     throw new Error('unexpected metadata query: ' + sql);
   };
