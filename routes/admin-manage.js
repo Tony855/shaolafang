@@ -1276,6 +1276,11 @@ module.exports = function(app, deps) {
       const { order_id } = req.body || {};
       const orderId = parsePositiveOrderId(order_id);
       if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
+      const expectedQrRef = req.body?.expected_qr_ref;
+      if (expectedQrRef !== undefined &&
+          (typeof expectedQrRef !== 'string' || expectedQrRef.length === 0 || expectedQrRef.length > 2048)) {
+        return res.status(400).json({ error: '二维码引用无效' });
+      }
       const { storeId: sid } = await resolveKhqrStore(req);
       if (req.waiter && req.waiterStoreId !== sid && req.waiter.store_id !== sid) {
         return res.status(403).json({ error: '不能操作其他门店的订单' });
@@ -1287,6 +1292,13 @@ module.exports = function(app, deps) {
         );
         if (!order || order.status !== 'pending' || (!Number(order.awaiting_confirm) && !order.pay_khqr_ref)) {
           const error = new Error('订单不存在或当前状态不允许取消待确认');
+          error.status = 409;
+          throw error;
+        }
+        // A delayed close request may arrive after another QR has been issued.
+        // Only clear the exact QR that the closing client received.
+        if (expectedQrRef !== undefined && order.pay_khqr_ref !== expectedQrRef) {
+          const error = new Error('二维码已变化，请刷新后重试');
           error.status = 409;
           throw error;
         }
