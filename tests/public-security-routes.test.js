@@ -399,6 +399,7 @@ test('public order creation never echoes scan-session or customer bearer tokens'
     customer_token: customerToken
   };
   const emitted = [];
+  const orderWrites = [];
 
   require('../routes/orders')(app, {
     authenticateAdmin: async () => null,
@@ -420,7 +421,7 @@ test('public order creation never echoes scan-session or customer bearer tokens'
       if (sql.includes('SELECT * FROM orders')) return orderRow;
       return null;
     },
-    runAsync: async () => ({ lastID: 99, affectedRows: 1 }),
+    runAsync: async (sql, params = []) => { orderWrites.push({ sql, params }); return { lastID: 99, affectedRows: 1 }; },
     allAsync: async () => [],
     requireAdminKey: pass,
     requirePermission: () => pass,
@@ -475,6 +476,10 @@ test('public order creation never echoes scan-session or customer bearer tokens'
   assert.equal(res.statusCode, 201);
   assert.equal(res.body.success, true);
   assert.equal(res.body.order.id, 99);
+  const orderInsert = orderWrites.find(write => write.sql.includes('INSERT INTO orders'));
+  assert.ok(orderInsert);
+  assert.equal(orderInsert.params[6], hashSessionToken(sessionToken));
+  assert.equal(orderInsert.params[7], hashSessionToken(customerToken));
   assert.equal(Object.hasOwn(res.body.order, 'sessionToken'), false);
   assert.equal(Object.hasOwn(res.body.order, 'customerToken'), false);
   const serialized = JSON.stringify({ response: res.body, emitted });
