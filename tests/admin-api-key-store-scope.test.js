@@ -6,6 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { pool } = require('../server/db/pool');
 const { authenticateAdmin } = require('../server/middleware/admin-auth');
+const { hashSessionToken } = require('../server/services/session-token');
 
 function request(storeId) {
   return {
@@ -23,7 +24,7 @@ test('legacy admin API key cannot select a different store outside its configure
   const queries = [];
   pool.execute = async (sql, params = []) => {
     queries.push({ sql, params });
-    if (sql.includes("key` = 'admin_access_key'")) return [[{ value: 'legacy-integration-secret' }]];
+    if (sql.includes("key` = 'admin_access_key_hash'")) return [[{ value: hashSessionToken('legacy-integration-secret') }]];
     if (sql.includes("key` = 'admin_access_key_store_id'")) return [[{ value: '23' }]];
     throw new Error('Store lookup must not run for an out-of-scope request');
   };
@@ -42,7 +43,7 @@ test('legacy admin API key is bound to its configured store when the header is o
   const queries = [];
   pool.execute = async (sql, params = []) => {
     queries.push({ sql, params });
-    if (sql.includes("key` = 'admin_access_key'")) return [[{ value: 'legacy-integration-secret' }]];
+    if (sql.includes("key` = 'admin_access_key_hash'")) return [[{ value: hashSessionToken('legacy-integration-secret') }]];
     if (sql.includes("key` = 'admin_access_key_store_id'")) return [[{ value: '23' }]];
     if (sql.includes('JOIN merchants')) return [[{ id: 23, merchant_id: 9 }]];
     throw new Error('Unexpected SQL: ' + sql);
@@ -61,7 +62,7 @@ test('legacy admin API key is bound to its configured store when the header is o
 test('legacy admin API key rejects malformed configured store scope', async () => {
   const originalExecute = pool.execute;
   pool.execute = async (sql) => {
-    if (sql.includes("key` = 'admin_access_key'")) return [[{ value: 'legacy-integration-secret' }]];
+    if (sql.includes("key` = 'admin_access_key_hash'")) return [[{ value: hashSessionToken('legacy-integration-secret') }]];
     if (sql.includes("key` = 'admin_access_key_store_id'")) return [[{ value: '0' }]];
     throw new Error('Store lookup must not run for invalid scope');
   };
