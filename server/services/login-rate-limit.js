@@ -32,7 +32,7 @@ function createLoginRateLimiter({ getAsync, runAsync, withTransaction }) {
     return { maxAttempts: parse(attemptSetting?.value, 5), lockMinutes: parse(lockSetting?.value, 15) };
   }
 
-  async function ensureRateRow(loginType, key, windowMinutes) {
+  async function ensureRateRow(loginType, key, windowMinutes = 15) {
     await runAsync(
       'INSERT IGNORE INTO login_rate_limits (login_type, username, failed_attempts, window_started_at, locked_until, updated_at) VALUES (?, ?, 0, UTC_TIMESTAMP(3), NULL, UTC_TIMESTAMP(3))',
       [loginType, key]
