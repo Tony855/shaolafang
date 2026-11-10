@@ -30,6 +30,12 @@ function csvRow(values) {
   }).join(',');
 }
 
+function setPrivateNoStoreHeaders(res) {
+  res.setHeader('Cache-Control', 'no-store, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+}
+
 module.exports = function(app, deps) {
   const { getAsync, allAsync, requireAdminKey, requirePermission, authenticateAdmin } = deps;
 
@@ -262,6 +268,7 @@ module.exports = function(app, deps) {
 
   app.get('/api/admin/export/:type', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
+      setPrivateNoStoreHeaders(res);
       const type = req.params.type;
       const storeId = Number(req.storeId);
       if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(403).json({ error: '当前门店信息无效' });
@@ -337,6 +344,7 @@ module.exports.attachAdvancedExport = function(app, deps) {
 
   app.get('/api/admin/export-advanced', requireAdminKey, requirePermission('can_view_logs'), async (req, res) => {
     try {
+      setPrivateNoStoreHeaders(res);
       const storeId = Number(req.storeId);
       if (!Number.isSafeInteger(storeId) || storeId <= 0) return res.status(403).json({ error: '当前门店信息无效' });
       const endDate = req.query.endDate || new Date().toISOString().slice(0, 10);
