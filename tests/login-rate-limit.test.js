@@ -46,6 +46,7 @@ function setup({ maxAttempts = 5, lockMinutes = 15 } = {}) {
       if (!rows.has(key)) rows.set(key, { failedAttempts: 0, windowStartedAt: now, lockedUntil: null });
       return { affectedRows: 1 };
     }
+    if (sql.startsWith('DELETE FROM login_rate_limit_attempts')) return { affectedRows: 0 };
     if (sql.includes("SET state='expired'")) {
       const [type, username] = params;
       let affectedRows = 0;
