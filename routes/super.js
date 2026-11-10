@@ -280,6 +280,10 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
 });
 
 app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (req, res) => {
+  // The response contains a one-time credential; never store it in browser or proxy caches.
+  res.setHeader('Cache-Control', 'no-store, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   try {
     const merchantId = parsePositiveRouteId(req.params.id);
     if (merchantId === null) return res.status(400).json({ error: '商户编号无效' });
