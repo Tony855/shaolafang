@@ -2,6 +2,7 @@
    routes/admin-manage.js — 全局配置 + 催单 + 管理员/收银员 CRUD + 重置
    ============================================================ */
 const crypto = require('crypto');
+const { hashSessionToken } = require('../server/services/session-token');
 const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 
@@ -123,8 +124,8 @@ module.exports = function(app, deps) {
       }
 
       const initialSession = await getAsync(
-        'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=?',
-        [sessionToken]
+        'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token_hash=?',
+        [hashSessionToken(sessionToken)]
       );
       if (!initialSession) return res.status(401).json({ error: '扫码会话不存在，请重新扫码' });
       const initialExpiry = new Date(initialSession.expires_at).getTime();
@@ -146,8 +147,8 @@ module.exports = function(app, deps) {
         if (!activeStore) throw Object.assign(new Error('店铺已停用，暂时无法催单'), { status: 404 });
 
         const session = await getAsync(
-          'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token=? FOR UPDATE',
-          [sessionToken]
+          'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token_hash=? FOR UPDATE',
+          [hashSessionToken(sessionToken)]
         );
         if (!session) throw Object.assign(new Error('扫码会话已失效，请重新扫码'), { status: 401 });
         const expiresAt = new Date(session.expires_at).getTime();
@@ -161,7 +162,7 @@ module.exports = function(app, deps) {
 
         const order = await getAsync(
           'SELECT * FROM orders WHERE id=? AND store_id=? AND table_name=? AND session_token=? AND customer_token=? FOR UPDATE',
-          [id, session.store_id, session.table_name, sessionToken, customerToken]
+          [id, session.store_id, session.table_name, hashSessionToken(sessionToken), hashSessionToken(customerToken)]
         );
         if (!order) throw Object.assign(new Error('订单不存在或已转移'), { status: 404 });
         if (order.status !== 'pending') throw Object.assign(new Error('订单已完成或已取消'), { status: 400 });
