@@ -38,8 +38,10 @@ test('automatic backup pruning removes only expired automatic backup files', () 
 
 
 test('audit-log retention always preserves per-refund financial audit records', () => {
-  const { buildAuditLogCleanupSql } = require('../server/services/backup');
-  const sql = buildAuditLogCleanupSql();
-  assert.match(sql, /DELETE FROM audit_logs WHERE created_at < \?/);
-  assert.match(sql, /action <> 'refund_order'/);
+  // Read the source rather than requiring backup.js: that module intentionally
+  // initializes database helpers and requires production DB configuration.
+  const backupSource = fs.readFileSync(path.join(__dirname, '../server/services/backup.js'), 'utf8');
+  assert.match(backupSource, /function buildAuditLogCleanupSql\\(\\)/);
+  assert.match(backupSource, /return "DELETE FROM audit_logs WHERE created_at < \\? AND action <> 'refund_order'"/);
+  assert.match(backupSource, /runAsync\\(buildAuditLogCleanupSql\\(\\), \\[cutoff\\]\\)/);
 });
