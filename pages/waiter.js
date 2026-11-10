@@ -970,9 +970,12 @@
     const catHtml = categories.map(cat => {
       const label = cat === 'all' ? t('allCategories', null, '全部') : transCategory(cat);
       const active = state.currentCategory === cat ? 'active' : '';
-      return `<button class="cat-btn ${active}" onclick="setDishCategory('${esc(cat)}')">${esc(label)}</button>`;
+      return `<button class="cat-btn ${active}" data-category="${esc(cat)}">${esc(label)}</button>`;
     }).join('');
     $('#dishCategories').innerHTML = catHtml;
+    document.querySelectorAll('#dishCategories .cat-btn[data-category]').forEach(button => {
+      button.addEventListener('click', () => setDishCategory(button.dataset.category || ''));
+    });
   }
 
   function setDishCategory(cat) {
