@@ -162,7 +162,7 @@ test('waiter cannot cancel a payment already submitted for cashier confirmation'
 
 test('authorized cashier can cancel a submitted confirmation and the action is audited', async () => {
   const { handler, calls, transactionEvents } = setup({
-    order: { id: 42, status: 'pending', awaiting_confirm: 1, pay_khqr_ref: 'qr-payload', table_name: 'A01' }
+    order: { id: 42, status: 'pending', awaiting_confirm: 1, pay_khqr_ref: 'qr-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', table_name: 'A01' }
   });
   const res = response();
   await handler({
