@@ -533,7 +533,12 @@ function deleteMerchant(id) {
 function resetPassword(id) {
   showConfirm(t('confirmResetPassword', null, t('confirmResetPassword')), async function() {
     try {
-      await api('/super/merchants/' + id + '/reset-password', { method: 'POST', body: JSON.stringify({}) });
+      const result = await api('/super/merchants/' + id + '/reset-password', { method: 'POST', body: JSON.stringify({}) });
+      if (!result || typeof result.newPassword !== 'string' || !result.newPassword) {
+        throw new Error('密码已重置，但未能读取新密码，请联系管理员处理');
+      }
+      // Display the generated password once so the operator can securely copy it.
+      window.prompt('商户新密码（请立即复制并安全保存；关闭后无法再次查看）：', result.newPassword);
       SLF.ui.toast(t('passwordReset', null, t('passwordReset')), 'success');
     } catch (e) { SLF.ui.toast(e.message, 'error'); }
   });
