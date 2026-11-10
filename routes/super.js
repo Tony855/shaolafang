@@ -736,10 +736,7 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
     await withTransaction(async () => {
       for (const table of tables) {
         const rows = data.tables[table];
-        const columns = await allAsync(
-          'SELECT COLUMN_NAME AS Field FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',
-          [table]
-        );
+        const columns = await allAsync(`SHOW COLUMNS FROM \`${table}\``);
         const allowedColumns = new Set(columns.map(column => column.Field));
         for (const row of rows) {
           const rowKeys = Object.keys(row);
