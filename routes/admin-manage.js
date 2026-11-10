@@ -1201,7 +1201,7 @@ module.exports = function(app, deps) {
       let alreadyNotified = false;
       await withTransaction(async () => {
         const order = await getAsync(
-          'SELECT id, status, awaiting_confirm, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+          'SELECT id, status, awaiting_confirm, pay_khqr_ref, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
           [orderId, sid]
         );
         if (!order) {
@@ -1220,6 +1220,15 @@ module.exports = function(app, deps) {
         if (Number(order.awaiting_confirm)) {
           alreadyNotified = true;
           return;
+        }
+
+        // A waiter may only ask the cashier to verify a payment against a QR
+        // that was actually issued for this order. Never create a payable state
+        // from a bare notification request.
+        if (!order.pay_khqr_ref) {
+          const error = new Error('该订单尚未生成 KHQR 收款码，不能提交到账确认');
+          error.status = 409;
+          throw error;
         }
 
         const notified = await runAsync(
