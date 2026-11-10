@@ -9,9 +9,9 @@ function hashSessionToken(token) {
   return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
 }
 
-async function migrateSessionTokenStorage({ runAsync, allAsync }) {
-  if (typeof runAsync !== 'function' || typeof allAsync !== 'function') {
-    throw new TypeError('runAsync and allAsync are required');
+async function migrateSessionTokenStorage({ runAsync, allAsync, withTransaction }) {
+  if (typeof runAsync !== 'function' || typeof allAsync !== 'function' || typeof withTransaction !== 'function') {
+    throw new TypeError('runAsync, allAsync, and withTransaction are required');
   }
 
   const sessionTables = [
@@ -42,24 +42,40 @@ async function migrateSessionTokenStorage({ runAsync, allAsync }) {
       await runAsync(`CREATE UNIQUE INDEX \`${indexName}\` ON \`${table}\` (token_hash)`);
     }
 
-    // One-time, idempotent migration: existing clients keep their active token,
-    // while the database retains only its digest after this statement commits.
-    await runAsync(
-      `UPDATE \`${table}\` SET token_hash=COALESCE(NULLIF(token_hash, ''), SHA2(token, 256)), token=NULL WHERE token IS NOT NULL AND token<>''`
-    );
+
   }
 
-  // These historical columns are used only as stable order/customer grouping
-  // identifiers. Hash them too so old database copies cannot replay credentials.
-  await runAsync(
-    "UPDATE orders SET session_token=SHA2(session_token, 256) WHERE session_token IS NOT NULL AND session_token<>'' AND CHAR_LENGTH(session_token)<>64"
+  // Migrate session rows and their historical order references atomically. The
+  // settings marker avoids rescanning large order tables on every application boot.
+  const referenceMigration = await allAsync(
+    "SELECT value FROM settings WHERE `key`=? LIMIT 1",
+    ['session_token_references_hashed_v1']
   );
-  await runAsync(
-    "UPDATE orders SET customer_token=SHA2(customer_token, 256) WHERE customer_token IS NOT NULL AND customer_token<>'' AND CHAR_LENGTH(customer_token)<>64"
-  );
-  await runAsync(
-    "UPDATE waiter_calls SET session_token=SHA2(session_token, 256) WHERE session_token IS NOT NULL AND session_token<>'' AND CHAR_LENGTH(session_token)<>64"
-  );
+  const needsReferenceMigration = !referenceMigration.length;
+
+  await withTransaction(async () => {
+    for (const table of sessionTables) {
+      await runAsync(
+        `UPDATE \`${table}\` SET token_hash=COALESCE(NULLIF(token_hash, ''), SHA2(token, 256)), token=NULL WHERE token IS NOT NULL AND token<>''`
+      );
+    }
+
+    if (needsReferenceMigration) {
+      await runAsync(
+        "UPDATE orders SET session_token=SHA2(session_token, 256) WHERE session_token IS NOT NULL AND session_token<>'' AND CHAR_LENGTH(session_token)<>64"
+      );
+      await runAsync(
+        "UPDATE orders SET customer_token=SHA2(customer_token, 256) WHERE customer_token IS NOT NULL AND customer_token<>'' AND CHAR_LENGTH(customer_token)<>64"
+      );
+      await runAsync(
+        "UPDATE waiter_calls SET session_token=SHA2(session_token, 256) WHERE session_token IS NOT NULL AND session_token<>'' AND CHAR_LENGTH(session_token)<>64"
+      );
+      await runAsync(
+        "INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+        ['session_token_references_hashed_v1', new Date().toISOString()]
+      );
+    }
+  });
 }
 
 module.exports = { hashSessionToken, migrateSessionTokenStorage };
