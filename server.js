@@ -345,11 +345,7 @@ const upload = multer({
 // ---------- 常量 ----------
 const createTableToken = () => crypto.randomBytes(12).toString('base64url');
 
-// ---------- 登录限流器（InnoDB 行锁，跨进程/多实例原子执行） ----------
-function recordLoginAttempt() {
-  // Attempt slots are reserved atomically by isLoginLocked before password verification.
-  // login_logs remains the audit trail; it is no longer the concurrency-control primitive.
-}
+// Login-attempt lifecycle is implemented by the database-backed limiter above.
 
 // ============================================================
 //  默认凭据集中定义 + 首次初始化凭据文件
