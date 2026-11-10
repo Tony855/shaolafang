@@ -90,7 +90,7 @@ const waiterRequest = body => ({
 test('legacy waiter KHQR confirm path atomically records and broadcasts cashier notification', async () => {
   const order = {
     id: 42, status: 'pending', awaiting_confirm: 0,
-    pay_khqr_ref: 'dynamic-payload', table_name: 'A01',
+    pay_khqr_ref: 'dynamic-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', table_name: 'A01',
     order_no: '110042', total: 25, pay_method: 'khqr'
   };
   const { handler, calls, events, transactions } = setup({ initialOrder: order, lockedOrder: order });
@@ -111,7 +111,7 @@ test('legacy waiter KHQR confirm path atomically records and broadcasts cashier 
 test('legacy waiter KHQR confirm retry is idempotent and emits no duplicate event or audit', async () => {
   const order = {
     id: 42, status: 'pending', awaiting_confirm: 1,
-    pay_khqr_ref: 'dynamic-payload', table_name: 'A01',
+    pay_khqr_ref: 'dynamic-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', table_name: 'A01',
     order_no: '110042', total: 25, pay_method: 'khqr'
   };
   const { handler, calls, events, transactions } = setup({ initialOrder: order, lockedOrder: order });
@@ -128,7 +128,7 @@ test('legacy waiter KHQR confirm retry is idempotent and emits no duplicate even
 test('legacy waiter KHQR confirm rejects non-finite cash amounts before writing', async () => {
   const order = {
     id: 42, status: 'pending', awaiting_confirm: 0,
-    pay_khqr_ref: 'dynamic-payload', table_name: 'A01',
+    pay_khqr_ref: 'dynamic-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', table_name: 'A01',
     order_no: '110042', total: 25, pay_method: 'khqr'
   };
   const { handler, calls, transactions } = setup({ initialOrder: order, lockedOrder: order });
@@ -143,7 +143,7 @@ test('legacy waiter KHQR confirm rejects non-finite cash amounts before writing'
 test('legacy waiter KHQR confirm rejects cross-store access', async () => {
   const order = {
     id: 42, status: 'pending', awaiting_confirm: 0,
-    pay_khqr_ref: 'dynamic-payload', table_name: 'A01',
+    pay_khqr_ref: 'dynamic-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', table_name: 'A01',
     order_no: '110042', total: 25, pay_method: 'khqr'
   };
   const { handler, calls, transactions } = setup({ initialOrder: order, lockedOrder: order });
@@ -231,7 +231,7 @@ test('cashier KHQR confirmation rejects cash amounts with sub-cent precision', a
 test('cashier KHQR confirmation stores exact cents and clears confirmed QR metadata', async () => {
   const order = {
     id: 42, status: 'pending', awaiting_confirm: 1,
-    pay_khqr_ref: 'dynamic-payload', pay_expires_at: new Date(Date.now() + 60000).toISOString(),
+    pay_khqr_ref: 'dynamic-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', pay_expires_at: new Date(Date.now() + 60000).toISOString(),
     table_name: 'A01', total: '25.00', pay_method: 'cash', cash_received: '30.00'
   };
   const { handler, calls, transactions, events } = setup({ initialOrder: order, lockedOrder: order });
@@ -253,7 +253,7 @@ test('cashier KHQR confirmation stores exact cents and clears confirmed QR metad
 test('waiter KHQR notification rejects sub-cent cash amounts before transaction', async () => {
   const order = {
     id: 42, status: 'pending', awaiting_confirm: 0,
-    pay_khqr_ref: 'dynamic-payload', table_name: 'A01',
+    pay_khqr_ref: 'dynamic-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', table_name: 'A01',
     order_no: '110042', total: 25, pay_method: 'khqr'
   };
   const { handler, calls, transactions, events } = setup({ initialOrder: order, lockedOrder: order });
@@ -324,7 +324,7 @@ test('KHQR confirmation rejects non-string and non-number identifiers', async ()
 test('cashier KHQR confirmation writes the parsed safe order ID, not the raw request value', async () => {
   const order = {
     id: 42, status: 'pending', awaiting_confirm: 1,
-    pay_khqr_ref: 'dynamic-payload', pay_expires_at: new Date(Date.now() + 60000).toISOString(),
+    pay_khqr_ref: 'dynamic-payload', pay_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', pay_expires_at: new Date(Date.now() + 60000).toISOString(),
     table_name: 'A01', total: '25.00', pay_method: 'khqr'
   };
   const { handler, calls } = setup({ initialOrder: order, lockedOrder: order });
