@@ -2,6 +2,7 @@
    routes/super.js — 超级管理员路由
    ============================================================ */
 const crypto = require('crypto');
+const { hashSessionToken } = require('../server/services/session-token');
 const express = require('express');
 const { needsRehash } = require('../server/middleware/password');
 const os = require('os');
@@ -75,7 +76,7 @@ app.post('/api/super/login', async (req, res) => {
     const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 60);
     const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 60;
     const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
-    await runAsync('INSERT INTO super_sessions (super_admin_id, token, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [superAdmin.id, token, expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
+    await runAsync('INSERT INTO super_sessions (super_admin_id, token_hash, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [superAdmin.id, hashSessionToken(token), expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
     res.json({ success: true, token, admin: { id: superAdmin.id, username: superAdmin.username, display_name: superAdmin.display_name } });
   } catch (_) {
     console.error('[super/login] request failed');
@@ -418,7 +419,7 @@ app.get('/api/super/online-sessions', requireSuperAdmin, async (req, res) => {
     const now = new Date().toISOString();
     const rows = await allAsync(`
       SELECT s.id AS store_id, s.name AS store_name, m.name AS merchant_name,
-             COUNT(ss.token) AS online_count,
+             COUNT(ss.id) AS online_count,
              COUNT(CASE WHEN o.id IS NOT NULL AND o.status='pending' THEN 1 END) AS pending_orders
       FROM stores s
       LEFT JOIN merchants m ON m.id = s.merchant_id
@@ -665,7 +666,7 @@ app.get('/api/super/audit-logs', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/logout', requireSuperAdmin, async (req, res) => {
   try {
     if (req.superSessionToken) {
-      await runAsync('DELETE FROM super_sessions WHERE token=?', [req.superSessionToken]).catch(() => {});
+      await runAsync('DELETE FROM super_sessions WHERE token_hash=?', [hashSessionToken(req.superSessionToken)]).catch(() => {});
     }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
