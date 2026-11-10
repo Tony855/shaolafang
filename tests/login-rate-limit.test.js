@@ -141,7 +141,9 @@ test('successful authentication clears failures without clearing unrelated pendi
   const third = await limiter.isLoginLocked('Admin', 'super_admin');
   assert.equal(third.locked, false);
   const fourth = await limiter.isLoginLocked('Admin', 'super_admin');
-  assert.equal(fourth.locked, true);
+  assert.equal(fourth.locked, false);
+  const fifth = await limiter.isLoginLocked('Admin', 'super_admin');
+  assert.equal(fifth.locked, true);
   assert.equal(limiter.reservations.get(pending.reservationId).state, 'pending');
 });
 
