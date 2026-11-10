@@ -67,6 +67,12 @@ function calculateOrderTotalCents(items) {
   return Number(cents);
 }
 
+// Public table sockets are shared by every customer scanning the same table.
+// Send invalidation-only events; per-customer order details are fetched via bearer-scoped HTTP.
+function publicOrderChangedPayload(orderId) {
+  return { orderId: Number(orderId) };
+}
+
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
 
@@ -83,12 +89,6 @@ module.exports = function(app, deps) {
     delete formatted.sessionToken;
     delete formatted.customerToken;
     return formatted;
-  }
-
-  // Public table sockets are shared by every customer scanning the same table.
-  // Send invalidation-only events; per-customer order details are fetched via bearer-scoped HTTP.
-  function publicOrderChangedPayload(orderId) {
-    return { orderId: Number(orderId) };
   }
 
   function sendOrderError(res, error) {
