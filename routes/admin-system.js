@@ -1,6 +1,8 @@
 /* ============================================================
    routes/admin-system.js — 系统日志 + 改密码
    ============================================================ */
+const { hashSessionToken } = require('../server/services/session-token');
+
 module.exports = function(app, deps) {
   const { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission, verifyPassword, hashPassword, logAudit, getClientIp } = deps;
 
@@ -43,7 +45,7 @@ module.exports = function(app, deps) {
           throw Object.assign(new Error('旧密码错误或管理员账号已停用'), { status: 401 });
         }
         await runAsync('UPDATE merchant_admins SET password_hash=? WHERE id=? AND merchant_id=?', [hashPassword(newPassword), adminId, merchantId]);
-        await runAsync('DELETE FROM admin_sessions WHERE admin_id=? AND token<>?', [adminId, req.adminSessionToken || '']);
+        await runAsync('DELETE FROM admin_sessions WHERE admin_id=? AND token_hash<>?', [adminId, hashSessionToken(req.adminSessionToken || '')]);
         await runAsync(
           'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, target_type, target_id, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
           ['merchant_admin', adminId, admin.username, 'change_password', 'merchant_admin', adminId,
