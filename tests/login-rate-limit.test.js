@@ -6,6 +6,7 @@ const { createLoginRateLimiter } = require('../server/services/login-rate-limit'
 
 function setup({ maxAttempts = 5, lockMinutes = 15 } = {}) {
   const rows = new Map();
+  const reservations = new Map();
   let now = Date.UTC(2026, 10, 10, 12, 0, 0);
   let tail = Promise.resolve();
   const keyOf = (type, username) => type + ':' + username;
@@ -31,6 +32,11 @@ function setup({ maxAttempts = 5, lockMinutes = 15 } = {}) {
         window_expired: row.windowStartedAt <= now - minutes * 60000 ? 1 : 0
       };
     }
+    if (sql.includes('COUNT(*) AS pending_count')) {
+      const [type, username] = params;
+      return { pending_count: [...reservations.values()].filter(r =>
+        r.type === type && r.username === username && r.state === 'pending').length };
+    }
     throw new Error('Unexpected SELECT: ' + sql);
   };
   const runAsync = async (sql, params = []) => {
@@ -38,6 +44,39 @@ function setup({ maxAttempts = 5, lockMinutes = 15 } = {}) {
       const [type, username] = params;
       const key = keyOf(type, username);
       if (!rows.has(key)) rows.set(key, { failedAttempts: 0, windowStartedAt: now, lockedUntil: null });
+      return { affectedRows: 1 };
+    }
+    if (sql.includes("SET state='expired'")) {
+      const [type, username] = params;
+      let affectedRows = 0;
+      for (const r of reservations.values()) {
+        if (r.type === type && r.username === username && r.state === 'pending' && r.createdAt < now - 600000) {
+          r.state = 'expired'; affectedRows++;
+        }
+      }
+      return { affectedRows };
+    }
+    if (sql.includes("INSERT INTO login_rate_limit_attempts")) {
+      const [id, type, username] = params;
+      reservations.set(id, { type, username, state: 'pending', createdAt: now });
+      return { affectedRows: 1 };
+    }
+    if (sql.includes("SET state='failed'") || sql.includes("SET state='succeeded'") || sql.includes("SET state='cancelled'")) {
+      const state = sql.includes("SET state='failed'") ? 'failed' :
+        (sql.includes("SET state='succeeded'") ? 'succeeded' : 'cancelled');
+      const [id, type, username] = params;
+      const reservation = reservations.get(id);
+      if (!reservation || reservation.type !== type || reservation.username !== username || reservation.state !== 'pending') {
+        return { affectedRows: 0 };
+      }
+      reservation.state = state;
+      return { affectedRows: 1 };
+    }
+    if (sql.includes('SET failed_attempts=failed_attempts+1')) {
+      const [maximum, minutes, type, username] = params;
+      const row = rows.get(keyOf(type, username));
+      row.failedAttempts += 1;
+      if (row.failedAttempts >= maximum) row.lockedUntil = now + minutes * 60000;
       return { affectedRows: 1 };
     }
     if (sql.includes('SET failed_attempts=0')) {
@@ -52,49 +91,82 @@ function setup({ maxAttempts = 5, lockMinutes = 15 } = {}) {
       row.lockedUntil = now + minutes * 60000;
       return { affectedRows: 1 };
     }
-    if (sql.includes('SET failed_attempts=?')) {
-      const expired = sql.includes('window_started_at=UTC_TIMESTAMP');
-      const [count, lockCount, maximum, minutes, type, username] = expired
-        ? params
-        : [params[0], params[1], params[2], params[3], params[4], params[5]];
-      const row = rows.get(keyOf(type, username));
-      row.failedAttempts = count;
-      if (expired) row.windowStartedAt = now;
-      row.lockedUntil = lockCount >= maximum ? now + minutes * 60000 : null;
-      return { affectedRows: 1 };
-    }
     throw new Error('Unexpected write: ' + sql);
   };
-  const limiter = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
-  return { ...limiter, rows, advance: ms => { now += ms; } };
+  return {
+    ...createLoginRateLimiter({ getAsync, runAsync, withTransaction }),
+    rows, reservations,
+    advance: ms => { now += ms; }
+  };
 }
 
-test('concurrent failed login attempts cannot exceed the configured allowance', async () => {
+test('concurrent reservations cannot exceed the configured in-flight allowance', async () => {
   const limiter = setup({ maxAttempts: 5 });
   const results = await Promise.all(Array.from({ length: 25 }, () => limiter.isLoginLocked('Admin', 'super_admin')));
   assert.equal(results.filter(result => !result.locked).length, 5);
   assert.equal(results.filter(result => result.locked).length, 20);
+  assert.equal([...limiter.reservations.values()].filter(r => r.state === 'pending').length, 5);
 });
 
-test('successful authentication resets the account lock across subsequent requests', async () => {
+test('success only completes its own reservation and cannot erase other in-flight attempts', async () => {
   const limiter = setup({ maxAttempts: 2 });
-  assert.equal((await limiter.isLoginLocked('Admin', 'super_admin')).locked, false);
-  assert.equal((await limiter.isLoginLocked('Admin', 'super_admin')).locked, false);
+  const first = await limiter.isLoginLocked('Admin', 'super_admin');
+  const second = await limiter.isLoginLocked('Admin', 'super_admin');
+  assert.ok(first.reservationId);
+  assert.ok(second.reservationId);
+
+  assert.equal(await limiter.resetLoginAttempts('Admin', 'super_admin', first.reservationId), true);
+  const third = await limiter.isLoginLocked('Admin', 'super_admin');
+  assert.equal(third.locked, false);
+  const fourth = await limiter.isLoginLocked('Admin', 'super_admin');
+  assert.equal(fourth.locked, true);
+
+  assert.equal(await limiter.recordLoginAttempt('Admin', 'super_admin', second.reservationId), true);
+  assert.equal(await limiter.recordLoginAttempt('Admin', 'super_admin', second.reservationId), false);
+  assert.equal(await limiter.recordLoginAttempt('Admin', 'super_admin', third.reservationId), true);
   assert.equal((await limiter.isLoginLocked('Admin', 'super_admin')).locked, true);
-  await limiter.resetLoginAttempts('Admin', 'super_admin');
-  assert.equal((await limiter.isLoginLocked('Admin', 'super_admin')).locked, false);
 });
 
-test('rate limits are isolated by login role and normalized username', async () => {
+test('a successful attempt clears prior failures but preserves unrelated pending reservations', async () => {
+  const limiter = setup({ maxAttempts: 2 });
+  const failed = await limiter.isLoginLocked('Admin', 'super_admin');
+  await limiter.recordLoginAttempt('Admin', 'super_admin', failed.reservationId);
+  const pending = await limiter.isLoginLocked('Admin', 'super_admin');
+  const successful = await limiter.isLoginLocked('Admin', 'super_admin');
+  assert.equal(successful.locked, true); // failed + pending already consume the allowance
+
+  assert.equal(await limiter.resetLoginAttempts('Admin', 'super_admin', pending.reservationId), true);
+  const next = await limiter.isLoginLocked('Admin', 'super_admin');
+  assert.equal(next.locked, false);
+});
+
+test('cancelled and expired reservations do not count as failures', async () => {
   const limiter = setup({ maxAttempts: 1 });
-  assert.equal((await limiter.isLoginLocked('Ａdmin', 'super_admin')).locked, false);
+  const cancelled = await limiter.isLoginLocked('Admin', 'merchant_admin');
+  assert.equal(await limiter.cancelLoginAttempt('Admin', 'merchant_admin', cancelled.reservationId), true);
+  assert.equal((await limiter.isLoginLocked('Admin', 'merchant_admin')).locked, false);
+
+  limiter.advance(10 * 60 * 1000 + 1);
+  const current = await limiter.isLoginLocked('Admin', 'waiter');
+  limiter.advance(10 * 60 * 1000 + 1);
+  const replacement = await limiter.isLoginLocked('Admin', 'waiter');
+  assert.equal(replacement.locked, false);
+  assert.equal(limiter.reservations.get(current.reservationId).state, 'expired');
+});
+
+test('rate limits remain isolated by role and normalized username', async () => {
+  const limiter = setup({ maxAttempts: 1 });
+  const first = await limiter.isLoginLocked('Ａdmin', 'super_admin');
+  assert.equal(first.locked, false);
+  await limiter.recordLoginAttempt('admin', 'super_admin', first.reservationId);
   assert.equal((await limiter.isLoginLocked('admin', 'super_admin')).locked, true);
   assert.equal((await limiter.isLoginLocked('admin', 'merchant_admin')).locked, false);
 });
 
-test('expired lock window permits a new attempt window', async () => {
+test('expired failed-attempt window permits a fresh reservation', async () => {
   const limiter = setup({ maxAttempts: 1, lockMinutes: 2 });
-  assert.equal((await limiter.isLoginLocked('admin', 'waiter')).locked, false);
+  const first = await limiter.isLoginLocked('admin', 'waiter');
+  await limiter.recordLoginAttempt('admin', 'waiter', first.reservationId);
   assert.equal((await limiter.isLoginLocked('admin', 'waiter')).locked, true);
   limiter.advance(120001);
   assert.equal((await limiter.isLoginLocked('admin', 'waiter')).locked, false);
