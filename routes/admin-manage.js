@@ -1172,7 +1172,9 @@ module.exports = function(app, deps) {
       if (req.isAdmin && !req.isPrimaryAdmin && !(req.adminPermissions && req.adminPermissions.can_manage_order)) {
         return res.status(403).json({ error: '没有订单收款权限' });
       }
-      const { order_id, pay_method, cash_received, cash_change } = req.body || {};
+      const { order_id, pay_method, cash_received, cash_change, payment_channel } = req.body || {};
+      const paymentChannel = payment_channel === undefined ? 'manual' : payment_channel;
+      if (!['manual', 'khqr'].includes(paymentChannel)) return res.status(400).json({ error: '收款渠道无效' });
       const orderId = parsePositiveOrderId(order_id);
       if (orderId === null) return res.status(400).json({ error: '订单编号无效' });
 
@@ -1225,7 +1227,7 @@ module.exports = function(app, deps) {
         // A waiter may only ask the cashier to verify a payment against a QR
         // that was actually issued for this order. Never create a payable state
         // from a bare notification request.
-        if (!order.pay_khqr_ref) {
+        if (paymentChannel === 'khqr' && !order.pay_khqr_ref) {
           const error = new Error('该订单尚未生成 KHQR 收款码，不能提交到账确认');
           error.status = 409;
           throw error;
