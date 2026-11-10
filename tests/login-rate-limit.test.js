@@ -127,17 +127,21 @@ test('success only completes its own reservation and cannot erase other in-fligh
   assert.equal((await limiter.isLoginLocked('Admin', 'super_admin')).locked, true);
 });
 
-test('a successful attempt clears prior failures but preserves unrelated pending reservations', async () => {
-  const limiter = setup({ maxAttempts: 2 });
+test('successful authentication clears failures without clearing unrelated pending reservations', async () => {
+  const limiter = setup({ maxAttempts: 3 });
   const failed = await limiter.isLoginLocked('Admin', 'super_admin');
   await limiter.recordLoginAttempt('Admin', 'super_admin', failed.reservationId);
-  const pending = await limiter.isLoginLocked('Admin', 'super_admin');
-  const successful = await limiter.isLoginLocked('Admin', 'super_admin');
-  assert.equal(successful.locked, true); // failed + pending already consume the allowance
 
-  assert.equal(await limiter.resetLoginAttempts('Admin', 'super_admin', pending.reservationId), true);
-  const next = await limiter.isLoginLocked('Admin', 'super_admin');
-  assert.equal(next.locked, false);
+  const pending = await limiter.isLoginLocked('Admin', 'super_admin');
+  const success = await limiter.isLoginLocked('Admin', 'super_admin');
+  assert.equal(success.locked, false);
+  assert.equal(await limiter.resetLoginAttempts('Admin', 'super_admin', success.reservationId), true);
+
+  const third = await limiter.isLoginLocked('Admin', 'super_admin');
+  assert.equal(third.locked, false);
+  const fourth = await limiter.isLoginLocked('Admin', 'super_admin');
+  assert.equal(fourth.locked, true);
+  assert.equal(limiter.reservations.get(pending.reservationId).state, 'pending');
 });
 
 test('cancelled and expired reservations do not count as failures', async () => {
