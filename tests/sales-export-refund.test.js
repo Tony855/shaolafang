@@ -6,6 +6,12 @@ function middleware() {
   return (_req, _res, next) => next();
 }
 
+function assertNoStoreHeaders(res) {
+  assert.equal(res.headers['Cache-Control'], 'no-store, private');
+  assert.equal(res.headers.Pragma, 'no-cache');
+  assert.equal(res.headers.Expires, '0');
+}
+
 function createResponse() {
   return {
     statusCode: 200,
@@ -48,6 +54,7 @@ test('sales CSV export includes refunded orders and respects returned quantities
   await handler({ params: { type: 'sales' }, storeId: 7, isPrimaryAdmin: true }, res);
 
   assert.equal(res.statusCode, 200);
+  assertNoStoreHeaders(res);
   assert.match(calls[0].sql, /o\.status IN \('done', 'refunded'\)/);
   assert.deepEqual(calls[0].params, [7]);
   assert.match(res.body, /Noodle/);
@@ -83,6 +90,40 @@ test('order CSV export uses the database decimal net total instead of JS float s
   await handler({ params: { type: 'orders' }, storeId: 7, isPrimaryAdmin: true }, res);
 
   assert.equal(res.statusCode, 200);
+  assertNoStoreHeaders(res);
   assert.match(calls[0].sql, /GREATEST\(0, total - COALESCE\(refund_amount, 0\)\) AS net_total/);
   assert.match(res.body, /"0.20"/);
+});
+
+
+test('advanced CSV export is marked private and non-cacheable', async () => {
+  const routes = new Map();
+  const app = {
+    get(path, ...handlers) {
+      routes.set(path, handlers[handlers.length - 1]);
+    }
+  };
+  attachAdminReports.attachAdvancedExport(app, {
+    getAsync: async () => ({ invalid_count: 0 }),
+    allAsync: async () => [{
+      id: 42, order_no: '110042', table_name: 'A01',
+      total: '0.30', refund_amount: '0.00', net_total: '0.30',
+      status: 'done', pay_method: 'cash', note: '',
+      createdAt: '2026-11-10T00:00:00.000Z',
+      settled_at: '2026-11-10T00:01:00.000Z'
+    }],
+    requireAdminKey: middleware,
+    requirePermission: () => middleware()
+  });
+
+  const handler = routes.get('/api/admin/export-advanced');
+  const res = createResponse();
+  await handler({
+    storeId: 7,
+    query: { startDate: '2026-11-10', endDate: '2026-11-10', dimension: 'orders', statuses: 'done' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assertNoStoreHeaders(res);
+  assert.match(res.body, /110042/);
 });
