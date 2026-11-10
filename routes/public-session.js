@@ -74,18 +74,12 @@ module.exports = function(app, deps) {
 
   const getSessionToken = req => {
     const headerToken = typeof req.get === 'function' ? req.get('X-Scan-Session') : req.headers?.['x-scan-session'];
-    const value = typeof headerToken === 'string' && headerToken.trim()
-      ? headerToken.trim()
-      : (typeof req.params?.token === 'string' ? req.params.token : '');
-    return value;
+    return typeof headerToken === 'string' ? headerToken.trim() : '';
   };
 
   const getCustomerToken = req => {
     const headerToken = typeof req.get === 'function' ? req.get('X-Customer-Token') : req.headers?.['x-customer-token'];
-    const value = typeof headerToken === 'string' && headerToken.trim()
-      ? headerToken.trim()
-      : (typeof req.query?.ct === 'string' ? req.query.ct.trim() : '');
-    return value;
+    return typeof headerToken === 'string' ? headerToken.trim() : '';
   };
 
   // Public order responses must never disclose bearer credentials stored on rows.
