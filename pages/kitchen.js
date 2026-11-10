@@ -7,7 +7,7 @@
 
     // 兜底：兼容旧 core.js
     const audio = SLF.audio || { unlock: () => {}, setEnabled: () => {}, playNewOrderChime: () => {}, playUrgeChime: () => {} };
-    const utils = SLF.utils || { esc: s => String(s ?? ''), formatTime: d => new Date(d).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) };
+    const utils = SLF.utils || { esc: s => String(s ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[c])), formatTime: d => new Date(d).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) };
 
     let lang = SLF.store.rawGet('kitchenLang') || SLF.store.rawGet('lang') || 'zh';
     SLF.i18n.init(lang);
