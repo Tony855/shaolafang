@@ -98,11 +98,11 @@ test('non-primary admin without order management permission cannot cancel a KHQR
 
 test('conditional KHQR cancellation refuses to clear a different QR issued after the close request', async () => {
   const { handler, calls, transactionEvents } = setup({
-    order: { id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'newer-qr-payload', pay_expires_at: '2030-01-01T00:00:00.000Z', pay_qr_generation_id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', table_name: 'A01' }
+    order: { id: 42, status: 'pending', awaiting_confirm: 0, pay_khqr_ref: 'same-dynamic-payload', pay_expires_at: '2030-01-01T00:00:00.000Z', pay_qr_generation_id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', table_name: 'A01' }
   });
   const res = response();
   await handler({
-    body: { order_id: 42, expected_qr_ref: 'older-qr-payload', expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+    body: { order_id: 42, expected_qr_ref: 'same-dynamic-payload', expected_qr_generation_id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
     isAdmin: true, isPrimaryAdmin: true, storeId: 9, merchantId: 3, adminId: 1
   }, res);
 
