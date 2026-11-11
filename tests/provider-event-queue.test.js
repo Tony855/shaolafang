@@ -11,7 +11,8 @@ function memoryQueue(rows) {
     if (sql.includes('LIMIT 1 FOR UPDATE')) {
       return rows.find(row => row.auth_status === 'verified' &&
         row.normalized_event_json && row.attempt_count < row.max_attempts &&
-        (row.processing_status === 'received' || row.processing_status === 'processing')) || null;
+        (row.processing_status === 'received' || row.processing_status === 'processing'));
+      return row ? { ...row } : null;
     }
     if (sql.includes('SELECT attempt_count, max_attempts')) {
       const row = rows.find(item => item.id === params[0] &&
