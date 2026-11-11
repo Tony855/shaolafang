@@ -4,6 +4,7 @@
 const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const { toMoneyCents, hasActiveKhqr } = require('../server/services/order-financial');
+const { isValidRefundIdempotencyKey, createRefundRequestHash, calculateRefundAllocation } = require('../server/services/refund-financial');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
  
 function parsePositiveOrderId(value) {
@@ -577,16 +578,16 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     }
     const cleanNote = typeof note === 'string' ? note.slice(0, 200) : '';
     const idempotencyKey = String(req.get?.('Idempotency-Key') || req.headers?.['idempotency-key'] || '').trim();
-    if (!/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    if (!isValidRefundIdempotencyKey(idempotencyKey)) {
       return res.status(400).json({ error: '退款请求标识无效，请重新打开退款窗口后重试' });
     }
-    const requestHash = crypto.createHash('sha256').update(JSON.stringify({
+    const requestHash = createRefundRequestHash({
       orderId: id,
       amountCents: requestedAmountCents,
       reason: cleanReason,
       note: cleanNote,
       cashier: String(req.cashier.username || '')
-    })).digest('hex');
+    });
     const now = new Date().toISOString();
     let tableName = '';
     let orderTotal = 0;
@@ -648,21 +649,27 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
-      const availableCents = orderTotalCents - alreadyRefundedCents;
-      if (availableCents <= 0) {
+      const allocation = calculateRefundAllocation({
+        orderTotalCents,
+        alreadyRefundedCents,
+        requestedRefundCents: requestedAmountCents
+      });
+      if (!allocation) {
+        const error = new Error('订单退款金额计算异常，操作已取消');
+        error.status = 409;
+        throw error;
+      }
+      if (allocation.reason === 'no-balance') {
         const error = new Error('订单没有可退款余额');
         error.status = 409;
         throw error;
       }
-      const refundAmountCents = requestedAmountCents === null ? availableCents : requestedAmountCents;
-      if (refundAmountCents <= 0 || refundAmountCents > availableCents) {
-        const error = new Error('退款金额不能超过剩余可退款金额 ' + (availableCents / 100).toFixed(2));
+      if (allocation.reason === 'exceeds-balance' || allocation.reason === 'invalid-request') {
+        const error = new Error('退款金额不能超过剩余可退款金额 ' + (allocation.availableCents / 100).toFixed(2));
         error.status = 400;
         throw error;
       }
-
-      const totalRefundedCents = alreadyRefundedCents + refundAmountCents;
-      const remainingCents = orderTotalCents - totalRefundedCents;
+      const { availableCents, refundAmountCents, totalRefundedCents, remainingCents } = allocation;
       orderTotal = orderTotalCents / 100;
       refundAmount = refundAmountCents / 100;
       totalRefunded = totalRefundedCents / 100;
