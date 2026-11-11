@@ -158,8 +158,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     try {
       return await withTransaction(async () => {
         const replay = await getAsync(
-          'SELECT id, request_sha256, event_hash, action, item_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND idempotency_key=? FOR UPDATE',
-          [merchantId, storeId, review.idempotencyKey]
+          'SELECT id, request_sha256, event_hash, action, item_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=? FOR UPDATE',
+          [merchantId, storeId, batchId, review.idempotencyKey]
         );
         if (replay) {
           if (replay.request_sha256 !== requestHash) {
@@ -309,8 +309,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     } catch (error) {
       if (error && error.code === 'ER_DUP_ENTRY') {
         const existing = await getAsync(
-          'SELECT id, request_sha256, event_hash, action, item_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND idempotency_key=?',
-          [merchantId, storeId, review.idempotencyKey]
+          'SELECT id, request_sha256, event_hash, action, item_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=?',
+          [merchantId, storeId, batchId, review.idempotencyKey]
         );
         if (existing && existing.request_sha256 === requestHash) {
           return { eventId: Number(existing.id), itemId: Number(existing.item_id), action: existing.action, eventHash: existing.event_hash, replayed: true };
@@ -344,7 +344,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
               SUM(COALESCE(i.pending_count, 0)) AS pending_count,
               SUM(COALESCE(i.unmatched_count, 0)) AS unmatched_count,
               SUM(COALESCE(i.ambiguous_count, 0)) AS ambiguous_count,
-              SUM(COALESCE(i.exception_count, 0)) AS exception_count,\n              SUM(COALESCE(i.refund_exception_count, 0)) AS refund_exception_count,\n              SUM(COALESCE(i.fee_exception_count, 0)) AS fee_exception_count,\n              SUM(COALESCE(i.settlement_difference_exception_count, 0)) AS settlement_difference_exception_count,\n              SUM(COALESCE(i.chargeback_exception_count, 0)) AS chargeback_exception_count
+              SUM(COALESCE(i.exception_count, 0)) AS exception_count,\n              SUM(COALESCE(i.refund_exception_count, 0)) AS refund_exception_count,\n              SUM(COALESCE(i.fee_exception_count, 0)) AS fee_exception_count,\n              SUM(COALESCE(i.settlement_difference_exception_count, 0)) AS settlement_difference_exception_count,\n              SUM(COALESCE(i.chargeback_exception_count, 0)) AS chargeback_exception_count,\n              SUM(COALESCE(i.other_exception_count, 0)) AS other_exception_count
        FROM financial_reconciliation_batches b
        LEFT JOIN (
          SELECT batch_id, merchant_id, store_id,
@@ -352,7 +352,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
                 SUM(match_status='pending') AS pending_count,
                 SUM(match_status='unmatched') AS unmatched_count,
                 SUM(match_status='ambiguous') AS ambiguous_count,
-                SUM(match_status='exception') AS exception_count,\n                SUM(match_status='exception' AND exception_category='refund') AS refund_exception_count,\n                SUM(match_status='exception' AND exception_category='fee') AS fee_exception_count,\n                SUM(match_status='exception' AND exception_category='settlement_difference') AS settlement_difference_exception_count,\n                SUM(match_status='exception' AND exception_category='chargeback') AS chargeback_exception_count
+                SUM(match_status='exception') AS exception_count,\n                SUM(match_status='exception' AND exception_category='refund') AS refund_exception_count,\n                SUM(match_status='exception' AND exception_category='fee') AS fee_exception_count,\n                SUM(match_status='exception' AND exception_category='settlement_difference') AS settlement_difference_exception_count,\n                SUM(match_status='exception' AND exception_category='chargeback') AS chargeback_exception_count,\n                SUM(match_status='exception' AND exception_category='other') AS other_exception_count
          FROM financial_reconciliation_items
          GROUP BY batch_id, merchant_id, store_id
        ) i ON i.batch_id=b.id AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
