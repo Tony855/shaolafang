@@ -210,7 +210,7 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=你的密码
-DB_NAME=ordering_system
+DB_DATABASE=ordering_system
 DB_CONNECTION_LIMIT=50
 
 # ===== Redis缓存配置 =====

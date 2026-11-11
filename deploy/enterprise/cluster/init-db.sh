@@ -26,6 +26,6 @@ FLUSH PRIVILEGES;
 EOF
 
 cd /var/www/foodflow
-DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASSWORD=$DB_PASS DB_NAME=$DB_NAME INIT_CRED_FILE=/var/lib/foodflow/initial-credentials.txt node server.js --init-only
+DB_HOST=$DB_HOST DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASSWORD=$DB_PASS DB_DATABASE=$DB_NAME INIT_CRED_FILE=/var/lib/foodflow/initial-credentials.txt node server.js --init-only
 
 echo "标准版数据库初始化完成！"

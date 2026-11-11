@@ -140,5 +140,17 @@ module.exports = function(app, deps) {
     }
   });
 
+  // Liveness only confirms the Node process is responding.
   app.get('/api/health', (req, res) => res.json({ ok: true, service: 'foodflow', timestamp: new Date().toISOString() }));
+
+  // Readiness is used by load balancers: a node is ready only when MySQL responds.
+  // Do not expose connection details or raw database errors to unauthenticated callers.
+  app.get('/api/health/ready', async (req, res) => {
+    try {
+      await getAsync('SELECT 1 AS ok');
+      return res.json({ ok: true, service: 'foodflow', checks: { database: 'ok' }, timestamp: new Date().toISOString() });
+    } catch (_) {
+      return res.status(503).json({ ok: false, service: 'foodflow', checks: { database: 'error' } });
+    }
+  });
 };

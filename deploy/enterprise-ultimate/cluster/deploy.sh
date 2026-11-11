@@ -65,7 +65,11 @@ log_info "部署代码到 /var/www/foodflow..."
 if [ -d /var/www/foodflow/.git ]; then
     log_info "检测到已部署，执行 git pull 更新..."
     cd /var/www/foodflow
-    git fetch origin && git reset --hard origin/main || log_warn "git pull 失败，继续使用现有代码"
+    if [ -n "$(git status --porcelain)" ]; then
+        log_error "部署目录存在未提交修改；为避免覆盖人工变更，已停止更新"
+        exit 1
+    fi
+    git fetch origin && git pull --ff-only origin main
 else
     log_info "克隆代码仓库..."
     if [ -d "/var/www/foodflow" ] && [ "$(ls -A /var/www/foodflow)" ]; then
@@ -96,6 +100,25 @@ if [ "$NODE_TYPE" == "slave" ]; then
     log_info "从节点：已禁用定时任务"
 fi
 chmod 600 /etc/foodflow/.env
+
+# Validate runtime configuration before touching the service.
+set -a
+# shellcheck disable=SC1091
+source /etc/foodflow/.env
+set +a
+if [[ ! "${DB_DATABASE:-}" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
+    log_error "DB_DATABASE 缺失或格式无效；请编辑 /etc/foodflow/.env（不能使用 DB_NAME）"
+    exit 1
+fi
+if [ -z "${REDIS_URL:-}" ]; then
+    log_error "集群部署必须配置 REDIS_URL；禁止在多节点模式回退到进程内存状态"
+    exit 1
+fi
+if [ -z "${TRUST_PROXY:-}" ] || [ "${TRUST_PROXY}" = "loopback" ] || [ "${TRUST_PROXY}" = "192.168.1.10/32" ] || [ "${TRUST_PROXY}" = "true" ]; then
+    log_error "请将 TRUST_PROXY 设置为实际 Nginx 负载均衡器的可信内网 IP/CIDR；禁止使用占位值或 true"
+    exit 1
+fi
+log_success "数据库、Redis 和可信代理配置检查通过"
 
 # ===== 7. 配置 NFS（可选，需要用户手动配置服务器地址） =====
 log_info "NFS 共享存储配置..."
