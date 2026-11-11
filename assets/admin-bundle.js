@@ -3437,6 +3437,7 @@ window.executePasswordModal = executePasswordModal;
 })();
 
 
+
 /* ========== pages/admin/financial-reconciliation.js ========== */
 /*
  * pages/admin/financial-reconciliation.js — 财务对账人工审核工作台
@@ -3446,7 +3447,7 @@ window.executePasswordModal = executePasswordModal;
 
   const ctx = window.SLF && window.SLF.admin;
   if (!ctx) return;
-  const { $, api, esc, hasPermission } = ctx;
+  const { $, api, esc } = ctx;
   const root = () => document.getElementById('financialReconciliationPanel');
   const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false };
 
@@ -3474,7 +3475,7 @@ window.executePasswordModal = executePasswordModal;
     return labels[status] || esc(status || '—');
   }
   function requirePermission() {
-    if (!hasPermission || !hasPermission('can_manage_financial_reconciliation')) {
+    if (!ctx.hasPermission || !ctx.hasPermission('can_manage_financial_reconciliation')) {
       toast('❌ ' + t('noPermission', 'No permission'));
       return false;
     }
@@ -3659,7 +3660,7 @@ window.executePasswordModal = executePasswordModal;
     link.href = url; link.download = 'financial-reconciliation-daily.csv';
     document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
   }
-  async function loadDailySummary() {
+  async function loadDailySummary(exportCsv) {
     if (!requirePermission()) return;
     const from = $('#financeReportFrom').value;
     const to = $('#financeReportTo').value;
@@ -3670,8 +3671,7 @@ window.executePasswordModal = executePasswordModal;
       target.innerHTML = rows.length ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
         ['report_date','currency_code','batch_count','statement_row_count','matched_count','pending_count','unmatched_count','ambiguous_count','exception_count'].map(key => '<th style="text-align:left;padding:9px;border-bottom:1px solid #555;">' + esc(t('financeCol_' + key, key)) + '</th>').join('') +
         '</tr></thead><tbody>' + rows.map(row => '<tr>' + ['report_date','currency_code','batch_count','statement_row_count','matched_count','pending_count','unmatched_count','ambiguous_count','exception_count'].map(key => '<td style="padding:9px;border-bottom:1px solid rgba(255,255,255,.08);">' + esc(row[key] ?? '') + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' : '<div class="empty-hint">' + t('financeNoReportRows', 'No report rows') + '</div>';
-      const exportButton = $('#financeExportDaily');
-      if (exportButton) exportButton.onclick = () => exportDailyCsv(rows);
+      if (exportCsv) exportDailyCsv(rows);
     } catch (error) { toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed'))); }
   }
   function bind() {
@@ -3689,7 +3689,7 @@ window.executePasswordModal = executePasswordModal;
     $('#financeRowsMore').addEventListener('click', () => loadBatchItems(state.batchId, true));
     $('#financeImportButton').addEventListener('click', importBatch);
     $('#financeReportRun').addEventListener('click', loadDailySummary);
-    $('#financeExportDaily').addEventListener('click', () => loadDailySummary());
+    $('#financeExportDaily').addEventListener('click', () => loadDailySummary(true));
   }
   async function loadFinancialReconciliation() {
     if (!requirePermission()) return;
