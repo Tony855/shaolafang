@@ -838,7 +838,7 @@ async function initDatabase() {
       previous_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
       event_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
       created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-      UNIQUE KEY unique_finance_review_idempotency (merchant_id, store_id, idempotency_key),
+      UNIQUE KEY unique_finance_review_idempotency (merchant_id, store_id, batch_id, idempotency_key),
       KEY idx_finance_review_batch_chain (batch_id, id),
       KEY idx_finance_review_item_history (item_id, id),
       KEY idx_finance_review_actor (merchant_id, store_id, actor_admin_id, created_at),
