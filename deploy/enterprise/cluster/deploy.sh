@@ -62,7 +62,14 @@ log_info "部署代码到 /var/www/foodflow..."
 if [ -d /var/www/foodflow/.git ]; then
     log_info "检测到已部署，执行 git pull 更新..."
     cd /var/www/foodflow
-    git fetch origin && git reset --hard origin/main || log_warn "git pull 失败，继续使用现有代码"
+    if [ -n "$(git status --porcelain)" ]; then
+        log_error "部署目录存在未提交修改；为避免覆盖人工变更，已停止更新"
+        exit 1
+    fi
+    git fetch origin && git pull --ff-only origin main || {
+        log_error "代码更新失败；请检查远程分支和本地状态"
+        exit 1
+    }
 else
     log_info "克隆代码仓库..."
     if [ -d "/var/www/foodflow" ] && [ "$(ls -A /var/www/foodflow)" ]; then
