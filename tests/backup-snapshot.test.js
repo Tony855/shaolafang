@@ -42,9 +42,12 @@ test('collectBackupData reads every exported table in one transaction', async ()
   const backup = await collectBackupData();
 
   assert.equal(inTransaction, false);
-  assert.equal(reads.length, 18);
-  assert.equal(Object.keys(backup.tables).length, 18);
+  assert.equal(reads.length, 21);
+  assert.equal(Object.keys(backup.tables).length, 21);
   assert.ok(Object.hasOwn(backup.tables, 'refund_requests'));
+  assert.ok(Object.hasOwn(backup.tables, 'provider_webhook_events'));
+  assert.ok(Object.hasOwn(backup.tables, 'financial_journal_transactions'));
+  assert.ok(Object.hasOwn(backup.tables, 'financial_journal_entries'));
   assert.ok(backup.exportedAt);
   assert.ok(reads.every(sql => sql.startsWith('SELECT * FROM')));
 });

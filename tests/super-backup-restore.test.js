@@ -18,7 +18,7 @@ function response() {
 
 const tableNames = [
   'merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies',
-  'order_sequences', 'orders', 'refund_requests', 'settings', 'login_logs', 'audit_logs', 'waiters',
+  'order_sequences', 'orders', 'refund_requests', 'financial_journal_transactions', 'financial_journal_entries', 'provider_webhook_events', 'settings', 'login_logs', 'audit_logs', 'waiters',
   'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'
 ];
 
@@ -151,11 +151,17 @@ test('backup restore accepts legacy backups without the refund request ledger', 
   const ctx = setup();
   const legacy = backup();
   delete legacy.tables.refund_requests;
+  delete legacy.tables.financial_journal_transactions;
+  delete legacy.tables.financial_journal_entries;
+  delete legacy.tables.provider_webhook_events;
   const res = response();
   await ctx.handler({ body: legacy, superAdmin: { id: 7, username: 'root' } }, res);
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.success, true);
   assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `refund_requests`'));
+  assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `financial_journal_transactions`'));
+  assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `financial_journal_entries`'));
+  assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `provider_webhook_events`'));
 });
 
 

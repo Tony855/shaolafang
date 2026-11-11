@@ -666,6 +666,68 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Provider webhook inbox: persist event identity and a payload digest only.
+  // Provider-specific authentication must be completed before an event can be marked verified.
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS provider_webhook_events (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      provider_code VARCHAR(40) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      provider_event_id VARCHAR(191) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      merchant_id INT NOT NULL,
+      store_id INT NOT NULL,
+      event_type VARCHAR(100) NOT NULL DEFAULT '',
+      provider_transaction_id VARCHAR(191) DEFAULT '',
+      payload_sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      auth_status ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending',
+      processing_status ENUM('received','processing','processed','failed') NOT NULL DEFAULT 'received',
+      received_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      processed_at DATETIME(3) DEFAULT NULL,
+      last_error_code VARCHAR(64) DEFAULT NULL,
+      UNIQUE KEY unique_provider_event (provider_code, provider_event_id),
+      KEY idx_provider_event_store (merchant_id, store_id, received_at),
+      KEY idx_provider_event_status (processing_status, received_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // Append-only journal header and balanced debit/credit lines.
+  // No existing order/refund totals are backfilled or rewritten by this foundation.
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS financial_journal_transactions (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      merchant_id INT NOT NULL,
+      store_id INT NOT NULL,
+      currency_code CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      source_type VARCHAR(40) NOT NULL,
+      source_id VARCHAR(128) NOT NULL,
+      idempotency_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      description VARCHAR(255) NOT NULL DEFAULT '',
+      created_by VARCHAR(100) NOT NULL DEFAULT '',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      UNIQUE KEY unique_journal_idempotency (merchant_id, store_id, idempotency_key),
+      KEY idx_journal_source (merchant_id, store_id, source_type, source_id),
+      KEY idx_journal_created (merchant_id, store_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS financial_journal_entries (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      transaction_id BIGINT NOT NULL,
+      merchant_id INT NOT NULL,
+      store_id INT NOT NULL,
+      line_no SMALLINT UNSIGNED NOT NULL,
+      account_code VARCHAR(64) NOT NULL,
+      direction ENUM('debit','credit') NOT NULL,
+      amount_minor BIGINT UNSIGNED NOT NULL,
+      memo VARCHAR(255) NOT NULL DEFAULT '',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      UNIQUE KEY unique_journal_line (transaction_id, line_no),
+      KEY idx_journal_account (merchant_id, store_id, account_code, created_at),
+      CONSTRAINT fk_journal_entry_transaction FOREIGN KEY (transaction_id)
+        REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   await runAsync(`
     CREATE TABLE IF NOT EXISTS scan_sessions (
       id INT PRIMARY KEY AUTO_INCREMENT,
