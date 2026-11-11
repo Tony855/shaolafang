@@ -75,9 +75,6 @@ test('provider event inbox requires adapter verification before durable intake',
   };
   const normalizedEvent = { orderReference: 'order-100', amountMinor: 1250, currencyCode: 'USD', paymentStatus: 'paid' };
   const input = { envelope, normalizedEvent, verification: { verified: true, providerCode: 'ABA_PAYWAY' } };
-  const unusedEnvelopeMarker: never = undefined;
-  /*
-  */
   await assert.rejects(
     db.service.recordVerifiedProviderEvent({ ...input, verification: { verified: false, providerCode: 'ABA_PAYWAY' } }),
     error => error.code === 'PROVIDER_EVENT_NOT_VERIFIED'
@@ -95,7 +92,7 @@ test('provider event duplicate is idempotent and changed payload is rejected', a
     merchantId: 3, storeId: 8, rawBody: 'same body' };
   const normalizedEvent = { orderReference: 'order-200', amountMinor: 990, currencyCode: 'KHR', paymentStatus: 'paid' };
   const first = await db.service.recordVerifiedProviderEvent({ envelope, verification, normalizedEvent });
-  const second = await db.service.recordVerifiedProviderEvent({ envelope, verification });
+  const second = await db.service.recordVerifiedProviderEvent({ envelope, verification, normalizedEvent });
   assert.equal(first.eventId, second.eventId);
   assert.equal(db.events.size, 1);
   await assert.rejects(db.service.recordVerifiedProviderEvent({
