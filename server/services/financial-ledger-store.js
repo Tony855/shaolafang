@@ -17,18 +17,26 @@ function createFinancialLedgerService({ runAsync, getAsync, allAsync, withTransa
       throw error;
     }
     const event = createProviderEventEnvelope(input.envelope);
+    const normalizedEvent = input.normalizedEvent;
+    if (!normalizedEvent || typeof normalizedEvent !== 'object' || Array.isArray(normalizedEvent)) {
+      throw new TypeError('normalizedEvent is required for durable processing');
+    }
+    const normalizedJson = JSON.stringify(normalizedEvent);
+    if (!normalizedJson || normalizedJson.length > 16000) {
+      throw new TypeError('normalizedEvent must serialize to at most 16000 characters');
+    }
     return withTransaction(async () => {
       await runAsync(
         `INSERT INTO provider_webhook_events
           (provider_code, provider_event_id, merchant_id, store_id, event_type,
-           provider_transaction_id, payload_sha256, auth_status, processing_status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'verified', 'received')
+           provider_transaction_id, payload_sha256, normalized_event_json, auth_status, processing_status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'verified', 'received')
          ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)`,
         [event.providerCode, event.providerEventId, event.merchantId, event.storeId,
-          event.eventType, event.providerTransactionId, event.payloadSha256]
+          event.eventType, event.providerTransactionId, event.payloadSha256, normalizedJson]
       );
       const existing = await getAsync(
-        `SELECT id, merchant_id, store_id, payload_sha256, auth_status, processing_status
+        `SELECT id, merchant_id, store_id, payload_sha256, normalized_event_json, auth_status, processing_status
          FROM provider_webhook_events
          WHERE provider_code=? AND provider_event_id=? FOR UPDATE`,
         [event.providerCode, event.providerEventId]
@@ -36,7 +44,8 @@ function createFinancialLedgerService({ runAsync, getAsync, allAsync, withTransa
       if (!existing) throw new Error('provider event insert could not be read back');
       if (Number(existing.merchant_id) !== event.merchantId ||
           Number(existing.store_id) !== event.storeId ||
-          String(existing.payload_sha256).toLowerCase() !== event.payloadSha256) {
+          String(existing.payload_sha256).toLowerCase() !== event.payloadSha256 ||
+          String(existing.normalized_event_json || '') !== normalizedJson) {
         const error = new Error('provider event identity was reused with different content or tenant scope');
         error.code = 'PROVIDER_EVENT_ID_COLLISION';
         throw error;
