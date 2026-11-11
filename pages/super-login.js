@@ -58,7 +58,7 @@
       }
       SLF.store.rawSet('superToken', result.token);
       SLF.store.rawSet('superAdmin', JSON.stringify(result.admin || {}));
-      window.location.replace('/super');
+      window.location.replace(result.mustChangePassword ? '/super/first-login' : '/super');
     } catch (error) {
       errorBox.textContent = error && error.message
         ? error.message
@@ -74,5 +74,9 @@
 
   SLF.i18n.init(lang);
   changeLanguage(lang);
-  if (SLF.store.rawGet('superToken')) window.location.replace('/super');
+  if (SLF.store.rawGet('superToken')) {
+    let storedAdmin = {};
+    try { storedAdmin = JSON.parse(SLF.store.rawGet('superAdmin') || '{}'); } catch (_) {}
+    window.location.replace(storedAdmin.must_change_password ? '/super/first-login' : '/super');
+  }
 })();

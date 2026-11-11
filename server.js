@@ -1111,6 +1111,7 @@ async function initDatabase() {
       username VARCHAR(50) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
       display_name VARCHAR(100) NOT NULL,
+      must_change_password TINYINT NOT NULL DEFAULT 0,
       last_login_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -1129,6 +1130,14 @@ async function initDatabase() {
       INDEX idx_merchant (merchant_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  // Existing accounts keep current credentials; only a newly bootstrapped
+  // super-admin is marked for mandatory first-login password rotation.
+  try {
+    await runAsync('ALTER TABLE super_admins ADD COLUMN must_change_password TINYINT NOT NULL DEFAULT 0');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) throw e;
+  }
 
   // 添加 merchant_id 字段（兼容旧表）
   const tablesToAlter = ['stores', 'menus', 'tables', 'orders', 'waiters', 'printers', 'waiter_calls', 'reservations', 'scan_sessions', 'currencies', 'menu_categories'];
@@ -1166,7 +1175,7 @@ async function initDatabase() {
     const c = DEFAULT_CREDENTIALS.superAdmin;
     const superHash = hashPassword(c.password);
     await runAsync(
-      "INSERT INTO super_admins (username, password_hash, display_name) VALUES (?, ?, ?)",
+      "INSERT INTO super_admins (username, password_hash, display_name, must_change_password) VALUES (?, ?, ?, 1)",
       [c.username, superHash, c.displayName]
     );
     console.log(`  + 已创建超级管理员：${c.username}（密码已写入受保护的初始凭据文件）`);

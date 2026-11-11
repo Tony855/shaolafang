@@ -59,6 +59,13 @@ module.exports = function registerPageRoutes(app, ctx) {
     res.setHeader('Pragma', 'no-cache');
     res.send(html);
   });
+  app.get('/super/first-login', (req, res) => {
+    const html = fs.readFileSync(path.join(ROOT, 'super-first-login.html'), 'utf-8');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.send(html);
+  });
   app.get('/super', (req, res) => sendHtml(res, 'super.html'));
   app.get('/cashier', (req, res) => sendHtml(res, 'cashier.html'));
   app.get('/display', (req, res) => sendHtml(res, 'menu-display.html'));

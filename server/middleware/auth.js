@@ -50,6 +50,11 @@ async function requireSuperAdmin(req, res, next) {
       await runAsync('DELETE FROM super_sessions WHERE token_hash=?', [hashSessionToken(token)]).catch(() => {});
       return res.status(401).json({ error: '账号已停用或登录已过期，请重新登录' });
     }
+    const isPasswordRotation = req.method === 'POST' && req.path === '/api/super/change-password';
+    const isLogout = req.method === 'POST' && req.path === '/api/super/logout';
+    if (Number(superAdmin.must_change_password) === 1 && !isPasswordRotation && !isLogout) {
+      return res.status(403).json({ error: '首次登录必须先修改超级管理员密码', code: 'PASSWORD_CHANGE_REQUIRED' });
+    }
     const timeoutSetting = await getAsync("SELECT value FROM settings WHERE `key` = 'super_idle_timeout'");
     const configuredTimeoutMinutes = Number(timeoutSetting?.value ?? 60);
     const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 60;

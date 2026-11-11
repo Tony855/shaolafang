@@ -133,6 +133,9 @@ async function startIdleCheck() {
 }
 
 function showApp() {
+  let storedAdmin = {};
+  try { storedAdmin = JSON.parse(SLF.store.rawGet('superAdmin') || '{}'); } catch (_) {}
+  if (storedAdmin.must_change_password) { window.location.replace('/super/first-login'); return; }
   applyI18n();
   document.getElementById('app').style.display = 'block';
   const admin = JSON.parse(SLF.store.rawGet('superAdmin') || '{}');
@@ -189,6 +192,7 @@ async function api(path, options = {}) {
     return await SLF.api._request(method, path, options);
   } catch (e) {
     // 401 on the super-admin app always returns to the dedicated login page.
+    if (e && e.status === 403 && (e.code === 'PASSWORD_CHANGE_REQUIRED' || /首次登录必须先修改超级管理员密码/.test(e.message || ''))) window.location.replace('/super/first-login');
     if (e && (e.status === 401 || /登录已过期|未登录|无操作权限/.test(e.message || ''))) {
       SLF.store.rawRemove('superToken');
       SLF.store.rawRemove('superAdmin');
