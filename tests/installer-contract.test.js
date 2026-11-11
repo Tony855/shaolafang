@@ -107,3 +107,28 @@ test('first install defaults to a minimal single-node path and keeps advanced se
   assert.doesNotMatch(installer, /ff_apt_install nginx build-essential rsync certbot python3-certbot-nginx dnsutils psmisc ufw/);
   assert.doesNotMatch(local, /ff_prepare_system_packages curl wget git nginx build-essential/);
 });
+
+
+test('minimal first-run verification checks configuration, service, database health and credential-file permissions', () => {
+  const check = read('scripts/first-run-check.sh');
+  const route = read('routes/health.js');
+  const server = read('server.js');
+  const installer = read('install.sh');
+  const local = read('install-local.sh');
+  assert.match(route, /app\.get\('\/health'/);
+  assert.match(route, /SELECT 1/);
+  assert.match(route, /status\(503\)/);
+  assert.match(route, /database: 'unavailable'/);
+  assert.match(server, /require\('\.\/routes\/health\.js'\)/);
+  assert.match(check, /DB_HOST DB_USER DB_PASSWORD DB_DATABASE/);
+  assert.match(check, /systemctl is-active/);
+  assert.match(check, /\/health/);
+  assert.match(check, /-perm \/077/);
+  assert.doesNotMatch(check, /cat "\$CREDENTIALS_FILE"/);
+  assert.match(installer, /scripts\/first-run-check\.sh/);
+  assert.match(local, /scripts\/first-run-check\.sh/);
+  assert.match(installer, /RUN_SCHEDULED_TASKS=false/);
+  assert.match(local, /RUN_SCHEDULED_TASKS=false/);
+  assert.doesNotMatch(installer, /RUN_SCHEDULED_TASKS=true/);
+  assert.doesNotMatch(local, /RUN_SCHEDULED_TASKS=true/);
+});

@@ -276,7 +276,7 @@ DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
 REDIS_URL=$REDIS_URL_VALUE
 UPLOAD_DIR=$APP_DIR/uploads
-RUN_SCHEDULED_TASKS=true
+RUN_SCHEDULED_TASKS=false
 JWT_SECRET=$JWT_RANDOM_SECRET
 QR_DOMAIN=
 EOF
@@ -435,18 +435,10 @@ else
     exit 1
 fi
 
-# ===== 11. 健康检查 =====
+# ===== 11. 最小首次运行检查 =====
 echo ""
-log_info "执行健康检查..."
-sleep 2
-
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 http://127.0.0.1:3000/ 2>/dev/null || echo "000")
-
-if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "304" ]; then
-    log_success "应用响应正常 (HTTP $HTTP_CODE)"
-else
-    log_warn "应用响应状态: HTTP $HTTP_CODE（可能需要等待初始化）"
-fi
+log_info "检查配置、服务、数据库和首次登录凭据..."
+bash "$APP_DIR/scripts/first-run-check.sh" "$APP_DIR"
 
 # 检查 Nginx
 NGINX_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 http://127.0.0.1/ 2>/dev/null || echo "000")

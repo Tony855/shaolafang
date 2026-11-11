@@ -41,6 +41,10 @@ const os = require('os');
 
 const app = express();
 app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
+
+// Minimal readiness endpoint used by the installer and operators.
+// It reports only application/database availability and never exposes credentials or internals.
+require('./routes/health.js')(app, { getPool: () => poolModule.pool });
 const corsOrigins = new Set((process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean));
 
 // Socket.IO: same-host requests are allowed; cross-origin browser clients must be explicitly allowlisted.

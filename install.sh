@@ -683,7 +683,7 @@ DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
 REDIS_URL=$REDIS_URL_VALUE
 UPLOAD_DIR=$APP_DIR/uploads
-RUN_SCHEDULED_TASKS=true
+RUN_SCHEDULED_TASKS=false
 JWT_SECRET=$JWT_RANDOM_SECRET
 QR_DOMAIN=$DOMAIN
 EOF
@@ -790,16 +790,10 @@ EOF
         exit 1
     fi
 
-    # ===== 14. 健康检查 =====
+    # ===== 14. 最小首次运行检查 =====
     echo ""
-    log_info "执行健康检查..."
-    sleep 2
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 http://127.0.0.1:3000/ 2>/dev/null || echo "000")
-    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
-        log_success "应用响应正常 (HTTP $HTTP_CODE)"
-    else
-        log_warn "应用响应状态: HTTP $HTTP_CODE"
-    fi
+    log_info "检查配置、服务、数据库和首次登录凭据..."
+    bash "$APP_DIR/scripts/first-run-check.sh" "$APP_DIR"
 
     # ===== 15. 防火墙提示（不自动启用，避免把自己锁在外面）=====
     echo ""
@@ -888,22 +882,21 @@ show_post_install_guide() {
     echo ""
 
     if [ "$DEPLOY_MODE" == "standard" ]; then
-        echo "  1. 编辑环境变量配置："
-        echo "     sudo nano $CONFIG_DIR/.env"
+        echo "  首次启动检查已自动完成；如需重新检查："
+        echo "     sudo bash $APP_DIR/scripts/first-run-check.sh"
         echo ""
-        echo "  2. 重启服务使配置生效："
-        echo "     sudo systemctl restart foodflow"
+        echo "  1. 超级管理员入口：/super/login"
+        echo "     商户管理员入口：/login"
+        echo "     初始凭据文件：/var/lib/foodflow/initial-credentials.txt"
+        echo "     请首次登录后立即修改初始密码。"
         echo ""
-        echo "  3. 配置SSL证书（推荐）："
-        echo "     sudo apt-get install certbot python3-certbot-nginx"
-        echo "     sudo certbot --nginx -d $DOMAIN"
+        echo "  2. 系统访问入口："
+        echo "     顾客点餐：http://$DOMAIN"
+        echo "     商户后台：http://$DOMAIN/admin"
+        echo "     服务员端：http://$DOMAIN/waiter"
+        echo "     后厨端：  http://$DOMAIN/kitchen"
         echo ""
-        echo "  4. 访问系统："
-        echo "     前台点餐：https://$DOMAIN"
-        echo "     商户后台：https://$DOMAIN/admin"
-        echo "     服务员端：https://$DOMAIN/waiter"
-        echo "     后厨端：  https://$DOMAIN/kitchen"
-        echo "     超管后台：https://$DOMAIN/super（初始凭据见 /var/lib/foodflow/initial-credentials.txt）"
+        echo "  域名 HTTPS、Redis、备份和监控请在确认基本系统可用后单独配置。"
         echo ""
     else
         echo "  1. 在所有应用服务器节点上编辑环境变量："

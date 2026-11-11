@@ -351,7 +351,7 @@ DB_DATABASE=foodflow_system
 DB_USER=foodflow
 DB_PASSWORD=替换为强随机密码
 UPLOAD_DIR=./uploads
-RUN_SCHEDULED_TASKS=true
+RUN_SCHEDULED_TASKS=false
 CORS_ORIGINS=
 TRUST_PROXY=loopback
 ```
@@ -477,11 +477,27 @@ sudo cat /var/lib/foodflow/initial-credentials.txt
 
 首次安装账号可能包含平台超级管理员、商户管理员和服务员初始化身份；实际账号清单以安装脚本输出的凭据文件为准。收银员通常由商户管理员在后台创建。
 
-### 8.2 初始化数据
+### 8.2 最小首次运行检查
+
+安装程序会自动检查必填数据库配置、systemd 服务、应用与数据库健康状态，以及初始超级管理员凭据文件是否存在且未向组/其他用户开放。检查不会读取或输出密码。
+
+需要重新检查时，在服务器执行：
+
+```bash
+sudo bash /var/www/foodflow/scripts/first-run-check.sh
+```
+
+健康检查接口为 `GET /health`：数据库可用时返回 HTTP 200；数据库不可用时返回 HTTP 503。响应不包含数据库地址、账号、密码或异常详情。首次安装默认关闭后台定时任务（包括自动备份）；需要时在确认备份目录、保留策略和存储空间后，再将 `.env` 中的 `RUN_SCHEDULED_TASKS` 显式设为 `true` 并重启服务。
+
+首次登录入口：
+- 平台超级管理员：`/super/login`
+- 商户管理员：`/login`
+
+### 8.3 初始化数据
 
 首次数据库初始化可能写入示例菜单、分类、货币和桌台数据。示例数据用于验证流程，不代表真实营业配置。上线前请逐项检查并替换为实际商户数据。
 
-### 8.3 首次上线检查清单
+### 8.4 首次上线检查清单
 
 - [ ] 修改所有初始账号密码。
 - [ ] 检查商户、门店和桌台信息。
