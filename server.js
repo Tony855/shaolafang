@@ -745,6 +745,58 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Provider-neutral, immutable statement import and reconciliation audit foundation.
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS financial_reconciliation_batches (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      merchant_id INT NOT NULL,
+      store_id INT NOT NULL,
+      provider_code VARCHAR(40) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      external_batch_id VARCHAR(191) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      statement_sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      currency_code CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      row_count INT UNSIGNED NOT NULL,
+      total_debit_minor BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      total_credit_minor BIGINT UNSIGNED NOT NULL DEFAULT 0,
+      status ENUM('imported','validated','closed') NOT NULL DEFAULT 'imported',
+      imported_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      validated_at DATETIME(3) DEFAULT NULL,
+      closed_at DATETIME(3) DEFAULT NULL,
+      UNIQUE KEY unique_reconciliation_batch (merchant_id, store_id, provider_code, external_batch_id),
+      KEY idx_reconciliation_batch_status (merchant_id, store_id, status, imported_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS financial_reconciliation_items (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      batch_id BIGINT NOT NULL,
+      merchant_id INT NOT NULL,
+      store_id INT NOT NULL,
+      row_no INT UNSIGNED NOT NULL,
+      external_reference VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+      transaction_reference VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '',
+      direction ENUM('debit','credit') NOT NULL,
+      amount_minor BIGINT UNSIGNED NOT NULL,
+      currency_code CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      occurred_at DATETIME(3) NOT NULL,
+      description VARCHAR(255) NOT NULL DEFAULT '',
+      row_sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      match_status ENUM('pending','matched','unmatched','ambiguous','exception') NOT NULL DEFAULT 'pending',
+      match_reason VARCHAR(128) DEFAULT NULL,
+      matched_journal_transaction_id BIGINT DEFAULT NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      UNIQUE KEY unique_reconciliation_row (batch_id, row_no),
+      KEY idx_reconciliation_external_ref (merchant_id, store_id, external_reference),
+      KEY idx_reconciliation_match_status (batch_id, match_status),
+      KEY idx_reconciliation_journal (matched_journal_transaction_id),
+      CONSTRAINT fk_reconciliation_item_batch FOREIGN KEY (batch_id)
+        REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT,
+      CONSTRAINT fk_reconciliation_item_journal FOREIGN KEY (matched_journal_transaction_id)
+        REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   await runAsync(`
     CREATE TABLE IF NOT EXISTS scan_sessions (
       id INT PRIMARY KEY AUTO_INCREMENT,
