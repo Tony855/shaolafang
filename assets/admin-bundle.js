@@ -3436,3 +3436,271 @@ window.executePasswordModal = executePasswordModal;
 
 })();
 
+
+/* ========== pages/admin/financial-reconciliation.js ========== */
+/*
+ * pages/admin/financial-reconciliation.js — 财务对账人工审核工作台
+ */
+(function () {
+  'use strict';
+
+  const ctx = window.SLF && window.SLF.admin;
+  if (!ctx) return;
+  const { $, api, esc, hasPermission } = ctx;
+  const root = () => document.getElementById('financialReconciliationPanel');
+  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false };
+
+  function t(key, fallback) {
+    const value = ctx.tAdmin ? ctx.tAdmin(key) : key;
+    return value && value !== key ? value : (fallback || key);
+  }
+  function toast(message) {
+    if (window.SLF && SLF.ui && SLF.ui.toast) SLF.ui.toast(message);
+  }
+  function dateValue(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  }
+  function moneyMinor(value, currency) {
+    const amount = Number(value);
+    return Number.isSafeInteger(amount) ? esc(String(amount)) + ' ' + esc(currency || '') + ' ' + t('financeMinorUnits', 'minor units') : '—';
+  }
+  function statusLabel(status) {
+    const labels = {
+      pending: t('financePending', 'Pending'), matched: t('financeMatched', 'Matched'),
+      unmatched: t('financeUnmatched', 'Unmatched'), ambiguous: t('financeAmbiguous', 'Ambiguous'),
+      exception: t('financeException', 'Exception'), imported: t('financeImported', 'Imported'),
+      validated: t('financeValidated', 'Validated'), closed: t('financeClosed', 'Closed')
+    };
+    return labels[status] || esc(status || '—');
+  }
+  function requirePermission() {
+    if (!hasPermission || !hasPermission('can_manage_financial_reconciliation')) {
+      toast('❌ ' + t('noPermission', 'No permission'));
+      return false;
+    }
+    return true;
+  }
+  function renderBatchRows(rows) {
+    const target = $('#financeBatchList');
+    if (!target) return;
+    if (!rows.length && !state.batches.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeNoBatches', 'No reconciliation batches yet') + '</div>';
+      return;
+    }
+    target.innerHTML = rows.map(batch => {
+      const counts = [
+        t('financeMatched', 'Matched') + ': ' + Number(batch.matched_count || 0),
+        t('financePending', 'Pending') + ': ' + Number(batch.pending_count || 0),
+        t('financeException', 'Exceptions') + ': ' + Number(batch.exception_count || 0)
+      ].join(' · ');
+      return '<button type="button" class="finance-batch-card" data-finance-batch="' + Number(batch.id) + '" style="display:block;width:100%;text-align:left;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin:8px 0;color:inherit;cursor:pointer;">' +
+        '<span style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><strong>#' + Number(batch.id) + ' · ' + esc(batch.provider_code) + ' / ' + esc(batch.external_batch_id) + '</strong><span>' + statusLabel(batch.status) + '</span></span>' +
+        '<span style="display:block;color:#aaa;font-size:12px;margin-top:6px;">' + esc(batch.imported_at || '') + ' · ' + Number(batch.row_count || 0) + ' ' + t('financeRows', 'rows') + ' · ' + esc(batch.currency_code) + '</span>' +
+        '<span style="display:block;color:#bbb;font-size:12px;margin-top:5px;">' + counts + '</span></button>';
+    }).join('');
+  }
+  async function loadBatches(append) {
+    if (!requirePermission() || state.loading) return;
+    state.loading = true;
+    const target = $('#financeBatchList');
+    if (!append && target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    try {
+      const query = new URLSearchParams({ limit: '30' });
+      if (append && state.nextBatchCursor) query.set('afterId', String(state.nextBatchCursor));
+      const data = await api('/admin/financial-reconciliation/batches?' + query.toString());
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      state.batches = append ? state.batches.concat(rows) : rows;
+      state.nextBatchCursor = data.nextCursor || null;
+      renderBatchRows(state.batches);
+      const more = $('#financeBatchMore');
+      if (more) more.hidden = !state.nextBatchCursor;
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load reconciliation batches') + '</div>';
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    } finally { state.loading = false; }
+  }
+  function renderItems() {
+    const target = $('#financeReviewRows');
+    if (!target) return;
+    if (!state.rows.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeNoRows', 'No statement rows in this batch') + '</div>';
+      return;
+    }
+    target.innerHTML = state.rows.map(row => {
+      const suggestion = row.suggestion || {};
+      const suggestionText = suggestion.status === 'suggested'
+        ? t('financeSuggestedJournal', 'Suggested Ledger transaction') + ' #' + Number(suggestion.journalTransactionId)
+        : (suggestion.reason || suggestion.status || '—');
+      const canConfirm = suggestion.status === 'suggested' && row.matchStatus !== 'matched';
+      const actionButtons = [
+        canConfirm ? '<button type="button" data-finance-action="confirm" data-item="' + row.id + '" data-journal="' + Number(suggestion.journalTransactionId) + '">' + t('financeConfirm', 'Confirm') + '</button>' : '',
+        row.matchStatus === 'matched' ? '<button type="button" data-finance-action="release" data-item="' + row.id + '">' + t('financeRelease', 'Release') + '</button>' : '',
+        row.matchStatus !== 'matched' ? '<button type="button" data-finance-action="reject" data-item="' + row.id + '">' + t('financeReject', 'Reject') + '</button>' : '',
+        '<button type="button" data-finance-action="reassign" data-item="' + row.id + '">' + t('financeReassign', 'Reassign') + '</button>',
+        '<button type="button" data-finance-action="classify_exception" data-item="' + row.id + '">' + t('financeClassify', 'Classify') + '</button>'
+      ].filter(Boolean).join(' ');
+      return '<article class="finance-review-row" style="background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin:10px 0;">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><strong>#' + Number(row.rowNo) + ' · ' + esc(row.externalReference || row.transactionReference || '—') + '</strong><span>' + statusLabel(row.matchStatus) + '</span></div>' +
+        '<div style="color:#ccc;font-size:13px;margin:7px 0;">' + moneyMinor(row.amountMinor, row.currencyCode) + ' · ' + esc(row.direction) + ' · ' + esc(row.occurredAt || '') + '</div>' +
+        '<div style="color:#aaa;font-size:12px;overflow-wrap:anywhere;">' + esc(row.description || '') + '</div>' +
+        '<div style="color:#8ec5ff;font-size:12px;margin-top:7px;">' + esc(suggestionText) + '</div>' +
+        (row.exceptionCategory ? '<div style="color:#ffbd70;font-size:12px;margin-top:5px;">' + esc(row.exceptionCategory) + ' · ' + esc(row.exceptionNote || '') + '</div>' : '') +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">' + actionButtons + '</div></article>';
+    }).join('');
+  }
+  async function loadBatchItems(batchId, append) {
+    if (!requirePermission()) return;
+    state.batchId = Number(batchId);
+    const target = $('#financeReviewRows');
+    if (!append) {
+      state.rows = [];
+      state.nextRowCursor = null;
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    }
+    try {
+      const query = new URLSearchParams({ limit: '100' });
+      if (append && state.nextRowCursor) query.set('afterRowNo', String(state.nextRowCursor));
+      const data = await api('/admin/financial-reconciliation/batches/' + state.batchId + '/items?' + query.toString());
+      const rows = Array.isArray(data.items) ? data.items : [];
+      state.rows = append ? state.rows.concat(rows) : rows;
+      state.nextRowCursor = data.nextCursor || null;
+      const title = $('#financeSelectedBatch');
+      if (title) title.textContent = '#' + data.batch.id + ' · ' + data.batch.currencyCode + ' · ' + data.batch.rowCount + ' ' + t('financeRows', 'rows');
+      renderItems();
+      const more = $('#financeRowsMore');
+      if (more) more.hidden = !state.nextRowCursor;
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load statement rows') + '</div>';
+      toast('❌ ' + (error.message || 'Load failed'));
+    }
+  }
+  function requestReason(action) {
+    const prompts = {
+      confirm: t('financeReasonConfirm', 'Reason for confirming this match (5–500 characters):'),
+      reject: t('financeReasonReject', 'Reason for rejecting this row (5–500 characters):'),
+      release: t('financeReasonRelease', 'Reason for releasing this allocation (5–500 characters):'),
+      reassign: t('financeReasonReassign', 'Reason for reassigning this row (5–500 characters):'),
+      classify_exception: t('financeReasonClassify', 'Reason for classifying this exception (5–500 characters):')
+    };
+    const reason = window.prompt(prompts[action] || t('financeReason', 'Reason (5–500 characters):'));
+    if (reason === null) return null;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeReasonInvalid', 'Reason must contain 5–500 characters'));
+      return null;
+    }
+    return reason.trim();
+  }
+  async function submitReview(button) {
+    if (!requirePermission()) return;
+    const itemId = Number(button.dataset.item);
+    const action = button.dataset.financeAction;
+    const reason = requestReason(action);
+    if (!reason) return;
+    const body = { batchId: state.batchId, action, reason,
+      idempotencyKey: 'finance-ui-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12) };
+    if (action === 'confirm') body.journalTransactionId = Number(button.dataset.journal);
+    if (action === 'reassign') {
+      const id = Number(window.prompt(t('financeJournalIdPrompt', 'Enter Ledger transaction ID:')));
+      if (!Number.isSafeInteger(id) || id <= 0) return;
+      body.journalTransactionId = id;
+    }
+    if (action === 'classify_exception') {
+      const category = String(window.prompt(t('financeCategoryPrompt', 'Category: refund, fee, settlement_difference, chargeback, other'), 'other') || '').trim();
+      if (!['refund', 'fee', 'settlement_difference', 'chargeback', 'other'].includes(category)) {
+        toast('❌ ' + t('financeCategoryInvalid', 'Unsupported exception category'));
+        return;
+      }
+      body.exceptionCategory = category;
+    }
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/items/' + itemId + '/review', { method: 'POST', body });
+      toast('✅ ' + t('financeReviewSaved', 'Review saved'));
+      await loadBatchItems(state.batchId, false);
+      await loadBatches(false);
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeReviewFailed', 'Review failed')));
+    } finally { button.disabled = false; }
+  }
+  async function importBatch() {
+    if (!requirePermission()) return;
+    const input = $('#financeImportJson');
+    let parsed;
+    try { parsed = JSON.parse(input.value || ''); }
+    catch (_) { toast('❌ ' + t('financeInvalidJson', 'Invalid JSON')); return; }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      toast('❌ ' + t('financeInvalidJson', 'Invalid JSON object')); return;
+    }
+    const body = {
+      providerCode: parsed.providerCode, externalBatchId: parsed.externalBatchId,
+      statementSha256: parsed.statementSha256, currencyCode: parsed.currencyCode, rows: parsed.rows
+    };
+    const button = $('#financeImportButton');
+    button.disabled = true;
+    try {
+      const result = await api('/admin/financial-reconciliation/batches/import', { method: 'POST', body });
+      toast('✅ ' + t('financeImportDone', 'Batch imported') + ' #' + result.batchId);
+      input.value = '';
+      await loadBatches(false);
+      await loadBatchItems(result.batchId, false);
+    } catch (error) { toast('❌ ' + (error.message || t('financeImportFailed', 'Import failed'))); }
+    finally { button.disabled = false; }
+  }
+  function exportDailyCsv(rows) {
+    if (!rows.length) { toast(t('financeNoReportRows', 'No report rows')); return; }
+    const columns = ['report_date', 'currency_code', 'batch_count', 'statement_row_count', 'total_debit_minor', 'total_credit_minor', 'matched_count', 'pending_count', 'unmatched_count', 'ambiguous_count', 'exception_count', 'refund_exception_count', 'fee_exception_count', 'settlement_difference_exception_count', 'chargeback_exception_count', 'other_exception_count'];
+    const csv = [columns.join(','), ...rows.map(row => columns.map(key => {
+      const value = String(row[key] ?? '');
+      return '"' + value.replace(/"/g, '""') + '"';
+    }).join(','))].join('\r\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = 'financial-reconciliation-daily.csv';
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+  }
+  async function loadDailySummary() {
+    if (!requirePermission()) return;
+    const from = $('#financeReportFrom').value;
+    const to = $('#financeReportTo').value;
+    try {
+      const data = await api('/admin/financial-reconciliation/daily-summary?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      const target = $('#financeDailyReport');
+      target.innerHTML = rows.length ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+        ['report_date','currency_code','batch_count','statement_row_count','matched_count','pending_count','unmatched_count','ambiguous_count','exception_count'].map(key => '<th style="text-align:left;padding:9px;border-bottom:1px solid #555;">' + esc(t('financeCol_' + key, key)) + '</th>').join('') +
+        '</tr></thead><tbody>' + rows.map(row => '<tr>' + ['report_date','currency_code','batch_count','statement_row_count','matched_count','pending_count','unmatched_count','ambiguous_count','exception_count'].map(key => '<td style="padding:9px;border-bottom:1px solid rgba(255,255,255,.08);">' + esc(row[key] ?? '') + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' : '<div class="empty-hint">' + t('financeNoReportRows', 'No report rows') + '</div>';
+      const exportButton = $('#financeExportDaily');
+      if (exportButton) exportButton.onclick = () => exportDailyCsv(rows);
+    } catch (error) { toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed'))); }
+  }
+  function bind() {
+    const panel = root();
+    if (!panel || panel.dataset.bound) return;
+    panel.dataset.bound = '1';
+    panel.addEventListener('click', event => {
+      const batchButton = event.target.closest('[data-finance-batch]');
+      if (batchButton) { loadBatchItems(batchButton.dataset.financeBatch, false); return; }
+      const actionButton = event.target.closest('[data-finance-action]');
+      if (actionButton) submitReview(actionButton);
+    });
+    $('#financeReloadBatches').addEventListener('click', () => loadBatches(false));
+    $('#financeBatchMore').addEventListener('click', () => loadBatches(true));
+    $('#financeRowsMore').addEventListener('click', () => loadBatchItems(state.batchId, true));
+    $('#financeImportButton').addEventListener('click', importBatch);
+    $('#financeReportRun').addEventListener('click', loadDailySummary);
+    $('#financeExportDaily').addEventListener('click', () => loadDailySummary());
+  }
+  async function loadFinancialReconciliation() {
+    if (!requirePermission()) return;
+    bind();
+    const today = dateValue(new Date());
+    const from = $('#financeReportFrom');
+    const to = $('#financeReportTo');
+    if (from && !from.value) from.value = today;
+    if (to && !to.value) to.value = today;
+    await Promise.all([loadBatches(false), loadDailySummary()]);
+  }
+  window.loadFinancialReconciliation = loadFinancialReconciliation;
+})();
+
