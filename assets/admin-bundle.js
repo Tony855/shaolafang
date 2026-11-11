@@ -3438,6 +3438,7 @@ window.executePasswordModal = executePasswordModal;
 
 
 
+
 /* ========== pages/admin/financial-reconciliation.js ========== */
 /*
  * pages/admin/financial-reconciliation.js — 财务对账人工审核工作台
@@ -3561,7 +3562,7 @@ window.executePasswordModal = executePasswordModal;
     try {
       const query = new URLSearchParams({ limit: '100' });
       if (append && state.nextRowCursor) query.set('afterRowNo', String(state.nextRowCursor));
-      const data = await api('/admin/financial-reconciliation/batches/' + state.batchId + '/items?' + query.toString());
+      const data = await api('/admin/financial-reconciliation/batches/:batchId/items'.replace(':batchId', String(state.batchId)) + '?' + query.toString());
       const rows = Array.isArray(data.items) ? data.items : [];
       state.rows = append ? state.rows.concat(rows) : rows;
       state.nextRowCursor = data.nextCursor || null;
@@ -3615,7 +3616,7 @@ window.executePasswordModal = executePasswordModal;
     }
     button.disabled = true;
     try {
-      await api('/admin/financial-reconciliation/items/' + itemId + '/review', { method: 'POST', body });
+      await api('/admin/financial-reconciliation/items/:itemId/review'.replace(':itemId', String(itemId)), { method: 'POST', body });
       toast('✅ ' + t('financeReviewSaved', 'Review saved'));
       await loadBatchItems(state.batchId, false);
       await loadBatches(false);
