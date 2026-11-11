@@ -797,6 +797,51 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+
+  // Fail closed if legacy rows already violate one-to-one journal assignment.
+  const duplicateJournalAssignment = await getAsync(
+    'SELECT matched_journal_transaction_id, COUNT(*) AS assignment_count FROM financial_reconciliation_items WHERE matched_journal_transaction_id IS NOT NULL GROUP BY matched_journal_transaction_id HAVING COUNT(*) > 1 LIMIT 1'
+  );
+  if (duplicateJournalAssignment) {
+    throw new Error('financial reconciliation has duplicate journal assignments; resolve them before enabling finance review');
+  }
+  const reconciliationItemIndexes = await allAsync('SHOW INDEX FROM financial_reconciliation_items');
+  if (!reconciliationItemIndexes.some(index => index.Key_name === 'unique_reconciliation_journal_assignment')) {
+    await runAsync('CREATE UNIQUE INDEX unique_reconciliation_journal_assignment ON financial_reconciliation_items (matched_journal_transaction_id)');
+  }
+
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS financial_reconciliation_review_events (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      merchant_id INT NOT NULL,
+      store_id INT NOT NULL,
+      batch_id BIGINT NOT NULL,
+      item_id BIGINT NOT NULL,
+      journal_transaction_id BIGINT DEFAULT NULL,
+      actor_admin_id INT NOT NULL,
+      actor_username VARCHAR(100) NOT NULL,
+      action ENUM('confirm','reject','release','reassign') NOT NULL,
+      reason VARCHAR(500) NOT NULL,
+      idempotency_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      request_sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      before_json JSON NOT NULL,
+      after_json JSON NOT NULL,
+      previous_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
+      event_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      UNIQUE KEY unique_finance_review_idempotency (merchant_id, store_id, idempotency_key),
+      KEY idx_finance_review_batch_chain (batch_id, id),
+      KEY idx_finance_review_item_history (item_id, id),
+      KEY idx_finance_review_actor (merchant_id, store_id, actor_admin_id, created_at),
+      CONSTRAINT fk_finance_review_batch FOREIGN KEY (batch_id)
+        REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT,
+      CONSTRAINT fk_finance_review_item FOREIGN KEY (item_id)
+        REFERENCES financial_reconciliation_items(id) ON DELETE RESTRICT,
+      CONSTRAINT fk_finance_review_journal FOREIGN KEY (journal_transaction_id)
+        REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
   await runAsync(`
     CREATE TABLE IF NOT EXISTS scan_sessions (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -1092,6 +1137,13 @@ async function initDatabase() {
     }
   }
 
+  // Finance reconciliation is sensitive and opt-in for non-primary administrators.
+  try {
+    await runAsync('ALTER TABLE merchant_admins ADD COLUMN can_manage_financial_reconciliation TINYINT NOT NULL DEFAULT 0');
+  } catch (e) {
+    if (!/duplicate column/i.test(e.message || '')) console.log('  ! merchant_admins.can_manage_financial_reconciliation:', e.message);
+  }
+
   // ===== 初始化基础数据 =====
   const initialCredentials = {};
 
@@ -1333,6 +1385,10 @@ _advExport(app, { getAsync, allAsync, requireAdminKey, requirePermission, authen
 if (typeof _advExport.attachAdvancedExport === 'function') {
   _advExport.attachAdvancedExport(app, { getAsync, allAsync, requireAdminKey, requirePermission });
 }
+
+require('./routes/financial-reconciliation.js')(app, {
+  runAsync, getAsync, allAsync, withTransaction, requireAdminKey, requirePermission
+});
 
 
 // ----- 全局配置+催单+管理员/收银员+重置 -----
