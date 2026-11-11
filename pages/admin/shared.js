@@ -99,7 +99,7 @@ function switchAdminModule(module, opts) {
     menu: 'can_manage_menu', tables: 'can_manage_table', orders: 'can_manage_order',
     stores: 'can_manage_store', waiters: 'can_manage_waiter', currencies: 'can_manage_currency',
     printers: 'can_manage_printer', admins: 'can_manage_admin', cashiers: 'can_manage_cashier',
-    logs: 'can_view_logs'
+    logs: 'can_view_logs', 'financial-reconciliation': 'can_manage_financial_reconciliation'
   };
   const needPerm = permMap[module];
   if (needPerm && ctx.hasPermission && !ctx.hasPermission(needPerm)) {
@@ -129,6 +129,7 @@ function switchAdminModule(module, opts) {
   if (module === 'reports') { if (window.loadReportSummary) window.loadReportSummary(); if (window.loadDailyReport) window.loadDailyReport(); }
   if (module === 'calls') { if (window.loadWaiterCalls) window.loadWaiterCalls(); }
   if (module === 'logs') { if (window.loadLoginLogs) window.loadLoginLogs(); if (window.loadAuditLogs) window.loadAuditLogs(); }
+  if (module === 'financial-reconciliation' && window.loadFinancialReconciliation) window.loadFinancialReconciliation();
 }
 
 // 汉堡按钮拖动
