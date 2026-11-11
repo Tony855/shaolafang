@@ -90,3 +90,20 @@ test('remote updates use the same runtime baseline and locked dependency install
   assert.match(update, /ff_ensure_node/);
   assert.match(update, /npm ci --omit=dev --no-audit --no-fund/);
 });
+
+
+test('first install defaults to a minimal single-node path and keeps advanced services opt-in', () => {
+  const installer = read('install.sh');
+  const local = read('install-local.sh');
+  assert.match(installer, /if \[ -z "\$1" \]; then[\s\S]*?DEPLOY_MODE="standard"/);
+  assert.match(installer, /FF_INSTALL_REDIS:-0/);
+  assert.match(local, /FF_INSTALL_REDIS="\$\{FF_INSTALL_REDIS:-0\}"/);
+  assert.match(local, /FF_CONFIGURE_UFW="\$\{FF_CONFIGURE_UFW:-0\}"/);
+  assert.match(local, /FF_CONFIGURE_BACKUP_CRON="\$\{FF_CONFIGURE_BACKUP_CRON:-0\}"/);
+  assert.match(installer, /REDIS_URL=\$REDIS_URL_VALUE/);
+  assert.match(local, /REDIS_URL=\$REDIS_URL_VALUE/);
+  assert.match(local, /跳过自动备份计划任务/);
+  assert.match(local, /跳过 UFW 自动配置/);
+  assert.doesNotMatch(installer, /ff_apt_install nginx build-essential rsync certbot python3-certbot-nginx dnsutils psmisc ufw/);
+  assert.doesNotMatch(local, /ff_prepare_system_packages curl wget git nginx build-essential/);
+});

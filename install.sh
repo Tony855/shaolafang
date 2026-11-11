@@ -261,66 +261,20 @@ check_system() {
 # 部署模式选择菜单
 # ============================================================
 select_deploy_mode() {
-    # 命令行参数预选：bash install.sh [standard|enterprise|enterprise-ultimate]
-    if [ -n "$1" ]; then
-        case "$1" in
-            standard) DEPLOY_MODE="standard"; DEPLOY_NAME="标准版 - 单台部署"; return ;;
-            enterprise) DEPLOY_MODE="enterprise"; DEPLOY_NAME="企业版 - 2台服务器部署"; return ;;
-            enterprise-ultimate) DEPLOY_MODE="enterprise-ultimate"; DEPLOY_NAME="企业旗舰版 - 多台服务器集群部署"; return ;;
-            *) log_error "未知部署模式：$1（可选 standard/enterprise/enterprise-ultimate）"; exit 1 ;;
-        esac
+    # 默认最小单机安装；企业模式必须显式传入参数。
+    if [ -z "$1" ]; then
+        DEPLOY_MODE="standard"
+        DEPLOY_NAME="标准版 - 单台部署（首次安装默认）"
+        log_info "首次安装默认使用最简单的单机模式；企业集群请显式运行 install.sh enterprise 或 install.sh enterprise-ultimate。"
+        return
     fi
 
-    echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
-    echo -e "${CYAN}${BOLD}  请选择部署模式：${NC}"
-    echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
-    echo ""
-    echo -e "  ${BOLD}1. 标准版 - 单台部署${NC}"
-    echo "     所有服务（Nginx + Node.js + MariaDB + Redis）在一台服务器"
-    echo "     适用：1-50家门店，测试环境，小型餐饮企业"
-    echo "     配置要求：2核4GB以上"
-    echo ""
-    echo -e "  ${BOLD}2. 企业版 - 2台服务器部署${NC}"
-    echo "     双机负载均衡 + 共享数据库/Redis/NFS"
-    echo "     适用：100-200家门店，中型餐饮连锁"
-    echo "     配置要求：2台4核8GB应用服务器 + 独立MySQL/Redis"
-    echo ""
-    echo -e "  ${BOLD}3. 企业旗舰版 - 多台服务器集群部署${NC}"
-    echo "     多节点负载均衡，可水平扩展，支持多商户/SaaS"
-    echo "     适用：200+家门店，大型餐饮集团，SaaS平台"
-    echo "     配置要求：3台以上8核16GB应用服务器 + 高可用MySQL/Redis"
-    echo ""
-    echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
-    echo ""
-
-    while true; do
-        read -p "请输入选项 (1/2/3): " -n 1 -r
-        echo
-        case $REPLY in
-            1)
-                DEPLOY_MODE="standard"
-                DEPLOY_NAME="标准版 - 单台部署"
-                break
-                ;;
-            2)
-                DEPLOY_MODE="enterprise"
-                DEPLOY_NAME="企业版 - 2台服务器部署"
-                break
-                ;;
-            3)
-                DEPLOY_MODE="enterprise-ultimate"
-                DEPLOY_NAME="企业旗舰版 - 多台服务器集群部署"
-                break
-                ;;
-            *)
-                log_warn "无效选项，请输入 1、2 或 3"
-                ;;
-        esac
-    done
-
-    echo ""
-    log_info "已选择：${BOLD}$DEPLOY_NAME${NC}"
-    echo ""
+    case "$1" in
+        standard) DEPLOY_MODE="standard"; DEPLOY_NAME="标准版 - 单台部署" ;;
+        enterprise) DEPLOY_MODE="enterprise"; DEPLOY_NAME="企业版 - 2台服务器部署" ;;
+        enterprise-ultimate) DEPLOY_MODE="enterprise-ultimate"; DEPLOY_NAME="企业旗舰版 - 多台服务器集群部署" ;;
+        *) log_error "未知部署模式：$1（可选 standard/enterprise/enterprise-ultimate）"; exit 1 ;;
+    esac
 }
 
 # ============================================================
@@ -548,7 +502,7 @@ install_single() {
     echo ""
     log_info "更新系统软件包..."
     ff_apt_update
-    ff_apt_install nginx build-essential rsync certbot python3-certbot-nginx dnsutils psmisc ufw
+    ff_apt_install nginx psmisc rsync
     log_success "系统软件包安装/更新完成"
 
     # ===== 4. 安装 MariaDB =====
@@ -582,32 +536,26 @@ install_single() {
         log_success "MariaDB 安装完成"
     fi
 
-    # ===== 5. 安装 Redis =====
-    echo ""
-    log_info "检查 Redis..."
-    if command -v redis-server &> /dev/null; then
-        log_success "Redis 已安装"
-    else
-        log_info "安装 Redis..."
-        ff_apt_install redis-server
+    # ===== 可选：Redis（单机首次安装默认使用进程内缓存） =====
+    if [ "${FF_INSTALL_REDIS:-0}" = "1" ]; then
+        log_info "按 FF_INSTALL_REDIS=1 安装并启用 Redis..."
+        if ! command -v redis-server >/dev/null 2>&1; then
+            ff_apt_install redis-server
+        fi
         systemctl enable redis-server
-        systemctl start redis
-        log_success "Redis 安装完成"
+        systemctl start redis-server 2>/dev/null || systemctl start redis
+        if [ -f /etc/redis/redis.conf ]; then
+            if grep -q '^appendonly no' /etc/redis/redis.conf; then
+                sed -i 's/^appendonly no/appendonly yes/' /etc/redis/redis.conf
+            elif ! grep -q '^appendonly yes' /etc/redis/redis.conf; then
+                echo 'appendonly yes' >> /etc/redis/redis.conf
+            fi
+            grep -q '^appendfsync' /etc/redis/redis.conf || echo 'appendfsync everysec' >> /etc/redis/redis.conf
+            systemctl restart redis-server 2>/dev/null || systemctl restart redis 2>/dev/null || true
+        fi
+    else
+        log_info "跳过 Redis；单机默认使用进程内缓存。多节点部署必须单独配置共享 Redis。"
     fi
-    systemctl start redis-server 2>/dev/null || true
-
-# ===== 3.1 开启 Redis AOF 持久化（避免重启后订单号计数器回退） =====
-if [ -f /etc/redis/redis.conf ]; then
-    if grep -q '^appendonly no' /etc/redis/redis.conf; then
-        sed -i 's/^appendonly no/appendonly yes/' /etc/redis/redis.conf
-        log_info "Redis AOF 已开启（appendonly yes）"
-    elif ! grep -q '^appendonly yes' /etc/redis/redis.conf; then
-        echo 'appendonly yes' >> /etc/redis/redis.conf
-        log_info "Redis AOF 已开启（追加配置）"
-    fi
-    grep -q '^appendfsync' /etc/redis/redis.conf || echo 'appendfsync everysec' >> /etc/redis/redis.conf
-    systemctl restart redis-server 2>/dev/null || systemctl restart redis 2>/dev/null || true
-fi
 
 
     # ===== 6. 安装/升级 Node.js 26 LTS =====
@@ -719,6 +667,10 @@ EOF
     # ===== 10. 写入 .env 配置文件 =====
     echo ""
     ENV_FILE="$APP_DIR/.env"
+    REDIS_URL_VALUE=""
+    if [ "${FF_INSTALL_REDIS:-0}" = "1" ]; then
+        REDIS_URL_VALUE="redis://127.0.0.1:6379"
+    fi
     if [ "$SKIP_DB_INIT" -eq 0 ]; then
     log_info "创建首次安装 .env 配置..." 
     cat > "$ENV_FILE" << EOF
@@ -729,7 +681,7 @@ DB_DATABASE=$DEFAULT_DB_NAME
 DB_USER=foodflow
 DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
-REDIS_URL=redis://127.0.0.1:6379
+REDIS_URL=$REDIS_URL_VALUE
 UPLOAD_DIR=$APP_DIR/uploads
 RUN_SCHEDULED_TASKS=true
 JWT_SECRET=$JWT_RANDOM_SECRET
@@ -768,7 +720,7 @@ EOF
     cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
 Description=FoodFlow QR Ordering System
-After=network.target mariadb.service mysql.service redis.service
+After=network.target mariadb.service mysql.service
 
 [Service]
 Type=simple
