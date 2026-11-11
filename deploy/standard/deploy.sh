@@ -39,14 +39,15 @@ echo ""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 DEPLOY_TARGET="/var/www/foodflow"
+# shellcheck source=../../scripts/lib/system-deps.sh
+source "$PROJECT_DIR/scripts/lib/system-deps.sh"
 
 log_info "项目源目录: $PROJECT_DIR"
 log_info "部署目标目录: $DEPLOY_TARGET"
 
 # ===== 1. 安装基础工具 =====
 log_info "安装基础工具..."
-apt-get update -qq
-apt-get install -y -qq curl wget git rsync
+ff_prepare_system_packages curl wget git rsync
 log_success "基础工具安装完成"
 
 # ===== 2. 部署代码到 /var/www/foodflow =====
