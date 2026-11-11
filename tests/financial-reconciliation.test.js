@@ -99,6 +99,6 @@ test('returns tenant-scoped batch summary and match-state counts', async () => {
   const imported = await db.service.importStatementBatch(baseInput());
   const summary = await db.service.getBatchSummary({ merchantId: 4, storeId: 9, batchId: imported.batchId });
   assert.equal(summary.rowCount, 2);
-  assert.equal(summary.matchCounts.pending, 0); // this mock stores no merchant-scoped match rows
+  assert.equal(summary.matchCounts.pending, 2);
   assert.equal(await db.service.getBatchSummary({ merchantId: 4, storeId: 10, batchId: imported.batchId }), null);
 });
