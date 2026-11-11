@@ -105,7 +105,7 @@ sudo journalctl -u foodflow -n 100       # 最近100行日志
 # 应用更新
 cd /var/www/foodflow
 sudo git pull origin main
-sudo npm install --production
+sudo npm ci --omit=dev
 sudo systemctl restart foodflow
 
 # Nginx管理
