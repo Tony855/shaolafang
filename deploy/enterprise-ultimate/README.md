@@ -120,8 +120,9 @@ sudo certbot --nginx -d your-domain.com
 | 变量 | 说明 | 主节点 | 从节点 |
 |------|------|--------|--------|
 | `APP_VERSION` | 版本标识 | enterprise | enterprise |
-| `DB_NAME` | 数据库名 | foodflow_enterprise | foodflow_enterprise |
+| `DB_DATABASE` | 数据库名 | foodflow_enterprise | foodflow_enterprise |
 | `DB_CONNECTION_LIMIT` | 连接池大小 | 100 | 100 |
+| `TRUST_PROXY` | Nginx负载均衡器可信内网 IP/CIDR | 按实际配置 | 所有节点相同 |
 | `REDIS_URL` | Redis连接（必须） | ✅ 相同 | ✅ 相同 |
 | `UPLOAD_DIR` | 上传目录 | /mnt/shared/uploads | /mnt/shared/uploads |
 | `RUN_SCHEDULED_TASKS` | 定时任务 | **true** | **false** |
