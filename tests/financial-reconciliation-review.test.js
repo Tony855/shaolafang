@@ -26,11 +26,11 @@ function memoryDb() {
       return { affectedRows: row ? 1 : 0 };
     }
     if (sql.includes('INSERT INTO financial_reconciliation_review_events')) {
-      if (events.has(p[9])) { const e = new Error('duplicate'); e.code = 'ER_DUP_ENTRY'; throw e; }
+      if (events.has(p[10])) { const e = new Error('duplicate'); e.code = 'ER_DUP_ENTRY'; throw e; }
       const event = { id: nextEvent++, merchant_id: p[0], store_id: p[1], batch_id: p[2], item_id: p[3],
-        journal_transaction_id: p[4], actor_admin_id: p[5], actor_username: p[6], action: p[7],
-        reason: p[8], idempotency_key: p[9], request_sha256: p[10], previous_hash: p[13], event_hash: p[14] };
-      events.set(p[9], event); eventList.push(event);
+        journal_transaction_id: p[4], exception_category: p[5], actor_admin_id: p[6], actor_username: p[7], action: p[8],
+        reason: p[9], idempotency_key: p[10], request_sha256: p[11], previous_hash: p[14], event_hash: p[15] };
+      events.set(p[10], event); eventList.push(event);
       return { insertId: event.id };
     }
     throw new Error('unexpected SQL: ' + sql);
@@ -126,6 +126,30 @@ test('same idempotency request replays and changed request is rejected', async (
   assert.equal(replay.eventId, first.eventId);
   await assert.rejects(db.service.reviewItem(input({ reason: 'Different review reason', idempotencyKey: input().idempotencyKey })),
     e => e.code === 'REVIEW_IDEMPOTENCY_CONFLICT');
+});
+
+test('classifies refund, fee, and settlement differences for manual handling', async () => {
+  for (const [category, itemId, key] of [
+    ['refund', 11, 'finance-exception-0001'],
+    ['fee', 12, 'finance-exception-0002']
+  ]) {
+    const db = memoryDb();
+    const result = await db.service.reviewItem(input({
+      itemId, action: 'classify_exception', journalTransactionId: undefined,
+      exceptionCategory: category, idempotencyKey: key,
+      reason: 'Bank statement requires finance investigation'
+    }));
+    assert.equal(result.action, 'classify_exception');
+    assert.equal(db.items.get(itemId).match_status, 'exception');
+    assert.equal(db.eventList[0].exception_category, category);
+  }
+  const db = memoryDb();
+  await db.service.reviewItem(input({
+    action: 'classify_exception', journalTransactionId: undefined,
+    exceptionCategory: 'settlement_difference', idempotencyKey: 'finance-exception-0003',
+    reason: 'Settlement total differs from bank advice'
+  }));
+  assert.equal(db.eventList[0].exception_category, 'settlement_difference');
 });
 
 test('releases a match and appends a second hash-linked audit event', async () => {
