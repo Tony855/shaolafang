@@ -22,7 +22,7 @@ function normalizeReason(value) {
 function normalizeReviewInput(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('review input is required');
   const action = String(input.action || '').trim().toLowerCase();
-  if (!['confirm', 'reject', 'release', 'reassign'].includes(action)) {
+  if (!['confirm', 'reject', 'release', 'reassign', 'classify_exception'].includes(action)) {
     const error = new TypeError('unsupported review action');
     error.code = 'REVIEW_ACTION_INVALID';
     throw error;
@@ -34,6 +34,19 @@ function normalizeReviewInput(input) {
     throw error;
   }
   const reason = normalizeReason(input.reason);
+  const exceptionCategory = input.exceptionCategory === undefined || input.exceptionCategory === null
+    ? null : String(input.exceptionCategory).trim().toLowerCase();
+  const categories = ['refund', 'fee', 'settlement_difference', 'chargeback', 'other'];
+  if (action === 'classify_exception' && !categories.includes(exceptionCategory)) {
+    const error = new TypeError('exceptionCategory is required and must be a supported category');
+    error.code = 'REVIEW_EXCEPTION_CATEGORY_INVALID';
+    throw error;
+  }
+  if (action !== 'classify_exception' && exceptionCategory !== null) {
+    const error = new TypeError('exceptionCategory is only valid for classify_exception');
+    error.code = 'REVIEW_EXCEPTION_CATEGORY_INVALID';
+    throw error;
+  }
   const journalTransactionId = input.journalTransactionId === undefined || input.journalTransactionId === null
     ? null : positiveId(input.journalTransactionId, 'journalTransactionId');
   if (['confirm', 'reassign'].includes(action) && !journalTransactionId) {
@@ -46,7 +59,7 @@ function normalizeReviewInput(input) {
     error.code = 'REVIEW_JOURNAL_UNEXPECTED';
     throw error;
   }
-  return Object.freeze({ action, idempotencyKey, reason, journalTransactionId });
+  return Object.freeze({ action, idempotencyKey, reason, journalTransactionId, exceptionCategory });
 }
 
 function stableHash(value) {
@@ -72,7 +85,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     const rows = await allAsync(
       `SELECT id, batch_id, row_no, external_reference, transaction_reference,
               direction, amount_minor, currency_code, occurred_at, description,
-              match_status, match_reason, matched_journal_transaction_id
+              match_status, match_reason, matched_journal_transaction_id, exception_category, exception_note
        FROM financial_reconciliation_items
        WHERE batch_id=? AND merchant_id=? AND store_id=?
        ORDER BY row_no ASC LIMIT ?`,
@@ -242,7 +255,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
           }
           nextStatus = 'matched';
           nextJournalId = review.journalTransactionId;
-        } else if (review.action === 'reject') {
+        } else if (review.action === 'classify_exception') {\n          if (item.match_status === 'matched') {\n            const error = new Error('release a matched item before classifying an exception');\n            error.code = 'REVIEW_STATE_CONFLICT';\n            throw error;\n          }\n          nextStatus = 'exception';\n        } else if (review.action === 'reject') {
           if (item.match_status === 'matched') {
             const error = new Error('release a matched item before rejecting it');
             error.code = 'REVIEW_STATE_CONFLICT';
