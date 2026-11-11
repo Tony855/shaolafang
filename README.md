@@ -261,6 +261,12 @@ cd shaolafang
 sudo bash install.sh
 ```
 
+安装器统一配置 Node.js 26 LTS、系统基础工具和锁定的生产依赖；默认只刷新 APT 索引并安装所需组件，不会在安装过程中执行整机升级或删除现有数据库目录。若已安排系统维护窗口，并明确需要同时升级所有 Debian/Ubuntu 软件包，可显式执行：
+
+```bash
+sudo FF_APT_UPGRADE=1 bash install.sh
+```
+
 按照安装向导选择适合当前环境的部署模式：
 
 1. **标准版/单机模式**：适用于单台服务器部署。
