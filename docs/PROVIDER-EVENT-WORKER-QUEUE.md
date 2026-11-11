@@ -1,0 +1,26 @@
+# Provider event worker queue
+
+## Queue lifecycle
+
+Verified provider events may be claimed by a worker only when a canonical normalized event is stored. The worker claims one eligible row inside a database transaction using `SELECT ... FOR UPDATE`, assigns a cryptographically random 256-bit lease token, increments the attempt count, and sets a lease expiry.
+
+A crashed worker does not permanently strand an event: after lease expiry, another worker may reclaim it. Completion and failure updates require the current lease token, preventing an old worker from acknowledging work after another worker has reclaimed it.
+
+## Retry and terminal failure
+
+- Failed work returns to `received` with a delayed next-attempt timestamp until the configured attempt limit is reached.
+- At the attempt limit, the event becomes `failed` for operator review / dead-letter handling.
+- Error codes are stored as short sanitized identifiers, not arbitrary exception messages or provider payloads.
+- The queue exposes a bounded retry delay; the worker policy should use exponential backoff with jitter when scheduling retries.
+
+## Canonical event contract
+
+The provider adapter must authenticate the exact raw callback bytes first, then map provider-specific data into a minimal canonical event object. Do not persist secrets, signatures, authorization headers, card/bank credentials, or unbounded raw callback bodies in `normalized_event_json`. The provider-specific adapter must still validate merchant identity, order reference, amount, currency, and final provider status before returning a verified event.
+
+## Processing boundary
+
+This queue is an infrastructure primitive. It does not change order state or create journal entries by itself. A future provider-specific processor must atomically lock and validate the target order, apply a permitted state transition, post the balanced journal entry, and mark the inbox event processed. If any step fails, the whole business transaction must roll back and the queue must be retried using the current lease.
+
+## Deployment note
+
+Startup performs additive, idempotent column migrations for installations that already created the original inbox table. Roll out to staging first, inspect query plans and lease behavior under multiple workers, and validate backup/restore after the new columns are present.
