@@ -255,6 +255,10 @@ rm -f "$APP_DIR/db-test.js"
 
 # 7.7 写入 .env 文件（始终覆盖）
 ENV_FILE="$APP_DIR/.env"
+REDIS_URL_VALUE=""
+if [ "$FF_INSTALL_REDIS" = "1" ]; then
+    REDIS_URL_VALUE="redis://127.0.0.1:6379"
+fi
 log_info "写入环境变量配置..."
 if [ -e "$ENV_FILE" ]; then
     log_error "检测到现有 .env。为避免覆盖生产密钥和数据库凭据，安装程序已停止。"
@@ -270,7 +274,7 @@ DB_DATABASE=$DEFAULT_DB_NAME
 DB_USER=foodflow
 DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
-REDIS_URL=$([ "$FF_INSTALL_REDIS" = "1" ] && printf '%s' 'redis://127.0.0.1:6379')
+REDIS_URL=$REDIS_URL_VALUE
 UPLOAD_DIR=$APP_DIR/uploads
 RUN_SCHEDULED_TASKS=true
 JWT_SECRET=$JWT_RANDOM_SECRET
