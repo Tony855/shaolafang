@@ -30,7 +30,7 @@ function memoryDb({ failAuditInsert = false } = {}) {
       if (events.has(p[10])) { const e = new Error('duplicate'); e.code = 'ER_DUP_ENTRY'; throw e; }
       const event = { id: nextEvent++, merchant_id: p[0], store_id: p[1], batch_id: p[2], item_id: p[3],
         journal_transaction_id: p[4], exception_category: p[5], actor_admin_id: p[6], actor_username: p[7], action: p[8],
-        reason: p[9], idempotency_key: p[10], request_sha256: p[11], previous_hash: p[14], event_hash: p[15] };
+        reason: p[9], idempotency_key: p[10], request_sha256: p[11], before_json: p[12], after_json: p[13], previous_hash: p[14], event_hash: p[15] };
       events.set(p[10], event); eventList.push(event);
       return { insertId: event.id };
     }
@@ -222,6 +222,50 @@ test('rejects invalid or excessive daily summary ranges', async () => {
   await assert.rejects(db.service.getDailySummary({
     merchantId: 4, storeId: 9, from: '2026-01-01', to: '2026-04-10'
   }), e => e.code === 'REVIEW_DATE_RANGE_INVALID');
+});
+
+test('review history preserves prior exception category and note in before-state snapshot', async () => {
+  const db = memoryDb();
+  await db.service.reviewItem(input({
+    action: 'classify_exception', journalTransactionId: undefined,
+    exceptionCategory: 'fee', idempotencyKey: 'finance-exception-audit-01',
+    reason: 'Fee requires manual finance verification'
+  }));
+  await db.service.reviewItem(input({
+    action: 'reject', journalTransactionId: undefined,
+    idempotencyKey: 'finance-exception-audit-02',
+    reason: 'Not a valid journal allocation'
+  }));
+  const before = JSON.parse(db.eventList[1].before_json);
+  assert.equal(before.exceptionCategory, 'fee');
+  assert.equal(before.exceptionNote, 'Fee requires manual finance verification');
+});
+
+test('batch review list returns a stable next-row cursor for every page', async () => {
+  const rows = [1, 2, 3].map(rowNo => ({
+    id: rowNo, batch_id: 1, row_no: rowNo, external_reference: 'bank-ref-' + rowNo,
+    transaction_reference: '', direction: 'credit', amount_minor: 1200,
+    currency_code: 'USD', occurred_at: '2026-11-11 00:00:00',
+    description: '', match_status: 'pending', match_reason: null,
+    matched_journal_transaction_id: null, exception_category: null, exception_note: null
+  }));
+  const service = createFinancialReconciliationReviewService({
+    runAsync: async () => ({ affectedRows: 1 }),
+    getAsync: async () => ({ id: 1, status: 'imported', currency_code: 'USD', row_count: 3 }),
+    allAsync: async (sql, params) => {
+      if (sql.includes('FROM financial_reconciliation_items')) {
+        return rows.filter(row => row.row_no > params[3]).slice(0, params[4]);
+      }
+      return [];
+    },
+    withTransaction: async work => work()
+  });
+  const first = await service.listBatchReview({ merchantId: 4, storeId: 9, batchId: 1, limit: 2 });
+  assert.deepEqual(first.items.map(row => row.rowNo), [1, 2]);
+  assert.equal(first.nextCursor, 2);
+  const second = await service.listBatchReview({ merchantId: 4, storeId: 9, batchId: 1, limit: 2, afterRowNo: first.nextCursor });
+  assert.deepEqual(second.items.map(row => row.rowNo), [3]);
+  assert.equal(second.nextCursor, null);
 });
 
 test('rejects malformed actions, reasons, and idempotency keys', async () => {
