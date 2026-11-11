@@ -151,7 +151,7 @@ FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运�
 
 | 层级 | 技术 |
 |---|---|
-| Web 服务 | Node.js 20+、Express 4 |
+| Web 服务 | Node.js 26 LTS、Express 4 |
 | 实时通信 | Socket.IO 4 |
 | 数据库 | MySQL 8+ / MariaDB 10.5+ |
 | 可选缓存与跨节点适配 | Redis、Socket.IO Redis Adapter |
@@ -193,7 +193,7 @@ FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运�
 ### 4.1 软件要求
 
 - Linux 推荐 Debian 12/13 或 Ubuntu 22.04/24.04。
-- Node.js 20 LTS 或更高兼容版本。
+- Node.js 26 LTS（npm 10+）。
 - MySQL 8.0+ 或 MariaDB 10.5+。
 - Git、npm。
 - Nginx 用于域名反向代理和 HTTPS（生产环境推荐）。
@@ -289,7 +289,7 @@ curl -i http://127.0.0.1:3000/api/health
 
 ### 6.1 安装 Node.js
 
-建议使用 Node.js 20 LTS。安装后验证：
+生产环境统一使用 Node.js 26 LTS（npm 10+），开发环境请使用仓库根目录的 `.nvmrc`。安装后验证：
 
 ```bash
 node --version
@@ -357,7 +357,7 @@ curl -i http://127.0.0.1:3000/api/health
 开发环境可使用：
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
