@@ -9,8 +9,9 @@ function createFinancialLedgerService({ runAsync, getAsync, allAsync, withTransa
 
   async function recordVerifiedProviderEvent(input) {
     const verification = input && input.verification;
+    const requestedProviderCode = String(input?.envelope?.providerCode || '').trim().toUpperCase();
     if (!verification || verification.verified !== true ||
-        verification.providerCode !== input.envelope?.providerCode) {
+        String(verification.providerCode || '').trim().toUpperCase() !== requestedProviderCode) {
       const error = new Error('provider event must be authenticated by its provider adapter');
       error.code = 'PROVIDER_EVENT_NOT_VERIFIED';
       throw error;
@@ -53,7 +54,7 @@ function createFinancialLedgerService({ runAsync, getAsync, allAsync, withTransa
       }
       return {
         eventId: Number(existing.id),
-        duplicate: existing.processing_status !== 'received' || existing.auth_status === 'verified',
+        accepted: true,
         processingStatus: existing.processing_status
       };
     });
