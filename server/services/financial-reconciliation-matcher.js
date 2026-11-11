@@ -49,11 +49,13 @@ function normalizeJournalCandidate(candidate, index) {
   if (!/^[A-Z]{3}$/.test(currencyCode)) {
     throw new TypeError('journal candidate currencyCode must be a three-letter code');
   }
+  const sourceId = normalizeReference(candidate.sourceId);
+  if (!sourceId) throw new TypeError('journal candidate sourceId is required');
   return Object.freeze({
     journalTransactionId: positiveSafeInteger(candidate.journalTransactionId, 'journalTransactionId'),
     merchantId: positiveSafeInteger(candidate.merchantId, 'merchantId'),
     storeId: positiveSafeInteger(candidate.storeId, 'storeId'),
-    sourceId: normalizeReference(candidate.sourceId),
+    sourceId,
     amountMinor,
     currencyCode
   });
@@ -72,6 +74,16 @@ function suggestReconciliationMatches({ statementRows, journalCandidates }) {
 
   const rows = statementRows.map(normalizeStatementRow);
   const candidates = journalCandidates.map(normalizeJournalCandidate);
+  const candidateIds = new Map();
+  for (const candidate of candidates) {
+    const previous = candidateIds.get(candidate.journalTransactionId);
+    if (previous && (previous.merchantId !== candidate.merchantId || previous.storeId !== candidate.storeId ||
+        previous.sourceId !== candidate.sourceId || previous.amountMinor !== candidate.amountMinor ||
+        previous.currencyCode !== candidate.currencyCode)) {
+      throw new TypeError('duplicate journal transaction ID has conflicting candidate data');
+    }
+    candidateIds.set(candidate.journalTransactionId, candidate);
+  }
   return rows.map(row => {
     const references = new Set([row.externalReference, row.transactionReference].filter(Boolean));
     const scoped = candidates.filter(candidate =>
