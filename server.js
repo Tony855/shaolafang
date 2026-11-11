@@ -689,6 +689,23 @@ async function initDatabase() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
+  // Backward-compatible queue columns for existing provider inbox tables.
+  const providerEventColumns = await allAsync('SHOW COLUMNS FROM provider_webhook_events');
+  const providerEventColumnNames = providerEventColumns.map(column => column.Field);
+  const providerEventMigrations = [
+    ['normalized_event_json', 'JSON DEFAULT NULL'],
+    ['attempt_count', 'INT UNSIGNED NOT NULL DEFAULT 0'],
+    ['max_attempts', 'INT UNSIGNED NOT NULL DEFAULT 8'],
+    ['next_attempt_at', 'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)'],
+    ['lease_token', 'CHAR(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL'],
+    ['lease_expires_at', 'DATETIME(3) DEFAULT NULL']
+  ];
+  for (const [column, definition] of providerEventMigrations) {
+    if (!providerEventColumnNames.includes(column)) {
+      await runAsync(`ALTER TABLE provider_webhook_events ADD COLUMN ${column} ${definition}`);
+    }
+  }
+
   // Append-only journal header and balanced debit/credit lines.
   // No existing order/refund totals are backfilled or rewritten by this foundation.
   await runAsync(`
