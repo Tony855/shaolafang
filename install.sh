@@ -229,7 +229,7 @@ check_system() {
         OS_VERSION="$VERSION_ID"
         log_info "操作系统：$OS_NAME $OS_VERSION"
     else
-        log_error "无法识别操作系统，支持 Debian 11+ / Ubuntu 20.04+"
+        log_error "无法识别操作系统，支持 Debian 12/13、Ubuntu 22.04/24.04"
         exit 1
     fi
 
