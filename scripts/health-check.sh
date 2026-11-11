@@ -26,7 +26,9 @@ echo "==========================================="
 echo ""
 echo "=== 1. 服务健康 ==="
 HEALTH=$(curl -sS "$BASE/api/health" 2>/dev/null)
-check "GET /api/health 返回 ok" "1" "$(echo "$HEALTH" | grep -c '"ok":true')"
+check "GET /api/health 存活检查" "1" "$(echo "$HEALTH" | grep -c '"ok":true')"
+READY=$(curl -sS -o /dev/null -w '%{http_code}' "$BASE/api/health/ready" 2>/dev/null)
+check "GET /api/health/ready 数据库就绪检查" "200" "$READY"
 
 echo ""
 echo "=== 2. 关键页面 HTTP ==="
@@ -51,21 +53,45 @@ done
 
 echo ""
 echo "=== 4. 数据库连接 ==="
-DB_CHECK=$(mysql -u root foodflow_system -N -e "SELECT 1" 2>/dev/null)
-check "MySQL 连接正常" "1" "$DB_CHECK"
+# Read credentials from the environment or the standard deployment env file.
+ENV_FILE="\${ENV_FILE:-/etc/foodflow/.env}"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+DB_HOST="\${DB_HOST:-127.0.0.1}"
+DB_PORT="\${DB_PORT:-3306}"
+DB_USER="\${DB_USER:-foodflow}"
+DB_PASSWORD="\${DB_PASSWORD:-}"
+DB_DATABASE="\${DB_DATABASE:-\${DB_NAME:-}}"
+mysql_query() {
+  MYSQL_PWD="$DB_PASSWORD" mysql --protocol=tcp --host="$DB_HOST" --port="$DB_PORT" \
+    --user="$DB_USER" "$DB_DATABASE" -N -e "$1" 2>/dev/null
+}
+if [ -z "$DB_DATABASE" ] || ! command -v mysql >/dev/null 2>&1; then
+  DB_CHECK=""
+else
+  DB_CHECK=$(mysql_query "SELECT 1")
+fi
+check "MySQL 连接正常（使用部署配置）" "1" "$DB_CHECK"
 
 echo ""
 echo "=== 5. 数据隔离（抽查）==="
 # 检查是否有 merchant_id 和 store_id 不匹配的数据
-MISMATCH=$(mysql -u root foodflow_system -N -e "
+if [ -n "$DB_DATABASE" ] && command -v mysql >/dev/null 2>&1; then
+  MISMATCH=$(mysql_query "
 SELECT (
   (SELECT COUNT(*) FROM menus m JOIN stores s ON s.id=m.store_id WHERE m.merchant_id != s.merchant_id) +
   (SELECT COUNT(*) FROM tables t JOIN stores s ON s.id=t.store_id WHERE t.merchant_id != s.merchant_id) +
   (SELECT COUNT(*) FROM orders o JOIN stores s ON s.id=o.store_id WHERE o.merchant_id != s.merchant_id) +
   (SELECT COUNT(*) FROM printers p JOIN stores s ON s.id=p.store_id WHERE p.merchant_id != s.merchant_id) +
   (SELECT COUNT(*) FROM waiters w JOIN stores s ON s.id=w.store_id WHERE w.merchant_id != s.merchant_id)
-) AS total;
-" 2>/dev/null)
+) AS total;")
+else
+  MISMATCH=""
+fi
 check "merchant_id 与 store_id 一致" "0" "$MISMATCH"
 
 echo ""
