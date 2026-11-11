@@ -33,13 +33,13 @@ function response() {
 }
 
 test('batch listing is tenant-scoped and returns a descending pagination cursor', async () => {
-  const rows = [{ id: 27, merchant_id: 4, store_id: 9 }, { id: 26, merchant_id: 4, store_id: 9 }];
+  const rows = [{ id: 27, merchant_id: 4, store_id: 9 }, { id: 26, merchant_id: 4, store_id: 9 }, { id: 25, merchant_id: 4, store_id: 9 }];
   const { routes, calls } = setup({ rows });
   const handler = routes.get('GET /api/admin/financial-reconciliation/batches').at(-1);
   const res = response();
   await handler({ merchantId: 4, storeId: 9, adminId: 12, query: { limit: '2' } }, res);
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body.rows, rows);
+  assert.deepEqual(res.body.rows, rows.slice(0, 2));
   assert.equal(res.body.nextCursor, 26);
   assert.match(calls[0].sql, /b\.merchant_id=\? AND b\.store_id=\?/);
   assert.deepEqual(calls[0].params, [4, 9, 4, 9, 0, Number.MAX_SAFE_INTEGER, 3]);
