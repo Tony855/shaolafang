@@ -1200,5 +1200,6 @@
   "pwaInstallError": "安装引导异常",
   "refreshing": "刷新中...",
   "backupRetentionDays": "备份保留天数：",
-  "backupRetentionHint": "（超期自动清理，1-3650 天）"
+  "backupRetentionHint": "（超期自动清理，1-3650 天）",
+  "permFinancialReconciliation": "财务对账审核"
 }
