@@ -45,7 +45,7 @@ FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运�
 | 服务员 | `/waiter` | 桌台、订单、上菜与服务操作 |
 | 后厨 | `/kitchen` | Kitchen Display System（KDS）出餐队列 |
 | 收银员 | `/cashier` | 收款、找零、退款及收银操作 |
-| 超级管理员 | `/super-login`、`/super` | 平台级商户、系统及运营管理 |
+| 超级管理员 | `/super/login`、`/super` | 平台级商户、系统及运营管理 |
 
 页面是否允许访问以及可执行的操作，均由服务端会话、角色和权限校验决定；不要将隐藏前端按钮视为安全边界。
 
@@ -135,7 +135,7 @@ FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运�
 
 ### 2.6 超级管理员平台
 
-超级管理员入口为 `/super-login`，管理界面为 `/super`。用于平台运营人员执行平台级管理，例如：
+超级管理员入口为 `/super/login`，管理界面为 `/super`。用于平台运营人员执行平台级管理，例如：
 
 - 创建、编辑、启用或停用商户。
 - 查看商户及门店概览。
