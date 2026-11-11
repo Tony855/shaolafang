@@ -19,7 +19,7 @@
 ## 1. 系统要求
 
 ### 最低配置
-- **操作系统**: Windows 10/11、Debian 11+、Ubuntu 20.04+、CentOS 8+
+- **Linux 一键安装脚本**: Debian 12/13、Ubuntu 22.04/24.04（其他系统请按手动部署说明自行验证 Node.js 26 兼容性）
 - **Node.js**: v26 LTS（npm 10+）
 - **数据库**: MySQL 8.0+ 或 MariaDB 10.5+
 - **内存**: 512MB 以上（推荐 1GB）
