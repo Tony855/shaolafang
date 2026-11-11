@@ -39,7 +39,7 @@ function memoryDb({ failAuditInsert = false } = {}) {
 
   async function getAsync(sql, p = []) {
     if (sql.includes('FROM financial_reconciliation_review_events') && sql.includes('idempotency_key')) {
-      return events.get(p[2]) || null;
+      return events.get(p[3]) || null;
     }
     if (sql.includes('FROM financial_reconciliation_batches')) {
       const b = batches.get(p[0]);
