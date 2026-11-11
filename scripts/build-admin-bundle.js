@@ -24,6 +24,7 @@ const MODULES = [
     'pages/admin/printer.js',
     'pages/admin/khqr.js',
     'pages/admin/report.js',
+    'pages/admin/financial-reconciliation.js',
     'pages/admin/menu.js',
     'pages/admin/table.js',
     'pages/admin/order.js',
