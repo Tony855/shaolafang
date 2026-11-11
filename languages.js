@@ -669,7 +669,6 @@ const LANGUAGES = {
     "permCashier": "收银员管理",
     "permAdmin": "管理员管理",
     "permLogs": "查看日志",
-    "permFinancialReconciliation": "财务对账审核",
     "permGroupOps": "运营管理",
     "permGroupBase": "基础设置",
     "permGroupSystem": "系统管理",
@@ -1208,7 +1207,8 @@ const LANGUAGES = {
     "pwaInstallError": "安装引导异常",
     "refreshing": "刷新中...",
     "backupRetentionDays": "备份保留天数：",
-    "backupRetentionHint": "（超期自动清理，1-3650 天）"
+    "backupRetentionHint": "（超期自动清理，1-3650 天）",
+    "permFinancialReconciliation": "财务对账审核"
   },
   "en": {
     "code": "Code",
@@ -1678,7 +1678,6 @@ const LANGUAGES = {
     "permCashier": "Cashier Management",
     "permAdmin": "Admins",
     "permLogs": "Logs",
-    "permFinancialReconciliation": "Financial reconciliation",
     "permGroupOps": "Operations",
     "permGroupBase": "Basic Settings",
     "permGroupSystem": "System",
@@ -2413,7 +2412,8 @@ const LANGUAGES = {
     "pwaInstallError": "Install guide error",
     "refreshing": "Refreshing...",
     "backupRetentionDays": "Backup retention (days):",
-    "backupRetentionHint": "(Auto-clean older files, 1-3650 days)"
+    "backupRetentionHint": "(Auto-clean older files, 1-3650 days)",
+    "permFinancialReconciliation": "Financial reconciliation"
   },
   "vi": {
     "code": "Mã",
@@ -2902,7 +2902,6 @@ const LANGUAGES = {
     "permCashier": "Quản lý thu ngân",
     "permAdmin": "Quản lý quản trị",
     "permLogs": "Xem nhật ký",
-    "permFinancialReconciliation": "Đối soát tài chính",
     "permGroupOps": "Quản lý vận hành",
     "permGroupBase": "Cài đặt cơ bản",
     "permGroupSystem": "Quản lý hệ thống",
@@ -3618,7 +3617,8 @@ const LANGUAGES = {
     "pwaInstallError": "Lỗi hướng dẫn cài đặt",
     "refreshing": "Đang làm mới...",
     "backupRetentionDays": "Số ngày giữ bản sao lưu:",
-    "backupRetentionHint": "(Tự động xóa file cũ, 1-3650 ngày)"
+    "backupRetentionHint": "(Tự động xóa file cũ, 1-3650 ngày)",
+    "permFinancialReconciliation": "Đối soát tài chính"
   },
   "th": {
     "code": "รหัส",
@@ -4107,7 +4107,6 @@ const LANGUAGES = {
     "permCashier": "จัดการพนักงานเก็บเงิน",
     "permAdmin": "จัดการผู้ดูแล",
     "permLogs": "ดูบันทึก",
-    "permFinancialReconciliation": "กระทบยอดทางการเงิน",
     "permGroupOps": "การดำเนินงาน",
     "permGroupBase": "การตั้งค่าพื้นฐาน",
     "permGroupSystem": "การจัดการระบบ",
@@ -4823,7 +4822,8 @@ const LANGUAGES = {
     "pwaInstallError": "ข้อผิดพลาดคู่มือติดตั้ง",
     "refreshing": "กำลังรีเฟรช...",
     "backupRetentionDays": "จำนวนวันเก็บบันทึกสำรอง:",
-    "backupRetentionHint": "(ลบไฟล์เก่าอัตโนมัติ 1-3650 วัน)"
+    "backupRetentionHint": "(ลบไฟล์เก่าอัตโนมัติ 1-3650 วัน)",
+    "permFinancialReconciliation": "กระทบยอดทางการเงิน"
   },
   "km": {
     "code": "កូដ",
@@ -5312,7 +5312,6 @@ const LANGUAGES = {
     "permCashier": "គ្រប់គ្រងអ្នកគិតលុយ",
     "permAdmin": "គ្រប់គ្រងអ្នកគ្រប់គ្រង",
     "permLogs": "មើលកំណត់ហេតុ",
-    "permFinancialReconciliation": "ការផ្ទៀងផ្ទាត់ហិរញ្ញវត្ថុ",
     "permGroupOps": "ការដំណើរការ",
     "permGroupBase": "ការកំណត់មូលដ្ឋាន",
     "permGroupSystem": "ការគ្រប់គ្រងប្រព័ន្ធ",
@@ -6028,7 +6027,8 @@ const LANGUAGES = {
     "pwaInstallError": "កំហុសការណែនាំដំឡើង",
     "refreshing": "កំពុងធ្វើឱ្យទាន់សម័យ...",
     "backupRetentionDays": "ចំនួនថ្ងៃរក្សាបម្រុងទុក៖",
-    "backupRetentionHint": "(សម្អាតឯកសារចាស់ដោយស្វ័យប្រវត្តិ 1-3650 ថ្ងៃ)"
+    "backupRetentionHint": "(សម្អាតឯកសារចាស់ដោយស្វ័យប្រវត្តិ 1-3650 ថ្ងៃ)",
+    "permFinancialReconciliation": "ការផ្ទៀងផ្ទាត់ហិរញ្ញវត្ថុ"
   }
 };
 
