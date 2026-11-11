@@ -42,7 +42,7 @@ bash onekey-install.sh
 ```
 
 脚本自动完成：
-- ✅ Node.js 20+ 安装
+- ✅ Node.js 26 LTS 安装
 - ✅ MySQL/MariaDB 安装（自动生成root密码）
 - ✅ Redis 缓存安装
 - ✅ 数据库创建（utf8mb4字符集）
@@ -153,7 +153,7 @@ bash deploy-app-server.sh
 - 数据库密码（部署数据库服务器时生成）
 
 脚本自动完成：
-- ✅ Node.js 20+ 安装
+- ✅ Node.js 26 LTS 安装
 - ✅ Nginx 安装配置
 - ✅ 连接远程数据库
 - ✅ 初始化数据库
