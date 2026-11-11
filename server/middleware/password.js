@@ -27,10 +27,16 @@ function verifyPassword(password, hash) {
   return stored.length === candidate.length && crypto.timingSafeEqual(candidate, stored);
 }
 
+function isStrongPassword(password) {
+  if (typeof password !== 'string' || password.length < 12 || password.length > 128) return false;
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/];
+  return classes.filter(pattern => pattern.test(password)).length >= 3;
+}
+
 function needsRehash(hash) {
   if (typeof hash !== 'string' || !hash.startsWith('$2')) return true;
   const rounds = Number.parseInt(hash.split('$')[2], 10);
   return !Number.isFinite(rounds) || rounds < BCRYPT_ROUNDS;
 }
 
-module.exports = { hashPassword, verifyPassword, needsRehash, BCRYPT_ROUNDS };
+module.exports = { hashPassword, verifyPassword, needsRehash, isStrongPassword, BCRYPT_ROUNDS };

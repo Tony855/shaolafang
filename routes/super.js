@@ -4,7 +4,8 @@
 const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const express = require('express');
-const { needsRehash } = require('../server/middleware/password');
+const { needsRehash, isStrongPassword } = require('../server/middleware/password');
+const { removeInitialSuperAdminCredential } = require('../server/services/initial-credentials');
 const os = require('os');
 const fs = require('fs');
 
@@ -29,6 +30,7 @@ function parsePositiveRouteId(value) {
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt, verifyPassword, hashPassword, getClientIp, getLocationByIp, requireSuperAdmin, logAudit, collectBackupData, autoBackupDatabase, withTransaction } = deps;
   const writeAudit = deps.logAuditStrict || logAudit;
+  const cleanupInitialCredential = deps.removeInitialSuperAdminCredential || removeInitialSuperAdminCredential;
 
 app.post('/api/super/login', async (req, res) => {
   try {
@@ -77,7 +79,9 @@ app.post('/api/super/login', async (req, res) => {
     const timeoutMinutes = Number.isSafeInteger(configuredTimeoutMinutes) && configuredTimeoutMinutes > 0 ? Math.min(configuredTimeoutMinutes, 1440) : 60;
     const expiresAt = new Date(Date.now() + timeoutMinutes * 60 * 1000).toISOString();
     await runAsync('INSERT INTO super_sessions (super_admin_id, token_hash, expires_at, created_at, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?)', [superAdmin.id, hashSessionToken(token), expiresAt, new Date().toISOString(), clientIp, req.get('User-Agent') || '']);
-    res.json({ success: true, token, admin: { id: superAdmin.id, username: superAdmin.username, display_name: superAdmin.display_name } });
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.json({ success: true, token, mustChangePassword: Number(superAdmin.must_change_password) === 1,
+      admin: { id: superAdmin.id, username: superAdmin.username, display_name: superAdmin.display_name, must_change_password: Number(superAdmin.must_change_password) === 1 } });
   } catch (_) {
     console.error('[super/login] request failed');
     res.status(500).json({ error: '超级管理员登录失败，请稍后重试' });
@@ -676,21 +680,40 @@ app.post('/api/super/logout', requireSuperAdmin, async (req, res) => {
 });
 
 app.post('/api/super/change-password', requireSuperAdmin, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, private');
+  res.setHeader('Pragma', 'no-cache');
   try {
     const { oldPassword, newPassword } = req.body || {};
-    if (!oldPassword || !newPassword) return res.status(400).json({ error: '请输入旧密码和新密码' });
-    if (newPassword.length < 12 || newPassword.length > 128) return res.status(400).json({ error: '新密码长度必须为 12 至 128 个字符' });
-    if (!verifyPassword(oldPassword, req.superAdmin.password_hash)) {
-      return res.status(401).json({ error: '旧密码错误' });
+    if (typeof oldPassword !== 'string' || typeof newPassword !== 'string' || !oldPassword || !newPassword) return res.status(400).json({ error: '请输入旧密码和新密码' });
+    const isInitialRotation = Number(req.superAdmin.must_change_password) === 1;
+    if (isInitialRotation && (!isStrongPassword(newPassword) || newPassword === oldPassword)) {
+      return res.status(400).json({ error: '首次登录密码必须为 12 至 128 个字符，并至少包含小写字母、大写字母、数字、特殊字符中的三类，且不能与旧密码相同' });
     }
+    if (newPassword.length < 12 || newPassword.length > 128) return res.status(400).json({ error: '新密码长度必须为 12 至 128 个字符' });
+    if (!verifyPassword(oldPassword, req.superAdmin.password_hash)) return res.status(401).json({ error: '旧密码错误' });
     const hash = hashPassword(newPassword);
+    if (isInitialRotation) {
+      // Keep the flag set until the generated credential file is safely cleaned.
+      await withTransaction(async () => {
+        await runAsync('UPDATE super_admins SET password_hash=? WHERE id=? AND must_change_password=1', [hash, req.superAdmin.id]);
+        await runAsync('DELETE FROM super_sessions WHERE super_admin_id=?', [req.superAdmin.id]);
+        await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'complete_initial_password_rotation', 'super_admin', req.superAdmin.id, '完成首次登录密码初始化', getClientIp(req));
+      });
+      const cleanup = await cleanupInitialCredential(req.superAdmin.username);
+      if (!cleanup.ok) return res.status(503).json({ error: '密码已更新，但初始凭据文件清理失败。请使用新密码重新登录并重试初始化；系统仍会限制其他后台操作。' });
+      await runAsync('UPDATE super_admins SET must_change_password=0 WHERE id=? AND must_change_password=1', [req.superAdmin.id]);
+      return res.json({ success: true, reauthenticate: true });
+    }
     await withTransaction(async () => {
       await runAsync('UPDATE super_admins SET password_hash=? WHERE id=?', [hash, req.superAdmin.id]);
       await runAsync('DELETE FROM super_sessions WHERE super_admin_id=? AND token_hash<>?', [req.superAdmin.id, hashSessionToken(req.superSessionToken || '')]);
       await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username, 'change_password', 'super_admin', req.superAdmin.id, '修改超级管理员登录密码', getClientIp(req));
     });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
+  } catch (e) {
+    console.error('[super/change-password] request failed');
+    res.status(500).json({ error: '请求失败，请稍后重试' });
+  }
 });
 
 app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
