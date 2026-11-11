@@ -68,23 +68,33 @@ ff_ensure_node() {
   ff_apt_update || return 1
   ff_apt_install ca-certificates curl gnupg libatomic1
 
-  if [ "$current_major" != "$wanted_major" ]; then
-    ff_log_info "安装/升级 Node.js ${wanted_major}.x（当前：${current_version:-未安装}）..."
-    curl -fsSL "https://deb.nodesource.com/setup_${wanted_major}.x" | bash -
-  else
-    ff_log_info "Node.js ${wanted_major}.x 已安装，检查发行版安全更新..."
+  local setup_file
+  setup_file="$(mktemp)"
+  ff_log_info "配置 NodeSource Node.js ${wanted_major}.x 仓库（当前：${current_version:-未安装}）..."
+  if ! curl -fsSL "https://deb.nodesource.com/setup_${wanted_major}.x" -o "$setup_file"; then
+    rm -f "$setup_file"
+    ff_log_error "下载 NodeSource 安装脚本失败。"
+    return 1
   fi
+  if ! bash "$setup_file"; then
+    rm -f "$setup_file"
+    ff_log_error "配置 NodeSource 仓库失败。"
+    return 1
+  fi
+  rm -f "$setup_file"
 
   ff_apt_install nodejs libatomic1
   hash -r
-  if ! command -v node >/dev/null 2>&1; then
-    ff_log_error "Node.js 安装后仍无法找到 node 命令。"
-    return 1
-  fi
-  current_version="$(node -p 'process.versions.node' 2>/dev/null || true)"
-  current_major="${current_version%%.*}"
-  if [ "$current_major" != "$wanted_major" ]; then
-    ff_log_error "Node.js 版本校验失败：期望 ${wanted_major}.x，实际 ${current_version:-unknown}。请检查 PATH 中的旧版 Node 安装。"
+  ff_require_node
+}
+
+ff_require_node() {
+  local actual_version=""
+  local actual_major=""
+  actual_version="$(node -p 'process.versions.node' 2>/dev/null || true)"
+  actual_major="${actual_version%%.*}"
+  if [ "$actual_major" != "$FF_NODE_MAJOR" ]; then
+    ff_log_error "Node.js 版本不匹配：要求 ${FF_NODE_MAJOR}.x，实际 ${actual_version:-未安装}。"
     return 1
   fi
   if ! command -v npm >/dev/null 2>&1; then
@@ -99,6 +109,6 @@ ff_npm_ci_production() {
     ff_log_error "缺少 package.json 或 package-lock.json；拒绝使用不确定版本安装依赖。"
     return 1
   fi
-  ff_ensure_node || return 1
+  ff_require_node || return 1
   npm ci --omit=dev --no-audit --no-fund
 }
