@@ -28,7 +28,7 @@ test('suggests one exact reference, tenant, amount and currency match without mu
 test('does not match across merchant or store boundaries', () => {
   const result = suggestReconciliationMatches({
     statementRows: [row()],
-    journalCandidates: [candidate({ merchantId: 5 }), candidate({ storeId: 10 })]
+    journalCandidates: [candidate({ journalTransactionId: 32, merchantId: 5 }), candidate({ journalTransactionId: 33, storeId: 10 })]
   });
   assert.equal(result[0].status, 'unmatched');
   assert.equal(result[0].reason, 'no_tenant_scoped_reference_match');
