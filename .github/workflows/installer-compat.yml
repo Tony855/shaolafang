@@ -11,12 +11,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: installer-compat-\${{ github.event_name }}-\${{ github.ref }}
+  group: installer-compat-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   linux-matrix:
-    name: \${{ matrix.label }}
+    name: ${{ matrix.label }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -38,7 +38,7 @@ jobs:
       - name: Run real installer package/runtime smoke test
         run: |
           docker run --pull always --rm \
-            --volume "\${GITHUB_WORKSPACE}:/workspace" \
+            --volume "${GITHUB_WORKSPACE}:/workspace" \
             --workdir /workspace \
-            "\${{ matrix.image }}" \
+            "${{ matrix.image }}" \
             bash scripts/ci/installer-compat.sh
