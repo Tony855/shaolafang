@@ -48,7 +48,9 @@ done
 systemd-analyze verify deploy/standard/foodflow.service
 
 echo "[STEP] start isolated Redis"
+echo "[STEP] start isolated daemons"
 tmp_dir="$(mktemp -d)"
+chmod 0755 "$tmp_dir"
 chmod 0755 "$tmp_dir"
 redis_pid=""
 mariadb_pid=""
