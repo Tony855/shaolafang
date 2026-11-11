@@ -434,7 +434,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
   async function getMonthlyClosePreview({ merchantId, storeId, month }) {
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
-    if (typeof month !== 'string' || !/^\\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    if (typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
       const error = new TypeError('month must use YYYY-MM format');
       error.code = 'REVIEW_MONTH_INVALID';
       throw error;
