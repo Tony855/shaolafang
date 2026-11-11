@@ -6,7 +6,7 @@ All endpoints require an authenticated merchant administrator with the dedicated
 
 - `GET /api/admin/financial-reconciliation/batches/:batchId/items`: returns statement rows and provider-neutral match suggestions. Supports cursor pagination with `limit` (1–500) and `afterRowNo`; follow the returned `nextCursor` until null. Suggestions are advisory only.
 - `POST /api/admin/financial-reconciliation/items/:itemId/review`: performs `confirm`, `reject`, `release`, or `reassign`, or `classify_exception`. Supply `batchId`, `action`, `reason`, and a unique `Idempotency-Key` header. A provider-neutral import endpoint is also available at `POST /api/admin/financial-reconciliation/batches/import`; it accepts normalized rows and a statement SHA-256 digest, not raw proprietary bank files. Confirm/reassign also require `journalTransactionId`. Exception classification requires `exceptionCategory` (refund, fee, settlement_difference, chargeback, other).
-- `GET /api/admin/financial-reconciliation/daily-summary?from=YYYY-MM-DD&to=YYYY-MM-DD`: returns per-day, per-currency batch totals and match-state counts for a maximum 91-day window.
+- `GET /api/admin/financial-reconciliation/daily-summary?from=YYYY-MM-DD&to=YYYY-MM-DD`: returns per-day, per-currency batch totals and match-state counts for a maximum 91-day window.\n- `GET /api/admin/financial-reconciliation/review-history?batchId=&itemId=&limit=50&afterId=0`: returns append-only manual review events, newest first, with tenant-scoped filters and descending event-ID cursor pagination (maximum 200 per page).\n- `GET /api/admin/financial-reconciliation/monthly-close-preview?month=YYYY-MM`: returns per-currency monthly statement totals, batch states, match counts, and unresolved-row counts. The preview is read-only; `closeReady` means all imported statement rows for that currency/month are matched, not that an accounting close has been posted.
 
 ## Review invariants
 
@@ -33,3 +33,10 @@ Daily summaries expose imported batch totals and counts for matched, pending, un
 ## Backward-compatible startup migration
 
 The startup migration creates the review-event table if absent, checks for existing duplicate journal assignments, and adds the unique assignment index only when missing. It does not rebuild statement batches, rewrite existing match statuses, backfill old orders, or run on a production host as part of this code change.
+
+## Audit history and month-end preparation
+
+- Review history is read from the immutable review-event table and is always scoped to the authenticated merchant and active store. Optional batch/item filters are validated positive IDs; pages use descending event IDs and do not expose request payloads or credentials.
+- Monthly preview periods use the batch `imported_at` timestamp and group by currency. Amounts remain in stored integer minor units; the system does not infer currency decimal places, exchange rates, fee treatment, or accounting mappings.
+- `closeReady` is a review-completeness indicator only: at least one batch exists and every statement row is matched. It does not post journals, mark batches closed, freeze imports, create tax/accounting vouchers, or certify a statutory month-end close.
+- A monthly report with unresolved rows must be investigated. Pending, unmatched, ambiguous, and exception rows are included in the unresolved count. Closed batch count is reported separately for audit visibility.

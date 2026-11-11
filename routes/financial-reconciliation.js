@@ -101,6 +101,39 @@ module.exports = function(app, deps) {
     }
   });
 
+  app.get('/api/admin/financial-reconciliation/review-history', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const limit = Number(req.query.limit || 50);
+    const afterId = req.query.afterId === undefined ? 0 : Number(req.query.afterId);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200 ||
+        !Number.isSafeInteger(afterId) || afterId < 0) {
+      return res.status(400).json({ error: '审核历史分页参数无效' });
+    }
+    try {
+      const result = await service.listReviewHistory({
+        ...context, batchId: req.query.batchId, itemId: req.query.itemId, limit, afterId
+      });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: '审核历史查询参数无效' });
+    }
+  });
+
+  app.get('/api/admin/financial-reconciliation/monthly-close-preview', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    try {
+      const rows = await service.getMonthlyClosePreview({ ...context, month: req.query.month });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ month: req.query.month, rows });
+    } catch (error) {
+      res.status(error.code === 'REVIEW_MONTH_INVALID' ? 400 : 500)
+        .json({ error: error.code === 'REVIEW_MONTH_INVALID' ? '月份格式无效（YYYY-MM）' : '获取月结准备报告失败' });
+    }
+  });
+
   app.get('/api/admin/financial-reconciliation/daily-summary', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;

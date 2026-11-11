@@ -384,7 +384,117 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     );
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary });
+
+  async function listReviewHistory({ merchantId, storeId, batchId, itemId, limit = 50, afterId = 0 }) {
+    const merchant = positiveId(merchantId, 'merchantId');
+    const store = positiveId(storeId, 'storeId');
+    const boundedLimit = positiveId(limit, 'limit');
+    if (boundedLimit > 200) throw new TypeError('limit must not exceed 200');
+    const cursor = Number(afterId);
+    if (!Number.isSafeInteger(cursor) || cursor < 0) throw new TypeError('afterId must be a non-negative safe integer');
+    const filters = ['merchant_id=?', 'store_id=?', 'id<?'];
+    const params = [merchant, store, cursor || Number.MAX_SAFE_INTEGER];
+    if (batchId !== undefined && batchId !== null && batchId !== '') {
+      filters.push('batch_id=?');
+      params.push(positiveId(batchId, 'batchId'));
+    }
+    if (itemId !== undefined && itemId !== null && itemId !== '') {
+      filters.push('item_id=?');
+      params.push(positiveId(itemId, 'itemId'));
+    }
+    const rows = await allAsync(
+      `SELECT id, batch_id, item_id, journal_transaction_id, exception_category,
+              actor_admin_id, actor_username, action, reason, idempotency_key,
+              before_json, after_json, previous_hash, event_hash, created_at
+       FROM financial_reconciliation_review_events
+       WHERE ${filters.join(' AND ')}
+       ORDER BY id DESC LIMIT ?`,
+      [...params, boundedLimit + 1]
+    );
+    const hasMore = rows.length > boundedLimit;
+    if (hasMore) rows.pop();
+    const parseSnapshot = value => {
+      if (value && typeof value === 'object') return value;
+      if (typeof value !== 'string') return null;
+      try { return JSON.parse(value); } catch (_) { return null; }
+    };
+    return {
+      nextCursor: hasMore && rows.length ? Number(rows[rows.length - 1].id) : null,
+      items: rows.map(row => ({
+        eventId: Number(row.id), batchId: Number(row.batch_id), itemId: Number(row.item_id),
+        journalTransactionId: row.journal_transaction_id === null ? null : Number(row.journal_transaction_id),
+        exceptionCategory: row.exception_category || null, actorAdminId: Number(row.actor_admin_id),
+        actorUsername: row.actor_username, action: row.action, reason: row.reason,
+        idempotencyKey: row.idempotency_key, before: parseSnapshot(row.before_json),
+        after: parseSnapshot(row.after_json), previousHash: row.previous_hash || '',
+        eventHash: row.event_hash, createdAt: row.created_at
+      }))
+    };
+  }
+
+  async function getMonthlyClosePreview({ merchantId, storeId, month }) {
+    const merchant = positiveId(merchantId, 'merchantId');
+    const store = positiveId(storeId, 'storeId');
+    if (typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      const error = new TypeError('month must use YYYY-MM format');
+      error.code = 'REVIEW_MONTH_INVALID';
+      throw error;
+    }
+    const [year, monthNumber] = month.split('-').map(Number);
+    const endExclusive = new Date(Date.UTC(year, monthNumber, 1)).toISOString().slice(0, 10);
+    const rows = await allAsync(
+      `SELECT b.currency_code,
+              COUNT(*) AS batch_count,
+              SUM(b.row_count) AS statement_row_count,
+              SUM(b.total_debit_minor) AS total_debit_minor,
+              SUM(b.total_credit_minor) AS total_credit_minor,
+              SUM(b.status='closed') AS closed_batch_count,
+              SUM(b.status<>'closed') AS open_batch_count,
+              SUM(COALESCE(i.matched_count, 0)) AS matched_count,
+              SUM(COALESCE(i.pending_count, 0)) AS pending_count,
+              SUM(COALESCE(i.unmatched_count, 0)) AS unmatched_count,
+              SUM(COALESCE(i.ambiguous_count, 0)) AS ambiguous_count,
+              SUM(COALESCE(i.exception_count, 0)) AS exception_count,
+              SUM(COALESCE(i.unresolved_count, 0)) AS unresolved_count
+       FROM financial_reconciliation_batches b
+       LEFT JOIN (
+         SELECT batch_id, merchant_id, store_id,
+                SUM(match_status='matched') AS matched_count,
+                SUM(match_status='pending') AS pending_count,
+                SUM(match_status='unmatched') AS unmatched_count,
+                SUM(match_status='ambiguous') AS ambiguous_count,
+                SUM(match_status='exception') AS exception_count,
+                SUM(match_status<>'matched') AS unresolved_count
+         FROM financial_reconciliation_items
+         GROUP BY batch_id, merchant_id, store_id
+       ) i ON i.batch_id=b.id AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
+       WHERE b.merchant_id=? AND b.store_id=? AND b.imported_at>=? AND b.imported_at<?
+       GROUP BY b.currency_code ORDER BY b.currency_code ASC`,
+      [merchant, store, month + '-01 00:00:00', endExclusive + ' 00:00:00']
+    );
+    return rows.map(row => {
+      const result = {
+        currencyCode: row.currency_code,
+        batchCount: Number(row.batch_count || 0),
+        statementRowCount: Number(row.statement_row_count || 0),
+        totalDebitMinor: Number(row.total_debit_minor || 0),
+        totalCreditMinor: Number(row.total_credit_minor || 0),
+        closedBatchCount: Number(row.closed_batch_count || 0),
+        openBatchCount: Number(row.open_batch_count || 0),
+        matchedCount: Number(row.matched_count || 0),
+        pendingCount: Number(row.pending_count || 0),
+        unmatchedCount: Number(row.unmatched_count || 0),
+        ambiguousCount: Number(row.ambiguous_count || 0),
+        exceptionCount: Number(row.exception_count || 0),
+        unresolvedCount: Number(row.unresolved_count || 0)
+      };
+      result.reviewComplete = result.batchCount > 0 && result.unresolvedCount === 0;
+      result.closeReady = result.reviewComplete;
+      return result;
+    });
+  }
+
+  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };
