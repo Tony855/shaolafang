@@ -2,6 +2,29 @@
 
 const { createProviderEventEnvelope, createJournalDraft } = require('./financial-ledger');
 
+function normalizeProviderEvent(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError('normalizedEvent is required for durable processing');
+  }
+  const allowed = new Set(['orderReference', 'amountMinor', 'currencyCode', 'paymentStatus', 'providerTransactionId']);
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) throw new TypeError('normalizedEvent contains an unsupported field');
+  }
+  const orderReference = String(value.orderReference || '').trim();
+  const amountMinor = Number(value.amountMinor);
+  const currencyCode = String(value.currencyCode || '').trim().toUpperCase();
+  const paymentStatus = String(value.paymentStatus || '').trim().toLowerCase();
+  const providerTransactionId = String(value.providerTransactionId || '').trim();
+  if (!orderReference || orderReference.length > 128) throw new TypeError('normalizedEvent.orderReference is invalid');
+  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) throw new TypeError('normalizedEvent.amountMinor is invalid');
+  if (!/^[A-Z]{3}$/.test(currencyCode)) throw new TypeError('normalizedEvent.currencyCode is invalid');
+  if (!['paid', 'failed', 'refunded', 'reversed', 'pending'].includes(paymentStatus)) {
+    throw new TypeError('normalizedEvent.paymentStatus is invalid');
+  }
+  if (providerTransactionId.length > 191) throw new TypeError('normalizedEvent.providerTransactionId is invalid');
+  return Object.freeze({ orderReference, amountMinor, currencyCode, paymentStatus, providerTransactionId });
+}
+
 function createFinancialLedgerService({ runAsync, getAsync, allAsync, withTransaction }) {
   for (const [name, fn] of Object.entries({ runAsync, getAsync, allAsync, withTransaction })) {
     if (typeof fn !== 'function') throw new TypeError(name + ' dependency is required');
@@ -17,18 +40,23 @@ function createFinancialLedgerService({ runAsync, getAsync, allAsync, withTransa
       throw error;
     }
     const event = createProviderEventEnvelope(input.envelope);
+    const normalizedEvent = normalizeProviderEvent(input.normalizedEvent);
+    const normalizedJson = JSON.stringify(normalizedEvent);
+    if (!normalizedJson || normalizedJson.length > 16000) {
+      throw new TypeError('normalizedEvent must serialize to at most 16000 characters');
+    }
     return withTransaction(async () => {
       await runAsync(
         `INSERT INTO provider_webhook_events
           (provider_code, provider_event_id, merchant_id, store_id, event_type,
-           provider_transaction_id, payload_sha256, auth_status, processing_status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'verified', 'received')
+           provider_transaction_id, payload_sha256, normalized_event_json, auth_status, processing_status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'verified', 'received')
          ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)`,
         [event.providerCode, event.providerEventId, event.merchantId, event.storeId,
-          event.eventType, event.providerTransactionId, event.payloadSha256]
+          event.eventType, event.providerTransactionId, event.payloadSha256, normalizedJson]
       );
       const existing = await getAsync(
-        `SELECT id, merchant_id, store_id, payload_sha256, auth_status, processing_status
+        `SELECT id, merchant_id, store_id, payload_sha256, normalized_event_json, auth_status, processing_status
          FROM provider_webhook_events
          WHERE provider_code=? AND provider_event_id=? FOR UPDATE`,
         [event.providerCode, event.providerEventId]
@@ -36,7 +64,8 @@ function createFinancialLedgerService({ runAsync, getAsync, allAsync, withTransa
       if (!existing) throw new Error('provider event insert could not be read back');
       if (Number(existing.merchant_id) !== event.merchantId ||
           Number(existing.store_id) !== event.storeId ||
-          String(existing.payload_sha256).toLowerCase() !== event.payloadSha256) {
+          String(existing.payload_sha256).toLowerCase() !== event.payloadSha256 ||
+          JSON.stringify(typeof existing.normalized_event_json === 'string' ? JSON.parse(existing.normalized_event_json) : existing.normalized_event_json) !== normalizedJson) {
         const error = new Error('provider event identity was reused with different content or tenant scope');
         error.code = 'PROVIDER_EVENT_ID_COLLISION';
         throw error;

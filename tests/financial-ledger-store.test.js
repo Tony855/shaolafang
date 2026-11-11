@@ -17,7 +17,7 @@ function createMemoryDb() {
       if (!events.has(key)) events.set(key, {
         id: nextEventId++, provider_code: p[0], provider_event_id: p[1],
         merchant_id: p[2], store_id: p[3], event_type: p[4],
-        provider_transaction_id: p[5], payload_sha256: p[6],
+        provider_transaction_id: p[5], payload_sha256: p[6], normalized_event_json: p[7],
         auth_status: 'verified', processing_status: 'received'
       });
       return { insertId: events.get(key).id };
@@ -73,14 +73,14 @@ test('provider event inbox requires adapter verification before durable intake',
     providerCode: 'ABA_PAYWAY', providerEventId: 'event-100',
     merchantId: 2, storeId: 5, rawBody: Buffer.from('raw event')
   };
+  const normalizedEvent = { orderReference: 'order-100', amountMinor: 1250, currencyCode: 'USD', paymentStatus: 'paid' };
+  const input = { envelope, normalizedEvent, verification: { verified: true, providerCode: 'ABA_PAYWAY' } };
   await assert.rejects(
-    db.service.recordVerifiedProviderEvent({ envelope, verification: { verified: false, providerCode: 'ABA_PAYWAY' } }),
+    db.service.recordVerifiedProviderEvent({ ...input, verification: { verified: false, providerCode: 'ABA_PAYWAY' } }),
     error => error.code === 'PROVIDER_EVENT_NOT_VERIFIED'
   );
   assert.equal(db.events.size, 0);
-  const result = await db.service.recordVerifiedProviderEvent({
-    envelope, verification: { verified: true, providerCode: 'ABA_PAYWAY' }
-  });
+  const result = await db.service.recordVerifiedProviderEvent(input);
   assert.equal(result.eventId, 1);
   assert.equal(db.events.size, 1);
 });
@@ -90,12 +90,13 @@ test('provider event duplicate is idempotent and changed payload is rejected', a
   const verification = { verified: true, providerCode: 'BAKONG' };
   const envelope = { providerCode: 'BAKONG', providerEventId: 'event-200',
     merchantId: 3, storeId: 8, rawBody: 'same body' };
-  const first = await db.service.recordVerifiedProviderEvent({ envelope, verification });
-  const second = await db.service.recordVerifiedProviderEvent({ envelope, verification });
+  const normalizedEvent = { orderReference: 'order-200', amountMinor: 990, currencyCode: 'KHR', paymentStatus: 'paid' };
+  const first = await db.service.recordVerifiedProviderEvent({ envelope, verification, normalizedEvent });
+  const second = await db.service.recordVerifiedProviderEvent({ envelope, verification, normalizedEvent });
   assert.equal(first.eventId, second.eventId);
   assert.equal(db.events.size, 1);
   await assert.rejects(db.service.recordVerifiedProviderEvent({
-    envelope: { ...envelope, rawBody: 'tampered body' }, verification
+    envelope: { ...envelope, rawBody: 'tampered body' }, verification, normalizedEvent
   }), error => error.code === 'PROVIDER_EVENT_ID_COLLISION');
 });
 
