@@ -12,6 +12,10 @@ set -e
 # 设置非交互模式
 export DEBIAN_FRONTEND=noninteractive
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+# shellcheck source=../../../scripts/lib/system-deps.sh
+source "$REPO_ROOT/scripts/lib/system-deps.sh"
+
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
@@ -37,19 +41,11 @@ echo ""
 
 # ===== 1. 安装基础工具 =====
 log_info "安装基础工具..."
-apt-get update -qq
-apt-get install -y -qq curl wget git nfs-common build-essential
+ff_prepare_system_packages curl wget git nfs-common build-essential
 log_success "基础工具安装完成"
 
-# ===== 2. 安装 Node.js 20 LTS =====
-if ! command -v node &> /dev/null; then
-    log_info "安装 Node.js 20 LTS..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y -qq nodejs
-    log_success "Node.js 安装完成: $(node -v)"
-else
-    log_success "Node.js 已安装: $(node -v)"
-fi
+# ===== 2. 安装/升级 Node.js 26 LTS =====
+ff_ensure_node
 
 # ===== 3. 创建目录 =====
 log_info "创建目录..."
@@ -84,7 +80,7 @@ log_success "代码部署完成"
 # ===== 5. 安装依赖 =====
 log_info "安装 Node.js 依赖..."
 cd /var/www/foodflow
-npm install --production --no-audit --no-fund
+ff_npm_ci_production
 log_success "依赖安装完成"
 
 # ===== 6. 配置环境变量 =====

@@ -150,7 +150,7 @@ sudo journalctl -u foodflow -f
 
 # 滚动更新应用（不中断服务）
 # 1. 在主节点更新
-cd /var/www/foodflow && sudo git pull && sudo npm install --production && sudo systemctl restart foodflow
+cd /var/www/foodflow && sudo git pull && sudo npm ci --omit=dev && sudo systemctl restart foodflow
 # 2. 等待主节点启动后，在从节点执行相同操作
 
 # NFS管理

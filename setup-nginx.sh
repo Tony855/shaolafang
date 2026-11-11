@@ -39,6 +39,8 @@ export DEBIAN_FRONTEND=noninteractive
 # ===== 获取当前目录 =====
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$APP_DIR"
+# shellcheck source=scripts/lib/system-deps.sh
+source "$APP_DIR/scripts/lib/system-deps.sh"
 log_info "应用目录: $APP_DIR"
 
 # ===== 读取 .env 配置 =====
@@ -104,8 +106,8 @@ kill_port() {
 log_info "检查 Nginx..."
 if ! command_exists nginx; then
     log_info "安装 Nginx..."
-    apt-get update -qq
-    apt-get install -y -qq nginx
+    ff_apt_update
+    ff_apt_install nginx
     log_success "Nginx 安装完成"
 else
     log_success "Nginx 已安装"
@@ -116,7 +118,7 @@ if [ -n "$DOMAIN" ]; then
     log_info "检查 Certbot..."
     if ! command_exists certbot; then
         log_info "安装 Certbot..."
-        apt-get install -y -qq certbot python3-certbot-nginx 2>/dev/null || {
+        ff_apt_install certbot python3-certbot-nginx 2>/dev/null || {
             log_warn "Certbot 安装失败，SSL 将不可用"
         }
     else

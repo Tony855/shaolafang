@@ -1,5 +1,7 @@
 # FoodFlow QR Ordering System - Installation Guide
 
+> 运行环境基线：Node.js 26 LTS（npm 10+）。请使用仓库根目录 `.nvmrc` 选择 Node 26；生产依赖必须通过 `npm ci --omit=dev` 按锁文件安装。
+
 ## 目录
 1. [系统要求](#1-系统要求)
 2. [Windows 安装步骤](#2-windows-安装步骤)
@@ -18,13 +20,13 @@
 
 ### 最低配置
 - **操作系统**: Windows 10/11、Debian 11+、Ubuntu 20.04+、CentOS 8+
-- **Node.js**: v20.0 或更高版本
+- **Node.js**: v26 LTS（npm 10+）
 - **数据库**: MySQL 8.0+ 或 MariaDB 10.5+
 - **内存**: 512MB 以上（推荐 1GB）
 - **磁盘**: 500MB 可用空间
 
 ### 推荐配置
-- Node.js v20 LTS
+- Node.js v26 LTS
 - MySQL 8.4 或 MariaDB 11.x
 - 内存 2GB 以上
 - 固定 IP 地址（局域网内访问）
@@ -36,14 +38,14 @@
 ### 2.1 安装 Node.js
 
 1. 访问 [Node.js 官网](https://nodejs.org/)
-2. 下载 **LTS 版本**（推荐 v20.x）
+2. 下载 **Node.js 26 LTS**
 3. 运行安装程序，一路下一步即可
 4. 验证安装：
    ```cmd
    node --version
    npm --version
    ```
-   应显示 v20.x.x 和对应的 npm 版本。
+   应显示 v26.x.x 和对应的 npm 版本。
 
 ### 2.2 安装 MySQL
 
@@ -156,7 +158,8 @@ pm2 startup
 
 ```bash
 sudo apt update
-sudo apt upgrade -y
+# 可选：在安排好的维护窗口执行整机升级（可能触发服务重启）
+# sudo apt upgrade -y
 ```
 
 ### 3.2 安装 Node.js
@@ -164,8 +167,9 @@ sudo apt upgrade -y
 #### 方式一：使用 NodeSource 仓库（推荐）
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
+sudo apt install -y ca-certificates curl gnupg libatomic1
+curl -fsSL https://deb.nodesource.com/setup_26.x | sudo -E bash -
+sudo apt install -y nodejs libatomic1
 ```
 
 #### 方式二：使用系统包管理器
@@ -178,7 +182,7 @@ sudo apt install -y nodejs npm
 
 验证安装：
 ```bash
-node --version  # 应显示 v20.x.x
+node --version  # 应显示 v26.x.x
 npm --version
 ```
 
@@ -334,16 +338,16 @@ hostname -I
 
 ```bash
 # 下载项目
-git clone https://github.com/Tony855/foodflow.git
-cd foodflow
+git clone https://github.com/Tony855/shaolafang.git
+cd shaolafang
 
-# 运行一键安装（需要 root 权限）
-sudo bash onekey-install.sh
+# 运行统一安装向导（需要 root 权限）
+sudo bash install.sh
 ```
 
 ### 脚本自动完成
 
-1. ✅ 安装 Node.js v20+（如未安装）
+1. ✅ 安装/升级 Node.js 26 LTS
 2. ✅ 安装 MySQL/MariaDB（如未安装）
 3. ✅ 自动生成数据库 root 密码
 4. ✅ 创建数据库 `ordering_system`
@@ -386,7 +390,7 @@ sudo journalctl -u foodflow -f
 适用于所有支持 Node.js 和 MySQL 的系统。
 
 ### 步骤 1：安装 Node.js
-确保 Node.js 版本 >= 20.0
+确保 Node.js 版本为 26.x（LTS）
 
 ### 步骤 2：安装并启动 MySQL/MariaDB
 确保 MySQL 服务正在运行，记录 root 密码。
@@ -405,7 +409,7 @@ cp .env.example .env
 
 ### 步骤 5：安装依赖
 ```bash
-npm install
+npm ci --omit=dev
 ```
 
 ### 步骤 6：初始化数据库

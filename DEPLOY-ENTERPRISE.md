@@ -45,7 +45,7 @@ bash onekey-install.sh
 ```
 
 脚本自动完成：
-- ✅ Node.js 20+ 安装
+- ✅ Node.js 26 LTS 安装
 - ✅ MySQL/MariaDB 安装（自动生成root密码）
 - ✅ Redis 缓存安装
 - ✅ 数据库创建（utf8mb4字符集）
@@ -293,7 +293,7 @@ systemctl stop foodflow
 cd /opt
 git clone https://github.com/Tony855/foodflow-enterprise.git
 cd foodflow-enterprise
-npm install --omit=dev
+npm ci --omit=dev
 
 # 4. 复制标准版配置
 cp /opt/foodflow-standard/.env .env
