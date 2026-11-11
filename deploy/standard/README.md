@@ -14,7 +14,7 @@
 | 内存 | 4GB | 8GB |
 | 硬盘 | 50GB SSD | 100GB SSD |
 | 带宽 | 5Mbps | 10Mbps |
-| 系统 | Debian 11+ / Ubuntu 20.04+ | Debian 12 / Ubuntu 22.04 |
+| 系统 | Debian 12/13、Ubuntu 22.04/24.04 | Debian 12 / Ubuntu 22.04 |
 
 ---
 
