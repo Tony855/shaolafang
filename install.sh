@@ -265,7 +265,7 @@ select_deploy_mode() {
     if [ -z "$1" ]; then
         DEPLOY_MODE="standard"
         DEPLOY_NAME="标准版 - 单台部署（首次安装默认）"
-        log_info "首次安装默认使用最简单机模式；企业集群请显式运行 install.sh enterprise 或 install.sh enterprise-ultimate。"
+        log_info "首次安装默认使用最简单的单机模式；企业集群请显式运行 install.sh enterprise 或 install.sh enterprise-ultimate。"
         return
     fi
     if [ -n "$1" ]; then
