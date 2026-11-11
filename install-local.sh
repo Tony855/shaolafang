@@ -74,6 +74,9 @@ if [ ! -f "$APP_DIR/package.json" ]; then
     exit 1
 fi
 
+# shellcheck source=scripts/lib/system-deps.sh
+source "$APP_DIR/scripts/lib/system-deps.sh"
+
 # 本脚本仅用于首次初始化；已有 .env 的实例应使用安全升级流程。
 if [ -e "$APP_DIR/.env" ]; then
     log_error "检测到已有 .env，拒绝执行首次安装以免重置生产配置。"
@@ -92,10 +95,8 @@ echo ""
 
 # ===== 1. 更新系统 =====
 log_info "更新系统软件包..."
-apt-get update -qq
-apt-get upgrade -y -qq
-apt-get install -y -qq curl wget git nginx build-essential
-log_success "系统软件包更新完成"
+ff_prepare_system_packages curl wget git nginx build-essential
+log_success "系统基础依赖已准备完成"
 
 # ===== 2. 安装 MariaDB =====
 echo ""
@@ -115,7 +116,7 @@ else
         log_warn "保留现有数据库目录和配置，不执行 purge 或删除 /var/lib/mysql。"
         log_warn "将直接尝试安装 MariaDB Server；若失败请先人工检查数据库服务状态。"
     fi
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mariadb-server
+    ff_apt_install mariadb-server
     mkdir -p /run/mysqld
     chown mysql:mysql /run/mysqld
     systemctl enable mariadb
@@ -138,7 +139,7 @@ if command -v redis-server &> /dev/null; then
     log_success "Redis 已安装"
 else
     log_info "安装 Redis..."
-    apt-get install -y -qq redis-server
+    ff_apt_install redis-server
     systemctl enable redis-server
     systemctl start redis
     log_success "Redis 安装完成"
@@ -159,28 +160,15 @@ if [ -f /etc/redis/redis.conf ]; then
 fi
 
 
-# ===== 4. 安装 Node.js 20 LTS =====
+# ===== 4. 安装/升级 Node.js 26 LTS =====
 echo ""
-log_info "检查 Node.js..."
-NODE_VERSION=0
-if command -v node &> /dev/null; then
-    NODE_VERSION=$(node -v 2>/dev/null | cut -d. -f1 | tr -d 'v' || echo 0)
-fi
-
-if [ "$NODE_VERSION" -lt 18 ]; then
-    log_info "安装 Node.js 20 LTS..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y -qq nodejs
-    log_success "Node.js 安装完成: $(node -v)"
-else
-    log_success "Node.js 已安装: $(node -v)"
-fi
+ff_ensure_node
 
 # ===== 5. 安装 npm 依赖 =====
 echo ""
 log_info "安装 Node.js 依赖..."
 cd "$APP_DIR"
-npm install --production --no-audit --no-fund
+ff_npm_ci_production
 log_success "依赖安装完成"
 
 # ===== 6. 创建必要目录 =====
