@@ -43,6 +43,9 @@ export DEBIAN_FRONTEND=noninteractive
 DEFAULT_DIR="/var/www/foodflow"
 CONFIG_DIR="/etc/foodflow"
 SERVICE_NAME="foodflow"
+FF_INSTALL_REDIS="${FF_INSTALL_REDIS:-0}"
+FF_CONFIGURE_UFW="${FF_CONFIGURE_UFW:-0}"
+FF_CONFIGURE_BACKUP_CRON="${FF_CONFIGURE_BACKUP_CRON:-0}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 如果当前目录没有 server.js，则安装到默认路径
@@ -95,7 +98,7 @@ echo ""
 
 # ===== 1. 更新系统 =====
 log_info "更新系统软件包..."
-ff_prepare_system_packages curl wget git nginx build-essential
+ff_prepare_system_packages curl wget git nginx
 log_success "系统基础依赖已准备完成"
 
 # ===== 2. 安装 MariaDB =====
@@ -132,33 +135,24 @@ fi
 # 确保数据库服务运行
 systemctl start mariadb 2>/dev/null || systemctl start mysql 2>/dev/null || true
 
-# ===== 3. 安装 Redis =====
-echo ""
-log_info "检查 Redis..."
-if command -v redis-server &> /dev/null; then
-    log_success "Redis 已安装"
-else
-    log_info "安装 Redis..."
-    ff_apt_install redis-server
+# ===== 可选：Redis（单机首次安装默认使用进程内缓存） =====
+if [ "$FF_INSTALL_REDIS" = "1" ]; then
+    log_info "按 FF_INSTALL_REDIS=1 安装并启用 Redis..."
+    if ! command -v redis-server >/dev/null 2>&1; then ff_apt_install redis-server; fi
     systemctl enable redis-server
-    systemctl start redis
-    log_success "Redis 安装完成"
-fi
-systemctl start redis-server 2>/dev/null || true
-
-# ===== 3.1 开启 Redis AOF 持久化（避免重启后订单号计数器回退） =====
-if [ -f /etc/redis/redis.conf ]; then
-    if grep -q '^appendonly no' /etc/redis/redis.conf; then
-        sed -i 's/^appendonly no/appendonly yes/' /etc/redis/redis.conf
-        log_info "Redis AOF 已开启（appendonly yes）"
-    elif ! grep -q '^appendonly yes' /etc/redis/redis.conf; then
-        echo 'appendonly yes' >> /etc/redis/redis.conf
-        log_info "Redis AOF 已开启（追加配置）"
+    systemctl start redis-server 2>/dev/null || systemctl start redis
+    if [ -f /etc/redis/redis.conf ]; then
+        if grep -q '^appendonly no' /etc/redis/redis.conf; then
+            sed -i 's/^appendonly no/appendonly yes/' /etc/redis/redis.conf
+        elif ! grep -q '^appendonly yes' /etc/redis/redis.conf; then
+            echo 'appendonly yes' >> /etc/redis/redis.conf
+        fi
+        grep -q '^appendfsync' /etc/redis/redis.conf || echo 'appendfsync everysec' >> /etc/redis/redis.conf
+        systemctl restart redis-server 2>/dev/null || systemctl restart redis 2>/dev/null || true
     fi
-    grep -q '^appendfsync' /etc/redis/redis.conf || echo 'appendfsync everysec' >> /etc/redis/redis.conf
-    systemctl restart redis-server 2>/dev/null || systemctl restart redis 2>/dev/null || true
+else
+    log_info "跳过 Redis；单机默认使用进程内缓存。多节点部署必须配置共享 Redis。"
 fi
-
 
 # ===== 4. 安装/升级 Node.js 26 LTS =====
 echo ""
@@ -276,7 +270,7 @@ DB_DATABASE=$DEFAULT_DB_NAME
 DB_USER=foodflow
 DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
-REDIS_URL=redis://127.0.0.1:6379
+REDIS_URL=$([ "$FF_INSTALL_REDIS" = "1" ] && printf '%s' 'redis://127.0.0.1:6379')
 UPLOAD_DIR=$APP_DIR/uploads
 RUN_SCHEDULED_TASKS=true
 JWT_SECRET=$JWT_RANDOM_SECRET
@@ -352,7 +346,7 @@ chmod 0640 "$ENV_FILE"
 cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
 Description=FoodFlow QR Ordering System
-After=network.target mariadb.service mysql.service redis.service
+After=network.target mariadb.service mysql.service
 
 [Service]
 Type=simple
@@ -459,37 +453,38 @@ else
 fi
 
 
-# ===== 12. 配置防火墙 =====
-echo ""
-log_info "配置防火墙..."
-if command -v ufw &> /dev/null; then
-    ufw --force allow OpenSSH 2>/dev/null || true
-    ufw --force allow 80/tcp 2>/dev/null || true
-    ufw --force allow 443/tcp 2>/dev/null || true
-    ufw --force enable 2>/dev/null || true
-    log_success "防火墙已配置（SSH/HTTP/HTTPS）"
+# ===== 可选：防火墙（默认不自动启用，避免误锁远程 SSH） =====
+if [ "$FF_CONFIGURE_UFW" = "1" ]; then
+    log_info "按 FF_CONFIGURE_UFW=1 配置 UFW..."
+    if ! command -v ufw >/dev/null 2>&1; then ff_apt_install ufw; fi
+    ufw allow OpenSSH
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    log_warn "UFW 规则已添加，但安装器不会自动启用防火墙；请确认 SSH 端口后手动执行 ufw enable。"
 else
-    log_warn "ufw 未安装，跳过防火墙配置"
+    log_info "跳过 UFW 自动配置；请按服务器实际 SSH 端口和防火墙策略手动配置。"
 fi
 
-# ===== 13. 配置自动备份 =====
-echo ""
-log_info "配置自动备份..."
-BACKUP_SCRIPT="$APP_DIR/backups/auto-backup.sh"
-cat > "$BACKUP_SCRIPT" << EOF
+# ===== 可选：自动备份（默认不创建含数据库凭据的 cron 脚本） =====
+if [ "$FF_CONFIGURE_BACKUP_CRON" = "1" ]; then
+    log_warn "FF_CONFIGURE_BACKUP_CRON=1 已启用；自动备份脚本会在受限目录保存数据库凭据，请限制文件访问。"
+    BACKUP_SCRIPT="$APP_DIR/backups/auto-backup.sh"
+    cat > "$BACKUP_SCRIPT" << EOF
 #!/bin/bash
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="$APP_DIR/backups"
 mkdir -p "$BACKUP_DIR"
 mysqldump -u foodflow -p'$DB_RANDOM_PASSWORD' $DEFAULT_DB_NAME > "$BACKUP_DIR/db_$DATE.sql" 2>/dev/null
 gzip "$BACKUP_DIR/db_$DATE.sql"
-RETENTION=$(mysql -u foodflow -p"$DB_RANDOM_PASSWORD" $DEFAULT_DB_NAME -N -e "SELECT value FROM settings WHERE \`key\`='backup_retention_days';" 2>/dev/null)
-RETENTION=${RETENTION:-30}
+RETENTION=7
 find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +$RETENTION -delete
 EOF
-chmod +x "$BACKUP_SCRIPT"
-(crontab -l 2>/dev/null | grep -v "auto-backup.sh"; echo "0 3 * * * $BACKUP_SCRIPT") | crontab -
-log_success "自动备份已配置（每日凌晨3点，保留7天）"
+    chmod 700 "$BACKUP_SCRIPT"
+    (crontab -l 2>/dev/null | grep -v "auto-backup.sh"; echo "0 3 * * * $BACKUP_SCRIPT") | crontab -
+    log_success "每日自动备份已配置（凌晨3点，保留7天）"
+else
+    log_info "跳过自动备份计划任务；首次安装完成后请尽快配置独立备份策略。"
+fi
 
 # ===== 14. 配置日志轮转 =====
 echo ""
