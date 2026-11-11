@@ -338,33 +338,33 @@ hostname -I
 
 首次安装默认采用最小单机模式：
 
-\`\`\`bash
+```bash
 cd /opt/shaolafang
 sudo bash install.sh
-\`\`\`
+```
 
 默认准备 Node.js 26、MariaDB、生产依赖、systemd 服务和 Nginx。Redis、自动备份计划任务和 UFW 防火墙规则均为可选项，不会在首次安装时自动启用。
 
 需要 Redis 时显式启用：
 
-\`\`\`bash
+```bash
 sudo FF_INSTALL_REDIS=1 bash install.sh
-\`\`\`
+```
 
 企业部署需显式选择，不会在首次安装向导中打扰普通单机用户：
 
-\`\`\`bash
+```bash
 sudo bash install.sh enterprise master
 sudo bash install.sh enterprise-ultimate master
-\`\`\`
+```
 
 整机软件包升级仅在明确维护窗口启用：
 
-\`\`\`bash
+```bash
 sudo FF_APT_UPGRADE=1 bash install.sh
-\`\`\`
+```
 
-\`install-local.sh\` 也支持可选组件开关：\`FF_INSTALL_REDIS=1\`、\`FF_CONFIGURE_UFW=1\`、\`FF_CONFIGURE_BACKUP_CRON=1\`。UFW 开关只添加规则，不自动启用防火墙，避免 SSH 远程管理被意外锁定。
+`install-local.sh` 也支持可选组件开关：`FF_INSTALL_REDIS=1`、`FF_CONFIGURE_UFW=1`、`FF_CONFIGURE_BACKUP_CRON=1`。UFW 开关只添加规则，不自动启用防火墙，避免 SSH 远程管理被意外锁定。
 
 ### 安装完成后
 
