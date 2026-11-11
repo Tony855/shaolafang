@@ -826,6 +826,7 @@ async function initDatabase() {
       batch_id BIGINT NOT NULL,
       item_id BIGINT NOT NULL,
       journal_transaction_id BIGINT DEFAULT NULL,
+      exception_category ENUM('refund','fee','settlement_difference','chargeback','other') DEFAULT NULL,
       actor_admin_id INT NOT NULL,
       actor_username VARCHAR(100) NOT NULL,
       action ENUM('confirm','reject','release','reassign','classify_exception') NOT NULL,
