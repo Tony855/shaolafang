@@ -1,6 +1,7 @@
 'use strict';
 
 const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
+const { createFinancialReconciliationService } = require('../server/services/financial-reconciliation');
 
 function positiveRouteId(value) {
   const id = Number(value);
@@ -10,6 +11,7 @@ function positiveRouteId(value) {
 module.exports = function(app, deps) {
   const { runAsync, getAsync, allAsync, withTransaction, requireAdminKey, requirePermission } = deps;
   const service = createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction });
+  const importService = createFinancialReconciliationService({ runAsync, getAsync, withTransaction });
   const financeAuth = [requireAdminKey, requirePermission('can_manage_financial_reconciliation')];
 
   function tenantContext(req, res) {
@@ -23,6 +25,21 @@ module.exports = function(app, deps) {
     return { merchantId, storeId, actorId };
   }
 
+  app.post('/api/admin/financial-reconciliation/batches/import', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const body = req.body || {};
+    try {
+      const result = await importService.importStatementBatch({
+        ...context, providerCode: body.providerCode, externalBatchId: body.externalBatchId,
+        statementSha256: body.statementSha256, currencyCode: body.currencyCode, rows: body.rows
+      });
+      res.status(result.replayed ? 200 : 201).json({ success: true, ...result });
+    } catch (error) {
+      const status = error.code === 'RECONCILIATION_BATCH_CONFLICT' || error.code === 'RECONCILIATION_ROW_CONFLICT' ? 409 : 400;
+      res.status(status).json({ error: status === 409 ? '相同对账批次编号已对应不同内容' : '对账流水格式无效或导入失败' });
+    }
+  });
   app.get('/api/admin/financial-reconciliation/batches/:batchId/items', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;
