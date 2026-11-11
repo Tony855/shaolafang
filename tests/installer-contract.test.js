@@ -101,7 +101,7 @@ test('first install defaults to a minimal single-node path and keeps advanced se
   assert.match(local, /FF_CONFIGURE_UFW="\$\{FF_CONFIGURE_UFW:-0\}"/);
   assert.match(local, /FF_CONFIGURE_BACKUP_CRON="\$\{FF_CONFIGURE_BACKUP_CRON:-0\}"/);
   assert.match(installer, /REDIS_URL=\$REDIS_URL_VALUE/);
-  assert.match(local, /REDIS_URL=\$\(\[ "\$FF_INSTALL_REDIS" = "1" \]/);
+  assert.match(local, /REDIS_URL=\$REDIS_URL_VALUE/);
   assert.match(local, /跳过自动备份计划任务/);
   assert.match(local, /跳过 UFW 自动配置/);
   assert.doesNotMatch(installer, /ff_apt_install nginx build-essential rsync certbot python3-certbot-nginx dnsutils psmisc ufw/);
