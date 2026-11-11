@@ -10,7 +10,7 @@ const {
 } = require('../server/services/refund-financial');
 
 test('refund idempotency keys accept only bounded ASCII-safe values', () => {
-  for (const key of ['refund-request-0001', 'a'.repeat(16), 'A._:-0123456789']) {
+  for (const key of ['refund-request-0001', 'a'.repeat(16), 'A._:-01234567890']) {
     assert.equal(isValidRefundIdempotencyKey(key), true);
   }
   for (const key of ['', 'short', 'a'.repeat(129), 'contains space 123', '非ASCII退款标识123', null, undefined, 123]) {
