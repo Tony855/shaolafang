@@ -62,7 +62,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
     const batch = positiveId(batchId, 'batchId');
-    const boundedLimit = Math.min(1000, Math.max(1, positiveId(limit, 'limit')));
+    const boundedLimit = Math.min(500, Math.max(1, positiveId(limit, 'limit')));
     const owner = await getAsync(
       'SELECT id, status, currency_code, row_count FROM financial_reconciliation_batches WHERE id=? AND merchant_id=? AND store_id=?',
       [batch, merchant, store]
@@ -78,7 +78,13 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
        ORDER BY row_no ASC LIMIT ?`,
       [batch, merchant, store, boundedLimit]
     );
-    const candidates = await allAsync(
+    const referenceSet = new Set();
+    for (const row of rows) {
+      if (row.external_reference) referenceSet.add(String(row.external_reference));
+      if (row.transaction_reference) referenceSet.add(String(row.transaction_reference));
+    }
+    const references = [...referenceSet];
+    const candidates = references.length === 0 ? [] : await allAsync(
       `SELECT j.id AS journalTransactionId, j.merchant_id AS merchantId,
               j.store_id AS storeId, j.source_id AS sourceId,
               j.currency_code AS currencyCode,
@@ -87,11 +93,11 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
        FROM financial_journal_transactions j
        INNER JOIN financial_journal_entries e ON e.transaction_id=j.id
          AND e.merchant_id=j.merchant_id AND e.store_id=j.store_id
-       WHERE j.merchant_id=? AND j.store_id=?
+       WHERE j.merchant_id=? AND j.store_id=? AND j.source_id IN (${references.map(() => '?').join(',')})
        GROUP BY j.id, j.merchant_id, j.store_id, j.source_id, j.currency_code
        HAVING amountMinor=creditMinor AND amountMinor>0
-       ORDER BY j.id DESC LIMIT 50000`,
-      [merchant, store]
+       ORDER BY j.id DESC`,
+      [merchant, store, ...references]
     );
     const suggestions = suggestReconciliationMatches({
       statementRows: rows.map(row => ({
@@ -310,23 +316,31 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       error.code = 'REVIEW_DATE_RANGE_INVALID';
       throw error;
     }
+    const endExclusive = new Date(Date.parse(to + 'T00:00:00.000Z') + 86400000).toISOString().slice(0, 10);
     return allAsync(
       `SELECT DATE(b.imported_at) AS report_date, b.currency_code,
-              COUNT(DISTINCT b.id) AS batch_count, SUM(b.row_count) AS statement_row_count,
+              COUNT(*) AS batch_count, SUM(b.row_count) AS statement_row_count,
               SUM(b.total_debit_minor) AS total_debit_minor,
               SUM(b.total_credit_minor) AS total_credit_minor,
-              SUM(i.match_status='matched') AS matched_count,
-              SUM(i.match_status='pending') AS pending_count,
-              SUM(i.match_status='unmatched') AS unmatched_count,
-              SUM(i.match_status='ambiguous') AS ambiguous_count,
-              SUM(i.match_status='exception') AS exception_count
+              SUM(COALESCE(i.matched_count, 0)) AS matched_count,
+              SUM(COALESCE(i.pending_count, 0)) AS pending_count,
+              SUM(COALESCE(i.unmatched_count, 0)) AS unmatched_count,
+              SUM(COALESCE(i.ambiguous_count, 0)) AS ambiguous_count,
+              SUM(COALESCE(i.exception_count, 0)) AS exception_count
        FROM financial_reconciliation_batches b
-       LEFT JOIN financial_reconciliation_items i ON i.batch_id=b.id
-         AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
-       WHERE b.merchant_id=? AND b.store_id=? AND b.imported_at>=?
-         AND b.imported_at<? 
+       LEFT JOIN (
+         SELECT batch_id, merchant_id, store_id,
+                SUM(match_status='matched') AS matched_count,
+                SUM(match_status='pending') AS pending_count,
+                SUM(match_status='unmatched') AS unmatched_count,
+                SUM(match_status='ambiguous') AS ambiguous_count,
+                SUM(match_status='exception') AS exception_count
+         FROM financial_reconciliation_items
+         GROUP BY batch_id, merchant_id, store_id
+       ) i ON i.batch_id=b.id AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
+       WHERE b.merchant_id=? AND b.store_id=? AND b.imported_at>=? AND b.imported_at<?
        GROUP BY DATE(b.imported_at), b.currency_code ORDER BY report_date ASC, b.currency_code ASC`,
-      [merchant, store, from + ' 00:00:00', to + ' 23:59:59.999']
+      [merchant, store, from + ' 00:00:00', endExclusive + ' 00:00:00']
     );
   }
 
