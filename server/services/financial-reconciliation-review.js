@@ -135,6 +135,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         occurredAt: row.occurred_at, description: row.description,
         matchStatus: row.match_status, matchReason: row.match_reason,
         matchedJournalTransactionId: row.matched_journal_transaction_id === null ? null : Number(row.matched_journal_transaction_id),
+        exceptionCategory: row.exception_category || null, exceptionNote: row.exception_note || null,
         suggestion: byRow.get(Number(row.row_no)) || null
       }))
     };
@@ -150,7 +151,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     if (!actorUsername || actorUsername.length > 100) throw new TypeError('actorUsername is required');
     const review = normalizeReviewInput(input);
     const requestHash = stableHash({
-      merchantId, storeId, batchId, itemId, action: review.action,
+      merchantId, storeId, batchId, itemId, action: review.action, exceptionCategory: review.exceptionCategory,
       journalTransactionId: review.journalTransactionId, reason: review.reason
     });
 
@@ -343,7 +344,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
               SUM(COALESCE(i.pending_count, 0)) AS pending_count,
               SUM(COALESCE(i.unmatched_count, 0)) AS unmatched_count,
               SUM(COALESCE(i.ambiguous_count, 0)) AS ambiguous_count,
-              SUM(COALESCE(i.exception_count, 0)) AS exception_count
+              SUM(COALESCE(i.exception_count, 0)) AS exception_count,\n              SUM(COALESCE(i.refund_exception_count, 0)) AS refund_exception_count,\n              SUM(COALESCE(i.fee_exception_count, 0)) AS fee_exception_count,\n              SUM(COALESCE(i.settlement_difference_exception_count, 0)) AS settlement_difference_exception_count,\n              SUM(COALESCE(i.chargeback_exception_count, 0)) AS chargeback_exception_count
        FROM financial_reconciliation_batches b
        LEFT JOIN (
          SELECT batch_id, merchant_id, store_id,
@@ -351,7 +352,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
                 SUM(match_status='pending') AS pending_count,
                 SUM(match_status='unmatched') AS unmatched_count,
                 SUM(match_status='ambiguous') AS ambiguous_count,
-                SUM(match_status='exception') AS exception_count
+                SUM(match_status='exception') AS exception_count,\n                SUM(match_status='exception' AND exception_category='refund') AS refund_exception_count,\n                SUM(match_status='exception' AND exception_category='fee') AS fee_exception_count,\n                SUM(match_status='exception' AND exception_category='settlement_difference') AS settlement_difference_exception_count,\n                SUM(match_status='exception' AND exception_category='chargeback') AS chargeback_exception_count
          FROM financial_reconciliation_items
          GROUP BY batch_id, merchant_id, store_id
        ) i ON i.batch_id=b.id AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
