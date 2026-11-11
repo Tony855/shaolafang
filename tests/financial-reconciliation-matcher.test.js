@@ -69,6 +69,13 @@ test('does not infer a match from amount and currency without an exact reference
   assert.equal(result[0].status, 'unmatched');
 });
 
+test('rejects conflicting duplicate journal transaction identities', () => {
+  assert.throws(() => suggestReconciliationMatches({
+    statementRows: [row()],
+    journalCandidates: [candidate(), candidate({ amountMinor: 1251 })]
+  }), /conflicting candidate data/);
+});
+
 test('rejects unsafe amounts, malformed currencies and unbounded inputs', () => {
   assert.throws(() => suggestReconciliationMatches({
     statementRows: [row({ amountMinor: 1.5 })], journalCandidates: []
