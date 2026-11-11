@@ -71,11 +71,11 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     if (typeof fn !== 'function') throw new TypeError(name + ' dependency is required');
   }
 
-  async function listBatchReview({ merchantId, storeId, batchId, limit = 500 }) {
+  async function listBatchReview({ merchantId, storeId, batchId, limit = 500, afterRowNo = 0 }) {
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
     const batch = positiveId(batchId, 'batchId');
-    const boundedLimit = Math.min(500, Math.max(1, positiveId(limit, 'limit')));
+    const boundedLimit = Math.min(500, Math.max(1, positiveId(limit, 'limit')));\n    const cursor = Number(afterRowNo);\n    if (!Number.isSafeInteger(cursor) || cursor < 0) throw new TypeError('afterRowNo must be a non-negative safe integer');
     const owner = await getAsync(
       'SELECT id, status, currency_code, row_count FROM financial_reconciliation_batches WHERE id=? AND merchant_id=? AND store_id=?',
       [batch, merchant, store]
@@ -91,7 +91,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
        ORDER BY row_no ASC LIMIT ?`,
       [batch, merchant, store, boundedLimit]
     );
-    const referenceSet = new Set();
+    const hasMore = rows.length > boundedLimit;\n    if (hasMore) rows.pop();\n    const referenceSet = new Set();
     for (const row of rows) {
       if (row.external_reference) referenceSet.add(String(row.external_reference));
       if (row.transaction_reference) referenceSet.add(String(row.transaction_reference));
@@ -128,7 +128,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     const byRow = new Map(suggestions.map(item => [item.rowNo, item]));
     return {
       batch: { id: Number(owner.id), status: owner.status, currencyCode: owner.currency_code, rowCount: Number(owner.row_count) },
-      items: rows.map(row => ({
+      nextCursor: hasMore && rows.length ? Number(rows[rows.length - 1].row_no) : null,\n      items: rows.map(row => ({
         id: Number(row.id), rowNo: Number(row.row_no), externalReference: row.external_reference,
         transactionReference: row.transaction_reference, direction: row.direction,
         amountMinor: Number(row.amount_minor), currencyCode: row.currency_code,
