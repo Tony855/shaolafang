@@ -8,7 +8,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
-test('shared system bootstrap pins the supported Node LTS and verifies runtime', () => {
+test('shared system bootstrap pins Node.js 26 LTS and verifies runtime', () => {
   const helper = read('scripts/lib/system-deps.sh');
   assert.match(helper, /FF_NODE_MAJOR="\$\{FF_NODE_MAJOR:-26\}"/);
   assert.match(helper, /setup_\$\{wanted_major\}\.x/);
@@ -16,6 +16,26 @@ test('shared system bootstrap pins the supported Node LTS and verifies runtime',
   assert.match(helper, /ff_require_node/);
   assert.match(helper, /npm ci --omit=dev --no-audit --no-fund/);
   assert.match(helper, /FF_APT_UPGRADE=1/);
+  assert.match(helper, /wanted_major" != "26"/);
+});
+
+test('installer OS support is explicit and matches the live CI matrix', () => {
+  const helper = read('scripts/lib/system-deps.sh');
+  const workflow = read('.github/workflows/installer-compat.yml');
+  const smoke = read('scripts/ci/installer-compat.sh');
+  for (const os of ['debian:12', 'debian:13', 'ubuntu:22.04', 'ubuntu:24.04']) {
+    assert.ok(helper.includes(os), 'helper must explicitly allow ' + os);
+  }
+  for (const image of ['debian:12-slim', 'debian:13-slim', 'ubuntu:22.04', 'ubuntu:24.04']) {
+    assert.ok(workflow.includes(image), 'CI matrix must execute ' + image);
+  }
+  assert.match(smoke, /ff_require_supported_os/);
+  assert.match(smoke, /ff_ensure_node/);
+  assert.match(smoke, /ff_npm_ci_production/);
+  assert.match(smoke, /nginx -t/);
+  assert.match(smoke, /mariadb-install-db/);
+  assert.match(smoke, /redis-cli .* ping/);
+  assert.match(smoke, /systemd-analyze verify/);
 });
 
 test('all first-install and cluster entrypoints use the shared dependency bootstrap', () => {
