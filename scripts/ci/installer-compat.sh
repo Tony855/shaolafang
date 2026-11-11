@@ -17,9 +17,12 @@ chmod 0755 /usr/sbin/policy-rc.d
 source scripts/lib/system-deps.sh
 ff_require_supported_os
 
+echo "[STEP] install distro service packages"
 apt-get update -qq
 ff_apt_install ca-certificates curl gnupg nginx mariadb-server redis-server systemd systemd-sysv
+echo "[STEP] install Node.js 26 LTS"
 ff_ensure_node
+echo "[STEP] install production npm dependencies"
 ff_npm_ci_production
 
 node -e 'if (Number(process.versions.node.split(".")[0]) !== 26) process.exit(1)'
@@ -30,15 +33,23 @@ redis-server --version
 systemd-analyze --version
 
 # Validate the shipped systemd unit without requiring a running systemd PID 1.
+echo "[STEP] validate systemd unit"
 getent group www-data >/dev/null
 if ! id foodflow >/dev/null 2>&1; then
   useradd --system --no-create-home --shell /usr/sbin/nologin foodflow
 fi
-mkdir -p /var/www/foodflow /etc/foodflow
+mkdir -p /var/www/foodflow/{uploads,backups,logs} /etc/foodflow
 : >/var/www/foodflow/.env
+for dependency in mysql.service redis.service; do
+  if [ ! -e "/etc/systemd/system/$dependency" ] && [ ! -e "/lib/systemd/system/$dependency" ] && [ ! -e "/usr/lib/systemd/system/$dependency" ]; then
+    printf "[Unit]\\nDescription=CI dependency stub\\n[Service]\\nType=oneshot\\nExecStart=/bin/true\\n" >"/etc/systemd/system/$dependency"
+  fi
+done
 systemd-analyze verify deploy/standard/foodflow.service
 
+echo "[STEP] start isolated Redis"
 tmp_dir="$(mktemp -d)"
+chmod 0755 "$tmp_dir"
 redis_pid=""
 mariadb_pid=""
 cleanup() {
@@ -51,11 +62,16 @@ cleanup() {
 trap cleanup EXIT
 
 # Start Redis directly because these CI containers intentionally do not run systemd.
-redis-server --port 0 --unixsocket "$tmp_dir/redis.sock" --unixsocketperm 700 --daemonize yes --pidfile "$tmp_dir/redis.pid" --dir "$tmp_dir"
+redis-server --port 0 --unixsocket "$tmp_dir/redis.sock" --unixsocketperm 700 --daemonize yes --pidfile "$tmp_dir/redis.pid" --logfile "$tmp_dir/redis.log" --dir "$tmp_dir"
+if ! redis-cli -s "$tmp_dir/redis.sock" ping | grep -qx PONG; then
+  cat "$tmp_dir/redis.log" >&2 || true
+  echo "[ERROR] isolated Redis did not become ready" >&2
+  exit 1
+fi
 redis_pid="$(cat "$tmp_dir/redis.pid")"
-redis-cli -s "$tmp_dir/redis.sock" ping | grep -qx PONG
 
 # Initialize and start an isolated MariaDB instance; no host or production data is touched.
+echo "[STEP] initialize isolated MariaDB"
 mkdir -p "$tmp_dir/mariadb"
 chown mysql:mysql "$tmp_dir/mariadb"
 mariadb-install-db --datadir="$tmp_dir/mariadb" --auth-root-authentication-method=normal --skip-test-db --user=mysql >/tmp/mariadb-install-db.log 2>&1
