@@ -44,7 +44,7 @@ mariadb_pid=""
 cleanup() {
   if [ -n "$redis_pid" ]; then redis-cli -s "$tmp_dir/redis.sock" shutdown nosave >/dev/null 2>&1 || true; fi
   if [ -n "$mariadb_pid" ]; then
-    mariadb-admin --no-defaults --socket="$tmp_dir/mariadb.sock" -uroot shutdown >/dev/null 2>&1 || kill "$mariadb_pid" 2>/dev/null || true
+    mariadb-admin --no-defaults --socket="$tmp_dir/mariadb/mariadb.sock" -uroot shutdown >/dev/null 2>&1 || kill "$mariadb_pid" 2>/dev/null || true
   fi
   rm -rf "$tmp_dir"
 }
@@ -56,22 +56,24 @@ redis_pid="$(cat "$tmp_dir/redis.pid")"
 redis-cli -s "$tmp_dir/redis.sock" ping | grep -qx PONG
 
 # Initialize and start an isolated MariaDB instance; no host or production data is touched.
-mariadb-install-db --datadir="$tmp_dir/mariadb" --auth-root-authentication-method=normal --skip-test-db --user=root >/tmp/mariadb-install-db.log 2>&1
-mariadbd --no-defaults --user=root --datadir="$tmp_dir/mariadb" --socket="$tmp_dir/mariadb.sock" --pid-file="$tmp_dir/mariadb.pid" --skip-networking --log-error="$tmp_dir/mariadb.log" &
+mkdir -p "$tmp_dir/mariadb"
+chown mysql:mysql "$tmp_dir/mariadb"
+mariadb-install-db --datadir="$tmp_dir/mariadb" --auth-root-authentication-method=normal --skip-test-db --user=mysql >/tmp/mariadb-install-db.log 2>&1
+mariadbd --no-defaults --user=mysql --datadir="$tmp_dir/mariadb" --socket="$tmp_dir/mariadb/mariadb.sock" --pid-file="$tmp_dir/mariadb/mariadb.pid" --skip-networking --log-error="$tmp_dir/mariadb/mariadb.log" &
 mariadb_pid=$!
 ready=0
 for _ in $(seq 1 45); do
-  if mariadb-admin --no-defaults --socket="$tmp_dir/mariadb.sock" -uroot ping >/dev/null 2>&1; then
+  if mariadb-admin --no-defaults --socket="$tmp_dir/mariadb/mariadb.sock" -uroot ping >/dev/null 2>&1; then
     ready=1
     break
   fi
   sleep 1
 done
 if [ "$ready" -ne 1 ]; then
-  cat "$tmp_dir/mariadb.log" >&2 || true
+  cat "$tmp_dir/mariadb/mariadb.log" >&2 || true
   echo "[ERROR] isolated MariaDB did not become ready" >&2
   exit 1
 fi
-mariadb --no-defaults --socket="$tmp_dir/mariadb.sock" -uroot -e 'SELECT VERSION()'
+mariadb --no-defaults --socket="$tmp_dir/mariadb/mariadb.sock" -uroot -e 'SELECT VERSION()'
 
 echo "[PASS] installer compatibility smoke test: $(. /etc/os-release; printf "%s %s" "$PRETTY_NAME" "$VERSION_ID")"
