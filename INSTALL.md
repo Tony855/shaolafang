@@ -336,25 +336,35 @@ hostname -I
 
 ### 使用方法
 
-```bash
-# 下载项目
-git clone https://github.com/Tony855/shaolafang.git
-cd shaolafang
+首次安装默认采用最小单机模式：
 
-# 运行统一安装向导（需要 root 权限）
+\`\`\`bash
+cd /opt/shaolafang
 sudo bash install.sh
-```
+\`\`\`
 
-### 脚本自动完成
+默认准备 Node.js 26、MariaDB、生产依赖、systemd 服务和 Nginx。Redis、自动备份计划任务和 UFW 防火墙规则均为可选项，不会在首次安装时自动启用。
 
-1. ✅ 安装/升级 Node.js 26 LTS
-2. ✅ 安装 MySQL/MariaDB（如未安装）
-3. ✅ 自动生成数据库 root 密码
-4. ✅ 创建数据库 `ordering_system`
-5. ✅ 安装 Node.js 依赖
-6. ✅ 初始化数据库表和初始数据
-7. ✅ 配置 systemd 服务并开机自启
-8. ✅ 启动服务
+需要 Redis 时显式启用：
+
+\`\`\`bash
+sudo FF_INSTALL_REDIS=1 bash install.sh
+\`\`\`
+
+企业部署需显式选择，不会在首次安装向导中打扰普通单机用户：
+
+\`\`\`bash
+sudo bash install.sh enterprise master
+sudo bash install.sh enterprise-ultimate master
+\`\`\`
+
+整机软件包升级仅在明确维护窗口启用：
+
+\`\`\`bash
+sudo FF_APT_UPGRADE=1 bash install.sh
+\`\`\`
+
+\`install-local.sh\` 也支持可选组件开关：\`FF_INSTALL_REDIS=1\`、\`FF_CONFIGURE_UFW=1\`、\`FF_CONFIGURE_BACKUP_CRON=1\`。UFW 开关只添加规则，不自动启用防火墙，避免 SSH 远程管理被意外锁定。
 
 ### 安装完成后
 
