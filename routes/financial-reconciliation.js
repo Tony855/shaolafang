@@ -46,7 +46,7 @@ module.exports = function(app, deps) {
     const batchId = positiveRouteId(req.params.batchId);
     if (!batchId) return res.status(400).json({ error: '对账批次编号无效' });
     try {
-      const result = await service.listBatchReview({ ...context, batchId, limit: req.query.limit || 500 });
+      const result = await service.listBatchReview({ ...context, batchId, limit: req.query.limit || 500, afterRowNo: req.query.afterRowNo || 0 });
       if (!result) return res.status(404).json({ error: '对账批次不存在' });
       res.setHeader('Cache-Control', 'no-store, private');
       res.json(result);
