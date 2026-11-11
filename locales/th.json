@@ -1200,5 +1200,6 @@
   "pwaInstallError": "ข้อผิดพลาดคู่มือติดตั้ง",
   "refreshing": "กำลังรีเฟรช...",
   "backupRetentionDays": "จำนวนวันเก็บบันทึกสำรอง:",
-  "backupRetentionHint": "(ลบไฟล์เก่าอัตโนมัติ 1-3650 วัน)"
+  "backupRetentionHint": "(ลบไฟล์เก่าอัตโนมัติ 1-3650 วัน)",
+  "permFinancialReconciliation": "กระทบยอดทางการเงิน"
 }

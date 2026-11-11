@@ -1207,7 +1207,8 @@ const LANGUAGES = {
     "pwaInstallError": "安装引导异常",
     "refreshing": "刷新中...",
     "backupRetentionDays": "备份保留天数：",
-    "backupRetentionHint": "（超期自动清理，1-3650 天）"
+    "backupRetentionHint": "（超期自动清理，1-3650 天）",
+    "permFinancialReconciliation": "财务对账审核"
   },
   "en": {
     "code": "Code",
@@ -2411,7 +2412,8 @@ const LANGUAGES = {
     "pwaInstallError": "Install guide error",
     "refreshing": "Refreshing...",
     "backupRetentionDays": "Backup retention (days):",
-    "backupRetentionHint": "(Auto-clean older files, 1-3650 days)"
+    "backupRetentionHint": "(Auto-clean older files, 1-3650 days)",
+    "permFinancialReconciliation": "Financial reconciliation"
   },
   "vi": {
     "code": "Mã",
@@ -3615,7 +3617,8 @@ const LANGUAGES = {
     "pwaInstallError": "Lỗi hướng dẫn cài đặt",
     "refreshing": "Đang làm mới...",
     "backupRetentionDays": "Số ngày giữ bản sao lưu:",
-    "backupRetentionHint": "(Tự động xóa file cũ, 1-3650 ngày)"
+    "backupRetentionHint": "(Tự động xóa file cũ, 1-3650 ngày)",
+    "permFinancialReconciliation": "Đối soát tài chính"
   },
   "th": {
     "code": "รหัส",
@@ -4819,7 +4822,8 @@ const LANGUAGES = {
     "pwaInstallError": "ข้อผิดพลาดคู่มือติดตั้ง",
     "refreshing": "กำลังรีเฟรช...",
     "backupRetentionDays": "จำนวนวันเก็บบันทึกสำรอง:",
-    "backupRetentionHint": "(ลบไฟล์เก่าอัตโนมัติ 1-3650 วัน)"
+    "backupRetentionHint": "(ลบไฟล์เก่าอัตโนมัติ 1-3650 วัน)",
+    "permFinancialReconciliation": "กระทบยอดทางการเงิน"
   },
   "km": {
     "code": "កូដ",
@@ -6023,7 +6027,8 @@ const LANGUAGES = {
     "pwaInstallError": "កំហុសការណែនាំដំឡើង",
     "refreshing": "កំពុងធ្វើឱ្យទាន់សម័យ...",
     "backupRetentionDays": "ចំនួនថ្ងៃរក្សាបម្រុងទុក៖",
-    "backupRetentionHint": "(សម្អាតឯកសារចាស់ដោយស្វ័យប្រវត្តិ 1-3650 ថ្ងៃ)"
+    "backupRetentionHint": "(សម្អាតឯកសារចាស់ដោយស្វ័យប្រវត្តិ 1-3650 ថ្ងៃ)",
+    "permFinancialReconciliation": "ការផ្ទៀងផ្ទាត់ហិរញ្ញវត្ថុ"
   }
 };
 

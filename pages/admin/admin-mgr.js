@@ -22,7 +22,8 @@ const ADMIN_PERMISSIONS = [
   { key: 'can_manage_printer',  labelKey: 'permPrinter',     icon: '🖨️', group: 'permGroupBase' },
   { key: 'can_manage_cashier',  labelKey: 'permCashier',     icon: '💳', group: 'permGroupBase' },
   { key: 'can_manage_admin',    labelKey: 'permAdmin',       icon: '👤', group: 'permGroupSystem' },
-  { key: 'can_view_logs',       labelKey: 'permLogs',        icon: '📝', group: 'permGroupSystem' }
+  { key: 'can_view_logs',       labelKey: 'permLogs',        icon: '📝', group: 'permGroupSystem' },
+  { key: 'can_manage_financial_reconciliation', labelKey: 'permFinancialReconciliation', icon: '📒', group: 'permGroupSystem' }
 ];
 
 function renderPerms(containerId, permissions, disabled) {
@@ -108,7 +109,8 @@ function editAdminByIndex(i) {
     can_manage_printer: a.can_manage_printer,
     can_manage_cashier: a.can_manage_cashier,
     can_manage_admin: a.can_manage_admin,
-    can_view_logs: a.can_view_logs
+    can_view_logs: a.can_view_logs,
+    can_manage_financial_reconciliation: a.can_manage_financial_reconciliation
   };
   editAdmin(a.id, a.username, a.display_name, a.active, perms, a.is_primary);
 }

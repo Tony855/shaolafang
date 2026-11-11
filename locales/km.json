@@ -1200,5 +1200,6 @@
   "pwaInstallError": "កំហុសការណែនាំដំឡើង",
   "refreshing": "កំពុងធ្វើឱ្យទាន់សម័យ...",
   "backupRetentionDays": "ចំនួនថ្ងៃរក្សាបម្រុងទុក៖",
-  "backupRetentionHint": "(សម្អាតឯកសារចាស់ដោយស្វ័យប្រវត្តិ 1-3650 ថ្ងៃ)"
+  "backupRetentionHint": "(សម្អាតឯកសារចាស់ដោយស្វ័យប្រវត្តិ 1-3650 ថ្ងៃ)",
+  "permFinancialReconciliation": "ការផ្ទៀងផ្ទាត់ហិរញ្ញវត្ថុ"
 }
