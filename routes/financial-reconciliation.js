@@ -40,6 +40,52 @@ module.exports = function(app, deps) {
       res.status(status).json({ error: status === 409 ? '相同对账批次编号已对应不同内容' : '对账流水格式无效或导入失败' });
     }
   });
+  app.get('/api/admin/financial-reconciliation/batches', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const limitValue = Number(req.query.limit || 30);
+    const afterValue = req.query.afterId === undefined ? 0 : Number(req.query.afterId);
+    if (!Number.isSafeInteger(limitValue) || limitValue < 1 || limitValue > 100 ||
+        !Number.isSafeInteger(afterValue) || afterValue < 0) {
+      return res.status(400).json({ error: '对账批次分页参数无效' });
+    }
+    try {
+      const rows = await allAsync(
+        `SELECT b.id, b.provider_code, b.external_batch_id, b.currency_code, b.row_count,
+                b.total_debit_minor, b.total_credit_minor, b.status, b.imported_at,
+                COALESCE(i.matched_count, 0) AS matched_count,
+                COALESCE(i.pending_count, 0) AS pending_count,
+                COALESCE(i.unmatched_count, 0) AS unmatched_count,
+                COALESCE(i.ambiguous_count, 0) AS ambiguous_count,
+                COALESCE(i.exception_count, 0) AS exception_count
+         FROM financial_reconciliation_batches b
+         LEFT JOIN (
+           SELECT batch_id, merchant_id, store_id,
+                  SUM(match_status='matched') AS matched_count,
+                  SUM(match_status='pending') AS pending_count,
+                  SUM(match_status='unmatched') AS unmatched_count,
+                  SUM(match_status='ambiguous') AS ambiguous_count,
+                  SUM(match_status='exception') AS exception_count
+           FROM financial_reconciliation_items
+           WHERE merchant_id=? AND store_id=?
+           GROUP BY batch_id, merchant_id, store_id
+         ) i ON i.batch_id=b.id AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
+         WHERE b.merchant_id=? AND b.store_id=? AND b.id>?
+         ORDER BY b.id DESC LIMIT ?`,
+        [context.merchantId, context.storeId, context.merchantId, context.storeId, afterValue, limitValue + 1]
+      );
+      const hasMore = rows.length > limitValue;
+      if (hasMore) rows.pop();
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({
+        rows,
+        nextCursor: hasMore && rows.length ? Number(rows[rows.length - 1].id) : null
+      });
+    } catch (_) {
+      res.status(500).json({ error: '获取对账批次列表失败' });
+    }
+  });
+
   app.get('/api/admin/financial-reconciliation/batches/:batchId/items', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;
