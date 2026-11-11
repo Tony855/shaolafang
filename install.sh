@@ -10,6 +10,10 @@ set -e
 # 设置非交互模式，避免 apt 安装时弹出键盘布局等交互界面
 export DEBIAN_FRONTEND=noninteractive
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/system-deps.sh
+source "$SCRIPT_DIR/scripts/lib/system-deps.sh"
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -46,6 +50,7 @@ prepare_deploy_key() {
 # ===== 已安装时的更新模式 =====
 update_existing_install() {
     log_step "检测到已安装，执行代码更新"
+    ff_ensure_node || return 1
 
     prepare_deploy_key 2>/dev/null || {
         log_error "无法准备 deploy key，更新中止"
@@ -449,8 +454,7 @@ install_single() {
 
     # ===== 1. 安装基础工具 =====
     log_info "安装基础工具..."
-    apt-get update -qq
-    apt-get install -y -qq curl wget git rsync
+    ff_prepare_system_packages curl wget git rsync
     log_success "基础工具安装完成"
 
     # ===== 2. 部署代码到 $APP_DIR =====
@@ -545,10 +549,9 @@ install_single() {
     # ===== 3. 安装系统依赖 =====
     echo ""
     log_info "更新系统软件包..."
-    apt-get update -qq
-    apt-get upgrade -y -qq
-    apt-get install -y -qq curl wget git nginx build-essential rsync certbot python3-certbot-nginx dnsutils psmisc ufw
-    log_success "系统软件包更新完成"
+    ff_apt_update
+    ff_apt_install nginx build-essential rsync certbot python3-certbot-nginx dnsutils psmisc ufw
+    log_success "系统软件包安装/更新完成"
 
     # ===== 4. 安装 MariaDB =====
     echo ""
@@ -565,14 +568,10 @@ install_single() {
         log_success "MariaDB/MySQL 已安装"
     else
         log_info "安装 MariaDB..."
-        # 清除 client-only 残骸，否则 apt 会跳过主包安装
         if command -v mariadb &>/dev/null || command -v mysql &>/dev/null; then
-            log_warn "检测到 MariaDB client 残骸，先清理再重装..."
-            apt-get remove --purge -y 'mariadb-*' 'mysql-*' 2>/dev/null || true
-            apt-get autoremove -y 2>/dev/null || true
-            rm -rf /var/lib/mysql /etc/mysql /run/mysqld
+            log_warn "检测到数据库客户端但未检测到可用服务；保留现有数据库文件和配置，直接尝试安装 MariaDB Server。"
         fi
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mariadb-server
+        ff_apt_install mariadb-server
         mkdir -p /run/mysqld
         chown mysql:mysql /run/mysqld
         systemctl enable mariadb
@@ -592,7 +591,7 @@ install_single() {
         log_success "Redis 已安装"
     else
         log_info "安装 Redis..."
-        apt-get install -y -qq redis-server
+        ff_apt_install redis-server
         systemctl enable redis-server
         systemctl start redis
         log_success "Redis 安装完成"
@@ -613,26 +612,14 @@ if [ -f /etc/redis/redis.conf ]; then
 fi
 
 
-    # ===== 6. 安装 Node.js 20 LTS =====
+    # ===== 6. 安装/升级 Node.js 26 LTS =====
     echo ""
-    log_info "检查 Node.js..."
-    NODE_VERSION=0
-    if command -v node &> /dev/null; then
-        NODE_VERSION=$(node -v 2>/dev/null | cut -d. -f1 | tr -d 'v' || echo 0)
-    fi
-    if [ "$NODE_VERSION" -lt 18 ]; then
-        log_info "安装 Node.js 20 LTS..."
-        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-        apt-get install -y -qq nodejs
-        log_success "Node.js 安装完成: $(node -v)"
-    else
-        log_success "Node.js 已安装: $(node -v)"
-    fi
+    ff_ensure_node
 
     # ===== 7. 安装 npm 依赖 =====
     echo ""
     log_info "安装 Node.js 依赖..."
-    npm install --omit=dev --no-audit --no-fund
+    ff_npm_ci_production
     log_success "依赖安装完成"
 
     # ===== 8. 创建必要目录 =====
