@@ -4,14 +4,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
 
-function memoryDb() {
+function memoryDb({ failAuditInsert = false } = {}) {
   const batches = new Map([[1, { id: 1, merchant_id: 4, store_id: 9, status: 'imported' }]]);
   const items = new Map([
     [11, { id: 11, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null, exception_category: null, exception_note: null }],
     [12, { id: 12, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null }]
   ]);
-  const journals = new Map([[31, { id: 31, merchant_id: 4, store_id: 9, currency_code: 'USD' }]]);
-  const totals = new Map([[31, { debit_minor: 1200, credit_minor: 1200 }]]);
+  const journals = new Map([[31, { id: 31, merchant_id: 4, store_id: 9, currency_code: 'USD' }], [32, { id: 32, merchant_id: 4, store_id: 9, currency_code: 'USD' }]]);
+  const totals = new Map([[31, { debit_minor: 1200, credit_minor: 1200 }], [32, { debit_minor: 1200, credit_minor: 1200 }]]);
   const events = new Map();
   const eventList = [];
   let nextEvent = 1;
@@ -26,6 +26,7 @@ function memoryDb() {
       return { affectedRows: row ? 1 : 0 };
     }
     if (sql.includes('INSERT INTO financial_reconciliation_review_events')) {
+      if (failAuditInsert) throw new Error('simulated audit insert failure');
       if (events.has(p[10])) { const e = new Error('duplicate'); e.code = 'ER_DUP_ENTRY'; throw e; }
       const event = { id: nextEvent++, merchant_id: p[0], store_id: p[1], batch_id: p[2], item_id: p[3],
         journal_transaction_id: p[4], exception_category: p[5], actor_admin_id: p[6], actor_username: p[7], action: p[8],
@@ -152,6 +153,19 @@ test('classifies refund, fee, and settlement differences for manual handling', a
   assert.equal(db.eventList[0].exception_category, 'settlement_difference');
 });
 
+test('reassigns a matched statement row to a different balanced journal transaction', async () => {
+  const db = memoryDb();
+  await db.service.reviewItem(input());
+  const result = await db.service.reviewItem(input({
+    action: 'reassign', journalTransactionId: 32,
+    idempotencyKey: 'finance-review-assign-2',
+    reason: 'Correcting the original journal allocation'
+  }));
+  assert.equal(result.action, 'reassign');
+  assert.equal(db.items.get(11).matched_journal_transaction_id, 32);
+  assert.equal(db.eventList.length, 2);
+});
+
 test('releases a match and appends a second hash-linked audit event', async () => {
   const db = memoryDb();
   await db.service.reviewItem(input());
@@ -167,8 +181,8 @@ test('releases a match and appends a second hash-linked audit event', async () =
 });
 
 test('failed review rolls back item state and does not create an audit row', async () => {
-  const db = memoryDb();
-  await assert.rejects(db.service.reviewItem(input({ journalTransactionId: 31, itemId: 99 })));
+  const db = memoryDb({ failAuditInsert: true });
+  await assert.rejects(db.service.reviewItem(input()));
   assert.equal(db.eventList.length, 0);
   assert.equal(db.items.get(11).match_status, 'pending');
 });
@@ -182,6 +196,32 @@ test('concurrent assignment of one journal transaction is serialized and only on
   assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
   assert.equal(results.filter(r => r.status === 'rejected').length, 1);
   assert.equal([...db.items.values()].filter(row => row.match_status === 'matched').length, 1);
+});
+
+test('rejects unsupported exception categories', async () => {
+  const db = memoryDb();
+  await assert.rejects(db.service.reviewItem(input({
+    action: 'classify_exception', journalTransactionId: undefined,
+    exceptionCategory: 'guessed_bank_type'
+  })), e => e.code === 'REVIEW_EXCEPTION_CATEGORY_INVALID');
+});
+
+test('daily summary uses a bounded inclusive date range and pre-aggregated item counts', async () => {
+  const db = memoryDb();
+  const rows = await db.service.getDailySummary({
+    merchantId: 4, storeId: 9, from: '2026-11-01', to: '2026-11-02'
+  });
+  assert.deepEqual(rows, []);
+});
+
+test('rejects invalid or excessive daily summary ranges', async () => {
+  const db = memoryDb();
+  await assert.rejects(db.service.getDailySummary({
+    merchantId: 4, storeId: 9, from: '2026-02-31', to: '2026-11-02'
+  }), e => e.code === 'REVIEW_DATE_RANGE_INVALID');
+  await assert.rejects(db.service.getDailySummary({
+    merchantId: 4, storeId: 9, from: '2026-01-01', to: '2026-04-10'
+  }), e => e.code === 'REVIEW_DATE_RANGE_INVALID');
 });
 
 test('rejects malformed actions, reasons, and idempotency keys', async () => {
