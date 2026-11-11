@@ -99,3 +99,45 @@ test('helpers use the replacement pool after database bootstrap', async () => {
     poolModule.setPool(originalPool);
   }
 });
+
+
+test('concurrent transactions keep AsyncLocalStorage connections isolated', async () => {
+  const poolModule = require('../server/db/pool');
+  const originalPool = poolModule.pool;
+  const calls = { a: [], b: [] };
+  const makeConnection = label => ({
+    async query(sql) { calls[label].push(sql); return [{}]; },
+    async execute(sql, params) {
+      calls[label].push({ sql, params });
+      return [{ affectedRows: 1, insertId: 0 }];
+    },
+    release() { calls[label].push('RELEASE'); }
+  });
+  const connections = [makeConnection('a'), makeConnection('b')];
+  let next = 0;
+  poolModule.setPool({
+    async getConnection() { return connections[next++]; },
+    async execute() { throw new Error('query escaped transaction context'); }
+  });
+
+  try {
+    await Promise.all([
+      withTransaction(async () => {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        await runAsync('UPDATE tenant_state SET value=? WHERE tenant=?', ['A', 'A']);
+      }),
+      withTransaction(async () => {
+        await runAsync('UPDATE tenant_state SET value=? WHERE tenant=?', ['B', 'B']);
+      })
+    ]);
+
+    assert.ok(calls.a.some(call => call && call.sql === 'UPDATE tenant_state SET value=? WHERE tenant=?' && call.params[1] === 'A'));
+    assert.ok(calls.b.some(call => call && call.sql === 'UPDATE tenant_state SET value=? WHERE tenant=?' && call.params[1] === 'B'));
+    assert.equal(calls.a.some(call => call && call.params?.[1] === 'B'), false);
+    assert.equal(calls.b.some(call => call && call.params?.[1] === 'A'), false);
+    assert.equal(calls.a.at(-2), 'COMMIT');
+    assert.equal(calls.b.at(-2), 'COMMIT');
+  } finally {
+    poolModule.setPool(originalPool);
+  }
+});
