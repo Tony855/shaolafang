@@ -53,7 +53,9 @@ test('super-admin password change preserves current session using its digest and
   };
   const res = {
     statusCode: 200,
+    headers: {},
     status(code) { this.statusCode = code; return this; },
+    setHeader(name, value) { this.headers[name] = value; },
     json(body) { this.body = body; return this; }
   };
 
