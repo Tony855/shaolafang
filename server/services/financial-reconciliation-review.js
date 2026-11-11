@@ -388,7 +388,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
   async function listReviewHistory({ merchantId, storeId, batchId, itemId, limit = 50, afterId = 0 }) {
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
-    const boundedLimit = Math.min(200, Math.max(1, positiveId(limit, 'limit')));
+    const boundedLimit = positiveId(limit, 'limit');
+    if (boundedLimit > 200) throw new TypeError('limit must not exceed 200');
     const cursor = Number(afterId);
     if (!Number.isSafeInteger(cursor) || cursor < 0) throw new TypeError('afterId must be a non-negative safe integer');
     const filters = ['merchant_id=?', 'store_id=?', 'id<?'];
