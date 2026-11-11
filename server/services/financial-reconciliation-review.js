@@ -199,7 +199,9 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         const before = {
           matchStatus: item.match_status,
           matchedJournalTransactionId: item.matched_journal_transaction_id === null ? null : Number(item.matched_journal_transaction_id),
-          matchReason: item.match_reason || null
+          matchReason: item.match_reason || null,
+          exceptionCategory: item.exception_category || null,
+          exceptionNote: item.exception_note || null
         };
         let nextStatus;
         let nextJournalId = null;
@@ -272,10 +274,12 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         }
 
         const nextReason = 'manual_' + review.action;
-        const after = { matchStatus: nextStatus, matchedJournalTransactionId: nextJournalId, matchReason: nextReason };
+        const nextExceptionCategory = review.action === 'classify_exception' ? review.exceptionCategory : null;
+        const nextExceptionNote = review.action === 'classify_exception' ? review.reason : null;
+        const after = { matchStatus: nextStatus, matchedJournalTransactionId: nextJournalId, matchReason: nextReason, exceptionCategory: nextExceptionCategory, exceptionNote: nextExceptionNote };
         await runAsync(
-          'UPDATE financial_reconciliation_items SET match_status=?, matched_journal_transaction_id=?, match_reason=? WHERE id=? AND batch_id=? AND merchant_id=? AND store_id=?',
-          [nextStatus, nextJournalId, nextReason, itemId, batchId, merchantId, storeId]
+          'UPDATE financial_reconciliation_items SET match_status=?, matched_journal_transaction_id=?, match_reason=?, exception_category=?, exception_note=? WHERE id=? AND batch_id=? AND merchant_id=? AND store_id=?',
+          [nextStatus, nextJournalId, nextReason, nextExceptionCategory, nextExceptionNote, itemId, batchId, merchantId, storeId]
         );
 
         const previous = await getAsync(
@@ -291,11 +295,11 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         const eventHash = stableHash(eventPayload);
         const inserted = await runAsync(
           `INSERT INTO financial_reconciliation_review_events
-            (merchant_id, store_id, batch_id, item_id, journal_transaction_id,
+            (merchant_id, store_id, batch_id, item_id, journal_transaction_id, exception_category,
              actor_admin_id, actor_username, action, reason, idempotency_key,
              request_sha256, before_json, after_json, previous_hash, event_hash)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [merchantId, storeId, batchId, itemId, nextJournalId, actorId, actorUsername,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [merchantId, storeId, batchId, itemId, nextJournalId, nextExceptionCategory, actorId, actorUsername,
             review.action, review.reason, review.idempotencyKey, requestHash,
             JSON.stringify(before), JSON.stringify(after), previousHash, eventHash]
         );
