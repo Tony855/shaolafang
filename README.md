@@ -226,7 +226,7 @@ FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运�
 
 ## 5. Linux 一键安装部署（推荐）
 
-仓库根目录的 `install.sh` 提供部署模式选择向导。请在新建或已准备好的 Linux 服务器上执行，并在执行前阅读脚本及备份现有数据。
+仓库根目录的 `install.sh` 首次运行默认执行**单机最小安装**，不再要求先选择企业集群模式。请在新建或已准备好的 Linux 服务器上执行，并在执行前阅读脚本及备份现有数据。
 
 ### 5.1 准备服务器
 
@@ -267,13 +267,24 @@ sudo bash install.sh
 sudo FF_APT_UPGRADE=1 bash install.sh
 ```
 
-按照安装向导选择适合当前环境的部署模式：
+首次安装默认只准备单机运行所需的 Node.js 26、MariaDB、生产依赖、应用服务和 Nginx 反向代理。Redis、自动备份计划任务和防火墙规则默认不自动启用；单机模式可在确认需要后显式启用：
 
-1. **标准版/单机模式**：适用于单台服务器部署。
-2. **企业版/双机模式**：适用于两台应用服务器及外部共享服务。
-3. **企业旗舰/多节点模式**：适用于多应用节点部署规划。
+```bash
+# 可选：安装并启用本机 Redis（单机默认可使用进程内缓存）
+sudo FF_INSTALL_REDIS=1 bash install.sh
 
-向导会按选择调用相应部署脚本。不同模式所需的数据库、Redis、NFS/共享存储、网络和环境变量不同，请严格按屏幕提示及对应部署目录中的 README 操作，不要把单机配置直接复制到集群节点。
+# 整机升级仍需维护窗口内显式启用
+sudo FF_APT_UPGRADE=1 bash install.sh
+```
+
+企业部署不再出现在首次安装菜单中，需明确指定：
+
+```bash
+sudo bash install.sh enterprise master
+sudo bash install.sh enterprise-ultimate master
+```
+
+双机/多节点部署必须先准备独立数据库、共享 Redis、共享上传存储、负载均衡和可信代理配置，并按对应部署目录文档执行。不要把单机配置直接复制到集群节点。
 
 ### 5.4 安装后检查
 
