@@ -173,7 +173,7 @@ sudo journalctl -u foodflow -f --since "1 hour ago"
 
 # 滚动更新（逐台重启，不中断服务）
 for node in 192.168.1.101 192.168.1.102 192.168.1.103; do
-    ssh $node "cd /var/www/foodflow && git pull && npm install --production && systemctl restart foodflow"
+    ssh $node "cd /var/www/foodflow && git pull && npm ci --omit=dev && systemctl restart foodflow"
     sleep 10
 done
 
