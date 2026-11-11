@@ -1,5 +1,7 @@
 # FoodFlow QR Ordering System - Installation Guide
 
+> 运行环境基线：Node.js 26 LTS（npm 10+）。请使用仓库根目录 `.nvmrc` 选择 Node 26；生产依赖必须通过 `npm ci --omit=dev` 按锁文件安装。
+
 ## 目录
 1. [系统要求](#1-系统要求)
 2. [Windows 安装步骤](#2-windows-安装步骤)
