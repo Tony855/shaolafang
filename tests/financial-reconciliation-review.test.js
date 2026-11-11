@@ -44,6 +44,9 @@ function memoryDb() {
       const b = batches.get(p[0]);
       return b && b.merchant_id === p[1] && b.store_id === p[2] ? b : null;
     }
+    if (sql.includes('SELECT id FROM financial_reconciliation_items')) {
+      return [...items.values()].find(row => row.matched_journal_transaction_id === p[0] && row.id !== p[1]) || null;
+    }
     if (sql.includes('FROM financial_reconciliation_items')) {
       const row = items.get(p[0]);
       return row && row.batch_id === p[1] && row.merchant_id === p[2] && row.store_id === p[3] ? row : null;
@@ -53,9 +56,6 @@ function memoryDb() {
       return row && row.merchant_id === p[1] && row.store_id === p[2] ? row : null;
     }
     if (sql.includes('FROM financial_journal_entries')) return totals.get(p[0]) || null;
-    if (sql.includes('SELECT id FROM financial_reconciliation_items')) {
-      return [...items.values()].find(row => row.matched_journal_transaction_id === p[0] && row.id !== p[1]) || null;
-    }
     if (sql.includes('SELECT event_hash')) return [...eventList].reverse().find(e => e.batch_id === p[0]) || null;
     throw new Error('unexpected get SQL: ' + sql);
   }
