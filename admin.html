@@ -70,6 +70,7 @@
             <button class="nav-item" data-module="reservations"><span class="nav-icon">📅</span> <span data-i18n-nav="reservations">预约管理</span></button>
             <button class="nav-item" data-module="calls" id="callsNavItem"><span class="nav-icon">📣</span> <span data-i18n-nav="calls">顾客消息</span> <span id="callsBadge" style="display:none;background:#e74c3c;color:#fff;font-size:11px;padding:1px 7px;border-radius:10px;margin-left:6px;font-weight:600;line-height:16px;">0</span></button>
             <button class="nav-item" data-module="reports"><span class="nav-icon">📊</span> <span data-i18n-nav="reports">营业报表</span></button>
+            <button class="nav-item" data-module="financial-reconciliation" data-perm="can_manage_financial_reconciliation"><span class="nav-icon">📒</span> <span data-i18n="financialReconciliationNav">财务对账审核</span></button>
             <button class="nav-item" data-module="logs" data-perm="can_view_logs"><span class="nav-icon">📋</span> <span data-i18n-nav="logs">日志</span></button>
             <button class="nav-item" data-module="password"><span class="nav-icon">⚙️</span> <span data-i18n-nav="systemSettings">系统设置</span></button>
         </aside>
@@ -263,6 +264,46 @@
                     <h3>🔥 <span id="hotDishesTitle">热销菜品排行榜</span></h3>
                     <div id="hotDishesList"></div>
                 </div>
+            </section>
+
+            <!-- 财务对账人工审核 -->
+            <section class="panel module-panel" id="module-financial-reconciliation">
+              <div id="financialReconciliationPanel">
+                <h2>📒 <span data-i18n="financialReconciliationTitle">财务对账审核</span></h2>
+                <p style="color:#aaa;margin:6px 0 18px;" data-i18n="financialReconciliationDesc">导入标准化银行流水，查看 Ledger 匹配建议并执行授权人工审核。建议不会自动确认收款。</p>
+                <div class="settings-card" style="margin-bottom:16px;">
+                  <h3 class="settings-card-title" data-i18n="financeImportTitle">导入标准化流水 JSON</h3>
+                  <p class="ff-desc" data-i18n="financeImportHelp">仅接受已由银行文件解析器转换的标准化数据，不上传原始银行文件或凭据。</p>
+                  <textarea id="financeImportJson" rows="6" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,.22);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:12px;font-family:monospace;" placeholder='{"providerCode":"manual","externalBatchId":"statement-2026-001","statementSha256":"64-character SHA-256 hex","currencyCode":"USD","rows":[{"rowNo":1,"externalReference":"REF-001","transactionReference":"","direction":"credit","amountMinor":10000,"currencyCode":"USD","occurredAt":"2026-11-11 10:00:00","description":"Settlement"}]}'></textarea>
+                  <div style="display:flex;justify-content:flex-end;margin-top:10px;"><button id="financeImportButton" type="button" class="primary" data-i18n="financeImportButton">导入对账批次</button></div>
+                </div>
+                <div class="settings-card" style="margin-bottom:16px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title" data-i18n="financeBatchesTitle">对账批次</h3>
+                    <button id="financeReloadBatches" type="button" data-i18n="financeReload">刷新</button>
+                  </div>
+                  <div id="financeBatchList"><div class="empty-hint">—</div></div>
+                  <button id="financeBatchMore" type="button" hidden data-i18n="financeLoadMore">加载更多</button>
+                </div>
+                <div class="settings-card" style="margin-bottom:16px;">
+                  <h3 class="settings-card-title" data-i18n="financeReviewTitle">流水审核</h3>
+                  <p id="financeSelectedBatch" class="ff-desc" data-i18n="financeSelectBatch">请选择一个对账批次。</p>
+                  <div id="financeReviewRows"></div>
+                  <button id="financeRowsMore" type="button" hidden data-i18n="financeLoadMore">加载更多</button>
+                </div>
+                <div class="settings-card">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title" data-i18n="financeDailyTitle">每日对账汇总</h3>
+                    <button id="financeExportDaily" type="button" data-i18n="financeExportCsv">导出 CSV</button>
+                  </div>
+                  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:12px 0;">
+                    <label><span data-i18n="financeFrom">开始日期</span><input type="date" id="financeReportFrom"></label>
+                    <label><span data-i18n="financeTo">结束日期</span><input type="date" id="financeReportTo"></label>
+                    <button id="financeReportRun" type="button" data-i18n="financeQuery">查询</button>
+                  </div>
+                  <div id="financeDailyReport"></div>
+                </div>
+              </div>
             </section>
 
             <!-- 日志 -->
