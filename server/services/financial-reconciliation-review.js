@@ -258,7 +258,14 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
           }
           nextStatus = 'matched';
           nextJournalId = review.journalTransactionId;
-        } else if (review.action === 'classify_exception') {\n          if (item.match_status === 'matched') {\n            const error = new Error('release a matched item before classifying an exception');\n            error.code = 'REVIEW_STATE_CONFLICT';\n            throw error;\n          }\n          nextStatus = 'exception';\n        } else if (review.action === 'reject') {
+        } else if (review.action === 'classify_exception') {
+          if (item.match_status === 'matched') {
+            const error = new Error('release a matched item before classifying an exception');
+            error.code = 'REVIEW_STATE_CONFLICT';
+            throw error;
+          }
+          nextStatus = 'exception';
+        } else if (review.action === 'reject') {
           if (item.match_status === 'matched') {
             const error = new Error('release a matched item before rejecting it');
             error.code = 'REVIEW_STATE_CONFLICT';
@@ -344,7 +351,12 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
               SUM(COALESCE(i.pending_count, 0)) AS pending_count,
               SUM(COALESCE(i.unmatched_count, 0)) AS unmatched_count,
               SUM(COALESCE(i.ambiguous_count, 0)) AS ambiguous_count,
-              SUM(COALESCE(i.exception_count, 0)) AS exception_count,\n              SUM(COALESCE(i.refund_exception_count, 0)) AS refund_exception_count,\n              SUM(COALESCE(i.fee_exception_count, 0)) AS fee_exception_count,\n              SUM(COALESCE(i.settlement_difference_exception_count, 0)) AS settlement_difference_exception_count,\n              SUM(COALESCE(i.chargeback_exception_count, 0)) AS chargeback_exception_count,\n              SUM(COALESCE(i.other_exception_count, 0)) AS other_exception_count
+              SUM(COALESCE(i.exception_count, 0)) AS exception_count,
+              SUM(COALESCE(i.refund_exception_count, 0)) AS refund_exception_count,
+              SUM(COALESCE(i.fee_exception_count, 0)) AS fee_exception_count,
+              SUM(COALESCE(i.settlement_difference_exception_count, 0)) AS settlement_difference_exception_count,
+              SUM(COALESCE(i.chargeback_exception_count, 0)) AS chargeback_exception_count,
+              SUM(COALESCE(i.other_exception_count, 0)) AS other_exception_count
        FROM financial_reconciliation_batches b
        LEFT JOIN (
          SELECT batch_id, merchant_id, store_id,
@@ -352,7 +364,12 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
                 SUM(match_status='pending') AS pending_count,
                 SUM(match_status='unmatched') AS unmatched_count,
                 SUM(match_status='ambiguous') AS ambiguous_count,
-                SUM(match_status='exception') AS exception_count,\n                SUM(match_status='exception' AND exception_category='refund') AS refund_exception_count,\n                SUM(match_status='exception' AND exception_category='fee') AS fee_exception_count,\n                SUM(match_status='exception' AND exception_category='settlement_difference') AS settlement_difference_exception_count,\n                SUM(match_status='exception' AND exception_category='chargeback') AS chargeback_exception_count,\n                SUM(match_status='exception' AND exception_category='other') AS other_exception_count
+                SUM(match_status='exception') AS exception_count,
+                SUM(match_status='exception' AND exception_category='refund') AS refund_exception_count,
+                SUM(match_status='exception' AND exception_category='fee') AS fee_exception_count,
+                SUM(match_status='exception' AND exception_category='settlement_difference') AS settlement_difference_exception_count,
+                SUM(match_status='exception' AND exception_category='chargeback') AS chargeback_exception_count,
+                SUM(match_status='exception' AND exception_category='other') AS other_exception_count
          FROM financial_reconciliation_items
          GROUP BY batch_id, merchant_id, store_id
        ) i ON i.batch_id=b.id AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
