@@ -5,7 +5,7 @@
 All endpoints require an authenticated merchant administrator with the dedicated `can_manage_financial_reconciliation` permission. The current request must be scoped to one active store; cross-store/all-store context is rejected.
 
 - `GET /api/admin/financial-reconciliation/batches/:batchId/items`: returns statement rows and provider-neutral match suggestions. Suggestions are advisory only.
-- `POST /api/admin/financial-reconciliation/items/:itemId/review`: performs `confirm`, `reject`, `release`, or `reassign`, or `classify_exception`. Supply `batchId`, `action`, `reason`, and a unique `Idempotency-Key` header. Confirm/reassign also require `journalTransactionId`. Exception classification requires `exceptionCategory` (refund, fee, settlement_difference, chargeback, other).
+- `POST /api/admin/financial-reconciliation/items/:itemId/review`: performs `confirm`, `reject`, `release`, or `reassign`, or `classify_exception`. Supply `batchId`, `action`, `reason`, and a unique `Idempotency-Key` header. A provider-neutral import endpoint is also available at `POST /api/admin/financial-reconciliation/batches/import`; it accepts normalized rows and a statement SHA-256 digest, not raw proprietary bank files. Confirm/reassign also require `journalTransactionId`. Exception classification requires `exceptionCategory` (refund, fee, settlement_difference, chargeback, other).
 - `GET /api/admin/financial-reconciliation/daily-summary?from=YYYY-MM-DD&to=YYYY-MM-DD`: returns per-day, per-currency batch totals and match-state counts for a maximum 91-day window.
 
 ## Review invariants
@@ -28,7 +28,7 @@ Closed batches are immutable. This phase does not automatically close batches, p
 
 ## Daily exception reporting
 
-Daily summaries expose imported batch totals and counts for matched, pending, unmatched, ambiguous, and exception rows, including refund, fee, settlement-difference, and chargeback exception counts. Refund, fee, settlement-difference and chargeback categories are stored on each manually classified exception for drill-down. Refund, fee, settlement and chargeback classification remains manual/provider-neutral; no provider-specific bank semantics or chart-of-accounts policy is inferred.
+Daily summaries expose imported batch totals and counts for matched, pending, unmatched, ambiguous, and exception rows, including refund, fee, settlement-difference, and chargeback and other exception counts. Refund, fee, settlement-difference and chargeback categories are stored on each manually classified exception for drill-down. Refund, fee, settlement and chargeback classification remains manual/provider-neutral; no provider-specific bank semantics or chart-of-accounts policy is inferred.
 
 ## Backward-compatible startup migration
 
