@@ -805,6 +805,14 @@ async function initDatabase() {
   if (duplicateJournalAssignment) {
     throw new Error('financial reconciliation has duplicate journal assignments; resolve them before enabling finance review');
   }
+  const reconciliationItemColumns = await allAsync('SHOW COLUMNS FROM financial_reconciliation_items');
+  const reconciliationItemColumnNames = reconciliationItemColumns.map(column => column.Field);
+  if (!reconciliationItemColumnNames.includes('exception_category')) {
+    await runAsync("ALTER TABLE financial_reconciliation_items ADD COLUMN exception_category ENUM('refund','fee','settlement_difference','chargeback','other') DEFAULT NULL");
+  }
+  if (!reconciliationItemColumnNames.includes('exception_note')) {
+    await runAsync('ALTER TABLE financial_reconciliation_items ADD COLUMN exception_note VARCHAR(500) DEFAULT NULL');
+  }
   const reconciliationItemIndexes = await allAsync('SHOW INDEX FROM financial_reconciliation_items');
   if (!reconciliationItemIndexes.some(index => index.Key_name === 'unique_reconciliation_journal_assignment')) {
     await runAsync('CREATE UNIQUE INDEX unique_reconciliation_journal_assignment ON financial_reconciliation_items (matched_journal_transaction_id)');
@@ -820,7 +828,7 @@ async function initDatabase() {
       journal_transaction_id BIGINT DEFAULT NULL,
       actor_admin_id INT NOT NULL,
       actor_username VARCHAR(100) NOT NULL,
-      action ENUM('confirm','reject','release','reassign') NOT NULL,
+      action ENUM('confirm','reject','release','reassign','classify_exception') NOT NULL,
       reason VARCHAR(500) NOT NULL,
       idempotency_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
       request_sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
