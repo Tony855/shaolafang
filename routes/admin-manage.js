@@ -204,7 +204,7 @@ module.exports = function(app, deps) {
   // ----- 商户管理员管理 -----
   app.get('/api/admin/admins', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
     try {
-      const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, (id = (SELECT MIN(id) FROM merchant_admins ma2 WHERE ma2.merchant_id = merchant_admins.merchant_id)) AS is_primary, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
+      const rows = await allAsync('SELECT id, username, display_name, active, last_login_at, created_at, (id = (SELECT MIN(id) FROM merchant_admins ma2 WHERE ma2.merchant_id = merchant_admins.merchant_id)) AS is_primary, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier, can_manage_financial_reconciliation FROM merchant_admins WHERE merchant_id=? ORDER BY id', [req.merchantId]);
       res.json(rows);
     } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
       res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
@@ -226,7 +226,7 @@ module.exports = function(app, deps) {
         return res.status(400).json({ error: '管理员权限配置格式无效' });
       }
 
-      const permFields = ['can_manage_menu','can_manage_table','can_manage_order','can_delete_order','can_edit_order','can_manage_store','can_manage_waiter','can_manage_currency','can_manage_printer','can_manage_admin','can_view_logs','can_manage_cashier'];
+      const permFields = ['can_manage_menu','can_manage_table','can_manage_order','can_delete_order','can_edit_order','can_manage_store','can_manage_waiter','can_manage_currency','can_manage_printer','can_manage_admin','can_view_logs','can_manage_cashier','can_manage_financial_reconciliation'];
       const active = normalizeAdminFlag(body.active, 1, 'active');
       const permVals = permFields.map(field => normalizeAdminFlag(body.permissions?.[field], 0, field));
       let adminId;
@@ -248,7 +248,7 @@ module.exports = function(app, deps) {
         );
       });
       res.status(201).json(await getAsync(
-        'SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE id=? AND merchant_id=?',
+        'SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier, can_manage_financial_reconciliation FROM merchant_admins WHERE id=? AND merchant_id=?',
         [adminId, merchantId]
       ));
     } catch (e) {
@@ -275,7 +275,7 @@ module.exports = function(app, deps) {
       if (body.permissions !== undefined && (!body.permissions || typeof body.permissions !== 'object' || Array.isArray(body.permissions))) {
         return res.status(400).json({ error: '管理员权限配置格式无效' });
       }
-      const permFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'];
+      const permFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier', 'can_manage_financial_reconciliation'];
       let updatedAdmin;
       await withTransaction(async () => {
         const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
@@ -321,7 +321,7 @@ module.exports = function(app, deps) {
             getClientIp(req), new Date().toISOString()]
         );
         updatedAdmin = await getAsync(
-          'SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier FROM merchant_admins WHERE id=? AND merchant_id=?',
+          'SELECT id, username, display_name, active, created_at, can_manage_menu, can_manage_table, can_manage_order, can_delete_order, can_edit_order, can_manage_store, can_manage_waiter, can_manage_currency, can_manage_printer, can_manage_admin, can_view_logs, can_manage_cashier, can_manage_financial_reconciliation FROM merchant_admins WHERE id=? AND merchant_id=?',
           [id, merchantId]
         );
       });
