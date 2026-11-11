@@ -3,6 +3,7 @@
    ============================================================ */
 const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
+const { toMoneyCents, hasActiveKhqr } = require('../server/services/order-financial');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
  
 function parsePositiveOrderId(value) {
@@ -12,27 +13,6 @@ function parsePositiveOrderId(value) {
   const id = Number(raw);
   return Number.isSafeInteger(id) ? id : null;
 }
-
-// Orders use the normalized USD accounting amount. Keep refund arithmetic in
-// integer cents and reject sub-cent input instead of silently rounding it.
-function toMoneyCents(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const raw = String(value).trim();
-  if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) return null;
-  const [whole, fraction = ''] = raw.split('.');
-  const cents = Number(whole) * 100 + Number((fraction + '00').slice(0, 2));
-  return Number.isSafeInteger(cents) ? cents : null;
-}
-
-function hasActiveKhqr(order) {
-  if (Number(order?.awaiting_confirm)) return true;
-  if (!order?.pay_khqr_ref) return false;
-  const expiresAt = Date.parse(order.pay_expires_at || '');
-  // Unknown expiry is treated as active so settlement cannot orphan a QR
-  // that may already have been presented to the customer.
-  return !Number.isFinite(expiresAt) || expiresAt > Date.now();
-}
-
 
 function formatStaffOrder(row, formatOrder) {
   const formatted = formatOrder(row);
