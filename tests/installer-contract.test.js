@@ -127,4 +127,8 @@ test('minimal first-run verification checks configuration, service, database hea
   assert.doesNotMatch(check, /cat "\$CREDENTIALS_FILE"/);
   assert.match(installer, /scripts\/first-run-check\.sh/);
   assert.match(local, /scripts\/first-run-check\.sh/);
+  assert.match(installer, /RUN_SCHEDULED_TASKS=false/);
+  assert.match(local, /RUN_SCHEDULED_TASKS=false/);
+  assert.doesNotMatch(installer, /RUN_SCHEDULED_TASKS=true/);
+  assert.doesNotMatch(local, /RUN_SCHEDULED_TASKS=true/);
 });
