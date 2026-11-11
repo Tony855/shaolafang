@@ -16,7 +16,7 @@ function buildAdminPermissions(admin, isPrimaryAdmin) {
   const keys = [
     'can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order',
     'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency',
-    'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'
+    'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier', 'can_manage_financial_reconciliation'
   ];
   return Object.fromEntries(keys.map(key => [key, isPrimaryAdmin || isPermissionEnabled(admin[key]) ? 1 : 0]));
 }
