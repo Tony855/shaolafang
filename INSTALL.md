@@ -525,7 +525,7 @@ Linux 首次安装完成时会自动运行最小检查。也可手动重跑：
 sudo bash /var/www/foodflow/scripts/first-run-check.sh
 ```
 
-检查范围仅包括必填数据库配置、服务运行状态、`GET /health` 数据库就绪状态和初始凭据文件权限。它不会显示密码，也不会自动配置域名、HTTPS、Redis、备份或监控。
+检查范围仅包括必填数据库配置、服务运行状态、`GET /health` 数据库就绪状态和初始凭据文件权限。它不会显示密码，也不会自动配置域名、HTTPS、Redis、备份或监控。首次安装默认将 `RUN_SCHEDULED_TASKS=false`，避免首次启动时自动运行备份/清理任务；需要时请先配置备份策略，再显式启用并重启服务。
 
 `GET /health` 在数据库可用时返回 HTTP 200；数据库不可用时返回 HTTP 503。
 
