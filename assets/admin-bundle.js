@@ -889,7 +889,8 @@ const ADMIN_PERMISSIONS = [
   { key: 'can_manage_printer',  labelKey: 'permPrinter',     icon: '🖨️', group: 'permGroupBase' },
   { key: 'can_manage_cashier',  labelKey: 'permCashier',     icon: '💳', group: 'permGroupBase' },
   { key: 'can_manage_admin',    labelKey: 'permAdmin',       icon: '👤', group: 'permGroupSystem' },
-  { key: 'can_view_logs',       labelKey: 'permLogs',        icon: '📝', group: 'permGroupSystem' }
+  { key: 'can_view_logs',       labelKey: 'permLogs',        icon: '📝', group: 'permGroupSystem' },
+  { key: 'can_manage_financial_reconciliation', labelKey: 'permFinancialReconciliation', icon: '📒', group: 'permGroupSystem' }
 ];
 
 function renderPerms(containerId, permissions, disabled) {
