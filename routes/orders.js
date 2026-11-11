@@ -7,6 +7,7 @@ const { hashPassword, verifyPassword } = require("../server/middleware/password"
 const { compressImage } = require("../server/services/image-compress");
 const { resolveOrderStoreId } = require("../server/services/order-store-scope");
 const { hashSessionToken } = require('../server/services/session-token');
+const { toMoneyCents, hasActiveKhqr, calculateOrderTotalCents } = require('../server/services/order-financial');
 
 function parsePositiveOrderRouteId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -22,49 +23,6 @@ function parseNonNegativeRouteIndex(value) {
   if (!/^(?:0|[1-9]\d*)$/.test(raw)) return null;
   const index = Number(raw);
   return Number.isSafeInteger(index) ? index : null;
-}
-
-function toMoneyCents(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const raw = String(value).trim();
-  if (!/^\d+(?:\.\d{1,2})?$/.test(raw)) return null;
-  const [whole, fraction = ''] = raw.split('.');
-  const cents = Number(whole) * 100 + Number((fraction + '00').slice(0, 2));
-  return Number.isSafeInteger(cents) ? cents : null;
-}
-
-function hasActiveKhqr(order) {
-  if (Number(order?.awaiting_confirm)) return true;
-  if (!order?.pay_khqr_ref) return false;
-  const expiresAt = Date.parse(order.pay_expires_at || '');
-  return !Number.isFinite(expiresAt) || expiresAt > Date.now();
-}
-
-// Keep normalized USD order totals deterministic while retaining the existing
-// single-rounding behavior across all remaining item quantities.
-function calculateOrderTotalCents(items) {
-  if (!Array.isArray(items) || !items.length) return null;
-  let scaledTotal = 0n;
-  for (const item of items) {
-    const unitPrice = Number(item?.base_price ?? item?.price);
-    const quantity = Number(item?.quantity);
-    const returnedQty = item?.returnedQty === undefined || item?.returnedQty === null
-      ? 0
-      : Number(item.returnedQty);
-    if (!Number.isFinite(unitPrice) || unitPrice < 0 || unitPrice > 1000000000 ||
-        !Number.isSafeInteger(quantity) || quantity <= 0 ||
-        !Number.isSafeInteger(returnedQty) || returnedQty < 0 || returnedQty > quantity) {
-      return null;
-    }
-    const remainingQty = quantity - returnedQty;
-    if (!remainingQty) continue;
-    const [whole, fraction] = unitPrice.toFixed(10).split('.');
-    const unitScaled = BigInt(whole) * 10000000000n + BigInt(fraction);
-    scaledTotal += unitScaled * BigInt(remainingQty);
-  }
-  const cents = (scaledTotal + 50000000n) / 100000000n;
-  if (cents > 100000000000n || cents > BigInt(Number.MAX_SAFE_INTEGER)) return null;
-  return Number(cents);
 }
 
 // Public table sockets are shared by every customer scanning the same table.
