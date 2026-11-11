@@ -261,72 +261,20 @@ check_system() {
 # 部署模式选择菜单
 # ============================================================
 select_deploy_mode() {
-    # 命令行参数预选：bash install.sh [standard|enterprise|enterprise-ultimate]
+    # 默认最小单机安装；企业模式必须显式传入参数。
     if [ -z "$1" ]; then
         DEPLOY_MODE="standard"
         DEPLOY_NAME="标准版 - 单台部署（首次安装默认）"
         log_info "首次安装默认使用最简单的单机模式；企业集群请显式运行 install.sh enterprise 或 install.sh enterprise-ultimate。"
         return
     fi
-    if [ -n "$1" ]; then
-        case "$1" in
-            standard) DEPLOY_MODE="standard"; DEPLOY_NAME="标准版 - 单台部署"; return ;;
-            enterprise) DEPLOY_MODE="enterprise"; DEPLOY_NAME="企业版 - 2台服务器部署"; return ;;
-            enterprise-ultimate) DEPLOY_MODE="enterprise-ultimate"; DEPLOY_NAME="企业旗舰版 - 多台服务器集群部署"; return ;;
-            *) log_error "未知部署模式：$1（可选 standard/enterprise/enterprise-ultimate）"; exit 1 ;;
-        esac
-    fi
 
-    echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
-    echo -e "${CYAN}${BOLD}  请选择部署模式：${NC}"
-    echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
-    echo ""
-    echo -e "  ${BOLD}1. 标准版 - 单台部署${NC}"
-    echo "     所有服务（Nginx + Node.js + MariaDB + Redis）在一台服务器"
-    echo "     适用：1-50家门店，测试环境，小型餐饮企业"
-    echo "     配置要求：2核4GB以上"
-    echo ""
-    echo -e "  ${BOLD}2. 企业版 - 2台服务器部署${NC}"
-    echo "     双机负载均衡 + 共享数据库/Redis/NFS"
-    echo "     适用：100-200家门店，中型餐饮连锁"
-    echo "     配置要求：2台4核8GB应用服务器 + 独立MySQL/Redis"
-    echo ""
-    echo -e "  ${BOLD}3. 企业旗舰版 - 多台服务器集群部署${NC}"
-    echo "     多节点负载均衡，可水平扩展，支持多商户/SaaS"
-    echo "     适用：200+家门店，大型餐饮集团，SaaS平台"
-    echo "     配置要求：3台以上8核16GB应用服务器 + 高可用MySQL/Redis"
-    echo ""
-    echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
-    echo ""
-
-    while true; do
-        read -p "请输入选项 (1/2/3): " -n 1 -r
-        echo
-        case $REPLY in
-            1)
-                DEPLOY_MODE="standard"
-                DEPLOY_NAME="标准版 - 单台部署"
-                break
-                ;;
-            2)
-                DEPLOY_MODE="enterprise"
-                DEPLOY_NAME="企业版 - 2台服务器部署"
-                break
-                ;;
-            3)
-                DEPLOY_MODE="enterprise-ultimate"
-                DEPLOY_NAME="企业旗舰版 - 多台服务器集群部署"
-                break
-                ;;
-            *)
-                log_warn "无效选项，请输入 1、2 或 3"
-                ;;
-        esac
-    done
-
-    echo ""
-    log_info "已选择：${BOLD}$DEPLOY_NAME${NC}"
-    echo ""
+    case "$1" in
+        standard) DEPLOY_MODE="standard"; DEPLOY_NAME="标准版 - 单台部署" ;;
+        enterprise) DEPLOY_MODE="enterprise"; DEPLOY_NAME="企业版 - 2台服务器部署" ;;
+        enterprise-ultimate) DEPLOY_MODE="enterprise-ultimate"; DEPLOY_NAME="企业旗舰版 - 多台服务器集群部署" ;;
+        *) log_error "未知部署模式：$1（可选 standard/enterprise/enterprise-ultimate）"; exit 1 ;;
+    esac
 }
 
 # ============================================================
