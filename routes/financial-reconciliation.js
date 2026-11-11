@@ -65,7 +65,7 @@ module.exports = function(app, deps) {
       if (!actor) return res.status(403).json({ error: '财务审核账号无效或已停用' });
       const result = await service.reviewItem({
         ...context, itemId, batchId, actorUsername: actor.username,
-        action: req.body?.action, journalTransactionId: req.body?.journalTransactionId,
+        action: req.body?.action, exceptionCategory: req.body?.exceptionCategory, journalTransactionId: req.body?.journalTransactionId,
         reason: req.body?.reason, idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey
       });
       res.status(result.replayed ? 200 : 201).json({ success: true, ...result });
