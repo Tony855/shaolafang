@@ -29,7 +29,7 @@ function redactExpiredSessionCredentials(tables) {
 }
 
 async function collectBackupData() {
-  const tables = ['menus', 'tables', 'orders', 'refund_requests', 'order_sequences', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'waiters', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
+  const tables = ['menus', 'tables', 'orders', 'refund_requests', 'order_sequences', 'financial_journal_transactions', 'financial_journal_entries', 'provider_webhook_events', 'currencies', 'menu_categories', 'settings', 'login_logs', 'audit_logs', 'waiters', 'stores', 'waiter_calls', 'reservations', 'printers', 'merchants', 'merchant_admins', 'super_admins'];
   // All table reads must share one InnoDB transaction. Otherwise concurrent
   // writes can make a backup contain child rows without their parents (or
   // omit rows created between individual SELECT statements).
