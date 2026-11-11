@@ -70,9 +70,9 @@ module.exports = function(app, deps) {
            WHERE merchant_id=? AND store_id=?
            GROUP BY batch_id, merchant_id, store_id
          ) i ON i.batch_id=b.id AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
-         WHERE b.merchant_id=? AND b.store_id=? AND b.id>?
+         WHERE b.merchant_id=? AND b.store_id=? AND (?=0 OR b.id<?)
          ORDER BY b.id DESC LIMIT ?`,
-        [context.merchantId, context.storeId, context.merchantId, context.storeId, afterValue, limitValue + 1]
+        [context.merchantId, context.storeId, context.merchantId, context.storeId, afterValue, afterValue || Number.MAX_SAFE_INTEGER, limitValue + 1]
       );
       const hasMore = rows.length > limitValue;
       if (hasMore) rows.pop();
