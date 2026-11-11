@@ -9,9 +9,9 @@ function memoryQueue(rows) {
   async function getAsync(sql, params = []) {
     calls.push({ type: 'get', sql, params });
     if (sql.includes('LIMIT 1 FOR UPDATE')) {
-      return rows.find(row => row.auth_status === 'verified' &&
-        row.normalized_event_json && row.attempt_count < row.max_attempts &&
-        (row.processing_status === 'received' || row.processing_status === 'processing'));
+      const row = rows.find(item => item.auth_status === 'verified' &&
+        item.normalized_event_json && item.attempt_count < item.max_attempts &&
+        (item.processing_status === 'received' || item.processing_status === 'processing'));
       return row ? { ...row } : null;
     }
     if (sql.includes('SELECT attempt_count, max_attempts')) {
