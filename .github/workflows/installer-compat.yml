@@ -1,0 +1,44 @@
+name: Installer Compatibility
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-compat-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-matrix:
+    name: ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Debian 12
+            image: debian:12-slim
+          - label: Debian 13
+            image: debian:13-slim
+          - label: Ubuntu 22.04
+            image: ubuntu:22.04
+          - label: Ubuntu 24.04
+            image: ubuntu:24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run real installer package/runtime smoke test
+        run: |
+          docker run --pull always --rm \
+            --volume "${GITHUB_WORKSPACE}:/workspace" \
+            --workdir /workspace \
+            "${{ matrix.image }}" \
+            bash scripts/ci/installer-compat.sh

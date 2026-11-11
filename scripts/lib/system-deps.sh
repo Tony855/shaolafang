@@ -11,15 +11,15 @@ ff_log_error() { printf '[ERROR] %s\n' "$*" >&2; }
 
 ff_require_supported_os() {
   if [ ! -r /etc/os-release ]; then
-    ff_log_error "无法读取 /etc/os-release；仅支持 Debian/Ubuntu。"
+    ff_log_error "无法读取 /etc/os-release；仅支持 Debian 12/13 和 Ubuntu 22.04/24.04。"
     return 1
   fi
-  # shellcheck disable=SC1091
+  # shellcheck source=/etc/os-release
   . /etc/os-release
-  case "${ID:-}" in
-    debian|ubuntu) ;;
+  case "${ID:-}:${VERSION_ID:-}" in
+    debian:12|debian:13|ubuntu:22.04|ubuntu:24.04) ;;
     *)
-      ff_log_error "当前系统 ${PRETTY_NAME:-${ID:-unknown}} 不在支持范围；请使用 Debian/Ubuntu。"
+      ff_log_error "当前系统 ${PRETTY_NAME:-${ID:-unknown}} 未通过安装兼容性验证；支持 Debian 12/13、Ubuntu 22.04/24.04。"
       return 1
       ;;
   esac
@@ -31,9 +31,7 @@ ff_apt_update() {
 }
 
 ff_apt_install() {
-  if [ "$#" -eq 0 ]; then
-    return 0
-  fi
+  if [ "$#" -eq 0 ]; then return 0; fi
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"
 }
 
@@ -46,28 +44,21 @@ ff_prepare_system_packages() {
   else
     ff_log_info "跳过整机 apt upgrade（可在维护窗口显式设置 FF_APT_UPGRADE=1）。"
   fi
-  if [ "$#" -gt 0 ]; then
-    ff_apt_install "$@"
-  fi
+  if [ "$#" -gt 0 ]; then ff_apt_install "$@"; fi
 }
 
 ff_ensure_node() {
   local wanted_major="$FF_NODE_MAJOR"
-  local current_major="0"
   local current_version=""
-  if ! [[ "$wanted_major" =~ ^[0-9]+$ ]] || [ "$wanted_major" -lt 26 ]; then
-    ff_log_error "FF_NODE_MAJOR 必须是 26 或更高的受支持 LTS 主版本。"
+  if [ "$wanted_major" != "26" ]; then
+    ff_log_error "当前安装基线固定为 Node.js 26 LTS；FF_NODE_MAJOR 不允许覆盖为其他主版本。"
     return 1
   fi
-
   if command -v node >/dev/null 2>&1; then
     current_version="$(node -p 'process.versions.node' 2>/dev/null || true)"
-    current_major="${current_version%%.*}"
   fi
-
   ff_apt_update || return 1
   ff_apt_install ca-certificates curl gnupg libatomic1
-
   local setup_file
   setup_file="$(mktemp)"
   ff_log_info "配置 NodeSource Node.js ${wanted_major}.x 仓库（当前：${current_version:-未安装}）..."
@@ -82,13 +73,16 @@ ff_ensure_node() {
     return 1
   fi
   rm -f "$setup_file"
-
   ff_apt_install nodejs libatomic1
   hash -r
   ff_require_node
 }
 
 ff_require_node() {
+  if [ "$FF_NODE_MAJOR" != "26" ]; then
+    ff_log_error "当前运行时基线固定为 Node.js 26 LTS。"
+    return 1
+  fi
   local actual_version=""
   local actual_major=""
   actual_version="$(node -p 'process.versions.node' 2>/dev/null || true)"

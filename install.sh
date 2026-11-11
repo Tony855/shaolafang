@@ -229,20 +229,18 @@ check_system() {
         OS_VERSION="$VERSION_ID"
         log_info "操作系统：$OS_NAME $OS_VERSION"
     else
-        log_error "无法识别操作系统，支持 Debian 11+ / Ubuntu 20.04+"
+        log_error "无法识别操作系统，支持 Debian 12/13、Ubuntu 22.04/24.04"
         exit 1
     fi
 
-    # 检查是否为Debian/Ubuntu系
-    if [ "$ID" != "debian" ] && [ "$ID" != "ubuntu" ]; then
-        log_warn "当前系统为 $OS_NAME，建议使用 Debian 11+ 或 Ubuntu 20.04+"
-        read -p "是否继续安装？(y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log_info "安装已取消"
-            exit 0
-        fi
-    fi
+    # Node.js 26 LTS 的安装兼容性仅在以下系统版本中验证
+    case "$ID:$OS_VERSION" in
+        debian:12|debian:13|ubuntu:22.04|ubuntu:24.04) ;;
+        *)
+            log_error "当前系统 $OS_NAME $OS_VERSION 未通过安装兼容性验证；支持 Debian 12/13、Ubuntu 22.04/24.04"
+            exit 1
+            ;;
+    esac
 
     # 检查架构
     ARCH=$(uname -m)
