@@ -669,6 +669,7 @@ const LANGUAGES = {
     "permCashier": "收银员管理",
     "permAdmin": "管理员管理",
     "permLogs": "查看日志",
+    "permFinancialReconciliation": "Financial reconciliation",
     "permGroupOps": "运营管理",
     "permGroupBase": "基础设置",
     "permGroupSystem": "系统管理",
