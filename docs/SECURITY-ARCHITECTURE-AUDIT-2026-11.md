@@ -1,0 +1,84 @@
+# FoodFlow 安全与架构审查记录
+
+**审查日期：** 2026-11-11  
+**审查对象：** `Tony855/shaolafang`，默认分支 `main`  
+**审查方式：** GitHub 源码、部署模板、CI 工作流及现有测试清单静态审查。  
+**注意：** 本记录不是渗透测试或生产环境验收报告；未执行真实数据库迁移、线上部署或端到端攻击验证。
+
+## 1. 项目结构
+
+- Node.js 20 / Express 4 后端，MySQL/MariaDB 持久化。
+- Redis 可选，用于跨节点缓存、限流/冷却状态及 Socket.IO adapter（按配置启用）。
+- Socket.IO 实时事件。
+- 原生 JavaScript 多页面前端：顾客、商户管理、服务员、后厨、收银、超级管理员。
+- 业务路由位于 `routes/`，认证中间件位于 `server/middleware/`，数据库工具位于 `server/db/`，服务层位于 `server/services/`。
+- 现有测试位于 `tests/`，CI 在 Node.js 20 环境执行语法检查、审计脚本、多语言校验、测试及生产依赖审计。
+
+## 2. 本轮已修复
+
+### [P1] Nginx 静态资源强缓存与应用缓存策略冲突
+
+**证据：** 以下部署模板原先将 HTML、CSS、JS 和图片统一设置为 `expires 7d` 与 `Cache-Control: public, immutable`：
+
+- `deploy/standard/nginx.conf`
+- `deploy/enterprise/cluster/nginx.conf`
+- `deploy/enterprise-ultimate/cluster/nginx.conf`
+
+而 Express 页面路由及静态资源配置使用 `Cache-Control: no-cache, must-revalidate` / ETag 协商缓存；文件名并非全部内容哈希。代理层覆盖缓存头会使浏览器长期复用旧 HTML/JS/CSS，造成部署版本不一致。
+
+**处理：** 在审查分支移除这三个模板中对代理静态资源的 7 天 immutable 覆盖，保留 Express 的缓存策略。上传图片目录继续使用独立长缓存策略。
+
+## 3. 需要在部署或下一轮改进中处理
+
+### [P1 - 部署条件] 多机 Nginx 反向代理的 TRUST_PROXY
+
+应用默认设置 `TRUST_PROXY=loopback`，适用于 Nginx 与 Node 在同一主机的部署。企业集群模板的 Nginx 负载均衡器与应用节点是分离的；若部署时没有按实际网络拓扑显式配置可信代理，Express 可能只能看到负载均衡器地址，影响客户端 IP 识别、登录限流和审计日志。
+
+**建议：** 集群部署时将 `TRUST_PROXY` 设置为实际负载均衡器内网 IP/CIDR 或严格限定的可信代理跳数；不要在不可信网络中直接设置为 `true`。防火墙应确保应用端口只接受负载均衡器来源。
+
+### [P1 - 部署条件] 集群环境必须验证 Redis 可用性
+
+应用在未配置 Redis 时会回退到进程内存缓存；这在单机可作为降级模式，但多应用节点的内存状态并不共享。集群部署文档已要求 Redis，但上线验收仍应验证所有节点使用同一个受保护的 Redis 服务，并验证 Redis 中断时限流、冷却和实时事件是否按预期 fail-closed 或降级。
+
+**建议：** 对集群部署增加启动前配置检查；明确区分单机可选 Redis 与多节点必需 Redis。不要把内存 fallback 当作集群共享状态。
+
+### [P2 - 可观测性] Nginx 模板中的 /health 是静态应答
+
+部署 Nginx 模板的 `/health` 路径直接由 Nginx 返回固定的 `200 OK`，并不检查 Node、数据库或 Redis。它只能说明 Nginx 配置可响应，不能作为应用就绪或数据库健康的唯一探针。
+
+**建议：** 分离 liveness 与 readiness：应用健康接口应由 Node 提供，并按需检查数据库/Redis；负载均衡器使用应用 readiness 检查摘除故障节点。
+
+### [P2 - 架构] 单体路由与大页面模块仍然偏大
+
+`server.js`、`routes/admin-manage.js`、`routes/orders.js`、`pages/customer.js`、`pages/waiter.js` 等文件仍承载较多职责。当前已做模块拆分，但后续建议继续按业务域拆分订单状态机、支付/退款、门店隔离、打印任务和报表查询，并以服务接口和集成测试固定边界。
+
+## 4. 安全审查重点
+
+以下属于已核查的代码区域，不代表已证明完全安全：
+
+- 管理员、超级管理员、收银员和服务员认证中间件。
+- 会话 token 哈希存储及过期检查。
+- 管理员门店选择与 merchant_id 约束。
+- Socket.IO 连接认证与会话重验证。
+- 订单金额计算、退款与结算并发保护。
+- ZIP 菜单导入路径处理。
+- 登录限流、扫描会话限流及 Redis 降级处理。
+- 前端 HTML 转义与存储型 XSS 回归测试。
+
+**注意事项：** 前端出现 `innerHTML` 本身不等于 XSS；必须逐个追踪数据来源和转义。类似地，代码搜索到 `Math.random()` 也不等于认证凭据可预测；需确认用途。不要将静态搜索命中直接记为已利用漏洞。
+
+## 5. 本轮验证状态
+
+- 已确认审查分支创建成功，未直接修改 `main`。
+- Nginx 三份部署模板已提交缓存策略修复。
+- GitHub Actions CI 已由该分支提交触发；当前正在执行，最终结果以 Actions 页面为准。
+- 尚未宣称本地完整测试、生产依赖审计或线上验证通过。
+
+## 6. 后续建议顺序
+
+1. 等待 CI 完成；若失败，先修复失败项再创建/更新 PR。
+2. 为集群部署增加 `TRUST_PROXY` 和 Redis 强制配置校验。
+3. 将 Nginx 固定 `/health` 改为真正的应用 readiness 探针，或明确区分两类探针。
+4. 为支付/退款、订单状态转换、跨商户/跨门店访问补充 API 集成测试。
+5. 增加 Playwright 多端关键流程测试：扫码下单、厨房接单、收银结算、退款、权限拒绝。
+6. 评估数据库迁移版本化、结构化日志、指标和告警；先保持兼容性，不做大规模一次性重写。
