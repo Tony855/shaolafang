@@ -262,6 +262,12 @@ check_system() {
 # ============================================================
 select_deploy_mode() {
     # 命令行参数预选：bash install.sh [standard|enterprise|enterprise-ultimate]
+    if [ -z "$1" ]; then
+        DEPLOY_MODE="standard"
+        DEPLOY_NAME="标准版 - 单台部署（首次安装默认）"
+        log_info "首次安装默认使用最简单机模式；企业集群请显式运行 install.sh enterprise 或 install.sh enterprise-ultimate。"
+        return
+    fi
     if [ -n "$1" ]; then
         case "$1" in
             standard) DEPLOY_MODE="standard"; DEPLOY_NAME="标准版 - 单台部署"; return ;;
@@ -548,7 +554,7 @@ install_single() {
     echo ""
     log_info "更新系统软件包..."
     ff_apt_update
-    ff_apt_install nginx build-essential rsync certbot python3-certbot-nginx dnsutils psmisc ufw
+    ff_apt_install nginx psmisc rsync
     log_success "系统软件包安装/更新完成"
 
     # ===== 4. 安装 MariaDB =====
@@ -582,32 +588,26 @@ install_single() {
         log_success "MariaDB 安装完成"
     fi
 
-    # ===== 5. 安装 Redis =====
-    echo ""
-    log_info "检查 Redis..."
-    if command -v redis-server &> /dev/null; then
-        log_success "Redis 已安装"
-    else
-        log_info "安装 Redis..."
-        ff_apt_install redis-server
+    # ===== 可选：Redis（单机首次安装默认使用进程内缓存） =====
+    if [ "${FF_INSTALL_REDIS:-0}" = "1" ]; then
+        log_info "按 FF_INSTALL_REDIS=1 安装并启用 Redis..."
+        if ! command -v redis-server >/dev/null 2>&1; then
+            ff_apt_install redis-server
+        fi
         systemctl enable redis-server
-        systemctl start redis
-        log_success "Redis 安装完成"
+        systemctl start redis-server 2>/dev/null || systemctl start redis
+        if [ -f /etc/redis/redis.conf ]; then
+            if grep -q '^appendonly no' /etc/redis/redis.conf; then
+                sed -i 's/^appendonly no/appendonly yes/' /etc/redis/redis.conf
+            elif ! grep -q '^appendonly yes' /etc/redis/redis.conf; then
+                echo 'appendonly yes' >> /etc/redis/redis.conf
+            fi
+            grep -q '^appendfsync' /etc/redis/redis.conf || echo 'appendfsync everysec' >> /etc/redis/redis.conf
+            systemctl restart redis-server 2>/dev/null || systemctl restart redis 2>/dev/null || true
+        fi
+    else
+        log_info "跳过 Redis；单机默认使用进程内缓存。多节点部署必须单独配置共享 Redis。"
     fi
-    systemctl start redis-server 2>/dev/null || true
-
-# ===== 3.1 开启 Redis AOF 持久化（避免重启后订单号计数器回退） =====
-if [ -f /etc/redis/redis.conf ]; then
-    if grep -q '^appendonly no' /etc/redis/redis.conf; then
-        sed -i 's/^appendonly no/appendonly yes/' /etc/redis/redis.conf
-        log_info "Redis AOF 已开启（appendonly yes）"
-    elif ! grep -q '^appendonly yes' /etc/redis/redis.conf; then
-        echo 'appendonly yes' >> /etc/redis/redis.conf
-        log_info "Redis AOF 已开启（追加配置）"
-    fi
-    grep -q '^appendfsync' /etc/redis/redis.conf || echo 'appendfsync everysec' >> /etc/redis/redis.conf
-    systemctl restart redis-server 2>/dev/null || systemctl restart redis 2>/dev/null || true
-fi
 
 
     # ===== 6. 安装/升级 Node.js 26 LTS =====
@@ -719,6 +719,10 @@ EOF
     # ===== 10. 写入 .env 配置文件 =====
     echo ""
     ENV_FILE="$APP_DIR/.env"
+    REDIS_URL_VALUE=""
+    if [ "${FF_INSTALL_REDIS:-0}" = "1" ]; then
+        REDIS_URL_VALUE="redis://127.0.0.1:6379"
+    fi
     if [ "$SKIP_DB_INIT" -eq 0 ]; then
     log_info "创建首次安装 .env 配置..." 
     cat > "$ENV_FILE" << EOF
@@ -729,7 +733,7 @@ DB_DATABASE=$DEFAULT_DB_NAME
 DB_USER=foodflow
 DB_PASSWORD=$DB_RANDOM_PASSWORD
 DB_CONNECTION_LIMIT=50
-REDIS_URL=redis://127.0.0.1:6379
+REDIS_URL=$REDIS_URL_VALUE
 UPLOAD_DIR=$APP_DIR/uploads
 RUN_SCHEDULED_TASKS=true
 JWT_SECRET=$JWT_RANDOM_SECRET
@@ -768,7 +772,7 @@ EOF
     cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
 Description=FoodFlow QR Ordering System
-After=network.target mariadb.service mysql.service redis.service
+After=network.target mariadb.service mysql.service
 
 [Service]
 Type=simple
