@@ -7,7 +7,7 @@ const { createFinancialReconciliationReviewService } = require('../server/servic
 function memoryDb() {
   const batches = new Map([[1, { id: 1, merchant_id: 4, store_id: 9, status: 'imported' }]]);
   const items = new Map([
-    [11, { id: 11, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null }],
+    [11, { id: 11, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null, exception_category: null, exception_note: null }],
     [12, { id: 12, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null }]
   ]);
   const journals = new Map([[31, { id: 31, merchant_id: 4, store_id: 9, currency_code: 'USD' }]]);
@@ -21,8 +21,8 @@ function memoryDb() {
   async function runAsync(sql, p = []) {
     executed.push(sql.trim().split(/\s+/).slice(0, 3).join(' '));
     if (sql.includes('UPDATE financial_reconciliation_items')) {
-      const row = items.get(p[3]);
-      if (row) Object.assign(row, { match_status: p[0], matched_journal_transaction_id: p[1], match_reason: p[2] });
+      const row = items.get(p[5]);
+      if (row) Object.assign(row, { match_status: p[0], matched_journal_transaction_id: p[1], match_reason: p[2], exception_category: p[3], exception_note: p[4] });
       return { affectedRows: row ? 1 : 0 };
     }
     if (sql.includes('INSERT INTO financial_reconciliation_review_events')) {
