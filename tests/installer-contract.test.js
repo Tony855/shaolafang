@@ -58,7 +58,7 @@ test('whole-system apt upgrade is opt-in and CI uses Node.js 26', () => {
   const pkg = JSON.parse(read('package.json'));
   const lock = JSON.parse(read('package-lock.json'));
   assert.match(helper, /if \[ "\$FF_APT_UPGRADE" = "1" \]/);
-  assert.match(ci, /node-version: "26"/);
+  assert.match(ci, /node-version-file: ".nvmrc"/);
   assert.equal(pkg.engines.node, '>=26 <27');
   assert.deepEqual(lock.packages[''].engines, pkg.engines);
   assert.equal(read('.nvmrc').trim(), '26');
