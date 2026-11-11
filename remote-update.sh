@@ -6,6 +6,14 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+# shellcheck source=scripts/lib/system-deps.sh
+source "$SCRIPT_DIR/scripts/lib/system-deps.sh"
+
+if [ "$EUID" -ne 0 ]; then
+  echo "[ERROR] 请使用 root 权限运行 remote-update.sh"
+  exit 1
+fi
+ff_ensure_node
 echo "[INFO] 工作目录: $SCRIPT_DIR"
 
 for cmd in git npm systemctl; do
