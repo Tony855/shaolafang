@@ -28,7 +28,7 @@ Closed batches are immutable. This phase does not automatically close batches, p
 
 ## Daily exception reporting
 
-Daily summaries expose imported batch totals and counts for matched, pending, unmatched, ambiguous, and exception rows. Refund, fee, settlement-difference and chargeback categories are stored on each manually classified exception for drill-down. Refund, fee, settlement and chargeback classification remains manual/provider-neutral; no provider-specific bank semantics or chart-of-accounts policy is inferred.
+Daily summaries expose imported batch totals and counts for matched, pending, unmatched, ambiguous, and exception rows, including refund, fee, settlement-difference, and chargeback exception counts. Refund, fee, settlement-difference and chargeback categories are stored on each manually classified exception for drill-down. Refund, fee, settlement and chargeback classification remains manual/provider-neutral; no provider-specific bank semantics or chart-of-accounts policy is inferred.
 
 ## Backward-compatible startup migration
 
