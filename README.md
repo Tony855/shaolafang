@@ -351,7 +351,7 @@ DB_DATABASE=foodflow_system
 DB_USER=foodflow
 DB_PASSWORD=替换为强随机密码
 UPLOAD_DIR=./uploads
-RUN_SCHEDULED_TASKS=true
+RUN_SCHEDULED_TASKS=false
 CORS_ORIGINS=
 TRUST_PROXY=loopback
 ```
@@ -487,7 +487,7 @@ sudo cat /var/lib/foodflow/initial-credentials.txt
 sudo bash /var/www/foodflow/scripts/first-run-check.sh
 ```
 
-健康检查接口为 `GET /health`：数据库可用时返回 HTTP 200；数据库不可用时返回 HTTP 503。响应不包含数据库地址、账号、密码或异常详情。
+健康检查接口为 `GET /health`：数据库可用时返回 HTTP 200；数据库不可用时返回 HTTP 503。响应不包含数据库地址、账号、密码或异常详情。首次安装默认关闭后台定时任务（包括自动备份）；需要时在确认备份目录、保留策略和存储空间后，再将 `.env` 中的 `RUN_SCHEDULED_TASKS` 显式设为 `true` 并重启服务。
 
 首次登录入口：
 - 平台超级管理员：`/super/login`
