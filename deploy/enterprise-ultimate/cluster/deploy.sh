@@ -69,10 +69,7 @@ if [ -d /var/www/foodflow/.git ]; then
         log_error "部署目录存在未提交修改；为避免覆盖人工变更，已停止更新"
         exit 1
     fi
-    git remote set-url origin https://github.com/Tony855/shaolafang.git
-    git fetch origin main
-    git checkout main
-    git pull --ff-only origin main
+    git fetch origin && git pull --ff-only origin main
 else
     log_info "克隆代码仓库..."
     if [ -d "/var/www/foodflow" ] && [ "$(ls -A /var/www/foodflow)" ]; then
@@ -80,7 +77,7 @@ else
         log_warn "目录已存在且非空，备份到 $BACKUP_DIR"
         mv /var/www/foodflow "$BACKUP_DIR"
     fi
-    git clone https://github.com/Tony855/shaolafang.git /var/www/foodflow
+    git clone https://github.com/Tony855/foodflow-enterprise-ultimate.git /var/www/foodflow
 fi
 log_success "代码部署完成"
 
