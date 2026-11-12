@@ -323,6 +323,19 @@
                   <h4 style="margin-top:16px;">按负责人汇总</h4><div id="financeExceptionPerformanceAssignee"></div>
                   <h4 style="margin-top:16px;">按异常类别汇总</h4><div id="financeExceptionPerformanceCategory"></div>
                 </div>
+                <div class="settings-card" style="margin-bottom:16px;" id="financePerformanceExportAuditPanel">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title">绩效导出审计记录</h3>
+                    <button id="financePerformanceAuditReload" type="button">刷新审计记录</button>
+                  </div>
+                  <p class="ff-desc">仅显示当前商户与当前店铺的绩效 CSV 导出操作；记录包含操作人、导出时间、SLA 阈值和导出行数，不包含对账明细。</p>
+                  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:12px 0;">
+                    <label>操作人 ID <input id="financePerformanceAuditActor" type="number" min="1" step="1" placeholder="全部操作人"></label>
+                    <label>开始日期 <input id="financePerformanceAuditFrom" type="date"></label>
+                    <label>结束日期 <input id="financePerformanceAuditTo" type="date"></label>
+                  </div>
+                  <div id="financePerformanceExportAudit"><div class="empty-hint">—</div></div>
+                </div>
                 <h3 class="settings-card-title">财务异常处理队列</h3>
                     <button id="financeExceptionReload" type="button">刷新异常</button>
                   </div>
