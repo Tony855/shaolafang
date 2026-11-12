@@ -369,3 +369,47 @@ test('period report CSV export binds authenticated tenant despite spoofed query 
   assert.deepEqual({merchant_id:details.merchant_id,store_id:details.store_id,row_count:details.row_count,scope:details.scope},{merchant_id:4,store_id:9,row_count:1,scope:'financial_reconciliation_period_report'});
   assert.equal(audit.params.some(v=>[999,888,777,'999','888','777'].includes(v)),false);
 });
+
+
+test('period report rejects aggregate minor-unit totals above JavaScript safe integer precision', async () => {
+  const service = serviceWith(async () => [{
+    period_start: '2026-11-01', period_end: '2026-11-30', currency_code: 'USD',
+    batch_count: 2, statement_row_count: 4,
+    total_debit_minor: '9007199254740992', total_credit_minor: '9007199254740992',
+    matched_count: 4, pending_count: 0, unmatched_count: 0, ambiguous_count: 0, exception_count: 0
+  }]);
+  await assert.rejects(
+    service.getPeriodSummary({ merchantId: 4, storeId: 9, from: '2026-11-01', to: '2026-11-30', period: 'month' }),
+    error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE'
+  );
+});
+
+test('monthly close preview rejects aggregate minor-unit totals above JavaScript safe integer precision', async () => {
+  const service = serviceWith(async () => [{
+    currency_code: 'USD', batch_count: 2, statement_row_count: 4,
+    total_debit_minor: '9007199254740992', total_credit_minor: '9007199254740992',
+    closed_batch_count: 1, open_batch_count: 1, matched_count: 4,
+    pending_count: 0, unmatched_count: 0, ambiguous_count: 0, exception_count: 0, unresolved_count: 0
+  }]);
+  await assert.rejects(
+    service.getMonthlyClosePreview({ merchantId: 4, storeId: 9, month: '2026-11' }),
+    error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE'
+  );
+});
+
+test('report and month-close minor-unit totals preserve exact safe integer boundaries', async () => {
+  const exact = '9007199254740991';
+  const service = serviceWith(async () => [{
+    period_start: '2026-11-01', period_end: '2026-11-30', currency_code: 'USD',
+    batch_count: 1, statement_row_count: 1,
+    total_debit_minor: exact, total_credit_minor: exact,
+    matched_count: 1, pending_count: 0, unmatched_count: 0, ambiguous_count: 0, exception_count: 0,
+    closed_batch_count: 1, open_batch_count: 0, unresolved_count: 0
+  }]);
+  const report = await service.getPeriodSummary({
+    merchantId: 4, storeId: 9, from: '2026-11-01', to: '2026-11-30', period: 'month'
+  });
+  const close = await service.getMonthlyClosePreview({ merchantId: 4, storeId: 9, month: '2026-11' });
+  assert.equal(report.rows[0].totalDebitMinor, Number.MAX_SAFE_INTEGER);
+  assert.equal(close[0].totalDebitMinor, Number.MAX_SAFE_INTEGER);
+});
