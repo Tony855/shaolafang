@@ -5,6 +5,7 @@ const { createFinancialReconciliationService } = require('../server/services/fin
 const { createFinancialVoucherExportService } = require('../server/services/financial-voucher-export');
 const { createFinancialMonthCloseService } = require('../server/services/financial-month-close');
 const { lockOpenFinancialMonthPeriod } = require('../server/db/migrations/financial-month-close');
+const { buildExceptionPerformanceCsv } = require('../server/services/financial-exception-performance-export');
 
 function positiveRouteId(value) {
   const id = Number(value);
@@ -365,6 +366,33 @@ module.exports = function(app, deps) {
     } catch (error) {
       res.status(error.code === 'EXCEPTION_OPERATIONS_SLA_INVALID' ? 400 : 500)
         .json({ error: error.code ? '异常绩效统计参数无效' : '获取异常绩效统计失败' });
+    }
+  });
+
+  app.get('/api/admin/financial-reconciliation/exceptions/performance-export', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const slaHours = req.query.slaHours === undefined ? 24 : Number(req.query.slaHours);
+    if (!Number.isSafeInteger(slaHours) || slaHours < 1 || slaHours > 720) {
+      return res.status(400).json({ error: 'SLA 小时数必须为 1–720 的整数' });
+    }
+    try {
+      const actor = await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1', [context.actorId, context.merchantId]);
+      if (!actor) return res.status(403).json({ error: '财务审核账号无效或已停用' });
+      const summary = await service.getExceptionPerformanceSummary({ ...context, slaHours });
+      const csv = buildExceptionPerformanceCsv(summary);
+      const rowCount = Math.max(0, csv.split('\r\n').filter(Boolean).length - 1);
+      await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', context.actorId, actor.username, 'export_financial_exception_performance',
+          JSON.stringify({ merchant_id: context.merchantId, store_id: context.storeId, sla_hours: slaHours, row_count: rowCount, format: 'csv', scope: 'financial_exception_performance' }),
+          req.ip || '', new Date().toISOString()]);
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="financial-exception-performance.csv"');
+      res.status(200).send(csv);
+    } catch (error) {
+      res.status(error.code === 'EXCEPTION_OPERATIONS_SLA_INVALID' ? 400 : 500)
+        .json({ error: error.code ? '异常绩效导出参数无效' : '异常绩效导出失败' });
     }
   });
 
