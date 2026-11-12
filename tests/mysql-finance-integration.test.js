@@ -622,3 +622,126 @@ test('MySQL integration: journal CSV export returns only the authenticated merch
   assert.doesNotMatch(exported.csv, /TENANT_B|Other store secret|OTHER_STORE/,
     'journal export must not disclose another merchant or another store');
 });
+
+
+test('MySQL integration: reconciliation suggestions use only tenant/store-owned journal candidates', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const db = await connectTestDatabase();
+  const tables = [
+    'financial_journal_entries',
+    'financial_journal_transactions',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await db.connection.end();
+    }
+  });
+
+  for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    row_count INT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported'
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    row_no INT NOT NULL,
+    external_reference VARCHAR(191) NOT NULL,
+    transaction_reference VARCHAR(191) NOT NULL DEFAULT '',
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    occurred_at DATETIME(3) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    match_status VARCHAR(24) NOT NULL DEFAULT 'pending',
+    match_reason VARCHAR(100) DEFAULT NULL,
+    matched_journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    exception_note VARCHAR(255) DEFAULT NULL,
+    UNIQUE KEY unique_finance_match_test_row (batch_id,row_no)
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    source_id VARCHAR(128) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    created_by VARCHAR(100) NOT NULL DEFAULT '',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_entries (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    transaction_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    line_no INT NOT NULL,
+    account_code VARCHAR(64) NOT NULL,
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    memo VARCHAR(255) NOT NULL DEFAULT '',
+    UNIQUE KEY unique_finance_match_test_entry (transaction_id,line_no),
+    CONSTRAINT fk_finance_match_test_journal FOREIGN KEY (transaction_id)
+      REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+
+  const batchResult = await db.runAsync(
+    "INSERT INTO financial_reconciliation_batches (merchant_id,store_id,currency_code,row_count,status) VALUES (44,12,'USD',1,'imported')"
+  );
+  const batchId = Number(batchResult.insertId);
+  await db.runAsync(
+    `INSERT INTO financial_reconciliation_items
+      (batch_id,merchant_id,store_id,row_no,external_reference,transaction_reference,direction,amount_minor,currency_code,occurred_at,description)
+     VALUES (?,44,12,1,'bank-line-1','order-match-1','credit',12500,'USD','2026-11-12 10:00:00.000','Tenant A bank row')`,
+    [batchId]
+  );
+
+  const insertJournal = async (merchantId, storeId, sourceId, currencyCode, amountMinor) => {
+    const result = await db.runAsync(
+      `INSERT INTO financial_journal_transactions
+        (merchant_id,store_id,currency_code,source_type,source_id,idempotency_key,description)
+       VALUES (?, ?, ?, 'order_payment', ?, ?, 'integration candidate')`,
+      [merchantId, storeId, currencyCode, sourceId, 'match-test:' + merchantId + ':' + storeId + ':' + sourceId]
+    );
+    const id = Number(result.insertId);
+    await db.runAsync(
+      `INSERT INTO financial_journal_entries
+        (transaction_id,merchant_id,store_id,line_no,account_code,direction,amount_minor)
+       VALUES (?, ?, ?, 1, 'cash', 'debit', ?), (?, ?, ?, 2, 'sales', 'credit', ?)`,
+      [id, merchantId, storeId, amountMinor, id, merchantId, storeId, amountMinor]
+    );
+    return id;
+  };
+  const tenantACandidate = await insertJournal(44, 12, 'order-match-1', 'USD', 12500);
+  await insertJournal(45, 12, 'order-match-1', 'USD', 12500);
+  await insertJournal(44, 13, 'order-match-1', 'USD', 12500);
+  await insertJournal(44, 12, 'order-match-1', 'KHR', 12500);
+  await insertJournal(44, 12, 'unrelated-reference', 'USD', 12500);
+
+  const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
+  const reviewService = createFinancialReconciliationReviewService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync,
+    withTransaction: async work => work()
+  });
+  const result = await reviewService.listBatchReview({ merchantId: 44, storeId: 12, batchId });
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].suggestion.status, 'suggested');
+  assert.equal(result.items[0].suggestion.reason, 'exact_reference_amount_currency');
+  assert.equal(result.items[0].suggestion.journalTransactionId, tenantACandidate);
+  assert.equal(result.items[0].matchStatus, 'pending',
+    'suggestions must remain non-mutating until an authenticated reviewer confirms a match');
+});
