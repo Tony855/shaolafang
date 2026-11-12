@@ -63,10 +63,29 @@ test('SLA dismissal is tenant-scoped, idempotent and hash-chain audited without 
   assert.ok(!writes.some(x=>x.sql.includes("UPDATE financial_reconciliation_items")));
   await assert.rejects(service.dismissSlaAlert({merchantId:4,storeId:9,actorId:7,actorUsername:'finance',alertId:77,reason:'bad',idempotencyKey:'sla-alert-dismiss-0002'}),/5 to 500/);
 });
+
+test('SLA alert history is tenant-scoped and cursor-paginated',async()=>{
+  const {service,reads}=makeService({
+    getAsync:async(sql,params)=>{reads.push({sql,params});return {id:77};},
+    allAsync:async(sql,params)=>{reads.push({sql,params});return [{id:9,actor_admin_id:7,actor_username:'finance',action:'acknowledged',reason:'Reviewed and assigned',event_hash:'abc',previous_hash:'prev'}];}
+  });
+  const result=await service.listSlaAlertHistory({merchantId:4,storeId:9,alertId:77,limit:10});
+  assert.equal(result.items[0].eventId,9);assert.equal(result.items[0].eventHash,'abc');
+  assert.ok(reads.some(x=>x.sql.includes('alert_id=? AND merchant_id=? AND store_id=?')));
+  await assert.rejects(service.listSlaAlertHistory({merchantId:4,storeId:9,alertId:77,limit:101}),e=>e.code==='EXCEPTION_ALERT_PAGINATION_INVALID');
+});
+test('period summaries validate period and date range and group by currency without converting amounts',async()=>{
+  const {service,reads}=makeService({allAsync:async(sql,params)=>{reads.push({sql,params});return [{period_start:'2026-11-02',period_end:'2026-11-08',currency_code:'USD',batch_count:2,total_debit_minor:1200,matched_count:3}];}});
+  const result=await service.getPeriodSummary({merchantId:4,storeId:9,from:'2026-11-01',to:'2026-11-30',period:'week'});
+  assert.equal(result.rows[0].currencyCode,'USD');assert.equal(result.rows[0].totalDebitMinor,1200);
+  assert.ok(reads[0].sql.includes('b.merchant_id=? AND b.store_id=?'));assert.deepEqual(reads[0].params,[4,9,'2026-11-01 00:00:00','2026-12-01 00:00:00']);
+  await assert.rejects(service.getPeriodSummary({merchantId:4,storeId:9,from:'2026-01-01',to:'2026-12-31',period:'year'}),e=>e.code==='REVIEW_PERIOD_INVALID');
+});
 test('SLA alert routes enforce tenant context, thresholds and no-store reads',async()=>{
   const routes=new Map(),app={get(p,...h){routes.set('GET '+p,h);},post(p,...h){routes.set('POST '+p,h);}};
   registerRoutes(app,{runAsync:async()=>({affectedRows:1,insertId:1}),getAsync:async(sql)=>sql.includes('SELECT username')?{username:'finance'}:null,allAsync:async()=>[],withTransaction:async work=>work(),requireAdminKey:(_q,_s,n)=>n(),requirePermission:()=> (_q,_s,n)=>n()});
   const response=()=>({statusCode:200,body:null,headers:{},status(c){this.statusCode=c;return this;},setHeader(k,v){this.headers[k]=v;},json(b){this.body=b;return this;}});
+  assert.ok(routes.get('GET /api/admin/financial-reconciliation/period-summary'));assert.ok(routes.get('GET /api/admin/financial-reconciliation/exceptions/alerts/:alertId/history'));
   const generate=routes.get('POST /api/admin/financial-reconciliation/exceptions/alerts/generate').at(-1);
   const denied=response();await generate({merchantId:4,storeId:null,adminId:7,body:{}},denied);assert.equal(denied.statusCode,403);
   const invalid=response();await generate({merchantId:4,storeId:9,adminId:7,body:{slaHours:721}},invalid);assert.equal(invalid.statusCode,400);
@@ -78,7 +97,7 @@ test('alert inbox and report presets are wired through HTML, source and bundle',
   const source=fs.readFileSync(path.join(root,'pages/admin/financial-reconciliation.js'),'utf8');
   const bundle=fs.readFileSync(path.join(root,'assets/admin-bundle.js'),'utf8');
   const html=fs.readFileSync(path.join(root,'admin.html'),'utf8');
-  for(const id of ['financeSlaAlertList','financeSlaAlertGenerate','financeSlaAlertReload','financeReportLast7','financeReportLast30','financeReportThisMonth'])assert.ok(html.includes('id="'+id+'"'));
-  assert.ok(source.includes('/exceptions/alerts?status=pending'));
+  for(const id of ['financeSlaAlertList','financeSlaAlertGenerate','financeSlaAlertReload','financeSlaAlertStatus','financeReportLast7','financeReportLast30','financeReportThisMonth','financePeriodReport'])assert.ok(html.includes('id="'+id+'"'));
+  assert.ok(source.includes('/exceptions/alerts?status=')&&source.includes('loadSlaAlertHistory')&&source.includes('loadPeriodSummary'));
   assert.ok(bundle.includes(source.trimEnd()));
 });

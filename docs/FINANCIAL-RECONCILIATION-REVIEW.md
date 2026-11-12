@@ -115,3 +115,10 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - Dismissal requires a 5–500 character reason and a 16–128 character idempotency key (body field or `Idempotency-Key` header).
 - The operation is scoped to the active merchant/store, locks the alert row, rejects non-pending alerts, and appends a hash-linked `dismissed` event in the same transaction.
 - Dismissing an alert does not resolve, close, reclassify, or otherwise mutate its underlying reconciliation exception. External notifications remain disabled.
+
+### SLA alert audit history and period reports
+
+- The alert inbox can filter pending, acknowledged, dismissed, or all alerts. Each alert exposes a tenant/store-scoped, cursor-paginated audit history with actor, action, reason, timestamp, and event hash.
+- Weekly and monthly summaries aggregate statement batches by period and currency, retaining amounts in their original currency minor units. No cross-currency conversion or financial posting is performed.
+- Period summaries accept a maximum 366-day date range and are available through `GET /api/admin/financial-reconciliation/period-summary?period=week|month&from=YYYY-MM-DD&to=YYYY-MM-DD`.
+- Alert history is available through `GET /api/admin/financial-reconciliation/exceptions/alerts/:alertId/history`. Both endpoints are finance-authenticated, tenant/store scoped, and non-cacheable.

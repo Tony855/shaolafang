@@ -2365,13 +2365,13 @@ window.doAdvancedExport = doAdvancedExport;
       const actions=item.status==='pending'
         ? '<button type="button" data-sla-alert-ack="'+Number(item.alertId)+'">确认已知悉</button> <button type="button" data-sla-alert-dismiss="'+Number(item.alertId)+'">关闭提醒</button>'
         : '<span style="font-size:12px;color:#aaa;">'+esc(item.status)+'</span>';
-      return '<article style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><strong>异常 #'+Number(item.itemId)+' · '+esc(item.category||'未分类')+'</strong><span>'+formatAge(item.ageSeconds)+' / SLA '+Number(item.slaHours)+'h</span></div><div style="font-size:12px;color:#aaa;margin:5px 0;">'+esc(item.externalReference||'无外部流水号')+' · '+esc(item.assignedAdminUsername||'未分配')+' · '+moneyMinor(item.amountMinor,item.currencyCode)+'</div>'+actions+'</article>';
+      return '<article style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><strong>异常 #'+Number(item.itemId)+' · '+esc(item.category||'未分类')+'</strong><span>'+esc(item.status)+' · '+formatAge(item.ageSeconds)+' / SLA '+Number(item.slaHours)+'h</span></div><div style="font-size:12px;color:#aaa;margin:5px 0;">'+esc(item.externalReference||'无外部流水号')+' · '+esc(item.assignedAdminUsername||'未分配')+' · '+moneyMinor(item.amountMinor,item.currencyCode)+'</div>'+actions+' <button type="button" data-sla-alert-history="'+Number(item.alertId)+'">查看审计历史</button><div id="financeSlaAlertHistory-'+Number(item.alertId)+'" hidden style="margin-top:8px;"></div></article>';
     }).join('');
   }
   async function loadSlaAlerts() {
     if(!requirePermission())return;
     const target=$('#financeSlaAlertList');if(target)target.innerHTML='<div class="empty-hint">加载中…</div>';
-    try{const data=await api('/admin/financial-reconciliation/exceptions/alerts?status=pending&limit=50');renderSlaAlerts(Array.isArray(data.items)?data.items:[]);}
+    try{const status=$('#financeSlaAlertStatus')?.value||'pending';const data=await api('/admin/financial-reconciliation/exceptions/alerts?status='+encodeURIComponent(status)+'&limit=50');renderSlaAlerts(Array.isArray(data.items)?data.items:[]);}
     catch(error){if(target)target.innerHTML='<div class="empty-hint">提醒加载失败</div>';toast('❌ '+(error.message||'提醒加载失败'));}
   }
   async function generateSlaAlerts() {
@@ -2409,6 +2409,24 @@ window.doAdvancedExport = doAdvancedExport;
     else if(kind==='calendar-month')from.setDate(1);
     const fromInput=$('#financeReportFrom'),toInput=$('#financeReportTo');
     if(fromInput)fromInput.value=dateValue(from);if(toInput)toInput.value=to;loadDailySummary(false);
+  }
+
+  async function loadSlaAlertHistory(alertId) {
+    const target=$('#financeSlaAlertHistory-'+Number(alertId));if(!target)return;
+    if(!target.hidden){target.hidden=true;return;}
+    target.hidden=false;target.innerHTML='<div class="empty-hint">加载审计历史…</div>';
+    try{const data=await api('/admin/financial-reconciliation/exceptions/alerts/'+Number(alertId)+'/history?limit=50');const rows=Array.isArray(data.items)?data.items:[];
+      target.innerHTML=rows.length?rows.map(row=>'<div style="padding:8px 0;border-top:1px solid rgba(255,255,255,.08);"><strong>'+esc(row.action)+'</strong> · '+esc(row.actorUsername)+' · '+esc(row.createdAt||'')+'<div style="font-size:12px;color:#aaa;">'+esc(row.reason)+'</div><div style="font-size:11px;color:#888;word-break:break-all;">Hash: '+esc(row.eventHash)+'</div></div>').join(''):'<div class="empty-hint">暂无审计事件</div>';
+    }catch(error){target.innerHTML='<div class="empty-hint">审计历史加载失败</div>';toast('❌ '+(error.message||'审计历史加载失败'));}
+  }
+  async function loadPeriodSummary(period,exportCsv=false) {
+    if(!requirePermission())return;const from=$('#financeReportFrom')?.value,to=$('#financeReportTo')?.value,target=$('#financePeriodReport');
+    if(!from||!to){toast('请先选择开始和结束日期');return;}if(target)target.innerHTML='<div class="empty-hint">加载周期报表…</div>';
+    try{const data=await api('/admin/financial-reconciliation/period-summary?period='+encodeURIComponent(period)+'&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));
+      const rows=Array.isArray(data.rows)?data.rows:[],columns=['periodStart','periodEnd','currencyCode','batchCount','statementRowCount','totalDebitMinor','totalCreditMinor','matchedCount','pendingCount','unmatchedCount','ambiguousCount','exceptionCount'];
+      if(target)target.innerHTML=rows.length?'<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>'+columns.map(k=>'<th style="text-align:left;padding:8px;border-bottom:1px solid #555;">'+esc(k)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+columns.map(k=>'<td style="padding:8px;border-bottom:1px solid rgba(255,255,255,.08);">'+esc(row[k]??'')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>':'<div class="empty-hint">所选周期暂无对账数据</div>';
+      if(exportCsv&&rows.length){const csv=[columns.join(','),...rows.map(row=>columns.map(k=>{const v=String(row[k]??'');return '"'+v.replace(/"/g,'""')+'"';}).join(','))].join('\r\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='financial-reconciliation-'+period+'-summary.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);}
+    }catch(error){if(target)target.innerHTML='<div class="empty-hint">周期报表加载失败</div>';toast('❌ '+(error.message||'周期报表加载失败'));}
   }
   function exceptionStatusLabel(status) {
     const labels = {
@@ -2748,6 +2766,8 @@ window.doAdvancedExport = doAdvancedExport;
       }
       const exceptionButton = event.target.closest('[data-exception-action]');
       if (exceptionButton) { submitExceptionAction(exceptionButton); return; }
+      const alertHistory=event.target.closest('[data-sla-alert-history]');if(alertHistory){loadSlaAlertHistory(Number(alertHistory.dataset.slaAlertHistory));return;}
+      const periodButton=event.target.closest('[data-finance-period]');if(periodButton){loadPeriodSummary(periodButton.dataset.financePeriod,true);return;}
       const alertAck=event.target.closest('[data-sla-alert-ack]');
       if(alertAck){acknowledgeSlaAlert(alertAck);return;}
       const alertDismiss=event.target.closest('[data-sla-alert-dismiss]');
@@ -2765,6 +2785,7 @@ window.doAdvancedExport = doAdvancedExport;
     $('#financeExceptionOpsReload').addEventListener('click', loadExceptionOperations);
     $('#financeSlaAlertGenerate').addEventListener('click',generateSlaAlerts);
     $('#financeSlaAlertReload').addEventListener('click',loadSlaAlerts);
+    $('#financeSlaAlertStatus')?.addEventListener('change',loadSlaAlerts);
     $('#financeReportLast7').addEventListener('click',()=>setReportRange('week'));
     $('#financeReportLast30').addEventListener('click',()=>setReportRange('month'));
     $('#financeReportThisMonth').addEventListener('click',()=>setReportRange('calendar-month'));
