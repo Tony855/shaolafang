@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (authenticated foreign-resource ID tests merged; MySQL migration/locking integration gate under review)
+Last reviewed: 2026-11-12 (PR #177 merged; month-close schema and row-lock checks now run against MySQL 8.4)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -19,15 +19,16 @@ This tracker records merged delivery separately from work that is still under re
 | Finance authorization hardening | All finance routes require admin authentication and finance permission; inactive/expired admin sessions and inactive merchants are rejected | PR #163, #164, #170 merged |
 | Reporting and pagination safeguards | Currency-preserving minor-unit totals, bounded date ranges, and 2,500-row cursor pagination correctness | PR #165 / #166 merged |
 | Month-close lifecycle acceptance | Readiness failure rollback, retry after reconciliation completion, maker-checker approval, and linked audit hashes | PR #168 merged as `450436e` |
+| Month-close MySQL integration | Real MySQL 8.4 schema creation, merchant-scoped period uniqueness, idempotency uniqueness, and `SELECT ... FOR UPDATE` lock behavior | PR #177 merged as `702b9d72` |
 
 ## Under review
 
-- **Review mutation and audit query hardening:** PR #174 merged. Duplicate journal-assignment lookup, reconciliation review audit-chain head, SLA alert idempotency replay lookup, and SLA alert audit-chain head lookups explicitly bind merchant/store scope. Regression coverage includes a foreign-tenant statement row referencing the same journal ID and SQL/parameter assertions for review and SLA audit queries.
-- **Cross-tenant route rejection matrix:** PR #172 is merged; every registered finance endpoint rejects request-supplied merchant/store/admin IDs when authenticated tenant context is absent. PR #176 is merged; valid-session foreign object-ID probes cover reconciliation review and SLA alert acknowledgement/dismissal, including no financial/audit writes for foreign IDs. Other mutation/export surfaces still need explicit object-ID tests.
+- **Authenticated foreign-resource probes:** PR #176 merged; valid-session cross-tenant ID probes cover review-item actions and SLA alert acknowledge/dismiss. Other mutation/export surfaces still need explicit object-ID tests.
+- **MySQL exception/SLA integration:** current batch adds live MySQL schema, foreign-key, tenant-separated workflow event, and idempotency-constraint tests for exception cases and SLA alerts.
 
 ## Remaining engineering acceptance work
 
-1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #168 adds a readiness-failure/retry/second-approver month-close lifecycle test with linked audit hashes. A focused real-MySQL month-close migration/tenant uniqueness/idempotency/row-lock test is being added in the current PR; a single database-backed full-flow scenario across all services remains outstanding.
+1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. Month-close migration/locking and exception/SLA schema/constraint slices are database-backed; a single database-backed full-flow scenario across all services remains outstanding.
 2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172 merged); representative authenticated read-query scoping is covered (PR #173 merged); review mutation and audit query scoping is covered by PR #174; valid-session foreign resource-ID probes for review and SLA alert actions are covered by PR #176. Still verify foreign-resource denial for remaining mutation/export routes, including assigned-admin ownership.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** inspect all financial paths for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
@@ -43,15 +44,9 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Latest batch status
 
-- Main head at batch start: `e4e5f69ff7ba47566f0b3710d0ada6658b487db9` (PR #173 merged).
-- PR #172 merged: route-wide missing-authenticated-context tenant rejection matrix (`638bcbbe`).
-- PR #173 merged: authenticated tenant query scoping for representative read surfaces (`e4e5f69`). All five PR-head checks passed.
-- PR #174 merged: review mutation duplicate-assignment and review/SLA audit-chain and idempotency queries scoped to merchant/store (`52f2d7f6`). All five PR-head checks passed.
 - PR #176 merged: valid-session foreign resource-ID probing for review items and SLA alert acknowledge/dismiss (`e19cd0c5`). All five PR-head checks passed.
-- Current PR: add a dedicated MySQL 8.4 CI service and real-database tests for month-close schema creation, tenant-specific periods, per-period idempotency uniqueness, and `FOR UPDATE` lock behavior.
-- CI and installer compatibility for PR #173: Debian 13, Debian 12, Ubuntu 24.04, Ubuntu 22.04, validate — 5/5 passed.
-- CI and installer compatibility for PR #174: Debian 13, Debian 12, Ubuntu 24.04, Ubuntu 22.04, validate — 5/5 passed.
-- CI and installer compatibility for PR #176: Debian 13, Debian 12, Ubuntu 24.04, Ubuntu 22.04, validate — 5/5 passed.
+- PR #177 merged: dedicated MySQL 8.4 integration job for month-close migration, tenant-specific periods, per-period idempotency uniqueness, and row-lock behavior (`702b9d72`). All six PR-head checks passed.
+- Current PR: real MySQL 8.4 coverage for exception workflow and SLA alert schemas, foreign keys, tenant-separated audit events, and idempotency uniqueness.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
