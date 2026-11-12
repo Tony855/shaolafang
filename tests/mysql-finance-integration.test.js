@@ -116,11 +116,14 @@ test('MySQL integration: month-close migration, tenant uniqueness, idempotency a
   }
 
   await connection.beginTransaction();
-  await assert.rejects(lockOpenFinancialMonthPeriod({
-    runAsync, getAsync, merchantId: 4, storeId: 9,
-    periodMonth: '2026-11', currencyCode: 'USD'
-  }), error => error.code === 'FINANCIAL_MONTH_LOCKED');
-  await connection.rollback();
+  try {
+    await assert.rejects(lockOpenFinancialMonthPeriod({
+      runAsync, getAsync, merchantId: 4, storeId: 9,
+      periodMonth: '2026-11', currencyCode: 'USD'
+    }), error => error.code === 'FINANCIAL_MONTH_LOCKED');
+  } finally {
+    await connection.rollback();
+  }
 
   const [events] = await connection.query(
     'SELECT merchant_id,store_id,idempotency_key FROM financial_month_close_events ORDER BY id'
