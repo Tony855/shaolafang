@@ -291,6 +291,14 @@
                   <div id="financeReviewRows"></div>
                   <button id="financeRowsMore" type="button" hidden data-i18n="financeLoadMore">加载更多</button>
                 </div>
+                <div class="settings-card" style="margin-bottom:16px;" id="financeSlaAlertPanel">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title">SLA 提醒收件箱</h3>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button id="financeSlaAlertGenerate" type="button">生成超时提醒</button><button id="financeSlaAlertReload" type="button">刷新提醒</button></div>
+                  </div>
+                  <p class="ff-desc">按商户、门店、异常项目和 SLA 阈值去重；确认操作写入不可变审计事件。当前为站内提醒，不会向外部平台发送消息。</p>
+                  <div id="financeSlaAlertList"><div class="empty-hint">—</div></div>
+                </div>
                 <div class="settings-card" style="margin-bottom:16px;" id="financeExceptionOperations">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                     <h3 class="settings-card-title">异常运营监控</h3><button id="financeExceptionOpsReload" type="button">刷新监控</button>
@@ -359,6 +367,9 @@
                     <label><span data-i18n="financeFrom">开始日期</span><input type="date" id="financeReportFrom"></label>
                     <label><span data-i18n="financeTo">结束日期</span><input type="date" id="financeReportTo"></label>
                     <button id="financeReportRun" type="button" data-i18n="financeQuery">查询</button>
+                    <button id="financeReportLast7" type="button">最近 7 天</button>
+                    <button id="financeReportLast30" type="button">最近 30 天</button>
+                    <button id="financeReportThisMonth" type="button">本月</button>
                   </div>
                   <div id="financeDailyReport"></div>
                 </div>
@@ -965,8 +976,8 @@
     </div>
 </div>
 
-<script src="assets/admin-bundle.js?v=1794473000"></script>
-<script src="pages/admin.js?v=1794473000"></script>
+<script src="assets/admin-bundle.js?v=1794474001"></script>
+<script src="pages/admin.js?v=1794474001"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {
