@@ -216,3 +216,63 @@ test('month-close transition uses authenticated tenant and actor context, ignori
   assert.equal(reads.some(entry => entry.params.some(value => [999, 888, 777, '999', '888', '777'].includes(value))), false,
     'attacker-controlled tenant and actor IDs must not enter SQL parameters');
 });
+
+
+test('journal CSV export ignores spoofed tenant IDs and writes an authenticated tenant audit record', async () => {
+  const reads = [];
+  const queries = [];
+  const writes = [];
+  const routes = register({
+    getAsync: async (sql, params = []) => {
+      reads.push({ sql, params });
+      if (sql.includes('SELECT username FROM merchant_admins')) return { username: 'tenant-a-finance' };
+      return null;
+    },
+    allAsync: async (sql, params = []) => {
+      queries.push({ sql, params });
+      return [{
+        journalTransactionId: 501, createdAt: '2026-11-12 10:00:00',
+        currencyCode: 'USD', sourceType: 'order', sourceId: 7001,
+        description: 'Tenant A settlement', createdBy: 'system',
+        lineNo: 1, accountCode: 'CASH', direction: 'debit',
+        amountMinor: 12500, memo: 'daily settlement'
+      }];
+    },
+    runAsync: async (sql, params = []) => {
+      writes.push({ sql, params });
+      return { insertId: 81, affectedRows: 1 };
+    }
+  });
+
+  const handler = routes.get('GET /api/admin/financial-reconciliation/journal-export').at(-1);
+  const res = response();
+  await handler({
+    merchantId: 4, storeId: 9, adminId: 7,
+    query: { merchantId: '999', storeId: '888', adminId: '777', from: '2026-11-12', to: '2026-11-12' },
+    params: {}, body: {}, ip: '192.0.2.10'
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.match(res.headers['Content-Type'], /text\/csv/);
+  assert.equal(res.headers['Cache-Control'], 'no-store, private');
+  assert.match(res.body, /Tenant A settlement/);
+
+  const actorLookup = reads.find(entry => entry.sql.includes('SELECT username FROM merchant_admins'));
+  assert.deepEqual(actorLookup.params, [7, 4]);
+  assert.equal(queries.length, 1);
+  assert.match(queries[0].sql, /WHERE j\.merchant_id=\? AND j\.store_id=\?/);
+  assert.match(queries[0].sql, /e\.merchant_id=\? AND e\.store_id=\?/);
+  assert.deepEqual(queries[0].params.slice(0, 4), [4, 9, 4, 9]);
+  assert.equal(queries[0].params.some(value => [999, 888, 777, '999', '888', '777'].includes(value)), false);
+
+  const audit = writes.find(entry => entry.sql.includes('INSERT INTO audit_logs'));
+  assert.ok(audit, 'export must persist an audit record before returning the CSV');
+  assert.deepEqual(audit.params.slice(0, 3), ['merchant_admin', 7, 'tenant-a-finance']);
+  assert.equal(audit.params[3], 'export_financial_journal');
+  const details = JSON.parse(audit.params[4]);
+  assert.deepEqual(
+    { merchant_id: details.merchant_id, store_id: details.store_id, row_count: details.row_count, scope: details.scope },
+    { merchant_id: 4, store_id: 9, row_count: 1, scope: 'financial_journal' }
+  );
+  assert.equal(audit.params.some(value => [999, 888, 777, '999', '888', '777'].includes(value)), false);
+});
