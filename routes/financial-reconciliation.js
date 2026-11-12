@@ -3,6 +3,8 @@
 const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
 const { createFinancialReconciliationService } = require('../server/services/financial-reconciliation');
 const { createFinancialVoucherExportService } = require('../server/services/financial-voucher-export');
+const { createFinancialMonthCloseService } = require('../server/services/financial-month-close');
+const { lockOpenFinancialMonthPeriod } = require('../server/db/migrations/financial-month-close');
 
 function positiveRouteId(value) {
   const id = Number(value);
@@ -11,9 +13,42 @@ function positiveRouteId(value) {
 
 module.exports = function(app, deps) {
   const { runAsync, getAsync, allAsync, withTransaction, requireAdminKey, requirePermission } = deps;
-  const service = createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction });
-  const importService = createFinancialReconciliationService({ runAsync, getAsync, withTransaction });
+  const lockImportMonth = async ({ merchantId, storeId, currencyCode, providerCode, externalBatchId }) => {
+    const existingBatch = await getAsync(
+      "SELECT DATE_FORMAT(imported_at, '%Y-%m') AS period_month FROM financial_reconciliation_batches WHERE merchant_id=? AND store_id=? AND provider_code=? AND external_batch_id=?",
+      [merchantId, storeId, providerCode, externalBatchId]
+    );
+    const currentMonth = existingBatch ? existingBatch : await getAsync(
+      "SELECT DATE_FORMAT(CURRENT_TIMESTAMP(3), '%Y-%m') AS period_month"
+    );
+    return lockOpenFinancialMonthPeriod({
+      runAsync, getAsync, merchantId, storeId,
+      periodMonth: currentMonth?.period_month, currencyCode
+    });
+  };
+  const lockReviewMonth = async ({ merchantId, storeId, batchId }) => {
+    const batchScope = await getAsync(
+      "SELECT id, currency_code, DATE_FORMAT(imported_at, '%Y-%m') AS period_month FROM financial_reconciliation_batches WHERE id=? AND merchant_id=? AND store_id=?",
+      [batchId, merchantId, storeId]
+    );
+    if (!batchScope) {
+      const error = new Error('reconciliation batch not found');
+      error.code = 'REVIEW_NOT_FOUND';
+      throw error;
+    }
+    return lockOpenFinancialMonthPeriod({
+      runAsync, getAsync, merchantId, storeId,
+      periodMonth: batchScope.period_month, currencyCode: batchScope.currency_code
+    });
+  };
+  const service = createFinancialReconciliationReviewService({
+    runAsync, getAsync, allAsync, withTransaction, lockFinancialMonthPeriod: lockReviewMonth
+  });
+  const importService = createFinancialReconciliationService({
+    runAsync, getAsync, withTransaction, lockFinancialMonthPeriod: lockImportMonth
+  });
   const voucherExportService = createFinancialVoucherExportService({ allAsync, withTransaction });
+  const monthCloseService = createFinancialMonthCloseService({ runAsync, getAsync, allAsync, withTransaction });
   const financeAuth = [requireAdminKey, requirePermission('can_manage_financial_reconciliation')];
 
   function tenantContext(req, res) {
@@ -38,7 +73,7 @@ module.exports = function(app, deps) {
       });
       res.status(result.replayed ? 200 : 201).json({ success: true, ...result });
     } catch (error) {
-      const status = error.code === 'RECONCILIATION_BATCH_CONFLICT' || error.code === 'RECONCILIATION_ROW_CONFLICT' ? 409 : 400;
+      const status = error.code === 'RECONCILIATION_BATCH_CONFLICT' || error.code === 'RECONCILIATION_ROW_CONFLICT' || error.code === 'FINANCIAL_MONTH_LOCKED' ? 409 : 400;
       res.status(status).json({ error: status === 409 ? '相同对账批次编号已对应不同内容' : '对账流水格式无效或导入失败' });
     }
   });
@@ -145,6 +180,70 @@ module.exports = function(app, deps) {
     }
   });
 
+  app.get('/api/admin/financial-reconciliation/month-close/period', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    try {
+      const period = await monthCloseService.getPeriod({
+        ...context, month: req.query.month, currencyCode: req.query.currencyCode
+      });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ period });
+    } catch (error) {
+      res.status(error.code === 'MONTH_CLOSE_MONTH_INVALID' || error.code === 'MONTH_CLOSE_CURRENCY_INVALID' ? 400 : 500)
+        .json({ error: error.code ? '月结期间查询参数无效' : '获取月结状态失败' });
+    }
+  });
+
+  app.get('/api/admin/financial-reconciliation/month-close/history', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    try {
+      const result = await monthCloseService.listHistory({
+        ...context, month: req.query.month, currencyCode: req.query.currencyCode,
+        limit: req.query.limit || 50, afterId: req.query.afterId || 0
+      });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json(result);
+    } catch (error) {
+      res.status(error.code === 'MONTH_CLOSE_PAGINATION_INVALID' || error.code === 'MONTH_CLOSE_MONTH_INVALID' ||
+        error.code === 'MONTH_CLOSE_CURRENCY_INVALID' ? 400 : 500)
+        .json({ error: '月结审批历史查询参数无效' });
+    }
+  });
+
+  app.post('/api/admin/financial-reconciliation/month-close/transition', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    try {
+      const actor = await getAsync(
+        'SELECT username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',
+        [context.actorId, context.merchantId]
+      );
+      if (!actor) return res.status(403).json({ error: '财务审核账号无效或已停用' });
+      const result = await monthCloseService.transition({
+        ...context, actorUsername: actor.username,
+        month: req.body?.month, currencyCode: req.body?.currencyCode,
+        action: req.body?.action, reason: req.body?.reason,
+        idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey
+      });
+      res.status(result.replayed ? 200 : 201).json({ success: true, ...result });
+    } catch (error) {
+      const status = ({
+        MONTH_CLOSE_NOT_READY: 409,
+        MONTH_CLOSE_STATE_CONFLICT: 409,
+        MONTH_CLOSE_IDEMPOTENCY_CONFLICT: 409,
+        MONTH_CLOSE_MAKER_CHECKER_REQUIRED: 403
+      })[error.code] || (error.code?.startsWith('MONTH_CLOSE_') ? 400 : 500);
+      res.status(status).json({
+        error: status >= 500 ? '月结审批操作失败，事务已回滚'
+          : error.code === 'MONTH_CLOSE_NOT_READY' ? '该月份仍有未完成对账项目，不能申请关账'
+            : error.code === 'MONTH_CLOSE_MAKER_CHECKER_REQUIRED' ? '申请人不能审批或拒绝自己的申请'
+              : error.message
+      });
+    }
+  });
+
   app.get('/api/admin/financial-reconciliation/monthly-close-preview', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;
@@ -193,7 +292,7 @@ module.exports = function(app, deps) {
       const status = ({
         REVIEW_NOT_FOUND: 404, REVIEW_BATCH_CLOSED: 409, REVIEW_STATE_CONFLICT: 409,
         REVIEW_DUPLICATE_ASSIGNMENT: 409, REVIEW_IDEMPOTENCY_CONFLICT: 409,
-        REVIEW_JOURNAL_NOT_FOUND: 404, REVIEW_JOURNAL_MISMATCH: 409
+        REVIEW_JOURNAL_NOT_FOUND: 404, REVIEW_JOURNAL_MISMATCH: 409, FINANCIAL_MONTH_LOCKED: 409
       })[error.code] || (error.code?.startsWith('REVIEW_') ? 400 : 500);
       res.status(status).json({ error: status >= 500 ? '财务审核操作失败，事务已回滚' : error.message });
     }

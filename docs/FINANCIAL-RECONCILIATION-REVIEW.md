@@ -26,6 +26,18 @@ All endpoints require an authenticated merchant administrator with the dedicated
 
 Closed batches are immutable. This phase does not automatically close batches, post journal entries, change orders, confirm provider payments, or mutate refund balances.
 
+## Monthly close approval and period lock
+
+- `GET /api/admin/financial-reconciliation/month-close/period?month=YYYY-MM&currencyCode=USD` reads the tenant/store-scoped close state.
+- `GET /api/admin/financial-reconciliation/month-close/history?month=YYYY-MM&currencyCode=USD&limit=50&afterId=0` returns the append-only approval history.
+- `POST /api/admin/financial-reconciliation/month-close/transition` accepts `request_close`, `approve_close`, `reject_close`, `request_reopen`, `approve_reopen`, or `reject_reopen`. Every mutation requires a 5–500 character reason and a unique `Idempotency-Key`.
+- A close request is accepted only when at least one batch exists for the imported month/currency and every statement row is matched. A second, different administrator must approve or reject the request; the requester cannot approve their own request.
+- Approval moves the period to `locked`. Reopening also requires a request and approval by a different administrator. Rejecting a reopen leaves the period locked.
+- New statement imports and manual reconciliation reviews acquire the same period row lock and are rejected while close approval is pending or the period is locked. Reopening approval returns the period to `open`.
+- Period scope uses the existing batch `imported_at` month and stored currency code. No currency conversion, account mapping, journal posting, order mutation, refund mutation, or batch status rewrite is performed.
+- Migration creates two new InnoDB tables, verifies required columns and unique indexes, and fails closed on incomplete schemas or duplicate legacy keys. Existing journal, order, refund, and reconciliation rows are not rewritten.
+- Approval events are append-only in the application service: state changes update only the period row and insert a new hash-linked event. Do not grant the application database user UPDATE/DELETE on `financial_month_close_events` where the deployment permission model allows restricted grants.
+
 ## Provider-neutral journal detail export
 
 - `GET /api/admin/financial-reconciliation/journal-export?from=YYYY-MM-DD&to=YYYY-MM-DD` exports existing journal transaction headers and debit/credit lines as CSV for the authenticated merchant and active store.
