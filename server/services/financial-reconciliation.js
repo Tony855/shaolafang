@@ -75,7 +75,7 @@ function normalizeBatch(input) {
   });
 }
 
-function createFinancialReconciliationService({ runAsync, getAsync, withTransaction }) {
+function createFinancialReconciliationService({ runAsync, getAsync, withTransaction, lockFinancialMonthPeriod }) {
   for (const [name, fn] of Object.entries({ runAsync, getAsync, withTransaction })) {
     if (typeof fn !== 'function') throw new TypeError(name + ' dependency is required');
   }
@@ -83,6 +83,12 @@ function createFinancialReconciliationService({ runAsync, getAsync, withTransact
   async function importStatementBatch(input) {
     const batch = normalizeBatch(input);
     return withTransaction(async () => {
+      if (typeof lockFinancialMonthPeriod === 'function') {
+        await lockFinancialMonthPeriod({
+          merchantId: batch.merchantId, storeId: batch.storeId, currencyCode: batch.currencyCode,
+          providerCode: batch.providerCode, externalBatchId: batch.externalBatchId
+        });
+      }
       await runAsync(
         `INSERT INTO financial_reconciliation_batches
           (merchant_id, store_id, provider_code, external_batch_id, statement_sha256,

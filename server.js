@@ -6,6 +6,7 @@ const { runAsync, getAsync, allAsync, withTransaction } = require('./server/db/h
 const { createLoginRateLimiter } = require('./server/services/login-rate-limit');
 const { createScanSessionRateLimiter } = require('./server/services/scan-session-rate-limit');
 const { migrateSessionTokenStorage } = require('./server/services/session-token');
+const { ensureFinancialMonthCloseSchema } = require('./server/db/migrations/financial-month-close');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
@@ -854,6 +855,8 @@ async function initDatabase() {
         REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  await ensureFinancialMonthCloseSchema({ runAsync, allAsync });
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS scan_sessions (

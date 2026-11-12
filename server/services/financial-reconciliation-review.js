@@ -66,7 +66,7 @@ function stableHash(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
-function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction }) {
+function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction, lockFinancialMonthPeriod }) {
   for (const [name, fn] of Object.entries({ runAsync, getAsync, allAsync, withTransaction })) {
     if (typeof fn !== 'function') throw new TypeError(name + ' dependency is required');
   }
@@ -175,6 +175,9 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
           return { eventId: Number(replay.id), itemId: Number(replay.item_id), action: replay.action, eventHash: replay.event_hash, replayed: true };
         }
 
+        if (typeof lockFinancialMonthPeriod === 'function') {
+          await lockFinancialMonthPeriod({ merchantId, storeId, batchId });
+        }
         const batch = await getAsync(
           'SELECT id, status FROM financial_reconciliation_batches WHERE id=? AND merchant_id=? AND store_id=? FOR UPDATE',
           [batchId, merchantId, storeId]
