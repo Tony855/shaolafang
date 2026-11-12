@@ -651,21 +651,27 @@
     if(/^[\\s\\u0000-\\u001f]*[=+@\\-]/.test(text))text="'"+text;
     return '"'+text.replace(/"/g,'""')+'"';
   }
-  function exportExceptionPerformance(data) {
-    const columns=['group','currencyCode','name','activeCount','overdueActiveCount','overdueRatePercent','resolvedEventCount','onTimeResolvedEventCount','onTimeResolutionRatePercent','avgImportToResolveSeconds'],rows=[];
-    (data.byCurrency||[]).forEach(r=>rows.push({group:'currency',currencyCode:r.currencyCode,name:'',...r}));
-    (data.byAssignee||[]).forEach(r=>rows.push({group:'assignee',currencyCode:r.currencyCode,name:r.username||'unassigned',...r}));
-    (data.byCategory||[]).forEach(r=>rows.push({group:'category',currencyCode:r.currencyCode,name:r.category,...r}));
-    if(!rows.length){toast('暂无可导出的绩效数据');return;}
-    const csv=[columns.join(','),...rows.map(row=>columns.map(key=>csvCell(row[key])).join(','))].join('\\r\\n');
-    const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
-    link.href=url;link.download='financial-exception-performance.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+  async function exportExceptionPerformance(slaHours) {
+    const csv = await api('/admin/financial-reconciliation/exceptions/performance-export?slaHours=' + encodeURIComponent(String(slaHours)));
+    if (typeof csv !== 'string' || !csv.startsWith('\uFEFF')) {
+      throw new Error('服务端导出响应格式无效');
+    }
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'financial-exception-performance.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
+
   async function loadExceptionPerformance(exportCsv=false) {
     if(!requirePermission())return;
     const target=$('#financeExceptionPerformanceSummary');if(target)target.innerHTML='<div class="empty-hint">正在加载异常绩效…</div>';
     const raw=Number($('#financeExceptionSlaHours')?.value||24),slaHours=Number.isSafeInteger(raw)&&raw>=1&&raw<=720?raw:24;
-    try{const data=await api('/admin/financial-reconciliation/exceptions/performance-summary?slaHours='+encodeURIComponent(String(slaHours)));renderExceptionPerformance(data);if(exportCsv)exportExceptionPerformance(data);}
+    try{const data=await api('/admin/financial-reconciliation/exceptions/performance-summary?slaHours='+encodeURIComponent(String(slaHours)));renderExceptionPerformance(data);if(exportCsv)await exportExceptionPerformance(slaHours);}
     catch(error){if(target)target.innerHTML='<div class="empty-hint">异常绩效加载失败</div>';toast('❌ '+(error.message||'异常绩效加载失败'));}
   }
 
