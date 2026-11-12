@@ -25,15 +25,15 @@ test('MySQL integration: month-close migration, tenant uniqueness, idempotency a
   });
 
   const runAsync = async (sql, params = []) => {
-    const [result] = await connection.execute(sql, params);
+    const [result] = await connection.query(sql, params);
     return result;
   };
   const getAsync = async (sql, params = []) => {
-    const [rows] = await connection.execute(sql, params);
+    const [rows] = await connection.query(sql, params);
     return rows[0] || null;
   };
   const allAsync = async (sql, params = []) => {
-    const [rows] = await connection.execute(sql, params);
+    const [rows] = await connection.query(sql, params);
     return rows;
   };
 
@@ -116,17 +116,11 @@ test('MySQL integration: month-close migration, tenant uniqueness, idempotency a
   }
 
   await connection.beginTransaction();
-  try {
-    await assert.rejects(lockOpenFinancialMonthPeriod({
-      runAsync, getAsync, merchantId: 4, storeId: 9,
-      periodMonth: '2026-11', currencyCode: 'USD'
-    }), error => error.code === 'FINANCIAL_MONTH_LOCKED');
-    await connection.rollback();
-  } catch (error) {
-    if (connection.connection?._closing) throw error;
-    await connection.rollback();
-    throw error;
-  }
+  await assert.rejects(lockOpenFinancialMonthPeriod({
+    runAsync, getAsync, merchantId: 4, storeId: 9,
+    periodMonth: '2026-11', currencyCode: 'USD'
+  }), error => error.code === 'FINANCIAL_MONTH_LOCKED');
+  await connection.rollback();
 
   const [events] = await connection.query(
     'SELECT merchant_id,store_id,idempotency_key FROM financial_month_close_events ORDER BY id'
