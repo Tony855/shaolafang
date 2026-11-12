@@ -244,3 +244,109 @@ test('MySQL integration: exception workflow and SLA alert schemas enforce foreig
   assert.deepEqual(alerts.map(row => Number(row.merchant_id)), [4, 5]);
   assert.ok(alerts.every(row => row.status === 'pending'));
 });
+
+
+test('MySQL integration: statement import is idempotent and rolls back conflicting row replays', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const { connection, runAsync, getAsync, allAsync } = await connectTestDatabase();
+  t.after(async () => {
+    try {
+      await connection.query('DROP TABLE IF EXISTS financial_reconciliation_items');
+      await connection.query('DROP TABLE IF EXISTS financial_reconciliation_batches');
+    } finally {
+      await connection.end();
+    }
+  });
+
+  await connection.query('DROP TABLE IF EXISTS financial_reconciliation_items');
+  await connection.query('DROP TABLE IF EXISTS financial_reconciliation_batches');
+  await runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    provider_code VARCHAR(40) NOT NULL,
+    external_batch_id VARCHAR(191) NOT NULL,
+    statement_sha256 CHAR(64) NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    row_count INT NOT NULL,
+    total_debit_minor BIGINT NOT NULL,
+    total_credit_minor BIGINT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported',
+    imported_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_financial_statement_batch (merchant_id,store_id,provider_code,external_batch_id)
+  ) ENGINE=InnoDB`);
+  await runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    row_no INT NOT NULL,
+    external_reference VARCHAR(191) NOT NULL,
+    transaction_reference VARCHAR(191) NOT NULL DEFAULT '',
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    occurred_at DATETIME(3) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    row_sha256 CHAR(64) NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'pending',
+    UNIQUE KEY unique_financial_statement_row (batch_id,row_no),
+    CONSTRAINT fk_finance_import_test_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+
+  const { createFinancialReconciliationService } = require('../server/services/financial-reconciliation');
+  const withTransaction = async work => {
+    await connection.beginTransaction();
+    try {
+      const result = await work();
+      await connection.commit();
+      return result;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    }
+  };
+  const service = createFinancialReconciliationService({ runAsync, getAsync, withTransaction });
+  const input = {
+    merchantId: 4, storeId: 9, providerCode: 'ABA_PAYWAY',
+    externalBatchId: 'mysql-import-rollback-001', statementSha256: 'a'.repeat(64),
+    currencyCode: 'USD',
+    rows: [
+      { externalReference: 'line-1', transactionReference: 'order-1', direction: 'credit',
+        amountMinor: 1200, occurredAt: '2026-11-11T02:00:00.000Z', description: 'settlement' },
+      { externalReference: 'line-2', transactionReference: 'refund-2', direction: 'debit',
+        amountMinor: 200, occurredAt: '2026-11-11T02:01:00.000Z', description: 'refund' }
+    ]
+  };
+
+  const first = await service.importStatementBatch(input);
+  assert.equal(first.importedRows, 2);
+  assert.equal(first.replayed, false);
+  const replay = await service.importStatementBatch(input);
+  assert.equal(replay.batchId, first.batchId);
+  assert.equal(replay.replayed, true);
+
+  const changedRowReplay = {
+    ...input,
+    rows: input.rows.map((row, index) => index === 0 ? { ...row, description: 'conflicting content' } : row)
+  };
+  await assert.rejects(service.importStatementBatch(changedRowReplay),
+    error => error.code === 'RECONCILIATION_ROW_CONFLICT');
+
+  const [batches] = await connection.query(
+    'SELECT id, row_count, statement_sha256 FROM financial_reconciliation_batches WHERE merchant_id=4 AND store_id=9'
+  );
+  const [items] = await connection.query(
+    'SELECT row_no, row_sha256, description FROM financial_reconciliation_items WHERE batch_id=? ORDER BY row_no',
+    [first.batchId]
+  );
+  assert.equal(batches.length, 1);
+  assert.equal(Number(batches[0].row_count), 2);
+  assert.equal(items.length, 2);
+  assert.equal(items[0].description, 'settlement',
+    'failed conflicting replay must roll back its attempted row mutation');
+  assert.equal(items[1].description, 'refund');
+});
