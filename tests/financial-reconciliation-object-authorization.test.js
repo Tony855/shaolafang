@@ -109,3 +109,49 @@ for (const action of ['acknowledge', 'dismiss']) {
       'a foreign alert ID must not cause state or audit writes');
   });
 }
+
+
+test('valid tenant session cannot transition a foreign exception item by guessing its ID', async () => {
+  const reads = [];
+  const writes = [];
+  const routes = register({
+    runAsync: async (sql, params) => {
+      writes.push({ sql, params });
+      return { insertId: 90, affectedRows: 1 };
+    },
+    getAsync: async (sql, params) => {
+      reads.push({ sql, params });
+      if (sql.includes('SELECT username FROM merchant_admins')) return { username: 'tenant-a-finance' };
+      if (sql.includes('FROM financial_reconciliation_batches')) {
+        return { id: 1, currency_code: 'USD', period_month: '2026-11' };
+      }
+      if (sql.includes('FROM financial_month_close_periods')) return { id: 90, status: 'open' };
+      if (sql.includes('FROM financial_reconciliation_exception_events')) return null;
+      if (sql.includes('FROM financial_reconciliation_items')) return null;
+      return null;
+    }
+  });
+
+  const key = 'tenant-a-exception-foreign-0001';
+  const handler = routes.get('POST /api/admin/financial-reconciliation/exceptions/:itemId/workflow').at(-1);
+  const res = response();
+  await handler({
+    merchantId: 4, storeId: 9, adminId: 7,
+    params: { itemId: '101' },
+    query: { merchantId: '99', storeId: '88' },
+    body: {
+      batchId: 1, action: 'start',
+      reason: 'Attempt foreign exception transition',
+      idempotencyKey: key
+    },
+    get: () => key
+  }, res);
+
+  assert.equal(res.statusCode, 404);
+  const itemLookup = reads.find(entry => entry.sql.includes('FROM financial_reconciliation_items'));
+  assert.ok(itemLookup, 'exception workflow must verify item ownership before creating a case');
+  assert.match(itemLookup.sql, /WHERE i\.id=\? AND i\.batch_id=\? AND i\.merchant_id=\? AND i\.store_id=\?/);
+  assert.deepEqual(itemLookup.params, [101, 1, 4, 9]);
+  assert.equal(writes.some(entry => /INSERT INTO financial_reconciliation_exception_cases|UPDATE financial_reconciliation_exception_cases|INSERT INTO financial_reconciliation_exception_events/.test(entry.sql)), false,
+    'a foreign exception item ID must not create, mutate, or audit an exception case');
+});
