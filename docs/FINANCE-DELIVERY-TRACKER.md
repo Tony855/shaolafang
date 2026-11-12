@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (PR #192 merged; MySQL manual review transaction is covered; PR #193 adds exception workflow transaction coverage)
+Last reviewed: 2026-11-12 (PR #193 merged; MySQL exception workflow state/history is covered; PR #194 adds SLA alert lifecycle coverage)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -36,12 +36,13 @@ This tracker records merged delivery separately from work that is still under re
 | MySQL journal export scope | Real-MySQL journal export returns the selected merchant/store rows and excludes other merchants and stores | PR #190 merged as `501f9a04`; all six checks passed |
 | MySQL matching suggestion scope | Real-MySQL candidate query plus matching logic returns only exact reference/amount/currency candidates for the authenticated merchant/store; suggestions do not mutate rows | PR #191 merged as `b2f43c97`; all six checks passed |
 | MySQL manual review transaction | Real-MySQL review confirms exact journal matches, preserves exact replay idempotency, and rejects amount mismatch without changing the row or writing an audit event | PR #192 merged as `670a14a8`; all six checks passed |
-| MySQL exception workflow transaction | Real-MySQL exception case start/resolve transitions persist actor, status, resolution note, idempotent event replay, and linked event hashes | PR #193 under review; CI pending |
+| MySQL exception workflow transaction | Real-MySQL exception case start/resolve transitions persist actor, status, resolution note, idempotent event replay, and linked event hashes | PR #193 merged as `b32cf765`; all six checks passed |
+| MySQL SLA alert lifecycle | Real-MySQL overdue alert generation is deduplicated; acknowledge/dismiss transitions are idempotent and preserve hash-linked alert history | PR #194 under review; CI pending |
 
 ## Under review
 
-- **MySQL exception workflow transaction:** PR #193 exercises real-MySQL exception case start/resolve transitions, exact start replay, durable resolution metadata, and append-only hash-linked events. CI is pending.
-- **MySQL-backed workflow scope:** PR #177/#178 cover month-close and exception/SLA schema/constraint slices; PR #186 covers import transaction replay/rollback; PR #187 covers schema ensure reruns; PR #188 covers concurrent month-close locking; PR #189/#190 cover journal posting and export; PR #191 covers matching suggestions; PR #192 covers manual review. A single database-backed import-to-export lifecycle remains outstanding.
+- **MySQL SLA alert lifecycle:** PR #194 exercises overdue alert generation, duplicate suppression, acknowledge/dismiss transitions, idempotent replays, and alert history hash linkage against real MySQL tables. CI is pending.
+- **MySQL-backed workflow scope:** PR #177/#178 cover month-close and exception/SLA schema/constraint slices; PR #186 covers import transaction replay/rollback; PR #187 covers schema ensure reruns; PR #188 covers concurrent month-close locking; PR #189/#190 cover journal posting and export; PR #191 covers matching suggestions; PR #192 covers manual review; PR #193 covers exception transitions. A single database-backed import-to-export lifecycle remains outstanding.
 
 ## Remaining engineering acceptance work
 
@@ -78,7 +79,8 @@ This tracker records merged delivery separately from work that is still under re
 - PR #190 merged: real-MySQL journal CSV export is scoped to one merchant/store and excludes other merchant/store entries (`501f9a04`); all six checks passed.
 - PR #191 merged: real-MySQL reconciliation matching query verifies candidate isolation by merchant/store, exact reference, amount, and currency, while leaving statement rows pending (`b2f43c97`); all six checks passed.
 - PR #192 merged: real-MySQL manual review verifies exact journal confirmation, idempotent replay, and rejection of mismatched amount without row/audit mutation (`670a14a8`); all six checks passed.
-- PR #193 open: real-MySQL exception workflow verifies start/resolve state transitions, idempotent replay, actor attribution, resolution note, and linked event hashes; CI pending.
+- PR #193 merged: real-MySQL exception workflow verifies start/resolve state transitions, idempotent replay, actor attribution, resolution note, and linked event hashes (`b32cf765`); all six checks passed.
+- PR #194 open: real-MySQL SLA alert generation, duplicate suppression, acknowledge/dismiss replay, and hash-linked history; CI pending.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
