@@ -26,7 +26,7 @@ This tracker records merged delivery separately from work that is still under re
 
 1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. Assert transactional rollback, idempotent replay, and immutable audit history.
 2. **Authorization matrix:** route-wide middleware wiring, missing-context rejection, authenticated tenant scope, and direct finance permission allow/deny paths are covered. Still verify inactive administrator sessions and cross-merchant/cross-store access denial for every read, mutation, and export endpoint.
-3. **Data-volume validation:** benchmark realistic large statement batches and exception queues; inspect query plans before adding indexes; document tested row counts and response times.
+3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** inspect all financial paths for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
 5. **Operational recovery:** test backup/restore, migration/startup schema ensure, interrupted imports, retry behavior, and month-close lock recovery.
 6. **Provider integration boundary:** keep bank/payment provider verification and external notifications disabled until real credentials, signature verification rules, supported currencies, and delivery policies are explicitly supplied and tested.
