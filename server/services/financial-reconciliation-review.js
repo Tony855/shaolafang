@@ -156,19 +156,18 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     if (!actorUsername || actorUsername.length > 100) throw new TypeError('actorUsername is required');
     const review = normalizeReviewInput(input);
     const requestHash = stableHash({
-      merchantId, storeId, batchId, itemId, actorId,
-      action: review.action, exceptionCategory: review.exceptionCategory,
+      merchantId, storeId, batchId, itemId, action: review.action, exceptionCategory: review.exceptionCategory,
       journalTransactionId: review.journalTransactionId, reason: review.reason
     });
 
     try {
       return await withTransaction(async () => {
         const replay = await getAsync(
-          'SELECT id, request_sha256, event_hash, action, item_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=? FOR UPDATE',
+          'SELECT id, request_sha256, event_hash, action, item_id, actor_admin_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=? FOR UPDATE',
           [merchantId, storeId, batchId, review.idempotencyKey]
         );
         if (replay) {
-          if (replay.request_sha256 !== requestHash) {
+          if (Number(replay.actor_admin_id) !== actorId || replay.request_sha256 !== requestHash) {
             const error = new Error('idempotency key was already used with a different review request');
             error.code = 'REVIEW_IDEMPOTENCY_CONFLICT';
             throw error;
@@ -322,11 +321,11 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     } catch (error) {
       if (error && error.code === 'ER_DUP_ENTRY') {
         const existing = await getAsync(
-          'SELECT id, request_sha256, event_hash, action, item_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=?',
+          'SELECT id, request_sha256, event_hash, action, item_id, actor_admin_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=?',
           [merchantId, storeId, batchId, review.idempotencyKey]
         );
         if (existing) {
-          if (existing.request_sha256 === requestHash) {
+          if (Number(existing.actor_admin_id) === actorId && existing.request_sha256 === requestHash) {
             return { eventId: Number(existing.id), itemId: Number(existing.item_id), action: existing.action, eventHash: existing.event_hash, replayed: true };
           }
           const idempotencyConflict = new Error('idempotency key was already used with a different review request');
