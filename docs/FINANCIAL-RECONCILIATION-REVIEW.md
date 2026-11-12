@@ -108,3 +108,10 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - The inbox is in-app only. No Telegram, email, SMS, push, or webhook is sent; external delivery requires operator-provided credentials, endpoint policy, and delivery acceptance rules.
 - Alert acknowledgement does not modify statement rows, payments, refunds, journals, ledger entries, or month-close state.
 - Startup schema ensure creates the alert and event tables. No production deployment or production migration was performed.
+
+### SLA alert dismissal
+
+- Pending SLA alerts may be dismissed through `POST /api/admin/financial-reconciliation/exceptions/alerts/:alertId/dismiss`.
+- Dismissal requires a 5–500 character reason and a 16–128 character idempotency key (body field or `Idempotency-Key` header).
+- The operation is scoped to the active merchant/store, locks the alert row, rejects non-pending alerts, and appends a hash-linked `dismissed` event in the same transaction.
+- Dismissing an alert does not resolve, close, reclassify, or otherwise mutate its underlying reconciliation exception. External notifications remain disabled.
