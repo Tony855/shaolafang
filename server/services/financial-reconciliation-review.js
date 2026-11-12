@@ -427,7 +427,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       throw error;
     }
     if (from !== undefined && from !== '' && to !== undefined && to !== '') {
-      const validDate = value => typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(value) &&
+      const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
         new Date(value + 'T00:00:00.000Z').toISOString().slice(0, 10) === value;
       if (!validDate(from) || !validDate(to) || from > to ||
           (Date.parse(to + 'T00:00:00.000Z') - Date.parse(from + 'T00:00:00.000Z')) / 86400000 > 90) {

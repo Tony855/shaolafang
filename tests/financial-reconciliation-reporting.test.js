@@ -69,7 +69,7 @@ test('review history uses merchant/store scope, optional filters, and a descendi
     merchantId: 4, storeId: 9, limit: 2, afterId: first.nextCursor
   });
   assert.deepEqual(seen[1].params, [4, 9, 20, 3]);
-  assert.equal(second.nextCursor, 20);
+  assert.equal(second.nextCursor, null);
 });
 
 test('review history rejects unsafe cursor, limit, and tenant IDs', async () => {
@@ -149,7 +149,8 @@ test('exception queue is tenant-scoped, category/date filtered, and cursor pagin
   }));
   const service = serviceWith(async (sql, params) => {
     seen.push({ sql, params });
-    return rows.slice(0, params.at(-1));
+    const cursor = Number(params[2]);
+    return rows.filter(row => Number(row.id) < cursor).slice(0, params.at(-1));
   });
   const first = await service.listExceptions({
     merchantId: 4, storeId: 9, category: 'FEE',
