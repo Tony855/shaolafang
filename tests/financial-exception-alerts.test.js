@@ -53,6 +53,16 @@ test('SLA acknowledgement requires reason/key and appends a hash-linked audit ev
   assert.ok(writes.some(x=>x.sql.includes("VALUES (?,?,?,?,?,'acknowledged'")));
   await assert.rejects(service.acknowledgeSlaAlert({merchantId:4,storeId:9,actorId:7,actorUsername:'finance',alertId:77,reason:'no',idempotencyKey:'sla-alert-ack-00000002'}),/5 to 500/);
 });
+test('SLA dismissal is tenant-scoped, idempotent and hash-chain audited without changing exception state',async()=>{
+  const {service,writes,reads}=makeService();
+  const result=await service.dismissSlaAlert({merchantId:4,storeId:9,actorId:7,actorUsername:'finance',alertId:77,reason:'Duplicate alert reviewed and safely dismissed',idempotencyKey:'sla-alert-dismiss-0001'});
+  assert.equal(result.replayed,false);assert.equal(result.eventId,88);
+  assert.ok(reads.some(x=>x.sql.includes('merchant_id=? AND store_id=? FOR UPDATE')&&x.params[1]===4&&x.params[2]===9));
+  assert.ok(writes.some(x=>x.sql.includes("SET status='dismissed'")));
+  assert.ok(writes.some(x=>x.sql.includes("VALUES (?,?,?,?,?,'dismissed'")));
+  assert.ok(!writes.some(x=>x.sql.includes("UPDATE financial_reconciliation_items")));
+  await assert.rejects(service.dismissSlaAlert({merchantId:4,storeId:9,actorId:7,actorUsername:'finance',alertId:77,reason:'bad',idempotencyKey:'sla-alert-dismiss-0002'}),/5 to 500/);
+});
 test('SLA alert routes enforce tenant context, thresholds and no-store reads',async()=>{
   const routes=new Map(),app={get(p,...h){routes.set('GET '+p,h);},post(p,...h){routes.set('POST '+p,h);}};
   registerRoutes(app,{runAsync:async()=>({affectedRows:1,insertId:1}),getAsync:async(sql)=>sql.includes('SELECT username')?{username:'finance'}:null,allAsync:async()=>[],withTransaction:async work=>work(),requireAdminKey:(_q,_s,n)=>n(),requirePermission:()=> (_q,_s,n)=>n()});

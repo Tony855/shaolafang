@@ -2361,7 +2361,12 @@ window.doAdvancedExport = doAdvancedExport;
   function renderSlaAlerts(items) {
     const target=$('#financeSlaAlertList');if(!target)return;
     if(!items.length){target.innerHTML='<div class="empty-hint">暂无待确认 SLA 提醒</div>';return;}
-    target.innerHTML=items.map(item=>'<article style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><strong>异常 #'+Number(item.itemId)+' · '+esc(item.category||'未分类')+'</strong><span>'+formatAge(item.ageSeconds)+' / SLA '+Number(item.slaHours)+'h</span></div><div style="font-size:12px;color:#aaa;margin:5px 0;">'+esc(item.externalReference||'无外部流水号')+' · '+esc(item.assignedAdminUsername||'未分配')+' · '+moneyMinor(item.amountMinor,item.currencyCode)+'</div><button type="button" data-sla-alert-ack="'+Number(item.alertId)+'">确认已知悉</button></article>').join('');
+    target.innerHTML=items.map(item=>{
+      const actions=item.status==='pending'
+        ? '<button type="button" data-sla-alert-ack="'+Number(item.alertId)+'">确认已知悉</button> <button type="button" data-sla-alert-dismiss="'+Number(item.alertId)+'">关闭提醒</button>'
+        : '<span style="font-size:12px;color:#aaa;">'+esc(item.status)+'</span>';
+      return '<article style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><strong>异常 #'+Number(item.itemId)+' · '+esc(item.category||'未分类')+'</strong><span>'+formatAge(item.ageSeconds)+' / SLA '+Number(item.slaHours)+'h</span></div><div style="font-size:12px;color:#aaa;margin:5px 0;">'+esc(item.externalReference||'无外部流水号')+' · '+esc(item.assignedAdminUsername||'未分配')+' · '+moneyMinor(item.amountMinor,item.currencyCode)+'</div>'+actions+'</article>';
+    }).join('');
   }
   async function loadSlaAlerts() {
     if(!requirePermission())return;
@@ -2384,6 +2389,17 @@ window.doAdvancedExport = doAdvancedExport;
     try{await api('/admin/financial-reconciliation/exceptions/alerts/'+Number(button.dataset.slaAlertAck)+'/acknowledge',{method:'POST',body:{reason:reason.trim(),idempotencyKey:'sla-alert-ack-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)}});
       toast('✅ 已记录提醒确认');await loadSlaAlerts();await loadExceptionOperations();}
     catch(error){toast('❌ '+(error.message||'确认提醒失败'));}
+    finally{button.disabled=false;}
+  }
+  async function dismissSlaAlert(button) {
+    if(!requirePermission())return;
+    const reason=window.prompt('请输入关闭提醒原因（5–500 字，不会关闭底层异常）：');if(reason===null)return;
+    if(reason.trim().length<5||reason.trim().length>500){toast('❌ 关闭原因长度必须为 5–500 字');return;}
+    button.disabled=true;
+    try{
+      await api('/admin/financial-reconciliation/exceptions/alerts/'+Number(button.dataset.slaAlertDismiss)+'/dismiss',{method:'POST',body:{reason:reason.trim(),idempotencyKey:'sla-alert-dismiss-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)}});
+      toast('✅ 已关闭提醒（底层异常未变更）');await loadSlaAlerts();
+    }catch(error){toast('❌ '+(error.message||'关闭提醒失败'));}
     finally{button.disabled=false;}
   }
   function setReportRange(kind) {
@@ -2734,6 +2750,8 @@ window.doAdvancedExport = doAdvancedExport;
       if (exceptionButton) { submitExceptionAction(exceptionButton); return; }
       const alertAck=event.target.closest('[data-sla-alert-ack]');
       if(alertAck){acknowledgeSlaAlert(alertAck);return;}
+      const alertDismiss=event.target.closest('[data-sla-alert-dismiss]');
+      if(alertDismiss){dismissSlaAlert(alertDismiss);return;}
       const monthButton = event.target.closest('[data-month-close-action]');
       if (monthButton) submitMonthClose(monthButton);
     });
