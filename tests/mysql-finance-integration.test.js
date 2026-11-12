@@ -1020,3 +1020,129 @@ test('MySQL integration: exception workflow transitions persist idempotent hash-
   assert.equal(events[1].previous_hash, events[0].event_hash);
   assert.ok(events.every(row => /^[a-f0-9]{64}$/.test(row.event_hash)));
 });
+
+
+test('MySQL integration: SLA alert generation, acknowledgement, dismissal, and history are idempotent', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const db = await connectTestDatabase();
+  const tables = [
+    'financial_reconciliation_exception_alert_events',
+    'financial_reconciliation_exception_alerts',
+    'financial_reconciliation_exception_events',
+    'financial_reconciliation_exception_cases',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await db.connection.end();
+    }
+  });
+
+  for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported',
+    imported_at DATETIME(3) NOT NULL
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'exception',
+    exception_category VARCHAR(64) DEFAULT 'bank_mismatch',
+    currency_code CHAR(3) NOT NULL DEFAULT 'USD',
+    amount_minor BIGINT NOT NULL DEFAULT 1000,
+    external_reference VARCHAR(191) NOT NULL DEFAULT '',
+    CONSTRAINT fk_finance_sla_test_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+
+  const { ensureFinancialExceptionWorkflowSchema } = require('../server/db/migrations/financial-month-close');
+  const { ensureFinancialExceptionAlertSchema } = require('../server/db/migrations/financial-exception-alerts');
+  await ensureFinancialExceptionWorkflowSchema({ runAsync: db.runAsync, allAsync: db.allAsync });
+  await ensureFinancialExceptionAlertSchema({ runAsync: db.runAsync, allAsync: db.allAsync });
+
+  const batch = await db.runAsync(
+    "INSERT INTO financial_reconciliation_batches (merchant_id,store_id,status,imported_at) VALUES (44,12,'imported',DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL 48 HOUR))"
+  );
+  const batchId = Number(batch.insertId);
+  await db.runAsync(
+    `INSERT INTO financial_reconciliation_items
+      (batch_id,merchant_id,store_id,match_status,exception_category,currency_code,amount_minor,external_reference)
+     VALUES (?,44,12,'exception','bank_mismatch','USD',1000,'sla-bank-line-1'),
+            (?,44,12,'exception','bank_mismatch','USD',2000,'sla-bank-line-2')`,
+    [batchId, batchId]
+  );
+
+  const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
+  const withTransaction = async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+  const service = createFinancialReconciliationReviewService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+
+  const generated = await service.generateSlaAlerts({
+    merchantId: 44, storeId: 12, slaHours: 24, actorId: 7, actorUsername: 'sla-generator'
+  });
+  assert.equal(generated.scanned, 2);
+  assert.equal(generated.created, 2);
+  const replayGeneration = await service.generateSlaAlerts({
+    merchantId: 44, storeId: 12, slaHours: 24, actorId: 7, actorUsername: 'sla-generator'
+  });
+  assert.equal(replayGeneration.created, 0);
+  assert.equal(replayGeneration.alreadyExisted, 2);
+
+  const queue = await service.listSlaAlerts({ merchantId: 44, storeId: 12, status: 'all' });
+  assert.equal(queue.items.length, 2);
+  const [firstAlert, secondAlert] = queue.items;
+  const ackInput = {
+    merchantId: 44, storeId: 12, actorId: 7, actorUsername: 'sla-reviewer',
+    alertId: firstAlert.alertId, reason: 'Acknowledged and assigned for investigation',
+    idempotencyKey: 'mysql-sla-acknowledge-0001'
+  };
+  const acknowledged = await service.acknowledgeSlaAlert(ackInput);
+  const ackReplay = await service.acknowledgeSlaAlert(ackInput);
+  assert.equal(acknowledged.replayed, false);
+  assert.equal(ackReplay.replayed, true);
+  assert.equal(ackReplay.eventId, acknowledged.eventId);
+
+  const dismissInput = {
+    merchantId: 44, storeId: 12, actorId: 7, actorUsername: 'sla-reviewer',
+    alertId: secondAlert.alertId, reason: 'Dismissed after verifying exception is resolved',
+    idempotencyKey: 'mysql-sla-dismiss-0001'
+  };
+  const dismissed = await service.dismissSlaAlert(dismissInput);
+  const dismissReplay = await service.dismissSlaAlert(dismissInput);
+  assert.equal(dismissed.replayed, false);
+  assert.equal(dismissReplay.replayed, true);
+  assert.equal(dismissReplay.eventId, dismissed.eventId);
+
+  const [alerts] = await db.connection.query(
+    'SELECT id,status,acknowledged_by_admin_id FROM financial_reconciliation_exception_alerts WHERE merchant_id=44 AND store_id=12 ORDER BY id'
+  );
+  assert.deepEqual(alerts.map(row => row.status), ['acknowledged', 'dismissed']);
+  assert.equal(Number(alerts[0].acknowledged_by_admin_id), 7);
+  const firstHistory = await service.listSlaAlertHistory({
+    merchantId: 44, storeId: 12, alertId: firstAlert.alertId
+  });
+  assert.equal(firstHistory.items.length, 2);
+  assert.deepEqual(firstHistory.items.map(row => row.action), ['acknowledged', 'generated']);
+  assert.equal(firstHistory.items[0].previousHash, firstHistory.items[1].eventHash);
+});
