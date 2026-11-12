@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (PR #190 merged; MySQL journal export tenant/store isolation is covered; PR #191 adds matching suggestion integration)
+Last reviewed: 2026-11-12 (PR #191 merged; MySQL matching suggestions are tenant/store-scoped; PR #192 adds manual review transaction coverage)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -34,16 +34,17 @@ This tracker records merged delivery separately from work that is still under re
 | MySQL month-close concurrency | Two independent transactions contend for one open period; only one can lock it, and the competing transaction observes `FINANCIAL_MONTH_LOCKED` | PR #188 merged as `3133f88a`; all six checks passed |
 | MySQL journal posting | Real-MySQL balanced journal posting, exact idempotent replay, and changed header/entry replay rejection | PR #189 merged as `6c480ce1`; all six checks passed |
 | MySQL journal export scope | Real-MySQL journal export returns the selected merchant/store rows and excludes other merchants and stores | PR #190 merged as `501f9a04`; all six checks passed |
-| MySQL matching suggestion scope | Real-MySQL candidate query plus matching logic returns only exact reference/amount/currency candidates for the authenticated merchant/store; suggestions do not mutate rows | PR #191 under review; CI pending |
+| MySQL matching suggestion scope | Real-MySQL candidate query plus matching logic returns only exact reference/amount/currency candidates for the authenticated merchant/store; suggestions do not mutate rows | PR #191 merged as `b2f43c97`; all six checks passed |
+| MySQL manual review transaction | Real-MySQL review confirms exact journal matches, preserves exact replay idempotency, and rejects amount mismatch without changing the row or writing an audit event | PR #192 under review; CI pending |
 
 ## Under review
 
-- **MySQL matching suggestion scope:** PR #191 runs the review service against real MySQL statement rows and journal candidates, including foreign-merchant, foreign-store, currency-mismatch, and unrelated-reference candidates. CI is pending.
-- **MySQL-backed workflow scope:** PR #177/#178 cover month-close and exception/SLA schema/constraint slices; PR #186 covers import transaction replay/rollback; PR #187 covers schema ensure reruns; PR #188 covers concurrent month-close locking; PR #189/#190 cover journal posting and export. A single database-backed import-to-export lifecycle remains outstanding.
+- **MySQL manual review transaction:** PR #192 runs review confirmation against real MySQL tables, verifies exact replay does not duplicate audit events, and checks a mismatched amount is rejected with no item or audit mutation. CI is pending.
+- **MySQL-backed workflow scope:** PR #177/#178 cover month-close and exception/SLA schema/constraint slices; PR #186 covers import transaction replay/rollback; PR #187 covers schema ensure reruns; PR #188 covers concurrent month-close locking; PR #189/#190 cover journal posting and export; PR #191 covers matching suggestions. A single database-backed import-to-export lifecycle remains outstanding.
 
 ## Remaining engineering acceptance work
 
-1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. Import transaction/replay/rollback (PR #186), matching suggestion scope (PR #191 pending), month-close migration/locking/concurrency (PR #177/#188), exception/SLA schema/constraint slices (PR #178), schema ensure reruns (PR #187), journal posting (PR #189), and journal export (PR #190) are database-backed; a single database-backed full-flow scenario across all services remains outstanding.
+1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. Import transaction/replay/rollback (PR #186), matching suggestion scope (PR #191), month-close migration/locking/concurrency (PR #177/#188), exception/SLA schema/constraint slices (PR #178), schema ensure reruns (PR #187), journal posting (PR #189), and journal export (PR #190) are database-backed; a single database-backed full-flow scenario across all services remains outstanding.
 2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172); representative authenticated read-query scoping is covered (PR #173); review mutation and audit query scoping is covered by PR #174; foreign review/SLA/exception workflow resource IDs are covered by PR #176/#179; cross-merchant exception assignee ownership is covered by PR #180; month-close transition context is covered by PR #181. Journal and period-report export audit scopes are covered by PR #182/#183; exception-performance audit filter spoofing is covered by PR #184. Remaining export/admin ownership cases still need explicit acceptance tests.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues at 2,500, 10,000, and 50,000 rows, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** PR #185 adds safe-integer guards for period/month aggregate minor-unit totals. Continue auditing every financial path for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
@@ -74,7 +75,8 @@ This tracker records merged delivery separately from work that is still under re
 - PR #188 merged: two independent MySQL transactions contend for the same month-close period; one transition wins, the other receives `FINANCIAL_MONTH_LOCKED`, and one unique period row remains (`3133f88a`); all six checks passed.
 - PR #189 merged: real-MySQL balanced journal posting, exact idempotent replay, and changed header/entry replay rejection (`6c480ce1`); all six checks passed.
 - PR #190 merged: real-MySQL journal CSV export is scoped to one merchant/store and excludes other merchant/store entries (`501f9a04`); all six checks passed.
-- PR #191 open: real-MySQL reconciliation matching query verifies candidate isolation by merchant/store, exact reference, amount, and currency, while leaving statement rows pending; CI pending.
+- PR #191 merged: real-MySQL reconciliation matching query verifies candidate isolation by merchant/store, exact reference, amount, and currency, while leaving statement rows pending (`b2f43c97`); all six checks passed.
+- PR #192 open: real-MySQL manual review verifies exact journal confirmation, idempotent replay, and rejection of mismatched amount without row/audit mutation; CI pending.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
