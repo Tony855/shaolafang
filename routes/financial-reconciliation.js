@@ -270,6 +270,23 @@ module.exports = function(app, deps) {
     }
   });
 
+  app.get('/api/admin/financial-reconciliation/exceptions/operations-summary', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const slaHours = req.query.slaHours === undefined ? 24 : Number(req.query.slaHours);
+    if (!Number.isSafeInteger(slaHours) || slaHours < 1 || slaHours > 720) {
+      return res.status(400).json({ error: 'SLA 小时数必须为 1–720 的整数' });
+    }
+    try {
+      const result = await service.getExceptionOperationsSummary({ ...context, slaHours });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json(result);
+    } catch (error) {
+      res.status(error.code === 'EXCEPTION_OPERATIONS_SLA_INVALID' ? 400 : 500)
+        .json({ error: error.code ? '异常运营统计参数无效' : '获取异常运营统计失败' });
+    }
+  });
+
   app.get('/api/admin/financial-reconciliation/exceptions', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;

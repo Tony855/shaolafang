@@ -86,3 +86,14 @@ The exception queue also exposes a case workflow. Each case is unique to a merch
 The workflow does not change statement amounts, journal entries, orders, refunds, or payment settlement state. It does not certify an accounting resolution or create a ledger posting. All operations reuse the existing financial reconciliation permission and tenant/store context.
 
 - `GET /api/admin/financial-reconciliation/exceptions/:itemId/history?batchId=...&limit=50&afterId=0` returns the item's append-only workflow events in descending cursor pages, including before/after snapshots and hash-chain fields.
+
+
+## Exception operations monitoring (Phase 16)
+
+- `GET /api/admin/financial-reconciliation/exceptions/operations-summary?slaHours=24` returns a read-only operations snapshot for the authenticated merchant and active store.
+- SLA hours are an explicit query parameter (integer 1–720); the UI default is 24 hours and is an operational display threshold, not a provider settlement or accounting rule. SLA age starts at the statement batch `imported_at` timestamp.
+- Summary counts include open/in-progress cases, overdue active cases, and ageing bands (<24 hours, 1–3 days, 3–7 days, >7 days). Cases without a workflow row are treated as open, matching the exception queue.
+- Workload is grouped by assignee; unassigned workload is returned as a null-assignee row. Data remains limited to the authenticated merchant and active store.
+- The 30-day trend reports exception statement rows by batch import date and immutable `resolve` events by event date. Resolution counts are event counts, not unique-case counts.
+- The overdue list is capped at 50 oldest active exceptions. It is an in-console reminder queue only; this phase does not send email, SMS, Telegram, push notifications, or invoke external providers.
+- All queries are read-only, use bound parameters, join batch/case ownership on merchant and store IDs, and return private no-store responses. No statement, payment, refund, journal, ledger, or month-close mutation is performed.

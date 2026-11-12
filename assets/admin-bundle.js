@@ -2486,6 +2486,44 @@ window.doAdvancedExport = doAdvancedExport;
       toast('❌ ' + (error.message || t('financeExceptionActionFailed', 'Exception handling action failed')));
     } finally { button.disabled = false; }
   }
+  function formatAge(seconds) {
+    const value = Math.max(0, Number(seconds) || 0);
+    const days = Math.floor(value / 86400), hours = Math.floor((value % 86400) / 3600);
+    return days ? days + '天 ' + hours + '小时' : hours + '小时';
+  }
+  function renderExceptionOperations(data) {
+    const summary = $('#financeExceptionOpsSummary'), workload = $('#financeExceptionOpsWorkload');
+    const trend = $('#financeExceptionOpsTrend'), overdue = $('#financeExceptionOpsOverdue');
+    if (!summary || !workload || !trend || !overdue) return;
+    const totals = data.summary || {}, ageing = totals.ageing || {};
+    summary.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">' +
+      [['待处理',totals.openCount],['处理中',totals.inProgressCount],['活跃异常',totals.activeCount],
+       ['超过 '+Number(data.slaHours)+' 小时',totals.overdueCount],['24 小时内',ageing.under24Hours],
+       ['1–3 天',ageing.from1To3Days],['3–7 天',ageing.from3To7Days],['超过 7 天',ageing.over7Days]]
+      .map(pair => '<div style="padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;"><div style="font-size:12px;color:#aaa;">'+esc(pair[0])+'</div><strong style="font-size:22px;">'+Number(pair[1]||0)+'</strong></div>').join('')+'</div>';
+    const people = Array.isArray(data.workload) ? data.workload : [];
+    workload.innerHTML = people.length ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:8px;">负责人</th><th style="text-align:right;padding:8px;">活跃</th><th style="text-align:right;padding:8px;">超时</th><th style="text-align:right;padding:8px;">最老账龄</th></tr></thead><tbody>'+
+      people.map(row=>'<tr><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);">'+esc(row.username||'未分配')+'</td><td style="text-align:right;padding:8px;">'+Number(row.activeCount)+'</td><td style="text-align:right;padding:8px;">'+Number(row.overdueCount)+'</td><td style="text-align:right;padding:8px;">'+formatAge(row.oldestAgeSeconds)+'</td></tr>').join('')+'</tbody></table></div>' : '<div class="empty-hint">暂无活跃异常</div>';
+    const days = Array.isArray(data.trend) ? data.trend : [];
+    trend.innerHTML = days.length ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:8px;">日期</th><th style="text-align:right;padding:8px;">新增异常</th><th style="text-align:right;padding:8px;">解决事件</th></tr></thead><tbody>'+
+      days.map(row=>'<tr><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);">'+esc(row.date)+'</td><td style="text-align:right;padding:8px;">'+Number(row.openedCount)+'</td><td style="text-align:right;padding:8px;">'+Number(row.resolvedEventCount)+'</td></tr>').join('')+'</tbody></table></div>' : '<div class="empty-hint">近 30 天暂无异常事件</div>';
+    const overdueRows = Array.isArray(data.overdueItems) ? data.overdueItems : [];
+    overdue.innerHTML = overdueRows.length ? overdueRows.map(row=>'<article style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);"><strong>#'+Number(row.itemId)+' · '+esc(row.category||'未分类')+'</strong><div style="font-size:12px;color:#aaa;margin-top:4px;">'+esc(row.externalReference||'无外部流水号')+' · '+esc(row.assignedAdminUsername||'未分配')+' · 账龄 '+formatAge(row.ageSeconds)+' · '+moneyMinor(row.amountMinor,row.currencyCode)+'</div></article>').join('') : '<div class="empty-hint">当前没有超过 SLA 的活跃异常</div>';
+  }
+  async function loadExceptionOperations() {
+    if (!requirePermission()) return;
+    const target = $('#financeExceptionOpsSummary');
+    if (target) target.innerHTML = '<div class="empty-hint">'+t('loading','Loading…')+'</div>';
+    const raw = Number($('#financeExceptionSlaHours')?.value || 24);
+    const slaHours = Number.isSafeInteger(raw) && raw >= 1 && raw <= 720 ? raw : 24;
+    try {
+      const data = await api('/admin/financial-reconciliation/exceptions/operations-summary?slaHours='+encodeURIComponent(String(slaHours)));
+      renderExceptionOperations(data);
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">'+t('financeLoadFailed','Unable to load exception operations')+'</div>';
+      toast('❌ '+(error.message||t('financeLoadFailed','Load failed')));
+    }
+  }
   function monthStatusLabel(status) {
     const labels = {
       open: t('financeMonthOpen', 'Open'),
@@ -2667,6 +2705,8 @@ window.doAdvancedExport = doAdvancedExport;
     $('#financeReportRun').addEventListener('click', loadDailySummary);
     $('#financeExportDaily').addEventListener('click', () => loadDailySummary(true));
     $('#financeExceptionReload').addEventListener('click', () => loadExceptionQueue(false));
+    $('#financeExceptionOpsReload').addEventListener('click', loadExceptionOperations);
+    $('#financeExceptionSlaHours').addEventListener('change', loadExceptionOperations);
     $('#financeExceptionMore').addEventListener('click', () => loadExceptionQueue(true));
     $('#financeExceptionCategory').addEventListener('change', () => loadExceptionQueue(false));
     $('#financeExceptionStatus').addEventListener('change', () => loadExceptionQueue(false));
@@ -2683,7 +2723,7 @@ window.doAdvancedExport = doAdvancedExport;
     const to = $('#financeReportTo');
     if (from && !from.value) from.value = today;
     if (to && !to.value) to.value = today;
-    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadDailySummary(), loadMonthlyClose()]);
+    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadExceptionOperations(), loadDailySummary(), loadMonthlyClose()]);
   }
   window.loadFinancialReconciliation = loadFinancialReconciliation;
 })();
