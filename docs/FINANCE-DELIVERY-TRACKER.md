@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (tenant isolation route matrix in review)
+Last reviewed: 2026-11-12 (authenticated tenant query matrix merged; review mutation query hardening in review)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -22,12 +22,13 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- **Cross-tenant route rejection matrix:** added a regression that iterates every registered finance endpoint, injects attacker-controlled merchant/store/admin IDs through query, path, and body inputs, and asserts rejection before any database access. Awaiting PR-head CI. This proves missing authenticated context cannot be replaced by request-supplied IDs; it does not yet prove foreign-resource denial when a valid session for another tenant is present.
+- **Review mutation query hardening:** the duplicate journal-assignment lookup and review audit-chain head lookup now explicitly bind merchant/store scope. Regression coverage includes a foreign-tenant statement row referencing the same journal ID and verifies it cannot block a tenant-local review. Awaiting PR-head CI.
+- **Cross-tenant route rejection matrix:** PR #172 is merged; every registered finance endpoint rejects request-supplied merchant/store/admin IDs when authenticated tenant context is absent. This does not prove foreign-resource denial with a valid session for every mutation/export route.
 
 ## Remaining engineering acceptance work
 
 1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #168 adds a readiness-failure/retry/second-approver month-close lifecycle test with linked audit hashes. Still add a single database-backed full-flow scenario across all services and assert transactional rollback, idempotent replay, and immutable audit history.
-2. **Authorization matrix:** route-wide middleware wiring, missing-context rejection, and representative authenticated tenant query scoping are covered (PR #172 merged; current matrix under review). Still verify foreign-resource denial with valid sessions for every mutation/export route, including object-ID probing and assigned-admin ownership.
+2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172 merged); representative authenticated read-query scoping is covered (PR #173 merged). Review mutation duplicate-assignment and audit-chain queries are being explicitly tenant-scoped in the current PR. Still verify foreign-resource denial with valid sessions for every mutation/export route, including object-ID probing and assigned-admin ownership.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** inspect all financial paths for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
 5. **Operational recovery:** test backup/restore, migration/startup schema ensure, interrupted imports, retry behavior, and month-close lock recovery.
@@ -42,11 +43,11 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Latest batch status
 
-- Main head at batch start: `5ec465ebd38f77326ab4ba6974b360ef3cece19a`
-- PR #168 merged: month-close readiness failure/retry and second-approver lifecycle test (`450436e`).
-- PR #170 merged: disabled administrator, inactive merchant, expired session, and missing finance-auth context tests (`e9ed80d`).
-- CI and installer compatibility: all five checks passed on main commit `5ec465ebd38f77326ab4ba6974b360ef3cece19a`.
-- Open finance PRs: none.
+- Main head at batch start: `e4e5f69ff7ba47566f0b3710d0ada6658b487db9` (PR #173 merged).
+- PR #172 merged: route-wide missing-authenticated-context tenant rejection matrix (`638bcbbe`).
+- PR #173 merged: authenticated tenant query scoping for representative read surfaces (`e4e5f69`). All five PR-head checks passed.
+- Current PR: review mutation duplicate-assignment and audit-chain SQL scope hardening; includes foreign-tenant collision regression coverage.
+- CI and installer compatibility for PR #173: Debian 13, Debian 12, Ubuntu 24.04, Ubuntu 22.04, validate — 5/5 passed.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
