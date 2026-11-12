@@ -12,6 +12,16 @@ function positiveRouteId(value) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
+function buildFinancialPeriodReportCsv(report) {
+  const columns = ['periodStart','periodEnd','currencyCode','batchCount','statementRowCount','totalDebitMinor','totalCreditMinor','matchedCount','pendingCount','unmatchedCount','ambiguousCount','exceptionCount'];
+  const cell = value => {
+    const raw = value === null || value === undefined ? '' : String(value);
+    const safe = typeof value === 'string' && /^[\s\u0000-\u001f]*[=+@-]/.test(raw) ? "'" + raw : raw;
+    return '"' + safe.replace(/"/g, '""') + '"';
+  };
+  return '\uFEFF' + [columns.map(cell).join(','), ...report.rows.map(row => columns.map(key => cell(row[key])).join(','))].join('\r\n') + '\r\n';
+}
+
 module.exports = function(app, deps) {
   const { runAsync, getAsync, allAsync, withTransaction, requireAdminKey, requirePermission } = deps;
   const lockImportMonth = async ({ merchantId, storeId, currencyCode, providerCode, externalBatchId }) => {
@@ -350,6 +360,27 @@ module.exports = function(app, deps) {
     const context=tenantContext(req,res);if(!context)return;
     try{const result=await service.getPeriodSummary({...context,from:req.query.from,to:req.query.to,period:req.query.period||'week'});res.setHeader('Cache-Control','no-store, private');res.json(result);}
     catch(error){const status=['REVIEW_DATE_RANGE_INVALID','REVIEW_PERIOD_INVALID'].includes(error.code)?400:500;res.status(status).json({error:status===400?'财务周期报表日期或周期参数无效':'获取财务周期报表失败'});}
+  });
+
+  app.get('/api/admin/financial-reconciliation/period-report-export', ...financeAuth, async (req,res)=>{
+    const context=tenantContext(req,res);if(!context)return;
+    try {
+      const actor=await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',[context.actorId,context.merchantId]);
+      if(!actor)return res.status(403).json({error:'财务审核账号无效或已停用'});
+      const report=await service.getPeriodSummary({...context,from:req.query.from,to:req.query.to,period:req.query.period||'week'});
+      const csv=buildFinancialPeriodReportCsv(report);
+      await runAsync('INSERT INTO audit_logs (actor_type,actor_id,actor_username,action,details,ip,created_at) VALUES (?,?,?,?,?,?,?)',
+        ['merchant_admin',context.actorId,actor.username,'export_financial_reconciliation_period_report',
+          JSON.stringify({merchant_id:context.merchantId,store_id:context.storeId,period:report.period,from:report.from,to:report.to,row_count:report.rows.length,format:'csv',scope:'financial_reconciliation_period_report'}),
+          req.ip||'',new Date().toISOString()]);
+      res.setHeader('Cache-Control','no-store, private');
+      res.setHeader('Content-Type','text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition','attachment; filename="financial-reconciliation-'+report.period+'-report.csv"');
+      return res.status(200).send(csv);
+    } catch(error) {
+      const status=['REVIEW_DATE_RANGE_INVALID','REVIEW_PERIOD_INVALID'].includes(error.code)?400:500;
+      return res.status(status).json({error:status===400?'财务周期报表日期或周期参数无效':'财务周期报表导出失败'});
+    }
   });
 
   app.get('/api/admin/financial-reconciliation/exceptions/performance-summary', ...financeAuth, async (req, res) => {

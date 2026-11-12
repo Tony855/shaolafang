@@ -160,3 +160,13 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - The admin UI download action now uses this server endpoint. The browser no longer constructs the performance CSV, so normal UI exports are audited before delivery.
 - Audit history is available at `GET /api/admin/financial-reconciliation/exceptions/performance-export-audit`. It filters by the authenticated merchant and current store, supports optional administrator ID and date bounds, and uses descending-ID cursor pagination (1–100 rows per page). The response excludes raw audit details and exported data; it returns actor, time, SLA threshold, format, and row count.
 - Date-only `to` filters include the entire requested calendar day. Tenant/store filters are bound to the authenticated request context and are not accepted from caller-supplied scope parameters.
+
+
+## Unified daily, weekly, and monthly reconciliation reports (next batch)
+
+- The period summary supports `period=day|week|month` and aggregates statement batches by the selected period and original currency.
+- Daily buckets use the statement import date; weekly buckets use Monday–Sunday; monthly buckets use calendar months. The requested date window is inclusive and limited to 366 days.
+- Amounts remain in integer minor units and are never summed across currencies or converted using an assumed exchange rate.
+- CSV is generated server-side by `GET /api/admin/financial-reconciliation/period-report-export`. It requires an active merchant administrator in the authenticated merchant/store context.
+- The export audit row is committed before the CSV response. Audit write failure returns an error and does not send the file. Audit details contain scope, period, date range, row count, actor, IP, and timestamp, but not the exported CSV.
+- CSV cells are quoted and formula-prefixed string values are neutralized. Responses are private and non-cacheable. No journal, ledger, payment, refund, settlement, or month-close state is changed.
