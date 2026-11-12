@@ -270,6 +270,42 @@ module.exports = function(app, deps) {
     }
   });
 
+
+  app.post('/api/admin/financial-reconciliation/exceptions/alerts/generate', ...financeAuth, async (req, res) => {
+    const context=tenantContext(req,res);if(!context)return;
+    const slaHours=req.body?.slaHours===undefined?24:Number(req.body.slaHours);
+    if(!Number.isSafeInteger(slaHours)||slaHours<1||slaHours>720)return res.status(400).json({error:'SLA 小时数必须为 1–720 的整数'});
+    try{
+      const actor=await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',[context.actorId,context.merchantId]);
+      if(!actor)return res.status(403).json({error:'财务审核账号无效或已停用'});
+      const result=await service.generateSlaAlerts({...context,slaHours,actorId:context.actorId,actorUsername:actor.username});
+      res.setHeader('Cache-Control','no-store, private');res.status(201).json({success:true,...result});
+    }catch(error){res.status(error.code==='EXCEPTION_ALERT_SLA_INVALID'?400:500).json({error:error.code?'SLA 提醒生成参数无效':'生成 SLA 提醒失败'});}
+  });
+  app.get('/api/admin/financial-reconciliation/exceptions/alerts', ...financeAuth, async (req,res)=>{
+    const context=tenantContext(req,res);if(!context)return;
+    try{
+      const result=await service.listSlaAlerts({...context,status:req.query.status||'pending',limit:req.query.limit||50,afterId:req.query.afterId||0});
+      res.setHeader('Cache-Control','no-store, private');res.json(result);
+    }catch(error){
+      const status=['EXCEPTION_ALERT_PAGINATION_INVALID','EXCEPTION_ALERT_FILTER_INVALID'].includes(error.code)?400:500;
+      res.status(status).json({error:status===400?'SLA 提醒筛选或分页参数无效':'获取 SLA 提醒失败'});
+    }
+  });
+  app.post('/api/admin/financial-reconciliation/exceptions/alerts/:alertId/acknowledge', ...financeAuth, async (req,res)=>{
+    const context=tenantContext(req,res);if(!context)return;
+    const alertId=positiveRouteId(req.params.alertId);if(!alertId)return res.status(400).json({error:'提醒编号无效'});
+    try{
+      const actor=await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',[context.actorId,context.merchantId]);
+      if(!actor)return res.status(403).json({error:'财务审核账号无效或已停用'});
+      const result=await service.acknowledgeSlaAlert({...context,alertId,actorUsername:actor.username,reason:req.body?.reason,idempotencyKey:req.get('Idempotency-Key')||req.body?.idempotencyKey});
+      res.status(result.replayed?200:201).json({success:true,...result});
+    }catch(error){
+      const status=({EXCEPTION_ALERT_NOT_FOUND:404,EXCEPTION_ALERT_STATE_CONFLICT:409,EXCEPTION_ALERT_IDEMPOTENCY_CONFLICT:409,EXCEPTION_ALERT_IDEMPOTENCY_INVALID:400})[error.code]||(error.code?.startsWith('EXCEPTION_ALERT_')?400:500);
+      res.status(status).json({error:status>=500?'确认 SLA 提醒失败，事务已回滚':error.message});
+    }
+  });
+
   app.get('/api/admin/financial-reconciliation/exceptions/operations-summary', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;
