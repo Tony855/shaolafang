@@ -430,3 +430,108 @@ test('MySQL integration: concurrent month-close lock contenders allow only one t
   assert.equal(periods.length, 1, 'the unique tenant/month/currency key must prevent duplicate periods');
   assert.equal(periods[0].status, 'locked');
 });
+
+
+test('MySQL integration: journal posting is balanced, idempotent, and rejects changed replays', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const db = await connectTestDatabase();
+  t.after(async () => {
+    try {
+      await db.connection.query('DROP TABLE IF EXISTS financial_journal_entries');
+      await db.connection.query('DROP TABLE IF EXISTS financial_journal_transactions');
+    } finally {
+      await db.connection.end();
+    }
+  });
+
+  await db.connection.query('DROP TABLE IF EXISTS financial_journal_entries');
+  await db.connection.query('DROP TABLE IF EXISTS financial_journal_transactions');
+  await db.runAsync(`CREATE TABLE financial_journal_transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    source_id VARCHAR(128) NOT NULL,
+    idempotency_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    created_by VARCHAR(100) NOT NULL DEFAULT '',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_financial_journal_idempotency (merchant_id,store_id,idempotency_key)
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_entries (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    transaction_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    line_no INT NOT NULL,
+    account_code VARCHAR(64) NOT NULL,
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    memo VARCHAR(255) NOT NULL DEFAULT '',
+    UNIQUE KEY unique_financial_journal_line (transaction_id,line_no),
+    CONSTRAINT fk_financial_journal_test_transaction FOREIGN KEY (transaction_id)
+      REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+
+  const { createFinancialLedgerService } = require('../server/services/financial-ledger-store');
+  const withTransaction = async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+  const service = createFinancialLedgerService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+  const draft = {
+    merchantId: 44, storeId: 12, currencyCode: 'USD',
+    sourceType: 'order_payment', sourceId: 'mysql-order-1001',
+    idempotencyKey: 'mysql-journal:order-1001', description: 'Order payment',
+    createdBy: 'mysql-integration',
+    entries: [
+      { accountCode: 'payment_clearing', direction: 'debit', amountMinor: 12500, memo: 'gross receipt' },
+      { accountCode: 'sales_revenue', direction: 'credit', amountMinor: 12500, memo: 'recognized sale' }
+    ]
+  };
+
+  const first = await service.postJournalTransaction(draft);
+  const replay = await service.postJournalTransaction(draft);
+  assert.equal(first.replayed, false);
+  assert.equal(replay.replayed, true);
+  assert.equal(replay.transactionId, first.transactionId);
+
+  await assert.rejects(service.postJournalTransaction({
+    ...draft,
+    description: 'Changed header under same key'
+  }), error => error.code === 'JOURNAL_IDEMPOTENCY_CONFLICT');
+  await assert.rejects(service.postJournalTransaction({
+    ...draft,
+    entries: [
+      { accountCode: 'payment_clearing', direction: 'debit', amountMinor: 12000, memo: 'changed amount' },
+      { accountCode: 'sales_revenue', direction: 'credit', amountMinor: 12000, memo: 'changed amount' }
+    ]
+  }), error => error.code === 'JOURNAL_IDEMPOTENCY_CONFLICT');
+
+  const [transactions] = await db.connection.query(
+    'SELECT id,merchant_id,store_id,currency_code FROM financial_journal_transactions'
+  );
+  const [entries] = await db.connection.query(
+    'SELECT line_no,direction,amount_minor,merchant_id,store_id FROM financial_journal_entries WHERE transaction_id=? ORDER BY line_no',
+    [first.transactionId]
+  );
+  assert.equal(transactions.length, 1);
+  assert.deepEqual([Number(transactions[0].merchant_id), Number(transactions[0].store_id), transactions[0].currency_code],
+    [44, 12, 'USD']);
+  assert.equal(entries.length, 2);
+  assert.deepEqual(entries.map(row => [row.direction, Number(row.amount_minor)]),
+    [['debit', 12500], ['credit', 12500]]);
+  assert.ok(entries.every(row => Number(row.merchant_id) === 44 && Number(row.store_id) === 12));
+});
