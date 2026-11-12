@@ -754,6 +754,8 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
   const db = await connectTestDatabase();
   const tables = [
     'financial_reconciliation_review_events',
+    'financial_journal_entries',
+    'financial_journal_transactions',
     'financial_reconciliation_items',
     'financial_journal_entries',
     'financial_journal_transactions',
@@ -1579,6 +1581,29 @@ test('MySQL integration: unmatched statement flows through exception classificat
     UNIQUE KEY unique_finance_exception_e2e_row (batch_id,row_no),
     CONSTRAINT fk_finance_exception_e2e_batch FOREIGN KEY (batch_id)
       REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    source_id VARCHAR(128) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    created_by VARCHAR(100) NOT NULL DEFAULT '',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_entries (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    transaction_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    line_no INT NOT NULL,
+    account_code VARCHAR(64) NOT NULL,
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    memo VARCHAR(255) NOT NULL DEFAULT ''
   ) ENGINE=InnoDB`);
 
   const { ensureFinancialExceptionWorkflowSchema } = require('../server/db/migrations/financial-month-close');
