@@ -85,7 +85,8 @@ test('SLA alert routes enforce tenant context, thresholds and no-store reads',as
   const routes=new Map(),app={get(p,...h){routes.set('GET '+p,h);},post(p,...h){routes.set('POST '+p,h);}};
   registerRoutes(app,{runAsync:async()=>({affectedRows:1,insertId:1}),getAsync:async(sql)=>sql.includes('SELECT username')?{username:'finance'}:null,allAsync:async()=>[],withTransaction:async work=>work(),requireAdminKey:(_q,_s,n)=>n(),requirePermission:()=> (_q,_s,n)=>n()});
   const response=()=>({statusCode:200,body:null,headers:{},status(c){this.statusCode=c;return this;},setHeader(k,v){this.headers[k]=v;},json(b){this.body=b;return this;}});
-  assert.ok(routes.get('GET /api/admin/financial-reconciliation/period-summary'));assert.ok(routes.get('GET /api/admin/financial-reconciliation/exceptions/alerts/:alertId/history'));\n  const generate=routes.get('POST /api/admin/financial-reconciliation/exceptions/alerts/generate').at(-1);
+  assert.ok(routes.get('GET /api/admin/financial-reconciliation/period-summary'));assert.ok(routes.get('GET /api/admin/financial-reconciliation/exceptions/alerts/:alertId/history'));
+  const generate=routes.get('POST /api/admin/financial-reconciliation/exceptions/alerts/generate').at(-1);
   const denied=response();await generate({merchantId:4,storeId:null,adminId:7,body:{}},denied);assert.equal(denied.statusCode,403);
   const invalid=response();await generate({merchantId:4,storeId:9,adminId:7,body:{slaHours:721}},invalid);assert.equal(invalid.statusCode,400);
   const list=routes.get('GET /api/admin/financial-reconciliation/exceptions/alerts').at(-1);
@@ -96,7 +97,7 @@ test('alert inbox and report presets are wired through HTML, source and bundle',
   const source=fs.readFileSync(path.join(root,'pages/admin/financial-reconciliation.js'),'utf8');
   const bundle=fs.readFileSync(path.join(root,'assets/admin-bundle.js'),'utf8');
   const html=fs.readFileSync(path.join(root,'admin.html'),'utf8');
-  for(const id of ['financeSlaAlertList','financeSlaAlertGenerate','financeSlaAlertReload','financeReportLast7','financeReportLast30','financeReportThisMonth'])assert.ok(html.includes('id="'+id+'"'));
-  assert.ok(source.includes('/exceptions/alerts?status=pending'));
+  for(const id of ['financeSlaAlertList','financeSlaAlertGenerate','financeSlaAlertReload','financeSlaAlertStatus','financeReportLast7','financeReportLast30','financeReportThisMonth','financePeriodReport'])assert.ok(html.includes('id="'+id+'"'));
+  assert.ok(source.includes('/exceptions/alerts?status=')&&source.includes('loadSlaAlertHistory')&&source.includes('loadPeriodSummary'));
   assert.ok(bundle.includes(source.trimEnd()));
 });
