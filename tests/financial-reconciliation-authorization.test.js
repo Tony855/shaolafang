@@ -77,19 +77,7 @@ test('finance read and export handlers reject missing merchant, store, or actor 
 });
 
 test('period report reads tenant scope only from authenticated request context, not query parameters', async () => {
-  const { routes } = setup();
-  const handler = routes.get('GET /api/admin/financial-reconciliation/period-summary').at(-1);
   const seen = [];
-  // Re-register with a database spy to inspect bound tenant values.
-  const app = { get() {}, post() {} };
-  registerRoutes(app, {
-    runAsync: async () => ({ affectedRows: 1 }),
-    getAsync: async () => null,
-    allAsync: async (_sql, params) => { seen.push(params); return []; },
-    withTransaction: async work => work(),
-    requireAdminKey: (_req, _res, next) => next(),
-    requirePermission: () => (_req, _res, next) => next()
-  });
   const routes2 = new Map();
   const app2 = {
     get(path, ...handlers) { routes2.set('GET ' + path, handlers); },
