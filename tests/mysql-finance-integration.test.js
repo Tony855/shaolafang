@@ -1842,7 +1842,7 @@ test('MySQL integration: concurrent manual reviews cannot assign one journal tra
     "INSERT INTO financial_reconciliation_batches (merchant_id,store_id,currency_code,row_count,status) VALUES (44,12,'USD',2,'imported')"
   );
   const batchId = Number(batch.insertId);
-  const items = await firstDb.runAsync(
+  await firstDb.runAsync(
     `INSERT INTO financial_reconciliation_items
       (batch_id,merchant_id,store_id,amount_minor,currency_code,match_status)
      VALUES (?,44,12,12500,'USD','pending'),(?,44,12,12500,'USD','pending')`,
