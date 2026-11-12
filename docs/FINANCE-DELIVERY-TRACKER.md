@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (after PR #166)
+Last reviewed: 2026-11-12 (after PR #168; PR #169 pending)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -18,14 +18,11 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-| Workstream | Scope | Status |
-|---|---|---|
-| Unified reconciliation reports | Daily/weekly/monthly aggregation and audited server-side CSV export; daily admin action; tests and documentation | PR #162 merged as `5747068` |
 
 ## Remaining engineering acceptance work
 
-1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. Assert transactional rollback, idempotent replay, and immutable audit history.
-2. **Authorization matrix:** route-wide middleware wiring, missing-context rejection, authenticated tenant scope, direct finance permission allow/deny paths, and inactive/expired administrator session rejection are covered by PR #169. Still verify cross-merchant/cross-store access denial for every read, mutation, and export endpoint.
+1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #168 adds a readiness-failure/retry/second-approver month-close lifecycle test with linked audit hashes. Still add a single database-backed full-flow scenario across all services and assert transactional rollback, idempotent replay, and immutable audit history.
+2. **Authorization matrix:** route-wide middleware wiring, missing-context rejection, authenticated tenant scope, and direct finance permission allow/deny paths are covered. PR #169 adds disabled administrator, inactive merchant, and expired-session rejection tests. Still verify cross-merchant/cross-store access denial for every read, mutation, and export endpoint.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** inspect all financial paths for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
 5. **Operational recovery:** test backup/restore, migration/startup schema ensure, interrupted imports, retry behavior, and month-close lock recovery.
