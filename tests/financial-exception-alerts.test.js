@@ -99,6 +99,10 @@ test('alert inbox and report presets are wired through HTML, source and bundle',
   const html=fs.readFileSync(path.join(root,'admin.html'),'utf8');
   for(const id of ['financeSlaAlertList','financeSlaAlertGenerate','financeSlaAlertReload','financeSlaAlertStatus','financeReportLast7','financeReportLast30','financeReportThisMonth','financePeriodReport'])assert.ok(html.includes('id="'+id+'"'));
   assert.ok(source.includes('/exceptions/alerts?status=')&&source.includes('loadSlaAlertHistory')&&source.includes('loadPeriodSummary'));
+  for(const id of ['financeExceptionPerformanceReload','financeExceptionPerformanceExport','financeExceptionPerformanceSummary','financeExceptionPerformanceCurrency','financeExceptionPerformanceAssignee','financeExceptionPerformanceCategory'])assert.ok(html.includes('id="'+id+'"'));
+  assert.ok(source.includes('/exceptions/performance-summary?slaHours=')&&source.includes('exportExceptionPerformance'));
+  assert.ok(source.includes('financeExceptionPerformanceReload')&&source.includes('financeExceptionPerformanceExport'));
+
   assert.ok(bundle.includes(source.trimEnd()));
 });
 

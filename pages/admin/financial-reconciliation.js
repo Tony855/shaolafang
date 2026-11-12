@@ -618,6 +618,57 @@
       toast('❌ ' + (error.message || t('financeMonthActionFailed', 'Monthly close action failed')));
     } finally { button.disabled = false; }
   }
+
+  function performancePercent(value) { return value === null || value === undefined ? '—' : Number(value).toFixed(2) + '%'; }
+  function renderPerformanceTable(targetId, rows, columns, emptyText) {
+    const target=$('#'+targetId);if(!target)return;
+    if(!rows.length){target.innerHTML='<div class="empty-hint">'+esc(emptyText)+'</div>';return;}
+    target.innerHTML='<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>'+
+      columns.map(col=>'<th style="text-align:left;padding:8px;border-bottom:1px solid #555;white-space:nowrap;">'+esc(col.label)+'</th>').join('')+
+      '</tr></thead><tbody>'+rows.map(row=>'<tr>'+columns.map(col=>'<td style="padding:8px;border-bottom:1px solid rgba(255,255,255,.08);">'+esc(col.format?col.format(row[col.key]):(row[col.key]??'—'))+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+  }
+  function renderExceptionPerformance(data) {
+    const summary=$('#financeExceptionPerformanceSummary');
+    const currencies=Array.isArray(data.byCurrency)?data.byCurrency:[],assignees=Array.isArray(data.byAssignee)?data.byAssignee:[],categories=Array.isArray(data.byCategory)?data.byCategory:[];
+    if(summary)summary.innerHTML='<div style="display:flex;gap:10px;flex-wrap:wrap;"><span>当前 SLA：<strong>'+Number(data.slaHours)+' 小时</strong></span><span>统计币种：<strong>'+currencies.length+'</strong></span><span>活跃异常：<strong>'+currencies.reduce((n,r)=>n+Number(r.activeCount||0),0)+'</strong></span><span>超时异常：<strong>'+currencies.reduce((n,r)=>n+Number(r.overdueActiveCount||0),0)+'</strong></span></div><p class="ff-desc" style="margin-top:8px;">'+esc(data.metricDefinitions?.onTimeResolutionRate||'按不可变 resolve 事件统计')+'；平均耗时从批次导入时间起算，不代表员工实际处理净耗时。</p>';
+    renderPerformanceTable('financeExceptionPerformanceCurrency',currencies,[
+      {key:'currencyCode',label:'币种'},{key:'activeCount',label:'活跃异常'},{key:'overdueActiveCount',label:'超时异常'},
+      {key:'overdueRatePercent',label:'超时率',format:performancePercent},{key:'resolvedEventCount',label:'解决事件'},
+      {key:'onTimeResolvedEventCount',label:'SLA 内解决事件'},{key:'onTimeResolutionRatePercent',label:'按时解决率',format:performancePercent},
+      {key:'avgImportToResolveSeconds',label:'平均导入至解决（秒）',format:v=>v===null||v===undefined?'—':Math.round(Number(v)).toString()}
+    ],'暂无币种绩效数据');
+    renderPerformanceTable('financeExceptionPerformanceAssignee',assignees,[
+      {key:'username',label:'负责人',format:v=>v||'未分配'},{key:'currencyCode',label:'币种'},{key:'activeCount',label:'活跃异常'},
+      {key:'overdueActiveCount',label:'超时异常'},{key:'overdueRatePercent',label:'超时率',format:performancePercent}
+    ],'暂无负责人数据');
+    renderPerformanceTable('financeExceptionPerformanceCategory',categories,[
+      {key:'category',label:'异常类别'},{key:'currencyCode',label:'币种'},{key:'activeCount',label:'活跃异常'},
+      {key:'overdueActiveCount',label:'超时异常'},{key:'overdueRatePercent',label:'超时率',format:performancePercent}
+    ],'暂无异常分类数据');
+  }
+  function csvCell(value) {
+    let text=String(value??'');
+    if(/^[\\s\\u0000-\\u001f]*[=+@\\-]/.test(text))text="'"+text;
+    return '"'+text.replace(/"/g,'""')+'"';
+  }
+  function exportExceptionPerformance(data) {
+    const columns=['group','currencyCode','name','activeCount','overdueActiveCount','overdueRatePercent','resolvedEventCount','onTimeResolvedEventCount','onTimeResolutionRatePercent','avgImportToResolveSeconds'],rows=[];
+    (data.byCurrency||[]).forEach(r=>rows.push({group:'currency',currencyCode:r.currencyCode,name:'',...r}));
+    (data.byAssignee||[]).forEach(r=>rows.push({group:'assignee',currencyCode:r.currencyCode,name:r.username||'unassigned',...r}));
+    (data.byCategory||[]).forEach(r=>rows.push({group:'category',currencyCode:r.currencyCode,name:r.category,...r}));
+    if(!rows.length){toast('暂无可导出的绩效数据');return;}
+    const csv=[columns.join(','),...rows.map(row=>columns.map(key=>csvCell(row[key])).join(','))].join('\\r\\n');
+    const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download='financial-exception-performance.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+  }
+  async function loadExceptionPerformance(exportCsv=false) {
+    if(!requirePermission())return;
+    const target=$('#financeExceptionPerformanceSummary');if(target)target.innerHTML='<div class="empty-hint">正在加载异常绩效…</div>';
+    const raw=Number($('#financeExceptionSlaHours')?.value||24),slaHours=Number.isSafeInteger(raw)&&raw>=1&&raw<=720?raw:24;
+    try{const data=await api('/admin/financial-reconciliation/exceptions/performance-summary?slaHours='+encodeURIComponent(String(slaHours)));renderExceptionPerformance(data);if(exportCsv)exportExceptionPerformance(data);}
+    catch(error){if(target)target.innerHTML='<div class="empty-hint">异常绩效加载失败</div>';toast('❌ '+(error.message||'异常绩效加载失败'));}
+  }
+
   function bind() {
     const panel = root();
     if (!panel || panel.dataset.bound) return;
@@ -660,6 +711,8 @@
     $('#financeExportDaily').addEventListener('click', () => loadDailySummary(true));
     $('#financeExceptionReload').addEventListener('click', () => loadExceptionQueue(false));
     $('#financeExceptionOpsReload').addEventListener('click', loadExceptionOperations);
+    $('#financeExceptionPerformanceReload').addEventListener('click', () => loadExceptionPerformance());
+    $('#financeExceptionPerformanceExport').addEventListener('click', () => loadExceptionPerformance(true));
     $('#financeSlaAlertGenerate').addEventListener('click',generateSlaAlerts);
     $('#financeSlaAlertReload').addEventListener('click',loadSlaAlerts);
     $('#financeSlaAlertStatus')?.addEventListener('change',loadSlaAlerts);
@@ -683,7 +736,7 @@
     const to = $('#financeReportTo');
     if (from && !from.value) from.value = today;
     if (to && !to.value) to.value = today;
-    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadExceptionOperations(), loadSlaAlerts(), loadDailySummary(), loadMonthlyClose()]);
+    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadExceptionOperations(), loadExceptionPerformance(), loadSlaAlerts(), loadDailySummary(), loadMonthlyClose()]);
   }
   window.loadFinancialReconciliation = loadFinancialReconciliation;
 })();

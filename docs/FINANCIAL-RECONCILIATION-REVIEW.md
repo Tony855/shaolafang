@@ -132,3 +132,11 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - Average import-to-resolve time uses the same timestamps. It is not a measure of time since an employee began work and must not be described as net handling time.
 - SLA rate denominators are explicit: overdue rate uses currently active open/in-progress exception rows; on-time resolution rate uses recorded resolve events. Empty denominators return `null`, not 0%.
 - All queries use authenticated merchant/store IDs and bound parameters, group by original currency, return private no-store responses, and do not mutate reconciliation, order, payment, refund, journal, ledger, or month-close records.
+
+
+### Exception performance workbench UI
+
+- The admin finance workbench renders the performance summary API in separate currency, assignee, and exception-category tables.
+- The selected SLA threshold is shared with the exception operations monitor; the performance panel can be refreshed independently.
+- CSV export combines the three groupings into one file, retains original currency codes, and escapes spreadsheet formula-prefixed cells.
+- The UI labels the resolution rate as event-based and elapsed time as import-to-resolve, not employee net handling time. Export is an on-demand browser download; server-side export audit has not yet been introduced.
