@@ -1137,8 +1137,10 @@ test('MySQL integration: SLA alert generation, acknowledgement, dismissal, and h
   const [alerts] = await db.connection.query(
     'SELECT id,status,acknowledged_by_admin_id FROM financial_reconciliation_exception_alerts WHERE merchant_id=44 AND store_id=12 ORDER BY id'
   );
-  assert.deepEqual(alerts.map(row => row.status), ['acknowledged', 'dismissed']);
-  assert.equal(Number(alerts[0].acknowledged_by_admin_id), 7);
+  const alertsById = new Map(alerts.map(row => [Number(row.id), row]));
+  assert.equal(alertsById.get(firstAlert.alertId).status, 'acknowledged');
+  assert.equal(alertsById.get(secondAlert.alertId).status, 'dismissed');
+  assert.equal(Number(alertsById.get(firstAlert.alertId).acknowledged_by_admin_id), 7);
   const firstHistory = await service.listSlaAlertHistory({
     merchantId: 44, storeId: 12, alertId: firstAlert.alertId
   });
