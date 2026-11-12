@@ -19,19 +19,20 @@ function response() {
     statusCode: 200, body: null, headers: {},
     status(code) { this.statusCode = code; return this; },
     setHeader(key, value) { this.headers[key] = value; },
-    json(body) { this.body = body; return this; }
+    json(body) { this.body = body; return this; },
+    send(body) { this.body = body; return this; }
   };
 }
 
-function routeSetup(allAsync) {
+function routeSetup(allAsync, getAsync = async () => null, runAsync = async () => ({ affectedRows: 1 })) {
   const routes = new Map();
   const app = {
     get(path, ...handlers) { routes.set('GET ' + path, handlers); },
     post(path, ...handlers) { routes.set('POST ' + path, handlers); }
   };
   registerRoutes(app, {
-    runAsync: async () => ({ affectedRows: 1 }),
-    getAsync: async () => null,
+    runAsync,
+    getAsync,
     allAsync,
     withTransaction: async work => work(),
     requireAdminKey: (_req, _res, next) => next(),
@@ -39,6 +40,60 @@ function routeSetup(allAsync) {
   });
   return routes;
 }
+
+
+test('period summary supports daily, weekly, and monthly aggregation without currency conversion', async () => {
+  const calls = [];
+  const service = serviceWith(async (sql, params) => {
+    calls.push({ sql, params });
+    return [{ period_start: '2026-11-12', period_end: '2026-11-12', currency_code: 'KHR',
+      batch_count: 2, statement_row_count: 7, total_debit_minor: 9000, total_credit_minor: 9000,
+      matched_count: 5, pending_count: 1, unmatched_count: 0, ambiguous_count: 0, exception_count: 1 }];
+  });
+  for (const period of ['day', 'week', 'month']) {
+    const result = await service.getPeriodSummary({ merchantId: 4, storeId: 9, from: '2026-11-01', to: '2026-11-30', period });
+    assert.equal(result.period, period);
+    assert.equal(result.rows[0].currencyCode, 'KHR');
+    assert.equal(result.rows[0].totalDebitMinor, 9000);
+    assert.deepEqual(calls.at(-1).params, [4, 9, '2026-11-01 00:00:00', '2026-12-01 00:00:00']);
+    if (period === 'day') assert.match(calls.at(-1).sql, /DATE\(b\.imported_at\)/);
+    if (period === 'week') assert.match(calls.at(-1).sql, /WEEKDAY\(b\.imported_at\)/);
+    if (period === 'month') assert.match(calls.at(-1).sql, /DATE_FORMAT\(b\.imported_at/);
+  }
+  await assert.rejects(service.getPeriodSummary({ merchantId: 4, storeId: 9, from: '2026-11-01', to: '2026-11-30', period: 'quarter' }),
+    error => error.code === 'REVIEW_PERIOD_INVALID');
+});
+
+test('period report CSV is audited before response and fails closed when audit write fails', async () => {
+  const auditWrites = [];
+  const rows = [{ period_start: '2026-11-01', period_end: '2026-11-30', currency_code: 'USD',
+    batch_count: 1, statement_row_count: 2, total_debit_minor: 1200, total_credit_minor: 1200,
+    matched_count: 2, pending_count: 0, unmatched_count: 0, ambiguous_count: 0, exception_count: 0 }];
+  const routes = routeSetup(async () => rows,
+    async () => ({ username: 'finance-admin' }),
+    async (sql, params) => { auditWrites.push({ sql, params }); return { affectedRows: 1 }; });
+  const handler = routes.get('GET /api/admin/financial-reconciliation/period-report-export').at(-1);
+  const ok = response();
+  await handler({ merchantId: 4, storeId: 9, adminId: 7, ip: '127.0.0.1',
+    query: { period: 'month', from: '2026-11-01', to: '2026-11-30' } }, ok);
+  assert.equal(ok.statusCode, 200);
+  assert.equal(ok.headers['Cache-Control'], 'no-store, private');
+  assert.match(ok.headers['Content-Type'], /text\/csv/);
+  assert.ok(String(ok.body).startsWith('\uFEFF'));
+  assert.match(ok.body, /USD/);
+  assert.equal(auditWrites.length, 1);
+  assert.equal(auditWrites[0].params[3], 'export_financial_reconciliation_period_report');
+  assert.match(auditWrites[0].params[4], /"merchant_id":4,"store_id":9/);
+
+  const failedRoutes = routeSetup(async () => rows,
+    async () => ({ username: 'finance-admin' }),
+    async () => { throw new Error('audit storage unavailable'); });
+  const failed = response();
+  await failedRoutes.get('GET /api/admin/financial-reconciliation/period-report-export').at(-1)(
+    { merchantId: 4, storeId: 9, adminId: 7, query: { period: 'day', from: '2026-11-12', to: '2026-11-12' } }, failed);
+  assert.equal(failed.statusCode, 500);
+  assert.match(failed.body.error, /导出失败/);
+});
 
 test('review history uses merchant/store scope, optional filters, and a descending cursor', async () => {
   const seen = [];
