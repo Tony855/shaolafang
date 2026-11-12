@@ -294,7 +294,7 @@
                 <div class="settings-card" style="margin-bottom:16px;" id="financeSlaAlertPanel">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                     <h3 class="settings-card-title">SLA 提醒收件箱</h3>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button id="financeSlaAlertGenerate" type="button">生成超时提醒</button><button id="financeSlaAlertReload" type="button">刷新提醒</button></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="financeSlaAlertStatus"><option value="pending">待处理提醒</option><option value="acknowledged">已确认提醒</option><option value="dismissed">已关闭提醒</option><option value="all">全部提醒</option></select><button id="financeSlaAlertGenerate" type="button">生成超时提醒</button><button id="financeSlaAlertReload" type="button">刷新提醒</button></div>
                   </div>
                   <p class="ff-desc">按商户、门店、异常项目和 SLA 阈值去重；确认操作写入不可变审计事件。当前为站内提醒，不会向外部平台发送消息。</p>
                   <div id="financeSlaAlertList"><div class="empty-hint">—</div></div>
@@ -371,7 +371,7 @@
                     <button id="financeReportLast30" type="button">最近 30 天</button>
                     <button id="financeReportThisMonth" type="button">本月</button>
                   </div>
-                  <div id="financeDailyReport"></div>
+                  <div id="financeDailyReport"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;"><button type="button" data-finance-period="week">生成周报 CSV</button><button type="button" data-finance-period="month">生成月报 CSV</button></div><div id="financePeriodReport" style="margin-top:12px;"></div>
                 </div>
               </div>
             </section>
