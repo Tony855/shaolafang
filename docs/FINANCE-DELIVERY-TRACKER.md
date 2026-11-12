@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #194 merged; MySQL SLA alert lifecycle is covered; PR #195 adds month-close approval integration)
+Last reviewed: 2026-11-13 (PR #195 merged; MySQL month-close approval is covered; PR #196 adds cross-service import-to-export lifecycle)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -38,7 +38,7 @@ This tracker records merged delivery separately from work that is still under re
 | MySQL manual review transaction | Real-MySQL review confirms exact journal matches, preserves exact replay idempotency, and rejects amount mismatch without changing the row or writing an audit event | PR #192 merged as `670a14a8`; all six checks passed |
 | MySQL exception workflow transaction | Real-MySQL exception case start/resolve transitions persist actor, status, resolution note, idempotent event replay, and linked event hashes | PR #193 merged as `b32cf765`; all six checks passed |
 | MySQL SLA alert lifecycle | Real-MySQL overdue alert generation is deduplicated; acknowledge/dismiss transitions are idempotent and preserve hash-linked alert history | PR #194 merged as `563b46b3`; all six checks passed |
-| MySQL month-close approval lifecycle | Real-MySQL close request enforces maker-checker; readiness failure rolls back and retry succeeds; approval history remains hash-linked | PR #195 under review; all six current-head checks passed |
+| MySQL month-close approval lifecycle | Real-MySQL close request enforces maker-checker; readiness failure rolls back and retry succeeds; approval history remains hash-linked | PR #195 merged as `4369409a`; all six current-head checks passed |\n| MySQL cross-service import-to-export lifecycle | Real-MySQL statement import flows through journal posting, candidate suggestion, manual review, month-close approval, and scoped CSV export | PR #196 under review; CI pending |
 
 ## Under review
 
@@ -47,7 +47,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Remaining engineering acceptance work
 
-1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. Import transaction/replay/rollback (PR #186), matching suggestion scope (PR #191), manual review transaction (PR #192), month-close migration/locking/concurrency (PR #177/#188), exception/SLA schema/constraint slices (PR #178), schema ensure reruns (PR #187), journal posting (PR #189), and journal export (PR #190) are database-backed; a single database-backed full-flow scenario across all services remains outstanding.
+1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. Import transaction/replay/rollback (PR #186), matching suggestion scope (PR #191), manual review transaction (PR #192), month-close migration/locking/concurrency (PR #177/#188), exception/SLA schema/constraint slices (PR #178), schema ensure reruns (PR #187), journal posting (PR #189), and journal export (PR #190) are database-backed; PR #196 adds one database-backed import-to-close-export scenario. Exception/SLA remain covered by their own real-MySQL workflow tests rather than being part of this same end-to-end scenario.
 2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172); representative authenticated read-query scoping is covered (PR #173); review mutation and audit query scoping is covered by PR #174; foreign review/SLA/exception workflow resource IDs are covered by PR #176/#179; cross-merchant exception assignee ownership is covered by PR #180; month-close transition context is covered by PR #181. Journal and period-report export audit scopes are covered by PR #182/#183; exception-performance audit filter spoofing is covered by PR #184. Remaining export/admin ownership cases still need explicit acceptance tests.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues at 2,500, 10,000, and 50,000 rows, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** PR #185 adds safe-integer guards for period/month aggregate minor-unit totals. Continue auditing every financial path for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
@@ -82,7 +82,7 @@ This tracker records merged delivery separately from work that is still under re
 - PR #192 merged: real-MySQL manual review verifies exact journal confirmation, idempotent replay, and rejection of mismatched amount without row/audit mutation (`670a14a8`); all six checks passed.
 - PR #193 merged: real-MySQL exception workflow verifies start/resolve state transitions, idempotent replay, actor attribution, resolution note, and linked event hashes (`b32cf765`); all six checks passed.
 - PR #194 merged: real-MySQL SLA alert generation, duplicate suppression, acknowledge/dismiss replay, and hash-linked history (`563b46b3`); all six checks passed.
-- PR #195 open: real-MySQL month-close request/approval, maker-checker, readiness rollback/retry, and hash-linked history; all six checks on head `682449f2` passed, awaiting merge.
+- PR #195 merged: real-MySQL month-close request/approval, maker-checker, readiness rollback/retry, and hash-linked history (`4369409a`); all six checks on final head `d544438d` passed.\n- PR #196 open: real-MySQL import → journal posting → match suggestion → manual review → month-close approval → CSV export in one cross-service scenario; CI pending.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
