@@ -8,7 +8,7 @@
   if (!ctx) return;
   const { $, api, esc } = ctx;
   const root = () => document.getElementById('financialReconciliationPanel');
-  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [], exceptionRows: [], nextExceptionCursor: null, exceptionLoading: false, exceptionHistory: {} };
+  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [], exceptionRows: [], nextExceptionCursor: null, exceptionLoading: false, exceptionHistory: {}, performanceExportAuditCursor: null, performanceExportAuditRows: [] };
 
   function t(key, fallback) {
     const value = ctx.tAdmin ? ctx.tAdmin(key) : key;
@@ -679,7 +679,10 @@
     if (!requirePermission()) return;
     const target = $('#financePerformanceExportAudit');
     if (!target) return;
-    if (!append) state.performanceExportAuditCursor = null;
+    if (!append) {
+      state.performanceExportAuditCursor = null;
+      state.performanceExportAuditRows = [];
+    }
     const query = new URLSearchParams({ limit: '25' });
     const actorId = $('#financePerformanceAuditActor')?.value.trim();
     const from = $('#financePerformanceAuditFrom')?.value;
@@ -691,16 +694,21 @@
     try {
       const result = await api('/admin/financial-reconciliation/exceptions/performance-export-audit?' + query.toString());
       const rows = Array.isArray(result.items) ? result.items : [];
-      const html = rows.map(row => '<tr><td>' + Number(row.id) + '</td><td>' + esc(row.createdAt || '—') +
+      state.performanceExportAuditRows = append
+        ? state.performanceExportAuditRows.concat(rows)
+        : rows;
+      const body = state.performanceExportAuditRows.map(row => '<tr><td>' + Number(row.id) + '</td><td>' + esc(row.createdAt || '—') +
         '</td><td>' + esc(row.actorUsername || '—') + '</td><td>' + Number(row.slaHours || 0) +
         '</td><td>' + Number(row.rowCount || 0) + '</td><td>' + esc(row.format || 'csv') + '</td></tr>').join('');
-      const table = '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
-        ['记录号','导出时间','操作人','SLA（小时）','导出行数','格式'].map(label => '<th style="text-align:left;padding:8px;">' + label + '</th>').join('') +
-        '</tr></thead><tbody>' + html + '</tbody></table></div>';
-      target.innerHTML = (append ? target.innerHTML.replace(/<div data-audit-more>[\\s\\S]*?<\\/div>$/, '') : '') +
-        (rows.length ? table : (append ? '' : '<div class="empty-hint">暂无导出记录</div>')) +
-        (result.nextCursor ? '<div data-audit-more style="margin-top:10px;"><button type="button" id="financePerformanceAuditMore" data-cursor="' + Number(result.nextCursor) + '">加载更多</button></div>' : '');
+      const table = state.performanceExportAuditRows.length
+        ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+          ['记录号','导出时间','操作人','SLA（小时）','导出行数','格式'].map(label => '<th style="text-align:left;padding:8px;">' + label + '</th>').join('') +
+          '</tr></thead><tbody>' + body + '</tbody></table></div>'
+        : '<div class="empty-hint">暂无导出记录</div>';
       state.performanceExportAuditCursor = result.nextCursor || null;
+      target.innerHTML = table + (state.performanceExportAuditCursor
+        ? '<div style="margin-top:10px;"><button type="button" id="financePerformanceAuditMore">加载更多</button></div>'
+        : '');
     } catch (error) {
       target.innerHTML = '<div class="empty-hint">导出审计记录加载失败</div>';
       toast('❌ ' + (error.message || '导出审计记录加载失败'));
