@@ -336,6 +336,23 @@ module.exports = function(app, deps) {
     catch(error){const status=['REVIEW_DATE_RANGE_INVALID','REVIEW_PERIOD_INVALID'].includes(error.code)?400:500;res.status(status).json({error:status===400?'财务周期报表日期或周期参数无效':'获取财务周期报表失败'});}
   });
 
+  app.get('/api/admin/financial-reconciliation/exceptions/performance-summary', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const slaHours = req.query.slaHours === undefined ? 24 : Number(req.query.slaHours);
+    if (!Number.isSafeInteger(slaHours) || slaHours < 1 || slaHours > 720) {
+      return res.status(400).json({ error: 'SLA 小时数必须为 1–720 的整数' });
+    }
+    try {
+      const result = await service.getExceptionPerformanceSummary({ ...context, slaHours });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json(result);
+    } catch (error) {
+      res.status(error.code === 'EXCEPTION_OPERATIONS_SLA_INVALID' ? 400 : 500)
+        .json({ error: error.code ? '异常绩效统计参数无效' : '获取异常绩效统计失败' });
+    }
+  });
+
   app.get('/api/admin/financial-reconciliation/exceptions/operations-summary', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;

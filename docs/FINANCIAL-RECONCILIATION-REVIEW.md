@@ -122,3 +122,13 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - Weekly and monthly summaries aggregate statement batches by period and currency, retaining amounts in their original currency minor units. No cross-currency conversion or financial posting is performed.
 - Period summaries accept a maximum 366-day date range and are available through `GET /api/admin/financial-reconciliation/period-summary?period=week|month&from=YYYY-MM-DD&to=YYYY-MM-DD`.
 - Alert history is available through `GET /api/admin/financial-reconciliation/exceptions/alerts/:alertId/history`. Both endpoints are finance-authenticated, tenant/store scoped, and non-cacheable.
+
+
+## Exception performance metrics (next operations batch)
+
+- Read-only endpoint: `GET /api/admin/financial-reconciliation/exceptions/performance-summary?slaHours=24` (SLA threshold: integer 1–720 hours).
+- The response separates currencies and reports active/overdue exception counts and overdue rate by currency, assignee, and exception category. Unassigned work is retained as a null-assignee group.
+- On-time resolution rate is calculated from immutable `resolve` event counts: elapsed time is measured from the statement batch `imported_at` to each event's `created_at`. Reopened cases resolved again contribute another event; the metric is explicitly event-based, not unique-case based.
+- Average import-to-resolve time uses the same timestamps. It is not a measure of time since an employee began work and must not be described as net handling time.
+- SLA rate denominators are explicit: overdue rate uses currently active open/in-progress exception rows; on-time resolution rate uses recorded resolve events. Empty denominators return `null`, not 0%.
+- All queries use authenticated merchant/store IDs and bound parameters, group by original currency, return private no-store responses, and do not mutate reconciliation, order, payment, refund, journal, ledger, or month-close records.

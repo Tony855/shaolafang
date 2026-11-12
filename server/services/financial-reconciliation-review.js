@@ -535,6 +535,98 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
   }
 
 
+  async function getExceptionPerformanceSummary({ merchantId, storeId, slaHours = 24 }) {
+    const merchant = positiveId(merchantId, 'merchantId');
+    const store = positiveId(storeId, 'storeId');
+    const sla = Number(slaHours);
+    if (!Number.isSafeInteger(sla) || sla < 1 || sla > 720) {
+      const error = new TypeError('slaHours must be an integer from 1 to 720');
+      error.code = 'EXCEPTION_OPERATIONS_SLA_INVALID';
+      throw error;
+    }
+    const activeJoin = `FROM financial_reconciliation_items i
+      INNER JOIN financial_reconciliation_batches b
+        ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
+      LEFT JOIN financial_reconciliation_exception_cases c
+        ON c.item_id=i.id AND c.merchant_id=i.merchant_id AND c.store_id=i.store_id
+      WHERE i.merchant_id=? AND i.store_id=? AND i.match_status='exception'
+        AND COALESCE(c.status,'open') IN ('open','in_progress')`;
+    const currencyRows = await allAsync(
+      `SELECT i.currency_code, COUNT(*) AS active_count,
+        SUM(TIMESTAMPDIFF(SECOND,b.imported_at,CURRENT_TIMESTAMP(3)) >= ? * 3600) AS overdue_count
+        ${activeJoin} GROUP BY i.currency_code ORDER BY i.currency_code`,
+      [sla, merchant, store]
+    );
+    const assigneeRows = await allAsync(
+      `SELECT c.assigned_admin_id, c.assigned_admin_username, i.currency_code,
+        COUNT(*) AS active_count,
+        SUM(TIMESTAMPDIFF(SECOND,b.imported_at,CURRENT_TIMESTAMP(3)) >= ? * 3600) AS overdue_count
+        ${activeJoin}
+        GROUP BY c.assigned_admin_id,c.assigned_admin_username,i.currency_code
+        ORDER BY i.currency_code,active_count DESC,c.assigned_admin_username`,
+      [sla, merchant, store]
+    );
+    const categoryRows = await allAsync(
+      `SELECT COALESCE(i.exception_category,'unclassified') AS category,i.currency_code,
+        COUNT(*) AS active_count,
+        SUM(TIMESTAMPDIFF(SECOND,b.imported_at,CURRENT_TIMESTAMP(3)) >= ? * 3600) AS overdue_count
+        ${activeJoin}
+        GROUP BY COALESCE(i.exception_category,'unclassified'),i.currency_code
+        ORDER BY i.currency_code,active_count DESC,category`,
+      [sla, merchant, store]
+    );
+    const resolutionRows = await allAsync(
+      `SELECT i.currency_code,COUNT(e.id) AS resolved_event_count,
+        SUM(TIMESTAMPDIFF(SECOND,b.imported_at,e.created_at) <= ? * 3600) AS on_time_resolved_event_count,
+        AVG(GREATEST(0,TIMESTAMPDIFF(SECOND,b.imported_at,e.created_at))) AS avg_import_to_resolve_seconds
+       FROM financial_reconciliation_exception_events e
+       INNER JOIN financial_reconciliation_items i
+         ON i.id=e.item_id AND i.merchant_id=e.merchant_id AND i.store_id=e.store_id
+       INNER JOIN financial_reconciliation_batches b
+         ON b.id=e.batch_id AND b.merchant_id=e.merchant_id AND b.store_id=e.store_id
+       WHERE e.merchant_id=? AND e.store_id=? AND e.action='resolve'
+       GROUP BY i.currency_code ORDER BY i.currency_code`,
+      [sla, merchant, store]
+    );
+    const n = value => Number(value || 0);
+    const percent = (part,total) => total > 0 ? Math.round((part / total) * 10000) / 100 : null;
+    const resolutions = new Map(resolutionRows.map(row => [row.currency_code, row]));
+    const byCurrency = currencyRows.map(row => {
+      const resolved = resolutions.get(row.currency_code) || {};
+      const activeCount = n(row.active_count), overdueCount = n(row.overdue_count);
+      const resolvedEventCount = n(resolved.resolved_event_count);
+      const onTimeResolvedEventCount = n(resolved.on_time_resolved_event_count);
+      return {
+        currencyCode: row.currency_code, activeCount, overdueActiveCount: overdueCount,
+        overdueRatePercent: percent(overdueCount, activeCount),
+        resolvedEventCount, onTimeResolvedEventCount,
+        onTimeResolutionRatePercent: percent(onTimeResolvedEventCount, resolvedEventCount),
+        avgImportToResolveSeconds: resolved.avg_import_to_resolve_seconds === null || resolved.avg_import_to_resolve_seconds === undefined
+          ? null : n(resolved.avg_import_to_resolve_seconds)
+      };
+    });
+    return {
+      slaHours: sla,
+      metricDefinitions: {
+        overdueRate: '当前活跃异常中，按批次导入时间计算已超过所选 SLA 阈值的比例',
+        onTimeResolutionRate: '不可变 resolve 事件中，从批次导入到该次 resolve 事件不超过 SLA 阈值的比例；按事件计数，重开后再次解决会再次计数',
+        avgImportToResolve: '批次导入时间至 resolve 事件时间的平均秒数，不代表员工实际开始处理后的净耗时'
+      },
+      byCurrency,
+      byAssignee: assigneeRows.map(row => {
+        const activeCount = n(row.active_count), overdueCount = n(row.overdue_count);
+        return { adminId: row.assigned_admin_id === null ? null : n(row.assigned_admin_id),
+          username: row.assigned_admin_username || null, currencyCode: row.currency_code,
+          activeCount, overdueActiveCount: overdueCount, overdueRatePercent: percent(overdueCount, activeCount) };
+      }),
+      byCategory: categoryRows.map(row => {
+        const activeCount = n(row.active_count), overdueCount = n(row.overdue_count);
+        return { category: row.category, currencyCode: row.currency_code,
+          activeCount, overdueActiveCount: overdueCount, overdueRatePercent: percent(overdueCount, activeCount) };
+      })
+    };
+  }
+
   async function generateSlaAlerts({ merchantId, storeId, slaHours = 24, actorId, actorUsername }) {
     const merchant = positiveId(merchantId, 'merchantId'), store = positiveId(storeId, 'storeId');
     const actor = positiveId(actorId, 'actorId'), username = String(actorUsername || '').trim();
@@ -1122,7 +1214,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getPeriodSummary, getExceptionOperationsSummary, generateSlaAlerts, listSlaAlerts, listSlaAlertHistory, acknowledgeSlaAlert, dismissSlaAlert, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
+  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getPeriodSummary, getExceptionOperationsSummary, getExceptionPerformanceSummary, generateSlaAlerts, listSlaAlerts, listSlaAlertHistory, acknowledgeSlaAlert, dismissSlaAlert, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };

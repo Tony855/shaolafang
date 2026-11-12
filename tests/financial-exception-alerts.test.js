@@ -101,3 +101,34 @@ test('alert inbox and report presets are wired through HTML, source and bundle',
   assert.ok(source.includes('/exceptions/alerts?status=')&&source.includes('loadSlaAlertHistory')&&source.includes('loadPeriodSummary'));
   assert.ok(bundle.includes(source.trimEnd()));
 });
+
+test('exception performance metrics are tenant scoped, currency separated and event-based',async()=>{
+  const calls=[];
+  const {service}=makeService({allAsync:async(sql,params)=>{calls.push({sql,params});
+    if(sql.includes('resolved_event_count'))return [{currency_code:'USD',resolved_event_count:4,on_time_resolved_event_count:3,avg_import_to_resolve_seconds:7200}];
+    if(sql.includes('assigned_admin_id'))return [{assigned_admin_id:7,assigned_admin_username:'finance',currency_code:'USD',active_count:2,overdue_count:1}];
+    if(sql.includes('AS category'))return [{category:'fee',currency_code:'USD',active_count:1,overdue_count:1}];
+    return [{currency_code:'USD',active_count:2,overdue_count:1},{currency_code:'KHR',active_count:3,overdue_count:0}];
+  }});
+  const result=await service.getExceptionPerformanceSummary({merchantId:4,storeId:9,slaHours:24});
+  assert.equal(result.byCurrency.length,2);
+  assert.equal(result.byCurrency[0].overdueRatePercent,50);
+  assert.equal(result.byCurrency[0].onTimeResolutionRatePercent,75);
+  assert.equal(result.byCurrency[0].avgImportToResolveSeconds,7200);
+  assert.equal(result.byAssignee[0].adminId,7);
+  assert.equal(result.byCategory[0].category,'fee');
+  assert.ok(calls.every(call=>call.params.includes(4)&&call.params.includes(9)));
+  assert.ok(calls[3].sql.includes("e.action='resolve'"));
+  assert.match(result.metricDefinitions.avgImportToResolve,/不代表员工实际开始处理/);
+  await assert.rejects(service.getExceptionPerformanceSummary({merchantId:4,storeId:9,slaHours:721}),e=>e.code==='EXCEPTION_OPERATIONS_SLA_INVALID');
+});
+
+test('exception performance endpoint enforces tenant scope, SLA bounds and private caching',async()=>{
+  const routes=new Map(),app={get(p,...h){routes.set('GET '+p,h);},post(p,...h){routes.set('POST '+p,h);}};
+  registerRoutes(app,{runAsync:async()=>({affectedRows:1}),getAsync:async()=>null,allAsync:async()=>[],withTransaction:async work=>work(),requireAdminKey:(_q,_s,n)=>n(),requirePermission:()=> (_q,_s,n)=>n()});
+  const response=()=>({statusCode:200,body:null,headers:{},status(c){this.statusCode=c;return this;},setHeader(k,v){this.headers[k]=v;},json(b){this.body=b;return this;}});
+  const handler=routes.get('GET /api/admin/financial-reconciliation/exceptions/performance-summary').at(-1);
+  const denied=response();await handler({merchantId:4,storeId:null,adminId:7,query:{}},denied);assert.equal(denied.statusCode,403);
+  const invalid=response();await handler({merchantId:4,storeId:9,adminId:7,query:{slaHours:'721'}},invalid);assert.equal(invalid.statusCode,400);
+  const ok=response();await handler({merchantId:4,storeId:9,adminId:7,query:{}},ok);assert.equal(ok.statusCode,200);assert.equal(ok.headers['Cache-Control'],'no-store, private');
+});
