@@ -5,6 +5,7 @@ const { createFinancialReconciliationService } = require('../server/services/fin
 const { createFinancialVoucherExportService } = require('../server/services/financial-voucher-export');
 const { createFinancialMonthCloseService } = require('../server/services/financial-month-close');
 const { lockOpenFinancialMonthPeriod } = require('../server/db/migrations/financial-month-close');
+const { buildExceptionPerformanceCsv } = require('../server/services/financial-exception-performance-export');
 
 function positiveRouteId(value) {
   const id = Number(value);
@@ -365,6 +366,85 @@ module.exports = function(app, deps) {
     } catch (error) {
       res.status(error.code === 'EXCEPTION_OPERATIONS_SLA_INVALID' ? 400 : 500)
         .json({ error: error.code ? '异常绩效统计参数无效' : '获取异常绩效统计失败' });
+    }
+  });
+
+  app.get('/api/admin/financial-reconciliation/exceptions/performance-export', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const slaHours = req.query.slaHours === undefined ? 24 : Number(req.query.slaHours);
+    if (!Number.isSafeInteger(slaHours) || slaHours < 1 || slaHours > 720) {
+      return res.status(400).json({ error: 'SLA 小时数必须为 1–720 的整数' });
+    }
+    try {
+      const actor = await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1', [context.actorId, context.merchantId]);
+      if (!actor) return res.status(403).json({ error: '财务审核账号无效或已停用' });
+      const summary = await service.getExceptionPerformanceSummary({ ...context, slaHours });
+      const csv = buildExceptionPerformanceCsv(summary);
+      const rowCount = Math.max(0, csv.split('\r\n').filter(Boolean).length - 1);
+      await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', context.actorId, actor.username, 'export_financial_exception_performance',
+          JSON.stringify({ merchant_id: context.merchantId, store_id: context.storeId, sla_hours: slaHours, row_count: rowCount, format: 'csv', scope: 'financial_exception_performance' }),
+          req.ip || '', new Date().toISOString()]);
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="financial-exception-performance.csv"');
+      res.status(200).send(csv);
+    } catch (error) {
+      res.status(error.code === 'EXCEPTION_OPERATIONS_SLA_INVALID' ? 400 : 500)
+        .json({ error: error.code ? '异常绩效导出参数无效' : '异常绩效导出失败' });
+    }
+  });
+
+  app.get('/api/admin/financial-reconciliation/exceptions/performance-export-audit', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
+    const afterId = req.query.afterId === undefined ? null : positiveRouteId(req.query.afterId);
+    const actorId = req.query.actorId === undefined || req.query.actorId === '' ? null : positiveRouteId(req.query.actorId);
+    const from = req.query.from === undefined ? null : String(req.query.from);
+    const to = req.query.to === undefined ? null : String(req.query.to);
+    const validDate = value => value === null || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(value) && !Number.isNaN(Date.parse(value)));
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 ||
+        (req.query.afterId !== undefined && !afterId) ||
+        (req.query.actorId !== undefined && req.query.actorId !== '' && !actorId) ||
+        !validDate(from) || !validDate(to) || (from && to && Date.parse(from) > Date.parse(to))) {
+      return res.status(400).json({ error: '导出审计查询参数无效' });
+    }
+    const where = [
+      "actor_type='merchant_admin'",
+      'actor_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)',
+      "action='export_financial_exception_performance'",
+      'details LIKE ?',
+      'details LIKE ?'
+    ];
+    const params = [context.merchantId, '%"merchant_id":' + context.merchantId + ',"store_id":' + context.storeId + ',%'];
+    if (actorId) { where.push('actor_id=?'); params.push(actorId); }
+    if (from) { where.push('created_at>=?'); params.push(new Date(from).toISOString()); }
+    if (to) { where.push('created_at<=?'); params.push(/^\d{4}-\d{2}-\d{2}$/.test(to) ? to + 'T23:59:59.999Z' : new Date(to).toISOString()); }
+    if (afterId) { where.push('id<?'); params.push(afterId); }
+    params.push(limit + 1);
+    try {
+      const rows = await allAsync(
+        'SELECT id, actor_id, actor_username, action, details, ip, created_at FROM audit_logs WHERE ' +
+          where.join(' AND ') + ' ORDER BY id DESC LIMIT ?',
+        params
+      );
+      const items = rows.slice(0, limit).map(row => {
+        let details = {};
+        try { details = JSON.parse(row.details || '{}'); } catch (_) {}
+        return {
+          id: Number(row.id), actorId: row.actor_id === null ? null : Number(row.actor_id),
+          actorUsername: row.actor_username || '', action: row.action,
+          storeId: Number(details.store_id), slaHours: Number(details.sla_hours),
+          rowCount: Number(details.row_count), format: details.format || 'csv',
+          createdAt: row.created_at
+        };
+      });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ items, nextCursor: rows.length > limit ? items[items.length - 1].id : null });
+    } catch (error) {
+      res.status(500).json({ error: '获取绩效导出审计记录失败' });
     }
   });
 

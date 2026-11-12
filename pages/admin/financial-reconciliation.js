@@ -8,7 +8,7 @@
   if (!ctx) return;
   const { $, api, esc } = ctx;
   const root = () => document.getElementById('financialReconciliationPanel');
-  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [], exceptionRows: [], nextExceptionCursor: null, exceptionLoading: false, exceptionHistory: {} };
+  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [], exceptionRows: [], nextExceptionCursor: null, exceptionLoading: false, exceptionHistory: {}, performanceExportAuditCursor: null, performanceExportAuditRows: [] };
 
   function t(key, fallback) {
     const value = ctx.tAdmin ? ctx.tAdmin(key) : key;
@@ -651,22 +651,68 @@
     if(/^[\\s\\u0000-\\u001f]*[=+@\\-]/.test(text))text="'"+text;
     return '"'+text.replace(/"/g,'""')+'"';
   }
-  function exportExceptionPerformance(data) {
-    const columns=['group','currencyCode','name','activeCount','overdueActiveCount','overdueRatePercent','resolvedEventCount','onTimeResolvedEventCount','onTimeResolutionRatePercent','avgImportToResolveSeconds'],rows=[];
-    (data.byCurrency||[]).forEach(r=>rows.push({group:'currency',currencyCode:r.currencyCode,name:'',...r}));
-    (data.byAssignee||[]).forEach(r=>rows.push({group:'assignee',currencyCode:r.currencyCode,name:r.username||'unassigned',...r}));
-    (data.byCategory||[]).forEach(r=>rows.push({group:'category',currencyCode:r.currencyCode,name:r.category,...r}));
-    if(!rows.length){toast('暂无可导出的绩效数据');return;}
-    const csv=[columns.join(','),...rows.map(row=>columns.map(key=>csvCell(row[key])).join(','))].join('\\r\\n');
-    const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');
-    link.href=url;link.download='financial-exception-performance.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+  async function exportExceptionPerformance(slaHours) {
+    const csv = await api('/admin/financial-reconciliation/exceptions/performance-export?slaHours=' + encodeURIComponent(String(slaHours)));
+    if (typeof csv !== 'string' || !csv.startsWith('\uFEFF')) {
+      throw new Error('服务端导出响应格式无效');
+    }
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'financial-exception-performance.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
+
   async function loadExceptionPerformance(exportCsv=false) {
     if(!requirePermission())return;
     const target=$('#financeExceptionPerformanceSummary');if(target)target.innerHTML='<div class="empty-hint">正在加载异常绩效…</div>';
     const raw=Number($('#financeExceptionSlaHours')?.value||24),slaHours=Number.isSafeInteger(raw)&&raw>=1&&raw<=720?raw:24;
-    try{const data=await api('/admin/financial-reconciliation/exceptions/performance-summary?slaHours='+encodeURIComponent(String(slaHours)));renderExceptionPerformance(data);if(exportCsv)exportExceptionPerformance(data);}
+    try{const data=await api('/admin/financial-reconciliation/exceptions/performance-summary?slaHours='+encodeURIComponent(String(slaHours)));renderExceptionPerformance(data);if(exportCsv)await exportExceptionPerformance(slaHours);}
     catch(error){if(target)target.innerHTML='<div class="empty-hint">异常绩效加载失败</div>';toast('❌ '+(error.message||'异常绩效加载失败'));}
+  }
+
+  async function loadPerformanceExportAudit(append = false) {
+    if (!requirePermission()) return;
+    const target = $('#financePerformanceExportAudit');
+    if (!target) return;
+    if (!append) {
+      state.performanceExportAuditCursor = null;
+      state.performanceExportAuditRows = [];
+    }
+    const query = new URLSearchParams({ limit: '25' });
+    const actorId = $('#financePerformanceAuditActor')?.value.trim();
+    const from = $('#financePerformanceAuditFrom')?.value;
+    const to = $('#financePerformanceAuditTo')?.value;
+    if (actorId) query.set('actorId', actorId);
+    if (from) query.set('from', from);
+    if (to) query.set('to', to);
+    if (append && state.performanceExportAuditCursor) query.set('afterId', String(state.performanceExportAuditCursor));
+    try {
+      const result = await api('/admin/financial-reconciliation/exceptions/performance-export-audit?' + query.toString());
+      const rows = Array.isArray(result.items) ? result.items : [];
+      state.performanceExportAuditRows = append
+        ? state.performanceExportAuditRows.concat(rows)
+        : rows;
+      const body = state.performanceExportAuditRows.map(row => '<tr><td>' + Number(row.id) + '</td><td>' + esc(row.createdAt || '—') +
+        '</td><td>' + esc(row.actorUsername || '—') + '</td><td>' + Number(row.slaHours || 0) +
+        '</td><td>' + Number(row.rowCount || 0) + '</td><td>' + esc(row.format || 'csv') + '</td></tr>').join('');
+      const table = state.performanceExportAuditRows.length
+        ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+          ['记录号','导出时间','操作人','SLA（小时）','导出行数','格式'].map(label => '<th style="text-align:left;padding:8px;">' + label + '</th>').join('') +
+          '</tr></thead><tbody>' + body + '</tbody></table></div>'
+        : '<div class="empty-hint">暂无导出记录</div>';
+      state.performanceExportAuditCursor = result.nextCursor || null;
+      target.innerHTML = table + (state.performanceExportAuditCursor
+        ? '<div style="margin-top:10px;"><button type="button" id="financePerformanceAuditMore">加载更多</button></div>'
+        : '');
+    } catch (error) {
+      target.innerHTML = '<div class="empty-hint">导出审计记录加载失败</div>';
+      toast('❌ ' + (error.message || '导出审计记录加载失败'));
+    }
   }
 
   function bind() {
@@ -700,6 +746,8 @@
       if(alertAck){acknowledgeSlaAlert(alertAck);return;}
       const alertDismiss=event.target.closest('[data-sla-alert-dismiss]');
       if(alertDismiss){dismissSlaAlert(alertDismiss);return;}
+      const auditMore = event.target.closest('#financePerformanceAuditMore');
+      if (auditMore) { loadPerformanceExportAudit(true); return; }
       const monthButton = event.target.closest('[data-month-close-action]');
       if (monthButton) submitMonthClose(monthButton);
     });
@@ -713,6 +761,7 @@
     $('#financeExceptionOpsReload').addEventListener('click', loadExceptionOperations);
     $('#financeExceptionPerformanceReload').addEventListener('click', () => loadExceptionPerformance());
     $('#financeExceptionPerformanceExport').addEventListener('click', () => loadExceptionPerformance(true));
+    $('#financePerformanceAuditReload')?.addEventListener('click', () => loadPerformanceExportAudit(false));
     $('#financeSlaAlertGenerate').addEventListener('click',generateSlaAlerts);
     $('#financeSlaAlertReload').addEventListener('click',loadSlaAlerts);
     $('#financeSlaAlertStatus')?.addEventListener('change',loadSlaAlerts);
@@ -736,7 +785,7 @@
     const to = $('#financeReportTo');
     if (from && !from.value) from.value = today;
     if (to && !to.value) to.value = today;
-    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadExceptionOperations(), loadExceptionPerformance(), loadSlaAlerts(), loadDailySummary(), loadMonthlyClose()]);
+    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadExceptionOperations(), loadExceptionPerformance(), loadPerformanceExportAudit(false), loadSlaAlerts(), loadDailySummary(), loadMonthlyClose()]);
   }
   window.loadFinancialReconciliation = loadFinancialReconciliation;
 })();
