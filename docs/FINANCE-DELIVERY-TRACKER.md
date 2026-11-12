@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (PR #194 merged; MySQL SLA alert lifecycle is covered; PR #195 adds month-close approval integration)
+Last reviewed: 2026-11-13 (PR #194 merged; MySQL SLA alert lifecycle is covered; PR #195 adds month-close approval integration)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -38,12 +38,11 @@ This tracker records merged delivery separately from work that is still under re
 | MySQL manual review transaction | Real-MySQL review confirms exact journal matches, preserves exact replay idempotency, and rejects amount mismatch without changing the row or writing an audit event | PR #192 merged as `670a14a8`; all six checks passed |
 | MySQL exception workflow transaction | Real-MySQL exception case start/resolve transitions persist actor, status, resolution note, idempotent event replay, and linked event hashes | PR #193 merged as `b32cf765`; all six checks passed |
 | MySQL SLA alert lifecycle | Real-MySQL overdue alert generation is deduplicated; acknowledge/dismiss transitions are idempotent and preserve hash-linked alert history | PR #194 merged as `563b46b3`; all six checks passed |
-| MySQL month-close approval lifecycle | Real-MySQL close request enforces maker-checker; readiness failure rolls back and retry succeeds; approval history remains hash-linked | PR #195 under review; CI pending |
-| MySQL SLA alert lifecycle | Real-MySQL overdue alert generation is deduplicated; acknowledge/dismiss transitions are idempotent and preserve hash-linked alert history | PR #194 under review; CI pending |
+| MySQL month-close approval lifecycle | Real-MySQL close request enforces maker-checker; readiness failure rolls back and retry succeeds; approval history remains hash-linked | PR #195 under review; all six current-head checks passed |
 
 ## Under review
 
-- **MySQL month-close approval lifecycle:** PR #195 exercises real-MySQL close request, maker-checker rejection, readiness failure rollback, retry, approval, and hash-linked event history. CI is pending.
+- **MySQL month-close approval lifecycle:** PR #195 exercises real-MySQL close request, maker-checker rejection, readiness failure rollback, retry, approval, and hash-linked event history. All six checks on head `682449f2` passed; awaiting merge.
 - **MySQL-backed workflow scope:** PR #177/#178 cover month-close and exception/SLA schema/constraint slices; PR #186 covers import transaction replay/rollback; PR #187 covers schema ensure reruns; PR #188 covers concurrent month-close locking; PR #189/#190 cover journal posting and export; PR #191 covers matching suggestions; PR #192 covers manual review; PR #193 covers exception transitions; PR #194 covers SLA alert lifecycle. A single database-backed import-to-export lifecycle remains outstanding.
 
 ## Remaining engineering acceptance work
@@ -83,7 +82,7 @@ This tracker records merged delivery separately from work that is still under re
 - PR #192 merged: real-MySQL manual review verifies exact journal confirmation, idempotent replay, and rejection of mismatched amount without row/audit mutation (`670a14a8`); all six checks passed.
 - PR #193 merged: real-MySQL exception workflow verifies start/resolve state transitions, idempotent replay, actor attribution, resolution note, and linked event hashes (`b32cf765`); all six checks passed.
 - PR #194 merged: real-MySQL SLA alert generation, duplicate suppression, acknowledge/dismiss replay, and hash-linked history (`563b46b3`); all six checks passed.
-- PR #195 open: real-MySQL month-close request/approval, maker-checker, readiness rollback/retry, and hash-linked history; CI pending.
+- PR #195 open: real-MySQL month-close request/approval, maker-checker, readiness rollback/retry, and hash-linked history; all six checks on head `682449f2` passed, awaiting merge.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
