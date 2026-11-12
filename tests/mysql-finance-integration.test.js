@@ -1148,3 +1148,126 @@ test('MySQL integration: SLA alert generation, acknowledgement, dismissal, and h
   assert.deepEqual(firstHistory.items.map(row => row.action), ['acknowledged', 'generated']);
   assert.equal(firstHistory.items[0].previousHash, firstHistory.items[1].eventHash);
 });
+
+
+test('MySQL integration: month-close approval enforces maker-checker, readiness retry, and hash history', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const db = await connectTestDatabase();
+  const tables = [
+    'financial_month_close_events',
+    'financial_month_close_periods',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await db.connection.end();
+    }
+  });
+
+  for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    imported_at DATETIME(3) NOT NULL
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'pending',
+    CONSTRAINT fk_finance_month_close_test_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  const { ensureFinancialMonthCloseSchema } = require('../server/db/migrations/financial-month-close');
+  await ensureFinancialMonthCloseSchema({ runAsync: db.runAsync, allAsync: db.allAsync });
+
+  const batch = await db.runAsync(
+    "INSERT INTO financial_reconciliation_batches (merchant_id,store_id,currency_code,imported_at) VALUES (44,12,'USD','2026-11-12 10:00:00.000')"
+  );
+  const batchId = Number(batch.insertId);
+  const item = await db.runAsync(
+    "INSERT INTO financial_reconciliation_items (batch_id,merchant_id,store_id,match_status) VALUES (?,44,12,'matched')",
+    [batchId]
+  );
+  const itemId = Number(item.insertId);
+
+  const { createFinancialMonthCloseService } = require('../server/services/financial-month-close');
+  const withTransaction = async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+  const service = createFinancialMonthCloseService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+  const request = {
+    merchantId: 44, storeId: 12, month: '2026-11', currencyCode: 'USD',
+    actorId: 7, actorUsername: 'month-maker',
+    action: 'request_close', reason: 'Request November month close',
+    idempotencyKey: 'mysql-month-close-request-001'
+  };
+  const requested = await service.transition(request);
+  const requestReplay = await service.transition(request);
+  assert.equal(requested.status, 'close_pending');
+  assert.equal(requested.replayed, false);
+  assert.equal(requestReplay.replayed, true);
+  assert.equal(requestReplay.eventId, requested.eventId);
+
+  await assert.rejects(service.transition({
+    ...request,
+    actorId: 7,
+    action: 'approve_close',
+    reason: 'Approve November month close',
+    idempotencyKey: 'mysql-month-close-maker-approve'
+  }), error => error.code === 'MONTH_CLOSE_MAKER_CHECKER_REQUIRED');
+
+  await db.runAsync("UPDATE financial_reconciliation_items SET match_status='pending' WHERE id=?", [itemId]);
+  const approvalInput = {
+    ...request,
+    actorId: 8, actorUsername: 'month-checker',
+    action: 'approve_close',
+    reason: 'Approve November month close after review',
+    idempotencyKey: 'mysql-month-close-approval-001'
+  };
+  await assert.rejects(service.transition(approvalInput),
+    error => error.code === 'MONTH_CLOSE_NOT_READY');
+  const afterFailedApproval = await service.getPeriod({
+    merchantId: 44, storeId: 12, month: '2026-11', currencyCode: 'USD'
+  });
+  assert.equal(afterFailedApproval.status, 'close_pending',
+    'failed readiness approval must roll back without losing the pending request');
+
+  await db.runAsync("UPDATE financial_reconciliation_items SET match_status='matched' WHERE id=?", [itemId]);
+  const approved = await service.transition(approvalInput);
+  const approvalReplay = await service.transition(approvalInput);
+  assert.equal(approved.status, 'locked');
+  assert.equal(approved.replayed, false);
+  assert.equal(approvalReplay.replayed, true);
+
+  const period = await service.getPeriod({
+    merchantId: 44, storeId: 12, month: '2026-11', currencyCode: 'USD'
+  });
+  const history = await service.listHistory({
+    merchantId: 44, storeId: 12, month: '2026-11', currencyCode: 'USD'
+  });
+  assert.equal(period.status, 'locked');
+  assert.equal(period.lockedByAdminId, 8);
+  assert.equal(history.items.length, 2);
+  assert.deepEqual(history.items.map(row => row.action), ['approve_close', 'request_close']);
+  assert.equal(history.items[0].previousHash, history.items[1].eventHash);
+  assert.ok(history.items.every(row => /^[a-f0-9]{64}$/.test(row.eventHash)));
+});
