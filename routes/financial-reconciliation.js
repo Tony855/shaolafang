@@ -404,7 +404,7 @@ module.exports = function(app, deps) {
     const actorId = req.query.actorId === undefined || req.query.actorId === '' ? null : positiveRouteId(req.query.actorId);
     const from = req.query.from === undefined ? null : String(req.query.from);
     const to = req.query.to === undefined ? null : String(req.query.to);
-    const validDate = value => value === null || (typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d{1,3})?)?(?:Z|[+-]\\d{2}:\\d{2})?)?$/.test(value) && !Number.isNaN(Date.parse(value)));
+    const validDate = value => value === null || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.test(value) && !Number.isNaN(Date.parse(value)));
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 ||
         (req.query.afterId !== undefined && !afterId) ||
         (req.query.actorId !== undefined && req.query.actorId !== '' && !actorId) ||
@@ -421,7 +421,7 @@ module.exports = function(app, deps) {
     const params = [context.merchantId, '%"merchant_id":' + context.merchantId + ',"store_id":' + context.storeId + ',%'];
     if (actorId) { where.push('actor_id=?'); params.push(actorId); }
     if (from) { where.push('created_at>=?'); params.push(new Date(from).toISOString()); }
-    if (to) { where.push('created_at<=?'); params.push(/^\\d{4}-\\d{2}-\\d{2}$/.test(to) ? to + 'T23:59:59.999Z' : new Date(to).toISOString()); }
+    if (to) { where.push('created_at<=?'); params.push(/^\d{4}-\d{2}-\d{2}$/.test(to) ? to + 'T23:59:59.999Z' : new Date(to).toISOString()); }
     if (afterId) { where.push('id<?'); params.push(afterId); }
     params.push(limit + 1);
     try {
