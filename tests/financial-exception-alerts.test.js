@@ -25,6 +25,9 @@ test('SLA alert generation is tenant-scoped, bounded, deduplicated and audited',
   assert.equal(writes.filter(x=>x.sql.includes('INSERT INTO financial_reconciliation_exception_alert_events')).length,2);
   assert.ok(reads[0].sql.includes('i.merchant_id=?')&&reads[0].sql.includes('i.store_id=?'));
   assert.deepEqual(reads[0].params,[4,9,24]);
+  const generationAuditHead=reads.find(x=>x.sql.includes('SELECT event_hash FROM financial_reconciliation_exception_alert_events'));
+  assert.match(generationAuditHead.sql,/alert_id=\? AND merchant_id=\? AND store_id=\?/);
+  assert.deepEqual(generationAuditHead.params,[77,4,9]);
 });
 test('repeated SLA generation does not append duplicate alert events',async()=>{
   const {service,writes}=makeService({runAsync:async(sql)=>sql.includes('INSERT IGNORE INTO financial_reconciliation_exception_alerts')?{affectedRows:0}:{affectedRows:1}});
@@ -48,7 +51,13 @@ test('SLA acknowledgement requires reason/key and appends a hash-linked audit ev
   const {service,writes,reads}=makeService();
   const result=await service.acknowledgeSlaAlert({merchantId:4,storeId:9,actorId:7,actorUsername:'finance',alertId:77,reason:'Reviewed and assigned to finance',idempotencyKey:'sla-alert-ack-00000001'});
   assert.equal(result.replayed,false);assert.equal(result.eventId,88);
-  assert.ok(reads.some(x=>x.sql.includes('merchant_id=? AND store_id=? FOR UPDATE')&&x.params[1]===4&&x.params[2]===9));
+  assert.ok(reads.some(x=>x.sql.includes('merchant_id=? AND store_id=? FOR UPDATE')&&x.params.includes(4)&&x.params.includes(9)));
+  const replayLookup=reads.find(x=>x.sql.includes('idempotency_key=? FOR UPDATE'));
+  assert.match(replayLookup.sql,/alert_id=\? AND merchant_id=\? AND store_id=\? AND idempotency_key=\?/);
+  assert.deepEqual(replayLookup.params,[77,4,9,'sla-alert-ack-00000001']);
+  const auditHead=reads.find(x=>x.sql.includes('SELECT event_hash'));
+  assert.match(auditHead.sql,/alert_id=\? AND merchant_id=\? AND store_id=\?/);
+  assert.deepEqual(auditHead.params,[77,4,9]);
   assert.ok(writes.some(x=>x.sql.includes("status='acknowledged'")));
   assert.ok(writes.some(x=>x.sql.includes("VALUES (?,?,?,?,?,'acknowledged'")));
   await assert.rejects(service.acknowledgeSlaAlert({merchantId:4,storeId:9,actorId:7,actorUsername:'finance',alertId:77,reason:'no',idempotencyKey:'sla-alert-ack-00000002'}),/5 to 500/);
@@ -57,7 +66,13 @@ test('SLA dismissal is tenant-scoped, idempotent and hash-chain audited without 
   const {service,writes,reads}=makeService();
   const result=await service.dismissSlaAlert({merchantId:4,storeId:9,actorId:7,actorUsername:'finance',alertId:77,reason:'Duplicate alert reviewed and safely dismissed',idempotencyKey:'sla-alert-dismiss-0001'});
   assert.equal(result.replayed,false);assert.equal(result.eventId,88);
-  assert.ok(reads.some(x=>x.sql.includes('merchant_id=? AND store_id=? FOR UPDATE')&&x.params[1]===4&&x.params[2]===9));
+  assert.ok(reads.some(x=>x.sql.includes('merchant_id=? AND store_id=? FOR UPDATE')&&x.params.includes(4)&&x.params.includes(9)));
+  const replayLookup=reads.find(x=>x.sql.includes('idempotency_key=? FOR UPDATE'));
+  assert.match(replayLookup.sql,/alert_id=\? AND merchant_id=\? AND store_id=\? AND idempotency_key=\?/);
+  assert.deepEqual(replayLookup.params,[77,4,9,'sla-alert-dismiss-0001']);
+  const auditHead=reads.find(x=>x.sql.includes('SELECT event_hash'));
+  assert.match(auditHead.sql,/alert_id=\? AND merchant_id=\? AND store_id=\?/);
+  assert.deepEqual(auditHead.params,[77,4,9]);
   assert.ok(writes.some(x=>x.sql.includes("SET status='dismissed'")));
   assert.ok(writes.some(x=>x.sql.includes("VALUES (?,?,?,?,?,'dismissed'")));
   assert.ok(!writes.some(x=>x.sql.includes("UPDATE financial_reconciliation_items")));

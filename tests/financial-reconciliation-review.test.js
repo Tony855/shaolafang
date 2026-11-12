@@ -8,7 +8,8 @@ function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hide
   const batches = new Map([[1, { id: 1, merchant_id: 4, store_id: 9, status: 'imported' }]]);
   const items = new Map([
     [11, { id: 11, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null, exception_category: null, exception_note: null }],
-    [12, { id: 12, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null }]
+    [12, { id: 12, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null }],
+    [13, { id: 13, batch_id: 8, merchant_id: 99, store_id: 88, amount_minor: 1200, currency_code: 'USD', match_status: 'matched', matched_journal_transaction_id: 31, match_reason: null }]
   ]);
   const journals = new Map([[31, { id: 31, merchant_id: 4, store_id: 9, currency_code: 'USD' }], [32, { id: 32, merchant_id: 4, store_id: 9, currency_code: 'USD' }]]);
   const totals = new Map([[31, { debit_minor: 1200, credit_minor: 1200 }], [32, { debit_minor: 1200, credit_minor: 1200 }]]);
@@ -19,6 +20,7 @@ function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hide
   let replayLookupHidden = false;
   let assignmentCheckHidden = false;
   let executed = [];
+  const queries = [];
 
   async function runAsync(sql, p = []) {
     executed.push(sql.trim().split(/\s+/).slice(0, 3).join(' '));
@@ -46,6 +48,7 @@ function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hide
   }
 
   async function getAsync(sql, p = []) {
+    queries.push({ sql, params: p });
     if (sql.includes('FROM financial_reconciliation_review_events') && sql.includes('idempotency_key')) {
       if (hideFirstReplayLookup && sql.includes('FOR UPDATE') && !replayLookupHidden) {
         replayLookupHidden = true;
@@ -62,7 +65,7 @@ function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hide
         assignmentCheckHidden = true;
         return null;
       }
-      return [...items.values()].find(row => row.matched_journal_transaction_id === p[0] && row.id !== p[1]) || null;
+      return [...items.values()].find(row => row.matched_journal_transaction_id === p[0] && row.id !== p[1] && row.merchant_id === p[2] && row.store_id === p[3]) || null;
     }
     if (sql.includes('FROM financial_reconciliation_items')) {
       const row = items.get(p[0]);
@@ -73,7 +76,7 @@ function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hide
       return row && row.merchant_id === p[1] && row.store_id === p[2] ? row : null;
     }
     if (sql.includes('FROM financial_journal_entries')) return totals.get(p[0]) || null;
-    if (sql.includes('SELECT event_hash')) return [...eventList].reverse().find(e => e.batch_id === p[0]) || null;
+    if (sql.includes('SELECT event_hash')) return [...eventList].reverse().find(e => e.batch_id === p[0] && e.merchant_id === p[1] && e.store_id === p[2]) || null;
     throw new Error('unexpected get SQL: ' + sql);
   }
   async function allAsync() { return []; }
@@ -97,7 +100,7 @@ function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hide
   }
   return {
     service: createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction }),
-    items, events, eventList, executed
+    items, events, eventList, executed, queries
   };
 }
 
@@ -113,6 +116,13 @@ test('confirms an exact tenant-scoped journal candidate and appends an audit has
   assert.equal(result.replayed, false);
   assert.equal(db.items.get(11).match_status, 'matched');
   assert.equal(db.items.get(11).matched_journal_transaction_id, 31);
+  assert.equal(db.items.get(13).matched_journal_transaction_id, 31, 'foreign-tenant item remains untouched');
+  const assignmentLookup = db.queries.find(query => query.sql.includes('SELECT id FROM financial_reconciliation_items'));
+  assert.match(assignmentLookup.sql, /merchant_id=\? AND store_id=\?/);
+  assert.deepEqual(assignmentLookup.params, [31, 11, 4, 9]);
+  const auditHeadLookup = db.queries.find(query => query.sql.includes('SELECT event_hash FROM financial_reconciliation_review_events'));
+  assert.match(auditHeadLookup.sql, /batch_id=\? AND merchant_id=\? AND store_id=\?/);
+  assert.deepEqual(auditHeadLookup.params, [1, 4, 9]);
   assert.equal(db.eventList.length, 1);
   assert.equal(db.eventList[0].previous_hash, '');
   assert.match(db.eventList[0].event_hash, /^[a-f0-9]{64}$/);
@@ -259,7 +269,7 @@ test('concurrent assignment of one journal transaction is serialized and only on
   ]);
   assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
   assert.equal(results.filter(r => r.status === 'rejected').length, 1);
-  assert.equal([...db.items.values()].filter(row => row.match_status === 'matched').length, 1);
+  assert.equal([...db.items.values()].filter(row => row.merchant_id === 4 && row.store_id === 9 && row.match_status === 'matched').length, 1);
 });
 
 test('rejects unsupported exception categories', async () => {

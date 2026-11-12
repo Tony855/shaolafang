@@ -251,8 +251,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
             throw error;
           }
           const used = await getAsync(
-            'SELECT id FROM financial_reconciliation_items WHERE matched_journal_transaction_id=? AND id<>? FOR UPDATE',
-            [review.journalTransactionId, itemId]
+            'SELECT id FROM financial_reconciliation_items WHERE matched_journal_transaction_id=? AND id<>? AND merchant_id=? AND store_id=? FOR UPDATE',
+            [review.journalTransactionId, itemId, merchantId, storeId]
           );
           if (used) {
             const error = new Error('journal transaction is already assigned to another statement row');
@@ -299,8 +299,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         );
 
         const previous = await getAsync(
-          'SELECT event_hash FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',
-          [batchId]
+          'SELECT event_hash FROM financial_reconciliation_review_events WHERE batch_id=? AND merchant_id=? AND store_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',
+          [batchId, merchantId, storeId]
         );
         const previousHash = previous?.event_hash || '';
         const eventPayload = {
@@ -659,7 +659,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         if(!alert) throw new Error('created SLA alert could not be read');
         const alertId=Number(alert.id),reason='SLA threshold exceeded ('+sla+' hours)',key='generated-'+sla+'-'+itemId;
         const digest=stableHash({merchant,store,alertId,action:'generated',sla});
-        const prev=await getAsync('SELECT event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',[alertId]);
+        const prev=await getAsync('SELECT event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND merchant_id=? AND store_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',[alertId,merchant,store]);
         const previousHash=prev?.event_hash||'';
         const eventHash=stableHash({alertId,merchant,store,actor,username,action:'generated',reason,key,digest,previousHash});
         await runAsync(`INSERT INTO financial_reconciliation_exception_alert_events
@@ -727,7 +727,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     if(!/^[A-Za-z0-9._:-]{16,128}$/.test(key)){const error=new TypeError('idempotencyKey must contain 16 to 128 safe characters');error.code='EXCEPTION_ALERT_IDEMPOTENCY_INVALID';throw error;}
     const digest=stableHash({merchant,store,actor,alertId,reason,action:'acknowledged'});
     return withTransaction(async()=>{
-      const replay=await getAsync('SELECT id,request_sha256,event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND idempotency_key=? FOR UPDATE',[alertId,key]);
+      const replay=await getAsync('SELECT id,request_sha256,event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND merchant_id=? AND store_id=? AND idempotency_key=? FOR UPDATE',[alertId,merchant,store,key]);
       if(replay){if(replay.request_sha256!==digest){const error=new Error('idempotency key conflict');error.code='EXCEPTION_ALERT_IDEMPOTENCY_CONFLICT';throw error;}return {eventId:Number(replay.id),eventHash:replay.event_hash,replayed:true};}
       const alert=await getAsync('SELECT id,status FROM financial_reconciliation_exception_alerts WHERE id=? AND merchant_id=? AND store_id=? FOR UPDATE',[alertId,merchant,store]);
       if(!alert){const error=new Error('alert not found');error.code='EXCEPTION_ALERT_NOT_FOUND';throw error;}
@@ -735,7 +735,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       await runAsync(`UPDATE financial_reconciliation_exception_alerts SET status='acknowledged',
         acknowledged_by_admin_id=?,acknowledged_by_username=?,acknowledged_at=CURRENT_TIMESTAMP(3),acknowledgement_reason=?
         WHERE id=? AND merchant_id=? AND store_id=? AND status='pending'`,[actor,username,reason,alertId,merchant,store]);
-      const prev=await getAsync('SELECT event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',[alertId]);
+      const prev=await getAsync('SELECT event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND merchant_id=? AND store_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',[alertId,merchant,store]);
       const previousHash=prev?.event_hash||'',eventHash=stableHash({alertId,merchant,store,actor,username,action:'acknowledged',reason,key,digest,previousHash});
       const result=await runAsync(`INSERT INTO financial_reconciliation_exception_alert_events
         (alert_id,merchant_id,store_id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash)
@@ -752,14 +752,14 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     if(!/^[A-Za-z0-9._:-]{16,128}$/.test(key)){const error=new TypeError('idempotencyKey must contain 16 to 128 safe characters');error.code='EXCEPTION_ALERT_IDEMPOTENCY_INVALID';throw error;}
     const digest=stableHash({merchant,store,actor,alertId,reason,action:'dismissed'});
     return withTransaction(async()=>{
-      const replay=await getAsync('SELECT id,request_sha256,event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND idempotency_key=? FOR UPDATE',[alertId,key]);
+      const replay=await getAsync('SELECT id,request_sha256,event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND merchant_id=? AND store_id=? AND idempotency_key=? FOR UPDATE',[alertId,merchant,store,key]);
       if(replay){if(replay.request_sha256!==digest){const error=new Error('idempotency key conflict');error.code='EXCEPTION_ALERT_IDEMPOTENCY_CONFLICT';throw error;}return {eventId:Number(replay.id),eventHash:replay.event_hash,replayed:true};}
       const alert=await getAsync('SELECT id,status FROM financial_reconciliation_exception_alerts WHERE id=? AND merchant_id=? AND store_id=? FOR UPDATE',[alertId,merchant,store]);
       if(!alert){const error=new Error('alert not found');error.code='EXCEPTION_ALERT_NOT_FOUND';throw error;}
       if(alert.status!=='pending'){const error=new Error('alert is no longer pending');error.code='EXCEPTION_ALERT_STATE_CONFLICT';throw error;}
       const changed=await runAsync("UPDATE financial_reconciliation_exception_alerts SET status='dismissed' WHERE id=? AND merchant_id=? AND store_id=? AND status='pending'",[alertId,merchant,store]);
       if(Number(changed?.affectedRows??changed?.changes??1)!==1){const error=new Error('alert is no longer pending');error.code='EXCEPTION_ALERT_STATE_CONFLICT';throw error;}
-      const prev=await getAsync('SELECT event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',[alertId]);
+      const prev=await getAsync('SELECT event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND merchant_id=? AND store_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',[alertId,merchant,store]);
       const previousHash=prev?.event_hash||'',eventHash=stableHash({alertId,merchant,store,actor,username,action:'dismissed',reason,key,digest,previousHash});
       const result=await runAsync(`INSERT INTO financial_reconciliation_exception_alert_events
         (alert_id,merchant_id,store_id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash)
