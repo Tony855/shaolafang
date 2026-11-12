@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (review mutation and SLA audit tenant scoping merged; foreign object-ID route tests in review)
+Last reviewed: 2026-11-12 (authenticated foreign-resource ID tests merged; MySQL migration/locking integration gate under review)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -23,12 +23,12 @@ This tracker records merged delivery separately from work that is still under re
 ## Under review
 
 - **Review mutation and audit query hardening:** PR #174 merged. Duplicate journal-assignment lookup, reconciliation review audit-chain head, SLA alert idempotency replay lookup, and SLA alert audit-chain head lookups explicitly bind merchant/store scope. Regression coverage includes a foreign-tenant statement row referencing the same journal ID and SQL/parameter assertions for review and SLA audit queries.
-- **Cross-tenant route rejection matrix:** PR #172 is merged; every registered finance endpoint rejects request-supplied merchant/store/admin IDs when authenticated tenant context is absent. PR #176 adds valid-session foreign object-ID probing tests for reconciliation review and SLA alert acknowledgement/dismissal; it remains under CI review.
+- **Cross-tenant route rejection matrix:** PR #172 is merged; every registered finance endpoint rejects request-supplied merchant/store/admin IDs when authenticated tenant context is absent. PR #176 is merged; valid-session foreign object-ID probes cover reconciliation review and SLA alert acknowledgement/dismissal, including no financial/audit writes for foreign IDs. Other mutation/export surfaces still need explicit object-ID tests.
 
 ## Remaining engineering acceptance work
 
-1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #168 adds a readiness-failure/retry/second-approver month-close lifecycle test with linked audit hashes. Still add a single database-backed full-flow scenario across all services and assert transactional rollback, idempotent replay, and immutable audit history.
-2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172 merged); representative authenticated read-query scoping is covered (PR #173 merged). Review mutation duplicate-assignment and audit-chain queries are being explicitly tenant-scoped in the current PR. Still verify foreign-resource denial with valid sessions for every mutation/export route, including object-ID probing and assigned-admin ownership.
+1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #168 adds a readiness-failure/retry/second-approver month-close lifecycle test with linked audit hashes. A focused real-MySQL month-close migration/tenant uniqueness/idempotency/row-lock test is being added in the current PR; a single database-backed full-flow scenario across all services remains outstanding.
+2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172 merged); representative authenticated read-query scoping is covered (PR #173 merged); review mutation and audit query scoping is covered by PR #174; valid-session foreign resource-ID probes for review and SLA alert actions are covered by PR #176. Still verify foreign-resource denial for remaining mutation/export routes, including assigned-admin ownership.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** inspect all financial paths for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
 5. **Operational recovery:** test backup/restore, migration/startup schema ensure, interrupted imports, retry behavior, and month-close lock recovery.
@@ -47,9 +47,11 @@ This tracker records merged delivery separately from work that is still under re
 - PR #172 merged: route-wide missing-authenticated-context tenant rejection matrix (`638bcbbe`).
 - PR #173 merged: authenticated tenant query scoping for representative read surfaces (`e4e5f69`). All five PR-head checks passed.
 - PR #174 merged: review mutation duplicate-assignment and review/SLA audit-chain and idempotency queries scoped to merchant/store (`52f2d7f6`). All five PR-head checks passed.
-- Current PR #176: valid-session foreign resource-ID probing for review items and SLA alert acknowledge/dismiss; CI pending.
+- PR #176 merged: valid-session foreign resource-ID probing for review items and SLA alert acknowledge/dismiss (`e19cd0c5`). All five PR-head checks passed.
+- Current PR: add a dedicated MySQL 8.4 CI service and real-database tests for month-close schema creation, tenant-specific periods, per-period idempotency uniqueness, and `FOR UPDATE` lock behavior.
 - CI and installer compatibility for PR #173: Debian 13, Debian 12, Ubuntu 24.04, Ubuntu 22.04, validate — 5/5 passed.
 - CI and installer compatibility for PR #174: Debian 13, Debian 12, Ubuntu 24.04, Ubuntu 22.04, validate — 5/5 passed.
+- CI and installer compatibility for PR #176: Debian 13, Debian 12, Ubuntu 24.04, Ubuntu 22.04, validate — 5/5 passed.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
