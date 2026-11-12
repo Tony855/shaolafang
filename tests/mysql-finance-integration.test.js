@@ -745,3 +745,171 @@ test('MySQL integration: reconciliation suggestions use only tenant/store-owned 
   assert.equal(result.items[0].matchStatus, 'pending',
     'suggestions must remain non-mutating until an authenticated reviewer confirms a match');
 });
+
+
+test('MySQL integration: manual reconciliation review is transactional, tenant-scoped, and idempotent', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const db = await connectTestDatabase();
+  const tables = [
+    'financial_reconciliation_review_events',
+    'financial_reconciliation_items',
+    'financial_journal_entries',
+    'financial_journal_transactions',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await db.connection.end();
+    }
+  });
+
+  for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    row_count INT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported'
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'pending',
+    matched_journal_transaction_id BIGINT DEFAULT NULL,
+    match_reason VARCHAR(100) DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    exception_note VARCHAR(255) DEFAULT NULL,
+    CONSTRAINT fk_finance_review_test_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    source_id VARCHAR(128) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    created_by VARCHAR(100) NOT NULL DEFAULT ''
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_entries (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    transaction_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    line_no INT NOT NULL,
+    account_code VARCHAR(64) NOT NULL,
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    memo VARCHAR(255) NOT NULL DEFAULT '',
+    CONSTRAINT fk_finance_review_test_journal FOREIGN KEY (transaction_id)
+      REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_review_events (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    batch_id BIGINT NOT NULL,
+    item_id BIGINT NOT NULL,
+    journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    actor_admin_id INT NOT NULL,
+    actor_username VARCHAR(100) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    request_sha256 CHAR(64) NOT NULL,
+    before_json JSON NOT NULL,
+    after_json JSON NOT NULL,
+    previous_hash CHAR(64) NOT NULL DEFAULT '',
+    event_hash CHAR(64) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_review_test_idempotency (merchant_id,store_id,batch_id,idempotency_key)
+  ) ENGINE=InnoDB`);
+
+  const batch = await db.runAsync(
+    "INSERT INTO financial_reconciliation_batches (merchant_id,store_id,currency_code,row_count,status) VALUES (44,12,'USD',2,'imported')"
+  );
+  const batchId = Number(batch.insertId);
+  await db.runAsync(
+    `INSERT INTO financial_reconciliation_items
+      (batch_id,merchant_id,store_id,amount_minor,currency_code,match_status)
+     VALUES (?,44,12,12500,'USD','pending'),(?,44,12,10000,'USD','pending')`,
+    [batchId, batchId]
+  );
+  const journal = await db.runAsync(
+    `INSERT INTO financial_journal_transactions
+      (merchant_id,store_id,currency_code,source_type,source_id,idempotency_key,description,created_by)
+     VALUES (44,12,'USD','order_payment','review-order-1','review-journal:order-1','review candidate','integration-test')`
+  );
+  const journalId = Number(journal.insertId);
+  await db.runAsync(
+    `INSERT INTO financial_journal_entries
+      (transaction_id,merchant_id,store_id,line_no,account_code,direction,amount_minor)
+     VALUES (?,44,12,1,'cash','debit',12500),(?,44,12,2,'sales','credit',12500)`,
+    [journalId, journalId]
+  );
+
+  const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
+  const withTransaction = async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+  const service = createFinancialReconciliationReviewService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+  const reviewInput = {
+    merchantId: 44, storeId: 12, batchId, itemId: 1,
+    actorId: 7, actorUsername: 'finance-reviewer',
+    action: 'confirm', journalTransactionId: journalId,
+    reason: 'Confirm exact bank statement match',
+    idempotencyKey: 'mysql-review-confirm-000001'
+  };
+
+  const first = await service.reviewItem(reviewInput);
+  const replay = await service.reviewItem(reviewInput);
+  assert.equal(first.replayed, false);
+  assert.equal(replay.replayed, true);
+  assert.equal(replay.eventId, first.eventId);
+
+  await assert.rejects(service.reviewItem({
+    ...reviewInput,
+    itemId: 2,
+    idempotencyKey: 'mysql-review-mismatch-000002',
+    reason: 'Confirm mismatched amount'
+  }), error => error.code === 'REVIEW_JOURNAL_MISMATCH');
+
+  const [items] = await db.connection.query(
+    'SELECT id,match_status,matched_journal_transaction_id FROM financial_reconciliation_items WHERE batch_id=? ORDER BY id',
+    [batchId]
+  );
+  const [events] = await db.connection.query(
+    'SELECT item_id,actor_admin_id,action FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
+    [batchId]
+  );
+  assert.equal(items[0].match_status, 'matched');
+  assert.equal(Number(items[0].matched_journal_transaction_id), journalId);
+  assert.equal(items[1].match_status, 'pending',
+    'a journal amount mismatch must leave the statement row unchanged');
+  assert.equal(items[1].matched_journal_transaction_id, null);
+  assert.equal(events.length, 1, 'exact replay must not duplicate audit events and failed review must not write one');
+  assert.deepEqual([Number(events[0].item_id), Number(events[0].actor_admin_id), events[0].action],
+    [1, 7, 'confirm']);
+});
