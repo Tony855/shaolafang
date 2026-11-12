@@ -602,6 +602,30 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
+  async function dismissSlaAlert(input) {
+    const merchant=positiveId(input.merchantId,'merchantId'),store=positiveId(input.storeId,'storeId');
+    const actor=positiveId(input.actorId,'actorId'),alertId=positiveId(input.alertId,'alertId');
+    const username=String(input.actorUsername||'').trim(),reason=normalizeReason(input.reason),key=String(input.idempotencyKey||'').trim();
+    if(!username||username.length>100) throw new TypeError('actorUsername is required');
+    if(!/^[A-Za-z0-9._:-]{16,128}$/.test(key)){const error=new TypeError('idempotencyKey must contain 16 to 128 safe characters');error.code='EXCEPTION_ALERT_IDEMPOTENCY_INVALID';throw error;}
+    const digest=stableHash({merchant,store,actor,alertId,reason,action:'dismissed'});
+    return withTransaction(async()=>{
+      const replay=await getAsync('SELECT id,request_sha256,event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND idempotency_key=? FOR UPDATE',[alertId,key]);
+      if(replay){if(replay.request_sha256!==digest){const error=new Error('idempotency key conflict');error.code='EXCEPTION_ALERT_IDEMPOTENCY_CONFLICT';throw error;}return {eventId:Number(replay.id),eventHash:replay.event_hash,replayed:true};}
+      const alert=await getAsync('SELECT id,status FROM financial_reconciliation_exception_alerts WHERE id=? AND merchant_id=? AND store_id=? FOR UPDATE',[alertId,merchant,store]);
+      if(!alert){const error=new Error('alert not found');error.code='EXCEPTION_ALERT_NOT_FOUND';throw error;}
+      if(alert.status!=='pending'){const error=new Error('alert is no longer pending');error.code='EXCEPTION_ALERT_STATE_CONFLICT';throw error;}
+      const changed=await runAsync("UPDATE financial_reconciliation_exception_alerts SET status='dismissed' WHERE id=? AND merchant_id=? AND store_id=? AND status='pending'",[alertId,merchant,store]);
+      if(Number(changed?.affectedRows??changed?.changes??1)!==1){const error=new Error('alert is no longer pending');error.code='EXCEPTION_ALERT_STATE_CONFLICT';throw error;}
+      const prev=await getAsync('SELECT event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',[alertId]);
+      const previousHash=prev?.event_hash||'',eventHash=stableHash({alertId,merchant,store,actor,username,action:'dismissed',reason,key,digest,previousHash});
+      const result=await runAsync(`INSERT INTO financial_reconciliation_exception_alert_events
+        (alert_id,merchant_id,store_id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash)
+        VALUES (?,?,?,?,?,'dismissed',?,?,?,?,?)`,[alertId,merchant,store,actor,username,reason,key,digest,previousHash,eventHash]);
+      return {eventId:Number(result.insertId||result.lastID||0),eventHash,replayed:false};
+    });
+  }
+
   async function transitionExceptionCase({
     merchantId, storeId, batchId, itemId, actorId, actorUsername,
     action, assignedAdminId, reason, idempotencyKey
@@ -1048,7 +1072,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getExceptionOperationsSummary, generateSlaAlerts, listSlaAlerts, acknowledgeSlaAlert, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
+  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getExceptionOperationsSummary, generateSlaAlerts, listSlaAlerts, acknowledgeSlaAlert, dismissSlaAlert, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };
