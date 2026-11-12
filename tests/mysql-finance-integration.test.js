@@ -1495,7 +1495,7 @@ test('MySQL integration: statement import flows through journal match, review, m
   assert.match(exported.csv, /mysql-e2e-order-0001/);
   assert.match(exported.csv, /12500/);
 
-  const [persisted] = await db.connection.query(
+  const [persistedRows] = await db.connection.query(
     `SELECT b.status AS batch_status, i.match_status, i.matched_journal_transaction_id,
             p.status AS period_status, COUNT(DISTINCT je.id) AS journal_line_count
      FROM financial_reconciliation_batches b
@@ -1509,6 +1509,8 @@ test('MySQL integration: statement import flows through journal match, review, m
      GROUP BY b.id,i.id,p.id`,
     [month, imported.batchId]
   );
+  const persisted = persistedRows[0];
+  assert.ok(persisted, 'end-to-end persisted linkage row must exist');
   assert.equal(persisted.batch_status, 'imported');
   assert.equal(persisted.match_status, 'matched');
   assert.equal(Number(persisted.matched_journal_transaction_id), posted.transactionId);
