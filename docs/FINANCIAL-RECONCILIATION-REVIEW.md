@@ -68,3 +68,19 @@ The startup migration creates the review-event table if absent, checks for exist
 - Supported categories are `refund`, `fee`, `settlement_difference`, `chargeback`, and `other`. Category and date filters are optional; date filters must be supplied together and cover at most 91 inclusive calendar days.
 - Results include statement-row context, provider-neutral batch identifiers, stored integer minor-unit amount/currency, exception category/note, and import timestamp. Pages are ordered by descending item ID with a stable `nextCursor`; page size is capped at 100.
 - The queue is read-only. It does not create a new workflow status, assign staff, change statement rows, confirm payments, or alter refunds. Existing manual review events remain the audit source of truth. Every query joins batch ownership and filters both merchant and store; responses are private and non-cacheable.
+
+
+## Finance exception handling workflow
+
+The exception queue also exposes a case workflow. Each case is unique to a merchant, store, and statement item. The workflow status is separate from the underlying statement match status:
+
+- `open` → `in_progress` → `resolved` → `closed`
+- `resolved` and `closed` cases may be reopened to `open`.
+- Active merchant administrators can be assigned or unassigned while a case is not closed.
+- Notes are append-only events. A resolution requires a 5–500 character reason, retained as the case's current resolution note.
+- Every workflow action requires a 12–128 character idempotency key and a 5–500 character reason. The event is written in the same transaction as the case update.
+- Events have before/after snapshots, actor identity, request digest, previous hash, and event hash. The event history is append-only and hash-linked per statement item.
+- `GET /api/admin/financial-reconciliation/exceptions` accepts `status=open|in_progress|resolved|closed` in addition to the existing category/date/pagination filters.
+- `POST /api/admin/financial-reconciliation/exceptions/:itemId/workflow` accepts `batchId`, `action`, `reason`, `idempotencyKey`, and `assignedAdminId` for the `assign` action.
+
+The workflow does not change statement amounts, journal entries, orders, refunds, or payment settlement state. It does not certify an accounting resolution or create a ledger posting. All operations reuse the existing financial reconciliation permission and tenant/store context.

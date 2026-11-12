@@ -293,6 +293,36 @@
                 </div>
                 <div class="settings-card" style="margin-bottom:16px;">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title">财务异常处理队列</h3>
+                    <button id="financeExceptionReload" type="button">刷新异常</button>
+                  </div>
+                  <p class="ff-desc">分配负责人、记录处理备注、推进处理状态。所有操作均写入独立的不可变审计链。</p>
+                  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:12px 0;">
+                    <label>异常类别
+                      <select id="financeExceptionCategory">
+                        <option value="all">全部类别</option>
+                        <option value="refund">退款差异</option>
+                        <option value="fee">手续费</option>
+                        <option value="settlement_difference">结算差异</option>
+                        <option value="chargeback">拒付</option>
+                        <option value="other">其他</option>
+                      </select>
+                    </label>
+                    <label>处理状态
+                      <select id="financeExceptionStatus">
+                        <option value="all">全部状态</option>
+                        <option value="open">待处理</option>
+                        <option value="in_progress">处理中</option>
+                        <option value="resolved">已解决</option>
+                        <option value="closed">已关闭</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div id="financeExceptionQueue"><div class="empty-hint">—</div></div>
+                  <button id="financeExceptionMore" type="button" hidden>加载更多异常</button>
+                </div>
+                <div class="settings-card" style="margin-bottom:16px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                     <h3 class="settings-card-title">月结审批与关账</h3>
                     <button id="financeCloseReload" type="button">刷新月结</button>
                   </div>
@@ -924,8 +954,8 @@
     </div>
 </div>
 
-<script src="assets/admin-bundle.js?v=2026111101fcffeb9"></script>
-<script src="pages/admin.js?v=17942267555fcffeb9"></script>
+<script src="assets/admin-bundle.js?v=1794460000"></script>
+<script src="pages/admin.js?v=1794460000"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {

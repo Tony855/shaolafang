@@ -8,7 +8,7 @@
   if (!ctx) return;
   const { $, api, esc } = ctx;
   const root = () => document.getElementById('financialReconciliationPanel');
-  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [] };
+  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [], exceptionRows: [], nextExceptionCursor: null, exceptionLoading: false };
 
   function t(key, fallback) {
     const value = ctx.tAdmin ? ctx.tAdmin(key) : key;
@@ -233,6 +233,101 @@
       if (exportCsv) exportDailyCsv(rows);
     } catch (error) { toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed'))); }
   }
+
+  function exceptionStatusLabel(status) {
+    const labels = {
+      open: t('financeExceptionOpen', 'Open'),
+      in_progress: t('financeExceptionInProgress', 'In progress'),
+      resolved: t('financeExceptionResolved', 'Resolved'),
+      closed: t('financeExceptionClosed', 'Closed')
+    };
+    return labels[status] || esc(status || '—');
+  }
+  function renderExceptionQueue() {
+    const target = $('#financeExceptionQueue');
+    if (!target) return;
+    if (!state.exceptionRows.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeExceptionNoRows', 'No exceptions match these filters') + '</div>';
+      return;
+    }
+    target.innerHTML = state.exceptionRows.map(row => {
+      const status = row.caseStatus || 'open';
+      const actions = [
+        status !== 'closed' ? '<button type="button" data-exception-action="assign" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionAssign', 'Assign') + '</button>' : '',
+        row.assignedAdminId && status !== 'closed' ? '<button type="button" data-exception-action="unassign" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionUnassign', 'Unassign') + '</button>' : '',
+        status === 'open' ? '<button type="button" data-exception-action="start" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionStart', 'Start') + '</button>' : '',
+        status !== 'closed' ? '<button type="button" data-exception-action="add_note" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionAddNote', 'Add note') + '</button>' : '',
+        ['open','in_progress'].includes(status) ? '<button type="button" data-exception-action="resolve" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionResolve', 'Resolve') + '</button>' : '',
+        status === 'resolved' ? '<button type="button" data-exception-action="close" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionClose', 'Close case') + '</button>' : '',
+        ['resolved','closed'].includes(status) ? '<button type="button" data-exception-action="reopen" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionReopen', 'Reopen') + '</button>' : ''
+      ].filter(Boolean).join(' ');
+      return '<article style="background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin:10px 0;">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><strong>#' + Number(row.itemId) + ' · ' + esc(row.externalReference || row.transactionReference || '—') + '</strong><span>' + exceptionStatusLabel(status) + '</span></div>' +
+        '<div style="font-size:13px;color:#ccc;margin:7px 0;">' + moneyMinor(row.amountMinor, row.currencyCode) + ' · ' + esc(row.direction) + ' · ' + esc(row.category || '') + ' · ' + esc(row.importedAt || '') + '</div>' +
+        '<div style="font-size:12px;color:#aaa;">' + esc(row.description || '') + '</div>' +
+        '<div style="font-size:12px;margin-top:7px;">' + t('financeExceptionAssignedTo', 'Assigned to') + ': ' + esc(row.assignedAdminUsername || '—') + '</div>' +
+        (row.resolutionNote ? '<div style="font-size:12px;color:#aaa;margin-top:5px;">' + t('financeExceptionResolution', 'Resolution') + ': ' + esc(row.resolutionNote) + '</div>' : '') +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">' + actions + '</div></article>';
+    }).join('');
+    const more = $('#financeExceptionMore');
+    if (more) more.hidden = !state.nextExceptionCursor;
+  }
+  async function loadExceptionQueue(append) {
+    if (!requirePermission() || state.exceptionLoading) return;
+    state.exceptionLoading = true;
+    const target = $('#financeExceptionQueue');
+    if (!append) {
+      state.exceptionRows = [];
+      state.nextExceptionCursor = null;
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    }
+    try {
+      const query = new URLSearchParams({ limit: '50' });
+      const category = $('#financeExceptionCategory')?.value || 'all';
+      const status = $('#financeExceptionStatus')?.value || 'all';
+      if (category !== 'all') query.set('category', category);
+      if (status !== 'all') query.set('status', status);
+      if (append && state.nextExceptionCursor) query.set('afterId', String(state.nextExceptionCursor));
+      const data = await api('/admin/financial-reconciliation/exceptions?' + query.toString());
+      const rows = Array.isArray(data.items) ? data.items : [];
+      state.exceptionRows = append ? state.exceptionRows.concat(rows) : rows;
+      state.nextExceptionCursor = data.nextCursor || null;
+      renderExceptionQueue();
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load exceptions') + '</div>';
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    } finally { state.exceptionLoading = false; }
+  }
+  async function submitExceptionAction(button) {
+    if (!requirePermission()) return;
+    const action = button.dataset.exceptionAction;
+    const itemId = Number(button.dataset.item);
+    const batchId = Number(button.dataset.batch);
+    let assignedAdminId;
+    if (action === 'assign') {
+      assignedAdminId = Number(window.prompt(t('financeExceptionAssigneePrompt', 'Enter active merchant administrator ID:')));
+      if (!Number.isSafeInteger(assignedAdminId) || assignedAdminId <= 0) return;
+    }
+    const reason = window.prompt(t('financeExceptionReasonPrompt', 'Enter handling note / reason (5–500 characters):'));
+    if (reason === null) return;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeReasonInvalid', 'Reason must contain 5–500 characters'));
+      return;
+    }
+    const body = {
+      batchId, action, reason: reason.trim(),
+      idempotencyKey: 'finance-exception-ui-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+    };
+    if (assignedAdminId) body.assignedAdminId = assignedAdminId;
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/exceptions/' + itemId + '/workflow', { method: 'POST', body });
+      toast('✅ ' + t('financeExceptionActionSaved', 'Exception handling action recorded'));
+      await loadExceptionQueue(false);
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeExceptionActionFailed', 'Exception handling action failed')));
+    } finally { button.disabled = false; }
+  }
   function monthStatusLabel(status) {
     const labels = {
       open: t('financeMonthOpen', 'Open'),
@@ -388,6 +483,8 @@
       if (batchButton) { loadBatchItems(batchButton.dataset.financeBatch, false); return; }
       const actionButton = event.target.closest('[data-finance-action]');
       if (actionButton) { submitReview(actionButton); return; }
+      const exceptionButton = event.target.closest('[data-exception-action]');
+      if (exceptionButton) { submitExceptionAction(exceptionButton); return; }
       const monthButton = event.target.closest('[data-month-close-action]');
       if (monthButton) submitMonthClose(monthButton);
     });
@@ -397,6 +494,10 @@
     $('#financeImportButton').addEventListener('click', importBatch);
     $('#financeReportRun').addEventListener('click', loadDailySummary);
     $('#financeExportDaily').addEventListener('click', () => loadDailySummary(true));
+    $('#financeExceptionReload').addEventListener('click', () => loadExceptionQueue(false));
+    $('#financeExceptionMore').addEventListener('click', () => loadExceptionQueue(true));
+    $('#financeExceptionCategory').addEventListener('change', () => loadExceptionQueue(false));
+    $('#financeExceptionStatus').addEventListener('change', () => loadExceptionQueue(false));
     $('#financeCloseReload').addEventListener('click', loadMonthlyClose);
     $('#financeCloseMonth').addEventListener('change', loadMonthlyClose);
     $('#financeCloseCurrency').addEventListener('change', () => { state.monthCurrency = $('#financeCloseCurrency').value; loadMonthPeriod(); });
@@ -410,7 +511,7 @@
     const to = $('#financeReportTo');
     if (from && !from.value) from.value = today;
     if (to && !to.value) to.value = today;
-    await Promise.all([loadBatches(false), loadDailySummary(), loadMonthlyClose()]);
+    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadDailySummary(), loadMonthlyClose()]);
   }
   window.loadFinancialReconciliation = loadFinancialReconciliation;
 })();

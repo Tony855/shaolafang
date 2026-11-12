@@ -275,7 +275,7 @@ module.exports = function(app, deps) {
     if (!context) return;
     try {
       const result = await service.listExceptions({
-        ...context, category: req.query.category, from: req.query.from, to: req.query.to,
+        ...context, category: req.query.category, caseStatus: req.query.status, from: req.query.from, to: req.query.to,
         limit: req.query.limit || 50, afterId: req.query.afterId || 0
       });
       res.setHeader('Cache-Control', 'no-store, private');
@@ -285,6 +285,37 @@ module.exports = function(app, deps) {
         error.code === 'REVIEW_EXCEPTION_FILTER_INVALID' ||
         error.code === 'REVIEW_EXCEPTION_DATE_RANGE_INVALID' ? 400 : 500;
       res.status(status).json({ error: status === 400 ? '财务异常筛选或分页参数无效' : '获取财务异常队列失败' });
+    }
+  });
+
+
+  app.post('/api/admin/financial-reconciliation/exceptions/:itemId/workflow', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const itemId = positiveRouteId(req.params.itemId);
+    const batchId = positiveRouteId(req.body?.batchId);
+    if (!itemId || !batchId) return res.status(400).json({ error: '财务异常或批次编号无效' });
+    try {
+      const actor = await getAsync(
+        'SELECT username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',
+        [context.actorId, context.merchantId]
+      );
+      if (!actor) return res.status(403).json({ error: '财务审核账号无效或已停用' });
+      const result = await service.transitionExceptionCase({
+        ...context, itemId, batchId, actorUsername: actor.username,
+        action: req.body?.action, assignedAdminId: req.body?.assignedAdminId,
+        reason: req.body?.reason, idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey
+      });
+      res.status(result.replayed ? 200 : 201).json({ success: true, ...result });
+    } catch (error) {
+      const status = ({
+        EXCEPTION_WORKFLOW_NOT_FOUND: 404, EXCEPTION_WORKFLOW_BATCH_CLOSED: 409,
+        EXCEPTION_WORKFLOW_STATE_CONFLICT: 409, EXCEPTION_WORKFLOW_IDEMPOTENCY_CONFLICT: 409,
+        EXCEPTION_WORKFLOW_ASSIGNEE_INVALID: 400
+      })[error.code] || (error.code?.startsWith('EXCEPTION_WORKFLOW_') ? 400 : 500);
+      res.status(status).json({
+        error: status >= 500 ? '财务异常处理失败，事务已回滚' : error.message
+      });
     }
   });
 
