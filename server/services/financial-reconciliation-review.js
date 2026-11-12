@@ -394,6 +394,113 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
 
 
 
+
+  async function getExceptionOperationsSummary({ merchantId, storeId, slaHours = 24 }) {
+    const merchant = positiveId(merchantId, 'merchantId');
+    const store = positiveId(storeId, 'storeId');
+    const sla = Number(slaHours);
+    if (!Number.isSafeInteger(sla) || sla < 1 || sla > 720) {
+      const error = new TypeError('slaHours must be an integer from 1 to 720');
+      error.code = 'EXCEPTION_OPERATIONS_SLA_INVALID';
+      throw error;
+    }
+    const activeFilter = "i.merchant_id=? AND i.store_id=? AND i.match_status='exception' AND COALESCE(c.status, 'open') IN ('open','in_progress')";
+    const join = `FROM financial_reconciliation_items i
+       INNER JOIN financial_reconciliation_batches b
+         ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
+       LEFT JOIN financial_reconciliation_exception_cases c
+         ON c.item_id=i.id AND c.merchant_id=i.merchant_id AND c.store_id=i.store_id`;
+    const statusRows = await allAsync(
+      `SELECT COALESCE(c.status, 'open') AS case_status, COUNT(*) AS case_count,
+              SUM(TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3)) >= ? * 3600) AS overdue_count,
+              SUM(TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3)) < 86400) AS age_under_24h,
+              SUM(TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3)) >= 86400
+                  AND TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3)) < 259200) AS age_1_3d,
+              SUM(TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3)) >= 259200
+                  AND TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3)) < 604800) AS age_3_7d,
+              SUM(TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3)) >= 604800) AS age_over_7d
+       ${join} WHERE ${activeFilter} GROUP BY COALESCE(c.status, 'open')`,
+      [sla, merchant, store]
+    );
+    const workloadRows = await allAsync(
+      `SELECT c.assigned_admin_id, c.assigned_admin_username, COUNT(*) AS active_count,
+              SUM(TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3)) >= ? * 3600) AS overdue_count,
+              MAX(TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3))) AS oldest_age_seconds
+       ${join} WHERE ${activeFilter}
+       GROUP BY c.assigned_admin_id, c.assigned_admin_username
+       ORDER BY active_count DESC, c.assigned_admin_username ASC`,
+      [sla, merchant, store]
+    );
+    const overdueRows = await allAsync(
+      `SELECT i.id AS item_id, i.batch_id, i.exception_category, i.currency_code,
+              i.amount_minor, i.external_reference, c.assigned_admin_id, c.assigned_admin_username,
+              b.imported_at, GREATEST(0, TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3))) AS age_seconds
+       ${join} WHERE ${activeFilter}
+         AND TIMESTAMPDIFF(SECOND, b.imported_at, CURRENT_TIMESTAMP(3)) >= ? * 3600
+       ORDER BY b.imported_at ASC, i.id ASC LIMIT 50`,
+      [merchant, store, sla]
+    );
+    const openedRows = await allAsync(
+      `SELECT DATE(b.imported_at) AS report_date, COUNT(*) AS opened_count
+       FROM financial_reconciliation_items i
+       INNER JOIN financial_reconciliation_batches b
+         ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
+       WHERE i.merchant_id=? AND i.store_id=? AND i.match_status='exception'
+         AND b.imported_at >= DATE_SUB(CURRENT_DATE, INTERVAL 29 DAY)
+       GROUP BY DATE(b.imported_at) ORDER BY report_date ASC`,
+      [merchant, store]
+    );
+    const resolvedRows = await allAsync(
+      `SELECT DATE(created_at) AS report_date, COUNT(*) AS resolved_event_count
+       FROM financial_reconciliation_exception_events
+       WHERE merchant_id=? AND store_id=? AND action='resolve'
+         AND created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 29 DAY)
+       GROUP BY DATE(created_at) ORDER BY report_date ASC`,
+      [merchant, store]
+    );
+    const n = value => Number(value || 0);
+    const summary = { openCount: 0, inProgressCount: 0, activeCount: 0, overdueCount: 0,
+      ageing: { under24Hours: 0, from1To3Days: 0, from3To7Days: 0, over7Days: 0 } };
+    for (const row of statusRows) {
+      const count = n(row.case_count);
+      summary.activeCount += count;
+      summary.overdueCount += n(row.overdue_count);
+      if (row.case_status === 'open') summary.openCount += count;
+      if (row.case_status === 'in_progress') summary.inProgressCount += count;
+      summary.ageing.under24Hours += n(row.age_under_24h);
+      summary.ageing.from1To3Days += n(row.age_1_3d);
+      summary.ageing.from3To7Days += n(row.age_3_7d);
+      summary.ageing.over7Days += n(row.age_over_7d);
+    }
+    const workload = workloadRows.map(row => ({
+      adminId: row.assigned_admin_id === null ? null : n(row.assigned_admin_id),
+      username: row.assigned_admin_username || null, activeCount: n(row.active_count),
+      overdueCount: n(row.overdue_count), oldestAgeSeconds: n(row.oldest_age_seconds)
+    }));
+    const trendMap = new Map();
+    for (const row of openedRows) {
+      const date = String(row.report_date).slice(0, 10);
+      trendMap.set(date, { date, openedCount: n(row.opened_count), resolvedEventCount: 0 });
+    }
+    for (const row of resolvedRows) {
+      const date = String(row.report_date).slice(0, 10);
+      const item = trendMap.get(date) || { date, openedCount: 0, resolvedEventCount: 0 };
+      item.resolvedEventCount = n(row.resolved_event_count);
+      trendMap.set(date, item);
+    }
+    return { slaHours: sla, summary, workload,
+      trend: [...trendMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
+      overdueItems: overdueRows.map(row => ({
+        itemId: n(row.item_id), batchId: n(row.batch_id), category: row.exception_category || null,
+        currencyCode: row.currency_code, amountMinor: n(row.amount_minor),
+        externalReference: row.external_reference || null,
+        assignedAdminId: row.assigned_admin_id === null ? null : n(row.assigned_admin_id),
+        assignedAdminUsername: row.assigned_admin_username || null,
+        importedAt: row.imported_at, ageSeconds: n(row.age_seconds)
+      }))
+    };
+  }
+
   async function transitionExceptionCase({
     merchantId, storeId, batchId, itemId, actorId, actorUsername,
     action, assignedAdminId, reason, idempotencyKey
@@ -840,7 +947,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
+  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getExceptionOperationsSummary, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };

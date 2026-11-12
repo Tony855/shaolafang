@@ -291,6 +291,17 @@
                   <div id="financeReviewRows"></div>
                   <button id="financeRowsMore" type="button" hidden data-i18n="financeLoadMore">加载更多</button>
                 </div>
+                <div class="settings-card" style="margin-bottom:16px;" id="financeExceptionOperations">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title">异常运营监控</h3><button id="financeExceptionOpsReload" type="button">刷新监控</button>
+                  </div>
+                  <p class="ff-desc">SLA 从对账批次导入时间起算；默认 24 小时，可调整。超时清单仅生成站内待办，不自动发送外部通知。</p>
+                  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:12px 0;"><label>SLA（小时）<input id="financeExceptionSlaHours" type="number" min="1" max="720" step="1" value="24"></label></div>
+                  <div id="financeExceptionOpsSummary"><div class="empty-hint">—</div></div>
+                  <h4 style="margin-top:16px;">负责人工作量（未分配单独统计）</h4><div id="financeExceptionOpsWorkload"></div>
+                  <h4 style="margin-top:16px;">近 30 天积压趋势</h4><div id="financeExceptionOpsTrend"></div>
+                  <h4 style="margin-top:16px;">SLA 超时待办（最多显示 50 条）</h4><div id="financeExceptionOpsOverdue"></div>
+                </div>
                 <div class="settings-card" style="margin-bottom:16px;">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                     <h3 class="settings-card-title">财务异常处理队列</h3>
@@ -954,8 +965,8 @@
     </div>
 </div>
 
-<script src="assets/admin-bundle.js?v=1794460000"></script>
-<script src="pages/admin.js?v=1794460000"></script>
+<script src="assets/admin-bundle.js?v=1794473000"></script>
+<script src="pages/admin.js?v=1794473000"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {
