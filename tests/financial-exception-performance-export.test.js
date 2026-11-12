@@ -116,3 +116,66 @@ test('performance export audit history is tenant/store scoped, filtered and curs
   assert.deepEqual(reads[0].params.slice(0, 3), [4, '%"merchant_id":4,"store_id":9,%', 8]);
   assert.ok(reads[0].params.includes(8));
 });
+
+
+test('performance export audit ignores spoofed tenant IDs and constrains actor filters to the authenticated merchant', async () => {
+  const routes = new Map(), reads = [];
+  const app = {
+    get(path, ...handlers) { routes.set('GET ' + path, handlers); },
+    post(path, ...handlers) { routes.set('POST ' + path, handlers); }
+  };
+  registerRoutes(app, {
+    runAsync: async () => ({ affectedRows: 1 }),
+    getAsync: async () => null,
+    allAsync: async (sql, params) => {
+      reads.push({ sql, params });
+      if (params.includes(777)) return [];
+      return [{
+        id: 91, actor_id: 8, actor_username: 'finance-a',
+        action: 'export_financial_exception_performance',
+        details: JSON.stringify({ merchant_id: 4, store_id: 9, sla_hours: 24, row_count: 3, format: 'csv' }),
+        created_at: '2026-11-12T07:00:00.000Z'
+      }];
+    },
+    withTransaction: async work => work(),
+    requireAdminKey: (_req, _res, next) => next(),
+    requirePermission: () => (_req, _res, next) => next()
+  });
+  const handler = routes.get('GET /api/admin/financial-reconciliation/exceptions/performance-export-audit').at(-1);
+  const response = () => ({
+    statusCode: 200, headers: {}, body: null,
+    status(code) { this.statusCode = code; return this; },
+    setHeader(key, value) { this.headers[key] = value; },
+    json(body) { this.body = body; return this; }
+  });
+
+  const denied = response();
+  await handler({
+    merchantId: 4, storeId: 9, adminId: 8,
+    query: { merchantId: '999', storeId: '888', adminId: '777', actorId: '7',
+      from: '2026-11-01', to: '2026-11-12' }
+  }, denied);
+  assert.equal(denied.statusCode, 200);
+  assert.equal(denied.body.items.length, 1);
+  assert.equal(denied.body.items[0].storeId, 9);
+  assert.equal(denied.body.items[0].actorId, 8);
+  const scoped = reads[0];
+  assert.match(scoped.sql, /actor_id IN \(SELECT id FROM merchant_admins WHERE merchant_id=\?\)/);
+  assert.match(scoped.sql, /details LIKE \?/);
+  assert.match(scoped.sql, /actor_id=\?/);
+  assert.match(scoped.sql, /created_at>=\?/);
+  assert.match(scoped.sql, /created_at<=\?/);
+  assert.deepEqual(scoped.params.slice(0, 3), [4, '%"merchant_id":4,"store_id":9,%', 7]);
+  assert.equal(scoped.params.some(value => ['999', '888', '777', 999, 888, 777].includes(value)), false,
+    'request-supplied tenant and admin IDs must not widen or replace authenticated scope');
+
+  const foreignActor = response();
+  await handler({
+    merchantId: 4, storeId: 9, adminId: 8,
+    query: { merchantId: '999', storeId: '888', actorId: '777' }
+  }, foreignActor);
+  assert.equal(foreignActor.statusCode, 200);
+  assert.deepEqual(foreignActor.body.items, []);
+  assert.match(reads[1].sql, /actor_id IN \(SELECT id FROM merchant_admins WHERE merchant_id=\?\)/);
+  assert.deepEqual(reads[1].params.slice(0, 3), [4, '%"merchant_id":4,"store_id":9,%', 777]);
+});
