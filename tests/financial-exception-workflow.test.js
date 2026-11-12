@@ -180,7 +180,7 @@ test('exception queue console includes workflow filters, controls, and APIs in g
   const bundle = fs.readFileSync(path.join(root, 'assets/admin-bundle.js'), 'utf8');
   const html = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
   for (const action of ['assign','unassign','start','add_note','resolve','close','reopen']) {
-    assert.ok(moduleSource.includes("data-exception-action=\\\"' + action" ) || moduleSource.includes("'" + action + "'"));
+    assert.ok(moduleSource.includes('data-exception-action="' + action + '"'));
   }
   assert.ok(moduleSource.includes('/admin/financial-reconciliation/exceptions?'));
   assert.ok(moduleSource.includes('/workflow'));
