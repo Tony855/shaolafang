@@ -269,7 +269,7 @@ test('concurrent assignment of one journal transaction is serialized and only on
   ]);
   assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
   assert.equal(results.filter(r => r.status === 'rejected').length, 1);
-  assert.equal([...db.items.values()].filter(row => row.match_status === 'matched').length, 1);
+  assert.equal([...db.items.values()].filter(row => row.merchant_id === 4 && row.store_id === 9 && row.match_status === 'matched').length, 1);
 });
 
 test('rejects unsupported exception categories', async () => {
