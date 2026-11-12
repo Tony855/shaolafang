@@ -1605,6 +1605,27 @@ test('MySQL integration: unmatched statement flows through exception classificat
     amount_minor BIGINT NOT NULL,
     memo VARCHAR(255) NOT NULL DEFAULT ''
   ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_review_events (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    batch_id BIGINT NOT NULL,
+    item_id BIGINT NOT NULL,
+    journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    actor_admin_id INT NOT NULL,
+    actor_username VARCHAR(100) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    request_sha256 CHAR(64) NOT NULL,
+    before_json JSON NOT NULL,
+    after_json JSON NOT NULL,
+    previous_hash CHAR(64) NOT NULL DEFAULT '',
+    event_hash CHAR(64) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_exception_e2e_review_idempotency (merchant_id,store_id,batch_id,idempotency_key)
+  ) ENGINE=InnoDB`);
 
   const { ensureFinancialExceptionWorkflowSchema } = require('../server/db/migrations/financial-month-close');
   const { ensureFinancialExceptionAlertSchema } = require('../server/db/migrations/financial-exception-alerts');
