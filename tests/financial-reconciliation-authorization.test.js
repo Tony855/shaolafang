@@ -189,7 +189,10 @@ test('authenticated tenant scope overrides spoofed merchant and store IDs across
       route + ' must bind the authenticated merchant ID');
     assert.ok(!query.params.some(value => spoofed.includes(String(value))),
       route + ' must not bind attacker-supplied tenant or actor IDs');
-    if (route !== 'GET /api/admin/financial-reconciliation/month-close/period') {
+    if (route === 'GET /api/admin/financial-reconciliation/exceptions/performance-export-audit') {
+      assert.ok(query.params.some(value => typeof value === 'string' && value.includes('"store_id":' + storeId)),
+        route + ' must filter audit details by the authenticated store ID');
+    } else {
       assert.ok(query.params.includes(storeId),
         route + ' must bind the authenticated store ID');
     }
