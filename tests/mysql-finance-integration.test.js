@@ -913,3 +913,110 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
   assert.deepEqual([Number(events[0].item_id), Number(events[0].actor_admin_id), events[0].action],
     [1, 7, 'confirm']);
 });
+
+
+test('MySQL integration: exception workflow transitions persist idempotent hash-linked history', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const db = await connectTestDatabase();
+  const tables = [
+    'financial_reconciliation_exception_events',
+    'financial_reconciliation_exception_cases',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await db.connection.end();
+    }
+  });
+
+  for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported'
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'exception',
+    CONSTRAINT fk_finance_exception_test_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  const {
+    ensureFinancialExceptionWorkflowSchema
+  } = require('../server/db/migrations/financial-month-close');
+  await ensureFinancialExceptionWorkflowSchema({ runAsync: db.runAsync, allAsync: db.allAsync });
+
+  const batch = await db.runAsync(
+    "INSERT INTO financial_reconciliation_batches (merchant_id,store_id,status) VALUES (44,12,'imported')"
+  );
+  const batchId = Number(batch.insertId);
+  const item = await db.runAsync(
+    "INSERT INTO financial_reconciliation_items (batch_id,merchant_id,store_id,match_status) VALUES (?,44,12,'exception')",
+    [batchId]
+  );
+  const itemId = Number(item.insertId);
+
+  const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
+  const withTransaction = async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+  const service = createFinancialReconciliationReviewService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+  const startInput = {
+    merchantId: 44, storeId: 12, batchId, itemId,
+    actorId: 7, actorUsername: 'finance-exception-owner',
+    action: 'start', reason: 'Start investigation of bank exception',
+    idempotencyKey: 'mysql-exception-start-0001'
+  };
+  const started = await service.transitionExceptionCase(startInput);
+  const replay = await service.transitionExceptionCase(startInput);
+  assert.equal(started.replayed, false);
+  assert.equal(replay.replayed, true);
+  assert.equal(replay.eventId, started.eventId);
+  assert.equal(started.status, 'in_progress');
+
+  const resolved = await service.transitionExceptionCase({
+    ...startInput,
+    action: 'resolve',
+    reason: 'Resolve after verifying source evidence',
+    idempotencyKey: 'mysql-exception-resolve-0001'
+  });
+  assert.equal(resolved.replayed, false);
+  assert.equal(resolved.status, 'resolved');
+
+  const [cases] = await db.connection.query(
+    'SELECT status,resolution_note,updated_by_admin_id FROM financial_reconciliation_exception_cases WHERE merchant_id=44 AND store_id=12 AND item_id=?',
+    [itemId]
+  );
+  const [events] = await db.connection.query(
+    'SELECT action,actor_admin_id,previous_hash,event_hash FROM financial_reconciliation_exception_events WHERE merchant_id=44 AND store_id=12 AND item_id=? ORDER BY id',
+    [itemId]
+  );
+  assert.equal(cases.length, 1);
+  assert.equal(cases[0].status, 'resolved');
+  assert.equal(cases[0].resolution_note, 'Resolve after verifying source evidence');
+  assert.equal(Number(cases[0].updated_by_admin_id), 7);
+  assert.equal(events.length, 2, 'an exact start replay must not duplicate the event');
+  assert.deepEqual(events.map(row => row.action), ['start', 'resolve']);
+  assert.equal(events[0].previous_hash, '');
+  assert.equal(events[1].previous_hash, events[0].event_hash);
+  assert.ok(events.every(row => /^[a-f0-9]{64}$/.test(row.event_hash)));
+});
