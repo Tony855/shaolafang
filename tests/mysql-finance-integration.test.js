@@ -535,3 +535,90 @@ test('MySQL integration: journal posting is balanced, idempotent, and rejects ch
     [['debit', 12500], ['credit', 12500]]);
   assert.ok(entries.every(row => Number(row.merchant_id) === 44 && Number(row.store_id) === 12));
 });
+
+
+test('MySQL integration: journal CSV export returns only the authenticated merchant and store rows', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const db = await connectTestDatabase();
+  t.after(async () => {
+    try {
+      await db.connection.query('DROP TABLE IF EXISTS financial_journal_entries');
+      await db.connection.query('DROP TABLE IF EXISTS financial_journal_transactions');
+    } finally {
+      await db.connection.end();
+    }
+  });
+
+  await db.connection.query('DROP TABLE IF EXISTS financial_journal_entries');
+  await db.connection.query('DROP TABLE IF EXISTS financial_journal_transactions');
+  await db.runAsync(`CREATE TABLE financial_journal_transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    source_id VARCHAR(128) NOT NULL,
+    idempotency_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    created_by VARCHAR(100) NOT NULL DEFAULT '',
+    created_at DATETIME(3) NOT NULL,
+    UNIQUE KEY unique_financial_journal_idempotency (merchant_id,store_id,idempotency_key)
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_entries (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    transaction_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    line_no INT NOT NULL,
+    account_code VARCHAR(64) NOT NULL,
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    memo VARCHAR(255) NOT NULL DEFAULT '',
+    UNIQUE KEY unique_financial_journal_line (transaction_id,line_no),
+    CONSTRAINT fk_financial_journal_export_test_transaction FOREIGN KEY (transaction_id)
+      REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+
+  const insertTransaction = async (merchantId, storeId, currencyCode, sourceId, description) => {
+    const result = await db.runAsync(
+      `INSERT INTO financial_journal_transactions
+        (merchant_id,store_id,currency_code,source_type,source_id,idempotency_key,description,created_by,created_at)
+       VALUES (?,?,?,'order_payment',?,?,?,'integration-test','2026-11-12 10:00:00.000')`,
+      [merchantId, storeId, currencyCode, sourceId, 'export-test:' + sourceId, description]
+    );
+    return Number(result.insertId);
+  };
+  const tenantATransaction = await insertTransaction(44, 12, 'USD', 'tenant-a-order', 'Tenant A journal');
+  const tenantBTransaction = await insertTransaction(45, 12, 'USD', 'tenant-b-order', 'Tenant B secret');
+  const otherStoreTransaction = await insertTransaction(44, 13, 'USD', 'other-store-order', 'Other store secret');
+  const insertEntries = async (transactionId, merchantId, storeId, accountPrefix, amount) => {
+    await db.runAsync(
+      `INSERT INTO financial_journal_entries
+        (transaction_id,merchant_id,store_id,line_no,account_code,direction,amount_minor,memo)
+       VALUES (?,?,?,1,?,'debit',?,'cash received'),(?,?,?,2,?,'credit',?,'sale recognized')`,
+      [transactionId, merchantId, storeId, accountPrefix + '_CASH', amount,
+        transactionId, merchantId, storeId, accountPrefix + '_SALES', amount]
+    );
+  };
+  await insertEntries(tenantATransaction, 44, 12, 'TENANT_A', 12500);
+  await insertEntries(tenantBTransaction, 45, 12, 'TENANT_B', 9900);
+  await insertEntries(otherStoreTransaction, 44, 13, 'OTHER_STORE', 7700);
+
+  const { createFinancialVoucherExportService } = require('../server/services/financial-voucher-export');
+  const exporter = createFinancialVoucherExportService({
+    allAsync: db.allAsync,
+    withTransaction: async work => work()
+  });
+  const exported = await exporter.exportJournalDetails({
+    merchantId: 44, storeId: 12, from: '2026-11-12', to: '2026-11-12'
+  });
+
+  assert.equal(exported.rowCount, 2);
+  assert.match(exported.csv, /TENANT_A_CASH/);
+  assert.match(exported.csv, /TENANT_A_SALES/);
+  assert.match(exported.csv, /12500/);
+  assert.doesNotMatch(exported.csv, /TENANT_B|Other store secret|OTHER_STORE/,
+    'journal export must not disclose another merchant or another store');
+});
