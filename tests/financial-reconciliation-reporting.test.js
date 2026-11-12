@@ -256,3 +256,43 @@ test('exception queue route enforces tenant context and private no-store respons
   await handler({ merchantId: 4, storeId: 9, adminId: 7, query: { category: 'made-up' } }, invalid);
   assert.equal(invalid.statusCode, 400);
 });
+
+
+test('period summaries keep each currency separate and never combine minor-unit totals', async () => {
+  const seen = [];
+  const rows = [
+    { period_start: '2026-11-12', period_end: '2026-11-12', currency_code: 'KHR',
+      batch_count: 2, statement_row_count: 7, total_debit_minor: 9000, total_credit_minor: 9000,
+      matched_count: 5, pending_count: 1, unmatched_count: 0, ambiguous_count: 0, exception_count: 1 },
+    { period_start: '2026-11-12', period_end: '2026-11-12', currency_code: 'USD',
+      batch_count: 1, statement_row_count: 2, total_debit_minor: 1200, total_credit_minor: 1200,
+      matched_count: 2, pending_count: 0, unmatched_count: 0, ambiguous_count: 0, exception_count: 0 }
+  ];
+  const service = serviceWith(async (sql, params) => { seen.push({ sql, params }); return rows; });
+  const result = await service.getPeriodSummary({
+    merchantId: 4, storeId: 9, from: '2026-11-12', to: '2026-11-12', period: 'day'
+  });
+  assert.deepEqual(result.rows.map(row => row.currencyCode), ['KHR', 'USD']);
+  assert.deepEqual(result.rows.map(row => row.totalDebitMinor), [9000, 1200]);
+  assert.match(seen[0].sql, /GROUP BY period_start,period_end,b\.currency_code/);
+  assert.doesNotMatch(seen[0].sql, /exchange_rate|currency_conversion|CONVERT\s*\(/i);
+  assert.deepEqual(seen[0].params.slice(0, 2), [4, 9]);
+});
+
+test('period summary accepts at most 366 inclusive dates and rejects invalid calendar dates', async () => {
+  const service = serviceWith(async () => []);
+  const maximum = await service.getPeriodSummary({
+    merchantId: 4, storeId: 9, from: '2025-11-01', to: '2026-11-01', period: 'day'
+  });
+  assert.deepEqual(maximum.rows, []);
+  await assert.rejects(service.getPeriodSummary({
+    merchantId: 4, storeId: 9, from: '2025-10-31', to: '2026-11-01', period: 'day'
+  }), error => error.code === 'REVIEW_DATE_RANGE_INVALID');
+  await assert.rejects(service.getPeriodSummary({
+    merchantId: 4, storeId: 9, from: '2026-02-31', to: '2026-03-01', period: 'day'
+  }), error => error.code === 'REVIEW_DATE_RANGE_INVALID');
+  await assert.rejects(service.getPeriodSummary({
+    merchantId: 0, storeId: 9, from: '2026-11-01', to: '2026-11-01', period: 'day'
+  }));
+});
+
