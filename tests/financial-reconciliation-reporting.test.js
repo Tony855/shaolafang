@@ -296,3 +296,46 @@ test('period summary accepts at most 366 inclusive dates and rejects invalid cal
   }));
 });
 
+
+
+test('exception queue cursor pagination walks 2,500 rows without duplicates or gaps', async () => {
+  const allRows = Array.from({ length: 2500 }, (_, index) => {
+    const id = 2500 - index;
+    return {
+      id, batch_id: 77, row_no: id, external_reference: 'ref-' + id,
+      transaction_reference: 'txn-' + id, direction: 'credit', amount_minor: 1000 + id,
+      currency_code: 'USD', occurred_at: '2026-11-11 10:00:00', description: 'Synthetic high-volume row',
+      exception_category: 'fee', exception_note: null, match_reason: null,
+      provider_code: 'GENERIC', external_batch_id: 'batch-high-volume',
+      imported_at: '2026-11-11 11:00:00', case_id: null, case_status: null,
+      assigned_admin_id: null, assigned_admin_username: null, resolution_note: null,
+      case_updated_at: null
+    };
+  });
+  const calls = [];
+  const service = serviceWith(async (sql, params) => {
+    calls.push({ sql, params });
+    const cursor = Number(params[2]);
+    return allRows.filter(row => row.id < cursor).slice(0, params.at(-1));
+  });
+
+  const received = [];
+  let afterId = 0;
+  let pages = 0;
+  do {
+    const page = await service.listExceptions({ merchantId: 4, storeId: 9, limit: 100, afterId });
+    received.push(...page.items.map(row => row.itemId));
+    afterId = page.nextCursor || 0;
+    pages += 1;
+    if (!page.nextCursor) break;
+  } while (pages <= 30);
+
+  assert.equal(pages, 25);
+  assert.equal(received.length, 2500);
+  assert.equal(new Set(received).size, 2500);
+  assert.deepEqual(received, allRows.map(row => row.id));
+  assert.ok(calls.every(call => /i\.merchant_id=\? AND i\.store_id=\?/.test(call.sql)));
+  assert.ok(calls.every(call => /ORDER BY i\.id DESC LIMIT \?/.test(call.sql)));
+  assert.ok(calls.every(call => call.params[0] === 4 && call.params[1] === 9 && call.params.at(-1) === 101));
+});
+
