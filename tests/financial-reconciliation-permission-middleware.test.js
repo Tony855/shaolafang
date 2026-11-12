@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+// The auth module imports the shared MySQL pool; provide a harmless database name so this unit test never needs a live DB.
+process.env.DB_DATABASE = process.env.DB_DATABASE || 'finance_permission_test';
 const { requirePermission } = require('../server/middleware/admin-auth');
 
 function response() {
