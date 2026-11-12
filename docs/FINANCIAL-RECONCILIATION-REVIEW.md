@@ -97,3 +97,14 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - The 30-day trend reports exception statement rows by batch import date and immutable `resolve` events by event date. Resolution counts are event counts, not unique-case counts.
 - The overdue list is capped at 50 oldest active exceptions. It is an in-console reminder queue only; this phase does not send email, SMS, Telegram, push notifications, or invoke external providers.
 - All queries are read-only, use bound parameters, join batch/case ownership on merchant and store IDs, and return private no-store responses. No statement, payment, refund, journal, ledger, or month-close mutation is performed.
+
+
+## SLA alert inbox and reporting presets (operations batch)
+
+- Finance administrators can generate durable in-app SLA alerts for active overdue exceptions. Each run scans up to 500 oldest active exceptions for the selected threshold (1–720 hours).
+- Alert deduplication is enforced by a database unique key over merchant, store, statement item, alert type, and SLA threshold. Re-running generation does not create duplicate alerts.
+- Acknowledging an alert is separate from resolving an exception. It requires a 5–500 character reason and an idempotency key, is tenant/store scoped, and appends a hash-linked immutable event.
+- The workbench provides report date presets for the last 7 days, last 30 days, and current calendar month. They use the existing daily summary endpoint and CSV export.
+- The inbox is in-app only. No Telegram, email, SMS, push, or webhook is sent; external delivery requires operator-provided credentials, endpoint policy, and delivery acceptance rules.
+- Alert acknowledgement does not modify statement rows, payments, refunds, journals, ledger entries, or month-close state.
+- Startup schema ensure creates the alert and event tables. No production deployment or production migration was performed.
