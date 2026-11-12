@@ -8,7 +8,7 @@
   if (!ctx) return;
   const { $, api, esc } = ctx;
   const root = () => document.getElementById('financialReconciliationPanel');
-  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false };
+  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [] };
 
   function t(key, fallback) {
     const value = ctx.tAdmin ? ctx.tAdmin(key) : key;
@@ -233,6 +233,152 @@
       if (exportCsv) exportDailyCsv(rows);
     } catch (error) { toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed'))); }
   }
+  function monthStatusLabel(status) {
+    const labels = {
+      open: t('financeMonthOpen', 'Open'),
+      close_pending: t('financeMonthClosePending', 'Close approval pending'),
+      locked: t('financeMonthLocked', 'Locked'),
+      reopen_pending: t('financeMonthReopenPending', 'Reopen approval pending')
+    };
+    return labels[status] || esc(status || '—');
+  }
+  function renderMonthPreview() {
+    const target = $('#financeMonthPreview');
+    const select = $('#financeCloseCurrency');
+    if (!target || !select) return;
+    const rows = state.monthRows;
+    const previous = state.monthCurrency;
+    select.innerHTML = rows.map(row => '<option value="' + esc(row.currencyCode) + '">' + esc(row.currencyCode) + '</option>').join('');
+    if (rows.some(row => row.currencyCode === previous)) select.value = previous;
+    state.monthCurrency = select.value || '';
+    if (!rows.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeMonthNoBatches', 'No imported batches for this month and store') + '</div>';
+      $('#financeCloseStatus').innerHTML = '<div class="empty-hint">' + t('financeMonthNoPeriod', 'No monthly close period is available') + '</div>';
+      $('#financeCloseActions').innerHTML = '';
+      $('#financeCloseHistory').innerHTML = '';
+      return;
+    }
+    target.innerHTML = '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+      ['currencyCode','batchCount','statementRowCount','totalDebitMinor','totalCreditMinor','matchedCount','unresolvedCount'].map(key =>
+        '<th style="text-align:left;padding:9px;border-bottom:1px solid #555;">' + esc(t('financeMonth_' + key, key)) + '</th>').join('') +
+      '</tr></thead><tbody>' + rows.map(row => '<tr>' +
+        [row.currencyCode,row.batchCount,row.statementRowCount,row.totalDebitMinor,row.totalCreditMinor,row.matchedCount,row.unresolvedCount].map(value =>
+          '<td style="padding:9px;border-bottom:1px solid rgba(255,255,255,.08);">' + esc(value ?? '') + '</td>').join('') +
+        '</tr>').join('') + '</tbody></table></div>';
+  }
+  function renderMonthPeriod(period) {
+    const status = $('#financeCloseStatus');
+    const actions = $('#financeCloseActions');
+    if (!status || !actions) return;
+    const periodExists = Boolean(period);
+    period = period || { status: 'open' };
+    const details = [
+      !periodExists ? t('financeMonthNotInitialized', 'No close request has been submitted yet') : '',
+      t('financeMonthStatus', 'Status') + ': ' + monthStatusLabel(period.status),
+      period.pendingActorUsername ? t('financeMonthRequestedBy', 'Requested by') + ': ' + esc(period.pendingActorUsername) : '',
+      period.pendingReason ? t('financeMonthReason', 'Reason') + ': ' + esc(period.pendingReason) : '',
+      period.lockedByAdminId ? t('financeMonthLockedBy', 'Locked by administrator') + ': #' + Number(period.lockedByAdminId) : '',
+      period.lockedAt ? t('financeMonthLockedAt', 'Locked at') + ': ' + esc(period.lockedAt) : ''
+    ].filter(Boolean);
+    status.innerHTML = '<div style="display:grid;gap:6px;">' + details.map(line => '<div>' + line + '</div>').join('') + '</div>';
+    const row = state.monthRows.find(item => item.currencyCode === state.monthCurrency);
+    const ready = Boolean(row && row.closeReady && Number(row.statementRowCount) > 0);
+    let choices = [];
+    if (period.status === 'open') choices = [{ action: 'request_close', label: t('financeMonthRequestClose', 'Request close'), disabled: !ready }];
+    if (period.status === 'close_pending') choices = [
+      { action: 'approve_close', label: t('financeMonthApproveClose', 'Approve close') },
+      { action: 'reject_close', label: t('financeMonthRejectClose', 'Reject close') }
+    ];
+    if (period.status === 'locked') choices = [{ action: 'request_reopen', label: t('financeMonthRequestReopen', 'Request reopen') }];
+    if (period.status === 'reopen_pending') choices = [
+      { action: 'approve_reopen', label: t('financeMonthApproveReopen', 'Approve reopen') },
+      { action: 'reject_reopen', label: t('financeMonthRejectReopen', 'Reject reopen') }
+    ];
+    actions.innerHTML = choices.map(choice => '<button type="button" data-month-close-action="' + choice.action + '"' +
+      (choice.disabled ? ' disabled title="' + esc(t('financeMonthNotReady', 'All statement rows must be matched before close')) + '"' : '') +
+      ' style="margin:6px 6px 0 0;">' + esc(choice.label) + '</button>').join('');
+  }
+  async function loadMonthHistory() {
+    if (!requirePermission() || !state.monthCurrency) return;
+    const target = $('#financeCloseHistory');
+    if (!target) return;
+    try {
+      const month = $('#financeCloseMonth').value;
+      const query = new URLSearchParams({ month, currencyCode: state.monthCurrency, limit: '50' });
+      if (state.closeHistoryCursor) query.set('afterId', String(state.closeHistoryCursor));
+      const data = await api('/admin/financial-reconciliation/month-close/history?' + query.toString());
+      const items = Array.isArray(data.items) ? data.items : [];
+      state.closeHistory = state.closeHistoryCursor ? state.closeHistory.concat(items) : items;
+      state.closeHistoryCursor = data.nextCursor || null;
+      target.innerHTML = state.closeHistory.length ? state.closeHistory.map(item =>
+        '<article style="border-bottom:1px solid rgba(255,255,255,.08);padding:9px 0;">' +
+        '<strong>#' + Number(item.eventId) + ' · ' + esc(item.action) + '</strong> · ' +
+        esc(item.beforeStatus) + ' → ' + esc(item.afterStatus) +
+        '<div style="font-size:12px;color:#aaa;margin-top:4px;">' + esc(item.actorUsername) + ' · ' + esc(item.createdAt) + '</div>' +
+        '<div style="font-size:12px;margin-top:4px;">' + esc(item.reason) + '</div>' +
+        '<div style="font-size:11px;color:#888;overflow-wrap:anywhere;">SHA-256: ' + esc(item.eventHash) + '</div></article>'
+      ).join('') : '<div class="empty-hint">' + t('financeMonthNoHistory', 'No approval history') + '</div>';
+      const more = $('#financeCloseHistoryMore');
+      if (more) more.hidden = !state.closeHistoryCursor;
+    } catch (error) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load monthly close history') + '</div>';
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    }
+  }
+  async function loadMonthPeriod() {
+    if (!requirePermission() || !state.monthCurrency) return;
+    const month = $('#financeCloseMonth').value;
+    try {
+      const query = new URLSearchParams({ month, currencyCode: state.monthCurrency });
+      const data = await api('/admin/financial-reconciliation/month-close/period?' + query.toString());
+      renderMonthPeriod(data.period || null);
+      state.closeHistoryCursor = null;
+      state.closeHistory = [];
+      await loadMonthHistory();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    }
+  }
+  async function loadMonthlyClose() {
+    if (!requirePermission()) return;
+    const monthInput = $('#financeCloseMonth');
+    if (!monthInput) return;
+    const now = new Date();
+    if (!monthInput.value) monthInput.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    try {
+      const data = await api('/admin/financial-reconciliation/monthly-close-preview?month=' + encodeURIComponent(monthInput.value));
+      state.monthRows = Array.isArray(data.rows) ? data.rows : [];
+      renderMonthPreview();
+      await loadMonthPeriod();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    }
+  }
+  async function submitMonthClose(button) {
+    if (!requirePermission() || !state.monthCurrency) return;
+    const action = button.dataset.monthCloseAction;
+    const reason = window.prompt(t('financeMonthReasonPrompt', 'Enter an audit reason (5–500 characters):'));
+    if (reason === null) return;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeReasonInvalid', 'Reason must contain 5–500 characters'));
+      return;
+    }
+    const body = {
+      month: $('#financeCloseMonth').value,
+      currencyCode: state.monthCurrency,
+      action,
+      reason: reason.trim(),
+      idempotencyKey: 'month-close-ui-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+    };
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/month-close/transition', { method: 'POST', body });
+      toast('✅ ' + t('financeMonthActionSaved', 'Monthly close action recorded'));
+      await loadMonthlyClose();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeMonthActionFailed', 'Monthly close action failed')));
+    } finally { button.disabled = false; }
+  }
   function bind() {
     const panel = root();
     if (!panel || panel.dataset.bound) return;
@@ -241,7 +387,9 @@
       const batchButton = event.target.closest('[data-finance-batch]');
       if (batchButton) { loadBatchItems(batchButton.dataset.financeBatch, false); return; }
       const actionButton = event.target.closest('[data-finance-action]');
-      if (actionButton) submitReview(actionButton);
+      if (actionButton) { submitReview(actionButton); return; }
+      const monthButton = event.target.closest('[data-month-close-action]');
+      if (monthButton) submitMonthClose(monthButton);
     });
     $('#financeReloadBatches').addEventListener('click', () => loadBatches(false));
     $('#financeBatchMore').addEventListener('click', () => loadBatches(true));
@@ -249,6 +397,10 @@
     $('#financeImportButton').addEventListener('click', importBatch);
     $('#financeReportRun').addEventListener('click', loadDailySummary);
     $('#financeExportDaily').addEventListener('click', () => loadDailySummary(true));
+    $('#financeCloseReload').addEventListener('click', loadMonthlyClose);
+    $('#financeCloseMonth').addEventListener('change', loadMonthlyClose);
+    $('#financeCloseCurrency').addEventListener('change', () => { state.monthCurrency = $('#financeCloseCurrency').value; loadMonthPeriod(); });
+    $('#financeCloseHistoryMore').addEventListener('click', loadMonthHistory);
   }
   async function loadFinancialReconciliation() {
     if (!requirePermission()) return;
@@ -258,7 +410,7 @@
     const to = $('#financeReportTo');
     if (from && !from.value) from.value = today;
     if (to && !to.value) to.value = today;
-    await Promise.all([loadBatches(false), loadDailySummary()]);
+    await Promise.all([loadBatches(false), loadDailySummary(), loadMonthlyClose()]);
   }
   window.loadFinancialReconciliation = loadFinancialReconciliation;
 })();
