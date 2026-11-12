@@ -2357,6 +2357,43 @@ window.doAdvancedExport = doAdvancedExport;
     } catch (error) { toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed'))); }
   }
 
+
+  function renderSlaAlerts(items) {
+    const target=$('#financeSlaAlertList');if(!target)return;
+    if(!items.length){target.innerHTML='<div class="empty-hint">暂无待确认 SLA 提醒</div>';return;}
+    target.innerHTML=items.map(item=>'<article style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><strong>异常 #'+Number(item.itemId)+' · '+esc(item.category||'未分类')+'</strong><span>'+formatAge(item.ageSeconds)+' / SLA '+Number(item.slaHours)+'h</span></div><div style="font-size:12px;color:#aaa;margin:5px 0;">'+esc(item.externalReference||'无外部流水号')+' · '+esc(item.assignedAdminUsername||'未分配')+' · '+moneyMinor(item.amountMinor,item.currencyCode)+'</div><button type="button" data-sla-alert-ack="'+Number(item.alertId)+'">确认已知悉</button></article>').join('');
+  }
+  async function loadSlaAlerts() {
+    if(!requirePermission())return;
+    const target=$('#financeSlaAlertList');if(target)target.innerHTML='<div class="empty-hint">加载中…</div>';
+    try{const data=await api('/admin/financial-reconciliation/exceptions/alerts?status=pending&limit=50');renderSlaAlerts(Array.isArray(data.items)?data.items:[]);}
+    catch(error){if(target)target.innerHTML='<div class="empty-hint">提醒加载失败</div>';toast('❌ '+(error.message||'提醒加载失败'));}
+  }
+  async function generateSlaAlerts() {
+    if(!requirePermission())return;
+    const raw=Number($('#financeExceptionSlaHours')?.value||24),slaHours=Number.isSafeInteger(raw)&&raw>=1&&raw<=720?raw:24;
+    try{const result=await api('/admin/financial-reconciliation/exceptions/alerts/generate',{method:'POST',body:{slaHours}});
+      toast('✅ 已扫描 '+Number(result.scanned)+' 条超时异常，新建提醒 '+Number(result.created)+' 条');await loadSlaAlerts();}
+    catch(error){toast('❌ '+(error.message||'生成提醒失败'));}
+  }
+  async function acknowledgeSlaAlert(button) {
+    if(!requirePermission())return;
+    const reason=window.prompt('请输入确认说明（5–500 字）：');if(reason===null)return;
+    if(reason.trim().length<5||reason.trim().length>500){toast('❌ 确认说明长度必须为 5–500 字');return;}
+    button.disabled=true;
+    try{await api('/admin/financial-reconciliation/exceptions/alerts/'+Number(button.dataset.slaAlertAck)+'/acknowledge',{method:'POST',body:{reason:reason.trim(),idempotencyKey:'sla-alert-ack-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)}});
+      toast('✅ 已记录提醒确认');await loadSlaAlerts();await loadExceptionOperations();}
+    catch(error){toast('❌ '+(error.message||'确认提醒失败'));}
+    finally{button.disabled=false;}
+  }
+  function setReportRange(kind) {
+    const now=new Date(),to=dateValue(now),from=new Date(now);
+    if(kind==='week')from.setDate(from.getDate()-6);
+    else if(kind==='month')from.setDate(from.getDate()-29);
+    else if(kind==='calendar-month')from.setDate(1);
+    const fromInput=$('#financeReportFrom'),toInput=$('#financeReportTo');
+    if(fromInput)fromInput.value=dateValue(from);if(toInput)toInput.value=to;loadDailySummary(false);
+  }
   function exceptionStatusLabel(status) {
     const labels = {
       open: t('financeExceptionOpen', 'Open'),
@@ -2695,6 +2732,8 @@ window.doAdvancedExport = doAdvancedExport;
       }
       const exceptionButton = event.target.closest('[data-exception-action]');
       if (exceptionButton) { submitExceptionAction(exceptionButton); return; }
+      const alertAck=event.target.closest('[data-sla-alert-ack]');
+      if(alertAck){acknowledgeSlaAlert(alertAck);return;}
       const monthButton = event.target.closest('[data-month-close-action]');
       if (monthButton) submitMonthClose(monthButton);
     });
@@ -2706,6 +2745,11 @@ window.doAdvancedExport = doAdvancedExport;
     $('#financeExportDaily').addEventListener('click', () => loadDailySummary(true));
     $('#financeExceptionReload').addEventListener('click', () => loadExceptionQueue(false));
     $('#financeExceptionOpsReload').addEventListener('click', loadExceptionOperations);
+    $('#financeSlaAlertGenerate').addEventListener('click',generateSlaAlerts);
+    $('#financeSlaAlertReload').addEventListener('click',loadSlaAlerts);
+    $('#financeReportLast7').addEventListener('click',()=>setReportRange('week'));
+    $('#financeReportLast30').addEventListener('click',()=>setReportRange('month'));
+    $('#financeReportThisMonth').addEventListener('click',()=>setReportRange('calendar-month'));
     $('#financeExceptionSlaHours').addEventListener('change', loadExceptionOperations);
     $('#financeExceptionMore').addEventListener('click', () => loadExceptionQueue(true));
     $('#financeExceptionCategory').addEventListener('change', () => loadExceptionQueue(false));
@@ -2723,7 +2767,7 @@ window.doAdvancedExport = doAdvancedExport;
     const to = $('#financeReportTo');
     if (from && !from.value) from.value = today;
     if (to && !to.value) to.value = today;
-    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadExceptionOperations(), loadDailySummary(), loadMonthlyClose()]);
+    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadExceptionOperations(), loadSlaAlerts(), loadDailySummary(), loadMonthlyClose()]);
   }
   window.loadFinancialReconciliation = loadFinancialReconciliation;
 })();
