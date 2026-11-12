@@ -374,3 +374,33 @@ test('manual reconciliation reviews acquire the month lock before batch or item 
   assert.equal(reads.length, 1);
   assert.match(reads[0], /financial_reconciliation_review_events/);
 });
+
+
+test('month-close lifecycle can retry after unresolved rows are cleared and then approve with a second actor', async () => {
+  const readiness = { batch_count: 1, statement_row_count: 3, unresolved_count: 1 };
+  const db = memoryDb(readiness);
+
+  await assert.rejects(
+    transition(db, 10, 'request_close', 'month-close-readiness-retry-01'),
+    error => error.code === 'MONTH_CLOSE_NOT_READY' &&
+      error.readiness.unresolvedCount === 1
+  );
+  assert.equal(db.periods.size, 0);
+  assert.equal(db.events.length, 0);
+
+  // Simulate the reconciliation review completing all rows before the close is retried.
+  readiness.unresolved_count = 0;
+  const requested = await transition(db, 10, 'request_close', 'month-close-readiness-retry-02');
+  assert.equal(requested.status, 'close_pending');
+  assert.equal(db.events.length, 1);
+
+  const approved = await transition(db, 11, 'approve_close', 'month-close-readiness-retry-03');
+  assert.equal(approved.status, 'locked');
+  assert.equal(db.events.length, 2);
+  assert.equal(db.events[0].after_status, 'close_pending');
+  assert.equal(db.events[1].before_status, 'close_pending');
+  assert.equal(db.events[1].after_status, 'locked');
+  assert.equal(db.events[1].previous_hash, db.events[0].event_hash);
+  assert.equal([...db.periods.values()][0].locked_by_admin_id, 11);
+});
+
