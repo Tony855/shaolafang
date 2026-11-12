@@ -60,3 +60,11 @@ The startup migration creates the review-event table if absent, checks for exist
 - Monthly preview periods use the batch `imported_at` timestamp and group by currency. Amounts remain in stored integer minor units; the system does not infer currency decimal places, exchange rates, fee treatment, or accounting mappings.
 - `closeReady` is a review-completeness indicator only: at least one batch exists and every statement row is matched. It does not post journals, mark batches closed, freeze imports, create tax/accounting vouchers, or certify a statutory month-end close.
 - A monthly report with unresolved rows must be investigated. Pending, unmatched, ambiguous, and exception rows are included in the unresolved count. Closed batch count is reported separately for audit visibility.
+
+
+## Finance exception queue API
+
+- `GET /api/admin/financial-reconciliation/exceptions?category=fee&from=YYYY-MM-DD&to=YYYY-MM-DD&limit=50&afterId=0` lists manually classified exception rows for the authenticated merchant and active store.
+- Supported categories are `refund`, `fee`, `settlement_difference`, `chargeback`, and `other`. Category and date filters are optional; date filters must be supplied together and cover at most 91 inclusive calendar days.
+- Results include statement-row context, provider-neutral batch identifiers, stored integer minor-unit amount/currency, exception category/note, and import timestamp. Pages are ordered by descending item ID with a stable `nextCursor`; page size is capped at 100.
+- The queue is read-only. It does not create a new workflow status, assign staff, change statement rows, confirm payments, or alter refunds. Existing manual review events remain the audit source of truth. Every query joins batch ownership and filters both merchant and store; responses are private and non-cacheable.

@@ -135,3 +135,66 @@ test('history and monthly preview routes require tenant context and disable cach
   await monthly({ merchantId: 4, storeId: 9, adminId: 7, query: { month: '2026-13' } }, invalidMonth);
   assert.equal(invalidMonth.statusCode, 400);
 });
+
+
+test('exception queue is tenant-scoped, category/date filtered, and cursor paginated', async () => {
+  const seen = [];
+  const rows = [30, 20, 10].map(id => ({
+    id, batch_id: 8, row_no: id, external_reference: 'bank-' + id,
+    transaction_reference: 'txn-' + id, direction: 'credit', amount_minor: 1250,
+    currency_code: 'USD', occurred_at: '2026-11-11 10:00:00', description: 'Statement row',
+    exception_category: 'fee', exception_note: 'Review bank fee', match_reason: 'manual_classify_exception',
+    provider_code: 'GENERIC', external_batch_id: 'batch-2026-11', imported_at: '2026-11-11 11:00:00'
+  }));
+  const service = serviceWith(async (sql, params) => {
+    seen.push({ sql, params });
+    return rows.slice(0, params.at(-1));
+  });
+  const first = await service.listExceptions({
+    merchantId: 4, storeId: 9, category: 'FEE',
+    from: '2026-11-01', to: '2026-11-30', limit: 2
+  });
+  assert.deepEqual(first.items.map(item => item.itemId), [30, 20]);
+  assert.equal(first.nextCursor, 20);
+  assert.deepEqual(seen[0].params, [4, 9, Number.MAX_SAFE_INTEGER, 'fee',
+    '2026-11-01 00:00:00', '2026-12-01 00:00:00', 3]);
+  assert.match(seen[0].sql, /i\.merchant_id=\? AND i\.store_id=\?/);
+  assert.match(seen[0].sql, /i\.match_status='exception'/);
+  assert.match(seen[0].sql, /b\.merchant_id=i\.merchant_id AND b\.store_id=i\.store_id/);
+  assert.equal(first.items[0].amountMinor, 1250);
+  const second = await service.listExceptions({
+    merchantId: 4, storeId: 9, category: 'fee', limit: 2, afterId: first.nextCursor
+  });
+  assert.deepEqual(second.items.map(item => item.itemId), [30, 20]);
+  assert.deepEqual(seen[1].params, [4, 9, 20, 'fee', 3]);
+});
+
+test('exception queue rejects invalid categories, ranges, cursors, and excessive pages', async () => {
+  const service = serviceWith(async () => []);
+  await assert.rejects(service.listExceptions({ merchantId: 4, storeId: 9, category: 'unknown' }),
+    error => error.code === 'REVIEW_EXCEPTION_FILTER_INVALID');
+  await assert.rejects(service.listExceptions({ merchantId: 4, storeId: 9, from: '2026-11-01' }),
+    error => error.code === 'REVIEW_EXCEPTION_DATE_RANGE_INVALID');
+  await assert.rejects(service.listExceptions({ merchantId: 4, storeId: 9, from: '2026-02-31', to: '2026-03-01' }),
+    error => error.code === 'REVIEW_EXCEPTION_DATE_RANGE_INVALID');
+  await assert.rejects(service.listExceptions({ merchantId: 4, storeId: 9, limit: 101 }),
+    error => error.code === 'REVIEW_EXCEPTION_PAGINATION_INVALID');
+  await assert.rejects(service.listExceptions({ merchantId: 4, storeId: 9, afterId: -1 }),
+    error => error.code === 'REVIEW_EXCEPTION_PAGINATION_INVALID');
+});
+
+test('exception queue route enforces tenant context and private no-store response', async () => {
+  const routes = routeSetup(async () => []);
+  const handler = routes.get('GET /api/admin/financial-reconciliation/exceptions').at(-1);
+  const denied = response();
+  await handler({ merchantId: 4, storeId: null, adminId: 7, query: {} }, denied);
+  assert.equal(denied.statusCode, 403);
+  const ok = response();
+  await handler({ merchantId: 4, storeId: 9, adminId: 7, query: { category: 'fee', limit: '25' } }, ok);
+  assert.equal(ok.statusCode, 200);
+  assert.equal(ok.headers['Cache-Control'], 'no-store, private');
+  assert.deepEqual(ok.body.items, []);
+  const invalid = response();
+  await handler({ merchantId: 4, storeId: 9, adminId: 7, query: { category: 'made-up' } }, invalid);
+  assert.equal(invalid.statusCode, 400);
+});
