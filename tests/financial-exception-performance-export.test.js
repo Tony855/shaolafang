@@ -58,7 +58,7 @@ test('performance CSV route requires tenant context and audits before sending', 
   assert.equal(ok.statusCode, 200);
   assert.equal(ok.headers['Cache-Control'], 'no-store, private');
   assert.match(ok.headers['Content-Type'], /text\/csv/);
-  assert.ok(ok.body.startsWith('\\uFEFF'));
+  assert.ok(ok.body.startsWith('\uFEFF'));
   const audit = writes.find(row => row.sql.includes('INSERT INTO audit_logs'));
   assert.ok(audit);
   assert.equal(audit.params[3], 'export_financial_exception_performance');
