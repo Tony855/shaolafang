@@ -20,12 +20,12 @@ This tracker records merged delivery separately from work that is still under re
 
 | Workstream | Scope | Status |
 |---|---|---|
-| Unified reconciliation reports | Daily/weekly/monthly aggregation and audited server-side CSV export; daily admin action; tests and documentation | PR #162 open; CI and installer matrix pending |
+| Unified reconciliation reports | Daily/weekly/monthly aggregation and audited server-side CSV export; daily admin action; tests and documentation | PR #162 merged as `5747068` |
 
 ## Remaining engineering acceptance work
 
 1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. Assert transactional rollback, idempotent replay, and immutable audit history.
-2. **Authorization matrix:** verify active/inactive administrators, finance permission denial, cross-merchant and cross-store access denial for every read, mutation, and export endpoint.
+2. **Authorization matrix:** the current batch adds route-wide middleware wiring and missing-context regression checks. Still verify active/inactive administrators, explicit finance permission denial, and cross-merchant/cross-store access denial for every read, mutation, and export endpoint.
 3. **Data-volume validation:** benchmark realistic large statement batches and exception queues; inspect query plans before adding indexes; document tested row counts and response times.
 4. **Currency and rounding audit:** inspect all financial paths for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
 5. **Operational recovery:** test backup/restore, migration/startup schema ensure, interrupted imports, retry behavior, and month-close lock recovery.
