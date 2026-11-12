@@ -16,10 +16,10 @@ function buildFinancialPeriodReportCsv(report) {
   const columns = ['periodStart','periodEnd','currencyCode','batchCount','statementRowCount','totalDebitMinor','totalCreditMinor','matchedCount','pendingCount','unmatchedCount','ambiguousCount','exceptionCount'];
   const cell = value => {
     const raw = value === null || value === undefined ? '' : String(value);
-    const safe = typeof value === 'string' && /^[\\s\\u0000-\\u001f]*[=+@-]/.test(raw) ? "'" + raw : raw;
+    const safe = typeof value === 'string' && /^[\s\u0000-\u001f]*[=+@-]/.test(raw) ? "'" + raw : raw;
     return '"' + safe.replace(/"/g, '""') + '"';
   };
-  return '\\uFEFF' + [columns.map(cell).join(','), ...report.rows.map(row => columns.map(key => cell(row[key])).join(','))].join('\\r\\n') + '\\r\\n';
+  return '\uFEFF' + [columns.map(cell).join(','), ...report.rows.map(row => columns.map(key => cell(row[key])).join(','))].join('\r\n') + '\r\n';
 }
 
 module.exports = function(app, deps) {
