@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (after PR #168; PR #169 pending)
+Last reviewed: 2026-11-12 (after PR #170)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -15,14 +15,19 @@ This tracker records merged delivery separately from work that is still under re
 | Exception operations | Exception queue, workflow assignment/notes/resolution, append-only hash-linked history | PR #152 / #153 and follow-up batches merged |
 | SLA operations | SLA monitoring, in-app alerts, acknowledgement/dismissal, alert history, and weekly/monthly summaries | PR #155 / #157 merged |
 | Exception performance | Server-side aggregate CSV export and tenant/store-scoped export audit history | PR #161 merged |
+| Unified reconciliation reporting | Daily/weekly/monthly currency-separated summaries and audited server-side CSV export | PR #162 merged as `5747068` |
+| Finance authorization hardening | All finance routes require admin authentication and finance permission; inactive/expired admin sessions and inactive merchants are rejected | PR #163, #164, #170 merged |
+| Reporting and pagination safeguards | Currency-preserving minor-unit totals, bounded date ranges, and 2,500-row cursor pagination correctness | PR #165 / #166 merged |
+| Month-close lifecycle acceptance | Readiness failure rollback, retry after reconciliation completion, maker-checker approval, and linked audit hashes | PR #168 merged as `450436e` |
 
 ## Under review
 
+No open finance delivery PR at the time of this review.
 
 ## Remaining engineering acceptance work
 
 1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #168 adds a readiness-failure/retry/second-approver month-close lifecycle test with linked audit hashes. Still add a single database-backed full-flow scenario across all services and assert transactional rollback, idempotent replay, and immutable audit history.
-2. **Authorization matrix:** route-wide middleware wiring, missing-context rejection, authenticated tenant scope, and direct finance permission allow/deny paths are covered. PR #169 adds disabled administrator, inactive merchant, and expired-session rejection tests. Still verify cross-merchant/cross-store access denial for every read, mutation, and export endpoint.
+2. **Authorization matrix:** route-wide middleware wiring, missing-context rejection, authenticated tenant scope, and direct finance permission allow/deny paths are covered. PR #170 adds disabled administrator, inactive merchant, and expired-session rejection tests. Still verify cross-merchant/cross-store access denial for every read, mutation, and export endpoint.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** inspect all financial paths for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
 5. **Operational recovery:** test backup/restore, migration/startup schema ensure, interrupted imports, retry behavior, and month-close lock recovery.
@@ -34,6 +39,15 @@ This tracker records merged delivery separately from work that is still under re
 - Never merge based on checks for an older commit.
 - No production deployment, real payment/refund execution, or accounting posting is part of these repository-only development batches.
 - Do not claim a global completion percentage until each capability above has explicit acceptance tests and evidence.
+
+## Latest batch status
+
+- Main head: `e9ed80de480c0a2e0d0cf78dc1bbced6d56db3d4`
+- PR #168 merged: month-close readiness failure/retry and second-approver lifecycle test (`450436e`).
+- PR #170 merged: disabled administrator, inactive merchant, expired session, and missing finance-auth context tests (`e9ed80d`).
+- CI and installer compatibility: all five checks passed on the final PR #170 head.
+- Open finance PRs: none.
+- Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
 
