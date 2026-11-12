@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (PR #186 merged; MySQL statement import replay/rollback is covered; PR #187 adds migration rerun safety)
+Last reviewed: 2026-11-12 (PR #187 merged; MySQL schema ensure rerun safety is covered; PR #188 adds concurrent month-close lock acceptance)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -42,7 +42,7 @@ This tracker records merged delivery separately from work that is still under re
 2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172); representative authenticated read-query scoping is covered (PR #173); review mutation and audit query scoping is covered by PR #174; foreign review/SLA/exception workflow resource IDs are covered by PR #176/#179; cross-merchant exception assignee ownership is covered by PR #180; month-close transition context is covered by PR #181. Journal and period-report export audit scopes are covered by PR #182/#183; exception-performance audit filter spoofing is covered by PR #184. Remaining export/admin ownership cases still need explicit acceptance tests.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues at 2,500, 10,000, and 50,000 rows, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** PR #185 adds safe-integer guards for period/month aggregate minor-unit totals. Continue auditing every financial path for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
-5. **Operational recovery:** PR #186 adds a real-MySQL conflicting-import rollback/replay slice. PR #187 adds populated-database migration rerun/retention coverage. Still test backup/restore, broader interrupted workflow recovery, and month-close lock recovery.
+5. **Operational recovery:** PR #186 adds a real-MySQL conflicting-import rollback/replay slice. PR #187 adds populated-database migration rerun/retention coverage. PR #188 adds concurrent month-close lock exclusivity. Still test backup/restore and broader interrupted workflow recovery.
 6. **Provider integration boundary:** keep bank/payment provider verification and external notifications disabled until real credentials, signature verification rules, supported currencies, and delivery policies are explicitly supplied and tested.
 
 ## Release gates
@@ -65,7 +65,8 @@ This tracker records merged delivery separately from work that is still under re
 - PR #184 merged: exception-performance export audit filters are tested against spoofed tenant/store/admin query IDs and foreign-merchant actor filters (`a1618b17`); all six checks passed.
 - PR #185 merged: period-report and month-close preview reject aggregate minor-unit totals above `Number.MAX_SAFE_INTEGER` while preserving exact safe-boundary values (`8643a579`); all six PR checks passed.
 - PR #186 merged: real-MySQL statement import replay, conflicting row detection, and transaction rollback (`c7244af8`); all six checks passed.
-- PR #187 open: rerun month-close, exception-workflow, and SLA schema ensure against populated MySQL tables and verify existing tenant rows/events remain intact; CI pending.
+- PR #187 merged: rerun month-close, exception-workflow, and SLA schema ensure against populated MySQL tables and verify existing tenant rows/events remain intact (`68973f6a`); all six checks passed.
+- PR #188 open: two independent MySQL transactions contend for the same month-close period; expected result is one transition winner, one `FINANCIAL_MONTH_LOCKED` rejection, and one unique period row; CI pending.
 - PR #185 open: period-report and month-close preview reject aggregate minor-unit totals above `Number.MAX_SAFE_INTEGER`; exact-boundary totals remain supported. CI pending.
 - Production deployment and live financial operations: not performed.
 

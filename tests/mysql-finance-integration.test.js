@@ -373,3 +373,60 @@ test('MySQL integration: statement import is idempotent and rolls back conflicti
     'failed conflicting replay must roll back its attempted row mutation');
   assert.equal(items[1].description, 'refund');
 });
+
+
+test('MySQL integration: concurrent month-close lock contenders allow only one transition', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const firstDb = await connectTestDatabase();
+  const secondDb = await connectTestDatabase();
+  t.after(async () => {
+    try {
+      await firstDb.connection.query('DROP TABLE IF EXISTS financial_month_close_events');
+      await firstDb.connection.query('DROP TABLE IF EXISTS financial_month_close_periods');
+    } finally {
+      await Promise.all([firstDb.connection.end(), secondDb.connection.end()]);
+    }
+  });
+
+  await firstDb.connection.query('DROP TABLE IF EXISTS financial_month_close_events');
+  await firstDb.connection.query('DROP TABLE IF EXISTS financial_month_close_periods');
+  await ensureFinancialMonthCloseSchema({ runAsync: firstDb.runAsync, allAsync: firstDb.allAsync });
+
+  const lockAndTransition = async db => {
+    await db.connection.beginTransaction();
+    try {
+      const period = await lockOpenFinancialMonthPeriod({
+        runAsync: db.runAsync, getAsync: db.getAsync,
+        merchantId: 44, storeId: 12, periodMonth: '2026-11', currencyCode: 'USD'
+      });
+      await db.runAsync(
+        "UPDATE financial_month_close_periods SET status='locked' WHERE id=?",
+        [period.id]
+      );
+      await db.connection.commit();
+      return Number(period.id);
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+
+  const outcomes = await Promise.allSettled([
+    lockAndTransition(firstDb),
+    lockAndTransition(secondDb)
+  ]);
+  const winners = outcomes.filter(result => result.status === 'fulfilled');
+  const losers = outcomes.filter(result => result.status === 'rejected');
+  assert.equal(winners.length, 1, 'only one concurrent transaction may transition the open period');
+  assert.equal(losers.length, 1, 'the competing transaction must observe the committed locked state');
+  assert.equal(losers[0].reason.code, 'FINANCIAL_MONTH_LOCKED');
+  assert.equal(winners[0].value > 0, true);
+
+  const [periods] = await firstDb.connection.query(
+    "SELECT id,status FROM financial_month_close_periods WHERE merchant_id=44 AND store_id=12 AND period_month='2026-11' AND currency_code='USD'"
+  );
+  assert.equal(periods.length, 1, 'the unique tenant/month/currency key must prevent duplicate periods');
+  assert.equal(periods[0].status, 'locked');
+});
