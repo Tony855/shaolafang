@@ -1271,3 +1271,247 @@ test('MySQL integration: month-close approval enforces maker-checker, readiness 
   assert.equal(history.items[0].previousHash, history.items[1].eventHash);
   assert.ok(history.items.every(row => /^[a-f0-9]{64}$/.test(row.eventHash)));
 });
+
+
+test('MySQL integration: statement import flows through journal match, review, month close, and CSV export', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 45000
+}, async t => {
+  const db = await connectTestDatabase();
+  const tables = [
+    'financial_month_close_events',
+    'financial_month_close_periods',
+    'financial_reconciliation_review_events',
+    'financial_journal_entries',
+    'financial_journal_transactions',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await db.connection.end();
+    }
+  });
+  for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+
+  await db.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    provider_code VARCHAR(40) NOT NULL,
+    external_batch_id VARCHAR(191) NOT NULL,
+    statement_sha256 CHAR(64) NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    row_count INT NOT NULL,
+    total_debit_minor BIGINT NOT NULL,
+    total_credit_minor BIGINT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported',
+    imported_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_e2e_batch (merchant_id,store_id,provider_code,external_batch_id)
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    row_no INT NOT NULL,
+    external_reference VARCHAR(191) NOT NULL,
+    transaction_reference VARCHAR(191) NOT NULL DEFAULT '',
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    occurred_at DATETIME(3) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    row_sha256 CHAR(64) NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'pending',
+    match_reason VARCHAR(100) DEFAULT NULL,
+    matched_journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    exception_note VARCHAR(255) DEFAULT NULL,
+    UNIQUE KEY unique_finance_e2e_row (batch_id,row_no),
+    CONSTRAINT fk_finance_e2e_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    source_id VARCHAR(128) NOT NULL,
+    idempotency_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    created_by VARCHAR(100) NOT NULL DEFAULT '',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_e2e_journal (merchant_id,store_id,idempotency_key)
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_entries (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    transaction_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    line_no INT NOT NULL,
+    account_code VARCHAR(64) NOT NULL,
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    memo VARCHAR(255) NOT NULL DEFAULT '',
+    UNIQUE KEY unique_finance_e2e_journal_line (transaction_id,line_no),
+    CONSTRAINT fk_finance_e2e_journal FOREIGN KEY (transaction_id)
+      REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_review_events (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    batch_id BIGINT NOT NULL,
+    item_id BIGINT NOT NULL,
+    journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    actor_admin_id INT NOT NULL,
+    actor_username VARCHAR(100) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    request_sha256 CHAR(64) NOT NULL,
+    before_json JSON NOT NULL,
+    after_json JSON NOT NULL,
+    previous_hash CHAR(64) NOT NULL DEFAULT '',
+    event_hash CHAR(64) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_e2e_review_idempotency (merchant_id,store_id,batch_id,idempotency_key)
+  ) ENGINE=InnoDB`);
+  await ensureFinancialMonthCloseSchema({ runAsync: db.runAsync, allAsync: db.allAsync });
+
+  const withTransaction = async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+
+  const { createFinancialReconciliationService } = require('../server/services/financial-reconciliation');
+  const reconciliation = createFinancialReconciliationService({
+    runAsync: db.runAsync, getAsync: db.getAsync, withTransaction
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  const month = today.slice(0, 7);
+  const imported = await reconciliation.importStatementBatch({
+    merchantId: 44, storeId: 12, providerCode: 'BANK_STMT',
+    externalBatchId: 'mysql-e2e-batch-0001',
+    statementSha256: 'e'.repeat(64), currencyCode: 'USD',
+    rows: [{
+      externalReference: 'mysql-e2e-order-0001',
+      transactionReference: 'mysql-e2e-order-0001',
+      direction: 'credit', amountMinor: 12500, currencyCode: 'USD',
+      occurredAt: today + 'T10:00:00.000Z', description: 'E2E bank settlement'
+    }]
+  });
+  assert.equal(imported.importedRows, 1);
+  assert.equal(imported.replayed, false);
+
+  const { createFinancialLedgerService } = require('../server/services/financial-ledger-store');
+  const ledger = createFinancialLedgerService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+  const posted = await ledger.postJournalTransaction({
+    merchantId: 44, storeId: 12, currencyCode: 'USD',
+    sourceType: 'order_payment', sourceId: 'mysql-e2e-order-0001',
+    idempotencyKey: 'mysql-e2e-journal-000001',
+    description: 'E2E order settlement', createdBy: 'mysql-e2e',
+    entries: [
+      { accountCode: 'payment_clearing', direction: 'debit', amountMinor: 12500, memo: 'bank settlement' },
+      { accountCode: 'sales_revenue', direction: 'credit', amountMinor: 12500, memo: 'order revenue' }
+    ]
+  });
+  assert.equal(posted.replayed, false);
+
+  const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
+  const review = createFinancialReconciliationReviewService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+  const suggestion = await review.listBatchReview({
+    merchantId: 44, storeId: 12, batchId: imported.batchId
+  });
+  assert.equal(suggestion.items.length, 1);
+  assert.equal(suggestion.items[0].suggestion.status, 'suggested');
+  assert.equal(suggestion.items[0].suggestion.journalTransactionId, posted.transactionId);
+
+  const item = await db.getAsync(
+    'SELECT id FROM financial_reconciliation_items WHERE batch_id=? AND merchant_id=44 AND store_id=12 AND row_no=1',
+    [imported.batchId]
+  );
+  const confirmed = await review.reviewItem({
+    merchantId: 44, storeId: 12, batchId: imported.batchId, itemId: Number(item.id),
+    actorId: 7, actorUsername: 'mysql-e2e-reviewer',
+    action: 'confirm', journalTransactionId: posted.transactionId,
+    reason: 'Confirm exact journal and bank statement match',
+    idempotencyKey: 'mysql-e2e-review-000001'
+  });
+  assert.equal(confirmed.replayed, false);
+  const preview = await review.getMonthlyClosePreview({
+    merchantId: 44, storeId: 12, month
+  });
+  assert.equal(preview.length, 1);
+  assert.equal(preview[0].currencyCode, 'USD');
+  assert.equal(preview[0].matchedCount, 1);
+  assert.equal(preview[0].unresolvedCount, 0);
+  assert.equal(preview[0].closeReady, true);
+
+  const { createFinancialMonthCloseService } = require('../server/services/financial-month-close');
+  const monthClose = createFinancialMonthCloseService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+  const closeRequest = {
+    merchantId: 44, storeId: 12, month, currencyCode: 'USD',
+    actorId: 7, actorUsername: 'mysql-e2e-maker',
+    action: 'request_close', reason: 'Request E2E month close',
+    idempotencyKey: 'mysql-e2e-close-request-01'
+  };
+  const requested = await monthClose.transition(closeRequest);
+  assert.equal(requested.status, 'close_pending');
+  const approved = await monthClose.transition({
+    ...closeRequest,
+    actorId: 8, actorUsername: 'mysql-e2e-checker',
+    action: 'approve_close', reason: 'Approve E2E month close after review',
+    idempotencyKey: 'mysql-e2e-close-approve-01'
+  });
+  assert.equal(approved.status, 'locked');
+
+  const { createFinancialVoucherExportService } = require('../server/services/financial-voucher-export');
+  const exporter = createFinancialVoucherExportService({
+    allAsync: db.allAsync, withTransaction
+  });
+  const exported = await exporter.exportJournalDetails({
+    merchantId: 44, storeId: 12, from: today, to: today
+  });
+  assert.equal(exported.rowCount, 2);
+  assert.match(exported.csv, /mysql-e2e-order-0001/);
+  assert.match(exported.csv, /12500/);
+
+  const [persisted] = await db.connection.query(
+    `SELECT b.status AS batch_status, i.match_status, i.matched_journal_transaction_id,
+            p.status AS period_status, COUNT(DISTINCT je.id) AS journal_line_count
+     FROM financial_reconciliation_batches b
+     INNER JOIN financial_reconciliation_items i ON i.batch_id=b.id
+       AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
+     INNER JOIN financial_month_close_periods p ON p.merchant_id=b.merchant_id
+       AND p.store_id=b.store_id AND p.period_month=? AND p.currency_code=b.currency_code
+     INNER JOIN financial_journal_entries je ON je.transaction_id=i.matched_journal_transaction_id
+       AND je.merchant_id=i.merchant_id AND je.store_id=i.store_id
+     WHERE b.id=? AND b.merchant_id=44 AND b.store_id=12
+     GROUP BY b.id,i.id,p.id`,
+    [month, imported.batchId]
+  );
+  assert.equal(persisted.batch_status, 'imported');
+  assert.equal(persisted.match_status, 'matched');
+  assert.equal(Number(persisted.matched_journal_transaction_id), posted.transactionId);
+  assert.equal(persisted.period_status, 'locked');
+  assert.equal(Number(persisted.journal_line_count), 2);
+});
