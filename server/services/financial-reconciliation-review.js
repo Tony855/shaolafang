@@ -156,7 +156,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     if (!actorUsername || actorUsername.length > 100) throw new TypeError('actorUsername is required');
     const review = normalizeReviewInput(input);
     const requestHash = stableHash({
-      merchantId, storeId, batchId, itemId, action: review.action, exceptionCategory: review.exceptionCategory,
+      merchantId, storeId, batchId, itemId, actorId,
+      action: review.action, exceptionCategory: review.exceptionCategory,
       journalTransactionId: review.journalTransactionId, reason: review.reason
     });
 
@@ -324,12 +325,17 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
           'SELECT id, request_sha256, event_hash, action, item_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=?',
           [merchantId, storeId, batchId, review.idempotencyKey]
         );
-        if (existing && existing.request_sha256 === requestHash) {
-          return { eventId: Number(existing.id), itemId: Number(existing.item_id), action: existing.action, eventHash: existing.event_hash, replayed: true };
+        if (existing) {
+          if (existing.request_sha256 === requestHash) {
+            return { eventId: Number(existing.id), itemId: Number(existing.item_id), action: existing.action, eventHash: existing.event_hash, replayed: true };
+          }
+          const idempotencyConflict = new Error('idempotency key was already used with a different review request');
+          idempotencyConflict.code = 'REVIEW_IDEMPOTENCY_CONFLICT';
+          throw idempotencyConflict;
         }
-        const conflict = new Error('review idempotency or journal assignment conflict');
-        conflict.code = 'REVIEW_DUPLICATE_ASSIGNMENT';
-        throw conflict;
+        const assignmentConflict = new Error('journal transaction is already assigned to another statement row');
+        assignmentConflict.code = 'REVIEW_DUPLICATE_ASSIGNMENT';
+        throw assignmentConflict;
       }
       throw error;
     }
