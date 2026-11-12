@@ -150,3 +150,11 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - Only an active administrator in the authenticated merchant context may export. Tenant/store identifiers are taken from authenticated request context, never from query/body parameters.
 - The export remains read-only and retains the existing 31-day and 5,000-line limits, original currency codes, integer minor units, formula-injection escaping, and private no-store response headers.
 - This phase audits the server-side journal detail export. The exception-performance CSV remains a browser-generated download and is not represented as server-audited.
+
+
+## Exception performance CSV export audit
+
+- GET /api/admin/financial-reconciliation/exceptions/performance-export?slaHours=24 generates the exception performance CSV on the server from the tenant/store-scoped summary service.
+- The endpoint requires an active merchant administrator, validates SLA hours (1–720), records merchant/store scope, SLA threshold, row count, export scope, actor, request IP and timestamp in audit_logs, and only then returns the file. Audit failure fails closed.
+- CSV retains separate currency/assignee/category groups, original currency codes, and formula-prefix neutralization. It contains aggregate metrics only, not journal rows or customer personal data.
+- The existing browser-generated export remains active until the UI integration follow-up switches its download action to this endpoint; only direct calls to the server endpoint are audited.
