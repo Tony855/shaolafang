@@ -121,3 +121,80 @@ test('every registered finance endpoint rejects spoofed tenant IDs before databa
   assert.equal(getDatabaseCalls(), 0,
     'no finance endpoint may query or mutate data when authenticated tenant context is absent');
 });
+
+test('authenticated tenant scope overrides spoofed merchant and store IDs across finance read surfaces', async () => {
+  const merchantId = 41;
+  const storeId = 93;
+  const actorId = 17;
+  const spoofed = ['999', '888', '777'];
+  const observations = [];
+
+  const routes = new Map();
+  const app = {
+    get(path, ...handlers) { routes.set('GET ' + path, handlers); },
+    post(path, ...handlers) { routes.set('POST ' + path, handlers); }
+  };
+  registerRoutes(app, {
+    runAsync: async (sql, params = []) => {
+      observations.push({ kind: 'run', sql, params });
+      return { affectedRows: 1, insertId: 1 };
+    },
+    getAsync: async (sql, params = []) => {
+      observations.push({ kind: 'get', sql, params });
+      if (sql.includes('SELECT username FROM merchant_admins')) return { username: 'finance-admin' };
+      return null;
+    },
+    allAsync: async (sql, params = []) => {
+      observations.push({ kind: 'all', sql, params });
+      return [];
+    },
+    withTransaction: async work => work(),
+    requireAdminKey: (_req, _res, next) => next(),
+    requirePermission: () => (_req, _res, next) => next()
+  });
+
+  const request = {
+    merchantId, storeId, adminId: actorId,
+    query: {
+      merchantId: spoofed[0], storeId: spoofed[1], adminId: spoofed[2],
+      from: '2026-11-01', to: '2026-11-12', period: 'day',
+      month: '2026-11', currencyCode: 'USD', slaHours: '24',
+      limit: '25'
+    },
+    params: { batchId: '12', itemId: '34' },
+    body: {},
+    get: () => undefined
+  };
+
+  const cases = [
+    ['GET /api/admin/financial-reconciliation/batches', 'all'],
+    ['GET /api/admin/financial-reconciliation/period-summary', 'all'],
+    ['GET /api/admin/financial-reconciliation/month-close/period', 'get'],
+    ['GET /api/admin/financial-reconciliation/batches/:batchId/items', 'get'],
+    ['GET /api/admin/financial-reconciliation/exceptions/performance-export-audit', 'all']
+  ];
+
+  for (const [route, expectedKind] of cases) {
+    const handler = routes.get(route)?.at(-1);
+    assert.equal(typeof handler, 'function', 'missing route ' + route);
+    const before = observations.length;
+    const res = response();
+    await handler(request, res);
+    assert.notEqual(res.statusCode, 403, route + ' must accept the authenticated tenant context');
+    const query = observations.slice(before).find(item => item.kind === expectedKind);
+    assert.ok(query, route + ' must execute its expected tenant-scoped query');
+    assert.match(query.sql, /merchant_id|merchantId|merchant_admins/i,
+      route + ' query must contain an explicit merchant ownership predicate');
+    assert.ok(query.params.includes(merchantId),
+      route + ' must bind the authenticated merchant ID');
+    assert.ok(!query.params.some(value => spoofed.includes(String(value))),
+      route + ' must not bind attacker-supplied tenant or actor IDs');
+    if (route === 'GET /api/admin/financial-reconciliation/exceptions/performance-export-audit') {
+      assert.ok(query.params.some(value => typeof value === 'string' && value.includes('"store_id":' + storeId)),
+        route + ' must filter audit details by the authenticated store ID');
+    } else {
+      assert.ok(query.params.includes(storeId),
+        route + ' must bind the authenticated store ID');
+    }
+  }
+});
