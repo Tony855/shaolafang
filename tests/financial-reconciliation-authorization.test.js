@@ -101,3 +101,23 @@ test('period report reads tenant scope only from authenticated request context, 
   assert.equal(res.statusCode, 200);
   assert.deepEqual(seen[0].slice(0, 2), [4, 9]);
 });
+
+test('every registered finance endpoint rejects spoofed tenant IDs before database access', async () => {
+  const { routes, getDatabaseCalls } = setup();
+  assert.ok(routes.size >= 20, 'the tenant matrix must cover the complete registered finance route set');
+
+  for (const [route, handlers] of routes) {
+    const res = response();
+    await handlers.at(-1)({
+      // These are attacker-controlled request values and must never establish tenant scope.
+      query: { merchantId: '999', storeId: '888', adminId: '777' },
+      params: { merchantId: '999', storeId: '888', adminId: '777', batchId: '1', itemId: '1', alertId: '1' },
+      body: { merchantId: 999, storeId: 888, adminId: 777 },
+      get: () => 'attacker-idempotency-key'
+    }, res);
+    assert.equal(res.statusCode, 403, route + ' must reject missing authenticated tenant context');
+  }
+
+  assert.equal(getDatabaseCalls(), 0,
+    'no finance endpoint may query or mutate data when authenticated tenant context is absent');
+});

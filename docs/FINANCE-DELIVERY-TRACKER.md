@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (after PR #170)
+Last reviewed: 2026-11-12 (tenant isolation route matrix in review)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -22,7 +22,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-No open finance delivery PR at the time of this review.
+- **Cross-tenant route rejection matrix:** added a regression that iterates every registered finance endpoint, injects attacker-controlled merchant/store/admin IDs through query, path, and body inputs, and asserts rejection before any database access. Awaiting PR-head CI. This proves missing authenticated context cannot be replaced by request-supplied IDs; it does not yet prove foreign-resource denial when a valid session for another tenant is present.
 
 ## Remaining engineering acceptance work
 
@@ -42,10 +42,10 @@ No open finance delivery PR at the time of this review.
 
 ## Latest batch status
 
-- Main head: `e9ed80de480c0a2e0d0cf78dc1bbced6d56db3d4`
+- Main head at batch start: `5ec465ebd38f77326ab4ba6974b360ef3cece19a`
 - PR #168 merged: month-close readiness failure/retry and second-approver lifecycle test (`450436e`).
 - PR #170 merged: disabled administrator, inactive merchant, expired session, and missing finance-auth context tests (`e9ed80d`).
-- CI and installer compatibility: all five checks passed on the final PR #170 head.
+- CI and installer compatibility: all five checks passed on main commit `5ec465ebd38f77326ab4ba6974b360ef3cece19a`.
 - Open finance PRs: none.
 - Production deployment and live financial operations: not performed.
 
