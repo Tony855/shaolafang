@@ -2870,7 +2870,8 @@ window.doAdvancedExport = doAdvancedExport;
       const alertDismiss=event.target.closest('[data-sla-alert-dismiss]');
       if(alertDismiss){dismissSlaAlert(alertDismiss);return;}
       const auditMore = event.target.closest('#financePerformanceAuditMore');
-      if (auditMore) { loadPerformanceExportAudit(true); return; }\n      const monthButton = event.target.closest('[data-month-close-action]');
+      if (auditMore) { loadPerformanceExportAudit(true); return; }
+      const monthButton = event.target.closest('[data-month-close-action]');
       if (monthButton) submitMonthClose(monthButton);
     });
     $('#financeReloadBatches').addEventListener('click', () => loadBatches(false));
