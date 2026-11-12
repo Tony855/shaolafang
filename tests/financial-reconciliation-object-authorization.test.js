@@ -155,3 +155,64 @@ test('valid tenant session cannot transition a foreign exception item by guessin
   assert.equal(writes.some(entry => /INSERT INTO financial_reconciliation_exception_cases|UPDATE financial_reconciliation_exception_cases|INSERT INTO financial_reconciliation_exception_events/.test(entry.sql)), false,
     'a foreign exception item ID must not create, mutate, or audit an exception case');
 });
+
+
+test('month-close transition uses authenticated tenant and actor context, ignoring spoofed body IDs', async () => {
+  const reads = [];
+  const writes = [];
+  const routes = register({
+    runAsync: async (sql, params = []) => {
+      writes.push({ sql, params });
+      if (sql.includes('INSERT INTO financial_month_close_periods')) return { insertId: 90 };
+      if (sql.includes('INSERT INTO financial_month_close_events')) return { insertId: 91 };
+      return { affectedRows: 1 };
+    },
+    getAsync: async (sql, params = []) => {
+      reads.push({ sql, params });
+      if (sql.includes('SELECT username FROM merchant_admins')) return { username: 'tenant-a-finance' };
+      if (sql.includes('FROM financial_month_close_periods')) {
+        return {
+          id: 90, merchant_id: 4, store_id: 9,
+          period_month: '2026-11', currency_code: 'USD', status: 'open',
+          pending_action: null, pending_actor_admin_id: null,
+          pending_actor_username: null, pending_reason: null,
+          locked_by_admin_id: null, locked_at: null
+        };
+      }
+      if (sql.includes('COUNT(DISTINCT b.id)')) {
+        return { batch_count: 1, statement_row_count: 2, unresolved_count: 0 };
+      }
+      return null;
+    }
+  });
+
+  const key = 'tenant-a-month-close-ctx-0001';
+  const handler = routes.get('POST /api/admin/financial-reconciliation/month-close/transition').at(-1);
+  const res = response();
+  await handler({
+    merchantId: 4, storeId: 9, adminId: 7,
+    query: { merchantId: '999', storeId: '888', adminId: '777' },
+    params: {},
+    body: {
+      merchantId: 999, storeId: 888, actorId: 777,
+      month: '2026-11', currencyCode: 'USD',
+      action: 'request_close',
+      reason: 'Close month after all statement rows are reconciled',
+      idempotencyKey: key
+    },
+    get: header => header === 'Idempotency-Key' ? key : undefined
+  }, res);
+
+  assert.equal(res.statusCode, 201);
+  const actorLookup = reads.find(entry => entry.sql.includes('SELECT username FROM merchant_admins'));
+  assert.deepEqual(actorLookup.params, [7, 4]);
+  const periodInsert = writes.find(entry => entry.sql.includes('INSERT INTO financial_month_close_periods'));
+  assert.deepEqual(periodInsert.params.slice(0, 4), [4, 9, '2026-11', 'USD']);
+  const readiness = reads.find(entry => entry.sql.includes('COUNT(DISTINCT b.id)'));
+  assert.deepEqual(readiness.params.slice(0, 3), [4, 9, 'USD']);
+  const eventInsert = writes.find(entry => entry.sql.includes('INSERT INTO financial_month_close_events'));
+  assert.ok(eventInsert);
+  assert.deepEqual(eventInsert.params.slice(0, 3), [90, 4, 9]);
+  assert.equal(reads.some(entry => entry.params.some(value => [999, 888, 777, '999', '888', '777'].includes(value))), false,
+    'attacker-controlled tenant and actor IDs must not enter SQL parameters');
+});
