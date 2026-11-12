@@ -760,7 +760,8 @@
     $('#financeExceptionReload').addEventListener('click', () => loadExceptionQueue(false));
     $('#financeExceptionOpsReload').addEventListener('click', loadExceptionOperations);
     $('#financeExceptionPerformanceReload').addEventListener('click', () => loadExceptionPerformance());
-    $('#financeExceptionPerformanceExport').addEventListener('click', () => loadExceptionPerformance(true));\n    $('#financePerformanceAuditReload')?.addEventListener('click', () => loadPerformanceExportAudit(false));
+    $('#financeExceptionPerformanceExport').addEventListener('click', () => loadExceptionPerformance(true));
+    $('#financePerformanceAuditReload')?.addEventListener('click', () => loadPerformanceExportAudit(false));
     $('#financeSlaAlertGenerate').addEventListener('click',generateSlaAlerts);
     $('#financeSlaAlertReload').addEventListener('click',loadSlaAlerts);
     $('#financeSlaAlertStatus')?.addEventListener('change',loadSlaAlerts);
