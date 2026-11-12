@@ -113,6 +113,6 @@ test('performance export audit history is tenant/store scoped, filtered and curs
   assert.equal(ok.body.nextCursor, 91);
   assert.ok(reads[0].sql.includes('actor_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)'));
   assert.ok(reads[0].sql.includes('details LIKE ?') && reads[0].sql.includes('action='));
-  assert.deepEqual(reads[0].params.slice(0, 3), [4, '%"merchant_id":4%', '%"store_id":9%']);
+  assert.deepEqual(reads[0].params.slice(0, 3), [4, '%"merchant_id":4,"store_id":9,%', 8]);
   assert.ok(reads[0].params.includes(8));
 });
