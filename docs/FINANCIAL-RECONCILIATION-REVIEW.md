@@ -140,3 +140,13 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - The selected SLA threshold is shared with the exception operations monitor; the performance panel can be refreshed independently.
 - CSV export combines the three groupings into one file, retains original currency codes, and escapes spreadsheet formula-prefixed cells.
 - The UI labels the resolution rate as event-based and elapsed time as import-to-resolve, not employee net handling time. Export is an on-demand browser download; server-side export audit has not yet been introduced.
+
+
+
+## Financial export audit (operations batch)
+
+- The provider-neutral journal CSV endpoint writes an `audit_logs` record before sending the attachment. If the audit insert fails, the export fails closed and no CSV body is sent.
+- The audit record stores the authenticated merchant administrator ID and username, merchant/store IDs, inclusive date range, CSV format, export scope, row count, request IP, and timestamp. It does not store journal row contents, credentials, or the exported CSV itself.
+- Only an active administrator in the authenticated merchant context may export. Tenant/store identifiers are taken from authenticated request context, never from query/body parameters.
+- The export remains read-only and retains the existing 31-day and 5,000-line limits, original currency codes, integer minor units, formula-injection escaping, and private no-store response headers.
+- This phase audits the server-side journal detail export. The exception-performance CSV remains a browser-generated download and is not represented as server-audited.
