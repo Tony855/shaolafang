@@ -22,7 +22,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- **Review mutation query hardening:** the duplicate journal-assignment lookup and review audit-chain head lookup now explicitly bind merchant/store scope. Regression coverage includes a foreign-tenant statement row referencing the same journal ID and verifies it cannot block a tenant-local review. Awaiting PR-head CI.
+- **Review mutation and audit query hardening:** duplicate journal-assignment lookup, reconciliation review audit-chain head, SLA alert idempotency replay lookup, and SLA alert audit-chain head lookups now explicitly bind merchant/store scope. Regression coverage includes a foreign-tenant statement row referencing the same journal ID and SQL/parameter assertions for review and SLA audit queries. Awaiting PR-head CI.
 - **Cross-tenant route rejection matrix:** PR #172 is merged; every registered finance endpoint rejects request-supplied merchant/store/admin IDs when authenticated tenant context is absent. This does not prove foreign-resource denial with a valid session for every mutation/export route.
 
 ## Remaining engineering acceptance work
