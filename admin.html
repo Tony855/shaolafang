@@ -312,7 +312,18 @@
                 </div>
                 <div class="settings-card" style="margin-bottom:16px;">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-                    <h3 class="settings-card-title">财务异常处理队列</h3>
+                    <div class="settings-card" style="margin-bottom:16px;" id="financeExceptionPerformance">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title">异常绩效分析</h3>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button id="financeExceptionPerformanceReload" type="button">刷新绩效</button><button id="financeExceptionPerformanceExport" type="button">导出绩效 CSV</button></div>
+                  </div>
+                  <p class="ff-desc">按币种、负责人和异常类别展示活跃异常及 SLA 超时情况。按时解决率基于 resolve 审计事件，平均耗时从流水导入时间起算；不代表员工净处理时长。</p>
+                  <div id="financeExceptionPerformanceSummary"><div class="empty-hint">—</div></div>
+                  <h4 style="margin-top:16px;">按币种汇总</h4><div id="financeExceptionPerformanceCurrency"></div>
+                  <h4 style="margin-top:16px;">按负责人汇总</h4><div id="financeExceptionPerformanceAssignee"></div>
+                  <h4 style="margin-top:16px;">按异常类别汇总</h4><div id="financeExceptionPerformanceCategory"></div>
+                </div>
+                <h3 class="settings-card-title">财务异常处理队列</h3>
                     <button id="financeExceptionReload" type="button">刷新异常</button>
                   </div>
                   <p class="ff-desc">分配负责人、记录处理备注、推进处理状态。所有操作均写入独立的不可变审计链。</p>
