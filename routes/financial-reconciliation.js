@@ -162,9 +162,24 @@ module.exports = function(app, deps) {
     const context = tenantContext(req, res);
     if (!context) return;
     try {
+      const actor = await getAsync(
+        'SELECT username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',
+        [context.actorId, context.merchantId]
+      );
+      if (!actor) return res.status(403).json({ error: '财务审核账号无效或已停用' });
       const result = await voucherExportService.exportJournalDetails({
         ...context, from: req.query.from, to: req.query.to
       });
+      // Fail closed: do not release a financial export unless its audit record is durable.
+      await runAsync(
+        'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['merchant_admin', context.actorId, actor.username, 'export_financial_journal',
+          JSON.stringify({
+            merchant_id: context.merchantId, store_id: context.storeId,
+            from: result.from, to: result.to, row_count: result.rowCount,
+            format: 'csv', scope: 'financial_journal'
+          }), req.ip || '', new Date().toISOString()]
+      );
       res.setHeader('Cache-Control', 'no-store, private');
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="financial-journal-' + result.from + '-to-' + result.to + '.csv"');

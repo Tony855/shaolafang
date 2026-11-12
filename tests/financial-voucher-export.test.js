@@ -94,13 +94,17 @@ test('CSV export is deterministic for empty journal periods', async () => {
 
 test('journal export route enforces tenant context and returns a private CSV attachment', async () => {
   const routes = new Map();
+  const calls = [];
   const app = {
     get(path, ...handlers) { routes.set('GET ' + path, handlers); },
     post(path, ...handlers) { routes.set('POST ' + path, handlers); }
   };
   registerRoutes(app, {
-    runAsync: async () => ({ affectedRows: 1 }),
-    getAsync: async () => null,
+    runAsync: async (sql, params) => { calls.push({ type: 'run', sql, params }); return { affectedRows: 1 }; },
+    getAsync: async (sql, params) => {
+      if (sql.includes('FROM merchant_admins')) return { username: 'finance-auditor' };
+      return null;
+    },
     allAsync: async () => [{
       journalTransactionId: 7, createdAt: '2026-11-12 10:00:00.000',
       currencyCode: 'KHR', sourceType: 'manual_adjustment', sourceId: 'x-7',
@@ -130,4 +134,12 @@ test('journal export route enforces tenant context and returns a private CSV att
   assert.match(ok.headers['Content-Type'], /text\/csv/);
   assert.match(ok.headers['Content-Disposition'], /financial-journal-2026-11-12-to-2026-11-12\.csv/);
   assert.match(ok.body, /Adjustment/);
+  const audit = calls.find(call => call.type === 'run' && call.sql.includes('INSERT INTO audit_logs'));
+  assert.ok(audit, 'successful CSV download must have a durable audit record');
+  assert.deepEqual(audit.params.slice(0, 4), ['merchant_admin', 8, 'finance-auditor', 'export_financial_journal']);
+  const auditDetails = JSON.parse(audit.params[4]);
+  assert.deepEqual(auditDetails, {
+    merchant_id: 4, store_id: 9, from: '2026-11-12', to: '2026-11-12',
+    row_count: 1, format: 'csv', scope: 'financial_journal'
+  });
 });
