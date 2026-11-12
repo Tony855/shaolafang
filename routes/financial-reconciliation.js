@@ -396,6 +396,58 @@ module.exports = function(app, deps) {
     }
   });
 
+  app.get('/api/admin/financial-reconciliation/exceptions/performance-export-audit', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const limit = req.query.limit === undefined ? 25 : Number(req.query.limit);
+    const afterId = req.query.afterId === undefined ? null : positiveRouteId(req.query.afterId);
+    const actorId = req.query.actorId === undefined || req.query.actorId === '' ? null : positiveRouteId(req.query.actorId);
+    const from = req.query.from === undefined ? null : String(req.query.from);
+    const to = req.query.to === undefined ? null : String(req.query.to);
+    const validDate = value => value === null || (typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d{1,3})?)?(?:Z|[+-]\\d{2}:\\d{2})?)?$/.test(value) && !Number.isNaN(Date.parse(value)));
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 ||
+        (req.query.afterId !== undefined && !afterId) ||
+        (req.query.actorId !== undefined && req.query.actorId !== '' && !actorId) ||
+        !validDate(from) || !validDate(to) || (from && to && Date.parse(from) > Date.parse(to))) {
+      return res.status(400).json({ error: '导出审计查询参数无效' });
+    }
+    const where = [
+      "actor_type='merchant_admin'",
+      'actor_id IN (SELECT id FROM merchant_admins WHERE merchant_id=?)',
+      "action='export_financial_exception_performance'",
+      'details LIKE ?',
+      'details LIKE ?'
+    ];
+    const params = [context.merchantId, '%"merchant_id":' + context.merchantId + '%', '%"store_id":' + context.storeId + '%'];
+    if (actorId) { where.push('actor_id=?'); params.push(actorId); }
+    if (from) { where.push('created_at>=?'); params.push(new Date(from).toISOString()); }
+    if (to) { where.push('created_at<=?'); params.push(new Date(to).toISOString()); }
+    if (afterId) { where.push('id<?'); params.push(afterId); }
+    params.push(limit + 1);
+    try {
+      const rows = await allAsync(
+        'SELECT id, actor_id, actor_username, action, details, ip, created_at FROM audit_logs WHERE ' +
+          where.join(' AND ') + ' ORDER BY id DESC LIMIT ?',
+        params
+      );
+      const items = rows.slice(0, limit).map(row => {
+        let details = {};
+        try { details = JSON.parse(row.details || '{}'); } catch (_) {}
+        return {
+          id: Number(row.id), actorId: row.actor_id === null ? null : Number(row.actor_id),
+          actorUsername: row.actor_username || '', action: row.action,
+          storeId: Number(details.store_id), slaHours: Number(details.sla_hours),
+          rowCount: Number(details.row_count), format: details.format || 'csv',
+          createdAt: row.created_at
+        };
+      });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ items, nextCursor: rows.length > limit ? items[items.length - 1].id : null });
+    } catch (error) {
+      res.status(500).json({ error: '获取绩效导出审计记录失败' });
+    }
+  });
+
   app.get('/api/admin/financial-reconciliation/exceptions/operations-summary', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;
