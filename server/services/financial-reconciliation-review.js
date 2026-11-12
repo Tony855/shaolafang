@@ -393,6 +393,80 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
   }
 
 
+  async function listExceptions({ merchantId, storeId, category, from, to, limit = 50, afterId = 0 }) {
+    const merchant = positiveId(merchantId, 'merchantId');
+    const store = positiveId(storeId, 'storeId');
+    const boundedLimit = positiveId(limit, 'limit');
+    if (boundedLimit > 100) {
+      const error = new TypeError('limit must not exceed 100');
+      error.code = 'REVIEW_EXCEPTION_PAGINATION_INVALID';
+      throw error;
+    }
+    const cursor = Number(afterId);
+    if (!Number.isSafeInteger(cursor) || cursor < 0) {
+      const error = new TypeError('afterId must be a non-negative safe integer');
+      error.code = 'REVIEW_EXCEPTION_PAGINATION_INVALID';
+      throw error;
+    }
+    const categories = ['refund', 'fee', 'settlement_difference', 'chargeback', 'other'];
+    const filters = ['i.merchant_id=?', 'i.store_id=?', "i.match_status='exception'", 'i.id<?'];
+    const params = [merchant, store, cursor || Number.MAX_SAFE_INTEGER];
+    if (category !== undefined && category !== null && category !== '') {
+      const normalized = String(category).trim().toLowerCase();
+      if (!categories.includes(normalized)) {
+        const error = new TypeError('unsupported exception category');
+        error.code = 'REVIEW_EXCEPTION_FILTER_INVALID';
+        throw error;
+      }
+      filters.push('i.exception_category=?');
+      params.push(normalized);
+    }
+    if ((from === undefined || from === '') !== (to === undefined || to === '')) {
+      const error = new TypeError('both from and to dates are required');
+      error.code = 'REVIEW_EXCEPTION_DATE_RANGE_INVALID';
+      throw error;
+    }
+    if (from !== undefined && from !== '' && to !== undefined && to !== '') {
+      const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+        new Date(value + 'T00:00:00.000Z').toISOString().slice(0, 10) === value;
+      if (!validDate(from) || !validDate(to) || from > to ||
+          (Date.parse(to + 'T00:00:00.000Z') - Date.parse(from + 'T00:00:00.000Z')) / 86400000 > 90) {
+        const error = new TypeError('date range must be valid and no longer than 91 days');
+        error.code = 'REVIEW_EXCEPTION_DATE_RANGE_INVALID';
+        throw error;
+      }
+      const endExclusive = new Date(Date.parse(to + 'T00:00:00.000Z') + 86400000).toISOString().slice(0, 10);
+      filters.push('b.imported_at>=?', 'b.imported_at<?');
+      params.push(from + ' 00:00:00', endExclusive + ' 00:00:00');
+    }
+    const rows = await allAsync(
+      `SELECT i.id, i.batch_id, i.row_no, i.external_reference, i.transaction_reference,
+              i.direction, i.amount_minor, i.currency_code, i.occurred_at, i.description,
+              i.exception_category, i.exception_note, i.match_reason,
+              b.provider_code, b.external_batch_id, b.imported_at
+       FROM financial_reconciliation_items i
+       INNER JOIN financial_reconciliation_batches b
+         ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
+       WHERE ${filters.join(' AND ')}
+       ORDER BY i.id DESC LIMIT ?`,
+      [...params, boundedLimit + 1]
+    );
+    const hasMore = rows.length > boundedLimit;
+    if (hasMore) rows.pop();
+    return {
+      nextCursor: hasMore && rows.length ? Number(rows[rows.length - 1].id) : null,
+      items: rows.map(row => ({
+        itemId: Number(row.id), batchId: Number(row.batch_id), rowNo: Number(row.row_no),
+        externalReference: row.external_reference, transactionReference: row.transaction_reference || null,
+        direction: row.direction, amountMinor: Number(row.amount_minor), currencyCode: row.currency_code,
+        occurredAt: row.occurred_at, description: row.description || '',
+        category: row.exception_category, note: row.exception_note || null,
+        matchReason: row.match_reason || null, providerCode: row.provider_code,
+        externalBatchId: row.external_batch_id, importedAt: row.imported_at
+      }))
+    };
+  }
+
   async function listReviewHistory({ merchantId, storeId, batchId, itemId, limit = 50, afterId = 0 }) {
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
@@ -502,7 +576,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, listReviewHistory, getMonthlyClosePreview });
+  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, listExceptions, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };

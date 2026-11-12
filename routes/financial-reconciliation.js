@@ -270,6 +270,24 @@ module.exports = function(app, deps) {
     }
   });
 
+  app.get('/api/admin/financial-reconciliation/exceptions', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    try {
+      const result = await service.listExceptions({
+        ...context, category: req.query.category, from: req.query.from, to: req.query.to,
+        limit: req.query.limit || 50, afterId: req.query.afterId || 0
+      });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json(result);
+    } catch (error) {
+      const status = error.code === 'REVIEW_EXCEPTION_PAGINATION_INVALID' ||
+        error.code === 'REVIEW_EXCEPTION_FILTER_INVALID' ||
+        error.code === 'REVIEW_EXCEPTION_DATE_RANGE_INVALID' ? 400 : 500;
+      res.status(status).json({ error: status === 400 ? '财务异常筛选或分页参数无效' : '获取财务异常队列失败' });
+    }
+  });
+
   app.post('/api/admin/financial-reconciliation/items/:itemId/review', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;
