@@ -212,7 +212,8 @@
     const csv = [columns.join(','), ...rows.map(row => columns.map(key => {
       const value = String(row[key] ?? '');
       return '"' + value.replace(/"/g, '""') + '"';
-    }).join(','))].join('\r\n');
+    }).join(','))].join('\r
+');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -302,7 +303,8 @@
     try{const data=await api('/admin/financial-reconciliation/period-summary?period='+encodeURIComponent(period)+'&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));
       const rows=Array.isArray(data.rows)?data.rows:[],columns=['periodStart','periodEnd','currencyCode','batchCount','statementRowCount','totalDebitMinor','totalCreditMinor','matchedCount','pendingCount','unmatchedCount','ambiguousCount','exceptionCount'];
       if(target)target.innerHTML=rows.length?'<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>'+columns.map(k=>'<th style="text-align:left;padding:8px;border-bottom:1px solid #555;">'+esc(k)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+columns.map(k=>'<td style="padding:8px;border-bottom:1px solid rgba(255,255,255,.08);">'+esc(row[k]??'')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>':'<div class="empty-hint">所选周期暂无对账数据</div>';
-      if(exportCsv&&rows.length){const csv=[columns.join(','),...rows.map(row=>columns.map(k=>{const v=String(row[k]??'');return '"'+v.replace(/"/g,'""')+'"';}).join(','))].join('\\r\\n');const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='financial-reconciliation-'+period+'-summary.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);}
+      if(exportCsv&&rows.length){const csv=[columns.join(','),...rows.map(row=>columns.map(k=>{const v=String(row[k]??'');return '"'+v.replace(/"/g,'""')+'"';}).join(','))].join('\\r\
+');const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='financial-reconciliation-'+period+'-summary.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);}
     }catch(error){if(target)target.innerHTML='<div class="empty-hint">周期报表加载失败</div>';toast('❌ '+(error.message||'周期报表加载失败'));}
   }
   function exceptionStatusLabel(status) {
@@ -643,7 +645,9 @@
       }
       const exceptionButton = event.target.closest('[data-exception-action]');
       if (exceptionButton) { submitExceptionAction(exceptionButton); return; }
-      const alertHistory=event.target.closest('[data-sla-alert-history]');if(alertHistory){loadSlaAlertHistory(Number(alertHistory.dataset.slaAlertHistory));return;}\n      const periodButton=event.target.closest('[data-finance-period]');if(periodButton){loadPeriodSummary(periodButton.dataset.financePeriod,true);return;}\n      const alertAck=event.target.closest('[data-sla-alert-ack]');
+      const alertHistory=event.target.closest('[data-sla-alert-history]');if(alertHistory){loadSlaAlertHistory(Number(alertHistory.dataset.slaAlertHistory));return;}
+      const periodButton=event.target.closest('[data-finance-period]');if(periodButton){loadPeriodSummary(periodButton.dataset.financePeriod,true);return;}
+      const alertAck=event.target.closest('[data-sla-alert-ack]');
       if(alertAck){acknowledgeSlaAlert(alertAck);return;}
       const alertDismiss=event.target.closest('[data-sla-alert-dismiss]');
       if(alertDismiss){dismissSlaAlert(alertDismiss);return;}
@@ -659,7 +663,8 @@
     $('#financeExceptionReload').addEventListener('click', () => loadExceptionQueue(false));
     $('#financeExceptionOpsReload').addEventListener('click', loadExceptionOperations);
     $('#financeSlaAlertGenerate').addEventListener('click',generateSlaAlerts);
-    $('#financeSlaAlertReload').addEventListener('click',loadSlaAlerts);\n    $('#financeSlaAlertStatus')?.addEventListener('change',loadSlaAlerts);
+    $('#financeSlaAlertReload').addEventListener('click',loadSlaAlerts);
+    $('#financeSlaAlertStatus')?.addEventListener('change',loadSlaAlerts);
     $('#financeReportLast7').addEventListener('click',()=>setReportRange('week'));
     $('#financeReportLast30').addEventListener('click',()=>setReportRange('month'));
     $('#financeReportThisMonth').addEventListener('click',()=>setReportRange('calendar-month'));
