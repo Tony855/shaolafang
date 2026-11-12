@@ -251,8 +251,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
             throw error;
           }
           const used = await getAsync(
-            'SELECT id FROM financial_reconciliation_items WHERE matched_journal_transaction_id=? AND id<>? FOR UPDATE',
-            [review.journalTransactionId, itemId]
+            'SELECT id FROM financial_reconciliation_items WHERE matched_journal_transaction_id=? AND id<>? AND merchant_id=? AND store_id=? FOR UPDATE',
+            [review.journalTransactionId, itemId, merchantId, storeId]
           );
           if (used) {
             const error = new Error('journal transaction is already assigned to another statement row');
@@ -299,8 +299,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         );
 
         const previous = await getAsync(
-          'SELECT event_hash FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',
-          [batchId]
+          'SELECT event_hash FROM financial_reconciliation_review_events WHERE batch_id=? AND merchant_id=? AND store_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',
+          [batchId, merchantId, storeId]
         );
         const previousHash = previous?.event_hash || '';
         const eventPayload = {
