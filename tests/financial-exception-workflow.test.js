@@ -242,3 +242,27 @@ test('exception queue console includes workflow filters, controls, and APIs in g
   assert.match(html, /id="financeExceptionQueue"/);
   assert.match(html, /id="financeExceptionStatus"/);
 });
+
+
+test('exception assignment rejects an administrator from another merchant', async () => {
+  const lookups = [];
+  const service = createFinancialReconciliationReviewService({
+    runAsync: async () => { throw new Error('no writes are expected for a foreign assignee'); },
+    getAsync: async (sql, params = []) => {
+      lookups.push({ sql, params });
+      return null;
+    },
+    allAsync: async () => [],
+    withTransaction: async work => work()
+  });
+
+  await assert.rejects(service.transitionExceptionCase(input({
+    action: 'assign',
+    assignedAdminId: 999,
+    idempotencyKey: 'exception-foreign-assignee-01'
+  })), error => error.code === 'EXCEPTION_WORKFLOW_ASSIGNEE_INVALID');
+
+  assert.equal(lookups.length, 1);
+  assert.match(lookups[0].sql, /FROM merchant_admins WHERE id=\? AND merchant_id=\? AND active=1/);
+  assert.deepEqual(lookups[0].params, [999, 4]);
+});
