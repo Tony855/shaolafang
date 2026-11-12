@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (PR #182 merged; journal export tenant/audit scope is covered)
+Last reviewed: 2026-11-12 (PR #183 merged; period-report export tenant/audit scope is covered; PR #184 adds exception-export audit filter regression coverage)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -25,7 +25,7 @@ This tracker records merged delivery separately from work that is still under re
 | Cross-merchant exception assignee protection | Exception assignment verifies target admin ID, authenticated merchant ID, and active status before any write | PR #180 merged as `e5f00d15`; all six CI checks passed |
 | Month-close transition tenant-context protection | Spoofed request merchant/store/actor IDs are ignored; period, readiness, and audit event operations bind authenticated context | PR #181 merged as `33a13c38`; all six CI checks passed |
 
-| Journal export tenant/audit protection | Journal and entry reads bind authenticated merchant/store; export audit records authenticated actor and tenant before CSV response | PR #182 merged as `8fad4d40`; all six CI checks passed |
+| Journal export tenant/audit protection | Journal and entry reads bind authenticated merchant/store; export audit records authenticated actor and tenant before CSV response | PR #182 merged as `8fad4d40`; all six CI checks passed |\n| Period-report export tenant/audit protection | Period summary export uses authenticated merchant/store context and records authenticated actor, tenant, period, and row count before CSV response | PR #183 merged as `92a8fec8`; all six CI checks passed |
 
 ## Under review
 
@@ -36,7 +36,7 @@ This tracker records merged delivery separately from work that is still under re
 ## Remaining engineering acceptance work
 
 1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. Month-close migration/locking and exception/SLA schema/constraint slices are database-backed; a single database-backed full-flow scenario across all services remains outstanding.
-2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172); representative authenticated read-query scoping is covered (PR #173); review mutation and audit query scoping is covered by PR #174; foreign review/SLA/exception workflow resource IDs are covered by PR #176/#179; cross-merchant exception assignee ownership is covered by PR #180; month-close transition context is covered by PR #181. Journal export audit scope is under review; remaining report/export/admin ownership cases still need explicit acceptance tests.
+2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172); representative authenticated read-query scoping is covered (PR #173); review mutation and audit query scoping is covered by PR #174; foreign review/SLA/exception workflow resource IDs are covered by PR #176/#179; cross-merchant exception assignee ownership is covered by PR #180; month-close transition context is covered by PR #181. Journal and period-report export audit scopes are covered by PR #182/#183; exception-performance audit filter spoofing is under review in PR #184. Remaining export/admin ownership cases still need explicit acceptance tests.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues at 2,500, 10,000, and 50,000 rows, inspect query plans before adding indexes, and document measured response times.
 4. **Currency and rounding audit:** inspect all financial paths for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
 5. **Operational recovery:** test backup/restore, migration/startup schema ensure, interrupted imports, retry behavior, and month-close lock recovery.
@@ -57,7 +57,7 @@ This tracker records merged delivery separately from work that is still under re
 - PR #179 merged: valid-session foreign exception-item ID transition denial with tenant-scoped item lookup and no case/audit writes (`8a672ada`). All six PR-head checks passed.
 - PR #180 merged: cross-merchant exception assignee rejection using an explicit tenant-scoped active-admin lookup (`e5f00d15`). All six PR-head checks passed.
 - PR #181 merged: month-close transition route ignores spoofed tenant/actor request IDs and uses authenticated context throughout (`33a13c38`). All six PR-head checks passed.
-- Current PR: journal export route test verifies authenticated tenant/store SQL scoping and durable export audit metadata.
+- PR #182 merged: journal export route test verifies authenticated tenant/store SQL scoping and durable export audit metadata (`8fad4d40`); all six checks passed.\n- PR #183 merged: period-report export route test verifies authenticated tenant/store SQL scoping and durable export audit metadata (`92a8fec8`); all six checks passed.\n- PR #184 open: exception-performance export audit filters are tested against spoofed tenant/store/admin query IDs and foreign-merchant actor filters; head `6fb70a5c`, CI pending.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
