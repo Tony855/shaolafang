@@ -2,6 +2,7 @@
 
 const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
 const { createFinancialReconciliationService } = require('../server/services/financial-reconciliation');
+const { createFinancialVoucherExportService } = require('../server/services/financial-voucher-export');
 
 function positiveRouteId(value) {
   const id = Number(value);
@@ -12,6 +13,7 @@ module.exports = function(app, deps) {
   const { runAsync, getAsync, allAsync, withTransaction, requireAdminKey, requirePermission } = deps;
   const service = createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction });
   const importService = createFinancialReconciliationService({ runAsync, getAsync, withTransaction });
+  const voucherExportService = createFinancialVoucherExportService({ allAsync, withTransaction });
   const financeAuth = [requireAdminKey, requirePermission('can_manage_financial_reconciliation')];
 
   function tenantContext(req, res) {
@@ -118,6 +120,28 @@ module.exports = function(app, deps) {
       res.json(result);
     } catch (error) {
       res.status(400).json({ error: '审核历史查询参数无效' });
+    }
+  });
+
+  app.get('/api/admin/financial-reconciliation/journal-export', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    try {
+      const result = await voucherExportService.exportJournalDetails({
+        ...context, from: req.query.from, to: req.query.to
+      });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="financial-journal-' + result.from + '-to-' + result.to + '.csv"');
+      res.status(200).send(result.csv);
+    } catch (error) {
+      const status = error.code === 'VOUCHER_EXPORT_DATE_RANGE_INVALID' ? 400
+        : error.code === 'VOUCHER_EXPORT_TOO_LARGE' ? 413 : 500;
+      res.status(status).json({
+        error: status === 400 ? '导出日期范围无效（最多 31 天）'
+          : status === 413 ? '导出记录超过 5000 行，请缩小日期范围'
+            : '财务明细导出失败'
+      });
     }
   });
 

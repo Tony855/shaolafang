@@ -26,6 +26,14 @@ All endpoints require an authenticated merchant administrator with the dedicated
 
 Closed batches are immutable. This phase does not automatically close batches, post journal entries, change orders, confirm provider payments, or mutate refund balances.
 
+## Provider-neutral journal detail export
+
+- `GET /api/admin/financial-reconciliation/journal-export?from=YYYY-MM-DD&to=YYYY-MM-DD` exports existing journal transaction headers and debit/credit lines as CSV for the authenticated merchant and active store.
+- The export reads only existing `financial_journal_transactions` and `financial_journal_entries`; it does not create accounting vouchers, post entries, alter balances, or infer account/currency policy.
+- Date bounds are inclusive, limited to 31 calendar days, and queried using a half-open timestamp interval. Exports are capped at 5,000 journal lines; larger requests fail rather than silently truncating.
+- Tenant and store scope are applied to both journal headers and lines. CSV cells containing spreadsheet formula prefixes are escaped to reduce formula-injection risk. Responses are private and non-cacheable.
+- Amounts are emitted exactly as stored integer minor units, with the original currency code. No decimal-place, exchange-rate, or account-code mapping is inferred.
+
 ## Daily exception reporting
 
 Daily summaries expose imported batch totals and counts for matched, pending, unmatched, ambiguous, and exception rows, including refund, fee, settlement-difference, and chargeback and other exception counts. Refund, fee, settlement-difference and chargeback categories are stored on each manually classified exception for drill-down. Refund, fee, settlement and chargeback classification remains manual/provider-neutral; no provider-specific bank semantics or chart-of-accounts policy is inferred.
