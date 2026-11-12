@@ -401,7 +401,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T00:00:00.000Z'))&&new Date(value+'T00:00:00.000Z').toISOString().slice(0,10)===value;
     const days=(Date.parse(to+'T00:00:00.000Z')-Date.parse(from+'T00:00:00.000Z'))/86400000;
     if(!validDate(from)||!validDate(to)||from>to||days>365){const error=new TypeError('date range must be valid and no longer than 366 days');error.code='REVIEW_DATE_RANGE_INVALID';throw error;}
-    if(!['day','week','month'].includes(period)){const error=new TypeError('period must be week or month');error.code='REVIEW_PERIOD_INVALID';throw error;}
+    if(!['day','week','month'].includes(period)){const error=new TypeError('period must be day, week, or month');error.code='REVIEW_PERIOD_INVALID';throw error;}
     const endExclusive=new Date(Date.parse(to+'T00:00:00.000Z')+86400000).toISOString().slice(0,10);
     const startExpr=period==='day'?"DATE(b.imported_at)":period==='week'?"DATE_SUB(DATE(b.imported_at), INTERVAL WEEKDAY(b.imported_at) DAY)":"DATE_FORMAT(b.imported_at,'%Y-%m-01')";
     const endExpr=period==='day'?"DATE(b.imported_at)":period==='week'?"DATE_ADD(DATE_SUB(DATE(b.imported_at), INTERVAL WEEKDAY(b.imported_at) DAY),INTERVAL 6 DAY)":"LAST_DAY(b.imported_at)";
