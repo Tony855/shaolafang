@@ -339,3 +339,33 @@ test('exception queue cursor pagination walks 2,500 rows without duplicates or g
   assert.ok(calls.every(call => call.params[0] === 4 && call.params[1] === 9 && call.params.at(-1) === 101));
 });
 
+
+test('period report CSV export binds authenticated tenant despite spoofed query IDs', async () => {
+  const reads = [], queries = [], writes = [];
+  const rows = [{ period_start:'2026-11-12',period_end:'2026-11-12',currency_code:'USD',batch_count:1,statement_row_count:2,total_debit_minor:1200,total_credit_minor:1200,matched_count:2,pending_count:0,unmatched_count:0,ambiguous_count:0,exception_count:0 }];
+  const routes = routeSetup(
+    async (sql,params=[])=>{queries.push({sql,params});return rows;},
+    async (sql,params=[])=>{reads.push({sql,params});return sql.includes('SELECT username FROM merchant_admins')?{username:'tenant-a-finance'}:null;},
+    async (sql,params=[])=>{writes.push({sql,params});return {affectedRows:1};}
+  );
+  const res=response();
+  await routes.get('GET /api/admin/financial-reconciliation/period-report-export').at(-1)({
+    merchantId:4,storeId:9,adminId:7,ip:'192.0.2.11',
+    query:{merchantId:'999',storeId:'888',adminId:'777',period:'day',from:'2026-11-12',to:'2026-11-12'}
+  },res);
+  assert.equal(res.statusCode,200);
+  assert.equal(res.headers['Cache-Control'],'no-store, private');
+  assert.match(res.body,/USD/);
+  assert.equal(queries.length,1);
+  assert.match(queries[0].sql,/b\.merchant_id=\? AND b\.store_id=\?/);
+  assert.deepEqual(queries[0].params,[4,9,'2026-11-12 00:00:00','2026-11-13 00:00:00']);
+  assert.equal(queries[0].params.some(v=>[999,888,777,'999','888','777'].includes(v)),false);
+  const actor=reads.find(x=>x.sql.includes('SELECT username FROM merchant_admins'));
+  assert.deepEqual(actor.params,[7,4]);
+  const audit=writes.find(x=>x.sql.includes('INSERT INTO audit_logs'));
+  assert.ok(audit);
+  assert.deepEqual(audit.params.slice(0,4),['merchant_admin',7,'tenant-a-finance','export_financial_reconciliation_period_report']);
+  const details=JSON.parse(audit.params[4]);
+  assert.deepEqual({merchant_id:details.merchant_id,store_id:details.store_id,row_count:details.row_count,scope:details.scope},{merchant_id:4,store_id:9,row_count:1,scope:'financial_reconciliation_period_report'});
+  assert.equal(audit.params.some(v=>[999,888,777,'999','888','777'].includes(v)),false);
+});

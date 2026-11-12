@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (PR #181 merged; month-close transition tenant-context checks are covered)
+Last reviewed: 2026-11-12 (PR #182 merged; journal export tenant/audit scope is covered)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -25,9 +25,12 @@ This tracker records merged delivery separately from work that is still under re
 | Cross-merchant exception assignee protection | Exception assignment verifies target admin ID, authenticated merchant ID, and active status before any write | PR #180 merged as `e5f00d15`; all six CI checks passed |
 | Month-close transition tenant-context protection | Spoofed request merchant/store/actor IDs are ignored; period, readiness, and audit event operations bind authenticated context | PR #181 merged as `33a13c38`; all six CI checks passed |
 
+| Journal export tenant/audit protection | Journal and entry reads bind authenticated merchant/store; export audit records authenticated actor and tenant before CSV response | PR #182 merged as `8fad4d40`; all six CI checks passed |
+
 ## Under review
 
 - **Journal export tenant/audit protection:** current PR #182 adds a route regression proving CSV export uses authenticated merchant/store scope and records the authenticated actor and tenant in the audit log before returning the file.
+- **Period-report export tenant/audit protection:** current PR #183 verifies spoofed query tenant/actor IDs cannot influence summary SQL or export audit metadata.
 - **MySQL-backed workflow scope:** PR #177 and #178 cover month-close and exception/SLA schema and constraint slices. A single database-backed import-to-export lifecycle remains outstanding.
 
 ## Remaining engineering acceptance work
