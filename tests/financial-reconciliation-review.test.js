@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
 
-function memoryDb({ failAuditInsert = false } = {}) {
+function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hideAssignmentCheckOnce = false, simulateAssignmentUniqueConflict = false } = {}) {
   const batches = new Map([[1, { id: 1, merchant_id: 4, store_id: 9, status: 'imported' }]]);
   const items = new Map([
     [11, { id: 11, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null, exception_category: null, exception_note: null }],
@@ -16,11 +16,19 @@ function memoryDb({ failAuditInsert = false } = {}) {
   const eventList = [];
   let nextEvent = 1;
   let transactionTail = Promise.resolve();
+  let replayLookupHidden = false;
+  let assignmentCheckHidden = false;
   let executed = [];
 
   async function runAsync(sql, p = []) {
     executed.push(sql.trim().split(/\s+/).slice(0, 3).join(' '));
     if (sql.includes('UPDATE financial_reconciliation_items')) {
+      if (simulateAssignmentUniqueConflict && p[1] !== null &&
+          [...items.values()].some(row => row.id !== p[5] && row.matched_journal_transaction_id === p[1])) {
+        const error = new Error('duplicate journal assignment');
+        error.code = 'ER_DUP_ENTRY';
+        throw error;
+      }
       const row = items.get(p[5]);
       if (row) Object.assign(row, { match_status: p[0], matched_journal_transaction_id: p[1], match_reason: p[2], exception_category: p[3], exception_note: p[4] });
       return { affectedRows: row ? 1 : 0 };
@@ -39,6 +47,10 @@ function memoryDb({ failAuditInsert = false } = {}) {
 
   async function getAsync(sql, p = []) {
     if (sql.includes('FROM financial_reconciliation_review_events') && sql.includes('idempotency_key')) {
+      if (hideFirstReplayLookup && sql.includes('FOR UPDATE') && !replayLookupHidden) {
+        replayLookupHidden = true;
+        return null;
+      }
       return events.get(p[3]) || null;
     }
     if (sql.includes('FROM financial_reconciliation_batches')) {
@@ -46,6 +58,10 @@ function memoryDb({ failAuditInsert = false } = {}) {
       return b && b.merchant_id === p[1] && b.store_id === p[2] ? b : null;
     }
     if (sql.includes('SELECT id FROM financial_reconciliation_items')) {
+      if (hideAssignmentCheckOnce && !assignmentCheckHidden) {
+        assignmentCheckHidden = true;
+        return null;
+      }
       return [...items.values()].find(row => row.matched_journal_transaction_id === p[0] && row.id !== p[1]) || null;
     }
     if (sql.includes('FROM financial_reconciliation_items')) {
@@ -127,6 +143,54 @@ test('same idempotency request replays and changed request is rejected', async (
   assert.equal(replay.eventId, first.eventId);
   await assert.rejects(db.service.reviewItem(input({ reason: 'Different review reason', idempotencyKey: input().idempotencyKey })),
     e => e.code === 'REVIEW_IDEMPOTENCY_CONFLICT');
+});
+
+test('same idempotency key cannot be replayed by a different finance actor', async () => {
+  const db = memoryDb();
+  await db.service.reviewItem(input());
+  await assert.rejects(
+    db.service.reviewItem(input({ actorId: 7, actorUsername: 'another-finance' })),
+    error => error.code === 'REVIEW_IDEMPOTENCY_CONFLICT'
+  );
+  assert.equal(db.eventList.length, 1);
+});
+
+test('duplicate-key idempotency race is reported as an idempotency conflict', async () => {
+  const db = memoryDb({ hideFirstReplayLookup: true });
+  const key = 'finance-review-race-0001';
+  const existing = {
+    id: 90, merchant_id: 4, store_id: 9, batch_id: 1, item_id: 11,
+    journal_transaction_id: 31, exception_category: null, actor_admin_id: 8,
+    actor_username: 'other-finance', action: 'confirm', reason: 'Earlier authorized review',
+    idempotency_key: key, request_sha256: 'f'.repeat(64), before_json: '{}',
+    after_json: '{}', previous_hash: '', event_hash: 'b'.repeat(64)
+  };
+  db.events.set(key, existing);
+  db.eventList.push(existing);
+  await assert.rejects(
+    db.service.reviewItem(input({ idempotencyKey: key })),
+    error => error.code === 'REVIEW_IDEMPOTENCY_CONFLICT'
+  );
+  assert.equal(db.items.get(11).match_status, 'pending');
+  assert.equal(db.eventList.length, 1);
+});
+
+test('database unique-assignment race fails closed and rolls back the item update', async () => {
+  const db = memoryDb({
+    hideAssignmentCheckOnce: true,
+    simulateAssignmentUniqueConflict: true
+  });
+  Object.assign(db.items.get(12), {
+    match_status: 'matched',
+    matched_journal_transaction_id: 31
+  });
+  await assert.rejects(
+    db.service.reviewItem(input()),
+    error => error.code === 'REVIEW_DUPLICATE_ASSIGNMENT'
+  );
+  assert.equal(db.items.get(11).match_status, 'pending');
+  assert.equal(db.items.get(12).matched_journal_transaction_id, 31);
+  assert.equal(db.eventList.length, 0);
 });
 
 test('classifies refund, fee, and settlement differences for manual handling', async () => {
