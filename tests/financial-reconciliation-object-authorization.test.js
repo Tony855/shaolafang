@@ -66,7 +66,7 @@ test('valid tenant session cannot review a foreign statement item by guessing it
   assert.equal(res.statusCode, 404);
   const itemLookup = reads.find(entry => entry.sql.includes('FROM financial_reconciliation_items'));
   assert.ok(itemLookup, 'review must perform a tenant-scoped item ownership lookup');
-  assert.match(itemLookup.sql, /WHERE id=\\? AND batch_id=\\? AND merchant_id=\\? AND store_id=\\?/);
+  assert.match(itemLookup.sql, /WHERE id=\? AND batch_id=\? AND merchant_id=\? AND store_id=\?/);
   assert.deepEqual(itemLookup.params, [13, 1, 4, 9]);
   assert.equal(writes.some(entry => /UPDATE financial_reconciliation_items|INSERT INTO financial_reconciliation_review_events/.test(entry.sql)), false,
     'a foreign item ID must not cause financial or audit writes');
@@ -99,11 +99,11 @@ for (const action of ['acknowledge', 'dismiss']) {
     assert.equal(res.statusCode, 404);
     const replayLookup = reads.find(entry => entry.sql.includes('idempotency_key=? FOR UPDATE'));
     assert.ok(replayLookup, 'alert idempotency replay must be checked');
-    assert.match(replayLookup.sql, /alert_id=\\? AND merchant_id=\\? AND store_id=\\? AND idempotency_key=\\?/);
+    assert.match(replayLookup.sql, /alert_id=\? AND merchant_id=\? AND store_id=\? AND idempotency_key=\?/);
     assert.deepEqual(replayLookup.params, [777, 4, 9, key]);
     const alertLookup = reads.find(entry => entry.sql.includes('FROM financial_reconciliation_exception_alerts'));
     assert.ok(alertLookup, 'alert ownership must be checked');
-    assert.match(alertLookup.sql, /id=\\? AND merchant_id=\\? AND store_id=\\?/);
+    assert.match(alertLookup.sql, /id=\? AND merchant_id=\? AND store_id=\?/);
     assert.deepEqual(alertLookup.params, [777, 4, 9]);
     assert.equal(writes.some(entry => /UPDATE financial_reconciliation_exception_alerts|INSERT INTO financial_reconciliation_exception_alert_events/.test(entry.sql)), false,
       'a foreign alert ID must not cause state or audit writes');
