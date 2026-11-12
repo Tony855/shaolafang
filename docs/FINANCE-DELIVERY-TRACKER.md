@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-12 (authenticated tenant query matrix merged; review mutation query hardening in review)
+Last reviewed: 2026-11-12 (review mutation and SLA audit tenant scoping merged; foreign object-ID route tests in review)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -22,8 +22,8 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- **Review mutation and audit query hardening:** duplicate journal-assignment lookup, reconciliation review audit-chain head, SLA alert idempotency replay lookup, and SLA alert audit-chain head lookups now explicitly bind merchant/store scope. Regression coverage includes a foreign-tenant statement row referencing the same journal ID and SQL/parameter assertions for review and SLA audit queries. Awaiting PR-head CI.
-- **Cross-tenant route rejection matrix:** PR #172 is merged; every registered finance endpoint rejects request-supplied merchant/store/admin IDs when authenticated tenant context is absent. This does not prove foreign-resource denial with a valid session for every mutation/export route.
+- **Review mutation and audit query hardening:** PR #174 merged. Duplicate journal-assignment lookup, reconciliation review audit-chain head, SLA alert idempotency replay lookup, and SLA alert audit-chain head lookups explicitly bind merchant/store scope. Regression coverage includes a foreign-tenant statement row referencing the same journal ID and SQL/parameter assertions for review and SLA audit queries.
+- **Cross-tenant route rejection matrix:** PR #172 is merged; every registered finance endpoint rejects request-supplied merchant/store/admin IDs when authenticated tenant context is absent. PR #176 adds valid-session foreign object-ID probing tests for reconciliation review and SLA alert acknowledgement/dismissal; it remains under CI review.
 
 ## Remaining engineering acceptance work
 
@@ -46,8 +46,10 @@ This tracker records merged delivery separately from work that is still under re
 - Main head at batch start: `e4e5f69ff7ba47566f0b3710d0ada6658b487db9` (PR #173 merged).
 - PR #172 merged: route-wide missing-authenticated-context tenant rejection matrix (`638bcbbe`).
 - PR #173 merged: authenticated tenant query scoping for representative read surfaces (`e4e5f69`). All five PR-head checks passed.
-- Current PR: review mutation duplicate-assignment and audit-chain SQL scope hardening; includes foreign-tenant collision regression coverage.
+- PR #174 merged: review mutation duplicate-assignment and review/SLA audit-chain and idempotency queries scoped to merchant/store (`52f2d7f6`). All five PR-head checks passed.
+- Current PR #176: valid-session foreign resource-ID probing for review items and SLA alert acknowledge/dismiss; CI pending.
 - CI and installer compatibility for PR #173: Debian 13, Debian 12, Ubuntu 24.04, Ubuntu 22.04, validate — 5/5 passed.
+- CI and installer compatibility for PR #174: Debian 13, Debian 12, Ubuntu 24.04, Ubuntu 22.04, validate — 5/5 passed.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
