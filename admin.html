@@ -291,6 +291,24 @@
                   <div id="financeReviewRows"></div>
                   <button id="financeRowsMore" type="button" hidden data-i18n="financeLoadMore">加载更多</button>
                 </div>
+                <div class="settings-card" style="margin-bottom:16px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title">月结审批与关账</h3>
+                    <button id="financeCloseReload" type="button">刷新月结</button>
+                  </div>
+                  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:12px 0;">
+                    <label>会计月份<input type="month" id="financeCloseMonth"></label>
+                    <label>币种<select id="financeCloseCurrency"></select></label>
+                  </div>
+                  <h4>月度对账汇总（金额保持原币种最小单位）</h4>
+                  <div id="financeMonthPreview"></div>
+                  <h4 style="margin-top:16px;">审批状态</h4>
+                  <div id="financeCloseStatus" class="ff-desc"></div>
+                  <div id="financeCloseActions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"></div>
+                  <h4 style="margin-top:16px;">不可变审批历史</h4>
+                  <div id="financeCloseHistory"></div>
+                  <button id="financeCloseHistoryMore" type="button" hidden>加载更多审批记录</button>
+                </div>
                 <div class="settings-card">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                     <h3 class="settings-card-title" data-i18n="financeDailyTitle">每日对账汇总</h3>

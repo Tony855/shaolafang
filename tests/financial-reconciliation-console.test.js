@@ -39,3 +39,23 @@ test('financial review module is included in the reproducible admin bundle', () 
   assert.ok(bundle.includes(moduleSource), 'admin bundle is stale for financial reconciliation module');
   assert.match(html, /assets\/admin-bundle\.js\?v=\d+/);
 });
+
+
+test('monthly close console exposes the existing tenant-scoped approval and history APIs', () => {
+  for (const endpoint of [
+    '/admin/financial-reconciliation/monthly-close-preview?month=',
+    '/admin/financial-reconciliation/month-close/period?',
+    '/admin/financial-reconciliation/month-close/history?',
+    '/admin/financial-reconciliation/month-close/transition'
+  ]) assert.ok(moduleSource.includes(endpoint), 'missing monthly close API path ' + endpoint);
+  for (const action of ['request_close', 'approve_close', 'reject_close', 'request_reopen', 'approve_reopen', 'reject_reopen']) {
+    assert.ok(moduleSource.includes(action), 'missing monthly close action ' + action);
+  }
+  assert.match(moduleSource, /idempotencyKey: 'month-close-ui-/);
+  assert.match(moduleSource, /financeCloseHistoryMore/);
+  assert.match(moduleSource, /period = period \\|\\| \\{ status: 'open' \\}/);
+  assert.match(html, /id="financeCloseMonth"/);
+  assert.match(html, /id="financeCloseHistory"/);
+  assert.match(html, /id="financeMonthPreview"/);
+  assert.match(moduleSource, /ctx\\.hasPermission\\('can_manage_financial_reconciliation'\\)/);
+});
