@@ -418,10 +418,10 @@ module.exports = function(app, deps) {
       'details LIKE ?',
       'details LIKE ?'
     ];
-    const params = [context.merchantId, '%"merchant_id":' + context.merchantId + '%', '%"store_id":' + context.storeId + '%'];
+    const params = [context.merchantId, '%"merchant_id":' + context.merchantId + ',"store_id":' + context.storeId + ',%'];
     if (actorId) { where.push('actor_id=?'); params.push(actorId); }
     if (from) { where.push('created_at>=?'); params.push(new Date(from).toISOString()); }
-    if (to) { where.push('created_at<=?'); params.push(new Date(to).toISOString()); }
+    if (to) { where.push('created_at<=?'); params.push(/^\\d{4}-\\d{2}-\\d{2}$/.test(to) ? to + 'T23:59:59.999Z' : new Date(to).toISOString()); }
     if (afterId) { where.push('id<?'); params.push(afterId); }
     params.push(limit + 1);
     try {
