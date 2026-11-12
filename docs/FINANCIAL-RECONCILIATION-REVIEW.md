@@ -84,3 +84,5 @@ The exception queue also exposes a case workflow. Each case is unique to a merch
 - `POST /api/admin/financial-reconciliation/exceptions/:itemId/workflow` accepts `batchId`, `action`, `reason`, `idempotencyKey`, and `assignedAdminId` for the `assign` action.
 
 The workflow does not change statement amounts, journal entries, orders, refunds, or payment settlement state. It does not certify an accounting resolution or create a ledger posting. All operations reuse the existing financial reconciliation permission and tenant/store context.
+
+- `GET /api/admin/financial-reconciliation/exceptions/:itemId/history?batchId=...&limit=50&afterId=0` returns the item's append-only workflow events in descending cursor pages, including before/after snapshots and hash-chain fields.

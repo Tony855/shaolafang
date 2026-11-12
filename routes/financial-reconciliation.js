@@ -289,6 +289,28 @@ module.exports = function(app, deps) {
   });
 
 
+
+  app.get('/api/admin/financial-reconciliation/exceptions/:itemId/history', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const itemId = positiveRouteId(req.params.itemId);
+    const batchId = positiveRouteId(req.query.batchId);
+    const limit = Number(req.query.limit || 50);
+    const afterId = req.query.afterId === undefined ? 0 : Number(req.query.afterId);
+    if (!itemId || !batchId || !Number.isSafeInteger(limit) || limit < 1 || limit > 100 ||
+        !Number.isSafeInteger(afterId) || afterId < 0) {
+      return res.status(400).json({ error: '财务异常审计历史分页参数无效' });
+    }
+    try {
+      const result = await service.listExceptionHistory({ ...context, itemId, batchId, limit, afterId });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json(result);
+    } catch (error) {
+      const status = error.code === 'EXCEPTION_WORKFLOW_NOT_FOUND' ? 404 : 400;
+      res.status(status).json({ error: status === 404 ? '财务异常不存在' : '财务异常审计历史查询失败' });
+    }
+  });
+
   app.post('/api/admin/financial-reconciliation/exceptions/:itemId/workflow', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;

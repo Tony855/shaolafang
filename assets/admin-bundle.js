@@ -2131,7 +2131,7 @@ window.doAdvancedExport = doAdvancedExport;
   if (!ctx) return;
   const { $, api, esc } = ctx;
   const root = () => document.getElementById('financialReconciliationPanel');
-  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [], exceptionRows: [], nextExceptionCursor: null, exceptionLoading: false };
+  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [], exceptionRows: [], nextExceptionCursor: null, exceptionLoading: false, exceptionHistory: {} };
 
   function t(key, fallback) {
     const value = ctx.tAdmin ? ctx.tAdmin(key) : key;
@@ -2390,7 +2390,9 @@ window.doAdvancedExport = doAdvancedExport;
         '<div style="font-size:12px;color:#aaa;">' + esc(row.description || '') + '</div>' +
         '<div style="font-size:12px;margin-top:7px;">' + t('financeExceptionAssignedTo', 'Assigned to') + ': ' + esc(row.assignedAdminUsername || '—') + '</div>' +
         (row.resolutionNote ? '<div style="font-size:12px;color:#aaa;margin-top:5px;">' + t('financeExceptionResolution', 'Resolution') + ': ' + esc(row.resolutionNote) + '</div>' : '') +
-        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">' + actions + '</div></article>';
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">' + actions +
+        '<button type="button" data-exception-history="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionAuditHistory', 'Audit history') + '</button></div>' +
+        '<div id="financeExceptionHistory-' + Number(row.itemId) + '" hidden style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);"></div></article>';
     }).join('');
     const more = $('#financeExceptionMore');
     if (more) more.hidden = !state.nextExceptionCursor;
@@ -2402,6 +2404,7 @@ window.doAdvancedExport = doAdvancedExport;
     if (!append) {
       state.exceptionRows = [];
       state.nextExceptionCursor = null;
+      state.exceptionHistory = {};
       if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
     }
     try {
@@ -2420,6 +2423,38 @@ window.doAdvancedExport = doAdvancedExport;
       if (target) target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load exceptions') + '</div>';
       toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
     } finally { state.exceptionLoading = false; }
+  }
+
+  async function loadExceptionHistory(button, append) {
+    const itemId = Number(button.dataset.item);
+    const batchId = Number(button.dataset.batch);
+    if (!Number.isSafeInteger(itemId) || itemId <= 0 || !Number.isSafeInteger(batchId) || batchId <= 0) return;
+    const target = $('#financeExceptionHistory-' + itemId);
+    if (!target) return;
+    const stateKey = String(itemId);
+    const history = state.exceptionHistory[stateKey] || { items: [], nextCursor: null, loaded: false };
+    target.hidden = false;
+    try {
+      const query = new URLSearchParams({ batchId: String(batchId), limit: '50' });
+      if (append && history.nextCursor) query.set('afterId', String(history.nextCursor));
+      const data = await api('/admin/financial-reconciliation/exceptions/' + itemId + '/history?' + query.toString());
+      history.items = append ? history.items.concat(data.items || []) : (data.items || []);
+      history.nextCursor = data.nextCursor || null;
+      history.loaded = true;
+      state.exceptionHistory[stateKey] = history;
+      target.innerHTML = history.items.map(event =>
+        '<article style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);">' +
+        '<strong>#' + Number(event.eventId) + ' · ' + esc(event.action) + '</strong> · ' +
+        esc(event.before?.status || '—') + ' → ' + esc(event.after?.status || '—') +
+        '<div style="font-size:12px;color:#aaa;margin-top:4px;">' + esc(event.actorUsername) + ' · ' + esc(event.createdAt) + '</div>' +
+        '<div style="font-size:12px;margin-top:4px;">' + esc(event.reason) + '</div>' +
+        '<div style="font-size:11px;color:#888;overflow-wrap:anywhere;">SHA-256: ' + esc(event.eventHash) + '</div></article>'
+      ).join('') + (history.nextCursor
+        ? '<button type="button" data-exception-history-more="' + itemId + '" data-batch="' + batchId + '">Load more audit events</button>' : '');
+    } catch (error) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load audit history') + '</div>';
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    }
   }
   async function submitExceptionAction(button) {
     if (!requirePermission()) return;
@@ -2606,6 +2641,20 @@ window.doAdvancedExport = doAdvancedExport;
       if (batchButton) { loadBatchItems(batchButton.dataset.financeBatch, false); return; }
       const actionButton = event.target.closest('[data-finance-action]');
       if (actionButton) { submitReview(actionButton); return; }
+      const historyMore = event.target.closest('[data-exception-history-more]');
+      if (historyMore) { loadExceptionHistory(historyMore, true); return; }
+      const historyButton = event.target.closest('[data-exception-history]');
+      if (historyButton) {
+        const historyTarget = $('#financeExceptionHistory-' + Number(historyButton.dataset.exceptionHistory));
+        if (historyTarget) {
+          if (historyTarget.hidden) {
+            const key = String(historyButton.dataset.exceptionHistory);
+            if (!state.exceptionHistory[key]?.loaded) loadExceptionHistory({ dataset: { item: key, batch: historyButton.dataset.batch } }, false);
+            else historyTarget.hidden = false;
+          } else historyTarget.hidden = true;
+        }
+        return;
+      }
       const exceptionButton = event.target.closest('[data-exception-action]');
       if (exceptionButton) { submitExceptionAction(exceptionButton); return; }
       const monthButton = event.target.closest('[data-month-close-action]');

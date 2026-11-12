@@ -590,6 +590,54 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     }
   }
 
+
+  async function listExceptionHistory({ merchantId, storeId, batchId, itemId, limit = 50, afterId = 0 }) {
+    const merchant = positiveId(merchantId, 'merchantId');
+    const store = positiveId(storeId, 'storeId');
+    const batch = positiveId(batchId, 'batchId');
+    const item = positiveId(itemId, 'itemId');
+    const boundedLimit = positiveId(limit, 'limit');
+    if (boundedLimit > 100) throw new TypeError('limit must not exceed 100');
+    const cursor = Number(afterId);
+    if (!Number.isSafeInteger(cursor) || cursor < 0) throw new TypeError('afterId must be a non-negative safe integer');
+    const owner = await getAsync(
+      `SELECT i.id FROM financial_reconciliation_items i
+       INNER JOIN financial_reconciliation_batches b
+         ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
+       WHERE i.id=? AND i.batch_id=? AND i.merchant_id=? AND i.store_id=? AND i.match_status='exception'`,
+      [item, batch, merchant, store]
+    );
+    if (!owner) {
+      const error = new Error('exception item not found in this merchant and store');
+      error.code = 'EXCEPTION_WORKFLOW_NOT_FOUND';
+      throw error;
+    }
+    const rows = await allAsync(
+      `SELECT id, actor_admin_id, actor_username, action, reason, before_json, after_json,
+              previous_hash, event_hash, created_at
+       FROM financial_reconciliation_exception_events
+       WHERE merchant_id=? AND store_id=? AND batch_id=? AND item_id=? AND id<?
+       ORDER BY id DESC LIMIT ?`,
+      [merchant, store, batch, item, cursor || Number.MAX_SAFE_INTEGER, boundedLimit + 1]
+    );
+    const hasMore = rows.length > boundedLimit;
+    if (hasMore) rows.pop();
+    const parse = value => {
+      if (value && typeof value === 'object') return value;
+      if (typeof value !== 'string') return null;
+      try { return JSON.parse(value); } catch (_) { return null; }
+    };
+    return {
+      nextCursor: hasMore && rows.length ? Number(rows[rows.length - 1].id) : null,
+      items: rows.map(row => ({
+        eventId: Number(row.id), actorAdminId: Number(row.actor_admin_id),
+        actorUsername: row.actor_username, action: row.action, reason: row.reason,
+        before: parse(row.before_json), after: parse(row.after_json),
+        previousHash: row.previous_hash || '', eventHash: row.event_hash, createdAt: row.created_at
+      }))
+    };
+  }
+
   async function listExceptions({ merchantId, storeId, category, caseStatus, from, to, limit = 50, afterId = 0 }) {
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
@@ -792,7 +840,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, listExceptions, transitionExceptionCase, listReviewHistory, getMonthlyClosePreview });
+  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };

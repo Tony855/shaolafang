@@ -63,7 +63,14 @@ function workflowDb({ failAudit = false } = {}) {
       }
       throw new Error('unexpected get SQL: ' + sql);
     },
-    allAsync: async () => [],
+    allAsync: async (sql, params = []) => {
+      if (sql.includes('FROM financial_reconciliation_exception_events')) {
+        return events.filter(event => event.merchant_id === params[0] && event.store_id === params[1] &&
+          event.batch_id === params[2] && event.item_id === params[3] && event.id < params[4])
+          .sort((a, b) => b.id - a.id).slice(0, params[5]);
+      }
+      return [];
+    },
     withTransaction: async work => {
       const snapshot = { exists, row: { ...caseRow }, events: events.slice(), nextEventId };
       try { return await work(); }
@@ -106,6 +113,28 @@ test('exception case supports assignment, start, notes, resolution, close, and r
     assert.equal(db.events[i].previous_hash, db.events[i - 1].event_hash);
   }
   assert.ok(db.events.every(event => /^[a-f0-9]{64}$/.test(event.event_hash)));
+});
+
+test('exception workflow audit history is tenant-scoped, paginated, and returns hash-linked snapshots', async () => {
+  const db = workflowDb();
+  await db.service.transitionExceptionCase(input({ action: 'start' }));
+  await db.service.transitionExceptionCase(input({ action: 'resolve', idempotencyKey: 'exception-history-0002' }));
+  const history = await db.service.listExceptionHistory({
+    merchantId: 4, storeId: 9, batchId: 2, itemId: 11, limit: 1
+  });
+  assert.equal(history.items.length, 1);
+  assert.equal(history.items[0].action, 'resolve');
+  assert.equal(history.items[0].before.status, 'in_progress');
+  assert.equal(history.items[0].after.status, 'resolved');
+  assert.equal(history.nextCursor, 2);
+  const older = await db.service.listExceptionHistory({
+    merchantId: 4, storeId: 9, batchId: 2, itemId: 11, limit: 1, afterId: history.nextCursor
+  });
+  assert.equal(older.items[0].action, 'start');
+  assert.equal(older.nextCursor, null);
+  await assert.rejects(db.service.listExceptionHistory({
+    merchantId: 99, storeId: 9, batchId: 2, itemId: 11
+  }), error => error.code === 'EXCEPTION_WORKFLOW_NOT_FOUND');
 });
 
 test('exception workflow idempotency replays only for the same actor and request', async () => {
@@ -172,6 +201,30 @@ test('exception workflow route enforces tenant context and active actor identity
   assert.equal(invalid.statusCode, 400);
 });
 
+test('exception audit history route enforces tenant context and private responses', async () => {
+  const routes = new Map();
+  const app = {
+    get(path, ...handlers) { routes.set('GET ' + path, handlers); },
+    post(path, ...handlers) { routes.set('POST ' + path, handlers); }
+  };
+  registerRoutes(app, {
+    runAsync: async () => ({ insertId: 1, affectedRows: 1 }),
+    getAsync: async () => null,
+    allAsync: async () => [],
+    withTransaction: async work => work(),
+    requireAdminKey: (_req, _res, next) => next(),
+    requirePermission: () => (_req, _res, next) => next()
+  });
+  const handler = routes.get('GET /api/admin/financial-reconciliation/exceptions/:itemId/history').at(-1);
+  const denied = {
+    statusCode: 200, body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; }
+  };
+  await handler({ merchantId: 4, storeId: null, adminId: 6, params: { itemId: '11' }, query: {} }, denied);
+  assert.equal(denied.statusCode, 403);
+});
+
 test('exception queue console includes workflow filters, controls, and APIs in generated bundle', () => {
   const fs = require('node:fs');
   const path = require('node:path');
@@ -184,6 +237,7 @@ test('exception queue console includes workflow filters, controls, and APIs in g
   }
   assert.ok(moduleSource.includes('/admin/financial-reconciliation/exceptions?'));
   assert.ok(moduleSource.includes('/workflow'));
+  assert.ok(moduleSource.includes('/history?'));
   assert.ok(bundle.includes(moduleSource));
   assert.match(html, /id="financeExceptionQueue"/);
   assert.match(html, /id="financeExceptionStatus"/);
