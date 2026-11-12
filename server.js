@@ -7,6 +7,7 @@ const { createLoginRateLimiter } = require('./server/services/login-rate-limit')
 const { createScanSessionRateLimiter } = require('./server/services/scan-session-rate-limit');
 const { migrateSessionTokenStorage } = require('./server/services/session-token');
 const { ensureFinancialMonthCloseSchema, ensureFinancialExceptionWorkflowSchema } = require('./server/db/migrations/financial-month-close');
+const { ensureFinancialExceptionAlertSchema } = require('./server/db/migrations/financial-exception-alerts');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
@@ -858,6 +859,7 @@ async function initDatabase() {
 
   await ensureFinancialMonthCloseSchema({ runAsync, allAsync });
   await ensureFinancialExceptionWorkflowSchema({ runAsync, allAsync });
+  await ensureFinancialExceptionAlertSchema({ runAsync, allAsync });
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS scan_sessions (
