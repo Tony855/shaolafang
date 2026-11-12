@@ -501,6 +501,107 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     };
   }
 
+
+  async function generateSlaAlerts({ merchantId, storeId, slaHours = 24, actorId, actorUsername }) {
+    const merchant = positiveId(merchantId, 'merchantId'), store = positiveId(storeId, 'storeId');
+    const actor = positiveId(actorId, 'actorId'), username = String(actorUsername || '').trim();
+    const sla = Number(slaHours);
+    if (!Number.isSafeInteger(sla) || sla < 1 || sla > 720) {
+      const error = new TypeError('slaHours must be an integer from 1 to 720'); error.code = 'EXCEPTION_ALERT_SLA_INVALID'; throw error;
+    }
+    if (!username || username.length > 100) throw new TypeError('actorUsername is required');
+    const overdue = await allAsync(
+      `SELECT i.id AS item_id, i.batch_id
+       FROM financial_reconciliation_items i
+       INNER JOIN financial_reconciliation_batches b ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
+       LEFT JOIN financial_reconciliation_exception_cases c ON c.item_id=i.id AND c.merchant_id=i.merchant_id AND c.store_id=i.store_id
+       WHERE i.merchant_id=? AND i.store_id=? AND i.match_status='exception'
+         AND COALESCE(c.status,'open') IN ('open','in_progress')
+         AND TIMESTAMPDIFF(SECOND,b.imported_at,CURRENT_TIMESTAMP(3)) >= ? * 3600
+       ORDER BY b.imported_at ASC,i.id ASC LIMIT 500`,
+      [merchant,store,sla]
+    );
+    let created=0;
+    await withTransaction(async()=>{
+      for(const row of overdue){
+        const itemId=Number(row.item_id),batchId=Number(row.batch_id);
+        const inserted=await runAsync(`INSERT IGNORE INTO financial_reconciliation_exception_alerts
+          (merchant_id,store_id,batch_id,item_id,alert_type,sla_hours,status)
+          VALUES (?,?,?,?,'sla_overdue',?,'pending')`,[merchant,store,batchId,itemId,sla]);
+        if(!Number(inserted?.affectedRows||0)) continue;
+        created++;
+        const alert=await getAsync('SELECT id FROM financial_reconciliation_exception_alerts WHERE merchant_id=? AND store_id=? AND item_id=? AND alert_type=? AND sla_hours=?',[merchant,store,itemId,'sla_overdue',sla]);
+        if(!alert) throw new Error('created SLA alert could not be read');
+        const alertId=Number(alert.id),reason='SLA threshold exceeded ('+sla+' hours)',key='generated-'+sla+'-'+itemId;
+        const digest=stableHash({merchant,store,alertId,action:'generated',sla});
+        const prev=await getAsync('SELECT event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',[alertId]);
+        const previousHash=prev?.event_hash||'';
+        const eventHash=stableHash({alertId,merchant,store,actor,username,action:'generated',reason,key,digest,previousHash});
+        await runAsync(`INSERT INTO financial_reconciliation_exception_alert_events
+          (alert_id,merchant_id,store_id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash)
+          VALUES (?,?,?,?,?,'generated',?,?,?,?,?)`,
+        [alertId,merchant,store,actor,username,reason,key,digest,previousHash,eventHash]);
+      }
+    });
+    return {slaHours:sla,scanned:overdue.length,created,alreadyExisted:overdue.length-created};
+  }
+
+  async function listSlaAlerts({ merchantId, storeId, status='pending', limit=50, afterId=0 }) {
+    const merchant=positiveId(merchantId,'merchantId'),store=positiveId(storeId,'storeId');
+    const bounded=Number(limit),cursor=Number(afterId),normalized=String(status||'pending').toLowerCase();
+    if(!Number.isSafeInteger(bounded)||bounded<1||bounded>100||!Number.isSafeInteger(cursor)||cursor<0){
+      const error=new TypeError('alert pagination is invalid');error.code='EXCEPTION_ALERT_PAGINATION_INVALID';throw error;
+    }
+    const filters=['a.merchant_id=?','a.store_id=?','a.id<?'],params=[merchant,store,cursor||Number.MAX_SAFE_INTEGER];
+    if(normalized!=='all'){
+      if(!['pending','acknowledged','dismissed'].includes(normalized)){const error=new TypeError('alert status is invalid');error.code='EXCEPTION_ALERT_FILTER_INVALID';throw error;}
+      filters.push('a.status=?');params.push(normalized);
+    }
+    const rows=await allAsync(`SELECT a.id,a.batch_id,a.item_id,a.alert_type,a.sla_hours,a.status,a.generated_at,
+      a.acknowledged_by_admin_id,a.acknowledged_by_username,a.acknowledged_at,a.acknowledgement_reason,
+      i.exception_category,i.currency_code,i.amount_minor,i.external_reference,c.assigned_admin_username,
+      GREATEST(0,TIMESTAMPDIFF(SECOND,b.imported_at,CURRENT_TIMESTAMP(3))) AS age_seconds
+      FROM financial_reconciliation_exception_alerts a
+      INNER JOIN financial_reconciliation_items i ON i.id=a.item_id AND i.merchant_id=a.merchant_id AND i.store_id=a.store_id
+      INNER JOIN financial_reconciliation_batches b ON b.id=a.batch_id AND b.merchant_id=a.merchant_id AND b.store_id=a.store_id
+      LEFT JOIN financial_reconciliation_exception_cases c ON c.item_id=i.id AND c.merchant_id=i.merchant_id AND c.store_id=i.store_id
+      WHERE ${filters.join(' AND ')} ORDER BY a.id DESC LIMIT ?`,[...params,bounded+1]);
+    const hasMore=rows.length>bounded;if(hasMore)rows.pop();
+    return {nextCursor:hasMore&&rows.length?Number(rows[rows.length-1].id):null,items:rows.map(row=>({
+      alertId:Number(row.id),batchId:Number(row.batch_id),itemId:Number(row.item_id),alertType:row.alert_type,
+      slaHours:Number(row.sla_hours),status:row.status,generatedAt:row.generated_at,
+      acknowledgedByAdminId:row.acknowledged_by_admin_id===null?null:Number(row.acknowledged_by_admin_id),
+      acknowledgedByUsername:row.acknowledged_by_username||null,acknowledgedAt:row.acknowledged_at,
+      acknowledgementReason:row.acknowledgement_reason,category:row.exception_category||null,
+      currencyCode:row.currency_code,amountMinor:Number(row.amount_minor),externalReference:row.external_reference||null,
+      assignedAdminUsername:row.assigned_admin_username||null,ageSeconds:Number(row.age_seconds||0)
+    }))};
+  }
+
+  async function acknowledgeSlaAlert(input) {
+    const merchant=positiveId(input.merchantId,'merchantId'),store=positiveId(input.storeId,'storeId');
+    const actor=positiveId(input.actorId,'actorId'),alertId=positiveId(input.alertId,'alertId');
+    const username=String(input.actorUsername||'').trim(),reason=normalizeReason(input.reason),key=String(input.idempotencyKey||'').trim();
+    if(!/^[A-Za-z0-9._:-]{16,128}$/.test(key)){const error=new TypeError('idempotencyKey must contain 16 to 128 safe characters');error.code='EXCEPTION_ALERT_IDEMPOTENCY_INVALID';throw error;}
+    const digest=stableHash({merchant,store,actor,alertId,reason,action:'acknowledged'});
+    return withTransaction(async()=>{
+      const replay=await getAsync('SELECT id,request_sha256,event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND idempotency_key=? FOR UPDATE',[alertId,key]);
+      if(replay){if(replay.request_sha256!==digest){const error=new Error('idempotency key conflict');error.code='EXCEPTION_ALERT_IDEMPOTENCY_CONFLICT';throw error;}return {eventId:Number(replay.id),eventHash:replay.event_hash,replayed:true};}
+      const alert=await getAsync('SELECT id,status FROM financial_reconciliation_exception_alerts WHERE id=? AND merchant_id=? AND store_id=? FOR UPDATE',[alertId,merchant,store]);
+      if(!alert){const error=new Error('alert not found');error.code='EXCEPTION_ALERT_NOT_FOUND';throw error;}
+      if(alert.status!=='pending'){const error=new Error('alert is no longer pending');error.code='EXCEPTION_ALERT_STATE_CONFLICT';throw error;}
+      await runAsync(`UPDATE financial_reconciliation_exception_alerts SET status='acknowledged',
+        acknowledged_by_admin_id=?,acknowledged_by_username=?,acknowledged_at=CURRENT_TIMESTAMP(3),acknowledgement_reason=?
+        WHERE id=? AND merchant_id=? AND store_id=? AND status='pending'`,[actor,username,reason,alertId,merchant,store]);
+      const prev=await getAsync('SELECT event_hash FROM financial_reconciliation_exception_alert_events WHERE alert_id=? ORDER BY id DESC LIMIT 1 FOR UPDATE',[alertId]);
+      const previousHash=prev?.event_hash||'',eventHash=stableHash({alertId,merchant,store,actor,username,action:'acknowledged',reason,key,digest,previousHash});
+      const result=await runAsync(`INSERT INTO financial_reconciliation_exception_alert_events
+        (alert_id,merchant_id,store_id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash)
+        VALUES (?,?,?,?,?,'acknowledged',?,?,?,?,?)`,[alertId,merchant,store,actor,username,reason,key,digest,previousHash,eventHash]);
+      return {eventId:Number(result.insertId||result.lastID||0),eventHash,replayed:false};
+    });
+  }
+
   async function transitionExceptionCase({
     merchantId, storeId, batchId, itemId, actorId, actorUsername,
     action, assignedAdminId, reason, idempotencyKey
@@ -947,7 +1048,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getExceptionOperationsSummary, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
+  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getExceptionOperationsSummary, generateSlaAlerts, listSlaAlerts, acknowledgeSlaAlert, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };
