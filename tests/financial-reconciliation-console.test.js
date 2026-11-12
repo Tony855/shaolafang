@@ -53,9 +53,9 @@ test('monthly close console exposes the existing tenant-scoped approval and hist
   }
   assert.match(moduleSource, /idempotencyKey: 'month-close-ui-/);
   assert.match(moduleSource, /financeCloseHistoryMore/);
-  assert.match(moduleSource, /period = period \\|\\| \\{ status: 'open' \\}/);
+  assert.match(moduleSource, /period = period \|\| \{ status: 'open' \}/);
   assert.match(html, /id="financeCloseMonth"/);
   assert.match(html, /id="financeCloseHistory"/);
   assert.match(html, /id="financeMonthPreview"/);
-  assert.match(moduleSource, /ctx\\.hasPermission\\('can_manage_financial_reconciliation'\\)/);
+  assert.match(moduleSource, /ctx\.hasPermission\('can_manage_financial_reconciliation'\)/);
 });
