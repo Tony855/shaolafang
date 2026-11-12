@@ -91,6 +91,17 @@ test('MySQL integration: month-close migration, tenant uniqueness, idempotency a
   tenantBEvent[7] = 'finance-b';
   await insertMonthEvent(tenantBEvent);
 
+  // Startup schema ensure must be safe to rerun after the tables contain production-shaped data.
+  await ensureFinancialMonthCloseSchema({ runAsync, allAsync });
+  const [periodsAfterEnsure] = await connection.query(
+    'SELECT merchant_id,store_id FROM financial_month_close_periods ORDER BY merchant_id'
+  );
+  const [eventsAfterEnsure] = await connection.query(
+    'SELECT merchant_id,idempotency_key FROM financial_month_close_events ORDER BY merchant_id'
+  );
+  assert.deepEqual(periodsAfterEnsure.map(row => Number(row.merchant_id)), [4, 5]);
+  assert.deepEqual(eventsAfterEnsure.map(row => Number(row.merchant_id)), [4, 5]);
+
   await connection.beginTransaction();
   try {
     const locked = await lockOpenFinancialMonthPeriod({
@@ -229,6 +240,18 @@ test('MySQL integration: exception workflow and SLA alert schemas enforce foreig
     error => error && error.code === 'ER_DUP_ENTRY'
   );
   await insertAlertEvent(alertB, 5, 'mysql-alert-event-0001', 8);
+
+  // Re-running startup schema ensure must retain existing exception and SLA history.
+  await ensureFinancialExceptionWorkflowSchema({ runAsync, allAsync });
+  await ensureFinancialExceptionAlertSchema({ runAsync, allAsync });
+  const [casesAfterEnsure] = await connection.query('SELECT merchant_id FROM financial_reconciliation_exception_cases ORDER BY merchant_id');
+  const [caseEventsAfterEnsure] = await connection.query('SELECT merchant_id FROM financial_reconciliation_exception_events ORDER BY merchant_id');
+  const [alertsAfterEnsure] = await connection.query('SELECT merchant_id FROM financial_reconciliation_exception_alerts ORDER BY merchant_id');
+  const [alertEventsAfterEnsure] = await connection.query('SELECT merchant_id FROM financial_reconciliation_exception_alert_events ORDER BY merchant_id');
+  assert.deepEqual(casesAfterEnsure.map(row => Number(row.merchant_id)), [4, 5]);
+  assert.deepEqual(caseEventsAfterEnsure.map(row => Number(row.merchant_id)), [4, 5]);
+  assert.deepEqual(alertsAfterEnsure.map(row => Number(row.merchant_id)), [4, 5]);
+  assert.deepEqual(alertEventsAfterEnsure.map(row => Number(row.merchant_id)), [4, 5]);
 
   const [cases] = await connection.query(
     'SELECT merchant_id,store_id,item_id FROM financial_reconciliation_exception_cases ORDER BY id'
