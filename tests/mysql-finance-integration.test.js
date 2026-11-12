@@ -1517,3 +1517,185 @@ test('MySQL integration: statement import flows through journal match, review, m
   assert.equal(persisted.period_status, 'locked');
   assert.equal(Number(persisted.journal_line_count), 2);
 });
+
+
+test('MySQL integration: unmatched statement flows through exception classification, case, and SLA alert', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 45000
+}, async t => {
+  const db = await connectTestDatabase();
+  const tables = [
+    'financial_reconciliation_exception_alert_events',
+    'financial_reconciliation_exception_alerts',
+    'financial_reconciliation_exception_events',
+    'financial_reconciliation_exception_cases',
+    'financial_reconciliation_review_events',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await db.connection.end();
+    }
+  });
+  for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+
+  await db.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    provider_code VARCHAR(40) NOT NULL,
+    external_batch_id VARCHAR(191) NOT NULL,
+    statement_sha256 CHAR(64) NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    row_count INT NOT NULL,
+    total_debit_minor BIGINT NOT NULL,
+    total_credit_minor BIGINT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported',
+    imported_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_exception_e2e_batch (merchant_id,store_id,provider_code,external_batch_id)
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    row_no INT NOT NULL,
+    external_reference VARCHAR(191) NOT NULL,
+    transaction_reference VARCHAR(191) NOT NULL DEFAULT '',
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    occurred_at DATETIME(3) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    row_sha256 CHAR(64) NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'pending',
+    match_reason VARCHAR(100) DEFAULT NULL,
+    matched_journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    exception_note VARCHAR(255) DEFAULT NULL,
+    UNIQUE KEY unique_finance_exception_e2e_row (batch_id,row_no),
+    CONSTRAINT fk_finance_exception_e2e_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+
+  const { ensureFinancialExceptionWorkflowSchema } = require('../server/db/migrations/financial-month-close');
+  const { ensureFinancialExceptionAlertSchema } = require('../server/db/migrations/financial-exception-alerts');
+  await ensureFinancialExceptionWorkflowSchema({ runAsync: db.runAsync, allAsync: db.allAsync });
+  await ensureFinancialExceptionAlertSchema({ runAsync: db.runAsync, allAsync: db.allAsync });
+
+  const withTransaction = async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+  const { createFinancialReconciliationService } = require('../server/services/financial-reconciliation');
+  const importer = createFinancialReconciliationService({
+    runAsync: db.runAsync, getAsync: db.getAsync, withTransaction
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  const imported = await importer.importStatementBatch({
+    merchantId: 44, storeId: 12, providerCode: 'BANK_STMT',
+    externalBatchId: 'mysql-exception-e2e-0001',
+    statementSha256: 'f'.repeat(64), currencyCode: 'USD',
+    rows: [{
+      externalReference: 'mysql-exception-e2e-line-1',
+      transactionReference: 'unposted-order-1',
+      direction: 'credit', amountMinor: 8750, currencyCode: 'USD',
+      occurredAt: today + 'T09:00:00.000Z', description: 'Unmatched bank settlement'
+    }]
+  });
+  assert.equal(imported.importedRows, 1);
+  await db.runAsync(
+    'UPDATE financial_reconciliation_batches SET imported_at=DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL 48 HOUR) WHERE id=? AND merchant_id=44 AND store_id=12',
+    [imported.batchId]
+  );
+
+  const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
+  const review = createFinancialReconciliationReviewService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+  const queue = await review.listBatchReview({
+    merchantId: 44, storeId: 12, batchId: imported.batchId
+  });
+  assert.equal(queue.items.length, 1);
+  assert.equal(queue.items[0].suggestion.status, 'unmatched');
+
+  const itemId = queue.items[0].id;
+  const classified = await review.reviewItem({
+    merchantId: 44, storeId: 12, batchId: imported.batchId, itemId,
+    actorId: 7, actorUsername: 'mysql-exception-reviewer',
+    action: 'classify_exception', exceptionCategory: 'settlement_difference',
+    reason: 'Classify unmatched bank settlement for investigation',
+    idempotencyKey: 'mysql-exception-e2e-review-01'
+  });
+  assert.equal(classified.replayed, false);
+
+  const started = await review.transitionExceptionCase({
+    merchantId: 44, storeId: 12, batchId: imported.batchId, itemId,
+    actorId: 7, actorUsername: 'mysql-exception-owner',
+    action: 'start', reason: 'Start investigation of unmatched settlement',
+    idempotencyKey: 'mysql-exception-e2e-start-01'
+  });
+  assert.equal(started.status, 'in_progress');
+
+  const generated = await review.generateSlaAlerts({
+    merchantId: 44, storeId: 12, slaHours: 24,
+    actorId: 7, actorUsername: 'mysql-exception-sla'
+  });
+  assert.equal(generated.scanned, 1);
+  assert.equal(generated.created, 1);
+  const alertQueue = await review.listSlaAlerts({
+    merchantId: 44, storeId: 12, status: 'pending'
+  });
+  assert.equal(alertQueue.items.length, 1);
+  const alertId = alertQueue.items[0].alertId;
+  const acknowledged = await review.acknowledgeSlaAlert({
+    merchantId: 44, storeId: 12, actorId: 8, actorUsername: 'mysql-sla-checker',
+    alertId, reason: 'Acknowledge overdue exception for investigation',
+    idempotencyKey: 'mysql-exception-e2e-ack-01'
+  });
+  assert.equal(acknowledged.replayed, false);
+
+  const resolved = await review.transitionExceptionCase({
+    merchantId: 44, storeId: 12, batchId: imported.batchId, itemId,
+    actorId: 8, actorUsername: 'mysql-exception-resolver',
+    action: 'resolve', reason: 'Resolve after verifying settlement evidence',
+    idempotencyKey: 'mysql-exception-e2e-resolve-01'
+  });
+  assert.equal(resolved.status, 'resolved');
+
+  const [itemRows] = await db.connection.query(
+    'SELECT match_status,exception_category,exception_note FROM financial_reconciliation_items WHERE id=? AND merchant_id=44 AND store_id=12',
+    [itemId]
+  );
+  const [caseRows] = await db.connection.query(
+    'SELECT status,resolution_note,updated_by_admin_id FROM financial_reconciliation_exception_cases WHERE item_id=? AND merchant_id=44 AND store_id=12',
+    [itemId]
+  );
+  const [eventRows] = await db.connection.query(
+    'SELECT action,previous_hash,event_hash FROM financial_reconciliation_exception_events WHERE item_id=? AND merchant_id=44 AND store_id=12 ORDER BY id',
+    [itemId]
+  );
+  const alertHistory = await review.listSlaAlertHistory({
+    merchantId: 44, storeId: 12, alertId
+  });
+  assert.equal(itemRows[0].match_status, 'exception');
+  assert.equal(itemRows[0].exception_category, 'settlement_difference');
+  assert.equal(caseRows[0].status, 'resolved');
+  assert.equal(caseRows[0].resolution_note, 'Resolve after verifying settlement evidence');
+  assert.equal(Number(caseRows[0].updated_by_admin_id), 8);
+  assert.deepEqual(eventRows.map(row => row.action), ['start', 'resolve']);
+  assert.equal(eventRows[0].previous_hash, '');
+  assert.equal(eventRows[1].previous_hash, eventRows[0].event_hash);
+  assert.deepEqual(alertHistory.items.map(row => row.action), ['acknowledged', 'generated']);
+  assert.equal(alertHistory.items[0].previousHash, alertHistory.items[1].eventHash);
+});
