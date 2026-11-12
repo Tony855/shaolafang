@@ -18,7 +18,7 @@ function safeMinorUnitTotal(value, field) {
     throw error;
   }
   const raw = String(value);
-  if (!/^\\d+$/.test(raw)) {
+  if (!/^\d+$/.test(raw)) {
     const error = new TypeError(field + ' must be a non-negative integer total');
     error.code = 'REVIEW_TOTAL_PRECISION_UNSAFE';
     throw error;
