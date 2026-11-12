@@ -163,11 +163,11 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     try {
       return await withTransaction(async () => {
         const replay = await getAsync(
-          'SELECT id, request_sha256, event_hash, action, item_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=? FOR UPDATE',
+          'SELECT id, request_sha256, event_hash, action, item_id, actor_admin_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=? FOR UPDATE',
           [merchantId, storeId, batchId, review.idempotencyKey]
         );
         if (replay) {
-          if (replay.request_sha256 !== requestHash) {
+          if (Number(replay.actor_admin_id) !== actorId || replay.request_sha256 !== requestHash) {
             const error = new Error('idempotency key was already used with a different review request');
             error.code = 'REVIEW_IDEMPOTENCY_CONFLICT';
             throw error;
@@ -321,15 +321,20 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     } catch (error) {
       if (error && error.code === 'ER_DUP_ENTRY') {
         const existing = await getAsync(
-          'SELECT id, request_sha256, event_hash, action, item_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=?',
+          'SELECT id, request_sha256, event_hash, action, item_id, actor_admin_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=?',
           [merchantId, storeId, batchId, review.idempotencyKey]
         );
-        if (existing && existing.request_sha256 === requestHash) {
-          return { eventId: Number(existing.id), itemId: Number(existing.item_id), action: existing.action, eventHash: existing.event_hash, replayed: true };
+        if (existing) {
+          if (Number(existing.actor_admin_id) === actorId && existing.request_sha256 === requestHash) {
+            return { eventId: Number(existing.id), itemId: Number(existing.item_id), action: existing.action, eventHash: existing.event_hash, replayed: true };
+          }
+          const idempotencyConflict = new Error('idempotency key was already used with a different review request');
+          idempotencyConflict.code = 'REVIEW_IDEMPOTENCY_CONFLICT';
+          throw idempotencyConflict;
         }
-        const conflict = new Error('review idempotency or journal assignment conflict');
-        conflict.code = 'REVIEW_DUPLICATE_ASSIGNMENT';
-        throw conflict;
+        const assignmentConflict = new Error('journal transaction is already assigned to another statement row');
+        assignmentConflict.code = 'REVIEW_DUPLICATE_ASSIGNMENT';
+        throw assignmentConflict;
       }
       throw error;
     }
