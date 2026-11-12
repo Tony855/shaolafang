@@ -395,6 +395,39 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
 
 
 
+
+  async function getPeriodSummary({ merchantId, storeId, from, to, period = 'week' }) {
+    const merchant=positiveId(merchantId,'merchantId'),store=positiveId(storeId,'storeId');
+    const validDate=value=>typeof value==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T00:00:00.000Z'))&&new Date(value+'T00:00:00.000Z').toISOString().slice(0,10)===value;
+    const days=(Date.parse(to+'T00:00:00.000Z')-Date.parse(from+'T00:00:00.000Z'))/86400000;
+    if(!validDate(from)||!validDate(to)||from>to||days>365){const error=new TypeError('date range must be valid and no longer than 366 days');error.code='REVIEW_DATE_RANGE_INVALID';throw error;}
+    if(!['week','month'].includes(period)){const error=new TypeError('period must be week or month');error.code='REVIEW_PERIOD_INVALID';throw error;}
+    const endExclusive=new Date(Date.parse(to+'T00:00:00.000Z')+86400000).toISOString().slice(0,10);
+    const startExpr=period==='week'?"DATE_SUB(DATE(b.imported_at), INTERVAL WEEKDAY(b.imported_at) DAY)":"DATE_FORMAT(b.imported_at,'%Y-%m-01')";
+    const endExpr=period==='week'?"DATE_ADD(DATE_SUB(DATE(b.imported_at), INTERVAL WEEKDAY(b.imported_at) DAY),INTERVAL 6 DAY)":"LAST_DAY(b.imported_at)";
+    const rows=await allAsync(`SELECT DATE_FORMAT(${startExpr},'%Y-%m-%d') AS period_start,
+      DATE_FORMAT(${endExpr},'%Y-%m-%d') AS period_end,b.currency_code,
+      COUNT(*) AS batch_count,SUM(b.row_count) AS statement_row_count,
+      SUM(b.total_debit_minor) AS total_debit_minor,SUM(b.total_credit_minor) AS total_credit_minor,
+      SUM(COALESCE(i.matched_count,0)) AS matched_count,SUM(COALESCE(i.pending_count,0)) AS pending_count,
+      SUM(COALESCE(i.unmatched_count,0)) AS unmatched_count,SUM(COALESCE(i.ambiguous_count,0)) AS ambiguous_count,
+      SUM(COALESCE(i.exception_count,0)) AS exception_count
+      FROM financial_reconciliation_batches b
+      LEFT JOIN (SELECT batch_id,merchant_id,store_id,SUM(match_status='matched') AS matched_count,
+        SUM(match_status='pending') AS pending_count,SUM(match_status='unmatched') AS unmatched_count,
+        SUM(match_status='ambiguous') AS ambiguous_count,SUM(match_status='exception') AS exception_count
+        FROM financial_reconciliation_items GROUP BY batch_id,merchant_id,store_id) i
+      ON i.batch_id=b.id AND i.merchant_id=b.merchant_id AND i.store_id=b.store_id
+      WHERE b.merchant_id=? AND b.store_id=? AND b.imported_at>=? AND b.imported_at<?
+      GROUP BY period_start,period_end,b.currency_code ORDER BY period_start ASC,b.currency_code ASC`,
+      [merchant,store,from+' 00:00:00',endExclusive+' 00:00:00']);
+    const n=value=>Number(value||0);
+    return {period,from,to,rows:rows.map(row=>({periodStart:String(row.period_start).slice(0,10),periodEnd:String(row.period_end).slice(0,10),
+      currencyCode:row.currency_code,batchCount:n(row.batch_count),statementRowCount:n(row.statement_row_count),
+      totalDebitMinor:n(row.total_debit_minor),totalCreditMinor:n(row.total_credit_minor),matchedCount:n(row.matched_count),
+      pendingCount:n(row.pending_count),unmatchedCount:n(row.unmatched_count),ambiguousCount:n(row.ambiguous_count),exceptionCount:n(row.exception_count)}))};
+  }
+
   async function getExceptionOperationsSummary({ merchantId, storeId, slaHours = 24 }) {
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
@@ -576,6 +609,23 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       currencyCode:row.currency_code,amountMinor:Number(row.amount_minor),externalReference:row.external_reference||null,
       assignedAdminUsername:row.assigned_admin_username||null,ageSeconds:Number(row.age_seconds||0)
     }))};
+  }
+
+
+  async function listSlaAlertHistory({ merchantId, storeId, alertId, limit = 50, afterId = 0 }) {
+    const merchant=positiveId(merchantId,'merchantId'),store=positiveId(storeId,'storeId'),alert=positiveId(alertId,'alertId');
+    const bounded=Number(limit),cursor=Number(afterId);
+    if(!Number.isSafeInteger(bounded)||bounded<1||bounded>100||!Number.isSafeInteger(cursor)||cursor<0){const error=new TypeError('alert history pagination is invalid');error.code='EXCEPTION_ALERT_PAGINATION_INVALID';throw error;}
+    const owner=await getAsync('SELECT id FROM financial_reconciliation_exception_alerts WHERE id=? AND merchant_id=? AND store_id=?',[alert,merchant,store]);
+    if(!owner){const error=new Error('alert not found');error.code='EXCEPTION_ALERT_NOT_FOUND';throw error;}
+    const rows=await allAsync(`SELECT id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,created_at
+      FROM financial_reconciliation_exception_alert_events WHERE alert_id=? AND merchant_id=? AND store_id=? AND id<?
+      ORDER BY id DESC LIMIT ?`,[alert,merchant,store,cursor||Number.MAX_SAFE_INTEGER,bounded+1]);
+    const hasMore=rows.length>bounded;if(hasMore)rows.pop();
+    return {alertId:alert,nextCursor:hasMore&&rows.length?Number(rows[rows.length-1].id):null,items:rows.map(row=>({
+      eventId:Number(row.id),actorAdminId:Number(row.actor_admin_id),actorUsername:row.actor_username,action:row.action,
+      reason:row.reason,idempotencyKey:row.idempotency_key,requestHash:row.request_sha256,
+      previousHash:row.previous_hash||'',eventHash:row.event_hash,createdAt:row.created_at}))};
   }
 
   async function acknowledgeSlaAlert(input) {
@@ -1072,7 +1122,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getExceptionOperationsSummary, generateSlaAlerts, listSlaAlerts, acknowledgeSlaAlert, dismissSlaAlert, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
+  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getPeriodSummary, getExceptionOperationsSummary, generateSlaAlerts, listSlaAlerts, listSlaAlertHistory, acknowledgeSlaAlert, dismissSlaAlert, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };
