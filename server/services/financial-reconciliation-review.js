@@ -393,7 +393,252 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
   }
 
 
-  async function listExceptions({ merchantId, storeId, category, from, to, limit = 50, afterId = 0 }) {
+
+  async function transitionExceptionCase({
+    merchantId, storeId, batchId, itemId, actorId, actorUsername,
+    action, assignedAdminId, reason, idempotencyKey
+  }) {
+    const merchant = positiveId(merchantId, 'merchantId');
+    const store = positiveId(storeId, 'storeId');
+    const batch = positiveId(batchId, 'batchId');
+    const item = positiveId(itemId, 'itemId');
+    const actor = positiveId(actorId, 'actorId');
+    const username = String(actorUsername || '').trim();
+    const note = String(reason || '').trim();
+    const allowed = ['assign','unassign','start','add_note','resolve','reopen','close'];
+    if (!allowed.includes(action)) {
+      const error = new TypeError('unsupported exception workflow action');
+      error.code = 'EXCEPTION_WORKFLOW_ACTION_INVALID';
+      throw error;
+    }
+    if (username.length < 1 || username.length > 100 || note.length < 5 || note.length > 500) {
+      const error = new TypeError('actor username or reason is invalid');
+      error.code = 'EXCEPTION_WORKFLOW_INPUT_INVALID';
+      throw error;
+    }
+    const key = String(idempotencyKey || '').trim();
+    if (!/^[A-Za-z0-9._:-]{12,128}$/.test(key)) {
+      const error = new TypeError('idempotencyKey is invalid');
+      error.code = 'EXCEPTION_WORKFLOW_INPUT_INVALID';
+      throw error;
+    }
+    let assigneeId = null;
+    let assigneeUsername = null;
+    if (action === 'assign') {
+      assigneeId = positiveId(assignedAdminId, 'assignedAdminId');
+      const target = await getAsync(
+        'SELECT id, username FROM merchant_admins WHERE id=? AND merchant_id=? AND active=1',
+        [assigneeId, merchant]
+      );
+      if (!target) {
+        const error = new Error('assigned administrator is not active in this merchant');
+        error.code = 'EXCEPTION_WORKFLOW_ASSIGNEE_INVALID';
+        throw error;
+      }
+      assigneeUsername = String(target.username || '').slice(0, 100);
+    } else if (assignedAdminId !== undefined && assignedAdminId !== null && assignedAdminId !== '') {
+      const error = new TypeError('assignedAdminId is only allowed for assign');
+      error.code = 'EXCEPTION_WORKFLOW_INPUT_INVALID';
+      throw error;
+    }
+    const requestHash = stableHash({
+      merchantId: merchant, storeId: store, batchId: batch, itemId: item,
+      actorId: actor, action, assignedAdminId: assigneeId, reason: note
+    });
+    try {
+      return await withTransaction(async () => {
+        const replay = await getAsync(
+          'SELECT id, request_sha256, event_hash, action, actor_admin_id FROM financial_reconciliation_exception_events WHERE merchant_id=? AND store_id=? AND item_id=? AND idempotency_key=? FOR UPDATE',
+          [merchant, store, item, key]
+        );
+        if (replay) {
+          if (Number(replay.actor_admin_id) !== actor || replay.request_sha256 !== requestHash) {
+            const error = new Error('exception workflow idempotency conflict');
+            error.code = 'EXCEPTION_WORKFLOW_IDEMPOTENCY_CONFLICT';
+            throw error;
+          }
+          return { eventId: Number(replay.id), itemId: item, action: replay.action, eventHash: replay.event_hash, replayed: true };
+        }
+        if (typeof lockFinancialMonthPeriod === 'function') {
+          await lockFinancialMonthPeriod({ merchantId: merchant, storeId: store, batchId: batch });
+        }
+        const itemRow = await getAsync(
+          `SELECT i.id, i.batch_id, i.match_status, b.status AS batch_status
+           FROM financial_reconciliation_items i
+           INNER JOIN financial_reconciliation_batches b
+             ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
+           WHERE i.id=? AND i.batch_id=? AND i.merchant_id=? AND i.store_id=? FOR UPDATE`,
+          [item, batch, merchant, store]
+        );
+        if (!itemRow || itemRow.match_status !== 'exception') {
+          const error = new Error('exception item not found in this merchant and store');
+          error.code = 'EXCEPTION_WORKFLOW_NOT_FOUND';
+          throw error;
+        }
+        if (itemRow.batch_status === 'closed') {
+          const error = new Error('closed reconciliation batches cannot be changed');
+          error.code = 'EXCEPTION_WORKFLOW_BATCH_CLOSED';
+          throw error;
+        }
+        await runAsync(
+          `INSERT INTO financial_reconciliation_exception_cases
+             (merchant_id, store_id, batch_id, item_id, status, created_by_admin_id, updated_by_admin_id)
+           VALUES (?, ?, ?, ?, 'open', ?, ?)
+           ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)`,
+          [merchant, store, batch, item, actor, actor]
+        );
+        const current = await getAsync(
+          'SELECT id, batch_id, status, assigned_admin_id, assigned_admin_username, resolution_note FROM financial_reconciliation_exception_cases WHERE merchant_id=? AND store_id=? AND item_id=? FOR UPDATE',
+          [merchant, store, item]
+        );
+        if (!current || Number(current.batch_id || batch) !== batch) {
+          const error = new Error('exception case not found');
+          error.code = 'EXCEPTION_WORKFLOW_NOT_FOUND';
+          throw error;
+        }
+        const before = {
+          status: current.status, assignedAdminId: current.assigned_admin_id === null ? null : Number(current.assigned_admin_id),
+          assignedAdminUsername: current.assigned_admin_username || null,
+          resolutionNote: current.resolution_note || null
+        };
+        const after = { ...before };
+        if (action === 'assign') {
+          if (current.status === 'closed') {
+            const error = new Error('closed exception cases cannot be reassigned');
+            error.code = 'EXCEPTION_WORKFLOW_STATE_CONFLICT';
+            throw error;
+          }
+          after.assignedAdminId = assigneeId;
+          after.assignedAdminUsername = assigneeUsername;
+        } else if (action === 'unassign') {
+          if (current.status === 'closed' || !current.assigned_admin_id) {
+            const error = new Error('exception case cannot be unassigned in its current state');
+            error.code = 'EXCEPTION_WORKFLOW_STATE_CONFLICT';
+            throw error;
+          }
+          after.assignedAdminId = null;
+          after.assignedAdminUsername = null;
+        } else if (action === 'start') {
+          if (current.status !== 'open') {
+            const error = new Error('only open exception cases can be started');
+            error.code = 'EXCEPTION_WORKFLOW_STATE_CONFLICT';
+            throw error;
+          }
+          after.status = 'in_progress';
+        } else if (action === 'resolve') {
+          if (!['open','in_progress'].includes(current.status)) {
+            const error = new Error('only open or in-progress exception cases can be resolved');
+            error.code = 'EXCEPTION_WORKFLOW_STATE_CONFLICT';
+            throw error;
+          }
+          after.status = 'resolved';
+          after.resolutionNote = note;
+        } else if (action === 'close') {
+          if (current.status !== 'resolved') {
+            const error = new Error('only resolved exception cases can be closed');
+            error.code = 'EXCEPTION_WORKFLOW_STATE_CONFLICT';
+            throw error;
+          }
+          after.status = 'closed';
+        } else if (action === 'reopen') {
+          if (!['resolved','closed'].includes(current.status)) {
+            const error = new Error('only resolved or closed exception cases can be reopened');
+            error.code = 'EXCEPTION_WORKFLOW_STATE_CONFLICT';
+            throw error;
+          }
+          after.status = 'open';
+          after.resolutionNote = null;
+        }
+        await runAsync(
+          `UPDATE financial_reconciliation_exception_cases
+           SET status=?, assigned_admin_id=?, assigned_admin_username=?, resolution_note=?, updated_by_admin_id=?
+           WHERE id=? AND merchant_id=? AND store_id=? AND item_id=?`,
+          [after.status, after.assignedAdminId, after.assignedAdminUsername, after.resolutionNote, actor,
+            current.id, merchant, store, item]
+        );
+        const previous = await getAsync(
+          'SELECT event_hash FROM financial_reconciliation_exception_events WHERE merchant_id=? AND store_id=? AND item_id=? ORDER BY id DESC LIMIT 1',
+          [merchant, store, item]
+        );
+        const previousHash = previous?.event_hash || '';
+        const eventHash = stableHash({
+          previousHash, merchantId: merchant, storeId: store, batchId: batch, itemId: item,
+          actorId: actor, actorUsername: username, action, reason: note, before, after,
+          idempotencyKey: key, requestHash
+        });
+        const inserted = await runAsync(
+          `INSERT INTO financial_reconciliation_exception_events
+            (merchant_id, store_id, batch_id, item_id, actor_admin_id, actor_username, action,
+             reason, before_json, after_json, idempotency_key, request_sha256, previous_hash, event_hash)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [merchant, store, batch, item, actor, username, action, note,
+            JSON.stringify(before), JSON.stringify(after), key, requestHash, previousHash, eventHash]
+        );
+        return {
+          eventId: Number(inserted.insertId || inserted.lastID), caseId: Number(current.id), itemId: item,
+          action, status: after.status, assignedAdminId: after.assignedAdminId,
+          assignedAdminUsername: after.assignedAdminUsername, eventHash, replayed: false
+        };
+      });
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') {
+        const conflict = new Error('exception workflow idempotency or case conflict');
+        conflict.code = 'EXCEPTION_WORKFLOW_IDEMPOTENCY_CONFLICT';
+        throw conflict;
+      }
+      throw error;
+    }
+  }
+
+
+  async function listExceptionHistory({ merchantId, storeId, batchId, itemId, limit = 50, afterId = 0 }) {
+    const merchant = positiveId(merchantId, 'merchantId');
+    const store = positiveId(storeId, 'storeId');
+    const batch = positiveId(batchId, 'batchId');
+    const item = positiveId(itemId, 'itemId');
+    const boundedLimit = positiveId(limit, 'limit');
+    if (boundedLimit > 100) throw new TypeError('limit must not exceed 100');
+    const cursor = Number(afterId);
+    if (!Number.isSafeInteger(cursor) || cursor < 0) throw new TypeError('afterId must be a non-negative safe integer');
+    const owner = await getAsync(
+      `SELECT i.id FROM financial_reconciliation_items i
+       INNER JOIN financial_reconciliation_batches b
+         ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
+       WHERE i.id=? AND i.batch_id=? AND i.merchant_id=? AND i.store_id=? AND i.match_status='exception'`,
+      [item, batch, merchant, store]
+    );
+    if (!owner) {
+      const error = new Error('exception item not found in this merchant and store');
+      error.code = 'EXCEPTION_WORKFLOW_NOT_FOUND';
+      throw error;
+    }
+    const rows = await allAsync(
+      `SELECT id, actor_admin_id, actor_username, action, reason, before_json, after_json,
+              previous_hash, event_hash, created_at
+       FROM financial_reconciliation_exception_events
+       WHERE merchant_id=? AND store_id=? AND batch_id=? AND item_id=? AND id<?
+       ORDER BY id DESC LIMIT ?`,
+      [merchant, store, batch, item, cursor || Number.MAX_SAFE_INTEGER, boundedLimit + 1]
+    );
+    const hasMore = rows.length > boundedLimit;
+    if (hasMore) rows.pop();
+    const parse = value => {
+      if (value && typeof value === 'object') return value;
+      if (typeof value !== 'string') return null;
+      try { return JSON.parse(value); } catch (_) { return null; }
+    };
+    return {
+      nextCursor: hasMore && rows.length ? Number(rows[rows.length - 1].id) : null,
+      items: rows.map(row => ({
+        eventId: Number(row.id), actorAdminId: Number(row.actor_admin_id),
+        actorUsername: row.actor_username, action: row.action, reason: row.reason,
+        before: parse(row.before_json), after: parse(row.after_json),
+        previousHash: row.previous_hash || '', eventHash: row.event_hash, createdAt: row.created_at
+      }))
+    };
+  }
+
+  async function listExceptions({ merchantId, storeId, category, caseStatus, from, to, limit = 50, afterId = 0 }) {
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
     const boundedLimit = positiveId(limit, 'limit');
@@ -411,6 +656,17 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     const categories = ['refund', 'fee', 'settlement_difference', 'chargeback', 'other'];
     const filters = ['i.merchant_id=?', 'i.store_id=?', "i.match_status='exception'", 'i.id<?'];
     const params = [merchant, store, cursor || Number.MAX_SAFE_INTEGER];
+    if (caseStatus !== undefined && caseStatus !== null && caseStatus !== '' && caseStatus !== 'all') {
+      const statuses = ['open','in_progress','resolved','closed'];
+      const normalizedStatus = String(caseStatus).trim().toLowerCase();
+      if (!statuses.includes(normalizedStatus)) {
+        const error = new TypeError('unsupported exception case status');
+        error.code = 'REVIEW_EXCEPTION_FILTER_INVALID';
+        throw error;
+      }
+      filters.push("COALESCE(c.status, 'open')=?");
+      params.push(normalizedStatus);
+    }
     if (category !== undefined && category !== null && category !== '') {
       const normalized = String(category).trim().toLowerCase();
       if (!categories.includes(normalized)) {
@@ -443,10 +699,14 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       `SELECT i.id, i.batch_id, i.row_no, i.external_reference, i.transaction_reference,
               i.direction, i.amount_minor, i.currency_code, i.occurred_at, i.description,
               i.exception_category, i.exception_note, i.match_reason,
-              b.provider_code, b.external_batch_id, b.imported_at
+              b.provider_code, b.external_batch_id, b.imported_at,
+              c.id AS case_id, c.status AS case_status, c.assigned_admin_id, c.assigned_admin_username,
+              c.resolution_note, c.updated_at AS case_updated_at
        FROM financial_reconciliation_items i
        INNER JOIN financial_reconciliation_batches b
          ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
+       LEFT JOIN financial_reconciliation_exception_cases c
+         ON c.item_id=i.id AND c.merchant_id=i.merchant_id AND c.store_id=i.store_id
        WHERE ${filters.join(' AND ')}
        ORDER BY i.id DESC LIMIT ?`,
       [...params, boundedLimit + 1]
@@ -462,7 +722,11 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         occurredAt: row.occurred_at, description: row.description || '',
         category: row.exception_category, note: row.exception_note || null,
         matchReason: row.match_reason || null, providerCode: row.provider_code,
-        externalBatchId: row.external_batch_id, importedAt: row.imported_at
+        externalBatchId: row.external_batch_id, importedAt: row.imported_at,
+        caseId: row.case_id === null ? null : Number(row.case_id), caseStatus: row.case_status || 'open',
+        assignedAdminId: row.assigned_admin_id === null ? null : Number(row.assigned_admin_id),
+        assignedAdminUsername: row.assigned_admin_username || null, resolutionNote: row.resolution_note || null,
+        caseUpdatedAt: row.case_updated_at || null
       }))
     };
   }
@@ -576,7 +840,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, listExceptions, listReviewHistory, getMonthlyClosePreview });
+  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };

@@ -134,4 +134,75 @@ async function lockOpenFinancialMonthPeriod({ runAsync, getAsync, merchantId, st
   return period;
 }
 
-module.exports = { ensureFinancialMonthCloseSchema, lockOpenFinancialMonthPeriod };
+
+async function ensureFinancialExceptionWorkflowSchema({ runAsync, allAsync }) {
+  if (typeof runAsync !== 'function' || typeof allAsync !== 'function') {
+    throw new TypeError('runAsync and allAsync are required');
+  }
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS financial_reconciliation_exception_cases (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      merchant_id INT NOT NULL,
+      store_id INT NOT NULL,
+      batch_id BIGINT NOT NULL,
+      item_id BIGINT NOT NULL,
+      status ENUM('open','in_progress','resolved','closed') NOT NULL DEFAULT 'open',
+      assigned_admin_id INT DEFAULT NULL,
+      assigned_admin_username VARCHAR(100) DEFAULT NULL,
+      resolution_note VARCHAR(500) DEFAULT NULL,
+      created_by_admin_id INT NOT NULL,
+      updated_by_admin_id INT NOT NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      UNIQUE KEY unique_finance_exception_case_item (merchant_id, store_id, item_id),
+      KEY idx_finance_exception_case_queue (merchant_id, store_id, status, assigned_admin_id, updated_at),
+      CONSTRAINT fk_finance_exception_case_batch FOREIGN KEY (batch_id)
+        REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT,
+      CONSTRAINT fk_finance_exception_case_item FOREIGN KEY (item_id)
+        REFERENCES financial_reconciliation_items(id) ON DELETE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS financial_reconciliation_exception_events (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      merchant_id INT NOT NULL,
+      store_id INT NOT NULL,
+      batch_id BIGINT NOT NULL,
+      item_id BIGINT NOT NULL,
+      actor_admin_id INT NOT NULL,
+      actor_username VARCHAR(100) NOT NULL,
+      action ENUM('assign','unassign','start','add_note','resolve','reopen','close') NOT NULL,
+      reason VARCHAR(500) NOT NULL,
+      before_json JSON NOT NULL,
+      after_json JSON NOT NULL,
+      idempotency_key VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      request_sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      previous_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT '',
+      event_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      UNIQUE KEY unique_finance_exception_event_idempotency (merchant_id, store_id, item_id, idempotency_key),
+      KEY idx_finance_exception_event_history (merchant_id, store_id, item_id, id),
+      KEY idx_finance_exception_event_actor (merchant_id, store_id, actor_admin_id, created_at),
+      CONSTRAINT fk_finance_exception_event_case FOREIGN KEY (merchant_id, store_id, item_id)
+        REFERENCES financial_reconciliation_exception_cases(merchant_id, store_id, item_id) ON DELETE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  const caseColumns = await allAsync('SHOW COLUMNS FROM financial_reconciliation_exception_cases');
+  const caseNames = new Set(caseColumns.map(column => column.Field));
+  const requiredCaseColumns = [
+    'id','merchant_id','store_id','batch_id','item_id','status','assigned_admin_id',
+    'assigned_admin_username','resolution_note','created_by_admin_id','updated_by_admin_id','created_at','updated_at'
+  ];
+  const missingCaseColumns = requiredCaseColumns.filter(name => !caseNames.has(name));
+  if (missingCaseColumns.length) throw new Error('financial exception case schema is incomplete: ' + missingCaseColumns.join(', '));
+  const eventColumns = await allAsync('SHOW COLUMNS FROM financial_reconciliation_exception_events');
+  const eventNames = new Set(eventColumns.map(column => column.Field));
+  const requiredEventColumns = [
+    'id','merchant_id','store_id','batch_id','item_id','actor_admin_id','actor_username','action',
+    'reason','before_json','after_json','idempotency_key','request_sha256','previous_hash','event_hash','created_at'
+  ];
+  const missingEventColumns = requiredEventColumns.filter(name => !eventNames.has(name));
+  if (missingEventColumns.length) throw new Error('financial exception event schema is incomplete: ' + missingEventColumns.join(', '));
+}
+
+module.exports = { ensureFinancialMonthCloseSchema, ensureFinancialExceptionWorkflowSchema, lockOpenFinancialMonthPeriod };
