@@ -9,6 +9,29 @@ function positiveId(value, field) {
   return number;
 }
 
+
+function safeMinorUnitTotal(value, field) {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number' && !Number.isSafeInteger(value)) {
+    const error = new RangeError(field + ' exceeds JavaScript safe integer precision');
+    error.code = 'REVIEW_TOTAL_PRECISION_UNSAFE';
+    throw error;
+  }
+  const raw = String(value);
+  if (!/^\d+$/.test(raw)) {
+    const error = new TypeError(field + ' must be a non-negative integer total');
+    error.code = 'REVIEW_TOTAL_PRECISION_UNSAFE';
+    throw error;
+  }
+  const exact = BigInt(raw);
+  if (exact > BigInt(Number.MAX_SAFE_INTEGER)) {
+    const error = new RangeError(field + ' exceeds JavaScript safe integer precision');
+    error.code = 'REVIEW_TOTAL_PRECISION_UNSAFE';
+    throw error;
+  }
+  return Number(exact);
+}
+
 function normalizeReason(value) {
   const reason = typeof value === 'string' ? value.trim() : '';
   if (reason.length < 5 || reason.length > 500) {
@@ -424,7 +447,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     const n=value=>Number(value||0);
     return {period,from,to,rows:rows.map(row=>({periodStart:String(row.period_start).slice(0,10),periodEnd:String(row.period_end).slice(0,10),
       currencyCode:row.currency_code,batchCount:n(row.batch_count),statementRowCount:n(row.statement_row_count),
-      totalDebitMinor:n(row.total_debit_minor),totalCreditMinor:n(row.total_credit_minor),matchedCount:n(row.matched_count),
+      totalDebitMinor:safeMinorUnitTotal(row.total_debit_minor,'totalDebitMinor'),totalCreditMinor:safeMinorUnitTotal(row.total_credit_minor,'totalCreditMinor'),matchedCount:n(row.matched_count),
       pendingCount:n(row.pending_count),unmatchedCount:n(row.unmatched_count),ambiguousCount:n(row.ambiguous_count),exceptionCount:n(row.exception_count)}))};
   }
 
@@ -1197,8 +1220,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         currencyCode: row.currency_code,
         batchCount: Number(row.batch_count || 0),
         statementRowCount: Number(row.statement_row_count || 0),
-        totalDebitMinor: Number(row.total_debit_minor || 0),
-        totalCreditMinor: Number(row.total_credit_minor || 0),
+        totalDebitMinor: safeMinorUnitTotal(row.total_debit_minor, 'totalDebitMinor'),
+        totalCreditMinor: safeMinorUnitTotal(row.total_credit_minor, 'totalCreditMinor'),
         closedBatchCount: Number(row.closed_batch_count || 0),
         openBatchCount: Number(row.open_batch_count || 0),
         matchedCount: Number(row.matched_count || 0),
