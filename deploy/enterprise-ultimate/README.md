@@ -72,7 +72,8 @@
 
 ```bash
 # NFS方式
-sudo bash deploy/enterprise-ultimate/cluster/setup-nfs-server.sh
+# 将 192.168.1.0/24 替换为实际应用节点内网网段
+sudo env NFS_CLIENT_CIDR=192.168.1.0/24 bash deploy/enterprise-ultimate/cluster/setup-nfs-server.sh
 ```
 
 ### 步骤2：初始化数据库
