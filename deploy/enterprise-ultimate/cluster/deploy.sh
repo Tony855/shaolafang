@@ -184,7 +184,9 @@ log_info "配置 Systemd 服务..."
 cp deploy/enterprise-ultimate/cluster/foodflow.service /etc/systemd/system/foodflow.service
 systemctl daemon-reload
 systemctl enable foodflow
-chown -R www-data:www-data /var/www/foodflow
+chown -R root:www-data /var/www/foodflow
+install -d -o www-data -g www-data -m 0770 /var/www/foodflow/logs /var/www/foodflow/backups
+install -d -o www-data -g www-data -m 0700 /var/lib/foodflow
 log_success "Systemd 服务配置完成"
 
 # ===== 9. 启动服务 =====
