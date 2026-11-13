@@ -35,10 +35,15 @@ function normalizeTransaction(data) {
   }
   const currency = String(data.currency || '').toUpperCase();
   const amount = String(data.amount === undefined || data.amount === null ? '' : data.amount);
+  const amountNumber = Number(amount);
   const createdDateMs = Number(data.createdDateMs);
+  const acknowledgedDateMs = data.acknowledgedDateMs === undefined || data.acknowledgedDateMs === null
+    ? null : Number(data.acknowledgedDateMs);
   if (!/^(USD|KHR)$/.test(currency) || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(amount) ||
+      !Number.isFinite(amountNumber) || amountNumber <= 0 ||
       !Number.isFinite(createdDateMs) || createdDateMs <= 0 ||
-      typeof data.hash !== 'string' || !data.hash.trim() ||
+      (acknowledgedDateMs !== null && (!Number.isFinite(acknowledgedDateMs) || acknowledgedDateMs <= 0)) ||
+      !/^[a-f0-9]{64}$/i.test(String(data.hash || '')) ||
       typeof data.fromAccountId !== 'string' || !data.fromAccountId.trim() ||
       typeof data.toAccountId !== 'string' || !data.toAccountId.trim()) {
     throw new TypeError('Bakong transaction response is missing required verified fields');
@@ -51,8 +56,7 @@ function normalizeTransaction(data) {
     amount,
     description: String(data.description || ''),
     createdDateMs,
-    acknowledgedDateMs: data.acknowledgedDateMs === undefined || data.acknowledgedDateMs === null
-      ? null : Number(data.acknowledgedDateMs),
+    acknowledgedDateMs,
     trackingStatus: data.trackingStatus === undefined ? null : data.trackingStatus,
     receiverBank: data.receiverBank === undefined ? null : data.receiverBank,
     receiverBankAccount: data.receiverBankAccount === undefined ? null : data.receiverBankAccount
@@ -64,13 +68,18 @@ function createBakongOpenApiClient(options) {
   const baseUrl = normalizeBaseUrl(input.baseUrl);
   const token = typeof input.token === 'string' ? input.token.trim() : '';
   const fetchImpl = input.fetchImpl || globalThis.fetch;
+  const timeoutMs = input.timeoutMs === undefined ? 10000 : Number(input.timeoutMs);
   if (!token) throw new TypeError('Bakong Open API bearer token is required');
   if (typeof fetchImpl !== 'function') throw new TypeError('fetch implementation is required');
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 60000) {
+    throw new TypeError('timeoutMs must be an integer between 100 and 60000');
+  }
 
   async function post(path, body) {
     const response = await fetchImpl(baseUrl + path, {
       method: 'POST',
       redirect: 'error',
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Authorization: 'Bearer ' + token,
         'Content-Type': 'application/json',
