@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #203–#214 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
+Last reviewed: 2026-11-13 (PR #203–#215 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -46,14 +46,14 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- None. PR #214 is merged; no implementation PR is currently open in this workstream.
+- None. PR #215 is merged; no implementation PR is currently open in this workstream.
 
 ## Remaining engineering acceptance work
 
 1. **End-to-end lifecycle regression — core acceptance complete:** PR #196 covers import → journal → suggestion → manual review → month close → export; PR #197 covers imported exception → SLA → resolution; PR #205 covers confirm/release/reconfirm/reassign/reject; PR #207 covers real-MySQL refund/fee/settlement-difference classification. Separate scenarios preserve clear transaction boundaries. PR #200 covers the concurrent journal-assignment race.
 2. **Authorization matrix — core acceptance complete:** PR #204 exercises every registered finance read/history/export/summary/SLA/month-close route, validates every financial SQL read against authenticated merchant/store scope, and rejects spoofed tenant/actor IDs across every registered finance mutation route. Foreign resource IDs and cross-merchant assignee protections are covered by PR #176/#179/#180; export audit scopes by PR #182/#183/#184.
 3. **Data-volume validation — 50k acceptance complete:** PR #166 adds a 2,500-row synthetic pagination correctness test. PR #201 adds the legacy-safe tenant/status/cursor index and real-MySQL 2,500/10,000/50,000-row benchmark. PR #206 extends the 50k case across five batches with mixed categories and pending rows, and verifies category/case-state filters and tenant-store exclusion. Loads above 50k remain an optional capacity exercise, not a blocker for the scoped release.
-4. **Currency and rounding audit — core precision acceptance complete:** PR #185 protects period/month aggregates. PR #203 adds fail-closed safe-integer validation for persisted statement/journal amounts, matching suggestions, exception/SLA views, batch list, journal CSV export, batch replay and journal replay. Provider-specific currency mapping and rounding remain blocked on official provider specifications and finance approval.
+4. **Currency and rounding audit — core precision acceptance complete:** PR #185 protects period/month aggregates. PR #203 adds fail-closed safe-integer validation for persisted statement/journal amounts, matching suggestions, exception/SLA views, batch list, journal CSV export, batch replay and journal replay. Provider-specific currency mapping and rounding remain blocked on merchant-specific account configuration and finance approval.
 5. **Operational recovery — acceptance complete:** PR #186 adds a real-MySQL conflicting-import rollback/replay slice. PR #187 adds populated-database migration rerun/retention coverage. PR #188 adds concurrent month-close lock exclusivity. PR #202 adds full reconciliation/audit/month-close backup and restore coverage, legacy backup compatibility, FK ordering, and interrupted-restore rollback.
 6. **Provider integration boundary:** official public PayWay callback-signature and Bakong Open API specifications have been located and read-only verification helpers are merged. End-to-end activation still requires merchant-specific sandbox credentials, verified outlet/receiver account mapping, callback whitelisting, current outbound request-signing details, and finance-approved amount/currency/order transition rules. Keep live callbacks and settlement automation disabled until those items are tested.
 
@@ -103,6 +103,7 @@ This tracker records merged delivery separately from work that is still under re
 - PR #211 merged: official-spec-based read-only ABA PayWay callback HMAC authentication and Bakong dynamic-KHQR MD5 transaction lookup, including request timeout, strict response validation, and deterministic tests; no live credentials, callback route, order settlement, refund mutation, or journal posting activated.
 - PR #213 merged: enforce the exact NBC MD5-list response status set (SUCCESS, NOT_FOUND, STATIC_QR), retain FAILED only for the single-digest API, and add a negative contract test.
 - PR #214 merged: align the delivery tracker with the merged Bakong contract hardening and keep live provider activation gates explicit.
+- PR #215 merged: reconcile the historical Stage 10 closeout note with later provider-adapter delivery and distinguish code completion from live activation gates.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
