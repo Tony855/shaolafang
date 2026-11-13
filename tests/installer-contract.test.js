@@ -134,6 +134,47 @@ test('minimal first-run verification checks configuration, service, database hea
 });
 
 
+test('cluster NFS exports preserve existing exports and restrict uploads to the application service identity', () => {
+  for (const file of [
+    'deploy/enterprise/cluster/setup-nfs-server.sh',
+    'deploy/enterprise-ultimate/cluster/setup-nfs-server.sh'
+  ]) {
+    const source = read(file);
+    assert.match(source, /root_squash/);
+    assert.match(source, /-m 0770/);
+    assert.match(source, /NFS_CLIENT_CIDR/);
+    assert.match(source, /awk -v export_path/);
+    assert.doesNotMatch(source, /no_root_squash|chmod 777|chown nobody:nogroup/);
+    assert.doesNotMatch(source, /cat > \/etc\/exports/);
+  }
+});
+
+
+test('cluster app deployment requires a writable shared NFS mount and stable www-data identity', () => {
+  for (const file of [
+    'deploy/enterprise/cluster/deploy.sh',
+    'deploy/enterprise-ultimate/cluster/deploy.sh'
+  ]) {
+    const source = read(file);
+    assert.match(source, /groupadd --system --gid 33 www-data/);
+    assert.match(source, /useradd --system --no-create-home --uid 33 --gid 33/);
+    assert.match(source, /mountpoint -q \/mnt\/shared\/uploads/);
+    assert.match(source, /runuser -u www-data -- test -w \/mnt\/shared\/uploads/);
+    assert.doesNotMatch(source, /useradd -r -s \/bin\/false www-data/);
+  }
+});
+
+
+test('enterprise deployment guides reference their own cluster scripts', () => {
+  const enterprise = read('deploy/enterprise/README.md');
+  const ultimate = read('deploy/enterprise-ultimate/README.md');
+  assert.doesNotMatch(enterprise, /deploy\/standard\/cluster\//);
+  assert.match(enterprise, /deploy\/enterprise\/cluster\/deploy\.sh/);
+  assert.doesNotMatch(ultimate, /deploy\/enterprise\/cluster\//);
+  assert.match(ultimate, /deploy\/enterprise-ultimate\/cluster\/deploy\.sh/);
+});
+
+
 test('manual installation guides use the canonical repository and a non-root service account', () => {
   const install = read('INSTALL.md');
   const readme = read('README.md');

@@ -52,7 +52,16 @@ ff_ensure_node
 
 # ===== 3. 创建目录 =====
 log_info "创建目录..."
-id -u www-data &>/dev/null || useradd -r -s /bin/false www-data
+if ! getent group www-data >/dev/null 2>&1; then
+    groupadd --system --gid 33 www-data
+fi
+if ! getent passwd www-data >/dev/null 2>&1; then
+    useradd --system --no-create-home --uid 33 --gid 33 --shell /usr/sbin/nologin www-data
+fi
+if [ "$(id -u www-data)" != "33" ] || [ "$(id -g www-data)" != "33" ]; then
+    log_error "集群 NFS 要求所有应用节点的 www-data UID/GID 为 33:33；请先统一账号 ID"
+    exit 1
+fi
 mkdir -p /var/www/foodflow/{logs,uploads,backups} /etc/foodflow /mnt/shared/uploads
 log_success "目录创建完成"
 
@@ -116,10 +125,23 @@ if [ -z "${TRUST_PROXY:-}" ] || [ "${TRUST_PROXY}" = "loopback" ] || [ "${TRUST_
 fi
 log_success "数据库、Redis 和可信代理配置检查通过"
 
-# ===== 7. 配置 NFS（可选，需要用户手动配置服务器地址） =====
-log_info "NFS 共享存储配置..."
-log_warn "NFS 服务器地址需要手动配置，请编辑 /etc/foodflow/.env 中的 NFS_SERVER"
-log_warn "然后手动执行: mount -t nfs \$NFS_SERVER:/export/uploads /mnt/shared/uploads"
+# Cluster nodes must use the shared NFS mount, not a node-local uploads directory.
+if [ "${UPLOAD_DIR:-/mnt/shared/uploads}" != "/mnt/shared/uploads" ]; then
+    log_error "集群 UPLOAD_DIR 必须设置为 /mnt/shared/uploads（与 systemd ReadWritePaths 一致）"
+    exit 1
+fi
+if ! mountpoint -q /mnt/shared/uploads; then
+    log_error "NFS 上传目录尚未挂载；请先挂载 NFS_SERVER:/export/uploads 到 /mnt/shared/uploads"
+    exit 1
+fi
+if ! runuser -u www-data -- test -w /mnt/shared/uploads; then
+    log_error "www-data（UID/GID 33:33）无法写入 NFS 上传目录；请检查服务端目录属主/权限和 root_squash 配置"
+    exit 1
+fi
+log_success "NFS 上传挂载及 www-data 写入权限验证通过"
+
+# ===== 7. NFS 已在上方完成挂载与权限验证 =====
+log_info "NFS 共享存储已验证，继续配置应用服务..."
 
 # ===== 8. 配置 Systemd =====
 log_info "配置 Systemd 服务..."
