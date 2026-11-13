@@ -52,17 +52,33 @@ prepare_deploy_key() {
 
 # ===== 已安装时的更新模式 =====
 update_existing_install() {
-    log_step "检测到已安装，委托统一的事务式升级流程"
+    log_step "检测到已安装，先获取目标版本的事务式升级器"
     local target="$APP_DIR"
+    local updater_tmp
     if [ ! -d "$target/.git" ]; then
         log_error "现有安装目录不是 Git 仓库；为防止覆盖生产文件，自动更新已中止。请先完成备份并迁移到 Git 管理目录。"
         return 1
     fi
-    if [ ! -f "$target/remote-update.sh" ]; then
-        log_error "缺少 remote-update.sh；拒绝使用旧的非事务式更新逻辑。"
+    if [ -n "$(git -C "$target" status --porcelain --untracked-files=normal)" ]; then
+        log_error "目标目录存在未提交或未跟踪文件，拒绝覆盖。"
+        git -C "$target" status --short
         return 1
     fi
-    FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$target/remote-update.sh"
+    git -C "$target" fetch --no-tags origin "$GIT_VERSION" || { log_error "获取 $GIT_VERSION 失败"; return 1; }
+    updater_tmp="$(mktemp /tmp/foodflow-remote-update.XXXXXX)"
+    if ! git -C "$target" show FETCH_HEAD:remote-update.sh > "$updater_tmp"; then
+        rm -f "$updater_tmp"
+        log_error "目标版本缺少 remote-update.sh；拒绝执行旧版更新逻辑。"
+        return 1
+    fi
+    chmod 0700 "$updater_tmp"
+    if FF_APP_DIR="$target" FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$updater_tmp"; then
+        rm -f "$updater_tmp"
+        return 0
+    fi
+    local rc=$?
+    rm -f "$updater_tmp"
+    return "$rc"
 }
 
 # 脚本所在目录
