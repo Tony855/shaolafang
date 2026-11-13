@@ -121,22 +121,23 @@ test('all deployment entrypoints share a lock and never kill arbitrary port owne
   ];
   for (const file of entries) {
     const source = read(file);
-    assert.match(source, /deploy-safety\\.sh/, file + ' must load deployment safety');
-    assert.match(source, /ff_acquire_deploy_lock/, file + ' must serialize deployment');
-    assert.doesNotMatch(source, /fuser\\s+-k/, file + ' must not kill an unknown port owner');
+    assert.ok(source.includes('deploy-safety.sh'), file + ' must load deployment safety');
+    assert.ok(source.includes('ff_acquire_deploy_lock'), file + ' must serialize deployment');
+    assert.ok(!source.includes('fuser -k'), file + ' must not kill an unknown port owner');
   }
-  assert.match(read('scripts/lib/deploy-safety.sh'), /ff_require_port_available/);
-  assert.match(read('install.sh'), /ff_require_port_available 3000/);
-  assert.match(read('install-local.sh'), /ff_require_port_available 3000/);
+  assert.ok(read('scripts/lib/deploy-safety.sh').includes('ff_require_port_available'));
+  assert.ok(read('install.sh').includes('ff_require_port_available 3000'));
+  assert.ok(read('install-local.sh').includes('ff_require_port_available 3000'));
 });
 
 test('scheduled database backups do not embed passwords in executable scripts', () => {
   const local = read('install-local.sh');
-  assert.match(local, /backup\\.cnf/);
-  assert.match(local, /chmod 0600 \\"\\$CONFIG_DIR\\/backup\\.cnf\\"/);
-  assert.match(local, /--defaults-extra-file=\\/etc\\/foodflow\\/backup\\.cnf/);
-  assert.doesNotMatch(local, /mysqldump\\s+-u\\s+foodflow\\s+-p/);
+  assert.ok(local.includes('backup.cnf'));
+  assert.ok(local.includes('chmod 0600 "$CONFIG_DIR/backup.cnf"'));
+  assert.ok(local.includes('--defaults-extra-file=/etc/foodflow/backup.cnf'));
+  assert.ok(!local.includes('mysqldump -u foodflow -p'));
 });
+
 test('first install defaults to a minimal single-node path and keeps advanced services opt-in', () => {
   const installer = read('install.sh');
   const local = read('install-local.sh');
