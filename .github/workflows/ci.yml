@@ -79,8 +79,8 @@ jobs:
       - name: Strict language validation
         run: npm run check:lang:strict
 
-      - name: Run tests when defined
-        run: npm test --if-present
+      - name: Run repository test suite
+        run: npm test
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
@@ -92,8 +92,6 @@ jobs:
       fail-fast: false
       matrix:
         mariadb-version: ["10.5", "10.11"]
-    env:
-      MYSQL_INTEGRATION_URL: mysql://root:finance_test_password@127.0.0.1:3306/shaolafang_test
     services:
       mariadb:
         image: mariadb:${{ matrix.mariadb-version }}
@@ -120,7 +118,12 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Run financial integration and backup/restore tests on MariaDB
+      - name: Run complete repository test suite (database integration is isolated below)
+        run: npm test -- --test-concurrency=1
+
+      - name: Run MariaDB finance integration and backup/restore sequentially
+        env:
+          MYSQL_INTEGRATION_URL: mysql://root:finance_test_password@127.0.0.1:3306/shaolafang_test
         run: node --test tests/mysql-finance-integration.test.js && node --test tests/mysql-finance-backup-restore.test.js
 
   mysql-finance-integration:
