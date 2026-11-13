@@ -464,15 +464,17 @@ fi
 
 # ===== 可选：自动备份（默认不创建含数据库凭据的 cron 脚本） =====
 if [ "$FF_CONFIGURE_BACKUP_CRON" = "1" ]; then
-    log_warn "FF_CONFIGURE_BACKUP_CRON=1 已启用；自动备份脚本会在受限目录保存数据库凭据，请限制文件访问。"
+    log_info "FF_CONFIGURE_BACKUP_CRON=1 已启用；数据库凭据单独保存在 root-only 配置文件中。"
     install -d -o root -g root -m 0700 "$CONFIG_DIR"
     umask 077
-    printf '[client]\\nhost=127.0.0.1\\nuser=foodflow\\npassword="%s"\\n' "$DB_RANDOM_PASSWORD" > "$CONFIG_DIR/backup.cnf"
+    printf '[client]\nhost=127.0.0.1\nuser=foodflow\npassword="%s"\n' "$DB_RANDOM_PASSWORD" > "$CONFIG_DIR/backup.cnf"
     chown root:root "$CONFIG_DIR/backup.cnf"
     chmod 0600 "$CONFIG_DIR/backup.cnf"
     BACKUP_SCRIPT="$APP_DIR/backups/auto-backup.sh"
     cat > "$BACKUP_SCRIPT" << EOF
-#!/bin/bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="$APP_DIR/backups"
 mkdir -p "$BACKUP_DIR"
@@ -481,7 +483,8 @@ gzip "$BACKUP_DIR/db_$DATE.sql"
 RETENTION=7
 find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +$RETENTION -delete
 EOF
-    chmod 700 "$BACKUP_SCRIPT"
+    chown root:root "$BACKUP_SCRIPT"
+    chmod 0700 "$BACKUP_SCRIPT"
     (crontab -l 2>/dev/null | grep -v "auto-backup.sh"; echo "0 3 * * * $BACKUP_SCRIPT") | crontab -
     log_success "每日自动备份已配置（凌晨3点，保留7天）"
 else
