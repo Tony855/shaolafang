@@ -65,9 +65,14 @@ chmod 0644 "${TEMP_EXPORTS}"
 mv "${TEMP_EXPORTS}" /etc/exports
 trap - EXIT
 
-exportfs -ra
-systemctl restart nfs-kernel-server
 systemctl enable nfs-kernel-server
+if systemctl is-active --quiet nfs-kernel-server; then
+    # Reload exports without restarting the server or interrupting existing NFS clients.
+    exportfs -ra
+else
+    systemctl start nfs-kernel-server
+    exportfs -ra
+fi
 
 # NFSv4 使用 TCP/2049；仅为指定应用网段添加规则，不清空现有防火墙规则。
 if command -v ufw >/dev/null 2>&1; then
