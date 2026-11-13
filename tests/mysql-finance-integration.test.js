@@ -2166,12 +2166,13 @@ test('MySQL integration: unsafe persisted BIGINT minor-unit values fail closed b
   timeout: 45000
 }, async t => {
   const db = await connectTestDatabase();
+  // Child tables are dropped before the journal and batch parents.
   const tables = [
     'financial_reconciliation_review_events',
     'financial_journal_entries',
-    'financial_journal_transactions',
     'financial_reconciliation_items',
-    'financial_reconciliation_batches'
+    'financial_reconciliation_batches',
+    'financial_journal_transactions'
   ];
   t.after(async () => {
     try {
