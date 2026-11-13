@@ -112,7 +112,7 @@ test('Bakong batch verification enforces the 50-item limit and maps responses by
     baseUrl: 'https://sit-api-bakong.nbc.gov.kh',
     token: 'test-token',
     fetchImpl: async (_url, options) => {
-      assert.deepEqual(JSON.parse(options.body), { md5: [first, second] });
+      assert.deepEqual(JSON.parse(options.body), [first, second]);
       return {
         ok: true,
         json: async () => ({
