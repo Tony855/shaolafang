@@ -142,6 +142,19 @@ test('authenticated tenant scope overrides spoofed merchant and store IDs across
     getAsync: async (sql, params = []) => {
       observations.push({ kind: 'get', sql, params });
       if (sql.includes('SELECT username FROM merchant_admins')) return { username: 'finance-admin' };
+      if (sql.includes('FROM financial_reconciliation_batches')) {
+        return { id: 12, status: 'imported', currency_code: 'USD', row_count: 1 };
+      }
+      if (sql.includes('FROM financial_reconciliation_exception_alerts')) {
+        return { id: 56, batch_id: 12, item_id: 34, merchant_id: 41, store_id: 93,
+          alert_type: 'sla_overdue', status: 'pending' };
+      }
+      if (sql.includes('FROM financial_reconciliation_items i') && sql.includes("match_status='exception'")) {
+        return { id: 34 };
+      }
+      if (sql.includes('FROM financial_reconciliation_exception_cases')) {
+        return { id: 1, batch_id: 12, item_id: 34, merchant_id: 41, store_id: 93, status: 'open' };
+      }
       return null;
     },
     allAsync: async (sql, params = []) => {
@@ -159,42 +172,106 @@ test('authenticated tenant scope overrides spoofed merchant and store IDs across
       merchantId: spoofed[0], storeId: spoofed[1], adminId: spoofed[2],
       from: '2026-11-01', to: '2026-11-12', period: 'day',
       month: '2026-11', currencyCode: 'USD', slaHours: '24',
-      limit: '25'
+      limit: '25', afterRowNo: '0', batchId: '12', itemId: '34',
+      alertId: '56'
     },
-    params: { batchId: '12', itemId: '34' },
+    params: { batchId: '12', itemId: '34', alertId: '56' },
     body: {},
     get: () => undefined
   };
 
   const cases = [
-    ['GET /api/admin/financial-reconciliation/batches', 'all'],
-    ['GET /api/admin/financial-reconciliation/period-summary', 'all'],
-    ['GET /api/admin/financial-reconciliation/month-close/period', 'get'],
-    ['GET /api/admin/financial-reconciliation/batches/:batchId/items', 'get'],
-    ['GET /api/admin/financial-reconciliation/exceptions/performance-export-audit', 'all']
+    { route: 'GET /api/admin/financial-reconciliation/batches' },
+    { route: 'GET /api/admin/financial-reconciliation/batches/:batchId/items',
+      dataQuery: 'FROM financial_reconciliation_items' },
+    { route: 'GET /api/admin/financial-reconciliation/review-history' },
+    { route: 'GET /api/admin/financial-reconciliation/journal-export' },
+    { route: 'GET /api/admin/financial-reconciliation/month-close/period' },
+    { route: 'GET /api/admin/financial-reconciliation/month-close/history' },
+    { route: 'GET /api/admin/financial-reconciliation/monthly-close-preview' },
+    { route: 'GET /api/admin/financial-reconciliation/daily-summary' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/alerts' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/alerts/:alertId/history',
+      dataQuery: 'FROM financial_reconciliation_exception_alert_events' },
+    { route: 'GET /api/admin/financial-reconciliation/period-summary' },
+    { route: 'GET /api/admin/financial-reconciliation/period-report-export' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/performance-summary' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/performance-export' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/performance-export-audit' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/operations-summary' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/:itemId/history',
+      dataQuery: 'FROM financial_reconciliation_exception_events' }
   ];
 
-  for (const [route, expectedKind] of cases) {
+  for (const { route, dataQuery } of cases) {
     const handler = routes.get(route)?.at(-1);
     assert.equal(typeof handler, 'function', 'missing route ' + route);
     const before = observations.length;
     const res = response();
     await handler(request, res);
     assert.notEqual(res.statusCode, 403, route + ' must accept the authenticated tenant context');
-    const query = observations.slice(before).find(item => item.kind === expectedKind);
-    assert.ok(query, route + ' must execute its expected tenant-scoped query');
-    assert.match(query.sql, /merchant_id|merchantId|merchant_admins/i,
-      route + ' query must contain an explicit merchant ownership predicate');
-    assert.ok(query.params.includes(merchantId),
-      route + ' must bind the authenticated merchant ID');
-    assert.ok(!query.params.some(value => spoofed.includes(String(value))),
-      route + ' must not bind attacker-supplied tenant or actor IDs');
-    if (route === 'GET /api/admin/financial-reconciliation/exceptions/performance-export-audit') {
-      assert.ok(query.params.some(value => typeof value === 'string' && value.includes('"store_id":' + storeId)),
-        route + ' must filter audit details by the authenticated store ID');
-    } else {
-      assert.ok(query.params.includes(storeId),
-        route + ' must bind the authenticated store ID');
+    const routeReads = observations.slice(before).filter(item =>
+      ['get', 'all'].includes(item.kind) &&
+      /financial_|audit_logs/i.test(item.sql)
+    );
+    const hasScopeValue = (params, key, id) => params.some(value =>
+      String(value) === String(id) ||
+      (typeof value === 'string' && value.includes('"' + key + '":' + id))
+    );
+    const resultQuery = dataQuery
+      ? routeReads.find(item => item.sql.includes(dataQuery))
+      : routeReads[0];
+    assert.ok(resultQuery, route + ' must execute its expected financial read query' +
+      (dataQuery ? ' for result rows' : ''));
+    assert.ok(routeReads.length > 0, route + ' must execute at least one financial read');
+    for (const query of routeReads) {
+      assert.ok(hasScopeValue(query.params, 'merchant_id', merchantId),
+        route + ' every financial read must bind the authenticated merchant ID: ' + query.sql);
+      assert.ok(hasScopeValue(query.params, 'store_id', storeId),
+        route + ' every financial read must bind the authenticated store ID: ' + query.sql);
+      const serializedSpoofed = query.params.some(value =>
+        typeof value === 'string' && spoofed.some(id =>
+          value === id ||
+          value.includes('"merchant_id":' + id) ||
+          value.includes('"store_id":' + id) ||
+          value.includes('"admin_id":' + id) ||
+          value.includes('"actor_id":' + id)
+        )
+      );
+      assert.ok(!serializedSpoofed,
+        route + ' must not embed spoofed tenant or actor IDs in any financial read');
     }
   }
+});
+
+
+test('every financial mutation route rejects body/query actor spoofing when authenticated actor context is absent', async () => {
+  const { routes, getDatabaseCalls } = setup();
+  const mutationRoutes = [
+    'POST /api/admin/financial-reconciliation/batches/import',
+    'POST /api/admin/financial-reconciliation/month-close/transition',
+    'POST /api/admin/financial-reconciliation/exceptions/alerts/generate',
+    'POST /api/admin/financial-reconciliation/exceptions/alerts/:alertId/acknowledge',
+    'POST /api/admin/financial-reconciliation/exceptions/alerts/:alertId/dismiss',
+    'POST /api/admin/financial-reconciliation/exceptions/:itemId/workflow',
+    'POST /api/admin/financial-reconciliation/items/:itemId/review'
+  ];
+  for (const route of mutationRoutes) {
+    const handler = routes.get(route)?.at(-1);
+    assert.equal(typeof handler, 'function', 'missing route ' + route);
+    const res = response();
+    await handler({
+      merchantId: 41, storeId: 93,
+      query: { adminId: '777', merchantId: '999', storeId: '888' },
+      params: { itemId: '34', alertId: '56' },
+      body: {
+        adminId: 777, actorId: 777, merchantId: 999, storeId: 888,
+        batchId: 12, action: 'confirm', reason: 'spoofed actor'
+      },
+      get: () => 'spoofed-idempotency-key'
+    }, res);
+    assert.equal(res.statusCode, 403, route + ' must require an authenticated finance actor');
+  }
+  assert.equal(getDatabaseCalls(), 0, 'actor spoofing must be rejected before any database access');
 });

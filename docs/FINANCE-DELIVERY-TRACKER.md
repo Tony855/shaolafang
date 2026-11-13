@@ -46,7 +46,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- **Persisted minor-unit precision hardening:** PR #203 centralizes safe integer validation for statement, journal, exception, SLA, batch summary, and replay paths; final-head CI and review are pending.
+- **Authenticated finance scope matrix:** PR #204 exercises all finance read/history/export/summary/SLA/month-close routes against authenticated merchant/store context, scans serialized tenant filters for spoofed IDs, and verifies mutation routes reject body/query actor spoofing before database access.
 - **MySQL-backed workflow scope:** PR #177/#178 cover month-close and exception/SLA schema/constraint slices; PR #186–#197 cover import, migration reruns, locking, journal posting/export, matching, review, exception/SLA, month-close and cross-service paths. PR #199 hardens exact review replay under concurrency. Remaining work is tracked below.
 
 ## Remaining engineering acceptance work
@@ -54,7 +54,7 @@ This tracker records merged delivery separately from work that is still under re
 1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #196 covers import-to-close-export; PR #197 covers imported-exception-to-SLA. These are distinct business branches, not yet one shared scenario covering every possible outcome. PR #200 separately verifies the concurrent journal-assignment race against real MySQL.
 2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172); representative authenticated read-query scoping is covered (PR #173); review mutation and audit query scoping is covered by PR #174; foreign review/SLA/exception workflow resource IDs are covered by PR #176/#179; cross-merchant exception assignee ownership is covered by PR #180; month-close transition context is covered by PR #181. Journal and period-report export audit scopes are covered by PR #182/#183; exception-performance audit filter spoofing is covered by PR #184. Remaining export/admin ownership cases still need explicit acceptance tests.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. PR #201 is merged with a legacy-safe tenant/status/cursor index, real-MySQL 2,500/10,000/50,000-row benchmark, EXPLAIN assertion, and complete 50,000-row cursor walk. Broader multi-batch mixed-workload stress beyond 50k remains a later capacity test.
-4. **Currency and rounding audit:** PR #185 protects period/month aggregates. PR #203 extends fail-closed safe-integer validation to persisted statement/journal amounts, matching suggestions, exception/SLA views, batch replay and journal replay; review and CI pending. Continue checking remaining reporting/export paths for integer minor-unit consistency and currency separation.
+4. **Currency and rounding audit:** PR #185 protects period/month aggregates. PR #203 is merged with fail-closed safe-integer validation for persisted statement/journal amounts, matching suggestions, exception/SLA views, batch list, journal CSV export, batch replay and journal replay. Remaining checks are limited to provider-specific currency semantics, which require official provider and finance approval.
 5. **Operational recovery:** PR #186 adds a real-MySQL conflicting-import rollback/replay slice. PR #187 adds populated-database migration rerun/retention coverage. PR #188 adds concurrent month-close lock exclusivity. PR #202 adds full reconciliation/audit/month-close backup and restore coverage; final-head MySQL restore/rollback checks remain required before this gate is complete.
 6. **Provider integration boundary:** keep bank/payment provider verification and external notifications disabled until real credentials, signature verification rules, supported currencies, and delivery policies are explicitly supplied and tested.
 
@@ -93,7 +93,8 @@ This tracker records merged delivery separately from work that is still under re
 - PR #200 merged: real-MySQL two-connection race proves one Ledger transaction cannot be assigned to two statement rows; the loser leaves no review event (`0c7a5f5752d262c60033c0163d08d17fce6a0e7c`); final-head CI and Codex review passed.
 - PR #201 merged: legacy-safe tenant/status/cursor index, real-MySQL 2.5k/10k/50k benchmark and complete 50k cursor walk; final EXPLAIN selected the intended index (`fcb3d0bdbaedebf8f1cb297ac2f9da7e878c8af2`).
 - PR #202 merged: full financial backup/restore graph, legacy backup compatibility, JSON-column restore serialization, FK order and MySQL interrupted-restore rollback (`96aa43acb89ff2346b350ca5b95dbb340c5d3a22`).
-- PR #203 open: safe integer minor-unit validation across persisted statement/journal/exception/SLA values and replay comparisons; CI pending.
+- PR #203 merged: exact integer minor-unit validation across review, exception/SLA, batch list, journal CSV, batch replay and journal replay; real MySQL overflow tests reject before mutation (`dda087c59370ba5efc800a6117e89946d7cd0ad9`).
+- PR #204 open: authenticated tenant/store and actor spoofing matrix across finance read/export/history/mutation routes; final-head CI and review pending.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
