@@ -135,6 +135,31 @@ test('Bakong batch verification enforces the 50-item limit and maps responses by
     /between 1 and 50/);
 });
 
+test('Bakong client bounds request time and rejects zero or malformed transaction data', async () => {
+  assert.throws(() => createBakongOpenApiClient({
+    baseUrl: 'https://sit-api-bakong.nbc.gov.kh',
+    token: 'test-token',
+    timeoutMs: 99,
+    fetchImpl: async () => ({ ok: true, json: async () => ({}) })
+  }), /timeoutMs/);
+  const client = createBakongOpenApiClient({
+    baseUrl: 'https://sit-api-bakong.nbc.gov.kh',
+    token: 'test-token',
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        responseCode: 0,
+        data: {
+          hash: 'f'.repeat(64), fromAccountId: 'payer@bank', toAccountId: 'merchant@bank',
+          currency: 'USD', amount: '0', createdDateMs: 1760000000000
+        }
+      })
+    })
+  });
+  await assert.rejects(client.checkTransactionByMd5('a'.repeat(32)),
+    /missing required verified fields/);
+});
+
 test('Bakong client rejects unsafe URLs, invalid digests, duplicate batch IDs and provider errors', async () => {
   assert.throws(() => createBakongOpenApiClient({
     baseUrl: 'http://example.com', token: 'x', fetchImpl: async () => ({})
