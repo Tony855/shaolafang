@@ -146,6 +146,8 @@ test('cluster NFS exports preserve existing exports and restrict uploads to the 
     assert.match(source, /-m 0770/);
     assert.match(source, /NFS_CLIENT_CIDR/);
     assert.match(source, /awk -v export_path/);
+    assert.ok(source.includes('exportfs -ra'));
+    assert.ok(!source.includes('systemctl restart nfs-kernel-server'));
     assert.doesNotMatch(source, /no_root_squash|chmod 777|chown nobody:nogroup/);
     assert.doesNotMatch(source, /cat > \/etc\/exports/);
   }
