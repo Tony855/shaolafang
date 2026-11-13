@@ -116,7 +116,7 @@ test('deployment safety serializes installers and protects dirty worktrees', () 
   assert.ok(read('install.sh').includes('git -C "$target" show FETCH_HEAD:remote-update.sh'));
   assert.ok(read('install.sh').includes('FF_APP_DIR="$target" FF_DEPLOY_SAFETY_LIB="$safety_tmp"'));
   assert.ok(read('install.sh').includes('FETCH_HEAD:scripts/lib/deploy-safety.sh'));
-  assert.ok(read('install.sh').includes('FF_APP_DIR="$target" FF_DEPLOY_LOCK_HELD=1'));
+  assert.ok(read('install.sh').includes('FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$updater_tmp"'));
 });
 
 test('all deployment entrypoints share a lock and never kill arbitrary port owners', () => {
