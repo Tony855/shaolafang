@@ -887,7 +887,6 @@ npm --version
 
 ```bash
 sudo systemctl status mariadb
-sudo systemctl status mariadb
 sudo ss -lntp | grep 3306
 mariadb -h 127.0.0.1 -P 3306 -u foodflow -p
 ```
