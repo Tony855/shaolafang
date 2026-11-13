@@ -80,7 +80,7 @@ jobs:
         run: npm run check:lang:strict
 
       - name: Run tests when defined
-        run: npm test --if-present
+        run: npm test -- --test-concurrency=1 --if-present
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
