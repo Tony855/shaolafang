@@ -351,6 +351,7 @@ test('reconciliation imports acquire the month lock before any batch write', asy
 test('manual reconciliation reviews acquire the month lock before batch or item mutation', async () => {
   const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
   const reads = [];
+  let lockCalls = 0;
   const service = createFinancialReconciliationReviewService({
     runAsync: async () => ({ insertId: 1 }),
     getAsync: async sql => {
@@ -360,6 +361,7 @@ test('manual reconciliation reviews acquire the month lock before batch or item 
     allAsync: async () => [],
     withTransaction: async work => work(),
     lockFinancialMonthPeriod: async () => {
+      lockCalls += 1;
       const error = new Error('period is locked');
       error.code = 'FINANCIAL_MONTH_LOCKED';
       throw error;
@@ -371,8 +373,9 @@ test('manual reconciliation reviews acquire the month lock before batch or item 
     reason: 'Rejecting a row while testing period lock enforcement',
     idempotencyKey: 'month-review-locked-0001'
   }), error => error.code === 'FINANCIAL_MONTH_LOCKED');
-  assert.equal(reads.length, 1);
-  assert.match(reads[0], /financial_reconciliation_review_events/);
+  assert.equal(lockCalls, 1);
+  assert.equal(reads.length, 0,
+    'a locked month must reject before idempotency, batch, or item queries');
 });
 
 
