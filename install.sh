@@ -5,7 +5,7 @@
 # 用法：sudo bash install.sh
 # ============================================================
 
-set -e
+set -Ee
 
 # 设置非交互模式，避免 apt 安装时弹出键盘布局等交互界面
 export DEBIAN_FRONTEND=noninteractive
@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/scripts/lib/system-deps.sh"
 # shellcheck source=scripts/lib/deploy-safety.sh
 source "$SCRIPT_DIR/scripts/lib/deploy-safety.sh"
+ff_enable_error_trap
 ff_acquire_deploy_lock
 
 # 颜色定义
