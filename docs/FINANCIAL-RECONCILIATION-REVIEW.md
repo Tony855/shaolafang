@@ -173,8 +173,8 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 
 ## Manual-review concurrency hardening
 
-- Manual review now locks the authenticated merchant/store reconciliation batch before probing the tenant/batch-scoped idempotency key.
-- This gives concurrent reviews on the same batch one stable serialization point and avoids InnoDB REPEATABLE READ gap-lock deadlocks when the idempotency key does not yet exist.
-- Exact idempotent replays are still checked before the closed-batch mutation guard, so a committed request can be safely retried after month close without creating another event.
+- Manual review first performs a non-locking, tenant/batch-scoped idempotency preflight. If the key is absent, it acquires the month-period lock, locks the reconciliation batch, and performs a current `FOR UPDATE` idempotency recheck before any item mutation.
+- The non-locking preflight avoids InnoDB REPEATABLE READ gap locks for missing keys. The batch row serializes same-batch requests before the locking recheck, while period-before-batch ordering remains consistent with statement import.
+- Exact committed replays return before the month lock. If a concurrent replay commits after the transaction snapshot and month close wins the period lock, a current locking recheck under that mutex still returns the committed event. Replays are also checked before the closed-batch mutation guard.
 - The MySQL 8.4 integration test races two independent connections with the same request and asserts one durable review event and one replay response. A unit regression test covers lock order and closed-batch replay.
 - No schema change is required: the existing unique tenant/store/batch idempotency key and unique nullable journal-assignment index remain the database enforcement points.
