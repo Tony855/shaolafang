@@ -137,12 +137,13 @@ test('minimal first-run verification checks configuration, service, database hea
 test('manual installation guides use the canonical repository and a non-root service account', () => {
   const install = read('INSTALL.md');
   const readme = read('README.md');
-  assert.match(install, /github\\.com\\/Tony855\\/shaolafang\\.git/);
-  assert.match(install, /DB_USER=foodflow/);
-  assert.match(install, /DB_DATABASE=foodflow_system/);
-  assert.match(install, /User=foodflow[\\s\\S]*Group=www-data/);
-  assert.doesNotMatch(install, /DB_USER=root|User=root/);
-  assert.doesNotMatch(install, /ufw allow 3000\\/tcp/);
-  assert.match(readme, /User=foodflow[\\s\\S]*Group=www-data/);
-  assert.doesNotMatch(readme, /User=foodflow\\s*\\nGroup=foodflow/);
+  assert.ok(install.includes('https://github.com/Tony855/shaolafang.git'));
+  assert.ok(install.includes('DB_USER=foodflow'));
+  assert.ok(install.includes('DB_DATABASE=foodflow_system'));
+  assert.ok(install.includes('User=foodflow\nGroup=www-data'));
+  assert.ok(!install.includes('DB_USER=root'));
+  assert.ok(!install.includes('User=root'));
+  assert.ok(!install.includes('ufw allow 3000/tcp'));
+  assert.ok(readme.includes('User=foodflow\nGroup=www-data'));
+  assert.ok(!readme.includes('User=foodflow\nGroup=foodflow'));
 });
