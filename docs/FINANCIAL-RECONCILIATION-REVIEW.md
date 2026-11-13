@@ -230,3 +230,21 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - Exact replay returns the original event and does not add a second audit row.
 - The integration test asserts original statement `amount_minor` and `currency_code` remain byte-for-byte/numerically unchanged, no journal assignment is created, and only classification/status/note fields change.
 - No refund amount, order balance, payment state, bank-provider signature, FX conversion, or account mapping semantics are changed.
+
+
+## Stage 10 provider-neutral closeout (PRs #203–#207 and #209)
+
+- Persisted minor-unit precision guards fail closed on unsafe BIGINT/SUM values without changing refund amount semantics.
+- Authenticated finance scope tests cover every registered finance read route and mutation-route actor spoofing; each financial read must bind the authenticated merchant and store.
+- Real-MySQL manual review covers confirm, release, reconfirm, reassign and reject, including exact replay and recomputed immutable audit hashes.
+- Real-MySQL exception classification covers refund, fee and settlement-difference categories; statement amount and currency are asserted unchanged, and classification creates no journal assignment or accounting entry.
+- Real-MySQL exception queue capacity covers 50,000 exception rows across five batches, five categories, pending-row exclusion, resolved-case filtering, cursor uniqueness/order, and tenant/store isolation.
+- All PRs #203–#207 and #209 are merged. Final PR-head CI and installer compatibility passed; no production migration, deployment, provider webhook verification, or live financial operation was performed.
+- Provider-specific verification/signature handling, currency mapping, FX/rounding rules, and external notifications are not claimed complete: these require official provider documentation, real credentials, supported-currency declarations, and finance approval. Until then the provider-neutral manual workflow is the safe supported boundary.
+
+
+### Classification audit evidence follow-up (PR #209)
+
+- Persisted `actor_username`, `reason`, item identity and event-level exception category are compared directly with the submitted request, not merely included in a self-consistent hash.
+- The complete `before_json` snapshot is asserted against the original pending state; the complete `after_json` snapshot is asserted against the exact classified exception state, including category and note.
+- The real-MySQL test continues to recompute SHA-256 from the persisted event payload and verify the previous-hash chain.
