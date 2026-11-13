@@ -1777,3 +1777,178 @@ test('MySQL integration: unmatched statement flows through exception classificat
   assert.deepEqual(alertHistory.items.map(row => row.action), ['acknowledged', 'generated']);
   assert.equal(alertHistory.items[0].previousHash, alertHistory.items[1].eventHash);
 });
+
+test('MySQL integration: concurrent manual reviews cannot assign one journal transaction twice', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const firstDb = await connectTestDatabase();
+  const secondDb = await connectTestDatabase();
+  const tables = [
+    'financial_reconciliation_review_events',
+    'financial_journal_entries',
+    'financial_journal_transactions',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await firstDb.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await Promise.all([firstDb.connection.end(), secondDb.connection.end()]);
+    }
+  });
+  for (const table of tables) await firstDb.connection.query('DROP TABLE IF EXISTS ' + table);
+
+  await firstDb.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    row_count INT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported'
+  ) ENGINE=InnoDB`);
+  await firstDb.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'pending',
+    matched_journal_transaction_id BIGINT DEFAULT NULL,
+    UNIQUE KEY unique_finance_concurrent_review_assignment (matched_journal_transaction_id),
+    match_reason VARCHAR(100) DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    exception_note VARCHAR(255) DEFAULT NULL,
+    CONSTRAINT fk_finance_concurrent_review_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await firstDb.runAsync(`CREATE TABLE financial_journal_transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    source_id VARCHAR(128) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    created_by VARCHAR(100) NOT NULL DEFAULT ''
+  ) ENGINE=InnoDB`);
+  await firstDb.runAsync(`CREATE TABLE financial_journal_entries (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    transaction_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    line_no INT NOT NULL,
+    account_code VARCHAR(64) NOT NULL,
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    memo VARCHAR(255) NOT NULL DEFAULT '',
+    CONSTRAINT fk_finance_concurrent_review_journal FOREIGN KEY (transaction_id)
+      REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await firstDb.runAsync(`CREATE TABLE financial_reconciliation_review_events (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    batch_id BIGINT NOT NULL,
+    item_id BIGINT NOT NULL,
+    journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    actor_admin_id INT NOT NULL,
+    actor_username VARCHAR(100) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    request_sha256 CHAR(64) NOT NULL,
+    before_json JSON NOT NULL,
+    after_json JSON NOT NULL,
+    previous_hash CHAR(64) NOT NULL DEFAULT '',
+    event_hash CHAR(64) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_concurrent_review_idempotency (merchant_id,store_id,batch_id,idempotency_key)
+  ) ENGINE=InnoDB`);
+
+  const batch = await firstDb.runAsync(
+    "INSERT INTO financial_reconciliation_batches (merchant_id,store_id,currency_code,row_count,status) VALUES (44,12,'USD',2,'imported')"
+  );
+  const batchId = Number(batch.insertId);
+  await firstDb.runAsync(
+    `INSERT INTO financial_reconciliation_items
+      (batch_id,merchant_id,store_id,amount_minor,currency_code,match_status)
+     VALUES (?,44,12,12500,'USD','pending'),(?,44,12,12500,'USD','pending')`,
+    [batchId, batchId]
+  );
+  const [itemRows] = await firstDb.connection.query(
+    'SELECT id FROM financial_reconciliation_items WHERE batch_id=? ORDER BY id',
+    [batchId]
+  );
+  const journal = await firstDb.runAsync(
+    `INSERT INTO financial_journal_transactions
+      (merchant_id,store_id,currency_code,source_type,source_id,idempotency_key,description,created_by)
+     VALUES (44,12,'USD','order_payment','concurrent-order-1','concurrent-journal-0001','shared journal','integration-test')`
+  );
+  const journalId = Number(journal.insertId);
+  await firstDb.runAsync(
+    `INSERT INTO financial_journal_entries
+      (transaction_id,merchant_id,store_id,line_no,account_code,direction,amount_minor)
+     VALUES (?,44,12,1,'cash','debit',12500),(?,44,12,2,'sales','credit',12500)`,
+    [journalId, journalId]
+  );
+
+  const transactionFor = db => async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+  const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
+  const serviceA = createFinancialReconciliationReviewService({
+    runAsync: firstDb.runAsync, getAsync: firstDb.getAsync, allAsync: firstDb.allAsync,
+    withTransaction: transactionFor(firstDb)
+  });
+  const serviceB = createFinancialReconciliationReviewService({
+    runAsync: secondDb.runAsync, getAsync: secondDb.getAsync, allAsync: secondDb.allAsync,
+    withTransaction: transactionFor(secondDb)
+  });
+  const makeInput = (itemId, actorId, suffix) => ({
+    merchantId: 44, storeId: 12, batchId, itemId,
+    actorId, actorUsername: 'concurrent-reviewer-' + actorId,
+    action: 'confirm', journalTransactionId: journalId,
+    reason: 'Confirm shared journal candidate under concurrent review',
+    idempotencyKey: 'mysql-concurrent-review-' + suffix
+  });
+  const outcomes = await Promise.allSettled([
+    serviceA.reviewItem(makeInput(Number(itemRows[0].id), 7, 'item-0001')),
+    serviceB.reviewItem(makeInput(Number(itemRows[1].id), 8, 'item-0002'))
+  ]);
+  const winners = outcomes.filter(result => result.status === 'fulfilled');
+  const losers = outcomes.filter(result => result.status === 'rejected');
+  assert.equal(winners.length, 1, 'only one concurrent review may claim the same journal transaction');
+  assert.equal(losers.length, 1);
+  assert.equal(losers[0].reason.code, 'REVIEW_DUPLICATE_ASSIGNMENT');
+
+  const [finalItems] = await firstDb.connection.query(
+    'SELECT id,match_status,matched_journal_transaction_id FROM financial_reconciliation_items WHERE batch_id=? ORDER BY id',
+    [batchId]
+  );
+  const [events] = await firstDb.connection.query(
+    'SELECT item_id,actor_admin_id,action FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
+    [batchId]
+  );
+  const assigned = finalItems.filter(row => row.match_status === 'matched');
+  const pending = finalItems.filter(row => row.match_status === 'pending');
+  assert.equal(assigned.length, 1);
+  assert.equal(pending.length, 1);
+  assert.equal(Number(assigned[0].matched_journal_transaction_id), journalId);
+  assert.equal(events.length, 1, 'the losing transaction must not write a review event');
+  assert.equal(Number(events[0].item_id), Number(assigned[0].id));
+  assert.ok([7, 8].includes(Number(events[0].actor_admin_id)));
+});
+
