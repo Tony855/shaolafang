@@ -348,7 +348,7 @@ test('reconciliation imports acquire the month lock before any batch write', asy
   assert.equal(writes, 0);
 });
 
-test('manual reconciliation reviews acquire the month lock before batch or item mutation', async () => {
+test('manual reconciliation reviews serialize batch and replay before month lock and item mutation', async () => {
   const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
   const reads = [];
   let lockCalls = 0;
@@ -356,6 +356,7 @@ test('manual reconciliation reviews acquire the month lock before batch or item 
     runAsync: async () => ({ insertId: 1 }),
     getAsync: async sql => {
       reads.push(sql);
+      if (sql.includes('FROM financial_reconciliation_batches')) return { id: 2, status: 'imported' };
       return null;
     },
     allAsync: async () => [],
@@ -374,8 +375,11 @@ test('manual reconciliation reviews acquire the month lock before batch or item 
     idempotencyKey: 'month-review-locked-0001'
   }), error => error.code === 'FINANCIAL_MONTH_LOCKED');
   assert.equal(lockCalls, 1);
-  assert.equal(reads.length, 0,
-    'a locked month must reject before idempotency, batch, or item queries');
+  assert.equal(reads.length, 2, 'only batch serialization and idempotency lookup may precede the month lock');
+  assert.match(reads[0], /financial_reconciliation_batches/);
+  assert.match(reads[0], /FOR UPDATE/);
+  assert.match(reads[1], /financial_reconciliation_review_events/);
+  assert.match(reads[1], /FOR UPDATE/);
 });
 
 
