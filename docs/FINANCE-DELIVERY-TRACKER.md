@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #203–#212 merged; provider-neutral finance acceptance and read-only ABA PayWay/Bakong verification adapters are delivered; PR #213 tightens the Bakong batch response contract)
+Last reviewed: 2026-11-13 (PR #203–#213 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -46,7 +46,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- PR #213: tighten Bakong MD5-list response validation to the exact NBC-documented status set (SUCCESS, NOT_FOUND, STATIC_QR); add a negative contract test and clarify the provider guide. Latest-head CI and all four installer compatibility checks are required before merge.
+- None. PR #213 is merged; no implementation PR is currently open in this workstream.
 
 ## Remaining engineering acceptance work
 
@@ -101,7 +101,7 @@ This tracker records merged delivery separately from work that is still under re
 - **Stage 10 closeout:** provider-neutral finance review and reconciliation core acceptance tests are merged; no open implementation PRs remain. Provider-specific bank/payment verification, currency mapping, FX/rounding and notifications remain intentionally blocked until official specifications, credentials, and finance approval are provided.
 - PR #210 merged: remove the duplicate MySQL backup/restore test invocation and repair two literal newline escapes in the reconciliation API list; latest PR-head CI and all four installer targets passed.
 - PR #211 merged: official-spec-based read-only ABA PayWay callback HMAC authentication and Bakong dynamic-KHQR MD5 transaction lookup, including request timeout, strict response validation, and deterministic tests; no live credentials, callback route, order settlement, refund mutation, or journal posting activated.
-- PR #213 under review: reject undocumented FAILED status from Bakong MD5-list results; single-digest API retains its documented FAILED outcome.
+- PR #213 merged: enforce the exact NBC MD5-list response status set (SUCCESS, NOT_FOUND, STATIC_QR), retain FAILED only for the single-digest API, and add a negative contract test.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
