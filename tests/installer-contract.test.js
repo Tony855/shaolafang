@@ -106,12 +106,15 @@ test('deployment safety serializes installers and protects dirty worktrees', () 
   assert.match(update, /git reset --hard "\$TARGET_SHA"/);
   assert.match(update, /git reset --hard "\$OLD_SHA"/);
   assert.match(update, /ff_wait_for_health/);
+  assert.match(update, /FF_APP_DIR:-/);
   assert.match(update, /trap rollback_update EXIT/);
   assert.ok(update.indexOf('ff_require_clean_git_worktree') < update.indexOf('mktemp -d'));
   assert.match(standard, /ff_acquire_deploy_lock/);
   assert.match(standard, /git pull --ff-only origin main/);
   assert.doesNotMatch(standard, /git pull origin main \|\| log_warn/);
   assert.match(standard, /FF_DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1/);
+  assert.match(read('install.sh'), /git -C "\\$target" show FETCH_HEAD:remote-update\\.sh/);
+  assert.match(read('install.sh'), /FF_APP_DIR="\\$target" FF_DEPLOY_LOCK_HELD=1/);
 });
 
 test('all deployment entrypoints share a lock and never kill arbitrary port owners', () => {
@@ -141,6 +144,7 @@ test('scheduled database backups do not embed passwords in executable scripts', 
   assert.ok(!local.includes('mysqldump -u foodflow -p'));
   assert.ok(local.includes('crontab -'));
   assert.ok(local.includes('/usr/local/sbin/foodflow-auto-backup'));
+  assert.ok(local.includes('mktemp "$BACKUP_DIR/.db_$DATE.XXXXXX"'));
   assert.ok(local.includes('mktemp "$BACKUP_DIR/.db_$DATE.XXXXXX"'));
   assert.ok(local.includes("cat > \"$BACKUP_SCRIPT\" << 'EOF'"));
 });
