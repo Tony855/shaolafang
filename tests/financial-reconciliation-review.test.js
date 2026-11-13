@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
 
-function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hideAssignmentCheckOnce = false, simulateAssignmentUniqueConflict = false } = {}) {
+function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hideAssignmentCheckOnce = false, simulateAssignmentUniqueConflict = false, lockFinancialMonthPeriod } = {}) {
   const batches = new Map([[1, { id: 1, merchant_id: 4, store_id: 9, status: 'imported' }]]);
   const items = new Map([
     [11, { id: 11, batch_id: 1, merchant_id: 4, store_id: 9, amount_minor: 1200, currency_code: 'USD', match_status: 'pending', matched_journal_transaction_id: null, match_reason: null, exception_category: null, exception_note: null }],
@@ -99,7 +99,7 @@ function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hide
     } finally { release(); }
   }
   return {
-    service: createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction }),
+    service: createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction, lockFinancialMonthPeriod }),
     batches, items, events, eventList, executed, queries
   };
 }
@@ -155,10 +155,14 @@ test('same idempotency request replays and changed request is rejected', async (
     e => e.code === 'REVIEW_IDEMPOTENCY_CONFLICT');
 });
 
-test('serializes the batch before idempotency lookup and replays exact reviews after batch closure', async () => {
-  const db = memoryDb();
+test('serializes the batch before idempotency lookup and replays exact reviews after month close', async () => {
+  let periodLockCalls = 0;
+  const db = memoryDb({
+    lockFinancialMonthPeriod: async () => { periodLockCalls += 1; }
+  });
   const first = await db.service.reviewItem(input());
   assert.equal(first.replayed, false);
+  assert.equal(periodLockCalls, 1);
 
   const batchLockIndex = db.queries.findIndex(query =>
     query.sql.includes('FROM financial_reconciliation_batches') && query.sql.includes('FOR UPDATE'));
@@ -172,11 +176,14 @@ test('serializes the batch before idempotency lookup and replays exact reviews a
   const replay = await db.service.reviewItem(input());
   assert.equal(replay.replayed, true);
   assert.equal(replay.eventId, first.eventId);
+  assert.equal(periodLockCalls, 1,
+    'an exact replay must return before acquiring the now-closed month period');
 
   await assert.rejects(db.service.reviewItem(input({
     itemId: 12, journalTransactionId: 32,
     idempotencyKey: 'finance-review-closed-0001'
   })), error => error.code === 'REVIEW_BATCH_CLOSED');
+  assert.equal(periodLockCalls, 2);
   assert.equal(db.eventList.length, 1, 'closed-batch replay must not create another audit event');
 });
 
