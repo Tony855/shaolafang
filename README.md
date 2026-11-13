@@ -216,8 +216,8 @@ FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运�
 
 | 方式 | 适用场景 | 参考文档 |
 |---|---|---|
-| 单机标准部署 | 开发、试运行、小型门店 | [标准部署指南](./DEPLOY-STANDARD.md) |
-| 双应用节点 | 需要应用层冗余的业务 | [企业部署指南](./DEPLOY-ENTERPRISE.md) |
+| 单机标准部署 | 开发、试运行、小型门店 | [标准部署指南](./deploy/standard/README.md) |
+| 双应用节点 | 需要应用层冗余的业务 | [企业部署指南](./deploy/enterprise/README.md) |
 | 多节点集群 | 多商户平台及水平扩展规划 | [企业旗舰部署目录](./deploy/enterprise-ultimate/README.md) |
 
 请注意：集群部署并不自动等于数据库高可用。数据库、Redis、共享存储、负载均衡和备份系统都需要单独设计、配置和演练。
