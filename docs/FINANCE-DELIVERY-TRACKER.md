@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #203–#213 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
+Last reviewed: 2026-11-13 (PR #203–#214 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -46,7 +46,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- None. PR #213 is merged; no implementation PR is currently open in this workstream.
+- None. PR #214 is merged; no implementation PR is currently open in this workstream.
 
 ## Remaining engineering acceptance work
 
@@ -98,10 +98,11 @@ This tracker records merged delivery separately from work that is still under re
 - PR #206 merged: real-MySQL 50k exception queue across five batches with mixed categories, pending rows, resolved-case filters, and tenant/store isolation (`f03df316c44124459bf6a5547daef08d2d51b9bb`); full CI and four installer targets passed.
 - PR #207 merged: real-MySQL manual classification for refund, fee, and settlement difference; verifies original statement amounts remain unchanged, exact replay is idempotent, and audit events are hash-linked (`3d8c3f386add3a4a65c9cf3566f25feb4a06f5ef`); 573 tests, 555 passed, 0 failed, 18 skipped; 17/17 MySQL integration tests passed; all four installer targets passed.
 - PR #209 merged: classification audit tests now compare persisted reviewer username, reason, category, and complete before/after snapshots against the submitted request (`37ca397aac5264121cdb670f13e3536a16ab1e6a`); final-head CI and all four installer targets passed.
-- **Stage 10 closeout:** provider-neutral finance review and reconciliation core acceptance tests are merged; no open implementation PRs remain. Provider-specific bank/payment verification, currency mapping, FX/rounding and notifications remain intentionally blocked until official specifications, credentials, and finance approval are provided.
+- **Stage 10 closeout (historical):** provider-neutral finance review and reconciliation core acceptance tests were merged. Subsequent PR #211 and #213 added official-spec-based read-only ABA PayWay/Bakong verification and strict Bakong batch handling. Live callbacks, automatic settlement, provider notifications, currency/FX mapping, and rounding remain gated on merchant credentials, current outbound request-signing details, and finance approval.
 - PR #210 merged: remove the duplicate MySQL backup/restore test invocation and repair two literal newline escapes in the reconciliation API list; latest PR-head CI and all four installer targets passed.
 - PR #211 merged: official-spec-based read-only ABA PayWay callback HMAC authentication and Bakong dynamic-KHQR MD5 transaction lookup, including request timeout, strict response validation, and deterministic tests; no live credentials, callback route, order settlement, refund mutation, or journal posting activated.
 - PR #213 merged: enforce the exact NBC MD5-list response status set (SUCCESS, NOT_FOUND, STATIC_QR), retain FAILED only for the single-digest API, and add a negative contract test.
+- PR #214 merged: align the delivery tracker with the merged Bakong contract hardening and keep live provider activation gates explicit.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
