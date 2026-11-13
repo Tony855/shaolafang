@@ -471,22 +471,24 @@ if [ "$FF_CONFIGURE_BACKUP_CRON" = "1" ]; then
     chown root:root "$CONFIG_DIR/backup.cnf"
     chmod 0600 "$CONFIG_DIR/backup.cnf"
     BACKUP_SCRIPT="$APP_DIR/backups/auto-backup.sh"
-    cat > "$BACKUP_SCRIPT" << EOF
+    cat > "$BACKUP_SCRIPT" << 'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="$APP_DIR/backups"
+DATE="$(date +%Y%m%d_%H%M%S)"
+BACKUP_DIR="__BACKUP_DIR__"
+DB_NAME="__DB_NAME__"
 mkdir -p "$BACKUP_DIR"
-mysqldump --defaults-extra-file=/etc/foodflow/backup.cnf --single-transaction --quick $DEFAULT_DB_NAME > "$BACKUP_DIR/db_$DATE.sql"
-gzip "$BACKUP_DIR/db_$DATE.sql"
-RETENTION=7
-find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +$RETENTION -delete
+TMP_FILE="$BACKUP_DIR/.db_$DATE.sql"
+trap 'rm -f "$TMP_FILE"' EXIT
+mysqldump --defaults-extra-file=/etc/foodflow/backup.cnf --single-transaction --quick "$DB_NAME" > "$TMP_FILE"
+gzip "$TMP_FILE"
+mv "$TMP_FILE.gz" "$BACKUP_DIR/db_$DATE.sql.gz"
+find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +7 -delete
 EOF
+    sed -i "s|__BACKUP_DIR__|$APP_DIR/backups|g; s|__DB_NAME__|$DEFAULT_DB_NAME|g" "$BACKUP_SCRIPT"
     chown root:root "$BACKUP_SCRIPT"
     chmod 0700 "$BACKUP_SCRIPT"
-    (crontab -l 2>/dev/null | grep -v "auto-backup.sh"; echo "0 3 * * * $BACKUP_SCRIPT") | crontab -
-    log_success "每日自动备份已配置（凌晨3点，保留7天）"
 else
     log_info "跳过自动备份计划任务；首次安装完成后请尽快配置独立备份策略。"
 fi
