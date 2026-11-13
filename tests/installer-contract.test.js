@@ -121,7 +121,7 @@ test('all deployment entrypoints share a lock and never kill arbitrary port owne
   const entries = [
     'install.sh', 'install-local.sh', 'deploy/standard/deploy.sh',
     'deploy/enterprise/cluster/deploy.sh',
-    'deploy/enterprise-ultimate/cluster/deploy.sh'
+    'deploy/enterprise-ultimate/cluster/deploy.sh', 'setup-nginx.sh'
   ];
   for (const file of entries) {
     const source = read(file);
@@ -134,6 +134,12 @@ test('all deployment entrypoints share a lock and never kill arbitrary port owne
   assert.ok(read('install-local.sh').includes('ff_require_port_available 3000'));
   assert.ok(read('deploy/standard/deploy.sh').includes('TARGET_CHANGES'));
   assert.ok(read('deploy/standard/deploy.sh').includes('git pull --ff-only origin main'));
+  const nginx = read('setup-nginx.sh');
+  assert.ok(nginx.includes('check_port_available 80'));
+  assert.ok(!nginx.includes('fuser -k'));
+  assert.ok(!nginx.includes('kill -9'));
+  assert.ok(!nginx.includes('kill_port 80'));
+  assert.ok(read('install.sh').includes('DOMAIN="$DOMAIN" EMAIL="$EMAIL" bash setup-nginx.sh'));
 });
 
 test('scheduled database backups do not embed passwords in executable scripts', () => {
@@ -153,6 +159,7 @@ test('noninteractive installation requires explicit confirmation and cluster rol
   assert.match(installer, /FF_NONINTERACTIVE:-0/);
   assert.match(installer, /FF_CONFIRM_INSTALL:-0/);
   assert.match(installer, /FF_NODE_ROLE/);
+  assert.match(read('setup-nginx.sh'), /FF_NONINTERACTIVE:-0/);
   assert.match(installer, /非交互安装必须显式设置 FF_CONFIRM_INSTALL=1/);
   assert.match(installer, /非交互集群安装必须设置 FF_NODE_ROLE/);
   assert.ok(installer.indexOf('ask_domain_if_needed() {') < installer.indexOf('read -p \\"  请输入域名'));
