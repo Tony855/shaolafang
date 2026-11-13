@@ -153,6 +153,7 @@ test('scheduled database backups do not embed passwords in executable scripts', 
   assert.ok(local.includes('crontab -'));
   assert.ok(local.includes('/usr/local/sbin/foodflow-auto-backup'));
   assert.ok(local.includes('mktemp "$BACKUP_DIR/.db_$DATE.XXXXXX"'));
+  assert.ok(local.includes('trap \'rm -f "$TMP_FILE" "$TMP_FILE.gz"\' EXIT'));
   assert.ok(local.includes("cat > \"$BACKUP_SCRIPT\" << 'EOF'"));
 });
 
@@ -175,7 +176,7 @@ test('installer entrypoints enable safe failure diagnostics without logging comm
   assert.match(safety, /ff_enable_error_trap/);
   assert.match(safety, /行号 \$line，退出码 \$rc/);
   assert.doesNotMatch(safety, /BASH_COMMAND/);
-  for (const file of ['install.sh', 'install-local.sh', 'deploy/standard/deploy.sh', 'deploy/enterprise/cluster/deploy.sh', 'deploy/enterprise-ultimate/cluster/deploy.sh', 'remote-update.sh']) {
+  for (const file of ['install.sh', 'install-local.sh', 'deploy/standard/deploy.sh', 'deploy/enterprise/cluster/deploy.sh', 'deploy/enterprise-ultimate/cluster/deploy.sh', 'remote-update.sh', 'setup-nginx.sh']) {
     assert.ok(read(file).includes('ff_enable_error_trap'), file + ' must enable diagnostics');
   }
 });
