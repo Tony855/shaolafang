@@ -102,3 +102,23 @@ test('returns tenant-scoped batch summary and match-state counts', async () => {
   assert.equal(summary.matchCounts.pending, 2);
   assert.equal(await db.service.getBatchSummary({ merchantId: 4, storeId: 10, batchId: imported.batchId }), null);
 });
+
+
+test('batch summary and idempotent import reject unsafe persisted minor-unit totals', async () => {
+  const summaryDb = memoryDb();
+  const imported = await summaryDb.service.importStatementBatch(baseInput());
+  const stored = [...summaryDb.batches.values()][0];
+  stored.total_debit_minor = '9007199254740992';
+  await assert.rejects(
+    summaryDb.service.getBatchSummary({ merchantId: 4, storeId: 9, batchId: imported.batchId }),
+    error => error.code === 'RECONCILIATION_TOTAL_PRECISION_UNSAFE'
+  );
+
+  const replayDb = memoryDb();
+  await replayDb.service.importStatementBatch(baseInput());
+  [...replayDb.batches.values()][0].total_credit_minor = '9007199254740992';
+  await assert.rejects(
+    replayDb.service.importStatementBatch(baseInput()),
+    error => error.code === 'RECONCILIATION_TOTAL_PRECISION_UNSAFE'
+  );
+});

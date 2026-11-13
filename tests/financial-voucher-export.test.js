@@ -143,3 +143,52 @@ test('journal export route enforces tenant context and returns a private CSV att
     row_count: 1, format: 'csv', scope: 'financial_journal'
   });
 });
+
+
+test('journal CSV export rejects unsafe persisted BIGINT amounts before returning a file', async () => {
+  for (const amountMinor of ['9007199254740992', 9007199254740992]) {
+    const { service, calls } = createService([{
+      journalTransactionId: 51, createdAt: '2026-11-12 10:00:00.000',
+      currencyCode: 'USD', sourceType: 'manual_adjustment', sourceId: 'ref-51',
+      description: 'Daily adjustment', createdBy: 'finance-user', lineNo: 1,
+      accountCode: 'CASH', direction: 'debit', amountMinor, memo: 'Cash'
+    }]);
+    await assert.rejects(service.exportJournalDetails({
+      merchantId: 4, storeId: 9, from: '2026-11-12', to: '2026-11-12'
+    }), error => error.code === 'JOURNAL_AMOUNT_PRECISION_UNSAFE');
+    assert.equal(calls.length, 1);
+  }
+});
+
+test('batch list route fails closed when a persisted BIGINT total is unsafe', async () => {
+  const routes = new Map();
+  const app = {
+    get(path, ...handlers) { routes.set('GET ' + path, handlers); },
+    post(path, ...handlers) { routes.set('POST ' + path, handlers); }
+  };
+  registerRoutes(app, {
+    runAsync: async () => ({ affectedRows: 1 }),
+    getAsync: async () => null,
+    allAsync: async () => [{
+      id: 1, provider_code: 'GENERIC', external_batch_id: 'batch-1',
+      currency_code: 'USD', row_count: 1,
+      total_debit_minor: '9007199254740992', total_credit_minor: '100',
+      status: 'imported', imported_at: '2026-11-12 00:00:00',
+      matched_count: 0, pending_count: 1, unmatched_count: 0,
+      ambiguous_count: 0, exception_count: 0
+    }],
+    withTransaction: async work => work(),
+    requireAdminKey: (_req, _res, next) => next(),
+    requirePermission: () => (_req, _res, next) => next()
+  });
+  const handler = routes.get('GET /api/admin/financial-reconciliation/batches').at(-1);
+  const res = {
+    statusCode: 200, body: null, headers: {},
+    status(code) { this.statusCode = code; return this; },
+    setHeader(key, value) { this.headers[key] = value; },
+    json(body) { this.body = body; return this; }
+  };
+  await handler({ merchantId: 4, storeId: 9, adminId: 7, query: {} }, res);
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(res.body, { error: '获取对账批次列表失败' });
+});

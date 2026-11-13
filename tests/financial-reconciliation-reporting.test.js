@@ -413,3 +413,44 @@ test('report and month-close minor-unit totals preserve exact safe integer bound
   assert.equal(report.rows[0].totalDebitMinor, Number.MAX_SAFE_INTEGER);
   assert.equal(close[0].totalDebitMinor, Number.MAX_SAFE_INTEGER);
 });
+
+
+test('exception queue and SLA alert list reject unsafe persisted row amounts', async () => {
+  const unsafe = '9007199254740992';
+  const exceptionService = serviceWith(async () => [{
+    id: 1, batch_id: 2, row_no: 1, external_reference: 'bank-ref', direction: 'credit',
+    amount_minor: unsafe, currency_code: 'USD', match_status: 'exception',
+    exception_category: 'fee', provider_code: 'GENERIC', external_batch_id: 'batch-1',
+    imported_at: '2026-11-12 00:00:00', case_id: null, case_status: null,
+    assigned_admin_id: null, assigned_admin_username: null, resolution_note: null, case_updated_at: null
+  }]);
+  await assert.rejects(
+    exceptionService.listExceptions({ merchantId: 4, storeId: 9 }),
+    error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE'
+  );
+
+  const alertService = serviceWith(async () => [{
+    id: 10, batch_id: 2, item_id: 1, alert_type: 'sla_overdue', sla_hours: 24,
+    status: 'pending', generated_at: '2026-11-12 00:00:00', acknowledged_by_admin_id: null,
+    acknowledged_by_username: null, acknowledged_at: null, acknowledgement_reason: null,
+    exception_category: 'fee', currency_code: 'USD', amount_minor: unsafe,
+    external_reference: 'bank-ref', assigned_admin_username: null, age_seconds: 90000
+  }]);
+  await assert.rejects(
+    alertService.listSlaAlerts({ merchantId: 4, storeId: 9 }),
+    error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE'
+  );
+});
+
+test('overdue exception operations reject unsafe persisted statement amounts', async () => {
+  const service = serviceWith(async sql => sql.includes('SELECT i.id AS item_id') ? [{
+    item_id: 1, batch_id: 2, exception_category: 'fee', currency_code: 'USD',
+    amount_minor: '9007199254740992', external_reference: 'bank-ref',
+    assigned_admin_id: null, assigned_admin_username: null,
+    imported_at: '2026-11-12 00:00:00', age_seconds: 90000
+  }] : []);
+  await assert.rejects(
+    service.getExceptionOperationsSummary({ merchantId: 4, storeId: 9 }),
+    error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE'
+  );
+});

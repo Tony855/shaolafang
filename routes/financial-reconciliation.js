@@ -6,6 +6,7 @@ const { createFinancialVoucherExportService } = require('../server/services/fina
 const { createFinancialMonthCloseService } = require('../server/services/financial-month-close');
 const { lockOpenFinancialMonthPeriod } = require('../server/db/migrations/financial-month-close');
 const { buildExceptionPerformanceCsv } = require('../server/services/financial-exception-performance-export');
+const { safeMinorUnitTotal } = require('../server/services/financial-minor-units');
 
 function positiveRouteId(value) {
   const id = Number(value);
@@ -124,6 +125,14 @@ module.exports = function(app, deps) {
       );
       const hasMore = rows.length > limitValue;
       if (hasMore) rows.pop();
+      for (const row of rows) {
+        row.total_debit_minor = safeMinorUnitTotal(
+          row.total_debit_minor, 'batchTotalDebitMinor', 'RECONCILIATION_TOTAL_PRECISION_UNSAFE'
+        );
+        row.total_credit_minor = safeMinorUnitTotal(
+          row.total_credit_minor, 'batchTotalCreditMinor', 'RECONCILIATION_TOTAL_PRECISION_UNSAFE'
+        );
+      }
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({
         rows,

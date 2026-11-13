@@ -1,6 +1,7 @@
 'use strict';
 
 const { createProviderEventEnvelope, createJournalDraft } = require('./financial-ledger');
+const { safeMinorUnitAmount } = require('./financial-minor-units');
 
 function normalizeProviderEvent(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -135,7 +136,7 @@ function createFinancialLedgerService({ runAsync, getAsync, allAsync, withTransa
             return Number(entry.line_no) === expected.lineNo &&
               entry.account_code === expected.accountCode &&
               entry.direction === expected.direction &&
-              Number(entry.amount_minor) === expected.amountMinor &&
+              safeMinorUnitAmount(entry.amount_minor, 'journalEntryAmountMinor', 'JOURNAL_AMOUNT_PRECISION_UNSAFE') === expected.amountMinor &&
               String(entry.memo || '') === expected.memo;
           });
         if (!same) {

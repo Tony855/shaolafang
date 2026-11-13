@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { suggestReconciliationMatches } = require('./financial-reconciliation-matcher');
+const { safeMinorUnitTotal, safeMinorUnitAmount } = require('./financial-minor-units');
 
 function positiveId(value, field) {
   const number = Number(value);
@@ -9,28 +10,6 @@ function positiveId(value, field) {
   return number;
 }
 
-
-function safeMinorUnitTotal(value, field) {
-  if (value === null || value === undefined || value === '') return 0;
-  if (typeof value === 'number' && !Number.isSafeInteger(value)) {
-    const error = new RangeError(field + ' exceeds JavaScript safe integer precision');
-    error.code = 'REVIEW_TOTAL_PRECISION_UNSAFE';
-    throw error;
-  }
-  const raw = String(value);
-  if (!/^\d+$/.test(raw)) {
-    const error = new TypeError(field + ' must be a non-negative integer total');
-    error.code = 'REVIEW_TOTAL_PRECISION_UNSAFE';
-    throw error;
-  }
-  const exact = BigInt(raw);
-  if (exact > BigInt(Number.MAX_SAFE_INTEGER)) {
-    const error = new RangeError(field + ' exceeds JavaScript safe integer precision');
-    error.code = 'REVIEW_TOTAL_PRECISION_UNSAFE';
-    throw error;
-  }
-  return Number(exact);
-}
 
 function normalizeReason(value) {
   const reason = typeof value === 'string' ? value.trim() : '';
@@ -143,12 +122,12 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       statementRows: rows.map(row => ({
         rowNo: Number(row.row_no), merchantId: merchant, storeId: store,
         externalReference: row.external_reference, transactionReference: row.transaction_reference,
-        amountMinor: Number(row.amount_minor), currencyCode: row.currency_code
+        amountMinor: safeMinorUnitAmount(row.amount_minor, 'statementAmountMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE'), currencyCode: row.currency_code
       })),
       journalCandidates: candidates.map(candidate => ({
         journalTransactionId: Number(candidate.journalTransactionId),
         merchantId: Number(candidate.merchantId), storeId: Number(candidate.storeId),
-        sourceId: candidate.sourceId, amountMinor: Number(candidate.amountMinor),
+        sourceId: candidate.sourceId, amountMinor: safeMinorUnitAmount(candidate.amountMinor, 'journalCandidateAmountMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE'),
         currencyCode: candidate.currencyCode
       }))
     });
@@ -159,7 +138,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       items: rows.map(row => ({
         id: Number(row.id), rowNo: Number(row.row_no), externalReference: row.external_reference,
         transactionReference: row.transaction_reference, direction: row.direction,
-        amountMinor: Number(row.amount_minor), currencyCode: row.currency_code,
+        amountMinor: safeMinorUnitAmount(row.amount_minor, 'statementAmountMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE'), currencyCode: row.currency_code,
         occurredAt: row.occurred_at, description: row.description,
         matchStatus: row.match_status, matchReason: row.match_reason,
         matchedJournalTransactionId: row.matched_journal_transaction_id === null ? null : Number(row.matched_journal_transaction_id),
@@ -294,10 +273,10 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
              WHERE transaction_id=? AND merchant_id=? AND store_id=?`,
             [review.journalTransactionId, merchantId, storeId]
           );
-          const debit = Number(totals?.debit_minor || 0);
-          const credit = Number(totals?.credit_minor || 0);
+          const debit = safeMinorUnitTotal(totals?.debit_minor, 'journalDebitMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE');
+          const credit = safeMinorUnitTotal(totals?.credit_minor, 'journalCreditMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE');
           if (journal.currency_code !== item.currency_code || !Number.isSafeInteger(debit) ||
-              debit <= 0 || debit !== credit || debit !== Number(item.amount_minor)) {
+              debit <= 0 || debit !== credit || debit !== safeMinorUnitAmount(item.amount_minor, 'statementAmountMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE')) {
             const error = new Error('journal amount or currency does not exactly match the statement item');
             error.code = 'REVIEW_JOURNAL_MISMATCH';
             throw error;
@@ -476,7 +455,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     const n=value=>Number(value||0);
     return {period,from,to,rows:rows.map(row=>({periodStart:String(row.period_start).slice(0,10),periodEnd:String(row.period_end).slice(0,10),
       currencyCode:row.currency_code,batchCount:n(row.batch_count),statementRowCount:n(row.statement_row_count),
-      totalDebitMinor:safeMinorUnitTotal(row.total_debit_minor,'totalDebitMinor'),totalCreditMinor:safeMinorUnitTotal(row.total_credit_minor,'totalCreditMinor'),matchedCount:n(row.matched_count),
+      totalDebitMinor:safeMinorUnitTotal(row.total_debit_minor,'totalDebitMinor','REVIEW_TOTAL_PRECISION_UNSAFE'),totalCreditMinor:safeMinorUnitTotal(row.total_credit_minor,'totalCreditMinor','REVIEW_TOTAL_PRECISION_UNSAFE'),matchedCount:n(row.matched_count),
       pendingCount:n(row.pending_count),unmatchedCount:n(row.unmatched_count),ambiguousCount:n(row.ambiguous_count),exceptionCount:n(row.exception_count)}))};
   }
 
@@ -577,7 +556,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       trend: [...trendMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
       overdueItems: overdueRows.map(row => ({
         itemId: n(row.item_id), batchId: n(row.batch_id), category: row.exception_category || null,
-        currencyCode: row.currency_code, amountMinor: n(row.amount_minor),
+        currencyCode: row.currency_code, amountMinor: safeMinorUnitAmount(row.amount_minor, 'exceptionAmountMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE'),
         externalReference: row.external_reference || null,
         assignedAdminId: row.assigned_admin_id === null ? null : n(row.assigned_admin_id),
         assignedAdminUsername: row.assigned_admin_username || null,
@@ -750,7 +729,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       acknowledgedByAdminId:row.acknowledged_by_admin_id===null?null:Number(row.acknowledged_by_admin_id),
       acknowledgedByUsername:row.acknowledged_by_username||null,acknowledgedAt:row.acknowledged_at,
       acknowledgementReason:row.acknowledgement_reason,category:row.exception_category||null,
-      currencyCode:row.currency_code,amountMinor:Number(row.amount_minor),externalReference:row.external_reference||null,
+      currencyCode:row.currency_code,amountMinor:safeMinorUnitAmount(row.amount_minor,'alertAmountMinor','REVIEW_TOTAL_PRECISION_UNSAFE'),externalReference:row.external_reference||null,
       assignedAdminUsername:row.assigned_admin_username||null,ageSeconds:Number(row.age_seconds||0)
     }))};
   }
@@ -1144,7 +1123,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       items: rows.map(row => ({
         itemId: Number(row.id), batchId: Number(row.batch_id), rowNo: Number(row.row_no),
         externalReference: row.external_reference, transactionReference: row.transaction_reference || null,
-        direction: row.direction, amountMinor: Number(row.amount_minor), currencyCode: row.currency_code,
+        direction: row.direction, amountMinor: safeMinorUnitAmount(row.amount_minor, 'statementAmountMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE'), currencyCode: row.currency_code,
         occurredAt: row.occurred_at, description: row.description || '',
         category: row.exception_category, note: row.exception_note || null,
         matchReason: row.match_reason || null, providerCode: row.provider_code,
@@ -1249,8 +1228,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         currencyCode: row.currency_code,
         batchCount: Number(row.batch_count || 0),
         statementRowCount: Number(row.statement_row_count || 0),
-        totalDebitMinor: safeMinorUnitTotal(row.total_debit_minor, 'totalDebitMinor'),
-        totalCreditMinor: safeMinorUnitTotal(row.total_credit_minor, 'totalCreditMinor'),
+        totalDebitMinor: safeMinorUnitTotal(row.total_debit_minor, 'totalDebitMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE'),
+        totalCreditMinor: safeMinorUnitTotal(row.total_credit_minor, 'totalCreditMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE'),
         closedBatchCount: Number(row.closed_batch_count || 0),
         openBatchCount: Number(row.open_batch_count || 0),
         matchedCount: Number(row.matched_count || 0),

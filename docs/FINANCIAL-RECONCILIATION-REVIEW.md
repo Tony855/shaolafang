@@ -196,3 +196,11 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - Older backup formats that predate the finance tables are accepted by defaulting those missing arrays to empty, preserving the existing snapshot-replacement semantics.
 - Restore validates every row field against the live schema before deleting any rows, then replaces all listed tables and writes the restore audit event in the same transaction. Native JSON objects are serialized before binding; session tokens remain invalidated rather than restored.
 - No provider verification rules, currency conversions, account mappings, refund amount semantics, or posting behavior are introduced by backup/restore.
+
+
+## Persisted minor-unit precision guard (PR #203)
+
+- MySQL BIGINT/SUM values are validated as exact non-negative integer minor units before conversion to JavaScript Number. Values above `Number.MAX_SAFE_INTEGER`, malformed/fractional values, and zero where an individual positive amount is required fail closed.
+- The shared helper is applied to statement rows and match suggestions, manual review debit/credit totals and item amounts, exception queue/overdue/SLA amounts, batch summary and idempotent import comparison, and journal idempotent-entry comparison.
+- Existing currency codes remain isolated; no cross-currency summation, FX conversion, bank currency mapping, rounding rule, account mapping, or refund amount change is introduced.
+- Unsafe persisted values cause the request/replay to fail before any review state mutation or audit event insertion.

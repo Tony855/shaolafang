@@ -1784,12 +1784,13 @@ test('MySQL integration: concurrent manual reviews cannot assign one journal tra
 }, async t => {
   const firstDb = await connectTestDatabase();
   const secondDb = await connectTestDatabase();
+  // Child tables are dropped before the journal and batch parents.
   const tables = [
     'financial_reconciliation_review_events',
     'financial_journal_entries',
-    'financial_journal_transactions',
     'financial_reconciliation_items',
-    'financial_reconciliation_batches'
+    'financial_reconciliation_batches',
+    'financial_journal_transactions'
   ];
   t.after(async () => {
     try {
@@ -2157,4 +2158,122 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
   assert.equal(Number((await getAsync(
     "SELECT COUNT(*) AS row_count FROM financial_reconciliation_items WHERE merchant_id=6 AND store_id=9 AND match_status='exception'"
   )).row_count), 50000);
+});
+
+
+test('MySQL integration: unsafe persisted BIGINT minor-unit values fail closed before review mutation or audit', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 45000
+}, async t => {
+  const db = await connectTestDatabase();
+  // Child tables are dropped before the journal and batch parents.
+  const tables = [
+    'financial_reconciliation_review_events',
+    'financial_journal_entries',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches',
+    'financial_journal_transactions'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await db.connection.end();
+    }
+  });
+  for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+
+  await db.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY, merchant_id INT NOT NULL, store_id INT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported'
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_transactions (
+    id BIGINT PRIMARY KEY, merchant_id INT NOT NULL, store_id INT NOT NULL,
+    currency_code CHAR(3) NOT NULL
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY, batch_id BIGINT NOT NULL, merchant_id INT NOT NULL, store_id INT NOT NULL,
+    amount_minor BIGINT UNSIGNED NOT NULL, currency_code CHAR(3) NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'pending', matched_journal_transaction_id BIGINT DEFAULT NULL,
+    match_reason VARCHAR(128) DEFAULT NULL, exception_category VARCHAR(64) DEFAULT NULL,
+    exception_note VARCHAR(500) DEFAULT NULL,
+    CONSTRAINT fk_precision_item_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_precision_item_journal FOREIGN KEY (matched_journal_transaction_id)
+      REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_journal_entries (
+    id BIGINT PRIMARY KEY, transaction_id BIGINT NOT NULL, merchant_id INT NOT NULL, store_id INT NOT NULL,
+    direction ENUM('debit','credit') NOT NULL, amount_minor BIGINT UNSIGNED NOT NULL,
+    CONSTRAINT fk_precision_entry_journal FOREIGN KEY (transaction_id)
+      REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_review_events (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT, merchant_id INT NOT NULL, store_id INT NOT NULL,
+    batch_id BIGINT NOT NULL, item_id BIGINT NOT NULL, journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL, actor_admin_id INT NOT NULL, actor_username VARCHAR(100) NOT NULL,
+    action VARCHAR(32) NOT NULL, reason VARCHAR(500) NOT NULL, idempotency_key VARCHAR(128) NOT NULL,
+    request_sha256 CHAR(64) NOT NULL, before_json JSON NOT NULL, after_json JSON NOT NULL,
+    previous_hash CHAR(64) NOT NULL DEFAULT '', event_hash CHAR(64) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_precision_review_idempotency (merchant_id,store_id,batch_id,idempotency_key),
+    CONSTRAINT fk_precision_event_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_precision_event_item FOREIGN KEY (item_id)
+      REFERENCES financial_reconciliation_items(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_precision_event_journal FOREIGN KEY (journal_transaction_id)
+      REFERENCES financial_journal_transactions(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+
+  await db.runAsync("INSERT INTO financial_reconciliation_batches (id,merchant_id,store_id,status) VALUES (1,4,9,'imported')");
+  await db.runAsync("INSERT INTO financial_journal_transactions (id,merchant_id,store_id,currency_code) VALUES (31,4,9,'USD')");
+  await db.runAsync("INSERT INTO financial_reconciliation_items (id,batch_id,merchant_id,store_id,amount_minor,currency_code,match_status) VALUES (11,1,4,9,1000,'USD','pending')");
+  const unsafe = '9007199254740992';
+  await db.runAsync(
+    "INSERT INTO financial_journal_entries (id,transaction_id,merchant_id,store_id,direction,amount_minor) VALUES (41,31,4,9,'debit',?),(42,31,4,9,'credit',?)",
+    [unsafe, unsafe]
+  );
+
+  const withTransaction = async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+  const { createFinancialReconciliationReviewService } =
+    require('../server/services/financial-reconciliation-review');
+  const review = createFinancialReconciliationReviewService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+  const input = {
+    merchantId: 4, storeId: 9, batchId: 1, itemId: 11, actorId: 7, actorUsername: 'precision-reviewer',
+    action: 'confirm', journalTransactionId: 31, reason: 'Verify exact persisted minor-unit values',
+    idempotencyKey: 'precision-review-debit-0001'
+  };
+  await assert.rejects(
+    review.reviewItem(input),
+    error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE'
+  );
+  let [items] = await db.connection.query('SELECT match_status,matched_journal_transaction_id FROM financial_reconciliation_items WHERE id=11');
+  let [events] = await db.connection.query('SELECT COUNT(*) AS event_count FROM financial_reconciliation_review_events');
+  assert.equal(items[0].match_status, 'pending');
+  assert.equal(items[0].matched_journal_transaction_id, null);
+  assert.equal(Number(events[0].event_count), 0);
+
+  await db.runAsync('UPDATE financial_journal_entries SET amount_minor=1000 WHERE transaction_id=31');
+  await db.runAsync('UPDATE financial_reconciliation_items SET amount_minor=? WHERE id=11', [unsafe]);
+  await assert.rejects(
+    review.reviewItem({ ...input, idempotencyKey: 'precision-review-item-0002' }),
+    error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE'
+  );
+  [items] = await db.connection.query('SELECT match_status,matched_journal_transaction_id FROM financial_reconciliation_items WHERE id=11');
+  [events] = await db.connection.query('SELECT COUNT(*) AS event_count FROM financial_reconciliation_review_events');
+  assert.equal(items[0].match_status, 'pending');
+  assert.equal(items[0].matched_journal_transaction_id, null);
+  assert.equal(Number(events[0].event_count), 0);
 });

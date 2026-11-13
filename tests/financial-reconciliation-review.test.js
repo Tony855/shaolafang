@@ -100,7 +100,7 @@ function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hide
   }
   return {
     service: createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction, lockFinancialMonthPeriod }),
-    batches, items, events, eventList, executed, queries
+    batches, items, totals, events, eventList, executed, queries
   };
 }
 
@@ -392,4 +392,54 @@ test('review event writes are append-only at service boundary', async () => {
   await db.service.reviewItem(input());
   assert.deepEqual(db.executed.filter(sql => /^(UPDATE|DELETE) financial_reconciliation_review_events/i.test(sql)), []);
   assert.equal(db.executed.filter(sql => /^INSERT INTO financial_reconciliation_review_events/i.test(sql)).length, 1);
+});
+
+
+test('batch review rejects unsafe persisted statement amounts and journal candidate totals', async () => {
+  const baseRow = {
+    id: 1, batch_id: 1, row_no: 1, external_reference: null, transaction_reference: null,
+    direction: 'credit', amount_minor: '9007199254740992', currency_code: 'USD',
+    occurred_at: '2026-11-12 00:00:00', description: '', match_status: 'pending'
+  };
+  const statementService = createFinancialReconciliationReviewService({
+    getAsync: async () => ({ id: 1, status: 'imported', currency_code: 'USD', row_count: 1 }),
+    allAsync: async () => [baseRow],
+    runAsync: async () => ({ affectedRows: 1 }),
+    withTransaction: async work => work()
+  });
+  await assert.rejects(
+    statementService.listBatchReview({ merchantId: 4, storeId: 9, batchId: 1 }),
+    error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE'
+  );
+
+  const candidateService = createFinancialReconciliationReviewService({
+    getAsync: async () => ({ id: 1, status: 'imported', currency_code: 'USD', row_count: 1 }),
+    allAsync: async sql => sql.includes('FROM financial_reconciliation_items')
+      ? [{ ...baseRow, external_reference: 'bank-ref', amount_minor: 100 }]
+      : [{ journalTransactionId: 31, merchantId: 4, storeId: 9, sourceId: 'bank-ref',
+          currencyCode: 'USD', amountMinor: '9007199254740992', creditMinor: '9007199254740992' }],
+    runAsync: async () => ({ affectedRows: 1 }),
+    withTransaction: async work => work()
+  });
+  await assert.rejects(
+    candidateService.listBatchReview({ merchantId: 4, storeId: 9, batchId: 1 }),
+    error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE'
+  );
+});
+
+test('manual confirmation rejects unsafe persisted statement and journal totals before mutation', async () => {
+  const statementDb = memoryDb();
+  statementDb.items.get(11).amount_minor = '9007199254740992';
+  await assert.rejects(statementDb.service.reviewItem(input()), error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE');
+  assert.equal(statementDb.items.get(11).match_status, 'pending');
+  assert.equal(statementDb.eventList.length, 0);
+
+  const journalDb = memoryDb();
+  journalDb.totals.set(31, {
+    debit_minor: '9007199254740992',
+    credit_minor: '9007199254740992'
+  });
+  await assert.rejects(journalDb.service.reviewItem(input()), error => error.code === 'REVIEW_TOTAL_PRECISION_UNSAFE');
+  assert.equal(journalDb.items.get(11).match_status, 'pending');
+  assert.equal(journalDb.eventList.length, 0);
 });
