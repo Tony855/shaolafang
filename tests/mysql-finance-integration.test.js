@@ -747,11 +747,12 @@ test('MySQL integration: reconciliation suggestions use only tenant/store-owned 
 });
 
 
-test('MySQL integration: manual reconciliation review is transactional, tenant-scoped, and idempotent', {
+test('MySQL integration: manual reconciliation review is transactional, tenant-scoped, and idempotent under concurrent replay', {
   skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
   timeout: 30000
 }, async t => {
   const db = await connectTestDatabase();
+  const db2 = await connectTestDatabase();
   const tables = [
     'financial_reconciliation_review_events',
     'financial_journal_entries',
@@ -765,7 +766,7 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
     try {
       for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
     } finally {
-      await db.connection.end();
+      await Promise.all([db.connection.end(), db2.connection.end()]);
     }
   });
 
@@ -861,21 +862,36 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
      VALUES (?,44,12,1,'cash','debit',12500),(?,44,12,2,'sales','credit',12500)`,
     [journalId, journalId]
   );
+  const journal2 = await db.runAsync(
+    `INSERT INTO financial_journal_transactions
+      (merchant_id,store_id,currency_code,source_type,source_id,idempotency_key,description,created_by)
+     VALUES (44,12,'USD','order_payment','review-order-2','review-journal:order-2','second review candidate','integration-test')`
+  );
+  const journal2Id = Number(journal2.insertId);
+  await db.runAsync(
+    `INSERT INTO financial_journal_entries
+      (transaction_id,merchant_id,store_id,line_no,account_code,direction,amount_minor)
+     VALUES (?,44,12,1,'cash','debit',10000),(?,44,12,2,'sales','credit',10000)`,
+    [journal2Id, journal2Id]
+  );
 
   const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
-  const withTransaction = async work => {
-    await db.connection.beginTransaction();
+  const transactionFor = database => async work => {
+    await database.connection.beginTransaction();
     try {
       const result = await work();
-      await db.connection.commit();
+      await database.connection.commit();
       return result;
     } catch (error) {
-      await db.connection.rollback();
+      await database.connection.rollback();
       throw error;
     }
   };
   const service = createFinancialReconciliationReviewService({
-    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction: transactionFor(db)
+  });
+  const service2 = createFinancialReconciliationReviewService({
+    runAsync: db2.runAsync, getAsync: db2.getAsync, allAsync: db2.allAsync, withTransaction: transactionFor(db2)
   });
   const reviewInput = {
     merchantId: 44, storeId: 12, batchId, itemId: 1,
@@ -898,6 +914,22 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
     reason: 'Confirm mismatched amount'
   }), error => error.code === 'REVIEW_JOURNAL_MISMATCH');
 
+  const concurrentInput = {
+    ...reviewInput,
+    itemId: 2,
+    journalTransactionId: journal2Id,
+    reason: 'Confirm exact second bank statement match',
+    idempotencyKey: 'mysql-review-concurrent-replay-000003'
+  };
+  const concurrentResults = await Promise.all([
+    service.reviewItem(concurrentInput),
+    service2.reviewItem(concurrentInput)
+  ]);
+  assert.deepEqual(concurrentResults.map(result => result.replayed).sort(), [false, true],
+    'one concurrent request commits and the other reuses the exact audit event');
+  assert.equal(concurrentResults[0].eventId, concurrentResults[1].eventId,
+    'concurrent exact replay must return the same durable event');
+
   const [items] = await db.connection.query(
     'SELECT id,match_status,matched_journal_transaction_id FROM financial_reconciliation_items WHERE batch_id=? ORDER BY id',
     [batchId]
@@ -908,12 +940,12 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
   );
   assert.equal(items[0].match_status, 'matched');
   assert.equal(Number(items[0].matched_journal_transaction_id), journalId);
-  assert.equal(items[1].match_status, 'pending',
-    'a journal amount mismatch must leave the statement row unchanged');
-  assert.equal(items[1].matched_journal_transaction_id, null);
-  assert.equal(events.length, 1, 'exact replay must not duplicate audit events and failed review must not write one');
-  assert.deepEqual([Number(events[0].item_id), Number(events[0].actor_admin_id), events[0].action],
-    [1, 7, 'confirm']);
+  assert.equal(items[1].match_status, 'matched',
+    'the concurrent exact replay must preserve the winning manual confirmation');
+  assert.equal(Number(items[1].matched_journal_transaction_id), journal2Id);
+  assert.equal(events.length, 2, 'exact replay must not duplicate audit events and failed review must not write one');
+  assert.deepEqual(events.map(row => [Number(row.item_id), Number(row.actor_admin_id), row.action]),
+    [[1, 7, 'confirm'], [2, 7, 'confirm']]);
 });
 
 
