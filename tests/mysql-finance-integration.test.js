@@ -2048,7 +2048,7 @@ test('MySQL integration: concurrent manual reviews cannot assign one journal tra
 
 
 
-test('MySQL integration: legacy-safe exception queue index preserves rows and scales tenant cursor pagination to 50k', {
+test('MySQL integration: legacy-safe exception queue index scales mixed multi-batch pagination to 50k', {
   skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
   timeout: 180000
 }, async t => {
@@ -2116,7 +2116,11 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
   const tenantGroups = [
     { merchantId: 4, storeId: 9, count: 2500, label: '2.5k' },
     { merchantId: 5, storeId: 9, count: 10000, label: '10k' },
-    { merchantId: 6, storeId: 9, count: 50000, label: '50k' },
+    { merchantId: 6, storeId: 9, count: 10000, label: '50k-batch-1' },
+    { merchantId: 6, storeId: 9, count: 10000, label: '50k-batch-2' },
+    { merchantId: 6, storeId: 9, count: 10000, label: '50k-batch-3' },
+    { merchantId: 6, storeId: 9, count: 10000, label: '50k-batch-4' },
+    { merchantId: 6, storeId: 9, count: 10000, label: '50k-batch-5' },
     { merchantId: 6, storeId: 10, count: 2500, label: 'foreign-store' }
   ];
   const batchIds = new Map();
@@ -2155,7 +2159,8 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
   );
   assert.equal(Number(afterMigration.row_count), 1, 'legacy rows must survive index migration');
 
-  const insertRows = async (group, startRow, endRow) => {
+  const exceptionCategories = ['fee', 'refund', 'settlement_difference', 'chargeback', 'other'];
+  const insertRows = async (group, startRow, endRow, status = 'exception') => {
     const batchId = batchIds.get(group.label);
     for (let start = startRow; start <= endRow; start += 400) {
       const values = [];
@@ -2163,11 +2168,14 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
       const end = Math.min(endRow, start + 399);
       for (let rowNo = start; rowNo <= end; rowNo += 1) {
         values.push('(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        const category = status === 'exception'
+          ? exceptionCategories[(rowNo - 1) % exceptionCategories.length]
+          : null;
         params.push(
           batchId, group.merchantId, group.storeId, rowNo,
           'ref-' + group.label + '-' + rowNo, '', 'credit', 1000, 'USD',
-          '2026-11-12 10:00:00.000', 'synthetic exception row', 'exception',
-          null, null, 'fee', null
+          '2026-11-12 10:00:00.000', 'synthetic ' + status + ' row', status,
+          null, null, category, null
         );
       }
       await runAsync(
@@ -2182,8 +2190,29 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
   };
   await insertRows(tenantGroups[0], 2, 2500);
   await insertRows(tenantGroups[1], 1, 10000);
-  await insertRows(tenantGroups[2], 1, 50000);
-  await insertRows(tenantGroups[3], 1, 2500);
+  for (const group of tenantGroups.slice(2, 7)) {
+    await insertRows(group, 1, 10000);
+    await insertRows(group, 10001, 10200, 'pending');
+  }
+  await insertRows(tenantGroups[7], 1, 2500);
+
+  const caseIds = [];
+  for (const group of tenantGroups.slice(2, 7)) {
+    const batchId = batchIds.get(group.label);
+    const [items] = await connection.query(
+      'SELECT id FROM financial_reconciliation_items WHERE batch_id=? AND row_no IN (1,2) ORDER BY row_no',
+      [batchId]
+    );
+    assert.equal(items.length, 2);
+    await runAsync(
+      `INSERT INTO financial_reconciliation_exception_cases
+        (merchant_id,store_id,batch_id,item_id,status)
+       VALUES (?,?,?,?,'resolved'),(?,?,?,?,'open')`,
+      [group.merchantId, group.storeId, batchId, Number(items[0].id),
+        group.merchantId, group.storeId, batchId, Number(items[1].id)]
+    );
+    caseIds.push(Number(items[0].id));
+  }
   await connection.query('ANALYZE TABLE financial_reconciliation_items');
 
   const { createFinancialReconciliationReviewService } =
@@ -2199,7 +2228,7 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
   });
 
   const benchmarkResults = [];
-  for (const group of tenantGroups.slice(0, 3)) {
+  for (const group of [tenantGroups[0], tenantGroups[1], tenantGroups[2]]) {
     const started = process.hrtime.bigint();
     const page = await service.listExceptions({
       merchantId: group.merchantId, storeId: group.storeId, limit: 100, afterId: 0
@@ -2208,6 +2237,21 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
     assert.equal(page.items.length, 100, group.label + ' first page should be full');
     assert.ok(page.nextCursor, group.label + ' should expose a continuation cursor');
     benchmarkResults.push({ dataset: group.label, firstPageMs: Number(elapsedMs.toFixed(2)) });
+  }
+  const resolvedCases = await service.listExceptions({
+    merchantId: 6, storeId: 9, caseStatus: 'resolved', limit: 100, afterId: 0
+  });
+  assert.equal(resolvedCases.items.length, 5,
+    'resolved case filter must return one resolved item from each of five batches');
+  assert.ok(resolvedCases.items.every(item => item.caseStatus === 'resolved'));
+  assert.deepEqual(new Set(resolvedCases.items.map(item => item.itemId)), new Set(caseIds));
+  for (const category of exceptionCategories) {
+    const page = await service.listExceptions({
+      merchantId: 6, storeId: 9, category, limit: 100, afterId: 0
+    });
+    assert.equal(page.items.length, 100, category + ' filter should return a full page');
+    assert.ok(page.items.every(item => item.category === category),
+      category + ' filter must not mix categories');
   }
   t.diagnostic('Exception queue first-page timings (informational, no flaky wall-clock threshold): ' +
     JSON.stringify(benchmarkResults));
@@ -2225,6 +2269,7 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
     'MySQL must use the tenant/status/cursor index for reconciliation items');
 
   const received = [];
+  const receivedBatchIds = [];
   let afterId = 0;
   let pages = 0;
   do {
@@ -2232,16 +2277,23 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
       merchantId: 6, storeId: 9, limit: 100, afterId
     });
     received.push(...page.items.map(item => item.itemId));
+    receivedBatchIds.push(...page.items.map(item => item.batchId));
     afterId = page.nextCursor || 0;
     pages += 1;
     if (!page.nextCursor) break;
-    assert.ok(pages <= 500, '50k queue pagination must terminate');
+    assert.ok(pages <= 500, '50k multi-batch queue pagination must terminate');
   } while (true);
   assert.equal(pages, 500);
   assert.equal(received.length, 50000);
   assert.equal(new Set(received).size, 50000, 'cursor pagination must not duplicate rows');
   assert.ok(received.every((id, index) => index === 0 || received[index - 1] > id),
     'cursor pages must remain in strict descending ID order');
+  assert.deepEqual(new Set(receivedBatchIds),
+    new Set(tenantGroups.slice(2, 7).map(group => batchIds.get(group.label))),
+    'the 50k result set must span all five tenant-owned batches without leaking other batches');
+  assert.equal(Number((await getAsync(
+    "SELECT COUNT(*) AS row_count FROM financial_reconciliation_items WHERE merchant_id=6 AND store_id=9 AND match_status='pending'"
+  )).row_count), 1000, 'pending rows across the five batches must remain outside the exception queue');
   const foreignPage = await service.listExceptions({
     merchantId: 6, storeId: 10, limit: 100, afterId: 0
   });
