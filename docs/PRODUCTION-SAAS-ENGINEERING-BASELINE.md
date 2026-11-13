@@ -67,11 +67,11 @@
 - `TRUST_PROXY` 只信任真实 Nginx/LB 内网 IP 或 CIDR，不能对公网使用 `true`。
 - 错误响应不返回 SQL、堆栈、数据库地址、支付密钥或文件系统路径。
 
-## 4. MySQL 与并发性能
+## 4. MariaDB 与并发性能
 
 ### 连接池预算
 
-集群总连接上限应满足：
+生产数据库统一使用 MariaDB 10.5+。集群总连接上限应满足：
 
 `应用节点数量 × 每节点 DB_CONNECTION_LIMIT + 运维/迁移连接 < 数据库 max_connections`
 
