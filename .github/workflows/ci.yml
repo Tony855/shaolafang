@@ -85,6 +85,44 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+  mariadb-finance-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mariadb-version: ["10.5", "10.11"]
+    env:
+      MYSQL_INTEGRATION_URL: mysql://root:finance_test_password@127.0.0.1:3306/shaolafang_test
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb-version }}
+        env:
+          MARIADB_ROOT_PASSWORD: finance_test_password
+          MARIADB_DATABASE: shaolafang_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -uroot -pfinance_test_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run financial integration and backup/restore tests on MariaDB
+        run: node --test tests/mysql-finance-integration.test.js && node --test tests/mysql-finance-backup-restore.test.js
+
   mysql-finance-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 15
