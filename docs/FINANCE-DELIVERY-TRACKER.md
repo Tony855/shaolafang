@@ -106,6 +106,7 @@ This tracker records merged delivery separately from work that is still under re
 - PR #215 merged: reconcile the historical Stage 10 closeout note with later provider-adapter delivery and distinguish code completion from live activation gates.
 - PR #216 merged: clarify that provider currency/rounding remains gated by merchant account configuration and finance approval, not by missing public API specifications.
 - PR #218 merged: rename the PayWay callback status output to callbackStatusCode and document that status=0 is the callback request status, not proof of final payment success.
+- PR #219 merged: close the PayWay callback status review item after the latest-head test and installer matrices passed.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
