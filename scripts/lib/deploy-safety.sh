@@ -47,3 +47,17 @@ ff_wait_for_health() {
   printf '[ERROR] 应用未在预期时间内通过 /health 与数据库就绪检查（端口 %s）。\n' "$port" >&2
   return 1
 }
+
+ff_require_port_available() {
+  local port="${1:-3000}" listeners
+  command -v ss >/dev/null 2>&1 || {
+    printf '[ERROR] 缺少 ss（iproute2），无法安全确认端口占用。\n' >&2
+    return 1
+  }
+  listeners="$(ss -H -ltnp "sport = :$port" 2>/dev/null || true)"
+  if [ -n "$listeners" ]; then
+    printf '[ERROR] TCP 端口 %s 已被占用；安装器不会终止未知进程。\n%s\n' "$port" "$listeners" >&2
+    printf '[INFO] 请确认占用进程后手动处理，再重新运行安装。\n' >&2
+    return 1
+  fi
+}
