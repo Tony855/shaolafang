@@ -61,9 +61,6 @@ BACKEND_PORT="${PORT:-3000}"
 
 if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
     if [ -n "$DOMAIN" ] && [ -z "$EMAIL" ]; then
-        log_error "非交互 HTTPS 配置必须同时提供 DOMAIN 和 EMAIL；否则请留空 DOMAIN 仅配置 HTTP。"
-        exit 1
-    fi
 else
     if [ -z "$DOMAIN" ]; then
         echo ""
@@ -76,6 +73,13 @@ else
     fi
 fi
 
+CERTBOT_EMAIL_ARGS=()
+if [ -n "$EMAIL" ]; then
+    CERTBOT_EMAIL_ARGS=("${CERTBOT_EMAIL_ARGS[@]}")
+else
+    CERTBOT_EMAIL_ARGS=(--register-unsafely-without-email)
+    [ -z "$DOMAIN" ] || log_warn "未提供 EMAIL，证书续期通知将不可用。"
+fi
 # 后端端口不能是80/443
 if [ "$BACKEND_PORT" = "80" ] || [ "$BACKEND_PORT" = "443" ]; then
     log_warn "BACKEND_PORT 不能设为 80/443，强制改为 3000"
@@ -231,7 +235,7 @@ if [ -n "$DOMAIN" ] && command_exists certbot; then
     else
         log_warn "Nginx 插件模式申请失败，尝试 standalone 模式..."
         systemctl stop nginx
-        kill_port 80
+        check_port_available 80
         if certbot certonly --standalone -d "$DOMAIN" --non-interactive --agree-tos --email "$EMAIL" 2>&1; then
             log_success "证书获取成功，重新配置 Nginx..."
 
