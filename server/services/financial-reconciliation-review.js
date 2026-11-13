@@ -455,7 +455,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     const n=value=>Number(value||0);
     return {period,from,to,rows:rows.map(row=>({periodStart:String(row.period_start).slice(0,10),periodEnd:String(row.period_end).slice(0,10),
       currencyCode:row.currency_code,batchCount:n(row.batch_count),statementRowCount:n(row.statement_row_count),
-      totalDebitMinor:safeMinorUnitTotal(row.total_debit_minor,'totalDebitMinor'),totalCreditMinor:safeMinorUnitTotal(row.total_credit_minor,'totalCreditMinor'),matchedCount:n(row.matched_count),
+      totalDebitMinor:safeMinorUnitTotal(row.total_debit_minor,'totalDebitMinor','REVIEW_TOTAL_PRECISION_UNSAFE'),totalCreditMinor:safeMinorUnitTotal(row.total_credit_minor,'totalCreditMinor','REVIEW_TOTAL_PRECISION_UNSAFE'),matchedCount:n(row.matched_count),
       pendingCount:n(row.pending_count),unmatchedCount:n(row.unmatched_count),ambiguousCount:n(row.ambiguous_count),exceptionCount:n(row.exception_count)}))};
   }
 
@@ -1228,8 +1228,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         currencyCode: row.currency_code,
         batchCount: Number(row.batch_count || 0),
         statementRowCount: Number(row.statement_row_count || 0),
-        totalDebitMinor: safeMinorUnitTotal(row.total_debit_minor, 'totalDebitMinor'),
-        totalCreditMinor: safeMinorUnitTotal(row.total_credit_minor, 'totalCreditMinor'),
+        totalDebitMinor: safeMinorUnitTotal(row.total_debit_minor, 'totalDebitMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE'),
+        totalCreditMinor: safeMinorUnitTotal(row.total_credit_minor, 'totalCreditMinor', 'REVIEW_TOTAL_PRECISION_UNSAFE'),
         closedBatchCount: Number(row.closed_batch_count || 0),
         openBatchCount: Number(row.open_batch_count || 0),
         matchedCount: Number(row.matched_count || 0),
