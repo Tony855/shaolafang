@@ -37,7 +37,7 @@ ff_apt_install() {
 
 ff_prepare_system_packages() {
   ff_apt_update || return 1
-  ff_apt_install ca-certificates curl wget git gnupg
+  ff_apt_install ca-certificates curl wget git gnupg iproute2 util-linux
   if [ "$FF_APT_UPGRADE" = "1" ]; then
     ff_log_warn "FF_APT_UPGRADE=1：正在执行整机软件包升级；部分系统更新可能需要维护窗口或重启。"
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y

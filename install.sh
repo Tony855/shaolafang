@@ -5,7 +5,7 @@
 # 用法：sudo bash install.sh
 # ============================================================
 
-set -e
+set -Ee
 
 # 设置非交互模式，避免 apt 安装时弹出键盘布局等交互界面
 export DEBIAN_FRONTEND=noninteractive
@@ -13,6 +13,10 @@ export DEBIAN_FRONTEND=noninteractive
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/system-deps.sh
 source "$SCRIPT_DIR/scripts/lib/system-deps.sh"
+# shellcheck source=scripts/lib/deploy-safety.sh
+source "$SCRIPT_DIR/scripts/lib/deploy-safety.sh"
+ff_enable_error_trap
+ff_acquire_deploy_lock
 
 # 颜色定义
 RED='\033[0;31m'
@@ -49,104 +53,40 @@ prepare_deploy_key() {
 
 # ===== 已安装时的更新模式 =====
 update_existing_install() {
-    log_step "检测到已安装，执行代码更新"
-    ff_ensure_node || return 1
-
-    prepare_deploy_key 2>/dev/null || {
-        log_error "无法准备 deploy key，更新中止"
-        return 1
-    }
-
+    log_step "检测到已安装，先获取目标版本的事务式升级器"
     local target="$APP_DIR"
-    local ts=$(date +%Y%m%d%H%M%S)
-    local old_sha=""
-    local node_modules_backup="$target/.node_modules-backup-$ts"
-    local node_modules_stage="$target/.node_modules-stage-$ts"
-
-    if [ -d "$target/.git" ]; then
-        log_info "已是 git 仓库，执行 git fetch + reset..."
-        cd "$target"
-        old_sha=$(git rev-parse HEAD 2>/dev/null || true)
-        local old_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        git fetch origin "$GIT_VERSION" || { log_error "git fetch $GIT_VERSION 失败"; return 1; }
-        git reset --hard FETCH_HEAD || { log_error "git reset $GIT_VERSION 失败"; return 1; }
-        local new_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        log_success "代码已更新: $old_rev -> $new_rev"
-    else
-        log_info "非 git 仓库，从远端 clone 后覆盖同步..."
-        local tmp_clone="/tmp/foodflow-update-$ts"
-        rm -rf "$tmp_clone"
-        git clone --depth 1 --branch "$GIT_VERSION" "$FOODFLOW_REPO" "$tmp_clone" || {
-            log_error "clone 失败"
-            rm -rf "$tmp_clone"
-            return 1
-        }
-        rsync -a --delete \
-            --exclude '.git' \
-            --exclude 'node_modules' \
-            --exclude 'uploads' \
-            --exclude 'backups' \
-            --exclude 'logs' \
-            --exclude '.env' \
-            "$tmp_clone/" "$target/"
-        rm -rf "$tmp_clone"
-
-        cd "$target"
-        [ -d .git ] || git init -q
-        git remote remove origin 2>/dev/null || true
-        git remote add origin "$FOODFLOW_REPO"
-        git fetch -q origin "$GIT_VERSION" 2>/dev/null || true
-        git reset --hard FETCH_HEAD 2>/dev/null || true
-        log_success "代码已同步到最新"
+    local updater_tmp safety_tmp
+    prepare_deploy_key 2>/dev/null || { log_error "无法准备 deploy key，更新中止"; return 1; }
+    if [ ! -d "$target/.git" ]; then
+        log_error "现有安装目录不是 Git 仓库；为防止覆盖生产文件，自动更新已中止。请先完成备份并迁移到 Git 管理目录。"
+        return 1
     fi
-
-    # 更新代码后必须同步 package-lock.json 对应的运行依赖；否则 Redis/MySQL
-    # 等依赖升级只更新源码，不更新现有 node_modules。
-    if [ -f "$target/package-lock.json" ] && [ -f "$target/package.json" ]; then
-        rm -rf "$node_modules_stage"
-        mkdir -p "$node_modules_stage"
-        cp "$target/package.json" "$target/package-lock.json" "$node_modules_stage/"
-        if ! (cd "$node_modules_stage" && npm ci --omit=dev --no-audit --no-fund); then
-            rm -rf "$node_modules_stage"
-            if [ -n "$old_sha" ]; then git -C "$target" reset --hard "$old_sha" >/dev/null 2>&1 || true; fi
-            log_error "依赖安装失败，已保留现有 node_modules；代码已尝试回滚"
-            return 1
-        fi
-
-        if [ -d "$target/node_modules" ]; then
-            mv "$target/node_modules" "$node_modules_backup"
-        fi
-        if ! mv "$node_modules_stage/node_modules" "$target/node_modules"; then
-            [ -d "$node_modules_backup" ] && mv "$node_modules_backup" "$target/node_modules"
-            rm -rf "$node_modules_stage"
-            if [ -n "$old_sha" ]; then git -C "$target" reset --hard "$old_sha" >/dev/null 2>&1 || true; fi
-            log_error "切换依赖目录失败，已恢复旧 node_modules"
-            return 1
-        fi
-        rm -rf "$node_modules_stage"
-    else
-        log_warn "未找到 package.json/package-lock.json，跳过依赖更新"
+    if [ -n "$(git -C "$target" status --porcelain --untracked-files=normal)" ]; then
+        log_error "目标目录存在未提交或未跟踪文件，拒绝覆盖。"
+        git -C "$target" status --short
+        return 1
     fi
-
-    log_info "重启 $SERVICE_NAME 服务..."
-    if systemctl restart "$SERVICE_NAME"; then
-        sleep 3
+    git -C "$target" fetch --no-tags origin "$GIT_VERSION" || { log_error "获取 $GIT_VERSION 失败"; return 1; }
+    updater_tmp="$(mktemp /tmp/foodflow-remote-update.XXXXXX)"
+    safety_tmp="$(mktemp /tmp/foodflow-deploy-safety.XXXXXX)"
+    if ! git -C "$target" show FETCH_HEAD:remote-update.sh > "$updater_tmp"; then
+        rm -f "$updater_tmp" "$safety_tmp"
+        log_error "目标版本缺少 remote-update.sh；拒绝执行旧版更新逻辑。"
+        return 1
     fi
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
-        rm -rf "$node_modules_backup"
-        log_success "✅ $SERVICE_NAME 已重启，依赖已同步"
+    if ! git -C "$target" show FETCH_HEAD:scripts/lib/deploy-safety.sh > "$safety_tmp"; then
+        rm -f "$updater_tmp" "$safety_tmp"
+        log_error "目标版本缺少 deploy-safety.sh；拒绝执行不完整升级。"
+        return 1
+    fi
+    chmod 0700 "$updater_tmp"
+    if FF_APP_DIR="$target" FF_DEPLOY_SAFETY_LIB="$safety_tmp" FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$updater_tmp"; then
+        rm -f "$updater_tmp" "$safety_tmp"
         return 0
     else
-        log_error "❌ 服务启动失败，请检查：journalctl -u $SERVICE_NAME -n 50"
-        if [ -d "$node_modules_backup" ]; then
-            rm -rf "$target/node_modules"
-            mv "$node_modules_backup" "$target/node_modules"
-        fi
-        if [ -n "$old_sha" ]; then
-            git -C "$target" reset --hard "$old_sha" >/dev/null 2>&1 || true
-            systemctl restart "$SERVICE_NAME" >/dev/null 2>&1 || true
-        fi
-        return 1
+        local rc=$?
+        rm -f "$updater_tmp" "$safety_tmp"
+        return "$rc"
     fi
 }
 
@@ -294,6 +234,12 @@ select_node_role() {
         esac
     fi
 
+    if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
+        case "${FF_NODE_ROLE:-}" in
+            master|slave) NODE_ROLE="$FF_NODE_ROLE"; return ;;
+            *) log_error "非交互集群安装必须设置 FF_NODE_ROLE=master 或 slave"; exit 1 ;;
+        esac
+    fi
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
     echo -e "${CYAN}${BOLD}  请选择当前服务器的角色：${NC}"
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
@@ -336,6 +282,10 @@ select_node_role() {
 # 询问域名（仅当环境变量和默认值都为空时）
 # ============================================================
 ask_domain_if_needed() {
+    if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
+        log_info "非交互模式：未提供 DOMAIN 时跳过 HTTPS；未提供 EMAIL 时不提示输入。"
+        return
+    fi
     if [ -z "$DOMAIN" ]; then
         echo ""
         echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
@@ -385,6 +335,15 @@ confirm_installation() {
     echo ""
     echo -e "${YELLOW}${BOLD}═══════════════════════════════════════════════════════════${NC}"
     echo ""
+
+    if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
+        if [ "${FF_CONFIRM_INSTALL:-0}" != "1" ]; then
+            log_error "非交互安装必须显式设置 FF_CONFIRM_INSTALL=1 才会执行系统变更。"
+            exit 1
+        fi
+        log_info "FF_CONFIRM_INSTALL=1：已收到非交互安装确认。"
+        return
+    fi
 
     read -p "确认开始安装？(y/N): " -n 1 -r
     echo
@@ -700,8 +659,7 @@ EOF
     systemctl stop $SERVICE_NAME 2>/dev/null || true
     systemctl disable $SERVICE_NAME 2>/dev/null || true
     sleep 1
-    fuser -k 3000/tcp 2>/dev/null || true
-    sleep 1
+    ff_require_port_available 3000
 
     NODE_PATH=$(which node)
     if ! id foodflow >/dev/null 2>&1; then
@@ -749,7 +707,7 @@ EOF
     rm -f /etc/nginx/sites-enabled/default
 
     if [ -f "$APP_DIR/setup-nginx.sh" ]; then
-        DOMAIN="$DOMAIN" EMAIL="$EMAIL" bash setup-nginx.sh || log_warn "Nginx 配置失败"
+        DOMAIN="$DOMAIN" EMAIL="$EMAIL" bash setup-nginx.sh
     else
         log_warn "未找到 setup-nginx.sh，使用基础 Nginx 配置"
         cat > /etc/nginx/conf.d/foodflow.conf << EOF

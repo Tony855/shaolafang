@@ -10,7 +10,7 @@
 # 支持系统：Debian 12/13、Ubuntu 22.04/24.04
 # ============================================================
 
-set -e
+set -Ee
 
 
 # ===== 颜色输出 =====
@@ -47,6 +47,11 @@ FF_INSTALL_REDIS="${FF_INSTALL_REDIS:-0}"
 FF_CONFIGURE_UFW="${FF_CONFIGURE_UFW:-0}"
 FF_CONFIGURE_BACKUP_CRON="${FF_CONFIGURE_BACKUP_CRON:-0}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Acquire the deployment lock before any fallback clone or filesystem mutation.
+# shellcheck source=scripts/lib/deploy-safety.sh
+source "$APP_DIR/scripts/lib/deploy-safety.sh"
+ff_enable_error_trap
+ff_acquire_deploy_lock
 
 # 如果当前目录没有 server.js，则安装到默认路径
 if [ ! -f "$APP_DIR/server.js" ]; then
@@ -79,6 +84,9 @@ fi
 
 # shellcheck source=scripts/lib/system-deps.sh
 source "$APP_DIR/scripts/lib/system-deps.sh"
+# shellcheck source=scripts/lib/deploy-safety.sh
+source "$APP_DIR/scripts/lib/deploy-safety.sh"
+ff_acquire_deploy_lock
 
 # 本脚本仅用于首次初始化；已有 .env 的实例应使用安全升级流程。
 if [ -e "$APP_DIR/.env" ]; then
@@ -327,9 +335,7 @@ systemctl stop foodflow 2>/dev/null || true
 systemctl disable foodflow 2>/dev/null || true
 sleep 1
 
-# 杀掉可能占用3000端口的进程
-fuser -k 3000/tcp 2>/dev/null || true
-sleep 1
+ff_require_port_available 3000
 
 NODE_PATH=$(which node)
 if ! id foodflow >/dev/null 2>&1; then
@@ -463,21 +469,37 @@ fi
 
 # ===== 可选：自动备份（默认不创建含数据库凭据的 cron 脚本） =====
 if [ "$FF_CONFIGURE_BACKUP_CRON" = "1" ]; then
-    log_warn "FF_CONFIGURE_BACKUP_CRON=1 已启用；自动备份脚本会在受限目录保存数据库凭据，请限制文件访问。"
-    BACKUP_SCRIPT="$APP_DIR/backups/auto-backup.sh"
-    cat > "$BACKUP_SCRIPT" << EOF
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="$APP_DIR/backups"
+    log_info "FF_CONFIGURE_BACKUP_CRON=1 已启用；数据库凭据单独保存在 root-only 配置文件中。"
+    if ! command -v crontab >/dev/null 2>&1; then ff_apt_install cron; fi
+    systemctl enable --now cron
+    install -d -o root -g root -m 0700 "$CONFIG_DIR"
+    BACKUP_OLD_UMASK="$(umask)"
+    umask 077
+    printf '[client]\nhost=127.0.0.1\nuser=foodflow\npassword="%s"\n' "$DB_RANDOM_PASSWORD" > "$CONFIG_DIR/backup.cnf"
+    umask "$BACKUP_OLD_UMASK"
+    chown root:root "$CONFIG_DIR/backup.cnf"
+    chmod 0600 "$CONFIG_DIR/backup.cnf"
+    install -d -o root -g root -m 0755 /usr/local/sbin
+    BACKUP_SCRIPT="/usr/local/sbin/foodflow-auto-backup"
+    cat > "$BACKUP_SCRIPT" << 'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+DATE="$(date +%Y%m%d_%H%M%S)"
+BACKUP_DIR="__BACKUP_DIR__"
+DB_NAME="__DB_NAME__"
 mkdir -p "$BACKUP_DIR"
-mysqldump -u foodflow -p'$DB_RANDOM_PASSWORD' $DEFAULT_DB_NAME > "$BACKUP_DIR/db_$DATE.sql" 2>/dev/null
-gzip "$BACKUP_DIR/db_$DATE.sql"
-RETENTION=7
-find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +$RETENTION -delete
+TMP_FILE="$(mktemp "$BACKUP_DIR/.db_$DATE.XXXXXX")"
+trap 'rm -f "$TMP_FILE" "$TMP_FILE.gz"' EXIT
+mysqldump --defaults-extra-file=/etc/foodflow/backup.cnf --single-transaction --quick "$DB_NAME" > "$TMP_FILE"
+gzip "$TMP_FILE"
+mv "$TMP_FILE.gz" "$BACKUP_DIR/db_$DATE.sql.gz"
+find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +7 -delete
 EOF
-    chmod 700 "$BACKUP_SCRIPT"
-    (crontab -l 2>/dev/null | grep -v "auto-backup.sh"; echo "0 3 * * * $BACKUP_SCRIPT") | crontab -
-    log_success "每日自动备份已配置（凌晨3点，保留7天）"
+    sed -i "s|__BACKUP_DIR__|$APP_DIR/backups|g; s|__DB_NAME__|$DEFAULT_DB_NAME|g" "$BACKUP_SCRIPT"
+    chown root:root "$BACKUP_SCRIPT"
+    chmod 0700 "$BACKUP_SCRIPT"
+    (crontab -l 2>/dev/null | grep -v "foodflow-auto-backup" || true; echo "0 3 * * * $BACKUP_SCRIPT") | crontab -
 else
     log_info "跳过自动备份计划任务；首次安装完成后请尽快配置独立备份策略。"
 fi

@@ -107,6 +107,31 @@ sudo bash install.sh
 #    3. 企业旗舰版 - 多台服务器集群部署
 ```
 
+### 自动化 / 非交互安装
+
+首次安装默认标准单机模式。自动化执行必须显式确认，避免脚本在无人值守环境中误改服务器：
+
+```bash
+sudo env FF_NONINTERACTIVE=1 FF_CONFIRM_INSTALL=1 bash install.sh
+```
+
+企业集群必须额外指定节点角色；域名和邮箱可通过环境变量提供：
+
+```bash
+sudo env FF_NONINTERACTIVE=1 FF_CONFIRM_INSTALL=1 FF_NODE_ROLE=master DOMAIN=food.example.com EMAIL=ops@example.com bash install.sh enterprise
+```
+
+非交互模式未设置 `DOMAIN` 时只配置 HTTP；如设置域名但未设置邮箱，证书将使用无邮箱注册模式，不会有续期通知。
+
+### 安装与升级安全约束
+
+- 所有安装/升级入口共用 `/run/lock/foodflow-deploy.lock`，同一台服务器不允许并发部署。
+- 升级前必须保持 Git 工作区干净；未提交或未跟踪文件会触发中止，不会被 `reset --hard` 覆盖。
+- 生产升级通过事务式 `remote-update.sh` 更新，失败时恢复旧源码与 `node_modules`，并检查 `/health` 和数据库连接。
+- 标准部署只允许快进更新；目标目录有生产 `.env` 但不是 Git 仓库时，不会执行 `rsync --delete`。
+- 端口被占用时安装器会显示占用信息并中止，不会用 `fuser` 或 `kill -9` 终止未知进程。
+- 可选每日数据库备份使用 `/etc/foodflow/backup.cnf`（root-only）保存凭据，备份程序安装在 `/usr/local/sbin/foodflow-auto-backup`。
+
 ### 手动部署
 
 #### 标准版（单台部署）

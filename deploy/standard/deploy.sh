@@ -8,7 +8,7 @@
 # 然后调用 install-local.sh 完成后续安装（数据库、Redis、Node.js、Systemd、Nginx）
 # ============================================================
 
-set -e
+set -Ee
 
 # 设置非交互模式
 export DEBIAN_FRONTEND=noninteractive
@@ -41,13 +41,18 @@ PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 DEPLOY_TARGET="/var/www/foodflow"
 # shellcheck source=../../scripts/lib/system-deps.sh
 source "$PROJECT_DIR/scripts/lib/system-deps.sh"
+# shellcheck source=../../scripts/lib/deploy-safety.sh
+source "$PROJECT_DIR/scripts/lib/deploy-safety.sh"
+ff_enable_error_trap
+
+ff_acquire_deploy_lock
 
 log_info "项目源目录: $PROJECT_DIR"
 log_info "部署目标目录: $DEPLOY_TARGET"
 
 # ===== 1. 安装基础工具 =====
 log_info "安装基础工具..."
-ff_prepare_system_packages curl wget git rsync
+ff_prepare_system_packages curl wget git
 log_success "基础工具安装完成"
 
 # ===== 2. 部署代码到 /var/www/foodflow =====
@@ -57,47 +62,31 @@ log_info "部署代码到 $DEPLOY_TARGET..."
 # 创建目标目录
 mkdir -p "$DEPLOY_TARGET"
 
-if [ -d "$PROJECT_DIR/.git" ]; then
-    # 本地开发环境：用 rsync 同步代码（排除 .git、node_modules 等）
-    log_info "从本地目录同步代码..."
-    rsync -a --delete \
-        --exclude '.git' \
-        --exclude 'node_modules' \
-        --exclude 'uploads/*' \
-        --exclude 'backups/*' \
-        --exclude 'logs/*' \
-        --exclude '.env' \
-        "$PROJECT_DIR/" "$DEPLOY_TARGET/"
-    log_success "代码同步完成"
-elif [ -d "$DEPLOY_TARGET/.git" ]; then
-    # 已部署过：git pull 更新
-    log_info "检测到已部署，执行 git pull 更新..."
+REPO_NAME="$(basename "$PROJECT_DIR")"
+case "$REPO_NAME" in
+    *enterprise-ultimate*|*ultimate*)
+        GIT_REPO="https://github.com/Tony855/foodflow-enterprise-ultimate.git"
+        ;;
+    *enterprise*)
+        GIT_REPO="https://github.com/Tony855/foodflow-enterprise.git"
+        ;;
+    *)
+        GIT_REPO="https://github.com/Tony855/shaolafang.git"
+        ;;
+esac
+
+if [ -d "$DEPLOY_TARGET/.git" ]; then
+    log_info "检测到 Git 部署目录，检查工作区后执行安全快进更新..."
     cd "$DEPLOY_TARGET"
-    git pull origin main || log_warn "git pull 失败，继续使用现有代码"
-    log_success "代码更新完成"
+    ff_require_clean_git_worktree
+    git pull --ff-only origin main
+    log_success "代码快进更新完成"
+elif [ -n "$(ls -A "$DEPLOY_TARGET" 2>/dev/null)" ]; then
+    log_error "目标目录非空但不是 Git 仓库；为保护生产配置和数据，拒绝备份搬移或覆盖。"
+    log_error "请先备份并将现有实例迁移到 Git 管理目录，再重新部署。"
+    exit 1
 else
-    # 首次部署：git clone（根据目录名判断仓库）
-    REPO_NAME=$(basename "$PROJECT_DIR")
-    case "$REPO_NAME" in
-        *enterprise-ultimate*|*ultimate*)
-            GIT_REPO="https://github.com/Tony855/foodflow-enterprise-ultimate.git"
-            ;;
-        *enterprise*)
-            GIT_REPO="https://github.com/Tony855/foodflow-enterprise.git"
-            ;;
-        *)
-            GIT_REPO="https://github.com/Tony855/shaolafang.git"
-            ;;
-    esac
-    log_info "克隆代码仓库: $GIT_REPO"
-
-    if [ -d "$DEPLOY_TARGET" ] && [ "$(ls -A "$DEPLOY_TARGET")" ]; then
-        BACKUP_DIR="$DEPLOY_TARGET.backup.$(date +%Y%m%d%H%M%S)"
-        log_warn "目录已存在且非空，备份到 $BACKUP_DIR"
-        mv "$DEPLOY_TARGET" "$BACKUP_DIR"
-        mkdir -p "$DEPLOY_TARGET"
-    fi
-
+    log_info "首次部署，克隆代码仓库: $GIT_REPO"
     git clone "$GIT_REPO" "$DEPLOY_TARGET"
     log_success "代码克隆完成"
 fi
@@ -118,7 +107,7 @@ fi
 cd "$DEPLOY_TARGET"
 if [ -f "$DEPLOY_TARGET/.env" ]; then
     log_info "检测到已有生产配置，使用安全升级流程（保留当前源码）..."
-    SKIP_GIT_UPDATE=1 bash "$DEPLOY_TARGET/remote-update.sh"
+    FF_DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1 bash "$DEPLOY_TARGET/remote-update.sh"
 else
     bash install-local.sh
 fi

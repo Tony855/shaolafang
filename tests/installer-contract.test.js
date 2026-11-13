@@ -92,6 +92,101 @@ test('remote updates use the same runtime baseline and locked dependency install
 });
 
 
+
+test('deployment safety serializes installers and protects dirty worktrees', () => {
+  const safety = read('scripts/lib/deploy-safety.sh');
+  const update = read('remote-update.sh');
+  const standard = read('deploy/standard/deploy.sh');
+  assert.match(safety, /flock -n 9/);
+  assert.match(safety, /git status --porcelain --untracked-files=normal/);
+  assert.match(safety, /ff_wait_for_health/);
+  assert.match(safety, /database!=="ok"/);
+  assert.match(update, /ff_acquire_deploy_lock/);
+  assert.match(update, /ff_require_clean_git_worktree/);
+  assert.match(update, /git reset --hard "\$TARGET_SHA"/);
+  assert.match(update, /git reset --hard "\$OLD_SHA"/);
+  assert.match(update, /ff_wait_for_health/);
+  assert.match(update, /旧版本已重启但健康检查未通过/);
+  assert.match(update, /FF_APP_DIR:-/);
+  assert.match(update, /trap rollback_update EXIT/);
+  assert.ok(update.indexOf('ff_require_clean_git_worktree') < update.indexOf('mktemp -d'));
+  assert.match(standard, /ff_acquire_deploy_lock/);
+  assert.match(standard, /git pull --ff-only origin main/);
+  assert.doesNotMatch(standard, /git pull origin main \|\| log_warn/);
+  assert.match(standard, /FF_DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1/);
+  assert.ok(read('install.sh').includes('git -C "$target" show FETCH_HEAD:remote-update.sh'));
+  assert.ok(read('install.sh').includes('FF_APP_DIR="$target" FF_DEPLOY_SAFETY_LIB="$safety_tmp"'));
+  assert.ok(read('install.sh').includes('FETCH_HEAD:scripts/lib/deploy-safety.sh'));
+  assert.ok(read('install.sh').includes('FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$updater_tmp"'));
+});
+
+test('all deployment entrypoints share a lock and never kill arbitrary port owners', () => {
+  const entries = [
+    'install.sh', 'install-local.sh', 'deploy/standard/deploy.sh',
+    'deploy/enterprise/cluster/deploy.sh',
+    'deploy/enterprise-ultimate/cluster/deploy.sh', 'setup-nginx.sh'
+  ];
+  for (const file of entries) {
+    const source = read(file);
+    assert.ok(source.includes('deploy-safety.sh'), file + ' must load deployment safety');
+    assert.ok(source.includes('ff_acquire_deploy_lock'), file + ' must serialize deployment');
+    assert.ok(!source.includes('fuser -k'), file + ' must not kill an unknown port owner');
+  }
+  assert.ok(read('scripts/lib/deploy-safety.sh').includes('ff_require_port_available'));
+  assert.ok(read('install.sh').includes('ff_require_port_available 3000'));
+  assert.ok(read('install-local.sh').includes('ff_require_port_available 3000'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('ff_require_clean_git_worktree'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('git clone "$GIT_REPO" "$DEPLOY_TARGET"'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('目标目录非空但不是 Git 仓库'));
+  assert.ok(!read('deploy/standard/deploy.sh').includes('rsync -a --delete'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('git pull --ff-only origin main'));
+  const nginx = read('setup-nginx.sh');
+  assert.ok(nginx.includes('check_port_available 80'));
+  assert.ok(!nginx.includes('fuser -k'));
+  assert.ok(!nginx.includes('kill -9'));
+  assert.ok(!nginx.includes('kill_port 80'));
+  assert.ok(read('install.sh').includes('DOMAIN="$DOMAIN" EMAIL="$EMAIL" bash setup-nginx.sh'));
+});
+
+test('scheduled database backups do not embed passwords in executable scripts', () => {
+  const local = read('install-local.sh');
+  assert.ok(local.includes('backup.cnf'));
+  assert.ok(local.includes('chmod 0600 "$CONFIG_DIR/backup.cnf"'));
+  assert.ok(local.includes('--defaults-extra-file=/etc/foodflow/backup.cnf'));
+  assert.ok(!local.includes('mysqldump -u foodflow -p'));
+  assert.ok(local.includes('crontab -'));
+  assert.ok(local.includes('ff_apt_install cron'));
+  assert.ok(local.includes('systemctl enable --now cron'));
+  assert.ok(local.includes('/usr/local/sbin/foodflow-auto-backup'));
+  assert.ok(local.includes('mktemp "$BACKUP_DIR/.db_$DATE.XXXXXX"'));
+  assert.ok(local.includes('trap \'rm -f "$TMP_FILE" "$TMP_FILE.gz"\' EXIT'));
+  assert.ok(local.includes("cat > \"$BACKUP_SCRIPT\" << 'EOF'"));
+});
+
+test('noninteractive installation requires explicit confirmation and cluster role', () => {
+  const installer = read('install.sh');
+  assert.match(installer, /FF_NONINTERACTIVE:-0/);
+  assert.match(installer, /FF_CONFIRM_INSTALL:-0/);
+  assert.match(installer, /FF_NODE_ROLE/);
+  assert.match(read('setup-nginx.sh'), /FF_NONINTERACTIVE:-0/);
+  assert.match(installer, /非交互安装必须显式设置 FF_CONFIRM_INSTALL=1/);
+  assert.match(installer, /非交互集群安装必须设置 FF_NODE_ROLE/);
+  const domainFn = installer.indexOf('ask_domain_if_needed() {');
+  const domainGuard = installer.indexOf('FF_NONINTERACTIVE', domainFn);
+  const domainPrompt = installer.indexOf('read -p "  请输入域名', domainFn);
+  assert.ok(domainFn >= 0 && domainGuard > domainFn && domainPrompt > domainGuard);
+});
+
+test('installer entrypoints enable safe failure diagnostics without logging commands', () => {
+  const safety = read('scripts/lib/deploy-safety.sh');
+  assert.match(safety, /ff_enable_error_trap/);
+  assert.match(safety, /行号 \$line，退出码 \$rc/);
+  assert.doesNotMatch(safety, /BASH_COMMAND/);
+  for (const file of ['install.sh', 'install-local.sh', 'deploy/standard/deploy.sh', 'deploy/enterprise/cluster/deploy.sh', 'deploy/enterprise-ultimate/cluster/deploy.sh', 'remote-update.sh', 'setup-nginx.sh']) {
+    assert.ok(read(file).includes('ff_enable_error_trap'), file + ' must enable diagnostics');
+  }
+});
+
 test('first install defaults to a minimal single-node path and keeps advanced services opt-in', () => {
   const installer = read('install.sh');
   const local = read('install-local.sh');
