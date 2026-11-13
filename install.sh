@@ -13,6 +13,9 @@ export DEBIAN_FRONTEND=noninteractive
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/system-deps.sh
 source "$SCRIPT_DIR/scripts/lib/system-deps.sh"
+# shellcheck source=scripts/lib/deploy-safety.sh
+source "$SCRIPT_DIR/scripts/lib/deploy-safety.sh"
+ff_acquire_deploy_lock
 
 # 颜色定义
 RED='\033[0;31m'
@@ -49,105 +52,17 @@ prepare_deploy_key() {
 
 # ===== 已安装时的更新模式 =====
 update_existing_install() {
-    log_step "检测到已安装，执行代码更新"
-    ff_ensure_node || return 1
-
-    prepare_deploy_key 2>/dev/null || {
-        log_error "无法准备 deploy key，更新中止"
-        return 1
-    }
-
+    log_step "检测到已安装，委托统一的事务式升级流程"
     local target="$APP_DIR"
-    local ts=$(date +%Y%m%d%H%M%S)
-    local old_sha=""
-    local node_modules_backup="$target/.node_modules-backup-$ts"
-    local node_modules_stage="$target/.node_modules-stage-$ts"
-
-    if [ -d "$target/.git" ]; then
-        log_info "已是 git 仓库，执行 git fetch + reset..."
-        cd "$target"
-        old_sha=$(git rev-parse HEAD 2>/dev/null || true)
-        local old_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        git fetch origin "$GIT_VERSION" || { log_error "git fetch $GIT_VERSION 失败"; return 1; }
-        git reset --hard FETCH_HEAD || { log_error "git reset $GIT_VERSION 失败"; return 1; }
-        local new_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        log_success "代码已更新: $old_rev -> $new_rev"
-    else
-        log_info "非 git 仓库，从远端 clone 后覆盖同步..."
-        local tmp_clone="/tmp/foodflow-update-$ts"
-        rm -rf "$tmp_clone"
-        git clone --depth 1 --branch "$GIT_VERSION" "$FOODFLOW_REPO" "$tmp_clone" || {
-            log_error "clone 失败"
-            rm -rf "$tmp_clone"
-            return 1
-        }
-        rsync -a --delete \
-            --exclude '.git' \
-            --exclude 'node_modules' \
-            --exclude 'uploads' \
-            --exclude 'backups' \
-            --exclude 'logs' \
-            --exclude '.env' \
-            "$tmp_clone/" "$target/"
-        rm -rf "$tmp_clone"
-
-        cd "$target"
-        [ -d .git ] || git init -q
-        git remote remove origin 2>/dev/null || true
-        git remote add origin "$FOODFLOW_REPO"
-        git fetch -q origin "$GIT_VERSION" 2>/dev/null || true
-        git reset --hard FETCH_HEAD 2>/dev/null || true
-        log_success "代码已同步到最新"
-    fi
-
-    # 更新代码后必须同步 package-lock.json 对应的运行依赖；否则 Redis/MySQL
-    # 等依赖升级只更新源码，不更新现有 node_modules。
-    if [ -f "$target/package-lock.json" ] && [ -f "$target/package.json" ]; then
-        rm -rf "$node_modules_stage"
-        mkdir -p "$node_modules_stage"
-        cp "$target/package.json" "$target/package-lock.json" "$node_modules_stage/"
-        if ! (cd "$node_modules_stage" && npm ci --omit=dev --no-audit --no-fund); then
-            rm -rf "$node_modules_stage"
-            if [ -n "$old_sha" ]; then git -C "$target" reset --hard "$old_sha" >/dev/null 2>&1 || true; fi
-            log_error "依赖安装失败，已保留现有 node_modules；代码已尝试回滚"
-            return 1
-        fi
-
-        if [ -d "$target/node_modules" ]; then
-            mv "$target/node_modules" "$node_modules_backup"
-        fi
-        if ! mv "$node_modules_stage/node_modules" "$target/node_modules"; then
-            [ -d "$node_modules_backup" ] && mv "$node_modules_backup" "$target/node_modules"
-            rm -rf "$node_modules_stage"
-            if [ -n "$old_sha" ]; then git -C "$target" reset --hard "$old_sha" >/dev/null 2>&1 || true; fi
-            log_error "切换依赖目录失败，已恢复旧 node_modules"
-            return 1
-        fi
-        rm -rf "$node_modules_stage"
-    else
-        log_warn "未找到 package.json/package-lock.json，跳过依赖更新"
-    fi
-
-    log_info "重启 $SERVICE_NAME 服务..."
-    if systemctl restart "$SERVICE_NAME"; then
-        sleep 3
-    fi
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
-        rm -rf "$node_modules_backup"
-        log_success "✅ $SERVICE_NAME 已重启，依赖已同步"
-        return 0
-    else
-        log_error "❌ 服务启动失败，请检查：journalctl -u $SERVICE_NAME -n 50"
-        if [ -d "$node_modules_backup" ]; then
-            rm -rf "$target/node_modules"
-            mv "$node_modules_backup" "$target/node_modules"
-        fi
-        if [ -n "$old_sha" ]; then
-            git -C "$target" reset --hard "$old_sha" >/dev/null 2>&1 || true
-            systemctl restart "$SERVICE_NAME" >/dev/null 2>&1 || true
-        fi
+    if [ ! -d "$target/.git" ]; then
+        log_error "现有安装目录不是 Git 仓库；为防止覆盖生产文件，自动更新已中止。请先完成备份并迁移到 Git 管理目录。"
         return 1
     fi
+    if [ ! -x "$target/remote-update.sh" ]; then
+        log_error "缺少 remote-update.sh；拒绝使用旧的非事务式更新逻辑。"
+        return 1
+    fi
+    FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$target/remote-update.sh"
 }
 
 # 脚本所在目录
@@ -700,8 +615,7 @@ EOF
     systemctl stop $SERVICE_NAME 2>/dev/null || true
     systemctl disable $SERVICE_NAME 2>/dev/null || true
     sleep 1
-    fuser -k 3000/tcp 2>/dev/null || true
-    sleep 1
+    ff_require_port_available 3000
 
     NODE_PATH=$(which node)
     if ! id foodflow >/dev/null 2>&1; then
