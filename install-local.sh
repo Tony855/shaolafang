@@ -10,7 +10,7 @@
 # 支持系统：Debian 12/13、Ubuntu 22.04/24.04
 # ============================================================
 
-set -e
+set -Ee
 
 
 # ===== 颜色输出 =====
@@ -50,6 +50,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Acquire the deployment lock before any fallback clone or filesystem mutation.
 # shellcheck source=scripts/lib/deploy-safety.sh
 source "$APP_DIR/scripts/lib/deploy-safety.sh"
+ff_enable_error_trap
 ff_acquire_deploy_lock
 
 # 如果当前目录没有 server.js，则安装到默认路径
