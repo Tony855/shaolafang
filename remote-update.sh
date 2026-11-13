@@ -52,8 +52,14 @@ rollback_update() {
   if [ "$SOURCE_CHANGED" = "1" ] && [ -n "$OLD_SHA" ]; then
     git reset --hard "$OLD_SHA" || echo "[CRITICAL] 源码回滚失败，请手动恢复到 $OLD_SHA" >&2
   fi
-  if systemctl cat foodflow.service >/dev/null 2>&1; then
-    systemctl restart foodflow.service || echo "[CRITICAL] 旧版本服务重启失败，请检查 journalctl -u foodflow" >&2
+  if { [ "$SOURCE_CHANGED" = "1" ] || [ "$DEPENDENCIES_SWAPPED" = "1" ]; } && systemctl cat foodflow.service >/dev/null 2>&1; then
+    if systemctl restart foodflow.service; then
+      local rollback_port
+      rollback_port="$(sed -n 's/^PORT=//p' "$SCRIPT_DIR/.env" 2>/dev/null | tail -n 1)"
+      ff_wait_for_health "${rollback_port:-3000}" 15 || echo "[CRITICAL] 旧版本已重启但健康检查未通过，请检查 journalctl -u foodflow" >&2
+    else
+      echo "[CRITICAL] 旧版本服务重启失败，请检查 journalctl -u foodflow" >&2
+    fi
   fi
   [ -z "$STAGE" ] || rm -rf "$STAGE"
   exit "$rc"
