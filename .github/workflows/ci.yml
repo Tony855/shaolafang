@@ -120,8 +120,8 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Run financial integration and backup/restore tests on MariaDB
-        run: node --test tests/mysql-finance-integration.test.js && node --test tests/mysql-finance-backup-restore.test.js
+      - name: Run complete repository test suite with MariaDB-backed finance integration
+        run: npm test
 
   mysql-finance-integration:
     runs-on: ubuntu-latest
