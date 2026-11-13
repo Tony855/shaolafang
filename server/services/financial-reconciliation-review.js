@@ -188,9 +188,9 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
         // Serialize on the tenant-scoped batch before probing an absent idempotency key.
         // Under InnoDB REPEATABLE READ, locking a missing unique-key range first can create
         // competing gap locks; the batch mutex makes concurrent exact replays deterministic.
-        if (typeof lockFinancialMonthPeriod === 'function') {
-          await lockFinancialMonthPeriod({ merchantId, storeId, batchId });
-        }
+        // Serialize on the tenant-scoped batch before probing an absent idempotency key.
+        // Under InnoDB REPEATABLE READ, locking a missing unique-key range first can create
+        // competing gap locks; the batch mutex makes concurrent exact replays deterministic.
         const batch = await getAsync(
           'SELECT id, status FROM financial_reconciliation_batches WHERE id=? AND merchant_id=? AND store_id=? FOR UPDATE',
           [batchId, merchantId, storeId]
@@ -213,6 +213,12 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
           return { eventId: Number(replay.id), itemId: Number(replay.item_id), action: replay.action, eventHash: replay.event_hash, replayed: true };
         }
 
+
+        // A committed replay must remain replayable after month close. Only new mutations
+        // acquire the month-period lock; the month-close workflow never locks batch rows.
+        if (typeof lockFinancialMonthPeriod === 'function') {
+          await lockFinancialMonthPeriod({ merchantId, storeId, batchId });
+        }
         if (batch.status === 'closed') {
           const error = new Error('closed reconciliation batches cannot be changed');
           error.code = 'REVIEW_BATCH_CLOSED';
