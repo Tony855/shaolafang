@@ -115,8 +115,36 @@ if [[ ! "${DB_DATABASE:-}" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
     log_error "DB_DATABASE 缺失或格式无效；请编辑 /etc/foodflow/.env（不能使用 DB_NAME）"
     exit 1
 fi
+if [ -z "${DB_HOST:-}" ] || [ -z "${DB_USER:-}" ] || [ -z "${DB_PASSWORD:-}" ]; then
+    log_error "DB_HOST、DB_USER 和 DB_PASSWORD 必须全部配置"
+    exit 1
+fi
+if [ "${DB_USER}" = "root" ]; then
+    log_error "应用数据库禁止使用 MySQL root；请创建独立的 foodflow 数据库账号"
+    exit 1
+fi
+if [[ "${DB_HOST}" == *".example.com" ]]; then
+    log_error "DB_HOST 仍是示例占位地址，请替换为真实数据库主机"
+    exit 1
+fi
+if [ "${#DB_PASSWORD}" -lt 20 ] || [ "${DB_PASSWORD}" = "YourStrongPasswordHere" ]; then
+    log_error "DB_PASSWORD 太短或仍是示例密码；请设置至少 20 个字符的强随机密码"
+    exit 1
+fi
+if [ -z "${JWT_SECRET:-}" ] || [ "${#JWT_SECRET}" -lt 32 ] || [[ "${JWT_SECRET}" == ChangeThisToARandomString* ]]; then
+    log_error "JWT_SECRET 缺失、太短或仍是示例密钥；请设置至少 32 个字符的随机密钥"
+    exit 1
+fi
+if [ -z "${QR_DOMAIN:-}" ] || [ "${QR_DOMAIN}" = "https://your-domain.com" ]; then
+    log_error "QR_DOMAIN 仍是示例域名，请设置实际对外 HTTPS 域名"
+    exit 1
+fi
 if [ -z "${REDIS_URL:-}" ]; then
     log_error "集群部署必须配置 REDIS_URL；禁止在多节点模式回退到进程内存状态"
+    exit 1
+fi
+if [[ "${REDIS_URL}" == *".example.com"* || "${REDIS_URL}" == *"redis_password"* ]]; then
+    log_error "REDIS_URL 仍包含示例主机或占位密码，请替换为真实 Redis 连接串"
     exit 1
 fi
 if [ -z "${TRUST_PROXY:-}" ] || [ "${TRUST_PROXY}" = "loopback" ] || [ "${TRUST_PROXY}" = "192.168.1.10/32" ] || [ "${TRUST_PROXY}" = "true" ]; then
