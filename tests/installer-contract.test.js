@@ -156,11 +156,13 @@ test('cluster app deployment requires a writable shared NFS mount and stable www
     'deploy/enterprise-ultimate/cluster/deploy.sh'
   ]) {
     const source = read(file);
-    assert.match(source, /groupadd --system --gid 33 www-data/);
-    assert.match(source, /useradd --system --no-create-home --uid 33 --gid 33/);
-    assert.match(source, /mountpoint -q \/mnt\/shared\/uploads/);\n    assert.match(source, /findmnt -n -o FSTYPE/);\n    assert.match(source, /nfs\\|nfs4/);
-    assert.match(source, /runuser -u www-data -- test -w \/mnt\/shared\/uploads/);
-    assert.doesNotMatch(source, /useradd -r -s \/bin\/false www-data/);
+    assert.ok(source.includes('groupadd --system --gid 33 www-data'));
+    assert.ok(source.includes('useradd --system --no-create-home --uid 33 --gid 33'));
+    assert.ok(source.includes('mountpoint -q /mnt/shared/uploads'));
+    assert.ok(source.includes('findmnt -n -o FSTYPE'));
+    assert.ok(source.includes('nfs|nfs4'));
+    assert.ok(source.includes('runuser -u www-data -- test -w /mnt/shared/uploads'));
+    assert.ok(!source.includes('useradd -r -s /bin/false www-data'));
   }
 });
 
