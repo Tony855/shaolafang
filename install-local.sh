@@ -466,8 +466,10 @@ fi
 if [ "$FF_CONFIGURE_BACKUP_CRON" = "1" ]; then
     log_info "FF_CONFIGURE_BACKUP_CRON=1 已启用；数据库凭据单独保存在 root-only 配置文件中。"
     install -d -o root -g root -m 0700 "$CONFIG_DIR"
+    BACKUP_OLD_UMASK="$(umask)"
     umask 077
     printf '[client]\nhost=127.0.0.1\nuser=foodflow\npassword="%s"\n' "$DB_RANDOM_PASSWORD" > "$CONFIG_DIR/backup.cnf"
+    umask "$BACKUP_OLD_UMASK"
     chown root:root "$CONFIG_DIR/backup.cnf"
     chmod 0600 "$CONFIG_DIR/backup.cnf"
     BACKUP_SCRIPT="$APP_DIR/backups/auto-backup.sh"
