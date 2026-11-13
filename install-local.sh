@@ -488,7 +488,7 @@ BACKUP_DIR="__BACKUP_DIR__"
 DB_NAME="__DB_NAME__"
 mkdir -p "$BACKUP_DIR"
 TMP_FILE="$(mktemp "$BACKUP_DIR/.db_$DATE.XXXXXX")"
-trap 'rm -f "$TMP_FILE"' EXIT
+trap 'rm -f "$TMP_FILE" "$TMP_FILE.gz"' EXIT
 mysqldump --defaults-extra-file=/etc/foodflow/backup.cnf --single-transaction --quick "$DB_NAME" > "$TMP_FILE"
 gzip "$TMP_FILE"
 mv "$TMP_FILE.gz" "$BACKUP_DIR/db_$DATE.sql.gz"
