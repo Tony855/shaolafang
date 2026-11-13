@@ -30,7 +30,7 @@ createBakongOpenApiClient() accepts an explicit HTTPS baseUrl, bearer token, and
 - checkTransactionByMd5(md5) for one dynamic KHQR payload digest.
 - checkTransactionByMd5List(md5[]) for batches of 1–50 digests.
 
-The batch response is correlated by digest, not response array position. Supported result states are SUCCESS, NOT_FOUND, STATIC_QR, and FAILED. Successful responses are validated for transaction hash, sender and receiver account IDs, currency, amount, and creation timestamp. The original amount is retained as text; no decimal-place or exchange-rate policy is inferred.
+The batch response is correlated by digest, not response array position. Single-digest checks map the documented SUCCESS, NOT_FOUND, STATIC_QR, and FAILED outcomes. The MD5-list endpoint uses its documented SUCCESS, NOT_FOUND, and STATIC_QR states; unknown batch states are rejected. Successful responses are validated for transaction hash, sender and receiver account IDs, currency, amount, and creation timestamp. The original amount is retained as text; no decimal-place or exchange-rate policy is inferred.
 
 Bakong's documented MD5 check is for dynamic KHQR. The API reports that static QR status is unsupported. This API verifies a known QR payment; it is not a bank statement export or an unrestricted transaction-history feed. The caller must compare the returned receiver account, currency, amount, and transaction reference with its own expected payment context. A NOT_FOUND response is not proof of payment.
 
