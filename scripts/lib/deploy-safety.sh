@@ -61,3 +61,18 @@ ff_require_port_available() {
     return 1
   fi
 }
+
+ff_install_error_trap() {
+  local rc="${1:-1}" line="${2:-0}"
+  local message="[ERROR] ${0##*/} 执行失败：行号 $line，退出码 $rc"
+  printf '%s\n' "$message" >&2
+  if [ -d /var/log ] && [ -w /var/log ]; then
+    printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$message" >> /var/log/foodflow-installer.log
+    chmod 0600 /var/log/foodflow-installer.log 2>/dev/null || true
+  fi
+  return "$rc"
+}
+
+ff_enable_error_trap() {
+  trap 'ff_install_error_trap "$?" "${BASH_LINENO[0]:-0}"' ERR
+}
