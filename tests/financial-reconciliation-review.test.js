@@ -164,13 +164,19 @@ test('serializes the batch before idempotency lookup and replays exact reviews a
   assert.equal(first.replayed, false);
   assert.equal(periodLockCalls, 1);
 
+  const replayQueries = db.queries.filter(query =>
+    query.sql.includes('FROM financial_reconciliation_review_events') && query.sql.includes('idempotency_key'));
+  const preflightIndex = db.queries.findIndex(query =>
+    query.sql.includes('FROM financial_reconciliation_review_events') &&
+    query.sql.includes('idempotency_key') && !query.sql.includes('FOR UPDATE'));
   const batchLockIndex = db.queries.findIndex(query =>
     query.sql.includes('FROM financial_reconciliation_batches') && query.sql.includes('FOR UPDATE'));
-  const replayLookupIndex = db.queries.findIndex(query =>
+  const replayLockIndex = db.queries.findIndex(query =>
     query.sql.includes('FROM financial_reconciliation_review_events') &&
     query.sql.includes('idempotency_key') && query.sql.includes('FOR UPDATE'));
-  assert.ok(batchLockIndex >= 0 && replayLookupIndex > batchLockIndex,
-    'the tenant-scoped batch row must serialize requests before the idempotency-key lookup');
+  assert.equal(replayQueries.length, 2);
+  assert.ok(preflightIndex >= 0 && batchLockIndex > preflightIndex && replayLockIndex > batchLockIndex,
+    'a nonlocking replay preflight avoids gap locks, then the batch row serializes the locking recheck');
 
   db.batches.get(1).status = 'closed';
   const replay = await db.service.reviewItem(input());
