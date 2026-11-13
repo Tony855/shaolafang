@@ -497,6 +497,7 @@ EOF
     sed -i "s|__BACKUP_DIR__|$APP_DIR/backups|g; s|__DB_NAME__|$DEFAULT_DB_NAME|g" "$BACKUP_SCRIPT"
     chown root:root "$BACKUP_SCRIPT"
     chmod 0700 "$BACKUP_SCRIPT"
+    (crontab -l 2>/dev/null | grep -v "foodflow-auto-backup" || true; echo "0 3 * * * $BACKUP_SCRIPT") | crontab -
 else
     log_info "跳过自动备份计划任务；首次安装完成后请尽快配置独立备份策略。"
 fi
