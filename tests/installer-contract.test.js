@@ -106,6 +106,7 @@ test('deployment safety serializes installers and protects dirty worktrees', () 
   assert.match(update, /git reset --hard "\$TARGET_SHA"/);
   assert.match(update, /git reset --hard "\$OLD_SHA"/);
   assert.match(update, /ff_wait_for_health/);
+  assert.match(update, /旧版本已重启但健康检查未通过/);
   assert.match(update, /FF_APP_DIR:-/);
   assert.match(update, /trap rollback_update EXIT/);
   assert.ok(update.indexOf('ff_require_clean_git_worktree') < update.indexOf('mktemp -d'));
