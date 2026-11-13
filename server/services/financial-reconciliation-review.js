@@ -185,12 +185,45 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
 
     try {
       return await withTransaction(async () => {
-        // Serialize on the tenant-scoped batch before probing an absent idempotency key.
-        // Under InnoDB REPEATABLE READ, locking a missing unique-key range first can create
-        // competing gap locks; the batch mutex makes concurrent exact replays deterministic.
-        // Serialize on the tenant-scoped batch before probing an absent idempotency key.
-        // Under InnoDB REPEATABLE READ, locking a missing unique-key range first can create
-        // competing gap locks; the batch mutex makes concurrent exact replays deterministic.
+        const replayParams = [merchantId, storeId, batchId, review.idempotencyKey];
+        const readReplay = forUpdate => getAsync(
+          `SELECT id, request_sha256, event_hash, action, item_id, actor_admin_id
+           FROM financial_reconciliation_review_events
+           WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=? ${forUpdate ? 'FOR UPDATE' : ''}`,
+          replayParams
+        );
+        const replayResult = replay => {
+          if (Number(replay.actor_admin_id) !== actorId || replay.request_sha256 !== requestHash) {
+            const error = new Error('idempotency key was already used with a different review request');
+            error.code = 'REVIEW_IDEMPOTENCY_CONFLICT';
+            throw error;
+          }
+          return {
+            eventId: Number(replay.id), itemId: Number(replay.item_id),
+            action: replay.action, eventHash: replay.event_hash, replayed: true
+          };
+        };
+
+        // A plain consistent read avoids taking an InnoDB gap lock for a missing key.
+        // It also lets committed replays return after the month period has been closed.
+        const existingReplay = await readReplay(false);
+        if (existingReplay) return replayResult(existingReplay);
+
+        if (typeof lockFinancialMonthPeriod === 'function') {
+          try {
+            await lockFinancialMonthPeriod({ merchantId, storeId, batchId });
+          } catch (error) {
+            // If another identical review committed before month close while this
+            // transaction's REPEATABLE READ snapshot was older, re-check with a
+            // current locking read while holding the period mutex before failing.
+            if (error && error.code === 'FINANCIAL_MONTH_LOCKED') {
+              const replayAfterClose = await readReplay(true);
+              if (replayAfterClose) return replayResult(replayAfterClose);
+            }
+            throw error;
+          }
+        }
+
         const batch = await getAsync(
           'SELECT id, status FROM financial_reconciliation_batches WHERE id=? AND merchant_id=? AND store_id=? FOR UPDATE',
           [batchId, merchantId, storeId]
@@ -200,25 +233,12 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
           error.code = 'REVIEW_NOT_FOUND';
           throw error;
         }
-        const replay = await getAsync(
-          'SELECT id, request_sha256, event_hash, action, item_id, actor_admin_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=? FOR UPDATE',
-          [merchantId, storeId, batchId, review.idempotencyKey]
-        );
-        if (replay) {
-          if (Number(replay.actor_admin_id) !== actorId || replay.request_sha256 !== requestHash) {
-            const error = new Error('idempotency key was already used with a different review request');
-            error.code = 'REVIEW_IDEMPOTENCY_CONFLICT';
-            throw error;
-          }
-          return { eventId: Number(replay.id), itemId: Number(replay.item_id), action: replay.action, eventHash: replay.event_hash, replayed: true };
-        }
 
+        // The period lock follows the same period -> batch order as statement import.
+        // Once the batch mutex is held, this current read safely resolves concurrent replays.
+        const replayAfterBatchLock = await readReplay(true);
+        if (replayAfterBatchLock) return replayResult(replayAfterBatchLock);
 
-        // A committed replay must remain replayable after month close. Only new mutations
-        // acquire the month-period lock; the month-close workflow never locks batch rows.
-        if (typeof lockFinancialMonthPeriod === 'function') {
-          await lockFinancialMonthPeriod({ merchantId, storeId, batchId });
-        }
         if (batch.status === 'closed') {
           const error = new Error('closed reconciliation batches cannot be changed');
           error.code = 'REVIEW_BATCH_CLOSED';
