@@ -204,3 +204,11 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - The shared helper is applied to statement rows and match suggestions, manual review debit/credit totals and item amounts, exception queue/overdue/SLA amounts, batch summary and idempotent import comparison, and journal idempotent-entry comparison.
 - Existing currency codes remain isolated; no cross-currency summation, FX conversion, bank currency mapping, rounding rule, account mapping, or refund amount change is introduced.
 - Unsafe persisted values cause the request/replay to fail before any review state mutation or audit event insertion.
+
+
+## Authenticated finance route scope matrix (PR #204)
+
+- The route-level matrix executes every financial reconciliation GET surface: batches/items, review history, journal export, month-close period/history/preview, daily and period summaries/reports, SLA alerts/history, exception queue/history, operations/performance summaries and exports, and export-audit history.
+- Each query is checked for authenticated merchant/store binding; serialized `audit_logs.details LIKE` parameters are inspected too, not only standalone SQL parameters.
+- Every finance mutation route is also called with tenant context but no authenticated actor while query/body actor IDs are spoofed. Each must return 403 before any database access.
+- This is test-only hardening; route permission policy and production behavior are unchanged.
