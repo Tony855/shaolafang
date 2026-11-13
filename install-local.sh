@@ -466,6 +466,7 @@ fi
 if [ "$FF_CONFIGURE_BACKUP_CRON" = "1" ]; then
     log_warn "FF_CONFIGURE_BACKUP_CRON=1 已启用；自动备份脚本会在受限目录保存数据库凭据，请限制文件访问。"
     install -d -o root -g root -m 0700 "$CONFIG_DIR"
+    umask 077
     printf '[client]\\nhost=127.0.0.1\\nuser=foodflow\\npassword="%s"\\n' "$DB_RANDOM_PASSWORD" > "$CONFIG_DIR/backup.cnf"
     chown root:root "$CONFIG_DIR/backup.cnf"
     chmod 0600 "$CONFIG_DIR/backup.cnf"
