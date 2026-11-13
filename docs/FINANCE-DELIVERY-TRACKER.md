@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #203–#207 and #209 merged; persisted precision, full authenticated finance scope, complete manual-review actions, 50k multi-batch queue validation, MySQL exception classification, and exact audit snapshot assertions delivered)
+Last reviewed: 2026-11-13 (PR #203–#210 merged; provider-neutral finance acceptance complete; PR #211 adds official-spec-based read-only provider verification adapters and is under CI review)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -46,7 +46,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- None. There are no open implementation pull requests in the finance reconciliation workstream at this closeout.
+- PR #211: read-only ABA PayWay callback HMAC-SHA512 verification and Bakong Open API dynamic-KHQR MD5 transaction checks; deterministic mock tests and provider boundary documentation. Current head: `19355023dd14d9a1312eaabaaba3c79438807a74`; CI and four installer compatibility checks are running. No order, refund, provider inbox, or journal mutation is activated.
 
 ## Remaining engineering acceptance work
 
@@ -55,7 +55,7 @@ This tracker records merged delivery separately from work that is still under re
 3. **Data-volume validation — 50k acceptance complete:** PR #166 adds a 2,500-row synthetic pagination correctness test. PR #201 adds the legacy-safe tenant/status/cursor index and real-MySQL 2,500/10,000/50,000-row benchmark. PR #206 extends the 50k case across five batches with mixed categories and pending rows, and verifies category/case-state filters and tenant-store exclusion. Loads above 50k remain an optional capacity exercise, not a blocker for the scoped release.
 4. **Currency and rounding audit — core precision acceptance complete:** PR #185 protects period/month aggregates. PR #203 adds fail-closed safe-integer validation for persisted statement/journal amounts, matching suggestions, exception/SLA views, batch list, journal CSV export, batch replay and journal replay. Provider-specific currency mapping and rounding remain blocked on official provider specifications and finance approval.
 5. **Operational recovery — acceptance complete:** PR #186 adds a real-MySQL conflicting-import rollback/replay slice. PR #187 adds populated-database migration rerun/retention coverage. PR #188 adds concurrent month-close lock exclusivity. PR #202 adds full reconciliation/audit/month-close backup and restore coverage, legacy backup compatibility, FK ordering, and interrupted-restore rollback.
-6. **Provider integration boundary:** keep bank/payment provider verification and external notifications disabled until real credentials, signature verification rules, supported currencies, and delivery policies are explicitly supplied and tested.
+6. **Provider integration boundary:** official public PayWay callback-signature and Bakong Open API specifications have now been located. PR #211 adds read-only verification helpers; end-to-end activation still requires merchant-specific sandbox credentials, verified outlet/receiver account mapping, callback whitelisting, current outbound request-signing details, and finance-approved amount/currency/order transition rules. Keep live callbacks and settlement automation disabled until those items are tested.
 
 ## Release gates
 
@@ -99,6 +99,8 @@ This tracker records merged delivery separately from work that is still under re
 - PR #207 merged: real-MySQL manual classification for refund, fee, and settlement difference; verifies original statement amounts remain unchanged, exact replay is idempotent, and audit events are hash-linked (`3d8c3f386add3a4a65c9cf3566f25feb4a06f5ef`); 573 tests, 555 passed, 0 failed, 18 skipped; 17/17 MySQL integration tests passed; all four installer targets passed.
 - PR #209 merged: classification audit tests now compare persisted reviewer username, reason, category, and complete before/after snapshots against the submitted request (`37ca397aac5264121cdb670f13e3536a16ab1e6a`); final-head CI and all four installer targets passed.
 - **Stage 10 closeout:** provider-neutral finance review and reconciliation core acceptance tests are merged; no open implementation PRs remain. Provider-specific bank/payment verification, currency mapping, FX/rounding and notifications remain intentionally blocked until official specifications, credentials, and finance approval are provided.
+- PR #210 merged: remove the duplicate MySQL backup/restore test invocation and repair two literal newline escapes in the reconciliation API list; latest PR-head CI and all four installer targets passed.
+- PR #211 under review: official-spec-based read-only ABA PayWay callback authentication and Bakong dynamic-KHQR transaction lookup; sandbox credentials and merchant-specific activation remain external gates.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
