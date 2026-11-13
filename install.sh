@@ -58,7 +58,7 @@ update_existing_install() {
         log_error "现有安装目录不是 Git 仓库；为防止覆盖生产文件，自动更新已中止。请先完成备份并迁移到 Git 管理目录。"
         return 1
     fi
-    if [ ! -x "$target/remote-update.sh" ]; then
+    if [ ! -f "$target/remote-update.sh" ]; then
         log_error "缺少 remote-update.sh；拒绝使用旧的非事务式更新逻辑。"
         return 1
     fi
