@@ -92,6 +92,27 @@ test('remote updates use the same runtime baseline and locked dependency install
 });
 
 
+
+test('deployment safety serializes installers and protects dirty worktrees', () => {
+  const safety = read('scripts/lib/deploy-safety.sh');
+  const update = read('remote-update.sh');
+  const standard = read('deploy/standard/deploy.sh');
+  assert.match(safety, /flock -n 9/);
+  assert.match(safety, /git status --porcelain --untracked-files=normal/);
+  assert.match(safety, /ff_wait_for_health/);
+  assert.match(safety, /database!=="ok"/);
+  assert.match(update, /ff_acquire_deploy_lock/);
+  assert.match(update, /ff_require_clean_git_worktree/);
+  assert.match(update, /git reset --hard "\$TARGET_SHA"/);
+  assert.match(update, /git reset --hard "\$OLD_SHA"/);
+  assert.match(update, /ff_wait_for_health/);
+  assert.match(update, /trap rollback_update EXIT/);
+  assert.match(standard, /ff_acquire_deploy_lock/);
+  assert.match(standard, /git pull --ff-only origin main/);
+  assert.doesNotMatch(standard, /git pull origin main \|\| log_warn/);
+  assert.match(standard, /FF_DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1/);
+});
+
 test('first install defaults to a minimal single-node path and keeps advanced services opt-in', () => {
   const installer = read('install.sh');
   const local = read('install-local.sh');
