@@ -13,7 +13,7 @@ Neither component confirms an order, writes a provider event, posts a journal en
 
 The adapter verifies the X-PAYWAY-HMAC-SHA512 request header using HMAC-SHA512 and Base64. It follows the official PayWay payment callback example: sort top-level JSON field names, concatenate scalar values in that order, calculate HMAC-SHA512 with the callback secret, then compare signatures in constant time.
 
-Configuration is injected by the caller as secretKey; do not store the secret in source control, browser code, callback payloads, or logs. The verifier returns only the provider code, authentication result, transaction reference, approval code, status code, and SHA-256 digest of the request body. It does not retain raw callback bytes or payer personal data.
+Configuration is injected by the caller as secretKey; do not store the secret in source control, browser code, callback payloads, or logs. The verifier returns only the provider code, authentication result, transaction reference, approval code, callback request-status code, and SHA-256 digest of the request body. PayWay documents the callback status field as a request status code (value 0), not as the final payment status; the caller must still perform server-to-server transaction verification. It does not retain raw callback bytes or payer personal data.
 
 A valid signature proves callback authenticity only. Before any event may be accepted for settlement, the future integration must additionally:
 1. Resolve the callback endpoint to the correct merchant/outlet configuration and verify account ownership.
