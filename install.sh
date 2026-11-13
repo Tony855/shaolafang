@@ -55,7 +55,7 @@ prepare_deploy_key() {
 update_existing_install() {
     log_step "检测到已安装，先获取目标版本的事务式升级器"
     local target="$APP_DIR"
-    local updater_tmp
+    local updater_tmp safety_tmp
     prepare_deploy_key 2>/dev/null || { log_error "无法准备 deploy key，更新中止"; return 1; }
     if [ ! -d "$target/.git" ]; then
         log_error "现有安装目录不是 Git 仓库；为防止覆盖生产文件，自动更新已中止。请先完成备份并迁移到 Git 管理目录。"
@@ -68,18 +68,24 @@ update_existing_install() {
     fi
     git -C "$target" fetch --no-tags origin "$GIT_VERSION" || { log_error "获取 $GIT_VERSION 失败"; return 1; }
     updater_tmp="$(mktemp /tmp/foodflow-remote-update.XXXXXX)"
+    safety_tmp="$(mktemp /tmp/foodflow-deploy-safety.XXXXXX)"
     if ! git -C "$target" show FETCH_HEAD:remote-update.sh > "$updater_tmp"; then
-        rm -f "$updater_tmp"
+        rm -f "$updater_tmp" "$safety_tmp"
         log_error "目标版本缺少 remote-update.sh；拒绝执行旧版更新逻辑。"
         return 1
     fi
+    if ! git -C "$target" show FETCH_HEAD:scripts/lib/deploy-safety.sh > "$safety_tmp"; then
+        rm -f "$updater_tmp" "$safety_tmp"
+        log_error "目标版本缺少 deploy-safety.sh；拒绝执行不完整升级。"
+        return 1
+    fi
     chmod 0700 "$updater_tmp"
-    if FF_APP_DIR="$target" FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$updater_tmp"; then
-        rm -f "$updater_tmp"
+    if FF_APP_DIR="$target" FF_DEPLOY_SAFETY_LIB="$safety_tmp" FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$updater_tmp"; then
+        rm -f "$updater_tmp" "$safety_tmp"
         return 0
     else
         local rc=$?
-        rm -f "$updater_tmp"
+        rm -f "$updater_tmp" "$safety_tmp"
         return "$rc"
     fi
 }
