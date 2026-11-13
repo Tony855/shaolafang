@@ -134,6 +134,14 @@ if ! mountpoint -q /mnt/shared/uploads; then
     log_error "NFS 上传目录尚未挂载；请先挂载 NFS_SERVER:/export/uploads 到 /mnt/shared/uploads"
     exit 1
 fi
+UPLOAD_FS_TYPE="$(findmnt -n -o FSTYPE --target /mnt/shared/uploads 2>/dev/null || true)"
+case "$UPLOAD_FS_TYPE" in
+    nfs|nfs4) ;;
+    *)
+        log_error "共享上传目录必须是真正的 NFS 文件系统，当前类型：${UPLOAD_FS_TYPE:-unknown}"
+        exit 1
+        ;;
+esac
 if ! runuser -u www-data -- test -w /mnt/shared/uploads; then
     log_error "www-data（UID/GID 33:33）无法写入 NFS 上传目录；请检查服务端目录属主/权限和 root_squash 配置"
     exit 1
