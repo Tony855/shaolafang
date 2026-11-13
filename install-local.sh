@@ -79,6 +79,9 @@ fi
 
 # shellcheck source=scripts/lib/system-deps.sh
 source "$APP_DIR/scripts/lib/system-deps.sh"
+# shellcheck source=scripts/lib/deploy-safety.sh
+source "$APP_DIR/scripts/lib/deploy-safety.sh"
+ff_acquire_deploy_lock
 
 # 本脚本仅用于首次初始化；已有 .env 的实例应使用安全升级流程。
 if [ -e "$APP_DIR/.env" ]; then
@@ -327,9 +330,7 @@ systemctl stop foodflow 2>/dev/null || true
 systemctl disable foodflow 2>/dev/null || true
 sleep 1
 
-# 杀掉可能占用3000端口的进程
-fuser -k 3000/tcp 2>/dev/null || true
-sleep 1
+ff_require_port_available 3000
 
 NODE_PATH=$(which node)
 if ! id foodflow >/dev/null 2>&1; then
