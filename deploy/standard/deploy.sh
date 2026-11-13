@@ -41,6 +41,10 @@ PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 DEPLOY_TARGET="/var/www/foodflow"
 # shellcheck source=../../scripts/lib/system-deps.sh
 source "$PROJECT_DIR/scripts/lib/system-deps.sh"
+# shellcheck source=../../scripts/lib/deploy-safety.sh
+source "$PROJECT_DIR/scripts/lib/deploy-safety.sh"
+
+ff_acquire_deploy_lock
 
 log_info "项目源目录: $PROJECT_DIR"
 log_info "部署目标目录: $DEPLOY_TARGET"
@@ -71,10 +75,11 @@ if [ -d "$PROJECT_DIR/.git" ]; then
     log_success "代码同步完成"
 elif [ -d "$DEPLOY_TARGET/.git" ]; then
     # 已部署过：git pull 更新
-    log_info "检测到已部署，执行 git pull 更新..."
+    log_info "检测到已部署，执行安全快进更新..."
     cd "$DEPLOY_TARGET"
-    git pull origin main || log_warn "git pull 失败，继续使用现有代码"
-    log_success "代码更新完成"
+    ff_require_clean_git_worktree
+    git pull --ff-only origin main
+    log_success "代码快进更新完成"
 else
     # 首次部署：git clone（根据目录名判断仓库）
     REPO_NAME=$(basename "$PROJECT_DIR")
@@ -118,7 +123,7 @@ fi
 cd "$DEPLOY_TARGET"
 if [ -f "$DEPLOY_TARGET/.env" ]; then
     log_info "检测到已有生产配置，使用安全升级流程（保留当前源码）..."
-    SKIP_GIT_UPDATE=1 bash "$DEPLOY_TARGET/remote-update.sh"
+    FF_DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1 bash "$DEPLOY_TARGET/remote-update.sh"
 else
     bash install-local.sh
 fi
