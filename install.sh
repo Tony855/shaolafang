@@ -75,10 +75,11 @@ update_existing_install() {
     if FF_APP_DIR="$target" FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$updater_tmp"; then
         rm -f "$updater_tmp"
         return 0
+    else
+        local rc=$?
+        rm -f "$updater_tmp"
+        return "$rc"
     fi
-    local rc=$?
-    rm -f "$updater_tmp"
-    return "$rc"
 }
 
 # 脚本所在目录
