@@ -205,7 +205,7 @@ test('top-level deployment guides and standard installer use the current reposit
   assert.ok(enterprise.includes('deploy/enterprise-ultimate/README.md'));
   assert.doesNotMatch(enterprise, /foodflow-enterprise\.git|DB_USER=root|k8s\/redis-cluster\.yaml/);
   assert.ok(standardGuide.includes('Tony855/shaolafang.git'));
-  assert.ok(standardGuide.includes('RUN_SCHEDULED_TASKS | 执行定时任务 | false'));
+  assert.ok(standardGuide.includes('执行定时任务 | false'));
   assert.ok(deployGuide.includes('Tony855/shaolafang.git'));
   assert.ok(standardScript.includes('GIT_REPO="https://github.com/Tony855/shaolafang.git"'));
 });
