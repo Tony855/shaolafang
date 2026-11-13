@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #197 and #199 merged; manual-review idempotency concurrency hardening delivered; journal-assignment race regression rebased for verification)
+Last reviewed: 2026-11-13 (PR #199 and #200 merged; manual-review idempotency and concurrent journal-assignment protections delivered; database-backed exception-queue scale validation is next)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -42,18 +42,18 @@ This tracker records merged delivery separately from work that is still under re
 | MySQL cross-service import-to-export lifecycle | Real-MySQL statement import flows through journal posting, candidate suggestion, manual review, month-close approval, and scoped CSV export | PR #196 merged as `6e1cfefb`; all six checks passed |
 | MySQL imported-exception-to-SLA lifecycle | Real-MySQL imported unmatched row is classified, moved into an exception case, becomes SLA-overdue, is acknowledged, and is resolved with hash-linked histories | PR #197 merged as `3f7728db`; all six checks passed |
 | Manual-review idempotency concurrency | Non-locking idempotency preflight, period/batch lock ordering, current replay recheck and closed-month replay behavior | PR #199 merged as `247fb33b`; CI and installer checks passed |
-| Concurrent journal assignment protection | Two independent MySQL transactions attempt to confirm different statement rows against one journal transaction; only one may commit and the loser writes no audit event | Rebased regression test on current main; CI pending |
+| Concurrent journal assignment protection | Two independent MySQL transactions attempt to confirm different statement rows against one journal transaction; only one may commit and the loser writes no audit event | PR #200 merged as `0c7a5f57`; final-head CI and review passed |
 
 ## Under review
 
-- **Concurrent journal assignment protection:** the real-MySQL race test is being rebased onto the latest manual-review lock-order fix from PR #199. The fixture now includes the production uniqueness invariant; the MySQL integration result must be green before merge.
+- **Database-backed exception queue scale validation:** PR #201 adds the explicit legacy-safe queue index migration and real-MySQL benchmark/EXPLAIN coverage; final-head CI must pass before the capability is marked delivered.
 - **MySQL-backed workflow scope:** PR #177/#178 cover month-close and exception/SLA schema/constraint slices; PR #186–#197 cover import, migration reruns, locking, journal posting/export, matching, review, exception/SLA, month-close and cross-service paths. PR #199 hardens exact review replay under concurrency. Remaining work is tracked below.
 
 ## Remaining engineering acceptance work
 
-1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #196 covers import-to-close-export; PR #197 covers imported-exception-to-SLA. These are distinct business branches, not yet one shared scenario covering every possible outcome. Concurrent journal assignment protection is being added as a separate MySQL race test.
+1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #196 covers import-to-close-export; PR #197 covers imported-exception-to-SLA. These are distinct business branches, not yet one shared scenario covering every possible outcome. PR #200 separately verifies the concurrent journal-assignment race against real MySQL.
 2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172); representative authenticated read-query scoping is covered (PR #173); review mutation and audit query scoping is covered by PR #174; foreign review/SLA/exception workflow resource IDs are covered by PR #176/#179; cross-merchant exception assignee ownership is covered by PR #180; month-close transition context is covered by PR #181. Journal and period-report export audit scopes are covered by PR #182/#183; exception-performance audit filter spoofing is covered by PR #184. Remaining export/admin ownership cases still need explicit acceptance tests.
-3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. Still benchmark realistic database-backed batches/queues at 2,500, 10,000, and 50,000 rows, inspect query plans before adding indexes, and document measured response times.
+3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. PR #201 adds a legacy-safe tenant/status/cursor index and real-MySQL 2,500/10,000/50,000-row exception-queue benchmark, EXPLAIN assertion, and 50,000-row cursor walk; record CI timings before considering the scale gate complete.
 4. **Currency and rounding audit:** PR #185 adds safe-integer guards for period/month aggregate minor-unit totals. Continue auditing every financial path for integer minor-unit consistency, currency separation, explicit precision, and prevention of cross-currency aggregation.
 5. **Operational recovery:** PR #186 adds a real-MySQL conflicting-import rollback/replay slice. PR #187 adds populated-database migration rerun/retention coverage. PR #188 adds concurrent month-close lock exclusivity. Still test backup/restore and broader interrupted workflow recovery.
 6. **Provider integration boundary:** keep bank/payment provider verification and external notifications disabled until real credentials, signature verification rules, supported currencies, and delivery policies are explicitly supplied and tested.
@@ -90,7 +90,8 @@ This tracker records merged delivery separately from work that is still under re
 - PR #196 merged: real-MySQL import → journal posting → match suggestion → manual review → month-close approval → CSV export in one cross-service scenario (`6e1cfefb`); all six checks passed.
 - PR #197 merged: real-MySQL import → exception classification → case start → SLA alert generation/acknowledgement → case resolution, with linked event histories (`3f7728db`); all six checks passed.
 - PR #199 merged: manual-review idempotency gap-lock/deadlock hardening, exact replay after close, and two-connection MySQL replay test (`247fb33b225eec07f05987b68cc0264a5c719ba9`); CI and installer compatibility checks passed.
-- Concurrent journal-assignment race regression: rebased test now includes the production unique assignment index; CI pending.
+- PR #200 merged: real-MySQL two-connection race proves one Ledger transaction cannot be assigned to two statement rows; the loser leaves no review event (`0c7a5f5752d262c60033c0163d08d17fce6a0e7c`); final-head CI and Codex review passed.
+- PR #201 open: legacy-safe tenant/status/cursor index for exception queue; real-MySQL 2.5k/10k/50k benchmark, EXPLAIN plan and complete 50k cursor walk; CI pending.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol

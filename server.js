@@ -8,6 +8,7 @@ const { createScanSessionRateLimiter } = require('./server/services/scan-session
 const { migrateSessionTokenStorage } = require('./server/services/session-token');
 const { ensureFinancialMonthCloseSchema, ensureFinancialExceptionWorkflowSchema } = require('./server/db/migrations/financial-month-close');
 const { ensureFinancialExceptionAlertSchema } = require('./server/db/migrations/financial-exception-alerts');
+const { ensureFinancialReconciliationQueueIndex } = require('./server/db/migrations/financial-reconciliation-queue-index');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
@@ -823,6 +824,9 @@ async function initDatabase() {
   if (!reconciliationItemIndexes.some(index => index.Key_name === 'unique_reconciliation_journal_assignment')) {
     await runAsync('CREATE UNIQUE INDEX unique_reconciliation_journal_assignment ON financial_reconciliation_items (matched_journal_transaction_id)');
   }
+
+  // Add the tenant-scoped cursor index through an explicit, legacy-safe migration.
+  await ensureFinancialReconciliationQueueIndex({ runAsync, allAsync });
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS financial_reconciliation_review_events (

@@ -1952,3 +1952,209 @@ test('MySQL integration: concurrent manual reviews cannot assign one journal tra
   assert.ok([7, 8].includes(Number(events[0].actor_admin_id)));
 });
 
+
+
+test('MySQL integration: legacy-safe exception queue index preserves rows and scales tenant cursor pagination to 50k', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 180000
+}, async t => {
+  const { connection, runAsync, getAsync, allAsync } = await connectTestDatabase();
+  const tables = [
+    'financial_reconciliation_exception_cases',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await connection.end();
+    }
+  });
+  for (const table of tables) await connection.query('DROP TABLE IF EXISTS ' + table);
+
+  await runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    provider_code VARCHAR(40) NOT NULL,
+    external_batch_id VARCHAR(191) NOT NULL,
+    imported_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_benchmark_batch (merchant_id,store_id,provider_code,external_batch_id)
+  ) ENGINE=InnoDB`);
+  // Deliberately model the pre-migration production shape: no tenant/status/cursor composite index.
+  await runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    row_no INT UNSIGNED NOT NULL,
+    external_reference VARCHAR(191) NOT NULL,
+    transaction_reference VARCHAR(191) NOT NULL DEFAULT '',
+    direction ENUM('debit','credit') NOT NULL,
+    amount_minor BIGINT UNSIGNED NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    occurred_at DATETIME(3) NOT NULL,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    match_status ENUM('pending','matched','unmatched','ambiguous','exception') NOT NULL DEFAULT 'pending',
+    match_reason VARCHAR(128) DEFAULT NULL,
+    matched_journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category ENUM('refund','fee','settlement_difference','chargeback','other') DEFAULT NULL,
+    exception_note VARCHAR(500) DEFAULT NULL,
+    UNIQUE KEY unique_finance_benchmark_row (batch_id,row_no),
+    KEY idx_reconciliation_external_ref (merchant_id,store_id,external_reference),
+    KEY idx_reconciliation_match_status (batch_id,match_status)
+  ) ENGINE=InnoDB`);
+  await runAsync(`CREATE TABLE financial_reconciliation_exception_cases (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    batch_id BIGINT NOT NULL,
+    item_id BIGINT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'open',
+    assigned_admin_id INT DEFAULT NULL,
+    assigned_admin_username VARCHAR(100) DEFAULT NULL,
+    resolution_note VARCHAR(500) DEFAULT NULL,
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_benchmark_case (merchant_id,store_id,item_id)
+  ) ENGINE=InnoDB`);
+
+  const tenantGroups = [
+    { merchantId: 4, storeId: 9, count: 2500, label: '2.5k' },
+    { merchantId: 5, storeId: 9, count: 10000, label: '10k' },
+    { merchantId: 6, storeId: 9, count: 50000, label: '50k' },
+    { merchantId: 6, storeId: 10, count: 2500, label: 'foreign-store' }
+  ];
+  const batchIds = new Map();
+  for (const group of tenantGroups) {
+    const result = await runAsync(
+      'INSERT INTO financial_reconciliation_batches (merchant_id,store_id,provider_code,external_batch_id) VALUES (?,?,?,?)',
+      [group.merchantId, group.storeId, 'GENERIC', 'benchmark-' + group.label]
+    );
+    batchIds.set(group.label, Number(result.insertId));
+  }
+
+  const { ensureFinancialReconciliationQueueIndex, INDEX_NAME } =
+    require('../server/db/migrations/financial-reconciliation-queue-index');
+  const legacyBatchId = batchIds.get('2.5k');
+  await runAsync(`INSERT INTO financial_reconciliation_items
+    (batch_id,merchant_id,store_id,row_no,external_reference,direction,amount_minor,currency_code,
+     occurred_at,description,match_status,exception_category)
+    VALUES (?,?,?,1,'legacy-row','credit',1000,'USD','2026-11-12 10:00:00.000','legacy row','exception','fee')`,
+    [legacyBatchId, 4, 9]);
+  const beforeMigration = await getAsync(
+    'SELECT COUNT(*) AS row_count FROM financial_reconciliation_items WHERE batch_id=?',
+    [legacyBatchId]
+  );
+  assert.equal(Number(beforeMigration.row_count), 1);
+
+  const migrationResult = await ensureFinancialReconciliationQueueIndex({ runAsync, allAsync });
+  assert.deepEqual(migrationResult, { created: true, indexName: INDEX_NAME });
+  const rerunResult = await ensureFinancialReconciliationQueueIndex({ runAsync, allAsync });
+  assert.deepEqual(rerunResult, { created: false, indexName: INDEX_NAME });
+  const [indexRows] = await connection.query('SHOW INDEX FROM financial_reconciliation_items WHERE Key_name=?', [INDEX_NAME]);
+  assert.deepEqual(indexRows.sort((a,b) => Number(a.Seq_in_index)-Number(b.Seq_in_index)).map(row => row.Column_name),
+    ['merchant_id','store_id','match_status','id']);
+  const afterMigration = await getAsync(
+    'SELECT COUNT(*) AS row_count FROM financial_reconciliation_items WHERE batch_id=?',
+    [legacyBatchId]
+  );
+  assert.equal(Number(afterMigration.row_count), 1, 'legacy rows must survive index migration');
+
+  const insertRows = async (group, startRow, endRow) => {
+    const batchId = batchIds.get(group.label);
+    for (let start = startRow; start <= endRow; start += 400) {
+      const values = [];
+      const params = [];
+      const end = Math.min(endRow, start + 399);
+      for (let rowNo = start; rowNo <= end; rowNo += 1) {
+        values.push('(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        params.push(
+          batchId, group.merchantId, group.storeId, rowNo,
+          'ref-' + group.label + '-' + rowNo, '', 'credit', 1000, 'USD',
+          '2026-11-12 10:00:00.000', 'synthetic exception row', 'exception',
+          null, null, 'fee', null
+        );
+      }
+      await runAsync(
+        `INSERT INTO financial_reconciliation_items
+          (batch_id,merchant_id,store_id,row_no,external_reference,transaction_reference,direction,
+           amount_minor,currency_code,occurred_at,description,match_status,match_reason,
+           matched_journal_transaction_id,exception_category,exception_note)
+         VALUES ${values.join(',')}`,
+        params
+      );
+    }
+  };
+  await insertRows(tenantGroups[0], 2, 2500);
+  await insertRows(tenantGroups[1], 1, 10000);
+  await insertRows(tenantGroups[2], 1, 50000);
+  await insertRows(tenantGroups[3], 1, 2500);
+  await connection.query('ANALYZE TABLE financial_reconciliation_items');
+
+  const { createFinancialReconciliationReviewService } =
+    require('../server/services/financial-reconciliation-review');
+  const observedQueries = [];
+  const service = createFinancialReconciliationReviewService({
+    runAsync, getAsync,
+    allAsync: async (sql, params = []) => {
+      observedQueries.push({ sql, params });
+      return allAsync(sql, params);
+    },
+    withTransaction: async work => work()
+  });
+
+  const benchmarkResults = [];
+  for (const group of tenantGroups.slice(0, 3)) {
+    const started = process.hrtime.bigint();
+    const page = await service.listExceptions({
+      merchantId: group.merchantId, storeId: group.storeId, limit: 100, afterId: 0
+    });
+    const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+    assert.equal(page.items.length, 100, group.label + ' first page should be full');
+    assert.ok(page.nextCursor, group.label + ' should expose a continuation cursor');
+    benchmarkResults.push({ dataset: group.label, firstPageMs: Number(elapsedMs.toFixed(2)) });
+  }
+  t.diagnostic('Exception queue first-page timings (informational, no flaky wall-clock threshold): ' +
+    JSON.stringify(benchmarkResults));
+
+  const query = observedQueries.find(entry => entry.sql.includes('FROM financial_reconciliation_items i') &&
+    entry.params[0] === 6 && entry.params[1] === 9);
+  assert.ok(query, 'service must execute the production exception queue query');
+  const [planRows] = await connection.query('EXPLAIN ' + query.sql, query.params);
+  const itemPlan = planRows.find(row => row.table === 'i');
+  t.diagnostic('Exception queue EXPLAIN: ' + JSON.stringify(planRows.map(row => ({
+    table: row.table, key: row.key, type: row.type, rows: row.rows, extra: row.Extra
+  }))));
+  assert.ok(itemPlan, 'EXPLAIN must include the reconciliation item table');
+  assert.equal(itemPlan.key, INDEX_NAME,
+    'MySQL must use the tenant/status/cursor index for reconciliation items');
+
+  const received = [];
+  let afterId = 0;
+  let pages = 0;
+  do {
+    const page = await service.listExceptions({
+      merchantId: 6, storeId: 9, limit: 100, afterId
+    });
+    received.push(...page.items.map(item => item.itemId));
+    afterId = page.nextCursor || 0;
+    pages += 1;
+    if (!page.nextCursor) break;
+    assert.ok(pages <= 500, '50k queue pagination must terminate');
+  } while (true);
+  assert.equal(pages, 500);
+  assert.equal(received.length, 50000);
+  assert.equal(new Set(received).size, 50000, 'cursor pagination must not duplicate rows');
+  assert.ok(received.every((id, index) => index === 0 || received[index - 1] > id),
+    'cursor pages must remain in strict descending ID order');
+  const foreignPage = await service.listExceptions({
+    merchantId: 6, storeId: 10, limit: 100, afterId: 0
+  });
+  assert.equal(foreignPage.items.length, 100);
+  assert.ok(foreignPage.items.every(item => item.batchId === batchIds.get('foreign-store')),
+    'same-merchant foreign-store rows must not leak into the selected queue');
+  assert.equal(Number((await getAsync(
+    "SELECT COUNT(*) AS row_count FROM financial_reconciliation_items WHERE merchant_id=6 AND store_id=9 AND match_status='exception'"
+  )).row_count), 50000);
+});
