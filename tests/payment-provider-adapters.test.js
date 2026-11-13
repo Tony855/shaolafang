@@ -160,6 +160,22 @@ test('Bakong client bounds request time and rejects zero or malformed transactio
     /missing required verified fields/);
 });
 
+test('Bakong MD5-list rejects statuses that are not in the documented list contract', async () => {
+  const client = createBakongOpenApiClient({
+    baseUrl: 'https://sit-api-bakong.nbc.gov.kh',
+    token: 'test-token',
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        responseCode: 0,
+        data: [{ md5: 'f'.repeat(32), status: 'FAILED', data: null }]
+      })
+    })
+  });
+  await assert.rejects(client.checkTransactionByMd5List(['f'.repeat(32)]),
+    error => error.code === 'BAKONG_STATUS_UNRECOGNIZED');
+});
+
 test('Bakong client rejects unsafe URLs, invalid digests, duplicate batch IDs and provider errors', async () => {
   assert.throws(() => createBakongOpenApiClient({
     baseUrl: 'http://example.com', token: 'x', fetchImpl: async () => ({})
