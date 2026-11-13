@@ -147,6 +147,31 @@ if [[ "${REDIS_URL}" == *".example.com"* || "${REDIS_URL}" == *"redis_password"*
     log_error "REDIS_URL 仍包含示例主机或占位密码，请替换为真实 Redis 连接串"
     exit 1
 fi
+
+# Verify Redis is reachable; merely setting REDIS_URL must not permit an in-memory cluster fallback.
+if ! REDIS_URL="$REDIS_URL" node <<'NODE'
+const { createClient } = require('redis');
+(async () => {
+  const client = createClient({
+    url: process.env.REDIS_URL,
+    socket: { connectTimeout: 5000, reconnectStrategy: false }
+  });
+  client.on('error', () => {});
+  try {
+    await client.connect();
+    const pong = await client.ping();
+    if (pong !== 'PONG') throw new Error('unexpected PING response');
+    await client.quit();
+  } catch (error) {
+    try { client.disconnect(); } catch (_) {}
+    process.exitCode = 1;
+  }
+})();
+NODE
+then
+    log_error "Redis 连接或 PING 检查失败；集群节点不得回退到进程内存状态"
+    exit 1
+fi
 if [ -z "${TRUST_PROXY:-}" ] || [ "${TRUST_PROXY}" = "loopback" ] || [ "${TRUST_PROXY}" = "192.168.1.10/32" ] || [ "${TRUST_PROXY}" = "true" ]; then
     log_error "请将 TRUST_PROXY 设置为实际 Nginx 负载均衡器的可信内网 IP/CIDR；禁止使用占位值或 true"
     exit 1
