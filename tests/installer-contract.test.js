@@ -148,6 +148,26 @@ test('scheduled database backups do not embed passwords in executable scripts', 
   assert.ok(local.includes("cat > \"$BACKUP_SCRIPT\" << 'EOF'"));
 });
 
+test('noninteractive installation requires explicit confirmation and cluster role', () => {
+  const installer = read('install.sh');
+  assert.match(installer, /FF_NONINTERACTIVE:-0/);
+  assert.match(installer, /FF_CONFIRM_INSTALL:-0/);
+  assert.match(installer, /FF_NODE_ROLE/);
+  assert.match(installer, /非交互安装必须显式设置 FF_CONFIRM_INSTALL=1/);
+  assert.match(installer, /非交互集群安装必须设置 FF_NODE_ROLE/);
+  assert.ok(installer.indexOf('ask_domain_if_needed() {') < installer.indexOf('read -p \\"  请输入域名'));
+});
+
+test('installer entrypoints enable safe failure diagnostics without logging commands', () => {
+  const safety = read('scripts/lib/deploy-safety.sh');
+  assert.match(safety, /ff_enable_error_trap/);
+  assert.match(safety, /行号 \$line，退出码 \$rc/);
+  assert.doesNotMatch(safety, /BASH_COMMAND/);
+  for (const file of ['install.sh', 'install-local.sh', 'deploy/standard/deploy.sh', 'deploy/enterprise/cluster/deploy.sh', 'deploy/enterprise-ultimate/cluster/deploy.sh', 'remote-update.sh']) {
+    assert.ok(read(file).includes('ff_enable_error_trap'), file + ' must enable diagnostics');
+  }
+});
+
 test('first install defaults to a minimal single-node path and keeps advanced services opt-in', () => {
   const installer = read('install.sh');
   const local = read('install-local.sh');
