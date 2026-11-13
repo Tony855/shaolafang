@@ -187,3 +187,12 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - The migration is compatible with populated legacy databases: it does not recreate the table, rewrite rows, or change financial values. Re-running it is idempotent.
 - The real-MySQL integration test starts from the pre-index schema with an existing row, verifies the migration preserves it, runs the migration twice, loads tenant-separated 2,500/10,000/50,000-row queues, captures informational first-page timings, asserts MySQL EXPLAIN uses the new index, and walks all 50,000 rows without duplicates or gaps.
 - The index only changes read access for exception queue pagination. It does not alter review states, assignments, orders, refunds, journal entries, ledger balances, or month-close behavior.
+
+
+## Financial reconciliation backup and restore coverage (PR #202)
+
+- Full snapshots include the journal transaction/entry tables, reconciliation batches/items/review events, exception cases/events, SLA alerts/events, month-close periods/events, and provider event inbox.
+- A single shared table registry defines snapshot and restore scope. Its parent-first order is used for inserts; the reverse order is used for deletes so InnoDB foreign keys remain enabled.
+- Older backup formats that predate the finance tables are accepted by defaulting those missing arrays to empty, preserving the existing snapshot-replacement semantics.
+- Restore validates every row field against the live schema before deleting any rows, then replaces all listed tables and writes the restore audit event in the same transaction. Native JSON objects are serialized before binding; session tokens remain invalidated rather than restored.
+- No provider verification rules, currency conversions, account mappings, refund amount semantics, or posting behavior are introduced by backup/restore.
