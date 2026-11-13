@@ -139,3 +139,23 @@ test('journal posting rejects idempotency-key reuse with different accounting li
     ]
   }), error => error.code === 'JOURNAL_IDEMPOTENCY_CONFLICT');
 });
+
+
+test('journal idempotent replay rejects unsafe persisted entry minor-unit values', async () => {
+  const db = createMemoryDb();
+  const draft = {
+    merchantId: 4, storeId: 10, currencyCode: 'USD',
+    sourceType: 'order_payment', sourceId: 'order-precision-1',
+    idempotencyKey: 'order-payment:precision-0001',
+    entries: [
+      { accountCode: 'payment_clearing', direction: 'debit', amountMinor: 2500 },
+      { accountCode: 'sales_revenue', direction: 'credit', amountMinor: 2500 }
+    ]
+  };
+  const first = await db.service.postJournalTransaction(draft);
+  db.entries.get(first.transactionId)[0].amount_minor = '9007199254740992';
+  await assert.rejects(
+    db.service.postJournalTransaction(draft),
+    error => error.code === 'JOURNAL_AMOUNT_PRECISION_UNSAFE'
+  );
+});

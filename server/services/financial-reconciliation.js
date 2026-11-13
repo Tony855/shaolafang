@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { safeMinorUnitTotal } = require('./financial-minor-units');
 
 const SHA256_RE = /^[a-f0-9]{64}$/i;
 const CODE_RE = /^[A-Z0-9_-]{2,40}$/;
@@ -117,8 +118,8 @@ function createFinancialReconciliationService({ runAsync, getAsync, withTransact
         String(existing.statement_sha256).toLowerCase() === batch.statementSha256 &&
         existing.currency_code === batch.currencyCode &&
         Number(existing.row_count) === batch.rowCount &&
-        Number(existing.total_debit_minor) === batch.totalDebitMinor &&
-        Number(existing.total_credit_minor) === batch.totalCreditMinor;
+        safeMinorUnitTotal(existing.total_debit_minor, 'storedBatchDebitMinor', 'RECONCILIATION_TOTAL_PRECISION_UNSAFE') === batch.totalDebitMinor &&
+        safeMinorUnitTotal(existing.total_credit_minor, 'storedBatchCreditMinor', 'RECONCILIATION_TOTAL_PRECISION_UNSAFE') === batch.totalCreditMinor;
       if (!headerMatches) {
         const error = new Error('reconciliation batch identity was reused with different statement content');
         error.code = 'RECONCILIATION_BATCH_CONFLICT';
@@ -193,8 +194,8 @@ function createFinancialReconciliationService({ runAsync, getAsync, withTransact
     return {
       batchId: Number(batch.id), providerCode: batch.provider_code,
       externalBatchId: batch.external_batch_id, currencyCode: batch.currency_code,
-      rowCount: Number(batch.row_count), totalDebitMinor: Number(batch.total_debit_minor),
-      totalCreditMinor: Number(batch.total_credit_minor), status: batch.status,
+      rowCount: Number(batch.row_count), totalDebitMinor: safeMinorUnitTotal(batch.total_debit_minor, 'totalDebitMinor', 'RECONCILIATION_TOTAL_PRECISION_UNSAFE'),
+      totalCreditMinor: safeMinorUnitTotal(batch.total_credit_minor, 'totalCreditMinor', 'RECONCILIATION_TOTAL_PRECISION_UNSAFE'), status: batch.status,
       matchCounts: Object.fromEntries(['pending', 'matched', 'unmatched', 'ambiguous', 'exception']
         .map(key => [key, Number(counts?.[key + '_count'] || 0)]))
     };
