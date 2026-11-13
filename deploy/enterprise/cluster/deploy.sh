@@ -7,7 +7,7 @@
 # 请先编辑 /etc/foodflow/.env 配置正确的连接信息
 # ============================================================
 
-set -e
+set -Ee
 
 # 设置非交互模式
 export DEBIAN_FRONTEND=noninteractive
@@ -17,6 +17,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 source "$REPO_ROOT/scripts/lib/system-deps.sh"
 # shellcheck source=../../../scripts/lib/deploy-safety.sh
 source "$REPO_ROOT/scripts/lib/deploy-safety.sh"
+ff_enable_error_trap
 ff_acquire_deploy_lock
 
 GREEN='\033[0;32m'
