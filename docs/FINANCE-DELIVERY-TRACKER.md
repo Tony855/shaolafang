@@ -46,7 +46,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- PR #211: read-only ABA PayWay callback HMAC-SHA512 verification and Bakong Open API dynamic-KHQR MD5 transaction checks; deterministic mock tests and provider boundary documentation. Current head: `19355023dd14d9a1312eaabaaba3c79438807a74`; CI and four installer compatibility checks are running. No order, refund, provider inbox, or journal mutation is activated.
+- PR #211: read-only ABA PayWay callback HMAC-SHA512 verification and Bakong Open API dynamic-KHQR MD5 transaction checks; deterministic mock tests and provider boundary documentation. Latest-head CI and four installer compatibility checks are required before merge. No order, refund, provider inbox, or journal mutation is activated.
 
 ## Remaining engineering acceptance work
 
