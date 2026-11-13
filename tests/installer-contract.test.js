@@ -107,6 +107,7 @@ test('deployment safety serializes installers and protects dirty worktrees', () 
   assert.match(update, /git reset --hard "\$OLD_SHA"/);
   assert.match(update, /ff_wait_for_health/);
   assert.match(update, /trap rollback_update EXIT/);
+  assert.ok(update.indexOf('ff_require_clean_git_worktree') < update.indexOf('mktemp -d'));
   assert.match(standard, /ff_acquire_deploy_lock/);
   assert.match(standard, /git pull --ff-only origin main/);
   assert.doesNotMatch(standard, /git pull origin main \|\| log_warn/);
@@ -128,6 +129,8 @@ test('all deployment entrypoints share a lock and never kill arbitrary port owne
   assert.ok(read('scripts/lib/deploy-safety.sh').includes('ff_require_port_available'));
   assert.ok(read('install.sh').includes('ff_require_port_available 3000'));
   assert.ok(read('install-local.sh').includes('ff_require_port_available 3000'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('TARGET_CHANGES'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('git pull --ff-only origin main'));
 });
 
 test('scheduled database backups do not embed passwords in executable scripts', () => {
@@ -136,6 +139,8 @@ test('scheduled database backups do not embed passwords in executable scripts', 
   assert.ok(local.includes('chmod 0600 "$CONFIG_DIR/backup.cnf"'));
   assert.ok(local.includes('--defaults-extra-file=/etc/foodflow/backup.cnf'));
   assert.ok(!local.includes('mysqldump -u foodflow -p'));
+  assert.ok(local.includes('crontab -'));
+  assert.ok(local.includes("cat > \"$BACKUP_SCRIPT\" << 'EOF'"));
 });
 
 test('first install defaults to a minimal single-node path and keeps advanced services opt-in', () => {
