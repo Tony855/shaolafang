@@ -142,6 +142,16 @@ test('authenticated tenant scope overrides spoofed merchant and store IDs across
     getAsync: async (sql, params = []) => {
       observations.push({ kind: 'get', sql, params });
       if (sql.includes('SELECT username FROM merchant_admins')) return { username: 'finance-admin' };
+      if (sql.includes('FROM financial_reconciliation_batches')) {
+        return { id: 12, status: 'imported', currency_code: 'USD', row_count: 1 };
+      }
+      if (sql.includes('FROM financial_reconciliation_exception_alerts')) {
+        return { id: 56, batch_id: 12, item_id: 34, merchant_id: 41, store_id: 93,
+          alert_type: 'sla_overdue', status: 'pending' };
+      }
+      if (sql.includes('FROM financial_reconciliation_exception_cases')) {
+        return { id: 1, batch_id: 12, item_id: 34, merchant_id: 41, store_id: 93, status: 'open' };
+      }
       return null;
     },
     allAsync: async (sql, params = []) => {
@@ -168,40 +178,46 @@ test('authenticated tenant scope overrides spoofed merchant and store IDs across
   };
 
   const cases = [
-    'GET /api/admin/financial-reconciliation/batches',
-    'GET /api/admin/financial-reconciliation/batches/:batchId/items',
-    'GET /api/admin/financial-reconciliation/review-history',
-    'GET /api/admin/financial-reconciliation/journal-export',
-    'GET /api/admin/financial-reconciliation/month-close/period',
-    'GET /api/admin/financial-reconciliation/month-close/history',
-    'GET /api/admin/financial-reconciliation/monthly-close-preview',
-    'GET /api/admin/financial-reconciliation/daily-summary',
-    'GET /api/admin/financial-reconciliation/exceptions/alerts',
-    'GET /api/admin/financial-reconciliation/exceptions/alerts/:alertId/history',
-    'GET /api/admin/financial-reconciliation/period-summary',
-    'GET /api/admin/financial-reconciliation/period-report-export',
-    'GET /api/admin/financial-reconciliation/exceptions/performance-summary',
-    'GET /api/admin/financial-reconciliation/exceptions/performance-export',
-    'GET /api/admin/financial-reconciliation/exceptions/performance-export-audit',
-    'GET /api/admin/financial-reconciliation/exceptions/operations-summary',
-    'GET /api/admin/financial-reconciliation/exceptions',
-    'GET /api/admin/financial-reconciliation/exceptions/:itemId/history'
+    { route: 'GET /api/admin/financial-reconciliation/batches' },
+    { route: 'GET /api/admin/financial-reconciliation/batches/:batchId/items',
+      dataQuery: 'FROM financial_reconciliation_items' },
+    { route: 'GET /api/admin/financial-reconciliation/review-history' },
+    { route: 'GET /api/admin/financial-reconciliation/journal-export' },
+    { route: 'GET /api/admin/financial-reconciliation/month-close/period' },
+    { route: 'GET /api/admin/financial-reconciliation/month-close/history' },
+    { route: 'GET /api/admin/financial-reconciliation/monthly-close-preview' },
+    { route: 'GET /api/admin/financial-reconciliation/daily-summary' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/alerts' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/alerts/:alertId/history',
+      dataQuery: 'FROM financial_reconciliation_exception_alert_events' },
+    { route: 'GET /api/admin/financial-reconciliation/period-summary' },
+    { route: 'GET /api/admin/financial-reconciliation/period-report-export' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/performance-summary' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/performance-export' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/performance-export-audit' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/operations-summary' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions' },
+    { route: 'GET /api/admin/financial-reconciliation/exceptions/:itemId/history',
+      dataQuery: 'FROM financial_reconciliation_exception_events' }
   ];
 
-  for (const route of cases) {
+  for (const { route, dataQuery } of cases) {
     const handler = routes.get(route)?.at(-1);
     assert.equal(typeof handler, 'function', 'missing route ' + route);
     const before = observations.length;
     const res = response();
     await handler(request, res);
     assert.notEqual(res.statusCode, 403, route + ' must accept the authenticated tenant context');
-    const query = observations.slice(before).find(item => {
+    const scopedQueries = observations.slice(before).filter(item => {
       const hasMerchant = item.params.some(value => String(value) === String(merchantId));
       const hasStore = item.params.some(value => String(value) === String(storeId)) ||
         item.params.some(value => typeof value === 'string' && value.includes('"store_id":' + storeId));
       return hasMerchant && hasStore && /merchant_id|merchant_admins|details LIKE/i.test(item.sql);
     });
-    assert.ok(query, route + ' must issue a query scoped to the authenticated merchant and store');
+    const query = dataQuery
+      ? scopedQueries.find(item => item.sql.includes(dataQuery))
+      : scopedQueries[0];
+    assert.ok(query, route + ' must issue a tenant-scoped query' + (dataQuery ? ' for its result rows' : ''));
     assert.ok(!query.params.some(value => spoofed.includes(String(value))),
       route + ' must not bind attacker-supplied tenant or actor IDs');
     const serializedScopeParams = query.params.filter(value =>
