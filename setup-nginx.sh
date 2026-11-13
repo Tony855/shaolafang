@@ -13,7 +13,7 @@
 #   BACKEND_PORT=3000         后端端口（默认3000）
 # ============================================================
 
-set -e
+set -Ee
 
 # ===== 颜色输出 =====
 GREEN='\033[0;32m'
@@ -41,6 +41,10 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$APP_DIR"
 # shellcheck source=scripts/lib/system-deps.sh
 source "$APP_DIR/scripts/lib/system-deps.sh"
+# shellcheck source=scripts/lib/deploy-safety.sh
+source "$APP_DIR/scripts/lib/deploy-safety.sh"
+ff_enable_error_trap
+ff_acquire_deploy_lock
 log_info "应用目录: $APP_DIR"
 
 # ===== 读取 .env 配置 =====
@@ -55,15 +59,21 @@ DOMAIN="${DOMAIN:-${QR_DOMAIN:-}}"
 EMAIL="${EMAIL:-}"
 BACKEND_PORT="${PORT:-3000}"
 
-# 交互式补全（缺则询问）
-if [ -z "$DOMAIN" ]; then
-    echo ""
-    read -p "请输入域名（直接回车跳过 HTTPS，仅配置 HTTP）: " input_domain
-    DOMAIN="$(echo "$input_domain" | tr -d '[:space:]')"
-fi
-if [ -n "$DOMAIN" ] && [ -z "$EMAIL" ]; then
-    read -p "请输入邮箱（用于 Let's Encrypt 证书续期，可留空）: " input_email
-    EMAIL="$(echo "$input_email" | tr -d '[:space:]')"
+if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
+    if [ -n "$DOMAIN" ] && [ -z "$EMAIL" ]; then
+        log_error "非交互 HTTPS 配置必须同时提供 DOMAIN 和 EMAIL；否则请留空 DOMAIN 仅配置 HTTP。"
+        exit 1
+    fi
+else
+    if [ -z "$DOMAIN" ]; then
+        echo ""
+        read -p "请输入域名（直接回车跳过 HTTPS，仅配置 HTTP）: " input_domain
+        DOMAIN="$(echo "$input_domain" | tr -d '[:space:]')"
+    fi
+    if [ -n "$DOMAIN" ] && [ -z "$EMAIL" ]; then
+        read -p "请输入邮箱（用于证书续期提醒，可留空）: " input_email
+        EMAIL="$(echo "$input_email" | tr -d '[:space:]')"
+    fi
 fi
 
 # 后端端口不能是80/443
@@ -87,19 +97,9 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# 释放端口
-kill_port() {
-    local port=$1
-    if command_exists fuser; then
-        fuser -k ${port}/tcp 2>/dev/null || true
-    fi
-    if command_exists ss; then
-        local pids=$(ss -lntp "sport = :${port}" 2>/dev/null | grep -Eo 'pid=[0-9]+' | grep -Eo '[0-9]+' | sort -u)
-        for pid in $pids; do
-            kill -9 "$pid" 2>/dev/null || true
-        done
-    fi
-    sleep 1
+# 安全检查端口：只报告占用者，绝不终止未知服务。
+check_port_available() {
+    ff_require_port_available "$1"
 }
 
 # ===== 1. 检查并安装 Nginx =====
@@ -145,10 +145,10 @@ fi
 
 # ===== 4. 释放 80 端口 =====
 echo ""
-log_info "释放 80 端口..."
+log_info "检查 80 端口是否可用..."
 systemctl stop nginx 2>/dev/null || true
-kill_port 80
-log_success "80 端口已释放"
+check_port_available 80
+log_success "80 端口可用"
 
 # ===== 5. 配置 Nginx HTTP =====
 echo ""
