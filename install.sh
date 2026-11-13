@@ -701,7 +701,7 @@ EOF
     rm -f /etc/nginx/sites-enabled/default
 
     if [ -f "$APP_DIR/setup-nginx.sh" ]; then
-        DOMAIN="$DOMAIN" EMAIL="$EMAIL" bash setup-nginx.sh || log_warn "Nginx 配置失败"
+        DOMAIN="$DOMAIN" EMAIL="$EMAIL" bash setup-nginx.sh
     else
         log_warn "未找到 setup-nginx.sh，使用基础 Nginx 配置"
         cat > /etc/nginx/conf.d/foodflow.conf << EOF
