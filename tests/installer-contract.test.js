@@ -166,6 +166,13 @@ test('cluster app deployment requires a writable shared NFS mount and stable www
     assert.ok(source.includes('findmnt -n -o FSTYPE'));
     assert.ok(source.includes('nfs|nfs4'));
     assert.ok(source.includes('runuser -u www-data -- test -w /mnt/shared/uploads'));
+    assert.ok(source.includes('DB_PASSWORD'));
+    assert.ok(source.includes('YourStrongPasswordHere'));
+    assert.ok(source.includes('ChangeThisToARandomString'));
+    assert.ok(source.includes('DB_USER'));
+    assert.ok(source.includes('REDIS_URL'));
+    assert.ok(source.includes('QR_DOMAIN'));
+    assert.ok(source.includes('JWT_SECRET'));
     assert.ok(!source.includes('useradd -r -s /bin/false www-data'));
   }
 });
