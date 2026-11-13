@@ -164,7 +164,10 @@ test('noninteractive installation requires explicit confirmation and cluster rol
   assert.match(read('setup-nginx.sh'), /FF_NONINTERACTIVE:-0/);
   assert.match(installer, /非交互安装必须显式设置 FF_CONFIRM_INSTALL=1/);
   assert.match(installer, /非交互集群安装必须设置 FF_NODE_ROLE/);
-  assert.ok(installer.indexOf('ask_domain_if_needed() {') < installer.indexOf('read -p \\"  请输入域名'));
+  const domainFn = installer.indexOf('ask_domain_if_needed() {');
+  const domainGuard = installer.indexOf('FF_NONINTERACTIVE', domainFn);
+  const domainPrompt = installer.indexOf('read -p "  请输入域名', domainFn);
+  assert.ok(domainFn >= 0 && domainGuard > domainFn && domainPrompt > domainGuard);
 });
 
 test('installer entrypoints enable safe failure diagnostics without logging commands', () => {
