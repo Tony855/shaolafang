@@ -212,3 +212,12 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - Each query is checked for authenticated merchant/store binding; serialized `audit_logs.details LIKE` parameters are inspected too, not only standalone SQL parameters.
 - Every finance mutation route is also called with tenant context but no authenticated actor while query/body actor IDs are spoofed. Each must return 403 before any database access.
 - This is test-only hardening; route permission policy and production behavior are unchanged.
+
+
+## Mixed multi-batch exception queue capacity (PR #206)
+
+- The 50,000 exception-row benchmark is distributed across five separate batches for the same authenticated merchant/store, rather than concentrated in one batch.
+- Each batch contains a balanced mix of the five supported exception categories; additional pending rows are interleaved in every batch and must remain excluded from the exception queue.
+- The integration test verifies category filters return only the selected category, resolved-case filtering returns the expected item from each batch, and the full descending cursor walk returns exactly 50,000 unique rows across all five batch IDs.
+- Existing 2,500-row and 10,000-row tenant datasets and a same-merchant foreign-store dataset remain in the same test to exercise isolation alongside the mixed-batch workload.
+- The existing migration-preservation and EXPLAIN/index assertions remain in place; no production query, schema, or financial data behavior changes.
