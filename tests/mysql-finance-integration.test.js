@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const {
   ensureFinancialMonthCloseSchema,
@@ -756,9 +757,7 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
   const tables = [
     'financial_reconciliation_review_events',
     'financial_journal_entries',
-    'financial_journal_transactions',
     'financial_reconciliation_items',
-    'financial_journal_entries',
     'financial_journal_transactions',
     'financial_reconciliation_batches'
   ];
@@ -874,6 +873,18 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
      VALUES (?,44,12,1,'cash','debit',10000),(?,44,12,2,'sales','credit',10000)`,
     [journal2Id, journal2Id]
   );
+  const journal3 = await db.runAsync(
+    `INSERT INTO financial_journal_transactions
+      (merchant_id,store_id,currency_code,source_type,source_id,idempotency_key,description,created_by)
+     VALUES (44,12,'USD','order_payment','review-order-3','review-journal:order-3','reassignment candidate','integration-test')`
+  );
+  const journal3Id = Number(journal3.insertId);
+  await db.runAsync(
+    `INSERT INTO financial_journal_entries
+      (transaction_id,merchant_id,store_id,line_no,account_code,direction,amount_minor)
+     VALUES (?,44,12,1,'cash','debit',10000),(?,44,12,2,'sales','credit',10000)`,
+    [journal3Id, journal3Id]
+  );
 
   const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
   const transactionFor = database => async work => {
@@ -930,22 +941,104 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
   assert.equal(concurrentResults[0].eventId, concurrentResults[1].eventId,
     'concurrent exact replay must return the same durable event');
 
+  const releaseInput = {
+    ...reviewInput, itemId: 2, action: 'release', journalTransactionId: null,
+    reason: 'Release the previous assignment for reassignment',
+    idempotencyKey: 'mysql-review-release-000004'
+  };
+  const released = await service.reviewItem(releaseInput);
+  const releaseReplay = await service.reviewItem(releaseInput);
+  assert.equal(released.replayed, false);
+  assert.equal(releaseReplay.replayed, true);
+  assert.equal(releaseReplay.eventId, released.eventId);
+
+  const reconfirmed = await service.reviewItem({
+    ...releaseInput, action: 'confirm', journalTransactionId: journal2Id,
+    reason: 'Confirm the exact second journal candidate',
+    idempotencyKey: 'mysql-review-confirm-000005'
+  });
+  assert.equal(reconfirmed.replayed, false);
+
+  const reassigned = await service.reviewItem({
+    ...releaseInput, action: 'reassign', journalTransactionId: journal3Id,
+    reason: 'Reassign to the approved replacement journal transaction',
+    idempotencyKey: 'mysql-review-reassign-000006'
+  });
+  assert.equal(reassigned.replayed, false);
+
+  const releasedAgain = await service.reviewItem({
+    ...releaseInput, reason: 'Release replacement assignment before rejection',
+    idempotencyKey: 'mysql-review-release-000007'
+  });
+  assert.equal(releasedAgain.replayed, false);
+
+  const rejected = await service.reviewItem({
+    ...releaseInput, action: 'reject', journalTransactionId: null,
+    reason: 'Reject the unmatched bank statement row after manual review',
+    idempotencyKey: 'mysql-review-reject-000008'
+  });
+  assert.equal(rejected.replayed, false);
+
   const [items] = await db.connection.query(
     'SELECT id,match_status,matched_journal_transaction_id FROM financial_reconciliation_items WHERE batch_id=? ORDER BY id',
     [batchId]
   );
   const [events] = await db.connection.query(
-    'SELECT item_id,actor_admin_id,action FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
+    'SELECT merchant_id,store_id,batch_id,item_id,journal_transaction_id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
     [batchId]
   );
   assert.equal(items[0].match_status, 'matched');
   assert.equal(Number(items[0].matched_journal_transaction_id), journalId);
-  assert.equal(items[1].match_status, 'matched',
-    'the concurrent exact replay must preserve the winning manual confirmation');
-  assert.equal(Number(items[1].matched_journal_transaction_id), journal2Id);
-  assert.equal(events.length, 2, 'exact replay must not duplicate audit events and failed review must not write one');
+  assert.equal(items[1].match_status, 'unmatched',
+    'release followed by manual rejection must leave the statement row unmatched');
+  assert.equal(items[1].matched_journal_transaction_id, null);
+  assert.equal(events.length, 7,
+    'idempotent replay must not duplicate events; confirm, release, reassign and reject each append one event');
   assert.deepEqual(events.map(row => [Number(row.item_id), Number(row.actor_admin_id), row.action]),
-    [[1, 7, 'confirm'], [2, 7, 'confirm']]);
+    [[1, 7, 'confirm'], [2, 7, 'confirm'], [2, 7, 'release'], [2, 7, 'confirm'],
+      [2, 7, 'reassign'], [2, 7, 'release'], [2, 7, 'reject']]);
+  const parseJson = value => typeof value === 'string' ? JSON.parse(value) : value;
+  const snapshotInServiceOrder = value => {
+    const snapshot = parseJson(value);
+    return {
+      matchStatus: snapshot.matchStatus,
+      matchedJournalTransactionId: snapshot.matchedJournalTransactionId,
+      matchReason: snapshot.matchReason,
+      exceptionCategory: snapshot.exceptionCategory,
+      exceptionNote: snapshot.exceptionNote
+    };
+  };
+  for (let index = 0; index < events.length; index += 1) {
+    const event = events[index];
+    assert.equal(event.event_hash.length, 64);
+    assert.equal(event.previous_hash, index === 0 ? '' : events[index - 1].event_hash,
+      'each immutable audit event must extend the previous hash');
+    const eventPayload = {
+      merchantId: Number(event.merchant_id),
+      storeId: Number(event.store_id),
+      batchId: Number(event.batch_id),
+      itemId: Number(event.item_id),
+      action: event.action,
+      actorId: Number(event.actor_admin_id),
+      actorUsername: event.actor_username,
+      reason: event.reason,
+      idempotencyKey: event.idempotency_key,
+      requestHash: event.request_sha256,
+      before: snapshotInServiceOrder(event.before_json),
+      after: snapshotInServiceOrder(event.after_json),
+      previousHash: event.previous_hash || ''
+    };
+    const expectedHash = crypto.createHash('sha256').update(JSON.stringify(eventPayload)).digest('hex');
+    assert.equal(event.event_hash, expectedHash,
+      'audit digest must cover identity, action, reason, idempotency, before/after snapshots and previous hash');
+  }
+  const after = value => typeof value === 'string' ? JSON.parse(value) : value;
+  assert.equal(after(events[2].before_json).matchStatus, 'matched');
+  assert.equal(after(events[2].after_json).matchStatus, 'pending');
+  assert.equal(after(events[4].before_json).matchedJournalTransactionId, journal2Id);
+  assert.equal(after(events[4].after_json).matchedJournalTransactionId, journal3Id);
+  assert.equal(after(events[6].before_json).matchStatus, 'pending');
+  assert.equal(after(events[6].after_json).matchStatus, 'unmatched');
 });
 
 
