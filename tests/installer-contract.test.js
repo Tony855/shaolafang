@@ -152,6 +152,8 @@ test('scheduled database backups do not embed passwords in executable scripts', 
   assert.ok(local.includes('--defaults-extra-file=/etc/foodflow/backup.cnf'));
   assert.ok(!local.includes('mysqldump -u foodflow -p'));
   assert.ok(local.includes('crontab -'));
+  assert.ok(local.includes('ff_apt_install cron'));
+  assert.ok(local.includes('systemctl enable --now cron'));
   assert.ok(local.includes('/usr/local/sbin/foodflow-auto-backup'));
   assert.ok(local.includes('mktemp "$BACKUP_DIR/.db_$DATE.XXXXXX"'));
   assert.ok(local.includes('trap \'rm -f "$TMP_FILE" "$TMP_FILE.gz"\' EXIT'));
