@@ -170,3 +170,11 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - CSV is generated server-side by `GET /api/admin/financial-reconciliation/period-report-export`. It requires an active merchant administrator in the authenticated merchant/store context.
 - The export audit row is committed before the CSV response. Audit write failure returns an error and does not send the file. Audit details contain scope, period, date range, row count, actor, IP, and timestamp, but not the exported CSV.
 - CSV cells are quoted and formula-prefixed string values are neutralized. Responses are private and non-cacheable. No journal, ledger, payment, refund, settlement, or month-close state is changed.
+
+## Manual-review concurrency hardening
+
+- Manual review now locks the authenticated merchant/store reconciliation batch before probing the tenant/batch-scoped idempotency key.
+- This gives concurrent reviews on the same batch one stable serialization point and avoids InnoDB REPEATABLE READ gap-lock deadlocks when the idempotency key does not yet exist.
+- Exact idempotent replays are still checked before the closed-batch mutation guard, so a committed request can be safely retried after month close without creating another event.
+- The MySQL 8.4 integration test races two independent connections with the same request and asserts one durable review event and one replay response. A unit regression test covers lock order and closed-batch replay.
+- No schema change is required: the existing unique tenant/store/batch idempotency key and unique nullable journal-assignment index remain the database enforcement points.
