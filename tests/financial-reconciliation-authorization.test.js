@@ -213,7 +213,7 @@ test('authenticated tenant scope overrides spoofed merchant and store IDs across
     assert.notEqual(res.statusCode, 403, route + ' must accept the authenticated tenant context');
     const routeReads = observations.slice(before).filter(item =>
       ['get', 'all'].includes(item.kind) &&
-      /financial_(reconciliation|journal)_|audit_logs/i.test(item.sql)
+      /financial_|audit_logs/i.test(item.sql)
     );
     const hasScopeValue = (params, key, id) => params.some(value =>
       String(value) === String(id) ||
