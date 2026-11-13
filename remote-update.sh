@@ -9,6 +9,7 @@ cd "$SCRIPT_DIR"
 source "$SCRIPT_DIR/scripts/lib/system-deps.sh"
 # shellcheck source=scripts/lib/deploy-safety.sh
 source "$SCRIPT_DIR/scripts/lib/deploy-safety.sh"
+ff_enable_error_trap
 
 if [ "$EUID" -ne 0 ]; then
   echo "[ERROR] 请使用 root 权限运行 remote-update.sh" >&2
