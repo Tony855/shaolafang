@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #203–#217 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
+Last reviewed: 2026-11-13 (PR #203–#218 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -46,7 +46,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- PR #218: rename PayWay callback status output to callbackStatusCode and document that PayWay's status=0 is a callback request status, not proof of successful payment. Latest-head CI and installer compatibility checks required before merge.
+- None. No implementation PR is currently open in this workstream.
 
 ## Remaining engineering acceptance work
 
@@ -105,7 +105,7 @@ This tracker records merged delivery separately from work that is still under re
 - PR #214 merged: align the delivery tracker with the merged Bakong contract hardening and keep live provider activation gates explicit.
 - PR #215 merged: reconcile the historical Stage 10 closeout note with later provider-adapter delivery and distinguish code completion from live activation gates.
 - PR #216 merged: clarify that provider currency/rounding remains gated by merchant account configuration and finance approval, not by missing public API specifications.
-- PR #218 under review: prevent PayWay callback request status from being mistaken for final payment status.
+- PR #218 merged: rename the PayWay callback status output to callbackStatusCode and document that status=0 is the callback request status, not proof of final payment success.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
