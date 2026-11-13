@@ -8,7 +8,8 @@ cd "$SCRIPT_DIR"
 # shellcheck source=scripts/lib/system-deps.sh
 source "$SCRIPT_DIR/scripts/lib/system-deps.sh"
 # shellcheck source=scripts/lib/deploy-safety.sh
-source "$SCRIPT_DIR/scripts/lib/deploy-safety.sh"
+SAFETY_LIB="${FF_DEPLOY_SAFETY_LIB:-$SCRIPT_DIR/scripts/lib/deploy-safety.sh}"
+source "$SAFETY_LIB"
 ff_enable_error_trap
 
 if [ "$EUID" -ne 0 ]; then
