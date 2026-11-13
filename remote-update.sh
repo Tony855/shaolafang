@@ -71,8 +71,8 @@ if [ "$SKIP_GIT_UPDATE" != "1" ]; then
   if [ "$TARGET_SHA" = "$OLD_SHA" ]; then
     echo "[INFO] 当前源码已是目标版本 $TARGET_SHA"
   else
-    git reset --hard "$TARGET_SHA"
     SOURCE_CHANGED=1
+    git reset --hard "$TARGET_SHA"
   fi
 else
   STAGE="$(mktemp -d "$SCRIPT_DIR/.foodflow-update.XXXXXX")"
