@@ -132,3 +132,17 @@ test('minimal first-run verification checks configuration, service, database hea
   assert.doesNotMatch(installer, /RUN_SCHEDULED_TASKS=true/);
   assert.doesNotMatch(local, /RUN_SCHEDULED_TASKS=true/);
 });
+
+
+test('manual installation guides use the canonical repository and a non-root service account', () => {
+  const install = read('INSTALL.md');
+  const readme = read('README.md');
+  assert.match(install, /github\\.com\\/Tony855\\/shaolafang\\.git/);
+  assert.match(install, /DB_USER=foodflow/);
+  assert.match(install, /DB_DATABASE=foodflow_system/);
+  assert.match(install, /User=foodflow[\\s\\S]*Group=www-data/);
+  assert.doesNotMatch(install, /DB_USER=root|User=root/);
+  assert.doesNotMatch(install, /ufw allow 3000\\/tcp/);
+  assert.match(readme, /User=foodflow[\\s\\S]*Group=www-data/);
+  assert.doesNotMatch(readme, /User=foodflow\\s*\\nGroup=foodflow/);
+});
