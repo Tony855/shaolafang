@@ -7,7 +7,7 @@
 
 ## 1. 项目结构
 
-- Node.js 20 / Express 4 后端，MySQL/MariaDB 持久化。
+- Node.js 20 / Express 4 后端，MariaDB 持久化。
 - Redis 可选，用于跨节点缓存、限流/冷却状态及 Socket.IO adapter（按配置启用）。
 - Socket.IO 实时事件。
 - 原生 JavaScript 多页面前端：顾客、商户管理、服务员、后厨、收银、超级管理员。
