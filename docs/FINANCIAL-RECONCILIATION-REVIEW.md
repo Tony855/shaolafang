@@ -178,3 +178,12 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - Exact committed replays return before the month lock. If a concurrent replay commits after the transaction snapshot and month close wins the period lock, a current locking recheck under that mutex still returns the committed event. Replays are also checked before the closed-batch mutation guard.
 - The MySQL 8.4 integration test races two independent connections with the same request and asserts one durable review event and one replay response. A unit regression test covers lock order and closed-batch replay.
 - No schema change is required: the existing unique tenant/store/batch idempotency key and unique nullable journal-assignment index remain the database enforcement points.
+
+
+## High-volume exception queue cursor index (PR #201)
+
+- The exception queue filters by authenticated merchant, active store, `match_status='exception'`, and descending item-ID cursor. The pre-existing indexes were optimized for batch/status and external-reference lookups, not this queue access path.
+- Startup now runs an explicit schema-inspection migration after the reconciliation item table and legacy exception columns exist. It verifies required columns, checks the named index definition, creates `idx_finance_exception_queue_cursor (merchant_id, store_id, match_status, id)` only when absent, and fails closed if an existing index with that name has a different definition.
+- The migration is compatible with populated legacy databases: it does not recreate the table, rewrite rows, or change financial values. Re-running it is idempotent.
+- The real-MySQL integration test starts from the pre-index schema with an existing row, verifies the migration preserves it, runs the migration twice, loads tenant-separated 2,500/10,000/50,000-row queues, captures informational first-page timings, asserts MySQL EXPLAIN uses the new index, and walks all 50,000 rows without duplicates or gaps.
+- The index only changes read access for exception queue pagination. It does not alter review states, assignments, orders, refunds, journal entries, ledger balances, or month-close behavior.
