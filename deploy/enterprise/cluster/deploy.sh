@@ -202,6 +202,24 @@ else
     exit 1
 fi
 
+# A running systemd process is not enough: wait for the HTTP readiness endpoint,
+# which verifies that the application can execute a MySQL query.
+READY_URL="http://127.0.0.1:${PORT:-3000}/api/health/ready"
+READY_STATUS=""
+for attempt in $(seq 1 15); do
+    READY_STATUS="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 3 "$READY_URL" 2>/dev/null || true)"
+    if [ "$READY_STATUS" = "200" ]; then
+        break
+    fi
+    sleep 2
+done
+if [ "$READY_STATUS" != "200" ]; then
+    log_error "应用进程已启动，但数据库 readiness 检查未通过（HTTP ${READY_STATUS:-no response}）"
+    journalctl -u foodflow -n 50 --no-pager || true
+    exit 1
+fi
+log_success "HTTP readiness 检查通过，MySQL 查询正常"
+
 # ===== 完成 =====
 echo ""
 echo "=========================================="
