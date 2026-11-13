@@ -8,7 +8,7 @@
 # 然后调用 install-local.sh 完成后续安装（数据库、Redis、Node.js、Systemd、Nginx）
 # ============================================================
 
-set -e
+set -Ee
 
 # 设置非交互模式
 export DEBIAN_FRONTEND=noninteractive
@@ -43,6 +43,7 @@ DEPLOY_TARGET="/var/www/foodflow"
 source "$PROJECT_DIR/scripts/lib/system-deps.sh"
 # shellcheck source=../../scripts/lib/deploy-safety.sh
 source "$PROJECT_DIR/scripts/lib/deploy-safety.sh"
+ff_enable_error_trap
 
 ff_acquire_deploy_lock
 
