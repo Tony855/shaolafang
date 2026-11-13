@@ -62,6 +62,19 @@ log_info "部署代码到 $DEPLOY_TARGET..."
 mkdir -p "$DEPLOY_TARGET"
 
 if [ -d "$PROJECT_DIR/.git" ]; then
+    # 仅允许同步到干净的 Git 部署目录；不得覆盖非 Git 生产目录或本地改动。
+    if [ -f "$DEPLOY_TARGET/.env" ] && [ ! -d "$DEPLOY_TARGET/.git" ]; then
+        log_error "目标目录已有生产 .env 但不是 Git 仓库；拒绝 rsync --delete 覆盖。"
+        exit 1
+    fi
+    if [ -d "$DEPLOY_TARGET/.git" ]; then
+        TARGET_CHANGES="$(git -C "$DEPLOY_TARGET" status --porcelain --untracked-files=normal)"
+        if [ -n "$TARGET_CHANGES" ]; then
+            log_error "目标部署目录存在未提交/未跟踪改动，拒绝覆盖："
+            printf '%s\n' "$TARGET_CHANGES" >&2
+            exit 1
+        fi
+    fi
     # 本地开发环境：用 rsync 同步代码（排除 .git、node_modules 等）
     log_info "从本地目录同步代码..."
     rsync -a --delete \
