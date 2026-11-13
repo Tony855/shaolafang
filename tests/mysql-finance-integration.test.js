@@ -2122,8 +2122,13 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
     entry.params[0] === 6 && entry.params[1] === 9);
   assert.ok(query, 'service must execute the production exception queue query');
   const [planRows] = await connection.query('EXPLAIN ' + query.sql, query.params);
-  assert.equal(planRows[0].key, INDEX_NAME,
-    'MySQL must use the tenant/status/cursor index for the production queue query');
+  const itemPlan = planRows.find(row => row.table === 'i');
+  t.diagnostic('Exception queue EXPLAIN: ' + JSON.stringify(planRows.map(row => ({
+    table: row.table, key: row.key, type: row.type, rows: row.rows, extra: row.Extra
+  }))));
+  assert.ok(itemPlan, 'EXPLAIN must include the reconciliation item table');
+  assert.equal(itemPlan.key, INDEX_NAME,
+    'MySQL must use the tenant/status/cursor index for reconciliation items');
 
   const received = [];
   let afterId = 0;
