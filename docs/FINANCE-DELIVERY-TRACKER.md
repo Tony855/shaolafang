@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #203–#205 merged; authenticated finance route scope and full manual-review action sequence delivered; PR #206 multi-batch capacity validation under review)
+Last reviewed: 2026-11-13 (PR #203–#206 merged; authenticated finance scope, complete manual-review actions, and 50k multi-batch queue validation delivered; PR #207 MySQL exception classification under review)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -51,7 +51,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Remaining engineering acceptance work
 
-1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #196 covers import-to-close-export; PR #197 covers imported-exception-to-SLA. These are distinct business branches, not yet one shared scenario covering every possible outcome. PR #200 separately verifies the concurrent journal-assignment race against real MySQL.
+1. **End-to-end lifecycle regression:** import → match suggestions → manual review → exception workflow → SLA alert → month-close preview/approval → export/audit. PR #196 covers import-to-close-export; PR #197 covers imported-exception-to-SLA; PR #205 adds all manual review state actions; PR #207 adds real-MySQL refund/fee/settlement-difference classification. These remain deliberately separate business scenarios with clear transaction boundaries. PR #200 separately verifies the concurrent journal-assignment race against real MySQL.
 2. **Authorization matrix:** route-wide middleware wiring and missing-context rejection are covered (PR #172); PR #204 now exercises all registered finance read/history/export/summary/SLA/month-close routes, validates every financial SQL read against authenticated merchant/store scope, and rejects spoofed tenant/actor IDs across every registered finance mutation route. Foreign resource IDs and cross-merchant assignee protections remain covered by PR #176/#179/#180; export audit scopes by PR #182/#183/#184.
 3. **Data-volume validation:** PR #166 adds a 2,500-row synthetic pagination correctness test. PR #201 adds the legacy-safe tenant/status/cursor index and real-MySQL 2,500/10,000/50,000-row benchmark. PR #206 extends the 50k case across five batches with mixed categories and pending rows, and verifies category/case-state filters and tenant-store exclusion. Loads above 50k remain an optional capacity exercise.
 4. **Currency and rounding audit:** PR #185 protects period/month aggregates. PR #203 is merged with fail-closed safe-integer validation for persisted statement/journal amounts, matching suggestions, exception/SLA views, batch list, journal CSV export, batch replay and journal replay. Remaining checks are limited to provider-specific currency semantics, which require official provider and finance approval.
@@ -94,7 +94,10 @@ This tracker records merged delivery separately from work that is still under re
 - PR #201 merged: legacy-safe tenant/status/cursor index, real-MySQL 2.5k/10k/50k benchmark and complete 50k cursor walk; final EXPLAIN selected the intended index (`fcb3d0bdbaedebf8f1cb297ac2f9da7e878c8af2`).
 - PR #202 merged: full financial backup/restore graph, legacy backup compatibility, JSON-column restore serialization, FK order and MySQL interrupted-restore rollback (`96aa43acb89ff2346b350ca5b95dbb340c5d3a22`).
 - PR #203 merged: exact integer minor-unit validation across review, exception/SLA, batch list, journal CSV, batch replay and journal replay; real MySQL overflow tests reject before mutation (`dda087c59370ba5efc800a6117e89946d7cd0ad9`).
-- PR #204 open: authenticated tenant/store and actor spoofing matrix across finance read/export/history/mutation routes; final-head CI and review pending.
+- PR #204 merged: authenticated scope matrix for every finance read route and actor spoofing rejection for all finance mutation routes (`971c70c4e9f902f7dc980997affbc4d22c0102b3`); 572 tests, 555 passed, 0 failed, 17 skipped; MySQL and four OS installer matrices passed.
+- PR #205 merged: real-MySQL confirm/release/reconfirm/reassign/release/reject sequence, idempotent replay, and recomputed immutable audit hashes (`94a8366d2c63ade9915e7f8c9dcedf825f005698`); final-head CI and all four installer targets passed.
+- PR #206 merged: real-MySQL 50k exception queue across five batches with mixed categories, pending rows, resolved-case filters, and tenant/store isolation (`f03df316c44124459bf6a5547daef08d2d51b9bb`); full CI and four installer targets passed.
+- PR #207 open: real-MySQL manual classification for refund, fee, and settlement difference; verifies original statement amounts remain unchanged and audit events are hash-linked; final-head CI pending.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol

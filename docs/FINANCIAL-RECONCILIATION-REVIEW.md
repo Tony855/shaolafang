@@ -221,3 +221,12 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - The integration test verifies category filters return only the selected category, resolved-case filtering returns the expected item from each batch, and the full descending cursor walk returns exactly 50,000 unique rows across all five batch IDs.
 - Existing 2,500-row and 10,000-row tenant datasets and a same-merchant foreign-store dataset remain in the same test to exercise isolation alongside the mixed-batch workload.
 - The existing migration-preservation and EXPLAIN/index assertions remain in place; no production query, schema, or financial data behavior changes.
+
+
+## MySQL manual exception classification (PR #207)
+
+- Real MySQL 8.4 rows are manually classified as `refund`, `fee`, and `settlement_difference` through the existing finance review service.
+- Each classification is attributed to the authenticated reviewer and includes a reason/note, a durable before/after snapshot, an idempotency key, and a hash-linked audit event.
+- Exact replay returns the original event and does not add a second audit row.
+- The integration test asserts original statement `amount_minor` and `currency_code` remain byte-for-byte/numerically unchanged, no journal assignment is created, and only classification/status/note fields change.
+- No refund amount, order balance, payment state, bank-provider signature, FX conversion, or account mapping semantics are changed.
