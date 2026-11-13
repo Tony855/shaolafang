@@ -1,5 +1,7 @@
 'use strict';
 
+const { safeMinorUnitAmount } = require('./financial-minor-units');
+
 const MAX_EXPORT_ROWS = 5000;
 const MAX_RANGE_DAYS = 31;
 
@@ -98,11 +100,17 @@ function createFinancialVoucherExportService({ allAsync, withTransaction }) {
         error.code = 'VOUCHER_EXPORT_TOO_LARGE';
         throw error;
       }
+      const normalizedRows = rows.map(row => ({
+        ...row,
+        amountMinor: safeMinorUnitAmount(
+          row.amountMinor, 'journalExportAmountMinor', 'JOURNAL_AMOUNT_PRECISION_UNSAFE'
+        )
+      }));
       return Object.freeze({
         from: range.from,
         to: range.to,
-        rowCount: rows.length,
-        csv: buildJournalCsv(rows)
+        rowCount: normalizedRows.length,
+        csv: buildJournalCsv(normalizedRows)
       });
     });
   }
