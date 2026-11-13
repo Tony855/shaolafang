@@ -639,7 +639,7 @@ test('MySQL integration: reconciliation suggestions use only tenant/store-owned 
     try {
       for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
     } finally {
-      await Promise.all([db.connection.end(), db2.connection.end()]);
+      await db.connection.end();
     }
   });
 
@@ -766,7 +766,7 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
     try {
       for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
     } finally {
-      await db.connection.end();
+      await Promise.all([db.connection.end(), db2.connection.end()]);
     }
   });
 
