@@ -86,7 +86,7 @@ else
             GIT_REPO="https://github.com/Tony855/foodflow-enterprise.git"
             ;;
         *)
-            GIT_REPO="https://github.com/Tony855/foodflow-standard.git"
+            GIT_REPO="https://github.com/Tony855/shaolafang.git"
             ;;
     esac
     log_info "克隆代码仓库: $GIT_REPO"
