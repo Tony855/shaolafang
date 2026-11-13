@@ -1784,12 +1784,13 @@ test('MySQL integration: concurrent manual reviews cannot assign one journal tra
 }, async t => {
   const firstDb = await connectTestDatabase();
   const secondDb = await connectTestDatabase();
+  // Child tables are dropped before the journal and batch parents.
   const tables = [
     'financial_reconciliation_review_events',
     'financial_journal_entries',
-    'financial_journal_transactions',
     'financial_reconciliation_items',
-    'financial_reconciliation_batches'
+    'financial_reconciliation_batches',
+    'financial_journal_transactions'
   ];
   t.after(async () => {
     try {
