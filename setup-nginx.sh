@@ -59,9 +59,7 @@ DOMAIN="${DOMAIN:-${QR_DOMAIN:-}}"
 EMAIL="${EMAIL:-}"
 BACKEND_PORT="${PORT:-3000}"
 
-if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
-    if [ -n "$DOMAIN" ] && [ -z "$EMAIL" ]; then
-else
+if [ "${FF_NONINTERACTIVE:-0}" != "1" ]; then
     if [ -z "$DOMAIN" ]; then
         echo ""
         read -p "请输入域名（直接回车跳过 HTTPS，仅配置 HTTP）: " input_domain
@@ -75,7 +73,7 @@ fi
 
 CERTBOT_EMAIL_ARGS=()
 if [ -n "$EMAIL" ]; then
-    CERTBOT_EMAIL_ARGS=("${CERTBOT_EMAIL_ARGS[@]}")
+    CERTBOT_EMAIL_ARGS=(--email "$EMAIL")
 else
     CERTBOT_EMAIL_ARGS=(--register-unsafely-without-email)
     [ -z "$DOMAIN" ] || log_warn "未提供 EMAIL，证书续期通知将不可用。"
