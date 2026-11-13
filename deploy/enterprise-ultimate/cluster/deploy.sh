@@ -18,6 +18,9 @@ export DEBIAN_FRONTEND=noninteractive
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 # shellcheck source=../../../scripts/lib/system-deps.sh
 source "$REPO_ROOT/scripts/lib/system-deps.sh"
+# shellcheck source=../../../scripts/lib/deploy-safety.sh
+source "$REPO_ROOT/scripts/lib/deploy-safety.sh"
+ff_acquire_deploy_lock
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -220,7 +223,7 @@ log_success "Systemd 服务配置完成"
 
 # ===== 9. 启动服务 =====
 log_info "启动服务..."
-systemctl restart foodflow || true
+systemctl restart foodflow
 sleep 5
 
 if systemctl is-active --quiet foodflow; then
