@@ -149,6 +149,9 @@ test('authenticated tenant scope overrides spoofed merchant and store IDs across
         return { id: 56, batch_id: 12, item_id: 34, merchant_id: 41, store_id: 93,
           alert_type: 'sla_overdue', status: 'pending' };
       }
+      if (sql.includes('FROM financial_reconciliation_items i') && sql.includes("match_status='exception'")) {
+        return { id: 34 };
+      }
       if (sql.includes('FROM financial_reconciliation_exception_cases')) {
         return { id: 1, batch_id: 12, item_id: 34, merchant_id: 41, store_id: 93, status: 'open' };
       }
