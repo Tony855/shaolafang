@@ -74,3 +74,16 @@ test('health check uses configured database credentials rather than root and a f
   assert.doesNotMatch(content, /mysql -u root foodflow_system/);
   assert.match(content, /api\/health\/ready/);
 });
+
+
+test('cluster services keep application code read-only while allowing initial credential state writes', () => {
+  for (const variant of ['enterprise', 'enterprise-ultimate']) {
+    const deploy = read(`deploy/${variant}/cluster/deploy.sh`);
+    const service = read(`deploy/${variant}/cluster/foodflow.service`);
+    assert.ok(deploy.includes('chown -R root:www-data /var/www/foodflow'));
+    assert.ok(deploy.includes('install -d -o www-data -g www-data -m 0700 /var/lib/foodflow'));
+    assert.ok(!deploy.includes('chown -R www-data:www-data /var/www/foodflow'));
+    assert.ok(service.includes('/var/lib/foodflow'));
+    assert.ok(service.includes('ReadOnlyPaths=/var/www/foodflow'));
+  }
+});
