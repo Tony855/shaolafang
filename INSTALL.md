@@ -711,15 +711,17 @@ sudo netstat -tlnp | grep 3306
 
 **解决**:
 ```bash
-# Windows (以管理员身份运行)
-netsh advfirewall firewall add rule name="foodflow" dir=in action=allow protocol=TCP localport=3000
+# Windows（仅允许可信局域网访问应用端口）
+netsh advfirewall firewall add rule name="foodflow-lan" dir=in action=allow protocol=TCP localport=3000 remoteip=192.168.1.0/24
 
-# Linux (ufw)
-sudo ufw allow 3000/tcp
+# Linux (ufw)：将网段替换为实际可信局域网
+sudo ufw allow from 192.168.1.0/24 to any port 3000 proto tcp
 
-# Linux (firewalld)
-sudo firewall-cmd --permanent --add-port=3000/tcp
+# Linux (firewalld)：仅允许可信局域网访问
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.1.0/24" port protocol="tcp" port="3000" accept'
 sudo firewall-cmd --reload
+
+# 生产环境应通过 Nginx 对外提供服务，只开放 80/443，不开放 3000。
 ```
 
 ### Q6: 菜品不显示
