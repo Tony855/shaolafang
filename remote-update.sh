@@ -15,7 +15,6 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 ff_acquire_deploy_lock
-ff_ensure_node
 
 for cmd in git npm systemctl curl node; do
   command -v "$cmd" >/dev/null 2>&1 || {
@@ -31,13 +30,13 @@ TARGET_SHA=""
 SOURCE_CHANGED=0
 DEPENDENCIES_SWAPPED=0
 UPDATE_OK=0
-STAGE="$(mktemp -d "$SCRIPT_DIR/.foodflow-update.XXXXXX")"
-OLD_NODE_MODULES="$STAGE/node_modules.previous"
+STAGE=""
+OLD_NODE_MODULES=""
 
 rollback_update() {
   local rc=$?
   if [ "$UPDATE_OK" = "1" ]; then
-    rm -rf "$STAGE"
+    [ -z "$STAGE" ] || rm -rf "$STAGE"
     return
   fi
   trap - EXIT
@@ -54,7 +53,7 @@ rollback_update() {
   if systemctl cat foodflow.service >/dev/null 2>&1; then
     systemctl restart foodflow.service || echo "[CRITICAL] 旧版本服务重启失败，请检查 journalctl -u foodflow" >&2
   fi
-  rm -rf "$STAGE"
+  [ -z "$STAGE" ] || rm -rf "$STAGE"
   exit "$rc"
 }
 trap rollback_update EXIT
@@ -63,6 +62,8 @@ if [ "$SKIP_GIT_UPDATE" != "1" ]; then
   [ -d .git ] || { echo "[ERROR] 当前目录不是 Git 仓库: $SCRIPT_DIR" >&2; exit 1; }
   ff_require_clean_git_worktree
   OLD_SHA="$(git rev-parse HEAD)"
+  STAGE="$(mktemp -d "$SCRIPT_DIR/.foodflow-update.XXXXXX")"
+  OLD_NODE_MODULES="$STAGE/node_modules.previous"
   echo "[INFO] 获取目标版本 $GIT_VERSION..."
   git fetch --no-tags origin "$GIT_VERSION"
   TARGET_SHA="$(git rev-parse FETCH_HEAD)"
@@ -74,9 +75,12 @@ if [ "$SKIP_GIT_UPDATE" != "1" ]; then
     SOURCE_CHANGED=1
   fi
 else
+  STAGE="$(mktemp -d "$SCRIPT_DIR/.foodflow-update.XXXXXX")"
+  OLD_NODE_MODULES="$STAGE/node_modules.previous"
   echo "[INFO] SKIP_GIT_UPDATE=1，保留当前源码"
 fi
 
+ff_ensure_node
 [ -f package.json ] && [ -f package-lock.json ] || {
   echo "[ERROR] 缺少 package.json 或 package-lock.json，拒绝更新运行依赖" >&2
   exit 1
