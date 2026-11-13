@@ -211,33 +211,36 @@ test('authenticated tenant scope overrides spoofed merchant and store IDs across
     const res = response();
     await handler(request, res);
     assert.notEqual(res.statusCode, 403, route + ' must accept the authenticated tenant context');
-    const scopedQueries = observations.slice(before).filter(item => {
-      const hasMerchant = item.params.some(value => String(value) === String(merchantId));
-      const hasStore = item.params.some(value => String(value) === String(storeId)) ||
-        item.params.some(value => typeof value === 'string' && value.includes('"store_id":' + storeId));
-      return hasMerchant && hasStore && /merchant_id|merchant_admins|details LIKE/i.test(item.sql);
-    });
-    const query = dataQuery
-      ? scopedQueries.find(item => item.sql.includes(dataQuery))
-      : scopedQueries[0];
-    assert.ok(query, route + ' must issue a tenant-scoped query' + (dataQuery ? ' for its result rows' : ''));
-    assert.ok(!query.params.some(value => spoofed.includes(String(value))),
-      route + ' must not bind attacker-supplied tenant or actor IDs');
-    const serializedScopeParams = query.params.filter(value =>
-      typeof value === 'string' && /"merchant_id"|"store_id"|"admin_id"|"actor_id"/.test(value)
+    const routeReads = observations.slice(before).filter(item =>
+      ['get', 'all'].includes(item.kind) &&
+      /financial_(reconciliation|journal)_|audit_logs/i.test(item.sql)
     );
-    const serializedSpoofed = serializedScopeParams.some(value => spoofed.some(id =>
-      value.includes('"merchant_id":' + id) ||
-      value.includes('"store_id":' + id) ||
-      value.includes('"admin_id":' + id) ||
-      value.includes('"actor_id":' + id)
-    ));
-    assert.ok(!serializedSpoofed,
-      route + ' must not embed spoofed tenant or actor IDs inside serialized SQL filters');
-    if (serializedScopeParams.length) {
-      assert.ok(serializedScopeParams.some(value =>
-        value.includes('"merchant_id":' + merchantId) && value.includes('"store_id":' + storeId)
-      ), route + ' serialized tenant filters must use the authenticated merchant and store');
+    const hasScopeValue = (params, key, id) => params.some(value =>
+      String(value) === String(id) ||
+      (typeof value === 'string' && value.includes('"' + key + '":' + id))
+    );
+    const resultQuery = dataQuery
+      ? routeReads.find(item => item.sql.includes(dataQuery))
+      : routeReads[0];
+    assert.ok(resultQuery, route + ' must execute its expected financial read query' +
+      (dataQuery ? ' for result rows' : ''));
+    assert.ok(routeReads.length > 0, route + ' must execute at least one financial read');
+    for (const query of routeReads) {
+      assert.ok(hasScopeValue(query.params, 'merchant_id', merchantId),
+        route + ' every financial read must bind the authenticated merchant ID: ' + query.sql);
+      assert.ok(hasScopeValue(query.params, 'store_id', storeId),
+        route + ' every financial read must bind the authenticated store ID: ' + query.sql);
+      const serializedSpoofed = query.params.some(value =>
+        typeof value === 'string' && spoofed.some(id =>
+          value === id ||
+          value.includes('"merchant_id":' + id) ||
+          value.includes('"store_id":' + id) ||
+          value.includes('"admin_id":' + id) ||
+          value.includes('"actor_id":' + id)
+        )
+      );
+      assert.ok(!serializedSpoofed,
+        route + ' must not embed spoofed tenant or actor IDs in any financial read');
     }
   }
 });
