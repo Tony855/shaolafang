@@ -47,6 +47,10 @@ FF_INSTALL_REDIS="${FF_INSTALL_REDIS:-0}"
 FF_CONFIGURE_UFW="${FF_CONFIGURE_UFW:-0}"
 FF_CONFIGURE_BACKUP_CRON="${FF_CONFIGURE_BACKUP_CRON:-0}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Acquire the deployment lock before any fallback clone or filesystem mutation.
+# shellcheck source=scripts/lib/deploy-safety.sh
+source "$APP_DIR/scripts/lib/deploy-safety.sh"
+ff_acquire_deploy_lock
 
 # 如果当前目录没有 server.js，则安装到默认路径
 if [ ! -f "$APP_DIR/server.js" ]; then
@@ -472,7 +476,8 @@ if [ "$FF_CONFIGURE_BACKUP_CRON" = "1" ]; then
     umask "$BACKUP_OLD_UMASK"
     chown root:root "$CONFIG_DIR/backup.cnf"
     chmod 0600 "$CONFIG_DIR/backup.cnf"
-    BACKUP_SCRIPT="$APP_DIR/backups/auto-backup.sh"
+    install -d -o root -g root -m 0755 /usr/local/sbin
+    BACKUP_SCRIPT="/usr/local/sbin/foodflow-auto-backup"
     cat > "$BACKUP_SCRIPT" << 'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -481,7 +486,7 @@ DATE="$(date +%Y%m%d_%H%M%S)"
 BACKUP_DIR="__BACKUP_DIR__"
 DB_NAME="__DB_NAME__"
 mkdir -p "$BACKUP_DIR"
-TMP_FILE="$BACKUP_DIR/.db_$DATE.sql"
+TMP_FILE="$(mktemp "$BACKUP_DIR/.db_$DATE.XXXXXX")"
 trap 'rm -f "$TMP_FILE"' EXIT
 mysqldump --defaults-extra-file=/etc/foodflow/backup.cnf --single-transaction --quick "$DB_NAME" > "$TMP_FILE"
 gzip "$TMP_FILE"
