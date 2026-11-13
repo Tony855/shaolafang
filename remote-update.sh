@@ -51,7 +51,7 @@ rollback_update() {
   if [ "$SOURCE_CHANGED" = "1" ] && [ -n "$OLD_SHA" ]; then
     git reset --hard "$OLD_SHA" || echo "[CRITICAL] 源码回滚失败，请手动恢复到 $OLD_SHA" >&2
   fi
-  if systemctl is-enabled --quiet foodflow.service 2>/dev/null; then
+  if systemctl cat foodflow.service >/dev/null 2>&1; then
     systemctl restart foodflow.service || echo "[CRITICAL] 旧版本服务重启失败，请检查 journalctl -u foodflow" >&2
   fi
   rm -rf "$STAGE"
@@ -93,7 +93,7 @@ mv "$SCRIPT_DIR/node_modules" "$OLD_NODE_MODULES"
 DEPENDENCIES_SWAPPED=1
 mv "$STAGE/node_modules" "$SCRIPT_DIR/node_modules"
 
-if ! systemctl is-enabled --quiet foodflow.service 2>/dev/null; then
+if ! systemctl cat foodflow.service >/dev/null 2>&1; then
   if [ "${FF_ALLOW_NO_SERVICE:-0}" = "1" ]; then
     echo "[WARN] foodflow.service 未启用；FF_ALLOW_NO_SERVICE=1，跳过服务健康验证。"
     UPDATE_OK=1
