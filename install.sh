@@ -276,6 +276,10 @@ select_node_role() {
 # 询问域名（仅当环境变量和默认值都为空时）
 # ============================================================
 ask_domain_if_needed() {
+    if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
+        log_info "非交互模式：未提供 DOMAIN 时跳过 HTTPS；未提供 EMAIL 时不提示输入。"
+        return
+    fi
     if [ -z "$DOMAIN" ]; then
         echo ""
         echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
@@ -289,10 +293,6 @@ ask_domain_if_needed() {
         DOMAIN="$(echo "$input_domain" | tr -d '[:space:]')"
     fi
 
-    if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
-        log_info "非交互模式：未提供 DOMAIN 时跳过 HTTPS；未提供 EMAIL 时不提示输入。"
-        return
-    fi
     if [ -n "$DOMAIN" ] && [ -z "$EMAIL" ]; then
         read -p "  请输入邮箱（用于证书续期提醒，可留空）: " input_email
         EMAIL="$(echo "$input_email" | tr -d '[:space:]')"
