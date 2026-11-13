@@ -527,7 +527,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     );
     const openedRows = await allAsync(
       `SELECT DATE(b.imported_at) AS report_date, COUNT(*) AS opened_count
-       FROM financial_reconciliation_items i FORCE INDEX (idx_finance_exception_queue_cursor)
+       FROM financial_reconciliation_items i
        INNER JOIN financial_reconciliation_batches b
          ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
        WHERE i.merchant_id=? AND i.store_id=? AND i.match_status='exception'
@@ -1128,7 +1128,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
               b.provider_code, b.external_batch_id, b.imported_at,
               c.id AS case_id, c.status AS case_status, c.assigned_admin_id, c.assigned_admin_username,
               c.resolution_note, c.updated_at AS case_updated_at
-       FROM financial_reconciliation_items i
+       FROM financial_reconciliation_items i FORCE INDEX (idx_finance_exception_queue_cursor)
        INNER JOIN financial_reconciliation_batches b
          ON b.id=i.batch_id AND b.merchant_id=i.merchant_id AND b.store_id=i.store_id
        LEFT JOIN financial_reconciliation_exception_cases c
