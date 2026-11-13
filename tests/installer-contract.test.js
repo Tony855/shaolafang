@@ -172,8 +172,10 @@ test('enterprise deployment guides reference their own cluster scripts', () => {
   const ultimate = read('deploy/enterprise-ultimate/README.md');
   assert.doesNotMatch(enterprise, /deploy\/standard\/cluster\//);
   assert.match(enterprise, /deploy\/enterprise\/cluster\/deploy\.sh/);
+  assert.ok(enterprise.includes('NFS_CLIENT_CIDR='));
   assert.doesNotMatch(ultimate, /deploy\/enterprise\/cluster\//);
   assert.match(ultimate, /deploy\/enterprise-ultimate\/cluster\/deploy\.sh/);
+  assert.ok(ultimate.includes('NFS_CLIENT_CIDR='));
 });
 
 
