@@ -195,7 +195,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ### 从标准版升级到企业版
 1. 准备第二台应用服务器
-2. 准备独立的MySQL和Redis服务器
+2. 准备独立的 MariaDB 和 Redis 服务器
 3. 准备NFS共享存储
 4. 迁移数据库和上传文件
 5. 部署2台应用服务器节点
@@ -204,7 +204,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ### 从企业版升级到企业旗舰版
 1. 准备第三台及更多应用服务器
-2. 升级MySQL到高可用版
+2. 将 MariaDB 升级为高可用部署
 3. 升级Redis到主从/集群模式
 4. 启用超级管理员后台
 5. 配置多商户管理

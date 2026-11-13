@@ -1,6 +1,6 @@
 # FoodFlow · 多商户餐饮扫码点餐与门店运营系统
 
-FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运营系统，覆盖顾客扫码点餐、服务员桌台操作、后厨出餐、收银结算、商户运营管理及平台级管理。
+FoodFlow 是基于 Node.js、Express、MariaDB 和 Socket.IO 的餐饮运营系统，覆盖顾客扫码点餐、服务员桌台操作、后厨出餐、收银结算、商户运营管理及平台级管理。
 
 > 本仓库：`Tony855/shaolafang`  
 > 默认分支：`main`  
@@ -153,7 +153,7 @@ FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运�
 |---|---|
 | Web 服务 | Node.js 26 LTS、Express 4 |
 | 实时通信 | Socket.IO 4 |
-| 数据库 | MySQL 8+ / MariaDB 10.5+ |
+| 数据库 | MariaDB 10.5+ |
 | 可选缓存与跨节点适配 | Redis、Socket.IO Redis Adapter |
 | 前端 | 原生 JavaScript、HTML、CSS |
 | 多语言 | 语言资源文件及构建/检查脚本 |
@@ -177,7 +177,7 @@ FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运�
                     |          |
                     +-----+----+
                           |
-                 MySQL / MariaDB
+                 MariaDB
                           |
                   Redis（可选）
                           |
@@ -194,7 +194,7 @@ FoodFlow 是基于 Node.js、Express、MySQL/MariaDB 和 Socket.IO 的餐饮运�
 
 - Linux 推荐 Debian 12/13 或 Ubuntu 22.04/24.04。
 - Node.js 26 LTS（npm 10+）。
-- MySQL 8.0+ 或 MariaDB 10.5+。
+- MariaDB 10.5+。
 - Git、npm。
 - Nginx 用于域名反向代理和 HTTPS（生产环境推荐）。
 - Redis 为可选组件；启用多节点部署时，应按对应部署手册配置共享 Redis。
@@ -315,7 +315,7 @@ npm --version
 
 ### 6.2 安装并准备数据库
 
-安装 MySQL 8 或 MariaDB 10.5+，启动服务并创建独立数据库用户。示例（请替换密码）：
+安装并启动 MariaDB 10.5+（Debian/Ubuntu 可使用 `sudo apt-get install mariadb-server` 和 `sudo systemctl enable --now mariadb`），然后创建独立数据库用户。示例（请替换密码）：
 
 ```sql
 CREATE DATABASE foodflow_system
@@ -331,7 +331,7 @@ GRANT ALL PRIVILEGES ON foodflow_system.*
 FLUSH PRIVILEGES;
 ```
 
-如果应用通过 `localhost` 而不是 `127.0.0.1` 连接数据库，请按实际 MySQL 用户 host 匹配规则创建授权。远程数据库只允许应用服务器内网地址访问，不要开放给整个互联网。
+如果应用通过 `localhost` 而不是 `127.0.0.1` 连接数据库，请按 MariaDB 用户的 host 匹配规则创建授权。远程数据库只允许应用服务器内网地址访问，不要开放给整个互联网。
 
 ### 6.3 配置环境变量
 
@@ -388,7 +388,7 @@ npm run dev
 [Unit]
 Description=FoodFlow Ordering System
 Wants=network-online.target
-After=network-online.target mysql.service
+After=network-online.target mariadb.service
 
 [Service]
 Type=simple
@@ -418,7 +418,7 @@ sudo chown root:www-data /opt/shaolafang/.env
 sudo chmod 0640 /opt/shaolafang/.env
 ```
 
-若数据库服务名为 `mariadb.service`，请调整 `After` 项。
+数据库服务使用 `mariadb.service`。
 
 ```bash
 sudo systemctl daemon-reload
@@ -438,7 +438,7 @@ sudo systemctl status foodflow
 
 1. 将域名 A 记录指向服务器 IPv4；如启用 IPv6，确认 AAAA 记录和服务器 IPv6 路由正确。
 2. 云厂商安全组及系统防火墙开放 TCP 80、443。
-3. 保留 SSH 管理端口；不要将 MySQL 3306、Redis 6379 或应用端口 3000 暴露给公网。
+3. 保留 SSH 管理端口；不要将 MariaDB 3306、Redis 6379 或应用端口 3000 暴露给公网。
 
 ### 7.2 使用仓库脚本
 
@@ -692,7 +692,7 @@ nc -zv 192.168.1.100 9100
 | 变量 | 说明 | 默认/示例 |
 |---|---|---|
 | `PORT` | Node.js HTTP 监听端口 | `3000` |
-| `DB_HOST` | MySQL/MariaDB 地址 | `127.0.0.1` |
+| `DB_HOST` | MariaDB 地址 | `127.0.0.1` |
 | `DB_PORT` | 数据库端口 | `3306` |
 | `DB_DATABASE` | 数据库名称，必填 | `foodflow_system` |
 | `DB_USER` | 数据库用户名 | `foodflow` |
@@ -784,7 +784,7 @@ curl -i http://127.0.0.1:3000/api/health
 ### 15.1 数据库手动备份
 
 ```bash
-mysqldump --single-transaction --routines --triggers \
+mariadb-dump --single-transaction --routines --triggers \
   -h 127.0.0.1 -P 3306 -u foodflow -p foodflow_system \
   > foodflow_$(date +%F_%H%M%S).sql
 ```
@@ -794,7 +794,7 @@ mysqldump --single-transaction --routines --triggers \
 先在隔离环境验证备份，再恢复到目标数据库：
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u foodflow -p foodflow_system < foodflow_backup.sql
+mariadb -h 127.0.0.1 -P 3306 -u foodflow -p foodflow_system < foodflow_backup.sql
 ```
 
 恢复会覆盖/写入目标库中的数据。生产恢复前应停止写入、另做当前状态备份，并确认目标数据库名称。
@@ -887,9 +887,8 @@ npm --version
 
 ```bash
 sudo systemctl status mariadb
-sudo systemctl status mysql
 sudo ss -lntp | grep 3306
-mysql -h 127.0.0.1 -P 3306 -u foodflow -p
+mariadb -h 127.0.0.1 -P 3306 -u foodflow -p
 ```
 
 检查数据库服务是否运行、地址/端口是否正确、用户名 host 授权是否匹配，以及 `.env` 中的密码和数据库名。

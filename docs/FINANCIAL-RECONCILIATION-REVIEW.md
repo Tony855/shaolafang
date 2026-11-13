@@ -10,10 +10,14 @@ All endpoints require an authenticated merchant administrator with the dedicated
 - `GET /api/admin/financial-reconciliation/review-history?batchId=&itemId=&limit=50&afterId=0`: returns append-only manual review events, newest first, with tenant-scoped filters and descending event-ID cursor pagination (maximum 200 per page).
 - `GET /api/admin/financial-reconciliation/monthly-close-preview?month=YYYY-MM`: returns per-currency monthly statement totals, batch states, match counts, and unresolved-row counts. The preview is read-only; `closeReady` means all imported statement rows for that currency/month are matched, not that an accounting close has been posted.
 
+## Database deployment standard
+
+Production deployments use MariaDB 10.5+ as the database server. The Node.js `mysql2` driver speaks the MySQL-compatible protocol; this driver choice does not mean a MySQL Server installation is required. Historical MySQL 8.4 integration results are recorded in `FINANCE-DELIVERY-TRACKER.md` and must not be treated as MariaDB-specific certification.
+
 ## Review invariants
 
 - Tenant and store IDs come exclusively from the authenticated administrator context, never from the request body.
-- The service locks the batch, item, and target journal header inside the repository's transaction helper. The existing AsyncLocalStorage helper reuses the active MySQL connection and nested savepoints.
+- The service locks the batch, item, and target journal header inside the repository's transaction helper. The existing AsyncLocalStorage helper reuses the active MariaDB connection and nested savepoints.
 - A manual assignment requires exact currency and exact balanced debit/credit totals equal to the statement amount in integer minor units. Direction mapping is not guessed.
 - A unique index on `financial_reconciliation_items.matched_journal_transaction_id` prevents assigning one journal transaction to multiple statement rows. The migration checks existing duplicates before creating the index and fails closed if conflicts require operator review.
 - Review writes require an idempotency key. Exact replay returns the original event only for the same authenticated admin ID; another admin reusing the key receives an idempotency conflict. The stored request digest format is unchanged so pre-existing review events remain replay-compatible. Key reuse with changed request data is rejected.

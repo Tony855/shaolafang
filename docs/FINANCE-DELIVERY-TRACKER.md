@@ -4,6 +4,8 @@ Last reviewed: 2026-11-13 (PR #203–#218 merged; provider-neutral finance accep
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
+**Database test-scope note:** MariaDB 10.5+ is the deployment standard for this repository. The historical finance integration jobs listed below used MySQL 8.4 as their test service; those results document the tested SQL/transaction behavior but do not, by themselves, certify MariaDB compatibility. A dedicated MariaDB integration matrix is still required before claiming MariaDB-specific finance acceptance.
+
 ## Delivered to main
 
 | Workstream | Delivered capability | Evidence / status |
