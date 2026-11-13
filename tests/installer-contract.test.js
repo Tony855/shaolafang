@@ -134,6 +134,68 @@ test('minimal first-run verification checks configuration, service, database hea
 });
 
 
+test('cluster NFS exports preserve existing exports and restrict uploads to the application service identity', () => {
+  for (const file of [
+    'deploy/enterprise/cluster/setup-nfs-server.sh',
+    'deploy/enterprise-ultimate/cluster/setup-nfs-server.sh'
+  ]) {
+    const source = read(file);
+    assert.match(source, /root_squash/);
+    assert.ok(source.includes('readonly NFS_UPLOAD_UID=33'));
+    assert.ok(source.includes('readonly NFS_UPLOAD_GID=33'));
+    assert.match(source, /-m 0770/);
+    assert.match(source, /NFS_CLIENT_CIDR/);
+    assert.match(source, /awk -v export_path/);
+    assert.ok(source.includes('exportfs -ra'));
+    assert.ok(!source.includes('systemctl restart nfs-kernel-server'));
+    assert.doesNotMatch(source, /no_root_squash|chmod 777|chown nobody:nogroup/);
+    assert.doesNotMatch(source, /cat > \/etc\/exports/);
+  }
+});
+
+
+test('cluster app deployment requires a writable shared NFS mount and stable www-data identity', () => {
+  for (const file of [
+    'deploy/enterprise/cluster/deploy.sh',
+    'deploy/enterprise-ultimate/cluster/deploy.sh'
+  ]) {
+    const source = read(file);
+    assert.ok(source.includes('groupadd --system --gid 33 www-data'));
+    assert.ok(source.includes('useradd --system --no-create-home --uid 33 --gid 33'));
+    assert.ok(source.includes('mountpoint -q /mnt/shared/uploads'));
+    assert.ok(source.includes('findmnt -n -o FSTYPE'));
+    assert.ok(source.includes('nfs|nfs4'));
+    assert.ok(source.includes('runuser -u www-data -- test -w /mnt/shared/uploads'));
+    assert.ok(source.includes('/api/health/ready'));
+    assert.ok(source.includes('READY_STATUS'));
+    assert.ok(source.includes('curl --silent --show-error --output /dev/null'));
+    assert.ok(source.includes('DB_PASSWORD'));
+    assert.ok(source.includes('YourStrongPasswordHere'));
+    assert.ok(source.includes('ChangeThisToARandomString'));
+    assert.ok(source.includes('DB_USER'));
+    assert.ok(source.includes('REDIS_URL'));
+    assert.ok(source.includes('client.ping()'));
+    assert.ok(source.includes('connectTimeout: 5000'));
+    assert.ok(source.includes('REDIS_URL="$REDIS_URL" node'));
+    assert.ok(source.includes('QR_DOMAIN'));
+    assert.ok(source.includes('JWT_SECRET'));
+    assert.ok(!source.includes('useradd -r -s /bin/false www-data'));
+  }
+});
+
+
+test('enterprise deployment guides reference their own cluster scripts', () => {
+  const enterprise = read('deploy/enterprise/README.md');
+  const ultimate = read('deploy/enterprise-ultimate/README.md');
+  assert.doesNotMatch(enterprise, /deploy\/standard\/cluster\//);
+  assert.match(enterprise, /deploy\/enterprise\/cluster\/deploy\.sh/);
+  assert.ok(enterprise.includes('NFS_CLIENT_CIDR='));
+  assert.doesNotMatch(ultimate, /deploy\/enterprise\/cluster\//);
+  assert.match(ultimate, /deploy\/enterprise-ultimate\/cluster\/deploy\.sh/);
+  assert.ok(ultimate.includes('NFS_CLIENT_CIDR='));
+});
+
+
 test('manual installation guides use the canonical repository and a non-root service account', () => {
   const install = read('INSTALL.md');
   const readme = read('README.md');
@@ -146,4 +208,23 @@ test('manual installation guides use the canonical repository and a non-root ser
   assert.ok(!install.includes('ufw allow 3000/tcp'));
   assert.ok(readme.includes('User=foodflow\nGroup=www-data'));
   assert.ok(!readme.includes('User=foodflow\nGroup=foodflow'));
+});
+
+
+test('top-level deployment guides and standard installer use the current repository contracts', () => {
+  const standard = read('DEPLOY-STANDARD.md');
+  const enterprise = read('DEPLOY-ENTERPRISE.md');
+  const standardGuide = read('deploy/standard/README.md');
+  const deployGuide = read('deploy/README.md');
+  const standardScript = read('deploy/standard/deploy.sh');
+  assert.ok(standard.includes('Tony855/shaolafang.git'));
+  assert.ok(standard.includes('deploy/standard/README.md'));
+  assert.doesNotMatch(standard, /foodflow-standard\.git|DB_USER=root/);
+  assert.ok(enterprise.includes('deploy/enterprise/README.md'));
+  assert.ok(enterprise.includes('deploy/enterprise-ultimate/README.md'));
+  assert.doesNotMatch(enterprise, /foodflow-enterprise\.git|DB_USER=root|k8s\/redis-cluster\.yaml/);
+  assert.ok(standardGuide.includes('Tony855/shaolafang.git'));
+  assert.ok(standardGuide.includes('执行定时任务 | false'));
+  assert.ok(deployGuide.includes('Tony855/shaolafang.git'));
+  assert.ok(standardScript.includes('GIT_REPO="https://github.com/Tony855/shaolafang.git"'));
 });

@@ -52,7 +52,16 @@ ff_ensure_node
 
 # ===== 3. 创建目录 =====
 log_info "创建目录..."
-id -u www-data &>/dev/null || useradd -r -s /bin/false www-data
+if ! getent group www-data >/dev/null 2>&1; then
+    groupadd --system --gid 33 www-data
+fi
+if ! getent passwd www-data >/dev/null 2>&1; then
+    useradd --system --no-create-home --uid 33 --gid 33 --shell /usr/sbin/nologin www-data
+fi
+if [ "$(id -u www-data)" != "33" ] || [ "$(id -g www-data)" != "33" ]; then
+    log_error "集群 NFS 要求所有应用节点的 www-data UID/GID 为 33:33；请先统一账号 ID"
+    exit 1
+fi
 mkdir -p /var/www/foodflow/{logs,uploads,backups} /etc/foodflow /mnt/shared/uploads
 log_success "目录创建完成"
 
@@ -106,8 +115,65 @@ if [[ ! "${DB_DATABASE:-}" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
     log_error "DB_DATABASE 缺失或格式无效；请编辑 /etc/foodflow/.env（不能使用 DB_NAME）"
     exit 1
 fi
+if [ -z "${DB_HOST:-}" ] || [ -z "${DB_USER:-}" ] || [ -z "${DB_PASSWORD:-}" ]; then
+    log_error "DB_HOST、DB_USER 和 DB_PASSWORD 必须全部配置"
+    exit 1
+fi
+if [ "${DB_USER}" = "root" ]; then
+    log_error "应用数据库禁止使用 MySQL root；请创建独立的 foodflow 数据库账号"
+    exit 1
+fi
+if [[ "${DB_HOST}" == *".example.com" ]]; then
+    log_error "DB_HOST 仍是示例占位地址，请替换为真实数据库主机"
+    exit 1
+fi
+if [ "${#DB_PASSWORD}" -lt 20 ] || [ "${DB_PASSWORD}" = "YourStrongPasswordHere" ]; then
+    log_error "DB_PASSWORD 太短或仍是示例密码；请设置至少 20 个字符的强随机密码"
+    exit 1
+fi
+if [ -z "${JWT_SECRET:-}" ] || [ "${#JWT_SECRET}" -lt 32 ] || [[ "${JWT_SECRET}" == ChangeThisToARandomString* ]]; then
+    log_error "JWT_SECRET 缺失、太短或仍是示例密钥；请设置至少 32 个字符的随机密钥"
+    exit 1
+fi
+if [ -z "${QR_DOMAIN:-}" ] || [ "${QR_DOMAIN}" = "https://your-domain.com" ]; then
+    log_error "QR_DOMAIN 仍是示例域名，请设置实际对外 HTTPS 域名"
+    exit 1
+fi
 if [ -z "${REDIS_URL:-}" ]; then
     log_error "集群部署必须配置 REDIS_URL；禁止在多节点模式回退到进程内存状态"
+    exit 1
+fi
+if [[ "${REDIS_URL}" == *".example.com"* || "${REDIS_URL}" == *"redis_password"* ]]; then
+    log_error "REDIS_URL 仍包含示例主机或占位密码，请替换为真实 Redis 连接串"
+    exit 1
+fi
+
+# Verify Redis is reachable; merely setting REDIS_URL must not permit an in-memory cluster fallback.
+if ! REDIS_URL="$REDIS_URL" node <<'NODE'
+const { createClient } = require('redis');
+(async () => {
+  const client = createClient({
+    url: process.env.REDIS_URL,
+    socket: { connectTimeout: 5000, reconnectStrategy: false }
+  });
+  client.on('error', () => {});
+  try {
+    await client.connect();
+    const pong = await client.ping();
+    if (pong !== 'PONG') throw new Error('unexpected PING response');
+    if (typeof client.close === 'function') await client.close();
+    else await client.quit();
+  } catch (error) {
+    try {
+      if (typeof client.destroy === 'function') client.destroy();
+      else if (typeof client.disconnect === 'function') client.disconnect();
+    } catch (_) {}
+    process.exit(1);
+  }
+})();
+NODE
+then
+    log_error "Redis 连接或 PING 检查失败；集群节点不得回退到进程内存状态"
     exit 1
 fi
 if [ -z "${TRUST_PROXY:-}" ] || [ "${TRUST_PROXY}" = "loopback" ] || [ "${TRUST_PROXY}" = "192.168.1.10/32" ] || [ "${TRUST_PROXY}" = "true" ]; then
@@ -116,17 +182,40 @@ if [ -z "${TRUST_PROXY:-}" ] || [ "${TRUST_PROXY}" = "loopback" ] || [ "${TRUST_
 fi
 log_success "数据库、Redis 和可信代理配置检查通过"
 
-# ===== 7. 配置 NFS（可选，需要用户手动配置服务器地址） =====
-log_info "NFS 共享存储配置..."
-log_warn "NFS 服务器地址需要手动配置，请编辑 /etc/foodflow/.env 中的 NFS_SERVER"
-log_warn "然后手动执行: mount -t nfs \$NFS_SERVER:/export/uploads /mnt/shared/uploads"
+# Cluster nodes must use the shared NFS mount, not a node-local uploads directory.
+if [ "${UPLOAD_DIR:-/mnt/shared/uploads}" != "/mnt/shared/uploads" ]; then
+    log_error "集群 UPLOAD_DIR 必须设置为 /mnt/shared/uploads（与 systemd ReadWritePaths 一致）"
+    exit 1
+fi
+if ! mountpoint -q /mnt/shared/uploads; then
+    log_error "NFS 上传目录尚未挂载；请先挂载 NFS_SERVER:/export/uploads 到 /mnt/shared/uploads"
+    exit 1
+fi
+UPLOAD_FS_TYPE="$(findmnt -n -o FSTYPE --target /mnt/shared/uploads 2>/dev/null || true)"
+case "$UPLOAD_FS_TYPE" in
+    nfs|nfs4) ;;
+    *)
+        log_error "共享上传目录必须是真正的 NFS 文件系统，当前类型：${UPLOAD_FS_TYPE:-unknown}"
+        exit 1
+        ;;
+esac
+if ! runuser -u www-data -- test -w /mnt/shared/uploads; then
+    log_error "www-data（UID/GID 33:33）无法写入 NFS 上传目录；请检查服务端目录属主/权限和 root_squash 配置"
+    exit 1
+fi
+log_success "NFS 上传挂载及 www-data 写入权限验证通过"
+
+# ===== 7. NFS 已在上方完成挂载与权限验证 =====
+log_info "NFS 共享存储已验证，继续配置应用服务..."
 
 # ===== 8. 配置 Systemd =====
 log_info "配置 Systemd 服务..."
 cp deploy/enterprise-ultimate/cluster/foodflow.service /etc/systemd/system/foodflow.service
 systemctl daemon-reload
 systemctl enable foodflow
-chown -R www-data:www-data /var/www/foodflow
+chown -R root:www-data /var/www/foodflow
+install -d -o www-data -g www-data -m 0770 /var/www/foodflow/logs /var/www/foodflow/backups
+install -d -o www-data -g www-data -m 0700 /var/lib/foodflow
 log_success "Systemd 服务配置完成"
 
 # ===== 9. 启动服务 =====
@@ -141,6 +230,24 @@ else
     log_warn "可能原因：数据库/Redis/NFS 配置不正确，请检查 /etc/foodflow/.env"
     exit 1
 fi
+
+# A running systemd process is not enough: wait for the HTTP readiness endpoint,
+# which verifies that the application can execute a MySQL query.
+READY_URL="http://127.0.0.1:${PORT:-3000}/api/health/ready"
+READY_STATUS=""
+for attempt in $(seq 1 15); do
+    READY_STATUS="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 3 "$READY_URL" 2>/dev/null || true)"
+    if [ "$READY_STATUS" = "200" ]; then
+        break
+    fi
+    sleep 2
+done
+if [ "$READY_STATUS" != "200" ]; then
+    log_error "应用进程已启动，但数据库 readiness 检查未通过（HTTP ${READY_STATUS:-no response}）"
+    journalctl -u foodflow -n 50 --no-pager || true
+    exit 1
+fi
+log_success "HTTP readiness 检查通过，MySQL 查询正常"
 
 # ===== 完成 =====
 echo ""

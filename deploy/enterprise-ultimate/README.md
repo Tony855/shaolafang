@@ -72,20 +72,38 @@
 
 ```bash
 # NFS方式
-sudo bash deploy/enterprise/cluster/setup-nfs-server.sh
+# 将 192.168.1.0/24 替换为实际应用节点内网网段
+sudo env NFS_CLIENT_CIDR=192.168.1.0/24 bash deploy/enterprise-ultimate/cluster/setup-nfs-server.sh
 ```
 
 ### 步骤2：初始化数据库
 
 ```bash
 # 编辑 init-db.sh 中的数据库配置
-sudo bash deploy/enterprise/cluster/init-db.sh
+sudo bash deploy/enterprise-ultimate/cluster/init-db.sh
 ```
+
+
+
+**每台应用节点在运行部署脚本前，必须先挂载共享 NFS 上传目录。** 所有节点的 `www-data` UID/GID 必须为 `33:33`，与 NFS 服务端保持一致：
+
+```bash
+sudo apt-get install -y nfs-common
+getent group www-data >/dev/null || sudo groupadd --system --gid 33 www-data
+getent passwd www-data >/dev/null || sudo useradd --system --no-create-home --uid 33 --gid 33 --shell /usr/sbin/nologin www-data
+sudo mkdir -p /mnt/shared/uploads
+sudo mount -t nfs -o vers=4 NFS_SERVER_IP:/export/uploads /mnt/shared/uploads
+sudo -u www-data test -w /mnt/shared/uploads
+# 验证通过后，将下行加入 /etc/fstab 以便重启后自动挂载：
+# NFS_SERVER_IP:/export/uploads /mnt/shared/uploads nfs4 rw,_netdev,hard,timeo=600,retrans=2 0 0
+```
+
+部署脚本会拒绝未挂载或不可写的本地目录，避免多节点误将上传文件写入各自本机磁盘。
 
 ### 步骤3：部署主节点
 
 ```bash
-sudo bash deploy/enterprise/cluster/deploy.sh master
+sudo bash deploy/enterprise-ultimate/cluster/deploy.sh master
 sudo nano /etc/foodflow/.env  # 配置数据库、Redis、NFS
 sudo systemctl restart foodflow
 ```
@@ -93,7 +111,7 @@ sudo systemctl restart foodflow
 ### 步骤4：部署从节点（可重复部署N台）
 
 ```bash
-sudo bash deploy/enterprise/cluster/deploy.sh slave
+sudo bash deploy/enterprise-ultimate/cluster/deploy.sh slave
 sudo nano /etc/foodflow/.env  # 配置相同的数据库、Redis、NFS
 sudo systemctl restart foodflow
 ```
@@ -101,7 +119,7 @@ sudo systemctl restart foodflow
 ### 步骤5：配置Nginx负载均衡
 
 ```bash
-sudo cp deploy/enterprise/cluster/nginx.conf /etc/nginx/conf.d/foodflow.conf
+sudo cp deploy/enterprise-ultimate/cluster/nginx.conf /etc/nginx/conf.d/foodflow.conf
 sudo nano /etc/nginx/conf.d/foodflow.conf  # 修改域名、服务器IP、SSL
 sudo nginx -t && sudo systemctl reload nginx
 ```
@@ -138,7 +156,7 @@ sudo certbot --nginx -d your-domain.com
 
 ```bash
 # 1. 准备新服务器，运行从节点部署脚本
-sudo bash deploy/enterprise/cluster/deploy.sh slave
+sudo bash deploy/enterprise-ultimate/cluster/deploy.sh slave
 
 # 2. 在Nginx配置的upstream中添加新节点
 sudo nano /etc/nginx/conf.d/foodflow.conf
