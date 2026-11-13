@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-14 (PR #203–#227 merged; MariaDB 10.5/10.11 finance integration matrix passed)
+Last reviewed: 2026-11-14 (PR #203–#228 merged; complete repository tests plus isolated MariaDB 10.5/10.11 finance integration passed)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -43,13 +43,13 @@ This tracker records merged delivery separately from work that is still under re
 | MySQL month-close approval lifecycle | Real-MySQL close request enforces maker-checker; readiness failure rolls back and retry succeeds; approval history remains hash-linked | PR #195 merged as `4369409a`; all six current-head checks passed |
 | MySQL cross-service import-to-export lifecycle | Real-MySQL statement import flows through journal posting, candidate suggestion, manual review, month-close approval, and scoped CSV export | PR #196 merged as `6e1cfefb`; all six checks passed |
 | MySQL imported-exception-to-SLA lifecycle | Real-MySQL imported unmatched row is classified, moved into an exception case, becomes SLA-overdue, is acknowledged, and is resolved with hash-linked histories | PR #197 merged as `3f7728db`; all six checks passed |
-| MariaDB finance integration compatibility | Existing real-database finance integration and backup/restore suites pass on MariaDB 10.5 and 10.11; MySQL 8.4 remains a separate CI signal | PR #227 merged as `fce81badd92475d087e5662e8aca1c4eef13830a`; all eight PR-head checks passed |
+| MariaDB finance integration compatibility | Real-database finance integration and backup/restore suites pass on MariaDB 10.5 and 10.11; complete repository test suite also passes in the same matrix | PR #227 and #228 merged; PR #228 commit `d793670be103ec3f1eac9a1d0355ea4a1f095b15`; all eight final-head checks passed |
 | Manual-review idempotency concurrency | Non-locking idempotency preflight, period/batch lock ordering, current replay recheck and closed-month replay behavior | PR #199 merged as `247fb33b`; CI and installer checks passed |
 | Concurrent journal assignment protection | Two independent MySQL transactions attempt to confirm different statement rows against one journal transaction; only one may commit and the loser writes no audit event | PR #200 merged as `0c7a5f57`; final-head CI and review passed |
 
 ## Under review
 
-- **Full-suite MariaDB execution:** PR pending. PR #227 passed the targeted finance integration and backup/restore files on MariaDB 10.5 and 10.11. The next batch expands this to the entire repository test suite with the MariaDB integration URL enabled, ensuring database-backed tests are not limited to the two targeted files.
+- **Full-suite MariaDB execution — accepted:** PR #228 runs the complete repository suite with DB integration tests isolated from shared-schema destructive fixtures, then executes finance integration and backup/restore sequentially against MariaDB 10.5 and 10.11. MySQL 8.4 remains a separate check. The workflow's general test command was also corrected to invoke `npm test` directly instead of forwarding the unsupported `--if-present` flag to Node.
 
 ## Remaining engineering acceptance work
 
@@ -122,3 +122,5 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 - MariaDB compatibility batch started from main `4e58ad707bb8df60763b07dd3033ee3c97bc3227`: adding dedicated MariaDB 10.5/10.11 service-container runs for the existing real-database finance integration and backup/restore suites. Results remain pending until the PR head's complete CI matrix passes; no MariaDB compatibility claim is made before then.
 
 - PR #227 merged: MariaDB 10.5 and 10.11 each passed the real-database finance integration and backup/restore test files; MySQL 8.4 and all four installer compatibility targets also passed (`fce81badd92475d087e5662e8aca1c4eef13830a`). Follow-up PR expands the MariaDB job to the complete repository test suite.
+
+- PR #228 merged: full repository test suite passes, followed by the finance integration and backup/restore suites in deterministic sequence on MariaDB 10.5 and 10.11; MySQL 8.4 and all four installer compatibility targets also passed (`d793670be103ec3f1eac9a1d0355ea4a1f095b15`). The CI test command now invokes the defined npm test script directly. Database integration fixtures remain sequential because they intentionally reuse a dedicated schema and perform table cleanup.
