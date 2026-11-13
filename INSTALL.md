@@ -444,7 +444,7 @@ sudo journalctl -u foodflow -f
 ### 步骤 3：下载代码
 ```bash
 git clone https://github.com/Tony855/shaolafang.git
-cd foodflow
+cd shaolafang
 ```
 
 ### 步骤 4：配置 .env
