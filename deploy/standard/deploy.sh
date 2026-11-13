@@ -52,7 +52,7 @@ log_info "部署目标目录: $DEPLOY_TARGET"
 
 # ===== 1. 安装基础工具 =====
 log_info "安装基础工具..."
-ff_prepare_system_packages curl wget git rsync
+ff_prepare_system_packages curl wget git
 log_success "基础工具安装完成"
 
 # ===== 2. 部署代码到 /var/www/foodflow =====
@@ -62,65 +62,31 @@ log_info "部署代码到 $DEPLOY_TARGET..."
 # 创建目标目录
 mkdir -p "$DEPLOY_TARGET"
 
-if [ -d "$PROJECT_DIR/.git" ]; then
-    # 仅允许同步到干净的 Git 部署目录；不得覆盖非 Git 生产目录或本地改动。
-    if [ -f "$DEPLOY_TARGET/.env" ] && [ ! -d "$DEPLOY_TARGET/.git" ]; then
-        log_error "目标目录已有生产 .env 但不是 Git 仓库；拒绝 rsync --delete 覆盖。"
-        exit 1
-    fi
-    if [ ! -d "$DEPLOY_TARGET/.git" ] && [ -n "$(ls -A "$DEPLOY_TARGET" 2>/dev/null)" ]; then
-        log_error "目标目录非空且不是 Git 仓库；拒绝 rsync --delete 覆盖未知文件。"
-        exit 1
-    fi
-    if [ -d "$DEPLOY_TARGET/.git" ]; then
-        TARGET_CHANGES="$(git -C "$DEPLOY_TARGET" status --porcelain --untracked-files=normal)"
-        if [ -n "$TARGET_CHANGES" ]; then
-            log_error "目标部署目录存在未提交/未跟踪改动，拒绝覆盖："
-            printf '%s\n' "$TARGET_CHANGES" >&2
-            exit 1
-        fi
-    fi
-    # 本地开发环境：用 rsync 同步代码（排除 .git、node_modules 等）
-    log_info "从本地目录同步代码..."
-    rsync -a --delete \
-        --exclude '.git' \
-        --exclude 'node_modules' \
-        --exclude 'uploads/*' \
-        --exclude 'backups/*' \
-        --exclude 'logs/*' \
-        --exclude '.env' \
-        "$PROJECT_DIR/" "$DEPLOY_TARGET/"
-    log_success "代码同步完成"
-elif [ -d "$DEPLOY_TARGET/.git" ]; then
-    # 已部署过：git pull 更新
-    log_info "检测到已部署，执行安全快进更新..."
+REPO_NAME="$(basename "$PROJECT_DIR")"
+case "$REPO_NAME" in
+    *enterprise-ultimate*|*ultimate*)
+        GIT_REPO="https://github.com/Tony855/foodflow-enterprise-ultimate.git"
+        ;;
+    *enterprise*)
+        GIT_REPO="https://github.com/Tony855/foodflow-enterprise.git"
+        ;;
+    *)
+        GIT_REPO="https://github.com/Tony855/shaolafang.git"
+        ;;
+esac
+
+if [ -d "$DEPLOY_TARGET/.git" ]; then
+    log_info "检测到 Git 部署目录，检查工作区后执行安全快进更新..."
     cd "$DEPLOY_TARGET"
     ff_require_clean_git_worktree
     git pull --ff-only origin main
     log_success "代码快进更新完成"
+elif [ -n "$(ls -A "$DEPLOY_TARGET" 2>/dev/null)" ]; then
+    log_error "目标目录非空但不是 Git 仓库；为保护生产配置和数据，拒绝备份搬移或覆盖。"
+    log_error "请先备份并将现有实例迁移到 Git 管理目录，再重新部署。"
+    exit 1
 else
-    # 首次部署：git clone（根据目录名判断仓库）
-    REPO_NAME=$(basename "$PROJECT_DIR")
-    case "$REPO_NAME" in
-        *enterprise-ultimate*|*ultimate*)
-            GIT_REPO="https://github.com/Tony855/foodflow-enterprise-ultimate.git"
-            ;;
-        *enterprise*)
-            GIT_REPO="https://github.com/Tony855/foodflow-enterprise.git"
-            ;;
-        *)
-            GIT_REPO="https://github.com/Tony855/shaolafang.git"
-            ;;
-    esac
-    log_info "克隆代码仓库: $GIT_REPO"
-
-    if [ -d "$DEPLOY_TARGET" ] && [ "$(ls -A "$DEPLOY_TARGET")" ]; then
-        BACKUP_DIR="$DEPLOY_TARGET.backup.$(date +%Y%m%d%H%M%S)"
-        log_warn "目录已存在且非空，备份到 $BACKUP_DIR"
-        mv "$DEPLOY_TARGET" "$BACKUP_DIR"
-        mkdir -p "$DEPLOY_TARGET"
-    fi
-
+    log_info "首次部署，克隆代码仓库: $GIT_REPO"
     git clone "$GIT_REPO" "$DEPLOY_TARGET"
     log_success "代码克隆完成"
 fi
