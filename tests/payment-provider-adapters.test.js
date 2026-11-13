@@ -28,7 +28,8 @@ test('PayWay callback verifier authenticates the documented sorted-value HMAC-SH
   assert.equal(result.providerCode, 'ABA_PAYWAY');
   assert.equal(result.authenticated, true);
   assert.equal(result.transactionId, 'payway-txn-1001');
-  assert.equal(result.paymentStatusCode, '0');
+  assert.equal(result.callbackStatusCode, '0');
+  assert.equal(Object.hasOwn(result, 'paymentStatusCode'), false);
   assert.match(result.payloadSha256, /^[a-f0-9]{64}$/);
   assert.equal(Object.hasOwn(result, 'rawBody'), false);
   assert.equal(Object.hasOwn(result, 'payload'), false);

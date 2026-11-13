@@ -88,7 +88,7 @@ function verifyPayWayPaymentCallback(input) {
     authenticated,
     transactionId,
     approvalCode: typeof parsed.payload.apv === 'string' ? parsed.payload.apv : '',
-    paymentStatusCode: String(parsed.payload.status === undefined ? '' : parsed.payload.status),
+    callbackStatusCode: String(parsed.payload.status === undefined ? '' : parsed.payload.status),
     payloadSha256: crypto.createHash('sha256').update(parsed.bytes).digest('hex')
   });
 }
