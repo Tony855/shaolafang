@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #203–#218 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
+Last reviewed: 2026-11-14 (PR #203–#219 merged; MariaDB-specific finance compatibility is the next active acceptance gate)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -48,7 +48,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- None. No implementation PR is currently open in this workstream.
+- **MariaDB finance compatibility matrix:** PR pending. Existing finance integration tests have only been executed against MySQL 8.4. A dedicated MariaDB 10.5 and 10.11 CI matrix is being added to run the same reconciliation, month-close, exception/SLA, and backup/restore suites before MariaDB compatibility can be claimed.
 
 ## Remaining engineering acceptance work
 
@@ -117,3 +117,5 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 
 - PR #201 merged: legacy-safe tenant/status/cursor index plus real-MySQL 2.5k/10k/50k benchmark and 50k pagination walk (`fcb3d0bdbaedebf8f1cb297ac2f9da7e878c8af2`).
 - PR #202 merged: complete financial reconciliation, journal, exception/SLA, and month-close backup/restore table graph; parent-first restore and child-first delete ordering; legacy backup compatibility and MySQL recovery tests (`96aa43acb89ff2346b350ca5b95dbb340c5d3a22`).
+
+- MariaDB compatibility batch started from main `4e58ad707bb8df60763b07dd3033ee3c97bc3227`: adding dedicated MariaDB 10.5/10.11 service-container runs for the existing real-database finance integration and backup/restore suites. Results remain pending until the PR head's complete CI matrix passes; no MariaDB compatibility claim is made before then.
