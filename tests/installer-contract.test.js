@@ -114,6 +114,8 @@ test('deployment safety serializes installers and protects dirty worktrees', () 
   assert.doesNotMatch(standard, /git pull origin main \|\| log_warn/);
   assert.match(standard, /FF_DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1/);
   assert.ok(read('install.sh').includes('git -C "$target" show FETCH_HEAD:remote-update.sh'));
+  assert.ok(read('install.sh').includes('FF_APP_DIR="$target" FF_DEPLOY_SAFETY_LIB="$safety_tmp"'));
+  assert.ok(read('install.sh').includes('FETCH_HEAD:scripts/lib/deploy-safety.sh'));
   assert.ok(read('install.sh').includes('FF_APP_DIR="$target" FF_DEPLOY_LOCK_HELD=1'));
 });
 
