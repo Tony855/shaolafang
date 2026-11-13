@@ -55,6 +55,7 @@ update_existing_install() {
     log_step "检测到已安装，先获取目标版本的事务式升级器"
     local target="$APP_DIR"
     local updater_tmp
+    prepare_deploy_key 2>/dev/null || { log_error "无法准备 deploy key，更新中止"; return 1; }
     if [ ! -d "$target/.git" ]; then
         log_error "现有安装目录不是 Git 仓库；为防止覆盖生产文件，自动更新已中止。请先完成备份并迁移到 Git 管理目录。"
         return 1
