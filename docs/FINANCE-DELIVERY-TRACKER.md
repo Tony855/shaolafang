@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-13 (PR #203–#215 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
+Last reviewed: 2026-11-13 (PR #203–#216 merged; provider-neutral finance acceptance, read-only ABA PayWay/Bakong verification adapters, and strict Bakong batch response contract are delivered)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -46,7 +46,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- None. PR #215 is merged; no implementation PR is currently open in this workstream.
+- None. No implementation PR is currently open in this workstream.
 
 ## Remaining engineering acceptance work
 
@@ -104,6 +104,7 @@ This tracker records merged delivery separately from work that is still under re
 - PR #213 merged: enforce the exact NBC MD5-list response status set (SUCCESS, NOT_FOUND, STATIC_QR), retain FAILED only for the single-digest API, and add a negative contract test.
 - PR #214 merged: align the delivery tracker with the merged Bakong contract hardening and keep live provider activation gates explicit.
 - PR #215 merged: reconcile the historical Stage 10 closeout note with later provider-adapter delivery and distinguish code completion from live activation gates.
+- PR #216 merged: clarify that provider currency/rounding remains gated by merchant account configuration and finance approval, not by missing public API specifications.
 - Production deployment and live financial operations: not performed.
 
 ## Progress update protocol
