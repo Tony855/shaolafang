@@ -141,6 +141,8 @@ test('cluster NFS exports preserve existing exports and restrict uploads to the 
   ]) {
     const source = read(file);
     assert.match(source, /root_squash/);
+    assert.ok(source.includes('readonly NFS_UPLOAD_UID=33'));
+    assert.ok(source.includes('readonly NFS_UPLOAD_GID=33'));
     assert.match(source, /-m 0770/);
     assert.match(source, /NFS_CLIENT_CIDR/);
     assert.match(source, /awk -v export_path/);
