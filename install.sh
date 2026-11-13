@@ -228,6 +228,12 @@ select_node_role() {
         esac
     fi
 
+    if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
+        case "${FF_NODE_ROLE:-}" in
+            master|slave) NODE_ROLE="$FF_NODE_ROLE"; return ;;
+            *) log_error "非交互集群安装必须设置 FF_NODE_ROLE=master 或 slave"; exit 1 ;;
+        esac
+    fi
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
     echo -e "${CYAN}${BOLD}  请选择当前服务器的角色：${NC}"
     echo -e "${CYAN}${BOLD}═══════════════════════════════════════════════════════════${NC}"
@@ -283,6 +289,10 @@ ask_domain_if_needed() {
         DOMAIN="$(echo "$input_domain" | tr -d '[:space:]')"
     fi
 
+    if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
+        log_info "非交互模式：未提供 DOMAIN 时跳过 HTTPS；未提供 EMAIL 时不提示输入。"
+        return
+    fi
     if [ -n "$DOMAIN" ] && [ -z "$EMAIL" ]; then
         read -p "  请输入邮箱（用于证书续期提醒，可留空）: " input_email
         EMAIL="$(echo "$input_email" | tr -d '[:space:]')"
@@ -319,6 +329,15 @@ confirm_installation() {
     echo ""
     echo -e "${YELLOW}${BOLD}═══════════════════════════════════════════════════════════${NC}"
     echo ""
+
+    if [ "${FF_NONINTERACTIVE:-0}" = "1" ]; then
+        if [ "${FF_CONFIRM_INSTALL:-0}" != "1" ]; then
+            log_error "非交互安装必须显式设置 FF_CONFIRM_INSTALL=1 才会执行系统变更。"
+            exit 1
+        fi
+        log_info "FF_CONFIRM_INSTALL=1：已收到非交互安装确认。"
+        return
+    fi
 
     read -p "确认开始安装？(y/N): " -n 1 -r
     echo
