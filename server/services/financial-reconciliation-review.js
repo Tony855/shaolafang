@@ -185,6 +185,25 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
 
     try {
       return await withTransaction(async () => {
+        if (typeof lockFinancialMonthPeriod === 'function') {
+          await lockFinancialMonthPeriod({ merchantId, storeId, batchId });
+        }
+        const batch = await getAsync(
+          'SELECT id, status FROM financial_reconciliation_batches WHERE id=? AND merchant_id=? AND store_id=? FOR UPDATE',
+          [batchId, merchantId, storeId]
+        );
+        if (!batch) {
+          const error = new Error('reconciliation batch not found');
+          error.code = 'REVIEW_NOT_FOUND';
+          throw error;
+        }
+
+        // Serialize review writes on the owning batch before locking an idempotency
+        // key that may not exist yet. Under InnoDB REPEATABLE READ, an early
+        // SELECT ... FOR UPDATE on a missing unique-key row takes a gap lock;
+        // concurrent requests with different keys can then deadlock when they
+        // later insert their audit events. The batch row is the stable mutex for
+        // all review actions in this batch, so replay lookup is safe after it.
         const replay = await getAsync(
           'SELECT id, request_sha256, event_hash, action, item_id, actor_admin_id FROM financial_reconciliation_review_events WHERE merchant_id=? AND store_id=? AND batch_id=? AND idempotency_key=? FOR UPDATE',
           [merchantId, storeId, batchId, review.idempotencyKey]
@@ -198,18 +217,6 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
           return { eventId: Number(replay.id), itemId: Number(replay.item_id), action: replay.action, eventHash: replay.event_hash, replayed: true };
         }
 
-        if (typeof lockFinancialMonthPeriod === 'function') {
-          await lockFinancialMonthPeriod({ merchantId, storeId, batchId });
-        }
-        const batch = await getAsync(
-          'SELECT id, status FROM financial_reconciliation_batches WHERE id=? AND merchant_id=? AND store_id=? FOR UPDATE',
-          [batchId, merchantId, storeId]
-        );
-        if (!batch) {
-          const error = new Error('reconciliation batch not found');
-          error.code = 'REVIEW_NOT_FOUND';
-          throw error;
-        }
         if (batch.status === 'closed') {
           const error = new Error('closed reconciliation batches cannot be changed');
           error.code = 'REVIEW_BATCH_CLOSED';
