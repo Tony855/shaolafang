@@ -465,13 +465,17 @@ fi
 # ===== 可选：自动备份（默认不创建含数据库凭据的 cron 脚本） =====
 if [ "$FF_CONFIGURE_BACKUP_CRON" = "1" ]; then
     log_warn "FF_CONFIGURE_BACKUP_CRON=1 已启用；自动备份脚本会在受限目录保存数据库凭据，请限制文件访问。"
+    install -d -o root -g root -m 0700 "$CONFIG_DIR"
+    printf '[client]\\nhost=127.0.0.1\\nuser=foodflow\\npassword="%s"\\n' "$DB_RANDOM_PASSWORD" > "$CONFIG_DIR/backup.cnf"
+    chown root:root "$CONFIG_DIR/backup.cnf"
+    chmod 0600 "$CONFIG_DIR/backup.cnf"
     BACKUP_SCRIPT="$APP_DIR/backups/auto-backup.sh"
     cat > "$BACKUP_SCRIPT" << EOF
 #!/bin/bash
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="$APP_DIR/backups"
 mkdir -p "$BACKUP_DIR"
-mysqldump -u foodflow -p'$DB_RANDOM_PASSWORD' $DEFAULT_DB_NAME > "$BACKUP_DIR/db_$DATE.sql" 2>/dev/null
+mysqldump --defaults-extra-file=/etc/foodflow/backup.cnf --single-transaction --quick $DEFAULT_DB_NAME > "$BACKUP_DIR/db_$DATE.sql"
 gzip "$BACKUP_DIR/db_$DATE.sql"
 RETENTION=7
 find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +$RETENTION -delete
