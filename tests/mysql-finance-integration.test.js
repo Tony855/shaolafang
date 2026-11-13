@@ -984,7 +984,7 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
     [batchId]
   );
   const [events] = await db.connection.query(
-    'SELECT merchant_id,store_id,batch_id,item_id,journal_transaction_id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
+    'SELECT merchant_id,store_id,batch_id,item_id,journal_transaction_id,exception_category,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
     [batchId]
   );
   assert.equal(items[0].match_status, 'matched');
@@ -2550,7 +2550,7 @@ test('MySQL integration: manual refund, fee and settlement-difference classifica
   })), 'classification must not change the original bank statement amount or create a journal assignment');
 
   const [events] = await db.connection.query(
-    'SELECT merchant_id,store_id,batch_id,item_id,journal_transaction_id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
+    'SELECT merchant_id,store_id,batch_id,item_id,journal_transaction_id,exception_category,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
     [batchId]
   );
   assert.equal(events.length, 3, 'each category writes one durable event and exact replay writes none');
@@ -2567,9 +2567,33 @@ test('MySQL integration: manual refund, fee and settlement-difference classifica
   };
   for (let index = 0; index < events.length; index += 1) {
     const event = events[index];
+    const expectedReason = 'Manual ' + cases[index].category + ' classification; preserve original amount';
     assert.equal(event.action, 'classify_exception');
+    assert.equal(Number(event.item_id), cases[index].itemId);
     assert.equal(Number(event.actor_admin_id), 7);
+    assert.equal(event.actor_username, 'finance-reviewer',
+      'persisted audit actor username must match the authenticated reviewer');
+    assert.equal(event.reason, expectedReason,
+      'persisted audit reason must match the submitted classification reason');
+    assert.equal(event.exception_category, cases[index].category,
+      'audit row category must match the requested manual classification');
     assert.equal(event.previous_hash, index === 0 ? '' : events[index - 1].event_hash);
+    const before = snapshotInServiceOrder(event.before_json);
+    assert.deepEqual(before, {
+      matchStatus: 'pending',
+      matchedJournalTransactionId: null,
+      matchReason: null,
+      exceptionCategory: null,
+      exceptionNote: null
+    }, 'before snapshot must preserve the actual pending pre-classification state');
+    const after = snapshotInServiceOrder(event.after_json);
+    assert.deepEqual(after, {
+      matchStatus: 'exception',
+      matchedJournalTransactionId: null,
+      matchReason: 'manual_classify_exception',
+      exceptionCategory: cases[index].category,
+      exceptionNote: expectedReason
+    }, 'after snapshot must exactly record the requested category and reviewer reason');
     const payload = {
       merchantId: Number(event.merchant_id),
       storeId: Number(event.store_id),
@@ -2581,15 +2605,12 @@ test('MySQL integration: manual refund, fee and settlement-difference classifica
       reason: event.reason,
       idempotencyKey: event.idempotency_key,
       requestHash: event.request_sha256,
-      before: snapshotInServiceOrder(event.before_json),
-      after: snapshotInServiceOrder(event.after_json),
+      before,
+      after,
       previousHash: event.previous_hash || ''
     };
     assert.equal(event.event_hash,
       crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex'),
       'classification audit hash must cover actor, reason, category snapshots and prior hash');
-    const after = snapshotInServiceOrder(event.after_json);
-    assert.equal(after.matchStatus, 'exception');
-    assert.equal(after.exceptionCategory, cases[index].category);
   }
 });
