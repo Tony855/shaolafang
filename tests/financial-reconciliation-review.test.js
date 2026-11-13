@@ -100,7 +100,7 @@ function memoryDb({ failAuditInsert = false, hideFirstReplayLookup = false, hide
   }
   return {
     service: createFinancialReconciliationReviewService({ runAsync, getAsync, allAsync, withTransaction }),
-    items, events, eventList, executed, queries
+    batches, items, events, eventList, executed, queries
   };
 }
 
@@ -153,6 +153,31 @@ test('same idempotency request replays and changed request is rejected', async (
   assert.equal(replay.eventId, first.eventId);
   await assert.rejects(db.service.reviewItem(input({ reason: 'Different review reason', idempotencyKey: input().idempotencyKey })),
     e => e.code === 'REVIEW_IDEMPOTENCY_CONFLICT');
+});
+
+test('serializes the batch before idempotency lookup and replays exact reviews after batch closure', async () => {
+  const db = memoryDb();
+  const first = await db.service.reviewItem(input());
+  assert.equal(first.replayed, false);
+
+  const batchLockIndex = db.queries.findIndex(query =>
+    query.sql.includes('FROM financial_reconciliation_batches') && query.sql.includes('FOR UPDATE'));
+  const replayLookupIndex = db.queries.findIndex(query =>
+    query.sql.includes('FROM financial_reconciliation_review_events') &&
+    query.sql.includes('idempotency_key') && query.sql.includes('FOR UPDATE'));
+  assert.ok(batchLockIndex >= 0 && replayLookupIndex > batchLockIndex,
+    'the tenant-scoped batch row must serialize requests before the idempotency-key lookup');
+
+  db.batches.get(1).status = 'closed';
+  const replay = await db.service.reviewItem(input());
+  assert.equal(replay.replayed, true);
+  assert.equal(replay.eventId, first.eventId);
+
+  await assert.rejects(db.service.reviewItem(input({
+    itemId: 12, journalTransactionId: 32,
+    idempotencyKey: 'finance-review-closed-0001'
+  })), error => error.code === 'REVIEW_BATCH_CLOSED');
+  assert.equal(db.eventList.length, 1, 'closed-batch replay must not create another audit event');
 });
 
 test('same idempotency key cannot be replayed by a different finance actor', async () => {
