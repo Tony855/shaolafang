@@ -2422,3 +2422,174 @@ test('MySQL integration: unsafe persisted BIGINT minor-unit values fail closed b
   assert.equal(items[0].matched_journal_transaction_id, null);
   assert.equal(Number(events[0].event_count), 0);
 });
+
+
+test('MySQL integration: manual refund, fee and settlement-difference classification preserves original amounts', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const db = await connectTestDatabase();
+  const tables = [
+    'financial_reconciliation_review_events',
+    'financial_reconciliation_items',
+    'financial_reconciliation_batches'
+  ];
+  t.after(async () => {
+    try {
+      for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+    } finally {
+      await db.connection.end();
+    }
+  });
+  for (const table of tables) await db.connection.query('DROP TABLE IF EXISTS ' + table);
+
+  await db.runAsync(`CREATE TABLE financial_reconciliation_batches (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'imported'
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_items (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    batch_id BIGINT NOT NULL,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    amount_minor BIGINT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    match_status VARCHAR(24) NOT NULL DEFAULT 'pending',
+    matched_journal_transaction_id BIGINT DEFAULT NULL,
+    match_reason VARCHAR(100) DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    exception_note VARCHAR(255) DEFAULT NULL,
+    CONSTRAINT fk_finance_classify_test_batch FOREIGN KEY (batch_id)
+      REFERENCES financial_reconciliation_batches(id) ON DELETE RESTRICT
+  ) ENGINE=InnoDB`);
+  await db.runAsync(`CREATE TABLE financial_reconciliation_review_events (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    merchant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    batch_id BIGINT NOT NULL,
+    item_id BIGINT NOT NULL,
+    journal_transaction_id BIGINT DEFAULT NULL,
+    exception_category VARCHAR(64) DEFAULT NULL,
+    actor_admin_id INT NOT NULL,
+    actor_username VARCHAR(100) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    request_sha256 CHAR(64) NOT NULL,
+    before_json JSON NOT NULL,
+    after_json JSON NOT NULL,
+    previous_hash CHAR(64) NOT NULL DEFAULT '',
+    event_hash CHAR(64) NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE KEY unique_finance_classify_test_idempotency (merchant_id,store_id,batch_id,idempotency_key)
+  ) ENGINE=InnoDB`);
+
+  const batch = await db.runAsync(
+    "INSERT INTO financial_reconciliation_batches (merchant_id,store_id,status) VALUES (44,12,'imported')"
+  );
+  const batchId = Number(batch.insertId);
+  const cases = [
+    { amountMinor: 12500, category: 'refund', itemId: 1 },
+    { amountMinor: 8700, category: 'fee', itemId: 2 },
+    { amountMinor: 24000, category: 'settlement_difference', itemId: 3 }
+  ];
+  await db.runAsync(
+    `INSERT INTO financial_reconciliation_items
+      (batch_id,merchant_id,store_id,amount_minor,currency_code,match_status)
+     VALUES (?,44,12,12500,'USD','pending'),(?,44,12,8700,'USD','pending'),(?,44,12,24000,'USD','pending')`,
+    [batchId, batchId, batchId]
+  );
+
+  const withTransaction = async work => {
+    await db.connection.beginTransaction();
+    try {
+      const result = await work();
+      await db.connection.commit();
+      return result;
+    } catch (error) {
+      await db.connection.rollback();
+      throw error;
+    }
+  };
+  const { createFinancialReconciliationReviewService } =
+    require('../server/services/financial-reconciliation-review');
+  const service = createFinancialReconciliationReviewService({
+    runAsync: db.runAsync, getAsync: db.getAsync, allAsync: db.allAsync, withTransaction
+  });
+
+  for (const entry of cases) {
+    const reason = 'Manual ' + entry.category + ' classification; preserve original amount';
+    const input = {
+      merchantId: 44, storeId: 12, batchId, itemId: entry.itemId,
+      actorId: 7, actorUsername: 'finance-reviewer',
+      action: 'classify_exception', exceptionCategory: entry.category,
+      reason, idempotencyKey: 'mysql-classify-' + entry.category + '-000001'
+    };
+    const first = await service.reviewItem(input);
+    const replay = await service.reviewItem(input);
+    assert.equal(first.replayed, false);
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.eventId, first.eventId);
+  }
+
+  const [items] = await db.connection.query(
+    'SELECT id,amount_minor,currency_code,match_status,matched_journal_transaction_id,match_reason,exception_category,exception_note FROM financial_reconciliation_items WHERE batch_id=? ORDER BY id',
+    [batchId]
+  );
+  assert.deepEqual(items.map(row => ({
+    id: Number(row.id), amountMinor: Number(row.amount_minor), currencyCode: row.currency_code,
+    status: row.match_status, journalId: row.matched_journal_transaction_id,
+    matchReason: row.match_reason, category: row.exception_category, note: row.exception_note
+  })), cases.map(entry => ({
+    id: entry.itemId, amountMinor: entry.amountMinor, currencyCode: 'USD',
+    status: 'exception', journalId: null, matchReason: 'manual_classify_exception',
+    category: entry.category,
+    note: 'Manual ' + entry.category + ' classification; preserve original amount'
+  })), 'classification must not change the original bank statement amount or create a journal assignment');
+
+  const [events] = await db.connection.query(
+    'SELECT merchant_id,store_id,batch_id,item_id,journal_transaction_id,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
+    [batchId]
+  );
+  assert.equal(events.length, 3, 'each category writes one durable event and exact replay writes none');
+  const parseJson = value => typeof value === 'string' ? JSON.parse(value) : value;
+  const snapshotInServiceOrder = value => {
+    const snapshot = parseJson(value);
+    return {
+      matchStatus: snapshot.matchStatus,
+      matchedJournalTransactionId: snapshot.matchedJournalTransactionId,
+      matchReason: snapshot.matchReason,
+      exceptionCategory: snapshot.exceptionCategory,
+      exceptionNote: snapshot.exceptionNote
+    };
+  };
+  for (let index = 0; index < events.length; index += 1) {
+    const event = events[index];
+    assert.equal(event.action, 'classify_exception');
+    assert.equal(Number(event.actor_admin_id), 7);
+    assert.equal(event.previous_hash, index === 0 ? '' : events[index - 1].event_hash);
+    const payload = {
+      merchantId: Number(event.merchant_id),
+      storeId: Number(event.store_id),
+      batchId: Number(event.batch_id),
+      itemId: Number(event.item_id),
+      action: event.action,
+      actorId: Number(event.actor_admin_id),
+      actorUsername: event.actor_username,
+      reason: event.reason,
+      idempotencyKey: event.idempotency_key,
+      requestHash: event.request_sha256,
+      before: snapshotInServiceOrder(event.before_json),
+      after: snapshotInServiceOrder(event.after_json),
+      previousHash: event.previous_hash || ''
+    };
+    assert.equal(event.event_hash,
+      crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex'),
+      'classification audit hash must cover actor, reason, category snapshots and prior hash');
+    const after = snapshotInServiceOrder(event.after_json);
+    assert.equal(after.matchStatus, 'exception');
+    assert.equal(after.exceptionCategory, cases[index].category);
+  }
+});
