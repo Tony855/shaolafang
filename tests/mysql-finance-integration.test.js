@@ -2118,7 +2118,8 @@ test('MySQL integration: legacy-safe exception queue index preserves rows and sc
   t.diagnostic('Exception queue first-page timings (informational, no flaky wall-clock threshold): ' +
     JSON.stringify(benchmarkResults));
 
-  const query = observedQueries.find(entry => entry.sql.includes('FROM financial_reconciliation_items i'));
+  const query = observedQueries.find(entry => entry.sql.includes('FROM financial_reconciliation_items i') &&
+    entry.params[0] === 6 && entry.params[1] === 9);
   assert.ok(query, 'service must execute the production exception queue query');
   const [planRows] = await connection.query('EXPLAIN ' + query.sql, query.params);
   assert.equal(planRows[0].key, INDEX_NAME,
