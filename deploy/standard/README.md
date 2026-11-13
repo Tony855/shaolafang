@@ -33,7 +33,7 @@
 │              │                       │  │
 │        ┌─────▼─────┐          ┌────▼─────┐│
 │        │  MariaDB   │          │   Redis   ││
-│        │ (兼容MySQL) │          │  (缓存)   ││
+│        │ (MySQL 协议兼容) │          │  (缓存)   ││
 │        └───────────┘          └──────────┘│
 │                                         │
 │  上传目录：/var/www/foodflow/uploads/   │
@@ -114,9 +114,9 @@ sudo systemctl reload nginx      # 重载配置
 sudo tail -f /var/log/nginx/access.log   # 访问日志
 sudo tail -f /var/log/nginx/error.log    # 错误日志
 
-# 数据库管理（MariaDB，命令与MySQL完全兼容）
-sudo mysql -u root -p           # 登录数据库
-sudo mysqldump foodflow_standard > backup.sql  # 备份数据库
+# 数据库管理（统一使用 MariaDB）
+sudo mariadb -u root -p           # 登录数据库
+sudo mariadb-dump foodflow_standard > backup.sql  # 备份数据库
 
 # Redis管理
 redis-cli ping                   # 测试连接
@@ -151,7 +151,7 @@ sudo systemctl restart foodflow
 A：系统自动备份（每5分钟检查一次），备份文件在 `/var/www/foodflow/backups/`。
 手动备份：
 ```bash
-sudo mysqldump foodflow_standard > /var/www/foodflow/backups/manual_$(date +%Y%m%d).sql
+sudo mariadb-dump foodflow_standard > /var/www/foodflow/backups/manual_$(date +%Y%m%d).sql
 ```
 
 ### Q5：如何查看版本？
@@ -177,7 +177,7 @@ git log --oneline -1
 当业务增长需要更高可用性时，可以升级到企业版（2台服务器部署）：
 
 1. 准备第二台应用服务器
-2. 准备独立的MySQL和Redis服务器
+2. 准备独立的 MariaDB 和 Redis 服务器
 3. 准备NFS共享存储
 4. 迁移数据库和上传文件
 5. 部署2台应用服务器节点
