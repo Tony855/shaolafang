@@ -470,6 +470,8 @@ fi
 # ===== 可选：自动备份（默认不创建含数据库凭据的 cron 脚本） =====
 if [ "$FF_CONFIGURE_BACKUP_CRON" = "1" ]; then
     log_info "FF_CONFIGURE_BACKUP_CRON=1 已启用；数据库凭据单独保存在 root-only 配置文件中。"
+    if ! command -v crontab >/dev/null 2>&1; then ff_apt_install cron; fi
+    systemctl enable --now cron
     install -d -o root -g root -m 0700 "$CONFIG_DIR"
     BACKUP_OLD_UMASK="$(umask)"
     umask 077
