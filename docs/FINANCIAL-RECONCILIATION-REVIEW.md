@@ -239,7 +239,7 @@ The workflow does not change statement amounts, journal entries, orders, refunds
 - Real-MySQL manual review covers confirm, release, reconfirm, reassign and reject, including exact replay and recomputed immutable audit hashes.
 - Real-MySQL exception classification covers refund, fee and settlement-difference categories; statement amount and currency are asserted unchanged, and classification creates no journal assignment or accounting entry.
 - Real-MySQL exception queue capacity covers 50,000 exception rows across five batches, five categories, pending-row exclusion, resolved-case filtering, cursor uniqueness/order, and tenant/store isolation.
-- All PRs #203–#207 are merged. Final PR-head CI and installer compatibility passed; no production migration, deployment, provider webhook verification, or live financial operation was performed.
+- All PRs #203–#207 and #209 are merged. Final PR-head CI and installer compatibility passed; no production migration, deployment, provider webhook verification, or live financial operation was performed.
 - Provider-specific verification/signature handling, currency mapping, FX/rounding rules, and external notifications are not claimed complete: these require official provider documentation, real credentials, supported-currency declarations, and finance approval. Until then the provider-neutral manual workflow is the safe supported boundary.
 
 
