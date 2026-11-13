@@ -166,6 +166,9 @@ test('cluster app deployment requires a writable shared NFS mount and stable www
     assert.ok(source.includes('findmnt -n -o FSTYPE'));
     assert.ok(source.includes('nfs|nfs4'));
     assert.ok(source.includes('runuser -u www-data -- test -w /mnt/shared/uploads'));
+    assert.ok(source.includes('/api/health/ready'));
+    assert.ok(source.includes('READY_STATUS'));
+    assert.ok(source.includes('curl --silent --show-error --output /dev/null'));
     assert.ok(source.includes('DB_PASSWORD'));
     assert.ok(source.includes('YourStrongPasswordHere'));
     assert.ok(source.includes('ChangeThisToARandomString'));
