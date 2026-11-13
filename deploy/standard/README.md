@@ -48,8 +48,8 @@
 
 ```bash
 # 1. 下载代码
-git clone https://github.com/Tony855/foodflow-standard.git
-cd foodflow-standard
+git clone https://github.com/Tony855/shaolafang.git
+cd shaolafang
 
 # 2. 运行一键安装脚本，选择"标准版 - 单台部署"
 sudo bash install.sh
@@ -82,7 +82,7 @@ sudo bash deploy/standard/deploy.sh
 | `DB_CONNECTION_LIMIT` | 连接池大小 | 50 |
 | `REDIS_URL` | Redis连接（可选） | 不配置则用内存 |
 | `UPLOAD_DIR` | 上传目录 | /var/www/foodflow/uploads |
-| `RUN_SCHEDULED_TASKS` | 执行定时任务 | true |
+| `RUN_SCHEDULED_TASKS` | 执行定时任务 | false |
 | `QR_DOMAIN` | 二维码域名 | （需修改） |
 | `JWT_SECRET` | JWT密钥 | （需修改为随机字符串） |
 
