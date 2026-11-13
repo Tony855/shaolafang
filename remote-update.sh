@@ -3,7 +3,7 @@
 # Usage: GIT_VERSION=main bash remote-update.sh
 set -Eeuo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="${FF_APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 cd "$SCRIPT_DIR"
 # shellcheck source=scripts/lib/system-deps.sh
 source "$SCRIPT_DIR/scripts/lib/system-deps.sh"
