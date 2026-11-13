@@ -161,10 +161,14 @@ const { createClient } = require('redis');
     await client.connect();
     const pong = await client.ping();
     if (pong !== 'PONG') throw new Error('unexpected PING response');
-    await client.quit();
+    if (typeof client.close === 'function') await client.close();
+    else await client.quit();
   } catch (error) {
-    try { client.disconnect(); } catch (_) {}
-    process.exitCode = 1;
+    try {
+      if (typeof client.destroy === 'function') client.destroy();
+      else if (typeof client.disconnect === 'function') client.disconnect();
+    } catch (_) {}
+    process.exit(1);
   }
 })();
 NODE
