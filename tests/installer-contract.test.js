@@ -174,6 +174,9 @@ test('cluster app deployment requires a writable shared NFS mount and stable www
     assert.ok(source.includes('ChangeThisToARandomString'));
     assert.ok(source.includes('DB_USER'));
     assert.ok(source.includes('REDIS_URL'));
+    assert.ok(source.includes('client.ping()'));
+    assert.ok(source.includes('connectTimeout: 5000'));
+    assert.ok(source.includes('REDIS_URL="$REDIS_URL" node'));
     assert.ok(source.includes('QR_DOMAIN'));
     assert.ok(source.includes('JWT_SECRET'));
     assert.ok(!source.includes('useradd -r -s /bin/false www-data'));
