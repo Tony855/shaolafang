@@ -147,7 +147,7 @@ function createBakongOpenApiClient(options) {
       let transaction = null;
       const status = String(entry.status || '').toUpperCase();
       if (status === 'SUCCESS') transaction = normalizeTransaction(entry.data);
-      else if (!['NOT_FOUND', 'STATIC_QR', 'FAILED'].includes(status)) {
+      else if (!['NOT_FOUND', 'STATIC_QR'].includes(status)) {
         const error = new Error('Bakong batch response contains an unrecognized status');
         error.code = 'BAKONG_STATUS_UNRECOGNIZED';
         throw error;
