@@ -67,6 +67,10 @@ if [ -d "$PROJECT_DIR/.git" ]; then
         log_error "目标目录已有生产 .env 但不是 Git 仓库；拒绝 rsync --delete 覆盖。"
         exit 1
     fi
+    if [ ! -d "$DEPLOY_TARGET/.git" ] && [ -n "$(ls -A "$DEPLOY_TARGET" 2>/dev/null)" ]; then
+        log_error "目标目录非空且不是 Git 仓库；拒绝 rsync --delete 覆盖未知文件。"
+        exit 1
+    fi
     if [ -d "$DEPLOY_TARGET/.git" ]; then
         TARGET_CHANGES="$(git -C "$DEPLOY_TARGET" status --porcelain --untracked-files=normal)"
         if [ -n "$TARGET_CHANGES" ]; then
