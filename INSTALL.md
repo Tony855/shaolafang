@@ -75,13 +75,22 @@ mysql -u root -p
 
 ```cmd
 cd C:\Users\你的用户名\Downloads
-git clone https://github.com/Tony855/foodflow.git
-cd foodflow
+git clone https://github.com/Tony855/shaolafang.git
+cd shaolafang
 ```
 
 如果没有安装 Git，可以直接从 GitHub 下载 ZIP 包并解压。
 
 ### 2.5 配置环境变量
+
+先使用 MySQL 管理员账号创建应用专用数据库和最小范围授权用户（密码请替换为强随机值，并在 `.env` 中使用相同密码）：
+
+```sql
+CREATE DATABASE foodflow_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'foodflow'@'127.0.0.1' IDENTIFIED BY '替换为强随机密码';
+GRANT ALL PRIVILEGES ON foodflow_system.* TO 'foodflow'@'127.0.0.1';
+FLUSH PRIVILEGES;
+```
 
 复制配置模板：
 ```cmd
@@ -91,10 +100,10 @@ copy .env.example .env
 编辑 `.env` 文件（用记事本或 VS Code 打开）：
 ```
 PORT=3000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=你的MySQL密码
-DB_DATABASE=ordering_system
+DB_HOST=127.0.0.1
+DB_USER=foodflow
+DB_PASSWORD=与上方 SQL 相同的强随机密码
+DB_DATABASE=foodflow_system
 DB_PORT=3306
 ```
 
@@ -218,9 +227,8 @@ EXIT;
 ### 3.4 下载项目代码
 
 ```bash
-cd /opt
-sudo git clone https://github.com/Tony855/foodflow.git
-cd foodflow
+sudo git clone https://github.com/Tony855/shaolafang.git /opt/foodflow
+cd /opt/foodflow
 sudo chown -R $USER:$USER /opt/foodflow
 ```
 
@@ -234,11 +242,23 @@ nano .env
 修改内容：
 ```
 PORT=3000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=你的MySQL密码
-DB_DATABASE=ordering_system
+DB_HOST=127.0.0.1
+DB_USER=foodflow
+DB_PASSWORD=与下方 SQL 相同的强随机密码
+DB_DATABASE=foodflow_system
 DB_PORT=3306
+```
+
+先创建数据库和专用账号（将密码替换为强随机值，并与 `.env` 保持一致）：
+
+```bash
+sudo mariadb <<'SQL'
+CREATE DATABASE IF NOT EXISTS foodflow_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'foodflow'@'127.0.0.1' IDENTIFIED BY '替换为强随机密码';
+ALTER USER 'foodflow'@'127.0.0.1' IDENTIFIED BY '替换为强随机密码';
+GRANT ALL PRIVILEGES ON foodflow_system.* TO 'foodflow'@'127.0.0.1';
+FLUSH PRIVILEGES;
+SQL
 ```
 
 按 `Ctrl+O` 保存，`Ctrl+X` 退出。
@@ -269,6 +289,17 @@ nohup node server.js > server.log 2>&1 &
 
 #### 使用 systemd 服务（推荐，开机自启）：
 
+应用服务不得以 root 身份运行。创建专用系统账号并限制可写目录：
+
+```bash
+sudo useradd --system --no-create-home --home-dir /opt/foodflow --shell /usr/sbin/nologin --gid www-data foodflow 2>/dev/null || true
+sudo chown -R root:www-data /opt/foodflow
+sudo install -d -o foodflow -g www-data -m 0770 /opt/foodflow/uploads /opt/foodflow/backups /opt/foodflow/logs
+sudo install -d -o foodflow -g www-data -m 0700 /var/lib/foodflow
+sudo chown root:www-data /opt/foodflow/.env
+sudo chmod 0640 /opt/foodflow/.env
+```
+
 创建服务文件：
 ```bash
 sudo nano /etc/systemd/system/foodflow.service
@@ -278,11 +309,13 @@ sudo nano /etc/systemd/system/foodflow.service
 ```ini
 [Unit]
 Description=FoodFlow QR Ordering System
-After=network.target mariadb.service
+Wants=network-online.target
+After=network-online.target mariadb.service mysql.service
 
 [Service]
 Type=simple
-User=root
+User=foodflow
+Group=www-data
 WorkingDirectory=/opt/foodflow
 EnvironmentFile=/opt/foodflow/.env
 ExecStart=/usr/bin/node /opt/foodflow/server.js
@@ -313,7 +346,10 @@ sudo journalctl -u foodflow -f
 ### 3.9 配置防火墙
 
 ```bash
-sudo ufw allow 3000/tcp
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+# 不要将 Node.js 应用端口 3000 或数据库端口 3306 暴露到公网。
 sudo ufw reload
 ```
 
@@ -407,8 +443,8 @@ sudo journalctl -u foodflow -f
 
 ### 步骤 3：下载代码
 ```bash
-git clone https://github.com/Tony855/foodflow.git
-cd foodflow
+git clone https://github.com/Tony855/shaolafang.git
+cd shaolafang
 ```
 
 ### 步骤 4：配置 .env
@@ -675,15 +711,17 @@ sudo netstat -tlnp | grep 3306
 
 **解决**:
 ```bash
-# Windows (以管理员身份运行)
-netsh advfirewall firewall add rule name="foodflow" dir=in action=allow protocol=TCP localport=3000
+# Windows（仅允许可信局域网访问应用端口）
+netsh advfirewall firewall add rule name="foodflow-lan" dir=in action=allow protocol=TCP localport=3000 remoteip=192.168.1.0/24
 
-# Linux (ufw)
-sudo ufw allow 3000/tcp
+# Linux (ufw)：将网段替换为实际可信局域网
+sudo ufw allow from 192.168.1.0/24 to any port 3000 proto tcp
 
-# Linux (firewalld)
-sudo firewall-cmd --permanent --add-port=3000/tcp
+# Linux (firewalld)：仅允许可信局域网访问
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.1.0/24" port protocol="tcp" port="3000" accept'
 sudo firewall-cmd --reload
+
+# 生产环境应通过 Nginx 对外提供服务，只开放 80/443，不开放 3000。
 ```
 
 ### Q6: 菜品不显示

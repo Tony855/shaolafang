@@ -393,7 +393,7 @@ After=network-online.target mysql.service
 [Service]
 Type=simple
 User=foodflow
-Group=foodflow
+Group=www-data
 WorkingDirectory=/opt/shaolafang
 EnvironmentFile=/opt/shaolafang/.env
 ExecStart=/usr/bin/node /opt/shaolafang/server.js
@@ -407,7 +407,18 @@ PrivateTmp=true
 WantedBy=multi-user.target
 ```
 
-确保 `foodflow` 用户对应用所需目录、上传目录和日志目录具有必要权限。若数据库服务名为 `mariadb.service`，请调整 `After` 项。
+确保 `foodflow` 系统用户存在，并与安装脚本保持一致地使用 `www-data` 组。应用代码只读，上传、备份和日志目录由服务账号写入：
+
+```bash
+sudo useradd --system --no-create-home --home-dir /opt/shaolafang --shell /usr/sbin/nologin --gid www-data foodflow 2>/dev/null || true
+sudo chown -R root:www-data /opt/shaolafang
+sudo install -d -o foodflow -g www-data -m 0770 /opt/shaolafang/uploads /opt/shaolafang/backups /opt/shaolafang/logs
+sudo install -d -o foodflow -g www-data -m 0700 /var/lib/foodflow
+sudo chown root:www-data /opt/shaolafang/.env
+sudo chmod 0640 /opt/shaolafang/.env
+```
+
+若数据库服务名为 `mariadb.service`，请调整 `After` 项。
 
 ```bash
 sudo systemctl daemon-reload
