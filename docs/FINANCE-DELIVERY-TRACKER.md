@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-14 (PR #203–#219 merged; MariaDB-specific finance compatibility is the next active acceptance gate)
+Last reviewed: 2026-11-14 (PR #203–#227 merged; MariaDB 10.5/10.11 finance integration matrix passed)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -43,12 +43,13 @@ This tracker records merged delivery separately from work that is still under re
 | MySQL month-close approval lifecycle | Real-MySQL close request enforces maker-checker; readiness failure rolls back and retry succeeds; approval history remains hash-linked | PR #195 merged as `4369409a`; all six current-head checks passed |
 | MySQL cross-service import-to-export lifecycle | Real-MySQL statement import flows through journal posting, candidate suggestion, manual review, month-close approval, and scoped CSV export | PR #196 merged as `6e1cfefb`; all six checks passed |
 | MySQL imported-exception-to-SLA lifecycle | Real-MySQL imported unmatched row is classified, moved into an exception case, becomes SLA-overdue, is acknowledged, and is resolved with hash-linked histories | PR #197 merged as `3f7728db`; all six checks passed |
+| MariaDB finance integration compatibility | Existing real-database finance integration and backup/restore suites pass on MariaDB 10.5 and 10.11; MySQL 8.4 remains a separate CI signal | PR #227 merged as `fce81badd92475d087e5662e8aca1c4eef13830a`; all eight PR-head checks passed |
 | Manual-review idempotency concurrency | Non-locking idempotency preflight, period/batch lock ordering, current replay recheck and closed-month replay behavior | PR #199 merged as `247fb33b`; CI and installer checks passed |
 | Concurrent journal assignment protection | Two independent MySQL transactions attempt to confirm different statement rows against one journal transaction; only one may commit and the loser writes no audit event | PR #200 merged as `0c7a5f57`; final-head CI and review passed |
 
 ## Under review
 
-- **MariaDB finance compatibility matrix:** PR pending. Existing finance integration tests have only been executed against MySQL 8.4. A dedicated MariaDB 10.5 and 10.11 CI matrix is being added to run the same reconciliation, month-close, exception/SLA, and backup/restore suites before MariaDB compatibility can be claimed.
+- **Full-suite MariaDB execution:** PR pending. PR #227 passed the targeted finance integration and backup/restore files on MariaDB 10.5 and 10.11. The next batch expands this to the entire repository test suite with the MariaDB integration URL enabled, ensuring database-backed tests are not limited to the two targeted files.
 
 ## Remaining engineering acceptance work
 
@@ -119,3 +120,5 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 - PR #202 merged: complete financial reconciliation, journal, exception/SLA, and month-close backup/restore table graph; parent-first restore and child-first delete ordering; legacy backup compatibility and MySQL recovery tests (`96aa43acb89ff2346b350ca5b95dbb340c5d3a22`).
 
 - MariaDB compatibility batch started from main `4e58ad707bb8df60763b07dd3033ee3c97bc3227`: adding dedicated MariaDB 10.5/10.11 service-container runs for the existing real-database finance integration and backup/restore suites. Results remain pending until the PR head's complete CI matrix passes; no MariaDB compatibility claim is made before then.
+
+- PR #227 merged: MariaDB 10.5 and 10.11 each passed the real-database finance integration and backup/restore test files; MySQL 8.4 and all four installer compatibility targets also passed (`fce81badd92475d087e5662e8aca1c4eef13830a`). Follow-up PR expands the MariaDB job to the complete repository test suite.
