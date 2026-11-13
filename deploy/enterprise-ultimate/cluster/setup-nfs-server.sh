@@ -19,16 +19,12 @@ if [ "${EUID}" -ne 0 ]; then
 fi
 
 NFS_CLIENT_CIDR="${NFS_CLIENT_CIDR:-192.168.1.0/24}"
-NFS_UPLOAD_UID="${NFS_UPLOAD_UID:-33}"
-NFS_UPLOAD_GID="${NFS_UPLOAD_GID:-33}"
+readonly NFS_UPLOAD_UID=33
+readonly NFS_UPLOAD_GID=33
 EXPORT_DIR="/export/uploads"
 
 if [[ ! "${NFS_CLIENT_CIDR}" =~ ^([0-9]{1,3}[.]){3}[0-9]{1,3}/([0-9]|[12][0-9]|3[0-2])$ ]]; then
     echo "NFS_CLIENT_CIDR 必须是 IPv4 CIDR，例如 192.168.1.0/24" >&2
-    exit 1
-fi
-if [[ ! "${NFS_UPLOAD_UID}" =~ ^[1-9][0-9]{0,4}$ || ! "${NFS_UPLOAD_GID}" =~ ^[1-9][0-9]{0,4}$ ]]; then
-    echo "NFS_UPLOAD_UID 和 NFS_UPLOAD_GID 必须是数字" >&2
     exit 1
 fi
 
