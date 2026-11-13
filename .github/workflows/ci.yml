@@ -117,4 +117,4 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Run financial MySQL integration test
-        run: node --test tests/mysql-finance-integration.test.js && node --test tests/mysql-finance-backup-restore.test.js tests/mysql-finance-backup-restore.test.js
+        run: node --test tests/mysql-finance-integration.test.js && node --test tests/mysql-finance-backup-restore.test.js
