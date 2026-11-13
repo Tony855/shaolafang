@@ -129,7 +129,7 @@ function createBakongOpenApiClient(options) {
     }
     const md5 = values.map(normalizeMd5);
     if (new Set(md5).size !== md5.length) throw new TypeError('md5 list must not contain duplicates');
-    const payload = await post('/v1/check_transaction_by_md5_list', { md5 });
+    const payload = await post('/v1/check_transaction_by_md5_list', md5);
     if (Number(payload.responseCode) !== 0 || !Array.isArray(payload.data) || payload.data.length !== md5.length) {
       const error = new Error('Bakong Open API returned an invalid batch response');
       error.code = 'BAKONG_BATCH_RESPONSE_INVALID';
