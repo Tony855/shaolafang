@@ -113,6 +113,30 @@ test('deployment safety serializes installers and protects dirty worktrees', () 
   assert.match(standard, /FF_DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1/);
 });
 
+test('all deployment entrypoints share a lock and never kill arbitrary port owners', () => {
+  const entries = [
+    'install.sh', 'install-local.sh', 'deploy/standard/deploy.sh',
+    'deploy/enterprise/cluster/deploy.sh',
+    'deploy/enterprise-ultimate/cluster/deploy.sh'
+  ];
+  for (const file of entries) {
+    const source = read(file);
+    assert.match(source, /deploy-safety\\.sh/, file + ' must load deployment safety');
+    assert.match(source, /ff_acquire_deploy_lock/, file + ' must serialize deployment');
+    assert.doesNotMatch(source, /fuser\\s+-k/, file + ' must not kill an unknown port owner');
+  }
+  assert.match(read('scripts/lib/deploy-safety.sh'), /ff_require_port_available/);
+  assert.match(read('install.sh'), /ff_require_port_available 3000/);
+  assert.match(read('install-local.sh'), /ff_require_port_available 3000/);
+});
+
+test('scheduled database backups do not embed passwords in executable scripts', () => {
+  const local = read('install-local.sh');
+  assert.match(local, /backup\\.cnf/);
+  assert.match(local, /chmod 0600 \\"\\$CONFIG_DIR\\/backup\\.cnf\\"/);
+  assert.match(local, /--defaults-extra-file=\\/etc\\/foodflow\\/backup\\.cnf/);
+  assert.doesNotMatch(local, /mysqldump\\s+-u\\s+foodflow\\s+-p/);
+});
 test('first install defaults to a minimal single-node path and keeps advanced services opt-in', () => {
   const installer = read('install.sh');
   const local = read('install-local.sh');
