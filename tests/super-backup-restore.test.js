@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const attachSuperRoutes = require('../routes/super');
+const { BACKUP_TABLES, FINANCIAL_BACKUP_TABLES } = require('../server/services/backup-schema');
 
 function middleware() { return (_req, _res, next) => next(); }
 function response() {
@@ -16,11 +17,7 @@ function response() {
   };
 }
 
-const tableNames = [
-  'merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies',
-  'order_sequences', 'orders', 'refund_requests', 'financial_journal_transactions', 'financial_journal_entries', 'provider_webhook_events', 'settings', 'login_logs', 'audit_logs', 'waiters',
-  'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'
-];
+const tableNames = [...BACKUP_TABLES];
 
 function backup({ superAdmins = [{ id: 1, username: 'root', password_hash: 'hash' }] } = {}) {
   const tables = Object.fromEntries(tableNames.map(name => [name, []]));
@@ -48,12 +45,16 @@ function setup({ failAudit = false } = {}) {
       allCalls.push({ sql, params, inTransaction });
       if (sql.startsWith('SHOW COLUMNS')) assert.equal(inTransaction, true);
       if (sql.startsWith('SHOW COLUMNS')) {
-        return [{ Field: 'id' }, { Field: 'username' }, { Field: 'password_hash' }];
+        const table = sql.match(/SHOW COLUMNS FROM `([^\`]+)`/)[1];
+        const fields = ['id', 'username', 'password_hash'];
+        if (table === 'financial_reconciliation_review_events') fields.push('before_json', 'after_json');
+        if (table === 'provider_webhook_events') fields.push('normalized_event_json');
+        return fields.map(Field => ({ Field }));
       }
       return [];
     },
-    runAsync: async sql => {
-      calls.push({ sql, inTransaction });
+    runAsync: async (sql, params) => {
+      calls.push({ sql, params, inTransaction });
       return { affectedRows: 1 };
     },
     withTransaction: async work => {
@@ -154,6 +155,7 @@ test('backup restore accepts legacy backups without the refund request ledger', 
   delete legacy.tables.financial_journal_transactions;
   delete legacy.tables.financial_journal_entries;
   delete legacy.tables.provider_webhook_events;
+  for (const table of FINANCIAL_BACKUP_TABLES) delete legacy.tables[table];
   const res = response();
   await ctx.handler({ body: legacy, superAdmin: { id: 7, username: 'root' } }, res);
   assert.equal(res.statusCode, 200);
@@ -162,6 +164,41 @@ test('backup restore accepts legacy backups without the refund request ledger', 
   assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `financial_journal_transactions`'));
   assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `financial_journal_entries`'));
   assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `provider_webhook_events`'));
+  for (const table of FINANCIAL_BACKUP_TABLES) {
+    assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM `' + table + '`'));
+  }
+});
+
+test('backup restore deletes finance dependents before parents and inserts parents before dependents', async () => {
+  const ctx = setup();
+  const payload = backup();
+  FINANCIAL_BACKUP_TABLES.forEach((table, index) => { payload.tables[table] = [{ id: index + 1 }]; });
+  payload.tables.financial_reconciliation_review_events = [{
+    id: 5, before_json: { status: 'pending' }, after_json: { status: 'matched' }
+  }];
+  payload.tables.provider_webhook_events = [{
+    id: 12, normalized_event_json: { orderReference: 'order-1', paymentStatus: 'paid' }
+  }];
+  const res = response();
+  await ctx.handler({ body: payload, superAdmin: { id: 7, username: 'root' } }, res);
+
+  assert.equal(res.statusCode, 200);
+  const quote = String.fromCharCode(96);
+  const deleteOrder = ctx.calls.filter(call => call.sql?.startsWith('DELETE FROM '))
+    .map(call => call.sql.split(quote)[1])
+    .filter(table => FINANCIAL_BACKUP_TABLES.includes(table));
+  const insertOrder = ctx.calls.filter(call => call.sql?.startsWith('INSERT INTO '))
+    .map(call => call.sql.split(quote)[1])
+    .filter(table => FINANCIAL_BACKUP_TABLES.includes(table));
+  assert.deepEqual(deleteOrder, [...FINANCIAL_BACKUP_TABLES].reverse());
+  assert.deepEqual(insertOrder, [...FINANCIAL_BACKUP_TABLES]);
+  const reviewInsert = ctx.calls.find(call => call.sql?.startsWith('INSERT INTO `financial_reconciliation_review_events`'));
+  const providerInsert = ctx.calls.find(call => call.sql?.startsWith('INSERT INTO `provider_webhook_events`'));
+  assert.ok(reviewInsert);
+  assert.ok(providerInsert);
+  assert.equal(reviewInsert.params[1], JSON.stringify({ status: 'pending' }));
+  assert.equal(reviewInsert.params[2], JSON.stringify({ status: 'matched' }));
+  assert.equal(providerInsert.params[1], JSON.stringify({ orderReference: 'order-1', paymentStatus: 'paid' }));
 });
 
 

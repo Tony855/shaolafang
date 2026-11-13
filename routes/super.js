@@ -10,6 +10,7 @@ const os = require('os');
 const fs = require('fs');
 
 const { initMerchantSettings, initStoreSettings } = require('../server/services/settings-init');
+const { BACKUP_TABLES, LEGACY_OPTIONAL_BACKUP_TABLES } = require('../server/services/backup-schema');
 
 function boundedInteger(value, fallback, min, max) {
   if ((typeof value !== 'string' && typeof value !== 'number') ||
@@ -736,16 +737,14 @@ app.get('/api/super/backup/export', requireSuperAdmin, async (req, res) => {
 app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '50mb' }), async (req, res) => {
   try {
     const data = req.body;
-    const tables = ['merchants', 'stores', 'tables', 'menu_categories', 'menus', 'currencies', 'order_sequences', 'orders', 'refund_requests', 'financial_journal_transactions', 'financial_journal_entries', 'provider_webhook_events', 'settings', 'login_logs', 'audit_logs', 'waiters', 'waiter_calls', 'reservations', 'printers', 'merchant_admins', 'super_admins'];
+    const tables = [...BACKUP_TABLES];
     if (!data || !data.tables || typeof data.tables !== 'object' || Array.isArray(data.tables)) {
       return res.status(400).json({ error: '备份文件格式无效' });
     }
-    // Older backups may not contain the order sequence table; restore it as empty for compatibility.
-    if (data.tables.order_sequences === undefined) data.tables.order_sequences = [];
-    // Older backups predate the refund idempotency ledger.
-    if (data.tables.refund_requests === undefined) data.tables.refund_requests = [];
-    // Older backups predate the provider event inbox and append-only journal.
-    for (const table of ['financial_journal_transactions', 'financial_journal_entries', 'provider_webhook_events']) {
+    // Older backup versions may predate these tables. Restore them as empty
+    // so the import remains backward compatible and all live rows are replaced
+    // atomically by the selected snapshot.
+    for (const table of LEGACY_OPTIONAL_BACKUP_TABLES) {
       if (data.tables[table] === undefined) data.tables[table] = [];
     }
     // Reject incomplete or malformed backups before deleting a single production row.
@@ -786,7 +785,16 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
           const keys = Object.keys(row);
           if (!keys.length) continue;
           const placeholders = keys.map(() => '?').join(', ');
-          const values = keys.map(key => row[key]);
+          const values = keys.map(key => {
+            const value = row[key];
+            // mysql2 may return native JSON columns as objects. Bind JSON text
+            // explicitly; preserve Date and Buffer values for other SQL types.
+            if (value !== null && typeof value === 'object' &&
+                !(value instanceof Date) && !Buffer.isBuffer(value)) {
+              return JSON.stringify(value);
+            }
+            return value;
+          });
           await runAsync(`INSERT INTO \`${table}\` (${keys.map(key => `\`${key}\``).join(', ')}) VALUES (${placeholders})`, values);
         }
       }
