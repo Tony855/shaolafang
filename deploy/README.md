@@ -95,8 +95,8 @@ deploy/
 
 ```bash
 # 1. 下载或克隆代码到服务器
-git clone https://github.com/Tony855/foodflow-standard.git
-cd foodflow-standard
+git clone https://github.com/Tony855/shaolafang.git
+cd shaolafang
 
 # 2. 运行一键安装脚本
 sudo bash install.sh
