@@ -41,3 +41,11 @@ Set the base URL explicitly from the official environment details supplied to th
 tests/payment-provider-adapters.test.js uses deterministic mocked HTTP responses and test-only keys. No live provider credentials are present in CI. Before production activation, obtain sandbox credentials and verify the exact merchant/outlet account, callback delivery, transaction lookup, amount/currency semantics, rate limits, and failure/replay behavior in the provider sandbox.
 
 This adapter-only batch does not expose an HTTP callback route, does not invoke recordVerifiedProviderEvent(), and does not transition any order or journal state.
+
+## Official references
+
+- ABA PayWay Developer Suite overview and sandbox onboarding: https://developer.payway.com.kh/overview-865678m0
+- ABA PayWay eCommerce Checkout callback signature and transaction verification flow: https://developer.payway.com.kh/folder-3158159
+- ABA PayWay Credentials on File callback signature example: https://developer.payway.com.kh/unschedule-payment-2038908m0
+- National Bank of Cambodia Bakong Open API specification: https://sit-api-bakong.nbc.gov.kh/document
+- National Bank of Cambodia KHQR payment integration guide: https://bakong.nbc.gov.kh/download/KHQR/integration/QR%20Payment%20Integration.pdf
