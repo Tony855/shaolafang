@@ -395,7 +395,9 @@ log_success "Systemd 服务配置完成"
 echo ""
 log_info "配置 Nginx..."
 cat > /etc/nginx/conf.d/foodflow.conf << EOF
+log_format foodflow_safe '\$remote_addr - [\$time_local] "\$request_method \$uri \$server_protocol" \$status \$body_bytes_sent';
 server {
+    access_log /var/log/nginx/access.log foodflow_safe;
     listen 80;
     server_name _;
 
