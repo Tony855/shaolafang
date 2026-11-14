@@ -6,6 +6,7 @@ const { createProviderEventQueue } = require('../server/services/provider-event-
 
 function memoryQueue(rows) {
   const calls = [];
+  let transactionCount = 0;
   async function getAsync(sql, params = []) {
     calls.push({ type: 'get', sql, params });
     if (sql.includes('LIMIT 1 FOR UPDATE')) {
@@ -23,7 +24,7 @@ function memoryQueue(rows) {
   }
   async function runAsync(sql, params = []) {
     calls.push({ type: 'run', sql, params });
-    if (sql.includes('SET processing_status=\'processing\'')) {
+    if (sql.includes('SET processing_status=\\'processing\\'')) {
       const row = rows.find(item => item.id === params[2]);
       if (!row) return { affectedRows: 0 };
       row.processing_status = 'processing'; row.attempt_count += 1;
@@ -43,9 +44,9 @@ function memoryQueue(rows) {
     throw new Error('unexpected update');
   }
   return { queue: createProviderEventQueue({
-    getAsync, runAsync, withTransaction: work => work(),
+    getAsync, runAsync, withTransaction: async work => { transactionCount += 1; return work(); },
     tokenFactory: () => 'a'.repeat(64)
-  }), rows, calls };
+  }), rows, calls, get transactionCount() { return transactionCount; } };
 }
 
 test('claimNext leases a verified event with normalized payload and increments attempts', async () => {
@@ -60,6 +61,7 @@ test('claimNext leases a verified event with normalized payload and increments a
   assert.equal(claimed.attemptCount, 1);
   assert.deepEqual(claimed.normalizedEvent, { orderReference: 'O-4' });
   assert.equal(db.rows[0].lease_token, 'a'.repeat(64));
+  assert.equal(db.transactionCount, 1);
 });
 
 test('claimNext validates lease duration and ignores events without normalized data', async () => {
@@ -76,13 +78,20 @@ test('complete requires the active lease token and marks the event processed', a
     error => error.code === 'PROVIDER_EVENT_STALE_LEASE');
 });
 
-test('fail schedules retry before the attempt limit and terminally fails at the limit', async () => {
+test('fail schedules retry before the attempt limit and terminally fails at the limit inside a transaction', async () => {
   const retry = memoryQueue([{ id: 1, processing_status: 'processing', lease_token: 'a'.repeat(64), attempt_count: 1, max_attempts: 3 }]);
   assert.deepEqual(await retry.queue.fail({ eventId: 1, leaseToken: 'a'.repeat(64), errorCode: 'TEMPORARY' }),
     { retryScheduled: true, terminal: false });
   assert.equal(retry.rows[0].processing_status, 'received');
+  assert.equal(retry.transactionCount, 1);
+  const lockedRead = retry.calls.findIndex(call => call.type === 'get' && call.sql.includes('FOR UPDATE'));
+  const transition = retry.calls.findIndex(call => call.type === 'run' && call.sql.includes('SET processing_status=?'));
+  assert.ok(lockedRead >= 0 && transition > lockedRead,
+    'the locked read must precede the state transition within the same transaction');
+
   const terminal = memoryQueue([{ id: 2, processing_status: 'processing', lease_token: 'a'.repeat(64), attempt_count: 3, max_attempts: 3 }]);
   assert.deepEqual(await terminal.queue.fail({ eventId: 2, leaseToken: 'a'.repeat(64), errorCode: 'INVALID_STATE' }),
     { retryScheduled: false, terminal: true });
   assert.equal(terminal.rows[0].processing_status, 'failed');
+  assert.equal(terminal.transactionCount, 1);
 });
