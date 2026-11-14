@@ -73,7 +73,7 @@ fi
 
 CERTBOT_EMAIL_ARGS=()
 if [ -n "$EMAIL" ]; then
-    CERTBOT_EMAIL_ARGS=("${CERTBOT_EMAIL_ARGS[@]}")
+    CERTBOT_EMAIL_ARGS=(--email "$EMAIL")
 else
     CERTBOT_EMAIL_ARGS=(--register-unsafely-without-email)
     [ -z "$DOMAIN" ] || log_warn "未提供 EMAIL，证书续期通知将不可用。"
