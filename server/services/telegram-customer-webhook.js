@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const { validateBotToken, sendTelegramMessage } = require('./telegram-bot');
-const { constantTimeSecretMatch, parseTelegramPrivateStartUpdate } = require('./telegram-webhook');
+const { constantTimeSecretMatch, parseTelegramPrivateUpdate } = require('./telegram-webhook');
 
 function createTelegramCustomerWebhookHandler({
   getAsync, allAsync, runAsync, withTransaction, secret, getBotToken,
@@ -19,7 +19,7 @@ function createTelegramCustomerWebhookHandler({
       return res.status(403).json({ ok: false });
     }
 
-    const update = parseTelegramPrivateStartUpdate(req.body);
+    const update = parseTelegramPrivateUpdate(req.body);
     if (!update) return res.status(200).json({ ok: true });
 
     let botToken;
@@ -39,6 +39,20 @@ function createTelegramCustomerWebhookHandler({
         } catch (error) {
           if (error?.code === 'ER_DUP_ENTRY') return;
           throw error;
+        }
+
+        if (update.action === 'stop') {
+          const revoked = await runAsync(
+            'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE telegram_chat_id=? AND telegram_user_id=? AND is_active=1',
+            [update.telegramChatId, update.telegramUserId]
+          );
+          bound = {
+            chatId: update.telegramChatId,
+            text: Number(revoked.affectedRows) > 0
+              ? 'FoodFlow：已取消此 Telegram 账号的所有顾客通知绑定。之后不会再收到订单通知。'
+              : 'FoodFlow：当前 Telegram 账号没有启用中的顾客通知绑定。'
+          };
+          return;
         }
 
         const challengeHash = crypto.createHash('sha256').update(update.challenge).digest('hex');
@@ -77,7 +91,7 @@ function createTelegramCustomerWebhookHandler({
           [challenge.id]
         );
         if (Number(consumed.affectedRows) !== 1) throw new Error('Telegram binding challenge consumption race');
-        bound = { chatId: update.telegramChatId };
+        bound = { chatId: update.telegramChatId, text: 'FoodFlow：Telegram 顾客通知绑定成功。你只会收到当前顾客会话关联的订单通知。' };
       });
     } catch (error) {
       if (error?.code === 'ER_DUP_ENTRY') return res.status(200).json({ ok: true });
@@ -87,7 +101,7 @@ function createTelegramCustomerWebhookHandler({
 
     if (bound) {
       try {
-        await sendMessage({ token: botToken, chatId: bound.chatId, text: 'FoodFlow：Telegram 顾客通知绑定成功。你只会收到当前顾客会话关联的订单通知。' });
+        await sendMessage({ token: botToken, chatId: bound.chatId, text: bound.text });
       } catch (_) {
         try { logger.warn('[telegram-webhook] confirmation message failed'); } catch (_) {}
       }
