@@ -43,7 +43,7 @@ async function sendTelegramMessage({ token, chatId, text, fetchImpl = globalThis
     const error = new Error('Telegram 消息发送失败（HTTP ' + code + '）');
     // Telegram supplies parameters.retry_after for flood-control responses.
     // Keep only a bounded integer; never retain or expose the raw API payload.
-    const retryAfter = Number(payload?.parameters?.retry_after);
+    const retryAfter = payload?.parameters?.retry_after;
     if (code === 429 && Number.isSafeInteger(retryAfter) && retryAfter > 0) {
       error.retryAfterSeconds = Math.min(retryAfter, 3600);
     }
