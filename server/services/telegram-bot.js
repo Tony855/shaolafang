@@ -11,9 +11,12 @@ function validateChatId(chatId) {
     ( /^-?\d{1,20}$/.test(chatId) || /^@[A-Za-z0-9_]{5,32}$/.test(chatId) );
 }
 
-async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.fetch }) {
+async function sendTelegramMessage({ token, chatId, text, fetchImpl = globalThis.fetch }) {
   if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
   if (!validateChatId(chatId)) throw new Error('Telegram Chat ID 格式无效');
+  if (typeof text !== 'string' || !text.trim() || text.length > 4096) {
+    throw new Error('Telegram 消息内容无效');
+  }
   if (typeof fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持 fetch');
 
   let response;
@@ -21,10 +24,7 @@ async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.f
     response = await fetchImpl(`${TELEGRAM_API}/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: 'FoodFlow Telegram Bot 连接测试成功。'
-      }),
+      body: JSON.stringify({ chat_id: chatId, text }),
       signal: AbortSignal.timeout(10000)
     });
   } catch (_) {
@@ -49,4 +49,11 @@ async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.f
   };
 }
 
-module.exports = { validateBotToken, validateChatId, sendTelegramTestMessage };
+async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.fetch }) {
+  return sendTelegramMessage({
+    token, chatId, fetchImpl,
+    text: 'FoodFlow Telegram Bot 连接测试成功。'
+  });
+}
+
+module.exports = { validateBotToken, validateChatId, sendTelegramMessage, sendTelegramTestMessage };
