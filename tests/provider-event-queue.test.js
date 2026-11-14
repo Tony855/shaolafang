@@ -46,6 +46,14 @@ function memoryQueue(rows, options = {}) {
       row.processing_status = 'processing'; row.attempt_count += 1;
       row.lease_token = params[0]; return { affectedRows: 1 };
     }
+    if (sql.includes('SET lease_expires_at=DATE_ADD')) {
+      const row = rows.find(item => item.id === params[1] &&
+        item.processing_status === 'processing' && item.lease_token === params[2] &&
+        item.lease_expired !== true);
+      if (!row) return { affectedRows: 0 };
+      row.lease_seconds = params[0];
+      return { affectedRows: 1 };
+    }
     if (sql.includes("SET processing_status='processed'")) {
       const row = rows.find(item => item.id === params[0] && item.lease_token === params[1] && item.lease_expired !== true);
       if (!row) return { affectedRows: 0 };
@@ -172,4 +180,26 @@ test('fail rechecks lease expiry at the state update after acquiring the row loc
   assert.equal(db.rows[0].processing_status, 'processing');
   assert.equal(db.rows[0].lease_token, 'f'.repeat(64));
   assert.equal(db.transactionCount, 1);
+});
+
+
+test('renew extends only an active lease and rejects expired ownership', async () => {
+  const active = memoryQueue([{
+    id: 41, processing_status: 'processing', lease_token: '1'.repeat(64), lease_expired: false
+  }]);
+  assert.deepEqual(await active.queue.renew({
+    eventId: 41, leaseToken: '1'.repeat(64), leaseSeconds: 120
+  }), { renewed: true });
+  assert.equal(active.rows[0].lease_seconds, 120);
+  await assert.rejects(active.queue.renew({
+    eventId: 41, leaseToken: '1'.repeat(64), leaseSeconds: 901
+  }), /leaseSeconds/);
+
+  const expired = memoryQueue([{
+    id: 42, processing_status: 'processing', lease_token: '2'.repeat(64), lease_expired: true
+  }]);
+  await assert.rejects(
+    expired.queue.renew({ eventId: 42, leaseToken: '2'.repeat(64), leaseSeconds: 120 }),
+    error => error.code === 'PROVIDER_EVENT_STALE_LEASE'
+  );
 });
