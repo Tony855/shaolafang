@@ -24,7 +24,7 @@ async function enqueueCustomerTelegramNotification({ allAsync, customerTokenHash
   const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key`=?', ['telegram_client_bot_enabled']);
   if (!Array.isArray(settings) || settings[0]?.value !== '1') return false;
   const bindings = await allAsync(
-    'SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL LIMIT 1',
+    'SELECT b.id FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id WHERE b.customer_token_hash=? AND b.merchant_id=? AND b.store_id=? AND b.is_active=1 AND b.revoked_at IS NULL AND s.active=1 AND m.status=1 LIMIT 1',
     [customerTokenHash, merchant, store]
   );
   if (!Array.isArray(bindings) || !bindings.length) return false;
