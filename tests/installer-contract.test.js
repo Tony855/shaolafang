@@ -323,3 +323,13 @@ test('top-level deployment guides and standard installer use the current reposit
   assert.ok(deployGuide.includes('Tony855/shaolafang.git'));
   assert.ok(standardScript.includes('GIT_REPO="https://github.com/Tony855/shaolafang.git"'));
 });
+
+
+test('Nginx setup gates proxy configuration on application and database readiness', () => {
+  const nginx = read('setup-nginx.sh');
+  assert.match(nginx, /systemctl restart foodflow/);
+  assert.match(nginx, /ff_wait_for_health "\$BACKEND_PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/);
+  assert.ok(nginx.indexOf('ff_wait_for_health') < nginx.indexOf('# ===== 4. 释放 80 端口 ====='));
+  assert.match(nginx, /journalctl -u foodflow -n 50 --no-pager/);
+  assert.doesNotMatch(nginx, /sleep 3\s+if systemctl is-active/);
+});
