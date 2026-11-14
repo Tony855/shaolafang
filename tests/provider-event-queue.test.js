@@ -24,7 +24,7 @@ function memoryQueue(rows) {
   }
   async function runAsync(sql, params = []) {
     calls.push({ type: 'run', sql, params });
-    if (sql.includes('SET processing_status=\\'processing\\'')) {
+    if (sql.includes("SET processing_status='processing'")) {
       const row = rows.find(item => item.id === params[2]);
       if (!row) return { affectedRows: 0 };
       row.processing_status = 'processing'; row.attempt_count += 1;
