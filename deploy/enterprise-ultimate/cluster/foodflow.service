@@ -5,6 +5,8 @@
 
 [Unit]
 Description=FoodFlow Enterprise - Cluster Node
+StartLimitIntervalSec=60s
+StartLimitBurst=5
 After=network.target nfs-client.target
 Wants=network.target nfs-client.target
 
@@ -18,7 +20,7 @@ EnvironmentFile=/etc/foodflow/.env
 
 ExecStart=/usr/bin/node server.js
 
-Restart=always
+Restart=on-failure
 RestartSec=5
 
 # 企业版资源限制（建议4核8GB以上）
