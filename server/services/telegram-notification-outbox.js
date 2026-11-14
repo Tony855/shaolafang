@@ -49,7 +49,7 @@ async function releaseTelegramNotificationForRetry(id, workerId, errorCode, atte
   const safeCode = SAFE_ERROR_CODES.has(errorCode) ? errorCode : 'unknown';
   const taskId = positiveId(id, '通知任务编号');
   if (!Number.isInteger(attempt) || attempt < 1 || attempt > 8) throw new TypeError('重试次数无效');
-  if (safeCode === 'event_disabled') {
+  if (safeCode === 'event_disabled' || safeCode === 'binding_revoked') {
     const result = await runAsync(
       "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state='processing' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)",
       [safeCode, taskId, workerId]
