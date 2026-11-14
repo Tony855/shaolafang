@@ -572,6 +572,27 @@
                     </div>
                 </div>
 
+                <div class="settings-card" id="telegramStoreNotificationCard">
+                    <h3 class="settings-card-title">📨 Telegram 门店业务通知</h3>
+                    <p class="ff-desc-tight">使用超级管理员配置的管理员 Bot；当前门店单独接收通知，不会把其他门店的订单发到此 Chat。</p>
+                    <div class="settings-row">
+                        <label class="store-switch-label"><span>启用当前门店 Telegram 通知</span><label class="store-switch"><input type="checkbox" id="telegramStoreNotifyEnabled"><span class="store-switch-slider"></span></label></label>
+                    </div>
+                    <div class="form-group">
+                        <label for="telegramStoreNotifyChatId">Telegram 群组 / 私聊 Chat ID</label>
+                        <input id="telegramStoreNotifyChatId" type="text" maxlength="64" autocomplete="off" placeholder="例如 -1001234567890">
+                    </div>
+                    <div class="settings-form-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+                        <label><input type="checkbox" id="telegramStoreNotifyOrderCreated" checked> 新订单</label>
+                        <label><input type="checkbox" id="telegramStoreNotifySettled" checked> 收款确认</label>
+                        <label><input type="checkbox" id="telegramStoreNotifyRefunded" checked> 退款完成</label>
+                    </div>
+                    <p id="telegramStoreNotifyGlobalStatus" class="ff-desc-tight">管理员 Bot 由超级管理员统一配置。</p>
+                    <div class="settings-row">
+                        <button id="saveTelegramStoreNotifyBtn" class="display-settings-btn">保存 Telegram 通知设置</button>
+                    </div>
+                </div>
+
                 <div class="settings-card" id="displayPageCard">
                     <h3 class="settings-card-title ff-flex-center" id="displayPageTitle">
                         <span>🖥️ <span data-i18n="displayPageTitle">菜单展示页设置</span></span>
