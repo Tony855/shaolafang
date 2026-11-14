@@ -35,6 +35,33 @@ test('Telegram worker runs one batch at a time and stops cleanly during an activ
   assert.equal(calls, 1);
 });
 
+test('Telegram worker immediately drains the next item after making progress', { timeout: 3000 }, async () => {
+  let calls = 0;
+  let releaseSecond;
+  let signalSecond;
+  const secondStarted = new Promise(resolve => { signalSecond = resolve; });
+  const worker = createTelegramNotificationWorker({
+    workerId,
+    intervalMs: 5000,
+    resolveRecipient: async () => null,
+    cleanupHistory: async () => {},
+    processBatch: async () => {
+      calls++;
+      if (calls === 1) return [{ id: 1, state: 'delivered' }];
+      signalSecond();
+      return new Promise(resolve => { releaseSecond = resolve; });
+    },
+    logger: { error() {} }
+  });
+  worker.start();
+  await secondStarted;
+  assert.equal(calls, 2, 'a successful delivery must not wait for the idle polling interval');
+  const stopping = worker.stop();
+  releaseSecond([]);
+  await stopping;
+  assert.equal(worker.running, false);
+});
+
 test('Telegram worker can stop during its idle poll delay without hanging', async () => {
   let called;
   const firstBatch = new Promise(resolve => { called = resolve; });
