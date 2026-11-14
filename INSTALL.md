@@ -311,6 +311,8 @@ sudo nano /etc/systemd/system/foodflow.service
 Description=FoodFlow QR Ordering System
 Wants=network-online.target
 After=network-online.target mariadb.service mysql.service
+StartLimitIntervalSec=60s
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -319,7 +321,7 @@ Group=www-data
 WorkingDirectory=/opt/foodflow
 EnvironmentFile=/opt/foodflow/.env
 ExecStart=/usr/bin/node /opt/foodflow/server.js
-Restart=always
+Restart=on-failure
 RestartSec=10
 
 [Install]
