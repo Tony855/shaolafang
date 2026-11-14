@@ -1261,5 +1261,21 @@
   "financeCol_pending_count": "Chờ duyệt",
   "financeCol_unmatched_count": "Chưa khớp",
   "financeCol_ambiguous_count": "Nhiều kết quả",
-  "financeCol_exception_count": "Ngoại lệ"
+  "financeCol_exception_count": "Ngoại lệ",
+  "telegramBotSettings": "🤖 Telegram Bot",
+  "telegramBotDesc": "Cấu hình Bot Telegram riêng cho khách hàng và quản trị viên. Token chỉ lưu trên máy chủ và không bao giờ được trả về dạng văn bản thuần.",
+  "telegramClientBot": "Telegram Bot khách hàng",
+  "telegramAdminBot": "Telegram Bot quản trị viên",
+  "telegramBotEnabled": "Bật Bot",
+  "telegramBotToken": "Bot Token",
+  "telegramChatId": "Chat ID nhận tin",
+  "telegramClearToken": "Xóa Token đã lưu",
+  "telegramTest": "Gửi tin nhắn thử",
+  "telegramSave": "Lưu cấu hình Telegram",
+  "telegramBotSecurityHint": "Hãy khởi động Bot trong Telegram hoặc thêm Bot vào nhóm đích trước khi nhập Chat ID. Tin nhắn thử chỉ được gửi khi bạn nhấn nút thử.",
+  "telegramTokenConfigured": "Đã lưu Token",
+  "telegramTokenMissing": "Chưa cấu hình Token",
+  "telegramSaved": "Đã lưu cấu hình Telegram Bot",
+  "telegramTestSent": "Đã gửi tin nhắn thử, hãy kiểm tra Telegram",
+  "telegramTestFailed": "Gửi tin nhắn thử thất bại"
 }

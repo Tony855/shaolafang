@@ -588,14 +588,79 @@ async function loadGlobalSettings() {
     setVal('callLimitCooldownMinutes', settings.call_limit_cooldown_minutes || 10);
     setVal('autoCleanLogEnabled', settings.auto_clean_log_enabled ? '1' : '0');
     setVal('logRetentionDays', settings.log_retention_days || 30);
+    await loadTelegramBotSettings();
     setVal('cleanLoginLog', settings.clean_login_log ? '1' : '0');
     setVal('cleanAuditLog', settings.clean_audit_log ? '1' : '0');
   } catch (e) { SLF.ui.toast(t('loadFailed', null, t('loadFailed')) + ': ' + e.message, 'error'); }
 }
 
+
+async function loadTelegramBotSettings() {
+  try {
+    const config = await api('/super/telegram/config');
+    for (const scope of ['client', 'admin']) {
+      const item = config[scope] || {};
+      const prefix = scope === 'client' ? 'telegramClient' : 'telegramAdmin';
+      const enabled = document.getElementById(prefix + 'Enabled');
+      const token = document.getElementById(prefix + 'Token');
+      const chat = document.getElementById(prefix + 'ChatId');
+      const clear = document.getElementById(prefix + 'ClearToken');
+      const status = document.getElementById(prefix + 'TokenStatus');
+      if (enabled) enabled.value = item.enabled ? '1' : '0';
+      if (token) token.value = '';
+      if (chat) chat.value = item.chat_id || '';
+      if (clear) clear.checked = false;
+      if (status) status.textContent = item.configured
+        ? (t('telegramTokenConfigured') || '已保存 Token') + '：' + (item.token_masked || '')
+        : (t('telegramTokenMissing') || '尚未配置 Token');
+    }
+  } catch (error) {
+    SLF.ui.toast((t('loadFailed') || '加载失败') + ': ' + error.message, 'error');
+  }
+}
+
+async function saveTelegramBotSettings() {
+  const read = scope => {
+    const prefix = scope === 'client' ? 'telegramClient' : 'telegramAdmin';
+    return {
+      enabled: document.getElementById(prefix + 'Enabled').value === '1',
+      token: document.getElementById(prefix + 'Token').value.trim(),
+      clear_token: document.getElementById(prefix + 'ClearToken').checked,
+      chat_id: document.getElementById(prefix + 'ChatId').value.trim()
+    };
+  };
+  try {
+    await api('/super/telegram/config', {
+      method: 'PUT',
+      body: JSON.stringify({ client: read('client'), admin: read('admin') })
+    });
+    await loadTelegramBotSettings();
+    SLF.ui.toast(t('telegramSaved') || 'Telegram Bot 配置已保存', 'success');
+  } catch (error) {
+    SLF.ui.toast((t('saveFailed') || '保存失败') + ': ' + error.message, 'error');
+  }
+}
+
+async function testTelegramBot(scope) {
+  if (!['client', 'admin'].includes(scope)) return;
+  try {
+    if (scope === 'client') {
+      await api('/super/telegram/client/test', { method: 'POST', body: JSON.stringify({}) });
+    } else {
+      await api('/super/telegram/admin/test', { method: 'POST', body: JSON.stringify({}) });
+    }
+    SLF.ui.toast(t('telegramTestSent') || '测试消息已发送，请检查 Telegram', 'success');
+  } catch (error) {
+    SLF.ui.toast((t('telegramTestFailed') || '测试消息发送失败') + ': ' + error.message, 'error');
+  }
+}
+window.loadTelegramBotSettings = loadTelegramBotSettings;
+window.saveTelegramBotSettings = saveTelegramBotSettings;
+window.testTelegramBot = testTelegramBot;
+
 function switchSettingsTab(tab) {
-  const tabs = { timeout: 'tabTimeout', order: 'tabOrder', security: 'tabSecurity', callLimit: 'tabCallLimit', log: 'tabLog' };
-  const panels = { timeout: 'timeoutSettings', order: 'orderSettings', security: 'securitySettings', callLimit: 'callLimitSettings', log: 'logSettings' };
+  const tabs = { timeout: 'tabTimeout', order: 'tabOrder', security: 'tabSecurity', callLimit: 'tabCallLimit', log: 'tabLog', telegram: 'tabTelegram' };
+  const panels = { timeout: 'timeoutSettings', order: 'orderSettings', security: 'securitySettings', callLimit: 'callLimitSettings', log: 'logSettings', telegram: 'telegramSettings' };
   Object.keys(tabs).forEach(t_ => {
     const tabEl = document.getElementById(tabs[t_]);
     const panelEl = document.getElementById(panels[t_]);

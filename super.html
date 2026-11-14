@@ -236,6 +236,7 @@
         <button class="super-tab-btn" id="tabSecurity" onclick="switchSettingsTab('security')" data-i18n="securitySettings">🔒 安全设置</button>
         <button class="super-tab-btn" id="tabCallLimit" onclick="switchSettingsTab('callLimit')" data-i18n="callLimitSettings">🔔 呼叫限制设置</button>
         <button class="super-tab-btn" id="tabLog" onclick="switchSettingsTab('log')" data-i18n="logSettings">📋 日志设置</button>
+        <button class="super-tab-btn" id="tabTelegram" onclick="switchSettingsTab('telegram')" data-i18n="telegramBotSettings">🤖 Telegram Bot</button>
       </div>
 
       <div id="timeoutSettings">
@@ -308,6 +309,36 @@
               <option value="1">是</option>
               <option value="0" data-i18n="optionNo">否</option>
             </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="telegramSettings" style="display:none;">
+        <div class="super-panel-inner">
+          <p class="super-hint" data-i18n="telegramBotDesc">分别配置客户端和管理员端 Telegram Bot。Token 只保存在服务端，读取时不会返回明文。</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
+            <section style="padding:18px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.025);">
+              <h3 style="margin:0 0 14px;color:#fff;" data-i18n="telegramClientBot">客户端 Telegram Bot</h3>
+              <div class="form-group"><label data-i18n="telegramBotEnabled">启用 Bot</label><select class="super-form-select" id="telegramClientEnabled"><option value="0" data-i18n="disabled">禁用</option><option value="1" data-i18n="enabled">启用</option></select></div>
+              <div class="form-group"><label data-i18n="telegramBotToken">Bot Token</label><input type="password" id="telegramClientToken" autocomplete="new-password" placeholder="留空保持当前 Token"></div>
+              <small id="telegramClientTokenStatus" style="display:block;color:#888;margin:-6px 0 12px;"></small>
+              <label style="display:flex;align-items:center;gap:8px;margin:8px 0 14px;color:#d5d5d5;font-size:13px;"><input type="checkbox" id="telegramClientClearToken"> <span data-i18n="telegramClearToken">清除已保存 Token</span></label>
+              <div class="form-group"><label data-i18n="telegramChatId">接收 Chat ID</label><input type="text" id="telegramClientChatId" placeholder="-1001234567890 或 @channel"></div>
+              <button type="button" class="btn-secondary" onclick="testTelegramBot('client')" data-i18n="telegramTest">发送测试消息</button>
+            </section>
+            <section style="padding:18px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.025);">
+              <h3 style="margin:0 0 14px;color:#fff;" data-i18n="telegramAdminBot">管理员 Telegram Bot</h3>
+              <div class="form-group"><label data-i18n="telegramBotEnabled">启用 Bot</label><select class="super-form-select" id="telegramAdminEnabled"><option value="0" data-i18n="disabled">禁用</option><option value="1" data-i18n="enabled">启用</option></select></div>
+              <div class="form-group"><label data-i18n="telegramBotToken">Bot Token</label><input type="password" id="telegramAdminToken" autocomplete="new-password" placeholder="留空保持当前 Token"></div>
+              <small id="telegramAdminTokenStatus" style="display:block;color:#888;margin:-6px 0 12px;"></small>
+              <label style="display:flex;align-items:center;gap:8px;margin:8px 0 14px;color:#d5d5d5;font-size:13px;"><input type="checkbox" id="telegramAdminClearToken"> <span data-i18n="telegramClearToken">清除已保存 Token</span></label>
+              <div class="form-group"><label data-i18n="telegramChatId">接收 Chat ID</label><input type="text" id="telegramAdminChatId" placeholder="-1001234567890 或 @channel"></div>
+              <button type="button" class="btn-secondary" onclick="testTelegramBot('admin')" data-i18n="telegramTest">发送测试消息</button>
+            </section>
+          </div>
+          <p style="margin-top:14px;color:#999;font-size:12px;" data-i18n="telegramBotSecurityHint">请先在 Telegram 中启动 Bot 或将 Bot 添加到目标群组，再填写 Chat ID。测试消息仅在点击测试按钮时发送。</p>
+          <div style="margin-top:18px;text-align:right;">
+            <button class="btn-primary" onclick="saveTelegramBotSettings()" data-i18n="telegramSave">保存 Telegram 配置</button>
           </div>
         </div>
       </div>

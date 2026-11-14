@@ -984,6 +984,139 @@ app.get('/api/super/merchants/:id/available-methods', requireSuperAdmin, async (
   } catch (e) { res.status(500).json({ error: '请求失败，请稍后重试' }); }
 });
 
+
+const { sendTelegramTestMessage, validateBotToken, validateChatId } = require('../server/services/telegram-bot');
+const TELEGRAM_SCOPES = ['client', 'admin'];
+const TELEGRAM_SETTING_KEYS = TELEGRAM_SCOPES.flatMap(scope => [
+  `telegram_${scope}_bot_enabled`,
+  `telegram_${scope}_bot_token`,
+  `telegram_${scope}_chat_id`
+]);
+
+function maskTelegramToken(token) {
+  if (!token) return '';
+  return '••••••••' + String(token).slice(-4);
+}
+
+app.get('/api/super/telegram/config', requireSuperAdmin, async (_req, res) => {
+  try {
+    const rows = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (' +
+      TELEGRAM_SETTING_KEYS.map(() => '?').join(',') + ')', TELEGRAM_SETTING_KEYS);
+    const stored = Object.fromEntries(rows.map(row => [row.key, row.value]));
+    const config = {};
+    for (const scope of TELEGRAM_SCOPES) {
+      const token = String(stored[`telegram_${scope}_bot_token`] || '');
+      config[scope] = {
+        enabled: stored[`telegram_${scope}_bot_enabled`] === '1',
+        configured: Boolean(token),
+        token_masked: maskTelegramToken(token),
+        chat_id: String(stored[`telegram_${scope}_chat_id`] || '')
+      };
+    }
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.json(config);
+  } catch (_) {
+    res.status(500).json({ error: 'Telegram Bot 配置读取失败' });
+  }
+});
+
+app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const next = {};
+    for (const scope of TELEGRAM_SCOPES) {
+      const input = body[scope];
+      if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        return res.status(400).json({ error: '客户端和管理员 Bot 配置必须分别提交' });
+      }
+      const enabled = input.enabled === true;
+      const chatId = input.chat_id === undefined ? undefined : String(input.chat_id).trim();
+      const token = input.token === undefined ? undefined : String(input.token).trim();
+      const clearToken = input.clear_token === true;
+      if (token && !validateBotToken(token)) {
+        return res.status(400).json({ error: (scope === 'client' ? '客户端' : '管理员') + ' Bot Token 格式无效' });
+      }
+      if (chatId !== undefined && chatId !== '' && !validateChatId(chatId)) {
+        return res.status(400).json({ error: (scope === 'client' ? '客户端' : '管理员') + ' Chat ID 格式无效' });
+      }
+      // A blank token preserves the saved secret; clearing it is always explicit.
+      if (enabled && (clearToken || chatId === '')) {
+        return res.status(400).json({ error: '启用 Bot 前必须保留有效 Token 和 Chat ID' });
+      }
+      next[scope] = { enabled, chatId, token, clearToken };
+    }
+
+    await withTransaction(async () => {
+      const existingRows = await allAsync(
+        'SELECT `key`, value FROM settings WHERE `key` IN (' +
+          TELEGRAM_SETTING_KEYS.map(() => '?').join(',') + ') FOR UPDATE',
+        TELEGRAM_SETTING_KEYS
+      );
+      const existing = Object.fromEntries(existingRows.map(row => [row.key, row.value]));
+      for (const scope of TELEGRAM_SCOPES) {
+        const item = next[scope];
+        const oldToken = String(existing[`telegram_${scope}_bot_token`] || '');
+        const newToken = item.clearToken ? '' : (item.token ? item.token : oldToken);
+        const newChatId = item.chatId === undefined ? String(existing[`telegram_${scope}_chat_id`] || '') : item.chatId;
+        if (item.enabled && (!newToken || !newChatId)) {
+          const error = new Error((scope === 'client' ? '客户端' : '管理员') + ' Bot 启用前必须配置 Token 和 Chat ID');
+          error.statusCode = 400;
+          throw error;
+        }
+        const values = [
+          [`telegram_${scope}_bot_enabled`, item.enabled ? '1' : '0'],
+          [`telegram_${scope}_bot_token`, newToken],
+          [`telegram_${scope}_chat_id`, newChatId]
+        ];
+        for (const [key, value] of values) {
+          await runAsync(
+            'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)',
+            [key, value]
+          );
+        }
+      }
+      await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
+        'update_telegram_bot_settings', 'settings', null,
+        '更新客户端及管理员 Telegram Bot 配置（凭据已隐藏）', getClientIp(req));
+    });
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.json({ success: true });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      error: error.statusCode === 400 ? error.message : 'Telegram Bot 配置保存失败'
+    });
+  }
+});
+
+async function handleTelegramBotTest(req, res, scope) {
+  try {
+    if (!TELEGRAM_SCOPES.includes(scope)) return res.status(400).json({ error: 'Bot 类型无效' });
+    const keys = [
+      `telegram_${scope}_bot_enabled`,
+      `telegram_${scope}_bot_token`,
+      `telegram_${scope}_chat_id`
+    ];
+    const rows = await allAsync(
+      'SELECT `key`, value FROM settings WHERE `key` IN (?, ?, ?)', keys
+    );
+    const stored = Object.fromEntries(rows.map(row => [row.key, row.value]));
+    if (stored[keys[0]] !== '1') return res.status(409).json({ error: '请先启用并保存该 Telegram Bot 配置' });
+    const result = await sendTelegramTestMessage({
+      token: String(stored[keys[1]] || ''),
+      chatId: String(stored[keys[2]] || '')
+    });
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.json({ success: true, message_id: result.messageId });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Telegram 测试消息发送失败' });
+  }
+}
+
+app.post('/api/super/telegram/client/test', requireSuperAdmin,
+  (req, res) => handleTelegramBotTest(req, res, 'client'));
+app.post('/api/super/telegram/admin/test', requireSuperAdmin,
+  (req, res) => handleTelegramBotTest(req, res, 'admin'));
+
 };
 
 module.exports.parsePositiveRouteId = parsePositiveRouteId;
