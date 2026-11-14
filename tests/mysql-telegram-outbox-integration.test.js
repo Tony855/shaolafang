@@ -102,6 +102,18 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(await markTelegramNotificationDelivered(first.id, workerA), true);
   assert.equal(await markTelegramNotificationDelivered(first.id, workerA), false);
 
+  // Exercise two independent worker transactions concurrently: SKIP LOCKED
+  // must allocate distinct ready rows rather than double-claiming one event.
+  const concurrentKeys = [`${key}:concurrent-a`, `${key}:concurrent-b`];
+  for (const eventKey of concurrentKeys) await enqueueTelegramNotification({ ...input, eventKey });
+  const [concurrentA, concurrentB] = await Promise.all([
+    claimTelegramNotifications({ workerId: workerA, limit: 1, leaseSeconds: 30 }),
+    claimTelegramNotifications({ workerId: workerB, limit: 1, leaseSeconds: 30 })
+  ]);
+  assert.equal(concurrentA.length, 1);
+  assert.equal(concurrentB.length, 1);
+  assert.notEqual(Number(concurrentA[0].id), Number(concurrentB[0].id));
+
   const leaseKey = `${key}:lease-recovery`;
   await enqueueTelegramNotification({ ...input, eventKey: leaseKey });
   const leaseA = await claimTelegramNotifications({ workerId: workerA, limit: 1, leaseSeconds: 30 });
