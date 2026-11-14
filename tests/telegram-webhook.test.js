@@ -18,6 +18,7 @@ test('Telegram binding accepts only private /start messages with bounded payload
   assert.deepEqual(parseTelegramPrivateStartUpdate(update), { updateId: 123, challenge, telegramUserId: '98765', telegramChatId: '98765' });
   assert.equal(parseTelegramPrivateStartUpdate({ ...update, message: { ...update.message, chat: { id: -100, type: 'group' } } }), null);
   assert.equal(parseTelegramPrivateStartUpdate({ ...update, message: { ...update.message, text: 'hello' } }), null);
+  assert.equal(parseTelegramPrivateStartUpdate({ ...update, message: { ...update.message, text: `/start@OtherBot ${challenge}` } }), null);
   assert.equal(parseTelegramPrivateStartUpdate({ ...update, update_id: Number.MAX_SAFE_INTEGER + 1 }), null);
   assert.equal(parseTelegramPrivateStartUpdate({ ...update, message: { ...update.message, from: { id: 1, is_bot: true } } }), null);
 });
