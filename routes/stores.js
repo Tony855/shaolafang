@@ -170,6 +170,14 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
         }
       }
 
+      // Remove Telegram identity and notification rows before deleting the
+      // store. Pending notices for deleted orders are also canceled by the
+      // order-delete workflow; this clears remaining store-scoped history.
+      await runAsync('DELETE FROM telegram_notification_outbox WHERE merchant_id=? AND store_id=?', [merchantId, id]);
+      await runAsync('DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? AND store_id=?', [merchantId, id]);
+      await runAsync('DELETE FROM telegram_customer_bindings WHERE merchant_id=? AND store_id=?', [merchantId, id]);
+      await runAsync('DELETE FROM telegram_store_admin_recipients WHERE merchant_id=? AND store_id=?', [merchantId, id]);
+
       const result = await runAsync('DELETE FROM stores WHERE id=? AND merchant_id=?', [id, merchantId]);
       if (!result.affectedRows) throw Object.assign(new Error('店铺不存在或已被删除'), { statusCode: 404 });
       const storeSettingsPrefix = `store_${id}_`;
