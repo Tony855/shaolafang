@@ -749,7 +749,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         [JSON.stringify(responsePayload), req.storeId, idempotencyKey, requestHash]
       );
       if (!savedRequest.affectedRows) throw new Error('退款结果保存失败，操作已回滚');
-      const store = await getAsync('SELECT name FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
+      const store = await getAsync('SELECT name, merchant_id FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
       const refundKey = crypto.createHash('sha256').update(idempotencyKey).digest('hex').slice(0, 24);
       await enqueueSystemAdminTelegramNotification({
         getAsync,
