@@ -22,7 +22,7 @@
 | Telegram 通知队列停用语义 | PR #266 已实现全局 Bot、门店及单事件停用时的事务性 dead-letter 清理，并补齐并发锁顺序 | 同步 main 后的新 head CI/安装检查待完成；真实 Telegram 双 Bot、多门店与备份恢复验收未完成 |
 | 大型单体路由/页面 | 仍是架构改进项，不是已确认可利用漏洞 | 应以小步拆分和集成测试推进 |
 
-**当前 GitHub 状态（2026-11-15）：** PR #267 与 PR #268 均已合并；PR #266 仍为 Draft。PR #268 合并提交为 `c8cc929`。PR #266 已同步 main，最新 head 为 `0c83adc7d9c615d51c7e86980e0e8318629b90b2`，新 CI/安装兼容性检查正在执行；不得沿用旧提交的通过状态。PR #266 仍需要真实 Telegram staging、多门店隔离和备份恢复验收。
+**当前 GitHub 状态（2026-11-15）：** PR #267 与 PR #268 均已合并；PR #266 仍为 Draft。PR #268 合并提交为 `c8cc929`。PR #266 已同步 main，最新 head `0c83adc7d9c615d51c7e86980e0e8318629b90b2` 的 CI（validate、MySQL 8.4、MariaDB 10.11/11.4/11.8/12.3）与五个安装目标全部通过。PR #266 仍需要真实 Telegram staging、多门店隔离和备份恢复验收。
 
 **分支保护：** 当前 GitHub API 未返回 main 的保护规则，仓库 Rulesets 列表为空。此项需要仓库管理员在 GitHub 设置中启用，不能由应用代码或本次 CI 自动替代。
 
@@ -162,6 +162,6 @@
 
 ### [P1 - Telegram 通知] main 同步及重新验证
 
-PR #266 已同步 PR #268 合并后的 main，最新 head 为 `0c83adc7d9c615d51c7e86980e0e8318629b90b2`。同步后的 CI 正在执行、安装兼容性检查已排队。旧 head 的绿色结果不能替代最新 head 的验证。
+PR #266 已同步 PR #268 合并后的 main，最新 head 为 `0c83adc7d9c615d51c7e86980e0e8318629b90b2`。同步后的最新 head `0c83adc7d9c615d51c7e86980e0e8318629b90b2` 的 CI 与安装兼容性矩阵均已通过。
 
 **尚未完成：** 真实 Client/Admin Bot 投递、跨门店 Chat ID 隔离、QR 重扫重绑、备份恢复后绑定失效/重新绑定、worker 重启与租约恢复 soak、部署 webhook secret 与 worker flag 的现场核验。生产 worker 必须保持关闭，直至验收通过。
