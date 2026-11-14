@@ -11,9 +11,9 @@ function createTelegramNotificationWorker({
   if (typeof workerId !== 'string' || !/^[0-9a-f-]{36}$/i.test(workerId)) throw new TypeError('Worker ID 无效');
   if (!Number.isInteger(intervalMs) || intervalMs < 250 || intervalMs > 60000) throw new TypeError('Worker polling interval is invalid');
   if (!resolveRecipient) {
-    const { getAsync } = require('../db/helpers');
+    const { allAsync } = require('../db/helpers');
     const { createTelegramNotificationRecipientResolver } = require('./telegram-notification-recipient');
-    resolveRecipient = createTelegramNotificationRecipientResolver({ getAsync });
+    resolveRecipient = createTelegramNotificationRecipientResolver({ allAsync });
   }
   if (!processBatch) {
     ({ processTelegramNotificationBatch: processBatch } = require('./telegram-notification-worker'));
