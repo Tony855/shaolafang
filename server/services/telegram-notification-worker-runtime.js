@@ -8,6 +8,8 @@ function createTelegramNotificationWorker({
   intervalMs = 5000,
   logger = console
 } = {}) {
+  if (typeof workerId !== 'string' || !/^[0-9a-f-]{36}$/i.test(workerId)) throw new TypeError('Worker ID 无效');
+  if (!Number.isInteger(intervalMs) || intervalMs < 250 || intervalMs > 60000) throw new TypeError('Worker polling interval is invalid');
   if (!resolveRecipient) {
     const { getAsync } = require('../db/helpers');
     const { createTelegramNotificationRecipientResolver } = require('./telegram-notification-recipient');
@@ -18,8 +20,6 @@ function createTelegramNotificationWorker({
   }
   if (typeof resolveRecipient !== 'function') throw new TypeError('resolveRecipient is required');
   if (typeof processBatch !== 'function') throw new TypeError('processBatch is required');
-  if (typeof workerId !== 'string' || !/^[0-9a-f-]{36}$/i.test(workerId)) throw new TypeError('Worker ID 无效');
-  if (!Number.isInteger(intervalMs) || intervalMs < 250 || intervalMs > 60000) throw new TypeError('Worker polling interval is invalid');
 
   let running = false;
   let loopPromise = null;
