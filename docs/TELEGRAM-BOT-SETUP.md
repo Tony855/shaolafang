@@ -23,7 +23,48 @@ A blank token field preserves the previously saved token. Use the explicit **Cle
 - Only authenticated super-admin endpoints can read or change these settings.
 - Tokens are stored in the application's settings database and are never included in API responses, audit text, or application error messages.
 - Test delivery sends a fixed FoodFlow verification message to the configured Chat ID. It does not accept arbitrary text or a caller-supplied Telegram API URL.
-- Disabling a profile stops the test endpoint from sending messages. It does not delete the saved token or Chat ID.
-- These settings establish the two Bot identities and validate outbound delivery. Business-event routing (for example, order-created, payment-confirmed, or customer order-status notifications) must be connected to the relevant event handlers separately; this change does not silently send business data to Telegram.
+- Disabling a profile stops delivery for that profile without deleting its saved token or Chat ID.
+- Business notifications are delivered from a durable database outbox. Telegram network calls happen after the order/payment/refund transaction commits; retryable failures do not roll back business transactions.
+- The worker is disabled by default. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` only after webhook setup and staging verification. The worker uses one in-flight send at a time and stops before the database pool during graceful shutdown.
+- Admin notifications use the global super-admin Bot and are not merchant-owned/store-isolated. Do not treat this profile as a per-merchant Bot.
+- The Admin Bot is currently a global super-admin recipient. When enabled, the feature branch queues new-order, settlement, confirmed-payment, and refund events for that global admin recipient. The Client Bot's configured Chat ID is used only for its test message; private customer notices are routed only to a customer's own Telegram chat after the binding flow below.
 
 Keep Bot tokens private. If a token is exposed, revoke it with @BotFather and replace it in the super-admin console.
+
+
+## Private customer binding (feature branch)
+
+Customer notifications never use the Client Bot's shared configured Chat ID. Each customer must bind their current FoodFlow customer token to a private Telegram chat:
+
+1. Enable the Client Bot and save its BotFather token in **Global settings → Telegram Bot**. The Chat ID field is retained for the fixed test-message feature only.
+2. Generate a strong webhook secret (at least 32 characters), for example:
+   ```sh
+   openssl rand -hex 32
+   ```
+3. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` in the FoodFlow environment to that secret and restart the application.
+4. Register the webhook with Telegram. Set `FOODFLOW_PUBLIC_URL` to the public HTTPS origin and `CLIENT_BOT_TOKEN` to the Client Bot token in a protected shell environment:
+   ```sh
+   curl --fail --silent --show-error -X POST \
+     "https://api.telegram.org/bot${CLIENT_BOT_TOKEN}/setWebhook" \
+     --data-urlencode "url=${FOODFLOW_PUBLIC_URL}/api/telegram/client/webhook" \
+     --data-urlencode "secret_token=${TELEGRAM_CLIENT_WEBHOOK_SECRET}"
+   ```
+5. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` after staging verification. It defaults to `false`.
+6. A customer scans a table QR code, taps the Telegram icon in the customer page header, and opens the generated private deep link. They must press **Start** in Telegram. Returning to FoodFlow refreshes the binding state; the same control can revoke the binding.
+
+Binding details:
+- A one-time random challenge is stored only as a SHA-256 hash and expires after 10 minutes.
+- The webhook accepts only authenticated private-chat `/start` updates. Telegram `update_id` values are persisted to reject replayed updates.
+- A Telegram chat can be bound to one customer token per store. The same private chat may be used for another store's separate customer token.
+- Revocation is authenticated with the current customer token and scan-session headers.
+- Customer notification recipients are resolved by binding ID plus exact merchant/store IDs. Inactive, revoked, missing, or cross-store bindings fail closed.
+- The existing shared Client Bot Chat ID is never used for per-customer order details.
+
+## Delivery and limitations
+
+- Current event hooks include order creation, admin/cashier settlement, actual KHQR/manual payment confirmation, and successful refunds. A waiter request to confirm KHQR is not treated as a successful payment.
+- Admin Bot delivery is global super-admin scope. Per-merchant/store-owned admin Bot settings and per-event toggles are not implemented yet.
+- Delivery is at-least-once. A crash after Telegram accepts a message but before the database acknowledgement may result in a duplicate after lease recovery.
+- Failed tasks retry with bounded backoff and eventually enter the dead-letter state. Monitor `telegram_notification_outbox` for `state='dead'`.
+- Webhook update IDs are retained for 30 days; expired and consumed binding challenges are cleaned during new challenge creation.
+- The full client/merchant notification workflow still requires staging end-to-end tests before production enablement.
