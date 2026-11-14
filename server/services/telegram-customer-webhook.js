@@ -46,6 +46,13 @@ function createTelegramCustomerWebhookHandler({
         }
 
         if (update.action === 'stop') {
+          // Revoke consent permanently for already queued notices too. Without
+          // this transition, a later /start could reactivate the same binding
+          // row before the worker sees it and release pre-opt-out messages.
+          await runAsync(
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (SELECT CONCAT('binding:', id) FROM telegram_customer_bindings WHERE telegram_chat_id=? AND telegram_user_id=? AND is_active=1)",
+            [update.telegramChatId, update.telegramUserId]
+          );
           const revoked = await runAsync(
             'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE telegram_chat_id=? AND telegram_user_id=? AND is_active=1',
             [update.telegramChatId, update.telegramUserId]
