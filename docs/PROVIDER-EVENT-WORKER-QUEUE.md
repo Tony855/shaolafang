@@ -21,6 +21,15 @@ The provider adapter must authenticate the exact raw callback bytes first, then 
 
 This queue is an infrastructure primitive. It does not change order state or create journal entries by itself. A future provider-specific processor must atomically lock and validate the target order, apply a permitted state transition, post the balanced journal entry, and mark the inbox event processed. If any step fails, the whole business transaction must roll back and the queue must be retried using the current lease.
 
-## Deployment note
+## Queue indexes and deployment note
 
-Startup performs additive, idempotent column migrations for installations that already created the original inbox table. Roll out to staging first, inspect query plans and lease behavior under multiple workers, and validate backup/restore after the new columns are present.
+Startup performs additive, idempotent column and index migrations for installations that already created the original inbox table:
+
+- `idx_provider_event_claim_received` supports the verified/received due-work path ordered by `next_attempt_at`, `received_at`, and `id`.
+- `idx_provider_event_claim_lease` supports expired-lease recovery and final-attempt lease cleanup.
+
+The migration validates existing index definitions and fails closed rather than silently accepting a same-name index with a different column order. The indexes are intended to reduce queue scans; actual optimizer selection and write overhead still require EXPLAIN and representative-volume measurements on the target MySQL/MariaDB versions.
+
+**Important implementation boundary:** the repository currently contains the inbox persistence helper and queue primitive, but does not yet wire a public provider callback route or a continuously running provider-event worker into the application lifecycle. These helpers are not an active payment-processing path. Do not advertise webhook settlement as operational or enable live provider callbacks until the provider-specific intake, worker, order transition, journal posting, and staging acceptance gates are implemented.
+
+Roll out schema changes to staging first, inspect query plans and lease behavior under multiple workers, and validate backup/restore after the new columns and indexes are present.
