@@ -226,6 +226,11 @@ module.exports = function(app, deps) {
   app.post('/api/public/customer-telegram/binding/start', async (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, private');
+      const retryAfter = await consumeScanSessionRateLimit(req);
+      if (retryAfter > 0) {
+        res.setHeader('Retry-After', String(retryAfter));
+        return res.status(429).json({ error: '请求过于频繁，请稍后重试' });
+      }
       const customerToken = getCustomerToken(req);
       const sessionToken = getSessionToken(req);
       if (!customerToken || customerToken.length > 128 || !sessionToken || sessionToken.length > 256) {
