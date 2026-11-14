@@ -667,6 +667,9 @@ test('public order lookup never returns scan or customer bearer tokens', async (
 test('public QR scan credentials are never cacheable', async () => {
   const { app, routes } = routeHarness();
   registerPublicSession(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    formatOrder: row => row,
     getAsync: async sql => {
       if (sql.includes('FROM tables WHERE qr_token')) return { name: 'A1', store_id: 7 };
       if (sql.includes('FROM stores')) return { id: 7 };
@@ -922,6 +925,9 @@ test('customer Telegram binding start uses only header bearer tokens and stores 
   process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = 'telegram-webhook-secret-for-tests';
   global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { username: 'FoodFlowClientBot' } }) });
   registerPublicSession(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    formatOrder: row => row,
     getAsync: async sql => {
       if (sql.includes('FROM scan_sessions')) return { store_id: 9, expires_at: new Date(Date.now() + 60000).toISOString() };
       if (sql.includes('JOIN merchants')) return { id: 9, merchant_id: 7 };
@@ -950,6 +956,9 @@ test('customer Telegram binding revoke is scoped to the hashed customer token an
   const { app, routes } = routeHarness();
   let update;
   registerPublicSession(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    formatOrder: row => row,
     getAsync: async sql => {
       if (sql.includes('FROM scan_sessions')) return { store_id: 9, expires_at: new Date(Date.now() + 60000).toISOString() };
       if (sql.includes('FROM stores')) return { merchant_id: 7 };
