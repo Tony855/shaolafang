@@ -178,8 +178,12 @@ backup_nginx_config() {
     local path
     for path in "${NGINX_BACKUP_PATHS[@]}"; do
         if [ -e "$path" ] || [ -L "$path" ]; then
-            mkdir -p "$NGINX_BACKUP_DIR$(dirname "$path")"
-            cp -a "$path" "$NGINX_BACKUP_DIR$path"
+            if ! mkdir -p "$NGINX_BACKUP_DIR$(dirname "$path")" || ! cp -a "$path" "$NGINX_BACKUP_DIR$path"; then
+                log_error "无法备份现有 Nginx 配置：$path，拒绝修改当前配置。"
+                rm -rf "$NGINX_BACKUP_DIR"
+                NGINX_BACKUP_DIR=""
+                return 1
+            fi
         fi
     done
 }
