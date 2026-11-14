@@ -118,6 +118,22 @@ start_nginx() {
     log_success "Nginx 已启动"
 }
 
+stop_nginx_for_port_80() {
+    local was_active=0
+    if systemctl is-active --quiet nginx; then
+        was_active=1
+    fi
+    systemctl stop nginx 2>/dev/null || true
+    if ! check_port_available 80; then
+        log_error "80 端口仍被其他进程占用，停止继续配置。"
+        if [ "$was_active" -eq 1 ]; then
+            log_warn "尝试恢复配置前的 Nginx 服务状态..."
+            start_nginx || log_error "Nginx 恢复失败，请检查 journalctl -u nginx。"
+        fi
+        return 1
+    fi
+}
+
 # ===== 1. 检查并安装 Nginx =====
 log_info "检查 Nginx..."
 if ! command_exists nginx; then
@@ -170,8 +186,9 @@ fi
 # ===== 4. 释放 80 端口 =====
 echo ""
 log_info "检查 80 端口是否可用..."
-systemctl stop nginx 2>/dev/null || true
-check_port_available 80
+if ! stop_nginx_for_port_80; then
+    exit 1
+fi
 log_success "80 端口可用"
 
 # ===== 5. 配置 Nginx HTTP =====
@@ -246,8 +263,9 @@ if [ -n "$DOMAIN" ] && command_exists certbot; then
         log_success "SSL 证书安装成功，已启用 HTTPS"
     else
         log_warn "Nginx 插件模式申请失败，尝试 standalone 模式..."
-        systemctl stop nginx
-        check_port_available 80
+        if ! stop_nginx_for_port_80; then
+            exit 1
+        fi
         if certbot certonly --standalone -d "$DOMAIN" --non-interactive --agree-tos "${CERTBOT_EMAIL_ARGS[@]}" 2>&1; then
             log_success "证书获取成功，重新配置 Nginx..."
 
