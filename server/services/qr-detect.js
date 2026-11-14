@@ -45,7 +45,7 @@ async function parseAnyQR(buffer) {
   try {
     khqr = parseStaticPayload(payload);
   } catch (e) {
-    throw new Error('二维码既不是 KHQR 也不是 VietQR：' + e.message);
+    throw Object.assign(new Error('二维码既不是 KHQR 也不是 VietQR'), { status: 400 });
   }
 
   return {
