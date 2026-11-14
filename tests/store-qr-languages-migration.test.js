@@ -9,6 +9,8 @@ test('adds stores.qr_languages when the column is missing', async () => {
   const result = await ensureStoreQrLanguagesSchema({
     allAsync: async (sql, params) => {
       calls.push({ type: 'check', sql, params });
+      assert.match(sql, /information_schema\.COLUMNS/);
+      assert.deepEqual(params, ['qr_languages']);
       return [];
     },
     runAsync: async (sql, params) => {
