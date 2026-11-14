@@ -294,6 +294,10 @@ log_success ".env 配置文件已生成"
 
 BACKEND_PORT="$(sed -n 's/^PORT=//p' "$ENV_FILE" | tail -n 1)"
 BACKEND_PORT="${BACKEND_PORT:-3000}"
+if [ "$BACKEND_PORT" = "80" ] || [ "$BACKEND_PORT" = "443" ]; then
+    log_error "后端 PORT 不能使用 80/443，请改为 3000 或其他非保留端口。"
+    exit 1
+fi
 if ! [[ "$BACKEND_PORT" =~ ^[0-9]{1,5}$ ]] || [ "$BACKEND_PORT" -lt 1 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
     log_error "应用端口配置无效，拒绝继续安装。"
     exit 1
