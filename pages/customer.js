@@ -182,6 +182,50 @@
         const langBtn = $('#langBtn');
         const langMenu = $('#langMenu');
         const storeNameDisplay = $('#storeNameDisplay');
+        const customerTelegramBtn = $('#customerTelegramBtn');
+        let customerTelegramBound = false;
+
+        async function refreshCustomerTelegramBinding() {
+            if (!customerTelegramBtn) return;
+            const eligible = isScanSessionValid() && Boolean(state.customerToken);
+            customerTelegramBtn.hidden = !eligible;
+            if (!eligible) { customerTelegramBound = false; return; }
+            try {
+                const data = await SLF.api.get('/public/customer-telegram/binding', { headers: {
+                    'X-Scan-Session': state.scanSessionToken,
+                    'X-Customer-Token': state.customerToken
+                } });
+                customerTelegramBound = data.bound === true;
+                customerTelegramBtn.title = customerTelegramBound ? '取消 Telegram 顾客通知绑定' : '绑定 Telegram 顾客通知';
+                customerTelegramBtn.setAttribute('aria-label', customerTelegramBtn.title);
+            } catch (_) {
+                customerTelegramBtn.title = 'Telegram 通知暂不可用';
+            }
+        }
+
+        if (customerTelegramBtn) {
+            customerTelegramBtn.addEventListener('click', async () => {
+                if (!isScanSessionValid() || !state.customerToken) return SLF.ui.toast('请先扫描桌面二维码', 2500);
+                try {
+                    await refreshCustomerTelegramBinding();
+                    const headers = { 'X-Scan-Session': state.scanSessionToken, 'X-Customer-Token': state.customerToken };
+                    if (customerTelegramBound) {
+                        await SLF.api.del('/public/customer-telegram/binding', { headers });
+                        customerTelegramBound = false;
+                        customerTelegramBtn.title = '绑定 Telegram 顾客通知';
+                        SLF.ui.toast('Telegram 顾客通知已解除绑定', 3000);
+                    } else {
+                        const result = await SLF.api.post('/public/customer-telegram/binding/start', {}, { headers });
+                        if (!result.deepLink) throw new Error('无法生成 Telegram 绑定链接');
+                        window.open(result.deepLink, '_blank', 'noopener,noreferrer');
+                        SLF.ui.toast('请在 Telegram 中点击 Start 完成绑定，然后返回本页面', 5000);
+                    }
+                } catch (error) {
+                    SLF.ui.toast(error?.message || 'Telegram 绑定操作失败，请稍后重试', 3500);
+                }
+            });
+            window.addEventListener('focus', () => refreshCustomerTelegramBinding());
+        }
 
         // ============================================================
         // 滚动锁定
@@ -422,6 +466,7 @@
                 tableInfo.title = state.table ? `${t('table', null, '桌号')}: ${state.table}` : t('scanToBind', null, '请扫描桌面二维码绑定桌号');
                 document.getElementById('customerOrderBtn').hidden = !isScanSessionValid();
                 document.getElementById('callWaiterBtn').hidden = !isScanSessionValid();
+                await refreshCustomerTelegramBinding();
                 updateUI();
                 return menuAlreadyFetched;
             } catch (e) {
@@ -438,6 +483,7 @@
                 tableInfo.title = t('scanToBind', null, '请扫描桌面二维码绑定桌号');
                 document.getElementById('customerOrderBtn').hidden = true;
                 document.getElementById('callWaiterBtn').hidden = true;
+                if (customerTelegramBtn) customerTelegramBtn.hidden = true;
                 try {
                     const url = new URL(window.location.href);
                     url.searchParams.delete('token');
