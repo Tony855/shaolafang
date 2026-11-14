@@ -23,7 +23,7 @@ A blank token field preserves the previously saved token. Use the explicit **Cle
 - Only authenticated super-admin endpoints can read or change these settings.
 - Tokens are stored in the application's settings database and are never included in API responses, audit text, or application error messages.
 - Test delivery sends a fixed FoodFlow verification message to the configured Chat ID. It does not accept arbitrary text or a caller-supplied Telegram API URL.
-- Disabling a profile stops delivery for that profile without deleting its saved token or Chat ID.
+- Disabling a profile stops delivery for that profile without deleting its saved token or Chat ID. Already queued notices for a globally disabled Bot are terminally suppressed as `event_disabled`; re-enabling the Bot does not release that backlog.
 - Business notifications are delivered from a durable database outbox. Telegram network calls happen after the order/payment/refund transaction commits; retryable failures do not roll back business transactions.
 - The worker is disabled by default. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` only after webhook setup and staging verification. The worker uses one in-flight send at a time and stops before the database pool during graceful shutdown.
 - The Admin Bot token is global. Its configured Chat ID is the global super-admin recipient; store-admin notifications use the same Bot token but route to each store's separately configured Chat ID. A store recipient is scoped to its exact active merchant/store and does not receive another store's events.
