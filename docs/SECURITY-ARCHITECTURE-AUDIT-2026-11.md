@@ -19,10 +19,10 @@
 | Nginx 上传上限低于应用限制 | main 所有部署模板已统一 105M | 仍需在目标反向代理链路测试大文件上传 |
 | 认证/上传错误日志暴露 | PR #268 已合并到 main；认证、KHQR、ZIP 导入/导出日志脱敏、QR 4xx 分类、集群 Nginx 安全日志及回归测试均已纳入 | 仍需生产日志抽查与安全事件响应演练 |
 | Telegram Bot Token 静态存储 | 当前 settings 表和备份保留 Bot Token 明文；API/UI 只做显示脱敏 | 已在 Telegram 运维文档明确披露；应用级加密、密钥轮换和旧值迁移仍是 P2 加固项 |
-| Telegram 通知队列停用语义 | PR #266 已实现全局 Bot、门店及单事件停用时的事务性 dead-letter 清理，并补齐并发锁顺序 | 同步 main 后的新 head CI/安装检查待完成；真实 Telegram 双 Bot、多门店与备份恢复验收未完成 |
+| Telegram 通知队列停用语义 | PR #266 已实现全局 Bot、门店及单事件停用时的事务性 dead-letter 清理，并补齐并发锁顺序 | 最新同步 head 的 CI/安装矩阵已通过；真实 Telegram 双 Bot、多门店与备份恢复验收未完成 |
 | 大型单体路由/页面 | 仍是架构改进项，不是已确认可利用漏洞 | 应以小步拆分和集成测试推进 |
 
-**当前 GitHub 状态（2026-11-15）：** PR #267 与 PR #268 均已合并；PR #266 仍为 Draft。PR #268 合并提交为 `c8cc929`。PR #266 已同步 main，最新 head `0c83adc7d9c615d51c7e86980e0e8318629b90b2` 的 CI（validate、MySQL 8.4、MariaDB 10.11/11.4/11.8/12.3）与五个安装目标全部通过。PR #266 仍需要真实 Telegram staging、多门店隔离和备份恢复验收。
+**当前 GitHub 状态（2026-11-15）：** PR #267、#268、#269 均已合并；PR #266 仍为 Draft。PR #268 合并提交为 `c8cc929`，PR #269 合并提交为 `3066383`。PR #266 最新 head `76a91adfefd178d8d927c4fac3e41f37238cccd9` 已同步当时 main，compare 0 behind，CI 与五个安装目标全部通过；PR #269 随后合并，PR #266 需要再同步一次并重新验证。PR #266 仍需要真实 Telegram staging、多门店隔离和备份恢复验收。
 
 **分支保护：** 当前 GitHub API 未返回 main 的保护规则，仓库 Rulesets 列表为空。此项需要仓库管理员在 GitHub 设置中启用，不能由应用代码或本次 CI 自动替代。
 
@@ -165,3 +165,13 @@
 PR #266 已同步 PR #268 合并后的 main，最新 head 为 `0c83adc7d9c615d51c7e86980e0e8318629b90b2`。同步后的最新 head `0c83adc7d9c615d51c7e86980e0e8318629b90b2` 的 CI 与安装兼容性矩阵均已通过。
 
 **尚未完成：** 真实 Client/Admin Bot 投递、跨门店 Chat ID 隔离、QR 重扫重绑、备份恢复后绑定失效/重新绑定、worker 重启与租约恢复 soak、部署 webhook secret 与 worker flag 的现场核验。生产 worker 必须保持关闭，直至验收通过。
+
+
+### [P1 - 残余日志数据泄露] QR 打印异常与订单明细
+
+**处理分支：** [PR #269](https://github.com/Tony855/shaolafang/pull/269)，已于 2026-11-15 合并至 main，merge commit `30663837cb7fdc62f1247fcc1ebf8eaa98148e77`。
+
+- QR 打印异常日志改用 `safeErrorMetadata`，不再记录原始异常消息/堆栈。
+- 订单 items JSON 解析失败时不再把原始订单明细写入日志（其中可能包含顾客电话、备注和商品信息）；只记录有限的订单编号。
+- 将订单服务的 DB helper 改为按需加载，避免纯格式化逻辑在测试/工具导入时触发数据库配置退出；同时修复旧密码重哈希路径缺少 `runAsync` 引用的问题。
+- 最新 head `20e619ae80cbcd6565bbc3dfda23b1dd62471aad` 的 validate、MySQL 8.4、MariaDB 10.11/11.4/11.8/12.3 和五个安装目标全部通过。
