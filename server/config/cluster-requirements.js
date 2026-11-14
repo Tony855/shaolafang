@@ -34,7 +34,7 @@ function getClusterStartupError({
   const proxyEntries = typeof trustProxy === 'string'
     ? trustProxy.split(',').map(value => value.trim().toLowerCase()).filter(Boolean)
     : [];
-  const unsafeProxyEntries = new Set(['loopback', 'linklocal', 'uniquelocal', 'true', '*', '0.0.0.0/0', '::/0']);
+  const unsafeProxyEntries = new Set(['loopback', 'linklocal', 'uniquelocal', 'true', '*', '0.0.0.0/0', '::/0', '192.168.1.10/32']);
   if (!proxyEntries.length || proxyEntries.some(value =>
     unsafeProxyEntries.has(value) || !isExplicitProxyEntry(value)
   )) {
