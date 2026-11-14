@@ -51,9 +51,9 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
 
   const first = await enqueueTelegramNotification(input);
   const duplicate = await enqueueTelegramNotification(input);
-  assert.equal(first.inserted, true);
-  assert.equal(duplicate.inserted, false);
+  assert.equal(first.id > 0, true);
   assert.equal(duplicate.id, first.id);
+  assert.equal(Number((await getAsync('SELECT COUNT(*) AS total FROM telegram_notification_outbox WHERE event_key=?', [key])).total), 1);
   const stored = await getAsync('SELECT payload_json,state,attempts FROM telegram_notification_outbox WHERE id=?', [first.id]);
   assert.equal(String(stored.payload_json).includes('must-not-persist'), false);
 
