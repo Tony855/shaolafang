@@ -2,7 +2,9 @@
 
 async function enqueueSystemAdminTelegramNotification({ getAsync, eventKey, event, enqueue } = {}) {
   if (typeof getAsync !== 'function') throw new TypeError('getAsync is required');
-  const setting = await getAsync("SELECT value FROM settings WHERE `key`=?", ['telegram_admin_bot_enabled']);
+  // Lock the setting row so a concurrent Bot-disable transaction either sees
+  // this enqueue and dead-letters it, or commits first and prevents the enqueue.
+  const setting = await getAsync("SELECT value FROM settings WHERE `key`=? FOR UPDATE", ['telegram_admin_bot_enabled']);
   if (String(setting?.value || '') !== '1') return false;
   const enqueueNotification = enqueue || require('./telegram-notification-outbox').enqueueTelegramNotification;
   await enqueueNotification({
@@ -14,17 +16,23 @@ async function enqueueSystemAdminTelegramNotification({ getAsync, eventKey, even
   return true;
 }
 
-
 async function enqueueCustomerTelegramNotification({ allAsync, customerTokenHash, merchantId, storeId, eventKey, event, enqueue } = {}) {
   if (typeof allAsync !== 'function') throw new TypeError('allAsync is required');
   if (typeof customerTokenHash !== 'string' || !/^[a-f0-9]{64}$/.test(customerTokenHash)) return false;
   const merchant = Number(merchantId);
   const store = Number(storeId);
   if (!Number.isSafeInteger(merchant) || merchant <= 0 || !Number.isSafeInteger(store) || store <= 0) return false;
-  const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key`=?', ['telegram_client_bot_enabled']);
+
+  // Use one stable lock order (global setting -> merchant -> store -> binding
+  // -> outbox) shared with the settings/suspension/revocation transactions.
+  const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key`=? FOR UPDATE', ['telegram_client_bot_enabled']);
   if (!Array.isArray(settings) || settings[0]?.value !== '1') return false;
+  const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchant]);
+  if (!Array.isArray(merchants) || !merchants.length) return false;
+  const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
+  if (!Array.isArray(stores) || !stores.length) return false;
   const bindings = await allAsync(
-    'SELECT b.id FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id WHERE b.customer_token_hash=? AND b.merchant_id=? AND b.store_id=? AND b.is_active=1 AND b.revoked_at IS NULL AND s.active=1 AND m.status=1 LIMIT 1',
+    'SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL LIMIT 1 FOR UPDATE',
     [customerTokenHash, merchant, store]
   );
   if (!Array.isArray(bindings) || !bindings.length) return false;
@@ -48,10 +56,17 @@ async function enqueueStoreAdminTelegramNotification({ allAsync, merchantId, sto
   const toggleByEvent = { 'order.created': 'notify_order_created', 'order.settled': 'notify_settled', 'order.refunded': 'notify_refunded' };
   const toggle = toggleByEvent[event?.type];
   if (!toggle) return false;
-  const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key`=?', ['telegram_admin_bot_enabled']);
+
+  // Lock the same setting/tenant/recipient rows that the disable route updates.
+  // This prevents an enqueue racing past a disable-and-re-enable cycle.
+  const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key`=? FOR UPDATE', ['telegram_admin_bot_enabled']);
   if (!Array.isArray(settings) || settings[0]?.value !== '1') return false;
+  const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchant]);
+  if (!Array.isArray(merchants) || !merchants.length) return false;
+  const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
+  if (!Array.isArray(stores) || !stores.length) return false;
   const recipients = await allAsync(
-    `SELECT r.id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND r.is_enabled=1 AND r.${toggle}=1 AND s.active=1 AND m.status=1 LIMIT 1`,
+    `SELECT id FROM telegram_store_admin_recipients WHERE merchant_id=? AND store_id=? AND is_enabled=1 AND ${toggle}=1 LIMIT 1 FOR UPDATE`,
     [merchant, store]
   );
   if (!Array.isArray(recipients) || !recipients.length) return false;
