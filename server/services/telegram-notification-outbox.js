@@ -10,7 +10,7 @@ async function enqueueTelegramNotification(input) {
     'INSERT INTO telegram_notification_outbox (event_key, event_type, merchant_id, store_id, recipient_scope, recipient_key, payload_json, state, attempts, available_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, \'pending\', 0, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',
     [row.eventKey, row.eventType, row.merchantId, row.storeId, row.recipientScope, row.recipientKey, row.payloadJson]
   );
-  return { inserted: Number(result.affectedRows) === 1, id: Number(result.insertId) || null };
+  return { id: Number(result.insertId) || null };
 }
 
 async function claimTelegramNotifications({ workerId = randomUUID(), limit = 10, leaseSeconds = 60 } = {}) {
