@@ -42,7 +42,7 @@ async function markTelegramNotificationDelivered(id, workerId) {
   return Number(result.affectedRows) === 1;
 }
 
-async function releaseTelegramNotificationForRetry(id, workerId, errorCode, attempt) {
+async function releaseTelegramNotificationForRetry(id, workerId, errorCode, attempt, retryAfterSeconds = 0) {
   const safeCode = SAFE_ERROR_CODES.has(errorCode) ? errorCode : 'unknown';
   const taskId = positiveId(id, '通知任务编号');
   if (!Number.isInteger(attempt) || attempt < 1 || attempt > 8) throw new TypeError('重试次数无效');
@@ -60,7 +60,7 @@ async function releaseTelegramNotificationForRetry(id, workerId, errorCode, atte
     );
     return Number(result.affectedRows) === 1;
   }
-  const delay = retryDelaySeconds(attempt);
+  const delay = retryDelaySeconds(attempt, Number.isInteger(retryAfterSeconds) && retryAfterSeconds > 0 ? Math.min(retryAfterSeconds, 3600) : 0);
   const result = await runAsync(
     'UPDATE telegram_notification_outbox SET state=\'pending\', available_at=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? SECOND), locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)',
     [delay, safeCode, taskId, workerId]
