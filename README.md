@@ -345,6 +345,7 @@ nano .env
 
 ```dotenv
 PORT=3000
+HOST=127.0.0.1
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=foodflow_system
@@ -700,6 +701,7 @@ nc -zv 192.168.1.100 9100
 | `UPLOAD_DIR` | 上传文件目录 | `./uploads` |
 | `RUN_SCHEDULED_TASKS` | 是否运行本节点定时任务 | `true` |
 | `CORS_ORIGINS` | 允许的跨域来源，逗号分隔 | 空值表示不额外开放跨域来源 |
+| `HOST` | Node.js 监听地址；单机默认 `127.0.0.1`，集群设置为私网接口地址或 `0.0.0.0` 并限制防火墙来源 | `127.0.0.1` |
 | `TRUST_PROXY` | 可信反向代理配置 | `loopback` |
 
 代码还支持数据库连接池等部署相关配置；集群模式请以对应的 `.env.example` 为准。
