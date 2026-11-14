@@ -11,6 +11,74 @@ set -Ee
 export DEBIAN_FRONTEND=noninteractive
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 支持直接运行从 raw.githubusercontent.com 下载的单文件入口：
+# 如果安装脚本不在完整仓库内，先下载完整源码包，再从完整目录重新启动。
+# 注意：这里下载的是 GitHub 仓库归档，不是 blob 网页，也不是单独的 install.sh。
+if [ ! -f "$SCRIPT_DIR/scripts/lib/system-deps.sh" ] || [ ! -f "$SCRIPT_DIR/scripts/lib/deploy-safety.sh" ]; then
+    if [ "${FF_INSTALLER_BOOTSTRAPPED:-0}" = "1" ]; then
+        echo "[ERROR] 安装包解压后仍缺少必要文件，请检查 GitHub 仓库归档。" >&2
+        exit 1
+    fi
+
+    BOOTSTRAP_VERSION="${GIT_VERSION:-main}"
+    case "$BOOTSTRAP_VERSION" in
+        ""|*..*|*[!A-Za-z0-9._/-]*)
+            echo "[ERROR] 无效的 GIT_VERSION：$BOOTSTRAP_VERSION" >&2
+            exit 1
+            ;;
+    esac
+
+    if ! command -v tar >/dev/null 2>&1; then
+        echo "[ERROR] 系统缺少 tar，无法解压完整安装包。" >&2
+        exit 1
+    fi
+
+    BOOTSTRAP_DIR="$(mktemp -d /tmp/foodflow-bootstrap.XXXXXX)"
+    BOOTSTRAP_ARCHIVE="$BOOTSTRAP_DIR/shaolafang.tar.gz"
+    BOOTSTRAP_REPO="$BOOTSTRAP_DIR/repo"
+    mkdir -p "$BOOTSTRAP_REPO"
+
+    BOOTSTRAP_URL="https://github.com/Tony855/shaolafang/archive/refs/heads/$BOOTSTRAP_VERSION.tar.gz"
+    if command -v curl >/dev/null 2>&1; then
+        if ! curl --fail --location --silent --show-error --retry 3 --connect-timeout 15 \
+            "$BOOTSTRAP_URL" --output "$BOOTSTRAP_ARCHIVE"; then
+            rm -rf "$BOOTSTRAP_DIR"
+            echo "[ERROR] 无法下载 Shaolafang 完整源码包：$BOOTSTRAP_URL" >&2
+            exit 1
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if ! wget --quiet --tries=3 --timeout=15 --output-document="$BOOTSTRAP_ARCHIVE" "$BOOTSTRAP_URL"; then
+            rm -rf "$BOOTSTRAP_DIR"
+            echo "[ERROR] 无法下载 Shaolafang 完整源码包：$BOOTSTRAP_URL" >&2
+            exit 1
+        fi
+    else
+        rm -rf "$BOOTSTRAP_DIR"
+        echo "[ERROR] 缺少 curl/wget，无法获取完整安装包。请先安装其中一个工具。" >&2
+        exit 1
+    fi
+
+    if ! tar -xzf "$BOOTSTRAP_ARCHIVE" --strip-components=1 -C "$BOOTSTRAP_REPO" \
+        || [ ! -f "$BOOTSTRAP_REPO/install.sh" ] \
+        || [ ! -f "$BOOTSTRAP_REPO/scripts/lib/system-deps.sh" ] \
+        || [ ! -f "$BOOTSTRAP_REPO/scripts/lib/deploy-safety.sh" ]; then
+        rm -rf "$BOOTSTRAP_DIR"
+        echo "[ERROR] 下载的仓库归档不完整，缺少安装入口或必要依赖文件。" >&2
+        exit 1
+    fi
+
+    echo "[INFO] 已获取完整 Shaolafang 安装包，正在从仓库目录重新启动安装程序..."
+    if FF_INSTALLER_BOOTSTRAPPED=1 GIT_VERSION="$BOOTSTRAP_VERSION" bash "$BOOTSTRAP_REPO/install.sh" "$@"; then
+        BOOTSTRAP_STATUS=0
+    else
+        BOOTSTRAP_STATUS=$?
+    fi
+    rm -rf "$BOOTSTRAP_DIR"
+    exit "$BOOTSTRAP_STATUS"
+fi
+
+# 仅在确认完整仓库文件存在后加载公共安装库。
 # shellcheck source=scripts/lib/system-deps.sh
 source "$SCRIPT_DIR/scripts/lib/system-deps.sh"
 # shellcheck source=scripts/lib/deploy-safety.sh
