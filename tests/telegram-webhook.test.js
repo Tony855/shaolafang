@@ -30,5 +30,6 @@ test('Telegram binding accepts /stop only from a real private user chat', () => 
   assert.deepEqual(parseTelegramPrivateUpdate(update), { action: 'stop', updateId: 124, telegramUserId: '98765', telegramChatId: '98765' });
   assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, chat: { id: -100, type: 'group' } } }), null);
   assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, from: { id: 98765, is_bot: true } } }), null);
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, chat: { id: 98766, type: 'private' } } }), null);
   assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, text: '/stop now' } }), null);
 });
