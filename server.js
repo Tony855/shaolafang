@@ -1,4 +1,5 @@
 const express = require('express');
+const { resolveListenHost } = require('./server/config/listen-host');
 const { createRequestBodyParsers } = require('./server/middleware/request-body-parsers');
 const { safeErrorMetadata } = require('./server/middleware/safe-error-metadata');
 // ★ 关键：pool / helpers / constants 必须在文件顶部 require（TDZ 问题）
@@ -83,6 +84,7 @@ const io = new Server(server, {
 });
 
 const PORT = Number(process.env.PORT || 3000);
+const LISTEN_HOST = resolveListenHost(process.env.HOST);
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
 const RUN_SCHEDULED_TASKS = process.env.RUN_SCHEDULED_TASKS === 'true';
@@ -1552,7 +1554,7 @@ initDatabase().then(async () => {
   }
   await initRedis();
   await initSocketAdapter();
-  server.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, LISTEN_HOST, () => {
     console.log(`📁 数据库: MySQL (${poolConfig.database})`);
     if (RUN_SCHEDULED_TASKS) {
       console.log('⏰ 定时任务已启用（自动备份、日志清理）');
