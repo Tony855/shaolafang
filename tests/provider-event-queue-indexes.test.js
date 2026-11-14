@@ -7,7 +7,7 @@ const {
   INDEXES
 } = require('../server/db/migrations/provider-event-queue-indexes');
 
-function fakeDatabase({ columns, indexes = [] }) {
+function fakeDatabase({ columns, indexes = [], duplicateOnCreate = false }) {
   const calls = [];
   const currentIndexes = indexes.map(index => ({ ...index }));
   return {
@@ -27,6 +27,12 @@ function fakeDatabase({ columns, indexes = [] }) {
       match[2].split(', ').forEach((Column_name, index) => currentIndexes.push({
         Key_name: match[1], Seq_in_index: index + 1, Column_name
       }));
+      if (duplicateOnCreate) {
+        const error = new Error('Duplicate key name');
+        error.code = 'ER_DUP_KEYNAME';
+        error.errno = 1061;
+        throw error;
+      }
       return { affectedRows: 0 };
     }
   };
@@ -74,4 +80,12 @@ test('provider event queue index migration reports missing schema columns', asyn
     /missing queue index columns/
   );
   assert.equal(db.calls.filter(call => call.type === 'run').length, 0);
+});
+
+test('provider event queue index migration tolerates another instance creating the same index first', async () => {
+  const db = fakeDatabase({ columns: requiredColumns, duplicateOnCreate: true });
+  const result = await ensureProviderEventQueueIndexes(db);
+  assert.deepEqual(result, INDEXES.map(index => ({ created: false, indexName: index.name })));
+  assert.equal(db.calls.filter(call => call.type === 'run').length, INDEXES.length);
+  assert.equal(db.calls.filter(call => call.sql === 'SHOW INDEX FROM provider_webhook_events').length, INDEXES.length + 1);
 });
