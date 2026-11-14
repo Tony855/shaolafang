@@ -1,13 +1,13 @@
 # Telegram Business Notifications — Integration Map
 
-Status: safe transport, message formatting, startup schema migration, transactional outbox, lease/retry primitives, and a dependency-injected batch processor are present. MySQL/MariaDB integration coverage is being added and CI is running against MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3. Business event hooks, merchant/customer recipient resolvers, worker lifecycle, webhook binding, and staging delivery remain unimplemented. A fail-closed resolver for the existing global super-admin Bot is now implemented, but it is not wired into a running worker. No business notifications are active.
+Status: safe transport, message formatting, startup schema migration, transactional outbox, lease/retry primitives, and a dependency-injected batch processor are present. MySQL/MariaDB integration coverage is being added and CI is running against MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3. Business event hooks, merchant/customer recipient resolvers, webhook binding, merchant/customer routing, event hooks, and staging delivery remain unimplemented. A fail-closed resolver for the existing global super-admin Bot and an opt-in single-flight worker lifecycle are now implemented. The worker is disabled unless `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true`. No business notifications are active.
 
 ## Existing capability
 
 - `server/services/telegram-bot.js` validates Bot tokens/chat IDs and sends a fixed test message.
 - `routes/super.js` stores two global scopes (`client` and `admin`) in the shared `settings` table. The admin scope is not merchant-scoped.
 - The current client scope has one global chat ID. It cannot identify or safely route messages to individual customers.
-- The new branch adds a dedicated idempotent schema migration (`server/db/migrations/telegram-notification-outbox.js`), called from startup schema initialization, plus queue claim/ack/retry helpers and a batch processor. The processor requires a caller-supplied recipient resolver; a fail-closed resolver now exists only for the existing global admin Bot (`admin:primary`). It deliberately rejects customer and merchant/store scopes. No always-on worker is wired into application startup. Its default batch size is one because each Telegram request has a bounded 10-second timeout and must complete within its lease.
+- The new branch adds a dedicated idempotent schema migration (`server/db/migrations/telegram-notification-outbox.js`), called from startup schema initialization, plus queue claim/ack/retry helpers and a batch processor. The processor requires a caller-supplied recipient resolver; a fail-closed resolver now exists only for the existing global admin Bot (`admin:primary`). It deliberately rejects customer and merchant/store scopes. The worker runtime is wired into application startup only when `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true`; its default is off. Graceful shutdown stops the worker before closing MySQL. Its default batch size is one because each Telegram request has a bounded 10-second timeout and must complete within its lease.
 
 ## Verified business transaction boundaries
 
@@ -30,8 +30,8 @@ The waiter KHQR notification at `routes/admin-manage.js` around lines 987–1015
 - Added an InnoDB outbox table with a unique event key, tenant scope, recipient reference, attempt counter, lease, retry timestamp, delivered timestamp, and fixed error-code field.
 - Added `enqueueTelegramNotification`, which stores only a pre-rendered allowlisted message, so caller-provided customer tokens/notes are not copied into the outbox. It participates in the current `withTransaction` connection through `AsyncLocalStorage`.
 - Added a multi-worker `FOR UPDATE SKIP LOCKED` claim path, lease ownership and non-expired lease checks, bounded exponential retry, and dead-letter handling, including exhausted jobs left behind by a crashed worker.
-- Added a dependency-injected batch processor that checks resolved recipient scope and tenant IDs before sending. It is not scheduled or started by `server.js`; delivery cannot happen until a safe recipient resolver and lifecycle are implemented.
-- Added tests for outbox payload minimization, tenant scope validation, retry schedule, recipient ownership checks, safe error classification, and the global admin recipient resolver. The full validation job and the dedicated Telegram outbox integration test passed on commit `4f55ac1` against MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3. Subsequent recipient-resolver changes are undergoing another CI run.
+- Added a dependency-injected batch processor that checks resolved recipient scope and tenant IDs before sending. It is scheduled by `server.js` only when `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true`; it defaults off. The default resolver can only resolve the explicitly enabled global admin Bot.
+- Added tests for outbox payload minimization, tenant scope validation, retry schedule, recipient ownership checks, safe error classification, the global admin recipient resolver, single-flight worker behavior, and graceful shutdown ordering. The full validation job and the dedicated Telegram outbox integration test passed on commit `4f55ac1` against MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3. The recipient resolver and opt-in worker lifecycle changes are undergoing another CI run.
 
 ## Required design before enabling delivery
 
@@ -46,6 +46,7 @@ The waiter KHQR notification at `routes/admin-manage.js` around lines 987–1015
 
 ## Required tests
 
+- Added `tests/telegram-notification-recipient.test.js` and `tests/telegram-notification-worker-runtime.test.js`, plus graceful-shutdown ordering coverage. Latest run pending.
 - Added `tests/mysql-telegram-outbox-integration.test.js`: verifies repeatable schema creation, transaction rollback, idempotency, concurrent claim exclusion, lease-owner acknowledgement, expired-lease recovery, retry metadata, and batch delivery with a mocked Telegram sender. It passed on MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 in CI run `43580004571`.
 - Added unit tests for the system-admin recipient resolver; it is intentionally not allowed to resolve merchant or customer destinations.
 - Outbox insert participates in the caller transaction and disappears on rollback.
