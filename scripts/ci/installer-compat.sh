@@ -23,7 +23,7 @@ fi
 
 echo "[STEP] install distro service packages"
 apt-get update -qq
-ff_apt_install ca-certificates curl gnupg apt-transport-https nginx redis-server systemd systemd-sysv
+ff_apt_install ca-certificates curl gnupg dirmngr apt-transport-https nginx redis-server systemd systemd-sysv
 echo "[STEP] install maintained MariaDB LTS"
 ff_install_mariadb_server
 echo "[STEP] install Node.js 26 LTS"
