@@ -913,3 +913,56 @@ test('public table socket change payloads never contain another customer order d
     assert.equal(Object.hasOwn(payload, privateField), false, privateField);
   }
 });
+
+
+test('customer Telegram binding start uses only header bearer tokens and stores a hashed one-time challenge', async () => {
+  const { app, routes } = routeHarness();
+  const writes = [];
+  const oldFetch = global.fetch;
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = 'telegram-webhook-secret-for-tests';
+  global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { username: 'FoodFlowClientBot' } }) });
+  registerPublicSession(app, {
+    getAsync: async sql => {
+      if (sql.includes('FROM scan_sessions')) return { store_id: 9, expires_at: new Date(Date.now() + 60000).toISOString() };
+      if (sql.includes('JOIN merchants')) return { id: 9, merchant_id: 7 };
+      return null;
+    },
+    allAsync: async () => [{ key: 'telegram_client_bot_enabled', value: '1' }, { key: 'telegram_client_bot_token', value: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi' }],
+    runAsync: async (sql, params) => { writes.push({ sql, params }); return { affectedRows: 1 }; }
+  });
+  try {
+    const handler = routes.get('POST /api/public/customer-telegram/binding/start').at(-1);
+    const res = response();
+    await handler({ get: name => name === 'X-Customer-Token' ? 'customer-token' : name === 'X-Scan-Session' ? 'scan-session' : undefined }, res);
+    assert.equal(res.statusCode, 200);
+    assert.match(res.body.deepLink, /^https:\/\/t\.me\/FoodFlowClientBot\?start=[A-Za-z0-9_-]{43}$/);
+    const insert = writes.find(x => x.sql.includes('INSERT INTO telegram_customer_binding_challenges'));
+    assert.ok(insert);
+    assert.equal(insert.params[0].length, 64);
+    assert.equal(insert.params[1], hashSessionToken('customer-token'));
+    assert.equal(insert.params.includes('customer-token'), false);
+  } finally {
+    global.fetch = oldFetch;
+  }
+});
+
+test('customer Telegram binding revoke is scoped to the hashed customer token and active scan store', async () => {
+  const { app, routes } = routeHarness();
+  let update;
+  registerPublicSession(app, {
+    getAsync: async sql => {
+      if (sql.includes('FROM scan_sessions')) return { store_id: 9, expires_at: new Date(Date.now() + 60000).toISOString() };
+      if (sql.includes('FROM stores')) return { merchant_id: 7 };
+      return null;
+    },
+    allAsync: async () => [],
+    runAsync: async (sql, params) => { update = { sql, params }; return { affectedRows: 1 }; }
+  });
+  const handler = routes.get('DELETE /api/public/customer-telegram/binding').at(-1);
+  const res = response();
+  await handler({ get: name => name === 'X-Customer-Token' ? 'customer-token' : name === 'X-Scan-Session' ? 'scan-session' : undefined }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.revoked, true);
+  assert.match(update.sql, /customer_token_hash=\?/);
+  assert.deepEqual(update.params, [hashSessionToken('customer-token'), 7, 9]);
+});
