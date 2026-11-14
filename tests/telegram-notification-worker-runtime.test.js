@@ -16,6 +16,7 @@ test('Telegram worker runs one batch at a time and stops cleanly during an activ
     workerId,
     intervalMs: 250,
     resolveRecipient: async () => null,
+    cleanupHistory: async () => {},
     processBatch: async options => {
       calls++;
       assert.equal(options.limit, 1);
@@ -41,6 +42,7 @@ test('Telegram worker can stop during its idle poll delay without hanging', asyn
     workerId,
     intervalMs: 1000,
     resolveRecipient: async () => null,
+    cleanupHistory: async () => {},
     processBatch: async () => { called(); },
     logger: { error() {} }
   });
