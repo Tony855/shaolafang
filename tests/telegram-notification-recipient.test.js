@@ -23,7 +23,7 @@ test('system admin recipient resolver returns only the explicitly enabled global
 test('system admin recipient resolver fails closed for disabled or malformed configuration', async () => {
   const disabled = createTelegramNotificationRecipientResolver({ allAsync: async () => settings('0') });
   const malformed = createTelegramNotificationRecipientResolver({ allAsync: async () => settings('1', 'not-a-token') });
-  assert.equal(await disabled({ scope: 'system_admin', key: 'admin:primary' }), null);
+  assert.deepEqual(await disabled({ scope: 'system_admin', key: 'admin:primary' }), { scope: 'system_admin', merchantId: null, storeId: null, suppressed: true });
   assert.equal(await malformed({ scope: 'system_admin', key: 'admin:primary' }), null);
 });
 
@@ -56,7 +56,7 @@ test('merchant store recipient resolver fails closed for disabled Bot or missing
     ? [{ chat_id: '-1007654321', is_enabled: 1, event_enabled: 1 }]
     : [{ key: 'telegram_admin_bot_enabled', value: '0' }, { key: 'telegram_admin_bot_token', value: token }] });
   assert.equal(await missing({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' }), null);
-  assert.equal(await disabled({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' }), null);
+  assert.deepEqual(await disabled({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' }), { scope: 'merchant_store', merchantId: 7, storeId: 9, suppressed: true });
 });
 
 
@@ -108,6 +108,6 @@ test('customer recipient resolver fails closed when binding or client Bot is una
     await noBinding({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }),
     { scope: 'customer', merchantId: 7, storeId: 9, suppressed: true, suppressionCode: 'binding_revoked' }
   );
-  assert.equal(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }), null);
+  assert.deepEqual(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }), { scope: 'customer', merchantId: 7, storeId: 9, suppressed: true, suppressionCode: 'event_disabled' });
   assert.equal(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 8, storeId: 9 }), null);
 });
