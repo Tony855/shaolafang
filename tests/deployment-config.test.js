@@ -95,10 +95,12 @@ test('cluster services keep application code read-only while allowing initial cr
   }
 });
 
-test('single-host Nginx deployments never write query strings or Referer values to access logs', () => {
+test('all Nginx deployment paths never write query strings or Referer values to access logs', () => {
   for (const file of [
     'foodflow.conf',
     'deploy/standard/nginx.conf',
+    'deploy/enterprise/cluster/nginx.conf',
+    'deploy/enterprise-ultimate/cluster/nginx.conf',
     'setup-nginx.sh',
     'install.sh',
     'install-local.sh'
@@ -107,6 +109,17 @@ test('single-host Nginx deployments never write query strings or Referer values 
     assert.match(content, /log_format foodflow_safe/, file + ' must define the redacted access log format');
     assert.match(content, /access_log \/var\/log\/nginx\/access\.log foodflow_safe/, file + ' must select the safe access log');
     assert.doesNotMatch(content, /log_format foodflow_safe[^;]*(?:\$request\b|\$request_uri|\$args|\$http_referer)/, file + ' must not log query strings or referrers');
+  }
+});
+
+test('cluster Nginx templates apply the redacted access log format to HTTP and HTTPS servers', () => {
+  for (const file of [
+    'deploy/enterprise/cluster/nginx.conf',
+    'deploy/enterprise-ultimate/cluster/nginx.conf'
+  ]) {
+    const content = read(file);
+    assert.equal((content.match(/access_log \/var\/log\/nginx\/access\.log foodflow_safe;/g) || []).length, 2, file + ' must select safe logging for both server blocks');
+    assert.doesNotMatch(content, /access_log \/var\/log\/nginx\/access\.log;/, file + ' must not fall back to the default combined log');
   }
 });
 

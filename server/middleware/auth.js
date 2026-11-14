@@ -63,9 +63,8 @@ async function requireSuperAdmin(req, res, next) {
     req.superAdmin = superAdmin;
     req.superSessionToken = token;
     next();
-  } catch (e) {
-    console.error('requireSuperAdmin 认证异常:', e.message);
-    res.status(401).json({ error: '认证失败' });
+  } catch (_) {
+    return respondAuthUnavailable(res, 'super-admin authentication');
   }
 }
 
@@ -94,9 +93,8 @@ async function requireCashier(req, res, next) {
     req.storeId = Number(session.store_id);
     req.merchantId = Number(session.merchant_id);
     next();
-  } catch (e) {
-    console.error('Cashier authentication failed:', e.message);
-    res.status(500).json({ error: '认证服务暂时不可用' });
+  } catch (_) {
+    return respondAuthUnavailable(res, 'cashier authentication');
   }
 }
 

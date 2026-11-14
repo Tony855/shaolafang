@@ -4,6 +4,7 @@
 const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 
 module.exports = function(app, deps) {
   const { getAsync, runAsync, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt,
@@ -68,7 +69,7 @@ module.exports = function(app, deps) {
         }
       });
     } catch (e) {
-      console.error('[admin/login] request failed:', e);
+      console.error('[admin/login] request failed', safeErrorMetadata(e));
       await runAsync('INSERT INTO login_logs (createdAt, success, ip, message) VALUES (?, 0, ?, ?)', [new Date().toISOString(), getClientIp(req), '登录处理失败']).catch(() => {});
       res.status(500).json({ error: '登录处理失败，请稍后重试' });
     }

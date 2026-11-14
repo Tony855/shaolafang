@@ -1,3 +1,4 @@
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 /* routes/menu-zip.js — 菜单 ZIP 打包导入导出 */
 const fs = require('fs');
 const path = require('path');
@@ -48,7 +49,7 @@ module.exports = function(app, deps) {
       res.setHeader('Content-Length', buf.length);
       res.send(buf);
     } catch (e) {
-      console.error('export-zip failed:', e);
+      console.error('export-zip failed', safeErrorMetadata(e));
       res.status(500).json({ error: '请求失败，请稍后重试' });
     }
   });
@@ -67,7 +68,7 @@ module.exports = function(app, deps) {
       try { zip = openZipArchive(zipPath, { maxEntries: 2000 }); }
       catch (e) {
         try { fs.unlinkSync(zipPath); } catch (_) {}
-        return res.status(e.status === 413 ? 413 : 400).json({ error: e.status === 413 ? 'ZIP 结构或条目数量超过资源限制' : 'ZIP 文件结构无效：' + e.message });
+        return res.status(e.status === 413 ? 413 : 400).json({ error: e.status === 413 ? 'ZIP 结构或条目数量超过资源限制' : 'ZIP 文件结构无效，请检查文件后重试' });
       }
       const zipEntries = zip.entries;
       if (zipEntries.length > 2000) {
@@ -212,7 +213,7 @@ module.exports = function(app, deps) {
             retainedImagePaths.add(importedImagePath);
           }
           success++;
-        } catch (e) { failed++; errors.push('第 ' + (i+1) + ' 行：' + e.message); }
+        } catch (_) { failed++; errors.push('第 ' + (i+1) + ' 行：导入失败，请检查该行数据'); }
       }
 
       // Keep only newly extracted images referenced by rows that were actually saved.
@@ -229,7 +230,7 @@ module.exports = function(app, deps) {
       if (e.status === 413) {
         return res.status(413).json({ error: 'ZIP 解压内容超过资源限制' });
       }
-      console.error('import-zip failed:', e);
+      console.error('import-zip failed', safeErrorMetadata(e));
       res.status(500).json({ error: '请求失败，请稍后重试' });
     }
   });
