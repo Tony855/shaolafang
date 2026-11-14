@@ -41,6 +41,11 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE' } = {}) {
         for (const row of matches) Object.assign(row, { is_active: 0, revoked_at: new Date() });
         return { affectedRows: matches.length };
       }
+      if (sql.includes('DELETE FROM telegram_customer_bindings WHERE id=?')) {
+        const index = state.bindings.findIndex(x => x.id === params[0]);
+        if (index >= 0) state.bindings.splice(index, 1);
+        return { affectedRows: index >= 0 ? 1 : 0 };
+      }
       if (sql.includes('UPDATE telegram_customer_bindings')) {
         const row = state.bindings.find(x => x.id === params[3]);
         if (row) Object.assign(row, { merchant_id: params[0], telegram_user_id: params[1], telegram_chat_id: params[2], is_active: 1, revoked_at: null });
@@ -204,4 +209,23 @@ test('Telegram customer /stop still revokes bindings when the Client Bot is disa
   assert.equal(res.statusCode, 200);
   assert.equal(state.bindings[0].is_active, 0);
   assert.equal(state.updates.has(106), true);
+});
+
+test('Telegram customer can rebind the same private chat to a newly scanned customer session', async () => {
+  const { handler, challenge, state } = fixture();
+  state.bindings.push({
+    id: 8, customer_token_hash: 'a'.repeat(64), merchant_id: 3, store_id: 8,
+    telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 1
+  });
+  const res = response();
+  await handler({
+    headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+    body: { update_id: 107, message: { text: '/start ' + challenge, chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.bindings.length, 1);
+  assert.equal(state.bindings[0].id, 9);
+  assert.equal(state.bindings[0].customer_token_hash, 'f'.repeat(64));
+  assert.equal(state.bindings[0].telegram_chat_id, '98765');
+  assert.equal(state.bindings[0].is_active, 1);
 });
