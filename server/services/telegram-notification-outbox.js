@@ -61,4 +61,19 @@ async function releaseTelegramNotificationForRetry(id, workerId, errorCode, atte
   return Number(result.affectedRows) === 1;
 }
 
-module.exports = { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry };
+async function cleanupTelegramNotificationHistory({ deliveredRetentionDays = 90, deadRetentionDays = 180, batchSize = 1000 } = {}) {
+  if (!Number.isInteger(deliveredRetentionDays) || deliveredRetentionDays < 30 || deliveredRetentionDays > 3650) throw new TypeError('Delivered retention is invalid');
+  if (!Number.isInteger(deadRetentionDays) || deadRetentionDays < 30 || deadRetentionDays > 3650) throw new TypeError('Dead-letter retention is invalid');
+  if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 5000) throw new TypeError('Cleanup batch size is invalid');
+  const delivered = await runAsync(
+    "DELETE FROM telegram_notification_outbox WHERE state='delivered' AND delivered_at IS NOT NULL AND delivered_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL ? DAY) LIMIT ?",
+    [deliveredRetentionDays, batchSize]
+  );
+  const dead = await runAsync(
+    "DELETE FROM telegram_notification_outbox WHERE state='dead' AND updated_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL ? DAY) LIMIT ?",
+    [deadRetentionDays, batchSize]
+  );
+  return { deliveredDeleted: Number(delivered.affectedRows) || 0, deadDeleted: Number(dead.affectedRows) || 0 };
+}
+
+module.exports = { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry, cleanupTelegramNotificationHistory };
