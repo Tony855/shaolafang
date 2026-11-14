@@ -16,7 +16,7 @@ function setup({ duplicate = false, challengeRow = true, expired = false, consum
     allAsync: async () => [{ key: 'telegram_client_bot_enabled', value: '1' }, { key: 'telegram_client_bot_token', value: token }],
     getAsync: async sql => {
       calls.push(['get', sql]);
-      if (sql.includes('telegram_customer_binding_challenges')) return challengeRow ? {
+      if (sql.includes('telegram_customer_binding_challenges')) return challengeRow && !expired && !consumed ? {
         id: 5, customer_token_hash: 'a'.repeat(64), merchant_id: 7, store_id: 9,
         expires_at: new Date(Date.now() + (expired ? -60000 : 60000)), consumed_at: consumed ? new Date() : null
       } : null;
