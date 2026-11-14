@@ -340,7 +340,7 @@ test('first-install and cluster startup use readiness gates instead of fixed sta
     const source = read(file);
     assert.match(source, /ff_wait_for_health "\$BACKEND_PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/, file + ' must wait for app and database readiness');
     assert.match(source, /sed -n 's\/\^PORT=\//, file + ' must read the configured application port');
-    assert.match(source, /BACKEND_PORT.*-le 65535/, file + ' must validate the configured port');
+    assert.match(source, /BACKEND_PORT.*-gt 65535/, file + ' must validate the configured port');
     assert.match(source, /if ! systemctl restart/, file + ' must diagnose restart failures');
     assert.doesNotMatch(source, /systemctl restart [^\n]+\n\s*sleep 8/, file + ' must not rely on a fixed startup delay');
   }
