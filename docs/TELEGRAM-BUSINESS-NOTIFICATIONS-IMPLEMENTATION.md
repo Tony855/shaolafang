@@ -4,9 +4,15 @@
 
 The feature branch now contains the main implementation for global super-admin, per-store admin, and customer Telegram notifications. Business events are inserted into a durable InnoDB outbox in the same transaction as the order/payment/refund change. A separate opt-in worker performs delivery with leases, bounded retries, dead-letter handling, retention cleanup, and graceful shutdown.
 
-**The worker is disabled by default.** No production notification delivery is active unless the deployment explicitly enables it. This branch has not been merged into `main` and has not been deployed.
+**The worker is disabled by default.** No production notification delivery is active unless the deployment explicitly enables it.
 
-Latest full CI run before this documentation update: **success** — repository validation, unit tests, MySQL 8.4 integration, and MariaDB 10.11/11.4/11.8/12.3 integration all passed in run [43585419361](https://github.com/Tony855/shaolafang/actions/runs/43585419361). The documentation-only update will trigger a fresh run.
+The implementation is submitted as [draft PR #266](https://github.com/Tony855/shaolafang/pull/266), targeting `main`. Latest branch head: `95d1a33b891641b40bc1fdc76c4479b8fc0fc1b5`. The PR currently reports a clean mergeable state.
+
+CI passed on the PR head:
+- [43588709221](https://github.com/Tony855/shaolafang/actions/runs/43588709221): Debian 12/13 and Ubuntu 22.04/24.04/26.04.
+- [43588709172](https://github.com/Tony855/shaolafang/actions/runs/43588709172): repository validation, complete test suite, MySQL 8.4, and MariaDB 10.11/11.4/11.8/12.3.
+
+CI success does not replace real Telegram staging acceptance. The PR remains draft and has not been merged or deployed.
 
 ## Notification scopes and routing
 
@@ -65,4 +71,4 @@ Backups now include the outbox, customer bindings, webhook update IDs, and store
 - Staging end-to-end delivery proof and restart/lease-recovery soak testing are still required. CI success does not replace Telegram delivery verification against real test Bots and Chat IDs.
 - Verify the production deployment environment has the webhook secret and worker flag configured before any rollout.
 - Review dead-letter operational monitoring/alerting with the deployment operator.
-- No PR has been opened, no changes have been merged to `main`, and no production deployment has been performed.
+- PR #266 remains a draft. No changes have been merged to `main`, and no production deployment has been performed.
