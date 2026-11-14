@@ -40,11 +40,28 @@ async function ensureProviderEventQueueIndexes({ runAsync, allAsync }) {
       continue;
     }
 
-    await runAsync(
-      'CREATE INDEX ' + definition.name +
-      ' ON provider_webhook_events (' + definition.columns.join(', ') + ')'
-    );
-    results.push({ created: true, indexName: definition.name });
+    try {
+      await runAsync(
+        'CREATE INDEX ' + definition.name +
+        ' ON provider_webhook_events (' + definition.columns.join(', ') + ')'
+      );
+      results.push({ created: true, indexName: definition.name });
+    } catch (error) {
+      // Multiple application instances may run startup migrations at once.
+      // If another instance created this exact index first, verify its shape
+      // and continue; never swallow an unrelated DDL failure.
+      if (error.code !== 'ER_DUP_KEYNAME' && Number(error.errno) !== 1061) throw error;
+      const refreshedIndexes = await allAsync('SHOW INDEX FROM provider_webhook_events');
+      const raced = refreshedIndexes
+        .filter(index => index.Key_name === definition.name)
+        .sort((left, right) => Number(left.Seq_in_index) - Number(right.Seq_in_index));
+      const actual = raced.map(index => index.Column_name);
+      if (actual.length !== definition.columns.length ||
+          actual.some((column, position) => column !== definition.columns[position])) {
+        throw new Error('provider event queue index was concurrently created with an unexpected definition: ' + definition.name);
+      }
+      results.push({ created: false, indexName: definition.name });
+    }
   }
   return results;
 }
