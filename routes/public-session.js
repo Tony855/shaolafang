@@ -6,20 +6,9 @@ const { hashSessionToken } = require('../server/services/session-token');
 const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 const { getTelegramBotUsername } = require('../server/services/telegram-bot');
-const { createTelegramCustomerWebhookHandler } = require('../server/services/telegram-customer-webhook');
-const { withTransaction } = require('../server/db/helpers');
 
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter } = deps;
-
-  app.post('/api/telegram/client/webhook', createTelegramCustomerWebhookHandler({
-    getAsync, runAsync, withTransaction,
-    secret: process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET,
-    getBotToken: async () => {
-      const rows = await allAsync('SELECT value FROM settings WHERE `key`=?', ['telegram_client_bot_token']);
-      return String(rows[0]?.value || '');
-    }
-  }));
   if (!scanSessionRateLimiter || typeof scanSessionRateLimiter.consume !== 'function' || typeof scanSessionRateLimiter.cleanup !== 'function') {
     throw new TypeError('scanSessionRateLimiter with consume() and cleanup() is required');
   }
