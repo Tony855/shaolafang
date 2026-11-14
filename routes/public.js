@@ -4,7 +4,7 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
 
 module.exports = function(app, deps) {
-  const { getAsync, allAsync } = deps;
+  const { getAsync, allAsync, getClusterReadiness } = deps;
 
   function boundedSetting(value, fallback, min, max) {
     const text = typeof value === 'number' ? String(value) : value;
@@ -143,12 +143,23 @@ module.exports = function(app, deps) {
   // Liveness only confirms the Node process is responding.
   app.get('/api/health', (req, res) => res.json({ ok: true, service: 'foodflow', timestamp: new Date().toISOString() }));
 
-  // Readiness is used by load balancers: a node is ready only when MySQL responds.
-  // Do not expose connection details or raw database errors to unauthenticated callers.
+  // Readiness is used by load balancers. In cluster mode, Redis and the
+  // Socket.IO adapter are required for cross-node coordination and broadcasts.
+  // Never expose connection details or raw dependency errors.
   app.get('/api/health/ready', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
     try {
       await getAsync('SELECT 1 AS ok');
-      return res.json({ ok: true, service: 'foodflow', checks: { database: 'ok' }, timestamp: new Date().toISOString() });
+      const checks = { database: 'ok' };
+      const cluster = typeof getClusterReadiness === 'function' ? getClusterReadiness() : null;
+      if (cluster?.required) {
+        checks.redis = cluster.redis;
+        checks.socketIo = cluster.socketIo;
+        if (!cluster.ready) {
+          return res.status(503).json({ ok: false, service: 'foodflow', checks });
+        }
+      }
+      return res.json({ ok: true, service: 'foodflow', checks, timestamp: new Date().toISOString() });
     } catch (_) {
       return res.status(503).json({ ok: false, service: 'foodflow', checks: { database: 'error' } });
     }

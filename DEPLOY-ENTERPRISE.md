@@ -29,8 +29,8 @@ sudo bash install.sh enterprise-ultimate master
 
 - 使用模板 deploy/enterprise/cluster/.env.example 或 deploy/enterprise-ultimate/cluster/.env.example。
 - 应用数据库账号为专用的 foodflow 用户；数据库名分别使用模板中的 foodflow_enterprise 或 foodflow_enterprise_ultimate。禁止应用使用 MySQL root。
-- 多节点必须配置共享 REDIS_URL，不能回退到进程内存状态。
-- TRUST_PROXY 必须设置为真实 Nginx/负载均衡器内网 IP 或 CIDR。
+- 多节点必须配置共享 REDIS_URL，不能回退到进程内存状态；集群 `.env` 必须设置 `REQUIRE_SHARED_REDIS=true`。应用启动时会验证 Redis 连接和 Socket.IO Redis Adapter，任一不可用即拒绝启动。
+- 集群 `TRUST_PROXY` 必须显式设置为负载均衡器内网 IP/CIDR；集群保护模式拒绝默认 `loopback`、通配代理和全网段信任配置。单机部署保持 `REQUIRE_SHARED_REDIS=false`。
 - 所有应用节点必须将 /mnt/shared/uploads 挂载为可写的 NFS/NFSv4 文件系统；www-data UID/GID 必须与 NFS 服务端保持一致（默认 33:33）。部署脚本会执行挂载类型和写权限检查。
 - NFS 导出必须使用 root_squash，上传目录权限不得设置为 world-writable。
 - 仅向公网开放 SSH、80 和 443；数据库、Redis、NFS 和 Node.js 端口只允许受信任内网访问。
