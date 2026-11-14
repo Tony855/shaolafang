@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const { toMoneyCents, hasActiveKhqr } = require('../server/services/order-financial');
 const { isValidRefundIdempotencyKey, createRefundRequestHash, calculateRefundAllocation } = require('../server/services/refund-financial');
+const { enqueueSystemAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
  
 function parsePositiveOrderId(value) {
@@ -339,6 +340,14 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
           throw error;
         }
       }
+      const store = await getAsync('SELECT name FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
+      for (const order of settlementOrders) {
+        await enqueueSystemAdminTelegramNotification({
+          getAsync,
+          eventKey: `order:${order.id}:settled`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), amount: Number(order.total), currency: 'USD' }
+        });
+      }
       for (const tableName of tableNames) {
         await syncTableStatus(tableName, req.storeId);
         const left = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [tableName, req.storeId]);
@@ -625,7 +634,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       }
 
       const lockedOrder = await getAsync(
-        'SELECT status, total, refund_amount, table_name FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+        'SELECT status, total, refund_amount, table_name, order_no FROM orders WHERE id=? AND store_id=? FOR UPDATE',
         [id, req.storeId]
       );
       if (!lockedOrder) {
@@ -704,6 +713,13 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         [JSON.stringify(responsePayload), req.storeId, idempotencyKey, requestHash]
       );
       if (!savedRequest.affectedRows) throw new Error('退款结果保存失败，操作已回滚');
+      const store = await getAsync('SELECT name FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
+      const refundKey = crypto.createHash('sha256').update(idempotencyKey).digest('hex').slice(0, 24);
+      await enqueueSystemAdminTelegramNotification({
+        getAsync,
+        eventKey: `order:${id}:refunded:${refundKey}`,
+        event: { type: 'order.refunded', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), refundAmount, currency: 'USD' }
+      });
     });
 
     if (replayedResponse) return res.json({ ...replayedResponse, idempotent_replay: true });
