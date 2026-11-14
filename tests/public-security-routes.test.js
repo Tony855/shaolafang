@@ -975,6 +975,8 @@ test('customer Telegram binding start uses only header bearer tokens and stores 
 test('customer Telegram binding revoke is scoped to the hashed customer token and active scan store', async () => {
   const { app, routes } = routeHarness();
   let update;
+  const writes = [];
+  let inTransaction = false;
   registerPublicSession(app, {
     requireAdminKey: pass,
     requirePermission: () => pass,
@@ -985,7 +987,15 @@ test('customer Telegram binding revoke is scoped to the hashed customer token an
       return null;
     },
     allAsync: async () => [],
-    runAsync: async (sql, params) => { update = { sql, params }; return { affectedRows: 1 }; }
+    withTransaction: async work => {
+      inTransaction = true;
+      try { return await work(); } finally { inTransaction = false; }
+    },
+    runAsync: async (sql, params) => {
+      writes.push({ sql, params, inTransaction });
+      update = { sql, params };
+      return { affectedRows: 1 };
+    }
   });
   const handler = routes.get('DELETE /api/public/customer-telegram/binding').at(-1);
   const res = response();
@@ -994,4 +1004,9 @@ test('customer Telegram binding revoke is scoped to the hashed customer token an
   assert.equal(res.body.revoked, true);
   assert.match(update.sql, /customer_token_hash=\?/);
   assert.deepEqual(update.params, [hashSessionToken('customer-token'), 7, 9]);
+  assert.equal(writes.length, 2);
+  assert.match(writes[0].sql, /UPDATE telegram_notification_outbox/);
+  assert.match(writes[0].sql, /binding_revoked/);
+  assert.equal(writes[0].inTransaction, true);
+  assert.equal(writes[1].inTransaction, true);
 });
