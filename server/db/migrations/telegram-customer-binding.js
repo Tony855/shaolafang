@@ -27,7 +27,7 @@ const SCHEMA_STATEMENTS = [
     updated_at DATETIME(3) NOT NULL,
     revoked_at DATETIME(3) DEFAULT NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_telegram_customer_binding_chat (telegram_chat_id),
+    UNIQUE KEY uq_telegram_customer_binding_chat_store (telegram_chat_id, store_id),
     UNIQUE KEY uq_telegram_customer_binding_owner (customer_token_hash, store_id),
     KEY idx_telegram_customer_binding_tenant (merchant_id, store_id, is_active)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
