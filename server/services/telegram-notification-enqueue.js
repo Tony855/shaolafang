@@ -25,8 +25,9 @@ async function enqueueCustomerTelegramNotification({ allAsync, customerTokenHash
 
   // Use one stable lock order (global setting -> merchant -> store -> binding
   // -> outbox) shared with the settings/suspension/revocation transactions.
-  const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key`=? FOR UPDATE', ['telegram_client_bot_enabled']);
-  if (!Array.isArray(settings) || settings[0]?.value !== '1') return false;
+  const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?) ORDER BY `key` FOR UPDATE', ['telegram_admin_bot_enabled', 'telegram_client_bot_enabled']);
+  const clientBot = Array.isArray(settings) ? settings.find(row => row.key === 'telegram_client_bot_enabled') : null;
+  if (clientBot?.value !== '1') return false;
   const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchant]);
   if (!Array.isArray(merchants) || !merchants.length) return false;
   const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
@@ -59,8 +60,9 @@ async function enqueueStoreAdminTelegramNotification({ allAsync, merchantId, sto
 
   // Lock the same setting/tenant/recipient rows that the disable route updates.
   // This prevents an enqueue racing past a disable-and-re-enable cycle.
-  const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key`=? FOR UPDATE', ['telegram_admin_bot_enabled']);
-  if (!Array.isArray(settings) || settings[0]?.value !== '1') return false;
+  const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?) ORDER BY `key` FOR UPDATE', ['telegram_admin_bot_enabled', 'telegram_client_bot_enabled']);
+  const adminBot = Array.isArray(settings) ? settings.find(row => row.key === 'telegram_admin_bot_enabled') : null;
+  if (adminBot?.value !== '1') return false;
   const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchant]);
   if (!Array.isArray(merchants) || !merchants.length) return false;
   const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
