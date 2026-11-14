@@ -16,7 +16,23 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
       if (stored.telegram_admin_bot_enabled !== '1' || !validateBotToken(token) || !validateChatId(chatId)) return null;
       return { scope: 'system_admin', merchantId: null, storeId: null, token, chatId };
     }
-    if (scope !== 'customer' || typeof key !== 'string' || !/^binding:[1-9]\d{0,18}$/.test(key)) return null;
+    if (scope === 'merchant_store' && typeof key === 'string' && /^store:[1-9]\\d{0,18}$/.test(key)) {
+      const tenantMerchantId = Number(merchantId);
+      const tenantStoreId = Number(storeId);
+      if (!Number.isSafeInteger(tenantMerchantId) || tenantMerchantId <= 0 || !Number.isSafeInteger(tenantStoreId) || tenantStoreId <= 0 || Number(key.slice(6)) !== tenantStoreId) return null;
+      const recipients = await allAsync(
+        'SELECT r.chat_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND r.is_enabled=1 AND s.active=1 AND m.status=1 LIMIT 1',
+        [tenantMerchantId, tenantStoreId]
+      );
+      if (!Array.isArray(recipients) || !recipients.length) return null;
+      const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?)', ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']);
+      const stored = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
+      const token = String(stored.telegram_admin_bot_token || '');
+      const chatId = String(recipients[0].chat_id || '');
+      if (stored.telegram_admin_bot_enabled !== '1' || !validateBotToken(token) || !validateChatId(chatId)) return null;
+      return { scope: 'merchant_store', merchantId: tenantMerchantId, storeId: tenantStoreId, token, chatId };
+    }
+    if (scope !== 'customer' || typeof key !== 'string' || !/^binding:[1-9]\\d{0,18}$/.test(key)) return null;
     const bindingId = Number(key.slice('binding:'.length));
     const tenantMerchantId = Number(merchantId);
     const tenantStoreId = Number(storeId);
