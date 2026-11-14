@@ -57,6 +57,8 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(challenge.consumed_at, null);
   await runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [customerHash, 7, 9, '12345', '54321']);
   await assert.rejects(runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [crypto.createHash('sha256').update('other-customer').digest('hex'), 7, 9, '67890', '54321']), error => error && error.code === 'ER_DUP_ENTRY');
+  await assert.rejects(runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [customerHash, 7, 9, '67891', '54322']), error => error && error.code === 'ER_DUP_ENTRY');
+  await runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [crypto.createHash('sha256').update('other-store-customer').digest('hex'), 8, 10, '67890', '54321']);
   await runAsync('INSERT INTO telegram_webhook_updates (update_id,received_at) VALUES (?,UTC_TIMESTAMP(3))', [123456]);
   await assert.rejects(runAsync('INSERT INTO telegram_webhook_updates (update_id,received_at) VALUES (?,UTC_TIMESTAMP(3))', [123456]), error => error && error.code === 'ER_DUP_ENTRY');
 
