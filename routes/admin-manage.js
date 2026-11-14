@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
-const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification } = require('../server/services/telegram-notification-enqueue');
+const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 
 function normalizeAdminFlag(value, fallback, field) {
   if (value === undefined) return fallback;
@@ -1093,6 +1093,13 @@ module.exports = function(app, deps) {
           merchantId: store?.merchant_id,
           storeId: sid,
           eventKey: `order:${orderId}:settled:customer`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${sid}`, orderNo: lockedOrder.order_no || String(orderId), amount: Number(lockedOrder.total), currency: 'USD' }
+        });
+        await enqueueStoreAdminTelegramNotification({
+          allAsync,
+          merchantId: store?.merchant_id,
+          storeId: sid,
+          eventKey: `order:${orderId}:settled:store`,
           event: { type: 'order.settled', storeName: store?.name || `Store ${sid}`, orderNo: lockedOrder.order_no || String(orderId), amount: Number(lockedOrder.total), currency: 'USD' }
         });
       });
