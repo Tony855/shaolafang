@@ -26,8 +26,8 @@ A blank token field preserves the previously saved token. Use the explicit **Cle
 - Disabling a profile stops delivery for that profile without deleting its saved token or Chat ID.
 - Business notifications are delivered from a durable database outbox. Telegram network calls happen after the order/payment/refund transaction commits; retryable failures do not roll back business transactions.
 - The worker is disabled by default. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` only after webhook setup and staging verification. The worker uses one in-flight send at a time and stops before the database pool during graceful shutdown.
-- Admin notifications use the global super-admin Bot and are not merchant-owned/store-isolated. Do not treat this profile as a per-merchant Bot.
-- The Admin Bot is currently a global super-admin recipient. When enabled, the feature branch queues new-order, settlement, confirmed-payment, and refund events for that global admin recipient. The Client Bot's configured Chat ID is used only for its test message; private customer notices are routed only to a customer's own Telegram chat after the binding flow below.
+- The Admin Bot token is global. Its configured Chat ID is the global super-admin recipient; store-admin notifications use the same Bot token but route to each store's separately configured Chat ID. A store recipient is scoped to its exact active merchant/store and does not receive another store's events.
+- For supported business events, the feature branch can queue both a global super-admin notification and a separately scoped store-admin notification. Store-level event toggles control new-order, settlement, and refund notifications. The Client Bot's configured Chat ID is used only for its fixed test message; private customer notices are routed only to a customer's own Telegram chat after the binding flow below.
 
 Keep Bot tokens private. If a token is exposed, revoke it with @BotFather and replace it in the super-admin console.
 
@@ -63,7 +63,7 @@ Binding details:
 ## Delivery and limitations
 
 - Current event hooks include order creation, admin/cashier settlement, actual KHQR/manual payment confirmation, and successful refunds. A waiter request to confirm KHQR is not treated as a successful payment.
-- Admin Bot delivery is global super-admin scope. Per-merchant/store-owned admin Bot settings and per-event toggles are not implemented yet.
+- Admin Bot credentials remain global rather than merchant-owned. Store-specific Chat IDs and per-event toggles are implemented; they share the global Admin Bot token while preserving exact merchant/store recipient isolation.
 - Delivery is at-least-once. A crash after Telegram accepts a message but before the database acknowledgement may result in a duplicate after lease recovery.
 - Failed tasks retry with bounded backoff and eventually enter the dead-letter state. Monitor `telegram_notification_outbox` for `state='dead'`.
 - Webhook update IDs are retained for 30 days; expired and consumed binding challenges are cleaned during new challenge creation.
