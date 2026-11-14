@@ -18,7 +18,10 @@ async function claimTelegramNotifications({ workerId = randomUUID(), limit = 10,
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new TypeError('领取数量无效');
   if (!Number.isInteger(leaseSeconds) || leaseSeconds < 15 || leaseSeconds > 600) throw new TypeError('租约时长无效');
   return withTransaction(async () => {
-    await runAsync("UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='unknown', updated_at=UTC_TIMESTAMP(3) WHERE state='processing' AND attempts >= 8 AND locked_until < UTC_TIMESTAMP(3)");
+    // Do not run a broad UPDATE before the SKIP LOCKED claim. That range
+    // update can deadlock concurrent workers even when no exhausted lease
+    // actually needs changing. Exhausted expired leases are swept separately
+    // by the bounded retention cleanup.
     const rows = await allAsync(
       'SELECT id, event_key, event_type, merchant_id, store_id, recipient_scope, recipient_key, payload_json, attempts FROM telegram_notification_outbox WHERE attempts < 8 AND available_at <= UTC_TIMESTAMP(3) AND (state=\'pending\' OR (state=\'processing\' AND locked_until < UTC_TIMESTAMP(3))) ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED',
       [limit]
@@ -72,6 +75,20 @@ async function cleanupTelegramNotificationHistory({ deliveredRetentionDays = 90,
   if (!Number.isInteger(deliveredRetentionDays) || deliveredRetentionDays < 30 || deliveredRetentionDays > 3650) throw new TypeError('Delivered retention is invalid');
   if (!Number.isInteger(deadRetentionDays) || deadRetentionDays < 30 || deadRetentionDays > 3650) throw new TypeError('Dead-letter retention is invalid');
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 5000) throw new TypeError('Cleanup batch size is invalid');
+  const exhaustedDead = await withTransaction(async () => {
+    const rows = await allAsync(
+      "SELECT id FROM telegram_notification_outbox WHERE state='processing' AND attempts >= 8 AND locked_until < UTC_TIMESTAMP(3) ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED",
+      [batchSize]
+    );
+    if (!rows.length) return 0;
+    const ids = rows.map(row => positiveId(row.id, '通知任务编号'));
+    const placeholders = ids.map(() => '?').join(',');
+    const result = await runAsync(
+      "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code=COALESCE(last_error_code, 'unknown'), updated_at=UTC_TIMESTAMP(3) WHERE state='processing' AND attempts >= 8 AND id IN (" + placeholders + ")",
+      ids
+    );
+    return Number(result.affectedRows) || 0;
+  });
   const delivered = await runAsync(
     "DELETE FROM telegram_notification_outbox WHERE state='delivered' AND delivered_at IS NOT NULL AND delivered_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL ? DAY) LIMIT ?",
     [deliveredRetentionDays, batchSize]
@@ -80,7 +97,7 @@ async function cleanupTelegramNotificationHistory({ deliveredRetentionDays = 90,
     "DELETE FROM telegram_notification_outbox WHERE state='dead' AND updated_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL ? DAY) LIMIT ?",
     [deadRetentionDays, batchSize]
   );
-  return { deliveredDeleted: Number(delivered.affectedRows) || 0, deadDeleted: Number(dead.affectedRows) || 0 };
+  return { exhaustedDead: Number(exhaustedDead) || 0, deliveredDeleted: Number(delivered.affectedRows) || 0, deadDeleted: Number(dead.affectedRows) || 0 };
 }
 
 module.exports = { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry, cleanupTelegramNotificationHistory };
