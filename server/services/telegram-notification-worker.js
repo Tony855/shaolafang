@@ -21,8 +21,7 @@ async function processTelegramNotificationBatch({ resolveRecipient, workerId, li
         scope: job.recipient_scope, key: job.recipient_key,
         merchantId: job.merchant_id, storeId: job.store_id, eventType: job.event_type
       });
-      if (recipient?.suppressed === true &&
-          (job.recipient_scope === 'merchant_store' || job.recipient_scope === 'customer')) {
+      if (recipient?.suppressed === true) {
         const suppressionCode = recipient.suppressionCode === 'binding_revoked' && job.recipient_scope === 'customer'
           ? 'binding_revoked'
           : 'event_disabled';
