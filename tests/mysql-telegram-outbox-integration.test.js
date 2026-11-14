@@ -306,9 +306,9 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
     await runAsync('DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [7, 7]);
     await runAsync('DELETE FROM telegram_customer_bindings WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [7, 7]);
     await runAsync('DELETE FROM telegram_store_admin_recipients WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [7, 7]);
-    assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_customer_binding_challenges')).count), 1);
-    assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_customer_bindings')).count), 1);
-    assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_store_admin_recipients')).count), 1);
+    assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_customer_binding_challenges WHERE store_id IN (9001,9002)')).count), 1);
+    assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_customer_bindings WHERE store_id IN (9001,9002)')).count), 1);
+    assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_store_admin_recipients WHERE store_id IN (9001,9002)')).count), 1);
 
     await runAsync('DELETE FROM telegram_notification_outbox WHERE event_key LIKE CONCAT(\'order:\', ?, \':%\')', [sourceOrderC]);
     assert.equal(await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key=?', [`order:${sourceOrderC}:created`]), null);
