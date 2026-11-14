@@ -1,17 +1,48 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
-<title>FoodFlow · 首次安全初始化</title><link rel="stylesheet" href="assets/super-login.css">
-<script src="languages.min.js" defer></script><script src="assets/core.js" defer></script><script src="pages/super-first-login.js" defer></script>
-</head><body><main class="super-login-shell"><section class="super-login-card" aria-labelledby="firstLoginTitle">
-<div class="super-login-mark" aria-hidden="true">🛡️</div><p class="eyebrow">FOODFLOW · SECURITY SETUP</p>
-<h1 id="firstLoginTitle">首次登录安全初始化</h1>
-<p class="subtitle">请先设置新的超级管理员密码。完成前，其他超级管理员功能将保持锁定。</p>
-<form id="firstLoginForm" autocomplete="on">
-<label for="oldPassword">初始密码</label><input id="oldPassword" name="oldPassword" type="password" autocomplete="current-password" required>
-<label for="newPassword">新密码</label><input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
-<label for="confirmPassword">确认新密码</label><input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
-<p class="subtitle" style="margin:10px 0 0;text-align:left;font-size:12px;">至少 12 个字符，并包含小写字母、大写字母、数字、特殊字符中的至少三类。</p>
-<p class="login-error" id="firstLoginError" role="alert" aria-live="polite"></p><button id="firstLoginBtn" type="submit">保存新密码</button>
-</form><div class="login-footer"><a href="/super/login" id="firstLoginLogout">退出并返回登录</a></div>
-</section></main></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#0b1220">
+  <title>FoodFlow · 首次安全初始化</title>
+  <link rel="stylesheet" href="/assets/super-login.css">
+  <script src="/languages.min.js" defer></script>
+  <script src="/assets/core.js" defer></script>
+  <script src="/pages/super-first-login.js" defer></script>
+</head>
+<body>
+  <main class="super-login-shell">
+    <section class="super-login-card" aria-labelledby="firstLoginTitle">
+      <div class="super-login-brand">
+        <div class="super-login-mark" aria-hidden="true">F</div>
+        <span>FOODFLOW</span><span class="brand-divider">/</span><span class="brand-muted">SECURITY SETUP</span>
+      </div>
+      <div class="super-login-heading">
+        <p class="eyebrow">ONE-TIME SECURITY STEP</p>
+        <h1 id="firstLoginTitle">首次登录安全初始化</h1>
+        <p class="subtitle">请先设置新的超级管理员密码。完成前，其他超级管理员功能将保持锁定。</p>
+      </div>
+      <form id="firstLoginForm" autocomplete="on">
+        <div class="form-field">
+          <label for="oldPassword">初始密码</label>
+          <input id="oldPassword" name="oldPassword" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="form-field">
+          <label for="newPassword">新密码</label>
+          <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        </div>
+        <div class="form-field">
+          <label for="confirmPassword">确认新密码</label>
+          <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        </div>
+        <p class="password-hint">至少 12 个字符，并包含小写字母、大写字母、数字、特殊字符中的至少三类。</p>
+        <p class="login-error" id="firstLoginError" role="alert" aria-live="polite"></p>
+        <button id="firstLoginBtn" type="submit"><span class="button-label">保存新密码</span><span class="button-arrow" aria-hidden="true">→</span></button>
+      </form>
+      <div class="login-footer"><a href="/super/login" id="firstLoginLogout">退出并返回登录</a></div>
+      <p class="security-note"><span aria-hidden="true">●</span> Protected administrative environment</p>
+    </section>
+  </main>
+</body>
+</html>
