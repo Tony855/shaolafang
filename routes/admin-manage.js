@@ -627,6 +627,25 @@ module.exports = function(app, deps) {
           throw Object.assign(new Error('密码错误，重置失败'), { status: 401 });
         }
 
+        // Cancel every Telegram event for this merchant before deleting orders.
+        // System-admin outbox rows have no tenant columns, so correlate them by
+        // their order:<id>:* event key while the source orders still exist.
+        await runAsync(
+          'DELETE n FROM telegram_notification_outbox n INNER JOIN orders o ON n.event_key LIKE CONCAT(\'order:\', o.id, \':%\') WHERE o.merchant_id=?',
+          [merchantId]
+        );
+        await runAsync(
+          'DELETE FROM telegram_notification_outbox WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId, merchantId]
+        );
+        await runAsync(
+          'DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId, merchantId]
+        );
+        await runAsync(
+          'DELETE FROM telegram_customer_bindings WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId, merchantId]
+        );
         await runAsync('DELETE FROM refund_requests WHERE store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [merchantId]);
         const deletedOrders = await runAsync('DELETE FROM orders WHERE merchant_id=?', [merchantId]);
         const deletedWaiterCalls = await runAsync('DELETE FROM waiter_calls WHERE merchant_id=?', [merchantId]);
