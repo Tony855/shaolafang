@@ -13,9 +13,13 @@ function getClusterStartupError({
     return 'REQUIRE_SHARED_REDIS=true requires REDIS_URL';
   }
 
-  const proxy = typeof trustProxy === 'string' ? trustProxy.trim() : '';
-  if (!proxy || /^(?:loopback|true|\*|0\.0\.0\.0\/0|::\/0)$/i.test(proxy)) {
-    return 'REQUIRE_SHARED_REDIS=true requires an explicit trusted load-balancer IP/CIDR in TRUST_PROXY';
+  const proxyEntries = typeof trustProxy === 'string'
+    ? trustProxy.split(',').map(value => value.trim().toLowerCase()).filter(Boolean)
+    : [];
+  const unsafeProxyEntries = new Set(['loopback', 'linklocal', 'uniquelocal', 'true', '*', '0.0.0.0/0', '::/0']);
+  if (!proxyEntries.length || proxyEntries.every(value => value === 'loopback') ||
+      proxyEntries.some(value => unsafeProxyEntries.has(value))) {
+    return 'REQUIRE_SHARED_REDIS=true requires explicit trusted load-balancer IP/CIDR entries in TRUST_PROXY';
   }
 
   if (redisReady !== true) {
