@@ -49,7 +49,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- No finance-specific pull requests are currently open. PR #238 is a separate database CI/documentation matrix change (MariaDB 10.11/11.4/11.8/12.3); it is not a finance-reconciliation dependency. Existing MariaDB 10.5/10.11 and MySQL 8.4 results remain as recorded until #238's own final-head checks pass.
+- No finance implementation pull requests are currently open. PR #238 is a separate database CI/documentation matrix change (MariaDB 10.11/11.4/11.8/12.3); it is not a finance-reconciliation dependency. Existing MariaDB 10.5/10.11 and MySQL 8.4 results remain as recorded until #238's own final-head checks pass.
 
 ## Remaining engineering acceptance work
 
