@@ -42,8 +42,8 @@ module.exports = function registerTelegramWebhook(app, deps) {
         if (!store) return null;
 
         const existingRows = await allAsync(
-          'SELECT id, customer_token_hash, store_id, telegram_chat_id FROM telegram_customer_bindings WHERE telegram_chat_id=? OR (customer_token_hash=? AND store_id=?) FOR UPDATE',
-          [update.telegramChatId, challenge.customer_token_hash, challenge.store_id]
+          'SELECT id, customer_token_hash, store_id, telegram_chat_id FROM telegram_customer_bindings WHERE (telegram_chat_id=? AND store_id=?) OR (customer_token_hash=? AND store_id=?) FOR UPDATE',
+          [update.telegramChatId, challenge.store_id, challenge.customer_token_hash, challenge.store_id]
         );
         const chatOwner = existingRows.find(row => String(row.telegram_chat_id) === update.telegramChatId);
         if (chatOwner && (chatOwner.customer_token_hash !== challenge.customer_token_hash || Number(chatOwner.store_id) !== Number(challenge.store_id))) {
