@@ -40,12 +40,12 @@ test('merchant store recipient resolver requires exact active tenant, configured
   const calls = [];
   const resolve = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => {
     calls.push({ sql, params });
-    if (sql.includes('telegram_store_admin_recipients')) return [{ chat_id: '-1007654321' }];
+    if (sql.includes('telegram_store_admin_recipients')) return [{ chat_id: '-1007654321', is_enabled: 1, event_enabled: 1 }];
     return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }];
   } });
   const recipient = await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' });
   assert.deepEqual(recipient, { scope: 'merchant_store', merchantId: 7, storeId: 9, token, chatId: '-1007654321' });
-  assert.match(calls[0].sql, /notify_order_created=1/);
+  assert.match(calls[0].sql, /r\.notify_order_created AS event_enabled/);
   assert.deepEqual(calls[0].params, [7, 9]);
   assert.deepEqual(calls[1].params, ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']);
 });
@@ -71,8 +71,20 @@ test('merchant store recipient resolver rechecks the queued event toggle at deli
   } });
   const disabled = await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.refunded' });
   assert.equal(disabled, null);
-  assert.match(query, /notify_refunded=1/);
+  assert.match(query, /r\.notify_refunded AS event_enabled/);
   assert.equal(await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'unknown.event' }), null);
+});
+
+
+test('merchant store recipient resolver marks an already queued event as suppressed when its toggle is off', async () => {
+  const resolve = createTelegramNotificationRecipientResolver({ allAsync: async sql => {
+    if (sql.includes('telegram_store_admin_recipients')) return [{ chat_id: '-1007654321', is_enabled: 1, event_enabled: 0 }];
+    return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }];
+  } });
+  assert.deepEqual(
+    await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.settled' }),
+    { scope: 'merchant_store', merchantId: 7, storeId: 9, suppressed: true }
+  );
 });
 
 test('customer recipient resolver requires an active binding owned by the queued merchant and store', async () => {
