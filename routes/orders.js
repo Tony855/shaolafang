@@ -953,6 +953,13 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
         throw Object.assign(new Error('订单仍有待确认或有效 KHQR 收款码，请先取消收款码后再删除订单'), { status: 409 });
       }
 
+      // Cancel every queued Telegram event for this order before deleting its
+      // source row. System-admin outbox rows have no tenant columns, so the
+      // order idempotency-key prefix is the durable source correlation.
+      await runAsync(
+        'DELETE FROM telegram_notification_outbox WHERE event_key LIKE CONCAT(\'order:\', ?, \':%\')',
+        [id]
+      );
       await runAsync('DELETE FROM refund_requests WHERE order_id=? AND store_id=?', [id, storeId]);
       const result = await runAsync(
         'DELETE FROM orders WHERE id=? AND store_id=?',
