@@ -53,3 +53,17 @@ test('graceful shutdown continues when one resource fails to close', async () =>
   assert.equal(result.exitCode, 1);
   assert.equal(result.results.some(item => item.status === 'rejected'), true);
 });
+
+
+test('graceful shutdown stops background workers before closing database resources', async () => {
+  const calls = [];
+  const shutdown = createGracefulShutdown({
+    stopWorkers: async () => { calls.push('worker'); },
+    io: { close(callback) { calls.push('io'); callback(); } },
+    pool: { async end() { calls.push('mysql'); } },
+    logger: { log() {}, error() {} }
+  });
+  await shutdown('SIGTERM', 0);
+  assert.equal(calls[0], 'worker');
+  assert.equal(calls.includes('mysql'), true);
+});
