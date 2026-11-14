@@ -1,6 +1,7 @@
 'use strict';
 
 const { hashSessionToken } = require('../services/session-token');
+const { safeErrorMetadata } = require('./safe-error-metadata');
 
 function isLiveSession(session) {
   if (!session) return false;
@@ -140,7 +141,7 @@ function createSocketAuthenticator({ getAsync, logger = console }) {
 
       return next(new Error('unauthorized: token invalid or expired'));
     } catch (error) {
-      logger.error('[socket] auth error:', error);
+      logger.error('[socket] authentication storage failed; connection rejected', safeErrorMetadata(error));
       return next(new Error('auth failed'));
     }
   };

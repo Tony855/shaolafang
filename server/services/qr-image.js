@@ -20,13 +20,19 @@ async function _readImage(buffer) {
  * @returns {Promise<string>} 二维码 payload
  */
 async function decodeQRFromImage(buffer) {
-  const image = await _readImage(buffer);
+  let image;
+  try {
+    image = await _readImage(buffer);
+  } catch (error) {
+    if (error?.message === 'Jimp API 不兼容') throw error;
+    throw Object.assign(new Error('图片无法解析或格式不受支持'), { status: 400 });
+  }
   const { data, width, height } = image.bitmap;
   const pixels = data instanceof Uint8Array
     ? new Uint8ClampedArray(data.buffer, data.byteOffset, data.byteLength)
     : new Uint8ClampedArray(data);
   const result = jsQR(pixels, width, height);
-  if (!result) throw new Error('未识别到二维码，请上传清晰的二维码图片');
+  if (!result) throw Object.assign(new Error('未识别到二维码，请上传清晰的二维码图片'), { status: 400 });
   return result.data;
 }
 

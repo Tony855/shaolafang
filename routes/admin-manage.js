@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 
 function normalizeAdminFlag(value, fallback, field) {
   if (value === undefined) return fallback;
@@ -747,8 +748,12 @@ module.exports = function(app, deps) {
         try { fs.unlinkSync(filePath); } catch (e) {}
       }
     } catch (e) {
-      console.error('[khqr/upload]', e);
-      res.status(400).json({ error: e.message });
+      console.error('[khqr/upload] failed', safeErrorMetadata(e));
+      const errorStatus = Number(e?.statusCode || e?.status);
+      const status = Number.isInteger(errorStatus) && errorStatus >= 400 && errorStatus < 500 ? errorStatus : 500;
+      res.status(status).json({
+        error: status < 500 ? 'KHQR 文件无效或处理失败，请检查文件后重试' : 'KHQR 上传处理失败，请稍后重试'
+      });
     }
   });
 
@@ -810,11 +815,6 @@ module.exports = function(app, deps) {
         const staticInfo = khqr.extractInfo(khqr.parseTLV(provider.payload));
         staticCurrency = staticInfo.currency === '840' ? 'USD' : (staticInfo.currency === '116' ? 'KHR' : 'USD');
       }
-      console.log('[khqr/debug] 请求币种=', JSON.stringify(req.body && req.body.currency),
-        '请求类型=', typeof (req.body && req.body.currency),
-        'provider=', provider.id,
-        'staticCurrency=', staticCurrency);
-
       const requestedCurrency = String((req.body && req.body.currency) || '').trim().toUpperCase();
       const targetCurrency = ['USD', 'KHR'].includes(requestedCurrency) ? requestedCurrency : staticCurrency;
       // orders.total is normalized to the merchant's USD base currency when the
@@ -919,7 +919,7 @@ module.exports = function(app, deps) {
         expire_minutes: expireMin,
       });
     } catch (e) {
-      console.error('[khqr/generate]', e);
+      console.error('[khqr/generate] failed', safeErrorMetadata(e));
       const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
       res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message });
     }

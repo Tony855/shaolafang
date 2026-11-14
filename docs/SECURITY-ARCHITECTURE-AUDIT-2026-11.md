@@ -5,14 +5,36 @@
 **审查方式：** GitHub 源码、部署模板、CI 工作流及现有测试清单静态审查。  
 **注意：** 本记录不是渗透测试或生产环境验收报告；未执行真实数据库迁移、线上部署或端到端攻击验证。
 
+## 当前状态（2026-11-15）
+
+以下状态优先于后文第 3、5、6 节中的历史“待处理”描述；旧章节保留作为审计轨迹。
+
+| 历史发现 | 当前状态 | 核验边界 |
+|---|---|---|
+| 静态资源缓存策略冲突 | 已在 main 的三份 Nginx 模板修复 | 仍需生产浏览器缓存验收 |
+| Nginx access log 记录 query string / Referer | 单机模板和安装器已修复；Enterprise/Enterprise Ultimate 集群模板已在 PR #268 增加 `foodflow_safe` 格式 | 必须以 PR #268 最新 head 的 CI 为准；历史日志仍需按保留策略清理 |
+| Node 默认监听所有网卡 | main 已默认 loopback；集群通过显式 HOST 暴露私网监听 | 生产防火墙/安全组仍需现场检查 |
+| 集群 TRUST_PROXY 与 Redis 共享状态 | PR #267 已合并；集群部署强制共享 Redis、可信代理 CIDR 和启动 readiness | 生产负载均衡器来源 IP、Redis 故障恢复仍需故障注入 |
+| readiness 路由不一致 | main 已统一 `/health`，保留兼容别名并检查 MySQL；集群还检查 Redis/Socket.IO Adapter | 生产探针仍需实测 |
+| Nginx 上传上限低于应用限制 | main 所有部署模板已统一 105M | 仍需在目标反向代理链路测试大文件上传 |
+| 认证/上传错误日志暴露 | PR #268 已覆盖认证、KHQR、ZIP 导入/导出日志脱敏及回归测试 | 新增集群 Nginx 日志改动的 CI 尚待完成 |
+| Telegram Bot Token 静态存储 | 当前 settings 表和备份保留 Bot Token 明文；API/UI 只做显示脱敏 | 已在 Telegram 运维文档明确披露；应用级加密、密钥轮换和旧值迁移仍是 P2 加固项 |
+| Telegram 通知队列停用语义 | PR #266 增加全局 Bot、门店及单事件停用时的事务性 dead-letter 清理 | 最新 CI 尚待完成；真实 Telegram 双 Bot 和多门店验收未完成 |
+| 大型单体路由/页面 | 仍是架构改进项，不是已确认可利用漏洞 | 应以小步拆分和集成测试推进 |
+
+**当前 GitHub 状态：** PR #267 已合并；PR #266 和 #268 仍为 Draft。两项 PR 都必须以各自最新 head 的 CI/安装兼容性结果为准，不得沿用旧提交的通过状态。PR #266 还需要真实 Telegram staging、多门店隔离和备份恢复验收。
+
+**分支保护：** 当前 GitHub API 未返回 main 的保护规则，仓库 Rulesets 列表为空。此项需要仓库管理员在 GitHub 设置中启用，不能由应用代码或本次 CI 自动替代。
+
+
 ## 1. 项目结构
 
-- Node.js 20 / Express 4 后端，MariaDB 持久化。
-- Redis 可选，用于跨节点缓存、限流/冷却状态及 Socket.IO adapter（按配置启用）。
+- Node.js 26 / Express 4 后端，MySQL 8.4 与 MariaDB 10.11–12.3 纳入 CI 集成矩阵。
+- 单机 Redis 可选；多节点集群通过 REQUIRE_SHARED_REDIS 强制共享 Redis，用于跨节点限流/冷却状态及 Socket.IO adapter。
 - Socket.IO 实时事件。
 - 原生 JavaScript 多页面前端：顾客、商户管理、服务员、后厨、收银、超级管理员。
 - 业务路由位于 `routes/`，认证中间件位于 `server/middleware/`，数据库工具位于 `server/db/`，服务层位于 `server/services/`。
-- 现有测试位于 `tests/`，CI 在 Node.js 20 环境执行语法检查、审计脚本、多语言校验、测试及生产依赖审计。
+- 现有测试位于 `tests/`，CI 在 Node.js 26 环境执行语法检查、审计脚本、多语言校验、测试及生产依赖审计。
 
 ## 2. 本轮已修复
 
@@ -112,7 +134,7 @@
 
 ### [P1 - 部署条件] 集群 Redis 与可信代理启动保护
 
-**处理分支：** PR #267（Draft，CI 待验收）。
+**处理分支：** [PR #267](https://github.com/Tony855/shaolafang/pull/267)（已于 2026-11-14 合并，merge commit `d31d4dc`）。
 
 - 新增 `REQUIRE_SHARED_REDIS=true` 启动保护；Redis URL 缺失、Redis 连接失败或 Socket.IO Redis Adapter 未就绪时，集群节点不会开始监听 HTTP。
 - 集群模式要求显式 IP/CIDR 代理列表，拒绝默认 loopback、通配/全地址、主机名及无效 CIDR。
@@ -120,5 +142,5 @@
 - 两套企业集群模板启用该开关；部署脚本会在新建和已有 `/etc/foodflow/.env` 中强制写入 `REQUIRE_SHARED_REDIS=true`。
 - 单机模板保持 `REQUIRE_SHARED_REDIS=false`，不改变单机 Redis 可选的降级行为。
 
-**状态：** 代码已提交 PR，等待 CI/安装兼容性矩阵；尚未合并，也未在生产集群执行故障注入。生产验收仍需验证 Redis 断开、恢复、Socket.IO 跨节点广播和真实负载均衡器 IP。
+**状态：** PR #267 的 CI/安装兼容性矩阵已通过并合并。尚未在生产集群执行故障注入；生产验收仍需验证 Redis 断开、恢复、Socket.IO 跨节点广播和真实负载均衡器 IP。
 

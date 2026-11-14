@@ -216,3 +216,16 @@ test('live socket revalidation disconnects if the authenticated identity changes
   assert.equal(disconnected, true);
   assert.equal(scheduled.length, 1);
 });
+
+test('socket authentication logs safe metadata without exposing database driver messages', async () => {
+  const logs = [];
+  const middleware = createSocketAuthenticator({
+    getAsync: async () => { throw new Error('sensitive database connection details'); },
+    logger: { error: (...args) => logs.push(args) }
+  });
+  let nextError = null;
+  await middleware(makeSocket('socket-token'), error => { nextError = error || null; });
+  assert.equal(nextError.message, 'auth failed');
+  assert.equal(JSON.stringify(logs).includes('sensitive database connection details'), false);
+  assert.deepEqual(logs[0][1], { name: 'Error' });
+});
