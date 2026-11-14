@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { enqueueSystemAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 
 function normalizeAdminFlag(value, fallback, field) {
   if (value === undefined) return fallback;
@@ -1080,6 +1081,12 @@ module.exports = function(app, deps) {
         }
         await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id: orderId, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
+        const store = await getAsync('SELECT name FROM stores WHERE id=?', [sid]);
+        await enqueueSystemAdminTelegramNotification({
+          getAsync,
+          eventKey: `order:${orderId}:settled`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${sid}`, orderNo: lockedOrder.order_no || String(orderId), amount: Number(lockedOrder.total), currency: 'USD' }
+        });
       });
       io.to('kitchen-' + sid).emit('order:settled', { orderId });
       io.to('waiter-' + sid).emit('order:settled', { orderId });
