@@ -48,6 +48,7 @@ async function claimTelegramNotifications({ workerId = randomUUID(), limit = 10,
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new TypeError('领取数量无效');
   if (!Number.isInteger(leaseSeconds) || leaseSeconds < 15 || leaseSeconds > 600) throw new TypeError('租约时长无效');
   return withTransaction(async () => {
+    await runAsync("UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='unknown', updated_at=UTC_TIMESTAMP(3) WHERE state='processing' AND attempts >= 8 AND locked_until < UTC_TIMESTAMP(3)");
     const rows = await allAsync(
       'SELECT id, event_key, event_type, merchant_id, store_id, recipient_scope, recipient_key, payload_json, attempts FROM telegram_notification_outbox WHERE attempts < 8 AND available_at <= UTC_TIMESTAMP(3) AND (state=\'pending\' OR (state=\'processing\' AND locked_until < UTC_TIMESTAMP(3))) ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED',
       [limit]
