@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification } = require('../server/services/telegram-notification-enqueue');
+const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 
 test('system admin Telegram notification enqueue is a no-op while the Bot is disabled', async () => {
   let enqueues = 0;
@@ -65,4 +65,37 @@ test('customer Telegram enqueue fails closed without enabled Bot or matching bin
   const noBinding = await enqueueCustomerTelegramNotification({ allAsync: async sql => sql.includes('settings') ? [{ value: '1' }] : [], customerTokenHash, merchantId: 7, storeId: 9, eventKey: 'x', event: {} });
   assert.equal(disabled, false);
   assert.equal(noBinding, false);
+});
+
+
+test('store admin enqueue uses exact merchant/store and event toggle', async () => {
+  let received;
+  const result = await enqueueStoreAdminTelegramNotification({
+    allAsync: async (sql, params) => {
+      if (sql.includes('settings')) return [{ value: '1' }];
+      assert.match(sql, /notify_order_created=1/);
+      assert.deepEqual(params, [7, 9]);
+      return [{ id: 2 }];
+    },
+    enqueue: async input => { received = input; },
+    merchantId: 7, storeId: 9, eventKey: 'order:1:created:store',
+    event: { type: 'order.created', storeName: 'A', orderNo: '1', amount: 3, currency: 'USD' }
+  });
+  assert.equal(result, true);
+  assert.equal(received.recipientScope, 'merchant_store');
+  assert.equal(received.recipientKey, 'store:9');
+  assert.equal(received.merchantId, 7);
+  assert.equal(received.storeId, 9);
+});
+
+test('store admin enqueue fails closed when recipient or event toggle is disabled', async () => {
+  const noRecipient = await enqueueStoreAdminTelegramNotification({
+    allAsync: async sql => sql.includes('settings') ? [{ value: '1' }] : [],
+    merchantId: 7, storeId: 9, eventKey: 'x', event: { type: 'order.created' }
+  });
+  const unknownEvent = await enqueueStoreAdminTelegramNotification({
+    allAsync: async () => [{ value: '1' }], merchantId: 7, storeId: 9, eventKey: 'x', event: { type: 'unknown' }
+  });
+  assert.equal(noRecipient, false);
+  assert.equal(unknownEvent, false);
 });
