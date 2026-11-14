@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const { toMoneyCents, hasActiveKhqr } = require('../server/services/order-financial');
 const { isValidRefundIdempotencyKey, createRefundRequestHash, calculateRefundAllocation } = require('../server/services/refund-financial');
-const { enqueueSystemAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
+const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
  
 function parsePositiveOrderId(value) {
@@ -340,11 +340,19 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
           throw error;
         }
       }
-      const store = await getAsync('SELECT name FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
+      const store = await getAsync('SELECT name, merchant_id FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
       for (const order of settlementOrders) {
         await enqueueSystemAdminTelegramNotification({
           getAsync,
           eventKey: `order:${order.id}:settled`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), amount: Number(order.total), currency: 'USD' }
+        });
+        await enqueueCustomerTelegramNotification({
+          allAsync,
+          customerTokenHash: order.customer_token,
+          merchantId: store?.merchant_id,
+          storeId: req.storeId,
+          eventKey: `order:${order.id}:settled:customer`,
           event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), amount: Number(order.total), currency: 'USD' }
         });
       }
@@ -499,6 +507,14 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
         eventKey: `order:${id}:settled`,
         event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), amount: Number(lockedOrder.total), currency: 'USD' }
       });
+      await enqueueCustomerTelegramNotification({
+        allAsync,
+        customerTokenHash: lockedOrder.customer_token,
+        merchantId: store?.merchant_id,
+        storeId: req.storeId,
+        eventKey: `order:${id}:settled:customer`,
+        event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), amount: Number(lockedOrder.total), currency: 'USD' }
+      });
     });
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
@@ -640,7 +656,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       }
 
       const lockedOrder = await getAsync(
-        'SELECT status, total, refund_amount, table_name, order_no FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+        'SELECT status, total, refund_amount, table_name, order_no, customer_token FROM orders WHERE id=? AND store_id=? FOR UPDATE',
         [id, req.storeId]
       );
       if (!lockedOrder) {
@@ -724,6 +740,14 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       await enqueueSystemAdminTelegramNotification({
         getAsync,
         eventKey: `order:${id}:refunded:${refundKey}`,
+        event: { type: 'order.refunded', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), refundAmount, currency: 'USD' }
+      });
+      await enqueueCustomerTelegramNotification({
+        allAsync,
+        customerTokenHash: lockedOrder.customer_token,
+        merchantId: store?.merchant_id,
+        storeId: req.storeId,
+        eventKey: `order:${id}:refunded:${refundKey}:customer`,
         event: { type: 'order.refunded', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), refundAmount, currency: 'USD' }
       });
     });
