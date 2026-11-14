@@ -119,6 +119,8 @@ test('Telegram customer webhook safely reactivates the same revoked owner bindin
   assert.equal(state.bindings.length, 1);
   assert.equal(state.bindings[0].is_active, 1);
   assert.equal(state.bindings[0].revoked_at, null);
+  assert.equal(state.outboxSuppressions.length, 1);
+  assert.deepEqual(state.outboxSuppressions[0].params, ['binding:9']);
 });
 
 
