@@ -85,6 +85,37 @@ test('provider event inbox requires adapter verification before durable intake',
   assert.equal(db.events.size, 1);
 });
 
+test('provider event envelope and normalized event must agree on a supplied transaction identity', async () => {
+  const db = createMemoryDb();
+  const verification = { verified: true, providerCode: 'ABA_PAYWAY' };
+  const envelope = {
+    providerCode: 'ABA_PAYWAY', providerEventId: 'payway-event-identity-001',
+    providerTransactionId: 'provider-txn-001',
+    merchantId: 2, storeId: 5, rawBody: 'signed callback bytes'
+  };
+  await assert.rejects(
+    db.service.recordVerifiedProviderEvent({
+      envelope, verification,
+      normalizedEvent: {
+        orderReference: 'order-001', amountMinor: 2500, currencyCode: 'USD',
+        paymentStatus: 'paid', providerTransactionId: 'different-provider-txn'
+      }
+    }),
+    error => error.code === 'PROVIDER_EVENT_TRANSACTION_ID_MISMATCH'
+  );
+  assert.equal(db.events.size, 0);
+
+  const accepted = await db.service.recordVerifiedProviderEvent({
+    envelope, verification,
+    normalizedEvent: {
+      orderReference: 'order-001', amountMinor: 2500, currencyCode: 'USD',
+      paymentStatus: 'paid', providerTransactionId: 'provider-txn-001'
+    }
+  });
+  assert.equal(accepted.accepted, true);
+  assert.equal(db.events.size, 1);
+});
+
 test('provider event duplicate is idempotent and changed payload is rejected', async () => {
   const db = createMemoryDb();
   const verification = { verified: true, providerCode: 'BAKONG' };
