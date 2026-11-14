@@ -23,7 +23,7 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
     if (!Number.isSafeInteger(bindingId) || !Number.isSafeInteger(tenantMerchantId) || tenantMerchantId <= 0 ||
         !Number.isSafeInteger(tenantStoreId) || tenantStoreId <= 0) return null;
     const binding = await allAsync(
-      'SELECT id, merchant_id, store_id, telegram_chat_id FROM telegram_customer_bindings WHERE id=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL LIMIT 1',
+      'SELECT b.id, b.merchant_id, b.store_id, b.telegram_chat_id FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id WHERE b.id=? AND b.merchant_id=? AND b.store_id=? AND b.is_active=1 AND b.revoked_at IS NULL AND s.active=1 AND m.status=1 LIMIT 1',
       [bindingId, tenantMerchantId, tenantStoreId]
     );
     if (!Array.isArray(binding) || !binding.length) return null;
