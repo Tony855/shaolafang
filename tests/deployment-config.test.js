@@ -87,3 +87,18 @@ test('cluster services keep application code read-only while allowing initial cr
     assert.ok(service.includes('ReadOnlyPaths=/var/www/foodflow'));
   }
 });
+
+test('single-host Nginx deployments never write query strings or Referer values to access logs', () => {
+  for (const file of [
+    'foodflow.conf',
+    'deploy/standard/nginx.conf',
+    'setup-nginx.sh',
+    'install.sh',
+    'install-local.sh'
+  ]) {
+    const content = read(file);
+    assert.match(content, /log_format foodflow_safe/, file + ' must define the redacted access log format');
+    assert.match(content, /access_log \/var\/log\/nginx\/access\.log foodflow_safe/, file + ' must select the safe access log');
+    assert.doesNotMatch(content, /log_format foodflow_safe[^;]*(?:\$request\b|\$request_uri|\$args|\$http_referer)/, file + ' must not log query strings or referrers');
+  }
+});
