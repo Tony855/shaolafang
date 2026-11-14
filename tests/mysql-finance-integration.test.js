@@ -10,6 +10,7 @@ const {
   lockOpenFinancialMonthPeriod
 } = require('../server/db/migrations/financial-month-close');
 const { ensureFinancialExceptionAlertSchema } = require('../server/db/migrations/financial-exception-alerts');
+const { ensureProviderEventQueueIndexes, INDEXES: PROVIDER_EVENT_QUEUE_INDEXES } = require('../server/db/migrations/provider-event-queue-indexes');
 
 const databaseUrl = process.env.MYSQL_INTEGRATION_URL;
 
@@ -2613,4 +2614,52 @@ test('MySQL integration: manual refund, fee and settlement-difference classifica
       crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex'),
       'classification audit hash must cover actor, reason, category snapshots and prior hash');
   }
+});
+
+
+test('MySQL integration: provider event queue indexes survive concurrent startup migration and reruns', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const firstDb = await connectTestDatabase();
+  const secondDb = await connectTestDatabase();
+  t.after(async () => {
+    try {
+      await firstDb.connection.query('DROP TABLE IF EXISTS provider_webhook_events');
+    } finally {
+      await Promise.all([firstDb.connection.end(), secondDb.connection.end()]);
+    }
+  });
+
+  await firstDb.connection.query('DROP TABLE IF EXISTS provider_webhook_events');
+  await firstDb.runAsync(`CREATE TABLE provider_webhook_events (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    auth_status ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending',
+    processing_status ENUM('received','processing','processed','failed') NOT NULL DEFAULT 'received',
+    next_attempt_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    received_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    lease_expires_at DATETIME(3) DEFAULT NULL,
+    attempt_count INT UNSIGNED NOT NULL DEFAULT 0
+  ) ENGINE=InnoDB`);
+
+  const migrationResults = await Promise.all([
+    ensureProviderEventQueueIndexes({ runAsync: firstDb.runAsync, allAsync: firstDb.allAsync }),
+    ensureProviderEventQueueIndexes({ runAsync: secondDb.runAsync, allAsync: secondDb.allAsync })
+  ]);
+  assert.equal(migrationResults.length, 2);
+
+  await firstDb.runAsync(
+    "INSERT INTO provider_webhook_events (auth_status,processing_status,attempt_count) VALUES ('verified','received',0)"
+  );
+  await ensureProviderEventQueueIndexes({ runAsync: firstDb.runAsync, allAsync: firstDb.allAsync });
+
+  const indexes = await firstDb.allAsync('SHOW INDEX FROM provider_webhook_events');
+  for (const expected of PROVIDER_EVENT_QUEUE_INDEXES) {
+    const actual = indexes
+      .filter(index => index.Key_name === expected.name)
+      .sort((left, right) => Number(left.Seq_in_index) - Number(right.Seq_in_index));
+    assert.deepEqual(actual.map(index => index.Column_name), expected.columns);
+  }
+  const row = await firstDb.getAsync('SELECT COUNT(*) AS count FROM provider_webhook_events');
+  assert.equal(Number(row.count), 1, 'index migration must preserve existing inbox rows');
 });

@@ -127,4 +127,5 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 
 
 - PR #230 merged: provider event failure/retry row-lock read and state transition now share one transaction; 12/12 current-head CI and installer checks passed. Merge commit: `f4dd39818074f1e8bf8b36028c5476d43fead9ee`.
-- Next provider-queue hardening batch: retire expired leases that have already consumed the final permitted attempt, preventing crash-recovered events from remaining permanently stuck in `processing`.
+- PR #231 merged: expired verified provider events that have consumed their final attempt are now retired as `failed` after lease expiry instead of remaining stranded in `processing`; 12/12 current-head CI and installer checks passed. Merge commit: `7d3beaa552911365dd2bc3f9814563fd209760e3`.
+- PR #232 under review: add legacy-safe indexes for the due-received and expired-lease queue claim paths; validate schema drift and concurrent startup migration races. The PR also documents that inbox/queue primitives are not yet wired to a live callback route or continuously running worker. Current head and CI are tracked on the PR; do not merge before every current-head check passes.
