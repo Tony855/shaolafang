@@ -7,6 +7,7 @@ const { hashPassword, verifyPassword } = require("../server/middleware/password"
 const { compressImage } = require("../server/services/image-compress");
 const { resolveOrderStoreId } = require("../server/services/order-store-scope");
 const { hashSessionToken } = require('../server/services/session-token');
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 const { toMoneyCents, hasActiveKhqr, calculateOrderTotalCents } = require('../server/services/order-financial');
 
 function parsePositiveOrderRouteId(value) {
@@ -299,7 +300,7 @@ app.put('/api/orders/:id/items/:index', requireAdminOrWaiter, async (req, res) =
     }
     return res.json(updatedOrder);
   } catch (e) {
-    console.error('切换菜品状态失败:', e);
+    console.error('切换菜品状态失败:', safeErrorMetadata(e));
     sendOrderError(res, e);
   }
 });
@@ -574,7 +575,7 @@ app.post('/api/orders', async (req, res) => {
       });
     } catch (e) {
       if (e && e.code === 'ER_DUP_ENTRY' && String(e.message).includes('idx_order_no')) {
-        console.error('[order] order_no 唯一约束冲突，可能序列化表被手动修改:', e.message);
+        console.error('[order] order_no unique constraint conflict:', safeErrorMetadata(e));
         return res.status(409).json({ error: '订单号冲突，请重试', code: 'ORDER_NO_CONFLICT' });
       }
       throw e;
@@ -596,13 +597,13 @@ app.post('/api/orders', async (req, res) => {
           getAsync,
         });
         if (result.printed) {
-          console.log(`[AutoPrint] 后厨单已打印 order #${newRow.id} → ${result.printer}`);
+          console.log(`[AutoPrint] kitchen ticket printed order #${newRow.id}`);
         } else if (result.error) {
-          console.error(`[AutoPrint] 打印失败 order #${newRow.id}:`, result.error);
+          console.error(`[AutoPrint] print failed order #${newRow.id}:`, safeErrorMetadata(result.error));
         }
       }
     } catch (autoPrintErr) {
-      console.error('[AutoPrint] Error:', autoPrintErr.message);
+      console.error('[AutoPrint] Error:', safeErrorMetadata(autoPrintErr));
     }
 
     const orderData = formatOrder(newRow);
@@ -629,7 +630,7 @@ app.post('/api/orders', async (req, res) => {
     }
     res.status(201).json(responseData);
   } catch (e) {
-    console.error('[POST /api/orders] 错误:', e);
+    console.error('[POST /api/orders] 错误:', safeErrorMetadata(e));
     sendOrderError(res, e);
   }
 });
@@ -856,7 +857,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     }
     res.json(formatStaffOrder(updatedRow));
   } catch (e) {
-    console.error('更新订单失败:', e);
+    console.error('更新订单失败:', safeErrorMetadata(e));
     sendOrderError(res, e);
   }
 });
