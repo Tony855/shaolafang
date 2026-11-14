@@ -16,12 +16,16 @@ warn() { printf '[WARN] %s\n' "$*" >&2; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
 
 [ -f "$ENV_FILE" ] || fail "未找到配置文件：$ENV_FILE"
-for key in DB_HOST DB_USER DB_PASSWORD DB_DATABASE; do
-  if ! grep -Eq "^\${key}=.+" "$ENV_FILE"; then
-    fail ".env 缺少必填项：$key（不会显示任何密钥内容）"
-  fi
-done
-ok "数据库连接配置项齐全（密钥内容已隐藏）"
+# Match server/config/env.js: DB_HOST, DB_USER and DB_PASSWORD have
+# runtime defaults (localhost, root and empty password respectively).
+# DB_DATABASE is the only database setting that the application requires.
+if ! grep -Eq '^DB_DATABASE=.+$' "$ENV_FILE"; then
+  fail ".env 缺少必填项：DB_DATABASE（不会显示任何密钥内容）"
+fi
+if ! grep -Eq '^DB_HOST=.+$' "$ENV_FILE"; then
+  ok "DB_HOST 未显式设置，将使用应用默认值 localhost"
+fi
+ok "数据库配置通过（密钥内容已隐藏）"
 
 PORT="$(sed -n 's/^PORT=//p' "$ENV_FILE" | tail -n 1)"
 PORT="${PORT:-3000}"
