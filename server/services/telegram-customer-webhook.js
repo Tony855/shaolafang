@@ -1,92 +1,98 @@
 'use strict';
 
 const crypto = require('crypto');
-const { sendTelegramMessage, validateBotToken } = require('./telegram-bot');
-
-function safeEqual(left, right) {
-  if (typeof left !== 'string' || typeof right !== 'string') return false;
-  const a = Buffer.from(left);
-  const b = Buffer.from(right);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
+const { validateBotToken, sendTelegramMessage } = require('./telegram-bot');
+const { constantTimeSecretMatch, parseTelegramPrivateStartUpdate } = require('./telegram-webhook');
 
 function createTelegramCustomerWebhookHandler({
-  getAsync, runAsync, withTransaction, secret, getBotToken, sendMessage = sendTelegramMessage, logger = console
+  getAsync, allAsync, runAsync, withTransaction, secret, getBotToken,
+  sendMessage = sendTelegramMessage, logger = console
 } = {}) {
-  for (const [name, fn] of Object.entries({ getAsync, runAsync, withTransaction, getBotToken })) {
+  for (const [name, fn] of Object.entries({ getAsync, allAsync, runAsync, withTransaction, getBotToken })) {
     if (typeof fn !== 'function') throw new TypeError(name + ' is required');
   }
 
   return async function telegramCustomerWebhook(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     const suppliedSecret = req.get?.('X-Telegram-Bot-Api-Secret-Token') || req.headers?.['x-telegram-bot-api-secret-token'] || '';
-    if (typeof secret !== 'string' || secret.length < 32 || secret.length > 256 || !safeEqual(suppliedSecret, secret)) {
+    if (typeof secret !== 'string' || secret.length < 32 || secret.length > 256 || !constantTimeSecretMatch(suppliedSecret, secret)) {
       return res.status(403).json({ ok: false });
     }
 
-    const update = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-    const updateId = Number(update.update_id);
-    if (!Number.isSafeInteger(updateId) || updateId < 0) return res.status(200).json({ ok: true });
+    const update = parseTelegramPrivateStartUpdate(req.body);
+    if (!update) return res.status(200).json({ ok: true });
 
+    let botToken;
     try {
-      let bound = null;
+      botToken = await getBotToken();
+      if (!validateBotToken(botToken)) return res.status(200).json({ ok: true });
+    } catch (_) {
+      return res.status(503).json({ ok: false });
+    }
+
+    let bound = null;
+    try {
       await withTransaction(async () => {
         try {
-          await runAsync('INSERT INTO telegram_webhook_updates (update_id, received_at) VALUES (?, UTC_TIMESTAMP(3))', [updateId]);
+          await runAsync('INSERT INTO telegram_webhook_updates (update_id, received_at) VALUES (?, UTC_TIMESTAMP(3))', [update.updateId]);
         } catch (error) {
           if (error?.code === 'ER_DUP_ENTRY') return;
           throw error;
         }
 
-        const message = update.message;
-        const text = typeof message?.text === 'string' ? message.text.trim() : '';
-        const match = text.match(/^\/start\s+([A-Za-z0-9_-]{32,64})$/);
-        const chatId = String(message?.chat?.id ?? '');
-        const userId = String(message?.from?.id ?? '');
-        if (message?.chat?.type !== 'private' || !match || !/^-?\d{1,20}$/.test(chatId) || !/^\d{1,20}$/.test(userId)) return;
-
-        const challengeHash = crypto.createHash('sha256').update(match[1]).digest('hex');
+        const challengeHash = crypto.createHash('sha256').update(update.challenge).digest('hex');
         const challenge = await getAsync(
           'SELECT id, customer_token_hash, merchant_id, store_id FROM telegram_customer_binding_challenges WHERE challenge_hash=? AND consumed_at IS NULL AND expires_at > UTC_TIMESTAMP(3) FOR UPDATE',
           [challengeHash]
         );
         if (!challenge) return;
+        const activeStore = await getAsync(
+          'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
+          [challenge.store_id, challenge.merchant_id]
+        );
+        if (!activeStore) return;
 
+        const existingRows = await allAsync(
+          'SELECT id, customer_token_hash, store_id, telegram_chat_id FROM telegram_customer_bindings WHERE (telegram_chat_id=? AND store_id=?) OR (customer_token_hash=? AND store_id=?) FOR UPDATE',
+          [update.telegramChatId, challenge.store_id, challenge.customer_token_hash, challenge.store_id]
+        );
+        const chatOwner = existingRows.find(row => String(row.telegram_chat_id) === update.telegramChatId);
+        if (chatOwner && (chatOwner.customer_token_hash !== challenge.customer_token_hash || Number(chatOwner.store_id) !== Number(challenge.store_id))) return;
+        const ownerBinding = existingRows.find(row => row.customer_token_hash === challenge.customer_token_hash && Number(row.store_id) === Number(challenge.store_id));
+        if (ownerBinding) {
+          await runAsync(
+            'UPDATE telegram_customer_bindings SET merchant_id=?, telegram_user_id=?, telegram_chat_id=?, is_active=1, revoked_at=NULL, updated_at=UTC_TIMESTAMP(3) WHERE id=?',
+            [challenge.merchant_id, update.telegramUserId, update.telegramChatId, ownerBinding.id]
+          );
+        } else {
+          await runAsync(
+            'INSERT INTO telegram_customer_bindings (customer_token_hash, merchant_id, store_id, telegram_user_id, telegram_chat_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))',
+            [challenge.customer_token_hash, challenge.merchant_id, challenge.store_id, update.telegramUserId, update.telegramChatId]
+          );
+        }
         const consumed = await runAsync(
-          'UPDATE telegram_customer_binding_challenges SET consumed_at=UTC_TIMESTAMP(3) WHERE id=? AND consumed_at IS NULL AND expires_at > UTC_TIMESTAMP(3)',
+          'UPDATE telegram_customer_binding_challenges SET consumed_at=UTC_TIMESTAMP(3) WHERE id=? AND consumed_at IS NULL AND expires_at>UTC_TIMESTAMP(3)',
           [challenge.id]
         );
-        if (Number(consumed.affectedRows) !== 1) return;
-
-        try {
-          await runAsync(
-            'INSERT INTO telegram_customer_bindings (customer_token_hash, merchant_id, store_id, telegram_user_id, telegram_chat_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE is_active=IF(customer_token_hash=VALUES(customer_token_hash) AND merchant_id=VALUES(merchant_id) AND store_id=VALUES(store_id) AND telegram_chat_id=VALUES(telegram_chat_id), 1, is_active), revoked_at=IF(customer_token_hash=VALUES(customer_token_hash) AND merchant_id=VALUES(merchant_id) AND store_id=VALUES(store_id) AND telegram_chat_id=VALUES(telegram_chat_id), NULL, revoked_at), updated_at=IF(customer_token_hash=VALUES(customer_token_hash) AND merchant_id=VALUES(merchant_id) AND store_id=VALUES(store_id) AND telegram_chat_id=VALUES(telegram_chat_id), UTC_TIMESTAMP(3), updated_at)',
-            [challenge.customer_token_hash, challenge.merchant_id, challenge.store_id, userId, chatId]
-          );
-          const row = await getAsync(
-            'SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND telegram_chat_id=? AND is_active=1 AND revoked_at IS NULL LIMIT 1',
-            [challenge.customer_token_hash, challenge.merchant_id, challenge.store_id, chatId]
-          );
-          if (row) bound = { id: Number(row.id), chatId };
-        } catch (error) {
-          if (error?.code !== 'ER_DUP_ENTRY') throw error;
-        }
+        if (Number(consumed.affectedRows) !== 1) throw new Error('Telegram binding challenge consumption race');
+        await runAsync('DELETE FROM telegram_webhook_updates WHERE received_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 30 DAY)');
+        bound = { chatId: update.telegramChatId };
       });
-
-      if (bound) {
-        try {
-          const token = await getBotToken();
-          if (validateBotToken(token)) await sendMessage({ token, chatId: bound.chatId, text: 'FoodFlow Telegram 通知绑定成功。' });
-        } catch (error) {
-          logger.warn('[telegram-webhook] confirmation message failed');
-        }
-      }
-      return res.status(200).json({ ok: true });
     } catch (error) {
-      logger.error('[telegram-webhook] update processing failed:', error?.message || 'unknown error');
-      return res.status(200).json({ ok: true });
+      if (error?.code === 'ER_DUP_ENTRY') return res.status(200).json({ ok: true });
+      try { logger.error('[telegram-webhook] update processing failed'); } catch (_) {}
+      return res.status(503).json({ ok: false });
     }
+
+    if (bound) {
+      try {
+        await sendMessage({ token: botToken, chatId: bound.chatId, text: 'FoodFlow：Telegram 顾客通知绑定成功。你只会收到当前顾客会话关联的订单通知。' });
+      } catch (_) {
+        try { logger.warn('[telegram-webhook] confirmation message failed'); } catch (_) {}
+      }
+    }
+    return res.status(200).json({ ok: true });
   };
 }
 
-module.exports = { createTelegramCustomerWebhookHandler, safeEqual };
+module.exports = { createTelegramCustomerWebhookHandler };
