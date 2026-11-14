@@ -206,6 +206,7 @@ test('first install defaults to a minimal single-node path and keeps advanced se
 
 test('minimal first-run verification checks configuration, service, database health and credential-file permissions', () => {
   const check = read('scripts/first-run-check.sh');
+  const safety = read('scripts/lib/deploy-safety.sh');
   const route = read('routes/health.js');
   const server = read('server.js');
   const installer = read('install.sh');
@@ -217,7 +218,9 @@ test('minimal first-run verification checks configuration, service, database hea
   assert.match(server, /require\('\.\/routes\/health\.js'\)/);
   assert.match(check, /DB_HOST DB_USER DB_PASSWORD DB_DATABASE/);
   assert.match(check, /systemctl is-active/);
-  assert.match(check, /\/health/);
+  assert.match(check, /deploy-safety\.sh/);
+  assert.match(check, /ff_wait_for_health "\$PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/);
+  assert.match(safety, /\/health/);
   assert.match(check, /-perm \/077/);
   assert.doesNotMatch(check, /cat "\$CREDENTIALS_FILE"/);
   assert.match(installer, /scripts\/first-run-check\.sh/);
