@@ -2,7 +2,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
+const {
+  enqueueSystemAdminTelegramNotification,
+  enqueueCustomerTelegramNotification,
+  enqueueStoreAdminTelegramNotification
+} = require('../server/services/telegram-notification-enqueue');
 
 test('system admin Telegram notification enqueue is a no-op while the Bot is disabled', async () => {
   let enqueues = 0;
@@ -16,11 +20,11 @@ test('system admin Telegram notification enqueue is a no-op while the Bot is dis
   assert.equal(enqueues, 0);
 });
 
-test('system admin Telegram notification enqueue writes an allowlisted recipient inside caller transaction', async () => {
+test('system admin Telegram notification enqueue locks Bot settings before writing', async () => {
   let received;
   const result = await enqueueSystemAdminTelegramNotification({
     getAsync: async (sql, params) => {
-      assert.match(sql, /SELECT value FROM settings/);
+      assert.match(sql, /SELECT value FROM settings[\s\S]*FOR UPDATE/);
       assert.deepEqual(params, ['telegram_admin_bot_enabled']);
       return { value: '1' };
     },
@@ -37,13 +41,26 @@ test('system admin Telegram notification enqueue writes an allowlisted recipient
   });
 });
 
-
-test('customer Telegram enqueue requires enabled Bot and an active binding owned by the exact store', async () => {
+test('customer Telegram enqueue locks settings, tenant, and exact binding before writing', async () => {
   let received;
   const customerTokenHash = 'a'.repeat(64);
   const result = await enqueueCustomerTelegramNotification({
     allAsync: async (sql, params) => {
-      if (sql.includes('settings')) return [{ key: 'telegram_client_bot_enabled', value: '1' }];
+      if (sql.includes('settings')) {
+        assert.match(sql, /FOR UPDATE/);
+        return [{ key: 'telegram_client_bot_enabled', value: '1' }];
+      }
+      if (sql.includes('FROM merchants')) {
+        assert.match(sql, /FOR UPDATE/);
+        assert.deepEqual(params, [7]);
+        return [{ id: 7 }];
+      }
+      if (sql.includes('FROM stores')) {
+        assert.match(sql, /FOR UPDATE/);
+        assert.deepEqual(params, [9, 7]);
+        return [{ id: 9 }];
+      }
+      assert.match(sql, /FROM telegram_customer_bindings[\s\S]*FOR UPDATE/);
       assert.deepEqual(params, [customerTokenHash, 7, 9]);
       return [{ id: 42 }];
     },
@@ -61,19 +78,43 @@ test('customer Telegram enqueue requires enabled Bot and an active binding owned
 
 test('customer Telegram enqueue fails closed without enabled Bot or matching binding', async () => {
   const customerTokenHash = 'b'.repeat(64);
-  const disabled = await enqueueCustomerTelegramNotification({ allAsync: async () => [{ key: 'telegram_client_bot_enabled', value: '0' }], customerTokenHash, merchantId: 7, storeId: 9, eventKey: 'x', event: {} });
-  const noBinding = await enqueueCustomerTelegramNotification({ allAsync: async sql => sql.includes('settings') ? [{ value: '1' }] : [], customerTokenHash, merchantId: 7, storeId: 9, eventKey: 'x', event: {} });
+  const disabled = await enqueueCustomerTelegramNotification({
+    allAsync: async () => [{ key: 'telegram_client_bot_enabled', value: '0' }],
+    customerTokenHash, merchantId: 7, storeId: 9, eventKey: 'x', event: {}
+  });
+  const noBinding = await enqueueCustomerTelegramNotification({
+    allAsync: async sql => {
+      if (sql.includes('settings')) return [{ key: 'telegram_client_bot_enabled', value: '1' }];
+      if (sql.includes('FROM merchants')) return [{ id: 7 }];
+      if (sql.includes('FROM stores')) return [{ id: 9 }];
+      return [];
+    },
+    customerTokenHash, merchantId: 7, storeId: 9, eventKey: 'x', event: {}
+  });
   assert.equal(disabled, false);
   assert.equal(noBinding, false);
 });
 
-
-test('store admin enqueue uses exact merchant/store and event toggle', async () => {
+test('store admin enqueue locks Bot, tenant, and recipient rows before writing', async () => {
   let received;
   const result = await enqueueStoreAdminTelegramNotification({
     allAsync: async (sql, params) => {
-      if (sql.includes('settings')) return [{ value: '1' }];
+      if (sql.includes('settings')) {
+        assert.match(sql, /FOR UPDATE/);
+        return [{ value: '1' }];
+      }
+      if (sql.includes('FROM merchants')) {
+        assert.match(sql, /FOR UPDATE/);
+        assert.deepEqual(params, [7]);
+        return [{ id: 7 }];
+      }
+      if (sql.includes('FROM stores')) {
+        assert.match(sql, /FOR UPDATE/);
+        assert.deepEqual(params, [9, 7]);
+        return [{ id: 9 }];
+      }
       assert.match(sql, /notify_order_created=1/);
+      assert.match(sql, /FOR UPDATE/);
       assert.deepEqual(params, [7, 9]);
       return [{ id: 2 }];
     },
@@ -90,11 +131,17 @@ test('store admin enqueue uses exact merchant/store and event toggle', async () 
 
 test('store admin enqueue fails closed when recipient or event toggle is disabled', async () => {
   const noRecipient = await enqueueStoreAdminTelegramNotification({
-    allAsync: async sql => sql.includes('settings') ? [{ value: '1' }] : [],
+    allAsync: async sql => {
+      if (sql.includes('settings')) return [{ value: '1' }];
+      if (sql.includes('FROM merchants')) return [{ id: 7 }];
+      if (sql.includes('FROM stores')) return [{ id: 9 }];
+      return [];
+    },
     merchantId: 7, storeId: 9, eventKey: 'x', event: { type: 'order.created' }
   });
   const unknownEvent = await enqueueStoreAdminTelegramNotification({
-    allAsync: async () => [{ value: '1' }], merchantId: 7, storeId: 9, eventKey: 'x', event: { type: 'unknown' }
+    allAsync: async () => [{ value: '1' }],
+    merchantId: 7, storeId: 9, eventKey: 'x', event: { type: 'unknown' }
   });
   assert.equal(noRecipient, false);
   assert.equal(unknownEvent, false);
