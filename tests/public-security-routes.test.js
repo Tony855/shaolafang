@@ -918,6 +918,26 @@ test('public table socket change payloads never contain another customer order d
 });
 
 
+test('customer Telegram binding challenge creation is rate limited before reading bearer tokens', async () => {
+  const { app, routes } = routeHarness();
+  let reads = 0;
+  registerPublicSession(app, {
+    requireAdminKey: pass,
+    requirePermission: () => pass,
+    formatOrder: row => row,
+    getAsync: async () => { reads++; return null; },
+    allAsync: async () => [],
+    runAsync: async () => ({ affectedRows: 1 }),
+    scanSessionRateLimiter: { consume: async ip => { assert.equal(ip, '198.51.100.8'); return 30; }, cleanup: async () => {} }
+  });
+  const handler = routes.get('POST /api/public/customer-telegram/binding/start').at(-1);
+  const res = response();
+  await handler({ ip: '198.51.100.8', get: () => undefined }, res);
+  assert.equal(res.statusCode, 429);
+  assert.equal(res.headers['Retry-After'], '30');
+  assert.equal(reads, 0);
+});
+
 test('customer Telegram binding start uses only header bearer tokens and stores a hashed one-time challenge', async () => {
   const { app, routes } = routeHarness();
   const writes = [];
