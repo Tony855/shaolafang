@@ -230,25 +230,12 @@ check_root() {
 check_system() {
     log_step "检查系统环境..."
 
-    # 检查操作系统
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        OS_NAME="$NAME"
-        OS_VERSION="$VERSION_ID"
-        log_info "操作系统：$OS_NAME $OS_VERSION"
-    else
-        log_error "无法识别操作系统，支持 Debian 12/13、Ubuntu 22.04/24.04"
-        exit 1
-    fi
-
-    # Node.js 26 LTS 的安装兼容性仅在以下系统版本中验证
-    case "$ID:$OS_VERSION" in
-        debian:12|debian:13|ubuntu:22.04|ubuntu:24.04) ;;
-        *)
-            log_error "当前系统 $OS_NAME $OS_VERSION 未通过安装兼容性验证；支持 Debian 12/13、Ubuntu 22.04/24.04"
-            exit 1
-            ;;
-    esac
+    # 与共享依赖库使用同一份受支持系统清单，避免安装入口与 CI 检查分叉。
+    ff_require_supported_os || exit 1
+    . /etc/os-release
+    OS_NAME="${PRETTY_NAME:-$NAME}"
+    OS_VERSION="$VERSION_ID"
+    log_info "操作系统：$OS_NAME $OS_VERSION"
 
     # 检查架构
     ARCH=$(uname -m)
@@ -550,7 +537,7 @@ install_single() {
         if command -v mariadb &>/dev/null || command -v mysql &>/dev/null; then
             log_warn "检测到数据库客户端但未检测到可用服务；保留现有数据库文件和配置，直接尝试安装 MariaDB Server。"
         fi
-        ff_apt_install mariadb-server
+        ff_install_mariadb_server
         mkdir -p /run/mysqld
         chown mysql:mysql /run/mysqld
         systemctl enable mariadb
