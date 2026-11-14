@@ -55,7 +55,9 @@ test('load balancer health checks proxy to application readiness, not a static 2
     assert.doesNotMatch(content, /location = \/health[\s\S]*?return 200/, file);
   }
   const healthRoute = read('routes/health.js');
-  assert.match(healthRoute, /app\.get\(\['\/health', '\/api\/health\/ready', '\/api\/health'\]/);
+  assert.match(healthRoute, /app\.get\('\/health', readinessHandler\)/);
+  assert.match(healthRoute, /app\.get\('\/api\/health\/ready', readinessHandler\)/);
+  assert.match(healthRoute, /app\.get\('\/api\/health', readinessHandler\)/);
   assert.match(healthRoute, /pool\.query\('SELECT 1'\)/);
 });
 
