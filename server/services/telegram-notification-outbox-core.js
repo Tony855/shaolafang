@@ -5,7 +5,7 @@ const { formatTelegramBusinessNotification } = require('./telegram-notification-
 const ALLOWED_SCOPES = new Set(['system_admin', 'merchant_store', 'customer']);
 const SAFE_ERROR_CODES = new Set([
   'network_error', 'telegram_400', 'telegram_401', 'telegram_403',
-  'telegram_429', 'telegram_5xx', 'invalid_recipient', 'unknown'
+  'telegram_429', 'telegram_5xx', 'invalid_recipient', 'event_disabled', 'unknown'
 ]);
 
 function positiveId(value, label) {
