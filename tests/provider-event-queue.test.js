@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createProviderEventQueue } = require('../server/services/provider-event-queue');
 
-function memoryQueue(rows) {
+function memoryQueue(rows, options = {}) {
   const calls = [];
   let transactionCount = 0;
   async function getAsync(sql, params = []) {
@@ -16,6 +16,10 @@ function memoryQueue(rows) {
       return row ? { ...row } : null;
     }
     if (sql.includes('SELECT attempt_count, max_attempts')) {
+      if (options.expireBeforeFailureUpdate) {
+        options.expireBeforeFailureUpdate = false;
+        options.expireAfterLock = true;
+      }
       const row = rows.find(item => item.id === params[0] &&
         item.processing_status === 'processing' && item.lease_token === params[1] && item.lease_expired !== true);
       return row ? { attempt_count: row.attempt_count, max_attempts: row.max_attempts } : null;
@@ -48,6 +52,11 @@ function memoryQueue(rows) {
       row.processing_status = 'processed'; row.lease_token = null; return { affectedRows: 1 };
     }
     if (sql.includes('SET processing_status=?')) {
+      if (options.expireAfterLock) {
+        options.expireAfterLock = false;
+        const row = rows.find(item => item.id === params[3]);
+        if (row) row.lease_expired = true;
+      }
       const row = rows.find(item => item.id === params[3] && item.lease_token === params[4] && item.lease_expired !== true);
       if (!row) return { affectedRows: 0 };
       row.processing_status = params[0]; row.lease_token = null; row.last_error_code = params[2];
@@ -147,5 +156,20 @@ test('fail rejects an expired lease instead of changing retry state after owners
     error => error.code === 'PROVIDER_EVENT_STALE_LEASE'
   );
   assert.equal(db.rows[0].processing_status, 'processing');
+  assert.equal(db.transactionCount, 1);
+});
+
+
+test('fail rechecks lease expiry at the state update after acquiring the row lock', async () => {
+  const db = memoryQueue([{
+    id: 31, processing_status: 'processing', lease_token: 'f'.repeat(64),
+    lease_expired: false, attempt_count: 1, max_attempts: 3
+  }], { expireBeforeFailureUpdate: true });
+  await assert.rejects(
+    db.queue.fail({ eventId: 31, leaseToken: 'f'.repeat(64), errorCode: 'LEASE_RACE' }),
+    error => error.code === 'PROVIDER_EVENT_STALE_LEASE'
+  );
+  assert.equal(db.rows[0].processing_status, 'processing');
+  assert.equal(db.rows[0].lease_token, 'f'.repeat(64));
   assert.equal(db.transactionCount, 1);
 });
