@@ -428,13 +428,24 @@ server {
 }
 EOF
 
-# 测试并重载 Nginx
-if nginx -t 2>/dev/null; then
-    systemctl reload nginx
-    log_success "Nginx 配置完成"
-else
-    log_warn "Nginx 配置测试失败，请手动检查 /etc/nginx/conf.d/foodflow.conf"
+# 测试并启动/重载 Nginx；配置或服务失败必须中止安装并输出日志。
+if ! nginx -t; then
+    log_error "Nginx 配置测试失败，拒绝继续安装。"
+    nginx -t 2>&1 || true
+    journalctl -u nginx -n 50 --no-pager || true
+    exit 1
 fi
+if ! systemctl reload-or-restart nginx; then
+    log_error "Nginx 重载或启动失败，最近日志："
+    journalctl -u nginx -n 50 --no-pager || true
+    exit 1
+fi
+if ! systemctl is-active --quiet nginx; then
+    log_error "Nginx 未进入 active 状态，最近日志："
+    journalctl -u nginx -n 50 --no-pager || true
+    exit 1
+fi
+log_success "Nginx 配置与服务检查通过"
 
 # ===== 10. 启动服务 =====
 echo ""
