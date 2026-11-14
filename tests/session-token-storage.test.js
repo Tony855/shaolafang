@@ -39,7 +39,8 @@ test('session storage migration adds unique digest columns and clears legacy cre
     assert.ok(writes.some(sql => sql.includes(`ALTER TABLE \`${table}\` ADD COLUMN token_hash CHAR(64)`)), table);
     assert.ok(writes.some(sql => sql.includes(`ALTER TABLE \`${table}\` MODIFY token VARCHAR(255) NULL`)), table);
     assert.ok(writes.some(sql => sql.includes(`CREATE UNIQUE INDEX \`uq_${table}_token_hash\``)), table);
-    assert.ok(writes.some(sql => sql.includes(`UPDATE \`${table}\` SET token_hash=`)), table);
+    assert.ok(writes.some(sql => sql.includes(`UPDATE \`${table}\` SET token_hash=CONVERT(SHA2(token, 256) USING ascii) COLLATE ascii_bin`)), table + ' must normalize the digest to ascii_bin');
+    assert.ok(writes.some(sql => sql.includes(`UPDATE \`${table}\` SET token=NULL WHERE token IS NOT NULL AND CHAR_LENGTH(token)>0`)), table + ' must clear legacy plaintext tokens');
   }
   assert.ok(writes.some(sql => sql.includes('UPDATE orders SET session_token=SHA2(session_token, 256)')));
   assert.ok(writes.some(sql => sql.includes('UPDATE orders SET customer_token=SHA2(customer_token, 256)')));
