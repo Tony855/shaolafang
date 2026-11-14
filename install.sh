@@ -752,6 +752,7 @@ EOF
     log_info "创建首次安装 .env 配置..." 
     cat > "$ENV_FILE" << EOF
 PORT=3000
+HOST=127.0.0.1
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=$DEFAULT_DB_NAME
