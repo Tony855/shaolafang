@@ -16,6 +16,7 @@ const { ensureFinancialExceptionAlertSchema } = require('./server/db/migrations/
 const { ensureFinancialReconciliationQueueIndex } = require('./server/db/migrations/financial-reconciliation-queue-index');
 const { ensureProviderEventQueueIndexes } = require('./server/db/migrations/provider-event-queue-indexes');
 const { ensureTelegramNotificationOutboxSchema } = require('./server/db/migrations/telegram-notification-outbox');
+const { createTelegramNotificationWorker } = require('./server/services/telegram-notification-worker-runtime');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
@@ -1539,12 +1540,19 @@ async function initSocketAdapter() {
   }
 })();
 
+let stopTelegramNotificationWorker = async () => {};
+const telegramNotificationWorker = createTelegramNotificationWorker({ logger: console });
+
 initDatabase().then(async () => {
   if (isInitOnly) {
     process.exit(0);
   }
   await initRedis();
   await initSocketAdapter();
+  if (process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED === 'true') {
+    stopTelegramNotificationWorker = telegramNotificationWorker.start();
+    console.log('[telegram-worker] background delivery enabled');
+  }
   server.listen(PORT, LISTEN_HOST, () => {
     console.log(`📁 数据库: MySQL (${poolConfig.database})`);
     if (RUN_SCHEDULED_TASKS) {
@@ -1587,6 +1595,7 @@ const shutdown = createGracefulShutdown({
   io,
   pool: { end: () => poolModule.pool.end() },
   getRedisClients: () => [redisClient, socketRedisPub, socketRedisSub],
+  stopWorkers: () => stopTelegramNotificationWorker(),
   logger: console
 });
 
