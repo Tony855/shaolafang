@@ -235,7 +235,6 @@ else
     exit 1
 fi
 
-NGINX_CONF="/etc/nginx/conf.d/foodflow.conf"
 backup_nginx_config
 trap restore_nginx_config_on_failure EXIT
 
