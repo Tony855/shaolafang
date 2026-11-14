@@ -1,3 +1,4 @@
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 /* routes/menu-zip.js — 菜单 ZIP 打包导入导出 */
 const fs = require('fs');
 const path = require('path');
@@ -229,7 +230,7 @@ module.exports = function(app, deps) {
       if (e.status === 413) {
         return res.status(413).json({ error: 'ZIP 解压内容超过资源限制' });
       }
-      console.error('import-zip failed:', e);
+      console.error('import-zip failed', safeErrorMetadata(e));
       res.status(500).json({ error: '请求失败，请稍后重试' });
     }
   });
