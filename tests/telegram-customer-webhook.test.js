@@ -14,7 +14,7 @@ function response() {
   };
 }
 
-function fixture() {
+function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE' } = {}) {
   const challenge = 'A'.repeat(43);
   const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
   const state = { updates: new Set(), challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
@@ -57,7 +57,7 @@ function fixture() {
       return { affectedRows: 1 };
     },
     withTransaction: async work => work(),
-    getBotToken: async () => '123456:abcdefghijklmnopqrstuvwxyzABCDE',
+    getBotToken: async () => botToken,
     sendMessage: async () => ({ messageId: 1 }),
     logger: { warn() {}, error() {} }
   });
@@ -188,4 +188,20 @@ test('Telegram customer can revoke all active bindings for their private chat wi
   assert.equal(state.bindings[1].is_active, 0);
   assert.equal(state.bindings[2].is_active, 1);
   assert.match(sent, /已取消/);
+});
+
+test('Telegram customer /stop still revokes bindings when the Client Bot is disabled', async () => {
+  const { handler, state } = fixture({ botToken: '' });
+  state.bindings.push({
+    id: 12, customer_token_hash: 'c'.repeat(64), merchant_id: 3, store_id: 8,
+    telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 1
+  });
+  const res = response();
+  await handler({
+    headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+    body: { update_id: 106, message: { text: '/stop', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.bindings[0].is_active, 0);
+  assert.equal(state.updates.has(106), true);
 });
