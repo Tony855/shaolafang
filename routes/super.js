@@ -805,6 +805,15 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
       for (const sessionTable of ['scan_sessions', 'waiter_sessions', 'cashier_sessions', 'admin_sessions', 'super_sessions']) {
         await runAsync(`DELETE FROM \`${sessionTable}\``);
       }
+      // Customer bearer tokens are deliberately redacted from backups, so
+      // restored Telegram bindings can no longer be tied to a live customer
+      // session. Revoke them and discard outstanding challenges; otherwise an
+      // old chat/store unique key can block the customer's next binding.
+      await runAsync(
+        "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='invalid_recipient', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing')"
+      );
+      await runAsync('DELETE FROM telegram_customer_bindings');
+      await runAsync('DELETE FROM telegram_customer_binding_challenges');
       await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
         'restore_backup', 'system', null, '导入数据库备份并使所有旧会话失效', getClientIp(req));
     });
