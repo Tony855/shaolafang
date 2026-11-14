@@ -176,6 +176,25 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(suppressedRow.state, 'dead');
   assert.equal(suppressedRow.last_error_code, 'event_disabled');
 
+  const revokedCustomerKey = `${key}:binding-revoked`;
+  await enqueueTelegramNotification({
+    eventKey: revokedCustomerKey, recipientScope: 'customer', recipientKey: 'binding:42',
+    merchantId: 7, storeId: 9,
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-44', amount: 12.5, currency: 'USD' }
+  });
+  const revokedResult = await processTelegramNotificationBatch({
+    workerId: workerB, limit: 1,
+    resolveRecipient: async () => ({
+      scope: 'customer', merchantId: 7, storeId: 9,
+      suppressed: true, suppressionCode: 'binding_revoked'
+    }),
+    sendMessage: async () => { throw new Error('revoked customer binding must not be sent'); }
+  });
+  assert.equal(revokedResult[0].state, 'suppressed');
+  const revokedRow = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [revokedCustomerKey]);
+  assert.equal(revokedRow.state, 'dead');
+  assert.equal(revokedRow.last_error_code, 'binding_revoked');
+
   const oldDeliveredKey = `${key}:old-delivered`;
   const oldDeadKey = `${key}:old-dead`;
   const exhaustedLeaseKey = `${key}:exhausted-lease`;
