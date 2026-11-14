@@ -78,14 +78,13 @@ else
     CERTBOT_EMAIL_ARGS=(--register-unsafely-without-email)
     [ -z "$DOMAIN" ] || log_warn "未提供 EMAIL，证书续期通知将不可用。"
 fi
-# 后端端口不能是80/443
-if [ "$BACKEND_PORT" = "80" ] || [ "$BACKEND_PORT" = "443" ]; then
-    log_error "BACKEND_PORT 不能使用 80/443；请先将 .env 中 PORT 改为 3000 或其他非保留端口，再重启服务。"
-    exit 1
-fi
-
+# Backend port must be numeric and non-reserved before any service changes.
 if ! [[ "$BACKEND_PORT" =~ ^[0-9]{1,5}$ ]] || [ "$BACKEND_PORT" -lt 1 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
     log_error "BACKEND_PORT 配置无效，必须是 1 到 65535 之间的整数。"
+    exit 1
+fi
+if [ "$BACKEND_PORT" -eq 80 ] || [ "$BACKEND_PORT" -eq 443 ]; then
+    log_error "BACKEND_PORT 不能使用 80/443；请先将 .env 中 PORT 改为 3000 或其他非保留端口，再重启服务。"
     exit 1
 fi
 
