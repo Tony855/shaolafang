@@ -88,10 +88,9 @@ test('merchant deletion is one transaction and deletes child rows before parent 
   const merchantDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM merchants'));
   assert.ok(waiterSessionDelete >= 0 && waiterDelete > waiterSessionDelete,
     'waiter sessions must be revoked before waiter accounts are deleted');
-  assert.ok(telegramOutboxOrderDelete >= 0 && telegramOutboxTenantDelete > telegramOutboxOrderDelete);
-  assert.ok(telegramChallengesDelete > telegramOutboxTenantDelete);
-  assert.ok(telegramBindingsDelete > telegramChallengesDelete);
-  assert.ok(telegramRecipientsDelete > telegramBindingsDelete);
+  assert.ok(telegramChallengesDelete >= 0 && telegramBindingsDelete > telegramChallengesDelete);
+  assert.ok(telegramOutboxOrderDelete > telegramBindingsDelete && telegramOutboxTenantDelete > telegramOutboxOrderDelete);
+  assert.ok(telegramRecipientsDelete > telegramOutboxTenantDelete);
   assert.ok(refundDelete > telegramRecipientsDelete && orderDelete > refundDelete && storesDelete > orderDelete && merchantDelete > storesDelete);
   assert.deepEqual(ctx.writes.find(write => write.sql.includes('DELETE n FROM telegram_notification_outbox')).params, [9]);
   assert.deepEqual(ctx.writes.find(write => write.sql.includes('DELETE FROM telegram_notification_outbox WHERE')).params, [9, 9]);
