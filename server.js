@@ -7,6 +7,7 @@ const { createLoginRateLimiter } = require('./server/services/login-rate-limit')
 const { createScanSessionRateLimiter } = require('./server/services/scan-session-rate-limit');
 const { createCooldownChecker } = require('./server/services/cooldown');
 const { migrateSessionTokenStorage } = require('./server/services/session-token');
+const { ensureSuperAdminActiveSchema } = require('./server/db/migrations/super-admin-active');
 const { ensureFinancialMonthCloseSchema, ensureFinancialExceptionWorkflowSchema } = require('./server/db/migrations/financial-month-close');
 const { ensureFinancialExceptionAlertSchema } = require('./server/db/migrations/financial-exception-alerts');
 const { ensureFinancialReconciliationQueueIndex } = require('./server/db/migrations/financial-reconciliation-queue-index');
@@ -1128,9 +1129,15 @@ async function initDatabase() {
       display_name VARCHAR(100) NOT NULL,
       must_change_password TINYINT NOT NULL DEFAULT 0,
       last_login_at DATETIME,
+      active TINYINT(1) NOT NULL DEFAULT 1,
+      must_change_password TINYINT NOT NULL DEFAULT 0,
+      last_login_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  // Upgrade legacy databases before any login/authentication query relies on active.
+  await ensureSuperAdminActiveSchema({ allAsync, runAsync, logger: console });
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS merchant_admins (
