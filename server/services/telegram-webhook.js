@@ -18,7 +18,7 @@ function parseTelegramPrivateStartUpdate(update) {
   if (!/^\d{1,20}$/.test(chatId) || !/^\d{1,20}$/.test(userId)) return null;
   if (message.from?.is_bot === true) return null;
   if (typeof message.text !== 'string' || message.text.length > 256) return null;
-  const match = message.text.trim().match(/^\/start(?:@[A-Za-z0-9_]{5,32})?\s+([A-Za-z0-9_-]{20,64})$/);
+  const match = message.text.trim().match(/^\/start\s+([A-Za-z0-9_-]{20,64})$/);
   if (!match) return null;
   return { updateId: update.update_id, challenge: match[1], telegramUserId: userId, telegramChatId: chatId };
 }
