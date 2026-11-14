@@ -255,4 +255,68 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(cleanup.deadDeleted, 1);
   assert.equal((await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [exhaustedLeaseKey])).state, 'dead');
   assert.equal((await allAsync('SELECT id FROM telegram_notification_outbox WHERE event_key IN (?, ?)', [oldDeliveredKey, oldDeadKey])).length, 0);
+
+  // Exercise the exact tenant-cleanup SQL used by merchant deletion/reset.
+  // Temporary source tables keep this test isolated from any other integration
+  // schema while the outbox tables remain the real migrated InnoDB tables.
+  await withTransaction(async () => {
+    await runAsync('CREATE TEMPORARY TABLE stores (id BIGINT UNSIGNED PRIMARY KEY, merchant_id BIGINT UNSIGNED NOT NULL) ENGINE=InnoDB');
+    await runAsync('CREATE TEMPORARY TABLE orders (id BIGINT UNSIGNED PRIMARY KEY, store_id BIGINT UNSIGNED NOT NULL, merchant_id BIGINT UNSIGNED NOT NULL) ENGINE=InnoDB');
+    const sourceOrderA = 800000000 + crypto.randomInt(10000000);
+    const sourceOrderB = sourceOrderA + 1;
+    const sourceOrderC = sourceOrderA + 2;
+    await runAsync('INSERT INTO stores (id, merchant_id) VALUES (9001, 7), (9002, 8)');
+    await runAsync('INSERT INTO orders (id, store_id, merchant_id) VALUES (?, 9001, 7), (?, 9002, 8), (?, 9002, 8)', [sourceOrderA, sourceOrderB, sourceOrderC]);
+    const payload = JSON.stringify({ text: 'cleanup integration fixture' });
+    const addOutbox = async (eventKey, merchantId, storeId, scope, recipientKey) => runAsync(
+      "INSERT INTO telegram_notification_outbox (event_key,event_type,merchant_id,store_id,recipient_scope,recipient_key,payload_json,state,attempts,available_at,created_at,updated_at) VALUES (?, 'order.created', ?, ?, ?, ?, ?, 'pending', 0, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))",
+      [eventKey, merchantId, storeId, scope, recipientKey, payload]
+    );
+    await addOutbox(`order:${sourceOrderA}:created`, null, null, 'system_admin', 'admin:primary');
+    await addOutbox(`order:${sourceOrderA}:created:store`, 7, 9001, 'merchant_store', 'store:9001');
+    await addOutbox(`order:${sourceOrderA}:created:customer`, 7, 9001, 'customer', 'binding:9001');
+    await addOutbox(`order:${sourceOrderB}:created`, null, null, 'system_admin', 'admin:primary');
+    await addOutbox(`order:${sourceOrderB}:created:store`, 8, 9002, 'merchant_store', 'store:9002');
+    await addOutbox(`order:${sourceOrderC}:created`, null, null, 'system_admin', 'admin:primary');
+
+    await runAsync(
+      "DELETE n FROM telegram_notification_outbox n INNER JOIN orders o ON n.event_key LIKE CONCAT('order:', o.id, ':%') WHERE o.merchant_id=?",
+      [7]
+    );
+    await runAsync(
+      'DELETE FROM telegram_notification_outbox WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+      [7, 7]
+    );
+    const remaining = await allAsync('SELECT event_key FROM telegram_notification_outbox WHERE event_key LIKE ?', [`order:${sourceOrderA}:%`]);
+    assert.equal(remaining.length, 0, 'merchant system-admin and tenant-scoped events must all be removed');
+    assert.equal((await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key=?', [`order:${sourceOrderB}:created`])) !== null, true, 'other merchant system-admin event must remain');
+
+    await runAsync(
+      'INSERT INTO telegram_customer_binding_challenges (challenge_hash,customer_token_hash,merchant_id,store_id,expires_at,created_at) VALUES (?, ?, 7, 9001, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 10 MINUTE), UTC_TIMESTAMP(3)), (?, ?, 8, 9002, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 10 MINUTE), UTC_TIMESTAMP(3))',
+      [crypto.randomBytes(32).toString('hex'), crypto.randomBytes(32).toString('hex'), crypto.randomBytes(32).toString('hex'), crypto.randomBytes(32).toString('hex')]
+    );
+    await runAsync(
+      'INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?, 7, 9001, 7001, ?, 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)), (?, 8, 9002, 8001, ?, 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))',
+      [crypto.randomBytes(32).toString('hex'), '-1009001', crypto.randomBytes(32).toString('hex'), '-1009002']
+    );
+    await runAsync(
+      'INSERT INTO telegram_store_admin_recipients (merchant_id,store_id,chat_id,is_enabled,created_at,updated_at) VALUES (7,9001,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)), (8,9002,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))',
+      ['-1009001', '-1009002']
+    );
+    await runAsync('DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [7, 7]);
+    await runAsync('DELETE FROM telegram_customer_bindings WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [7, 7]);
+    await runAsync('DELETE FROM telegram_store_admin_recipients WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [7, 7]);
+    assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_customer_binding_challenges')).count), 1);
+    assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_customer_bindings')).count), 1);
+    assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_store_admin_recipients')).count), 1);
+
+    await runAsync('DELETE FROM telegram_notification_outbox WHERE event_key LIKE CONCAT(\'order:\', ?, \'%\')', [sourceOrderC]);
+    assert.equal(await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key=?', [`order:${sourceOrderC}:created`]), null);
+    await runAsync('DELETE FROM telegram_notification_outbox');
+    await runAsync('DELETE FROM telegram_customer_binding_challenges');
+    await runAsync('DELETE FROM telegram_customer_bindings');
+    await runAsync('DROP TEMPORARY TABLE orders');
+    await runAsync('DROP TEMPORARY TABLE stores');
+  });
+
 });
