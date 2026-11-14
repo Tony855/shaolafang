@@ -108,7 +108,7 @@ test('single-host Nginx deployments never write query strings or Referer values 
   }
 });
 
-test('all Nginx deployment paths allow the backend 50 MB backup-import limit', () => {
+test('all Nginx deployment paths allow maximum menu media and backup uploads', () => {
   for (const file of [
     'foodflow.conf',
     'setup-nginx.sh',
@@ -119,6 +119,6 @@ test('all Nginx deployment paths allow the backend 50 MB backup-import limit', (
     'deploy/enterprise-ultimate/cluster/nginx.conf'
   ]) {
     const content = read(file);
-    assert.match(content, /client_max_body_size 55M;/, file + ' must allow backup imports up to the 50 MB application parser limit');
+    assert.match(content, /client_max_body_size 105M;/, file + ' must allow backup imports up to the 50 MB application parser limit');
   }
 });
