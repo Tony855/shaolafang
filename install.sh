@@ -843,7 +843,9 @@ EOF
     else
         log_warn "未找到 setup-nginx.sh，使用基础 Nginx 配置"
         cat > /etc/nginx/conf.d/foodflow.conf << EOF
+log_format foodflow_safe '\$remote_addr - [\$time_local] "\$request_method \$uri \$server_protocol" \$status \$body_bytes_sent';
 server {
+    access_log /var/log/nginx/access.log foodflow_safe;
     listen 80;
     server_name _;
     client_max_body_size 20M;
