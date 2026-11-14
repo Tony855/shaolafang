@@ -8,7 +8,7 @@ const { compressImage } = require("../server/services/image-compress");
 const { resolveOrderStoreId } = require("../server/services/order-store-scope");
 const { hashSessionToken } = require('../server/services/session-token');
 const { toMoneyCents, hasActiveKhqr, calculateOrderTotalCents } = require('../server/services/order-financial');
-const { enqueueSystemAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
+const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 
 function parsePositiveOrderRouteId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -571,10 +571,18 @@ app.post('/api/orders', async (req, res) => {
             await runAsync('UPDATE scan_sessions SET expires_at=? WHERE token_hash=?', [newExpires, sessionTokenHash]);
           }
         }
-        const store = await getAsync('SELECT name FROM stores WHERE id=?', [finalStoreId]);
+        const store = await getAsync('SELECT name, merchant_id FROM stores WHERE id=?', [finalStoreId]);
         await enqueueSystemAdminTelegramNotification({
           getAsync,
           eventKey: `order:${result.lastID}:created`,
+          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, amount: calculatedTotal, currency: 'USD' }
+        });
+        await enqueueCustomerTelegramNotification({
+          allAsync,
+          customerTokenHash: customerTokenHash,
+          merchantId: store?.merchant_id,
+          storeId: finalStoreId,
+          eventKey: `order:${result.lastID}:created:customer`,
           event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, amount: calculatedTotal, currency: 'USD' }
         });
         return { orderId: result.lastID, orderNo };
@@ -828,6 +836,14 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         await enqueueSystemAdminTelegramNotification({
           getAsync,
           eventKey: `order:${id}:settled`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), amount: calculatedTotal, currency: 'USD' }
+        });
+        await enqueueCustomerTelegramNotification({
+          allAsync,
+          customerTokenHash: lockedOrder.customer_token,
+          merchantId: store?.merchant_id,
+          storeId: orderStoreId,
+          eventKey: `order:${id}:settled:customer`,
           event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), amount: calculatedTotal, currency: 'USD' }
         });
       }
