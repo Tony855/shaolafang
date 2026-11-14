@@ -21,10 +21,10 @@ test('standalone install.sh downloads the full archive and re-executes the insta
   const fixtureInstaller = [
     '#!/usr/bin/env bash',
     'set -Eeuo pipefail',
-    '[ "\${FF_INSTALLER_BOOTSTRAPPED:-}" = "1" ]',
-    '[ "\${GIT_VERSION:-}" = "main" ]',
-    'printf "%s\\n" "$@" > "\${BOOTSTRAP_TEST_MARKER}"',
-    'printf "bootstrapped\\n" >> "\${BOOTSTRAP_TEST_MARKER}"',
+    '[ "$FF_INSTALLER_BOOTSTRAPPED" = "1" ]',
+    '[ "$GIT_VERSION" = "main" ]',
+    'printf "%s\\n" "$@" > "$BOOTSTRAP_TEST_MARKER"',
+    'printf "bootstrapped\\n" >> "$BOOTSTRAP_TEST_MARKER"',
     ''
   ].join('\n');
   fs.writeFileSync(path.join(fixtureRoot, 'install.sh'), fixtureInstaller);
