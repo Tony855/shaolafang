@@ -66,6 +66,38 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(Number(challenge.store_id), 9);
   assert.equal(challenge.consumed_at, null);
   await runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [customerHash, 7, 9, '12345', '54321']);
+  const bindingOne = await getAsync('SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND store_id=?', [customerHash, 9]);
+  const stopNoticeKey = `telegram-it:stop:${crypto.randomUUID()}`;
+  await enqueueTelegramNotification({
+    eventKey: stopNoticeKey, recipientScope: 'customer', recipientKey: `binding:${bindingOne.id}`,
+    merchantId: 7, storeId: 9,
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-STOP', amount: 1, currency: 'USD' }
+  });
+  await runAsync(
+    "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (SELECT CONCAT('binding:', id) FROM telegram_customer_bindings WHERE telegram_chat_id=? AND telegram_user_id=? AND is_active=1)",
+    ['54321', '12345']
+  );
+  const stopNotice = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [stopNoticeKey]);
+  assert.equal(stopNotice.state, 'dead');
+  assert.equal(stopNotice.last_error_code, 'binding_revoked');
+
+  const customerHashTwo = crypto.createHash('sha256').update('customer-token-two').digest('hex');
+  await runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [customerHashTwo, 7, 9, '22222', '54322']);
+  const bindingTwo = await getAsync('SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND store_id=?', [customerHashTwo, 9]);
+  const pageRevokeKey = `telegram-it:page-revoke:${crypto.randomUUID()}`;
+  await enqueueTelegramNotification({
+    eventKey: pageRevokeKey, recipientScope: 'customer', recipientKey: `binding:${bindingTwo.id}`,
+    merchantId: 7, storeId: 9,
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-REVOKE', amount: 1, currency: 'USD' }
+  });
+  await runAsync(
+    "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (SELECT CONCAT('binding:', id) FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1)",
+    [customerHashTwo, 7, 9]
+  );
+  const pageRevokeNotice = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [pageRevokeKey]);
+  assert.equal(pageRevokeNotice.state, 'dead');
+  assert.equal(pageRevokeNotice.last_error_code, 'binding_revoked');
+
   await assert.rejects(runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [crypto.createHash('sha256').update('other-customer').digest('hex'), 7, 9, '67890', '54321']), error => error && error.code === 'ER_DUP_ENTRY');
   await assert.rejects(runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [customerHash, 7, 9, '67891', '54322']), error => error && error.code === 'ER_DUP_ENTRY');
   await runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [crypto.createHash('sha256').update('other-store-customer').digest('hex'), 8, 10, '67890', '54321']);
