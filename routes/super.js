@@ -287,24 +287,23 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
         );
       }
 
-      // Telegram notification rows are not foreign-key cascaded. Remove them
-      // before their source orders/stores disappear. System-admin outbox rows
-      // intentionally have NULL merchant_id/store_id, so correlate their
-      // order:<id>:* idempotency keys to the merchant's orders as well.
-      await runAsync(
-        'DELETE n FROM telegram_notification_outbox n INNER JOIN orders o ON n.event_key LIKE CONCAT(\'order:\', o.id, \':%\') WHERE o.store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
-        [merchantId]
-      );
-      await runAsync(
-        'DELETE FROM telegram_notification_outbox WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
-        [merchantId, merchantId]
-      );
+      // Customer binding rows are locked/deleted before their outbox rows,
+      // matching the /stop and enqueue lock order. System-admin outbox rows
+      // have NULL tenant IDs, so correlate them to the merchant's orders too.
       await runAsync(
         'DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
         [merchantId, merchantId]
       );
       await runAsync(
         'DELETE FROM telegram_customer_bindings WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+        [merchantId, merchantId]
+      );
+      await runAsync(
+        'DELETE n FROM telegram_notification_outbox n INNER JOIN orders o ON n.event_key LIKE CONCAT(\'order:\', o.id, \'%\') WHERE o.store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+        [merchantId]
+      );
+      await runAsync(
+        'DELETE FROM telegram_notification_outbox WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
         [merchantId, merchantId]
       );
       await runAsync(
