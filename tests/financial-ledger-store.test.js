@@ -104,6 +104,18 @@ test('provider event envelope and normalized event must agree on a supplied tran
     error => error.code === 'PROVIDER_EVENT_TRANSACTION_ID_MISMATCH'
   );
   assert.equal(db.events.size, 0);
+  await assert.rejects(
+    db.service.recordVerifiedProviderEvent({
+      envelope: { ...envelope, providerEventId: 'payway-event-identity-002', providerTransactionId: '' },
+      verification,
+      normalizedEvent: {
+        orderReference: 'order-002', amountMinor: 2500, currencyCode: 'USD',
+        paymentStatus: 'paid', providerTransactionId: 'provider-txn-002'
+      }
+    }),
+    error => error.code === 'PROVIDER_EVENT_TRANSACTION_ID_MISMATCH'
+  );
+  assert.equal(db.events.size, 0);
 
   const accepted = await db.service.recordVerifiedProviderEvent({
     envelope, verification,
