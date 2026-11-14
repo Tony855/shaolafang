@@ -104,7 +104,10 @@ test('customer recipient resolver fails closed when binding or client Bot is una
   const disabledBot = createTelegramNotificationRecipientResolver({ allAsync: async sql => sql.includes('telegram_customer_bindings')
     ? [{ id: 42, merchant_id: 7, store_id: 9, telegram_chat_id: '7654321' }]
     : [{ key: 'telegram_client_bot_enabled', value: '0' }, { key: 'telegram_client_bot_token', value: token }] });
-  assert.equal(await noBinding({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }), null);
+  assert.deepEqual(
+    await noBinding({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }),
+    { scope: 'customer', merchantId: 7, storeId: 9, suppressed: true, suppressionCode: 'binding_revoked' }
+  );
   assert.equal(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }), null);
   assert.equal(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 8, storeId: 9 }), null);
 });
