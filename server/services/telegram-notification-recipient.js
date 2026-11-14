@@ -13,7 +13,10 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
       const stored = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
       const token = String(stored.telegram_admin_bot_token || '');
       const chatId = String(stored.telegram_admin_chat_id || '');
-      if (stored.telegram_admin_bot_enabled !== '1' || !validateBotToken(token) || !validateChatId(chatId)) return null;
+      if (stored.telegram_admin_bot_enabled !== '1') {
+        return { scope: 'system_admin', merchantId: null, storeId: null, suppressed: true };
+      }
+      if (!validateBotToken(token) || !validateChatId(chatId)) return null;
       return { scope: 'system_admin', merchantId: null, storeId: null, token, chatId };
     }
     if (scope === 'merchant_store' && typeof key === 'string' && /^store:[1-9]\d{0,18}$/.test(key)) {
@@ -34,7 +37,10 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
       const stored = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
       const token = String(stored.telegram_admin_bot_token || '');
       const chatId = String(recipients[0].chat_id || '');
-      if (stored.telegram_admin_bot_enabled !== '1' || !validateBotToken(token) || !validateChatId(chatId)) return null;
+      if (stored.telegram_admin_bot_enabled !== '1') {
+        return { scope: 'merchant_store', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true };
+      }
+      if (!validateBotToken(token) || !validateChatId(chatId)) return null;
       return { scope: 'merchant_store', merchantId: tenantMerchantId, storeId: tenantStoreId, token, chatId };
     }
     if (scope !== 'customer' || typeof key !== 'string' || !/^binding:[1-9]\d{0,18}$/.test(key)) return null;
@@ -60,7 +66,10 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
     const stored = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
     const token = String(stored.telegram_client_bot_token || '');
     const chatId = String(binding[0].telegram_chat_id || '');
-    if (stored.telegram_client_bot_enabled !== '1' || !validateBotToken(token) || !validateChatId(chatId)) return null;
+    if (stored.telegram_client_bot_enabled !== '1') {
+      return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true, suppressionCode: 'event_disabled' };
+    }
+    if (!validateBotToken(token) || !validateChatId(chatId)) return null;
     return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, token, chatId };
   };
 }
