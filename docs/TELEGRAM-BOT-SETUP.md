@@ -54,7 +54,7 @@ Customer notifications never use the Client Bot's shared configured Chat ID. Eac
 
 Binding details:
 - A one-time random challenge is stored only as a SHA-256 hash and expires after 10 minutes.
-- The webhook accepts only authenticated private-chat `/start` updates. Telegram `update_id` values are persisted to reject replayed updates.
+- The webhook accepts only authenticated private-chat `/start` and `/stop` updates. Telegram `update_id` values are persisted to reject replayed updates.
 - A Telegram chat can be bound to one customer token per store. Customer tokens rotate with QR scans; completing a fresh one-time challenge from the current customer session can move the same private chat to the new session identity for that store. Old binding rows are removed and queued notices for the previous identity are terminally suppressed. The same private chat may be used independently for another store.
 - In-page revocation is authenticated with the current customer token and scan-session headers. The private-chat `/stop` command also supports revocation after the QR session expires; it only disables bindings matching both the Telegram user ID and private chat ID. Both paths terminally suppress already queued customer notices; reactivating an old binding also suppresses any pre-opt-out jobs, even if the customer later binds again.
 - Customer notification recipients are resolved by binding ID plus exact merchant/store IDs. Inactive, revoked, missing, or cross-store bindings fail closed.
@@ -67,4 +67,28 @@ Binding details:
 - Delivery is at-least-once. A crash after Telegram accepts a message but before the database acknowledgement may result in a duplicate after lease recovery.
 - Failed tasks retry with bounded exponential backoff and eventually enter the dead-letter state. Telegram HTTP 429 responses honor `parameters.retry_after`, capped at one hour. Monitor `telegram_notification_outbox` for `state='dead'`.
 - Webhook update IDs are retained for 30 days; expired and consumed binding challenges are cleaned during new challenge creation. Before restoring a database backup, disable the Telegram worker on every application node and wait for in-flight sends to finish. After restore, customer Telegram bindings/challenges are invalidated because old customer bearer sessions are not restored; customers must scan again and rebind. Pending customer notifications from the restored snapshot are dead-lettered instead of retrying against stale bindings.
+## Staging acceptance checklist
+
+Run this only against a disposable staging database and dedicated test Bot accounts/Chat IDs. Keep the worker disabled on production.
+
+1. Configure independent Client/Admin Bot tokens in the super-admin console. Verify each fixed test message reaches only its configured test chat.
+2. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` and register the Client Bot webhook. Confirm `getWebhookInfo` reports the expected HTTPS webhook URL and no persistent delivery error.
+3. Create two merchants with at least two stores. Configure distinct store-admin Chat IDs and enable different event toggles per store.
+4. Create a customer order in each store. Verify the global admin chat receives the global event and each store chat receives only its own store event.
+5. Bind a customer private chat, create an order, then rescan to rotate the customer token and complete a new deep-link challenge. Verify the same private chat follows the new session identity, while another store's binding remains untouched.
+6. Trigger settlement, KHQR/manual payment confirmation, and a completed refund. Verify only the intended events arrive and no QR payload, customer bearer token, phone number, or private note appears.
+7. Test both in-page revoke and `/stop`. Confirm queued customer jobs move to `dead` with `binding_revoked`; rebind and verify those old jobs are not sent.
+8. Stop the worker with a pending job, wait for its lease to expire, restart it, and verify recovery. Record that delivery is at-least-once; a send already accepted by Telegram cannot be recalled.
+9. With every worker stopped on every app node, restore a staging backup. Verify customer bindings/challenges are cleared, pending customer jobs are dead-lettered, store/admin configuration is restored, and customers can bind again.
+10. Inspect logs and the outbox summary for redaction. Do not paste Bot tokens or webhook secrets into tickets or chat.
+
+A useful queue health query (it does not expose message payloads or credentials):
+
+```sql
+SELECT state, recipient_scope, last_error_code, COUNT(*) AS total
+FROM telegram_notification_outbox
+GROUP BY state, recipient_scope, last_error_code
+ORDER BY state, recipient_scope, last_error_code;
+```
+
 - The full client/merchant notification workflow still requires staging end-to-end tests before production enablement.
