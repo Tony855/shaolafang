@@ -9,6 +9,7 @@ const { migrateSessionTokenStorage } = require('./server/services/session-token'
 const { ensureFinancialMonthCloseSchema, ensureFinancialExceptionWorkflowSchema } = require('./server/db/migrations/financial-month-close');
 const { ensureFinancialExceptionAlertSchema } = require('./server/db/migrations/financial-exception-alerts');
 const { ensureFinancialReconciliationQueueIndex } = require('./server/db/migrations/financial-reconciliation-queue-index');
+const { ensureProviderEventQueueIndexes } = require('./server/db/migrations/provider-event-queue-indexes');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
@@ -712,6 +713,9 @@ async function initDatabase() {
       await runAsync(`ALTER TABLE provider_webhook_events ADD COLUMN ${column} ${definition}`);
     }
   }
+
+  // Keep the two queue claim paths indexed on both fresh and upgraded installations.
+  await ensureProviderEventQueueIndexes({ runAsync, allAsync });
 
   // Append-only journal header and balanced debit/credit lines.
   // No existing order/refund totals are backfilled or rewritten by this foundation.
