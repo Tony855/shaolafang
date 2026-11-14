@@ -8,7 +8,7 @@ const secret = 'telegram-webhook-secret-for-tests';
 const token = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 const challenge = 'A'.repeat(43);
 
-function setup({ duplicate = false, challengeRow = true } = {}) {
+function setup({ duplicate = false, challengeRow = true, expired = false, consumed = false } = {}) {
   let handler;
   const calls = [];
   const app = { post(path, fn) { assert.equal(path, '/api/telegram/client/webhook'); handler = fn; } };
@@ -18,7 +18,7 @@ function setup({ duplicate = false, challengeRow = true } = {}) {
       calls.push(['get', sql]);
       if (sql.includes('telegram_customer_binding_challenges')) return challengeRow ? {
         id: 5, customer_token_hash: 'a'.repeat(64), merchant_id: 7, store_id: 9,
-        expires_at: new Date(Date.now() + 60000), consumed_at: null
+        expires_at: new Date(Date.now() + (expired ? -60000 : 60000)), consumed_at: consumed ? new Date() : null
       } : null;
       if (sql.includes('FROM stores')) return { id: 9 };
       return null;
@@ -89,4 +89,15 @@ test('Telegram webhook records but does not bind an expired or unknown challenge
   await handler(request(), res);
   assert.equal(res.code, 200);
   assert.equal(calls.some(call => call[1]?.includes('INSERT INTO telegram_customer_bindings')), false);
+});
+
+
+test('Telegram webhook refuses expired or already consumed binding challenges', async () => {
+  for (const options of [{ expired: true }, { consumed: true }]) {
+    const { handler, calls } = setup(options);
+    const res = response();
+    await handler(request(), res);
+    assert.equal(res.code, 200);
+    assert.equal(calls.some(call => call[1]?.includes('INSERT INTO telegram_customer_bindings')), false);
+  }
 });
