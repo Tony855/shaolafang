@@ -40,4 +40,24 @@ async function enqueueCustomerTelegramNotification({ allAsync, customerTokenHash
   return true;
 }
 
-module.exports = { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification };
+async function enqueueStoreAdminTelegramNotification({ allAsync, merchantId, storeId, eventKey, event, enqueue } = {}) {
+  if (typeof allAsync !== 'function') throw new TypeError('allAsync is required');
+  const merchant = Number(merchantId);
+  const store = Number(storeId);
+  if (!Number.isSafeInteger(merchant) || merchant <= 0 || !Number.isSafeInteger(store) || store <= 0) return false;
+  const toggleByEvent = { 'order.created': 'notify_order_created', 'order.settled': 'notify_settled', 'order.refunded': 'notify_refunded' };
+  const toggle = toggleByEvent[event?.type];
+  if (!toggle) return false;
+  const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key`=?', ['telegram_admin_bot_enabled']);
+  if (!Array.isArray(settings) || settings[0]?.value !== '1') return false;
+  const recipients = await allAsync(
+    `SELECT r.id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND r.is_enabled=1 AND r.${toggle}=1 AND s.active=1 AND m.status=1 LIMIT 1`,
+    [merchant, store]
+  );
+  if (!Array.isArray(recipients) || !recipients.length) return false;
+  const enqueueNotification = enqueue || require('./telegram-notification-outbox').enqueueTelegramNotification;
+  await enqueueNotification({ eventKey, recipientScope: 'merchant_store', recipientKey: `store:${store}`, merchantId: merchant, storeId: store, event });
+  return true;
+}
+
+module.exports = { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification };
