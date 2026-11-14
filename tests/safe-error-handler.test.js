@@ -60,12 +60,12 @@ test('malformed multipart payload mislabeled as JSON is rejected without logging
 
 test('request body size errors return a generic 413 response', async () => {
   const app = express();
-  app.use(createSafeErrorHandler({ logger: { error() {} } }));
   app.get('/too-large', (_req, _res, next) => {
     const error = new Error('private detail');
     error.status = 413;
     next(error);
   });
+  app.use(createSafeErrorHandler({ logger: { error() {} } }));
 
   await withServer(app, async baseUrl => {
     const response = await fetch(baseUrl + '/too-large');
