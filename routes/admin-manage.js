@@ -627,7 +627,17 @@ module.exports = function(app, deps) {
           throw Object.assign(new Error('密码错误，重置失败'), { status: 401 });
         }
 
-        // Cancel every Telegram event for this merchant before deleting orders.
+        // The merchant row above serializes this reset with order enqueue.
+        // Keep challenge -> binding -> outbox ordering consistent with /start
+        // and /stop so concurrent opt-out cannot deadlock or leave stale jobs.
+        await runAsync(
+          'DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId, merchantId]
+        );
+        await runAsync(
+          'DELETE FROM telegram_customer_bindings WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId, merchantId]
+        );
         // System-admin outbox rows have no tenant columns, so correlate them by
         // their order:<id>:* event key while the source orders still exist.
         await runAsync(
@@ -636,14 +646,6 @@ module.exports = function(app, deps) {
         );
         await runAsync(
           'DELETE FROM telegram_notification_outbox WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
-          [merchantId, merchantId]
-        );
-        await runAsync(
-          'DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
-          [merchantId, merchantId]
-        );
-        await runAsync(
-          'DELETE FROM telegram_customer_bindings WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
           [merchantId, merchantId]
         );
         await runAsync('DELETE FROM refund_requests WHERE store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [merchantId]);
