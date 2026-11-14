@@ -155,6 +155,7 @@ test('backup restore accepts legacy backups without the refund request ledger', 
   delete legacy.tables.financial_journal_transactions;
   delete legacy.tables.financial_journal_entries;
   delete legacy.tables.provider_webhook_events;
+  for (const table of ['telegram_notification_outbox', 'telegram_customer_binding_challenges', 'telegram_customer_bindings', 'telegram_webhook_updates', 'telegram_store_admin_recipients']) delete legacy.tables[table];
   for (const table of FINANCIAL_BACKUP_TABLES) delete legacy.tables[table];
   const res = response();
   await ctx.handler({ body: legacy, superAdmin: { id: 7, username: 'root' } }, res);
