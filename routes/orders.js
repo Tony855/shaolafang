@@ -8,7 +8,7 @@ const { compressImage } = require("../server/services/image-compress");
 const { resolveOrderStoreId } = require("../server/services/order-store-scope");
 const { hashSessionToken } = require('../server/services/session-token');
 const { toMoneyCents, hasActiveKhqr, calculateOrderTotalCents } = require('../server/services/order-financial');
-const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification } = require('../server/services/telegram-notification-enqueue');
+const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 
 function parsePositiveOrderRouteId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -585,6 +585,13 @@ app.post('/api/orders', async (req, res) => {
           eventKey: `order:${result.lastID}:created:customer`,
           event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, amount: calculatedTotal, currency: 'USD' }
         });
+        await enqueueStoreAdminTelegramNotification({
+          allAsync,
+          merchantId: store?.merchant_id,
+          storeId: finalStoreId,
+          eventKey: `order:${result.lastID}:created:store`,
+          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, amount: calculatedTotal, currency: 'USD' }
+        });
         return { orderId: result.lastID, orderNo };
       });
     } catch (e) {
@@ -844,6 +851,13 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
           merchantId: store?.merchant_id,
           storeId: orderStoreId,
           eventKey: `order:${id}:settled:customer`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), amount: calculatedTotal, currency: 'USD' }
+        });
+        await enqueueStoreAdminTelegramNotification({
+          allAsync,
+          merchantId: store?.merchant_id,
+          storeId: orderStoreId,
+          eventKey: `order:${id}:settled:store`,
           event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), amount: calculatedTotal, currency: 'USD' }
         });
       }
