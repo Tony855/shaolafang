@@ -133,8 +133,8 @@ test('all deployment entrypoints share a lock and never kill arbitrary port owne
     assert.ok(!source.includes('fuser -k'), file + ' must not kill an unknown port owner');
   }
   assert.ok(read('scripts/lib/deploy-safety.sh').includes('ff_require_port_available'));
-  assert.ok(read('install.sh').includes('ff_require_port_available 3000'));
-  assert.ok(read('install-local.sh').includes('ff_require_port_available 3000'));
+  assert.ok(read('install.sh').includes('ff_require_port_available "$BACKEND_PORT"'));
+  assert.ok(read('install-local.sh').includes('ff_require_port_available "$BACKEND_PORT"'));
   assert.ok(read('deploy/standard/deploy.sh').includes('ff_require_clean_git_worktree'));
   assert.ok(read('deploy/standard/deploy.sh').includes('git clone "$GIT_REPO" "$DEPLOY_TARGET"'));
   assert.ok(read('deploy/standard/deploy.sh').includes('目标目录非空但不是 Git 仓库'));
