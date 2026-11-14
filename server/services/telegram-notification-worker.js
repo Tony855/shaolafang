@@ -19,7 +19,7 @@ async function processTelegramNotificationBatch({ resolveRecipient, workerId, li
       }
       const recipient = await resolveRecipient({
         scope: job.recipient_scope, key: job.recipient_key,
-        merchantId: job.merchant_id, storeId: job.store_id
+        merchantId: job.merchant_id, storeId: job.store_id, eventType: job.event_type
       });
       if (!validateResolvedRecipient(job, recipient)) {
         throw Object.assign(new Error('invalid recipient'), { safeCode: 'invalid_recipient' });
