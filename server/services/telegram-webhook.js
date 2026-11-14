@@ -9,18 +9,27 @@ function constantTimeSecretMatch(provided, expected) {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
-function parseTelegramPrivateStartUpdate(update) {
+function parseTelegramPrivateUpdate(update) {
   if (!update || typeof update !== 'object' || !Number.isSafeInteger(update.update_id) || update.update_id < 0) return null;
   const message = update.message;
   if (!message || typeof message !== 'object' || message.chat?.type !== 'private') return null;
   const chatId = String(message.chat?.id ?? '');
   const userId = String(message.from?.id ?? '');
-  if (!/^\d{1,20}$/.test(chatId) || !/^\d{1,20}$/.test(userId)) return null;
+  if (!/^\\d{1,20}$/.test(chatId) || !/^\\d{1,20}$/.test(userId)) return null;
   if (message.from?.is_bot === true) return null;
   if (typeof message.text !== 'string' || message.text.length > 256) return null;
-  const match = message.text.trim().match(/^\/start\s+([A-Za-z0-9_-]{20,64})$/);
+  const command = message.text.trim();
+  if (command === '/stop') return { action: 'stop', updateId: update.update_id, telegramUserId: userId, telegramChatId: chatId };
+  const match = command.match(/^\\/start\\s+([A-Za-z0-9_-]{20,64})$/);
   if (!match) return null;
-  return { updateId: update.update_id, challenge: match[1], telegramUserId: userId, telegramChatId: chatId };
+  return { action: 'start', updateId: update.update_id, challenge: match[1], telegramUserId: userId, telegramChatId: chatId };
 }
 
-module.exports = { constantTimeSecretMatch, parseTelegramPrivateStartUpdate };
+function parseTelegramPrivateStartUpdate(update) {
+  const parsed = parseTelegramPrivateUpdate(update);
+  if (!parsed || parsed.action !== 'start') return null;
+  const { action, ...start } = parsed;
+  return start;
+}
+
+module.exports = { constantTimeSecretMatch, parseTelegramPrivateUpdate, parseTelegramPrivateStartUpdate };
