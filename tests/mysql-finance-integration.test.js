@@ -11,6 +11,7 @@ const {
 } = require('../server/db/migrations/financial-month-close');
 const { ensureFinancialExceptionAlertSchema } = require('../server/db/migrations/financial-exception-alerts');
 const { ensureProviderEventQueueIndexes, INDEXES: PROVIDER_EVENT_QUEUE_INDEXES } = require('../server/db/migrations/provider-event-queue-indexes');
+const { createProviderEventQueue } = require('../server/services/provider-event-queue');
 
 const databaseUrl = process.env.MYSQL_INTEGRATION_URL;
 
@@ -2662,4 +2663,73 @@ test('MySQL integration: provider event queue indexes survive concurrent startup
   }
   const row = await firstDb.getAsync('SELECT COUNT(*) AS count FROM provider_webhook_events');
   assert.equal(Number(row.count), 1, 'index migration must preserve existing inbox rows');
+});
+
+
+test('MySQL integration: expired provider event leases cannot complete or schedule failure', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 30000
+}, async t => {
+  const { connection, runAsync, getAsync, allAsync } = await connectTestDatabase();
+  t.after(async () => {
+    try {
+      await connection.query('DROP TABLE IF EXISTS provider_webhook_events');
+    } finally {
+      await connection.end();
+    }
+  });
+
+  await connection.query('DROP TABLE IF EXISTS provider_webhook_events');
+  await runAsync(`CREATE TABLE provider_webhook_events (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    auth_status ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending',
+    processing_status ENUM('received','processing','processed','failed') NOT NULL DEFAULT 'received',
+    next_attempt_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    received_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    lease_token CHAR(64) DEFAULT NULL,
+    lease_expires_at DATETIME(3) DEFAULT NULL,
+    attempt_count INT UNSIGNED NOT NULL DEFAULT 0,
+    max_attempts INT UNSIGNED NOT NULL DEFAULT 8,
+    processed_at DATETIME(3) DEFAULT NULL,
+    last_error_code VARCHAR(64) DEFAULT NULL
+  ) ENGINE=InnoDB`);
+
+  const withTransaction = async work => {
+    await connection.beginTransaction();
+    try {
+      const result = await work();
+      await connection.commit();
+      return result;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    }
+  };
+  const queue = createProviderEventQueue({
+    runAsync, getAsync, withTransaction,
+    tokenFactory: () => 'f'.repeat(64)
+  });
+
+  await runAsync(`INSERT INTO provider_webhook_events
+    (auth_status,processing_status,lease_token,lease_expires_at,attempt_count,max_attempts)
+    VALUES ('verified','processing',?,DATE_SUB(NOW(3), INTERVAL 1 SECOND),1,3)`,
+    ['a'.repeat(64)]);
+  await assert.rejects(
+    queue.complete({ eventId: 1, leaseToken: 'a'.repeat(64) }),
+    error => error.code === 'PROVIDER_EVENT_STALE_LEASE'
+  );
+  await assert.rejects(
+    queue.fail({ eventId: 1, leaseToken: 'a'.repeat(64), errorCode: 'LATE_FAILURE' }),
+    error => error.code === 'PROVIDER_EVENT_STALE_LEASE'
+  );
+  const expired = await getAsync('SELECT processing_status,lease_token FROM provider_webhook_events WHERE id=1');
+  assert.equal(expired.processing_status, 'processing');
+  assert.equal(expired.lease_token, 'a'.repeat(64));
+
+  await runAsync(`UPDATE provider_webhook_events
+    SET lease_expires_at=DATE_ADD(NOW(3), INTERVAL 60 SECOND) WHERE id=1`);
+  assert.deepEqual(await queue.complete({ eventId: 1, leaseToken: 'a'.repeat(64) }), { completed: true });
+  const completed = await getAsync('SELECT processing_status,lease_token FROM provider_webhook_events WHERE id=1');
+  assert.equal(completed.processing_status, 'processed');
+  assert.equal(completed.lease_token, null);
 });
