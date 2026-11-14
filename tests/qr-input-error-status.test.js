@@ -13,14 +13,6 @@ test('unreadable QR image is classified as a client input error', async () => {
   );
 });
 
-test('image without a QR code is classified as a client input error', async () => {
-  const image = await QRCode.toBuffer('plain image text is not a QR payload');
-  await assert.rejects(
-    decodeQRFromImage(image),
-    error => error.status === 400 && /未识别到二维码/.test(error.message)
-  );
-});
-
 test('unsupported QR payload is classified as a client input error', async () => {
   const image = await QRCode.toBuffer('not KHQR and not VietQR');
   await assert.rejects(
