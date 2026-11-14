@@ -277,6 +277,11 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(disabledStoreBacklog.state, 'dead');
   assert.equal(disabledStoreBacklog.last_error_code, 'event_disabled');
   assert.equal(retainedCustomerBacklog.state, 'pending');
+  // Remove deliberately retained rows so the following limit=1 worker claim
+  // exercises the revoked-binding job rather than an earlier test fixture.
+  await runAsync('DELETE FROM telegram_notification_outbox WHERE event_key IN (?, ?, ?)', [
+    disableClientAdminKey, retainedCustomerKey, `${key}:disable-client:admin`
+  ]);
 
   const revokedCustomerKey = `${key}:binding-revoked`;
   await enqueueTelegramNotification({
