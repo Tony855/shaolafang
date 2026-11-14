@@ -40,3 +40,20 @@ test('does not leak raw Telegram response descriptions', async () => {
     })
   }), error => !error.message.includes(secret));
 });
+
+test('preserves only a bounded Telegram flood-control retry_after value', async () => {
+  await assert.rejects(() => sendTelegramMessage({
+    token, chatId: '12345', text: 'safe',
+    fetchImpl: async () => ({
+      ok: false, status: 429,
+      json: async () => ({ ok: false, error_code: 429, description: 'private details', parameters: { retry_after: 120 } })
+    })
+  }), error => error.message === 'Telegram 消息发送失败（HTTP 429）' && error.retryAfterSeconds === 120);
+  await assert.rejects(() => sendTelegramMessage({
+    token, chatId: '12345', text: 'safe',
+    fetchImpl: async () => ({
+      ok: false, status: 429,
+      json: async () => ({ ok: false, error_code: 429, parameters: { retry_after: 99999 } })
+    })
+  }), error => error.retryAfterSeconds === 3600);
+});
