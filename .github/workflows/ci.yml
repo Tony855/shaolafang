@@ -91,7 +91,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mariadb-version: ["10.5", "10.11"]
+        mariadb-version: ["10.11", "11.4", "11.8", "12.3"]
     services:
       mariadb:
         image: mariadb:${{ matrix.mariadb-version }}

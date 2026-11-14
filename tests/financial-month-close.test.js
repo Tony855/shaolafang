@@ -348,7 +348,7 @@ test('reconciliation imports acquire the month lock before any batch write', asy
   assert.equal(writes, 0);
 });
 
-test('manual reviews use a nonlocking replay preflight and recheck after a closed-month lock', async () => {
+test('manual reviews use a current replay read after a closed-month lock', async () => {
   const { createFinancialReconciliationReviewService } = require('../server/services/financial-reconciliation-review');
   const reads = [];
   let lockCalls = 0;
@@ -375,13 +375,10 @@ test('manual reviews use a nonlocking replay preflight and recheck after a close
     idempotencyKey: 'month-review-locked-0001'
   }), error => error.code === 'FINANCIAL_MONTH_LOCKED');
   assert.equal(lockCalls, 1);
-  assert.equal(reads.length, 2, 'the service performs a preflight and a current replay read before rejecting a locked month');
+  assert.equal(reads.length, 1, 'the service performs one current replay read before rejecting a locked month');
   assert.match(reads[0], /financial_reconciliation_review_events/);
-  assert.doesNotMatch(reads[0], /FOR UPDATE/,
-    'the preflight must not gap-lock an absent idempotency key');
-  assert.match(reads[1], /financial_reconciliation_review_events/);
-  assert.match(reads[1], /FOR UPDATE/,
-    'after the month mutex reports closed, a current read must catch a concurrent committed replay');
+  assert.match(reads[0], /FOR UPDATE/,
+    'after the month mutex reports closed, a current read must catch a concurrent committed replay without an earlier snapshot');
 });
 
 

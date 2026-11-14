@@ -21,13 +21,13 @@
 ### 最低配置
 - **Linux 一键安装脚本**: Debian 12/13、Ubuntu 22.04/24.04（其他系统请按手动部署说明自行验证 Node.js 26 兼容性）
 - **Node.js**: v26 LTS（npm 10+）
-- **数据库**: MySQL 8.0+ 或 MariaDB 10.5+
+- **数据库**: MySQL 8.0+ 或受支持的 MariaDB LTS（推荐 11.8 / 12.3）
 - **内存**: 512MB 以上（推荐 1GB）
 - **磁盘**: 500MB 可用空间
 
 ### 推荐配置
 - Node.js v26 LTS
-- MySQL 8.4 或 MariaDB 11.x
+- MySQL 8.4 或 MariaDB 11.8 / 12.3 LTS
 - 内存 2GB 以上
 - 固定 IP 地址（局域网内访问）
 
