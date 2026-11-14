@@ -1261,5 +1261,21 @@
   "financeCol_pending_count": "待审核",
   "financeCol_unmatched_count": "未匹配",
   "financeCol_ambiguous_count": "多候选",
-  "financeCol_exception_count": "异常"
+  "financeCol_exception_count": "异常",
+  "telegramBotSettings": "🤖 Telegram Bot",
+  "telegramBotDesc": "分别配置客户端和管理员端 Telegram Bot。Token 只保存在服务端，读取时不会返回明文。",
+  "telegramClientBot": "客户端 Telegram Bot",
+  "telegramAdminBot": "管理员 Telegram Bot",
+  "telegramBotEnabled": "启用 Bot",
+  "telegramBotToken": "Bot Token",
+  "telegramChatId": "接收 Chat ID",
+  "telegramClearToken": "清除已保存 Token",
+  "telegramTest": "发送测试消息",
+  "telegramSave": "保存 Telegram 配置",
+  "telegramBotSecurityHint": "请先在 Telegram 中启动 Bot 或将 Bot 添加到目标群组，再填写 Chat ID。测试消息仅在点击测试按钮时发送。",
+  "telegramTokenConfigured": "已保存 Token",
+  "telegramTokenMissing": "尚未配置 Token",
+  "telegramSaved": "Telegram Bot 配置已保存",
+  "telegramTestSent": "测试消息已发送，请检查 Telegram",
+  "telegramTestFailed": "测试消息发送失败"
 }
