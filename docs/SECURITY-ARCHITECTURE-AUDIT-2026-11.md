@@ -12,17 +12,17 @@
 | 历史发现 | 当前状态 | 核验边界 |
 |---|---|---|
 | 静态资源缓存策略冲突 | 已在 main 的三份 Nginx 模板修复 | 仍需生产浏览器缓存验收 |
-| Nginx access log 记录 query string / Referer | 单机模板和安装器已修复；Enterprise/Enterprise Ultimate 集群模板已在 PR #268 增加 `foodflow_safe` 格式 | 必须以 PR #268 最新 head 的 CI 为准；历史日志仍需按保留策略清理 |
+| Nginx access log 记录 query string / Referer | 单机模板、安装器及 Enterprise/Enterprise Ultimate 集群模板均已在 main 使用 `foodflow_safe` 格式；PR #268 已合并且 CI/安装矩阵通过 | 历史日志仍需按保留策略清理；生产 Nginx reload 后需现场核验 |
 | Node 默认监听所有网卡 | main 已默认 loopback；集群通过显式 HOST 暴露私网监听 | 生产防火墙/安全组仍需现场检查 |
 | 集群 TRUST_PROXY 与 Redis 共享状态 | PR #267 已合并；集群部署强制共享 Redis、可信代理 CIDR 和启动 readiness | 生产负载均衡器来源 IP、Redis 故障恢复仍需故障注入 |
 | readiness 路由不一致 | main 已统一 `/health`，保留兼容别名并检查 MySQL；集群还检查 Redis/Socket.IO Adapter | 生产探针仍需实测 |
 | Nginx 上传上限低于应用限制 | main 所有部署模板已统一 105M | 仍需在目标反向代理链路测试大文件上传 |
-| 认证/上传错误日志暴露 | PR #268 已覆盖认证、KHQR、ZIP 导入/导出日志脱敏及回归测试 | 新增集群 Nginx 日志改动的 CI 尚待完成 |
+| 认证/上传错误日志暴露 | PR #268 已合并到 main；认证、KHQR、ZIP 导入/导出日志脱敏、QR 4xx 分类、集群 Nginx 安全日志及回归测试均已纳入 | 仍需生产日志抽查与安全事件响应演练 |
 | Telegram Bot Token 静态存储 | 当前 settings 表和备份保留 Bot Token 明文；API/UI 只做显示脱敏 | 已在 Telegram 运维文档明确披露；应用级加密、密钥轮换和旧值迁移仍是 P2 加固项 |
-| Telegram 通知队列停用语义 | PR #266 增加全局 Bot、门店及单事件停用时的事务性 dead-letter 清理 | 最新 CI 尚待完成；真实 Telegram 双 Bot 和多门店验收未完成 |
+| Telegram 通知队列停用语义 | PR #266 已实现全局 Bot、门店及单事件停用时的事务性 dead-letter 清理，并补齐并发锁顺序 | 同步 main 后的新 head CI/安装检查待完成；真实 Telegram 双 Bot、多门店与备份恢复验收未完成 |
 | 大型单体路由/页面 | 仍是架构改进项，不是已确认可利用漏洞 | 应以小步拆分和集成测试推进 |
 
-**当前 GitHub 状态：** PR #267 已合并；PR #266 和 #268 仍为 Draft。两项 PR 都必须以各自最新 head 的 CI/安装兼容性结果为准，不得沿用旧提交的通过状态。PR #266 还需要真实 Telegram staging、多门店隔离和备份恢复验收。
+**当前 GitHub 状态（2026-11-15）：** PR #267 与 PR #268 均已合并；PR #266 仍为 Draft。PR #268 合并提交为 `c8cc929`。PR #266 已同步 main，最新 head `0c83adc7d9c615d51c7e86980e0e8318629b90b2` 的 CI（validate、MySQL 8.4、MariaDB 10.11/11.4/11.8/12.3）与五个安装目标全部通过。PR #266 仍需要真实 Telegram staging、多门店隔离和备份恢复验收。
 
 **分支保护：** 当前 GitHub API 未返回 main 的保护规则，仓库 Rulesets 列表为空。此项需要仓库管理员在 GitHub 设置中启用，不能由应用代码或本次 CI 自动替代。
 
@@ -144,3 +144,24 @@
 
 **状态：** PR #267 的 CI/安装兼容性矩阵已通过并合并。尚未在生产集群执行故障注入；生产验收仍需验证 Redis 断开、恢复、Socket.IO 跨节点广播和真实负载均衡器 IP。
 
+
+
+## 8. 跟进记录（2026-11-15）
+
+### [P1 - 错误日志信息泄露] 认证、上传/导入错误脱敏
+
+**处理分支：** [PR #268](https://github.com/Tony855/shaolafang/pull/268)，已于 2026-11-14 合并至 main，merge commit `c8cc929404e6a6c4b1ada99642bc4fd2c237c4b5`。
+
+- 认证存储故障统一返回通用 503，不再把数据库驱动异常作为认证失败或原始错误回传。
+- Socket.IO、管理员登录、审计日志、KHQR、菜单 ZIP 导入/导出日志仅记录安全元数据；ZIP 行级错误对客户端使用通用描述。
+- 两套企业集群 Nginx 模板对 HTTP/HTTPS 均采用不记录 query string/Referer 的 `foodflow_safe` 格式。
+- QR 图片无法解析、payload 不支持被分类为 400，Jimp API 不兼容仍保留内部错误分类。
+- PR #268 的 CI 与 Installer Compatibility 工作流均通过；CI 覆盖验证、MySQL 8.4、MariaDB 10.11/11.4/11.8/12.3，安装器覆盖 Debian 12/13、Ubuntu 22.04/24.04/26.04。
+
+**生产边界：** 需要在实际 Nginx reload 后抽查 access log，确认历史日志按保留策略处理；CI 不代表生产节点已经应用配置。
+
+### [P1 - Telegram 通知] main 同步及重新验证
+
+PR #266 已同步 PR #268 合并后的 main，最新 head 为 `0c83adc7d9c615d51c7e86980e0e8318629b90b2`。同步后的最新 head `0c83adc7d9c615d51c7e86980e0e8318629b90b2` 的 CI 与安装兼容性矩阵均已通过。
+
+**尚未完成：** 真实 Client/Admin Bot 投递、跨门店 Chat ID 隔离、QR 重扫重绑、备份恢复后绑定失效/重新绑定、worker 重启与租约恢复 soak、部署 webhook secret 与 worker flag 的现场核验。生产 worker 必须保持关闭，直至验收通过。

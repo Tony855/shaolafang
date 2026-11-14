@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-14 (main baseline `41d0517b`; finance reconciliation acceptance remains delivered; PR #234 is merged and the current non-finance PR #238 is tracked separately below)
+Last reviewed: 2026-11-15 (main baseline includes PR #238 MariaDB LTS matrix and subsequent security hardening; no finance implementation PR is currently open)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -49,7 +49,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- No finance implementation pull requests are currently open. PR #238 is a separate database CI/documentation matrix change (MariaDB 10.11/11.4/11.8/12.3); it is not a finance-reconciliation dependency. Existing MariaDB 10.5/10.11 and MySQL 8.4 results remain as recorded until #238's own final-head checks pass.
+- No finance implementation pull requests are currently open. PR #238 has merged the supported MariaDB LTS matrix (10.11, 11.4, 11.8, 12.3) and the MariaDB locking-read fix; current finance CI coverage is MySQL 8.4 plus all four MariaDB LTS versions.
 
 ## Remaining engineering acceptance work
 
@@ -131,4 +131,13 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 - PR #232 merged: add legacy-safe indexes for due-received and expired-lease queue claim paths; validate schema drift and concurrent startup migration races. MySQL 8.4, MariaDB 10.5/10.11, and Ubuntu 22.04/24.04 plus Debian 12/13 passed (8/8 current-head checks). Merge commit: `a9c1e32e17c8936eecd9914997c3b3c189a3d5db`.
 - PR #233 merged: fence expired provider-event leases so a worker cannot complete or schedule failure after its lease deadline, even before another worker reclaims the event; re-check expiry at the final failure-state update to close the lock-to-update timing window. Adds bounded 5–900 second lease renewal that cannot revive an expired lease. Current-head 12/12 checks passed, including MySQL 8.4, MariaDB 10.5/10.11, full repository tests, and four installer targets. Merge commit: `1b70f7bbd0ee79e61b36de78e5f2d1ec350b6d56`.
 - PR #234 merged: require the provider transaction reference to match exactly between the event envelope and normalized event; reject mismatched or one-sided references before transaction/inbox persistence. Regression tests cover both mismatch directions and matching-reference acceptance. Merge commit: `0fcb6e25e05de1662541418a2998af699ce76d42`.
-- Current collaboration snapshot: `main` is `41d0517b3456889f51d5893bdcbbe60d1c29e540` (PR #237). PR #238 is open at head `c2e1ce3ff990c064143f756b866d11726f2a13c0`, targets that main baseline, and changes only the MariaDB CI/documentation matrix; it is not a finance code dependency.
+- PR #238 merged: replace obsolete MariaDB 10.5 CI target with maintained MariaDB 10.11/11.4/11.8/12.3 coverage and fix finance replay locking reads; final head `27bbd5c7758785ddf2e1717eca8c59c19eec378e` passed 11/11 checks. Merge commit `c6b0b56164487083aa12c823bf43ace880d3be03`.
+
+
+## Current status update (2026-11-15)
+
+- The reconciliation, month-close, exception/SLA, journal posting, export, tenant authorization, 50k data-volume, migration, and backup/restore acceptance tracks above remain delivered to main.
+- No finance implementation PR is open. PR #238 is merged and the supported database CI matrix is MySQL 8.4 plus MariaDB 10.11/11.4/11.8/12.3.
+- Provider integration remains a gated, not-yet-live capability: ABA PayWay signature verification and Bakong dynamic-KHQR status lookup helpers exist, and the provider-event inbox/lease queue primitives are present, but there is no active public provider callback route or lifecycle-managed event processor that automatically settles orders and posts journal entries.
+- Remaining provider go-live work: merchant sandbox credentials and outlet/receiver mapping; verify exact outbound PayWay request signing and Bakong environment/account details; provider callback ingress with raw-body authentication and replay controls; verified-event processor; approved amount/currency/FX/accounting policy; order/refund/fee/chargeback journal posting; provider settlement reconciliation; and staging acceptance. Do not enable live callbacks or automatic settlement before these gates pass.
+- Loads above the accepted 50k benchmark are optional capacity testing, not a current release blocker. Production deployment and live financial operations remain unverified.
