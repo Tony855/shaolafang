@@ -24,6 +24,18 @@ function memoryQueue(rows) {
   }
   async function runAsync(sql, params = []) {
     calls.push({ type: 'run', sql, params });
+    if (sql.includes("SET processing_status='failed', lease_token=NULL")) {
+      let affectedRows = 0;
+      for (const row of rows) {
+        if (row.auth_status === 'verified' && row.processing_status === 'processing' &&
+            row.lease_expired === true && row.attempt_count >= row.max_attempts) {
+          row.processing_status = 'failed'; row.lease_token = null;
+          row.lease_expires_at = null; row.last_error_code = 'LEASE_EXPIRED_MAX_ATTEMPTS';
+          affectedRows += 1;
+        }
+      }
+      return { affectedRows };
+    }
     if (sql.includes("SET processing_status='processing'")) {
       const row = rows.find(item => item.id === params[2]);
       if (!row) return { affectedRows: 0 };
@@ -94,4 +106,21 @@ test('fail schedules retry before the attempt limit and terminally fails at the 
     { retryScheduled: false, terminal: true });
   assert.equal(terminal.rows[0].processing_status, 'failed');
   assert.equal(terminal.transactionCount, 1);
+});
+
+test('claimNext retires an expired final-attempt lease instead of stranding it forever', async () => {
+  const db = memoryQueue([{
+    id: 19, auth_status: 'verified', processing_status: 'processing',
+    lease_token: 'c'.repeat(64), lease_expired: true,
+    attempt_count: 3, max_attempts: 3
+  }]);
+  assert.equal(await db.queue.claimNext(), null);
+  assert.equal(db.rows[0].processing_status, 'failed');
+  assert.equal(db.rows[0].lease_token, null);
+  assert.equal(db.rows[0].last_error_code, 'LEASE_EXPIRED_MAX_ATTEMPTS');
+  const cleanup = db.calls.findIndex(call => call.type === 'run' &&
+    call.sql.includes("SET processing_status='failed', lease_token=NULL"));
+  const claim = db.calls.findIndex(call => call.type === 'get' && call.sql.includes('LIMIT 1 FOR UPDATE'));
+  assert.ok(cleanup >= 0 && claim > cleanup, 'expired final leases must be retired before selecting work');
+  assert.equal(db.transactionCount, 1);
 });

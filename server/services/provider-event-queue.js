@@ -20,6 +20,17 @@ function createProviderEventQueue({ getAsync, runAsync, withTransaction, now = (
       throw new TypeError('leaseSeconds must be an integer between 5 and 900');
     }
     return withTransaction(async () => {
+      // A worker may crash after claiming its final permitted attempt. Such a
+      // row is no longer eligible for another claim, so retire its expired
+      // lease explicitly instead of leaving it stranded in "processing".
+      await runAsync(
+        `UPDATE provider_webhook_events
+         SET processing_status='failed', lease_token=NULL, lease_expires_at=NULL,
+             last_error_code='LEASE_EXPIRED_MAX_ATTEMPTS'
+         WHERE auth_status='verified' AND processing_status='processing'
+           AND lease_expires_at IS NOT NULL AND lease_expires_at <= NOW(3)
+           AND attempt_count >= max_attempts`
+      );
       const row = await getAsync(
         `SELECT id, provider_code, provider_event_id, merchant_id, store_id,
                 event_type, provider_transaction_id, normalized_event_json,

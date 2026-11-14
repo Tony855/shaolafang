@@ -124,3 +124,7 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 - PR #227 merged: MariaDB 10.5 and 10.11 each passed the real-database finance integration and backup/restore test files; MySQL 8.4 and all four installer compatibility targets also passed (`fce81badd92475d087e5662e8aca1c4eef13830a`). Follow-up PR expands the MariaDB job to the complete repository test suite.
 
 - PR #228 merged: full repository test suite passes, followed by the finance integration and backup/restore suites in deterministic sequence on MariaDB 10.5 and 10.11; MySQL 8.4 and all four installer compatibility targets also passed (`d793670be103ec3f1eac9a1d0355ea4a1f095b15`). The CI test command now invokes the defined npm test script directly. Database integration fixtures remain sequential because they intentionally reuse a dedicated schema and perform table cleanup.
+
+
+- PR #230 merged: provider event failure/retry row-lock read and state transition now share one transaction; 12/12 current-head CI and installer checks passed. Merge commit: `f4dd39818074f1e8bf8b36028c5476d43fead9ee`.
+- Next provider-queue hardening batch: retire expired leases that have already consumed the final permitted attempt, preventing crash-recovered events from remaining permanently stuck in `processing`.
