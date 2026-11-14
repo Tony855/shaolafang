@@ -200,6 +200,7 @@ test('Telegram customer can revoke all active bindings for their private chat wi
   assert.equal(state.outboxSuppressions.length, 1);
   assert.match(state.outboxSuppressions[0].sql, /last_error_code='binding_revoked'/);
   assert.match(state.outboxSuppressions[0].sql, /telegram_customer_bindings/);
+  assert.deepEqual(state.outboxSuppressions[0].params, ['98765', '98765']);
   assert.match(sent, /已取消/);
 });
 
