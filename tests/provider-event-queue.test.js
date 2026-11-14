@@ -17,7 +17,7 @@ function memoryQueue(rows) {
     }
     if (sql.includes('SELECT attempt_count, max_attempts')) {
       const row = rows.find(item => item.id === params[0] &&
-        item.processing_status === 'processing' && item.lease_token === params[1]);
+        item.processing_status === 'processing' && item.lease_token === params[1] && item.lease_expired !== true);
       return row ? { attempt_count: row.attempt_count, max_attempts: row.max_attempts } : null;
     }
     throw new Error('unexpected query');
@@ -43,12 +43,12 @@ function memoryQueue(rows) {
       row.lease_token = params[0]; return { affectedRows: 1 };
     }
     if (sql.includes("SET processing_status='processed'")) {
-      const row = rows.find(item => item.id === params[0] && item.lease_token === params[1]);
+      const row = rows.find(item => item.id === params[0] && item.lease_token === params[1] && item.lease_expired !== true);
       if (!row) return { affectedRows: 0 };
       row.processing_status = 'processed'; row.lease_token = null; return { affectedRows: 1 };
     }
     if (sql.includes('SET processing_status=?')) {
-      const row = rows.find(item => item.id === params[3] && item.lease_token === params[4]);
+      const row = rows.find(item => item.id === params[3] && item.lease_token === params[4] && item.lease_expired !== true);
       if (!row) return { affectedRows: 0 };
       row.processing_status = params[0]; row.lease_token = null; row.last_error_code = params[2];
       return { affectedRows: 1 };
@@ -83,7 +83,7 @@ test('claimNext validates lease duration and ignores events without normalized d
 });
 
 test('complete requires the active lease token and marks the event processed', async () => {
-  const db = memoryQueue([{ id: 8, processing_status: 'processing', lease_token: 'a'.repeat(64) }]);
+  const db = memoryQueue([{ id: 8, processing_status: 'processing', lease_token: 'a'.repeat(64), lease_expired: false }]);
   assert.deepEqual(await db.queue.complete({ eventId: 8, leaseToken: 'a'.repeat(64) }), { completed: true });
   assert.equal(db.rows[0].processing_status, 'processed');
   await assert.rejects(db.queue.complete({ eventId: 8, leaseToken: 'b'.repeat(64) }),
@@ -91,7 +91,7 @@ test('complete requires the active lease token and marks the event processed', a
 });
 
 test('fail schedules retry before the attempt limit and terminally fails at the limit inside a transaction', async () => {
-  const retry = memoryQueue([{ id: 1, processing_status: 'processing', lease_token: 'a'.repeat(64), attempt_count: 1, max_attempts: 3 }]);
+  const retry = memoryQueue([{ id: 1, processing_status: 'processing', lease_token: 'a'.repeat(64), lease_expired: false, attempt_count: 1, max_attempts: 3 }]);
   assert.deepEqual(await retry.queue.fail({ eventId: 1, leaseToken: 'a'.repeat(64), errorCode: 'TEMPORARY' }),
     { retryScheduled: true, terminal: false });
   assert.equal(retry.rows[0].processing_status, 'received');
@@ -101,7 +101,7 @@ test('fail schedules retry before the attempt limit and terminally fails at the 
   assert.ok(lockedRead >= 0 && transition > lockedRead,
     'the locked read must precede the state transition within the same transaction');
 
-  const terminal = memoryQueue([{ id: 2, processing_status: 'processing', lease_token: 'a'.repeat(64), attempt_count: 3, max_attempts: 3 }]);
+  const terminal = memoryQueue([{ id: 2, processing_status: 'processing', lease_token: 'a'.repeat(64), lease_expired: false, attempt_count: 3, max_attempts: 3 }]);
   assert.deepEqual(await terminal.queue.fail({ eventId: 2, leaseToken: 'a'.repeat(64), errorCode: 'INVALID_STATE' }),
     { retryScheduled: false, terminal: true });
   assert.equal(terminal.rows[0].processing_status, 'failed');
@@ -122,5 +122,30 @@ test('claimNext retires an expired final-attempt lease instead of stranding it f
     call.sql.includes("SET processing_status='failed', lease_token=NULL"));
   const claim = db.calls.findIndex(call => call.type === 'get' && call.sql.includes('LIMIT 1 FOR UPDATE'));
   assert.ok(cleanup >= 0 && claim > cleanup, 'expired final leases must be retired before selecting work');
+  assert.equal(db.transactionCount, 1);
+});
+
+
+test('complete rejects an expired lease even when no other worker has reclaimed it yet', async () => {
+  const db = memoryQueue([{
+    id: 29, processing_status: 'processing', lease_token: 'd'.repeat(64), lease_expired: true
+  }]);
+  await assert.rejects(
+    db.queue.complete({ eventId: 29, leaseToken: 'd'.repeat(64) }),
+    error => error.code === 'PROVIDER_EVENT_STALE_LEASE'
+  );
+  assert.equal(db.rows[0].processing_status, 'processing');
+});
+
+test('fail rejects an expired lease instead of changing retry state after ownership expired', async () => {
+  const db = memoryQueue([{
+    id: 30, processing_status: 'processing', lease_token: 'e'.repeat(64),
+    lease_expired: true, attempt_count: 1, max_attempts: 3
+  }]);
+  await assert.rejects(
+    db.queue.fail({ eventId: 30, leaseToken: 'e'.repeat(64), errorCode: 'LATE_FAILURE' }),
+    error => error.code === 'PROVIDER_EVENT_STALE_LEASE'
+  );
+  assert.equal(db.rows[0].processing_status, 'processing');
   assert.equal(db.transactionCount, 1);
 });
