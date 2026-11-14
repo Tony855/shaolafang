@@ -357,6 +357,13 @@ test('Nginx setup backs up and restores prior config on failed provisioning', ()
   assert.match(nginx, /systemctl stop nginx 2>\/dev\/null \|\| true[\s\S]*?cp -a "\$NGINX_BACKUP_DIR\/etc\/nginx\//);
 });
 
+test('standard installer fallback aborts on Nginx config or reload failure', () => {
+  const source = read('install.sh');
+  assert.match(source, /if ! nginx -t; then[\s\S]*?基础 Nginx 配置测试失败[\s\S]*?exit 1/);
+  assert.match(source, /if ! systemctl reload-or-restart nginx; then[\s\S]*?journalctl -u nginx -n 50 --no-pager/);
+  assert.match(source, /if ! systemctl is-active --quiet nginx; then[\s\S]*?exit 1/);
+});
+
 test('local installer aborts on invalid Nginx config or reload failure', () => {
   const source = read('install-local.sh');
   assert.match(source, /if ! nginx -t; then[\s\S]*?exit 1/);
