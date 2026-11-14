@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { constantTimeSecretMatch, parseTelegramPrivateStartUpdate } = require('../server/services/telegram-webhook');
+const { constantTimeSecretMatch, parseTelegramPrivateUpdate, parseTelegramPrivateStartUpdate } = require('../server/services/telegram-webhook');
 
 const challenge = 'A'.repeat(43);
 
@@ -22,4 +22,13 @@ test('Telegram binding accepts only private /start messages with bounded payload
   assert.equal(parseTelegramPrivateStartUpdate({ ...update, update_id: Number.MAX_SAFE_INTEGER + 1 }), null);
   assert.equal(parseTelegramPrivateStartUpdate({ ...update, update_id: 0 }).updateId, 0);
   assert.equal(parseTelegramPrivateStartUpdate({ ...update, message: { ...update.message, from: { id: 1, is_bot: true } } }), null);
+});
+
+
+test('Telegram binding accepts /stop only from a real private user chat', () => {
+  const update = { update_id: 124, message: { text: '/stop', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } };
+  assert.deepEqual(parseTelegramPrivateUpdate(update), { action: 'stop', updateId: 124, telegramUserId: '98765', telegramChatId: '98765' });
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, chat: { id: -100, type: 'group' } } }), null);
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, from: { id: 98765, is_bot: true } } }), null);
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, text: '/stop now' } }), null);
 });
