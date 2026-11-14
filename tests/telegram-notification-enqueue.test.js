@@ -47,8 +47,9 @@ test('customer Telegram enqueue locks settings, tenant, and exact binding before
   const result = await enqueueCustomerTelegramNotification({
     allAsync: async (sql, params) => {
       if (sql.includes('settings')) {
-        assert.match(sql, /FOR UPDATE/);
-        return [{ key: 'telegram_client_bot_enabled', value: '1' }];
+        assert.match(sql, /ORDER BY `key` FOR UPDATE/);
+        assert.deepEqual(params, ['telegram_admin_bot_enabled', 'telegram_client_bot_enabled']);
+        return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_client_bot_enabled', value: '1' }];
       }
       if (sql.includes('FROM merchants')) {
         assert.match(sql, /FOR UPDATE/);
@@ -79,12 +80,12 @@ test('customer Telegram enqueue locks settings, tenant, and exact binding before
 test('customer Telegram enqueue fails closed without enabled Bot or matching binding', async () => {
   const customerTokenHash = 'b'.repeat(64);
   const disabled = await enqueueCustomerTelegramNotification({
-    allAsync: async () => [{ key: 'telegram_client_bot_enabled', value: '0' }],
+    allAsync: async () => [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_client_bot_enabled', value: '0' }],
     customerTokenHash, merchantId: 7, storeId: 9, eventKey: 'x', event: {}
   });
   const noBinding = await enqueueCustomerTelegramNotification({
     allAsync: async sql => {
-      if (sql.includes('settings')) return [{ key: 'telegram_client_bot_enabled', value: '1' }];
+      if (sql.includes('settings')) return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_client_bot_enabled', value: '1' }];
       if (sql.includes('FROM merchants')) return [{ id: 7 }];
       if (sql.includes('FROM stores')) return [{ id: 9 }];
       return [];
@@ -100,8 +101,9 @@ test('store admin enqueue locks Bot, tenant, and recipient rows before writing',
   const result = await enqueueStoreAdminTelegramNotification({
     allAsync: async (sql, params) => {
       if (sql.includes('settings')) {
-        assert.match(sql, /FOR UPDATE/);
-        return [{ value: '1' }];
+        assert.match(sql, /ORDER BY `key` FOR UPDATE/);
+        assert.deepEqual(params, ['telegram_admin_bot_enabled', 'telegram_client_bot_enabled']);
+        return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_client_bot_enabled', value: '1' }];
       }
       if (sql.includes('FROM merchants')) {
         assert.match(sql, /FOR UPDATE/);
@@ -132,7 +134,7 @@ test('store admin enqueue locks Bot, tenant, and recipient rows before writing',
 test('store admin enqueue fails closed when recipient or event toggle is disabled', async () => {
   const noRecipient = await enqueueStoreAdminTelegramNotification({
     allAsync: async sql => {
-      if (sql.includes('settings')) return [{ value: '1' }];
+      if (sql.includes('settings')) return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_client_bot_enabled', value: '1' }];
       if (sql.includes('FROM merchants')) return [{ id: 7 }];
       if (sql.includes('FROM stores')) return [{ id: 9 }];
       return [];
