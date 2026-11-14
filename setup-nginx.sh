@@ -133,13 +133,17 @@ echo ""
 log_info "检查后端服务..."
 if systemctl list-unit-files 2>/dev/null | grep -q foodflow.service; then
     systemctl restart foodflow
-    sleep 3
-    if systemctl is-active --quiet foodflow; then
-        log_success "后端服务运行正常 (端口 $BACKEND_PORT)"
-    else
-        log_error "后端服务启动失败，请检查: sudo journalctl -u foodflow -n 30"
+    if ! systemctl is-active --quiet foodflow; then
+        log_error "后端服务启动失败，请检查: sudo journalctl -u foodflow -n 50 --no-pager"
+        journalctl -u foodflow -n 50 --no-pager || true
         exit 1
     fi
+    if ! ff_wait_for_health "$BACKEND_PORT" "${FF_HEALTH_ATTEMPTS:-30}"; then
+        log_error "后端进程存在，但应用或数据库健康检查失败。"
+        journalctl -u foodflow -n 50 --no-pager || true
+        exit 1
+    fi
+    log_success "后端服务与数据库健康检查通过 (端口 $BACKEND_PORT)"
 else
     log_warn "未找到 foodflow systemd 服务，请先运行 install-local.sh"
     exit 1
