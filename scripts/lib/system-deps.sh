@@ -35,6 +35,97 @@ ff_apt_install() {
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"
 }
 
+# Install a maintained MariaDB LTS on clean installs only. Existing databases are
+# detected by install.sh before this helper is called and are never upgraded here.
+ff_install_mariadb_server() {
+  local requested_version="${FF_MARIADB_SERVER_VERSION:-12.3}"
+  local setup_file candidate actual_version checksum
+  case "$requested_version" in
+    10.11|11.4|11.8|12.3) ;;
+    *)
+      ff_log_error "不支持的 FF_MARIADB_SERVER_VERSION=$requested_version；可选 10.11/11.4/11.8/12.3。"
+      return 1
+      ;;
+  esac
+
+  # MariaDB's documented APT repository platforms: Debian 12/13 and
+  # Ubuntu 22.04/24.04. Verify the vendor bootstrap script before executing it.
+  case "${ID:-}:${VERSION_ID:-}" in
+    debian:12|debian:13|ubuntu:22.04|ubuntu:24.04)
+      checksum="b54c87edfe81b9837ef44a4a4f39383dd8df32776e6a18c0743a5d3ece044ac3"
+      setup_file="$(mktemp)"
+      if ! curl -fsSL https://r.mariadb.com/downloads/mariadb_repo_setup -o "$setup_file"; then
+        rm -f "$setup_file"
+        ff_log_error "下载 MariaDB 官方仓库配置脚本失败。"
+        return 1
+      fi
+      if ! printf '%s  %s\n' "$checksum" "$setup_file" | sha256sum -c - >/dev/null 2>&1; then
+        rm -f "$setup_file"
+        ff_log_error "MariaDB 官方仓库配置脚本校验失败，拒绝执行。"
+        return 1
+      fi
+      if ! bash "$setup_file" --mariadb-server-version="mariadb-$requested_version" --skip-maxscale --skip-tools; then
+        rm -f "$setup_file"
+        ff_log_error "配置 MariaDB $requested_version 官方仓库失败。"
+        return 1
+      fi
+      rm -f "$setup_file"
+      ff_apt_update || return 1
+      candidate="$(apt-cache policy mariadb-server 2>/dev/null | awk '$1 == "Candidate:" { print $2; exit }')"
+      case "$candidate" in
+        *"$requested_version".*) ;;
+        *)
+          ff_log_error "MariaDB 仓库候选版本不符合要求：期望 $requested_version，实际 ${candidate:-无候选版本}。"
+          return 1
+          ;;
+      esac
+      ff_log_info "安装 MariaDB Community Server $requested_version LTS..."
+      ff_apt_install mariadb-server || return 1
+      ;;
+    ubuntu:26.04)
+      # MariaDB's documented Community APT setup does not yet list Ubuntu 26.04.
+      # Ubuntu 26.04's native archive currently supplies the maintained 11.8 LTS.
+      if [ "${FF_MARIADB_SERVER_VERSION:-}" != "" ] && [ "$requested_version" != "11.8" ]; then
+        ff_log_error "Ubuntu 26.04 当前使用发行版仓库的 MariaDB 11.8 LTS；官方 MariaDB APT 仓库尚未列出该系统，不支持强制指定 $requested_version。"
+        return 1
+      fi
+      ff_apt_update || return 1
+      candidate="$(apt-cache policy mariadb-server 2>/dev/null | awk '$1 == "Candidate:" { print $2; exit }')"
+      case "$candidate" in
+        *11.8.*) ;;
+        *)
+          ff_log_error "Ubuntu 26.04 需要发行版仓库提供 MariaDB 11.8 LTS，实际候选版本为 ${candidate:-无候选版本}。"
+          return 1
+          ;;
+      esac
+      ff_log_info "Ubuntu 26.04 使用发行版仓库提供的 MariaDB 11.8 LTS。"
+      ff_apt_install mariadb-server || return 1
+      ;;
+    *)
+      ff_log_error "当前系统未配置经过验证的 MariaDB LTS 安装来源。"
+      return 1
+      ;;
+  esac
+
+  actual_version="$(mariadbd --version 2>/dev/null || mysqld --version 2>/dev/null || true)"
+  case "$actual_version" in
+    *"$requested_version".*) ;;
+    *"11.8."*)
+      if [ "${ID:-}:${VERSION_ID:-}" = "ubuntu:26.04" ] && [ "$requested_version" = "12.3" ]; then
+        ff_log_info "检测到 Ubuntu 26.04 的 MariaDB 11.8 LTS 发行版包，符合该系统的受支持安装基线。"
+        return 0
+      fi
+      ff_log_error "安装后的 MariaDB 版本不符合要求：$actual_version"
+      return 1
+      ;;
+    *)
+      ff_log_error "无法确认安装后的 MariaDB LTS 版本：${actual_version:-mariadbd/mysqld 不可用}"
+      return 1
+      ;;
+  esac
+  ff_log_info "MariaDB 版本验证通过：$actual_version"
+}
+
 ff_prepare_system_packages() {
   ff_apt_update || return 1
   ff_apt_install ca-certificates curl wget git gnupg iproute2 util-linux
