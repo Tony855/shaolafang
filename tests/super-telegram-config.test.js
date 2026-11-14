@@ -79,7 +79,7 @@ test('configuration update preserves a blank token and writes separate scopes at
   }, res);
   assert.equal(res.statusCode, 200);
   assert.equal(ctx.settings.get('telegram_client_bot_token'), token);
-  assert.equal(ctx.settings.get('telegram_client_bot_chat_id'), '-100123');
+  assert.equal(ctx.settings.get('telegram_client_chat_id'), '-100123');
   assert.equal(ctx.settings.get('telegram_client_bot_enabled'), '1');
   assert.equal(ctx.settings.get('telegram_admin_bot_enabled'), '0');
 });
