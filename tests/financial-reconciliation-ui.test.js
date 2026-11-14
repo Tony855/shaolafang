@@ -19,7 +19,7 @@ test('financial reconciliation styles are scoped and cache-busted in the admin s
   assert.match(adminCss, /#module-financial-reconciliation/);
   assert.match(adminCss, /\.finance-batch-card/);
   assert.match(adminCss, /\.finance-review-row/);
-  assert.match(adminCss, /#financeImportJson/);
+  assert.match(adminCss, /#financeImportButton/);
   assert.match(adminCss, /@media \(max-width: 760px\)/);
   assert.match(adminCss, /@media \(max-width: 420px\)/);
   assert.match(adminCss, /:focus/);
