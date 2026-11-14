@@ -27,6 +27,7 @@ test('multi-node deployment templates require shared Redis and an explicit trust
     const content = read(file);
     assert.match(content, /^REDIS_URL=.+/m, file + ' must configure Redis');
     assert.match(content, /^TRUST_PROXY=.+/m, file + ' must configure a trusted proxy');
+    assert.match(content, /^REQUIRE_SHARED_REDIS=true$/m, file + ' must enable fail-closed cluster startup');
   }
   for (const file of [
     'deploy/enterprise/cluster/deploy.sh',
@@ -36,6 +37,7 @@ test('multi-node deployment templates require shared Redis and an explicit trust
     assert.match(content, /DB_DATABASE/);
     assert.match(content, /REDIS_URL/);
     assert.match(content, /TRUST_PROXY/);
+    assert.match(content, /REQUIRE_SHARED_REDIS=true/);
     assert.match(content, /git pull --ff-only origin main/);
     assert.doesNotMatch(content, /git reset --hard origin\/main/);
   }

@@ -106,3 +106,19 @@
 4. 为支付/退款、订单状态转换、跨商户/跨门店访问补充 API 集成测试。
 5. 增加 Playwright 多端关键流程测试：扫码下单、厨房接单、收银结算、退款、权限拒绝。
 6. 评估数据库迁移版本化、结构化日志、指标和告警；先保持兼容性，不做大规模一次性重写。
+
+
+## 7. 跟进记录（2026-11-14）
+
+### [P1 - 部署条件] 集群 Redis 与可信代理启动保护
+
+**处理分支：** PR #267（Draft，CI 待验收）。
+
+- 新增 `REQUIRE_SHARED_REDIS=true` 启动保护；Redis URL 缺失、Redis 连接失败或 Socket.IO Redis Adapter 未就绪时，集群节点不会开始监听 HTTP。
+- 集群模式要求显式 IP/CIDR 代理列表，拒绝默认 loopback、通配/全地址、主机名及无效 CIDR。
+- 集群运行期间，`/health` 与 `/api/health/ready` 同时检查 MySQL、Redis 和 Socket.IO Redis Adapter；任一依赖断开时返回 503，恢复后自动恢复就绪；响应设置 `Cache-Control: no-store`。
+- 两套企业集群模板启用该开关；部署脚本会在新建和已有 `/etc/foodflow/.env` 中强制写入 `REQUIRE_SHARED_REDIS=true`。
+- 单机模板保持 `REQUIRE_SHARED_REDIS=false`，不改变单机 Redis 可选的降级行为。
+
+**状态：** 代码已提交 PR，等待 CI/安装兼容性矩阵；尚未合并，也未在生产集群执行故障注入。生产验收仍需验证 Redis 断开、恢复、Socket.IO 跨节点广播和真实负载均衡器 IP。
+

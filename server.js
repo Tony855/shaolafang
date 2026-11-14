@@ -1,5 +1,6 @@
 const express = require('express');
 const { resolveListenHost } = require('./server/config/listen-host');
+const { getClusterStartupError } = require('./server/config/cluster-requirements');
 const { createRequestBodyParsers } = require('./server/middleware/request-body-parsers');
 const { createSafeErrorHandler } = require('./server/middleware/safe-error-handler');
 // ★ 关键：pool / helpers / constants 必须在文件顶部 require（TDZ 问题）
@@ -57,7 +58,7 @@ app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 
 // Minimal readiness endpoint used by the installer and operators.
 // It reports only application/database availability and never exposes credentials or internals.
-require('./routes/health.js')(app, { getPool: () => poolModule.pool });
+require('./routes/health.js')(app, { getPool: () => poolModule.pool, getClusterReadiness });
 const corsOrigins = new Set((process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean));
 
 // Socket.IO: same-host requests are allowed; cross-origin browser clients must be explicitly allowlisted.
@@ -99,6 +100,19 @@ let redisClient = null;
 let redisReady = false;
 let socketRedisPub = null;
 let socketRedisSub = null;
+
+function getClusterReadiness() {
+  if (process.env.REQUIRE_SHARED_REDIS !== 'true') return null;
+  const redisOk = Boolean(redisReady && redisClient && redisClient.isReady !== false);
+  const socketIoOk = Boolean(socketRedisPub && socketRedisSub &&
+    socketRedisPub.isReady !== false && socketRedisSub.isReady !== false);
+  return {
+    required: true,
+    ready: redisOk && socketIoOk,
+    redis: redisOk ? 'ok' : 'unavailable',
+    socketIo: socketIoOk ? 'ok' : 'unavailable'
+  };
+}
 async function initRedis() {
   if (!REDIS_URL) return false;
   if (!redis) {
@@ -1392,7 +1406,7 @@ async function initDatabase() {
 
 // ----- 公开接口 -----
 require('./routes/display.js')(app, { allAsync, runAsync, requireAdminKey, requirePermission });
-require('./routes/public.js')(app, { getAsync, allAsync, runAsync });
+require('./routes/public.js')(app, { getAsync, allAsync, runAsync, getClusterReadiness });
 
 
 // ----- 商户管理员登录 -----
@@ -1552,8 +1566,21 @@ initDatabase().then(async () => {
   if (isInitOnly) {
     process.exit(0);
   }
-  await initRedis();
-  await initSocketAdapter();
+  const redisInitialized = await initRedis();
+  const socketAdapterInitialized = await initSocketAdapter();
+  const clusterStartupError = getClusterStartupError({
+    requireSharedRedis: process.env.REQUIRE_SHARED_REDIS,
+    redisUrl: REDIS_URL,
+    trustProxy: process.env.TRUST_PROXY,
+    redisReady: redisInitialized,
+    socketAdapterReady: socketAdapterInitialized
+  });
+  if (clusterStartupError) {
+    console.error('[startup] Cluster deployment configuration rejected: ' + clusterStartupError);
+    await poolModule.pool.end().catch(() => {});
+    process.exit(1);
+    return;
+  }
   if (process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED === 'true') {
     stopTelegramNotificationWorker = telegramNotificationWorker.start();
     console.log('[telegram-worker] background delivery enabled');

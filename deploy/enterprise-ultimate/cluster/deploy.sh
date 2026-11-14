@@ -102,6 +102,13 @@ if [ ! -f /etc/foodflow/.env ]; then
     log_warn "已创建 /etc/foodflow/.env，请编辑配置数据库、Redis、NFS 连接信息"
 fi
 
+# Cluster nodes must never silently fall back to per-process memory state.
+if grep -Eq '^[[:space:]]*REQUIRE_SHARED_REDIS[[:space:]]*=' /etc/foodflow/.env; then
+    sed -i -E 's/^[[:space:]]*REQUIRE_SHARED_REDIS[[:space:]]*=.*/REQUIRE_SHARED_REDIS=true/' /etc/foodflow/.env
+else
+    printf '\nREQUIRE_SHARED_REDIS=true\n' >> /etc/foodflow/.env
+fi
+
 # 从节点不执行定时任务
 if [ "$NODE_TYPE" == "slave" ]; then
     sed -i '/^RUN_SCHEDULED_TASKS=/d' /etc/foodflow/.env
