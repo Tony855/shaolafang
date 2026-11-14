@@ -134,6 +134,23 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(result.length, 1);
   assert.equal(result[0].state, 'delivered');
 
+
+  const suppressedKey = `${key}:event-disabled`;
+  await enqueueTelegramNotification({
+    eventKey: suppressedKey, recipientScope: 'merchant_store', recipientKey: 'store:9',
+    merchantId: 7, storeId: 9,
+    event: { type: 'order.settled', storeName: 'Integration Store', orderNo: 'IT-43', amount: 12.5, currency: 'USD' }
+  });
+  const suppressedResult = await processTelegramNotificationBatch({
+    workerId: workerA, limit: 1,
+    resolveRecipient: async () => ({ scope: 'merchant_store', merchantId: 7, storeId: 9, suppressed: true }),
+    sendMessage: async () => { throw new Error('suppressed event must not be sent'); }
+  });
+  assert.deepEqual(suppressedResult[0], { id: Number((await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key=?', [suppressedKey])).id), state: 'suppressed' });
+  const suppressedRow = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [suppressedKey]);
+  assert.equal(suppressedRow.state, 'dead');
+  assert.equal(suppressedRow.last_error_code, 'event_disabled');
+
   const oldDeliveredKey = `${key}:old-delivered`;
   const oldDeadKey = `${key}:old-dead`;
   const oldPayload = JSON.stringify({ text: 'old notification' });
