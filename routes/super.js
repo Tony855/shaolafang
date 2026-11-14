@@ -817,7 +817,7 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
       await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
         'restore_backup', 'system', null, '导入数据库备份并使所有旧会话失效', getClientIp(req));
     });
-    res.json({ success: true, message: '备份已导入；所有旧登录和扫码会话已失效' });
+    res.json({ success: true, message: '备份已导入；所有旧登录、扫码会话及 Telegram 顾客绑定已失效，顾客需重新绑定' });
   } catch (e) { res.status(500).json({ error: '备份恢复失败，所有更改已回滚' }); }
 });
 
