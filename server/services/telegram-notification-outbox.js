@@ -35,16 +35,15 @@ function normalizeOutboxInput(input) {
 
 async function enqueueTelegramNotification(input) {
   const row = normalizeOutboxInput(input);
-  const now = new Date();
   const result = await runAsync(
-    'INSERT INTO telegram_notification_outbox (event_key, event_type, merchant_id, store_id, recipient_scope, recipient_key, payload_json, state, attempts, available_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, \'pending\', 0, ?, ?, ?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',
-    [row.eventKey, row.eventType, row.merchantId, row.storeId, row.recipientScope, row.recipientKey, row.payloadJson, now, now, now]
+    'INSERT INTO telegram_notification_outbox (event_key, event_type, merchant_id, store_id, recipient_scope, recipient_key, payload_json, state, attempts, available_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, \'pending\', 0, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',
+    [row.eventKey, row.eventType, row.merchantId, row.storeId, row.recipientScope, row.recipientKey, row.payloadJson]
   );
   return { inserted: Number(result.affectedRows) === 1, id: Number(result.insertId) || null };
 }
 
 async function claimTelegramNotifications({ workerId = randomUUID(), limit = 10, leaseSeconds = 60 } = {}) {
-  if (typeof workerId !== 'string' || !/^[A-Za-z0-9-]{8,64}$/.test(workerId)) throw new TypeError('Worker ID 无效');
+  if (typeof workerId !== 'string' || !/^[0-9a-f-]{36}$/i.test(workerId)) throw new TypeError('Worker ID 无效');
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new TypeError('领取数量无效');
   if (!Number.isInteger(leaseSeconds) || leaseSeconds < 15 || leaseSeconds > 600) throw new TypeError('租约时长无效');
   return withTransaction(async () => {
