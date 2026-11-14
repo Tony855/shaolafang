@@ -106,3 +106,20 @@ test('Telegram customer webhook safely reactivates the same revoked owner bindin
   assert.equal(state.bindings[0].is_active, 1);
   assert.equal(state.bindings[0].revoked_at, null);
 });
+
+
+test('Telegram customer webhook deduplicates a replayed valid update after binding', async () => {
+  const { handler, challenge, state } = fixture();
+  const req = {
+    headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+    body: { update_id: 103, message: { text: '/start ' + challenge, chat: { id: 98765, type: 'private' }, from: { id: 98765 } } }
+  };
+  const first = response();
+  const replay = response();
+  await handler(req, first);
+  await handler(req, replay);
+  assert.equal(first.statusCode, 200);
+  assert.equal(replay.statusCode, 200);
+  assert.equal(state.bindings.length, 1);
+  assert.equal(state.updates.size, 1);
+});
