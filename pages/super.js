@@ -644,7 +644,8 @@ async function saveTelegramBotSettings() {
 async function testTelegramBot(scope) {
   if (!['client', 'admin'].includes(scope)) return;
   try {
-    await api('/super/telegram/' + scope + '/test', { method: 'POST', body: JSON.stringify({}) });
+    const endpoint = scope === 'client' ? '/super/telegram/client/test' : '/super/telegram/admin/test';
+    await api(endpoint, { method: 'POST', body: JSON.stringify({}) });
     SLF.ui.toast(t('telegramTestSent') || '测试消息已发送，请检查 Telegram', 'success');
   } catch (error) {
     SLF.ui.toast((t('telegramTestFailed') || '测试消息发送失败') + ': ' + error.message, 'error');
