@@ -1284,14 +1284,12 @@ async function initDatabase() {
     // cashiers_<storeId> JSON 中，由管理员在后台「收银员管理」添加。
   }
 
-  // 迁移：qr_languages
-  try {
-    const cols = await pool.query('SHOW COLUMNS FROM stores LIKE ?', ['qr_languages']);
-    if (!cols[0] || cols[0].length === 0) {
-      await runAsync('ALTER TABLE stores ADD COLUMN qr_languages VARCHAR(50) DEFAULT NULL');
-      console.log('  + 迁移 stores: 添加 qr_languages 字段');
-    }
-  } catch (e) { console.log('  stores qr_languages 迁移跳过:', e.message); }
+  // 迁移：qr_languages（使用统一 DB helper；server.js 不存在独立的 pool 变量）
+  await require('./server/db/migrations/store-qr-languages').ensureStoreQrLanguagesSchema({
+    allAsync,
+    runAsync,
+    logger: console
+  });
 
   // 全局设置默认值
   const backupInterval = await getAsync("SELECT value FROM settings WHERE `key` = 'backup_interval_hours'");
