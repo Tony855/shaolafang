@@ -17,7 +17,7 @@ function response() {
 function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE' } = {}) {
   const challenge = 'A'.repeat(43);
   const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
-  const state = { updates: new Set(), challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
+  const state = { updates: new Set(), outboxSuppressions: [], challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
   const handler = createTelegramCustomerWebhookHandler({
     secret: 's'.repeat(40),
     getAsync: async (sql, params) => {
@@ -36,7 +36,11 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE' } = {}) {
         if (state.updates.has(params[0])) throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
         state.updates.add(params[0]); return { affectedRows: 1 };
       }
-      if (sql.includes('WHERE telegram_chat_id=? AND telegram_user_id=?')) {
+      if (sql.includes('UPDATE telegram_notification_outbox')) {
+        state.outboxSuppressions.push({ sql, params });
+        return { affectedRows: 1 };
+      }
+      if (sql.includes('UPDATE telegram_customer_bindings') && sql.includes('WHERE telegram_chat_id=? AND telegram_user_id=?')) {
         const matches = state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active !== 0);
         for (const row of matches) Object.assign(row, { is_active: 0, revoked_at: new Date() });
         return { affectedRows: matches.length };
@@ -171,7 +175,8 @@ test('Telegram customer can revoke all active bindings for their private chat wi
     allAsync: async () => [],
     runAsync: async (sql, params) => {
       if (sql.includes('INSERT INTO telegram_webhook_updates')) { state.updates.add(params[0]); return { affectedRows: 1 }; }
-      if (sql.includes('WHERE telegram_chat_id=? AND telegram_user_id=?')) {
+      if (sql.includes('UPDATE telegram_notification_outbox')) { state.outboxSuppressions.push({ sql, params }); return { affectedRows: 1 }; }
+      if (sql.includes('UPDATE telegram_customer_bindings') && sql.includes('WHERE telegram_chat_id=? AND telegram_user_id=?')) {
         const matches = state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active !== 0);
         for (const row of matches) row.is_active = 0;
         return { affectedRows: matches.length };
@@ -192,6 +197,9 @@ test('Telegram customer can revoke all active bindings for their private chat wi
   assert.equal(state.bindings[0].is_active, 0);
   assert.equal(state.bindings[1].is_active, 0);
   assert.equal(state.bindings[2].is_active, 1);
+  assert.equal(state.outboxSuppressions.length, 1);
+  assert.match(state.outboxSuppressions[0].sql, /last_error_code='binding_revoked'/);
+  assert.match(state.outboxSuppressions[0].sql, /telegram_customer_bindings/);
   assert.match(sent, /已取消/);
 });
 
@@ -208,6 +216,7 @@ test('Telegram customer /stop still revokes bindings when the Client Bot is disa
   }, res);
   assert.equal(res.statusCode, 200);
   assert.equal(state.bindings[0].is_active, 0);
+  assert.equal(state.outboxSuppressions.length, 1);
   assert.equal(state.updates.has(106), true);
 });
 
