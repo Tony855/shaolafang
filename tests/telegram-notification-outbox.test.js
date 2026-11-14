@@ -2,8 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeOutboxInput, retryDelaySeconds } = require('../server/services/telegram-notification-outbox');
-const { validateResolvedRecipient, classifyTelegramError } = require('../server/services/telegram-notification-worker');
+const { normalizeOutboxInput, retryDelaySeconds } = require('../server/services/telegram-notification-outbox-core');
+const { validateResolvedRecipient, classifyTelegramError } = require('../server/services/telegram-notification-worker-core');
 
 const token = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 
