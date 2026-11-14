@@ -56,7 +56,7 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE' } = {}) {
         if (state.bindings.some(x => (x.telegram_chat_id === params[4] && Number(x.store_id) === Number(params[2])) || (x.customer_token_hash === params[0] && Number(x.store_id) === Number(params[2])))) {
           throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
         }
-        state.bindings.push({ id: 9, customer_token_hash: params[0], merchant_id: params[1], store_id: params[2], telegram_user_id: params[3], telegram_chat_id: params[4] });
+        state.bindings.push({ id: 9, customer_token_hash: params[0], merchant_id: params[1], store_id: params[2], telegram_user_id: params[3], telegram_chat_id: params[4], is_active: 1 });
         return { affectedRows: 1 };
       }
       return { affectedRows: 1 };
