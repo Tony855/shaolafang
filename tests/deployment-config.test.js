@@ -124,3 +124,15 @@ test('all Nginx deployment paths allow maximum menu media and backup uploads', (
     assert.match(content, /client_max_body_size 105M;/, file + ' must allow backup imports up to the 50 MB application parser limit');
   }
 });
+
+test('installer never embeds GitHub tokens in git command arguments or remote URLs', () => {
+  const content = read('install.sh');
+  assert.match(content, /git_with_github_token\(\)/);
+  assert.match(content, /GIT_ASKPASS=/);
+  assert.match(content, /GIT_TERMINAL_PROMPT=0/);
+  assert.match(content, /chmod 700 "\$askpass"/);
+  assert.match(content, /rm -f "\$askpass"/);
+  assert.doesNotMatch(content, /https:\/\/\$\{GITHUB_TOKEN\}@github\.com/);
+  assert.match(content, /git -c credential\.helper= pull https:\/\/github\.com\/Tony855\/shaolafang\.git main/);
+  assert.match(content, /git -c credential\.helper= clone --branch/);
+});
