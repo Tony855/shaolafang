@@ -18,6 +18,7 @@
 | readiness 路由不一致 | main 已统一 `/health`，保留兼容别名并检查 MySQL；集群还检查 Redis/Socket.IO Adapter | 生产探针仍需实测 |
 | Nginx 上传上限低于应用限制 | main 所有部署模板已统一 105M | 仍需在目标反向代理链路测试大文件上传 |
 | 认证/上传错误日志暴露 | PR #268 已覆盖认证、KHQR、ZIP 导入/导出日志脱敏及回归测试 | 新增集群 Nginx 日志改动的 CI 尚待完成 |
+| Telegram Bot Token 静态存储 | 当前 settings 表和备份保留 Bot Token 明文；API/UI 只做显示脱敏 | 已在 Telegram 运维文档明确披露；应用级加密、密钥轮换和旧值迁移仍是 P2 加固项 |
 | Telegram 通知队列停用语义 | PR #266 增加全局 Bot、门店及单事件停用时的事务性 dead-letter 清理 | 最新 CI 尚待完成；真实 Telegram 双 Bot 和多门店验收未完成 |
 | 大型单体路由/页面 | 仍是架构改进项，不是已确认可利用漏洞 | 应以小步拆分和集成测试推进 |
 
