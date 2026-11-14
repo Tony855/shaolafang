@@ -236,6 +236,7 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
     eventKey: disableClientAdminKey, recipientScope: 'system_admin', recipientKey: 'admin:primary',
     event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-43C', amount: 12.5, currency: 'USD' }
   });
+  await runAsync("UPDATE telegram_notification_outbox SET state='processing', locked_by=?, locked_until=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 60 SECOND) WHERE event_key=?", [workerA, disableClientCustomerKey]);
   await runAsync(
     "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing')"
   );
@@ -264,6 +265,7 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
     merchantId: 7, storeId: 9,
     event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-43F', amount: 12.5, currency: 'USD' }
   });
+  await runAsync("UPDATE telegram_notification_outbox SET state='processing', locked_by=?, locked_until=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 60 SECOND) WHERE event_key=?", [workerB, disableAdminStoreKey]);
   await runAsync(
     "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope IN ('system_admin','merchant_store') AND state IN ('pending','processing')"
   );
