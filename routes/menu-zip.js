@@ -49,7 +49,7 @@ module.exports = function(app, deps) {
       res.setHeader('Content-Length', buf.length);
       res.send(buf);
     } catch (e) {
-      console.error('export-zip failed:', e);
+      console.error('export-zip failed', safeErrorMetadata(e));
       res.status(500).json({ error: '请求失败，请稍后重试' });
     }
   });
