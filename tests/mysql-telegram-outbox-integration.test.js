@@ -16,7 +16,7 @@ if (databaseUrl) {
   process.env.DB_DATABASE = 'telegram_outbox_test';
 }
 const poolModule = require('../server/db/pool');
-const { runAsync, getAsync, withTransaction } = require('../server/db/helpers');
+const { runAsync, getAsync, allAsync, withTransaction } = require('../server/db/helpers');
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations/telegram-customer-binding');
 const { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry, cleanupTelegramNotificationHistory } = require('../server/services/telegram-notification-outbox');
@@ -132,5 +132,5 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   const cleanup = await cleanupTelegramNotificationHistory();
   assert.equal(cleanup.deliveredDeleted, 1);
   assert.equal(cleanup.deadDeleted, 1);
-  assert.equal((await require('../server/db/helpers').allAsync('SELECT id FROM telegram_notification_outbox WHERE event_key IN (?, ?)', [oldDeliveredKey, oldDeadKey])).length, 0);
+  assert.equal((await allAsync('SELECT id FROM telegram_notification_outbox WHERE event_key IN (?, ?)', [oldDeliveredKey, oldDeadKey])).length, 0);
 });
