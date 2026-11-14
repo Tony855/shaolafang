@@ -36,3 +36,33 @@ test('health route returns a generic 503 without leaking database errors', async
   assert.deepEqual(response.body, { status: 'degraded', database: 'unavailable' });
   assert.equal(JSON.stringify(response.body).includes('secret'), false);
 });
+
+test('cluster health route returns 503 when shared Redis dependencies are down', async () => {
+  const handlers = {};
+  const app = { get(path, callback) { handlers[path] = callback; } };
+  registerHealthRoute(app, {
+    getPool: () => ({ query: async () => [[{ ready: 1 }], []] }),
+    getClusterReadiness: () => ({ required: true, ready: false, redis: 'unavailable', socketIo: 'ok' })
+  });
+  const response = createResponse();
+  await handlers['/health']({}, response);
+  assert.equal(response.statusCode, 503);
+  assert.deepEqual(response.body, {
+    status: 'degraded', database: 'ok', redis: 'unavailable', socketIo: 'ok'
+  });
+});
+
+test('cluster health route returns 200 when shared Redis dependencies recover', async () => {
+  const handlers = {};
+  const app = { get(path, callback) { handlers[path] = callback; } };
+  registerHealthRoute(app, {
+    getPool: () => ({ query: async () => [[{ ready: 1 }], []] }),
+    getClusterReadiness: () => ({ required: true, ready: true, redis: 'ok', socketIo: 'ok' })
+  });
+  const response = createResponse();
+  await handlers['/health']({}, response);
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body, {
+    status: 'ok', database: 'ok', redis: 'ok', socketIo: 'ok'
+  });
+});
