@@ -345,6 +345,17 @@ test('first-install and cluster startup use readiness gates instead of fixed sta
   }
 });
 
+test('Nginx setup uses optional Certbot email arguments and verifies every start', () => {
+  const nginx = read('setup-nginx.sh');
+  assert.match(nginx, /CERTBOT_EMAIL_ARGS=\(\)/);
+  assert.match(nginx, /--agree-tos "\$\{CERTBOT_EMAIL_ARGS\[@\]\}"/);
+  assert.doesNotMatch(nginx, /--email "\$EMAIL"/);
+  assert.match(nginx, /start_nginx\(\)/);
+  assert.match(nginx, /journalctl -u nginx -n 50 --no-pager/);
+  assert.doesNotMatch(nginx, /systemctl start nginx\s*sleep 2/);
+  assert.match(nginx, /if ! nginx -t; then[\s\S]*?拒绝启用 HTTPS/);
+});
+
 test('Nginx setup gates proxy configuration on application and database readiness', () => {
   const nginx = read('setup-nginx.sh');
   assert.match(nginx, /if ! systemctl restart foodflow/);
