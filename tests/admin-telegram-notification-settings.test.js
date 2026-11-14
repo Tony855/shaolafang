@@ -94,3 +94,53 @@ test('store Telegram settings reject malformed Chat IDs before writes', async ()
   assert.equal(res.statusCode, 400);
   assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('telegram_store_admin_recipients')), false);
 });
+
+
+test('disabling a store terminally suppresses its queued store-admin notifications only', async () => {
+  const { routes, calls } = setup();
+  const res = response();
+  await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
+    merchantId: 7, storeId: 9, body: { enabled: false, chatId: '' }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  const suppression = calls.find(call => call.type === 'run' && call.sql.includes('UPDATE telegram_notification_outbox'));
+  assert.ok(suppression);
+  assert.match(suppression.sql, /recipient_scope='merchant_store'/);
+  assert.match(suppression.sql, /merchant_id=\? AND store_id=\?/);
+  assert.match(suppression.sql, /state IN \('pending','processing'\)/);
+  assert.deepEqual(suppression.params, [7, 9]);
+});
+
+test('disabling one store event toggle suppresses only that event for that tenant', async () => {
+  const { routes, calls } = setup();
+  const res = response();
+  await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
+    merchantId: 7, storeId: 9, body: {
+      enabled: true, chatId: '-100123',
+      notifyOrderCreated: true, notifySettled: false, notifyRefunded: true
+    }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  const suppressions = calls.filter(call => call.type === 'run' && call.sql.includes('UPDATE telegram_notification_outbox'));
+  assert.equal(suppressions.length, 1);
+  assert.match(suppressions[0].sql, /recipient_scope='merchant_store'/);
+  assert.match(suppressions[0].sql, /event_type=\?/);
+  assert.deepEqual(suppressions[0].params, [7, 9, 'order.settled']);
+});
+
+test('re-enabling store notifications does not revive dead-lettered backlog', async () => {
+  const { routes, calls } = setup();
+  const handler = routes.get('PUT /api/admin/telegram/notification-settings').at(-1);
+  const disabled = response();
+  await handler({ merchantId: 7, storeId: 9, body: { enabled: false, chatId: '' } }, disabled);
+  assert.equal(disabled.statusCode, 200);
+  calls.length = 0;
+
+  const enabled = response();
+  await handler({ merchantId: 7, storeId: 9, body: {
+    enabled: true, chatId: '-100123',
+    notifyOrderCreated: true, notifySettled: true, notifyRefunded: true
+  } }, enabled);
+  assert.equal(enabled.statusCode, 200);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('UPDATE telegram_notification_outbox')), false);
+});
