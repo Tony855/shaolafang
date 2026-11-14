@@ -81,7 +81,10 @@ async function migrateSessionTokenStorage({ runAsync, allAsync, withTransaction 
 
     for (const table of sessionTables) {
       await runAsync(
-        `UPDATE \`${table}\` SET token_hash=COALESCE(NULLIF(token_hash, ''), SHA2(token, 256)), token=NULL WHERE token IS NOT NULL AND token<>''`
+        `UPDATE \`${table}\` SET token_hash=CONVERT(SHA2(token, 256) USING ascii) COLLATE ascii_bin WHERE token IS NOT NULL AND CHAR_LENGTH(token)>0 AND (token_hash IS NULL OR OCTET_LENGTH(token_hash)=0)`
+      );
+      await runAsync(
+        `UPDATE \`${table}\` SET token=NULL WHERE token IS NOT NULL AND CHAR_LENGTH(token)>0`
       );
     }
 
