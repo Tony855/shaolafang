@@ -11,7 +11,7 @@ if (databaseUrl) {
   process.env.DB_PORT = integrationUrl.port || '3306';
   process.env.DB_USER = decodeURIComponent(integrationUrl.username);
   process.env.DB_PASSWORD = decodeURIComponent(integrationUrl.password);
-  process.env.DB_DATABASE = decodeURIComponent(integrationUrl.pathname.replace(/^\\//, ''));
+  process.env.DB_DATABASE = decodeURIComponent(integrationUrl.pathname.slice(1));
 } else if (!process.env.DB_DATABASE) {
   process.env.DB_DATABASE = 'telegram_outbox_test';
 }
