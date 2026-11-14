@@ -12,6 +12,7 @@ const originals = new Map(
 );
 
 let failWhen = null;
+let failRunWhen = null;
 require.cache[helperPath] = {
   id: helperPath,
   filename: helperPath,
@@ -21,7 +22,10 @@ require.cache[helperPath] = {
       if (failWhen && failWhen(sql)) throw new Error('sensitive database connection details');
       return null;
     },
-    runAsync: async () => ({ affectedRows: 1 }),
+    runAsync: async sql => {
+      if (failRunWhen && failRunWhen(sql)) throw new Error('sensitive database connection details');
+      return { affectedRows: 1 };
+    },
     allAsync: async () => []
   }
 };
@@ -108,6 +112,50 @@ test('requireAdminOrCashierOrWaiter does not downgrade cashier database failures
   const result = await invoke(auth.requireAdminOrCashierOrWaiter, request({ 'X-Cashier-Token': 'cashier-token' }));
   assertUnavailable(result);
   failWhen = null;
+});
+
+test('requireSuperAdmin returns a generic 503 and never logs database details', async () => {
+  const logs = [];
+  const original = console.error;
+  console.error = (...args) => logs.push(args.join(' '));
+  try {
+    failWhen = sql => sql.includes('FROM super_sessions');
+    const result = await invoke(auth.requireSuperAdmin, request({ authorization: 'Bearer super-token' }));
+    assertUnavailable(result);
+    assert.equal(logs.join(' ').includes('sensitive database connection details'), false);
+  } finally {
+    failWhen = null;
+    console.error = original;
+  }
+});
+
+test('requireCashier returns a generic 503 and never logs database details', async () => {
+  const logs = [];
+  const original = console.error;
+  console.error = (...args) => logs.push(args.join(' '));
+  try {
+    failWhen = sql => sql.includes('FROM cashier_sessions');
+    const result = await invoke(auth.requireCashier, request({ 'X-Cashier-Token': 'cashier-token' }));
+    assertUnavailable(result);
+    assert.equal(logs.join(' ').includes('sensitive database connection details'), false);
+  } finally {
+    failWhen = null;
+    console.error = original;
+  }
+});
+
+test('best-effort authentication audit failures log safe metadata only', async () => {
+  const logs = [];
+  const original = console.warn;
+  console.warn = (...args) => logs.push(args.join(' '));
+  try {
+    failRunWhen = sql => sql.includes('INSERT INTO audit_logs');
+    await adminAuth.logAudit('admin', 1, 'root', 'test', 'store', 1, '{}', '127.0.0.1');
+    assert.equal(logs.join(' ').includes('sensitive database connection details'), false);
+  } finally {
+    failRunWhen = null;
+    console.warn = original;
+  }
 });
 
 test.after(() => {
