@@ -213,19 +213,23 @@ test('Telegram customer /stop still revokes bindings when the Client Bot is disa
 
 test('Telegram customer can rebind the same private chat to a newly scanned customer session', async () => {
   const { handler, challenge, state } = fixture();
-  state.bindings.push({
-    id: 8, customer_token_hash: 'a'.repeat(64), merchant_id: 3, store_id: 8,
-    telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 1
-  });
+  state.bindings.push(
+    { id: 8, customer_token_hash: 'a'.repeat(64), merchant_id: 3, store_id: 8, telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 1 },
+    { id: 10, customer_token_hash: 'd'.repeat(64), merchant_id: 4, store_id: 12, telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 1 }
+  );
   const res = response();
   await handler({
     headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
     body: { update_id: 107, message: { text: '/start ' + challenge, chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
   }, res);
   assert.equal(res.statusCode, 200);
-  assert.equal(state.bindings.length, 1);
-  assert.equal(state.bindings[0].id, 9);
-  assert.equal(state.bindings[0].customer_token_hash, 'f'.repeat(64));
-  assert.equal(state.bindings[0].telegram_chat_id, '98765');
-  assert.equal(state.bindings[0].is_active, 1);
+  assert.equal(state.bindings.length, 2);
+  const currentStoreBinding = state.bindings.find(row => Number(row.store_id) === 8);
+  const otherStoreBinding = state.bindings.find(row => Number(row.store_id) === 12);
+  assert.equal(currentStoreBinding.id, 9);
+  assert.equal(currentStoreBinding.customer_token_hash, 'f'.repeat(64));
+  assert.equal(currentStoreBinding.telegram_chat_id, '98765');
+  assert.equal(currentStoreBinding.is_active, 1);
+  assert.equal(otherStoreBinding.id, 10);
+  assert.equal(otherStoreBinding.customer_token_hash, 'd'.repeat(64));
 });
