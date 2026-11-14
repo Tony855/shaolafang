@@ -33,7 +33,6 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   t.after(async () => {
     try {
       await runAsync('DROP TABLE IF EXISTS telegram_store_admin_recipients');
-      await runAsync('DROP TABLE IF EXISTS telegram_store_admin_recipients');
   await runAsync('DROP TABLE IF EXISTS telegram_webhook_updates');
       await runAsync('DROP TABLE IF EXISTS telegram_customer_bindings');
       await runAsync('DROP TABLE IF EXISTS telegram_customer_binding_challenges');
@@ -41,6 +40,7 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
     } finally { poolModule.setPool(previousPool); await testPool.end(); }
   });
 
+  await runAsync('DROP TABLE IF EXISTS telegram_store_admin_recipients');
   await runAsync('DROP TABLE IF EXISTS telegram_webhook_updates');
   await runAsync('DROP TABLE IF EXISTS telegram_customer_bindings');
   await runAsync('DROP TABLE IF EXISTS telegram_customer_binding_challenges');
