@@ -49,6 +49,24 @@ async function sendTelegramMessage({ token, chatId, text, fetchImpl = globalThis
   };
 }
 
+async function getTelegramBotUsername({ token, fetchImpl = globalThis.fetch }) {
+  if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
+  if (typeof fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持 fetch');
+  let response;
+  try {
+    response = await fetchImpl(`${TELEGRAM_API}/bot${token}/getMe`, { method: 'GET', signal: AbortSignal.timeout(10000) });
+  } catch (_) {
+    throw new Error('无法连接 Telegram API，请检查服务器网络或稍后重试');
+  }
+  let payload;
+  try { payload = await response.json(); } catch (_) { throw new Error('Telegram API 返回了无法识别的响应'); }
+  const username = String(payload?.result?.username || '');
+  if (!response.ok || payload?.ok !== true || !/^[A-Za-z0-9_]{5,32}$/.test(username)) {
+    throw new Error('Telegram Bot 信息读取失败');
+  }
+  return username;
+}
+
 async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.fetch }) {
   return sendTelegramMessage({
     token, chatId, fetchImpl,
@@ -56,4 +74,4 @@ async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.f
   });
 }
 
-module.exports = { validateBotToken, validateChatId, sendTelegramMessage, sendTelegramTestMessage };
+module.exports = { validateBotToken, validateChatId, sendTelegramMessage, sendTelegramTestMessage, getTelegramBotUsername };
