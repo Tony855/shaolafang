@@ -335,6 +335,13 @@ sudo systemctl start foodflow
 sudo systemctl enable foodflow
 ```
 
+如果服务因短时间内连续启动失败而触发 systemd 启动次数限制，请先修复日志中的根因，再执行：
+
+```bash
+sudo systemctl reset-failed foodflow
+sudo systemctl start foodflow
+```
+
 查看状态：
 ```bash
 sudo systemctl status foodflow
