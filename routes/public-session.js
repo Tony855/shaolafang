@@ -250,6 +250,10 @@ module.exports = function(app, deps) {
       if (config.telegram_client_bot_enabled !== '1' || !config.telegram_client_bot_token) {
         return res.status(409).json({ error: '当前店铺暂未启用 Telegram 顾客通知' });
       }
+      const webhookSecret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+      if (webhookSecret.length < 32 || webhookSecret.length > 256) {
+        return res.status(503).json({ error: 'Telegram 绑定服务尚未完成安全配置' });
+      }
       const username = await getTelegramBotUsername({ token: String(config.telegram_client_bot_token) });
       const challenge = crypto.randomBytes(32).toString('base64url');
       const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
