@@ -125,9 +125,46 @@ update_existing_install() {
     local target="$APP_DIR"
     local updater_tmp safety_tmp
     prepare_deploy_key 2>/dev/null || { log_error "无法准备 deploy key，更新中止"; return 1; }
-    if [ ! -d "$target/.git" ]; then
-        log_error "现有安装目录不是 Git 仓库；为防止覆盖生产文件，自动更新已中止。请先完成备份并迁移到 Git 管理目录。"
-        return 1
+    # Fresh installs deploy source files with rsync --exclude .git, so the
+    # production directory is intentionally not a Git checkout. When the
+    # installer itself is running from a clean repository checkout (for
+    # example /opt/shaolafang), safely attach that checkout's Git metadata
+    # to the deployed tree before invoking the transactional updater.
+    if ! git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        if [ "$SCRIPT_DIR" = "$target" ] || [ ! -d "$SCRIPT_DIR/.git" ]; then
+            log_error "生产目录不是 Git 仓库，且安装器目录没有可用的 Git 元数据；拒绝自动更新。"
+            return 1
+        fi
+        if ! git -C "$SCRIPT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            log_error "安装器源码目录不是有效 Git 仓库；拒绝迁移。"
+            return 1
+        fi
+        if [ -n "$(git -C "$SCRIPT_DIR" status --porcelain --untracked-files=normal)" ]; then
+            log_error "安装器源码仓库存在未提交或未跟踪文件；拒绝将其 Git 元数据迁移到生产目录。"
+            git -C "$SCRIPT_DIR" status --short
+            return 1
+        fi
+        if [ -e "$target/.git" ]; then
+            log_error "生产目录存在非标准 .git 路径；拒绝覆盖。"
+            return 1
+        fi
+
+        log_info "检测到源码仓库与生产目录分离；验证生产文件后迁移 Git 元数据..."
+        if ! cp -a "$SCRIPT_DIR/.git" "$target/.git"; then
+            rm -rf "$target/.git"
+            log_error "复制 Git 元数据失败；未执行生产更新。"
+            return 1
+        fi
+        if ! git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+           [ "$(git -C "$target" rev-parse HEAD 2>/dev/null)" != "$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null)" ] ||
+           [ -n "$(git -C "$target" status --porcelain --untracked-files=normal 2>/dev/null)" ] ||
+           ! git -C "$target" remote get-url origin >/dev/null 2>&1; then
+            git -C "$target" status --short 2>/dev/null || true
+            rm -rf "$target/.git"
+            log_error "生产目录文件与源码仓库提交不一致，或 Git 远端配置无效；已撤销元数据迁移并拒绝覆盖。"
+            return 1
+        fi
+        log_success "生产目录与源码提交一致，Git 元数据迁移完成。"
     fi
     if [ -n "$(git -C "$target" status --porcelain --untracked-files=normal)" ]; then
         log_error "目标目录存在未提交或未跟踪文件，拒绝覆盖。"
