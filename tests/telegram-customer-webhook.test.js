@@ -36,6 +36,11 @@ function fixture() {
         if (state.updates.has(params[0])) throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
         state.updates.add(params[0]); return { affectedRows: 1 };
       }
+      if (sql.includes('WHERE telegram_chat_id=? AND telegram_user_id=?')) {
+        const matches = state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active !== 0);
+        for (const row of matches) Object.assign(row, { is_active: 0, revoked_at: new Date() });
+        return { affectedRows: matches.length };
+      }
       if (sql.includes('UPDATE telegram_customer_bindings')) {
         const row = state.bindings.find(x => x.id === params[3]);
         if (row) Object.assign(row, { merchant_id: params[0], telegram_user_id: params[1], telegram_chat_id: params[2], is_active: 1, revoked_at: null });
@@ -144,4 +149,43 @@ test('Telegram challenge expiry is evaluated by UTC SQL, not local parsing of DA
     if (previousTimezone === undefined) delete process.env.TZ;
     else process.env.TZ = previousTimezone;
   }
+});
+
+
+test('Telegram customer can revoke all active bindings for their private chat with /stop', async () => {
+  const { handler, state } = fixture();
+  state.bindings.push(
+    { id: 9, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 1 },
+    { id: 10, customer_token_hash: 'e'.repeat(64), merchant_id: 4, store_id: 12, telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 1 },
+    { id: 11, customer_token_hash: 'd'.repeat(64), merchant_id: 3, store_id: 8, telegram_user_id: '11111', telegram_chat_id: '11111', is_active: 1 }
+  );
+  let sent = '';
+  const handlerWithCapture = createTelegramCustomerWebhookHandler({
+    secret: 's'.repeat(40),
+    getAsync: async () => null,
+    allAsync: async () => [],
+    runAsync: async (sql, params) => {
+      if (sql.includes('INSERT INTO telegram_webhook_updates')) { state.updates.add(params[0]); return { affectedRows: 1 }; }
+      if (sql.includes('WHERE telegram_chat_id=? AND telegram_user_id=?')) {
+        const matches = state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active !== 0);
+        for (const row of matches) row.is_active = 0;
+        return { affectedRows: matches.length };
+      }
+      return { affectedRows: 1 };
+    },
+    withTransaction: async work => work(),
+    getBotToken: async () => '123456:abcdefghijklmnopqrstuvwxyzABCDE',
+    sendMessage: async input => { sent = input.text; return { messageId: 2 }; },
+    logger: { warn() {}, error() {} }
+  });
+  const res = response();
+  await handlerWithCapture({
+    headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+    body: { update_id: 105, message: { text: '/stop', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.bindings[0].is_active, 0);
+  assert.equal(state.bindings[1].is_active, 0);
+  assert.equal(state.bindings[2].is_active, 1);
+  assert.match(sent, /已取消/);
 });
