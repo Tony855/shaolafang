@@ -68,7 +68,7 @@ module.exports = function(app, deps) {
       try { zip = openZipArchive(zipPath, { maxEntries: 2000 }); }
       catch (e) {
         try { fs.unlinkSync(zipPath); } catch (_) {}
-        return res.status(e.status === 413 ? 413 : 400).json({ error: e.status === 413 ? 'ZIP 结构或条目数量超过资源限制' : 'ZIP 文件结构无效：' + e.message });
+        return res.status(e.status === 413 ? 413 : 400).json({ error: e.status === 413 ? 'ZIP 结构或条目数量超过资源限制' : 'ZIP 文件结构无效，请检查文件后重试' });
       }
       const zipEntries = zip.entries;
       if (zipEntries.length > 2000) {
@@ -213,7 +213,7 @@ module.exports = function(app, deps) {
             retainedImagePaths.add(importedImagePath);
           }
           success++;
-        } catch (e) { failed++; errors.push('第 ' + (i+1) + ' 行：' + e.message); }
+        } catch (_) { failed++; errors.push('第 ' + (i+1) + ' 行：导入失败，请检查该行数据'); }
       }
 
       // Keep only newly extracted images referenced by rows that were actually saved.
