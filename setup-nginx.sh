@@ -271,7 +271,7 @@ server {
     listen 80;
     server_name ${DOMAIN:-_};
 
-    client_max_body_size 55M;
+    client_max_body_size 105M;
 
     location /uploads/ {
         alias $APP_DIR/uploads/;
@@ -353,7 +353,7 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    client_max_body_size 55M;
+    client_max_body_size 105M;
 
     location /uploads/ {
         alias $APP_DIR/uploads/;
