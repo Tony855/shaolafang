@@ -95,30 +95,36 @@ function createProviderEventQueue({ getAsync, runAsync, withTransaction, now = (
     if (!Number.isInteger(delay) || delay < 1 || delay > 86400) {
       throw new TypeError('retryDelaySeconds must be between 1 and 86400');
     }
-    const row = await getAsync(
-      `SELECT attempt_count, max_attempts FROM provider_webhook_events
-       WHERE id=? AND processing_status='processing' AND lease_token=? FOR UPDATE`,
-      [Number(eventId), leaseToken]
-    );
-    if (!row) {
-      const error = new Error('provider event lease is stale or no longer owned');
-      error.code = 'PROVIDER_EVENT_STALE_LEASE';
-      throw error;
-    }
-    const terminal = Number(row.attempt_count) >= Number(row.max_attempts);
-    const result = await runAsync(
-      `UPDATE provider_webhook_events
-       SET processing_status=?, next_attempt_at=DATE_ADD(NOW(3), INTERVAL ? SECOND),
-           lease_token=NULL, lease_expires_at=NULL, last_error_code=?
-       WHERE id=? AND processing_status='processing' AND lease_token=?`,
-      [terminal ? 'failed' : 'received', delay, safeCode, Number(eventId), leaseToken]
-    );
-    if (Number(result.affectedRows) !== 1) {
-      const error = new Error('provider event lease changed during failure handling');
-      error.code = 'PROVIDER_EVENT_STALE_LEASE';
-      throw error;
-    }
-    return { retryScheduled: !terminal, terminal };
+
+    // The row lock must remain held until the retry/terminal transition commits.
+    // Without this transaction boundary, SELECT ... FOR UPDATE may release its
+    // lock immediately (or provide no protection when autocommit is enabled).
+    return withTransaction(async () => {
+      const row = await getAsync(
+        `SELECT attempt_count, max_attempts FROM provider_webhook_events
+         WHERE id=? AND processing_status='processing' AND lease_token=? FOR UPDATE`,
+        [Number(eventId), leaseToken]
+      );
+      if (!row) {
+        const error = new Error('provider event lease is stale or no longer owned');
+        error.code = 'PROVIDER_EVENT_STALE_LEASE';
+        throw error;
+      }
+      const terminal = Number(row.attempt_count) >= Number(row.max_attempts);
+      const result = await runAsync(
+        `UPDATE provider_webhook_events
+         SET processing_status=?, next_attempt_at=DATE_ADD(NOW(3), INTERVAL ? SECOND),
+             lease_token=NULL, lease_expires_at=NULL, last_error_code=?
+         WHERE id=? AND processing_status='processing' AND lease_token=?`,
+        [terminal ? 'failed' : 'received', delay, safeCode, Number(eventId), leaseToken]
+      );
+      if (Number(result.affectedRows) !== 1) {
+        const error = new Error('provider event lease changed during failure handling');
+        error.code = 'PROVIDER_EVENT_STALE_LEASE';
+        throw error;
+      }
+      return { retryScheduled: !terminal, terminal };
+    });
   }
 
   return Object.freeze({ claimNext, complete, fail });
