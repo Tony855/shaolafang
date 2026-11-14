@@ -208,6 +208,21 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(suppressedRow.state, 'dead');
   assert.equal(suppressedRow.last_error_code, 'event_disabled');
 
+  const disabledAdminKey = `${key}:admin-bot-disabled`;
+  await enqueueTelegramNotification({
+    eventKey: disabledAdminKey, recipientScope: 'system_admin', recipientKey: 'admin:primary',
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-43A', amount: 12.5, currency: 'USD' }
+  });
+  const disabledAdminResult = await processTelegramNotificationBatch({
+    workerId: workerB, limit: 1,
+    resolveRecipient: async () => ({ scope: 'system_admin', merchantId: null, storeId: null, suppressed: true }),
+    sendMessage: async () => { throw new Error('disabled admin Bot must not send queued notices'); }
+  });
+  assert.equal(disabledAdminResult[0].state, 'suppressed');
+  const disabledAdminRow = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [disabledAdminKey]);
+  assert.equal(disabledAdminRow.state, 'dead');
+  assert.equal(disabledAdminRow.last_error_code, 'event_disabled');
+
   const revokedCustomerKey = `${key}:binding-revoked`;
   await enqueueTelegramNotification({
     eventKey: revokedCustomerKey, recipientScope: 'customer', recipientKey: 'binding:42',
