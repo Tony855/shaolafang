@@ -20,13 +20,16 @@ function createTelegramNotificationWorker({
   let running = false;
   let loopPromise = null;
   let pendingDelay = null;
+  let resolvePendingDelay = null;
 
   function waitForNextPoll() {
     return new Promise(resolve => {
       pendingDelay = setTimeout(() => {
         pendingDelay = null;
+        resolvePendingDelay = null;
         resolve();
       }, intervalMs);
+      resolvePendingDelay = resolve;
       if (typeof pendingDelay.unref === 'function') pendingDelay.unref();
     });
   }
@@ -55,6 +58,8 @@ function createTelegramNotificationWorker({
     if (pendingDelay) {
       clearTimeout(pendingDelay);
       pendingDelay = null;
+      if (resolvePendingDelay) resolvePendingDelay();
+      resolvePendingDelay = null;
     }
     if (loopPromise) {
       const current = loopPromise;
