@@ -205,6 +205,24 @@ module.exports = function(app, deps) {
     }
   };
 
+  app.get('/api/public/customer-telegram/binding', async (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const customerToken = getCustomerToken(req);
+      const sessionToken = getSessionToken(req);
+      if (!customerToken || customerToken.length > 128 || !sessionToken || sessionToken.length > 256) return res.status(400).json({ error: '顾客或扫码会话令牌无效' });
+      const session = await getAsync('SELECT store_id, expires_at FROM scan_sessions WHERE token_hash=?', [hashSessionToken(sessionToken)]);
+      if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return res.status(410).json({ error: '扫码会话已失效，请重新扫码' });
+      const storeId = Number(session.store_id);
+      const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [storeId]);
+      if (!store) return res.status(404).json({ error: '店铺不存在' });
+      const binding = await getAsync('SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL', [hashSessionToken(customerToken), store.merchant_id, storeId]);
+      res.json({ bound: Boolean(binding) });
+    } catch (_) {
+      res.status(500).json({ error: '读取 Telegram 绑定状态失败' });
+    }
+  });
+
   app.post('/api/public/customer-telegram/binding/start', async (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, private');
