@@ -1,7 +1,7 @@
 const express = require('express');
 const { resolveListenHost } = require('./server/config/listen-host');
 const { createRequestBodyParsers } = require('./server/middleware/request-body-parsers');
-const { safeErrorMetadata } = require('./server/middleware/safe-error-metadata');
+const { createSafeErrorHandler } = require('./server/middleware/safe-error-handler');
 // ★ 关键：pool / helpers / constants 必须在文件顶部 require（TDZ 问题）
 const poolModule = require('./server/db/pool');
 const { poolConfig, setPool } = poolModule;
@@ -1454,20 +1454,7 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API 接口不存在', path: req.path });
 });
 
-app.use((err, req, res, next) => {
-  // body-parser errors may carry the complete submitted body in err.body.
-  // Log only a small allowlist; never serialize the raw error object.
-  console.error('未处理的错误:', safeErrorMetadata(err));
-  if (res.headersSent) return next(err);
-  const status = Number(err?.statusCode || err?.status);
-  if (status === 413 || err?.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: '请求内容过大' });
-  }
-  if (status === 400) {
-    return res.status(400).json({ error: '请求格式无效' });
-  }
-  res.status(500).json({ error: '服务器内部错误' });
-});
+app.use(createSafeErrorHandler({ logger: console }));
 
 // ============================================================
 //  Socket.io 握手鉴权
