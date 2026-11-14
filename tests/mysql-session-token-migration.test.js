@@ -52,7 +52,7 @@ test('database integration: session token migration works with ascii_bin hashes 
 
   await connection.query(`
     CREATE TABLE settings (
-      `key` VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL PRIMARY KEY,
+      \`key\` VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL PRIMARY KEY,
       value TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     ) ENGINE=InnoDB
   `);
