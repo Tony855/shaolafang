@@ -913,7 +913,7 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
       // Serialize the reset with notification enqueue: setting -> merchant
       // -> store -> binding -> outbox is the same lock order used by enqueue.
       await allAsync(
-        'SELECT `key` FROM settings WHERE `key` IN (?, ?) FOR UPDATE',
+        'SELECT `key` FROM settings WHERE `key` IN (?, ?) ORDER BY `key` FOR UPDATE',
         ['telegram_client_bot_enabled', 'telegram_admin_bot_enabled']
       );
       await allAsync('SELECT id FROM merchants ORDER BY id FOR UPDATE');
