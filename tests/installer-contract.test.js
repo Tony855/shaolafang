@@ -347,7 +347,8 @@ test('first-install and cluster startup use readiness gates instead of fixed sta
 
 test('Nginx setup gates proxy configuration on application and database readiness', () => {
   const nginx = read('setup-nginx.sh');
-  assert.match(nginx, /systemctl restart foodflow/);
+  assert.match(nginx, /if ! systemctl restart foodflow/);
+  assert.match(nginx, /journalctl -u foodflow -n 50 --no-pager/);
   assert.match(nginx, /ff_wait_for_health "\$BACKEND_PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/);
   assert.ok(nginx.indexOf('ff_wait_for_health') < nginx.indexOf('# ===== 4. 释放 80 端口 ====='));
   assert.match(nginx, /journalctl -u foodflow -n 50 --no-pager/);
