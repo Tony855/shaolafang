@@ -26,6 +26,12 @@ function redactExpiredSessionCredentials(tables) {
       return sanitized;
     });
   }
+  // A one-time deep-link challenge must never survive a backup/restore cycle.
+  // Preserve durable customer bindings and queued notifications, but export no
+  // unconsumed challenge hashes that could be replayed after restoration.
+  if (Array.isArray(tables.telegram_customer_binding_challenges)) {
+    tables.telegram_customer_binding_challenges = [];
+  }
   return tables;
 }
 
