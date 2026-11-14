@@ -42,6 +42,12 @@ function createFinancialLedgerService({ runAsync, getAsync, allAsync, withTransa
     }
     const event = createProviderEventEnvelope(input.envelope);
     const normalizedEvent = normalizeProviderEvent(input.normalizedEvent);
+    if (event.providerTransactionId &&
+        normalizedEvent.providerTransactionId !== event.providerTransactionId) {
+      const error = new Error('provider transaction identity differs between the event envelope and normalized event');
+      error.code = 'PROVIDER_EVENT_TRANSACTION_ID_MISMATCH';
+      throw error;
+    }
     const normalizedJson = JSON.stringify(normalizedEvent);
     if (!normalizedJson || normalizedJson.length > 16000) {
       throw new TypeError('normalizedEvent must serialize to at most 16000 characters');
