@@ -4,13 +4,22 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('crypto');
 const mysql = require('mysql2/promise');
+const databaseUrl = process.env.MYSQL_INTEGRATION_URL;
+if (databaseUrl) {
+  const integrationUrl = new URL(databaseUrl);
+  process.env.DB_HOST = integrationUrl.hostname;
+  process.env.DB_PORT = integrationUrl.port || '3306';
+  process.env.DB_USER = decodeURIComponent(integrationUrl.username);
+  process.env.DB_PASSWORD = decodeURIComponent(integrationUrl.password);
+  process.env.DB_DATABASE = decodeURIComponent(integrationUrl.pathname.replace(/^\\//, ''));
+} else if (!process.env.DB_DATABASE) {
+  process.env.DB_DATABASE = 'telegram_outbox_test';
+}
 const poolModule = require('../server/db/pool');
 const { runAsync, getAsync, withTransaction } = require('../server/db/helpers');
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
 const { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry } = require('../server/services/telegram-notification-outbox');
 const { processTelegramNotificationBatch } = require('../server/services/telegram-notification-worker');
-
-const databaseUrl = process.env.MYSQL_INTEGRATION_URL;
 
 test('MySQL integration: Telegram outbox migration, rollback, idempotency, leases and delivery', {
   skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
