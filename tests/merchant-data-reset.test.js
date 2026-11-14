@@ -74,7 +74,16 @@ test('merchant data reset verifies the active admin under lock and audits all de
   assert.equal(res.body.deletedOrders, 12);
   assert.equal(ctx.transactionCount, 1);
   assert.ok(ctx.calls.some(call => call.type === 'get' && call.sql.includes('FOR UPDATE') && call.sql.includes('FROM merchant_admins') && call.inTransaction));
-  assert.ok(ctx.calls.filter(call => call.type === 'run' && /^(DELETE FROM|UPDATE tables|UPDATE menus)/.test(call.sql)).every(call => call.inTransaction));
+  const outboxOrderDelete = ctx.calls.findIndex(call => call.type === 'run' && call.sql.includes('DELETE n FROM telegram_notification_outbox'));
+  const outboxTenantDelete = ctx.calls.findIndex(call => call.type === 'run' && call.sql.includes('DELETE FROM telegram_notification_outbox WHERE'));
+  const challengesDelete = ctx.calls.findIndex(call => call.type === 'run' && call.sql.includes('DELETE FROM telegram_customer_binding_challenges'));
+  const bindingsDelete = ctx.calls.findIndex(call => call.type === 'run' && call.sql.includes('DELETE FROM telegram_customer_bindings'));
+  const ordersDelete = ctx.calls.findIndex(call => call.type === 'run' && call.sql.startsWith('DELETE FROM orders'));
+  assert.ok(outboxOrderDelete >= 0 && outboxTenantDelete > outboxOrderDelete);
+  assert.ok(challengesDelete > outboxTenantDelete && bindingsDelete > challengesDelete && ordersDelete > bindingsDelete);
+  assert.deepEqual(ctx.calls[outboxOrderDelete].params, [5]);
+  assert.deepEqual(ctx.calls[outboxTenantDelete].params, [5, 5]);
+    assert.ok(ctx.calls.filter(call => call.type === 'run' && /^(DELETE FROM|UPDATE tables|UPDATE menus)/.test(call.sql)).every(call => call.inTransaction));
   assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.startsWith('INSERT INTO audit_logs') && call.inTransaction));
 });
 
