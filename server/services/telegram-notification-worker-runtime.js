@@ -47,9 +47,9 @@ function createTelegramNotificationWorker({
   async function runLoop() {
     while (running) {
       if (Date.now() - lastCleanupAt >= 24 * 60 * 60 * 1000) {
+        lastCleanupAt = Date.now();
         try {
           await cleanupHistory();
-          lastCleanupAt = Date.now();
         } catch (_) {
           try { logger.error('[telegram-worker] retention cleanup failed'); } catch (_) {}
         }
