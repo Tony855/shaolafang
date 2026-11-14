@@ -16,7 +16,7 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
       if (stored.telegram_admin_bot_enabled !== '1' || !validateBotToken(token) || !validateChatId(chatId)) return null;
       return { scope: 'system_admin', merchantId: null, storeId: null, token, chatId };
     }
-    if (scope !== 'customer' || typeof key !== 'string' || !/^binding:[1-9]\\d{0,18}$/.test(key)) return null;
+    if (scope !== 'customer' || typeof key !== 'string' || !/^binding:[1-9]\d{0,18}$/.test(key)) return null;
     const bindingId = Number(key.slice('binding:'.length));
     const tenantMerchantId = Number(merchantId);
     const tenantStoreId = Number(storeId);
