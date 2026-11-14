@@ -6,6 +6,7 @@ const path = require('path');
 const QRCode = require('qrcode');
 const { escapeHtml, jsonForScript } = require('../server/utils/html');
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 
 module.exports = function registerPageRoutes(app, ctx) {
   const { getAsync, requireAdminKey, requirePermission } = ctx;
@@ -132,7 +133,7 @@ module.exports = function registerPageRoutes(app, ctx) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(html);
     } catch (e) {
-      console.error('QR print error:', e);
+      console.error('QR print error:', safeErrorMetadata(e));
       res.status(500).send('Failed to generate QR print page');
     }
   });
