@@ -103,6 +103,34 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 log_success() { echo -e "${GREEN}${BOLD}[SUCCESS]${NC}${NC} $1"; }
 
+# Authenticate Git over HTTPS without placing the PAT in argv or the remote URL.
+# The askpass helper contains no secret; Git receives the token only via the
+# installer environment and the helper file is created root-only and removed.
+git_with_github_token() {
+    [ -n "${GITHUB_TOKEN:-}" ] || return 1
+    export GITHUB_TOKEN
+    local askpass status
+    umask 077
+    askpass="$(mktemp "${TMPDIR:-/run}/foodflow-git-askpass.XXXXXX")" || return 1
+    cat > "$askpass" <<'FOODFLOW_GIT_ASKPASS'
+#!/bin/sh
+case "${1:-}" in
+    *Username*) printf '%s\\n' 'x-access-token' ;;
+    *Password*) printf '%s\\n' "${GITHUB_TOKEN:-}" ;;
+    *) exit 1 ;;
+esac
+FOODFLOW_GIT_ASKPASS
+    chmod 700 "$askpass"
+    if GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 "$@"; then
+        status=0
+    else
+        status=$?
+    fi
+    rm -f "$askpass"
+    return "$status"
+}
+
+
 # 仓库为公开仓库，默认使用 HTTPS；绝不在代码中保存 SSH 私钥或 Token。
 FOODFLOW_REPO="https://github.com/Tony855/shaolafang.git"
 
@@ -518,7 +546,12 @@ install_single() {
         cd "$DEPLOY_TARGET"
         # 如果有 GITHUB_TOKEN，用带 token 的地址 pull
         if [ -n "$GITHUB_TOKEN" ]; then
-            git pull "https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git" main || log_warn "git pull 失败，继续使用现有代码"
+            if git_with_github_token git -c credential.helper= pull https://github.com/Tony855/shaolafang.git main; then
+                git remote set-url origin https://github.com/Tony855/shaolafang.git
+                git config --unset-all credential.helper 2>/dev/null || true
+            else
+                log_warn "git pull 失败，继续使用现有代码"
+            fi
         else
             git pull origin main || log_warn "git pull 失败，继续使用现有代码"
         fi
@@ -551,12 +584,14 @@ install_single() {
             log_info "使用内嵌只读 key 克隆（私有仓库）..."
             git clone --branch "$GIT_VERSION" "$FOODFLOW_REPO" "$DEPLOY_TARGET"
         elif [ -n "$GITHUB_TOKEN" ]; then
-            log_info "使用 HTTPS + GITHUB_TOKEN 方式克隆..."
-            git clone --branch "$GIT_VERSION" "https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git" "$DEPLOY_TARGET"
-            # 克隆完立刻剥离 token，防止写入 .git/config
+            log_info "使用 HTTPS + GITHUB_TOKEN 方式克隆（token 不写入进程参数或 remote URL）..."
+            if ! git_with_github_token git -c credential.helper= clone --branch "$GIT_VERSION" https://github.com/Tony855/shaolafang.git "$DEPLOY_TARGET"; then
+                log_error "代码克隆失败，请检查 GITHUB_TOKEN 权限或网络连接"
+                exit 1
+            fi
             cd "$DEPLOY_TARGET"
             git remote set-url origin https://github.com/Tony855/shaolafang.git
-            git config --unset credential.helper 2>/dev/null || true
+            git config --unset-all credential.helper 2>/dev/null || true
         else
             log_info "使用 HTTPS 方式克隆（需要输入用户名密码）..."
             git clone --branch "$GIT_VERSION" https://github.com/Tony855/shaolafang.git "$DEPLOY_TARGET"
