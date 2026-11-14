@@ -53,6 +53,7 @@ ff_install_mariadb_server() {
   ff_apt_install ca-certificates curl gnupg dirmngr apt-transport-https || return 1
   case "${ID:-}:${VERSION_ID:-}" in
     debian:12|debian:13|ubuntu:22.04|ubuntu:24.04)
+      # mariadb_repo_setup release 2026-09-15; checksum published by MariaDB.
       checksum="b54c87edfe81b9837ef44a4a4f39383dd8df32776e6a18c0743a5d3ece044ac3"
       setup_file="$(mktemp)"
       if ! curl -fsSL https://r.mariadb.com/downloads/mariadb_repo_setup -o "$setup_file"; then
