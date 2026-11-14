@@ -907,6 +907,7 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
       );
       await allAsync('SELECT id FROM merchants ORDER BY id FOR UPDATE');
       await allAsync('SELECT id FROM stores ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM telegram_customer_binding_challenges ORDER BY id FOR UPDATE');
       await allAsync('SELECT id FROM telegram_customer_bindings ORDER BY id FOR UPDATE');
 
       // A full data reset must not leave old customer identities or pending
@@ -1105,7 +1106,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
     await withTransaction(async () => {
       const existingRows = await allAsync(
         'SELECT `key`, value FROM settings WHERE `key` IN (' +
-          TELEGRAM_SETTING_KEYS.map(() => '?').join(',') + ') FOR UPDATE',
+          TELEGRAM_SETTING_KEYS.map(() => '?').join(',') + ') ORDER BY `key` FOR UPDATE',
         TELEGRAM_SETTING_KEYS
       );
       const existing = Object.fromEntries(existingRows.map(row => [row.key, row.value]));
