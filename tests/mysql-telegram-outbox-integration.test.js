@@ -283,6 +283,38 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
     disableClientAdminKey, retainedCustomerKey, `${key}:disable-client:admin`
   ]);
 
+  // Per-store event toggles suppress only matching events for the exact
+  // merchant/store; disabling the store later clears its remaining backlog.
+  const storeCreatedKey = `${key}:store-toggle:created`;
+  const storeSettledKey = `${key}:store-toggle:settled`;
+  const otherStoreSettledKey = `${key}:store-toggle:other-store`;
+  for (const item of [
+    { eventKey: storeCreatedKey, storeId: 9, type: 'order.created', orderNo: 'IT-43G' },
+    { eventKey: storeSettledKey, storeId: 9, type: 'order.settled', orderNo: 'IT-43H' },
+    { eventKey: otherStoreSettledKey, storeId: 10, type: 'order.settled', orderNo: 'IT-43I' }
+  ]) {
+    await enqueueTelegramNotification({
+      eventKey: item.eventKey, recipientScope: 'merchant_store', recipientKey: `store:${item.storeId}`,
+      merchantId: 7, storeId: item.storeId,
+      event: { type: item.type, storeName: 'Integration Store', orderNo: item.orderNo, amount: 12.5, currency: 'USD' }
+    });
+  }
+  await runAsync(
+    "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND store_id=? AND event_type=? AND state IN ('pending','processing')",
+    [7, 9, 'order.settled']
+  );
+  assert.equal((await getAsync('SELECT state FROM telegram_notification_outbox WHERE event_key=?', [storeSettledKey])).state, 'dead');
+  assert.equal((await getAsync('SELECT state FROM telegram_notification_outbox WHERE event_key=?', [storeCreatedKey])).state, 'pending');
+  assert.equal((await getAsync('SELECT state FROM telegram_notification_outbox WHERE event_key=?', [otherStoreSettledKey])).state, 'pending');
+
+  await runAsync(
+    "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND store_id=? AND state IN ('pending','processing')",
+    [7, 9]
+  );
+  assert.equal((await getAsync('SELECT state FROM telegram_notification_outbox WHERE event_key=?', [storeCreatedKey])).state, 'dead');
+  assert.equal((await getAsync('SELECT state FROM telegram_notification_outbox WHERE event_key=?', [otherStoreSettledKey])).state, 'pending');
+  await runAsync('DELETE FROM telegram_notification_outbox WHERE event_key=?', [otherStoreSettledKey]);
+
   const revokedCustomerKey = `${key}:binding-revoked`;
   await enqueueTelegramNotification({
     eventKey: revokedCustomerKey, recipientScope: 'customer', recipientKey: 'binding:42',
