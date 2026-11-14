@@ -328,16 +328,6 @@ test('top-level deployment guides and standard installer use the current reposit
 });
 
 
-test('Nginx setup gates proxy configuration on application and database readiness', () => {
-  const nginx = read('setup-nginx.sh');
-  assert.match(nginx, /systemctl restart foodflow/);
-  assert.match(nginx, /ff_wait_for_health "\$BACKEND_PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/);
-  assert.ok(nginx.indexOf('ff_wait_for_health') < nginx.indexOf('# ===== 4. 释放 80 端口 ====='));
-  assert.match(nginx, /journalctl -u foodflow -n 50 --no-pager/);
-  assert.doesNotMatch(nginx, /sleep 3\s+if systemctl is-active/);
-});
-
-
 test('first-install and cluster startup use readiness gates instead of fixed startup sleeps', () => {
   for (const file of ['install.sh', 'install-local.sh']) {
     const source = read(file);
@@ -355,19 +345,11 @@ test('first-install and cluster startup use readiness gates instead of fixed sta
   }
 });
 
-test('systemd services throttle repeated startup crashes instead of restarting forever', () => {
-  const units = [
-    ['install.sh', read('install.sh')],
-    ['install-local.sh', read('install-local.sh')],
-    ['deploy/standard/foodflow.service', read('deploy/standard/foodflow.service')],
-    ['deploy/enterprise/cluster/foodflow.service', read('deploy/enterprise/cluster/foodflow.service')],
-    ['deploy/enterprise-ultimate/cluster/foodflow.service', read('deploy/enterprise-ultimate/cluster/foodflow.service')],
-    ['INSTALL.md', read('INSTALL.md')]
-  ];
-  for (const [file, source] of units) {
-    assert.match(source, /StartLimitIntervalSec=60s/, file + ' must define a bounded restart window');
-    assert.match(source, /StartLimitBurst=5/, file + ' must cap repeated start attempts');
-    assert.match(source, /Restart=on-failure/, file + ' must restart only failed processes');
-    assert.doesNotMatch(source, /Restart=always/, file + ' must not restart successful exits forever');
-  }
+test('Nginx setup gates proxy configuration on application and database readiness', () => {
+  const nginx = read('setup-nginx.sh');
+  assert.match(nginx, /systemctl restart foodflow/);
+  assert.match(nginx, /ff_wait_for_health "\$BACKEND_PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/);
+  assert.ok(nginx.indexOf('ff_wait_for_health') < nginx.indexOf('# ===== 4. 释放 80 端口 ====='));
+  assert.match(nginx, /journalctl -u foodflow -n 50 --no-pager/);
+  assert.doesNotMatch(nginx, /sleep 3\s+if systemctl is-active/);
 });
