@@ -80,8 +80,8 @@ else
 fi
 # 后端端口不能是80/443
 if [ "$BACKEND_PORT" = "80" ] || [ "$BACKEND_PORT" = "443" ]; then
-    log_warn "BACKEND_PORT 不能设为 80/443，强制改为 3000"
-    BACKEND_PORT=3000
+    log_error "BACKEND_PORT 不能使用 80/443；请先将 .env 中 PORT 改为 3000 或其他非保留端口，再重启服务。"
+    exit 1
 fi
 
 if ! [[ "$BACKEND_PORT" =~ ^[0-9]{1,5}$ ]] || [ "$BACKEND_PORT" -lt 1 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
