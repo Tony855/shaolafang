@@ -4,6 +4,7 @@ const { randomUUID } = require('crypto');
 function createTelegramNotificationWorker({
   resolveRecipient,
   processBatch,
+  cleanupHistory,
   workerId = randomUUID(),
   intervalMs = 5000,
   logger = console
@@ -18,13 +19,18 @@ function createTelegramNotificationWorker({
   if (!processBatch) {
     ({ processTelegramNotificationBatch: processBatch } = require('./telegram-notification-worker'));
   }
+  if (!cleanupHistory) {
+    ({ cleanupTelegramNotificationHistory: cleanupHistory } = require('./telegram-notification-outbox'));
+  }
   if (typeof resolveRecipient !== 'function') throw new TypeError('resolveRecipient is required');
   if (typeof processBatch !== 'function') throw new TypeError('processBatch is required');
+  if (typeof cleanupHistory !== 'function') throw new TypeError('cleanupHistory is required');
 
   let running = false;
   let loopPromise = null;
   let pendingDelay = null;
   let resolvePendingDelay = null;
+  let lastCleanupAt = 0;
 
   function waitForNextPoll() {
     return new Promise(resolve => {
@@ -40,6 +46,14 @@ function createTelegramNotificationWorker({
 
   async function runLoop() {
     while (running) {
+      if (Date.now() - lastCleanupAt >= 24 * 60 * 60 * 1000) {
+        try {
+          await cleanupHistory();
+          lastCleanupAt = Date.now();
+        } catch (_) {
+          try { logger.error('[telegram-worker] retention cleanup failed'); } catch (_) {}
+        }
+      }
       try {
         await processBatch({ resolveRecipient, workerId, limit: 1, leaseSeconds: 60 });
       } catch (_) {
