@@ -7,7 +7,7 @@ const { normalizeOutboxInput, positiveId, retryDelaySeconds, SAFE_ERROR_CODES } 
 async function enqueueTelegramNotification(input) {
   const row = normalizeOutboxInput(input);
   const result = await runAsync(
-    'INSERT INTO telegram_notification_outbox (event_key, event_type, merchant_id, store_id, recipient_scope, recipient_key, payload_json, state, attempts, available_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, \\'pending\\', 0, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',
+    'INSERT INTO telegram_notification_outbox (event_key, event_type, merchant_id, store_id, recipient_scope, recipient_key, payload_json, state, attempts, available_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, \'pending\', 0, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',
     [row.eventKey, row.eventType, row.merchantId, row.storeId, row.recipientScope, row.recipientKey, row.payloadJson]
   );
   return { inserted: Number(result.affectedRows) === 1, id: Number(result.insertId) || null };
@@ -20,14 +20,14 @@ async function claimTelegramNotifications({ workerId = randomUUID(), limit = 10,
   return withTransaction(async () => {
     await runAsync("UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='unknown', updated_at=UTC_TIMESTAMP(3) WHERE state='processing' AND attempts >= 8 AND locked_until < UTC_TIMESTAMP(3)");
     const rows = await allAsync(
-      'SELECT id, event_key, event_type, merchant_id, store_id, recipient_scope, recipient_key, payload_json, attempts FROM telegram_notification_outbox WHERE attempts < 8 AND available_at <= UTC_TIMESTAMP(3) AND (state=\\'pending\\' OR (state=\\'processing\\' AND locked_until < UTC_TIMESTAMP(3))) ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED',
+      'SELECT id, event_key, event_type, merchant_id, store_id, recipient_scope, recipient_key, payload_json, attempts FROM telegram_notification_outbox WHERE attempts < 8 AND available_at <= UTC_TIMESTAMP(3) AND (state=\'pending\' OR (state=\'processing\' AND locked_until < UTC_TIMESTAMP(3))) ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED',
       [limit]
     );
     if (!rows.length) return [];
     const ids = rows.map(row => Number(row.id));
     const placeholders = ids.map(() => '?').join(',');
     await runAsync(
-      'UPDATE telegram_notification_outbox SET state=\\'processing\\', locked_by=?, locked_until=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? SECOND), attempts=attempts+1, updated_at=UTC_TIMESTAMP(3) WHERE id IN (' + placeholders + ')',
+      'UPDATE telegram_notification_outbox SET state=\'processing\', locked_by=?, locked_until=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? SECOND), attempts=attempts+1, updated_at=UTC_TIMESTAMP(3) WHERE id IN (' + placeholders + ')',
       [workerId, leaseSeconds, ...ids]
     );
     return rows.map(row => ({ ...row, attempts: Number(row.attempts) + 1, locked_by: workerId }));
@@ -36,7 +36,7 @@ async function claimTelegramNotifications({ workerId = randomUUID(), limit = 10,
 
 async function markTelegramNotificationDelivered(id, workerId) {
   const result = await runAsync(
-    'UPDATE telegram_notification_outbox SET state=\\'delivered\\', delivered_at=UTC_TIMESTAMP(3), locked_by=NULL, locked_until=NULL, last_error_code=NULL, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\\'processing\\' AND locked_by=?',
+    'UPDATE telegram_notification_outbox SET state=\'delivered\', delivered_at=UTC_TIMESTAMP(3), locked_by=NULL, locked_until=NULL, last_error_code=NULL, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=?',
     [positiveId(id, '通知任务编号'), workerId]
   );
   return Number(result.affectedRows) === 1;
@@ -48,14 +48,14 @@ async function releaseTelegramNotificationForRetry(id, workerId, errorCode, atte
   if (!Number.isInteger(attempt) || attempt < 1 || attempt > 8) throw new TypeError('重试次数无效');
   if (attempt >= 8) {
     const result = await runAsync(
-      'UPDATE telegram_notification_outbox SET state=\\'dead\\', locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\\'processing\\' AND locked_by=?',
+      'UPDATE telegram_notification_outbox SET state=\'dead\', locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=?',
       [safeCode, taskId, workerId]
     );
     return Number(result.affectedRows) === 1;
   }
   const delay = retryDelaySeconds(attempt);
   const result = await runAsync(
-    'UPDATE telegram_notification_outbox SET state=\\'pending\\', available_at=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? SECOND), locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\\'processing\\' AND locked_by=?',
+    'UPDATE telegram_notification_outbox SET state=\'pending\', available_at=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? SECOND), locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=?',
     [delay, safeCode, taskId, workerId]
   );
   return Number(result.affectedRows) === 1;
