@@ -49,7 +49,8 @@ ff_install_mariadb_server() {
   esac
 
   # MariaDB's documented APT repository platforms: Debian 12/13 and
-  # Ubuntu 22.04/24.04. Verify the vendor bootstrap script before executing it.
+  # Ubuntu 22.04/24.04. Install the GPG/HTTPS prerequisites before configuring it.
+  ff_apt_install ca-certificates curl gnupg dirmngr apt-transport-https || return 1
   case "${ID:-}:${VERSION_ID:-}" in
     debian:12|debian:13|ubuntu:22.04|ubuntu:24.04)
       checksum="b54c87edfe81b9837ef44a4a4f39383dd8df32776e6a18c0743a5d3ece044ac3"
