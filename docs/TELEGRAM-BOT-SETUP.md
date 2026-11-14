@@ -65,6 +65,6 @@ Binding details:
 - Current event hooks include order creation, admin/cashier settlement, actual KHQR/manual payment confirmation, and successful refunds. A waiter request to confirm KHQR is not treated as a successful payment.
 - Admin Bot credentials remain global rather than merchant-owned. Store-specific Chat IDs and per-event toggles are implemented; they share the global Admin Bot token while preserving exact merchant/store recipient isolation.
 - Delivery is at-least-once. A crash after Telegram accepts a message but before the database acknowledgement may result in a duplicate after lease recovery.
-- Failed tasks retry with bounded backoff and eventually enter the dead-letter state. Monitor `telegram_notification_outbox` for `state='dead'`.
+- Failed tasks retry with bounded exponential backoff and eventually enter the dead-letter state. Telegram HTTP 429 responses honor `parameters.retry_after`, capped at one hour. Monitor `telegram_notification_outbox` for `state='dead'`.
 - Webhook update IDs are retained for 30 days; expired and consumed binding challenges are cleaned during new challenge creation.
 - The full client/merchant notification workflow still requires staging end-to-end tests before production enablement.
