@@ -136,6 +136,19 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(Number(retryRow.attempts), 1);
   assert.equal(retryRow.last_error_code, 'telegram_429');
 
+  const floodKey = `${key}:flood-control`;
+  await enqueueTelegramNotification({ ...input, eventKey: floodKey });
+  const floodResult = await processTelegramNotificationBatch({
+    workerId: workerB, limit: 1,
+    resolveRecipient: async () => ({ scope: 'system_admin', merchantId: null, storeId: null, token: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi', chatId: '-100123' }),
+    sendMessage: async () => { throw Object.assign(new Error('Telegram 消息发送失败（HTTP 429）'), { retryAfterSeconds: 120 }); }
+  });
+  assert.equal(floodResult[0].state, 'retry');
+  const floodRow = await getAsync('SELECT state,last_error_code,TIMESTAMPDIFF(SECOND,UTC_TIMESTAMP(3),available_at) AS wait_seconds FROM telegram_notification_outbox WHERE event_key=?', [floodKey]);
+  assert.equal(floodRow.state, 'pending');
+  assert.equal(floodRow.last_error_code, 'telegram_429');
+  assert.ok(Number(floodRow.wait_seconds) >= 119, 'Telegram retry_after must be respected');
+
   const workerKey = `${key}:worker`;
   await enqueueTelegramNotification({ ...input, eventKey: workerKey });
   const result = await processTelegramNotificationBatch({
