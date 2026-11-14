@@ -216,7 +216,13 @@ test('minimal first-run verification checks configuration, service, database hea
   assert.match(route, /status\(503\)/);
   assert.match(route, /database: 'unavailable'/);
   assert.match(server, /require\('\.\/routes\/health\.js'\)/);
-  assert.match(check, /DB_HOST DB_USER DB_PASSWORD DB_DATABASE/);
+  assert.match(check, /DB_DATABASE=\.\+\$/);
+  assert.match(check, /DB_HOST 未显式设置/);
+  assert.doesNotMatch(check, /for key in DB_HOST DB_USER DB_PASSWORD DB_DATABASE/);
+  const envConfig = read('server/config/env.js');
+  assert.match(envConfig, /DB_HOST: process\.env\.DB_HOST \|\| 'localhost'/);
+  assert.match(envConfig, /DB_USER: process\.env\.DB_USER \|\| 'root'/);
+  assert.match(envConfig, /DB_PASSWORD: process\.env\.DB_PASSWORD \|\| ''/);
   assert.match(check, /systemctl is-active/);
   assert.match(check, /deploy-safety\.sh/);
   assert.match(check, /ff_wait_for_health "\$PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/);
