@@ -310,7 +310,7 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
     assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_customer_bindings')).count), 1);
     assert.equal(Number((await getAsync('SELECT COUNT(*) AS count FROM telegram_store_admin_recipients')).count), 1);
 
-    await runAsync('DELETE FROM telegram_notification_outbox WHERE event_key LIKE CONCAT(\'order:\', ?, \'%\')', [sourceOrderC]);
+    await runAsync('DELETE FROM telegram_notification_outbox WHERE event_key LIKE CONCAT(\'order:\', ?, \':%\')', [sourceOrderC]);
     assert.equal(await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key=?', [`order:${sourceOrderC}:created`]), null);
     await runAsync('DELETE FROM telegram_notification_outbox');
     await runAsync('DELETE FROM telegram_customer_binding_challenges');
