@@ -201,7 +201,13 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       let extIdx = 0;
       function tryNext() {
         if (extIdx >= ICON_EXTS.length) {
-          SLF.log.debug('[khqr] 图标不存在:', iconFile);
+          SLF.log.debug('[khqr] 使用通用支付图标:', iconFile);
+          const fallbackUrl = '/assets/vendor/payment-icons/KHQR.png';
+          const fallback = new Image();
+          fallback.onload = function() {
+            btn.innerHTML = '<span class="pm-icon pm-icon-aba"><img src="' + fallbackUrl + '" alt="' + esc(label) + '"></span>' + labelHtml;
+          };
+          fallback.src = fallbackUrl;
           return;
         }
         const ext = ICON_EXTS[extIdx++];

@@ -74,7 +74,13 @@ function renderProviderList(providers) {
     const key = _BANK_ICON_MAP[bank] || bank.toLowerCase().replace(/[^a-z0-9]/g, '');
     let _i = 0;
     function tryNext() {
-      if (_i >= _ICON_EXTS.length) return;
+      if (_i >= _ICON_EXTS.length) {
+        const fallbackUrl = '/assets/vendor/payment-icons/KHQR.png';
+        const fallback = new Image();
+        fallback.onload = function() { wrap.innerHTML = '<img src="' + fallbackUrl + '" style="max-width:100%;max-height:100%;object-fit:contain;" alt="">'; };
+        fallback.src = fallbackUrl;
+        return;
+      }
       const url = '/assets/vendor/payment-icons/' + key + '.' + _ICON_EXTS[_i++];
       const img = new Image();
       img.onload = function() { wrap.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:100%;object-fit:contain;" alt="">'; };

@@ -1521,7 +1521,7 @@ async function initSocketAdapter() {
     ];
     const missing = findMissing(configured);
     if (missing.length) {
-      console.warn('⚠️  以下图标文件缺失（前端会 404）：');
+      console.warn('⚠️  以下银行专属图标缺失，前端将使用通用 KHQR 图标：');
       missing.forEach(m => console.warn('   - assets/vendor/payment-icons/' + m));
     } else {
       console.log('✅ 所有配置的银行图标都齐全');

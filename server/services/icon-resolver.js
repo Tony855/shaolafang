@@ -38,7 +38,9 @@ function resolveIcon(name) {
   if (!name) return name;
   if (!_map) _map = buildMap();
   const key = String(name).toLowerCase();
-  return _map[key] || name;
+  // Missing bank-specific assets use the generic KHQR mark; never return a
+  // configured filename that would create a broken image URL.
+  return _map[key] || _map['khqr.png'] || name;
 }
 
 /** 手动刷新缓存（上传新图标后调用） */
