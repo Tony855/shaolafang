@@ -123,3 +123,25 @@ test('Telegram customer webhook deduplicates a replayed valid update after bindi
   assert.equal(state.bindings.length, 1);
   assert.equal(state.updates.size, 1);
 });
+
+
+test('Telegram challenge expiry is evaluated by UTC SQL, not local parsing of DATETIME', async () => {
+  const previousTimezone = process.env.TZ;
+  process.env.TZ = 'Asia/Phnom_Penh';
+  try {
+    const { handler, challenge, state } = fixture();
+    const utcFuture = new Date(Date.now() + 10 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+    state.challenge.expires_at = utcFuture;
+    assert.ok(new Date(utcFuture).getTime() < Date.now(), 'the UTC DATETIME string would be misread as local time');
+    const res = response();
+    await handler({
+      headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+      body: { update_id: 104, message: { text: '/start ' + challenge, chat: { id: 98766, type: 'private' }, from: { id: 98766 } } }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(state.bindings.length, 1);
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimezone;
+  }
+});
