@@ -9,9 +9,9 @@ async function ensureStoreQrLanguagesSchema({ allAsync, runAsync, logger = conso
     throw new TypeError('ensureStoreQrLanguagesSchema requires allAsync and runAsync');
   }
 
-  const columns = await allAsync(\
-    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stores' AND COLUMN_NAME = ?",\
-    ['qr_languages']\
+  const columns = await allAsync(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stores' AND COLUMN_NAME = ?",
+    ['qr_languages']
   );
   if (columns.length > 0) {
     return { changed: false };
