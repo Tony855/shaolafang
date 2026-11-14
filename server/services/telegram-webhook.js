@@ -10,7 +10,7 @@ function constantTimeSecretMatch(provided, expected) {
 }
 
 function parseTelegramPrivateStartUpdate(update) {
-  if (!update || typeof update !== 'object' || !Number.isSafeInteger(update.update_id) || update.update_id <= 0) return null;
+  if (!update || typeof update !== 'object' || !Number.isSafeInteger(update.update_id) || update.update_id < 0) return null;
   const message = update.message;
   if (!message || typeof message !== 'object' || message.chat?.type !== 'private') return null;
   const chatId = String(message.chat?.id ?? '');
