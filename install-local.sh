@@ -441,7 +441,13 @@ if ! systemctl is-active --quiet foodflow; then
     log_error "应用日志目录: $APP_DIR/logs/"
     exit 1
 fi
-if ! ff_wait_for_health 3000 "${FF_HEALTH_ATTEMPTS:-30}"; then
+BACKEND_PORT="$(sed -n 's/^PORT=//p' "$ENV_FILE" | tail -n 1)"
+BACKEND_PORT="${BACKEND_PORT:-3000}"
+if ! [[ "$BACKEND_PORT" =~ ^[0-9]{1,5}$ ]] || [ "$BACKEND_PORT" -lt 1 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
+    log_error "应用端口配置无效，拒绝继续启动检查。"
+    exit 1
+fi
+if ! ff_wait_for_health "$BACKEND_PORT" "${FF_HEALTH_ATTEMPTS:-30}"; then
     log_error "FoodFlow 应用或数据库未通过健康检查，最近日志："
     journalctl -u foodflow -n 50 --no-pager || true
     exit 1
