@@ -36,7 +36,7 @@ async function claimTelegramNotifications({ workerId = randomUUID(), limit = 10,
 
 async function markTelegramNotificationDelivered(id, workerId) {
   const result = await runAsync(
-    'UPDATE telegram_notification_outbox SET state=\'delivered\', delivered_at=UTC_TIMESTAMP(3), locked_by=NULL, locked_until=NULL, last_error_code=NULL, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=?',
+    'UPDATE telegram_notification_outbox SET state=\'delivered\', delivered_at=UTC_TIMESTAMP(3), locked_by=NULL, locked_until=NULL, last_error_code=NULL, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)',
     [positiveId(id, '通知任务编号'), workerId]
   );
   return Number(result.affectedRows) === 1;
@@ -48,14 +48,14 @@ async function releaseTelegramNotificationForRetry(id, workerId, errorCode, atte
   if (!Number.isInteger(attempt) || attempt < 1 || attempt > 8) throw new TypeError('重试次数无效');
   if (attempt >= 8) {
     const result = await runAsync(
-      'UPDATE telegram_notification_outbox SET state=\'dead\', locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=?',
+      'UPDATE telegram_notification_outbox SET state=\'dead\', locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)',
       [safeCode, taskId, workerId]
     );
     return Number(result.affectedRows) === 1;
   }
   const delay = retryDelaySeconds(attempt);
   const result = await runAsync(
-    'UPDATE telegram_notification_outbox SET state=\'pending\', available_at=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? SECOND), locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=?',
+    'UPDATE telegram_notification_outbox SET state=\'pending\', available_at=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? SECOND), locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state=\'processing\' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)',
     [delay, safeCode, taskId, workerId]
   );
   return Number(result.affectedRows) === 1;
