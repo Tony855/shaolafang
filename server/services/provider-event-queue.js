@@ -85,7 +85,8 @@ function createProviderEventQueue({ getAsync, runAsync, withTransaction, now = (
       `UPDATE provider_webhook_events
        SET processing_status='processed', processed_at=NOW(3),
            lease_token=NULL, lease_expires_at=NULL, last_error_code=NULL
-       WHERE id=? AND processing_status='processing' AND lease_token=?`,
+       WHERE id=? AND processing_status='processing' AND lease_token=?
+         AND lease_expires_at IS NOT NULL AND lease_expires_at > NOW(3)`,
       [Number(eventId), leaseToken]
     );
     if (Number(result.affectedRows) !== 1) {
@@ -113,7 +114,8 @@ function createProviderEventQueue({ getAsync, runAsync, withTransaction, now = (
     return withTransaction(async () => {
       const row = await getAsync(
         `SELECT attempt_count, max_attempts FROM provider_webhook_events
-         WHERE id=? AND processing_status='processing' AND lease_token=? FOR UPDATE`,
+         WHERE id=? AND processing_status='processing' AND lease_token=?
+           AND lease_expires_at IS NOT NULL AND lease_expires_at > NOW(3) FOR UPDATE`,
         [Number(eventId), leaseToken]
       );
       if (!row) {
