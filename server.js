@@ -54,7 +54,7 @@ app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 
 // Minimal readiness endpoint used by the installer and operators.
 // It reports only application/database availability and never exposes credentials or internals.
-require('./routes/health.js')(app, { getPool: () => poolModule.pool });
+require('./routes/health.js')(app, { getPool: () => poolModule.pool, getClusterReadiness });
 const corsOrigins = new Set((process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean));
 
 // Socket.IO: same-host requests are allowed; cross-origin browser clients must be explicitly allowlisted.
@@ -96,6 +96,19 @@ let redisClient = null;
 let redisReady = false;
 let socketRedisPub = null;
 let socketRedisSub = null;
+
+function getClusterReadiness() {
+  if (process.env.REQUIRE_SHARED_REDIS !== 'true') return null;
+  const redisOk = Boolean(redisReady && redisClient && redisClient.isReady !== false);
+  const socketIoOk = Boolean(socketRedisPub && socketRedisSub &&
+    socketRedisPub.isReady !== false && socketRedisSub.isReady !== false);
+  return {
+    required: true,
+    ready: redisOk && socketIoOk,
+    redis: redisOk ? 'ok' : 'unavailable',
+    socketIo: socketIoOk ? 'ok' : 'unavailable'
+  };
+}
 async function initRedis() {
   if (!REDIS_URL) return false;
   if (!redis) {
@@ -1384,7 +1397,7 @@ async function initDatabase() {
 
 // ----- 公开接口 -----
 require('./routes/display.js')(app, { allAsync, runAsync, requireAdminKey, requirePermission });
-require('./routes/public.js')(app, { getAsync, allAsync, runAsync });
+require('./routes/public.js')(app, { getAsync, allAsync, runAsync, getClusterReadiness });
 
 
 // ----- 商户管理员登录 -----
