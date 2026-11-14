@@ -45,7 +45,7 @@ function setup({ storeCount = 1, currentStoreId = 2, firstStoreId = 1, dependent
       if (sql.includes('FROM merchant_admins WHERE id=? AND merchant_id=?')) return { username: 'owner' };
       if (sql.includes('FROM stores WHERE code=? AND id<>?')) return null;
       if (sql.includes('FROM stores WHERE id=? AND merchant_id=?')) {
-        return { id: Number(params[0]), merchant_id: 5, name: 'Branch', code: 'branch-2' };
+        return { id: Number(params[0]), merchant_id: 5, name: 'Branch', code: 'branch-2', active: 1 };
       }
       if (sql.includes('COUNT(*) AS count FROM')) {
         const table = sql.match(/FROM\s+`?([a-z_]+)/i)?.[1];
@@ -242,4 +242,20 @@ test('menu copy rolls back when a later menu insert fails', async () => {
   assert.equal(res.statusCode, 500);
   assert.match(res.body.error, /所有更改已回滚/);
   assert.equal(ctx.rolledBack, true);
+});
+
+test('disabling a store terminally suppresses queued Telegram notices in the same transaction', async () => {
+  const ctx = setup({ storeCount: 2, currentStoreId: 2, firstStoreId: 1 });
+  const res = response();
+  await ctx.updateHandler({ merchantId: 5, adminId: 7, params: { id: '2' }, body: { active: 0 } }, res);
+
+  assert.equal(res.statusCode, 200);
+  const suppression = ctx.calls.find(call =>
+    call.type === 'run' && call.sql.includes("UPDATE telegram_notification_outbox SET state='dead'")
+  );
+  assert.ok(suppression);
+  assert.deepEqual(suppression.params, [2]);
+  assert.equal(suppression.inTransaction, true);
+  assert.ok(ctx.calls.findIndex(call => call.type === 'run' && call.sql.includes("UPDATE telegram_notification_outbox SET state='dead'")) <
+    ctx.calls.findIndex(call => call.type === 'run' && call.sql.startsWith('INSERT INTO audit_logs')));
 });
