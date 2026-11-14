@@ -19,7 +19,7 @@ const poolModule = require('../server/db/pool');
 const { runAsync, getAsync, withTransaction } = require('../server/db/helpers');
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations/telegram-customer-binding');
-const { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry } = require('../server/services/telegram-notification-outbox');
+const { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry, cleanupTelegramNotificationHistory } = require('../server/services/telegram-notification-outbox');
 const { processTelegramNotificationBatch } = require('../server/services/telegram-notification-worker');
 
 test('MySQL integration: Telegram outbox migration, rollback, idempotency, leases and delivery', {
@@ -123,4 +123,14 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   });
   assert.equal(result.length, 1);
   assert.equal(result[0].state, 'delivered');
+
+  const oldDeliveredKey = `${key}:old-delivered`;
+  const oldDeadKey = `${key}:old-dead`;
+  const oldPayload = JSON.stringify({ text: 'old notification' });
+  await runAsync("INSERT INTO telegram_notification_outbox (event_key,event_type,recipient_scope,recipient_key,payload_json,state,attempts,available_at,delivered_at,created_at,updated_at) VALUES (?, 'order.created','system_admin','admin:primary',?,'delivered',1,DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 100 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 100 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 100 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 100 DAY))", [oldDeliveredKey, oldPayload]);
+  await runAsync("INSERT INTO telegram_notification_outbox (event_key,event_type,recipient_scope,recipient_key,payload_json,state,attempts,available_at,created_at,updated_at) VALUES (?, 'order.created','system_admin','admin:primary',?,'dead',8,DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 200 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 200 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 200 DAY))", [oldDeadKey, oldPayload]);
+  const cleanup = await cleanupTelegramNotificationHistory();
+  assert.equal(cleanup.deliveredDeleted, 1);
+  assert.equal(cleanup.deadDeleted, 1);
+  assert.equal(await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key IN (?, ?)', [oldDeliveredKey, oldDeadKey]), null);
 });
