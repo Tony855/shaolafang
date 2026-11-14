@@ -17,6 +17,7 @@ const { ensureFinancialReconciliationQueueIndex } = require('./server/db/migrati
 const { ensureProviderEventQueueIndexes } = require('./server/db/migrations/provider-event-queue-indexes');
 const { ensureTelegramNotificationOutboxSchema } = require('./server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('./server/db/migrations/telegram-customer-binding');
+const { ensureTelegramStoreAdminRecipientSchema } = require('./server/db/migrations/telegram-store-admin-recipients');
 const { createTelegramNotificationWorker } = require('./server/services/telegram-notification-worker-runtime');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
@@ -447,6 +448,7 @@ async function ensureOrderTables() {
 
   await ensureTelegramNotificationOutboxSchema({ runAsync });
   await ensureTelegramCustomerBindingSchema({ runAsync });
+  await ensureTelegramStoreAdminRecipientSchema({ runAsync });
 
 
   await runAsync(`
