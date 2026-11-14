@@ -42,12 +42,15 @@ test('collectBackupData reads every exported table in one transaction', async ()
   const backup = await collectBackupData();
 
   assert.equal(inTransaction, false);
-  assert.equal(reads.length, 30);
-  assert.equal(Object.keys(backup.tables).length, 30);
+  assert.equal(reads.length, 35);
+  assert.equal(Object.keys(backup.tables).length, 35);
   assert.ok(Object.hasOwn(backup.tables, 'refund_requests'));
   assert.ok(Object.hasOwn(backup.tables, 'provider_webhook_events'));
   assert.ok(Object.hasOwn(backup.tables, 'financial_journal_transactions'));
   assert.ok(Object.hasOwn(backup.tables, 'financial_journal_entries'));
+  for (const table of ['telegram_notification_outbox', 'telegram_customer_binding_challenges', 'telegram_customer_bindings', 'telegram_webhook_updates', 'telegram_store_admin_recipients']) {
+    assert.ok(Object.hasOwn(backup.tables, table), 'snapshot must include ' + table);
+  }
   for (const table of ['financial_reconciliation_batches','financial_reconciliation_items','financial_reconciliation_review_events','financial_reconciliation_exception_cases','financial_reconciliation_exception_events','financial_reconciliation_exception_alerts','financial_reconciliation_exception_alert_events','financial_month_close_periods','financial_month_close_events']) {
     assert.ok(Object.hasOwn(backup.tables, table), 'snapshot must include ' + table);
   }
@@ -60,7 +63,8 @@ test('collectBackupData redacts bearer tokens whose backing sessions are not res
   rowsByTable = {
     orders: [{ id: 1, session_token: 'scan-secret', customer_token: 'customer-secret', total: 12 }],
     waiter_calls: [{ id: 'call-1', session_token: 'call-secret', status: 'pending' }],
-    tables: [{ id: 3, qr_token: 'persistent-table-qr-secret', name: 'A1' }]
+    tables: [{ id: 3, qr_token: 'persistent-table-qr-secret', name: 'A1' }],
+    telegram_customer_binding_challenges: [{ id: 1, challenge_hash: 'one-time-secret' }]
   };
 
   const backup = await collectBackupData();
@@ -73,10 +77,12 @@ test('collectBackupData redacts bearer tokens whose backing sessions are not res
   }]);
   // Persistent table QR codes are intentionally preserved for restore compatibility.
   assert.equal(backup.tables.tables[0].qr_token, 'persistent-table-qr-secret');
+  assert.deepEqual(backup.tables.telegram_customer_binding_challenges, []);
   const serialized = JSON.stringify(backup);
   assert.equal(serialized.includes('scan-secret'), false);
   assert.equal(serialized.includes('customer-secret'), false);
   assert.equal(serialized.includes('call-secret'), false);
+  assert.equal(serialized.includes('one-time-secret'), false);
   rowsByTable = {};
 });
 
