@@ -46,7 +46,7 @@ The current refund route performs and records the refund in one transaction; the
 
 - Schema migrations: `server/db/migrations/telegram-notification-outbox.js`, `telegram-customer-binding.js`, and `telegram-store-admin-recipients.js`; all are called during startup schema initialization.
 - Event payloads are rendered through a strict event-type allowlist. The outbox stores the rendered message, not the original business object. Customer bearer tokens, notes, refund reasons, payment QR payloads, and raw Telegram responses are not copied into messages.
-- Unique event keys make enqueue idempotent. The outbox uses InnoDB transactions, multi-worker `FOR UPDATE SKIP LOCKED` claims, 60-second leases, lease-owner checks, bounded exponential retries, and terminal dead-letter state.
+- Unique event keys make enqueue idempotent. The outbox uses InnoDB transactions, multi-worker `FOR UPDATE SKIP LOCKED` claims, 60-second leases, lease-owner checks, bounded exponential retries, Telegram HTTP 429 `parameters.retry_after` handling capped at one hour, and terminal dead-letter state.
 - The worker runs one delivery at a time with a bounded Telegram request timeout. It is started only when `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true`; the default is off. Graceful shutdown stops the worker before closing MySQL.
 - Delivery is **at-least-once**. If Telegram accepts a message and the process crashes before the outbox acknowledgement, a retry after lease expiry may send a duplicate.
 - Retention cleanup removes delivered history after 90 days and dead-letter history after 180 days. Telegram webhook update IDs are pruned after 30 days.
