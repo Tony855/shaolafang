@@ -1,4 +1,5 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { validateChatId, validateBotToken } = require('../server/services/telegram-bot');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
    ============================================================ */
@@ -246,5 +247,87 @@ module.exports = function(app, deps) {
       });
       res.json({ success: true, enabled: enabled === '1' });
     } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新提示音设置失败，所有更改已回滚' }); }
+  });
+
+  
+  // ----- 门店级 Telegram 管理员通知收件人 -----
+  app.get('/api/admin/telegram/notification-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
+    try {
+      const merchantId = Number(req.merchantId);
+      const storeId = Number(req.storeId);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0) {
+        return res.status(400).json({ error: '商户或门店编号无效' });
+      }
+      const row = await getAsync(
+        'SELECT r.chat_id, r.is_enabled, r.notify_order_created, r.notify_settled, r.notify_refunded FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND s.active=1 AND m.status=1 LIMIT 1',
+        [merchantId, storeId]
+      );
+      const bot = await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({
+        enabled: Number(row?.is_enabled) === 1,
+        chatId: String(row?.chat_id || ''),
+        notifyOrderCreated: row ? Number(row.notify_order_created) === 1 : true,
+        notifySettled: row ? Number(row.notify_settled) === 1 : true,
+        notifyRefunded: row ? Number(row.notify_refunded) === 1 : true,
+        globalBotEnabled: bot?.value === '1'
+      });
+    } catch (_) {
+      res.status(500).json({ error: 'Telegram 门店通知设置读取失败' });
+    }
+  });
+
+  app.put('/api/admin/telegram/notification-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
+    try {
+      const merchantId = Number(req.merchantId);
+      const storeId = Number(req.storeId);
+      const body = req.body || {};
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0) {
+        return res.status(400).json({ error: '商户或门店编号无效' });
+      }
+      const readFlag = (value, fallback, label) => {
+        if (value === undefined) return fallback ? 1 : 0;
+        if ([true, 1, '1'].includes(value)) return 1;
+        if ([false, 0, '0'].includes(value)) return 0;
+        throw Object.assign(new Error(label + ' 参数无效'), { status: 400 });
+      };
+      const enabled = readFlag(body.enabled, false, '启用开关');
+      const notifyOrderCreated = readFlag(body.notifyOrderCreated, true, '新订单通知开关');
+      const notifySettled = readFlag(body.notifySettled, true, '收款通知开关');
+      const notifyRefunded = readFlag(body.notifyRefunded, true, '退款通知开关');
+      const chatId = typeof body.chatId === 'string' ? body.chatId.trim() : '';
+      if (chatId.length > 64 || (chatId && !validateChatId(chatId)) || (enabled && !validateChatId(chatId))) {
+        return res.status(400).json({ error: 'Telegram Chat ID 无效' });
+      }
+
+      await withTransaction(async () => {
+        const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+        if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
+        const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
+        if (!store) throw Object.assign(new Error('门店不存在或已停用'), { status: 404 });
+        if (enabled) {
+          const rows = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?)', ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']);
+          const stored = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
+          if (stored.telegram_admin_bot_enabled !== '1' || !validateBotToken(String(stored.telegram_admin_bot_token || ''))) {
+            throw Object.assign(new Error('超级管理员尚未启用管理员 Telegram Bot'), { status: 409 });
+          }
+        }
+        await runAsync(
+          'INSERT INTO telegram_store_admin_recipients (merchant_id, store_id, chat_id, is_enabled, notify_order_created, notify_settled, notify_refunded, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE chat_id=VALUES(chat_id), is_enabled=VALUES(is_enabled), notify_order_created=VALUES(notify_order_created), notify_settled=VALUES(notify_settled), notify_refunded=VALUES(notify_refunded), updated_at=UTC_TIMESTAMP(3)',
+          [merchantId, storeId, chatId, enabled, notifyOrderCreated, notifySettled, notifyRefunded]
+        );
+        await writeCurrencyAudit(req, 'update_telegram_store_notifications', storeId, {
+          enabled: !!enabled,
+          chat_id_configured: !!chatId,
+          notify_order_created: !!notifyOrderCreated,
+          notify_settled: !!notifySettled,
+          notify_refunded: !!notifyRefunded
+        }, 'store');
+      });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ success: true, enabled: !!enabled, chatId, notifyOrderCreated: !!notifyOrderCreated, notifySettled: !!notifySettled, notifyRefunded: !!notifyRefunded });
+    } catch (error) {
+      res.status(error.status || 500).json({ error: error.status ? error.message : 'Telegram 门店通知设置保存失败，所有更改已回滚' });
+    }
   });
 };
