@@ -3073,3 +3073,280 @@ button.edit-btn:disabled {
     gap: 6px !important;
   }
 }
+
+
+/* ============================================================
+   FoodFlow financial reconciliation workspace
+   Unified dark-admin visual system, responsive and scoped.
+   ============================================================ */
+#module-financial-reconciliation {
+  --finance-bg: #101b2d;
+  --finance-panel: #142238;
+  --finance-panel-raised: #192a42;
+  --finance-line: rgba(148, 163, 184, .18);
+  --finance-text: #e8eff7;
+  --finance-muted: #9aabc0;
+  --finance-accent: #55d6be;
+  --finance-accent-strong: #20b99d;
+  --finance-danger: #ff8f91;
+  --finance-warning: #f4c16b;
+  color: var(--finance-text);
+}
+#module-financial-reconciliation > #financialReconciliationPanel > h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: clamp(20px, 3vw, 26px);
+  line-height: 1.3;
+  letter-spacing: -.02em;
+}
+#module-financial-reconciliation #financialReconciliationPanel > p[data-i18n="financialReconciliationDesc"] {
+  max-width: 900px;
+  margin: 0 0 22px !important;
+  color: var(--finance-muted) !important;
+  font-size: 13px;
+  line-height: 1.75;
+}
+#module-financial-reconciliation .settings-card {
+  min-width: 0;
+  margin: 0 0 16px !important;
+  padding: 18px !important;
+  border: 1px solid var(--finance-line) !important;
+  border-radius: 16px !important;
+  background: linear-gradient(155deg, rgba(25,42,66,.96), rgba(16,27,45,.96)) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.14), inset 0 1px rgba(255,255,255,.025);
+}
+#module-financial-reconciliation .settings-card-title {
+  margin: 0 0 10px !important;
+  color: #f1f6fb !important;
+  font-size: 16px !important;
+  font-weight: 750 !important;
+  line-height: 1.45;
+}
+#module-financial-reconciliation h4 {
+  margin: 18px 0 10px !important;
+  color: #cbd8e7;
+  font-size: 13px;
+  font-weight: 700;
+}
+#module-financial-reconciliation .ff-desc,
+#module-financial-reconciliation .empty-hint {
+  color: var(--finance-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.7;
+}
+#module-financial-reconciliation textarea,
+#module-financial-reconciliation input,
+#module-financial-reconciliation select {
+  max-width: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+  border: 1px solid #3a4c65 !important;
+  border-radius: 10px !important;
+  outline: none;
+  color: #edf4fb !important;
+  background: #0d192a !important;
+  font: inherit;
+  font-size: 13px;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+#module-financial-reconciliation textarea {
+  width: 100% !important;
+  min-height: 150px;
+  padding: 13px !important;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  font-size: 12px !important;
+  line-height: 1.6;
+}
+#module-financial-reconciliation input,
+#module-financial-reconciliation select { padding: 9px 11px; }
+#module-financial-reconciliation textarea:focus,
+#module-financial-reconciliation input:focus,
+#module-financial-reconciliation select:focus {
+  border-color: var(--finance-accent-strong) !important;
+  box-shadow: 0 0 0 3px rgba(85,214,190,.12);
+}
+#module-financial-reconciliation input::placeholder,
+#module-financial-reconciliation textarea::placeholder { color: #73869d; }
+#module-financial-reconciliation label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #c7d4e3;
+  font-size: 12px;
+  font-weight: 650;
+}
+#module-financial-reconciliation button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid rgba(148,163,184,.22) !important;
+  border-radius: 9px !important;
+  color: #dce8f4 !important;
+  background: rgba(148,163,184,.09) !important;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease, opacity .16s ease;
+}
+#module-financial-reconciliation button:hover:not(:disabled) {
+  border-color: rgba(85,214,190,.48) !important;
+  background: rgba(85,214,190,.12) !important;
+}
+#module-financial-reconciliation button:active:not(:disabled) { transform: translateY(1px); }
+#module-financial-reconciliation button:disabled { opacity: .52; cursor: wait; }
+#module-financial-reconciliation button.primary,
+#module-financial-reconciliation #financeImportButton,
+#module-financial-reconciliation #financeCloseActions button {
+  border-color: transparent !important;
+  color: #06251f !important;
+  background: linear-gradient(135deg, #77ead4, #36c9ae) !important;
+  box-shadow: 0 6px 16px rgba(32,185,157,.14);
+}
+#module-financial-reconciliation #financeBatchMore,
+#module-financial-reconciliation #financeRowsMore,
+#module-financial-reconciliation #financeExceptionMore,
+#module-financial-reconciliation #financeCloseHistoryMore {
+  margin-top: 10px;
+}
+#module-financial-reconciliation .finance-batch-card {
+  display: block !important;
+  width: 100% !important;
+  margin: 9px 0 !important;
+  padding: 15px !important;
+  border: 1px solid var(--finance-line) !important;
+  border-radius: 13px !important;
+  color: var(--finance-text) !important;
+  background: rgba(10,22,38,.48) !important;
+  text-align: left !important;
+}
+#module-financial-reconciliation .finance-batch-card:hover {
+  border-color: rgba(85,214,190,.5) !important;
+  background: rgba(85,214,190,.07) !important;
+}
+#module-financial-reconciliation .finance-review-row {
+  margin: 11px 0 !important;
+  padding: 16px !important;
+  border: 1px solid var(--finance-line) !important;
+  border-radius: 13px !important;
+  background: rgba(10,22,38,.48) !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.025);
+}
+#module-financial-reconciliation .finance-review-row > div:first-child strong,
+#module-financial-reconciliation .finance-batch-card strong {
+  color: #f1f6fb;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+#module-financial-reconciliation .finance-review-row > div:nth-child(2) {
+  color: #c6d4e3 !important;
+  font-size: 13px !important;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+}
+#module-financial-reconciliation .finance-review-row > div:nth-child(3) {
+  color: var(--finance-muted) !important;
+  font-size: 12px !important;
+  line-height: 1.65;
+}
+#module-financial-reconciliation .finance-review-row > div:nth-child(4) {
+  color: #83d9c8 !important;
+  line-height: 1.6;
+}
+#module-financial-reconciliation [data-finance-action="confirm"] {
+  color: #06251f !important;
+  background: linear-gradient(135deg,#77ead4,#36c9ae) !important;
+}
+#module-financial-reconciliation [data-finance-action="reject"],
+#module-financial-reconciliation [data-finance-action="release"] {
+  color: #ffd4d4 !important;
+  border-color: rgba(255,143,145,.3) !important;
+  background: rgba(255,143,145,.09) !important;
+}
+#module-financial-reconciliation [data-finance-action="reassign"],
+#module-financial-reconciliation [data-finance-action="classify_exception"] {
+  color: #c8d8eb !important;
+}
+#module-financial-reconciliation #financeSelectedBatch {
+  display: block;
+  margin: 0 0 12px !important;
+  padding: 10px 12px;
+  border: 1px solid rgba(85,214,190,.18);
+  border-radius: 10px;
+  color: #bceee4 !important;
+  background: rgba(85,214,190,.06);
+  font-variant-numeric: tabular-nums;
+}
+#module-financial-reconciliation table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0;
+  color: #dce7f2;
+  font-size: 12px;
+}
+#module-financial-reconciliation th {
+  padding: 11px 12px !important;
+  border-bottom: 1px solid rgba(148,163,184,.24) !important;
+  color: #a9bed2;
+  background: rgba(8,19,33,.72);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+#module-financial-reconciliation td {
+  padding: 11px 12px !important;
+  border-bottom: 1px solid rgba(148,163,184,.12) !important;
+  color: #d4dfeb;
+  vertical-align: middle;
+}
+#module-financial-reconciliation tr:last-child td { border-bottom: 0 !important; }
+#module-financial-reconciliation [id^="financeSlaAlertHistory-"] {
+  padding: 10px;
+  border: 1px solid var(--finance-line);
+  border-radius: 10px;
+  background: rgba(8,19,33,.55);
+}
+#module-financial-reconciliation [id^="financeSlaAlertList"] article,
+#module-financial-reconciliation [id^="financeExceptionQueue"] article {
+  padding: 13px 0 !important;
+  border-bottom: 1px solid rgba(148,163,184,.14) !important;
+}
+#module-financial-reconciliation #financeDailyReport,
+#module-financial-reconciliation #financePeriodReport,
+#module-financial-reconciliation #financeMonthPreview,
+#module-financial-reconciliation #financeCloseHistory,
+#module-financial-reconciliation #financePerformanceExportAudit,
+#module-financial-reconciliation #financeExceptionOpsSummary,
+#module-financial-reconciliation #financeExceptionOpsWorkload,
+#module-financial-reconciliation #financeExceptionOpsTrend,
+#module-financial-reconciliation #financeExceptionOpsOverdue,
+#module-financial-reconciliation #financeExceptionPerformanceSummary,
+#module-financial-reconciliation #financeExceptionPerformanceCurrency,
+#module-financial-reconciliation #financeExceptionPerformanceAssignee,
+#module-financial-reconciliation #financeExceptionPerformanceCategory {
+  min-width: 0;
+  overflow-x: auto;
+  border-radius: 10px;
+}
+#module-financial-reconciliation [hidden] { display: none !important; }
+@media (max-width: 760px) {
+  #module-financial-reconciliation .settings-card { padding: 14px !important; border-radius: 13px !important; }
+  #module-financial-reconciliation .finance-review-row { padding: 13px !important; }
+  #module-financial-reconciliation .finance-review-row > div:last-child {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px !important;
+  }
+  #module-financial-reconciliation .finance-review-row > div:last-child button { width: 100%; min-width: 0; }
+  #module-financial-reconciliation .settings-card > div[style*="justify-content:space-between"] {
+    align-items: flex-start !important;
+  }
+  #module-financial-reconciliation table { min-width: 620px; }
+}
+@media (max-width: 420px) {
+  #module-financial-reconciliation .finance-review-row > div:last-child { grid-template-columns: 1fr; }
+  #module-financial-reconciliation .settings-card { padding: 12px !important; }
+}
