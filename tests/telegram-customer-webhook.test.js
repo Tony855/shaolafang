@@ -26,6 +26,9 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE' } = {}) {
       return null;
     },
     allAsync: async (sql, params) => {
+      if (sql.includes('telegram_customer_bindings') && sql.includes('telegram_chat_id=? AND telegram_user_id=?')) {
+        return state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active === 1);
+      }
       if (sql.includes('telegram_customer_bindings')) return state.bindings.filter(x =>
         (x.telegram_chat_id === params[0] && x.store_id === params[1]) ||
         (x.customer_token_hash === params[2] && x.store_id === params[3]));
@@ -174,7 +177,10 @@ test('Telegram customer can revoke all active bindings for their private chat wi
   const handlerWithCapture = createTelegramCustomerWebhookHandler({
     secret: 's'.repeat(40),
     getAsync: async () => null,
-    allAsync: async () => [],
+    allAsync: async (sql, params) => {
+      assert.match(sql, /telegram_customer_bindings[\s\S]*FOR UPDATE/);
+      return state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active === 1);
+    },
     runAsync: async (sql, params) => {
       if (sql.includes('INSERT INTO telegram_webhook_updates')) { state.updates.add(params[0]); return { affectedRows: 1 }; }
       if (sql.includes('UPDATE telegram_notification_outbox')) { state.outboxSuppressions.push({ sql, params }); return { affectedRows: 1 }; }
@@ -201,8 +207,8 @@ test('Telegram customer can revoke all active bindings for their private chat wi
   assert.equal(state.bindings[2].is_active, 1);
   assert.equal(state.outboxSuppressions.length, 1);
   assert.match(state.outboxSuppressions[0].sql, /last_error_code='binding_revoked'/);
-  assert.match(state.outboxSuppressions[0].sql, /telegram_customer_bindings/);
-  assert.deepEqual(state.outboxSuppressions[0].params, ['98765', '98765']);
+  assert.match(state.outboxSuppressions[0].sql, /recipient_key IN \(\?,\?\)/);
+  assert.deepEqual(state.outboxSuppressions[0].params, ['binding:9', 'binding:10']);
   assert.match(sent, /已取消/);
 });
 
