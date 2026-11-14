@@ -57,7 +57,6 @@ test('load balancer health checks proxy to application readiness, not a static 2
   const healthRoute = read('routes/health.js');
   assert.match(healthRoute, /app\.get\(\['\/health', '\/api\/health\/ready', '\/api\/health'\]/);
   assert.match(healthRoute, /pool\.query\('SELECT 1'\)/);
-  }
 });
 
 test('enterprise database initialization passes DB_DATABASE into the app process', () => {
