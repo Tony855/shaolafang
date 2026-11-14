@@ -109,5 +109,5 @@ test('customer recipient resolver fails closed when binding or client Bot is una
     { scope: 'customer', merchantId: 7, storeId: 9, suppressed: true, suppressionCode: 'binding_revoked' }
   );
   assert.deepEqual(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }), { scope: 'customer', merchantId: 7, storeId: 9, suppressed: true, suppressionCode: 'event_disabled' });
-  assert.equal(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 8, storeId: 9 }), null);
+  assert.deepEqual(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 8, storeId: 9 }), { scope: 'customer', merchantId: 8, storeId: 9, suppressed: true, suppressionCode: 'binding_revoked' });
 });
