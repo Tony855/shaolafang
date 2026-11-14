@@ -35,6 +35,7 @@ function createTelegramCustomerWebhookHandler({
       await withTransaction(async () => {
         try {
           await runAsync('INSERT INTO telegram_webhook_updates (update_id, received_at) VALUES (?, UTC_TIMESTAMP(3))', [update.updateId]);
+          await runAsync('DELETE FROM telegram_webhook_updates WHERE received_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 30 DAY) LIMIT 1000');
         } catch (error) {
           if (error?.code === 'ER_DUP_ENTRY') return;
           throw error;
@@ -75,7 +76,6 @@ function createTelegramCustomerWebhookHandler({
           [challenge.id]
         );
         if (Number(consumed.affectedRows) !== 1) throw new Error('Telegram binding challenge consumption race');
-        await runAsync('DELETE FROM telegram_webhook_updates WHERE received_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 30 DAY)');
         bound = { chatId: update.telegramChatId };
       });
     } catch (error) {
