@@ -15,7 +15,7 @@ function parseTelegramPrivateUpdate(update) {
   if (!message || typeof message !== 'object' || message.chat?.type !== 'private') return null;
   const chatId = String(message.chat?.id ?? '');
   const userId = String(message.from?.id ?? '');
-  if (!/^\d{1,20}$/.test(chatId) || !/^\d{1,20}$/.test(userId)) return null;
+  if (!/^\d{1,20}$/.test(chatId) || !/^\d{1,20}$/.test(userId) || chatId !== userId) return null;
   if (message.from?.is_bot === true) return null;
   if (typeof message.text !== 'string' || message.text.length > 256) return null;
   const command = message.text.trim();
