@@ -132,7 +132,11 @@ fi
 echo ""
 log_info "检查后端服务..."
 if systemctl list-unit-files 2>/dev/null | grep -q foodflow.service; then
-    systemctl restart foodflow
+    if ! systemctl restart foodflow; then
+        log_error "后端服务重启命令失败，请检查: sudo journalctl -u foodflow -n 50 --no-pager"
+        journalctl -u foodflow -n 50 --no-pager || true
+        exit 1
+    fi
     if ! systemctl is-active --quiet foodflow; then
         log_error "后端服务启动失败，请检查: sudo journalctl -u foodflow -n 50 --no-pager"
         journalctl -u foodflow -n 50 --no-pager || true
