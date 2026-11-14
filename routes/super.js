@@ -229,6 +229,14 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
         );
       }
       if (merchantStatusChanged) {
+        if (Number(nextStatus) === 0 && Number(current.status) === 1) {
+          // Terminally suppress merchant-scoped queued notices on suspension;
+          // re-enabling the merchant must not release stale customer/store jobs.
+          await runAsync(
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE merchant_id=? AND state IN ('pending','processing')",
+            [merchantId]
+          );
+        }
         await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [merchantId]);
         await runAsync(
           'DELETE FROM waiter_sessions WHERE waiter_id IN (SELECT w.id FROM waiters w INNER JOIN stores st ON st.id=w.store_id WHERE st.merchant_id=?)',
