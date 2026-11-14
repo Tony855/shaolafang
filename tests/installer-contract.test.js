@@ -356,6 +356,13 @@ test('Nginx setup backs up and restores prior config on failed provisioning', ()
   assert.match(nginx, /systemctl stop nginx 2>\/dev\/null \|\| true[\s\S]*?cp -a "\$NGINX_BACKUP_DIR\/etc\/nginx\//);
 });
 
+test('Nginx setup rejects invalid backend ports before service or proxy changes', () => {
+  const nginx = read('setup-nginx.sh');
+  assert.match(nginx, /BACKEND_PORT.*-gt 65535/);
+  assert.match(nginx, /BACKEND_PORT.*-lt 1/);
+  assert.ok(nginx.indexOf('BACKEND_PORT.*-gt 65535') < nginx.indexOf('ff_wait_for_health'));
+});
+
 test('Nginx setup uses optional Certbot email arguments and verifies every start', () => {
   const nginx = read('setup-nginx.sh');
   assert.match(nginx, /CERTBOT_EMAIL_ARGS=\(\)/);
