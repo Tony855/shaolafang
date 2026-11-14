@@ -12,7 +12,7 @@
 | 历史发现 | 当前状态 | 核验边界 |
 |---|---|---|
 | 静态资源缓存策略冲突 | 已在 main 的三份 Nginx 模板修复 | 仍需生产浏览器缓存验收 |
-| Nginx access log 记录 query string / Referer | 单机模板和安装器已修复；Enterprise/Enterprise Ultimate 集群模板已在 PR #268 增加 `foodflow_safe` 格式 | PR #268 最新 head `c3e87c7` 的新 CI 尚待完成；历史日志需按保留策略清理 |
+| Nginx access log 记录 query string / Referer | 单机模板和安装器已修复；Enterprise/Enterprise Ultimate 集群模板已在 PR #268 增加 `foodflow_safe` 格式 | PR #268 最新 head `da3df6c` 的 CI 与安装兼容性矩阵已通过；历史日志仍需按保留策略清理 |
 | Node 默认监听所有网卡 | main 已默认 loopback；集群通过显式 HOST 暴露私网监听 | 生产防火墙/安全组仍需现场检查 |
 | 集群 TRUST_PROXY 与 Redis 共享状态 | PR #267 已合并；集群部署强制共享 Redis、可信代理 CIDR 和启动 readiness | 生产负载均衡器来源 IP、Redis 故障恢复仍需故障注入 |
 | readiness 路由不一致 | main 已统一 `/health`，保留兼容别名并检查 MySQL；集群还检查 Redis/Socket.IO Adapter | 生产探针仍需实测 |
@@ -21,15 +21,15 @@
 | Telegram 通知队列停用语义 | PR #266 增加全局 Bot、门店及单事件停用时的事务性 dead-letter 清理 | 最新 CI 尚待完成；真实 Telegram 双 Bot 和多门店验收未完成 |
 | 大型单体路由/页面 | 仍是架构改进项，不是已确认可利用漏洞 | 应以小步拆分和集成测试推进 |
 
-**当前 GitHub 状态：** PR #267 已合并；PR #266 和 #268 仍为 Draft。PR #266 最新 head 为 `db9b226`，PR #268 最新 head 为 `c3e87c7`。两者都不能在最新 head 的 CI 通过前标记为完成。
+**当前 GitHub 状态：** PR #267 已合并；PR #266 和 #268 仍为 Draft。PR #266 最新 head 为 `207afb8`，其最新 CI/安装兼容性仍在运行；PR #268 最新 head 为 `da3df6c`，CI 与安装兼容性已通过。两项 PR 均仍为 Draft，PR #266 还需要真实 Telegram staging 验收。
 
 **分支保护：** 当前 GitHub API 未返回 main 的保护规则，仓库 Rulesets 列表为空。此项需要仓库管理员在 GitHub 设置中启用，不能由应用代码或本次 CI 自动替代。
 
 
 ## 1. 项目结构
 
-- Node.js 20 / Express 4 后端，MariaDB 持久化。
-- Redis 可选，用于跨节点缓存、限流/冷却状态及 Socket.IO adapter（按配置启用）。
+- Node.js 26 / Express 4 后端，MySQL 8.4 与 MariaDB 10.11–12.3 纳入 CI 集成矩阵。
+- 单机 Redis 可选；多节点集群通过 REQUIRE_SHARED_REDIS 强制共享 Redis，用于跨节点限流/冷却状态及 Socket.IO adapter。
 - Socket.IO 实时事件。
 - 原生 JavaScript 多页面前端：顾客、商户管理、服务员、后厨、收银、超级管理员。
 - 业务路由位于 `routes/`，认证中间件位于 `server/middleware/`，数据库工具位于 `server/db/`，服务层位于 `server/services/`。
