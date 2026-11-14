@@ -52,3 +52,43 @@ test('QR print escapes database and host values in HTML and inline-script contex
   assert.ok(html.includes('\\u003c/title\\u003e\\u003cscript\\u003e'));
   assert.ok(html.includes('\\u003c/div\\u003e\\u003cimg'));
 });
+
+
+test('QR print route logs only safe error metadata', async () => {
+  let qrHandler;
+  const app = {
+    get(route, ...handlers) {
+      if (route === '/qr-print') qrHandler = handlers[handlers.length - 1];
+    }
+  };
+  const secretMessage = 'DB_PASSWORD=do-not-log-this';
+  registerPageRoutes(app, {
+    getAsync: async () => { throw new Error(secretMessage); },
+    requireAdminKey: () => (_req, _res, next) => next(),
+    requirePermission: () => (_req, _res, next) => next()
+  });
+
+  const originalError = console.error;
+  let logged;
+  console.error = (...args) => { logged = args; };
+  const res = {
+    setHeader() {},
+    status(code) { this.statusCode = code; return this; },
+    send(body) { this.body = body; return this; }
+  };
+  try {
+    await qrHandler({
+      query: { tableId: '9', lang: 'en' },
+      protocol: 'https',
+      storeId: 3,
+      merchantId: 7,
+      get: () => 'example.test'
+    }, res);
+  } finally {
+    console.error = originalError;
+  }
+
+  assert.equal(res.statusCode, 500);
+  assert.deepEqual(logged, ['QR print error:', { name: 'Error' }]);
+  assert.ok(!JSON.stringify(logged).includes(secretMessage));
+});
