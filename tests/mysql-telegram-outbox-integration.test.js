@@ -223,6 +223,59 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(disabledAdminRow.state, 'dead');
   assert.equal(disabledAdminRow.last_error_code, 'event_disabled');
 
+  // Disabling the Client Bot must permanently clear only customer backlog,
+  // even when the worker is stopped and no recipient-resolution pass runs.
+  const disableClientCustomerKey = `${key}:disable-client:customer`;
+  const disableClientAdminKey = `${key}:disable-client:admin`;
+  await enqueueTelegramNotification({
+    eventKey: disableClientCustomerKey, recipientScope: 'customer', recipientKey: 'binding:disable-client',
+    merchantId: 7, storeId: 9,
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-43B', amount: 12.5, currency: 'USD' }
+  });
+  await enqueueTelegramNotification({
+    eventKey: disableClientAdminKey, recipientScope: 'system_admin', recipientKey: 'admin:primary',
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-43C', amount: 12.5, currency: 'USD' }
+  });
+  await runAsync(
+    "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing')"
+  );
+  const disabledCustomerBacklog = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [disableClientCustomerKey]);
+  const retainedAdminBacklog = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [disableClientAdminKey]);
+  assert.equal(disabledCustomerBacklog.state, 'dead');
+  assert.equal(disabledCustomerBacklog.last_error_code, 'event_disabled');
+  assert.equal(retainedAdminBacklog.state, 'pending');
+
+  // Disabling the Admin Bot clears both global and store-admin queues, but not
+  // customer jobs that belong to the separately configured Client Bot.
+  const disableAdminGlobalKey = `${key}:disable-admin:global`;
+  const disableAdminStoreKey = `${key}:disable-admin:store`;
+  const retainedCustomerKey = `${key}:disable-admin:customer`;
+  await enqueueTelegramNotification({
+    eventKey: disableAdminGlobalKey, recipientScope: 'system_admin', recipientKey: 'admin:primary',
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-43D', amount: 12.5, currency: 'USD' }
+  });
+  await enqueueTelegramNotification({
+    eventKey: disableAdminStoreKey, recipientScope: 'merchant_store', recipientKey: 'store:9',
+    merchantId: 7, storeId: 9,
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-43E', amount: 12.5, currency: 'USD' }
+  });
+  await enqueueTelegramNotification({
+    eventKey: retainedCustomerKey, recipientScope: 'customer', recipientKey: 'binding:other',
+    merchantId: 7, storeId: 9,
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-43F', amount: 12.5, currency: 'USD' }
+  });
+  await runAsync(
+    "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope IN ('system_admin','merchant_store') AND state IN ('pending','processing')"
+  );
+  const disabledGlobalBacklog = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [disableAdminGlobalKey]);
+  const disabledStoreBacklog = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [disableAdminStoreKey]);
+  const retainedCustomerBacklog = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [retainedCustomerKey]);
+  assert.equal(disabledGlobalBacklog.state, 'dead');
+  assert.equal(disabledGlobalBacklog.last_error_code, 'event_disabled');
+  assert.equal(disabledStoreBacklog.state, 'dead');
+  assert.equal(disabledStoreBacklog.last_error_code, 'event_disabled');
+  assert.equal(retainedCustomerBacklog.state, 'pending');
+
   const revokedCustomerKey = `${key}:binding-revoked`;
   await enqueueTelegramNotification({
     eventKey: revokedCustomerKey, recipientScope: 'customer', recipientKey: 'binding:42',
