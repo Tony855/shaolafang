@@ -15,7 +15,7 @@ test('outbox payload stores only the rendered allowlisted message', () => {
   });
   assert.equal(row.merchantId, 9);
   assert.equal(row.storeId, 3);
-  assert.deepEqual(JSON.parse(row.payloadJson), { text: '[FoodFlow] 新订单\\n门店：Store A\\n订单：42\\n金额：7.50 USD' });
+  assert.deepEqual(JSON.parse(row.payloadJson), { text: '[FoodFlow] 新订单\n门店：Store A\n订单：42\n金额：7.50 USD' });
   assert.equal(row.payloadJson.includes('secret'), false);
   assert.equal(row.payloadJson.includes('private'), false);
 });
