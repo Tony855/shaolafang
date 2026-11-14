@@ -73,7 +73,7 @@ fi
 
 CERTBOT_EMAIL_ARGS=()
 if [ -n "$EMAIL" ]; then
-    CERTBOT_EMAIL_ARGS=(--email "$EMAIL")
+    CERTBOT_EMAIL_ARGS=("${CERTBOT_EMAIL_ARGS[@]}")
 else
     CERTBOT_EMAIL_ARGS=(--register-unsafely-without-email)
     [ -z "$DOMAIN" ] || log_warn "未提供 EMAIL，证书续期通知将不可用。"
@@ -102,6 +102,20 @@ command_exists() {
 # 安全检查端口：只报告占用者，绝不终止未知服务。
 check_port_available() {
     ff_require_port_available "$1"
+}
+
+start_nginx() {
+    if ! systemctl start nginx; then
+        log_error "Nginx 启动失败，请检查: sudo journalctl -u nginx -n 50 --no-pager"
+        journalctl -u nginx -n 50 --no-pager || true
+        return 1
+    fi
+    if ! systemctl is-active --quiet nginx; then
+        log_error "Nginx 未进入 active 状态，最近日志："
+        journalctl -u nginx -n 50 --no-pager || true
+        return 1
+    fi
+    log_success "Nginx 已启动"
 }
 
 # ===== 1. 检查并安装 Nginx =====
@@ -204,16 +218,8 @@ if ! nginx -t 2>&1; then
     exit 1
 fi
 
-# 启动 Nginx
-systemctl start nginx
-sleep 2
-
-if systemctl is-active --quiet nginx; then
-    log_success "Nginx HTTP 已启动"
-else
-    log_error "Nginx 启动失败，请检查: sudo nginx -t"
-    exit 1
-fi
+# 启动 Nginx；systemctl 与 active 状态均需成功，不依赖固定 sleep。
+start_nginx
 
 # ===== 6. 申请 SSL 证书（如果配置了域名） =====
 SSL_ENABLED=false
@@ -235,14 +241,14 @@ if [ -n "$DOMAIN" ] && command_exists certbot; then
     fi
 
     log_info "申请 SSL 证书（域名: $DOMAIN）..."
-    if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email "$EMAIL" --redirect 2>&1; then
+    if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos "${CERTBOT_EMAIL_ARGS[@]}" --redirect 2>&1; then
         SSL_ENABLED=true
         log_success "SSL 证书安装成功，已启用 HTTPS"
     else
         log_warn "Nginx 插件模式申请失败，尝试 standalone 模式..."
         systemctl stop nginx
         check_port_available 80
-        if certbot certonly --standalone -d "$DOMAIN" --non-interactive --agree-tos --email "$EMAIL" 2>&1; then
+        if certbot certonly --standalone -d "$DOMAIN" --non-interactive --agree-tos "${CERTBOT_EMAIL_ARGS[@]}" 2>&1; then
             log_success "证书获取成功，重新配置 Nginx..."
 
             cat > "$NGINX_CONF" <<EOF
@@ -282,14 +288,20 @@ server {
     }
 }
 EOF
-            nginx -t && systemctl start nginx
+            if ! nginx -t; then
+                log_error "standalone SSL 配置生成后 Nginx 检查失败，拒绝启用 HTTPS。"
+                exit 1
+            fi
+            if ! start_nginx; then
+                exit 1
+            fi
             SSL_ENABLED=true
             log_success "HTTPS 已启用（standalone 模式）"
         else
             log_error "SSL 申请失败，仅 HTTP 可用"
             log_warn "请检查域名解析和防火墙（80端口需开放），然后手动运行:"
             echo "  sudo certbot --nginx -d $DOMAIN"
-            systemctl start nginx
+            start_nginx
         fi
     fi
 else
