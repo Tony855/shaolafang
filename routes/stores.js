@@ -125,6 +125,14 @@ app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_
         'UPDATE stores SET name=?, code=?, address=?, active=?, qr_languages=? WHERE id=? AND merchant_id=?',
         [name, code, address, active, qrLanguages, id, merchantId]
       );
+      if (Number(current.active) === 1 && Number(active) === 0) {
+        // Stop queued customer/store-admin notices while this store is disabled.
+        // A later re-enable must not release stale events from the disabled period.
+        await runAsync(
+          "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE store_id=? AND state IN ('pending','processing')",
+          [id]
+        );
+      }
       const actor = req.adminId
         ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId])
         : null;
