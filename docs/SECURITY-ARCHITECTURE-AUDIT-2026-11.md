@@ -116,6 +116,7 @@
 
 - 新增 `REQUIRE_SHARED_REDIS=true` 启动保护；Redis URL 缺失、Redis 连接失败或 Socket.IO Redis Adapter 未就绪时，集群节点不会开始监听 HTTP。
 - 集群模式要求显式 IP/CIDR 代理列表，拒绝默认 loopback、通配/全地址、主机名及无效 CIDR。
+- 集群运行期间，`/health` 与 `/api/health/ready` 同时检查 MySQL、Redis 和 Socket.IO Redis Adapter；任一依赖断开时返回 503，恢复后自动恢复就绪；响应设置 `Cache-Control: no-store`。
 - 两套企业集群模板启用该开关；部署脚本会在新建和已有 `/etc/foodflow/.env` 中强制写入 `REQUIRE_SHARED_REDIS=true`。
 - 单机模板保持 `REQUIRE_SHARED_REDIS=false`，不改变单机 Redis 可选的降级行为。
 
