@@ -1261,5 +1261,21 @@
   "financeCol_pending_count": "Pending",
   "financeCol_unmatched_count": "Unmatched",
   "financeCol_ambiguous_count": "Ambiguous",
-  "financeCol_exception_count": "Exceptions"
+  "financeCol_exception_count": "Exceptions",
+  "telegramBotSettings": "🤖 Telegram Bot",
+  "telegramBotDesc": "Configure separate Telegram Bots for the client and admin sides. Tokens stay on the server and are never returned in plaintext.",
+  "telegramClientBot": "Client Telegram Bot",
+  "telegramAdminBot": "Admin Telegram Bot",
+  "telegramBotEnabled": "Enable Bot",
+  "telegramBotToken": "Bot Token",
+  "telegramChatId": "Recipient Chat ID",
+  "telegramClearToken": "Clear saved token",
+  "telegramTest": "Send test message",
+  "telegramSave": "Save Telegram settings",
+  "telegramBotSecurityHint": "Start the bot in Telegram or add it to the target group before entering the Chat ID. Test messages are sent only when you click the test button.",
+  "telegramTokenConfigured": "Token saved",
+  "telegramTokenMissing": "No token configured",
+  "telegramSaved": "Telegram Bot settings saved",
+  "telegramTestSent": "Test message sent; check Telegram",
+  "telegramTestFailed": "Failed to send test message"
 }
