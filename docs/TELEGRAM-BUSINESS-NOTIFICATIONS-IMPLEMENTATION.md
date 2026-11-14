@@ -66,6 +66,48 @@ Backups now include the outbox, customer bindings, webhook update IDs, and store
 5. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` in the application environment, restart the application, and verify worker startup in logs.
 6. Perform staging end-to-end tests for new order, settlement, KHQR confirmation, refund, customer binding/revocation, retry, worker restart, and cross-store isolation before enabling in production.
 
+## Bot setup and operational troubleshooting
+
+### Bot commands and ownership
+
+- Create the Client Bot and Admin Bot separately with Telegram's official BotFather. Keep their tokens independent; never paste tokens into issue comments, screenshots, chat messages, or committed environment files.
+- The Client Bot is the only Bot customers should open. Customers start it using the one-time deep link generated from their active FoodFlow customer session. The bot accepts the private-chat `/start <one-time-challenge>` flow only; it does not accept arbitrary customer IDs or bearer tokens in Telegram commands.
+- The Admin Bot is added to the target admin group. A super-admin configures its global destination in Super Admin settings; each store admin separately configures that store's group Chat ID and event toggles. A store does not receive its own Bot token.
+- Do not configure the shared Client Bot Chat ID as a customer destination. Customer order notifications must resolve from an active, owner-checked binding.
+
+### Register and inspect the Client Bot webhook
+
+Set secrets in the deployment's protected environment, not in source control. Example shell commands use environment variables so the token is not embedded in a committed script:
+
+```sh
+export TELEGRAM_CLIENT_BOT_TOKEN='set-in-secret-manager'
+export TELEGRAM_CLIENT_WEBHOOK_SECRET='set-a-random-32-to-256-character-secret'
+export FOODFLOW_PUBLIC_URL='https://foodflow.example.com'
+
+curl --fail-with-body -sS \
+  "https://api.telegram.org/bot${TELEGRAM_CLIENT_BOT_TOKEN}/setWebhook" \
+  --data-urlencode "url=${FOODFLOW_PUBLIC_URL}/api/telegram/client/webhook" \
+  --data-urlencode "secret_token=${TELEGRAM_CLIENT_WEBHOOK_SECRET}"
+
+curl --fail-with-body -sS \
+  "https://api.telegram.org/bot${TELEGRAM_CLIENT_BOT_TOKEN}/getWebhookInfo"
+```
+
+The sample uses a placeholder domain; replace it with the actual HTTPS origin. Protect shell history and process/environment inspection on the deployment host. The webhook secret must exactly match `TELEGRAM_CLIENT_WEBHOOK_SECRET` in the running application. Do not publish the output of secret-bearing commands.
+
+### Troubleshooting checklist
+
+- **Webhook returns 401:** verify the reverse proxy preserves `X-Telegram-Bot-Api-Secret-Token` and the configured secret matches byte-for-byte. Do not log the header.
+- **Webhook cannot be reached:** verify public HTTPS, certificate validity, reverse-proxy routing to `POST /api/telegram/client/webhook`, and that the application route is mounted.
+- **Customer binding does not complete:** confirm the customer still has an active scan session, the one-time challenge has not expired or been consumed, and the Client Bot is enabled. Generate a fresh link rather than reusing an old one.
+- **Admin group receives nothing:** verify the Admin Bot is enabled, is a member of the configured group, can send messages, the Chat ID is correct, and the store's relevant event toggle is on.
+- **Customer receives nothing:** verify the Client Bot is enabled and the customer has an active binding for the same merchant and store as the order. The shared Client Bot Chat ID is not a fallback.
+- **Messages remain pending or retry:** verify outbound HTTPS connectivity to `api.telegram.org`, Bot token validity, and the worker's opt-in environment flag. The business transaction does not wait for Telegram delivery.
+- **Dead-letter entries:** inspect the safe `last_error_code` and attempt count using an authorized operational database session. Do not expose Bot tokens, webhook secrets, raw Telegram payloads, or customer bearer values in support logs.
+- **Worker restart:** expired processing leases become eligible for reclaim after their lease deadline. Delivery is at-least-once, so the crash window after Telegram acceptance but before database acknowledgement can produce a duplicate.
+
+The worker's safe log messages identify a failed cleanup or batch without printing raw exception text. Operational alerting for sustained pending/dead-letter growth should be configured by the deployment operator; CI cannot verify production alert delivery.
+
 ## Remaining acceptance work
 
 - Staging end-to-end delivery proof and restart/lease-recovery soak testing are still required. CI success does not replace Telegram delivery verification against real test Bots and Chat IDs.
