@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 
 function normalizeAdminFlag(value, fallback, field) {
   if (value === undefined) return fallback;
@@ -747,8 +748,11 @@ module.exports = function(app, deps) {
         try { fs.unlinkSync(filePath); } catch (e) {}
       }
     } catch (e) {
-      console.error('[khqr/upload]', e);
-      res.status(400).json({ error: e.message });
+      console.error('[khqr/upload] failed', safeErrorMetadata(e));
+      const status = Number.isInteger(e?.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
+      res.status(status).json({
+        error: status < 500 ? 'KHQR 文件无效或处理失败，请检查文件后重试' : 'KHQR 上传处理失败，请稍后重试'
+      });
     }
   });
 
