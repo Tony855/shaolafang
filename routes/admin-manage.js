@@ -1081,7 +1081,7 @@ module.exports = function(app, deps) {
         }
         await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id: orderId, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
-        const store = await getAsync('SELECT name, merchant_id FROM stores WHERE id=?', [sid]);
+        const store = await getAsync('SELECT name, merchant_id FROM stores WHERE id=? AND merchant_id=?', [sid, req.merchantId]);
         await enqueueSystemAdminTelegramNotification({
           getAsync,
           eventKey: `order:${orderId}:settled`,
