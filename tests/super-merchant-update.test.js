@@ -38,8 +38,8 @@ function setup({ duplicateUsername = false, failOn, merchantExists = true, merch
       return null;
     },
     allAsync: async () => [],
-    runAsync: async sql => {
-      calls.push({ type: 'run', sql });
+    runAsync: async (sql, params = []) => {
+      calls.push({ type: 'run', sql, params });
       if (failOn && sql.includes(failOn)) throw new Error('simulated database failure');
       return { affectedRows: 1 };
     },
