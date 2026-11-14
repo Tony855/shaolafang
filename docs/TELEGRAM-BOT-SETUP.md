@@ -50,13 +50,13 @@ Customer notifications never use the Client Bot's shared configured Chat ID. Eac
      --data-urlencode "secret_token=${TELEGRAM_CLIENT_WEBHOOK_SECRET}"
    ```
 5. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` after staging verification. It defaults to `false`.
-6. A customer scans a table QR code, taps the Telegram icon in the customer page header, and opens the generated private deep link. They must press **Start** in Telegram. Returning to FoodFlow refreshes the binding state; the same control can revoke the binding.
+6. A customer scans a table QR code, taps the Telegram icon in the customer page header, and opens the generated private deep link. They must press **Start** in Telegram. Returning to FoodFlow refreshes the binding state. Customers can revoke immediately from the Telegram chat at any time by sending `/stop`; this revokes all active FoodFlow customer-notification bindings belonging to that exact Telegram private user/chat.
 
 Binding details:
 - A one-time random challenge is stored only as a SHA-256 hash and expires after 10 minutes.
 - The webhook accepts only authenticated private-chat `/start` updates. Telegram `update_id` values are persisted to reject replayed updates.
 - A Telegram chat can be bound to one customer token per store. The same private chat may be used for another store's separate customer token.
-- Revocation is authenticated with the current customer token and scan-session headers.
+- In-page revocation is authenticated with the current customer token and scan-session headers. The private-chat `/stop` command also supports revocation after the QR session expires; it only disables bindings matching both the Telegram user ID and private chat ID.
 - Customer notification recipients are resolved by binding ID plus exact merchant/store IDs. Inactive, revoked, missing, or cross-store bindings fail closed.
 - The existing shared Client Bot Chat ID is never used for per-customer order details.
 
