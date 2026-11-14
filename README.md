@@ -153,7 +153,7 @@ FoodFlow 是基于 Node.js、Express、MariaDB 和 Socket.IO 的餐饮运营系�
 |---|---|
 | Web 服务 | Node.js 26 LTS、Express 4 |
 | 实时通信 | Socket.IO 4 |
-| 数据库 | MariaDB 10.5+ |
+| 数据库 | MariaDB 10.11+；新装优先 MariaDB 12.3 LTS |
 | 可选缓存与跨节点适配 | Redis、Socket.IO Redis Adapter |
 | 前端 | 原生 JavaScript、HTML、CSS |
 | 多语言 | 语言资源文件及构建/检查脚本 |
@@ -192,9 +192,9 @@ FoodFlow 是基于 Node.js、Express、MariaDB 和 Socket.IO 的餐饮运营系�
 
 ### 4.1 软件要求
 
-- Linux 推荐 Debian 12/13 或 Ubuntu 22.04/24.04。
+- Linux 推荐 Debian 12/13 或 Ubuntu 22.04/24.04/26.04；Ubuntu 26.04 的 MariaDB 使用系统仓库 11.8 LTS。
 - Node.js 26 LTS（npm 10+）。
-- MariaDB 10.5+。
+- MariaDB 10.11+（新安装推荐 MariaDB 12.3 LTS；Ubuntu 26.04 使用系统仓库的 MariaDB 11.8 LTS）。
 - Git、npm。
 - Nginx 用于域名反向代理和 HTTPS（生产环境推荐）。
 - Redis 为可选组件；启用多节点部署时，应按对应部署手册配置共享 Redis。
@@ -315,7 +315,7 @@ npm --version
 
 ### 6.2 安装并准备数据库
 
-安装并启动 MariaDB 10.5+（Debian/Ubuntu 可使用 `sudo apt-get install mariadb-server` 和 `sudo systemctl enable --now mariadb`），然后创建独立数据库用户。示例（请替换密码）：
+安装并启动受支持的 MariaDB LTS，然后创建独立数据库用户。自动安装器在 Debian 12/13、Ubuntu 22.04/24.04 上使用 MariaDB 官方 APT 仓库安装 12.3 LTS；Ubuntu 26.04 使用发行版仓库提供的 11.8 LTS（MariaDB 官方 APT 仓库目前尚未列出 Ubuntu 26.04）。手动安装时，请按 MariaDB 官方仓库说明配置对应系统和版本，再执行 `sudo apt-get install mariadb-server` 与 `sudo systemctl enable --now mariadb`。
 
 ```sql
 CREATE DATABASE foodflow_system
