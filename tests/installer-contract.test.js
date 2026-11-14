@@ -133,8 +133,8 @@ test('all deployment entrypoints share a lock and never kill arbitrary port owne
     assert.ok(!source.includes('fuser -k'), file + ' must not kill an unknown port owner');
   }
   assert.ok(read('scripts/lib/deploy-safety.sh').includes('ff_require_port_available'));
-  assert.ok(read('install.sh').includes('ff_require_port_available 3000'));
-  assert.ok(read('install-local.sh').includes('ff_require_port_available 3000'));
+  assert.ok(read('install.sh').includes('ff_require_port_available "$BACKEND_PORT"'));
+  assert.ok(read('install-local.sh').includes('ff_require_port_available "$BACKEND_PORT"'));
   assert.ok(read('deploy/standard/deploy.sh').includes('ff_require_clean_git_worktree'));
   assert.ok(read('deploy/standard/deploy.sh').includes('git clone "$GIT_REPO" "$DEPLOY_TARGET"'));
   assert.ok(read('deploy/standard/deploy.sh').includes('目标目录非空但不是 Git 仓库'));
@@ -334,6 +334,7 @@ test('first-install and cluster startup use readiness gates instead of fixed sta
     assert.match(source, /ff_wait_for_health "\$BACKEND_PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/, file + ' must wait for app and database readiness');
     assert.match(source, /sed -n 's\/\^PORT=\//, file + ' must read the configured application port');
     assert.match(source, /BACKEND_PORT.*-gt 65535/, file + ' must validate the configured port');
+    assert.match(source, /后端 PORT 不能使用 80\/443/, file + ' must reject reserved backend ports');
     assert.match(source, /if ! systemctl restart/, file + ' must diagnose restart failures');
     assert.doesNotMatch(source, /systemctl restart [^\n]+\n\s*sleep 8/, file + ' must not rely on a fixed startup delay');
   }
@@ -354,6 +355,26 @@ test('Nginx setup backs up and restores prior config on failed provisioning', ()
   assert.match(nginx, /trap restore_nginx_config_on_failure EXIT/);
   assert.match(nginx, /NGINX_CONFIG_COMMITTED=1/);
   assert.match(nginx, /systemctl stop nginx 2>\/dev\/null \|\| true[\s\S]*?cp -a "\$NGINX_BACKUP_DIR\/etc\/nginx\//);
+});
+
+test('standard and local installers propagate the configured backend port consistently', () => {
+  for (const file of ['install.sh', 'install-local.sh']) {
+    const source = read(file);
+    assert.match(source, /ff_require_port_available "\$BACKEND_PORT"/, file + ' must check the configured backend port');
+    assert.match(source, /proxy_pass http:\/\/127\.0\.0\.1:\$\{BACKEND_PORT\};/, file + ' must proxy to the configured backend port');
+    assert.doesNotMatch(source, /proxy_pass http:\/\/127\.0\.0\.1:3000;/, file + ' must not hardcode the proxy port');
+    assert.match(source, /BACKEND_PORT.*-gt 65535/, file + ' must validate the configured port');
+  }
+});
+
+test('Nginx setup rejects invalid backend ports before service or proxy changes', () => {
+  const nginx = read('setup-nginx.sh');
+  assert.match(nginx, /BACKEND_PORT.*-gt 65535/);
+  assert.match(nginx, /BACKEND_PORT.*-lt 1/);
+  assert.match(nginx, /BACKEND_PORT.*不能使用 80\/443/);
+  assert.doesNotMatch(nginx, /^\s*BACKEND_PORT=3000\s*$/m);
+  const portValidationIndex = nginx.indexOf('[ "$BACKEND_PORT" -gt 65535 ]');
+  assert.ok(portValidationIndex >= 0 && portValidationIndex < nginx.indexOf('ff_wait_for_health'));
 });
 
 test('Nginx setup uses optional Certbot email arguments and verifies every start', () => {
