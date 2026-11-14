@@ -333,3 +333,21 @@ test('Nginx setup gates proxy configuration on application and database readines
   assert.match(nginx, /journalctl -u foodflow -n 50 --no-pager/);
   assert.doesNotMatch(nginx, /sleep 3\s+if systemctl is-active/);
 });
+
+
+test('systemd services throttle repeated startup crashes instead of restarting forever', () => {
+  const units = [
+    ['install.sh', read('install.sh')],
+    ['install-local.sh', read('install-local.sh')],
+    ['deploy/standard/foodflow.service', read('deploy/standard/foodflow.service')],
+    ['deploy/enterprise/cluster/foodflow.service', read('deploy/enterprise/cluster/foodflow.service')],
+    ['deploy/enterprise-ultimate/cluster/foodflow.service', read('deploy/enterprise-ultimate/cluster/foodflow.service')],
+    ['INSTALL.md', read('INSTALL.md')]
+  ];
+  for (const [file, source] of units) {
+    assert.match(source, /StartLimitIntervalSec=60s/, file + ' must define a bounded restart window');
+    assert.match(source, /StartLimitBurst=5/, file + ' must cap repeated start attempts');
+    assert.match(source, /Restart=on-failure/, file + ' must restart only failed processes');
+    assert.doesNotMatch(source, /Restart=always/, file + ' must not restart successful exits forever');
+  }
+});
