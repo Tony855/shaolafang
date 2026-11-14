@@ -924,7 +924,7 @@ module.exports = function(app, deps) {
         expire_minutes: expireMin,
       });
     } catch (e) {
-      console.error('[khqr/generate]', e);
+      console.error('[khqr/generate] failed', safeErrorMetadata(e));
       const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
       res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message });
     }
