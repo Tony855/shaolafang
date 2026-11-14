@@ -333,3 +333,19 @@ test('Nginx setup gates proxy configuration on application and database readines
   assert.match(nginx, /journalctl -u foodflow -n 50 --no-pager/);
   assert.doesNotMatch(nginx, /sleep 3\s+if systemctl is-active/);
 });
+
+
+test('first-install and cluster startup use readiness gates instead of fixed startup sleeps', () => {
+  for (const file of ['install.sh', 'install-local.sh']) {
+    const source = read(file);
+    assert.match(source, /ff_wait_for_health 3000 "\$\{FF_HEALTH_ATTEMPTS:-30\}"/, file + ' must wait for app and database readiness');
+    assert.match(source, /if ! systemctl restart/, file + ' must diagnose restart failures');
+    assert.doesNotMatch(source, /systemctl restart [^\n]+\n\s*sleep 8/, file + ' must not rely on a fixed startup delay');
+  }
+  for (const file of ['deploy/enterprise/cluster/deploy.sh', 'deploy/enterprise-ultimate/cluster/deploy.sh']) {
+    const source = read(file);
+    assert.match(source, /if ! systemctl restart foodflow/, file + ' must diagnose restart failures');
+    assert.match(source, /\/api\/health\/ready/, file + ' must wait for database readiness');
+    assert.doesNotMatch(source, /systemctl restart foodflow\n\s*sleep 5/, file + ' must not rely on a fixed startup delay');
+  }
+});
