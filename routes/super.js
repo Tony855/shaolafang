@@ -1088,9 +1088,8 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/super/telegram/:scope/test', requireSuperAdmin, async (req, res) => {
+async function handleTelegramBotTest(req, res, scope) {
   try {
-    const scope = req.params.scope;
     if (!TELEGRAM_SCOPES.includes(scope)) return res.status(400).json({ error: 'Bot 类型无效' });
     const keys = [
       `telegram_${scope}_bot_enabled`,
@@ -1111,7 +1110,12 @@ app.post('/api/super/telegram/:scope/test', requireSuperAdmin, async (req, res) 
   } catch (error) {
     res.status(400).json({ error: error.message || 'Telegram 测试消息发送失败' });
   }
-});
+}
+
+app.post('/api/super/telegram/client/test', requireSuperAdmin,
+  (req, res) => handleTelegramBotTest(req, res, 'client'));
+app.post('/api/super/telegram/admin/test', requireSuperAdmin,
+  (req, res) => handleTelegramBotTest(req, res, 'admin'));
 
 };
 
