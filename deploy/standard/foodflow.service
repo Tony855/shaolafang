@@ -8,6 +8,8 @@
 
 [Unit]
 Description=FoodFlow QR Ordering System
+StartLimitIntervalSec=60s
+StartLimitBurst=5
 After=network.target mysql.service mariadb.service redis.service
 Wants=network.target
 
@@ -23,7 +25,7 @@ ReadWritePaths=/var/www/foodflow/uploads /var/www/foodflow/backups /var/www/food
 # 使用 env 命令查找 node，避免路径写死
 ExecStart=/usr/bin/env node server.js
 
-Restart=always
+Restart=on-failure
 RestartSec=5
 
 LimitNOFILE=65536
