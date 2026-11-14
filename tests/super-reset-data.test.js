@@ -32,8 +32,8 @@ function setup({ failOn, validPassword = true, failSequenceReset = false } = {})
   const deps = {
     getAsync: async () => null,
     allAsync: async () => [],
-    runAsync: async sql => {
-      calls.push({ sql, inTransaction });
+    runAsync: async (sql, params = []) => {
+      calls.push({ sql, params, inTransaction });
       if (failOn && sql.includes(failOn)) throw new Error('simulated delete failure');
       if (failSequenceReset && sql.startsWith('ALTER TABLE')) throw new Error('simulated DDL failure');
       return { affectedRows: 1 };
@@ -76,6 +76,9 @@ test('super data reset groups all deletes and audit in one transaction, then res
   assert.equal(ctx.transactionCount, 1);
   const dml = ctx.calls.filter(call => call.sql && call.sql.startsWith('DELETE'));
   assert.deepEqual(dml.map(call => call.sql), [
+    'DELETE FROM telegram_notification_outbox',
+    'DELETE FROM telegram_customer_binding_challenges',
+    'DELETE FROM telegram_customer_bindings',
     'DELETE FROM refund_requests',
     'DELETE FROM orders',
     'DELETE FROM waiter_calls',
@@ -120,4 +123,15 @@ test('super data reset rejects an incorrect password before starting a transacti
   assert.equal(res.statusCode, 401);
   assert.equal(ctx.transactionCount, 0);
   assert.equal(ctx.calls.length, 0);
+});
+
+test('super data reset rolls back if Telegram notification cleanup fails', async () => {
+  const ctx = setup({ failOn: 'DELETE FROM telegram_notification_outbox' });
+  const res = response();
+  await ctx.handler({ body: { password: 'correct' }, superAdmin: { id: 1, username: 'root', password_hash: 'hash' } }, res);
+
+  assert.equal(res.statusCode, 500);
+  assert.equal(ctx.rolledBack, true);
+  assert.equal(ctx.calls.some(call => call.sql === 'DELETE FROM orders'), false);
+  assert.equal(ctx.calls.some(call => call.audit), false);
 });
