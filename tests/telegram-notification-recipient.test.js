@@ -55,7 +55,7 @@ test('merchant store recipient resolver fails closed for disabled Bot or missing
   const disabled = createTelegramNotificationRecipientResolver({ allAsync: async sql => sql.includes('telegram_store_admin_recipients')
     ? [{ chat_id: '-1007654321', is_enabled: 1, event_enabled: 1 }]
     : [{ key: 'telegram_admin_bot_enabled', value: '0' }, { key: 'telegram_admin_bot_token', value: token }] });
-  assert.equal(await missing({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' }), null);
+  assert.deepEqual(await missing({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' }), { scope: 'merchant_store', merchantId: 7, storeId: 9, suppressed: true });
   assert.deepEqual(await disabled({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' }), { scope: 'merchant_store', merchantId: 7, storeId: 9, suppressed: true });
 });
 
@@ -70,7 +70,7 @@ test('merchant store recipient resolver rechecks the queued event toggle at deli
     return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }];
   } });
   const disabled = await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.refunded' });
-  assert.equal(disabled, null);
+  assert.deepEqual(disabled, { scope: 'merchant_store', merchantId: 7, storeId: 9, suppressed: true });
   assert.match(query, /r\.notify_refunded AS event_enabled/);
   assert.equal(await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'unknown.event' }), null);
 });
