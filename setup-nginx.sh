@@ -84,6 +84,11 @@ if [ "$BACKEND_PORT" = "80" ] || [ "$BACKEND_PORT" = "443" ]; then
     BACKEND_PORT=3000
 fi
 
+if ! [[ "$BACKEND_PORT" =~ ^[0-9]{1,5}$ ]] || [ "$BACKEND_PORT" -lt 1 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
+    log_error "BACKEND_PORT 配置无效，必须是 1 到 65535 之间的整数。"
+    exit 1
+fi
+
 echo ""
 echo "=============================================="
 echo "  FoodFlow Nginx 配置 + SSL 证书"
