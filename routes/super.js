@@ -1121,6 +1121,19 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
             [key, value]
           );
         }
+
+        // Disabling a Bot is a terminal delivery decision, not a pause. Purge
+        // its queued/leased backlog in the same transaction so re-enabling the
+        // Bot cannot unexpectedly send notices created during the disabled era.
+        if (!item.enabled) {
+          const recipientScopes = scope === 'client'
+            ? "recipient_scope='customer'"
+            : "recipient_scope IN ('system_admin','merchant_store')";
+          await runAsync(
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE " +
+              recipientScopes + " AND state IN ('pending','processing')"
+          );
+        }
       }
       await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
         'update_telegram_bot_settings', 'settings', null,
