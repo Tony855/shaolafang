@@ -4,7 +4,7 @@ const { claimTelegramNotifications, markTelegramNotificationDelivered, releaseTe
 const { sendTelegramMessage } = require('./telegram-bot');
 const { validateResolvedRecipient, classifyTelegramError } = require('./telegram-notification-worker-core');
 
-async function processTelegramNotificationBatch({ resolveRecipient, workerId, limit = 10, leaseSeconds = 60, sendMessage = sendTelegramMessage } = {}) {
+async function processTelegramNotificationBatch({ resolveRecipient, workerId, limit = 1, leaseSeconds = 60, sendMessage = sendTelegramMessage } = {}) {
   if (typeof resolveRecipient !== 'function') throw new TypeError('必须提供通知接收人解析器');
   if (typeof sendMessage !== 'function') throw new TypeError('必须提供 Telegram 发送器');
   const jobs = await claimTelegramNotifications({ workerId, limit, leaseSeconds });
