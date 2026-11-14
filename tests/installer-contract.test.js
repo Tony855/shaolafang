@@ -345,6 +345,17 @@ test('first-install and cluster startup use readiness gates instead of fixed sta
   }
 });
 
+test('Nginx setup backs up and restores prior config on failed provisioning', () => {
+  const nginx = read('setup-nginx.sh');
+  assert.match(nginx, /backup_nginx_config\(\)/);
+  assert.match(nginx, /NGINX_BACKUP_PATHS=\(/);
+  assert.match(nginx, /cp -a "\$path" "\$NGINX_BACKUP_DIR\$path"/);
+  assert.match(nginx, /restore_nginx_config_on_failure\(\)/);
+  assert.match(nginx, /trap restore_nginx_config_on_failure EXIT/);
+  assert.match(nginx, /NGINX_CONFIG_COMMITTED=1/);
+  assert.match(nginx, /systemctl stop nginx 2>\/dev\/null \|\| true[\s\S]*?cp -a "\$NGINX_BACKUP_DIR\/etc\/nginx\//);
+});
+
 test('Nginx setup uses optional Certbot email arguments and verifies every start', () => {
   const nginx = read('setup-nginx.sh');
   assert.match(nginx, /CERTBOT_EMAIL_ARGS=\(\)/);

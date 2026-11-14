@@ -158,6 +158,62 @@ if [ -n "$DOMAIN" ]; then
     fi
 fi
 
+# Keep the existing Nginx configuration and service state recoverable until the new setup passes.
+NGINX_CONF="/etc/nginx/conf.d/foodflow.conf"
+NGINX_BACKUP_PATHS=(
+    "$NGINX_CONF"
+    "/etc/nginx/sites-enabled/dianchan"
+    "/etc/nginx/sites-available/dianchan"
+    "/etc/nginx/sites-enabled/default"
+)
+NGINX_BACKUP_DIR=""
+NGINX_WAS_ACTIVE=0
+NGINX_CONFIG_COMMITTED=0
+
+backup_nginx_config() {
+    NGINX_BACKUP_DIR="$(mktemp -d /tmp/foodflow-nginx-backup.XXXXXX)"
+    if systemctl is-active --quiet nginx; then
+        NGINX_WAS_ACTIVE=1
+    fi
+    local path
+    for path in "${NGINX_BACKUP_PATHS[@]}"; do
+        if [ -e "$path" ] || [ -L "$path" ]; then
+            if ! mkdir -p "$NGINX_BACKUP_DIR$(dirname "$path")" || ! cp -a "$path" "$NGINX_BACKUP_DIR$path"; then
+                log_error "无法备份现有 Nginx 配置：$path，拒绝修改当前配置。"
+                rm -rf "$NGINX_BACKUP_DIR"
+                NGINX_BACKUP_DIR=""
+                return 1
+            fi
+        fi
+    done
+}
+
+restore_nginx_config_on_failure() {
+    local rc=$?
+    trap - EXIT
+    if [ "$rc" -ne 0 ] && [ "$NGINX_CONFIG_COMMITTED" != "1" ]; then
+        log_error "Nginx 配置未完成，正在恢复原有配置..."
+        systemctl stop nginx 2>/dev/null || true
+        local path
+        for path in "${NGINX_BACKUP_PATHS[@]}"; do
+            rm -rf "$path"
+        done
+        if [ -d "$NGINX_BACKUP_DIR/etc/nginx" ]; then
+            cp -a "$NGINX_BACKUP_DIR/etc/nginx/." /etc/nginx/
+        fi
+        if [ "$NGINX_WAS_ACTIVE" = "1" ]; then
+            if ! systemctl start nginx; then
+                log_error "原 Nginx 配置已恢复，但服务未能重新启动，请检查 journalctl -u nginx。"
+                journalctl -u nginx -n 50 --no-pager || true
+            fi
+        fi
+    fi
+    if [ -n "$NGINX_BACKUP_DIR" ]; then
+        rm -rf "$NGINX_BACKUP_DIR"
+    fi
+    return "$rc"
+}
+
 # ===== 3. 确保后端服务运行 =====
 echo ""
 log_info "检查后端服务..."
@@ -183,6 +239,9 @@ else
     exit 1
 fi
 
+backup_nginx_config
+trap restore_nginx_config_on_failure EXIT
+
 # ===== 4. 释放 80 端口 =====
 echo ""
 log_info "检查 80 端口是否可用..."
@@ -194,8 +253,6 @@ log_success "80 端口可用"
 # ===== 5. 配置 Nginx HTTP =====
 echo ""
 log_info "配置 Nginx..."
-
-NGINX_CONF="/etc/nginx/conf.d/foodflow.conf"
 
 # 先删除可能存在的旧配置（sites-available 方式）
 rm -f /etc/nginx/sites-enabled/dianchan 2>/dev/null || true
@@ -354,6 +411,9 @@ if [ "$NGINX_CODE" = "200" ] || [ "$NGINX_CODE" = "302" ] || [ "$NGINX_CODE" = "
 else
     log_warn "Nginx 代理状态: HTTP $NGINX_CODE（如果已配置 HTTPS 属于正常现象，用域名访问测试即可）"
 fi
+
+# 新配置、服务启动和最终检查均已完成；保留新配置并清理备份。
+NGINX_CONFIG_COMMITTED=1
 
 # ===== 完成 =====
 echo ""
