@@ -354,3 +354,20 @@ test('first-install and cluster startup use readiness gates instead of fixed sta
     assert.doesNotMatch(source, /systemctl restart foodflow\n\s*sleep 5/, file + ' must not rely on a fixed startup delay');
   }
 });
+
+test('systemd services throttle repeated startup crashes instead of restarting forever', () => {
+  const units = [
+    ['install.sh', read('install.sh')],
+    ['install-local.sh', read('install-local.sh')],
+    ['deploy/standard/foodflow.service', read('deploy/standard/foodflow.service')],
+    ['deploy/enterprise/cluster/foodflow.service', read('deploy/enterprise/cluster/foodflow.service')],
+    ['deploy/enterprise-ultimate/cluster/foodflow.service', read('deploy/enterprise-ultimate/cluster/foodflow.service')],
+    ['INSTALL.md', read('INSTALL.md')]
+  ];
+  for (const [file, source] of units) {
+    assert.match(source, /StartLimitIntervalSec=60s/, file + ' must define a bounded restart window');
+    assert.match(source, /StartLimitBurst=5/, file + ' must cap repeated start attempts');
+    assert.match(source, /Restart=on-failure/, file + ' must restart only failed processes');
+    assert.doesNotMatch(source, /Restart=always/, file + ' must not restart successful exits forever');
+  }
+});
