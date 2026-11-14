@@ -53,7 +53,7 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE' } = {}) {
       }
       if (sql.includes('UPDATE telegram_customer_binding_challenges')) { state.consumed = true; return { affectedRows: 1 }; }
       if (sql.includes('INSERT INTO telegram_customer_bindings')) {
-        if (state.bindings.some(x => x.telegram_chat_id === params[4] || (x.customer_token_hash === params[0] && x.store_id === params[2]))) {
+        if (state.bindings.some(x => (x.telegram_chat_id === params[4] && Number(x.store_id) === Number(params[2])) || (x.customer_token_hash === params[0] && Number(x.store_id) === Number(params[2])))) {
           throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
         }
         state.bindings.push({ id: 9, customer_token_hash: params[0], merchant_id: params[1], store_id: params[2], telegram_user_id: params[3], telegram_chat_id: params[4] });
