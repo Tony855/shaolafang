@@ -308,8 +308,8 @@ module.exports = function(app, deps) {
         if (bindingIds.length) {
           const placeholders = bindingIds.map(() => '?').join(',');
           await runAsync(
-            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (" +
-              bindingIds.map(id => "'binding:" + id + "'").join(',') + ")"
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (" + placeholders + ")",
+            bindingIds.map(id => `binding:${id}`)
           );
         }
         return runAsync(
