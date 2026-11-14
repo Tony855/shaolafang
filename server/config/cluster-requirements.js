@@ -11,7 +11,7 @@ function isExplicitProxyEntry(value) {
   if (version === 4 && (address === '0.0.0.0' || address.startsWith('127.'))) return false;
   if (version === 6 && (address === '::' || address === '::1')) return false;
   if (parts.length === 2) {
-    if (!/^\\d+$/.test(parts[1])) return false;
+    if (!/^\d+$/.test(parts[1])) return false;
     const prefix = Number(parts[1]);
     if (prefix < 1 || prefix > (version === 4 ? 32 : 128)) return false;
   }
