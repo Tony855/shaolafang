@@ -815,11 +815,6 @@ module.exports = function(app, deps) {
         const staticInfo = khqr.extractInfo(khqr.parseTLV(provider.payload));
         staticCurrency = staticInfo.currency === '840' ? 'USD' : (staticInfo.currency === '116' ? 'KHR' : 'USD');
       }
-      console.log('[khqr/debug] 请求币种=', JSON.stringify(req.body && req.body.currency),
-        '请求类型=', typeof (req.body && req.body.currency),
-        'provider=', provider.id,
-        'staticCurrency=', staticCurrency);
-
       const requestedCurrency = String((req.body && req.body.currency) || '').trim().toUpperCase();
       const targetCurrency = ['USD', 'KHR'].includes(requestedCurrency) ? requestedCurrency : staticCurrency;
       // orders.total is normalized to the merchant's USD base currency when the
