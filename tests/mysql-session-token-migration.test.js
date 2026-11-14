@@ -15,6 +15,9 @@ test('database integration: session token migration works with ascii_bin hashes 
   skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
   timeout: 30000
 }, async t => {
+  const databaseName = decodeURIComponent(new URL(databaseUrl).pathname.slice(1));
+  assert.match(databaseName, /(?:^|[_-])test(?:$|[_-])/i,
+    'session token migration integration must use an isolated test database');
   const connection = await mysql.createConnection(databaseUrl);
   const runAsync = async (sql, params = []) => {
     const [result] = await connection.query(sql, params);
