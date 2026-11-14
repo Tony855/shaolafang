@@ -17,7 +17,7 @@ function response() {
 function fixture() {
   const challenge = 'A'.repeat(43);
   const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
-  const state = { updates: new Set(), challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8 }, bindings: [], consumed: false };
+  const state = { updates: new Set(), challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
   const handler = createTelegramCustomerWebhookHandler({
     secret: 's'.repeat(40),
     getAsync: async (sql, params) => {
