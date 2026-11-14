@@ -132,5 +132,5 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   const cleanup = await cleanupTelegramNotificationHistory();
   assert.equal(cleanup.deliveredDeleted, 1);
   assert.equal(cleanup.deadDeleted, 1);
-  assert.equal(await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key IN (?, ?)', [oldDeliveredKey, oldDeadKey]), null);
+  assert.equal((await require('../server/db/helpers').allAsync('SELECT id FROM telegram_notification_outbox WHERE event_key IN (?, ?)', [oldDeliveredKey, oldDeadKey])).length, 0);
 });
