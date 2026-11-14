@@ -34,9 +34,11 @@ function normalizeOutboxInput(input) {
     payloadJson: JSON.stringify({ text }) };
 }
 
-function retryDelaySeconds(attempt) {
+function retryDelaySeconds(attempt, retryAfterSeconds = 0) {
   if (!Number.isInteger(attempt) || attempt < 1) throw new TypeError('重试次数无效');
-  return Math.min(900, 15 * (2 ** Math.min(attempt - 1, 6)));
+  if (!Number.isInteger(retryAfterSeconds) || retryAfterSeconds < 0) throw new TypeError('Telegram 重试等待时间无效');
+  const exponentialDelay = Math.min(900, 15 * (2 ** Math.min(attempt - 1, 6)));
+  return Math.max(exponentialDelay, Math.min(retryAfterSeconds, 3600));
 }
 
 module.exports = { ALLOWED_SCOPES, SAFE_ERROR_CODES, positiveId, normalizeOutboxInput, retryDelaySeconds };
