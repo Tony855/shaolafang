@@ -139,7 +139,27 @@ update_existing_install() {
             log_error "安装器源码目录不是有效 Git 仓库；拒绝迁移。"
             return 1
         fi
-        if [ -n "$(git -C "$SCRIPT_DIR" status --porcelain --untracked-files=normal)" ]; then
+        # A nested full checkout may be left behind by an earlier manual
+        # clone (for example /opt/shaolafang/shaolafang). Do not blindly
+        # ignore it: allow only this exact path when it is a clean Git
+        # checkout at the same commit, and all other source paths are clean.
+        local nested_checkout="$SCRIPT_DIR/shaolafang"
+        local source_status
+        source_status="$(git -C "$SCRIPT_DIR" status --porcelain --untracked-files=normal -- . ':(exclude)shaolafang')"
+        if [ -d "$nested_checkout/.git" ] &&
+           git -C "$nested_checkout" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            local nested_head nested_status source_head
+            source_head="$(git -C "$SCRIPT_DIR" rev-parse HEAD)"
+            nested_head="$(git -C "$nested_checkout" rev-parse HEAD 2>/dev/null)"
+            nested_status="$(git -C "$nested_checkout" status --porcelain --untracked-files=normal 2>/dev/null)"
+            if [ -n "$source_status" ] || [ "$nested_head" != "$source_head" ] || [ -n "$nested_status" ]; then
+                log_error "源码目录存在修改，或嵌套仓库不是同一提交的干净副本；拒绝迁移 Git 元数据。"
+                git -C "$SCRIPT_DIR" status --short
+                git -C "$nested_checkout" status --short 2>/dev/null || true
+                return 1
+            fi
+            log_warn "检测到同一提交的干净嵌套仓库副本；已验证该目录，可继续执行源码完整性检查。"
+        elif [ -n "$(git -C "$SCRIPT_DIR" status --porcelain --untracked-files=normal)" ]; then
             log_error "安装器源码仓库存在未提交或未跟踪文件；拒绝将其 Git 元数据迁移到生产目录。"
             git -C "$SCRIPT_DIR" status --short
             return 1
