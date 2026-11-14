@@ -1,17 +1,21 @@
 'use strict';
 
 const { randomUUID } = require('crypto');
-const { processTelegramNotificationBatch } = require('./telegram-notification-worker');
-const { createTelegramNotificationRecipientResolver } = require('./telegram-notification-recipient');
-const { getAsync } = require('../db/helpers');
-
 function createTelegramNotificationWorker({
-  resolveRecipient = createTelegramNotificationRecipientResolver({ getAsync }),
-  processBatch = processTelegramNotificationBatch,
+  resolveRecipient,
+  processBatch,
   workerId = randomUUID(),
   intervalMs = 5000,
   logger = console
 } = {}) {
+  if (!resolveRecipient) {
+    const { getAsync } = require('../db/helpers');
+    const { createTelegramNotificationRecipientResolver } = require('./telegram-notification-recipient');
+    resolveRecipient = createTelegramNotificationRecipientResolver({ getAsync });
+  }
+  if (!processBatch) {
+    ({ processTelegramNotificationBatch: processBatch } = require('./telegram-notification-worker'));
+  }
   if (typeof resolveRecipient !== 'function') throw new TypeError('resolveRecipient is required');
   if (typeof processBatch !== 'function') throw new TypeError('processBatch is required');
   if (typeof workerId !== 'string' || !/^[0-9a-f-]{36}$/i.test(workerId)) throw new TypeError('Worker ID 无效');
