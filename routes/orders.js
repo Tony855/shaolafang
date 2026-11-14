@@ -839,7 +839,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         throw error;
       }
       if (status === 'done' && req.isAdmin) {
-        const store = await getAsync('SELECT name FROM stores WHERE id=?', [orderStoreId]);
+        const store = await getAsync('SELECT name, merchant_id FROM stores WHERE id=?', [orderStoreId]);
         await enqueueSystemAdminTelegramNotification({
           getAsync,
           eventKey: `order:${id}:settled`,
