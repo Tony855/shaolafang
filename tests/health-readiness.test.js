@@ -58,3 +58,29 @@ test('readiness fails closed and hides database error details', async () => {
   });
   assert.equal(JSON.stringify(res.body).includes('secret'), false);
 });
+
+test('cluster readiness fails closed when Redis or Socket.IO adapter is unavailable', async () => {
+  const app = buildApp();
+  registerPublicRoutes(app, {
+    getAsync: async () => ({ ok: 1 }),
+    allAsync: async () => [],
+    getClusterReadiness: () => ({ required: true, ready: false, redis: 'unavailable', socketIo: 'ok' })
+  });
+  const res = responseRecorder();
+  await app.routes.get('/api/health/ready')({}, res);
+  assert.equal(res.statusCode, 503);
+  assert.deepEqual(res.body.checks, { database: 'ok', redis: 'unavailable', socketIo: 'ok' });
+});
+
+test('cluster readiness returns 200 after Redis and Socket.IO adapter recover', async () => {
+  const app = buildApp();
+  registerPublicRoutes(app, {
+    getAsync: async () => ({ ok: 1 }),
+    allAsync: async () => [],
+    getClusterReadiness: () => ({ required: true, ready: true, redis: 'ok', socketIo: 'ok' })
+  });
+  const res = responseRecorder();
+  await app.routes.get('/api/health/ready')({}, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.checks, { database: 'ok', redis: 'ok', socketIo: 'ok' });
+});
