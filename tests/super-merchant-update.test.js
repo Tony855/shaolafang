@@ -167,6 +167,9 @@ test('merchant status transition revokes all merchant-scoped sessions', async ()
     assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('DELETE FROM ' + table)),
       table + ' must be revoked when merchant status changes');
   }
+  const noticeSuppression = ctx.calls.find(call => call.type === 'run' && call.sql.includes("UPDATE telegram_notification_outbox SET state='dead'"));
+  assert.ok(noticeSuppression);
+  assert.deepEqual(noticeSuppression.params, [9]);
   const waiterRevoke = ctx.calls.find(call => call.type === 'run' && call.sql.includes('DELETE FROM waiter_sessions'));
   assert.match(waiterRevoke.sql, /INNER JOIN stores st ON st.id=w.store_id WHERE st.merchant_id=/);
   const scanRevoke = ctx.calls.find(call => call.type === 'run' && call.sql.includes('DELETE FROM scan_sessions'));
