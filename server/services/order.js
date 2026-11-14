@@ -11,7 +11,7 @@ function formatOrder(row) {
   const financialDataCorrupted = hasCorruptFinancialAmounts(row.total, row.refund_amount);
   if (typeof items === 'string') {
     try { items = JSON.parse(items); } catch (_) {
-      console.warn(`订单 ${row.id} 的 items 解析失败，原始内容:`, items);
+      console.warn(`[order] malformed items JSON; treating items as empty (orderId=${Number.isSafeInteger(Number(row.id)) ? Number(row.id) : 'unknown'})`);
       items = []; dataCorrupted = true;
     }
   } else if (!Array.isArray(items)) {
