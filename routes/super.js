@@ -1039,11 +1039,9 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
       if (chatId !== undefined && chatId !== '' && !validateChatId(chatId)) {
         return res.status(400).json({ error: (scope === 'client' ? '客户端' : '管理员') + ' Chat ID 格式无效' });
       }
-      if (enabled && (clearToken || token === '' || chatId === '')) {
-        // An omitted token keeps the existing value; empty token is not a replacement.
-        if (clearToken || chatId === '') {
-          return res.status(400).json({ error: '启用 Bot 前必须保留有效 Token 和 Chat ID' });
-        }
+      // A blank token preserves the saved secret; clearing it is always explicit.
+      if (enabled && (clearToken || chatId === '')) {
+        return res.status(400).json({ error: '启用 Bot 前必须保留有效 Token 和 Chat ID' });
       }
       next[scope] = { enabled, chatId, token, clearToken };
     }
