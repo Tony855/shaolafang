@@ -4,7 +4,6 @@
  */
 const { getAsync, runAsync } = require('../db/helpers');
 const { hashSessionToken } = require('../services/session-token');
-const { safeErrorMetadata } = require('./safe-error-metadata');
 
 function isPermissionEnabled(value) {
   return value === true || value === 1 || value === '1' || value === 'true';
