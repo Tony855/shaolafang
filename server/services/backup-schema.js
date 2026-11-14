@@ -29,6 +29,11 @@ const BACKUP_TABLES = Object.freeze([
   'refund_requests',
   ...FINANCIAL_BACKUP_TABLES,
   'settings',
+  'telegram_notification_outbox',
+  'telegram_customer_binding_challenges',
+  'telegram_customer_bindings',
+  'telegram_webhook_updates',
+  'telegram_store_admin_recipients',
   'login_logs',
   'audit_logs',
   'waiters',
@@ -42,6 +47,11 @@ const BACKUP_TABLES = Object.freeze([
 const LEGACY_OPTIONAL_BACKUP_TABLES = Object.freeze([
   'order_sequences',
   'refund_requests',
+  'telegram_notification_outbox',
+  'telegram_customer_binding_challenges',
+  'telegram_customer_bindings',
+  'telegram_webhook_updates',
+  'telegram_store_admin_recipients',
   ...FINANCIAL_BACKUP_TABLES
 ]);
 
