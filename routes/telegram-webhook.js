@@ -12,7 +12,7 @@ module.exports = function registerTelegramWebhook(app, deps) {
     const suppliedSecret = typeof req.get === 'function'
       ? req.get('X-Telegram-Bot-Api-Secret-Token')
       : req.headers?.['x-telegram-bot-api-secret-token'];
-    if (!constantTimeSecretMatch(suppliedSecret, secret)) return res.status(403).json({ ok: false });
+    if (secret.length < 32 || secret.length > 256 || !constantTimeSecretMatch(suppliedSecret, secret)) return res.status(403).json({ ok: false });
 
     const update = parseTelegramPrivateStartUpdate(req.body);
     if (!update) return res.status(200).json({ ok: true });
