@@ -1261,5 +1261,21 @@
   "financeCol_pending_count": "រង់ចាំ",
   "financeCol_unmatched_count": "មិនផ្គូផ្គង",
   "financeCol_ambiguous_count": "ច្រើនជម្រើស",
-  "financeCol_exception_count": "ករណីលើកលែង"
+  "financeCol_exception_count": "ករណីលើកលែង",
+  "telegramBotSettings": "🤖 Telegram Bot",
+  "telegramBotDesc": "កំណត់ Telegram Bot ដាច់ដោយឡែកសម្រាប់អតិថិជន និងអ្នកគ្រប់គ្រង។ Token រក្សាទុកនៅលើម៉ាស៊ីនមេ ហើយមិនបង្ហាញជាអក្សរពេញទេ។",
+  "telegramClientBot": "Telegram Bot អតិថិជន",
+  "telegramAdminBot": "Telegram Bot អ្នកគ្រប់គ្រង",
+  "telegramBotEnabled": "បើក Bot",
+  "telegramBotToken": "Bot Token",
+  "telegramChatId": "Chat ID ទទួលសារ",
+  "telegramClearToken": "លុប Token ដែលបានរក្សាទុក",
+  "telegramTest": "ផ្ញើសារសាកល្បង",
+  "telegramSave": "រក្សាទុកការកំណត់ Telegram",
+  "telegramBotSecurityHint": "ចាប់ផ្តើម Bot ក្នុង Telegram ឬបន្ថែមវាទៅក្រុមគោលដៅ មុនបញ្ចូល Chat ID។ សារសាកល្បងផ្ញើតែនៅពេលចុចប៊ូតុងសាកល្បងប៉ុណ្ណោះ។",
+  "telegramTokenConfigured": "បានរក្សាទុក Token",
+  "telegramTokenMissing": "មិនទាន់កំណត់ Token",
+  "telegramSaved": "បានរក្សាទុកការកំណត់ Telegram Bot",
+  "telegramTestSent": "បានផ្ញើសារសាកល្បង សូមពិនិត្យ Telegram",
+  "telegramTestFailed": "ផ្ញើសារសាកល្បងមិនបានជោគជ័យ"
 }
