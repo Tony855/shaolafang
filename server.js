@@ -1,5 +1,7 @@
 const express = require('express');
 const { resolveListenHost } = require('./server/config/listen-host');
+const { createRequestBodyParsers } = require('./server/middleware/request-body-parsers');
+const { safeErrorMetadata } = require('./server/middleware/safe-error-metadata');
 // ★ 关键：pool / helpers / constants 必须在文件顶部 require（TDZ 问题）
 const poolModule = require('./server/db/pool');
 const { poolConfig, setPool } = poolModule;
@@ -250,8 +252,7 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'no-referrer');
   next();
 });
-app.use(express.json({ limit: '2mb', type: req => req.path !== '/api/super/backup/import' }));
-app.use(express.urlencoded({ extended: true, parameterLimit: 1000, limit: '1mb' }));
+app.use(...createRequestBodyParsers(express));
 // 静态资源：协商缓存（文件没变 304，变了 200 拿新版）
 // 不设 max-age，让浏览器每次都问服务器，改动即生效，不需要改文件名或版本号
 const staticOptions = {
@@ -1454,8 +1455,17 @@ app.use('/api', (req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error('未处理的错误:', err);
+  // body-parser errors may carry the complete submitted body in err.body.
+  // Log only a small allowlist; never serialize the raw error object.
+  console.error('未处理的错误:', safeErrorMetadata(err));
   if (res.headersSent) return next(err);
+  const status = Number(err?.statusCode || err?.status);
+  if (status === 413 || err?.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: '请求内容过大' });
+  }
+  if (status === 400) {
+    return res.status(400).json({ error: '请求格式无效' });
+  }
   res.status(500).json({ error: '服务器内部错误' });
 });
 
