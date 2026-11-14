@@ -133,12 +133,23 @@ test('backup restore writes its audit event and invalidates sessions in the same
   assert.equal(audit.inTransaction, true);
   assert.equal(audit.strict, true);
   assert.ok(ctx.calls.filter(call => call.sql?.startsWith('DELETE FROM')).every(call => call.inTransaction));
+  const locks = ctx.allCalls.filter(call => call.sql.includes('FOR UPDATE'));
+  assert.deepEqual(locks.map(call => call.sql), [
+    'SELECT `key` FROM settings WHERE `key` IN (?, ?) ORDER BY `key` FOR UPDATE',
+    'SELECT id FROM merchants ORDER BY id FOR UPDATE',
+    'SELECT id FROM stores ORDER BY id FOR UPDATE',
+    'SELECT id FROM telegram_customer_binding_challenges ORDER BY id FOR UPDATE',
+    'SELECT id FROM telegram_customer_bindings ORDER BY id FOR UPDATE'
+  ]);
+  assert.ok(locks.every(call => call.inTransaction));
   assert.ok(ctx.calls.some(call => call.sql?.includes('UPDATE orders SET pay_qr_generation_id=SHA2')));
   const staleCustomerNotices = ctx.calls.find(call => call.sql?.includes("recipient_scope='customer' AND state IN ('pending','processing')"));
   assert.ok(staleCustomerNotices);
   assert.equal(staleCustomerNotices.inTransaction, true);
-  assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM telegram_customer_bindings'));
-  assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM telegram_customer_binding_challenges'));
+  const challengesDelete = ctx.calls.findIndex(call => call.sql === 'DELETE FROM telegram_customer_binding_challenges');
+  const bindingsDelete = ctx.calls.findIndex(call => call.sql === 'DELETE FROM telegram_customer_bindings');
+  const customerOutboxSuppression = ctx.calls.findIndex(call => call.sql?.includes("recipient_scope='customer' AND state IN ('pending','processing')"));
+  assert.ok(challengesDelete >= 0 && bindingsDelete > challengesDelete && customerOutboxSuppression > bindingsDelete);
   assert.equal(ctx.rolledBack, false);
 });
 
