@@ -16,22 +16,22 @@ function createResponse() {
 }
 
 test('health route reports ready only when the database query succeeds', async () => {
-  let handler;
-  const app = { get(path, callback) { assert.equal(path, '/health'); handler = callback; } };
+  const handlers = {};
+  const app = { get(path, callback) { handlers[path] = callback; } };
   registerHealthRoute(app, { getPool: () => ({ query: async () => [[{ ready: 1 }], []] }) });
   const response = createResponse();
-  await handler({}, response);
+  await handlers['/health']({}, response);
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.body, { status: 'ok', database: 'ok' });
   assert.equal(response.headers['Cache-Control'], 'no-store');
 });
 
 test('health route returns a generic 503 without leaking database errors', async () => {
-  let handler;
-  const app = { get(_path, callback) { handler = callback; } };
+  const handlers = {};
+  const app = { get(path, callback) { handlers[path] = callback; } };
   registerHealthRoute(app, { getPool: () => ({ query: async () => { throw new Error('secret database password'); } }) });
   const response = createResponse();
-  await handler({}, response);
+  await handlers['/health']({}, response);
   assert.equal(response.statusCode, 503);
   assert.deepEqual(response.body, { status: 'degraded', database: 'unavailable' });
   assert.equal(JSON.stringify(response.body).includes('secret'), false);

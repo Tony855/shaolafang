@@ -25,10 +25,8 @@ echo "==========================================="
 
 echo ""
 echo "=== 1. 服务健康 ==="
-HEALTH=$(curl -sS "$BASE/api/health" 2>/dev/null)
-check "GET /api/health 存活检查" "1" "$(echo "$HEALTH" | grep -c '"ok":true')"
-READY=$(curl -sS -o /dev/null -w '%{http_code}' "$BASE/api/health/ready" 2>/dev/null)
-check "GET /api/health/ready 数据库就绪检查" "200" "$READY"
+READY=$(curl -sS -o /dev/null -w '%{http_code}' "$BASE/health" 2>/dev/null)
+check "GET /health 应用与数据库就绪检查" "200" "$READY"
 
 echo ""
 echo "=== 2. 关键页面 HTTP ==="

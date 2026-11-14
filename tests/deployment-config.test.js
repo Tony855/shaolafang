@@ -51,9 +51,14 @@ test('load balancer health checks proxy to application readiness, not a static 2
   for (const file of files) {
     const content = read(file);
     assert.ok(content.includes('location ~* ' + slash + '.'), file + ' must have a valid escaped extension regex');
-    assert.match(content, /location = \/health[\s\S]*?proxy_pass http[^;]+\/api\/health\/ready;/, file);
+    assert.match(content, /location = \/health[\s\S]*?proxy_pass http[^;]+\/health;/, file);
     assert.doesNotMatch(content, /location = \/health[\s\S]*?return 200/, file);
   }
+  const healthRoute = read('routes/health.js');
+  assert.match(healthRoute, /app\.get\('\/health', readinessHandler\)/);
+  assert.match(healthRoute, /app\.get\('\/api\/health\/ready', readinessHandler\)/);
+  assert.match(healthRoute, /app\.get\('\/api\/health', readinessHandler\)/);
+  assert.match(healthRoute, /pool\.query\('SELECT 1'\)/);
 });
 
 test('enterprise database initialization passes DB_DATABASE into the app process', () => {
@@ -72,7 +77,7 @@ test('health check uses configured database credentials rather than root and a f
   assert.match(content, /DB_HOST=/);
   assert.match(content, /MYSQL_PWD=/);
   assert.doesNotMatch(content, /mysql -u root foodflow_system/);
-  assert.match(content, /api\/health\/ready/);
+  assert.match(content, /BASE\/health/);
 });
 
 
@@ -100,5 +105,20 @@ test('single-host Nginx deployments never write query strings or Referer values 
     assert.match(content, /log_format foodflow_safe/, file + ' must define the redacted access log format');
     assert.match(content, /access_log \/var\/log\/nginx\/access\.log foodflow_safe/, file + ' must select the safe access log');
     assert.doesNotMatch(content, /log_format foodflow_safe[^;]*(?:\$request\b|\$request_uri|\$args|\$http_referer)/, file + ' must not log query strings or referrers');
+  }
+});
+
+test('all Nginx deployment paths allow maximum menu media and backup uploads', () => {
+  for (const file of [
+    'foodflow.conf',
+    'setup-nginx.sh',
+    'install.sh',
+    'install-local.sh',
+    'deploy/standard/nginx.conf',
+    'deploy/enterprise/cluster/nginx.conf',
+    'deploy/enterprise-ultimate/cluster/nginx.conf'
+  ]) {
+    const content = read(file);
+    assert.match(content, /client_max_body_size 105M;/, file + ' must allow backup imports up to the 50 MB application parser limit');
   }
 });

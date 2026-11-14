@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = function registerHealthRoute(app, { getPool }) {
-  app.get('/health', async (_req, res) => {
+  const readinessHandler = async (_req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
       const pool = getPool();
@@ -10,5 +10,10 @@ module.exports = function registerHealthRoute(app, { getPool }) {
     } catch (_) {
       return res.status(503).json({ status: 'degraded', database: 'unavailable' });
     }
-  });
+  };
+
+  // Keep /health canonical and retain aliases for older monitors.
+  app.get('/health', readinessHandler);
+  app.get('/api/health/ready', readinessHandler);
+  app.get('/api/health', readinessHandler);
 };
