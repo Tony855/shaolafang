@@ -1,6 +1,6 @@
 # Telegram Business Notifications — Integration Map
 
-Status: implementation investigation; this document is not a claim that delivery is implemented.
+Status: safe transport and message-formatting primitives added; transactional outbox, event hooks, recipient routing, and delivery worker are not implemented. No business notifications are active.
 
 ## Existing capability
 
@@ -20,6 +20,13 @@ Status: implementation investigation; this document is not a claim that delivery
 | Refund | `routes/cashier.js`, refund update and idempotency response around lines 601–700 | Inside `withTransaction`; enqueue only after refund state and idempotency response are saved |
 
 The waiter KHQR notification at `routes/admin-manage.js` around lines 987–1015 is only a request to confirm payment. It is not proof of payment and must never trigger a paid/settled notification.
+
+## Progress in this branch
+
+- Added a bounded generic `sendTelegramMessage` transport while preserving the existing fixed test-message API.
+- Added allowlisted plain-text templates for new-order, settlement, and refund event shapes. Customer tokens, notes, reasons, and other unlisted fields are ignored.
+- Added unit tests for transport validation, response redaction, event allowlisting, amount validation, and control-character sanitization. These tests have not yet been run in a local checkout or CI.
+- These primitives are not wired to business routes and do not send notifications.
 
 ## Required design before enabling delivery
 
