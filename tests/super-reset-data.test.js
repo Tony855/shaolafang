@@ -31,7 +31,7 @@ function setup({ failOn, validPassword = true, failSequenceReset = false } = {})
   };
   const deps = {
     getAsync: async () => null,
-    allAsync: async () => [],
+    allAsync: async (sql, params = []) => { calls.push({ sql, params, inTransaction, type: 'all' }); return []; },
     runAsync: async (sql, params = []) => {
       calls.push({ sql, params, inTransaction });
       if (failOn && sql.includes(failOn)) throw new Error('simulated delete failure');
@@ -76,15 +76,24 @@ test('super data reset groups all deletes and audit in one transaction, then res
   assert.equal(ctx.transactionCount, 1);
   const dml = ctx.calls.filter(call => call.sql && call.sql.startsWith('DELETE'));
   assert.deepEqual(dml.map(call => call.sql), [
-    'DELETE FROM telegram_notification_outbox',
     'DELETE FROM telegram_customer_binding_challenges',
     'DELETE FROM telegram_customer_bindings',
+    'DELETE FROM telegram_notification_outbox',
     'DELETE FROM refund_requests',
     'DELETE FROM orders',
     'DELETE FROM waiter_calls',
     'DELETE FROM scan_sessions'
   ]);
   assert.ok(dml.every(call => call.inTransaction));
+  const locks = ctx.calls.filter(call => call.type === 'all');
+  assert.deepEqual(locks.map(call => call.sql), [
+    'SELECT `key` FROM settings WHERE `key` IN (?, ?) FOR UPDATE',
+    'SELECT id FROM merchants ORDER BY id FOR UPDATE',
+    'SELECT id FROM stores ORDER BY id FOR UPDATE',
+    'SELECT id FROM telegram_customer_binding_challenges ORDER BY id FOR UPDATE',
+    'SELECT id FROM telegram_customer_bindings ORDER BY id FOR UPDATE'
+  ]);
+  assert.ok(locks.every(call => call.inTransaction));
   const audit = ctx.calls.find(call => call.audit);
   assert.equal(audit.inTransaction, true);
   const ddl = ctx.calls.filter(call => call.sql && call.sql.startsWith('ALTER TABLE'));
