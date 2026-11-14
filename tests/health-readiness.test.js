@@ -38,6 +38,7 @@ test('readiness returns 200 only after the database responds', async () => {
 
   assert.equal(query, 'SELECT 1 AS ok');
   assert.equal(res.statusCode, 200);
+  assert.equal(res.headers['Cache-Control'], 'no-store');
   assert.deepEqual(res.body.checks, { database: 'ok' });
 });
 
