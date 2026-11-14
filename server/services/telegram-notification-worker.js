@@ -34,7 +34,7 @@ async function processTelegramNotificationBatch({ resolveRecipient, workerId, li
       results.push({ id: Number(job.id), state: delivered ? 'delivered' : 'lease_lost' });
     } catch (error) {
       const code = error && error.safeCode || classifyTelegramError(error);
-      const released = await releaseTelegramNotificationForRetry(job.id, job.locked_by, code, Number(job.attempts));
+      const released = await releaseTelegramNotificationForRetry(job.id, job.locked_by, code, Number(job.attempts), Number(error?.retryAfterSeconds) || 0);
       results.push({ id: Number(job.id), state: released ? (Number(job.attempts) >= 8 ? 'dead' : 'retry') : 'lease_lost' });
     }
   }
