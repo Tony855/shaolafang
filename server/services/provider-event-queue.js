@@ -76,6 +76,29 @@ function createProviderEventQueue({ getAsync, runAsync, withTransaction, now = (
     });
   }
 
+  async function renew({ eventId, leaseToken, leaseSeconds = 60 }) {
+    if (!Number.isSafeInteger(Number(eventId)) || Number(eventId) <= 0 ||
+        !/^[a-f0-9]{64}$/i.test(String(leaseToken || ''))) {
+      throw new TypeError('eventId and leaseToken are required');
+    }
+    if (!Number.isInteger(leaseSeconds) || leaseSeconds < 5 || leaseSeconds > 900) {
+      throw new TypeError('leaseSeconds must be an integer between 5 and 900');
+    }
+    const result = await runAsync(
+      `UPDATE provider_webhook_events
+       SET lease_expires_at=DATE_ADD(NOW(3), INTERVAL ? SECOND)
+       WHERE id=? AND processing_status='processing' AND lease_token=?
+         AND lease_expires_at IS NOT NULL AND lease_expires_at > NOW(3)`,
+      [leaseSeconds, Number(eventId), leaseToken]
+    );
+    if (Number(result.affectedRows) !== 1) {
+      const error = new Error('provider event lease is stale or expired');
+      error.code = 'PROVIDER_EVENT_STALE_LEASE';
+      throw error;
+    }
+    return { renewed: true };
+  }
+
   async function complete({ eventId, leaseToken }) {
     if (!Number.isSafeInteger(Number(eventId)) || Number(eventId) <= 0 ||
         !/^[a-f0-9]{64}$/i.test(String(leaseToken || ''))) {
@@ -141,7 +164,7 @@ function createProviderEventQueue({ getAsync, runAsync, withTransaction, now = (
     });
   }
 
-  return Object.freeze({ claimNext, complete, fail });
+  return Object.freeze({ claimNext, renew, complete, fail });
 }
 
 module.exports = { createProviderEventQueue };
