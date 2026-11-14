@@ -134,6 +134,11 @@ test('backup restore writes its audit event and invalidates sessions in the same
   assert.equal(audit.strict, true);
   assert.ok(ctx.calls.filter(call => call.sql?.startsWith('DELETE FROM')).every(call => call.inTransaction));
   assert.ok(ctx.calls.some(call => call.sql?.includes('UPDATE orders SET pay_qr_generation_id=SHA2')));
+  const staleCustomerNotices = ctx.calls.find(call => call.sql?.includes("recipient_scope='customer' AND state IN ('pending','processing')"));
+  assert.ok(staleCustomerNotices);
+  assert.equal(staleCustomerNotices.inTransaction, true);
+  assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM telegram_customer_bindings'));
+  assert.ok(ctx.calls.some(call => call.sql === 'DELETE FROM telegram_customer_binding_challenges'));
   assert.equal(ctx.rolledBack, false);
 });
 
