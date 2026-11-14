@@ -119,8 +119,8 @@ test('test endpoint sends only for enabled, saved bot configuration', async () =
   };
   try {
     const res = response();
-    await ctx.routes.get('POST /api/super/telegram/:scope/test')({
-      params: { scope: 'admin' }
+    await ctx.routes.get('POST /api/super/telegram/admin/test')({
+      params: {}
     }, res);
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { success: true, message_id: 22 });
