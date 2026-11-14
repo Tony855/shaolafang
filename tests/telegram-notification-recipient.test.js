@@ -101,8 +101,8 @@ test('customer recipient resolver requires an active binding owned by the queued
 
 test('customer recipient resolver fails closed when binding or client Bot is unavailable', async () => {
   const noBinding = createTelegramNotificationRecipientResolver({ allAsync: async () => [] });
-  const disabledBot = createTelegramNotificationRecipientResolver({ allAsync: async sql => sql.includes('telegram_customer_bindings')
-    ? [{ id: 42, merchant_id: 7, store_id: 9, telegram_chat_id: '7654321' }]
+  const disabledBot = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => sql.includes('telegram_customer_bindings')
+    ? (Number(params[1]) === 7 && Number(params[2]) === 9 ? [{ id: 42, merchant_id: 7, store_id: 9, telegram_chat_id: '7654321' }] : [])
     : [{ key: 'telegram_client_bot_enabled', value: '0' }, { key: 'telegram_client_bot_token', value: token }] });
   assert.deepEqual(
     await noBinding({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }),
