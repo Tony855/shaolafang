@@ -53,7 +53,7 @@ The current refund route performs and records the refund in one transaction; the
 
 ## Backup and restore
 
-Backups include the outbox, customer-binding records, webhook update IDs, and store-admin recipient configuration. Ephemeral one-time challenges are exported as an empty table. During restore, all customer bindings and challenges are deliberately invalidated because customer bearer tokens are redacted and scan sessions are cleared; pending/processing customer-scoped outbox jobs are moved to dead-letter with `invalid_recipient`. Customers must scan again and rebind Telegram. Admin/store notification settings and their queued jobs are retained. Older backups that predate these Telegram tables remain importable; missing tables are restored empty.
+Backups include the outbox, customer-binding records, webhook update IDs, and store-admin recipient configuration. Ephemeral one-time challenges are exported as an empty table. Before restore, disable the Telegram worker on every application node and wait for in-flight sends to finish. During restore, all customer bindings and challenges are deliberately invalidated because customer bearer tokens are redacted and scan sessions are cleared; pending/processing customer-scoped outbox jobs are moved to dead-letter with `invalid_recipient`. Customers must scan again and rebind Telegram. Admin/store notification settings and their queued jobs are retained. Older backups that predate these Telegram tables remain importable; missing tables are restored empty.
 
 ## Operational enablement checklist
 
