@@ -2728,6 +2728,17 @@ test('MySQL integration: expired provider event leases cannot complete or schedu
 
   await runAsync(`UPDATE provider_webhook_events
     SET lease_expires_at=DATE_ADD(NOW(3), INTERVAL 60 SECOND) WHERE id=1`);
+  const beforeRenewal = await getAsync(
+    'SELECT UNIX_TIMESTAMP(lease_expires_at) AS expiry FROM provider_webhook_events WHERE id=1'
+  );
+  assert.deepEqual(await queue.renew({
+    eventId: 1, leaseToken: 'a'.repeat(64), leaseSeconds: 120
+  }), { renewed: true });
+  const afterRenewal = await getAsync(
+    'SELECT UNIX_TIMESTAMP(lease_expires_at) AS expiry FROM provider_webhook_events WHERE id=1'
+  );
+  assert.ok(Number(afterRenewal.expiry) > Number(beforeRenewal.expiry),
+    'active lease renewal must extend the expiry timestamp');
   assert.deepEqual(await queue.complete({ eventId: 1, leaseToken: 'a'.repeat(64) }), { completed: true });
   const completed = await getAsync('SELECT processing_status,lease_token FROM provider_webhook_events WHERE id=1');
   assert.equal(completed.processing_status, 'processed');
