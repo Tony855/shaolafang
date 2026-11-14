@@ -8,7 +8,7 @@ const { parsePositiveRouteId } = require('../server/services/route-id');
 const { getTelegramBotUsername } = require('../server/services/telegram-bot');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter } = deps;
+  const { getAsync, runAsync, allAsync, withTransaction = async work => work(), requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter } = deps;
   if (!scanSessionRateLimiter || typeof scanSessionRateLimiter.consume !== 'function' || typeof scanSessionRateLimiter.cleanup !== 'function') {
     throw new TypeError('scanSessionRateLimiter with consume() and cleanup() is required');
   }
@@ -295,10 +295,17 @@ module.exports = function(app, deps) {
       const storeId = Number(session.store_id);
       const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在' });
-      const result = await runAsync(
-        'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1',
-        [hashSessionToken(customerToken), store.merchant_id, storeId]
-      );
+      const result = await withTransaction(async () => {
+        const identity = [hashSessionToken(customerToken), store.merchant_id, storeId];
+        await runAsync(
+          "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (SELECT CONCAT('binding:', id) FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1)",
+          identity
+        );
+        return runAsync(
+          'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1',
+          identity
+        );
+      });
       res.json({ success: true, revoked: Number(result.affectedRows) > 0 });
     } catch (_) {
       res.status(500).json({ error: '撤销 Telegram 绑定失败' });
