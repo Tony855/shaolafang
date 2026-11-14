@@ -94,6 +94,14 @@ function createTelegramCustomerWebhookHandler({
           await runAsync('DELETE FROM telegram_customer_bindings WHERE id=?', [chatOwner.id]);
         }
         if (ownerBinding) {
+          if (Number(ownerBinding.is_active) !== 1) {
+            // Do not resurrect messages queued before a prior opt-out when
+            // the same customer identity later chooses to bind again.
+            await runAsync(
+              "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND recipient_key=? AND state IN ('pending','processing')",
+              [`binding:${ownerBinding.id}`]
+            );
+          }
           await runAsync(
             'UPDATE telegram_customer_bindings SET merchant_id=?, telegram_user_id=?, telegram_chat_id=?, is_active=1, revoked_at=NULL, updated_at=UTC_TIMESTAMP(3) WHERE id=?',
             [challenge.merchant_id, update.telegramUserId, update.telegramChatId, ownerBinding.id]
