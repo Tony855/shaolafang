@@ -33,7 +33,7 @@
 - Socket.IO 实时事件。
 - 原生 JavaScript 多页面前端：顾客、商户管理、服务员、后厨、收银、超级管理员。
 - 业务路由位于 `routes/`，认证中间件位于 `server/middleware/`，数据库工具位于 `server/db/`，服务层位于 `server/services/`。
-- 现有测试位于 `tests/`，CI 在 Node.js 20 环境执行语法检查、审计脚本、多语言校验、测试及生产依赖审计。
+- 现有测试位于 `tests/`，CI 在 Node.js 26 环境执行语法检查、审计脚本、多语言校验、测试及生产依赖审计。
 
 ## 2. 本轮已修复
 
