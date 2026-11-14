@@ -54,13 +54,20 @@ function createTelegramNotificationWorker({
           try { logger.error('[telegram-worker] retention cleanup failed'); } catch (_) {}
         }
       }
+      let madeProgress = false;
       try {
-        await processBatch({ resolveRecipient, workerId, limit: 1, leaseSeconds: 60 });
+        const results = await processBatch({ resolveRecipient, workerId, limit: 1, leaseSeconds: 60 });
+        madeProgress = Array.isArray(results) && results.some(result =>
+          result && ['delivered', 'suppressed', 'retry', 'dead'].includes(result.state)
+        );
       } catch (_) {
         // Never log raw Telegram responses, credentials, or untrusted exception messages.
         try { logger.error('[telegram-worker] batch processing failed'); } catch (_) {}
       }
-      if (running) await waitForNextPoll();
+      // Drain one leased message at a time without an artificial five-second
+      // gap. Keeping limit=1 preserves the 60-second lease/10-second HTTP
+      // timeout safety margin; idle workers still back off to the poll interval.
+      if (running && !madeProgress) await waitForNextPoll();
     }
   }
 
