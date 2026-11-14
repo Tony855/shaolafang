@@ -356,6 +356,16 @@ test('Nginx setup backs up and restores prior config on failed provisioning', ()
   assert.match(nginx, /systemctl stop nginx 2>\/dev\/null \|\| true[\s\S]*?cp -a "\$NGINX_BACKUP_DIR\/etc\/nginx\//);
 });
 
+test('standard and local installers propagate the configured backend port consistently', () => {
+  for (const file of ['install.sh', 'install-local.sh']) {
+    const source = read(file);
+    assert.match(source, /ff_require_port_available "\$BACKEND_PORT"/, file + ' must check the configured backend port');
+    assert.match(source, /proxy_pass http:\/\/127\.0\.0\.1:\$\{BACKEND_PORT\};/, file + ' must proxy to the configured backend port');
+    assert.doesNotMatch(source, /proxy_pass http:\/\/127\.0\.0\.1:3000;/, file + ' must not hardcode the proxy port');
+    assert.match(source, /BACKEND_PORT.*-gt 65535/, file + ' must validate the configured port');
+  }
+});
+
 test('Nginx setup rejects invalid backend ports before service or proxy changes', () => {
   const nginx = read('setup-nginx.sh');
   assert.match(nginx, /BACKEND_PORT.*-gt 65535/);
