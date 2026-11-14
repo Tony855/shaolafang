@@ -20,7 +20,7 @@ test('system admin Telegram notification enqueue writes an allowlisted recipient
   let received;
   const result = await enqueueSystemAdminTelegramNotification({
     getAsync: async (sql, params) => {
-      assert.match(sql, /telegram_admin_bot_enabled/);
+      assert.match(sql, /SELECT value FROM settings/);
       assert.deepEqual(params, ['telegram_admin_bot_enabled']);
       return { value: '1' };
     },
