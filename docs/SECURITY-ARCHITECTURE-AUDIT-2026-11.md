@@ -23,7 +23,7 @@
 | Telegram 通知队列停用语义 | PR #266 已实现全局 Bot、门店及单事件停用时的事务性 dead-letter 清理，并补齐并发锁顺序 | 最新同步 head 的 CI/安装矩阵已通过；真实 Telegram 双 Bot、多门店与备份恢复验收未完成 |
 | 大型单体路由/页面 | 仍是架构改进项，不是已确认可利用漏洞 | 应以小步拆分和集成测试推进 |
 
-**当前 GitHub 状态（2026-11-15）：** PR #267、#268、#269、#270 均已合并；PR #266 仍为 Draft。PR #268 合并提交为 `c8cc929`，PR #269 合并提交为 `3066383`，PR #270 合并提交为 `db703d3`。PR #266 最新 head `37992839dad443627418bbe9a64b9462edb7dfc7` 已包含 #269/#270 的 QR、订单和打印日志修复；compare 322 ahead / 4 behind，mergeable clean。该 head 的 validate、MySQL 8.4、MariaDB 10.11/11.4/11.8/12.3 与五个安装目标全部通过。PR #266 仍为 Draft，等待真实 Telegram staging、多门店隔离和备份恢复验收。
+**当前 GitHub 状态（2026-11-15）：** PR #267、#268、#269、#270 均已合并；PR #266 仍为 Draft。PR #268 合并提交为 `c8cc929`，PR #269 合并提交为 `3066383`，PR #270 合并提交为 `db703d3`。PR #266 最新 head `a6f82ceea063de42cfbdcd73896204b34a5bec4d` 包含 #269/#270 的 QR、订单和打印日志修复及对应回归测试；compare 325 ahead / 5 behind（66 changed files），mergeable 无冲突。该 head 的 validate、MySQL 8.4、MariaDB 10.11/11.4/11.8/12.3 与五个安装目标全部通过。PR #266 仍为 Draft，等待真实 Telegram staging、多门店隔离和备份恢复验收。
 
 **分支保护：** 当前 GitHub API 未返回 main 的保护规则，仓库 Rulesets 列表为空。此项需要仓库管理员在 GitHub 设置中启用，不能由应用代码或本次 CI 自动替代。
 
@@ -190,7 +190,7 @@ PR #266 已同步 PR #268 合并后的 main，最新 head 为 `0c83adc7d9c615d51
 
 ### [P1 - Telegram 分支同步] 合并前的最新验证
 
-2026-11-15，PR #266 分支已把 PR #269 与 #270 的非冲突日志修复同步进来：QR 打印错误日志脱敏、订单 items 解析错误不再输出原始顾客数据、订单路由和打印机日志使用安全元数据。最新 head 为 `37992839dad443627418bbe9a64b9462edb7dfc7`。
+2026-11-15，PR #266 分支已把 PR #269 与 #270 的日志修复及回归测试同步进来：QR 打印错误日志脱敏、订单 items 解析错误不再输出原始顾客数据、订单路由和打印机日志使用安全元数据。最新 head 为 `a6f82ceea063de42cfbdcd73896204b34a5bec4d`。
 
 - CI：validate、MySQL 8.4、MariaDB 10.11/11.4/11.8/12.3 全部通过。
 - Installer Compatibility：Debian 12/13、Ubuntu 22.04/24.04/26.04 全部通过。
