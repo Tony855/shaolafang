@@ -4,7 +4,7 @@ Last reviewed: 2026-11-14 (PR #203–#228 merged; complete repository tests plus
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
-**Database test-scope note:** MariaDB 10.5+ is the deployment standard for this repository. The historical finance integration jobs listed below used MySQL 8.4 as their test service; those results document the tested SQL/transaction behavior but do not, by themselves, certify MariaDB compatibility. A dedicated MariaDB integration matrix is still required before claiming MariaDB-specific finance acceptance.
+**Database test-scope note:** MariaDB 10.5 and 10.11 have both passed the complete repository test suite plus isolated finance integration and backup/restore suites (PR #227/#228). MySQL 8.4 remains an additional independent integration target.
 
 ## Delivered to main
 
@@ -49,7 +49,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- **Full-suite MariaDB execution — accepted:** PR #228 runs the complete repository suite with DB integration tests isolated from shared-schema destructive fixtures, then executes finance integration and backup/restore sequentially against MariaDB 10.5 and 10.11. MySQL 8.4 remains a separate check. The workflow's general test command was also corrected to invoke `npm test` directly instead of forwarding the unsupported `--if-present` flag to Node.
+- No finance pull requests are currently open. MariaDB full-suite acceptance is merged and recorded above.
 
 ## Remaining engineering acceptance work
 
