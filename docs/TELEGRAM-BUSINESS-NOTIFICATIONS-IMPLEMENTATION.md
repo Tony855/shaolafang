@@ -95,7 +95,7 @@ The sample uses a placeholder domain; replace it with the actual HTTPS origin. P
 
 ### Troubleshooting checklist
 
-- **Webhook returns 401:** verify the reverse proxy preserves `X-Telegram-Bot-Api-Secret-Token` and the configured secret matches byte-for-byte. Do not log the header.
+- **Webhook returns 403:** verify the reverse proxy preserves `X-Telegram-Bot-Api-Secret-Token` and the configured secret matches byte-for-byte. Do not log the header.
 - **Webhook cannot be reached:** verify public HTTPS, certificate validity, reverse-proxy routing to `POST /api/telegram/client/webhook`, and that the application route is mounted.
 - **Customer binding does not complete:** confirm the customer still has an active scan session, the one-time challenge has not expired or been consumed, and the Client Bot is enabled. Generate a fresh link rather than reusing an old one.
 - **Admin group receives nothing:** verify the Admin Bot is enabled, is a member of the configured group, can send messages, the Chat ID is correct, and the store's relevant event toggle is on.
