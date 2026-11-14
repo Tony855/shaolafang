@@ -493,6 +493,12 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
       }
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: settledTableName, total: lockedOrder.total, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
+      const store = await getAsync('SELECT name FROM stores WHERE id=? AND merchant_id=?', [req.storeId, req.merchantId]);
+      await enqueueSystemAdminTelegramNotification({
+        getAsync,
+        eventKey: `order:${id}:settled`,
+        event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), amount: Number(lockedOrder.total), currency: 'USD' }
+      });
     });
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
