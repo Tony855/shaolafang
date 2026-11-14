@@ -4,7 +4,7 @@ This phase adds database-backed service methods on top of the provider-neutral s
 
 ## Verified provider event intake
 
-`createFinancialLedgerService().recordVerifiedProviderEvent()` requires a provider adapter verification result that explicitly matches the normalized provider code. The service then inserts the event under a database transaction and locks the unique provider/event row. Re-delivery with the same tenant scope and SHA-256 body digest is idempotent. Reuse of the provider event ID with a different digest or merchant/store scope is rejected as an identity collision.
+`createFinancialLedgerService().recordVerifiedProviderEvent()` requires a provider adapter verification result that explicitly matches the normalized provider code. The service then inserts the event under a database transaction and locks the unique provider/event row. Re-delivery with the same tenant scope and SHA-256 body digest is idempotent. Reuse of the provider event ID with a different digest or merchant/store scope is rejected as an identity collision. When the envelope supplies a provider transaction reference, the normalized event must carry the exact same reference; mismatched identities are rejected before any inbox write.
 
 The adapter remains responsible for authenticating the exact raw request bytes using the provider's official current contract and validating account ownership, order reference, amount, currency, and final status. The boolean verification result is an internal service boundary, not a substitute for implementing that adapter. Do not accept it from a request body, query string, browser, or staff UI.
 
