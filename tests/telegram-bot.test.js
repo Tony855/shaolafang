@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { validateBotToken, validateChatId, sendTelegramTestMessage } = require('../server/services/telegram-bot');
+const { validateBotToken, validateChatId, sendTelegramTestMessage, getTelegramBotUsername } = require('../server/services/telegram-bot');
 
 const token = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 const validPayload = { ok: true, result: { message_id: 17, chat: { id: -100123 } } };
@@ -58,4 +58,19 @@ test('maps Telegram authorization and chat permission errors to safe messages', 
     }),
     /无权向该 Chat ID 发送消息/
   );
+});
+
+
+test('resolves the configured Bot username for a deep-link without exposing API errors', async () => {
+  let requestedUrl = '';
+  const username = await getTelegramBotUsername({
+    token,
+    fetchImpl: async url => {
+      requestedUrl = url;
+      return { ok: true, json: async () => ({ ok: true, result: { username: 'FoodFlowClientBot' } }) };
+    }
+  });
+  assert.equal(username, 'FoodFlowClientBot');
+  assert.equal(requestedUrl, 'https://api.telegram.org/bot' + token + '/getMe');
+  await assert.rejects(() => getTelegramBotUsername({ token, fetchImpl: async () => ({ ok: false, json: async () => ({ ok: false, description: token }) }) }), /Bot 信息读取失败/);
 });
