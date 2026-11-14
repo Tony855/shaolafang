@@ -19,7 +19,7 @@ function classifyTelegramError(error) {
   if (/Bot Token 无效或已撤销/.test(message)) return 'telegram_401';
   if (/Bot 无权向该 Chat ID 发送消息/.test(message)) return 'telegram_403';
   if (/Chat ID 无效，或 Bot 尚未加入目标群组/.test(message)) return 'telegram_400';
-  const match = message.match(/HTTP (\\d{3})/);
+  const match = message.match(/HTTP (\d{3})/);
   if (!match) return 'unknown';
   const status = Number(match[1]);
   if (status === 400) return 'telegram_400';
