@@ -28,7 +28,7 @@ test('outbox rejects malformed idempotency keys and tenantless non-admin recipie
 });
 
 test('retry delay is bounded exponential backoff', () => {
-  assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8].map(retryDelaySeconds), [15, 30, 60, 120, 240, 480, 900, 900]);
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8].map(attempt => retryDelaySeconds(attempt)), [15, 30, 60, 120, 240, 480, 900, 900]);
   assert.equal(retryDelaySeconds(1, 120), 120);
   assert.equal(retryDelaySeconds(3, 30), 60);
   assert.equal(retryDelaySeconds(2, 99999), 3600);
