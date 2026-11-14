@@ -799,7 +799,22 @@ server {
     }
 }
 EOF
-        nginx -t && systemctl reload nginx
+        if ! nginx -t; then
+            log_error "基础 Nginx 配置测试失败，拒绝继续安装。"
+            nginx -t 2>&1 || true
+            journalctl -u nginx -n 50 --no-pager || true
+            exit 1
+        fi
+        if ! systemctl reload-or-restart nginx; then
+            log_error "基础 Nginx 重载或启动失败，最近日志："
+            journalctl -u nginx -n 50 --no-pager || true
+            exit 1
+        fi
+        if ! systemctl is-active --quiet nginx; then
+            log_error "Nginx 未进入 active 状态，最近日志："
+            journalctl -u nginx -n 50 --no-pager || true
+            exit 1
+        fi
     fi
 
     # ===== 13. 启动服务 =====
