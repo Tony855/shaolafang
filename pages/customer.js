@@ -206,10 +206,12 @@
         if (customerTelegramBtn) {
             customerTelegramBtn.addEventListener('click', async () => {
                 if (!isScanSessionValid() || !state.customerToken) return SLF.ui.toast('请先扫描桌面二维码', 2500);
+                const telegramWindow = customerTelegramBound ? null : window.open('about:blank', '_blank');
                 try {
                     await refreshCustomerTelegramBinding();
                     const headers = { 'X-Scan-Session': state.scanSessionToken, 'X-Customer-Token': state.customerToken };
                     if (customerTelegramBound) {
+                        if (telegramWindow) telegramWindow.close();
                         await SLF.api.del('/public/customer-telegram/binding', { headers });
                         customerTelegramBound = false;
                         customerTelegramBtn.title = '绑定 Telegram 顾客通知';
@@ -217,10 +219,16 @@
                     } else {
                         const result = await SLF.api.post('/public/customer-telegram/binding/start', {}, { headers });
                         if (!result.deepLink) throw new Error('无法生成 Telegram 绑定链接');
-                        window.open(result.deepLink, '_blank', 'noopener,noreferrer');
+                        if (telegramWindow) {
+                            telegramWindow.opener = null;
+                            telegramWindow.location.replace(result.deepLink);
+                        } else {
+                            window.location.href = result.deepLink;
+                        }
                         SLF.ui.toast('请在 Telegram 中点击 Start 完成绑定，然后返回本页面', 5000);
                     }
                 } catch (error) {
+                    if (telegramWindow && !telegramWindow.closed) telegramWindow.close();
                     SLF.ui.toast(error?.message || 'Telegram 绑定操作失败，请稍后重试', 3500);
                 }
             });
