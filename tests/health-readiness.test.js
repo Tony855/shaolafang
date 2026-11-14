@@ -14,8 +14,10 @@ function buildApp() {
 
 function responseRecorder() {
   return {
+    headers: {},
     statusCode: 200,
     body: null,
+    setHeader(name, value) { this.headers[name] = value; return this; },
     status(code) { this.statusCode = code; return this; },
     json(body) { this.body = body; return this; }
   };
