@@ -124,7 +124,7 @@ jobs:
       - name: Run MariaDB finance integration and backup/restore sequentially
         env:
           MYSQL_INTEGRATION_URL: mysql://root:finance_test_password@127.0.0.1:3306/shaolafang_test
-        run: node --test tests/mysql-finance-integration.test.js && node --test tests/mysql-session-token-migration.test.js && node --test tests/mysql-finance-backup-restore.test.js
+        run: node --test tests/mysql-finance-integration.test.js && node --test tests/mysql-session-token-migration.test.js && node --test tests/mysql-finance-backup-restore.test.js && node --test tests/mysql-telegram-outbox-integration.test.js
 
   mysql-finance-integration:
     runs-on: ubuntu-latest
