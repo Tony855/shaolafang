@@ -299,7 +299,7 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
         [merchantId, merchantId]
       );
       await runAsync(
-        'DELETE n FROM telegram_notification_outbox n INNER JOIN orders o ON n.event_key LIKE CONCAT(\'order:\', o.id, \'%\') WHERE o.store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+        'DELETE n FROM telegram_notification_outbox n INNER JOIN orders o ON n.event_key LIKE CONCAT(\'order:\', o.id, \':%\') WHERE o.store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
         [merchantId]
       );
       await runAsync(
