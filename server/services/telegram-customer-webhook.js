@@ -73,12 +73,19 @@ function createTelegramCustomerWebhookHandler({
         if (!activeStore) return;
 
         const existingRows = await allAsync(
-          'SELECT id, customer_token_hash, store_id, telegram_chat_id FROM telegram_customer_bindings WHERE (telegram_chat_id=? AND store_id=?) OR (customer_token_hash=? AND store_id=?) FOR UPDATE',
+          'SELECT id, customer_token_hash, store_id, telegram_chat_id, is_active FROM telegram_customer_bindings WHERE (telegram_chat_id=? AND store_id=?) OR (customer_token_hash=? AND store_id=?) FOR UPDATE',
           [update.telegramChatId, challenge.store_id, challenge.customer_token_hash, challenge.store_id]
         );
         const chatOwner = existingRows.find(row => String(row.telegram_chat_id) === update.telegramChatId);
-        if (chatOwner && (chatOwner.customer_token_hash !== challenge.customer_token_hash || Number(chatOwner.store_id) !== Number(challenge.store_id))) return;
         const ownerBinding = existingRows.find(row => row.customer_token_hash === challenge.customer_token_hash && Number(row.store_id) === Number(challenge.store_id));
+        // Customer tokens are intentionally rotated for each new QR scan. A
+        // Telegram user who proves control of both the current customer session
+        // (the one-time challenge) and this private chat may move the chat to
+        // the new session. Remove the previous identity row so queued messages
+        // for that old binding fail closed instead of following the reused ID.
+        if (chatOwner && (!ownerBinding || Number(chatOwner.id) !== Number(ownerBinding.id))) {
+          await runAsync('DELETE FROM telegram_customer_bindings WHERE id=?', [chatOwner.id]);
+        }
         if (ownerBinding) {
           await runAsync(
             'UPDATE telegram_customer_bindings SET merchant_id=?, telegram_user_id=?, telegram_chat_id=?, is_active=1, revoked_at=NULL, updated_at=UTC_TIMESTAMP(3) WHERE id=?',
