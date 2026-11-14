@@ -733,6 +733,8 @@ EOF
     cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
 Description=FoodFlow QR Ordering System
+StartLimitIntervalSec=60s
+StartLimitBurst=5
 After=network.target mariadb.service mysql.service
 
 [Service]
@@ -741,7 +743,7 @@ User=foodflow
 Group=www-data
 WorkingDirectory=$APP_DIR
 ExecStart=$NODE_PATH server.js
-Restart=always
+Restart=on-failure
 RestartSec=5
 Environment=NODE_ENV=production
 LimitNOFILE=65536
