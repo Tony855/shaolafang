@@ -56,7 +56,7 @@ Binding details:
 - A one-time random challenge is stored only as a SHA-256 hash and expires after 10 minutes.
 - The webhook accepts only authenticated private-chat `/start` updates. Telegram `update_id` values are persisted to reject replayed updates.
 - A Telegram chat can be bound to one customer token per store. Customer tokens rotate with QR scans; completing a fresh one-time challenge from the current customer session can move the same private chat to the new session identity for that store. Old binding rows are removed and queued notices for the previous identity are terminally suppressed. The same private chat may be used independently for another store.
-- In-page revocation is authenticated with the current customer token and scan-session headers. The private-chat `/stop` command also supports revocation after the QR session expires; it only disables bindings matching both the Telegram user ID and private chat ID. Both paths terminally suppress already queued customer notices, even if the customer later binds again.
+- In-page revocation is authenticated with the current customer token and scan-session headers. The private-chat `/stop` command also supports revocation after the QR session expires; it only disables bindings matching both the Telegram user ID and private chat ID. Both paths terminally suppress already queued customer notices; reactivating an old binding also suppresses any pre-opt-out jobs, even if the customer later binds again.
 - Customer notification recipients are resolved by binding ID plus exact merchant/store IDs. Inactive, revoked, missing, or cross-store bindings fail closed.
 - The existing shared Client Bot Chat ID is never used for per-customer order details.
 
