@@ -8,7 +8,7 @@ const EVENT_LABELS = Object.freeze({
 
 function safeField(value, maxLength = 80) {
   if (value === null || value === undefined) return '';
-  return String(value).replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, maxLength);
+  return String(value).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
 
 function formatTelegramBusinessNotification(event) {
@@ -48,7 +48,7 @@ function formatTelegramBusinessNotification(event) {
     lines.push('退款金额：' + amount.toFixed(2) + ' ' + currency);
   }
 
-  return lines.join('\\n');
+  return lines.join('\n');
 }
 
 module.exports = { formatTelegramBusinessNotification };
