@@ -21,6 +21,11 @@ async function processTelegramNotificationBatch({ resolveRecipient, workerId, li
         scope: job.recipient_scope, key: job.recipient_key,
         merchantId: job.merchant_id, storeId: job.store_id, eventType: job.event_type
       });
+      if (recipient?.suppressed === true && job.recipient_scope === 'merchant_store') {
+        const suppressed = await releaseTelegramNotificationForRetry(job.id, job.locked_by, 'event_disabled', Number(job.attempts));
+        results.push({ id: Number(job.id), state: suppressed ? 'suppressed' : 'lease_lost' });
+        continue;
+      }
       if (!validateResolvedRecipient(job, recipient)) {
         throw Object.assign(new Error('invalid recipient'), { safeCode: 'invalid_recipient' });
       }
