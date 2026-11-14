@@ -900,6 +900,11 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
     // Keep all destructive DML and its audit record atomic. MySQL ALTER TABLE
     // implicitly commits, so auto-increment maintenance must happen afterwards.
     await withTransaction(async () => {
+      // A full data reset must not leave old customer identities or pending
+      // notifications that could be delivered after new orders are created.
+      await runAsync('DELETE FROM telegram_notification_outbox');
+      await runAsync('DELETE FROM telegram_customer_binding_challenges');
+      await runAsync('DELETE FROM telegram_customer_bindings');
       await runAsync('DELETE FROM refund_requests');
       await runAsync('DELETE FROM orders');
       await runAsync('DELETE FROM waiter_calls');
