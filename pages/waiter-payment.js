@@ -87,7 +87,15 @@ function renderProviderButtons() {
 
     let extIdx = 0;
     function tryNext() {
-      if (extIdx >= ICON_EXTS.length) return;
+      if (extIdx >= ICON_EXTS.length) {
+        const fallbackUrl = '/assets/vendor/payment-icons/KHQR.png';
+        const fallback = new Image();
+        fallback.onload = function() {
+          btn.innerHTML = '<span class="pm-icon pm-icon-aba"><img src="' + fallbackUrl + '" alt="' + esc(label) + '"></span>' + labelHtml;
+        };
+        fallback.src = fallbackUrl;
+        return;
+      }
       const ext = ICON_EXTS[extIdx++];
       const url = '/assets/vendor/payment-icons/' + iconFile + '.' + ext;
       const img = new Image();
