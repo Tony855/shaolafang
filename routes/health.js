@@ -6,13 +6,14 @@ module.exports = function registerHealthRoute(app, { getPool }) {
     try {
       const pool = getPool();
       await pool.query('SELECT 1');
-      return res.status(200).json({ ok: true, status: 'ok', database: 'ok' });
+      return res.status(200).json({ status: 'ok', database: 'ok' });
     } catch (_) {
-      return res.status(503).json({ ok: false, status: 'degraded', database: 'unavailable' });
+      return res.status(503).json({ status: 'degraded', database: 'unavailable' });
     }
   };
 
-  // Keep the canonical short path and backward-compatible aliases used by
-  // existing load balancers and operator health-check scripts.
-  app.get(['/health', '/api/health/ready', '/api/health'], readinessHandler);
+  // Keep /health canonical and retain aliases for older monitors.
+  app.get('/health', readinessHandler);
+  app.get('/api/health/ready', readinessHandler);
+  app.get('/api/health', readinessHandler);
 };
