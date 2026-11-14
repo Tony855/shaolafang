@@ -264,7 +264,10 @@ rm -f /etc/nginx/sites-available/dianchan 2>/dev/null || true
 rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 
 cat > "$NGINX_CONF" <<EOF
+log_format foodflow_safe '\$remote_addr - [\$time_local] "\$request_method \$uri \$server_protocol" \$status \$body_bytes_sent';
+
 server {
+    access_log /var/log/nginx/access.log foodflow_safe;
     listen 80;
     server_name ${DOMAIN:-_};
 
@@ -331,13 +334,17 @@ if [ -n "$DOMAIN" ] && command_exists certbot; then
             log_success "证书获取成功，重新配置 Nginx..."
 
             cat > "$NGINX_CONF" <<EOF
+log_format foodflow_safe '\$remote_addr - [\$time_local] "\$request_method \$uri \$server_protocol" \$status \$body_bytes_sent';
+
 server {
+    access_log /var/log/nginx/access.log foodflow_safe;
     listen 80;
     server_name ${DOMAIN};
     return 301 https://\$server_name\$request_uri;
 }
 
 server {
+    access_log /var/log/nginx/access.log foodflow_safe;
     listen 443 ssl;
     server_name ${DOMAIN};
 
