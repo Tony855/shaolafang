@@ -18,6 +18,7 @@ if (databaseUrl) {
 const poolModule = require('../server/db/pool');
 const { runAsync, getAsync, withTransaction } = require('../server/db/helpers');
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
+const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations/telegram-customer-binding');
 const { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry } = require('../server/services/telegram-notification-outbox');
 const { processTelegramNotificationBatch } = require('../server/services/telegram-notification-worker');
 
@@ -29,13 +30,35 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   const previousPool = poolModule.pool;
   poolModule.setPool(testPool);
   t.after(async () => {
-    try { await runAsync('DROP TABLE IF EXISTS telegram_notification_outbox'); }
-    finally { poolModule.setPool(previousPool); await testPool.end(); }
+    try {
+      await runAsync('DROP TABLE IF EXISTS telegram_webhook_updates');
+      await runAsync('DROP TABLE IF EXISTS telegram_customer_bindings');
+      await runAsync('DROP TABLE IF EXISTS telegram_customer_binding_challenges');
+      await runAsync('DROP TABLE IF EXISTS telegram_notification_outbox');
+    } finally { poolModule.setPool(previousPool); await testPool.end(); }
   });
 
+  await runAsync('DROP TABLE IF EXISTS telegram_webhook_updates');
+  await runAsync('DROP TABLE IF EXISTS telegram_customer_bindings');
+  await runAsync('DROP TABLE IF EXISTS telegram_customer_binding_challenges');
   await runAsync('DROP TABLE IF EXISTS telegram_notification_outbox');
   await ensureTelegramNotificationOutboxSchema({ runAsync });
   await ensureTelegramNotificationOutboxSchema({ runAsync });
+  await ensureTelegramCustomerBindingSchema({ runAsync });
+  await ensureTelegramCustomerBindingSchema({ runAsync });
+
+  const customerHash = crypto.createHash('sha256').update('customer-token').digest('hex');
+  const challengeHash = crypto.createHash('sha256').update('challenge').digest('hex');
+  await runAsync('INSERT INTO telegram_customer_binding_challenges (challenge_hash,customer_token_hash,merchant_id,store_id,expires_at,created_at) VALUES (?,?,?,?,DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 10 MINUTE),UTC_TIMESTAMP(3))', [challengeHash, customerHash, 7, 9]);
+  const challenge = await getAsync('SELECT customer_token_hash,merchant_id,store_id,consumed_at FROM telegram_customer_binding_challenges WHERE challenge_hash=?', [challengeHash]);
+  assert.equal(challenge.customer_token_hash, customerHash);
+  assert.equal(Number(challenge.merchant_id), 7);
+  assert.equal(Number(challenge.store_id), 9);
+  assert.equal(challenge.consumed_at, null);
+  await runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [customerHash, 7, 9, '12345', '54321']);
+  await assert.rejects(runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [crypto.createHash('sha256').update('other-customer').digest('hex'), 7, 9, '67890', '54321']), error => error && error.code === 'ER_DUP_ENTRY');
+  await runAsync('INSERT INTO telegram_webhook_updates (update_id,received_at) VALUES (?,UTC_TIMESTAMP(3))', [123456]);
+  await assert.rejects(runAsync('INSERT INTO telegram_webhook_updates (update_id,received_at) VALUES (?,UTC_TIMESTAMP(3))', [123456]), error => error && error.code === 'ER_DUP_ENTRY');
 
   const key = `telegram-it:${crypto.randomUUID()}`;
   const input = {
