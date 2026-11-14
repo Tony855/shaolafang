@@ -899,11 +899,21 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
     // Keep all destructive DML and its audit record atomic. MySQL ALTER TABLE
     // implicitly commits, so auto-increment maintenance must happen afterwards.
     await withTransaction(async () => {
+      // Serialize the reset with notification enqueue: setting -> merchant
+      // -> store -> binding -> outbox is the same lock order used by enqueue.
+      await allAsync(
+        'SELECT `key` FROM settings WHERE `key` IN (?, ?) FOR UPDATE',
+        ['telegram_client_bot_enabled', 'telegram_admin_bot_enabled']
+      );
+      await allAsync('SELECT id FROM merchants ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM stores ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM telegram_customer_bindings ORDER BY id FOR UPDATE');
+
       // A full data reset must not leave old customer identities or pending
       // notifications that could be delivered after new orders are created.
-      await runAsync('DELETE FROM telegram_notification_outbox');
       await runAsync('DELETE FROM telegram_customer_binding_challenges');
       await runAsync('DELETE FROM telegram_customer_bindings');
+      await runAsync('DELETE FROM telegram_notification_outbox');
       await runAsync('DELETE FROM refund_requests');
       await runAsync('DELETE FROM orders');
       await runAsync('DELETE FROM waiter_calls');
