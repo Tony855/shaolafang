@@ -986,7 +986,11 @@ test('customer Telegram binding revoke is scoped to the hashed customer token an
       if (sql.includes('FROM stores')) return { merchant_id: 7 };
       return null;
     },
-    allAsync: async () => [],
+    allAsync: async (sql, params) => {
+      assert.match(sql, /telegram_customer_bindings[\s\S]*FOR UPDATE/);
+      assert.deepEqual(params, [hashSessionToken('customer-token'), 7, 9]);
+      return [{ id: 15 }];
+    },
     withTransaction: async work => {
       inTransaction = true;
       try { return await work(); } finally { inTransaction = false; }
@@ -1007,7 +1011,7 @@ test('customer Telegram binding revoke is scoped to the hashed customer token an
   assert.equal(writes.length, 2);
   assert.match(writes[0].sql, /UPDATE telegram_notification_outbox/);
   assert.match(writes[0].sql, /binding_revoked/);
-  assert.deepEqual(writes[0].params, [hashSessionToken('customer-token'), 7, 9]);
+  assert.deepEqual(writes[0].params, ['binding:15']);
   assert.equal(writes[0].inTransaction, true);
   assert.equal(writes[1].inTransaction, true);
 });
