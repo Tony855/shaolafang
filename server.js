@@ -1,5 +1,6 @@
 const express = require('express');
 const { resolveListenHost } = require('./server/config/listen-host');
+const { getClusterStartupError } = require('./server/config/cluster-requirements');
 const { createRequestBodyParsers } = require('./server/middleware/request-body-parsers');
 const { createSafeErrorHandler } = require('./server/middleware/safe-error-handler');
 // ★ 关键：pool / helpers / constants 必须在文件顶部 require（TDZ 问题）
@@ -1539,8 +1540,21 @@ initDatabase().then(async () => {
   if (isInitOnly) {
     process.exit(0);
   }
-  await initRedis();
-  await initSocketAdapter();
+  const redisInitialized = await initRedis();
+  const socketAdapterInitialized = await initSocketAdapter();
+  const clusterStartupError = getClusterStartupError({
+    requireSharedRedis: process.env.REQUIRE_SHARED_REDIS,
+    redisUrl: REDIS_URL,
+    trustProxy: process.env.TRUST_PROXY,
+    redisReady: redisInitialized,
+    socketAdapterReady: socketAdapterInitialized
+  });
+  if (clusterStartupError) {
+    console.error('[startup] Cluster deployment configuration rejected: ' + clusterStartupError);
+    await poolModule.pool.end().catch(() => {});
+    process.exit(1);
+    return;
+  }
   server.listen(PORT, LISTEN_HOST, () => {
     console.log(`📁 数据库: MySQL (${poolConfig.database})`);
     if (RUN_SCHEDULED_TASKS) {
