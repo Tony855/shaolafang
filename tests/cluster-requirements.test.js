@@ -22,7 +22,7 @@ test('cluster mode requires an explicit shared Redis URL', () => {
 });
 
 test('cluster mode requires an explicit trusted proxy IP or CIDR', () => {
-  for (const trustProxy of ['', 'loopback', 'linklocal', 'uniquelocal', 'true', '*', '0.0.0.0/0', '::/0', '10.0.0.1,0.0.0.0/0', 'localhost', '127.0.0.1', '::1', '10.0.0.1/0', '10.0.0.1/33']) {
+  for (const trustProxy of ['', 'loopback', 'linklocal', 'uniquelocal', 'true', '*', '0.0.0.0/0', '::/0', '10.0.0.1,0.0.0.0/0', 'localhost', '127.0.0.1', '::1', '10.0.0.1/0', '10.0.0.1/33', '192.168.1.10/32']) {
     assert.match(getClusterStartupError({ ...valid, trustProxy }), /explicit trusted load-balancer/);
   }
 });
