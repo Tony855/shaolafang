@@ -29,7 +29,11 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
         `SELECT r.chat_id, r.is_enabled, r.${eventToggle} AS event_enabled FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND s.active=1 AND m.status=1 LIMIT 1`,
         [tenantMerchantId, tenantStoreId]
       );
-      if (!Array.isArray(recipients) || !recipients.length) return null;
+      if (!Array.isArray(recipients) || !recipients.length) {
+        // The store/merchant may have been disabled or its recipient removed
+        // after enqueue. Do not retry indefinitely and later deliver stale jobs.
+        return { scope: 'merchant_store', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true };
+      }
       if (Number(recipients[0].is_enabled) !== 1 || Number(recipients[0].event_enabled) !== 1) {
         return { scope: 'merchant_store', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true };
       }
