@@ -6,11 +6,9 @@ The feature branch now contains the main implementation for global super-admin, 
 
 **The worker is disabled by default.** No production notification delivery is active unless the deployment explicitly enables it.
 
-The implementation is submitted as [draft PR #266](https://github.com/Tony855/shaolafang/pull/266), targeting `main`. Latest branch head: `71d72ed1f4954a1e63cca01e1d9aace6139211a4`. The PR currently reports a clean mergeable state.
+The implementation is submitted as [draft PR #266](https://github.com/Tony855/shaolafang/pull/266), targeting `main`. The current branch head and mergeability are tracked directly on the PR page.
 
-CI passed on the PR head:
-- [43589563092](https://github.com/Tony855/shaolafang/actions/runs/43588709221): Debian 12/13 and Ubuntu 22.04/24.04/26.04.
-- [43589563047](https://github.com/Tony855/shaolafang/actions/runs/43588709172): repository validation, complete test suite, MySQL 8.4, and MariaDB 10.11/11.4/11.8/12.3.
+The earlier CI run passed on commit `71d72ed1f4954a1e63cca01e1d9aace6139211a4` (Debian 12/13, Ubuntu 22.04/24.04/26.04, repository validation, full test suite, MySQL 8.4, and MariaDB 10.11/11.4/11.8/12.3). Subsequent hardening commits are running a fresh CI cycle; use the PR Checks tab for the current head.
 
 CI success does not replace real Telegram staging acceptance. No live Bot token or webhook secret is stored in the repository, and no real Telegram delivery has been exercised in staging during this implementation. The PR remains draft and has not been merged or deployed.
 
@@ -40,8 +38,8 @@ The current refund route performs and records the refund in one transaction; the
 
 - Customer binding start and revoke endpoints are registered in `routes/public-session.js`. They require both `X-Scan-Session` and `X-Customer-Token` headers; bearer values are not placed in URLs.
 - The start endpoint verifies the active scan session/store, stores only a SHA-256 challenge hash, and returns a short-lived Telegram deep link. The challenge is single-use and expires.
-- `routes/telegram-webhook.js` registers `POST /api/telegram/client/webhook`. It validates `X-Telegram-Bot-Api-Secret-Token` using a constant-time comparison, accepts only private-chat `/start` updates, records Telegram update IDs for replay protection, checks the active merchant/store, and binds only the matching customer identity.
-- A customer can revoke a binding and can safely rebind the same owner. A chat already owned by another customer identity in that store is rejected.
+- `routes/telegram-webhook.js` registers `POST /api/telegram/client/webhook`. It validates `X-Telegram-Bot-Api-Secret-Token` using a constant-time comparison, accepts only private-chat `/start` and `/stop` updates, records Telegram update IDs for replay protection, checks the active merchant/store, and binds only the matching customer identity. Challenge expiry is decided by the UTC database predicate to avoid local-timezone interpretation of MySQL `DATETIME` values.
+- A customer can revoke a binding from the FoodFlow page while the scan session is active, or send `/stop` to the Client Bot at any time to revoke all active FoodFlow bindings for that exact private Telegram user/chat. The same owner can safely rebind; a chat already owned by another customer identity in that store is rejected.
 - The deployment must set `TELEGRAM_CLIENT_WEBHOOK_SECRET` to a random 32–256 character secret and configure the Client Bot webhook URL to `https://<your-domain>/api/telegram/client/webhook` using Telegram's `setWebhook` API. Do not commit the Bot token or webhook secret.
 
 ## Outbox and worker behavior
@@ -71,7 +69,7 @@ Backups now include the outbox, customer bindings, webhook update IDs, and store
 ### Bot commands and ownership
 
 - Create the Client Bot and Admin Bot separately with Telegram's official BotFather. Keep their tokens independent; never paste tokens into issue comments, screenshots, chat messages, or committed environment files.
-- The Client Bot is the only Bot customers should open. Customers start it using the one-time deep link generated from their active FoodFlow customer session. The bot accepts the private-chat `/start <one-time-challenge>` flow only; it does not accept arbitrary customer IDs or bearer tokens in Telegram commands.
+- The Client Bot is the only Bot customers should open. Customers start it using the one-time deep link generated from their active FoodFlow customer session. The bot accepts private-chat `/start <one-time-challenge>` and `/stop` commands only; it does not accept arbitrary customer IDs or bearer tokens in Telegram commands.
 - The Admin Bot is added to the target admin group. A super-admin configures its global destination in Super Admin settings; each store admin separately configures that store's group Chat ID and event toggles. A store does not receive its own Bot token.
 - Do not configure the shared Client Bot Chat ID as a customer destination. Customer order notifications must resolve from an active, owner-checked binding.
 
