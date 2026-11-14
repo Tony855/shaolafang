@@ -1261,5 +1261,21 @@
   "financeCol_pending_count": "รอตรวจสอบ",
   "financeCol_unmatched_count": "ไม่ตรงกัน",
   "financeCol_ambiguous_count": "หลายรายการ",
-  "financeCol_exception_count": "ข้อยกเว้น"
+  "financeCol_exception_count": "ข้อยกเว้น",
+  "telegramBotSettings": "🤖 Telegram Bot",
+  "telegramBotDesc": "ตั้งค่า Telegram Bot แยกสำหรับฝั่งลูกค้าและผู้ดูแล Token จะเก็บไว้บนเซิร์ฟเวอร์และไม่ส่งกลับเป็นข้อความปกติ",
+  "telegramClientBot": "Telegram Bot ฝั่งลูกค้า",
+  "telegramAdminBot": "Telegram Bot ฝั่งผู้ดูแล",
+  "telegramBotEnabled": "เปิดใช้งาน Bot",
+  "telegramBotToken": "Bot Token",
+  "telegramChatId": "Chat ID ผู้รับ",
+  "telegramClearToken": "ล้าง Token ที่บันทึกไว้",
+  "telegramTest": "ส่งข้อความทดสอบ",
+  "telegramSave": "บันทึกการตั้งค่า Telegram",
+  "telegramBotSecurityHint": "เริ่ม Bot ใน Telegram หรือเพิ่ม Bot เข้ากลุ่มเป้าหมายก่อนกรอก Chat ID ข้อความทดสอบจะส่งเมื่อกดปุ่มทดสอบเท่านั้น",
+  "telegramTokenConfigured": "บันทึก Token แล้ว",
+  "telegramTokenMissing": "ยังไม่ได้ตั้งค่า Token",
+  "telegramSaved": "บันทึกการตั้งค่า Telegram Bot แล้ว",
+  "telegramTestSent": "ส่งข้อความทดสอบแล้ว โปรดตรวจสอบ Telegram",
+  "telegramTestFailed": "ส่งข้อความทดสอบไม่สำเร็จ"
 }
