@@ -254,6 +254,7 @@ module.exports = function(app, deps) {
       const challenge = crypto.randomBytes(32).toString('base64url');
       const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
       await runAsync('DELETE FROM telegram_customer_binding_challenges WHERE expires_at < UTC_TIMESTAMP(3) OR consumed_at IS NOT NULL');
+      await runAsync('DELETE FROM telegram_customer_binding_challenges WHERE customer_token_hash=? AND store_id=? AND consumed_at IS NULL', [hashSessionToken(customerToken), storeId]);
       await runAsync(
         'INSERT INTO telegram_customer_binding_challenges (challenge_hash, customer_token_hash, merchant_id, store_id, expires_at, created_at) VALUES (?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 10 MINUTE), UTC_TIMESTAMP(3))',
         [challengeHash, hashSessionToken(customerToken), store.merchant_id, storeId]
