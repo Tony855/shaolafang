@@ -103,8 +103,8 @@ if [ ! -f /etc/foodflow/.env ]; then
 fi
 
 # Cluster nodes must never silently fall back to per-process memory state.
-if grep -q '^REQUIRE_SHARED_REDIS=' /etc/foodflow/.env; then
-    sed -i 's/^REQUIRE_SHARED_REDIS=.*/REQUIRE_SHARED_REDIS=true/' /etc/foodflow/.env
+if grep -Eq '^[[:space:]]*REQUIRE_SHARED_REDIS[[:space:]]*=' /etc/foodflow/.env; then
+    sed -i -E 's/^[[:space:]]*REQUIRE_SHARED_REDIS[[:space:]]*=.*/REQUIRE_SHARED_REDIS=true/' /etc/foodflow/.env
 else
     printf '\nREQUIRE_SHARED_REDIS=true\n' >> /etc/foodflow/.env
 fi
