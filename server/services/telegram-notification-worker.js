@@ -21,8 +21,14 @@ async function processTelegramNotificationBatch({ resolveRecipient, workerId, li
         scope: job.recipient_scope, key: job.recipient_key,
         merchantId: job.merchant_id, storeId: job.store_id, eventType: job.event_type
       });
-      if (recipient?.suppressed === true && job.recipient_scope === 'merchant_store') {
-        const suppressed = await releaseTelegramNotificationForRetry(job.id, job.locked_by, 'event_disabled', Number(job.attempts));
+      if (recipient?.suppressed === true &&
+          (job.recipient_scope === 'merchant_store' || job.recipient_scope === 'customer')) {
+        const suppressionCode = recipient.suppressionCode === 'binding_revoked' && job.recipient_scope === 'customer'
+          ? 'binding_revoked'
+          : 'event_disabled';
+        const suppressed = await releaseTelegramNotificationForRetry(
+          job.id, job.locked_by, suppressionCode, Number(job.attempts)
+        );
         results.push({ id: Number(job.id), state: suppressed ? 'suppressed' : 'lease_lost' });
         continue;
       }
