@@ -43,10 +43,10 @@ function createTelegramCustomerWebhookHandler({
 
         const challengeHash = crypto.createHash('sha256').update(update.challenge).digest('hex');
         const challenge = await getAsync(
-          'SELECT id, customer_token_hash, merchant_id, store_id FROM telegram_customer_binding_challenges WHERE challenge_hash=? AND consumed_at IS NULL AND expires_at > UTC_TIMESTAMP(3) FOR UPDATE',
+          'SELECT id, customer_token_hash, merchant_id, store_id, expires_at, consumed_at FROM telegram_customer_binding_challenges WHERE challenge_hash=? AND consumed_at IS NULL AND expires_at > UTC_TIMESTAMP(3) FOR UPDATE',
           [challengeHash]
         );
-        if (!challenge) return;
+        if (!challenge || challenge.consumed_at || !Number.isFinite(new Date(challenge.expires_at).getTime()) || new Date(challenge.expires_at).getTime() <= Date.now()) return;
         const activeStore = await getAsync(
           'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
           [challenge.store_id, challenge.merchant_id]
