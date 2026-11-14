@@ -360,6 +360,8 @@ test('Nginx setup rejects invalid backend ports before service or proxy changes'
   const nginx = read('setup-nginx.sh');
   assert.match(nginx, /BACKEND_PORT.*-gt 65535/);
   assert.match(nginx, /BACKEND_PORT.*-lt 1/);
+  assert.match(nginx, /BACKEND_PORT.*不能使用 80\/443/);
+  assert.doesNotMatch(nginx, /BACKEND_PORT=3000/);
   const portValidationIndex = nginx.indexOf('[ "$BACKEND_PORT" -gt 65535 ]');
   assert.ok(portValidationIndex >= 0 && portValidationIndex < nginx.indexOf('ff_wait_for_health'));
 });
