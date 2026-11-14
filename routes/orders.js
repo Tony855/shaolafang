@@ -9,6 +9,7 @@ const { resolveOrderStoreId } = require("../server/services/order-store-scope");
 const { hashSessionToken } = require('../server/services/session-token');
 const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 const { toMoneyCents, hasActiveKhqr, calculateOrderTotalCents } = require('../server/services/order-financial');
+const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 
 function parsePositiveOrderRouteId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -571,6 +572,27 @@ app.post('/api/orders', async (req, res) => {
             await runAsync('UPDATE scan_sessions SET expires_at=? WHERE token_hash=?', [newExpires, sessionTokenHash]);
           }
         }
+        const store = await getAsync('SELECT name, merchant_id FROM stores WHERE id=?', [finalStoreId]);
+        await enqueueSystemAdminTelegramNotification({
+          getAsync,
+          eventKey: `order:${result.lastID}:created`,
+          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, amount: calculatedTotal, currency: 'USD' }
+        });
+        await enqueueCustomerTelegramNotification({
+          allAsync,
+          customerTokenHash: customerTokenHash,
+          merchantId: store?.merchant_id,
+          storeId: finalStoreId,
+          eventKey: `order:${result.lastID}:created:customer`,
+          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, amount: calculatedTotal, currency: 'USD' }
+        });
+        await enqueueStoreAdminTelegramNotification({
+          allAsync,
+          merchantId: store?.merchant_id,
+          storeId: finalStoreId,
+          eventKey: `order:${result.lastID}:created:store`,
+          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, amount: calculatedTotal, currency: 'USD' }
+        });
         return { orderId: result.lastID, orderNo };
       });
     } catch (e) {
@@ -817,6 +839,29 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         error.status = 409;
         throw error;
       }
+      if (status === 'done' && req.isAdmin) {
+        const store = await getAsync('SELECT name, merchant_id FROM stores WHERE id=? AND merchant_id=?', [orderStoreId, req.merchantId]);
+        await enqueueSystemAdminTelegramNotification({
+          getAsync,
+          eventKey: `order:${id}:settled`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), amount: calculatedTotal, currency: 'USD' }
+        });
+        await enqueueCustomerTelegramNotification({
+          allAsync,
+          customerTokenHash: lockedOrder.customer_token,
+          merchantId: store?.merchant_id,
+          storeId: orderStoreId,
+          eventKey: `order:${id}:settled:customer`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), amount: calculatedTotal, currency: 'USD' }
+        });
+        await enqueueStoreAdminTelegramNotification({
+          allAsync,
+          merchantId: store?.merchant_id,
+          storeId: orderStoreId,
+          eventKey: `order:${id}:settled:store`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), amount: calculatedTotal, currency: 'USD' }
+        });
+      }
 
       await syncTableStatus(nextTable, orderStoreId);
       if (nextTable !== existing.table_name) {
@@ -909,6 +954,13 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
         throw Object.assign(new Error('订单仍有待确认或有效 KHQR 收款码，请先取消收款码后再删除订单'), { status: 409 });
       }
 
+      // Cancel every queued Telegram event for this order before deleting its
+      // source row. System-admin outbox rows have no tenant columns, so the
+      // order idempotency-key prefix is the durable source correlation.
+      await runAsync(
+        'DELETE FROM telegram_notification_outbox WHERE event_key LIKE CONCAT(\'order:\', ?, \':%\')',
+        [id]
+      );
       await runAsync('DELETE FROM refund_requests WHERE order_id=? AND store_id=?', [id, storeId]);
       const result = await runAsync(
         'DELETE FROM orders WHERE id=? AND store_id=?',

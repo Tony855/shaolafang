@@ -17,6 +17,7 @@ function response() {
 
 function setup({ failOn, merchantExists = true } = {}) {
   const calls = [];
+  const writes = [];
   let transactionCount = 0;
   let rolledBack = false;
   let handler;
@@ -35,8 +36,9 @@ function setup({ failOn, merchantExists = true } = {}) {
       return null;
     },
     allAsync: async () => [{ id: 91 }, { id: 92 }],
-    runAsync: async (sql) => {
+    runAsync: async (sql, params = []) => {
       calls.push(sql);
+      writes.push({ sql, params });
       if (failOn && sql.includes(failOn)) throw new Error('simulated database failure');
       return { affectedRows: 1 };
     },
@@ -61,7 +63,7 @@ function setup({ failOn, merchantExists = true } = {}) {
     autoBackupDatabase: async () => ({})
   };
   attachSuperRoutes(app, deps);
-  return { handler, calls, get transactionCount() { return transactionCount; }, get rolledBack() { return rolledBack; } };
+  return { handler, calls, writes, get transactionCount() { return transactionCount; }, get rolledBack() { return rolledBack; } };
 }
 
 test('merchant deletion is one transaction and deletes child rows before parent rows', async () => {
@@ -75,13 +77,24 @@ test('merchant deletion is one transaction and deletes child rows before parent 
   assert.equal(ctx.rolledBack, false);
   const waiterSessionDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM waiter_sessions'));
   const waiterDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM `waiters`'));
+  const telegramOutboxOrderDelete = ctx.calls.findIndex(sql => sql.includes('DELETE n FROM telegram_notification_outbox'));
+  const telegramOutboxTenantDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM telegram_notification_outbox WHERE'));
+  const telegramChallengesDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM telegram_customer_binding_challenges'));
+  const telegramBindingsDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM telegram_customer_bindings'));
+  const telegramRecipientsDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM telegram_store_admin_recipients'));
   const refundDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM `refund_requests`'));
   const orderDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM `orders`'));
   const storesDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM stores'));
   const merchantDelete = ctx.calls.findIndex(sql => sql.includes('DELETE FROM merchants'));
   assert.ok(waiterSessionDelete >= 0 && waiterDelete > waiterSessionDelete,
     'waiter sessions must be revoked before waiter accounts are deleted');
-  assert.ok(refundDelete >= 0 && orderDelete > refundDelete && storesDelete > orderDelete && merchantDelete > storesDelete);
+  assert.ok(telegramChallengesDelete >= 0 && telegramBindingsDelete > telegramChallengesDelete);
+  assert.ok(telegramOutboxOrderDelete > telegramBindingsDelete && telegramOutboxTenantDelete > telegramOutboxOrderDelete);
+  assert.ok(telegramRecipientsDelete > telegramOutboxTenantDelete);
+  assert.ok(refundDelete > telegramRecipientsDelete && orderDelete > refundDelete && storesDelete > orderDelete && merchantDelete > storesDelete);
+  assert.deepEqual(ctx.writes.find(write => write.sql.includes('DELETE n FROM telegram_notification_outbox')).params, [9]);
+  assert.deepEqual(ctx.writes.find(write => write.sql.includes('DELETE FROM telegram_notification_outbox WHERE')).params, [9, 9]);
+  assert.deepEqual(ctx.writes.find(write => write.sql.includes('DELETE FROM telegram_customer_bindings')).params, [9, 9]);
   assert.ok(ctx.calls.indexOf('AUDIT') > merchantDelete);
 });
 
@@ -115,4 +128,14 @@ test('default merchant cannot be deleted', async () => {
   assert.equal(res.statusCode, 400);
   assert.equal(ctx.transactionCount, 0);
   assert.equal(ctx.calls.length, 0);
+});
+
+test('merchant deletion rolls back when Telegram outbox cleanup fails', async () => {
+  const ctx = setup({ failOn: 'DELETE n FROM telegram_notification_outbox' });
+  const res = response();
+  await ctx.handler({ params: { id: '9' }, superAdmin: { id: 1, username: 'root' } }, res);
+
+  assert.equal(res.statusCode, 500);
+  assert.equal(ctx.rolledBack, true);
+  assert.equal(ctx.calls.some(sql => typeof sql === 'string' && sql.includes('DELETE FROM merchants')), false);
 });

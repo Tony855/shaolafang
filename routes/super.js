@@ -229,6 +229,14 @@ app.put('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
         );
       }
       if (merchantStatusChanged) {
+        if (Number(nextStatus) === 0 && Number(current.status) === 1) {
+          // Terminally suppress merchant-scoped queued notices on suspension;
+          // re-enabling the merchant must not release stale customer/store jobs.
+          await runAsync(
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE merchant_id=? AND state IN ('pending','processing')",
+            [merchantId]
+          );
+        }
         await runAsync('DELETE FROM cashier_sessions WHERE merchant_id=?', [merchantId]);
         await runAsync(
           'DELETE FROM waiter_sessions WHERE waiter_id IN (SELECT w.id FROM waiters w INNER JOIN stores st ON st.id=w.store_id WHERE st.merchant_id=?)',
@@ -278,6 +286,30 @@ app.delete('/api/super/merchants/:id', requireSuperAdmin, async (req, res) => {
           storeIds
         );
       }
+
+      // Customer binding rows are locked/deleted before their outbox rows,
+      // matching the /stop and enqueue lock order. System-admin outbox rows
+      // have NULL tenant IDs, so correlate them to the merchant's orders too.
+      await runAsync(
+        'DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+        [merchantId, merchantId]
+      );
+      await runAsync(
+        'DELETE FROM telegram_customer_bindings WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+        [merchantId, merchantId]
+      );
+      await runAsync(
+        'DELETE n FROM telegram_notification_outbox n INNER JOIN orders o ON n.event_key LIKE CONCAT(\'order:\', o.id, \':%\') WHERE o.store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+        [merchantId]
+      );
+      await runAsync(
+        'DELETE FROM telegram_notification_outbox WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+        [merchantId, merchantId]
+      );
+      await runAsync(
+        'DELETE FROM telegram_store_admin_recipients WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+        [merchantId, merchantId]
+      );
 
       // Remove store-scoped records before deleting their parent stores.
       if (storeIds.length > 0) {
@@ -763,6 +795,17 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
       return res.status(400).json({ error: '备份中没有超级管理员账号，拒绝恢复以避免后台无法登录' });
     }
     await withTransaction(async () => {
+      // Serialize restore with enqueue and customer binding operations using
+      // the same setting -> merchant -> store -> challenge -> binding order.
+      await allAsync(
+        'SELECT `key` FROM settings WHERE `key` IN (?, ?) ORDER BY `key` FOR UPDATE',
+        ['telegram_client_bot_enabled', 'telegram_admin_bot_enabled']
+      );
+      await allAsync('SELECT id FROM merchants ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM stores ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM telegram_customer_binding_challenges ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM telegram_customer_bindings ORDER BY id FOR UPDATE');
+
       for (const table of tables) {
         const rows = data.tables[table];
         const columns = await allAsync(`SHOW COLUMNS FROM \`${table}\``);
@@ -805,10 +848,19 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
       for (const sessionTable of ['scan_sessions', 'waiter_sessions', 'cashier_sessions', 'admin_sessions', 'super_sessions']) {
         await runAsync(`DELETE FROM \`${sessionTable}\``);
       }
+      // Customer bearer tokens are deliberately redacted from backups, so
+      // restored Telegram bindings can no longer be tied to a live customer
+      // session. Revoke them and discard outstanding challenges; otherwise an
+      // old chat/store unique key can block the customer's next binding.
+      await runAsync('DELETE FROM telegram_customer_binding_challenges');
+      await runAsync('DELETE FROM telegram_customer_bindings');
+      await runAsync(
+        "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='invalid_recipient', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing')"
+      );
       await writeAudit('super_admin', req.superAdmin.id, req.superAdmin.username,
         'restore_backup', 'system', null, '导入数据库备份并使所有旧会话失效', getClientIp(req));
     });
-    res.json({ success: true, message: '备份已导入；所有旧登录和扫码会话已失效' });
+    res.json({ success: true, message: '备份已导入；所有旧登录、扫码会话及 Telegram 顾客绑定已失效，顾客需重新绑定' });
   } catch (e) { res.status(500).json({ error: '备份恢复失败，所有更改已回滚' }); }
 });
 
@@ -858,6 +910,22 @@ app.post('/api/super/reset-data', requireSuperAdmin, async (req, res) => {
     // Keep all destructive DML and its audit record atomic. MySQL ALTER TABLE
     // implicitly commits, so auto-increment maintenance must happen afterwards.
     await withTransaction(async () => {
+      // Serialize the reset with notification enqueue: setting -> merchant
+      // -> store -> binding -> outbox is the same lock order used by enqueue.
+      await allAsync(
+        'SELECT `key` FROM settings WHERE `key` IN (?, ?) ORDER BY `key` FOR UPDATE',
+        ['telegram_client_bot_enabled', 'telegram_admin_bot_enabled']
+      );
+      await allAsync('SELECT id FROM merchants ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM stores ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM telegram_customer_binding_challenges ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM telegram_customer_bindings ORDER BY id FOR UPDATE');
+
+      // A full data reset must not leave old customer identities or pending
+      // notifications that could be delivered after new orders are created.
+      await runAsync('DELETE FROM telegram_customer_binding_challenges');
+      await runAsync('DELETE FROM telegram_customer_bindings');
+      await runAsync('DELETE FROM telegram_notification_outbox');
       await runAsync('DELETE FROM refund_requests');
       await runAsync('DELETE FROM orders');
       await runAsync('DELETE FROM waiter_calls');
@@ -1049,7 +1117,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
     await withTransaction(async () => {
       const existingRows = await allAsync(
         'SELECT `key`, value FROM settings WHERE `key` IN (' +
-          TELEGRAM_SETTING_KEYS.map(() => '?').join(',') + ') FOR UPDATE',
+          TELEGRAM_SETTING_KEYS.map(() => '?').join(',') + ') ORDER BY `key` FOR UPDATE',
         TELEGRAM_SETTING_KEYS
       );
       const existing = Object.fromEntries(existingRows.map(row => [row.key, row.value]));
@@ -1072,6 +1140,19 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
           await runAsync(
             'INSERT INTO settings (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value=VALUES(value)',
             [key, value]
+          );
+        }
+
+        // Disabling a Bot is a terminal delivery decision, not a pause. Purge
+        // its queued/leased backlog in the same transaction so re-enabling the
+        // Bot cannot unexpectedly send notices created during the disabled era.
+        if (!item.enabled) {
+          const recipientScopes = scope === 'client'
+            ? "recipient_scope='customer'"
+            : "recipient_scope IN ('system_admin','merchant_store')";
+          await runAsync(
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE " +
+              recipientScopes + " AND state IN ('pending','processing')"
           );
         }
       }

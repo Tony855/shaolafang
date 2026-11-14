@@ -105,6 +105,58 @@ test('rejects invalid tokens and enabled bots without a complete stored configur
   assert.equal(incomplete.statusCode, 400);
 });
 
+test('disabling Client Bot terminally suppresses only queued customer notifications', async () => {
+  const ctx = setup({
+    telegram_client_bot_enabled: '1',
+    telegram_client_bot_token: token,
+    telegram_client_chat_id: '-100123',
+    telegram_admin_bot_enabled: '1',
+    telegram_admin_bot_token: token,
+    telegram_admin_chat_id: '12345'
+  });
+  const res = response();
+  await ctx.routes.get('PUT /api/super/telegram/config')({
+    body: {
+      client: { enabled: false, token: '', chat_id: '-100123' },
+      admin: { enabled: true, token: '', chat_id: '12345' }
+    },
+    superAdmin: { id: 1, username: 'root' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  const suppressions = ctx.writes.filter(write => write.sql.includes('UPDATE telegram_notification_outbox'));
+  assert.equal(suppressions.length, 1);
+  assert.match(suppressions[0].sql, /recipient_scope='customer'/);
+  assert.doesNotMatch(suppressions[0].sql, /system_admin|merchant_store/);
+  assert.match(suppressions[0].sql, /state IN \('pending','processing'\)/);
+});
+
+test('disabling Admin Bot terminally suppresses global and store notices but preserves customer jobs', async () => {
+  const ctx = setup({
+    telegram_client_bot_enabled: '1',
+    telegram_client_bot_token: token,
+    telegram_client_chat_id: '-100123',
+    telegram_admin_bot_enabled: '1',
+    telegram_admin_bot_token: token,
+    telegram_admin_chat_id: '12345'
+  });
+  const res = response();
+  await ctx.routes.get('PUT /api/super/telegram/config')({
+    body: {
+      client: { enabled: true, token: '', chat_id: '-100123' },
+      admin: { enabled: false, token: '', chat_id: '12345' }
+    },
+    superAdmin: { id: 1, username: 'root' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  const suppressions = ctx.writes.filter(write => write.sql.includes('UPDATE telegram_notification_outbox'));
+  assert.equal(suppressions.length, 1);
+  assert.match(suppressions[0].sql, /recipient_scope IN \('system_admin','merchant_store'\)/);
+  assert.doesNotMatch(suppressions[0].sql, /recipient_scope='customer'/);
+  assert.match(suppressions[0].sql, /state IN \('pending','processing'\)/);
+});
+
 test('test endpoint sends only for enabled, saved bot configuration', async () => {
   const ctx = setup({
     telegram_admin_bot_enabled: '1',

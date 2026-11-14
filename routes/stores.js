@@ -125,6 +125,14 @@ app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_
         'UPDATE stores SET name=?, code=?, address=?, active=?, qr_languages=? WHERE id=? AND merchant_id=?',
         [name, code, address, active, qrLanguages, id, merchantId]
       );
+      if (Number(current.active) === 1 && Number(active) === 0) {
+        // Stop queued customer/store-admin notices while this store is disabled.
+        // A later re-enable must not release stale events from the disabled period.
+        await runAsync(
+          "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE store_id=? AND state IN ('pending','processing')",
+          [id]
+        );
+      }
       const actor = req.adminId
         ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, merchantId])
         : null;
@@ -169,6 +177,17 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
           throw Object.assign(new Error('门店仍有关联业务数据（' + table + '），请先处理数据后再删除'), { statusCode: 409 });
         }
       }
+
+      // Remove Telegram identity and notification rows before deleting the
+      // store. Pending notices for deleted orders are also canceled by the
+      // order-delete workflow; this clears remaining store-scoped history.
+      // Keep the customer-binding -> outbox lock order consistent with
+      // /stop and order enqueue so concurrent revocation cannot deadlock or
+      // leave a newly queued notification behind.
+      await runAsync('DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? AND store_id=?', [merchantId, id]);
+      await runAsync('DELETE FROM telegram_customer_bindings WHERE merchant_id=? AND store_id=?', [merchantId, id]);
+      await runAsync('DELETE FROM telegram_notification_outbox WHERE merchant_id=? AND store_id=?', [merchantId, id]);
+      await runAsync('DELETE FROM telegram_store_admin_recipients WHERE merchant_id=? AND store_id=?', [merchantId, id]);
 
       const result = await runAsync('DELETE FROM stores WHERE id=? AND merchant_id=?', [id, merchantId]);
       if (!result.affectedRows) throw Object.assign(new Error('店铺不存在或已被删除'), { statusCode: 404 });

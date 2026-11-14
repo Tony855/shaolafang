@@ -95,10 +95,12 @@ test('admin order deletion locks table and order, audits details and broadcasts 
   const lockAdmin = calls.findIndex(x => x.type === 'get' && x.sql.includes('FROM merchant_admins') && x.sql.includes('FOR UPDATE'));
   const lockTable = calls.findIndex(x => x.type === 'get' && x.sql.includes('SELECT id FROM tables') && x.sql.includes('FOR UPDATE'));
   const lockOrder = calls.findIndex(x => x.type === 'get' && x.sql.includes('SELECT * FROM orders') && x.sql.includes('FOR UPDATE'));
+  const deleteTelegramNotices = calls.findIndex(x => x.type === 'run' && x.sql.includes('DELETE FROM telegram_notification_outbox'));
   const deleteRefundRequests = calls.findIndex(x => x.type === 'run' && x.sql.startsWith('DELETE FROM refund_requests'));
   const deleteOrder = calls.findIndex(x => x.type === 'run' && x.sql.startsWith('DELETE FROM orders'));
   const audit = calls.find(x => x.type === 'run' && x.sql.startsWith('INSERT INTO audit_logs'));
-  assert.ok(lockAdmin >= 0 && lockTable > lockAdmin && lockOrder > lockTable && deleteRefundRequests > lockOrder && deleteOrder > deleteRefundRequests);
+  assert.ok(lockAdmin >= 0 && lockTable > lockAdmin && lockOrder > lockTable && deleteTelegramNotices > lockOrder && deleteRefundRequests > deleteTelegramNotices && deleteOrder > deleteRefundRequests);
+  assert.deepEqual(calls[deleteTelegramNotices].params, [9]);
   assert.ok(audit);
   assert.equal(audit.params[3], 'delete_order');
   assert.equal(audit.params[5], 9);

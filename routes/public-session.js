@@ -5,9 +5,10 @@ const crypto = require('crypto');
 const { hashSessionToken } = require('../server/services/session-token');
 const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { getTelegramBotUsername } = require('../server/services/telegram-bot');
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter } = deps;
+  const { getAsync, runAsync, allAsync, withTransaction = async work => work(), requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter } = deps;
   if (!scanSessionRateLimiter || typeof scanSessionRateLimiter.consume !== 'function' || typeof scanSessionRateLimiter.cleanup !== 'function') {
     throw new TypeError('scanSessionRateLimiter with consume() and cleanup() is required');
   }
@@ -203,6 +204,124 @@ module.exports = function(app, deps) {
       res.status(500).json({ error: '结束扫码会话失败' });
     }
   };
+
+  app.get('/api/public/customer-telegram/binding', async (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const customerToken = getCustomerToken(req);
+      const sessionToken = getSessionToken(req);
+      if (!customerToken || customerToken.length > 128 || !sessionToken || sessionToken.length > 256) return res.status(400).json({ error: '顾客或扫码会话令牌无效' });
+      const session = await getAsync('SELECT store_id, expires_at FROM scan_sessions WHERE token_hash=?', [hashSessionToken(sessionToken)]);
+      if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) return res.status(410).json({ error: '扫码会话已失效，请重新扫码' });
+      const storeId = Number(session.store_id);
+      const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [storeId]);
+      if (!store) return res.status(404).json({ error: '店铺不存在' });
+      const binding = await getAsync('SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL', [hashSessionToken(customerToken), store.merchant_id, storeId]);
+      res.json({ bound: Boolean(binding) });
+    } catch (_) {
+      res.status(500).json({ error: '读取 Telegram 绑定状态失败' });
+    }
+  });
+
+  app.post('/api/public/customer-telegram/binding/start', async (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const retryAfter = await consumeScanSessionRateLimit(req);
+      if (retryAfter > 0) {
+        res.setHeader('Retry-After', String(retryAfter));
+        return res.status(429).json({ error: '请求过于频繁，请稍后重试' });
+      }
+      const customerToken = getCustomerToken(req);
+      const sessionToken = getSessionToken(req);
+      if (!customerToken || customerToken.length > 128 || !sessionToken || sessionToken.length > 256) {
+        return res.status(400).json({ error: '顾客或扫码会话令牌无效' });
+      }
+      const session = await getAsync(
+        'SELECT store_id, expires_at FROM scan_sessions WHERE token_hash=?',
+        [hashSessionToken(sessionToken)]
+      );
+      if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
+        return res.status(410).json({ error: '扫码会话已失效，请重新扫码' });
+      }
+      const storeId = Number(session.store_id);
+      const store = await getAsync(
+        'SELECT s.id, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+        [storeId]
+      );
+      if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
+      const keys = ['telegram_client_bot_enabled', 'telegram_client_bot_token'];
+      const rows = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?)', keys);
+      const config = Object.fromEntries(rows.map(row => [row.key, row.value]));
+      if (config.telegram_client_bot_enabled !== '1' || !config.telegram_client_bot_token) {
+        return res.status(409).json({ error: '当前店铺暂未启用 Telegram 顾客通知' });
+      }
+      const webhookSecret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+      if (webhookSecret.length < 32 || webhookSecret.length > 256) {
+        return res.status(503).json({ error: 'Telegram 绑定服务尚未完成安全配置' });
+      }
+      const username = await getTelegramBotUsername({ token: String(config.telegram_client_bot_token) });
+      const challenge = crypto.randomBytes(32).toString('base64url');
+      const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
+      await runAsync('DELETE FROM telegram_customer_binding_challenges WHERE expires_at < UTC_TIMESTAMP(3) OR consumed_at IS NOT NULL');
+      await runAsync('DELETE FROM telegram_customer_binding_challenges WHERE customer_token_hash=? AND store_id=? AND consumed_at IS NULL', [hashSessionToken(customerToken), storeId]);
+      await runAsync(
+        'INSERT INTO telegram_customer_binding_challenges (challenge_hash, customer_token_hash, merchant_id, store_id, expires_at, created_at) VALUES (?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 10 MINUTE), UTC_TIMESTAMP(3))',
+        [challengeHash, hashSessionToken(customerToken), store.merchant_id, storeId]
+      );
+      res.json({
+        deepLink: `https://t.me/${username}?start=${challenge}`,
+        expiresInSeconds: 600
+      });
+    } catch (_) {
+      res.status(503).json({ error: 'Telegram 绑定暂时不可用，请稍后重试' });
+    }
+  });
+
+  app.delete('/api/public/customer-telegram/binding', async (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const customerToken = getCustomerToken(req);
+      const sessionToken = getSessionToken(req);
+      if (!customerToken || customerToken.length > 128 || !sessionToken || sessionToken.length > 256) {
+        return res.status(400).json({ error: '顾客或扫码会话令牌无效' });
+      }
+      const session = await getAsync(
+        'SELECT store_id, expires_at FROM scan_sessions WHERE token_hash=?',
+        [hashSessionToken(sessionToken)]
+      );
+      if (!session || !Number.isFinite(new Date(session.expires_at).getTime()) || new Date(session.expires_at).getTime() <= Date.now()) {
+        return res.status(410).json({ error: '扫码会话已失效，请重新扫码' });
+      }
+      const storeId = Number(session.store_id);
+      const store = await getAsync('SELECT merchant_id FROM stores WHERE id=?', [storeId]);
+      if (!store) return res.status(404).json({ error: '店铺不存在' });
+      const result = await withTransaction(async () => {
+        const identity = [hashSessionToken(customerToken), store.merchant_id, storeId];
+        // Lock the binding before touching its outbox rows. Enqueue uses the
+        // same binding -> outbox order, so a concurrent order cannot slip a
+        // pending notice in after revocation has committed.
+        const bindings = await allAsync(
+          'SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1 FOR UPDATE',
+          identity
+        );
+        const bindingIds = Array.isArray(bindings) ? bindings.map(row => Number(row.id)).filter(id => Number.isSafeInteger(id) && id > 0) : [];
+        if (bindingIds.length) {
+          const placeholders = bindingIds.map(() => '?').join(',');
+          await runAsync(
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (" + placeholders + ")",
+            bindingIds.map(id => `binding:${id}`)
+          );
+        }
+        return runAsync(
+          'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1',
+          identity
+        );
+      });
+      res.json({ success: true, revoked: Number(result.affectedRows) > 0 });
+    } catch (_) {
+      res.status(500).json({ error: '撤销 Telegram 绑定失败' });
+    }
+  });
 
   // Header-based endpoints keep bearer tokens out of URLs and reverse-proxy access logs.
   app.get('/api/public/table-session/orders', getSessionOrders);

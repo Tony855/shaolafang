@@ -6,6 +6,7 @@ const { hashSessionToken } = require('../server/services/session-token');
 const QRCode = require('qrcode');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
+const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 
 function normalizeAdminFlag(value, fallback, field) {
   if (value === undefined) return fallback;
@@ -627,6 +628,27 @@ module.exports = function(app, deps) {
           throw Object.assign(new Error('密码错误，重置失败'), { status: 401 });
         }
 
+        // The merchant row above serializes this reset with order enqueue.
+        // Keep challenge -> binding -> outbox ordering consistent with /start
+        // and /stop so concurrent opt-out cannot deadlock or leave stale jobs.
+        await runAsync(
+          'DELETE FROM telegram_customer_binding_challenges WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId, merchantId]
+        );
+        await runAsync(
+          'DELETE FROM telegram_customer_bindings WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId, merchantId]
+        );
+        // System-admin outbox rows have no tenant columns, so correlate them by
+        // their order:<id>:* event key while the source orders still exist.
+        await runAsync(
+          'DELETE n FROM telegram_notification_outbox n INNER JOIN orders o ON n.event_key LIKE CONCAT(\'order:\', o.id, \':%\') WHERE o.merchant_id=?',
+          [merchantId]
+        );
+        await runAsync(
+          'DELETE FROM telegram_notification_outbox WHERE merchant_id=? OR store_id IN (SELECT id FROM stores WHERE merchant_id=?)',
+          [merchantId, merchantId]
+        );
         await runAsync('DELETE FROM refund_requests WHERE store_id IN (SELECT id FROM stores WHERE merchant_id=?)', [merchantId]);
         const deletedOrders = await runAsync('DELETE FROM orders WHERE merchant_id=?', [merchantId]);
         const deletedWaiterCalls = await runAsync('DELETE FROM waiter_calls WHERE merchant_id=?', [merchantId]);
@@ -1080,6 +1102,27 @@ module.exports = function(app, deps) {
         }
         await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id: orderId, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
+        const store = await getAsync('SELECT name, merchant_id FROM stores WHERE id=? AND merchant_id=?', [sid, req.merchantId]);
+        await enqueueSystemAdminTelegramNotification({
+          getAsync,
+          eventKey: `order:${orderId}:settled`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${sid}`, orderNo: lockedOrder.order_no || String(orderId), amount: Number(lockedOrder.total), currency: 'USD' }
+        });
+        await enqueueCustomerTelegramNotification({
+          allAsync,
+          customerTokenHash: lockedOrder.customer_token,
+          merchantId: store?.merchant_id,
+          storeId: sid,
+          eventKey: `order:${orderId}:settled:customer`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${sid}`, orderNo: lockedOrder.order_no || String(orderId), amount: Number(lockedOrder.total), currency: 'USD' }
+        });
+        await enqueueStoreAdminTelegramNotification({
+          allAsync,
+          merchantId: store?.merchant_id,
+          storeId: sid,
+          eventKey: `order:${orderId}:settled:store`,
+          event: { type: 'order.settled', storeName: store?.name || `Store ${sid}`, orderNo: lockedOrder.order_no || String(orderId), amount: Number(lockedOrder.total), currency: 'USD' }
+        });
       });
       io.to('kitchen-' + sid).emit('order:settled', { orderId });
       io.to('waiter-' + sid).emit('order:settled', { orderId });

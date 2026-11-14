@@ -16,6 +16,10 @@ const { ensureFinancialMonthCloseSchema, ensureFinancialExceptionWorkflowSchema 
 const { ensureFinancialExceptionAlertSchema } = require('./server/db/migrations/financial-exception-alerts');
 const { ensureFinancialReconciliationQueueIndex } = require('./server/db/migrations/financial-reconciliation-queue-index');
 const { ensureProviderEventQueueIndexes } = require('./server/db/migrations/provider-event-queue-indexes');
+const { ensureTelegramNotificationOutboxSchema } = require('./server/db/migrations/telegram-notification-outbox');
+const { ensureTelegramCustomerBindingSchema } = require('./server/db/migrations/telegram-customer-binding');
+const { ensureTelegramStoreAdminRecipientSchema } = require('./server/db/migrations/telegram-store-admin-recipients');
+const { createTelegramNotificationWorker } = require('./server/services/telegram-notification-worker-runtime');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
@@ -455,6 +459,11 @@ async function ensureOrderTables() {
       KEY idx_login_rate_locked (locked_until)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  await ensureTelegramNotificationOutboxSchema({ runAsync });
+  await ensureTelegramCustomerBindingSchema({ runAsync });
+  await ensureTelegramStoreAdminRecipientSchema({ runAsync });
+
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS login_rate_limit_attempts (
@@ -1460,7 +1469,8 @@ require('./routes/admin-settings.js')(app, { getAsync, runAsync, allAsync, withT
 
 // ----- 二维码 -----
 // ----- 二维码+桌台session -----
-require('./routes/public-session.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter });
+require('./routes/public-session.js')(app, { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter });
+require('./routes/telegram-webhook.js')(app, { getAsync, allAsync, runAsync, withTransaction });
 
 
 // ---------- 全局错误处理 ----------
@@ -1549,6 +1559,9 @@ async function initSocketAdapter() {
   }
 })();
 
+let stopTelegramNotificationWorker = async () => {};
+const telegramNotificationWorker = createTelegramNotificationWorker({ logger: console });
+
 initDatabase().then(async () => {
   if (isInitOnly) {
     process.exit(0);
@@ -1567,6 +1580,10 @@ initDatabase().then(async () => {
     await poolModule.pool.end().catch(() => {});
     process.exit(1);
     return;
+  }
+  if (process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED === 'true') {
+    stopTelegramNotificationWorker = telegramNotificationWorker.start();
+    console.log('[telegram-worker] background delivery enabled');
   }
   server.listen(PORT, LISTEN_HOST, () => {
     console.log(`📁 数据库: MySQL (${poolConfig.database})`);
@@ -1610,6 +1627,7 @@ const shutdown = createGracefulShutdown({
   io,
   pool: { end: () => poolModule.pool.end() },
   getRedisClients: () => [redisClient, socketRedisPub, socketRedisSub],
+  stopWorkers: () => stopTelegramNotificationWorker(),
   logger: console
 });
 

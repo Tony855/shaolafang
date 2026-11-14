@@ -98,6 +98,22 @@ async function loadNotificationSettings() {
   } catch (e) { console.warn('加载提示音设置失败', e); }
 }
 
+async function loadTelegramStoreNotificationSettings() {
+  try {
+    const d = await SLF.api.get('/admin/telegram/notification-settings');
+    if (!d) return;
+    $('#telegramStoreNotifyEnabled').checked = !!d.enabled;
+    $('#telegramStoreNotifyChatId').value = d.chatId || '';
+    $('#telegramStoreNotifyOrderCreated').checked = d.notifyOrderCreated !== false;
+    $('#telegramStoreNotifySettled').checked = d.notifySettled !== false;
+    $('#telegramStoreNotifyRefunded').checked = d.notifyRefunded !== false;
+    const status = $('#telegramStoreNotifyGlobalStatus');
+    if (status) status.textContent = d.globalBotEnabled
+      ? '管理员 Bot 已启用；门店通知将发送到上方配置的 Chat。'
+      : '超级管理员尚未启用管理员 Bot。请联系超级管理员完成全局 Bot 配置后再启用门店通知。';
+  } catch (e) { console.warn('加载 Telegram 门店通知设置失败', e); }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const saveDisplaySettingsBtn = document.getElementById('saveDisplaySettingsBtn');
   if (saveDisplaySettingsBtn) {
@@ -130,6 +146,24 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (e) { SLF.ui.toast('❌ ' + e.message); }
     };
   }
+
+  const saveTelegramStoreNotifyBtn = document.getElementById('saveTelegramStoreNotifyBtn');
+  if (saveTelegramStoreNotifyBtn) {
+    saveTelegramStoreNotifyBtn.onclick = async function() {
+      try {
+        await SLF.api.put('/admin/telegram/notification-settings', {
+          enabled: $('#telegramStoreNotifyEnabled').checked,
+          chatId: $('#telegramStoreNotifyChatId').value.trim(),
+          notifyOrderCreated: $('#telegramStoreNotifyOrderCreated').checked,
+          notifySettled: $('#telegramStoreNotifySettled').checked,
+          notifyRefunded: $('#telegramStoreNotifyRefunded').checked
+        });
+        SLF.ui.toast('Telegram 门店通知设置已保存');
+        await loadTelegramStoreNotificationSettings();
+      } catch (e) { SLF.ui.toast('❌ ' + (e.message || 'Telegram 门店通知设置保存失败')); }
+    };
+  }
+  loadTelegramStoreNotificationSettings();
 });
 
 // 挂到 window
@@ -137,6 +171,7 @@ window.loadDisplaySettings = loadDisplaySettings;
 window.loadOrderPrefixes = loadOrderPrefixes;
 window.saveOrderPrefixes = saveOrderPrefixes;
 window.loadNotificationSettings = loadNotificationSettings;
+window.loadTelegramStoreNotificationSettings = loadTelegramStoreNotificationSettings;
 
 })();
 
