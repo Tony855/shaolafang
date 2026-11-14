@@ -1454,6 +1454,7 @@ require('./routes/admin-settings.js')(app, { getAsync, runAsync, allAsync, withT
 // ----- 二维码 -----
 // ----- 二维码+桌台session -----
 require('./routes/public-session.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, formatOrder, scanSessionRateLimiter });
+require('./routes/telegram-webhook.js')(app, { getAsync, allAsync, runAsync, withTransaction });
 
 
 // ---------- 全局错误处理 ----------
