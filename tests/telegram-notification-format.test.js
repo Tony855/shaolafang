@@ -32,7 +32,7 @@ test('formats refund amount without exposing reason or notes', () => {
 });
 
 test('rejects unknown event types, missing identifiers and invalid amounts', () => {
-  assert.throws(() => formatTelegramBusinessNotification({ type: 'order.created' }), /不支持/);
+  assert.throws(() => formatTelegramBusinessNotification({ type: 'order.unknown' }), /不支持/);
   assert.throws(() => formatTelegramBusinessNotification({
     type: 'order.created', storeName: 'A', orderNo: '1', amount: -1, currency: 'USD'
   }), /金额无效/);
