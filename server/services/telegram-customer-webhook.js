@@ -22,12 +22,16 @@ function createTelegramCustomerWebhookHandler({
     const update = parseTelegramPrivateUpdate(req.body);
     if (!update) return res.status(200).json({ ok: true });
 
-    let botToken;
+    let botToken = '';
     try {
       botToken = await getBotToken();
-      if (!validateBotToken(botToken)) return res.status(200).json({ ok: true });
     } catch (_) {
-      return res.status(503).json({ ok: false });
+      // A customer must still be able to revoke consent with /stop even when
+      // outbound Bot configuration is disabled or temporarily unavailable.
+      if (update.action !== 'stop') return res.status(503).json({ ok: false });
+    }
+    if (update.action !== 'stop' && !validateBotToken(botToken)) {
+      return res.status(200).json({ ok: true });
     }
 
     let bound = null;
@@ -99,7 +103,7 @@ function createTelegramCustomerWebhookHandler({
       return res.status(503).json({ ok: false });
     }
 
-    if (bound) {
+    if (bound && validateBotToken(botToken)) {
       try {
         await sendMessage({ token: botToken, chatId: bound.chatId, text: bound.text });
       } catch (_) {
