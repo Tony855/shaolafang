@@ -91,3 +91,18 @@ test('Telegram customer webhook ignores duplicate update IDs and group chats', a
   assert.equal(state.bindings.length, 0);
   assert.equal(state.updates.size, 0);
 });
+
+
+test('Telegram customer webhook safely reactivates the same revoked owner binding', async () => {
+  const { handler, challenge, state } = fixture();
+  state.bindings.push({ id: 9, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 0, revoked_at: new Date() });
+  const res = response();
+  await handler({
+    headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+    body: { update_id: 102, message: { text: '/start ' + challenge, chat: { id: 98765, type: 'private' }, from: { id: 98765 } } }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.bindings.length, 1);
+  assert.equal(state.bindings[0].is_active, 1);
+  assert.equal(state.bindings[0].revoked_at, null);
+});
