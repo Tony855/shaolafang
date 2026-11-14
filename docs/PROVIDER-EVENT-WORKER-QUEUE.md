@@ -4,7 +4,7 @@
 
 Verified provider events may be claimed by a worker only when a canonical normalized event is stored. The worker claims one eligible row inside a database transaction using `SELECT ... FOR UPDATE`, assigns a cryptographically random 256-bit lease token, increments the attempt count, and sets a lease expiry.
 
-A crashed worker does not permanently strand an event: after lease expiry, another worker may reclaim it. Completion and failure updates require both the current lease token and an unexpired lease. Expiry itself fences the worker: even if no replacement worker has reclaimed the row yet, a late worker cannot complete or reschedule it after its lease deadline. This prevents work that exceeded its ownership window from committing side effects before the queue has formally reassigned the event.
+A crashed worker does not permanently strand an event: after lease expiry, another worker may reclaim it. Completion and failure updates require both the current lease token and an unexpired lease. Expiry itself fences the worker: even if no replacement worker has reclaimed the row yet, a late worker cannot complete or reschedule it after its lease deadline. The expiry predicate is checked again on the final state update after the locked read, so a lease that expires during failure handling is also rejected. A worker that performs business side effects and acknowledges within one outer transaction must let a stale-lease error roll back that entire transaction. This prevents work that exceeded its ownership window from committing side effects before the queue has formally reassigned the event.
 
 ## Retry and terminal failure
 
