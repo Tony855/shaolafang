@@ -352,6 +352,9 @@ test('Nginx setup uses optional Certbot email arguments and verifies every start
   assert.match(nginx, /--agree-tos "\$\{CERTBOT_EMAIL_ARGS\[@\]\}"/);
   assert.doesNotMatch(nginx, /certbot (?:--nginx|certonly)[^\n]*--email "\$EMAIL"/);
   assert.match(nginx, /start_nginx\(\)/);
+  assert.match(nginx, /stop_nginx_for_port_80\(\)/);
+  assert.match(nginx, /if ! check_port_available 80; then[\s\S]*?start_nginx/);
+  assert.match(nginx, /if ! stop_nginx_for_port_80; then/);
   assert.match(nginx, /journalctl -u nginx -n 50 --no-pager/);
   assert.doesNotMatch(nginx, /systemctl start nginx\s*sleep 2/);
   assert.match(nginx, /if ! nginx -t; then[\s\S]*?拒绝启用 HTTPS/);
