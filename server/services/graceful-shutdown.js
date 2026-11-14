@@ -11,13 +11,18 @@ async function closeRedisClient(client) {
   if (typeof client.disconnect === 'function') return client.disconnect();
 }
 
-function createGracefulShutdown({ io, pool, getRedisClients = () => [], logger = console }) {
+function createGracefulShutdown({ io, pool, getRedisClients = () => [], stopWorkers = async () => {}, logger = console }) {
   let shutdownPromise = null;
 
   return function shutdown(reason, exitCode = 0) {
     if (shutdownPromise) return shutdownPromise;
 
     shutdownPromise = (async () => {
+      try {
+        await stopWorkers();
+      } catch (error) {
+        logger.error('[shutdown] Worker stop failed:', error?.message || 'unknown error');
+      }
       const tasks = [];
       if (io && typeof io.close === 'function') {
         tasks.push(new Promise(resolve => {
