@@ -22,7 +22,7 @@ test('cluster mode requires an explicit shared Redis URL', () => {
 });
 
 test('cluster mode requires an explicit trusted proxy IP or CIDR', () => {
-  for (const trustProxy of ['', 'loopback', 'linklocal', 'uniquelocal', 'true', '*', '0.0.0.0/0', '::/0', '10.0.0.1,0.0.0.0/0']) {
+  for (const trustProxy of ['', 'loopback', 'linklocal', 'uniquelocal', 'true', '*', '0.0.0.0/0', '::/0', '10.0.0.1,0.0.0.0/0', 'localhost', '127.0.0.1', '::1', '10.0.0.1/0', '10.0.0.1/33']) {
     assert.match(getClusterStartupError({ ...valid, trustProxy }), /explicit trusted load-balancer/);
   }
 });
@@ -34,4 +34,5 @@ test('cluster mode fails closed when Redis or Socket.IO adapter is unavailable',
 
 test('cluster mode starts only when Redis, adapter and proxy configuration are ready', () => {
   assert.equal(getClusterStartupError(valid), null);
+  assert.equal(getClusterStartupError({ ...valid, trustProxy: '10.0.0.0/16,2001:db8::10/128' }), null);
 });
