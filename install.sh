@@ -848,7 +848,7 @@ server {
     access_log /var/log/nginx/access.log foodflow_safe;
     listen 80;
     server_name _;
-    client_max_body_size 20M;
+    client_max_body_size 55M;
     location / {
         proxy_pass http://127.0.0.1:${BACKEND_PORT};
         proxy_http_version 1.1;
