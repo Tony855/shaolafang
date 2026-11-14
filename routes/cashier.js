@@ -7,6 +7,7 @@ const { toMoneyCents, hasActiveKhqr } = require('../server/services/order-financ
 const { isValidRefundIdempotencyKey, createRefundRequestHash, calculateRefundAllocation } = require('../server/services/refund-financial');
 const { enqueueSystemAdminTelegramNotification, enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 const { hashPassword, needsRehash } = require('../server/middleware/password');
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
  
 function parsePositiveOrderId(value) {
   if (typeof value !== 'number' && typeof value !== 'string') return null;
@@ -902,7 +903,7 @@ app.get('/api/cashier/khqr/providers', requireAdminOrCashierOrWaiter, async (req
       let dataUrl = '';
       try {
         dataUrl = await QRCode.toDataURL(p.payload, { errorCorrectionLevel: 'M', margin: 1, width: 400 });
-      } catch (e) { console.warn('[khqr] qr gen failed', p.id, e.message); }
+      } catch (e) { console.warn('[khqr] qr gen failed', p.id, safeErrorMetadata(e)); }
       out.push({
         id: p.id,
         bank: p.bank,
