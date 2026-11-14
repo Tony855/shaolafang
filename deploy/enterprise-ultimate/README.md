@@ -142,6 +142,7 @@ sudo certbot --nginx -d your-domain.com
 | `DB_CONNECTION_LIMIT` | 连接池大小 | 100 | 100 |
 | `TRUST_PROXY` | Nginx负载均衡器可信内网 IP/CIDR | 按实际配置 | 所有节点相同 |
 | `REDIS_URL` | Redis连接（必须） | ✅ 相同 | ✅ 相同 |
+| `REQUIRE_SHARED_REDIS` | 启动时强制检查 Redis/Socket.IO Adapter | **true** | **true** |
 | `UPLOAD_DIR` | 上传目录 | /mnt/shared/uploads | /mnt/shared/uploads |
 | `RUN_SCHEDULED_TASKS` | 定时任务 | **true** | **false** |
 | `MERCHANT_CODE_PREFIX` | 商户编码前缀 | FF | FF |
