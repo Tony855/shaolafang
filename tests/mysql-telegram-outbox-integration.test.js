@@ -178,11 +178,15 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
 
   const oldDeliveredKey = `${key}:old-delivered`;
   const oldDeadKey = `${key}:old-dead`;
+  const exhaustedLeaseKey = `${key}:exhausted-lease`;
   const oldPayload = JSON.stringify({ text: 'old notification' });
+  await runAsync("INSERT INTO telegram_notification_outbox (event_key,event_type,recipient_scope,recipient_key,payload_json,state,attempts,available_at,locked_by,locked_until,created_at,updated_at) VALUES (?, 'order.created','system_admin','admin:primary',?,'processing',8,UTC_TIMESTAMP(3),?,DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 SECOND),UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))", [exhaustedLeaseKey, oldPayload, crypto.randomUUID()]);
   await runAsync("INSERT INTO telegram_notification_outbox (event_key,event_type,recipient_scope,recipient_key,payload_json,state,attempts,available_at,delivered_at,created_at,updated_at) VALUES (?, 'order.created','system_admin','admin:primary',?,'delivered',1,DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 100 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 100 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 100 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 100 DAY))", [oldDeliveredKey, oldPayload]);
   await runAsync("INSERT INTO telegram_notification_outbox (event_key,event_type,recipient_scope,recipient_key,payload_json,state,attempts,available_at,created_at,updated_at) VALUES (?, 'order.created','system_admin','admin:primary',?,'dead',8,DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 200 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 200 DAY),DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 200 DAY))", [oldDeadKey, oldPayload]);
   const cleanup = await cleanupTelegramNotificationHistory();
+  assert.equal(cleanup.exhaustedDead, 1);
   assert.equal(cleanup.deliveredDeleted, 1);
   assert.equal(cleanup.deadDeleted, 1);
+  assert.equal((await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?', [exhaustedLeaseKey])).state, 'dead');
   assert.equal((await allAsync('SELECT id FROM telegram_notification_outbox WHERE event_key IN (?, ?)', [oldDeliveredKey, oldDeadKey])).length, 0);
 });
