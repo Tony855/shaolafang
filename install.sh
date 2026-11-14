@@ -708,13 +708,20 @@ EOF
         log_info "更新模式：保留现有 .env，不覆盖数据库密码和 JWT_SECRET。"
     fi
 
+    BACKEND_PORT="$(sed -n 's/^PORT=//p' "$ENV_FILE" | tail -n 1)"
+    BACKEND_PORT="${BACKEND_PORT:-3000}"
+    if ! [[ "$BACKEND_PORT" =~ ^[0-9]{1,5}$ ]] || [ "$BACKEND_PORT" -lt 1 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
+        log_error "应用端口配置无效，拒绝继续安装。"
+        exit 1
+    fi
+
     # ===== 11. 配置 Systemd 服务 =====
     echo ""
     log_info "配置 Systemd 服务..."
     systemctl stop $SERVICE_NAME 2>/dev/null || true
     systemctl disable $SERVICE_NAME 2>/dev/null || true
     sleep 1
-    ff_require_port_available 3000
+    ff_require_port_available "$BACKEND_PORT"
 
     NODE_PATH=$(which node)
     if ! id foodflow >/dev/null 2>&1; then
@@ -773,7 +780,7 @@ server {
     server_name _;
     client_max_body_size 20M;
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -802,12 +809,6 @@ EOF
     if ! systemctl is-active --quiet "$SERVICE_NAME"; then
         log_error "FoodFlow 服务未进入 active 状态，最近日志："
         journalctl -u "$SERVICE_NAME" -n 50 --no-pager || true
-        exit 1
-    fi
-    BACKEND_PORT="$(sed -n 's/^PORT=//p' "$ENV_FILE" | tail -n 1)"
-    BACKEND_PORT="${BACKEND_PORT:-3000}"
-    if ! [[ "$BACKEND_PORT" =~ ^[0-9]{1,5}$ ]] || [ "$BACKEND_PORT" -lt 1 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
-        log_error "应用端口配置无效，拒绝继续启动检查。"
         exit 1
     fi
     if ! ff_wait_for_health "$BACKEND_PORT" "${FF_HEALTH_ATTEMPTS:-30}"; then
