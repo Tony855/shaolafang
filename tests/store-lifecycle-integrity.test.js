@@ -168,8 +168,8 @@ test('store deletion removes only settings with the exact store prefix', async (
   assert.equal(res.statusCode, 200);
   const telegramCleanup = ctx.calls.filter(call => call.type === 'run' && /DELETE FROM telegram_/.test(call.sql));
   assert.deepEqual(telegramCleanup.map(call => call.sql.split(' ')[2]), [
-    'telegram_notification_outbox', 'telegram_customer_binding_challenges',
-    'telegram_customer_bindings', 'telegram_store_admin_recipients'
+    'telegram_customer_binding_challenges', 'telegram_customer_bindings',
+    'telegram_notification_outbox', 'telegram_store_admin_recipients'
   ]);
   assert.ok(telegramCleanup.every(call => call.inTransaction && call.params[0] === 5 && call.params[1] === 2));
   const cleanup = ctx.calls.find(call =>
