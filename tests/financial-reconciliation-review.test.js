@@ -166,30 +166,27 @@ test('serializes the batch before idempotency lookup and replays exact reviews a
 
   const replayQueries = db.queries.filter(query =>
     query.sql.includes('FROM financial_reconciliation_review_events') && query.sql.includes('idempotency_key'));
-  const preflightIndex = db.queries.findIndex(query =>
-    query.sql.includes('FROM financial_reconciliation_review_events') &&
-    query.sql.includes('idempotency_key') && !query.sql.includes('FOR UPDATE'));
   const batchLockIndex = db.queries.findIndex(query =>
     query.sql.includes('FROM financial_reconciliation_batches') && query.sql.includes('FOR UPDATE'));
   const replayLockIndex = db.queries.findIndex(query =>
     query.sql.includes('FROM financial_reconciliation_review_events') &&
     query.sql.includes('idempotency_key') && query.sql.includes('FOR UPDATE'));
-  assert.equal(replayQueries.length, 2);
-  assert.ok(preflightIndex >= 0 && batchLockIndex > preflightIndex && replayLockIndex > batchLockIndex,
-    'a nonlocking replay preflight avoids gap locks, then the batch row serializes the locking recheck');
+  assert.equal(replayQueries.length, 1);
+  assert.ok(batchLockIndex >= 0 && replayLockIndex > batchLockIndex,
+    'the batch row serializes the current locking replay read without creating an earlier consistent snapshot');
 
   db.batches.get(1).status = 'closed';
   const replay = await db.service.reviewItem(input());
   assert.equal(replay.replayed, true);
   assert.equal(replay.eventId, first.eventId);
-  assert.equal(periodLockCalls, 1,
-    'an exact replay must return before acquiring the now-closed month period');
+  assert.equal(periodLockCalls, 2,
+    'an exact replay after month close is recovered by the current locking read after the period lock rejects it');
 
   await assert.rejects(db.service.reviewItem(input({
     itemId: 12, journalTransactionId: 32,
     idempotencyKey: 'finance-review-closed-0001'
   })), error => error.code === 'REVIEW_BATCH_CLOSED');
-  assert.equal(periodLockCalls, 2);
+  assert.equal(periodLockCalls, 3);
   assert.equal(db.eventList.length, 1, 'closed-batch replay must not create another audit event');
 });
 
