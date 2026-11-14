@@ -74,6 +74,7 @@ Backups include the outbox, customer-binding records, webhook update IDs, and st
 - The Client Bot is the only Bot customers should open. Customers start it using the one-time deep link generated from their active FoodFlow customer session. The bot accepts private-chat `/start <one-time-challenge>` and `/stop` commands only; it does not accept arbitrary customer IDs or bearer tokens in Telegram commands.
 - The Admin Bot is added to the target admin group. A super-admin configures its global destination in Super Admin settings; each store admin separately configures that store's group Chat ID and event toggles. A store does not receive its own Bot token.
 - Do not configure the shared Client Bot Chat ID as a customer destination. Customer order notifications must resolve from an active, owner-checked binding.
+- Bot tokens are currently stored in the protected `settings` table as plaintext; the Super Admin API masks them, but there is no application-level encryption at rest. Backups include the `settings` table and therefore contain Bot tokens. Treat database backups as secrets: retain automatic files with restrictive permissions, encrypt off-host copies, and never attach backup files to tickets or chats. Application-level token encryption remains a security-hardening item.
 
 ### Register and inspect the Client Bot webhook
 
