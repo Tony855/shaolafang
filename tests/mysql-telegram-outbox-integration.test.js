@@ -19,6 +19,7 @@ const poolModule = require('../server/db/pool');
 const { runAsync, getAsync, allAsync, withTransaction } = require('../server/db/helpers');
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations/telegram-customer-binding');
+const { ensureTelegramStoreAdminRecipientSchema } = require('../server/db/migrations/telegram-store-admin-recipients');
 const { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry, cleanupTelegramNotificationHistory } = require('../server/services/telegram-notification-outbox');
 const { processTelegramNotificationBatch } = require('../server/services/telegram-notification-worker');
 
@@ -31,7 +32,9 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   poolModule.setPool(testPool);
   t.after(async () => {
     try {
-      await runAsync('DROP TABLE IF EXISTS telegram_webhook_updates');
+      await runAsync('DROP TABLE IF EXISTS telegram_store_admin_recipients');
+      await runAsync('DROP TABLE IF EXISTS telegram_store_admin_recipients');
+  await runAsync('DROP TABLE IF EXISTS telegram_webhook_updates');
       await runAsync('DROP TABLE IF EXISTS telegram_customer_bindings');
       await runAsync('DROP TABLE IF EXISTS telegram_customer_binding_challenges');
       await runAsync('DROP TABLE IF EXISTS telegram_notification_outbox');
@@ -46,6 +49,13 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   await ensureTelegramNotificationOutboxSchema({ runAsync });
   await ensureTelegramCustomerBindingSchema({ runAsync });
   await ensureTelegramCustomerBindingSchema({ runAsync });
+  await ensureTelegramStoreAdminRecipientSchema({ runAsync });
+  await ensureTelegramStoreAdminRecipientSchema({ runAsync });
+
+  await runAsync('INSERT INTO telegram_store_admin_recipients (merchant_id,store_id,chat_id,is_enabled,notify_order_created,notify_settled,notify_refunded,created_at,updated_at) VALUES (7,9,\'-100123\',1,1,0,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))');
+  await runAsync('INSERT INTO telegram_store_admin_recipients (merchant_id,store_id,chat_id,is_enabled,created_at,updated_at) VALUES (7,10,\'-100456\',1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))');
+  assert.equal((await allAsync('SELECT id FROM telegram_store_admin_recipients WHERE merchant_id=? ORDER BY store_id', [7])).length, 2);
+  await assert.rejects(runAsync('INSERT INTO telegram_store_admin_recipients (merchant_id,store_id,chat_id,created_at,updated_at) VALUES (7,9,\'-100999\',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))'), error => error && error.code === 'ER_DUP_ENTRY');
 
   const customerHash = crypto.createHash('sha256').update('customer-token').digest('hex');
   const challengeHash = crypto.createHash('sha256').update('challenge').digest('hex');
