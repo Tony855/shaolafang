@@ -13,7 +13,7 @@ function createTelegramCustomerWebhookHandler({
   }
 
   return async function telegramCustomerWebhook(req, res) {
-    res.setHeader('Cache-Control', 'no-store');
+    if (typeof res.setHeader === 'function') res.setHeader('Cache-Control', 'no-store');
     const suppliedSecret = req.get?.('X-Telegram-Bot-Api-Secret-Token') || req.headers?.['x-telegram-bot-api-secret-token'] || '';
     if (typeof secret !== 'string' || secret.length < 32 || secret.length > 256 || !constantTimeSecretMatch(suppliedSecret, secret)) {
       return res.status(403).json({ ok: false });
