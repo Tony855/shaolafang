@@ -83,8 +83,8 @@ test('normalizes permission strings before exposing cashier identity', async () 
 test('does not expose database error details to clients', async () => {
   failDatabase = true;
   const { res } = await invoke();
-  assert.equal(res.statusCode, 500);
-  assert.deepEqual(res.body, { error: '认证服务暂时不可用' });
+  assert.equal(res.statusCode, 503);
+  assert.deepEqual(res.body, { error: '认证服务暂时不可用，请稍后重试' });
   failDatabase = false;
 });
 
