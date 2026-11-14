@@ -60,7 +60,7 @@ function createTelegramCustomerWebhookHandler({
 
         try {
           await runAsync(
-            'INSERT INTO telegram_customer_bindings (customer_token_hash, merchant_id, store_id, telegram_user_id, telegram_chat_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE id=IF(customer_token_hash=VALUES(customer_token_hash) AND store_id=VALUES(store_id), id, id)',
+            'INSERT INTO telegram_customer_bindings (customer_token_hash, merchant_id, store_id, telegram_user_id, telegram_chat_id, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE is_active=IF(customer_token_hash=VALUES(customer_token_hash) AND merchant_id=VALUES(merchant_id) AND store_id=VALUES(store_id) AND telegram_chat_id=VALUES(telegram_chat_id), 1, is_active), revoked_at=IF(customer_token_hash=VALUES(customer_token_hash) AND merchant_id=VALUES(merchant_id) AND store_id=VALUES(store_id) AND telegram_chat_id=VALUES(telegram_chat_id), NULL, revoked_at), updated_at=IF(customer_token_hash=VALUES(customer_token_hash) AND merchant_id=VALUES(merchant_id) AND store_id=VALUES(store_id) AND telegram_chat_id=VALUES(telegram_chat_id), UTC_TIMESTAMP(3), updated_at)',
             [challenge.customer_token_hash, challenge.merchant_id, challenge.store_id, userId, chatId]
           );
           const row = await getAsync(
