@@ -60,11 +60,17 @@
 
 **建议：** 对集群部署增加启动前配置检查；明确区分单机可选 Redis 与多节点必需 Redis。不要把内存 fallback 当作集群共享状态。
 
-### [P2 - 可观测性] Nginx 模板中的 /health 是静态应答
+### [P1 - 健康检查路径] Nginx readiness 上游路径与 Node 路由不一致
 
-部署 Nginx 模板的 `/health` 路径直接由 Nginx 返回固定的 `200 OK`，并不检查 Node、数据库或 Redis。它只能说明 Nginx 配置可响应，不能作为应用就绪或数据库健康的唯一探针。
+**证据：** Node 实际提供 `/health`，但标准版及两个集群 Nginx 模板曾将 `/health` 转发至不存在的 `/api/health/ready`；健康巡检脚本还请求了 `/api/health` 和 `/api/health/ready`，造成探针与真实路由脱节。
 
-**建议：** 分离 liveness 与 readiness：应用健康接口应由 Node 提供，并按需检查数据库/Redis；负载均衡器使用应用 readiness 检查摘除故障节点。
+**处理：** 统一以 `/health` 作为 canonical readiness 路径；Node 同时保留 `/api/health/ready` 与 `/api/health` 兼容别名，所有路径均执行数据库 `SELECT 1`，数据库不可用时返回 503。Nginx 模板和巡检脚本改为 `/health`。
+
+### [P1 - 备份导入限制] Nginx 请求体上限低于应用备份解析上限
+
+**证据：** `/api/super/backup/import` 的 Express JSON parser 允许 50 MB，但 Nginx 标准版/集群模板限制为 10 MB，单机安装脚本生成配置限制为 20 MB。较大的有效备份会在到达 Express 前被 Nginx 拒绝。
+
+**处理：** 所有随仓库提供的 Nginx 模板及安装器生成配置统一设置为 55 MB，为 50 MB 应用解析上限留出传输余量。
 
 ### [P2 - 架构] 单体路由与大页面模块仍然偏大
 
@@ -96,7 +102,7 @@
 
 1. 等待 CI 完成；若失败，先修复失败项再创建/更新 PR。
 2. 为集群部署增加 `TRUST_PROXY` 和 Redis 强制配置校验。
-3. 将 Nginx 固定 `/health` 改为真正的应用 readiness 探针，或明确区分两类探针。
+3. 已将 Nginx `/health` 转发到 Node 数据库 readiness，并保留旧健康检查 URL 兼容别名；仍需在生产部署后实测。
 4. 为支付/退款、订单状态转换、跨商户/跨门店访问补充 API 集成测试。
 5. 增加 Playwright 多端关键流程测试：扫码下单、厨房接单、收银结算、退款、权限拒绝。
 6. 评估数据库迁移版本化、结构化日志、指标和告警；先保持兼容性，不做大规模一次性重写。
