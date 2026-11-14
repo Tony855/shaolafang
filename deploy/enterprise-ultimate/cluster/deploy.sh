@@ -224,14 +224,16 @@ log_success "Systemd 服务配置完成"
 
 # ===== 9. 启动服务 =====
 log_info "启动服务..."
-systemctl restart foodflow
-sleep 5
+if ! systemctl restart foodflow; then
+    log_error "服务重启命令失败，请查看日志：journalctl -u foodflow -n 50 --no-pager"
+    journalctl -u foodflow -n 50 --no-pager || true
+    exit 1
+fi
 
-if systemctl is-active --quiet foodflow; then
-    log_success "服务启动成功！"
-else
-    log_error "服务启动失败，请查看日志：journalctl -u foodflow -n 50 --no-pager"
-    log_warn "可能原因：数据库/Redis/NFS 配置不正确，请检查 /etc/foodflow/.env"
+# The readiness endpoint itself is the startup gate; avoid an arbitrary fixed delay.
+if ! systemctl is-active --quiet foodflow; then
+    log_error "服务未进入 active 状态，请查看日志：journalctl -u foodflow -n 50 --no-pager"
+    journalctl -u foodflow -n 50 --no-pager || true
     exit 1
 fi
 

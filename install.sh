@@ -794,16 +794,28 @@ EOF
     # ===== 13. 启动服务 =====
     echo ""
     log_info "启动 FoodFlow 服务..."
-    systemctl restart $SERVICE_NAME || true
-    sleep 8
-
-    if systemctl is-active --quiet $SERVICE_NAME; then
-        log_success "FoodFlow 服务启动成功！"
-    else
-        log_error "服务启动失败，最近日志："
-        journalctl -u $SERVICE_NAME -n 40 --no-pager
+    if ! systemctl restart "$SERVICE_NAME"; then
+        log_error "FoodFlow 服务重启命令失败，最近日志："
+        journalctl -u "$SERVICE_NAME" -n 50 --no-pager || true
         exit 1
     fi
+    if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+        log_error "FoodFlow 服务未进入 active 状态，最近日志："
+        journalctl -u "$SERVICE_NAME" -n 50 --no-pager || true
+        exit 1
+    fi
+    BACKEND_PORT="$(sed -n 's/^PORT=//p' "$ENV_FILE" | tail -n 1)"
+    BACKEND_PORT="${BACKEND_PORT:-3000}"
+    if ! [[ "$BACKEND_PORT" =~ ^[0-9]{1,5}$ ]] || [ "$BACKEND_PORT" -lt 1 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
+        log_error "应用端口配置无效，拒绝继续启动检查。"
+        exit 1
+    fi
+    if ! ff_wait_for_health "$BACKEND_PORT" "${FF_HEALTH_ATTEMPTS:-30}"; then
+        log_error "FoodFlow 应用或数据库未通过健康检查，最近日志："
+        journalctl -u "$SERVICE_NAME" -n 50 --no-pager || true
+        exit 1
+    fi
+    log_success "FoodFlow 服务与数据库健康检查通过！"
 
     # ===== 14. 最小首次运行检查 =====
     echo ""

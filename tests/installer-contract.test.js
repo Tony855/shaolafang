@@ -206,6 +206,7 @@ test('first install defaults to a minimal single-node path and keeps advanced se
 
 test('minimal first-run verification checks configuration, service, database health and credential-file permissions', () => {
   const check = read('scripts/first-run-check.sh');
+  const safety = read('scripts/lib/deploy-safety.sh');
   const route = read('routes/health.js');
   const server = read('server.js');
   const installer = read('install.sh');
@@ -217,7 +218,9 @@ test('minimal first-run verification checks configuration, service, database hea
   assert.match(server, /require\('\.\/routes\/health\.js'\)/);
   assert.match(check, /DB_HOST DB_USER DB_PASSWORD DB_DATABASE/);
   assert.match(check, /systemctl is-active/);
-  assert.match(check, /\/health/);
+  assert.match(check, /deploy-safety\.sh/);
+  assert.match(check, /ff_wait_for_health "\$PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/);
+  assert.match(safety, /\/health/);
   assert.match(check, /-perm \/077/);
   assert.doesNotMatch(check, /cat "\$CREDENTIALS_FILE"/);
   assert.match(installer, /scripts\/first-run-check\.sh/);
@@ -324,6 +327,23 @@ test('top-level deployment guides and standard installer use the current reposit
   assert.ok(standardScript.includes('GIT_REPO="https://github.com/Tony855/shaolafang.git"'));
 });
 
+
+test('first-install and cluster startup use readiness gates instead of fixed startup sleeps', () => {
+  for (const file of ['install.sh', 'install-local.sh']) {
+    const source = read(file);
+    assert.match(source, /ff_wait_for_health "\$BACKEND_PORT" "\$\{FF_HEALTH_ATTEMPTS:-30\}"/, file + ' must wait for app and database readiness');
+    assert.match(source, /sed -n 's\/\^PORT=\//, file + ' must read the configured application port');
+    assert.match(source, /BACKEND_PORT.*-gt 65535/, file + ' must validate the configured port');
+    assert.match(source, /if ! systemctl restart/, file + ' must diagnose restart failures');
+    assert.doesNotMatch(source, /systemctl restart [^\n]+\n\s*sleep 8/, file + ' must not rely on a fixed startup delay');
+  }
+  for (const file of ['deploy/enterprise/cluster/deploy.sh', 'deploy/enterprise-ultimate/cluster/deploy.sh']) {
+    const source = read(file);
+    assert.match(source, /if ! systemctl restart foodflow/, file + ' must diagnose restart failures');
+    assert.match(source, /\/api\/health\/ready/, file + ' must wait for database readiness');
+    assert.doesNotMatch(source, /systemctl restart foodflow\n\s*sleep 5/, file + ' must not rely on a fixed startup delay');
+  }
+});
 
 test('Nginx setup gates proxy configuration on application and database readiness', () => {
   const nginx = read('setup-nginx.sh');

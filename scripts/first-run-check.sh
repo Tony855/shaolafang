@@ -7,6 +7,10 @@ ENV_FILE="$APP_DIR/.env"
 SERVICE_NAME="${SERVICE_NAME:-foodflow}"
 CREDENTIALS_FILE="${INIT_CRED_FILE:-/var/lib/foodflow/initial-credentials.txt}"
 
+# Reuse the bounded readiness probe used by all deployment entrypoints.
+# shellcheck source=scripts/lib/deploy-safety.sh
+source "$APP_DIR/scripts/lib/deploy-safety.sh"
+
 ok()   { printf '[OK] %s\n' "$*"; }
 warn() { printf '[WARN] %s\n' "$*" >&2; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
@@ -31,8 +35,9 @@ else
   warn "systemctl 不可用，跳过服务状态检查"
 fi
 
-HEALTH_BODY="$(curl --silent --show-error --fail --max-time 8 "http://127.0.0.1:$PORT/health" 2>/dev/null)" || fail "应用健康检查失败；请查看 journalctl -u $SERVICE_NAME"
-node -e 'const x=JSON.parse(process.argv[1]); if(x.status!=="ok" || x.database!=="ok") process.exit(1)' "$HEALTH_BODY" || fail "应用已响应，但数据库尚未就绪"
+if ! ff_wait_for_health "$PORT" "${FF_HEALTH_ATTEMPTS:-30}"; then
+  fail "应用或数据库健康检查失败；请查看 journalctl -u $SERVICE_NAME"
+fi
 ok "应用与数据库健康检查通过"
 
 if [ -f "$CREDENTIALS_FILE" ]; then
