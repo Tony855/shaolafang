@@ -183,11 +183,11 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
           };
         };
 
-        // A plain consistent read avoids taking an InnoDB gap lock for a missing key.
-        // It also lets committed replays return after the month period has been closed.
-        const existingReplay = await readReplay(false);
-        if (existingReplay) return replayResult(existingReplay);
-
+        // Avoid creating a REPEATABLE READ snapshot before the locking reads below.
+        // MariaDB with innodb_snapshot_isolation can reject a later current read with
+        // ER_CHECKREAD when a concurrent transaction inserts the same idempotency key.
+        // The period/batch mutexes serialize writers; the current locking read below
+        // resolves committed replays without relying on an earlier consistent snapshot.
         if (typeof lockFinancialMonthPeriod === 'function') {
           try {
             await lockFinancialMonthPeriod({ merchantId, storeId, batchId });
