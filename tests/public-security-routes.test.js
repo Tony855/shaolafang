@@ -1007,6 +1007,7 @@ test('customer Telegram binding revoke is scoped to the hashed customer token an
   assert.equal(writes.length, 2);
   assert.match(writes[0].sql, /UPDATE telegram_notification_outbox/);
   assert.match(writes[0].sql, /binding_revoked/);
+  assert.deepEqual(writes[0].params, [hashSessionToken('customer-token'), 7, 9]);
   assert.equal(writes[0].inTransaction, true);
   assert.equal(writes[1].inTransaction, true);
 });
