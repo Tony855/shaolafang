@@ -6,7 +6,7 @@ const SYSTEM_ADMIN_RECIPIENT_KEY = 'admin:primary';
 
 function createTelegramNotificationRecipientResolver({ allAsync }) {
   if (typeof allAsync !== 'function') throw new TypeError('allAsync is required');
-  return async function resolveTelegramNotificationRecipient({ scope, key, merchantId, storeId } = {}) {
+  return async function resolveTelegramNotificationRecipient({ scope, key, merchantId, storeId, eventType } = {}) {
     if (scope === 'system_admin' && key === SYSTEM_ADMIN_RECIPIENT_KEY && merchantId == null && storeId == null) {
       const keys = ['telegram_admin_bot_enabled', 'telegram_admin_bot_token', 'telegram_admin_chat_id'];
       const rows = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?, ?)', keys);
@@ -20,8 +20,10 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
       const tenantMerchantId = Number(merchantId);
       const tenantStoreId = Number(storeId);
       if (!Number.isSafeInteger(tenantMerchantId) || tenantMerchantId <= 0 || !Number.isSafeInteger(tenantStoreId) || tenantStoreId <= 0 || Number(key.slice(6)) !== tenantStoreId) return null;
+      const eventToggle = { 'order.created': 'notify_order_created', 'order.settled': 'notify_settled', 'order.refunded': 'notify_refunded' }[eventType];
+      if (!eventToggle) return null;
       const recipients = await allAsync(
-        'SELECT r.chat_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND r.is_enabled=1 AND s.active=1 AND m.status=1 LIMIT 1',
+        `SELECT r.chat_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND r.is_enabled=1 AND r.${eventToggle}=1 AND s.active=1 AND m.status=1 LIMIT 1`,
         [tenantMerchantId, tenantStoreId]
       );
       if (!Array.isArray(recipients) || !recipients.length) return null;
