@@ -7,6 +7,7 @@ const { hashSessionToken } = require('../services/session-token');
 const { getActiveWaiter } = require('../services/waiter-auth');
 const crypto = require('crypto');
 const { parsePositiveRouteId } = require('../services/route-id');
+const { safeErrorMetadata } = require('./safe-error-metadata');
 
 function isPermissionEnabled(value) {
   return value === true || value === 1 || value === '1' || value === 'true';
@@ -223,7 +224,7 @@ async function logAuditStrict(actorType, actorId, actorUsername, action, targetT
 // workflows must use logAuditStrict so an audit write failure can abort them.
 async function logAudit(...args) {
   try { await logAuditStrict(...args); }
-  catch (e) { console.warn('审计日志记录失败:', e.message); }
+  catch (e) { console.warn('[auth] audit log write failed', safeErrorMetadata(e)); }
 }
 
 
