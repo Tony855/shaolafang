@@ -1,7 +1,6 @@
 /* ============================================================
    server/services/order.js — 订单辅助函数
    ============================================================ */
-const { getAsync } = require('../db/helpers');
 const { hashPassword, verifyPassword, needsRehash } = require('../middleware/password');
 const { hasCorruptFinancialAmounts } = require('./order-financial');
 
@@ -94,6 +93,7 @@ async function assertTableExists(table, storeId) {
 }
 
 async function verifyLegacyAdminPassword(inputPwd) {
+  const { getAsync, runAsync } = require('../db/helpers');
   const row = await getAsync("SELECT value FROM settings WHERE `key` = 'admin_password'");
   if (!row || !row.value || !verifyPassword(inputPwd, row.value)) return false;
   if (needsRehash(row.value)) {
