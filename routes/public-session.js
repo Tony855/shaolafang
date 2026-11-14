@@ -297,10 +297,21 @@ module.exports = function(app, deps) {
       if (!store) return res.status(404).json({ error: '店铺不存在' });
       const result = await withTransaction(async () => {
         const identity = [hashSessionToken(customerToken), store.merchant_id, storeId];
-        await runAsync(
-          "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (SELECT CONCAT('binding:', id) FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1)",
+        // Lock the binding before touching its outbox rows. Enqueue uses the
+        // same binding -> outbox order, so a concurrent order cannot slip a
+        // pending notice in after revocation has committed.
+        const bindings = await allAsync(
+          'SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1 FOR UPDATE',
           identity
         );
+        const bindingIds = Array.isArray(bindings) ? bindings.map(row => Number(row.id)).filter(id => Number.isSafeInteger(id) && id > 0) : [];
+        if (bindingIds.length) {
+          const placeholders = bindingIds.map(() => '?').join(',');
+          await runAsync(
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (" +
+              bindingIds.map(id => "'binding:" + id + "'").join(',') + ")"
+          );
+        }
         return runAsync(
           'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1',
           identity
