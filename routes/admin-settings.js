@@ -316,6 +316,28 @@ module.exports = function(app, deps) {
           'INSERT INTO telegram_store_admin_recipients (merchant_id, store_id, chat_id, is_enabled, notify_order_created, notify_settled, notify_refunded, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE chat_id=VALUES(chat_id), is_enabled=VALUES(is_enabled), notify_order_created=VALUES(notify_order_created), notify_settled=VALUES(notify_settled), notify_refunded=VALUES(notify_refunded), updated_at=UTC_TIMESTAMP(3)',
           [merchantId, storeId, chatId, enabled, notifyOrderCreated, notifySettled, notifyRefunded]
         );
+
+        // A disabled store or event toggle is a terminal decision for queued
+        // notices. Do this in the same transaction as the settings update so
+        // re-enabling later cannot release an old backlog.
+        if (!enabled) {
+          await runAsync(
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND store_id=? AND state IN ('pending','processing')",
+            [merchantId, storeId]
+          );
+        } else {
+          for (const [eventType, eventEnabled] of [
+            ['order.created', notifyOrderCreated],
+            ['order.settled', notifySettled],
+            ['order.refunded', notifyRefunded]
+          ]) {
+            if (eventEnabled) continue;
+            await runAsync(
+              "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND store_id=? AND event_type=? AND state IN ('pending','processing')",
+              [merchantId, storeId, eventType]
+            );
+          }
+        }
         await writeCurrencyAudit(req, 'update_telegram_store_notifications', storeId, {
           enabled: !!enabled,
           chat_id_configured: !!chatId,
