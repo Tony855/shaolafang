@@ -109,6 +109,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       const createdAt = new Date().toISOString();
       let orderId = null;
       let orderNo = '';
+      let orderRow = null;
       await withTransaction(async () => {
         const activeStore = await getAsync(
           'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id AND m.status=1 WHERE s.id=? AND s.merchant_id=? AND s.active=1 FOR UPDATE',
@@ -134,6 +135,8 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
             [Number(item.quantity) || 1, item.id, storeId]
           );
         }
+        orderRow = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, storeId]);
+        if (!orderRow) throw new Error('订单创建后无法读取，请重试');
         await enqueueStoreAdminTelegramNotification({
           allAsync,
           merchantId: store.merchant_id,
@@ -143,8 +146,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
         });
       });
 
-      const row = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, storeId]);
-      const staffOrder = formatOrder(row);
+      const staffOrder = formatOrder(orderRow);
       delete staffOrder.sessionToken;
       delete staffOrder.customerToken;
       io.to('kitchen-' + storeId).emit('order:new', staffOrder);
