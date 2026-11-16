@@ -72,8 +72,8 @@ module.exports = function registerDeliveryRoutes(app, deps) {
           r.phone AS rider_phone, j.recipient_name, j.recipient_phone, j.delivery_address,
           j.status, j.assigned_at, j.updated_at, l.latitude, l.longitude, l.accuracy_m,
           l.updated_at AS location_updated_at
-         FROM delivery_jobs j JOIN orders o ON o.id=j.order_id AND o.store_id=j.store_id
-         LEFT JOIN delivery_riders r ON r.id=j.rider_id AND r.store_id=j.store_id
+         FROM delivery_jobs j JOIN orders o ON o.id=j.order_id AND o.store_id=j.store_id AND o.merchant_id=j.merchant_id
+         LEFT JOIN delivery_riders r ON r.id=j.rider_id AND r.merchant_id=j.merchant_id AND r.store_id=j.store_id
          LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.store_id=j.store_id AND l.updated_at>=j.assigned_at
          WHERE j.merchant_id=? AND j.store_id=? ORDER BY j.updated_at DESC LIMIT 200`,
         [req.merchantId, req.storeId]
@@ -92,11 +92,11 @@ module.exports = function registerDeliveryRoutes(app, deps) {
     if (!orderId || !riderId || !address) return res.status(400).json({ error: '订单、骑手和配送地址不能为空' });
     try {
       const job = await withTransaction(async () => {
-        const order = await getAsync('SELECT id, status FROM orders WHERE id=? AND store_id=? FOR UPDATE', [orderId, req.storeId]);
+        const order = await getAsync('SELECT id, status, merchant_id FROM orders WHERE id=? AND store_id=? AND merchant_id=? FOR UPDATE', [orderId, req.storeId, req.merchantId]);
         if (!order || order.status === 'canceled') {
           const error = new Error('订单不存在或已取消'); error.status = 404; throw error;
         }
-        const existingJob = await getAsync('SELECT status FROM delivery_jobs WHERE order_id=? AND store_id=? FOR UPDATE', [orderId, req.storeId]);
+        const existingJob = await getAsync('SELECT status FROM delivery_jobs WHERE order_id=? AND merchant_id=? AND store_id=? FOR UPDATE', [orderId, req.merchantId, req.storeId]);
         if (existingJob && ['delivered', 'cancelled'].includes(existingJob.status)) {
           const error = new Error('已完成或已取消的配送任务不能重新分配'); error.status = 409; throw error;
         }
@@ -162,9 +162,9 @@ module.exports = function registerDeliveryRoutes(app, deps) {
         `SELECT j.id, j.order_id, o.order_no, j.recipient_name, j.recipient_phone,
           j.delivery_address, j.status, j.assigned_at, j.updated_at
          FROM delivery_jobs j JOIN orders o ON o.id=j.order_id AND o.store_id=j.store_id
-         WHERE j.rider_id=? AND j.store_id=? AND j.status NOT IN ('delivered','cancelled')
+         WHERE j.rider_id=? AND j.merchant_id=? AND j.store_id=? AND j.status NOT IN ('delivered','cancelled')
          ORDER BY j.updated_at DESC LIMIT 100`,
-        [req.deliveryRider.id, req.deliveryRider.store_id]
+        [req.deliveryRider.id, req.deliveryRider.merchant_id, req.deliveryRider.store_id]
       );
       res.setHeader('Cache-Control', 'no-store');
       res.json({ jobs: rows, rider: { displayName: req.deliveryRider.display_name } });
@@ -178,15 +178,15 @@ module.exports = function registerDeliveryRoutes(app, deps) {
     if (!jobId || !Object.values(transitions).includes(nextStatus)) return res.status(400).json({ error: '配送状态无效' });
     try {
       const job = await getAsync(
-        'SELECT id, order_id, status FROM delivery_jobs WHERE id=? AND rider_id=? AND store_id=?',
-        [jobId, req.deliveryRider.id, req.deliveryRider.store_id]
+        'SELECT id, order_id, status FROM delivery_jobs WHERE id=? AND rider_id=? AND merchant_id=? AND store_id=?',
+        [jobId, req.deliveryRider.id, req.deliveryRider.merchant_id, req.deliveryRider.store_id]
       );
       if (!job || transitions[job.status] !== nextStatus) return res.status(409).json({ error: '配送状态已变化，请刷新后重试' });
       const timestampColumn = { accepted: 'accepted_at', picked_up: 'picked_up_at', delivered: 'delivered_at' }[nextStatus];
       const changed = await runAsync(
         `UPDATE delivery_jobs SET status=?, ${timestampColumn ? timestampColumn + '=UTC_TIMESTAMP(3),' : ''} updated_at=UTC_TIMESTAMP(3)
-         WHERE id=? AND rider_id=? AND store_id=? AND status=?`,
-        [nextStatus, jobId, req.deliveryRider.id, req.deliveryRider.store_id, job.status]
+         WHERE id=? AND rider_id=? AND merchant_id=? AND store_id=? AND status=?`,
+        [nextStatus, jobId, req.deliveryRider.id, req.deliveryRider.merchant_id, req.deliveryRider.store_id, job.status]
       );
       if (!changed?.affectedRows) return res.status(409).json({ error: '配送状态已被其他操作更新，请刷新' });
       io.to('delivery-order-' + job.order_id).emit('delivery:status', { orderId: job.order_id, status: nextStatus });
@@ -249,8 +249,8 @@ module.exports = function registerDeliveryRoutes(app, deps) {
           l.latitude, l.longitude, l.accuracy_m, l.updated_at AS location_updated_at
          FROM delivery_jobs j LEFT JOIN delivery_riders r ON r.id=j.rider_id AND r.store_id=j.store_id
          LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.store_id=j.store_id
-         WHERE j.order_id=? AND j.store_id=(SELECT store_id FROM orders WHERE id=?)`,
-        [orderId, orderId]
+         WHERE j.order_id=? AND j.merchant_id=(SELECT merchant_id FROM orders WHERE id=?) AND j.store_id=(SELECT store_id FROM orders WHERE id=?)`,
+        [orderId, orderId, orderId]
       );
       if (!job) return res.status(404).json({ error: '该订单尚未分配配送员' });
       res.json({ job });
