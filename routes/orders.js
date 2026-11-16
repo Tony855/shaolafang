@@ -643,9 +643,11 @@ app.post('/api/orders', async (req, res) => {
     io.to('kitchen-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('waiter-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('cashier-' + finalStoreId).emit('order:new', staffOrderData);
-    io.to('public-table-' + finalStoreId + '-' + newRow.table_name).emit(
-      'order:new', publicOrderChangedPayload(orderData.id)
-    );
+    if (newRow.table_name) {
+      io.to('public-table-' + finalStoreId + '-' + newRow.table_name).emit(
+        'order:new', publicOrderChangedPayload(orderData.id)
+      );
+    }
 
     const responseData = {
       success: true,
@@ -905,7 +907,9 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       io.to('kitchen-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
       io.to('waiter-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
       io.to('cashier-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
-      io.to('public-table-' + orderStoreId + '-' + updatedRow.table_name).emit('order:settled', { orderId: Number(id) });
+      if (updatedRow.table_name) {
+        io.to('public-table-' + orderStoreId + '-' + updatedRow.table_name).emit('order:settled', { orderId: Number(id) });
+      }
     }
     res.json(formatStaffOrder(updatedRow));
   } catch (e) {
