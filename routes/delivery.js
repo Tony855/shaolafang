@@ -8,6 +8,7 @@ const positiveId = value => {
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 };
 const cleanText = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+const canReassignDeliveryJob = job => !job || job.status === 'assigned';
 
 module.exports = function registerDeliveryRoutes(app, deps) {
   const { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission,
@@ -97,8 +98,14 @@ module.exports = function registerDeliveryRoutes(app, deps) {
           const error = new Error('订单不存在或已取消'); error.status = 404; throw error;
         }
         const existingJob = await getAsync('SELECT status FROM delivery_jobs WHERE order_id=? AND merchant_id=? AND store_id=? FOR UPDATE', [orderId, req.merchantId, req.storeId]);
-        if (existingJob && ['delivered', 'cancelled'].includes(existingJob.status)) {
-          const error = new Error('已完成或已取消的配送任务不能重新分配'); error.status = 409; throw error;
+        if (!canReassignDeliveryJob(existingJob)) {
+          const error = new Error(
+            ['delivered', 'cancelled'].includes(existingJob.status)
+              ? '已完成或已取消的配送任务不能重新分配'
+              : '骑手已接单或配送已开始，不能更换骑手；请先完成或按取消流程处理'
+          );
+          error.status = 409;
+          throw error;
         }
         const rider = await getAsync(
           'SELECT id FROM delivery_riders WHERE id=? AND merchant_id=? AND store_id=? AND active=1 FOR UPDATE',
@@ -259,3 +266,5 @@ module.exports = function registerDeliveryRoutes(app, deps) {
     } catch (_) { res.status(500).json({ error: '查询配送信息失败' }); }
   });
 };
+
+module.exports.canReassignDeliveryJob = canReassignDeliveryJob;
