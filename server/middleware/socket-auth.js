@@ -171,7 +171,7 @@ function createSocketAuthenticator({ getAsync, allAsync = async (sql, params) =>
 
 function socketIdentity(socket) {
   const data = socket.data || {};
-  return [data.role, data.storeId, data.merchantId, data.adminId, data.cashierId, data.waiterId, data.tableName];
+  return [data.role, data.storeId, data.merchantId, data.adminId, data.cashierId, data.waiterId, data.tableName, data.deliveryRiderId, data.deliveryOrderId];
 }
 
 // Handshake authentication alone leaves established sockets alive after logout,
