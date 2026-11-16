@@ -143,10 +143,9 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1', [rider.store_id, rider.merchant_id]);
       if (!store) {
         await cancelLoginAttempt(username, 'delivery_rider', attempt.reservationId);
-          return res.status(403).json({ error: '门店已停用' });
+        return res.status(403).json({ error: '门店已停用' });
       }
       await resetLoginAttempts(username, 'delivery_rider', attempt.reservationId);
-      reservationOpen = false;
       const token = crypto.randomBytes(32).toString('base64url');
       await runAsync(
         'INSERT INTO delivery_rider_sessions (rider_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 7 DAY))',
