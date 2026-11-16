@@ -21,10 +21,42 @@ function createSocketAuthenticator({ getAsync, allAsync = async (sql, params) =>
   return async function authenticateSocket(socket, next) {
     try {
       // Keep bearer credentials out of the URL/query string and reverse-proxy access logs.
-      const rawToken = socket.handshake?.auth?.token;
+      const auth = socket.handshake?.auth || {};
+      const deliveryCustomerToken = typeof auth.deliveryCustomerToken === 'string' ? auth.deliveryCustomerToken.trim() : '';
+      const deliveryOrderId = positiveSafeInteger(auth.deliveryOrderId);
+      if (deliveryCustomerToken && deliveryOrderId && deliveryCustomerToken.length <= 128) {
+        const order = await getAsync('SELECT id, store_id, customer_token FROM orders WHERE id=?', [deliveryOrderId]);
+        const job = order ? await getAsync('SELECT id FROM delivery_jobs WHERE order_id=? AND store_id=?', [deliveryOrderId, order.store_id]) : null;
+        if (!order || !job || !order.customer_token || hashSessionToken(deliveryCustomerToken) !== order.customer_token) {
+          return next(new Error('unauthorized: delivery tracking access denied'));
+        }
+        socket.data.role = 'delivery_customer';
+        socket.data.storeId = positiveSafeInteger(order.store_id);
+        socket.data.deliveryOrderId = deliveryOrderId;
+        return next();
+      }
+
+      const rawToken = auth.token;
       const token = typeof rawToken === 'string' ? rawToken.trim() : '';
       const tokenHash = hashSessionToken(token);
       if (!token || token.length > 256) return next(new Error('unauthorized: valid session token required'));
+
+      const riderSession = await getAsync(
+        `SELECT r.id, r.merchant_id, r.store_id, r.display_name, s.expires_at
+         FROM delivery_rider_sessions s JOIN delivery_riders r ON r.id=s.rider_id
+         JOIN stores st ON st.id=r.store_id AND st.merchant_id=r.merchant_id AND st.active=1
+         JOIN merchants m ON m.id=r.merchant_id AND m.status=1
+         WHERE s.token_hash=? AND s.expires_at>UTC_TIMESTAMP(3) AND r.active=1`,
+        [tokenHash]
+      );
+      if (riderSession) {
+        socket.data.role = 'delivery_rider';
+        socket.data.storeId = positiveSafeInteger(riderSession.store_id);
+        socket.data.merchantId = positiveSafeInteger(riderSession.merchant_id);
+        socket.data.deliveryRiderId = positiveSafeInteger(riderSession.id);
+        socket.data.expiresAt = riderSession.expires_at;
+        return next();
+      }
 
       const scanSession = await getAsync(
         'SELECT table_name, store_id, expires_at FROM scan_sessions WHERE token_hash=?',
