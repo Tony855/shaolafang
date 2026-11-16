@@ -65,12 +65,12 @@ test('customer delivery order creates a tableless order and unassigned delivery 
   assert.equal(res.body.trackingUrl.includes('#token='), true);
   const orderInsert = ctx.calls.find(x => x.type === 'run' && x.sql.includes('INSERT INTO orders'));
   assert.ok(orderInsert);
-  assert.match(orderInsert.sql, /VALUES \\(\?, NULL,/);
+  assert.ok(orderInsert.sql.includes('VALUES (?, NULL,'));
   assert.equal(orderInsert.params[4].length, 64);
   assert.notEqual(orderInsert.params[4], res.body.customerToken);
   const jobInsert = ctx.calls.find(x => x.type === 'run' && x.sql.includes('INSERT INTO delivery_jobs'));
   assert.ok(jobInsert);
-  assert.match(jobInsert.sql, /NULL, \?, \?, \?, 'pending_assignment'/);
+  assert.ok(jobInsert.sql.includes("NULL, ?, ?, ?, 'pending_assignment'"));
   assert.deepEqual(ctx.transactions, ['begin', 'commit']);
   assert.ok(ctx.events.some(x => x.room === 'kitchen-7' && x.event === 'order:new'));
 });
