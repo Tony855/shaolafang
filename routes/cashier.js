@@ -390,7 +390,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
       io.to('kitchen-' + req.storeId).emit('order:settled', payload);
       io.to('waiter-' + req.storeId).emit('order:settled', payload);
       io.to('cashier-' + req.storeId).emit('order:settled', payload);
-      io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', payload);
+      if (order.table_name) io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', payload);
     }
     res.json({ success: true, settled: settlementOrders.length, total: totalAmount.toFixed(2), printed, printError });
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
