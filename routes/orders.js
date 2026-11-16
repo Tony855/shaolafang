@@ -378,16 +378,27 @@ app.post('/api/orders', async (req, res) => {
     const isWaiter = Boolean(waiter && waiter.can_order);
     if (waiter && !waiter.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
 
+    // Fulfillment type is server-controlled: only authenticated admins may create delivery orders.
+    const requestedFulfillmentType = typeof req.body.fulfillment_type === 'string' ? req.body.fulfillment_type.trim() : '';
+    if (isAdmin && requestedFulfillmentType && !['dine_in', 'takeaway', 'delivery'].includes(requestedFulfillmentType)) {
+      return res.status(400).json({ error: '订单履约类型无效' });
+    }
+    if (!isAdmin && requestedFulfillmentType && requestedFulfillmentType !== 'dine_in') {
+      return res.status(403).json({ error: '当前下单入口不支持该履约类型' });
+    }
+    const fulfillmentType = isAdmin ? (requestedFulfillmentType || 'dine_in') : 'dine_in';
+
     // ---------- 2. 会话/座号校验 ----------
     let sessionToken = null;
     let sessionTokenHash = null;
     let customerToken = '';
     let customerTokenHash = '';
     let sessionStoreId = null;
-    let table;
+    let table = null;
     const requestedTable = typeof req.body.table === 'string' ? req.body.table.trim() : '';
-    if (!requestedTable || requestedTable.length > 50) {
-      return res.status(400).json({ error: '座号无效' });
+    const tableRequired = !isAdmin || fulfillmentType === 'dine_in';
+    if (requestedTable.length > 50 || (tableRequired && !requestedTable)) {
+      return res.status(400).json({ error: tableRequired ? '座号无效' : '座号长度无效' });
     }
     if (!isAdmin && !isWaiter) {
       const token = typeof req.body.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
@@ -415,25 +426,24 @@ app.post('/api/orders', async (req, res) => {
       sessionToken = token;
       sessionTokenHash = hashSessionToken(token);
     } else {
-      const orderStoreId = Number(req.storeId);
+      const orderStoreId = Number(req.storeId ?? waiter?.store_id);
       if (!Number.isSafeInteger(orderStoreId) || orderStoreId <= 0) {
         return res.status(403).json({ error: '无权访问该店铺' });
       }
-      table = await assertTableExists(requestedTable, orderStoreId);
+      if (requestedTable) table = await assertTableExists(requestedTable, orderStoreId);
+      else if (tableRequired) return res.status(400).json({ error: '请选择座号' });
     }
     const authenticatedStoreId = isAdmin ? req.storeId : (isWaiter ? Number(waiter.store_id) : sessionStoreId);
     if (!Number.isSafeInteger(Number(authenticatedStoreId)) || Number(authenticatedStoreId) <= 0) {
       return res.status(403).json({ error: '当前账号未绑定有效门店' });
     }
-    const tableStore = await getAsync(
-      'SELECT store_id FROM tables WHERE name=? AND store_id=?',
-      [table, Number(authenticatedStoreId)]
-    );
-    const storeId = Number(tableStore?.store_id);
+    const storeId = table
+      ? Number((await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, Number(authenticatedStoreId)]))?.store_id)
+      : Number(authenticatedStoreId);
     if (!Number.isSafeInteger(storeId) || storeId <= 0) {
-      return res.status(404).json({ error: '桌台不存在或不属于当前门店' });
+      return res.status(404).json({ error: table ? '桌台不存在或不属于当前门店' : '订单所属门店无效' });
     }
-    if (isWaiter && waiter.store_id !== storeId) return res.status(403).json({ error: '不能为其他店铺的座号下单' });
+    if (isWaiter && Number(waiter.store_id) !== storeId) return res.status(403).json({ error: '不能为其他店铺下单' });
     const finalStoreId = sessionStoreId || storeId;
 
     // ---------- 4. 菜品规范化与上限校验 ----------
@@ -504,7 +514,7 @@ app.post('/api/orders', async (req, res) => {
     // ---------- 7. 原子冷却检查 ----------
     // Acquire the cooldown only after the payload has passed validation. Invalid
     // requests must not lock a customer's QR session and block a valid order.
-    const cooldownKey = sessionTokenHash || ('store:' + finalStoreId + ':table:' + table);
+    const cooldownKey = sessionTokenHash || (table ? ('store:' + finalStoreId + ':table:' + table) : ('store:' + finalStoreId + ':admin:' + (req.adminId || getClientIp(req) || 'unknown')));
     const cooldownMs = await getOrderCooldownMs();
     const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs);
     if (canSubmit === null) {
@@ -520,12 +530,14 @@ app.post('/api/orders', async (req, res) => {
       createdOrder = await withTransaction(async () => {
         // Serialize order creation with table rename, move and delete operations.
         // Lock order is always table row -> QR session row to avoid stale-session races.
-        const lockedTable = await getAsync(
-          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
-          [table, finalStoreId]
-        );
-        if (!lockedTable) {
-          throw Object.assign(new Error('座号已不存在，请重新扫码或刷新座号'), { status: 404 });
+        if (table) {
+          const lockedTable = await getAsync(
+            'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+            [table, finalStoreId]
+          );
+          if (!lockedTable) {
+            throw Object.assign(new Error('座号已不存在，请重新扫码或刷新座号'), { status: 404 });
+          }
         }
         const activeStore = await getAsync(
           'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
@@ -551,8 +563,8 @@ app.post('/api/orders', async (req, res) => {
 
         const orderNo = await allocateOrderNo(seqPrefix);
         const result = await runAsync(
-          'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-          [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionTokenHash, customerTokenHash, finalStoreId, note, finalStoreId]
+          'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id, fulfillment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?), ?)',
+          [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionTokenHash, customerTokenHash, finalStoreId, note, finalStoreId, fulfillmentType]
         );
         for (const item of items) {
           if (item.id) {
@@ -562,7 +574,7 @@ app.post('/api/orders', async (req, res) => {
             );
           }
         }
-        await syncTableStatus(table, finalStoreId);
+        if (table) await syncTableStatus(table, finalStoreId);
         if (sessionToken) {
           const qrTimeoutRow = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
           const rawQrTimeout = String(qrTimeoutRow?.value ?? '45').trim();
@@ -587,7 +599,7 @@ app.post('/api/orders', async (req, res) => {
           merchantId: store?.merchant_id,
           storeId: finalStoreId,
           eventKey: `order:${result.lastID}:created:store`,
-          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, tableName: table, amount: calculatedTotal, currency: 'USD', note }
+          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, tableName: table || '', amount: calculatedTotal, currency: 'USD', note }
         });
         return { orderId: result.lastID, orderNo };
       });
@@ -631,9 +643,11 @@ app.post('/api/orders', async (req, res) => {
     io.to('kitchen-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('waiter-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('cashier-' + finalStoreId).emit('order:new', staffOrderData);
-    io.to('public-table-' + finalStoreId + '-' + newRow.table_name).emit(
-      'order:new', publicOrderChangedPayload(orderData.id)
-    );
+    if (newRow.table_name) {
+      io.to('public-table-' + finalStoreId + '-' + newRow.table_name).emit(
+        'order:new', publicOrderChangedPayload(orderData.id)
+      );
+    }
 
     const responseData = {
       success: true,
@@ -717,7 +731,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       return res.status(409).json({ error: '存在未完成菜品，请先完成或删除该菜品后再结算订单' });
     }
 
-    const nextTable = table === undefined ? existing.table_name : await assertTableExists(table, orderStoreId);
+    const nextTable = table === undefined || (table === '' && !existing.table_name) ? existing.table_name : await assertTableExists(table, orderStoreId);
     const itemsJson = JSON.stringify(newItems);
     const nextNote = typeof note === 'string' ? note.trim().slice(0, 200) : (existing.note || '');
     const paymentMethod = typeof pay_method === 'string' ? pay_method.trim().slice(0, 40) : '';
@@ -748,16 +762,18 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     }
 
     await withTransaction(async () => {
-      const tableNames = [...new Set([existing.table_name, nextTable])];
-      const tablePlaceholders = tableNames.map(() => '?').join(',');
-      const lockedTables = await allAsync(
-        'SELECT id, name FROM tables WHERE store_id=? AND name IN (' + tablePlaceholders + ') ORDER BY id FOR UPDATE',
-        [orderStoreId, ...tableNames]
-      );
-      if (lockedTables.length !== tableNames.length) {
-        const error = new Error('订单关联桌台已变化，请刷新后重试');
-        error.status = 409;
-        throw error;
+      const tableNames = [...new Set([existing.table_name, nextTable].filter(name => typeof name === 'string' && name.length > 0))];
+      if (tableNames.length) {
+        const tablePlaceholders = tableNames.map(() => '?').join(',');
+        const lockedTables = await allAsync(
+          'SELECT id, name FROM tables WHERE store_id=? AND name IN (' + tablePlaceholders + ') ORDER BY id FOR UPDATE',
+          [orderStoreId, ...tableNames]
+        );
+        if (lockedTables.length !== tableNames.length) {
+          const error = new Error('订单关联桌台已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
       }
 
       const lockedOrder = await getAsync(
@@ -854,18 +870,20 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         });
       }
 
-      await syncTableStatus(nextTable, orderStoreId);
+      if (nextTable) await syncTableStatus(nextTable, orderStoreId);
       if (nextTable !== existing.table_name) {
-        await syncTableStatus(existing.table_name, orderStoreId);
-        const oldPending = await getAsync(
-          "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
-          [existing.table_name, orderStoreId]
-        );
-        if (!oldPending || Number(oldPending.cnt) === 0) {
-          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [existing.table_name, orderStoreId]);
+        if (existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
+        if (existing.table_name) {
+          const oldPending = await getAsync(
+            "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+            [existing.table_name, orderStoreId]
+          );
+          if (!oldPending || Number(oldPending.cnt) === 0) {
+            await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [existing.table_name, orderStoreId]);
+          }
         }
       }
-      if (status === 'done' && req.isAdmin) {
+      if (status === 'done' && req.isAdmin && nextTable) {
         const stillPending = await getAsync(
           "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
           [nextTable, orderStoreId]
@@ -889,7 +907,9 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       io.to('kitchen-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
       io.to('waiter-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
       io.to('cashier-' + orderStoreId).emit('order:settled', { orderId: Number(id) });
-      io.to('public-table-' + orderStoreId + '-' + updatedRow.table_name).emit('order:settled', { orderId: Number(id) });
+      if (updatedRow.table_name) {
+        io.to('public-table-' + orderStoreId + '-' + updatedRow.table_name).emit('order:settled', { orderId: Number(id) });
+      }
     }
     res.json(formatStaffOrder(updatedRow));
   } catch (e) {
@@ -922,11 +942,13 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
         throw Object.assign(new Error('密码错误或管理员账号已停用'), { status: 401 });
       }
       // Lock table -> order, consistent with settlement, transfer and table mutation.
-      const lockedTable = await getAsync(
-        'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
-        [existing.table_name, storeId]
-      );
-      if (!lockedTable) throw Object.assign(new Error('订单关联桌台已变化，删除操作已中止'), { status: 409 });
+      if (existing.table_name) {
+        const lockedTable = await getAsync(
+          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+          [existing.table_name, storeId]
+        );
+        if (!lockedTable) throw Object.assign(new Error('订单关联桌台已变化，删除操作已中止'), { status: 409 });
+      }
 
       const lockedOrder = await getAsync(
         'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
@@ -959,13 +981,15 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
       );
       if (!result.affectedRows) throw Object.assign(new Error('订单不存在或已被删除'), { status: 404 });
 
-      await syncTableStatus(lockedOrder.table_name, storeId);
-      const pending = await getAsync(
-        "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
-        [lockedOrder.table_name, storeId]
-      );
-      if (!pending || Number(pending.cnt) === 0) {
-        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, storeId]);
+      if (lockedOrder.table_name) {
+        await syncTableStatus(lockedOrder.table_name, storeId);
+        const pending = await getAsync(
+          "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+          [lockedOrder.table_name, storeId]
+        );
+        if (!pending || Number(pending.cnt) === 0) {
+          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, storeId]);
+        }
       }
 
       await runAsync(
@@ -984,7 +1008,9 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
     io.to('kitchen-' + storeId).emit('order:deleted', payload);
     io.to('waiter-' + storeId).emit('order:deleted', payload);
     io.to('cashier-' + storeId).emit('order:deleted', payload);
-    io.to('public-table-' + storeId + '-' + deletedOrder.table_name).emit('order:deleted', payload);
+    if (deletedOrder.table_name) {
+      io.to('public-table-' + storeId + '-' + deletedOrder.table_name).emit('order:deleted', payload);
+    }
     res.json({ success: true });
   } catch (e) {
     sendOrderError(res, e);

@@ -93,9 +93,12 @@ module.exports = function registerDeliveryRoutes(app, deps) {
     if (!orderId || !riderId || !address) return res.status(400).json({ error: '订单、骑手和配送地址不能为空' });
     try {
       const job = await withTransaction(async () => {
-        const order = await getAsync('SELECT id, status, merchant_id FROM orders WHERE id=? AND store_id=? AND merchant_id=? FOR UPDATE', [orderId, req.storeId, req.merchantId]);
+        const order = await getAsync('SELECT id, status, merchant_id, fulfillment_type FROM orders WHERE id=? AND store_id=? AND merchant_id=? FOR UPDATE', [orderId, req.storeId, req.merchantId]);
         if (!order || order.status === 'canceled') {
           const error = new Error('订单不存在或已取消'); error.status = 404; throw error;
+        }
+        if (order.fulfillment_type !== 'delivery') {
+          const error = new Error('只有明确标记为外卖的订单才能分配骑手'); error.status = 409; throw error;
         }
         const existingJob = await getAsync('SELECT status FROM delivery_jobs WHERE order_id=? AND merchant_id=? AND store_id=? FOR UPDATE', [orderId, req.merchantId, req.storeId]);
         if (!canReassignDeliveryJob(existingJob)) {

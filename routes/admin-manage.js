@@ -1094,14 +1094,16 @@ module.exports = function(app, deps) {
       // 只有已认证的管理员/收银员可人工确认到账；表行先锁定，再锁订单，避免与转桌/改桌死锁。
       const settledAt = new Date().toISOString();
       await withTransaction(async () => {
-        const lockedTable = await getAsync(
-          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
-          [order.table_name, sid]
-        );
-        if (!lockedTable) {
-          const error = new Error('订单关联桌台已变化，请刷新后重试');
-          error.status = 409;
-          throw error;
+        if (order.table_name) {
+          const lockedTable = await getAsync(
+            'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+            [order.table_name, sid]
+          );
+          if (!lockedTable) {
+            const error = new Error('订单关联桌台已变化，请刷新后重试');
+            error.status = 409;
+            throw error;
+          }
         }
         const lockedOrder = await getAsync(
           'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
@@ -1149,10 +1151,12 @@ module.exports = function(app, deps) {
           error.status = 409;
           throw error;
         }
-        await syncTableStatus(lockedOrder.table_name, sid);
-        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [lockedOrder.table_name, sid]);
-        if (!stillPending || Number(stillPending.cnt) === 0) {
-          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, sid]);
+        if (lockedOrder.table_name) {
+          await syncTableStatus(lockedOrder.table_name, sid);
+          const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [lockedOrder.table_name, sid]);
+          if (!stillPending || Number(stillPending.cnt) === 0) {
+            await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, sid]);
+          }
         }
         await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
           [req.isCashier ? 'cashier' : 'admin', req.adminId || req.cashierId || 0, req.isCashier ? (req.cashier?.username || 'cashier') : 'admin', 'khqr_confirm', JSON.stringify({ order_id: orderId, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
@@ -1176,7 +1180,7 @@ module.exports = function(app, deps) {
       io.to('kitchen-' + sid).emit('order:settled', { orderId });
       io.to('waiter-' + sid).emit('order:settled', { orderId });
       io.to('cashier-' + sid).emit('order:settled', { orderId });
-      io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId });
+      if (order.table_name) io.to('public-table-' + sid + '-' + order.table_name).emit('order:settled', { orderId });
       res.json({ success: true, status: 'done' });
     } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
       res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }

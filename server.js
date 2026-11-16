@@ -485,7 +485,7 @@ async function ensureOrderTables() {
     SELECT DISTINCT o.table_name AS name, o.store_id AS store_id
     FROM orders o
     LEFT JOIN tables t ON t.name = o.table_name AND t.store_id = o.store_id
-    WHERE t.id IS NULL
+    WHERE o.table_name IS NOT NULL AND o.table_name <> '' AND t.id IS NULL
   `);
   for (const table of missingTables) {
     await runAsync(
@@ -1380,6 +1380,7 @@ async function initDatabase() {
   await rebaseCurrencyToUSDOnce();
   await ensureOrderTables();
   await require('./server/db/migrations/delivery').ensureDeliverySchema({ runAsync });
+  await require('./server/db/migrations/order-fulfillment').ensureOrderFulfillmentSchema({ allAsync, runAsync });
   const tablesWithoutTokens = await allAsync("SELECT id FROM tables WHERE qr_token IS NULL OR qr_token = ''");
   for (const table of tablesWithoutTokens) await runAsync('UPDATE tables SET qr_token=? WHERE id=?', [createTableToken(), table.id]);
   const allTables = await allAsync('SELECT name, store_id FROM tables');

@@ -26,6 +26,7 @@ function formatOrder(row) {
     table: row.table_name,
     order_no: row.order_no || '',
     table_name: row.table_name,
+    fulfillment_type: row.fulfillment_type || 'dine_in',
     items,
     total: row.total,
     status: row.status,

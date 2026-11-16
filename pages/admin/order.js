@@ -55,7 +55,7 @@ async function loadOrders() {
   const sessionLabels = buildSessionLabels(filtered);
   $('#orders').innerHTML = filtered.map(o => `
       <div class="order-item-admin">
-        <div class="top"><span class="table-info"><strong>${esc(o.order_no||'#'+o.id)}</strong> · ${tAdmin('table')||L('table')} ${esc(o.table)}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':o.status==='refunded'?'status-refunded':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
+        <div class="top"><span class="table-info"><strong>${esc(o.order_no||'#'+o.id)}</strong> · ${o.fulfillment_type==='delivery'?'外卖配送':o.fulfillment_type==='takeaway'?'顾客自取':(tAdmin('table')||L('table'))+' '+esc(o.table||'—')}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':o.status==='refunded'?'status-refunded':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
         ${o.note ? `<div class="order-note" style="margin:8px 0;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.2);font-size:13px;color:#f0c040;line-height:1.5;"><strong style="color:#ffd93d;">${esc(L('orderNoteDisplay')||tAdmin('note'))}：</strong>${esc(o.note)}</div>` : ''}
         <div class="items">${(o.items || []).map((item,index) => `
           <div class="dish-line" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -70,7 +70,7 @@ async function loadOrders() {
           <div class="actions">
             ${o.status==='done' || o.status==='canceled' ? '' : (hasPermission('can_edit_order') ? `<button class="edit" onclick="editOrder(${o.id})">${L('edit')}</button>` : '')}
             <button onclick="printOrder(${o.id})" style="background:#3498db;">🖨️ ${tAdmin('print')}</button>
-            ${o.status==='pending' ? `<button class="settle-order-btn" onclick="confirmSettleOrder(${o.id})">💰 ${tAdmin('settleOrder')}</button><button class="admin-transfer-order-btn" data-transfer-order-id="${Number(o.id)}" data-transfer-from-table="${esc(o.table_name || '')}" style="background:#9b59b6;">↔ ${tAdmin('transferOrder')}</button>${hasPermission('can_delete_order') ? `<button class="cancel-order-btn" onclick="confirmCancelOrder(${o.id})">🗑️ ${tAdmin('cancelOrder')}</button>` : ''}` : ''}
+            ${o.status==='pending' ? `<button class="settle-order-btn" onclick="confirmSettleOrder(${o.id})">💰 ${tAdmin('settleOrder')}</button>${o.table ? `<button class="admin-transfer-order-btn" data-transfer-order-id="${Number(o.id)}" data-transfer-from-table="${esc(o.table_name || '')}" style="background:#9b59b6;">↔ ${tAdmin('transferOrder')}</button>` : ''}${hasPermission('can_delete_order') ? `<button class="cancel-order-btn" onclick="confirmCancelOrder(${o.id})">🗑️ ${tAdmin('cancelOrder')}</button>` : ''}` : ''}
             ${hasPermission('can_delete_order') ? `<button class="danger" onclick="removeOrder(${o.id})">${L('delete')}</button>` : ''}
           </div>
         </div>
@@ -192,13 +192,62 @@ function removeOrder(id) {
 let editingOrderId = null;
 let editingOrderStatus = 'pending';
 
+function syncOrderTableRequirement() {
+  const fulfillmentSelect = document.getElementById('orderFulfillmentType');
+  const tableSelect = $('#orderTable');
+  if (!fulfillmentSelect || !tableSelect) return;
+  if (![...tableSelect.options].some(option => option.value === '')) {
+    tableSelect.insertBefore(new Option('无需座号（外卖/自取）', ''), tableSelect.firstChild);
+  }
+  const tableRequired = fulfillmentSelect.value === 'dine_in';
+  tableSelect.required = tableRequired;
+  tableSelect.disabled = Boolean(editingOrderId) || !tableRequired;
+  if (tableRequired && !tableSelect.value) {
+    const firstTable = [...tableSelect.options].find(option => option.value);
+    if (firstTable) tableSelect.value = firstTable.value;
+  } else if (!tableRequired) {
+    tableSelect.value = '';
+  }
+}
+
+function ensureFulfillmentSelect() {
+  let select = document.getElementById('orderFulfillmentType');
+  if (select) {
+    if (select.dataset.tableRequirementBound !== '1') {
+      select.addEventListener('change', syncOrderTableRequirement);
+      select.dataset.tableRequirementBound = '1';
+    }
+    return select;
+  }
+  const items = document.getElementById('orderItems');
+  if (!items || !items.parentNode) return null;
+  const wrap = document.createElement('label');
+  wrap.id = 'orderFulfillmentWrap';
+  wrap.style.cssText = 'display:block;margin:10px 0;font-size:13px;';
+  wrap.textContent = '订单类型 ';
+  select = document.createElement('select');
+  select.id = 'orderFulfillmentType';
+  select.style.cssText = 'display:block;width:100%;margin-top:6px;padding:10px;border-radius:8px;';
+  [['dine_in','堂食'],['takeaway','顾客自取'],['delivery','外卖配送']].forEach(([value,label]) => {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; select.appendChild(option);
+  });
+  wrap.appendChild(select);
+  items.parentNode.insertBefore(wrap, items);
+  select.addEventListener('change', syncOrderTableRequirement);
+  select.dataset.tableRequirementBound = '1';
+  return select;
+}
+
 function openOrderForm() {
   editingOrderId = null;
+  const fulfillmentSelect = ensureFulfillmentSelect();
+  if (fulfillmentSelect) { fulfillmentSelect.value = 'dine_in'; fulfillmentSelect.disabled = false; }
   editingOrderStatus = 'pending';
   $('#orderModalTitle').textContent = tAdmin('addOrder');
   $('#orderTable').disabled = false;
   const tables = ctx.tablesCache();
   if (tables.length) $('#orderTable').value = tables[0].name;
+  syncOrderTableRequirement();
   $('#orderItems').innerHTML = '';
   $('#orderNoteField').value = '';
   addOrderItem();
@@ -265,6 +314,9 @@ async function editOrder(id) {
       else addOrderItem(item.id, item.quantity);
     });
     $('#orderNoteField').value = o.note || '';
+    const fulfillmentSelect = ensureFulfillmentSelect();
+    if (fulfillmentSelect) { fulfillmentSelect.value = o.fulfillment_type || 'dine_in'; fulfillmentSelect.disabled = true; }
+    syncOrderTableRequirement();
     updateOrderTotal();
     $('#orderModal').classList.add('open');
   } catch (e) { SLF.ui.toast('❌ ' + e.message); }
@@ -284,8 +336,9 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!items.length) { SLF.ui.toast('❌ ' + tAdmin('noItems')); return; }
       try {
         await api(editingOrderId ? '/orders/' + editingOrderId : '/orders', { method: editingOrderId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: {
-          table: $('#orderTable').value,
+          table: $('#orderTable').value || '',
           note: $('#orderNoteField').value.trim(),
+          fulfillment_type: (ensureFulfillmentSelect()?.value || 'dine_in'),
           items
         }});
         closeOrderForm();

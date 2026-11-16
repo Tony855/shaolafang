@@ -267,18 +267,20 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
     const cashReceived = isCashPayment ? cashReceivedCents / 100 : 0;
     const cashChange = cashChangeCents / 100;
     let settlementOrders = orders;
-    let tableNames = [...new Set(orders.map(o => o.table_name))];
+    let tableNames = [...new Set(orders.map(o => o.table_name).filter(name => typeof name === 'string' && name.length > 0))];
     await withTransaction(async () => {
-      // Lock affected tables first, matching table move/rename/delete lock order.
-      const tablePlaceholders = tableNames.map(() => '?').join(',');
-      const lockedTables = await allAsync(
-        'SELECT id, name FROM tables WHERE store_id=? AND name IN (' + tablePlaceholders + ') ORDER BY id FOR UPDATE',
-        [req.storeId, ...tableNames]
-      );
-      if (lockedTables.length !== tableNames.length) {
-        const error = new Error('订单关联桌台已变化，请刷新后重试');
-        error.status = 409;
-        throw error;
+      // Lock dining tables only; delivery/takeaway orders intentionally have no table.
+      if (tableNames.length) {
+        const tablePlaceholders = tableNames.map(() => '?').join(',');
+        const lockedTables = await allAsync(
+          'SELECT id, name FROM tables WHERE store_id=? AND name IN (' + tablePlaceholders + ') ORDER BY id FOR UPDATE',
+          [req.storeId, ...tableNames]
+        );
+        if (lockedTables.length !== tableNames.length) {
+          const error = new Error('订单关联桌台已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
       }
       // Then lock orders in stable ID order and revalidate the live amounts/items.
       const lockedOrders = await allAsync(
@@ -290,7 +292,8 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         error.status = 409;
         throw error;
       }
-      if (lockedOrders.some(order => !tableNames.includes(order.table_name))) {
+      const originalTables = new Map(orders.map(order => [Number(order.id), order.table_name || null]));
+      if (lockedOrders.some(order => (order.table_name || null) !== originalTables.get(Number(order.id)))) {
         const error = new Error('订单桌台已变化，请刷新后重试');
         error.status = 409;
         throw error;
@@ -320,7 +323,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
         }
       }
       settlementOrders = lockedOrders;
-      tableNames = [...new Set(lockedOrders.map(o => o.table_name))];
+      tableNames = [...new Set(lockedOrders.map(o => o.table_name).filter(name => typeof name === 'string' && name.length > 0))];
       for (let index = 0; index < settlementOrders.length; index++) {
         const order = settlementOrders[index];
         // Allocate any batch cash change to the final order so per-order totals
@@ -387,7 +390,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
       io.to('kitchen-' + req.storeId).emit('order:settled', payload);
       io.to('waiter-' + req.storeId).emit('order:settled', payload);
       io.to('cashier-' + req.storeId).emit('order:settled', payload);
-      io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', payload);
+      if (order.table_name) io.to('public-table-' + req.storeId + '-' + order.table_name).emit('order:settled', payload);
     }
     res.json({ success: true, settled: settlementOrders.length, total: totalAmount.toFixed(2), printed, printError });
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
@@ -451,14 +454,16 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     let settledTableName = order.table_name;
     await withTransaction(async () => {
       // Lock the table before the order, matching table move/rename/delete operations.
-      const lockedTable = await getAsync(
-        'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
-        [order.table_name, req.storeId]
-      );
-      if (!lockedTable) {
-        const error = new Error('订单关联桌台已变化，请刷新后重试');
-        error.status = 409;
-        throw error;
+      if (order.table_name) {
+        const lockedTable = await getAsync(
+          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+          [order.table_name, req.storeId]
+        );
+        if (!lockedTable) {
+          const error = new Error('订单关联桌台已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
       }
       // Re-read the order after obtaining the table lock.
       const lockedOrder = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE', [id, req.storeId]);
@@ -497,10 +502,12 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
-      await syncTableStatus(settledTableName, req.storeId);
-      const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [settledTableName, req.storeId]);
-      if (!stillPending || Number(stillPending.cnt) === 0) {
-        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [settledTableName, req.storeId]);
+      if (settledTableName) {
+        await syncTableStatus(settledTableName, req.storeId);
+        const stillPending = await getAsync("SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'", [settledTableName, req.storeId]);
+        if (!stillPending || Number(stillPending.cnt) === 0) {
+          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [settledTableName, req.storeId]);
+        }
       }
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['cashier', 0, req.cashier.username, 'settle_order', JSON.stringify({ order_id: id, table: settledTableName, total: lockedOrder.total, pay_method: paymentMethod, cash_received: cashReceived, cash_change: cashChange }), getClientIp(req), settledAt]);
@@ -524,7 +531,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
-    io.to('public-table-' + req.storeId + '-' + settledTableName).emit('order:settled', { orderId: id });
+    if (settledTableName) io.to('public-table-' + req.storeId + '-' + settledTableName).emit('order:settled', { orderId: id });
     res.json({ success: true, message: '结算成功' });
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
     res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
@@ -544,14 +551,16 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     const canceledAt = new Date().toISOString();
     let canceledTableName = order.table_name;
     await withTransaction(async () => {
-      const lockedTable = await getAsync(
-        'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
-        [order.table_name, req.storeId]
-      );
-      if (!lockedTable) {
-        const error = new Error('订单关联桌台已变化，取消操作已中止');
-        error.status = 409;
-        throw error;
+      if (order.table_name) {
+        const lockedTable = await getAsync(
+          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+          [order.table_name, req.storeId]
+        );
+        if (!lockedTable) {
+          const error = new Error('订单关联桌台已变化，取消操作已中止');
+          error.status = 409;
+          throw error;
+        }
       }
       const lockedOrder = await getAsync(
         'SELECT table_name, status, awaiting_confirm, pay_khqr_ref, pay_expires_at FROM orders WHERE id=? AND store_id=? FOR UPDATE',
@@ -579,7 +588,7 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
-      await syncTableStatus(canceledTableName, req.storeId);
+      if (canceledTableName) await syncTableStatus(canceledTableName, req.storeId);
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: canceledTableName }), getClientIp(req), canceledAt]);
     });
@@ -587,7 +596,7 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     io.to('kitchen-' + req.storeId).emit('order:cancelled', canceledPayload);
     io.to('waiter-' + req.storeId).emit('order:cancelled', canceledPayload);
     io.to('cashier-' + req.storeId).emit('order:cancelled', canceledPayload);
-    io.to('public-table-' + req.storeId + '-' + canceledTableName).emit('order:cancelled', canceledPayload);
+    if (canceledTableName) io.to('public-table-' + req.storeId + '-' + canceledTableName).emit('order:cancelled', canceledPayload);
     res.json({ success: true, message: '取消成功' });
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
     res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
@@ -763,7 +772,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
-    io.to('public-table-' + req.storeId + '-' + tableName).emit('order:settled', { orderId: id });
+    if (tableName) io.to('public-table-' + req.storeId + '-' + tableName).emit('order:settled', { orderId: id });
     res.json(responsePayload);
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
     res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
