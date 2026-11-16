@@ -89,7 +89,7 @@ test('formats delivery fulfillment with recipient and address instead of a table
   });
   assert.ok(message.includes('履约方式</b>：外卖配送'));
   assert.ok(message.includes('收件人</b>：Alex'));
-  assert.match(message, /联系电话<\\/b>：\+855 12 345 678/);
+  assert.ok(message.includes('联系电话</b>：+855 12 345 678'));
   assert.ok(message.includes('配送地址</b>：&lt;Street 123&gt;'));
   assert.equal(message.includes('座号'), false);
 });
