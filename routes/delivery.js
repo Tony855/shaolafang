@@ -8,7 +8,7 @@ const positiveId = value => {
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 };
 const cleanText = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
-const canReassignDeliveryJob = job => !job || job.status === 'assigned';
+const canReassignDeliveryJob = job => !job || ['pending_assignment', 'assigned'].includes(job.status);
 
 module.exports = function registerDeliveryRoutes(app, deps) {
   const { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission,
