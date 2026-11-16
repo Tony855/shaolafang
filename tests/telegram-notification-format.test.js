@@ -80,3 +80,16 @@ test('escapes table names and omits table line when unavailable', () => {
   });
   assert.equal(withoutTable.includes('座号'), false);
 });
+
+test('formats delivery fulfillment with recipient and address instead of a table number', () => {
+  const message = formatTelegramBusinessNotification({
+    type: 'order.created', storeName: 'FoodFlow', orderNo: '11GL00001',
+    fulfillmentType: 'delivery', recipientName: 'Alex', recipientPhone: '+855 12 345 678',
+    deliveryAddress: '<Street 123>', amount: 8.5, currency: 'USD'
+  });
+  assert.ok(message.includes('履约方式</b>：外卖配送'));
+  assert.ok(message.includes('收件人</b>：Alex'));
+  assert.ok(message.includes('联系电话</b>：+855 12 345 678'));
+  assert.ok(message.includes('配送地址</b>：&lt;Street 123&gt;'));
+  assert.equal(message.includes('座号'), false);
+});

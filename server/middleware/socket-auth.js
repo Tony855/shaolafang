@@ -25,9 +25,16 @@ function createSocketAuthenticator({ getAsync, allAsync = async (sql, params) =>
       const deliveryCustomerToken = typeof auth.deliveryCustomerToken === 'string' ? auth.deliveryCustomerToken.trim() : '';
       const deliveryOrderId = positiveSafeInteger(auth.deliveryOrderId);
       if (deliveryCustomerToken && deliveryOrderId && deliveryCustomerToken.length <= 128) {
-        const order = await getAsync('SELECT id, store_id, customer_token FROM orders WHERE id=?', [deliveryOrderId]);
-        const job = order ? await getAsync('SELECT id FROM delivery_jobs WHERE order_id=? AND store_id=?', [deliveryOrderId, order.store_id]) : null;
-        if (!order || !job || !order.customer_token || hashSessionToken(deliveryCustomerToken) !== order.customer_token) {
+        const order = await getAsync(
+          `SELECT o.id, o.store_id, o.customer_token
+           FROM orders o
+           JOIN delivery_jobs j ON j.order_id=o.id AND j.store_id=o.store_id AND j.merchant_id=o.merchant_id
+           JOIN stores s ON s.id=o.store_id AND s.merchant_id=o.merchant_id AND s.active=1
+           JOIN merchants m ON m.id=o.merchant_id AND m.status=1
+           WHERE o.id=? AND o.fulfillment_type='delivery'`,
+          [deliveryOrderId]
+        );
+        if (!order || !order.customer_token || hashSessionToken(deliveryCustomerToken) !== order.customer_token) {
           return next(new Error('unauthorized: delivery tracking access denied'));
         }
         socket.data.role = 'delivery_customer';

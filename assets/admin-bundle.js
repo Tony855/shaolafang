@@ -3796,6 +3796,13 @@ function syncOrderTableRequirement() {
   const tableRequired = fulfillmentSelect.value === 'dine_in';
   tableSelect.required = tableRequired;
   tableSelect.disabled = Boolean(editingOrderId) || !tableRequired;
+  if (!tableRequired && !editingOrderId) tableSelect.value = '';
+  const deliveryFields = document.getElementById('orderDeliveryFields');
+  const deliveryInputs = ['orderDeliveryRecipientName', 'orderDeliveryRecipientPhone', 'orderDeliveryAddress']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  const deliveryRequired = fulfillmentSelect.value === 'delivery' && !editingOrderId;
+  if (deliveryFields) deliveryFields.hidden = !deliveryRequired;
+  deliveryInputs.forEach(input => { input.required = deliveryRequired; input.disabled = Boolean(editingOrderId); });
   if (tableRequired && !tableSelect.value) {
     const firstTable = [...tableSelect.options].find(option => option.value);
     if (firstTable) tableSelect.value = firstTable.value;
@@ -3844,6 +3851,13 @@ function openOrderForm() {
   syncOrderTableRequirement();
   $('#orderItems').innerHTML = '';
   $('#orderNoteField').value = '';
+  ['orderDeliveryRecipientName', 'orderDeliveryRecipientPhone', 'orderDeliveryAddress'].forEach(id => {
+    const input = document.getElementById(id); if (input) input.value = '';
+  });
+  const trackingResult = document.getElementById('orderTrackingResult');
+  if (trackingResult) trackingResult.hidden = true;
+  const saveButton = document.getElementById('orderSaveBtn');
+  if (saveButton) saveButton.disabled = false;
   addOrderItem();
   updateOrderTotal();
   $('#orderModal').classList.add('open');
@@ -3929,20 +3943,49 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       if (!items.length) { SLF.ui.toast('❌ ' + tAdmin('noItems')); return; }
       try {
-        await api(editingOrderId ? '/orders/' + editingOrderId : '/orders', { method: editingOrderId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+        const fulfillmentType = ensureFulfillmentSelect()?.value || 'dine_in';
+        const delivery = fulfillmentType === 'delivery' ? {
+          recipient_name: document.getElementById('orderDeliveryRecipientName')?.value.trim() || '',
+          recipient_phone: document.getElementById('orderDeliveryRecipientPhone')?.value.trim() || '',
+          delivery_address: document.getElementById('orderDeliveryAddress')?.value.trim() || ''
+        } : undefined;
+        if (fulfillmentType === 'delivery' && (!delivery.recipient_name || !delivery.recipient_phone || !delivery.delivery_address)) {
+          SLF.ui.toast('❌ 请填写收件人、联系电话和配送地址'); return;
+        }
+        const result = await api(editingOrderId ? '/orders/' + editingOrderId : '/orders', { method: editingOrderId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: {
           table: $('#orderTable').value || '',
           note: $('#orderNoteField').value.trim(),
-          fulfillment_type: (ensureFulfillmentSelect()?.value || 'dine_in'),
+          fulfillment_type: fulfillmentType,
+          ...(delivery ? { delivery } : {}),
           items
         }});
-        closeOrderForm();
         await loadOrders();
-        SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + (editingOrderId ? tAdmin('updated') : tAdmin('added')));
+        if (!editingOrderId && result.trackingUrl) {
+          const trackingResult = document.getElementById('orderTrackingResult');
+          const trackingLink = document.getElementById('orderTrackingLink');
+          if (trackingLink) { trackingLink.href = result.trackingUrl; trackingLink.textContent = new URL(result.trackingUrl, location.origin).href; }
+          if (trackingResult) trackingResult.hidden = false;
+          const saveButton = document.getElementById('orderSaveBtn');
+          if (saveButton) saveButton.disabled = true;
+          SLF.ui.toast('✅ 外卖订单已创建，配送任务等待分配骑手');
+        } else {
+          closeOrderForm();
+          SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + (editingOrderId ? tAdmin('updated') : tAdmin('added')));
+        }
       } catch (e) { SLF.ui.toast('❌ ' + e.message); }
     };
   }
   const addOrderItemBtn = document.getElementById('addOrderItemBtn');
   if (addOrderItemBtn) addOrderItemBtn.onclick = function() { addOrderItem(); };
+});
+
+
+const copyTrackingButton = document.getElementById('copyOrderTrackingLink');
+if (copyTrackingButton) copyTrackingButton.addEventListener('click', async () => {
+  const link = document.getElementById('orderTrackingLink');
+  if (!link || !link.href) return;
+  try { await navigator.clipboard.writeText(link.href); SLF.ui.toast('✅ 追踪链接已复制'); }
+  catch (_) { SLF.ui.toast('请长按链接复制：' + link.href); }
 });
 
 // 挂到 window
@@ -3967,6 +4010,7 @@ window.addLockedOrderItem = addLockedOrderItem;
 window.editOrder = editOrder;
 
 })();
+
 
 /* ========== pages/admin/shared.js ========== */
 /*

@@ -8,7 +8,7 @@ const positiveId = value => {
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 };
 const cleanText = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
-const canReassignDeliveryJob = job => !job || job.status === 'assigned';
+const canReassignDeliveryJob = job => !job || ['pending_assignment', 'assigned'].includes(job.status);
 
 module.exports = function registerDeliveryRoutes(app, deps) {
   const { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission,
@@ -93,12 +93,15 @@ module.exports = function registerDeliveryRoutes(app, deps) {
     if (!orderId || !riderId || !address) return res.status(400).json({ error: '订单、骑手和配送地址不能为空' });
     try {
       const job = await withTransaction(async () => {
-        const order = await getAsync('SELECT id, status, merchant_id, fulfillment_type FROM orders WHERE id=? AND store_id=? AND merchant_id=? FOR UPDATE', [orderId, req.storeId, req.merchantId]);
-        if (!order || order.status === 'canceled') {
-          const error = new Error('订单不存在或已取消'); error.status = 404; throw error;
+        const order = await getAsync('SELECT id, status, merchant_id, fulfillment_type, pay_method FROM orders WHERE id=? AND store_id=? AND merchant_id=? FOR UPDATE', [orderId, req.storeId, req.merchantId]);
+        if (!order || ['canceled', 'cancelled', 'refunded'].includes(order.status)) {
+          const error = new Error('订单不存在、已取消或已退款'); error.status = 404; throw error;
         }
         if (order.fulfillment_type !== 'delivery') {
           const error = new Error('只有明确标记为外卖的订单才能分配骑手'); error.status = 409; throw error;
+        }
+        if (String(order.pay_method || '').toLowerCase() === 'khqr' && order.status !== 'done') {
+          const error = new Error('KHQR 订单尚未确认收款，暂不能分配骑手'); error.status = 409; throw error;
         }
         const existingJob = await getAsync('SELECT status FROM delivery_jobs WHERE order_id=? AND merchant_id=? AND store_id=? FOR UPDATE', [orderId, req.merchantId, req.storeId]);
         if (!canReassignDeliveryJob(existingJob)) {
@@ -127,6 +130,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       });
       io.to('delivery-order-' + orderId).emit('delivery:status', { orderId, status: 'assigned' });
       io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId, status: 'assigned' });
+      io.to('delivery-riders-store-' + req.storeId).emit('delivery:rider-refresh', { orderId });
       res.json({ success: true, job });
     } catch (error) { res.status(error.status || 500).json({ error: error.status ? error.message : '分配配送任务失败' }); }
   });
@@ -253,7 +257,14 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       const orderId = positiveId(req.params.orderId);
       const token = typeof req.get('X-Customer-Token') === 'string' ? req.get('X-Customer-Token').trim() : '';
       if (!orderId || !token || token.length > 128) return res.status(401).json({ error: '订单或顾客凭证无效' });
-      const order = await getAsync('SELECT id, customer_token FROM orders WHERE id=?', [orderId]);
+      const order = await getAsync(
+        `SELECT o.id, o.customer_token, o.order_no, o.status, o.total, o.pay_method, o.awaiting_confirm, o.settled_at
+         FROM orders o
+         JOIN stores s ON s.id=o.store_id AND s.merchant_id=o.merchant_id AND s.active=1
+         JOIN merchants m ON m.id=o.merchant_id AND m.status=1
+         WHERE o.id=? AND o.fulfillment_type='delivery'`,
+        [orderId]
+      );
       if (!order || !order.customer_token || hashSessionToken(token) !== order.customer_token) return res.status(404).json({ error: '配送信息不存在' });
       const job = await getAsync(
         `SELECT j.id, j.order_id, j.recipient_name, j.recipient_phone, j.delivery_address, j.status,
@@ -265,7 +276,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
         [orderId, orderId, orderId]
       );
       if (!job) return res.status(404).json({ error: '该订单尚未分配配送员' });
-      res.json({ job });
+      res.json({ order: { id: order.id, order_no: order.order_no, status: order.status, total: Number(order.total), pay_method: order.pay_method || '', awaiting_confirm: Number(order.awaiting_confirm) || 0, settled_at: order.settled_at || '' }, job });
     } catch (_) { res.status(500).json({ error: '查询配送信息失败' }); }
   });
 };

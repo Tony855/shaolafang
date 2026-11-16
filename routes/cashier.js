@@ -21,6 +21,8 @@ function formatStaffOrder(row, formatOrder) {
   const formatted = formatOrder(row);
   delete formatted.sessionToken;
   delete formatted.customerToken;
+  // Staff need the active QR generation id to confirm a customer-paid KHQR order.
+  formatted.pay_qr_generation_id = row.pay_qr_generation_id || '';
   return formatted;
 }
 
@@ -352,14 +354,14 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
           merchantId: store?.merchant_id,
           storeId: req.storeId,
           eventKey: `order:${order.id}:settled:customer`,
-          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), amount: Number(order.total), currency: 'USD' }
+          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), tableName: order.fulfillment_type === 'delivery' ? '' : order.table_name, fulfillmentType: order.fulfillment_type || 'dine_in', amount: Number(order.total), currency: 'USD' }
         });
         await enqueueStoreAdminTelegramNotification({
           allAsync,
           merchantId: store?.merchant_id,
           storeId: req.storeId,
           eventKey: `order:${order.id}:settled:store`,
-          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), tableName: order.table_name, amount: Number(order.total), currency: 'USD' }
+          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), tableName: order.fulfillment_type === 'delivery' ? '' : order.table_name, fulfillmentType: order.fulfillment_type || 'dine_in', amount: Number(order.total), currency: 'USD' }
         });
       }
       for (const tableName of tableNames) {
@@ -525,7 +527,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
         merchantId: store?.merchant_id,
         storeId: req.storeId,
         eventKey: `order:${id}:settled:store`,
-        event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.table_name, amount: Number(lockedOrder.total), currency: 'USD' }
+        event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.fulfillment_type === 'delivery' ? '' : lockedOrder.table_name, fulfillmentType: lockedOrder.fulfillment_type || 'dine_in', amount: Number(lockedOrder.total), currency: 'USD' }
       });
     });
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
@@ -550,6 +552,7 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     if (order.status !== 'pending') return res.status(400).json({ error: '只有待处理订单可以取消' });
     const canceledAt = new Date().toISOString();
     let canceledTableName = order.table_name;
+    let canceledDeliveryJob = false;
     await withTransaction(async () => {
       if (order.table_name) {
         const lockedTable = await getAsync(
@@ -578,6 +581,15 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
         error.status = 409;
         throw error;
       }
+      const deliveryJob = await getAsync(
+        'SELECT id, status FROM delivery_jobs WHERE order_id=? AND store_id=? FOR UPDATE',
+        [id, req.storeId]
+      );
+      if (deliveryJob && ['accepted', 'picked_up', 'delivering', 'delivered'].includes(deliveryJob.status)) {
+        const error = new Error(deliveryJob.status === 'delivered' ? '订单已送达，请通过退款流程处理' : '骑手已接单或正在配送，暂不能直接取消订单');
+        error.status = 409;
+        throw error;
+      }
       canceledTableName = lockedOrder.table_name;
       const canceled = await runAsync(
         "UPDATE orders SET status='canceled', awaiting_confirm=0, pay_khqr_ref='', pay_expires_at='', pay_qr_generation_id='' WHERE id=? AND store_id=? AND status='pending'",
@@ -589,6 +601,11 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
         throw error;
       }
       if (canceledTableName) await syncTableStatus(canceledTableName, req.storeId);
+      if (deliveryJob && ['pending_assignment', 'assigned'].includes(deliveryJob.status)) {
+        const jobUpdate = await runAsync("UPDATE delivery_jobs SET status='cancelled' WHERE id=? AND store_id=? AND status IN ('pending_assignment','assigned')", [deliveryJob.id, req.storeId]);
+        if (!jobUpdate.affectedRows) throw Object.assign(new Error('配送任务状态已变化，请刷新后重试'), { status: 409 });
+        canceledDeliveryJob = true;
+      }
       await runAsync('INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         ['cashier', 0, req.cashier.username, 'cancel_order', JSON.stringify({ order_id: id, table: canceledTableName }), getClientIp(req), canceledAt]);
     });
@@ -597,6 +614,11 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     io.to('waiter-' + req.storeId).emit('order:cancelled', canceledPayload);
     io.to('cashier-' + req.storeId).emit('order:cancelled', canceledPayload);
     if (canceledTableName) io.to('public-table-' + req.storeId + '-' + canceledTableName).emit('order:cancelled', canceledPayload);
+    if (canceledDeliveryJob) {
+      io.to('delivery-order-' + id).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
+      io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
+      io.to('delivery-riders-store-' + req.storeId).emit('delivery:rider-refresh', { orderId: Number(id) });
+    }
     res.json({ success: true, message: '取消成功' });
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
     res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
@@ -642,6 +664,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     let fullyRefunded = false;
     let responsePayload = null;
     let replayedResponse = null;
+    let refundedDeliveryJob = false;
 
     await withTransaction(async () => {
       const insertRequest = await runAsync(
@@ -670,7 +693,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       }
 
       const lockedOrder = await getAsync(
-        'SELECT status, total, refund_amount, table_name, order_no, customer_token FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+        'SELECT status, total, refund_amount, table_name, order_no, customer_token, fulfillment_type FROM orders WHERE id=? AND store_id=? FOR UPDATE',
         [id, req.storeId]
       );
       if (!lockedOrder) {
@@ -721,6 +744,22 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       fullyRefunded = remainingCents === 0;
       remainingAmount = remainingCents / 100;
       tableName = lockedOrder.table_name;
+      if (fullyRefunded && lockedOrder.fulfillment_type === 'delivery') {
+        const deliveryJob = await getAsync(
+          'SELECT id, status FROM delivery_jobs WHERE order_id=? AND store_id=? FOR UPDATE',
+          [id, req.storeId]
+        );
+        if (deliveryJob && ['accepted', 'picked_up', 'delivering'].includes(deliveryJob.status)) {
+          const error = new Error('骑手已接单或正在配送，暂不能全额退款，请先处理配送任务');
+          error.status = 409;
+          throw error;
+        }
+        if (deliveryJob && ['pending_assignment', 'assigned'].includes(deliveryJob.status)) {
+          const jobUpdate = await runAsync("UPDATE delivery_jobs SET status='cancelled' WHERE id=? AND store_id=? AND status IN ('pending_assignment','assigned')", [deliveryJob.id, req.storeId]);
+          if (!jobUpdate.affectedRows) throw Object.assign(new Error('配送任务状态已变化，请刷新后重试'), { status: 409 });
+          refundedDeliveryJob = true;
+        }
+      }
       const refundUpdate = await runAsync(
         "UPDATE orders SET status=?, refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=? AND status='done'",
         [fullyRefunded ? 'refunded' : 'done', cleanReason, cleanNote, now, req.cashier.username || '', totalRefunded.toFixed(2), id, req.storeId]
@@ -764,7 +803,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         merchantId: store?.merchant_id,
         storeId: req.storeId,
         eventKey: `order:${id}:refunded:${refundKey}:store`,
-        event: { type: 'order.refunded', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.table_name, refundAmount, currency: 'USD' }
+        event: { type: 'order.refunded', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.fulfillment_type === 'delivery' ? '' : lockedOrder.table_name, fulfillmentType: lockedOrder.fulfillment_type || 'dine_in', refundAmount, currency: 'USD' }
       });
     });
 
@@ -773,6 +812,11 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
     if (tableName) io.to('public-table-' + req.storeId + '-' + tableName).emit('order:settled', { orderId: id });
+    if (refundedDeliveryJob) {
+      io.to('delivery-order-' + id).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
+      io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
+      io.to('delivery-riders-store-' + req.storeId).emit('delivery:rider-refresh', { orderId: Number(id) });
+    }
     res.json(responsePayload);
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
     res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }

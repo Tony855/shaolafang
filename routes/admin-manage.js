@@ -1045,7 +1045,7 @@ module.exports = function(app, deps) {
         let notification = null;
         await withTransaction(async () => {
           const lockedOrder = await getAsync(
-            'SELECT id, status, awaiting_confirm, pay_khqr_ref, pay_qr_generation_id, table_name, order_no, total FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+            'SELECT id, status, awaiting_confirm, pay_khqr_ref, pay_qr_generation_id, table_name, order_no, total, fulfillment_type FROM orders WHERE id=? AND store_id=? FOR UPDATE',
             [orderId, sid]
           );
           if (Boolean(lockedOrder?.pay_khqr_ref) !== Boolean(expectedQrGenerationId) ||
@@ -1174,7 +1174,7 @@ module.exports = function(app, deps) {
           merchantId: store?.merchant_id,
           storeId: sid,
           eventKey: `order:${orderId}:settled:store`,
-          event: { type: 'order.settled', storeName: store?.name || `Store ${sid}`, orderNo: lockedOrder.order_no || String(orderId), tableName: lockedOrder.table_name, amount: Number(lockedOrder.total), currency: 'USD' }
+          event: { type: 'order.settled', storeName: store?.name || `Store ${sid}`, orderNo: lockedOrder.order_no || String(orderId), tableName: lockedOrder.fulfillment_type === 'delivery' ? '' : lockedOrder.table_name, fulfillmentType: lockedOrder.fulfillment_type || 'dine_in', amount: Number(lockedOrder.total), currency: 'USD' }
         });
       });
       io.to('kitchen-' + sid).emit('order:settled', { orderId });

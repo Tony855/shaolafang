@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer"><meta name="theme-color" content="#e85d3a">
+<title>FoodFlow 外卖点餐</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#202b3b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:30px}
+header{background:linear-gradient(135deg,#ff8a4c,#e84a2a);color:#fff;padding:22px max(18px,calc((100vw - 980px)/2));}
+header h1{margin:0;font-size:23px}header p{margin:6px 0 0;opacity:.9;font-size:13px}
+main{max-width:980px;margin:18px auto;padding:0 14px}.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:16px}
+.panel{background:#fff;border-radius:16px;padding:18px;box-shadow:0 5px 24px #14243b0c;margin-bottom:15px}
+h2{font-size:17px;margin:0 0 14px}.menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.item{border:1px solid #e7ebf1;border-radius:13px;padding:13px;display:flex;flex-direction:column;min-height:138px}
+.item strong{font-size:15px}.desc{color:#7c8797;font-size:12px;min-height:30px;margin:5px 0}.price{font-weight:700;color:#d94d2d;margin-top:auto}
+.controls{display:flex;align-items:center;gap:12px;margin-top:10px}.controls button{width:30px;height:30px;border:0;border-radius:9px;background:#fff0e9;color:#c64c2d;font-size:19px}
+.qty{min-width:18px;text-align:center;font-weight:700}
+label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textarea,select{width:100%;border:1px solid #dce2ea;border-radius:10px;padding:11px;font:inherit;background:#fff;color:#202b3b}textarea{min-height:70px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cart-line{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #eef1f5;font-size:13px}
+.total{display:flex;justify-content:space-between;font-weight:800;font-size:18px;margin:14px 0}
+.submit{width:100%;border:0;border-radius:11px;background:#e85d3a;color:#fff;padding:13px;font-size:15px;font-weight:750;cursor:pointer}
+.submit:disabled{opacity:.5;cursor:not-allowed}.muted{font-size:12px;color:#8792a2}.error{color:#b42318;font-size:13px;margin-top:9px}.hidden{display:none}
+@media(max-width:720px){.layout{grid-template-columns:1fr}.menu{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:390px){.menu{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
+</style></head>
+<body>
+<header><h1>🛵 FoodFlow 外卖点餐</h1><p id="storeName">正在加载门店…</p></header>
+<main>
+<div class="layout">
+<section class="panel"><h2>选择菜品</h2><div id="menu" class="menu"><p class="muted">正在加载菜单…</p></div></section>
+<aside>
+<section class="panel"><h2>配送信息</h2>
+<form id="orderForm">
+<label>收件人姓名</label><input name="recipient_name" maxlength="120" required autocomplete="name">
+<div class="row"><div><label>联系电话</label><input name="recipient_phone" maxlength="40" required autocomplete="tel" inputmode="tel"></div><div><label>支付方式</label><select name="payment_method"><option value="cash">现金（送达付款）</option><option value="khqr">KHQR（提交后生成收款码）</option></select></div></div>
+<label>详细配送地址</label><textarea name="delivery_address" maxlength="500" required placeholder="请填写街道、楼层、门牌号及附近地标"></textarea>
+<label>订单备注（选填）</label><textarea name="note" maxlength="200" placeholder="口味要求或配送备注"></textarea>
+<div id="cart"></div><div class="total"><span>订单合计</span><span id="total">0.00 USD</span></div>
+<button class="submit" id="submit" type="submit" disabled>提交外卖订单</button><div id="message" class="error" role="alert"></div>
+<p class="muted">菜品价格和订单金额以服务器核算为准。提交后可使用专属凭证查看配送进度。</p>
+</form></section>
+<section class="panel hidden" id="paymentPanel">
+<h2>KHQR 安全收款</h2><p class="muted" id="paymentSummary">请使用银行 App 扫描二维码付款。</p>
+<img id="paymentQr" alt="KHQR 收款码" style="display:block;width:240px;max-width:100%;margin:14px auto">
+<button class="submit" type="button" id="notifyPayment">我已付款，通知门店确认</button>
+<button class="submit" type="button" id="trackOrder" style="margin-top:8px;background:#34465e">查看配送进度</button>
+<div id="paymentMessage" class="muted" role="status"></div>
+</section></aside></div></main>
+<script>
+(() => {
+ 'use strict';
+ const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'';
+ const $=id=>document.getElementById(id),cart=new Map();let menu=[],rates=new Map([['USD',1]]),maxQty=100,createdOrderId=null,createdTrackingUrl='';
+ const escText=value=>String(value??'');
+ function money(value,currency){const n=Number(value);return (Number.isFinite(n)?n.toFixed(2):'0.00')+' '+(currency||'USD');}
+ function renderCart(){
+  const host=$('cart');host.replaceChildren();let total=0,count=0,validTotal=true;
+  for(const [id,qty] of cart){const item=menu.find(x=>String(x.id)===id);if(!item||qty<1)continue;count+=qty;const rate=Number(rates.get(String(item.currency_code||'USD').toUpperCase()));if(!Number.isFinite(rate)||rate<=0)validTotal=false;else total+=(Number(item.price||0)/rate)*qty;
+   const line=document.createElement('div');line.className='cart-line';const left=document.createElement('span');left.textContent=item.name+' × '+qty;const right=document.createElement('strong');right.textContent=money(Number(item.price||0)*qty,item.currency_code);line.append(left,right);host.append(line);
+  }
+  $('total').textContent=validTotal?total.toFixed(2)+' USD':'汇率暂不可用';$('submit').disabled=count===0||!validTotal;
+ }
+ function change(id,delta){const next=Math.max(0,Math.min(maxQty,Number(cart.get(String(id))||0)+delta));if(next)cart.set(String(id),next);else cart.delete(String(id));const el=document.querySelector('[data-qty="'+id+'"]');if(el)el.textContent=String(next);renderCart();}
+ function renderMenu(){
+  const host=$('menu');host.replaceChildren();
+  if(!menu.length){const p=document.createElement('p');p.className='muted';p.textContent='当前门店暂无可点菜品';host.append(p);return;}
+  menu.forEach(item=>{
+   const card=document.createElement('article');card.className='item';
+   const name=document.createElement('strong');name.textContent=escText(item.name);card.append(name);
+   const desc=document.createElement('div');desc.className='desc';desc.textContent=escText(item.description||item.desc||'');card.append(desc);
+   const price=document.createElement('div');price.className='price';price.textContent=money(item.price,item.currency_code);card.append(price);
+   const controls=document.createElement('div');controls.className='controls';
+   const minus=document.createElement('button');minus.type='button';minus.textContent='−';minus.setAttribute('aria-label','减少数量');minus.addEventListener('click',()=>change(item.id,-1));
+   const qty=document.createElement('span');qty.className='qty';qty.dataset.qty=String(item.id);qty.textContent=String(cart.get(String(item.id))||0);
+   const plus=document.createElement('button');plus.type='button';plus.textContent='+';plus.setAttribute('aria-label','增加数量');plus.addEventListener('click',()=>change(item.id,1));
+   controls.append(minus,qty,plus);card.append(controls);host.append(card);
+  });
+ }
+ async function load(){
+  if(!/^\d+$/.test(storeId)||Number(storeId)<=0){$('message').textContent='请使用包含有效 store_id 的外卖链接打开本页面';$('menu').replaceChildren();return;}
+  const [storeResponse,menuResponse,configResponse]=await Promise.all([
+   fetch('/api/public/store-info?store_id='+encodeURIComponent(storeId),{cache:'no-store'}),
+   fetch('/api/menu?store_id='+encodeURIComponent(storeId),{cache:'no-store'}),
+   fetch('/api/public/config?store_id='+encodeURIComponent(storeId),{cache:'no-store'})
+  ]);
+  const store=await storeResponse.json(),items=await menuResponse.json(),config=await configResponse.json();
+  if(!storeResponse.ok)throw new Error(store.error||'门店加载失败');
+  if(!menuResponse.ok)throw new Error(items.error||'菜单加载失败');
+  if(!configResponse.ok)throw new Error(config.error||'门店币种配置加载失败');
+  $('storeName').textContent=store.name||('门店 '+storeId);menu=Array.isArray(items)?items:[];
+  rates=new Map((config.currencies||[]).map(currency=>[String(currency.code).toUpperCase(),Number(currency.rate)]));
+  if(!rates.has('USD'))rates.set('USD',1);
+  maxQty=Number(config.max_item_quantity)||100;
+  renderMenu();renderCart();
+ }
+ $('orderForm').addEventListener('submit',async event=>{
+  event.preventDefault();$('message').textContent='';$('submit').disabled=true;
+  const form=new FormData(event.currentTarget),items=[...cart].map(([id,quantity])=>({id:Number(id),quantity}));
+  try{
+   const response=await fetch('/api/public/delivery/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    store_id:Number(storeId),recipient_name:form.get('recipient_name'),recipient_phone:form.get('recipient_phone'),
+    delivery_address:form.get('delivery_address'),note:form.get('note'),payment_method:form.get('payment_method'),items
+   })});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error||'提交失败，请稍后重试');
+   createdOrderId=Number(data.orderId);createdTrackingUrl=data.trackingUrl;
+   sessionStorage.setItem('customer_token:'+data.orderId,data.customerToken);
+   if(data.paymentMethod==='khqr'){
+    const qrResponse=await fetch('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/khqr',{
+     method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':data.customerToken},body:JSON.stringify({})
+    });
+    const qr=await qrResponse.json().catch(()=>({}));
+    if(!qrResponse.ok)throw new Error(qr.error||'收款码生成失败');
+    $('paymentPanel').classList.remove('hidden');$('paymentQr').src=qr.qr_data_url;
+    $('paymentSummary').textContent='订单 '+data.orderNo+' · 应付 '+Number(qr.amount).toFixed(qr.currency==='KHR'?0:2)+' '+qr.currency+' · '+(qr.merchant_name||'FoodFlow');
+    $('message').textContent='订单已创建，请完成付款后通知门店。';
+    $('submit').disabled=true;
+    $('notifyPayment').onclick=async()=>{
+     $('notifyPayment').disabled=true;
+     try{
+      const notify=await fetch('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/payment-notify',{
+       method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':data.customerToken},
+       body:JSON.stringify({qr_generation_id:qr.qr_generation_id})
+      });
+      const result=await notify.json().catch(()=>({}));
+      if(!notify.ok)throw new Error(result.error||'通知失败');
+      $('paymentMessage').textContent='已通知门店，请等待收银员核实到账。';
+     }catch(error){$('paymentMessage').textContent=error.message;$('notifyPayment').disabled=false;}
+    };
+    $('trackOrder').onclick=()=>location.href=data.trackingUrl;
+   }else{
+    location.href=data.trackingUrl;
+   }
+  }catch(error){
+   $('message').textContent=createdOrderId?'订单 '+createdOrderId+' 已创建，但支付初始化未完成：'+error.message+'。请先查看订单追踪或联系门店，勿重复提交。':error.message;
+   if(createdOrderId){$('submit').disabled=true;$('paymentPanel').classList.remove('hidden');$('paymentMessage').textContent='可先查看订单配送状态。';$('trackOrder').onclick=()=>location.href=createdTrackingUrl;}
+   else $('submit').disabled=false;
+  }
+ });
+ load().catch(error=>{$('message').textContent=error.message;$('menu').textContent='菜单暂时无法加载';});
+})();
+</script></body></html>

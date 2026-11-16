@@ -264,22 +264,26 @@ test('customer delivery sockets require the order customer token and are scoped 
   const calls = [];
   const error = await authenticate(async (sql, params) => {
     calls.push(sql);
-    if (sql.includes('FROM orders')) return { id: 44, store_id: 7, customer_token: hashSessionToken('customer-secret') };
-    if (sql.includes('FROM delivery_jobs')) return { id: 9 };
+    if (sql.includes('FROM orders o') && sql.includes('JOIN delivery_jobs') &&
+        sql.includes('JOIN stores') && sql.includes('JOIN merchants') &&
+        sql.includes("o.fulfillment_type='delivery'")) {
+      return { id: 44, store_id: 7, customer_token: hashSessionToken('customer-secret') };
+    }
     return null;
   }, socket);
   assert.equal(error, null);
   assert.equal(socket.data.role, 'delivery_customer');
   assert.equal(socket.data.storeId, 7);
   assert.equal(socket.data.deliveryOrderId, 44);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1);
 });
 
 test('customer delivery sockets reject invalid order tokens', async () => {
   const { hashSessionToken } = require('../server/services/session-token');
   const error = await authenticate(async sql => {
-    if (sql.includes('FROM orders')) return { id: 44, store_id: 7, customer_token: hashSessionToken('other-token') };
-    if (sql.includes('FROM delivery_jobs')) return { id: 9 };
+    if (sql.includes('FROM orders o') && sql.includes('JOIN delivery_jobs')) {
+      return { id: 44, store_id: 7, customer_token: hashSessionToken('other-token') };
+    }
     return null;
   }, { handshake: { auth: { deliveryOrderId: 44, deliveryCustomerToken: 'wrong-token' } }, data: {} });
   assert.match(error.message, /tracking access denied/);
@@ -296,4 +300,15 @@ test('rider sockets authenticate only active persisted rider sessions', async ()
   assert.equal(socket.data.role, 'delivery_rider');
   assert.equal(socket.data.storeId, 7);
   assert.equal(socket.data.deliveryRiderId, 3);
+});
+
+test('customer delivery sockets reject inactive stores and non-delivery orders', async () => {
+  const socket = { handshake: { auth: { deliveryOrderId: 44, deliveryCustomerToken: 'customer-secret' } }, data: {} };
+  const error = await authenticate(async sql => {
+    assert.ok(sql.includes('JOIN stores') && sql.includes('JOIN merchants'));
+    assert.ok(sql.includes("o.fulfillment_type='delivery'"));
+    return null;
+  }, socket);
+  assert.match(error.message, /tracking access denied/);
+  assert.equal(socket.data.role, undefined);
 });

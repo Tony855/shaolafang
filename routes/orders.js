@@ -393,12 +393,29 @@ app.post('/api/orders', async (req, res) => {
     let sessionTokenHash = null;
     let customerToken = '';
     let customerTokenHash = '';
+    let deliveryInfo = null;
+    if (isAdmin && fulfillmentType === 'delivery') {
+      const input = req.body.delivery && typeof req.body.delivery === 'object' && !Array.isArray(req.body.delivery) ? req.body.delivery : {};
+      const clean = value => typeof value === 'string' ? value.trim().replace(/[\u0000-\u001f\u007f]/g, '') : '';
+      const recipientName = clean(input.recipient_name).slice(0, 120);
+      const recipientPhone = clean(input.recipient_phone).slice(0, 40);
+      const deliveryAddress = clean(input.delivery_address).slice(0, 500);
+      if (!recipientName || !deliveryAddress || !/^[+0-9()\-\s]{6,40}$/.test(recipientPhone)) {
+        return res.status(400).json({ error: '创建外卖订单必须填写收件人、有效联系电话和配送地址' });
+      }
+      deliveryInfo = { recipientName, recipientPhone, deliveryAddress };
+      customerToken = crypto.randomBytes(32).toString('hex');
+      customerTokenHash = hashSessionToken(customerToken);
+    }
     let sessionStoreId = null;
     let table = null;
     const requestedTable = typeof req.body.table === 'string' ? req.body.table.trim() : '';
     const tableRequired = !isAdmin || fulfillmentType === 'dine_in';
     if (requestedTable.length > 50 || (tableRequired && !requestedTable)) {
       return res.status(400).json({ error: tableRequired ? '座号无效' : '座号长度无效' });
+    }
+    if (isAdmin && fulfillmentType !== 'dine_in' && requestedTable) {
+      return res.status(400).json({ error: '外卖或自取订单不能关联堂食座号' });
     }
     if (!isAdmin && !isWaiter) {
       const token = typeof req.body.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
@@ -566,6 +583,12 @@ app.post('/api/orders', async (req, res) => {
           'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id, fulfillment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?), ?)',
           [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionTokenHash, customerTokenHash, finalStoreId, note, finalStoreId, fulfillmentType]
         );
+        if (deliveryInfo) {
+          await runAsync(
+            "INSERT INTO delivery_jobs (merchant_id, store_id, order_id, rider_id, recipient_name, recipient_phone, delivery_address, status) VALUES ((SELECT merchant_id FROM stores WHERE id=?), ?, ?, NULL, ?, ?, ?, 'pending_assignment')",
+            [finalStoreId, finalStoreId, result.lastID, deliveryInfo.recipientName, deliveryInfo.recipientPhone, deliveryInfo.deliveryAddress]
+          );
+        }
         for (const item of items) {
           if (item.id) {
             await runAsync(
@@ -599,7 +622,7 @@ app.post('/api/orders', async (req, res) => {
           merchantId: store?.merchant_id,
           storeId: finalStoreId,
           eventKey: `order:${result.lastID}:created:store`,
-          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, tableName: table || '', amount: calculatedTotal, currency: 'USD', note }
+          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, tableName: fulfillmentType === 'delivery' ? '' : (table || ''), fulfillmentType, recipientName: deliveryInfo?.recipientName || '', recipientPhone: deliveryInfo?.recipientPhone || '', deliveryAddress: deliveryInfo?.deliveryAddress || '', amount: calculatedTotal, currency: 'USD', note }
         });
         return { orderId: result.lastID, orderNo };
       });
@@ -643,6 +666,9 @@ app.post('/api/orders', async (req, res) => {
     io.to('kitchen-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('waiter-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('cashier-' + finalStoreId).emit('order:new', staffOrderData);
+    if (deliveryInfo) {
+      io.to('delivery-store-' + finalStoreId).emit('delivery:status', { orderId: Number(newRow.id), status: 'pending_assignment' });
+    }
     if (newRow.table_name) {
       io.to('public-table-' + finalStoreId + '-' + newRow.table_name).emit(
         'order:new', publicOrderChangedPayload(orderData.id)
@@ -660,6 +686,10 @@ app.post('/api/orders', async (req, res) => {
       const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token_hash=?', [sessionTokenHash]);
       if (updatedSession) responseData.newExpiresAt = updatedSession.expires_at;
     }
+    if (deliveryInfo && customerToken) {
+      responseData.customerToken = customerToken;
+      responseData.trackingUrl = '/delivery/track/' + Number(newRow.id) + '#token=' + customerToken;
+    }
     res.status(201).json(responseData);
   } catch (e) {
     console.error('[POST /api/orders] 错误:', safeErrorMetadata(e));
@@ -676,6 +706,9 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
+    if ((existing.fulfillment_type || 'dine_in') !== 'dine_in' && typeof table === 'string' && table.trim()) {
+      return res.status(400).json({ error: '外卖或自取订单不能关联堂食座号' });
+    }
     if (existing.status !== 'pending') return res.status(409).json({ error: '只有待处理订单可以编辑' });
     if (!req.isAdmin && existing.awaiting_confirm) return res.status(409).json({ error: '订单已通知收银员，无法修改' });
     if (req.isAdmin && !req.isPrimaryAdmin) {
@@ -861,12 +894,29 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
           eventKey: `order:${id}:settled:customer`,
           event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), amount: calculatedTotal, currency: 'USD' }
         });
+        const deliveryNotification = lockedOrder.fulfillment_type === 'delivery'
+          ? await getAsync(
+            'SELECT recipient_name, recipient_phone, delivery_address FROM delivery_jobs WHERE order_id=? AND store_id=?',
+            [id, orderStoreId]
+          )
+          : null;
         await enqueueStoreAdminTelegramNotification({
           allAsync,
           merchantId: store?.merchant_id,
           storeId: orderStoreId,
           eventKey: `order:${id}:settled:store`,
-          event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.table_name, amount: calculatedTotal, currency: 'USD' }
+          event: {
+            type: 'order.settled',
+            storeName: store?.name || `Store ${orderStoreId}`,
+            orderNo: lockedOrder.order_no || String(id),
+            tableName: lockedOrder.fulfillment_type === 'delivery' ? '' : lockedOrder.table_name,
+            fulfillmentType: lockedOrder.fulfillment_type || 'dine_in',
+            recipientName: deliveryNotification?.recipient_name || '',
+            recipientPhone: deliveryNotification?.recipient_phone || '',
+            deliveryAddress: deliveryNotification?.delivery_address || '',
+            amount: calculatedTotal,
+            currency: 'USD'
+          }
         });
       }
 
@@ -955,6 +1005,13 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
         [id, storeId]
       );
       if (!lockedOrder) throw Object.assign(new Error('订单不存在或已被删除'), { status: 404 });
+      const deliveryJob = await getAsync(
+        'SELECT id FROM delivery_jobs WHERE order_id=? AND store_id=? FOR UPDATE',
+        [id, storeId]
+      );
+      if (deliveryJob) {
+        throw Object.assign(new Error('外卖订单保留配送追踪记录，请使用取消订单流程，不可直接删除'), { status: 409 });
+      }
       if (lockedOrder.table_name !== existing.table_name) {
         throw Object.assign(new Error('订单桌台已变化，请刷新后重试'), { status: 409 });
       }

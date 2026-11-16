@@ -644,7 +644,13 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
 
   /* ===== 收款弹窗 ===== */
   async function confirmAwaiting(orderId) {
-    const order = orders.find(o => o.id === orderId);
+    let order = orders.find(o => o.id === orderId) || awaitingOrders.get(orderId);
+    if (!order || (order.pay_method === 'khqr' && !order.pay_qr_generation_id)) {
+      await loadOrders();
+      const refreshedOrder = orders.find(o => o.id === orderId);
+      const notifiedOrder = awaitingOrders.get(orderId);
+      order = refreshedOrder?.pay_qr_generation_id ? refreshedOrder : (notifiedOrder || refreshedOrder);
+    }
     if (!order) return;
     const body = { pay_method: order.pay_method || 'cash' };
     if (body.pay_method === 'cash') {
@@ -657,7 +663,19 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       }
     }
     try {
-      await api('/cashier/orders/' + orderId + '/settle', { method: 'PUT', body });
+      if (body.pay_method === 'khqr') {
+        if (!order.pay_qr_generation_id) {
+          SLF.ui.toast('❌ 收款码批次信息缺失，请刷新订单后重试');
+          await loadOrders();
+          return;
+        }
+        await api('/cashier/khqr/confirm', {
+          method: 'POST',
+          body: { order_id: orderId, expected_qr_generation_id: order.pay_qr_generation_id }
+        });
+      } else {
+        await api('/cashier/orders/' + orderId + '/settle', { method: 'PUT', body });
+      }
       SLF.ui.toast('✅ ' + (t('settleSuccess') || '收款成功'));
       // ★ 从待确认横幅里移除
       awaitingOrders.delete(orderId);
@@ -1298,6 +1316,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
         total: payload.total,
         awaiting_confirm: 1,
         status: 'pending',
+        pay_method: payload.pay_method || '',
+        pay_qr_generation_id: payload.pay_qr_generation_id || '',
       });
       // 刷新订单列表
       loadOrders();

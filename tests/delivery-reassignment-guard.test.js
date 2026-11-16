@@ -10,6 +10,7 @@ test('delivery job can be assigned when no job exists', () => {
 
 test('only an assigned job can be reassigned to another rider', () => {
   assert.equal(canReassignDeliveryJob({ status: 'assigned' }), true);
+  assert.equal(canReassignDeliveryJob({ status: 'pending_assignment' }), true);
   for (const status of ['accepted', 'picked_up', 'delivering', 'delivered', 'cancelled']) {
     assert.equal(canReassignDeliveryJob({ status }), false, status);
   }

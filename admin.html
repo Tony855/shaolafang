@@ -730,6 +730,16 @@
             </div>
             <div class="order-total-line"><span id="orderTotalLabel">合计</span>：<strong id="orderFormTotal">¥0.00</strong></div>
             <div class="order-field"><label id="orderNoteFieldLabel">备注</label><input type="text" id="orderNoteField" maxlength="200" placeholder="顾客备注（选填）" style="width:100%;box-sizing:border-box;"></div>
+            <div id="orderDeliveryFields" hidden>
+                <div class="order-field"><label>收件人姓名</label><input type="text" id="orderDeliveryRecipientName" maxlength="120" autocomplete="name"></div>
+                <div class="order-field"><label>收件联系电话</label><input type="tel" id="orderDeliveryRecipientPhone" maxlength="40" autocomplete="tel"></div>
+                <div class="order-field"><label>配送地址</label><textarea id="orderDeliveryAddress" maxlength="500" rows="2" style="width:100%;box-sizing:border-box;" placeholder="街道、楼层、门牌号及附近地标"></textarea></div>
+            </div>
+            <div id="orderTrackingResult" hidden style="padding:12px;margin:10px 0;background:rgba(34,197,94,.1);border-radius:10px;">
+                <strong>外卖订单已创建</strong>
+                <p><a id="orderTrackingLink" target="_blank" rel="noopener noreferrer">打开顾客配送追踪链接</a></p>
+                <button type="button" id="copyOrderTrackingLink">复制追踪链接</button>
+            </div>
             <div class="order-modal-actions"><button id="orderCancelBtn" onclick="closeOrderForm()" data-i18n="cancel">取消</button><button class="primary" id="orderSaveBtn">保存订单</button></div>
         </div>
     </div>
@@ -1024,8 +1034,8 @@
     </div>
 </div>
 
-<script src="assets/admin-bundle.js?v=1794853000"></script>
-<script src="pages/admin.js?v=1794853000"></script>
+<script src="assets/admin-bundle.js?v=2026111605"></script>
+<script src="pages/admin.js?v=2026111605"></script>
 <script>
 /* openDisplayPreview bind */
 document.addEventListener('DOMContentLoaded', function() {

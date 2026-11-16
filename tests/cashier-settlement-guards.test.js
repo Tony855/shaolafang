@@ -4,10 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerCashierRoutes = require('../routes/cashier');
 
-function setup({ orders = [], lockedOrders = orders, singleOrder = orders[0] || null } = {}) {
+function setup({ orders = [], lockedOrders = orders, singleOrder = orders[0] || null, deliveryJob = null } = {}) {
   const handlers = new Map();
   const calls = [];
   const transactions = [];
+  const events = [];
   const app = {
     post(path, ...callbacks) { handlers.set('POST ' + path, callbacks[callbacks.length - 1]); },
     get(path, ...callbacks) { handlers.set('GET ' + path, callbacks[callbacks.length - 1]); },
@@ -18,6 +19,7 @@ function setup({ orders = [], lockedOrders = orders, singleOrder = orders[0] || 
     getAsync: async (sql, params) => {
       calls.push({ type: 'get', sql, params });
       if (sql.includes('SELECT id FROM tables')) return { id: 1 };
+      if (sql.includes('FROM delivery_jobs')) return deliveryJob;
       if (sql.includes('FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return singleOrder;
       if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=?')) return singleOrder;
       if (sql.includes('SELECT COUNT(*) AS cnt')) return { cnt: 1 };
@@ -52,14 +54,14 @@ function setup({ orders = [], lockedOrders = orders, singleOrder = orders[0] || 
     buildReceipt: () => Buffer.from('receipt'),
     printToNetworkPrinter: async () => {},
     dispatchPrint: async () => {},
-    io: { to: () => ({ emit() {} }) }
+    io: { to: room => ({ emit(event, payload) { events.push({ room, event, payload }); } }) }
   };
   registerCashierRoutes(app, deps);
   return {
     batchHandler: handlers.get('PUT /api/cashier/orders/batch-settle'),
     singleHandler: handlers.get('PUT /api/cashier/orders/:id/settle'),
     cancelHandler: handlers.get('PUT /api/cashier/orders/:id/cancel'),
-    calls, transactions
+    calls, transactions, events
   };
 }
 
@@ -282,4 +284,40 @@ test('cashier cancellation supports delivery orders without a dining table', asy
   assert.equal(calls.some(call => call.sql.includes('SELECT id FROM tables')), false);
   assert.ok(calls.some(call => call.type === 'run' && call.sql.includes("SET status='canceled'")));
   assert.deepEqual(transactions, ['begin', 'commit']);
+});
+
+test('cancelling a customer delivery order cancels an unstarted dispatch job', async () => {
+  const order = pendingOrder({ table_name: null });
+  const { cancelHandler, calls, transactions, events } = setup({
+    singleOrder: order,
+    deliveryJob: { id: 81, status: 'pending_assignment' }
+  });
+  const res = response();
+  await cancelHandler({
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_cancel: true } },
+    params: { id: '5' }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes("UPDATE delivery_jobs SET status='cancelled'")));
+  assert.ok(events.some(event => event.room === 'delivery-order-5' && event.payload.status === 'cancelled'));
+  assert.deepEqual(transactions, ['begin', 'commit']);
+});
+
+test('cancelling a delivery order after rider acceptance is rejected', async () => {
+  const order = pendingOrder({ table_name: null });
+  const { cancelHandler, calls, transactions } = setup({
+    singleOrder: order,
+    deliveryJob: { id: 82, status: 'accepted' }
+  });
+  const res = response();
+  await cancelHandler({
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_cancel: true } },
+    params: { id: '5' }
+  }, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /骑手已接单/);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes("SET status='canceled'")), false);
+  assert.deepEqual(transactions, ['begin', 'rollback']);
 });

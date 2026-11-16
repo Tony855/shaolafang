@@ -25,10 +25,11 @@ label{display:block;font-size:13px;color:#b6c1d2;margin:10px 0 6px}.row{display:
 </section>
 <section id="jobsPanel" class="hidden"><div class="row"><button class="secondary" id="refreshBtn">刷新任务</button><button class="secondary" id="logoutBtn">退出登录</button></div><div id="jobs"></div></section>
 </main>
+<script src="/socket.io/socket.io.js"></script>
 <script>
 (() => {
  const $=id=>document.getElementById(id), tokenKey='delivery_rider_token';
- let token=sessionStorage.getItem(tokenKey)||'', watchIds=new Map(), lastSent=new Map();
+ let token=sessionStorage.getItem(tokenKey)||'', watchIds=new Map(), lastSent=new Map(), socket=null;
  const api=async(path,options={})=>{const response=await fetch(path,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{}),...(options.headers||{})}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'请求失败');return data;};
  const statusText={assigned:'待接单',accepted:'已接单',picked_up:'已取货',delivering:'配送中',delivered:'已送达'};
  function stopTracking(id){const watch=watchIds.get(id);if(watch!==undefined)navigator.geolocation.clearWatch(watch);watchIds.delete(id);}
@@ -51,9 +52,10 @@ label{display:block;font-size:13px;color:#b6c1d2;margin:10px 0 6px}.row{display:
   }
  }
  async function loadJobs(){const data=await api('/api/delivery/jobs');const activeIds=new Set(data.jobs.filter(j=>['accepted','picked_up','delivering'].includes(j.status)).map(j=>j.id));for(const id of [...watchIds.keys()])if(!activeIds.has(id))stopTracking(id);$('welcome').textContent='你好，'+data.rider.displayName+' · 定位仅在配送任务进行时上传';render(data.jobs);}
- async function login(){ $('loginError').textContent='';try{const data=await api('/api/delivery/login',{method:'POST',body:JSON.stringify({storeId:$('storeId').value,username:$('username').value,password:$('password').value})});token=data.token;sessionStorage.setItem(tokenKey,token);$('loginPanel').classList.add('hidden');$('jobsPanel').classList.remove('hidden');await loadJobs();}catch(e){$('loginError').textContent=e.message;}}
+ function connectSocket(){if(!window.io||!token)return;if(socket)socket.disconnect();socket=io({auth:{token}});socket.on('connect',()=>loadJobs().catch(()=>{}));socket.on('delivery:rider-refresh',()=>loadJobs().catch(()=>{}));}
+ async function login(){ $('loginError').textContent='';try{const data=await api('/api/delivery/login',{method:'POST',body:JSON.stringify({storeId:$('storeId').value,username:$('username').value,password:$('password').value})});token=data.token;sessionStorage.setItem(tokenKey,token);$('loginPanel').classList.add('hidden');$('jobsPanel').classList.remove('hidden');await loadJobs();connectSocket();}catch(e){$('loginError').textContent=e.message;}}
  $('loginBtn').addEventListener('click',login);$('refreshBtn').addEventListener('click',()=>loadJobs().catch(e=>alert(e.message)));
- $('logoutBtn').addEventListener('click',async()=>{try{await api('/api/delivery/logout',{method:'POST'});}catch(_){}for(const id of watchIds.keys())stopTracking(id);sessionStorage.removeItem(tokenKey);token='';$('jobsPanel').classList.add('hidden');$('loginPanel').classList.remove('hidden');});
- if(token){$('loginPanel').classList.add('hidden');$('jobsPanel').classList.remove('hidden');loadJobs().catch(()=>{sessionStorage.removeItem(tokenKey);token='';$('jobsPanel').classList.add('hidden');$('loginPanel').classList.remove('hidden');});}
+ $('logoutBtn').addEventListener('click',async()=>{try{await api('/api/delivery/logout',{method:'POST'});}catch(_){}if(socket)socket.disconnect();socket=null;for(const id of watchIds.keys())stopTracking(id);sessionStorage.removeItem(tokenKey);token='';$('jobsPanel').classList.add('hidden');$('loginPanel').classList.remove('hidden');});
+ if(token){$('loginPanel').classList.add('hidden');$('jobsPanel').classList.remove('hidden');loadJobs().then(connectSocket).catch(()=>{if(socket)socket.disconnect();socket=null;sessionStorage.removeItem(tokenKey);token='';$('jobsPanel').classList.add('hidden');$('loginPanel').classList.remove('hidden');});}
 })();
 </script></body></html>
