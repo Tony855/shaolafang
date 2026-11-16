@@ -25,7 +25,7 @@ function setup() {
     runAsync: async (sql, params = []) => {
       calls.push({ type: 'run', sql, params });
       if (sql.includes('INSERT INTO orders')) {
-        orderRow = { id: 33, store_id: 7, merchant_id: 3, table_name: null, fulfillment_type: 'delivery', status: 'pending', total: 12.5, order_no: '11GL00001', customer_token: params[5], items: '[]' };
+        orderRow = { id: 33, store_id: 7, merchant_id: 3, table_name: null, fulfillment_type: 'delivery', status: 'pending', total: 12.5, order_no: '11GL00001', customer_token: params[4], items: '[]' };
         return { insertId: 33, lastID: 33, affectedRows: 1 };
       }
       return { affectedRows: 1 };
@@ -66,8 +66,8 @@ test('customer delivery order creates a tableless order and unassigned delivery 
   const orderInsert = ctx.calls.find(x => x.type === 'run' && x.sql.includes('INSERT INTO orders'));
   assert.ok(orderInsert);
   assert.match(orderInsert.sql, /VALUES \\(\?, NULL,/);
-  assert.equal(orderInsert.params[5].length, 64);
-  assert.notEqual(orderInsert.params[5], res.body.customerToken);
+  assert.equal(orderInsert.params[4].length, 64);
+  assert.notEqual(orderInsert.params[4], res.body.customerToken);
   const jobInsert = ctx.calls.find(x => x.type === 'run' && x.sql.includes('INSERT INTO delivery_jobs'));
   assert.ok(jobInsert);
   assert.match(jobInsert.sql, /NULL, \?, \?, \?, 'pending_assignment'/);
