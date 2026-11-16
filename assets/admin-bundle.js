@@ -3796,6 +3796,7 @@ function syncOrderTableRequirement() {
   const tableRequired = fulfillmentSelect.value === 'dine_in';
   tableSelect.required = tableRequired;
   tableSelect.disabled = Boolean(editingOrderId) || !tableRequired;
+  if (!tableRequired && !editingOrderId) tableSelect.value = '';
   const deliveryFields = document.getElementById('orderDeliveryFields');
   const deliveryInputs = ['orderDeliveryRecipientName', 'orderDeliveryRecipientPhone', 'orderDeliveryAddress']
     .map(id => document.getElementById(id)).filter(Boolean);
