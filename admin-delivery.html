@@ -39,16 +39,20 @@ label{display:block;font-size:13px;color:#b8c4d5;margin:10px 0 5px}input,select,
  const table=document.createElement('table'),head=document.createElement('tr');['姓名','账号','电话','状态'].forEach(x=>{const th=document.createElement('th');th.textContent=x;head.append(th);});table.append(head);
  riders.forEach(r=>{const tr=document.createElement('tr');[r.display_name,r.username,r.phone||'—',Number(r.active)?'启用':'停用'].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td);});table.append(tr);});host.append(table);}
  function renderJobs(){const host=$('jobs');host.replaceChildren();if(!jobs.length){text(host,'暂无配送任务');return;}
- jobs.forEach(j=>{const div=document.createElement('div');div.className='job';const title=document.createElement('strong');title.textContent='订单 '+(j.order_no||j.order_id)+' · '+j.status;div.append(title);
+ jobs.forEach(j=>{const div=document.createElement('div');div.className='job';const title=document.createElement('strong');const labels={pending_assignment:'等待分配骑手',assigned:'已分配',accepted:'骑手已接单',picked_up:'已取货',delivering:'配送中',delivered:'已送达',cancelled:'已取消'};title.textContent='订单 '+(j.order_no||j.order_id)+' · '+(labels[j.status]||j.status);div.append(title);
  const detail=document.createElement('p');detail.className='muted';detail.textContent=(j.rider_name||'未分配骑手')+' · '+(j.rider_phone||'')+' · '+j.delivery_address;div.append(detail);
  if(j.latitude!==null&&j.longitude!==null){const link=document.createElement('a');link.target='_blank';link.rel='noopener';link.href='https://www.openstreetmap.org/?mlat='+encodeURIComponent(j.latitude)+'&mlon='+encodeURIComponent(j.longitude)+'#map=16/'+encodeURIComponent(j.latitude)+'/'+encodeURIComponent(j.longitude);link.textContent='查看骑手位置';link.style.color='#8fc1ff';div.append(link);const stamp=document.createElement('div');stamp.className='muted';stamp.textContent='位置更新时间：'+(j.location_updated_at||'未知');div.append(stamp);}else{const p=document.createElement('div');p.className='muted';p.textContent='暂无定位';div.append(p);}host.append(div);});}
  async function load(){if(!token||!storeId){alert('管理员登录已失效，请先登录');location.href='/admin';return;}
  const [r,j,o]=await Promise.all([api('/api/admin/delivery/riders'),api('/api/admin/delivery/jobs'),api('/api/orders')]);
  riders=r.riders||[];jobs=j.jobs||[];renderRiders();renderJobs();
  const rs=$('riderSelect');rs.replaceChildren();riders.filter(x=>Number(x.active)).forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=x.display_name+'（'+x.phone+'）';rs.append(op);});
- const os=$('orderSelect');os.replaceChildren();(Array.isArray(o)?o:(o.orders||[])).filter(x=>x.status!=='canceled').forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=(x.order_no||x.id)+' · '+(x.table_name||'外卖')+' · '+x.total;os.append(op);});
+ const os=$('orderSelect');os.replaceChildren();(Array.isArray(o)?o:(o.orders||[])).filter(x=>x.fulfillment_type==='delivery'&&x.status!=='canceled').forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=(x.order_no||x.id)+' · '+(x.table_name||'外卖')+' · '+x.total;os.append(op);});
  }
  $('riderForm').addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await api('/api/admin/delivery/riders',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});text($('riderMessage'),'骑手账号已创建');e.currentTarget.reset();await load();}catch(err){text($('riderMessage'),err.message);}});
+ $('orderSelect').addEventListener('change',()=>{
+ const job=jobs.find(x=>String(x.order_id)===$('orderSelect').value);
+ if(job){$('assignForm').elements.recipientName.value=job.recipient_name||'';$('assignForm').elements.recipientPhone.value=job.recipient_phone||'';$('assignForm').elements.address.value=job.delivery_address||'';}
+});
  $('assignForm').addEventListener('submit',async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));try{await api('/api/admin/delivery/orders/'+encodeURIComponent(f.orderId)+'/assign',{method:'POST',body:JSON.stringify(f)});text($('assignMessage'),'配送任务已分配');await load();}catch(err){text($('assignMessage'),err.message);}});
  $('refresh').addEventListener('click',()=>load().catch(e=>alert(e.message)));
  if(window.io&&token){const socket=io({auth:{token},query:{storeId}});socket.on('delivery:location',()=>load().catch(()=>{}));socket.on('delivery:status',()=>load().catch(()=>{}));}
