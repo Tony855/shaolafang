@@ -647,7 +647,9 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
     let order = orders.find(o => o.id === orderId) || awaitingOrders.get(orderId);
     if (!order || (order.pay_method === 'khqr' && !order.pay_qr_generation_id)) {
       await loadOrders();
-      order = orders.find(o => o.id === orderId) || awaitingOrders.get(orderId);
+      const refreshedOrder = orders.find(o => o.id === orderId);
+      const notifiedOrder = awaitingOrders.get(orderId);
+      order = refreshedOrder?.pay_qr_generation_id ? refreshedOrder : (notifiedOrder || refreshedOrder);
     }
     if (!order) return;
     const body = { pay_method: order.pay_method || 'cash' };
