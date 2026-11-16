@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { ensureOrderFulfillmentSchema } = require('../server/db/migrations/order-fulfillment');
 
-test('adds fulfillment_type with a safe dine_in default for legacy orders', async () => {
+test('adds fulfillment_type and makes legacy table_name nullable', async () => {
   const calls = [];
   await ensureOrderFulfillmentSchema({
     allAsync: async (sql, params) => {
@@ -14,14 +14,16 @@ test('adds fulfillment_type with a safe dine_in default for legacy orders', asyn
     runAsync: async sql => { calls.push({ type: 'exec', sql }); return {}; }
   });
   assert.equal(calls.length, 5);
-  assert.match(calls[0].sql, /information_schema\.COLUMNS/i);
+  assert.match(calls[0].sql, /information_schema\\.COLUMNS/i);
   assert.deepEqual(calls[0].params, ['orders', 'fulfillment_type']);
-  assert.match(calls[1].sql, /ADD COLUMN fulfillment_type VARCHAR\(20\) NOT NULL DEFAULT 'dine_in'/);
-  assert.match(calls[2].sql, /MODIFY COLUMN table_name VARCHAR\(50\) NULL/i);
-  assert.match(calls[3].sql, /UPDATE orders o INNER JOIN delivery_jobs j/i);
+  assert.match(calls[1].sql, /ADD COLUMN fulfillment_type VARCHAR\\(20\\) NOT NULL DEFAULT 'dine_in'/);
+  assert.match(calls[2].sql, /information_schema\\.COLUMNS/i);
+  assert.deepEqual(calls[2].params, ['orders', 'table_name']);
+  assert.match(calls[3].sql, /MODIFY COLUMN table_name VARCHAR\\(50\\) NULL/i);
+  assert.match(calls[4].sql, /UPDATE orders o INNER JOIN delivery_jobs j/i);
 });
 
-test('does not alter orders when fulfillment_type already exists', async () => {
+test('does not repeat table DDL when table_name is already nullable', async () => {
   const executed = [];
   await ensureOrderFulfillmentSchema({
     allAsync: async (_sql, params) => params[1] === 'table_name'
@@ -29,7 +31,6 @@ test('does not alter orders when fulfillment_type already exists', async () => {
       : [{ COLUMN_NAME: 'fulfillment_type' }],
     runAsync: async sql => executed.push(sql)
   });
-  assert.equal(executed.length, 2);
-  assert.match(executed[0], /MODIFY COLUMN table_name VARCHAR\(50\) NULL/i);
-  assert.match(executed[1], /UPDATE orders o INNER JOIN delivery_jobs j/i);
+  assert.equal(executed.length, 1);
+  assert.match(executed[0], /UPDATE orders o INNER JOIN delivery_jobs j/i);
 });
