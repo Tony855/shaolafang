@@ -111,7 +111,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       let orderNo = '';
       await withTransaction(async () => {
         const activeStore = await getAsync(
-          'SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE',
+          'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id AND m.status=1 WHERE s.id=? AND s.merchant_id=? AND s.active=1 FOR UPDATE',
           [storeId, store.merchant_id]
         );
         if (!activeStore) throw Object.assign(new Error('门店状态已变化，请刷新后重试'), { status: 409 });
