@@ -97,8 +97,14 @@ module.exports = function registerDeliveryRoutes(app, deps) {
           const error = new Error('订单不存在或已取消'); error.status = 404; throw error;
         }
         const existingJob = await getAsync('SELECT status FROM delivery_jobs WHERE order_id=? AND merchant_id=? AND store_id=? FOR UPDATE', [orderId, req.merchantId, req.storeId]);
-        if (existingJob && ['delivered', 'cancelled'].includes(existingJob.status)) {
-          const error = new Error('已完成或已取消的配送任务不能重新分配'); error.status = 409; throw error;
+        if (existingJob && existingJob.status !== 'assigned') {
+          const error = new Error(
+            ['delivered', 'cancelled'].includes(existingJob.status)
+              ? '已完成或已取消的配送任务不能重新分配'
+              : '骑手已接单或配送已开始，不能更换骑手；请先完成或按取消流程处理'
+          );
+          error.status = 409;
+          throw error;
         }
         const rider = await getAsync(
           'SELECT id FROM delivery_riders WHERE id=? AND merchant_id=? AND store_id=? AND active=1 FOR UPDATE',
