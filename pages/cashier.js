@@ -644,7 +644,11 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
 
   /* ===== 收款弹窗 ===== */
   async function confirmAwaiting(orderId) {
-    const order = orders.find(o => o.id === orderId);
+    let order = orders.find(o => o.id === orderId) || awaitingOrders.get(orderId);
+    if (!order || (order.pay_method === 'khqr' && !order.pay_qr_generation_id)) {
+      await loadOrders();
+      order = orders.find(o => o.id === orderId) || awaitingOrders.get(orderId);
+    }
     if (!order) return;
     const body = { pay_method: order.pay_method || 'cash' };
     if (body.pay_method === 'cash') {
@@ -1310,6 +1314,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
         total: payload.total,
         awaiting_confirm: 1,
         status: 'pending',
+        pay_method: payload.pay_method || '',
+        pay_qr_generation_id: payload.pay_qr_generation_id || '',
       });
       // 刷新订单列表
       loadOrders();
