@@ -514,7 +514,7 @@ app.post('/api/orders', async (req, res) => {
     // ---------- 7. 原子冷却检查 ----------
     // Acquire the cooldown only after the payload has passed validation. Invalid
     // requests must not lock a customer's QR session and block a valid order.
-    const cooldownKey = sessionTokenHash || ('store:' + finalStoreId + ':table:' + table);
+    const cooldownKey = sessionTokenHash || (table ? ('store:' + finalStoreId + ':table:' + table) : ('store:' + finalStoreId + ':admin:' + (req.adminId || getClientIp(req) || 'unknown')));
     const cooldownMs = await getOrderCooldownMs();
     const canSubmit = await checkAndSetCooldown(cooldownKey, cooldownMs);
     if (canSubmit === null) {
@@ -530,12 +530,14 @@ app.post('/api/orders', async (req, res) => {
       createdOrder = await withTransaction(async () => {
         // Serialize order creation with table rename, move and delete operations.
         // Lock order is always table row -> QR session row to avoid stale-session races.
-        const lockedTable = await getAsync(
-          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
-          [table, finalStoreId]
-        );
-        if (!lockedTable) {
-          throw Object.assign(new Error('座号已不存在，请重新扫码或刷新座号'), { status: 404 });
+        if (table) {
+          const lockedTable = await getAsync(
+            'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+            [table, finalStoreId]
+          );
+          if (!lockedTable) {
+            throw Object.assign(new Error('座号已不存在，请重新扫码或刷新座号'), { status: 404 });
+          }
         }
         const activeStore = await getAsync(
           'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
