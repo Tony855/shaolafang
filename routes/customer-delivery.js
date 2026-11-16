@@ -57,6 +57,10 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       if (!Array.isArray(body.items) || body.items.length === 0 || body.items.length > 200) {
         return res.status(400).json({ error: '订单菜品数量无效' });
       }
+      const maxItemsRow = await getAsync("SELECT value FROM settings WHERE `key`='max_order_items'");
+      const configuredMaxItems = Number(maxItemsRow?.value ?? 50);
+      const maxItems = Number.isSafeInteger(configuredMaxItems) && configuredMaxItems > 0 ? Math.min(configuredMaxItems, 200) : 50;
+      if (body.items.length > maxItems) return res.status(400).json({ error: `单次下单菜品不能超过 ${maxItems} 种` });
 
       const store = await getAsync(
         'SELECT s.id, s.name, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
