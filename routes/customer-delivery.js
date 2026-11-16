@@ -68,7 +68,13 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       );
       if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
 
-      const items = await normalizeOrderItems(body.items, storeId);
+      let items;
+      try {
+        items = await normalizeOrderItems(body.items, storeId);
+      } catch (error) {
+        if (!error?.code) return res.status(400).json({ error: error.message || '订单菜品无效' });
+        throw error;
+      }
       const totalCents = calculateOrderTotalCents(items);
       if (totalCents === null || totalCents <= 0) return res.status(400).json({ error: '订单金额无效' });
       const total = totalCents / 100;
