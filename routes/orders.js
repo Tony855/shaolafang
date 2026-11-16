@@ -894,12 +894,29 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
           eventKey: `order:${id}:settled:customer`,
           event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), amount: calculatedTotal, currency: 'USD' }
         });
+        const deliveryNotification = lockedOrder.fulfillment_type === 'delivery'
+          ? await getAsync(
+            'SELECT recipient_name, recipient_phone, delivery_address FROM delivery_jobs WHERE order_id=? AND store_id=?',
+            [id, orderStoreId]
+          )
+          : null;
         await enqueueStoreAdminTelegramNotification({
           allAsync,
           merchantId: store?.merchant_id,
           storeId: orderStoreId,
           eventKey: `order:${id}:settled:store`,
-          event: { type: 'order.settled', storeName: store?.name || `Store ${orderStoreId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.table_name, amount: calculatedTotal, currency: 'USD' }
+          event: {
+            type: 'order.settled',
+            storeName: store?.name || `Store ${orderStoreId}`,
+            orderNo: lockedOrder.order_no || String(id),
+            tableName: lockedOrder.fulfillment_type === 'delivery' ? '' : lockedOrder.table_name,
+            fulfillmentType: lockedOrder.fulfillment_type || 'dine_in',
+            recipientName: deliveryNotification?.recipient_name || '',
+            recipientPhone: deliveryNotification?.recipient_phone || '',
+            deliveryAddress: deliveryNotification?.delivery_address || '',
+            amount: calculatedTotal,
+            currency: 'USD'
+          }
         });
       }
 
