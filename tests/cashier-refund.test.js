@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerCashierRoutes = require('../routes/cashier');
 
-function setup(reportOrders = []) {
+function setup(reportOrders = [], deliveryJob = null) {
   const handlers = new Map();
   const app = {
     post(path, ...callbacks) { handlers.set('POST ' + path, callbacks[callbacks.length - 1]); },
@@ -12,7 +12,7 @@ function setup(reportOrders = []) {
     put(path, ...callbacks) { handlers.set('PUT ' + path, callbacks[callbacks.length - 1]); },
     delete(path, ...callbacks) { handlers.set('DELETE ' + path, callbacks[callbacks.length - 1]); }
   };
-  const state = { id: 5, store_id: 1, table_name: 'A01', status: 'done', total: 100, refund_amount: 0, refundUpdates: 0 };
+  const state = { id: 5, store_id: 1, table_name: 'A01', fulfillment_type: 'dine_in', status: 'done', total: 100, refund_amount: 0, refundUpdates: 0 };
   const refundRequests = new Map();
   const deps = {
     getAsync: async (sql, params = []) => {
@@ -21,6 +21,7 @@ function setup(reportOrders = []) {
         return row ? { ...row } : null;
       }
       if (sql.includes('FROM orders WHERE id=? AND store_id=? FOR UPDATE')) return { ...state };
+      if (sql.includes('FROM delivery_jobs')) return deliveryJob;
       return null;
     },
     allAsync: async sql => sql.includes("status IN ('done', 'refunded')") ? reportOrders : [],
@@ -37,6 +38,7 @@ function setup(reportOrders = []) {
         if (row && row.request_hash === params[3]) row.response_json = params[0];
         return { affectedRows: row ? 1 : 0 };
       }
+      if (sql.startsWith("UPDATE delivery_jobs SET status='cancelled'")) { if (deliveryJob) deliveryJob.status = 'cancelled'; return { affectedRows: 1 }; }
       if (sql.startsWith('UPDATE orders SET status=?')) {
         state.refundUpdates++;
         state.status = params[0];
@@ -72,7 +74,7 @@ function setup(reportOrders = []) {
     io: { to: () => ({ emit() {} }) }
   };
   registerCashierRoutes(app, deps);
-  return { handler: handlers.get('PUT /api/cashier/orders/:id/refund'), reportHandler: handlers.get('GET /api/cashier/report/today'), state };
+  return { handler: handlers.get('PUT /api/cashier/orders/:id/refund'), reportHandler: handlers.get('GET /api/cashier/report/today'), state, deliveryJob };
 }
 
 function response() {
@@ -273,4 +275,41 @@ test('refund route requires a bounded idempotency key before database access', a
   await handler({ params: { id: '5' }, storeId: 1, cashier: { username: 'qa-cashier', permissions: { can_refund: true } }, body: { amount: 10, reason: 'test' } }, res);
   assert.equal(res.statusCode, 400);
   assert.equal(state.refundUpdates, 0);
+});
+
+test('full refund cancels a delivery job that has not started', async () => {
+  const job = { id: 81, status: 'pending_assignment' };
+  const { handler, state, deliveryJob } = setup([], job);
+  state.fulfillment_type = 'delivery';
+  state.table_name = null;
+  const res = response();
+  await handler({
+    params: { id: '5' },
+    headers: { 'idempotency-key': 'refund-delivery-pending-0001' },
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
+    body: { amount: '100.00', reason: 'customer request' }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.fully_refunded, true);
+  assert.equal(deliveryJob.status, 'cancelled');
+});
+
+test('full refund is blocked while a delivery rider is actively delivering', async () => {
+  const job = { id: 82, status: 'delivering' };
+  const { handler, state, deliveryJob } = setup([], job);
+  state.fulfillment_type = 'delivery';
+  state.table_name = null;
+  const res = response();
+  await handler({
+    params: { id: '5' },
+    headers: { 'idempotency-key': 'refund-delivery-active-0001' },
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_refund: true } },
+    body: { amount: '100.00', reason: 'customer request' }
+  }, res);
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /骑手已接单或正在配送/);
+  assert.equal(state.refundUpdates, 0);
+  assert.equal(deliveryJob.status, 'delivering');
 });
