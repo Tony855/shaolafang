@@ -1507,6 +1507,8 @@ io.on('connection', (socket) => {
     socket.join('cashier-' + storeId);
   } else if (role === 'public') {
     socket.join('public-table-' + storeId + '-' + socket.data.tableName);
+  } else if (role === 'delivery_rider') {
+    socket.join('delivery-riders-store-' + storeId);
   } else if (role === 'delivery_customer') {
     socket.join('delivery-order-' + socket.data.deliveryOrderId);
   }

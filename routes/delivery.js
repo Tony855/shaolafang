@@ -130,6 +130,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       });
       io.to('delivery-order-' + orderId).emit('delivery:status', { orderId, status: 'assigned' });
       io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId, status: 'assigned' });
+      io.to('delivery-riders-store-' + req.storeId).emit('delivery:rider-refresh', { orderId });
       res.json({ success: true, job });
     } catch (error) { res.status(error.status || 500).json({ error: error.status ? error.message : '分配配送任务失败' }); }
   });

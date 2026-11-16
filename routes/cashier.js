@@ -617,6 +617,7 @@ app.put('/api/cashier/orders/:id/cancel', requireCashier, async (req, res) => {
     if (canceledDeliveryJob) {
       io.to('delivery-order-' + id).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
       io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
+      io.to('delivery-riders-store-' + req.storeId).emit('delivery:rider-refresh', { orderId: Number(id) });
     }
     res.json({ success: true, message: '取消成功' });
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
@@ -814,6 +815,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     if (refundedDeliveryJob) {
       io.to('delivery-order-' + id).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
       io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
+      io.to('delivery-riders-store-' + req.storeId).emit('delivery:rider-refresh', { orderId: Number(id) });
     }
     res.json(responsePayload);
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
