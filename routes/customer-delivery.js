@@ -48,7 +48,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       if (!recipientName || !recipientPhone || !deliveryAddress) {
         return res.status(400).json({ error: '请填写收件人、联系电话和完整配送地址' });
       }
-      if (!/^[+0-9()\\-\\s]{6,40}$/.test(recipientPhone)) {
+      if (!/^[+0-9()\-\s]{6,40}$/.test(recipientPhone)) {
         return res.status(400).json({ error: '联系电话格式无效' });
       }
       if (!['cash', 'khqr'].includes(paymentMethod)) {
