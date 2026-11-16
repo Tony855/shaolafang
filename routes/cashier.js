@@ -663,6 +663,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     let fullyRefunded = false;
     let responsePayload = null;
     let replayedResponse = null;
+    let refundedDeliveryJob = false;
 
     await withTransaction(async () => {
       const insertRequest = await runAsync(
@@ -691,7 +692,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       }
 
       const lockedOrder = await getAsync(
-        'SELECT status, total, refund_amount, table_name, order_no, customer_token FROM orders WHERE id=? AND store_id=? FOR UPDATE',
+        'SELECT status, total, refund_amount, table_name, order_no, customer_token, fulfillment_type FROM orders WHERE id=? AND store_id=? FOR UPDATE',
         [id, req.storeId]
       );
       if (!lockedOrder) {
@@ -742,6 +743,22 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
       fullyRefunded = remainingCents === 0;
       remainingAmount = remainingCents / 100;
       tableName = lockedOrder.table_name;
+      if (fullyRefunded && lockedOrder.fulfillment_type === 'delivery') {
+        const deliveryJob = await getAsync(
+          'SELECT id, status FROM delivery_jobs WHERE order_id=? AND store_id=? FOR UPDATE',
+          [id, req.storeId]
+        );
+        if (deliveryJob && ['accepted', 'picked_up', 'delivering'].includes(deliveryJob.status)) {
+          const error = new Error('骑手已接单或正在配送，暂不能全额退款，请先处理配送任务');
+          error.status = 409;
+          throw error;
+        }
+        if (deliveryJob && ['pending_assignment', 'assigned'].includes(deliveryJob.status)) {
+          const jobUpdate = await runAsync("UPDATE delivery_jobs SET status='cancelled' WHERE id=? AND store_id=? AND status IN ('pending_assignment','assigned')", [deliveryJob.id, req.storeId]);
+          if (!jobUpdate.affectedRows) throw Object.assign(new Error('配送任务状态已变化，请刷新后重试'), { status: 409 });
+          refundedDeliveryJob = true;
+        }
+      }
       const refundUpdate = await runAsync(
         "UPDATE orders SET status=?, refund_reason=?, refund_note=?, refunded_at=?, refunded_by=?, refund_amount=? WHERE id=? AND store_id=? AND status='done'",
         [fullyRefunded ? 'refunded' : 'done', cleanReason, cleanNote, now, req.cashier.username || '', totalRefunded.toFixed(2), id, req.storeId]
@@ -785,7 +802,7 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
         merchantId: store?.merchant_id,
         storeId: req.storeId,
         eventKey: `order:${id}:refunded:${refundKey}:store`,
-        event: { type: 'order.refunded', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.table_name, refundAmount, currency: 'USD' }
+        event: { type: 'order.refunded', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.fulfillment_type === 'delivery' ? '' : lockedOrder.table_name, fulfillmentType: lockedOrder.fulfillment_type || 'dine_in', refundAmount, currency: 'USD' }
       });
     });
 
@@ -794,6 +811,10 @@ app.put('/api/cashier/orders/:id/refund', requireCashier, async (req, res) => {
     io.to('waiter-' + req.storeId).emit('order:settled', { orderId: id });
     io.to('cashier-' + req.storeId).emit('order:settled', { orderId: id });
     if (tableName) io.to('public-table-' + req.storeId + '-' + tableName).emit('order:settled', { orderId: id });
+    if (refundedDeliveryJob) {
+      io.to('delivery-order-' + id).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
+      io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId: Number(id), status: 'cancelled' });
+    }
     res.json(responsePayload);
   } catch (e) { const status = Number.isInteger(e.status) && e.status >= 400 && e.status < 500 ? e.status : 500;
     res.status(status).json({ error: status === 500 ? '请求失败，请稍后重试' : e.message }); }
