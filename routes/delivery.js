@@ -95,7 +95,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       const job = await withTransaction(async () => {
         const order = await getAsync('SELECT id, status, merchant_id, fulfillment_type, pay_method FROM orders WHERE id=? AND store_id=? AND merchant_id=? FOR UPDATE', [orderId, req.storeId, req.merchantId]);
         if (!order || ['canceled', 'cancelled', 'refunded'].includes(order.status)) {
-          const error = new Error('订单不存在或已取消'); error.status = 404; throw error;
+          const error = new Error('订单不存在、已取消或已退款'); error.status = 404; throw error;
         }
         if (order.fulfillment_type !== 'delivery') {
           const error = new Error('只有明确标记为外卖的订单才能分配骑手'); error.status = 409; throw error;
