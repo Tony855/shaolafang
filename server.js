@@ -1379,6 +1379,7 @@ async function initDatabase() {
 
   await rebaseCurrencyToUSDOnce();
   await ensureOrderTables();
+  await require('./server/db/migrations/delivery').ensureDeliverySchema({ runAsync });
   const tablesWithoutTokens = await allAsync("SELECT id FROM tables WHERE qr_token IS NULL OR qr_token = ''");
   for (const table of tablesWithoutTokens) await runAsync('UPDATE tables SET qr_token=? WHERE id=?', [createTableToken(), table.id]);
   const allTables = await allAsync('SELECT name, store_id FROM tables');
@@ -1436,6 +1437,7 @@ require('./routes/stores.js')(app, { getAsync, runAsync, allAsync, requireAdminK
 require('./routes/menu.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction });
 require('./routes/tables.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction });
 require('./routes/orders.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction });
+require('./routes/delivery.js')(app, { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission, hashPassword, verifyPassword, io, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt });
 require('./routes/calls.js')(app, { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction });
 
 // ----- 订单打印 -----
@@ -1497,11 +1499,14 @@ io.on('connection', (socket) => {
   } else if (role === 'cashier') {
     socket.join('cashier-' + storeId);
   } else if (role === 'admin') {
+    socket.join('delivery-store-' + storeId);
     socket.join('waiter-' + storeId);
     socket.join('kitchen-' + storeId);
     socket.join('cashier-' + storeId);
   } else if (role === 'public') {
     socket.join('public-table-' + storeId + '-' + socket.data.tableName);
+  } else if (role === 'delivery_customer') {
+    socket.join('delivery-order-' + socket.data.deliveryOrderId);
   }
 
   socket.on('disconnect', () => { /* 可选日志 */ });

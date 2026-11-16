@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FoodFlow 配送管理</title><style>
+*{box-sizing:border-box}body{margin:0;background:#101827;color:#f3f6fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:1100px;margin:auto;padding:20px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font-size:23px}.muted{color:#9aa9bd;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.card{background:#1b273a;border:1px solid #2c3b52;border-radius:15px;padding:16px;margin:14px 0}
+label{display:block;font-size:13px;color:#b8c4d5;margin:10px 0 5px}input,select,button{font:inherit;border-radius:9px;padding:11px;border:1px solid #40516b;background:#111c2d;color:#fff;width:100%}button{background:#2878e5;border:0;font-weight:650;cursor:pointer;margin-top:10px}.secondary{background:#3a4a62}
+.row{display:flex;gap:9px}.row>*{flex:1}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #334258;vertical-align:top}th{color:#aebbd0}
+.job{padding:12px 0;border-bottom:1px solid #334258}.job:last-child{border:0}.pill{background:#2a405e;border-radius:20px;padding:4px 8px;font-size:12px}
+.error{color:#ffb3a7;margin-top:8px}.ok{color:#8de0a7}.back{color:#c6d7f2;text-decoration:none}
+</style></head><body><main>
+<div class="top"><div><a class="back" href="/admin">← 返回管理后台</a><h1>🛵 配送管理</h1><div class="muted">当前门店骑手、配送任务及实时位置</div></div><button class="secondary" id="refresh">刷新数据</button></div>
+<div class="grid">
+<section class="card"><h3>添加骑手</h3><form id="riderForm">
+<label>骑手姓名</label><input name="displayName" required maxlength="120">
+<label>登录账号</label><input name="username" required minlength="3" maxlength="80">
+<label>初始密码（至少8位）</label><input name="password" type="password" required minlength="8">
+<label>联系电话</label><input name="phone" maxlength="40">
+<button>创建骑手账号</button><div id="riderMessage" class="muted"></div>
+</form></section>
+<section class="card"><h3>分配配送订单</h3><form id="assignForm">
+<label>订单</label><select name="orderId" id="orderSelect" required></select>
+<label>配送骑手</label><select name="riderId" id="riderSelect" required></select>
+<label>收件人</label><input name="recipientName" maxlength="120">
+<label>收件电话</label><input name="recipientPhone" maxlength="40">
+<label>配送地址</label><input name="address" required maxlength="500">
+<button>分配骑手</button><div id="assignMessage" class="muted"></div>
+</form></section></div>
+<section class="card"><h3>本门店骑手</h3><div id="riders" class="muted">读取中…</div></section>
+<section class="card"><h3>配送任务与骑手位置</h3><div id="jobs" class="muted">读取中…</div></section>
+</main><script src="/socket.io/socket.io.js"></script><script>
+(() => {
+ const $=id=>document.getElementById(id),token=sessionStorage.getItem('adminToken')||'';
+ const storeId=sessionStorage.getItem('adminStoreId')||sessionStorage.getItem('storeId')||localStorage.getItem('storeId')||'';
+ const api=async(path,options={})=>{const r=await fetch(path,{...options,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Store-Id':String(storeId),...(options.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'请求失败');return d;};
+ let riders=[],jobs=[];
+ function text(el,value){el.textContent=value==null?'':String(value);}
+ function renderRiders(){const host=$('riders');host.replaceChildren();if(!riders.length){text(host,'尚未添加骑手');return;}
+ const table=document.createElement('table'),head=document.createElement('tr');['姓名','账号','电话','状态'].forEach(x=>{const th=document.createElement('th');th.textContent=x;head.append(th);});table.append(head);
+ riders.forEach(r=>{const tr=document.createElement('tr');[r.display_name,r.username,r.phone||'—',Number(r.active)?'启用':'停用'].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td);});table.append(tr);});host.append(table);}
+ function renderJobs(){const host=$('jobs');host.replaceChildren();if(!jobs.length){text(host,'暂无配送任务');return;}
+ jobs.forEach(j=>{const div=document.createElement('div');div.className='job';const title=document.createElement('strong');title.textContent='订单 '+(j.order_no||j.order_id)+' · '+j.status;div.append(title);
+ const detail=document.createElement('p');detail.className='muted';detail.textContent=(j.rider_name||'未分配骑手')+' · '+(j.rider_phone||'')+' · '+j.delivery_address;div.append(detail);
+ if(j.latitude!==null&&j.longitude!==null){const link=document.createElement('a');link.target='_blank';link.rel='noopener';link.href='https://www.openstreetmap.org/?mlat='+encodeURIComponent(j.latitude)+'&mlon='+encodeURIComponent(j.longitude)+'#map=16/'+encodeURIComponent(j.latitude)+'/'+encodeURIComponent(j.longitude);link.textContent='查看骑手位置';link.style.color='#8fc1ff';div.append(link);const stamp=document.createElement('div');stamp.className='muted';stamp.textContent='位置更新时间：'+(j.location_updated_at||'未知');div.append(stamp);}else{const p=document.createElement('div');p.className='muted';p.textContent='暂无定位';div.append(p);}host.append(div);});}
+ async function load(){if(!token||!storeId){alert('管理员登录已失效，请先登录');location.href='/admin';return;}
+ const [r,j,o]=await Promise.all([api('/api/admin/delivery/riders'),api('/api/admin/delivery/jobs'),api('/api/orders')]);
+ riders=r.riders||[];jobs=j.jobs||[];renderRiders();renderJobs();
+ const rs=$('riderSelect');rs.replaceChildren();riders.filter(x=>Number(x.active)).forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=x.display_name+'（'+x.phone+'）';rs.append(op);});
+ const os=$('orderSelect');os.replaceChildren();(Array.isArray(o)?o:(o.orders||[])).filter(x=>x.status!=='canceled').forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=(x.order_no||x.id)+' · '+(x.table_name||'外卖')+' · '+x.total;os.append(op);});
+ }
+ $('riderForm').addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.currentTarget);try{await api('/api/admin/delivery/riders',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});text($('riderMessage'),'骑手账号已创建');e.currentTarget.reset();await load();}catch(err){text($('riderMessage'),err.message);}});
+ $('assignForm').addEventListener('submit',async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));try{await api('/api/admin/delivery/orders/'+encodeURIComponent(f.orderId)+'/assign',{method:'POST',body:JSON.stringify(f)});text($('assignMessage'),'配送任务已分配');await load();}catch(err){text($('assignMessage'),err.message);}});
+ $('refresh').addEventListener('click',()=>load().catch(e=>alert(e.message)));
+ if(window.io&&token){const socket=io({auth:{token},query:{storeId}});socket.on('delivery:location',()=>load().catch(()=>{}));socket.on('delivery:status',()=>load().catch(()=>{}));}
+ load().catch(e=>{text($('jobs'),e.message);});
+})();
+</script></body></html>

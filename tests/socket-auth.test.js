@@ -257,3 +257,43 @@ test('admin socket defaults a sub-admin to the first assigned active store', asy
   assert.equal(error, null);
   assert.equal(socket.data.storeId, 9);
 });
+
+test('customer delivery sockets require the order customer token and are scoped to one order', async () => {
+  const { hashSessionToken } = require('../server/services/session-token');
+  const socket = { handshake: { auth: { deliveryOrderId: 44, deliveryCustomerToken: 'customer-secret' } }, data: {} };
+  const calls = [];
+  const error = await authenticate(async (sql, params) => {
+    calls.push(sql);
+    if (sql.includes('FROM orders')) return { id: 44, store_id: 7, customer_token: hashSessionToken('customer-secret') };
+    if (sql.includes('FROM delivery_jobs')) return { id: 9 };
+    return null;
+  }, socket);
+  assert.equal(error, null);
+  assert.equal(socket.data.role, 'delivery_customer');
+  assert.equal(socket.data.storeId, 7);
+  assert.equal(socket.data.deliveryOrderId, 44);
+  assert.equal(calls.length, 2);
+});
+
+test('customer delivery sockets reject invalid order tokens', async () => {
+  const { hashSessionToken } = require('../server/services/session-token');
+  const error = await authenticate(async sql => {
+    if (sql.includes('FROM orders')) return { id: 44, store_id: 7, customer_token: hashSessionToken('other-token') };
+    if (sql.includes('FROM delivery_jobs')) return { id: 9 };
+    return null;
+  }, { handshake: { auth: { deliveryOrderId: 44, deliveryCustomerToken: 'wrong-token' } }, data: {} });
+  assert.match(error.message, /tracking access denied/);
+});
+
+test('rider sockets authenticate only active persisted rider sessions', async () => {
+  const expires = new Date(Date.now() + 60000).toISOString();
+  const socket = makeSocket('rider-token');
+  const error = await authenticate(async sql => {
+    if (sql.includes('FROM delivery_rider_sessions')) return { id: 3, merchant_id: 8, store_id: 7, expires_at: expires };
+    return null;
+  }, socket);
+  assert.equal(error, null);
+  assert.equal(socket.data.role, 'delivery_rider');
+  assert.equal(socket.data.storeId, 7);
+  assert.equal(socket.data.deliveryRiderId, 3);
+});

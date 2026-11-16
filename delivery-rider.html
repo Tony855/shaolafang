@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#172033"><title>FoodFlow 骑手配送</title>
+<style>
+:root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#101827;color:#f4f6fb}
+*{box-sizing:border-box}body{margin:0;padding:18px 14px 40px}.wrap{max-width:620px;margin:auto}
+header{padding:12px 2px 20px}h1{font-size:23px;margin:0 0 6px}.muted{color:#9ba8bc;font-size:13px}
+.panel,.job{background:#1b273a;border:1px solid #2b3a51;border-radius:16px;padding:16px;margin:12px 0}
+input,button{font:inherit;border-radius:10px;padding:13px;width:100%;border:1px solid #3a4b65;background:#111c2d;color:#fff}
+button{background:#2878e5;border:0;font-weight:650;cursor:pointer;margin-top:10px}button.secondary{background:#34445d}button:disabled{opacity:.45}
+label{display:block;font-size:13px;color:#b6c1d2;margin:10px 0 6px}.row{display:flex;gap:9px}.row button{flex:1}
+.job h3{margin:0 0 8px}.job p{margin:6px 0;line-height:1.5}.status{display:inline-block;border-radius:20px;background:#293d5b;padding:5px 10px;font-size:12px;color:#b9d6ff}
+.hidden{display:none!important}.notice{font-size:13px;color:#ffcf80;margin-top:10px}
+</style>
+</head>
+<body><main class="wrap">
+<header><h1>🛵 FoodFlow 骑手中心</h1><div class="muted" id="welcome">登录后查看分配给你的配送订单</div></header>
+<section class="panel" id="loginPanel">
+<label>门店编号</label><input id="storeId" inputmode="numeric" placeholder="例如 1">
+<label>骑手账号</label><input id="username" autocomplete="username">
+<label>密码</label><input id="password" type="password" autocomplete="current-password">
+<button id="loginBtn">登录</button><div class="notice" id="loginError"></div>
+</section>
+<section id="jobsPanel" class="hidden"><div class="row"><button class="secondary" id="refreshBtn">刷新任务</button><button class="secondary" id="logoutBtn">退出登录</button></div><div id="jobs"></div></section>
+</main>
+<script>
+(() => {
+ const $=id=>document.getElementById(id), tokenKey='delivery_rider_token';
+ let token=sessionStorage.getItem(tokenKey)||'', watchIds=new Map(), lastSent=new Map();
+ const api=async(path,options={})=>{const response=await fetch(path,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{}),...(options.headers||{})}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'请求失败');return data;};
+ const statusText={assigned:'待接单',accepted:'已接单',picked_up:'已取货',delivering:'配送中',delivered:'已送达'};
+ function stopTracking(id){const watch=watchIds.get(id);if(watch!==undefined)navigator.geolocation.clearWatch(watch);watchIds.delete(id);}
+ function startTracking(job){if(!navigator.geolocation||watchIds.has(job.id))return;
+  const id=navigator.geolocation.watchPosition(async p=>{const now=Date.now();if(now-(lastSent.get(job.id)||0)<5000)return;lastSent.set(job.id,now);
+   try{await api('/api/delivery/jobs/'+job.id+'/location',{method:'POST',body:JSON.stringify({latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:p.coords.accuracy})});}catch(e){console.warn('定位上传失败',e.message);}
+  },e=>{$('welcome').textContent='定位不可用：'+e.message+'。仍可正常更新配送状态。'},{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+  watchIds.set(job.id,id);
+ }
+ function render(jobs){const host=$('jobs');host.replaceChildren();
+  if(!jobs.length){host.textContent='暂无待配送任务';return;}
+  for(const job of jobs){const card=document.createElement('article');card.className='job';
+   const h=document.createElement('h3');h.textContent='订单 '+(job.order_no||job.order_id);card.append(h);
+   const badge=document.createElement('span');badge.className='status';badge.textContent=statusText[job.status]||job.status;card.append(badge);
+   for(const [label,value] of [['收件人',job.recipient_name],['电话',job.recipient_phone],['地址',job.delivery_address]]){const p=document.createElement('p');p.textContent=label+'：'+(value||'—');card.append(p);}
+   const next={assigned:['accepted','接单'],accepted:['picked_up','已取货'],picked_up:['delivering','开始配送'],delivering:['delivered','确认送达']}[job.status];
+   if(next){const btn=document.createElement('button');btn.textContent=next[1];btn.addEventListener('click',async()=>{btn.disabled=true;try{await api('/api/delivery/jobs/'+job.id+'/status',{method:'POST',body:JSON.stringify({status:next[0]})});await loadJobs();}catch(e){alert(e.message);btn.disabled=false;}});card.append(btn);}
+   if(['accepted','picked_up','delivering'].includes(job.status))startTracking(job);else stopTracking(job.id);
+   host.append(card);
+  }
+ }
+ async function loadJobs(){const data=await api('/api/delivery/jobs');const activeIds=new Set(data.jobs.filter(j=>['accepted','picked_up','delivering'].includes(j.status)).map(j=>j.id));for(const id of [...watchIds.keys()])if(!activeIds.has(id))stopTracking(id);$('welcome').textContent='你好，'+data.rider.displayName+' · 定位仅在配送任务进行时上传';render(data.jobs);}
+ async function login(){ $('loginError').textContent='';try{const data=await api('/api/delivery/login',{method:'POST',body:JSON.stringify({storeId:$('storeId').value,username:$('username').value,password:$('password').value})});token=data.token;sessionStorage.setItem(tokenKey,token);$('loginPanel').classList.add('hidden');$('jobsPanel').classList.remove('hidden');await loadJobs();}catch(e){$('loginError').textContent=e.message;}}
+ $('loginBtn').addEventListener('click',login);$('refreshBtn').addEventListener('click',()=>loadJobs().catch(e=>alert(e.message)));
+ $('logoutBtn').addEventListener('click',async()=>{try{await api('/api/delivery/logout',{method:'POST'});}catch(_){}for(const id of watchIds.keys())stopTracking(id);sessionStorage.removeItem(tokenKey);token='';$('jobsPanel').classList.add('hidden');$('loginPanel').classList.remove('hidden');});
+ if(token){$('loginPanel').classList.add('hidden');$('jobsPanel').classList.remove('hidden');loadJobs().catch(()=>{sessionStorage.removeItem(tokenKey);token='';$('jobsPanel').classList.add('hidden');$('loginPanel').classList.remove('hidden');});}
+})();
+</script></body></html>
