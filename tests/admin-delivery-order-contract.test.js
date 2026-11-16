@@ -15,6 +15,8 @@ test('admin-created delivery orders require recipient details and create a dispa
   assert.match(routes, /INSERT INTO delivery_jobs/);
   assert.match(routes, /responseData\.trackingUrl/);
   assert.match(routes, /responseData\.customerToken/);
+  assert.match(routes, /fulfillmentType, recipientName: deliveryInfo\?\.recipientName/);
+  assert.match(routes, /deliveryAddress: deliveryInfo\?\.deliveryAddress/);
 });
 
 test('admin delivery form captures contact details and includes the customer tracking link', () => {
