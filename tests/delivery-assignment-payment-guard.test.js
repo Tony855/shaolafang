@@ -45,7 +45,7 @@ test('settled KHQR delivery orders can proceed to dispatch', async () => {
   const ctx = setup({ id: 5, status: 'done', merchant_id: 3, fulfillment_type: 'delivery', pay_method: 'khqr' });
   const res = response();
   await ctx.handler({
-    storeId: 7, merchantId: 3, params: { orderId: '5' },
+    storeId: 7, merchantId: 3, params: { id: '5' },
     body: { riderId: 9, address: 'Street 123', recipientName: 'Alex', recipientPhone: '12345678' }
   }, res);
   assert.equal(res.statusCode, 200);
