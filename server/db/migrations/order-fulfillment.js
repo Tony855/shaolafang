@@ -12,6 +12,8 @@ async function ensureOrderFulfillmentSchema({ allAsync, runAsync }) {
     // Existing orders default to dine_in; never infer delivery from legacy table/notes.
     await runAsync("ALTER TABLE orders ADD COLUMN fulfillment_type VARCHAR(20) NOT NULL DEFAULT 'dine_in'");
   }
+  // Preserve pre-migration delivery jobs: their linked orders are known delivery orders.
+  await runAsync("UPDATE orders o INNER JOIN delivery_jobs j ON j.order_id=o.id AND j.store_id=o.store_id AND j.merchant_id=o.merchant_id SET o.fulfillment_type='delivery' WHERE o.fulfillment_type='dine_in'");
   return { changed: true };
 }
 
