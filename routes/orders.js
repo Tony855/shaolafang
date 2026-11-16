@@ -729,7 +729,7 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
       return res.status(409).json({ error: '存在未完成菜品，请先完成或删除该菜品后再结算订单' });
     }
 
-    const nextTable = table === undefined ? existing.table_name : await assertTableExists(table, orderStoreId);
+    const nextTable = table === undefined || (table === '' && !existing.table_name) ? existing.table_name : await assertTableExists(table, orderStoreId);
     const itemsJson = JSON.stringify(newItems);
     const nextNote = typeof note === 'string' ? note.trim().slice(0, 200) : (existing.note || '');
     const paymentMethod = typeof pay_method === 'string' ? pay_method.trim().slice(0, 40) : '';
@@ -760,16 +760,18 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     }
 
     await withTransaction(async () => {
-      const tableNames = [...new Set([existing.table_name, nextTable])];
-      const tablePlaceholders = tableNames.map(() => '?').join(',');
-      const lockedTables = await allAsync(
-        'SELECT id, name FROM tables WHERE store_id=? AND name IN (' + tablePlaceholders + ') ORDER BY id FOR UPDATE',
-        [orderStoreId, ...tableNames]
-      );
-      if (lockedTables.length !== tableNames.length) {
-        const error = new Error('订单关联桌台已变化，请刷新后重试');
-        error.status = 409;
-        throw error;
+      const tableNames = [...new Set([existing.table_name, nextTable].filter(name => typeof name === 'string' && name.length > 0))];
+      if (tableNames.length) {
+        const tablePlaceholders = tableNames.map(() => '?').join(',');
+        const lockedTables = await allAsync(
+          'SELECT id, name FROM tables WHERE store_id=? AND name IN (' + tablePlaceholders + ') ORDER BY id FOR UPDATE',
+          [orderStoreId, ...tableNames]
+        );
+        if (lockedTables.length !== tableNames.length) {
+          const error = new Error('订单关联桌台已变化，请刷新后重试');
+          error.status = 409;
+          throw error;
+        }
       }
 
       const lockedOrder = await getAsync(
@@ -866,18 +868,20 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
         });
       }
 
-      await syncTableStatus(nextTable, orderStoreId);
+      if (nextTable) await syncTableStatus(nextTable, orderStoreId);
       if (nextTable !== existing.table_name) {
-        await syncTableStatus(existing.table_name, orderStoreId);
-        const oldPending = await getAsync(
-          "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
-          [existing.table_name, orderStoreId]
-        );
-        if (!oldPending || Number(oldPending.cnt) === 0) {
-          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [existing.table_name, orderStoreId]);
+        if (existing.table_name) await syncTableStatus(existing.table_name, orderStoreId);
+        if (existing.table_name) {
+          const oldPending = await getAsync(
+            "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+            [existing.table_name, orderStoreId]
+          );
+          if (!oldPending || Number(oldPending.cnt) === 0) {
+            await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [existing.table_name, orderStoreId]);
+          }
         }
       }
-      if (status === 'done' && req.isAdmin) {
+      if (status === 'done' && req.isAdmin && nextTable) {
         const stillPending = await getAsync(
           "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
           [nextTable, orderStoreId]
