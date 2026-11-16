@@ -206,19 +206,22 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       return res.status(400).json({ error: '定位数据无效' });
     }
     try {
-      const job = await getAsync(
-        "SELECT id, order_id FROM delivery_jobs WHERE id=? AND rider_id=? AND store_id=? AND status IN ('accepted','picked_up','delivering')",
-        [jobId, req.deliveryRider.id, req.deliveryRider.store_id]
-      );
-      if (!job) return res.status(409).json({ error: '当前任务不在配送状态' });
-      await runAsync(
-        `INSERT INTO delivery_rider_locations (rider_id, merchant_id, store_id, latitude, longitude, accuracy_m, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3))
-         ON DUPLICATE KEY UPDATE latitude=VALUES(latitude), longitude=VALUES(longitude),
-         accuracy_m=VALUES(accuracy_m), updated_at=UTC_TIMESTAMP(3)`,
-        [req.deliveryRider.id, req.deliveryRider.merchant_id, req.deliveryRider.store_id, latitude, longitude, accuracy]
-      );
-      const location = { orderId: job.order_id, latitude, longitude, accuracy, updatedAt: new Date().toISOString() };
+      const location = await withTransaction(async () => {
+        const job = await getAsync(
+          "SELECT id, order_id FROM delivery_jobs WHERE id=? AND rider_id=? AND merchant_id=? AND store_id=? AND status IN ('accepted','picked_up','delivering') FOR UPDATE",
+          [jobId, req.deliveryRider.id, req.deliveryRider.merchant_id, req.deliveryRider.store_id]
+        );
+        if (!job) return null;
+        await runAsync(
+          `INSERT INTO delivery_rider_locations (rider_id, merchant_id, store_id, latitude, longitude, accuracy_m, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3))
+           ON DUPLICATE KEY UPDATE latitude=VALUES(latitude), longitude=VALUES(longitude),
+           accuracy_m=VALUES(accuracy_m), updated_at=UTC_TIMESTAMP(3)`,
+          [req.deliveryRider.id, req.deliveryRider.merchant_id, req.deliveryRider.store_id, latitude, longitude, accuracy]
+        );
+        return { orderId: job.order_id, latitude, longitude, accuracy, updatedAt: new Date().toISOString() };
+      });
+      if (!location) return res.status(409).json({ error: '当前任务不在配送状态或已重新分配' });
       io.to('delivery-order-' + job.order_id).emit('delivery:location', location);
       io.to('delivery-store-' + req.deliveryRider.store_id).emit('delivery:location', location);
       res.json({ success: true, updatedAt: location.updatedAt });
