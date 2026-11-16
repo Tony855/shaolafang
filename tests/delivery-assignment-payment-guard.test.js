@@ -52,3 +52,16 @@ test('settled KHQR delivery orders can proceed to dispatch', async () => {
   assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO delivery_jobs')));
   assert.deepEqual(ctx.transactions, ['begin', 'commit']);
 });
+
+test('refunded delivery orders cannot be dispatched', async () => {
+  const ctx = setup({ id: 5, status: 'refunded', merchant_id: 3, fulfillment_type: 'delivery', pay_method: 'cash' });
+  const res = response();
+  await ctx.handler({
+    storeId: 7, merchantId: 3, params: { id: '5' },
+    body: { riderId: 9, address: 'Street 123', recipientName: 'Alex', recipientPhone: '12345678' }
+  }, res);
+  assert.equal(res.statusCode, 404);
+  assert.match(res.body.error, /已退款/);
+  assert.equal(ctx.calls.some(call => call.type === 'run'), false);
+  assert.deepEqual(ctx.transactions, ['begin', 'rollback']);
+});
