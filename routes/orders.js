@@ -938,11 +938,13 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
         throw Object.assign(new Error('密码错误或管理员账号已停用'), { status: 401 });
       }
       // Lock table -> order, consistent with settlement, transfer and table mutation.
-      const lockedTable = await getAsync(
-        'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
-        [existing.table_name, storeId]
-      );
-      if (!lockedTable) throw Object.assign(new Error('订单关联桌台已变化，删除操作已中止'), { status: 409 });
+      if (existing.table_name) {
+        const lockedTable = await getAsync(
+          'SELECT id FROM tables WHERE name=? AND store_id=? FOR UPDATE',
+          [existing.table_name, storeId]
+        );
+        if (!lockedTable) throw Object.assign(new Error('订单关联桌台已变化，删除操作已中止'), { status: 409 });
+      }
 
       const lockedOrder = await getAsync(
         'SELECT * FROM orders WHERE id=? AND store_id=? FOR UPDATE',
@@ -975,13 +977,15 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
       );
       if (!result.affectedRows) throw Object.assign(new Error('订单不存在或已被删除'), { status: 404 });
 
-      await syncTableStatus(lockedOrder.table_name, storeId);
-      const pending = await getAsync(
-        "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
-        [lockedOrder.table_name, storeId]
-      );
-      if (!pending || Number(pending.cnt) === 0) {
-        await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, storeId]);
+      if (lockedOrder.table_name) {
+        await syncTableStatus(lockedOrder.table_name, storeId);
+        const pending = await getAsync(
+          "SELECT COUNT(*) AS cnt FROM orders WHERE table_name=? AND store_id=? AND status='pending'",
+          [lockedOrder.table_name, storeId]
+        );
+        if (!pending || Number(pending.cnt) === 0) {
+          await runAsync('DELETE FROM scan_sessions WHERE table_name=? AND store_id=?', [lockedOrder.table_name, storeId]);
+        }
       }
 
       await runAsync(
@@ -1000,7 +1004,9 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
     io.to('kitchen-' + storeId).emit('order:deleted', payload);
     io.to('waiter-' + storeId).emit('order:deleted', payload);
     io.to('cashier-' + storeId).emit('order:deleted', payload);
-    io.to('public-table-' + storeId + '-' + deletedOrder.table_name).emit('order:deleted', payload);
+    if (deletedOrder.table_name) {
+      io.to('public-table-' + storeId + '-' + deletedOrder.table_name).emit('order:deleted', payload);
+    }
     res.json({ success: true });
   } catch (e) {
     sendOrderError(res, e);
