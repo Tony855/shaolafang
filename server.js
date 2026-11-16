@@ -485,7 +485,7 @@ async function ensureOrderTables() {
     SELECT DISTINCT o.table_name AS name, o.store_id AS store_id
     FROM orders o
     LEFT JOIN tables t ON t.name = o.table_name AND t.store_id = o.store_id
-    WHERE t.id IS NULL
+    WHERE o.table_name IS NOT NULL AND o.table_name <> '' AND t.id IS NULL
   `);
   for (const table of missingTables) {
     await runAsync(
