@@ -128,6 +128,12 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           "INSERT INTO delivery_jobs (merchant_id, store_id, order_id, rider_id, recipient_name, recipient_phone, delivery_address, status) VALUES (?, ?, ?, NULL, ?, ?, ?, 'pending_assignment')",
           [store.merchant_id, storeId, orderId, recipientName, recipientPhone, deliveryAddress]
         );
+        for (const item of items) {
+          if (item.id) await runAsync(
+            'UPDATE menus SET sales_count = sales_count + ? WHERE id=? AND store_id=?',
+            [Number(item.quantity) || 1, item.id, storeId]
+          );
+        }
         await enqueueStoreAdminTelegramNotification({
           allAsync,
           merchantId: store.merchant_id,
