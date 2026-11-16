@@ -197,10 +197,12 @@ module.exports = function registerDeliveryRoutes(app, deps) {
 
   app.post('/api/delivery/jobs/:id/location', getRider, async (req, res) => {
     const jobId = positiveId(req.params.id);
-    const latitude = Number(req.body?.latitude);
-    const longitude = Number(req.body?.longitude);
+    const latitudeInput = req.body?.latitude;
+    const longitudeInput = req.body?.longitude;
+    const latitude = Number(latitudeInput);
+    const longitude = Number(longitudeInput);
     const accuracy = req.body?.accuracy == null ? null : Number(req.body.accuracy);
-    if (!jobId || !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+    if (!jobId || latitudeInput == null || longitudeInput == null || !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
         !Number.isFinite(longitude) || longitude < -180 || longitude > 180 ||
         (accuracy !== null && (!Number.isFinite(accuracy) || accuracy < 0 || accuracy > 10000))) {
       return res.status(400).json({ error: '定位数据无效' });
