@@ -51,17 +51,17 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 (() => {
  'use strict';
  const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'';
- const $=id=>document.getElementById(id),cart=new Map();let menu=[];
+ const $=id=>document.getElementById(id),cart=new Map();let menu=[],rates=new Map([['USD',1]]),maxQty=100;
  const escText=value=>String(value??'');
  function money(value,currency){const n=Number(value);return (Number.isFinite(n)?n.toFixed(2):'0.00')+' '+(currency||'USD');}
  function renderCart(){
-  const host=$('cart');host.replaceChildren();let total=0,count=0;
-  for(const [id,qty] of cart){const item=menu.find(x=>String(x.id)===id);if(!item||qty<1)continue;count+=qty;total+=Number(item.price||0)*qty;
+  const host=$('cart');host.replaceChildren();let total=0,count=0,validTotal=true;
+  for(const [id,qty] of cart){const item=menu.find(x=>String(x.id)===id);if(!item||qty<1)continue;count+=qty;const rate=Number(rates.get(String(item.currency_code||'USD').toUpperCase()));if(!Number.isFinite(rate)||rate<=0)validTotal=false;else total+=(Number(item.price||0)/rate)*qty;
    const line=document.createElement('div');line.className='cart-line';const left=document.createElement('span');left.textContent=item.name+' × '+qty;const right=document.createElement('strong');right.textContent=money(Number(item.price||0)*qty,item.currency_code);line.append(left,right);host.append(line);
   }
-  $('total').textContent=total.toFixed(2)+' USD';$('submit').disabled=count===0;
+  $('total').textContent=validTotal?total.toFixed(2)+' USD':'汇率暂不可用';$('submit').disabled=count===0||!validTotal;
  }
- function change(id,delta){const next=Math.max(0,Math.min(100,Number(cart.get(String(id))||0)+delta));if(next)cart.set(String(id),next);else cart.delete(String(id));const el=document.querySelector('[data-qty="'+id+'"]');if(el)el.textContent=String(next);renderCart();}
+ function change(id,delta){const next=Math.max(0,Math.min(maxQty,Number(cart.get(String(id))||0)+delta));if(next)cart.set(String(id),next);else cart.delete(String(id));const el=document.querySelector('[data-qty="'+id+'"]');if(el)el.textContent=String(next);renderCart();}
  function renderMenu(){
   const host=$('menu');host.replaceChildren();
   if(!menu.length){const p=document.createElement('p');p.className='muted';p.textContent='当前门店暂无可点菜品';host.append(p);return;}
@@ -79,14 +79,19 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
  }
  async function load(){
   if(!/^\d+$/.test(storeId)||Number(storeId)<=0){$('message').textContent='请使用包含有效 store_id 的外卖链接打开本页面';$('menu').replaceChildren();return;}
-  const [storeResponse,menuResponse]=await Promise.all([
+  const [storeResponse,menuResponse,configResponse]=await Promise.all([
    fetch('/api/public/store-info?store_id='+encodeURIComponent(storeId),{cache:'no-store'}),
-   fetch('/api/menu?store_id='+encodeURIComponent(storeId),{cache:'no-store'})
+   fetch('/api/menu?store_id='+encodeURIComponent(storeId),{cache:'no-store'}),
+   fetch('/api/public/config?store_id='+encodeURIComponent(storeId),{cache:'no-store'})
   ]);
-  const store=await storeResponse.json(),items=await menuResponse.json();
+  const store=await storeResponse.json(),items=await menuResponse.json(),config=await configResponse.json();
   if(!storeResponse.ok)throw new Error(store.error||'门店加载失败');
   if(!menuResponse.ok)throw new Error(items.error||'菜单加载失败');
+  if(!configResponse.ok)throw new Error(config.error||'门店币种配置加载失败');
   $('storeName').textContent=store.name||('门店 '+storeId);menu=Array.isArray(items)?items:[];
+  rates=new Map((config.currencies||[]).map(currency=>[String(currency.code).toUpperCase(),Number(currency.rate)]));
+  if(!rates.has('USD'))rates.set('USD',1);
+  maxQty=Number(config.max_item_quantity)||100;
   renderMenu();renderCart();
  }
  $('orderForm').addEventListener('submit',async event=>{
