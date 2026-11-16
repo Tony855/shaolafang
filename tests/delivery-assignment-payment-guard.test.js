@@ -22,7 +22,7 @@ function setup(order) {
     io: { to: () => ({ emit() {} }) },
     isLoginLocked: async () => ({ locked: false }), recordLoginAttempt() {}, resetLoginAttempts() {}, cancelLoginAttempt() {}
   });
-  return { handler: handlers.get('POST /api/admin/delivery/orders/:orderId/assign'), calls, transactions };
+  return { handler: handlers.get('POST /api/admin/delivery/orders/:id/assign'), calls, transactions };
 }
 function response() {
   return { statusCode: 200, body: null, status(code) { this.statusCode = code; return this; }, json(value) { this.body = value; return this; } };
@@ -32,7 +32,7 @@ test('unpaid KHQR delivery orders cannot be dispatched to a rider', async () => 
   const ctx = setup({ id: 5, status: 'pending', merchant_id: 3, fulfillment_type: 'delivery', pay_method: 'khqr' });
   const res = response();
   await ctx.handler({
-    storeId: 7, merchantId: 3, params: { orderId: '5' },
+    storeId: 7, merchantId: 3, params: { id: '5' },
     body: { riderId: 9, address: 'Street 123', recipientName: 'Alex', recipientPhone: '12345678' }
   }, res);
   assert.equal(res.statusCode, 409);
