@@ -132,21 +132,18 @@ module.exports = function registerDeliveryRoutes(app, deps) {
         res.setHeader('Retry-After', String(Math.max(60, Number(attempt.remaining || 1) * 60)));
         return res.status(429).json({ error: '登录尝试过于频繁，请稍后重试' });
       }
-      let reservationOpen = true;
       const rider = await getAsync(
         'SELECT id, merchant_id, store_id, username, password_hash, display_name, phone FROM delivery_riders WHERE store_id=? AND username=? AND active=1',
         [storeId, username]
       );
       if (!rider || !verifyPassword(password, rider.password_hash)) {
         await recordLoginAttempt(username, 'delivery_rider', attempt.reservationId);
-        reservationOpen = false;
         return res.status(401).json({ error: '账号或密码错误' });
       }
       const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1', [rider.store_id, rider.merchant_id]);
       if (!store) {
         await cancelLoginAttempt(username, 'delivery_rider', attempt.reservationId);
-        reservationOpen = false;
-        return res.status(403).json({ error: '门店已停用' });
+          return res.status(403).json({ error: '门店已停用' });
       }
       await resetLoginAttempts(username, 'delivery_rider', attempt.reservationId);
       reservationOpen = false;
@@ -187,7 +184,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       );
       if (!job || transitions[job.status] !== nextStatus) return res.status(409).json({ error: '配送状态已变化，请刷新后重试' });
       const timestampColumn = { accepted: 'accepted_at', picked_up: 'picked_up_at', delivered: 'delivered_at' }[nextStatus];
-      await runAsync(
+      const changed = await runAsync(
         `UPDATE delivery_jobs SET status=?, ${timestampColumn ? timestampColumn + '=UTC_TIMESTAMP(3),' : ''} updated_at=UTC_TIMESTAMP(3)
          WHERE id=? AND rider_id=? AND status=?`,
         [nextStatus, jobId, req.deliveryRider.id, job.status]
