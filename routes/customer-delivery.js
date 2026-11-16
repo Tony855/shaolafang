@@ -11,13 +11,13 @@ const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata'
 function positiveId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
   const raw = String(value);
-  if (!/^[1-9]\\d*$/.test(raw)) return null;
+  if (!/^[1-9]\d*$/.test(raw)) return null;
   const id = Number(raw);
   return Number.isSafeInteger(id) ? id : null;
 }
 
 function cleanText(value, max) {
-  return typeof value === 'string' ? value.trim().replace(/[\\u0000-\\u001f\\u007f]/g, '').slice(0, max) : '';
+  return typeof value === 'string' ? value.trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, max) : '';
 }
 
 function convertUsdCentsToKhr(usdCents, rateValue) {
