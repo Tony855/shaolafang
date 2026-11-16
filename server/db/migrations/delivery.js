@@ -1,7 +1,7 @@
 'use strict';
 
-async function ensureDeliverySchema({ runAsync }) {
-  if (typeof runAsync !== 'function') throw new TypeError('runAsync is required');
+async function ensureDeliverySchema({ runAsync, allAsync }) {
+  if (typeof runAsync !== 'function' || typeof allAsync !== 'function') throw new TypeError('runAsync and allAsync are required');
   await runAsync(`
     CREATE TABLE IF NOT EXISTS delivery_riders (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -53,6 +53,16 @@ async function ensureDeliverySchema({ runAsync }) {
       KEY idx_delivery_job_store (merchant_id, store_id, status, updated_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+  const statusColumn = await allAsync(
+    'SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?',
+    ['delivery_jobs', 'status']
+  );
+  if (!Array.isArray(statusColumn) || statusColumn.length === 0) {
+    throw new Error('delivery_jobs.status column is missing');
+  }
+  if (!String(statusColumn[0].COLUMN_TYPE || '').includes("'pending_assignment'")) {
+    await runAsync("ALTER TABLE delivery_jobs MODIFY COLUMN status ENUM('pending_assignment','assigned','accepted','picked_up','delivering','delivered','cancelled') NOT NULL DEFAULT 'pending_assignment'");
+  }
   await runAsync(`
     CREATE TABLE IF NOT EXISTS delivery_rider_locations (
       rider_id BIGINT UNSIGNED NOT NULL,
