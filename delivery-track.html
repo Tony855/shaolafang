@@ -25,7 +25,7 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
   if(!marker)marker=L.marker(point).addTo(map).bindPopup('骑手当前位置');else marker.setLatLng(point);map.panTo(point);
   $('updated').textContent='最后更新：'+(data.updatedAt||data.location_updated_at||'—');
  }
- function updateStatus(status){$('status').textContent=labels[status]||status;}
+ function updateStatus(status){$('status').textContent=labels[status]||status;if(status==='delivered'||status==='cancelled')$('map').style.display='none';}
  async function refresh(){const response=await fetch('/api/public/delivery/'+encodeURIComponent(orderId),{headers:{'X-Customer-Token':customerToken,'Cache-Control':'no-store'}});const data=await response.json();if(!response.ok)throw new Error(data.error||'无法读取配送信息');
   const j=data.job;updateStatus(j.status);$('rider').textContent='骑手：'+(j.rider_name||'待分配');$('phone').textContent='联系电话：'+(j.rider_phone||j.recipient_phone||'—');$('address').textContent='配送地址：'+(j.delivery_address||'—');
   if(j.latitude!==null&&j.longitude!==null)updateLocation({latitude:Number(j.latitude),longitude:Number(j.longitude),updatedAt:j.location_updated_at});
