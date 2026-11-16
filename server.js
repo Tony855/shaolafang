@@ -1380,6 +1380,7 @@ async function initDatabase() {
   await rebaseCurrencyToUSDOnce();
   await ensureOrderTables();
   await require('./server/db/migrations/delivery').ensureDeliverySchema({ runAsync });
+  await require('./server/db/migrations/order-fulfillment').ensureOrderFulfillmentSchema({ allAsync, runAsync });
   const tablesWithoutTokens = await allAsync("SELECT id FROM tables WHERE qr_token IS NULL OR qr_token = ''");
   for (const table of tablesWithoutTokens) await runAsync('UPDATE tables SET qr_token=? WHERE id=?', [createTableToken(), table.id]);
   const allTables = await allAsync('SELECT name, store_id FROM tables');
