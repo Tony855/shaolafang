@@ -44,7 +44,7 @@ function setup() {
     io: { to(room) { return { emit(event, payload) { events.push({ room, event, payload }); } }; } }
   };
   registerRoutes(app, deps);
-  return { handler: handlers.get('POST /api/public/delivery/orders'), calls, events, transactions, get orderRow() { return orderRow; } };
+  return { handler: handlers.get('POST /api/public/delivery/orders'), khqrHandler: handlers.get('POST /api/public/delivery/orders/:orderId/khqr'), notifyHandler: handlers.get('POST /api/public/delivery/orders/:orderId/payment-notify'), calls, events, transactions, get orderRow() { return orderRow; } };
 }
 
 function response() {
@@ -95,4 +95,17 @@ test('customer delivery order rejects unsupported payment methods', async () => 
   assert.equal(res.statusCode, 400);
   assert.match(res.body.error, /支付方式/);
   assert.equal(ctx.calls.some(x => x.type === 'run'), false);
+});
+
+test('customer KHQR generation and payment notification require the order bearer token', async () => {
+  const ctx = setup();
+  const req = { params: { orderId: '33' }, body: {}, get: () => '' };
+  const qrRes = response();
+  await ctx.khqrHandler(req, qrRes);
+  assert.equal(qrRes.statusCode, 401);
+  const notifyRes = response();
+  await ctx.notifyHandler(req, notifyRes);
+  assert.equal(notifyRes.statusCode, 401);
+  assert.equal(ctx.calls.length, 0);
+  assert.deepEqual(ctx.transactions, []);
 });
