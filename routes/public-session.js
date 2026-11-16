@@ -162,7 +162,7 @@ module.exports = function(app, deps) {
       if (customerToken.length > 128) return res.status(400).json({ error: '顾客会话令牌无效' });
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const rows = await allAsync(
-        "SELECT * FROM orders WHERE store_id=? AND table_name=? AND session_token=? AND customer_token=? AND status!='canceled' AND createdAt > ? ORDER BY createdAt DESC",
+        "SELECT o.*, j.status AS delivery_status FROM orders o LEFT JOIN delivery_jobs j ON j.order_id=o.id AND j.store_id=o.store_id WHERE o.store_id=? AND o.table_name=? AND o.session_token=? AND o.customer_token=? AND o.status!='canceled' AND o.createdAt > ? ORDER BY o.createdAt DESC",
         [sessionStoreId, session.table_name, hashSessionToken(sessionToken), hashSessionToken(customerToken), sevenDaysAgo]
       );
       res.json({ table: session.table_name, orders: rows.map(formatPublicOrder) });
