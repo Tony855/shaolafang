@@ -394,10 +394,11 @@ app.post('/api/orders', async (req, res) => {
     let customerToken = '';
     let customerTokenHash = '';
     let sessionStoreId = null;
-    let table;
+    let table = null;
     const requestedTable = typeof req.body.table === 'string' ? req.body.table.trim() : '';
-    if (!requestedTable || requestedTable.length > 50) {
-      return res.status(400).json({ error: '座号无效' });
+    const tableRequired = !isAdmin || fulfillmentType === 'dine_in';
+    if (requestedTable.length > 50 || (tableRequired && !requestedTable)) {
+      return res.status(400).json({ error: tableRequired ? '座号无效' : '座号长度无效' });
     }
     if (!isAdmin && !isWaiter) {
       const token = typeof req.body.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
@@ -425,25 +426,24 @@ app.post('/api/orders', async (req, res) => {
       sessionToken = token;
       sessionTokenHash = hashSessionToken(token);
     } else {
-      const orderStoreId = Number(req.storeId);
+      const orderStoreId = Number(req.storeId ?? waiter?.store_id);
       if (!Number.isSafeInteger(orderStoreId) || orderStoreId <= 0) {
         return res.status(403).json({ error: '无权访问该店铺' });
       }
-      table = await assertTableExists(requestedTable, orderStoreId);
+      if (requestedTable) table = await assertTableExists(requestedTable, orderStoreId);
+      else if (tableRequired) return res.status(400).json({ error: '请选择座号' });
     }
     const authenticatedStoreId = isAdmin ? req.storeId : (isWaiter ? Number(waiter.store_id) : sessionStoreId);
     if (!Number.isSafeInteger(Number(authenticatedStoreId)) || Number(authenticatedStoreId) <= 0) {
       return res.status(403).json({ error: '当前账号未绑定有效门店' });
     }
-    const tableStore = await getAsync(
-      'SELECT store_id FROM tables WHERE name=? AND store_id=?',
-      [table, Number(authenticatedStoreId)]
-    );
-    const storeId = Number(tableStore?.store_id);
+    const storeId = table
+      ? Number((await getAsync('SELECT store_id FROM tables WHERE name=? AND store_id=?', [table, Number(authenticatedStoreId)]))?.store_id)
+      : Number(authenticatedStoreId);
     if (!Number.isSafeInteger(storeId) || storeId <= 0) {
-      return res.status(404).json({ error: '桌台不存在或不属于当前门店' });
+      return res.status(404).json({ error: table ? '桌台不存在或不属于当前门店' : '订单所属门店无效' });
     }
-    if (isWaiter && waiter.store_id !== storeId) return res.status(403).json({ error: '不能为其他店铺的座号下单' });
+    if (isWaiter && Number(waiter.store_id) !== storeId) return res.status(403).json({ error: '不能为其他店铺下单' });
     const finalStoreId = sessionStoreId || storeId;
 
     // ---------- 4. 菜品规范化与上限校验 ----------
@@ -572,7 +572,7 @@ app.post('/api/orders', async (req, res) => {
             );
           }
         }
-        await syncTableStatus(table, finalStoreId);
+        if (table) await syncTableStatus(table, finalStoreId);
         if (sessionToken) {
           const qrTimeoutRow = await getAsync("SELECT value FROM settings WHERE `key` = 'qr_session_timeout'");
           const rawQrTimeout = String(qrTimeoutRow?.value ?? '45').trim();
@@ -597,7 +597,7 @@ app.post('/api/orders', async (req, res) => {
           merchantId: store?.merchant_id,
           storeId: finalStoreId,
           eventKey: `order:${result.lastID}:created:store`,
-          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, tableName: table, amount: calculatedTotal, currency: 'USD', note }
+          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, tableName: table || '', amount: calculatedTotal, currency: 'USD', note }
         });
         return { orderId: result.lastID, orderNo };
       });
