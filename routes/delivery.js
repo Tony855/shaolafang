@@ -161,7 +161,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       const rows = await allAsync(
         `SELECT j.id, j.order_id, o.order_no, j.recipient_name, j.recipient_phone,
           j.delivery_address, j.status, j.assigned_at, j.updated_at
-         FROM delivery_jobs j JOIN orders o ON o.id=j.order_id AND o.store_id=j.store_id
+         FROM delivery_jobs j JOIN orders o ON o.id=j.order_id AND o.store_id=j.store_id AND o.merchant_id=j.merchant_id
          WHERE j.rider_id=? AND j.merchant_id=? AND j.store_id=? AND j.status NOT IN ('delivered','cancelled')
          ORDER BY j.updated_at DESC LIMIT 100`,
         [req.deliveryRider.id, req.deliveryRider.merchant_id, req.deliveryRider.store_id]
@@ -247,8 +247,8 @@ module.exports = function registerDeliveryRoutes(app, deps) {
         `SELECT j.id, j.order_id, j.recipient_name, j.recipient_phone, j.delivery_address, j.status,
           j.updated_at, r.display_name AS rider_name, r.phone AS rider_phone,
           l.latitude, l.longitude, l.accuracy_m, l.updated_at AS location_updated_at
-         FROM delivery_jobs j LEFT JOIN delivery_riders r ON r.id=j.rider_id AND r.store_id=j.store_id
-         LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.store_id=j.store_id
+         FROM delivery_jobs j LEFT JOIN delivery_riders r ON r.id=j.rider_id AND r.merchant_id=j.merchant_id AND r.store_id=j.store_id
+         LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.merchant_id=j.merchant_id AND l.store_id=j.store_id AND l.updated_at>=j.assigned_at AND j.status IN ('accepted','picked_up','delivering')
          WHERE j.order_id=? AND j.merchant_id=(SELECT merchant_id FROM orders WHERE id=?) AND j.store_id=(SELECT store_id FROM orders WHERE id=?)`,
         [orderId, orderId, orderId]
       );
