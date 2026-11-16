@@ -201,7 +201,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
         ? enabled.find(item => item.id === requestedProviderId)
         : (enabled.find(item => item.isDefault) || enabled[0]);
       if (!provider) return res.status(400).json({ error: '指定的 KHQR 收款码不可用' });
-      let staticCurrency = provider.currency;
+      let staticCurrency = String(provider.currency || '').trim().toUpperCase();
       if (!staticCurrency) {
         const info = khqr.extractInfo(khqr.parseTLV(provider.payload));
         staticCurrency = info.currency === '840' ? 'USD' : (info.currency === '116' ? 'KHR' : 'USD');
