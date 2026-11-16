@@ -378,6 +378,16 @@ app.post('/api/orders', async (req, res) => {
     const isWaiter = Boolean(waiter && waiter.can_order);
     if (waiter && !waiter.can_order) return res.status(403).json({ error: '该服务员没有下单权限' });
 
+    // Fulfillment type is server-controlled: only authenticated admins may create delivery orders.
+    const requestedFulfillmentType = typeof req.body.fulfillment_type === 'string' ? req.body.fulfillment_type.trim() : '';
+    if (isAdmin && requestedFulfillmentType && !['dine_in', 'takeaway', 'delivery'].includes(requestedFulfillmentType)) {
+      return res.status(400).json({ error: '订单履约类型无效' });
+    }
+    if (!isAdmin && requestedFulfillmentType && requestedFulfillmentType !== 'dine_in') {
+      return res.status(403).json({ error: '当前下单入口不支持该履约类型' });
+    }
+    const fulfillmentType = isAdmin ? (requestedFulfillmentType || 'dine_in') : 'dine_in';
+
     // ---------- 2. 会话/座号校验 ----------
     let sessionToken = null;
     let sessionTokenHash = null;
@@ -551,8 +561,8 @@ app.post('/api/orders', async (req, res) => {
 
         const orderNo = await allocateOrderNo(seqPrefix);
         const result = await runAsync(
-          'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?))',
-          [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionTokenHash, customerTokenHash, finalStoreId, note, finalStoreId]
+          'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id, fulfillment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?), ?)',
+          [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionTokenHash, customerTokenHash, finalStoreId, note, finalStoreId, fulfillmentType]
         );
         for (const item of items) {
           if (item.id) {
