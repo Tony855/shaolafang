@@ -242,3 +242,44 @@ test('cashier cancellation clears an expired KHQR payload atomically', async () 
   assert.match(update.sql, /awaiting_confirm=0, pay_khqr_ref='', pay_expires_at=''/);
   assert.deepEqual(transactions, ['begin', 'commit']);
 });
+
+
+test('batch settlement supports delivery orders without a dining table', async () => {
+  const order = pendingOrder({ table_name: null });
+  const { batchHandler, calls, transactions } = setup({ orders: [order], lockedOrders: [order] });
+  const res = response();
+  await batchHandler(cashierRequest({ order_ids: [5], pay_method: 'cash', cash_received: 10 }), res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(calls.some(call => call.sql.includes('SELECT id, name FROM tables')), false);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes("SET status='done'")));
+  assert.deepEqual(transactions, ['begin', 'commit']);
+});
+
+test('single settlement supports delivery orders without a dining table', async () => {
+  const order = pendingOrder({ table_name: null });
+  const { singleHandler, calls, transactions } = setup({ singleOrder: order });
+  const res = response();
+  await singleHandler({
+    ...cashierRequest({ pay_method: 'cash', cash_received: 10 }),
+    params: { id: '5' }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(calls.some(call => call.sql.includes('SELECT id FROM tables')), false);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes("SET status='done'")));
+  assert.deepEqual(transactions, ['begin', 'commit']);
+});
+
+test('cashier cancellation supports delivery orders without a dining table', async () => {
+  const order = pendingOrder({ table_name: null });
+  const { cancelHandler, calls, transactions } = setup({ singleOrder: order });
+  const res = response();
+  await cancelHandler({
+    storeId: 1,
+    cashier: { username: 'qa-cashier', permissions: { can_cancel: true } },
+    params: { id: '5' }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(calls.some(call => call.sql.includes('SELECT id FROM tables')), false);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes("SET status='canceled'")));
+  assert.deepEqual(transactions, ['begin', 'commit']);
+});
