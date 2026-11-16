@@ -6,9 +6,9 @@ const { ensureDeliverySchema } = require('../server/db/migrations/delivery');
 
 test('delivery migration creates tenant-scoped rider, job and latest-location tables', async () => {
   const statements = [];
-  const result = await ensureDeliverySchema({ runAsync: async sql => { statements.push(sql); } });
+  const result = await ensureDeliverySchema({ runAsync: async sql => { statements.push(sql); }, allAsync: async () => [{ COLUMN_TYPE: "enum('assigned','accepted','picked_up','delivering','delivered','cancelled')" }] });
   assert.equal(result.changed, true);
-  assert.equal(statements.length, 4);
+  assert.equal(statements.length, 5);
   for (const table of ['delivery_riders', 'delivery_rider_sessions', 'delivery_jobs', 'delivery_rider_locations']) {
     assert.ok(statements.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS ' + table)), table);
   }
@@ -18,5 +18,5 @@ test('delivery migration creates tenant-scoped rider, job and latest-location ta
 });
 
 test('delivery migration rejects missing database helper', async () => {
-  await assert.rejects(() => ensureDeliverySchema({}), /runAsync is required/);
+  await assert.rejects(() => ensureDeliverySchema({}), /runAsync and allAsync are required/);
 });
