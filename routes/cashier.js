@@ -21,6 +21,8 @@ function formatStaffOrder(row, formatOrder) {
   const formatted = formatOrder(row);
   delete formatted.sessionToken;
   delete formatted.customerToken;
+  // Staff need the active QR generation id to confirm a customer-paid KHQR order.
+  formatted.pay_qr_generation_id = row.pay_qr_generation_id || '';
   return formatted;
 }
 
