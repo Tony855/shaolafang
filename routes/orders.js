@@ -622,7 +622,7 @@ app.post('/api/orders', async (req, res) => {
           merchantId: store?.merchant_id,
           storeId: finalStoreId,
           eventKey: `order:${result.lastID}:created:store`,
-          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, tableName: table || '', amount: calculatedTotal, currency: 'USD', note }
+          event: { type: 'order.created', storeName: store?.name || `Store ${finalStoreId}`, orderNo, tableName: fulfillmentType === 'delivery' ? '' : (table || ''), fulfillmentType, recipientName: deliveryInfo?.recipientName || '', recipientPhone: deliveryInfo?.recipientPhone || '', deliveryAddress: deliveryInfo?.deliveryAddress || '', amount: calculatedTotal, currency: 'USD', note }
         });
         return { orderId: result.lastID, orderNo };
       });
