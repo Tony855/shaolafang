@@ -253,7 +253,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       const orderId = positiveId(req.params.orderId);
       const token = typeof req.get('X-Customer-Token') === 'string' ? req.get('X-Customer-Token').trim() : '';
       if (!orderId || !token || token.length > 128) return res.status(401).json({ error: '订单或顾客凭证无效' });
-      const order = await getAsync('SELECT id, customer_token FROM orders WHERE id=?', [orderId]);
+      const order = await getAsync('SELECT id, customer_token, order_no, status, total, pay_method, awaiting_confirm, settled_at FROM orders WHERE id=? AND fulfillment_type=\'delivery\'', [orderId]);
       if (!order || !order.customer_token || hashSessionToken(token) !== order.customer_token) return res.status(404).json({ error: '配送信息不存在' });
       const job = await getAsync(
         `SELECT j.id, j.order_id, j.recipient_name, j.recipient_phone, j.delivery_address, j.status,
@@ -265,7 +265,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
         [orderId, orderId, orderId]
       );
       if (!job) return res.status(404).json({ error: '该订单尚未分配配送员' });
-      res.json({ job });
+      res.json({ order: { id: order.id, order_no: order.order_no, status: order.status, total: Number(order.total), pay_method: order.pay_method || '', awaiting_confirm: Number(order.awaiting_confirm) || 0, settled_at: order.settled_at || '' }, job });
     } catch (_) { res.status(500).json({ error: '查询配送信息失败' }); }
   });
 };
