@@ -400,7 +400,7 @@ app.post('/api/orders', async (req, res) => {
       const recipientName = clean(input.recipient_name).slice(0, 120);
       const recipientPhone = clean(input.recipient_phone).slice(0, 40);
       const deliveryAddress = clean(input.delivery_address).slice(0, 500);
-      if (!recipientName || !deliveryAddress || !/^[+0-9()\\-\\s]{6,40}$/.test(recipientPhone)) {
+      if (!recipientName || !deliveryAddress || !/^[+0-9()\-\s]{6,40}$/.test(recipientPhone)) {
         return res.status(400).json({ error: '创建外卖订单必须填写收件人、有效联系电话和配送地址' });
       }
       deliveryInfo = { recipientName, recipientPhone, deliveryAddress };
