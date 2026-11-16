@@ -414,6 +414,9 @@ app.post('/api/orders', async (req, res) => {
     if (requestedTable.length > 50 || (tableRequired && !requestedTable)) {
       return res.status(400).json({ error: tableRequired ? '座号无效' : '座号长度无效' });
     }
+    if (isAdmin && fulfillmentType !== 'dine_in' && requestedTable) {
+      return res.status(400).json({ error: '外卖或自取订单不能关联堂食座号' });
+    }
     if (!isAdmin && !isWaiter) {
       const token = typeof req.body.sessionToken === 'string' ? req.body.sessionToken.trim() : '';
       customerToken = typeof req.body.customerToken === 'string' ? req.body.customerToken.trim() : '';
@@ -703,6 +706,9 @@ app.put('/api/orders/:id(\\d+)', requireAdminOrWaiter, async (req, res) => {
     if (id === null) return res.status(400).json({ error: '订单编号无效' });
     const existing = await getAsync('SELECT * FROM orders WHERE id = ? AND store_id = ?', [id, orderStoreId]);
     if (!existing) return res.status(404).json({ error: '订单不存在' });
+    if ((existing.fulfillment_type || 'dine_in') !== 'dine_in' && typeof table === 'string' && table.trim()) {
+      return res.status(400).json({ error: '外卖或自取订单不能关联堂食座号' });
+    }
     if (existing.status !== 'pending') return res.status(409).json({ error: '只有待处理订单可以编辑' });
     if (!req.isAdmin && existing.awaiting_confirm) return res.status(409).json({ error: '订单已通知收银员，无法修改' });
     if (req.isAdmin && !req.isPrimaryAdmin) {
