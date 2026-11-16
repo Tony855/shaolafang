@@ -40,6 +40,13 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 <button class="submit" id="submit" type="submit" disabled>提交外卖订单</button><div id="message" class="error" role="alert"></div>
 <p class="muted">菜品价格和订单金额以服务器核算为准。提交后可使用专属凭证查看配送进度。</p>
 </form></section>
+<section class="panel hidden" id="paymentPanel">
+<h2>KHQR 安全收款</h2><p class="muted" id="paymentSummary">请使用银行 App 扫描二维码付款。</p>
+<img id="paymentQr" alt="KHQR 收款码" style="display:block;width:240px;max-width:100%;margin:14px auto">
+<button class="submit" type="button" id="notifyPayment">我已付款，通知门店确认</button>
+<button class="submit" type="button" id="trackOrder" style="margin-top:8px;background:#34465e">查看配送进度</button>
+<div id="paymentMessage" class="muted" role="status"></div>
+</section></aside>
 </aside></div></main>
 <script>
 (() => {
@@ -94,7 +101,32 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    const data=await response.json().catch(()=>({}));
    if(!response.ok)throw new Error(data.error||'提交失败，请稍后重试');
    sessionStorage.setItem('customer_token:'+data.orderId,data.customerToken);
-   location.href=data.trackingUrl;
+   if(data.paymentMethod==='khqr'){
+    const qrResponse=await fetch('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/khqr',{
+     method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':data.customerToken},body:JSON.stringify({})
+    });
+    const qr=await qrResponse.json().catch(()=>({}));
+    if(!qrResponse.ok)throw new Error(qr.error||'收款码生成失败');
+    $('paymentPanel').classList.remove('hidden');$('paymentQr').src=qr.qr_data_url;
+    $('paymentSummary').textContent='订单 '+data.orderNo+' · 应付 '+Number(qr.amount).toFixed(qr.currency==='KHR'?0:2)+' '+qr.currency+' · '+(qr.merchant_name||'FoodFlow');
+    $('message').textContent='订单已创建，请完成付款后通知门店。';
+    $('submit').disabled=true;
+    $('notifyPayment').onclick=async()=>{
+     $('notifyPayment').disabled=true;
+     try{
+      const notify=await fetch('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/payment-notify',{
+       method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':data.customerToken},
+       body:JSON.stringify({qr_generation_id:qr.qr_generation_id})
+      });
+      const result=await notify.json().catch(()=>({}));
+      if(!notify.ok)throw new Error(result.error||'通知失败');
+      $('paymentMessage').textContent='已通知门店，请等待收银员核实到账。';
+     }catch(error){$('paymentMessage').textContent=error.message;$('notifyPayment').disabled=false;}
+    };
+    $('trackOrder').onclick=()=>location.href=data.trackingUrl;
+   }else{
+    location.href=data.trackingUrl;
+   }
   }catch(error){$('message').textContent=error.message;$('submit').disabled=false;}
  });
  load().catch(error=>{$('message').textContent=error.message;$('menu').textContent='菜单暂时无法加载';});
