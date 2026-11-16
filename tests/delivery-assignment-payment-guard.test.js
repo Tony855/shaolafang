@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const registerDeliveryRoutes = require('../routes/delivery');
 
 function setup(order) {
-  const handlers = new Map(), calls = [], transactions = [];
+  const handlers = new Map(), calls = [], transactions = [], events = [];
   const pass = (_req, _res, next) => next();
   const app = {
     get(path, ...handlersForRoute) { handlers.set('GET ' + path, handlersForRoute[handlersForRoute.length - 1]); },
@@ -19,10 +19,10 @@ function setup(order) {
     withTransaction: async work => { transactions.push('begin'); try { const result = await work(); transactions.push('commit'); return result; } catch (error) { transactions.push('rollback'); throw error; } },
     requireAdminKey: pass, requirePermission: () => pass,
     hashPassword: value => value, verifyPassword: () => true,
-    io: { to: () => ({ emit() {} }) },
+    io: { to: room => ({ emit(event, payload) { events.push({ room, event, payload }); } }) },
     isLoginLocked: async () => ({ locked: false }), recordLoginAttempt() {}, resetLoginAttempts() {}, cancelLoginAttempt() {}
   });
-  return { handler: handlers.get('POST /api/admin/delivery/orders/:id/assign'), calls, transactions };
+  return { handler: handlers.get('POST /api/admin/delivery/orders/:id/assign'), calls, transactions, events };
 }
 function response() {
   return { statusCode: 200, body: null, status(code) { this.statusCode = code; return this; }, json(value) { this.body = value; return this; } };
@@ -50,6 +50,7 @@ test('settled KHQR delivery orders can proceed to dispatch', async () => {
   }, res);
   assert.equal(res.statusCode, 200);
   assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO delivery_jobs')));
+  assert.ok(ctx.events.some(event => event.room === 'delivery-riders-store-7' && event.event === 'delivery:rider-refresh'));
   assert.deepEqual(ctx.transactions, ['begin', 'commit']);
 });
 
