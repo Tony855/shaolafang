@@ -361,7 +361,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
           merchantId: store?.merchant_id,
           storeId: req.storeId,
           eventKey: `order:${order.id}:settled:store`,
-          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), tableName: order.table_name, amount: Number(order.total), currency: 'USD' }
+          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), tableName: order.fulfillment_type === 'delivery' ? '' : order.table_name, fulfillmentType: order.fulfillment_type || 'dine_in', amount: Number(order.total), currency: 'USD' }
         });
       }
       for (const tableName of tableNames) {
@@ -527,7 +527,7 @@ app.put('/api/cashier/orders/:id/settle', requireCashier, async (req, res) => {
         merchantId: store?.merchant_id,
         storeId: req.storeId,
         eventKey: `order:${id}:settled:store`,
-        event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.table_name, amount: Number(lockedOrder.total), currency: 'USD' }
+        event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: lockedOrder.order_no || String(id), tableName: lockedOrder.fulfillment_type === 'delivery' ? '' : lockedOrder.table_name, fulfillmentType: lockedOrder.fulfillment_type || 'dine_in', amount: Number(lockedOrder.total), currency: 'USD' }
       });
     });
     io.to('kitchen-' + req.storeId).emit('order:settled', { orderId: id });
