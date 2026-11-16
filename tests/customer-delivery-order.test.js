@@ -71,6 +71,7 @@ test('customer delivery order creates a tableless order and unassigned delivery 
   const jobInsert = ctx.calls.find(x => x.type === 'run' && x.sql.includes('INSERT INTO delivery_jobs'));
   assert.ok(jobInsert);
   assert.ok(jobInsert.sql.includes("NULL, ?, ?, ?, 'pending_assignment'"));
+  assert.ok(ctx.calls.some(x => x.type === 'run' && x.sql.includes('UPDATE menus SET sales_count = sales_count + ?')));
   assert.deepEqual(ctx.transactions, ['begin', 'commit']);
   assert.ok(ctx.events.some(x => x.room === 'kitchen-7' && x.event === 'order:new'));
 });
