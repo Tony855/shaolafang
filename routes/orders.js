@@ -396,7 +396,7 @@ app.post('/api/orders', async (req, res) => {
     let deliveryInfo = null;
     if (isAdmin && fulfillmentType === 'delivery') {
       const input = req.body.delivery && typeof req.body.delivery === 'object' && !Array.isArray(req.body.delivery) ? req.body.delivery : {};
-      const clean = value => typeof value === 'string' ? value.trim().replace(/[\\u0000-\\u001f\\u007f]/g, '') : '';
+      const clean = value => typeof value === 'string' ? value.trim().replace(/[\u0000-\u001f\u007f]/g, '') : '';
       const recipientName = clean(input.recipient_name).slice(0, 120);
       const recipientPhone = clean(input.recipient_phone).slice(0, 40);
       const deliveryAddress = clean(input.delivery_address).slice(0, 500);
