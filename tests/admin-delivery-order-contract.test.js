@@ -17,6 +17,8 @@ test('admin-created delivery orders require recipient details and create a dispa
   assert.match(routes, /responseData\.customerToken/);
   assert.match(routes, /fulfillmentType, recipientName: deliveryInfo\?\.recipientName/);
   assert.match(routes, /deliveryAddress: deliveryInfo\?\.deliveryAddress/);
+  assert.match(routes, /fulfillmentType: lockedOrder\.fulfillment_type \|\| 'dine_in'/);
+  assert.match(routes, /delivery_jobs WHERE order_id=\? AND store_id=\?/);
 });
 
 test('admin delivery form captures contact details and includes the customer tracking link', () => {
