@@ -11,7 +11,7 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
 #map{height:360px;border-radius:14px;overflow:hidden;background:#e8edf2}.line{margin:7px 0;font-size:14px}
 </style></head><body><main>
 <h1>📍 配送实时位置</h1><div class="muted">仅显示当前订单配送信息</div>
-<section class="card"><div class="status" id="status">正在读取配送信息…</div><div class="line" id="rider"></div><div class="line" id="phone"></div><div class="line" id="address"></div><div class="muted" id="updated"></div></section>
+<section class="card"><div class="status" id="status">正在读取配送信息…</div><div class="line" id="orderSummary"></div><div class="line" id="rider"></div><div class="line" id="phone"></div><div class="line" id="address"></div><div class="muted" id="updated"></div></section>
 <section class="card"><div id="map"></div><p class="muted">骑手允许定位后，地图会自动更新；定位不可用时显示最后一次有效位置。</p></section>
 </main>
 <script src="/socket.io/socket.io.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -30,7 +30,7 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
  }
  function updateStatus(status){$('status').textContent=labels[status]||status;if(status==='delivered'||status==='cancelled')$('map').style.display='none';}
  async function refresh(){const response=await fetch('/api/public/delivery/'+encodeURIComponent(orderId),{headers:{'X-Customer-Token':customerToken,'Cache-Control':'no-store'}});const data=await response.json();if(!response.ok)throw new Error(data.error||'无法读取配送信息');
-  const j=data.job;updateStatus(j.status);$('rider').textContent='骑手：'+(j.rider_name||'待分配');$('phone').textContent='联系电话：'+(j.rider_phone||j.recipient_phone||'—');$('address').textContent='配送地址：'+(j.delivery_address||'—');
+  const j=data.job,o=data.order||{};updateStatus(j.status);$('orderSummary').textContent='订单：'+(o.order_no||o.id||orderId)+' · '+(o.status==='done'?'已收款':Number(o.awaiting_confirm)?'门店核实收款中':o.pay_method==='khqr'?'等待 KHQR 付款':'送达付款 · 待结算')+' · '+Number(o.total||0).toFixed(2)+' USD';$('rider').textContent='骑手：'+(j.rider_name||'待分配');$('phone').textContent='联系电话：'+(j.rider_phone||j.recipient_phone||'—');$('address').textContent='配送地址：'+(j.delivery_address||'—');
   if(j.latitude!==null&&j.longitude!==null)updateLocation({latitude:Number(j.latitude),longitude:Number(j.longitude),updatedAt:j.location_updated_at});
   if(!socket&&window.io){socket=io({auth:{deliveryOrderId:Number(orderId),deliveryCustomerToken:customerToken}});socket.on('delivery:location',updateLocation);socket.on('delivery:status',e=>updateStatus(e.status));socket.on('connect_error',()=>{});}
  }
