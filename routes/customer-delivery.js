@@ -133,7 +133,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           merchantId: store.merchant_id,
           storeId,
           eventKey: `order:${orderId}:created:store`,
-          event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, tableName: '外卖配送', amount: total, currency: 'USD', note }
+          event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, tableName: '', fulfillmentType: 'delivery', recipientName, recipientPhone, deliveryAddress, amount: total, currency: 'USD', note }
         });
       });
 
