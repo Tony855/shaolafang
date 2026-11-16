@@ -13,7 +13,7 @@ function setup(order) {
     put(path, ...handlersForRoute) { handlers.set('PUT ' + path, handlersForRoute[handlersForRoute.length - 1]); }
   };
   registerDeliveryRoutes(app, {
-    getAsync: async sql => { calls.push({ type: 'get', sql }); if (sql.includes('FROM orders')) return order; return null; },
+    getAsync: async sql => { calls.push({ type: 'get', sql }); if (sql.includes('FROM orders')) return order; if (sql.includes('FROM delivery_riders')) return { id: 9 }; if (sql.includes('SELECT id, order_id, rider_id')) return { id: 1, order_id: 5, rider_id: 9, status: 'assigned' }; return null; },
     allAsync: async () => [],
     runAsync: async (sql, params) => { calls.push({ type: 'run', sql, params }); return { affectedRows: 1 }; },
     withTransaction: async work => { transactions.push('begin'); try { const result = await work(); transactions.push('commit'); return result; } catch (error) { transactions.push('rollback'); throw error; } },
@@ -48,8 +48,7 @@ test('settled KHQR delivery orders can proceed to dispatch', async () => {
     storeId: 7, merchantId: 3, params: { orderId: '5' },
     body: { riderId: 9, address: 'Street 123', recipientName: 'Alex', recipientPhone: '12345678' }
   }, res);
-  assert.equal(res.statusCode, 404);
-  assert.match(res.body.error, /骑手不存在/);
+  assert.equal(res.statusCode, 200);
   assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO delivery_jobs')));
-  assert.deepEqual(ctx.transactions, ['begin', 'rollback']);
+  assert.deepEqual(ctx.transactions, ['begin', 'commit']);
 });
