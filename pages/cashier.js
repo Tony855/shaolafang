@@ -657,7 +657,19 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
       }
     }
     try {
-      await api('/cashier/orders/' + orderId + '/settle', { method: 'PUT', body });
+      if (body.pay_method === 'khqr') {
+        if (!order.pay_qr_generation_id) {
+          SLF.ui.toast('❌ 收款码批次信息缺失，请刷新订单后重试');
+          await loadOrders();
+          return;
+        }
+        await api('/cashier/khqr/confirm', {
+          method: 'POST',
+          body: { order_id: orderId, expected_qr_generation_id: order.pay_qr_generation_id }
+        });
+      } else {
+        await api('/cashier/orders/' + orderId + '/settle', { method: 'PUT', body });
+      }
       SLF.ui.toast('✅ ' + (t('settleSuccess') || '收款成功'));
       // ★ 从待确认横幅里移除
       awaitingOrders.delete(orderId);
