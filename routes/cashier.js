@@ -354,7 +354,7 @@ app.put('/api/cashier/orders/batch-settle', requireCashier, async (req, res) => 
           merchantId: store?.merchant_id,
           storeId: req.storeId,
           eventKey: `order:${order.id}:settled:customer`,
-          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), amount: Number(order.total), currency: 'USD' }
+          event: { type: 'order.settled', storeName: store?.name || `Store ${req.storeId}`, orderNo: order.order_no || String(order.id), tableName: order.fulfillment_type === 'delivery' ? '' : order.table_name, fulfillmentType: order.fulfillment_type || 'dine_in', amount: Number(order.total), currency: 'USD' }
         });
         await enqueueStoreAdminTelegramNotification({
           allAsync,
