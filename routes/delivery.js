@@ -113,7 +113,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
            status='assigned', assigned_at=UTC_TIMESTAMP(3), accepted_at=NULL, picked_up_at=NULL, delivered_at=NULL`,
           [req.merchantId, req.storeId, orderId, riderId, recipientName, recipientPhone, address]
         );
-        return getAsync('SELECT id, order_id, rider_id, status, delivery_address FROM delivery_jobs WHERE order_id=? AND store_id=?', [orderId, req.storeId]);
+        return getAsync('SELECT id, order_id, rider_id, status, delivery_address FROM delivery_jobs WHERE order_id=? AND merchant_id=? AND store_id=?', [orderId, req.merchantId, req.storeId]);
       });
       io.to('delivery-order-' + orderId).emit('delivery:status', { orderId, status: 'assigned' });
       io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId, status: 'assigned' });
@@ -222,7 +222,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
         return { orderId: job.order_id, latitude, longitude, accuracy, updatedAt: new Date().toISOString() };
       });
       if (!location) return res.status(409).json({ error: '当前任务不在配送状态或已重新分配' });
-      io.to('delivery-order-' + job.order_id).emit('delivery:location', location);
+      io.to('delivery-order-' + location.orderId).emit('delivery:location', location);
       io.to('delivery-store-' + req.deliveryRider.store_id).emit('delivery:location', location);
       res.json({ success: true, updatedAt: location.updatedAt });
     } catch (_) { res.status(500).json({ error: '保存定位失败' }); }
