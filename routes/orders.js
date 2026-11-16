@@ -988,6 +988,13 @@ app.delete('/api/orders/:id(\\d+)', requireAdminKey, requirePermission('can_dele
         [id, storeId]
       );
       if (!lockedOrder) throw Object.assign(new Error('订单不存在或已被删除'), { status: 404 });
+      const deliveryJob = await getAsync(
+        'SELECT id FROM delivery_jobs WHERE order_id=? AND store_id=? FOR UPDATE',
+        [id, storeId]
+      );
+      if (deliveryJob) {
+        throw Object.assign(new Error('外卖订单保留配送追踪记录，请使用取消订单流程，不可直接删除'), { status: 409 });
+      }
       if (lockedOrder.table_name !== existing.table_name) {
         throw Object.assign(new Error('订单桌台已变化，请刷新后重试'), { status: 409 });
       }
