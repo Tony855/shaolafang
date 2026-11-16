@@ -87,9 +87,9 @@ test('formats delivery fulfillment with recipient and address instead of a table
     fulfillmentType: 'delivery', recipientName: 'Alex', recipientPhone: '+855 12 345 678',
     deliveryAddress: '<Street 123>', amount: 8.5, currency: 'USD'
   });
-  assert.match(message, /履约方式<\\/b>：外卖配送/);
-  assert.match(message, /收件人<\\/b>：Alex/);
+  assert.ok(message.includes('履约方式</b>：外卖配送'));
+  assert.ok(message.includes('收件人</b>：Alex'));
   assert.match(message, /联系电话<\\/b>：\+855 12 345 678/);
-  assert.match(message, /配送地址<\\/b>：&lt;Street 123&gt;/);
+  assert.ok(message.includes('配送地址</b>：&lt;Street 123&gt;'));
   assert.equal(message.includes('座号'), false);
 });
