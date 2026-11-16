@@ -14,7 +14,8 @@ test('delivery migration creates tenant-scoped rider, job and latest-location ta
   }
   assert.match(statements[0], /UNIQUE KEY uq_delivery_rider_store_username \(store_id, username\)/);
   assert.match(statements[2], /UNIQUE KEY uq_delivery_job_order \(order_id\)/);
-  assert.match(statements[3], /PRIMARY KEY \(rider_id\)/);
+  assert.ok(statements[3].includes("MODIFY COLUMN status ENUM('pending_assignment'"));
+  assert.match(statements[4], /PRIMARY KEY \\(rider_id\\)/);
 });
 
 test('delivery migration rejects missing database helper', async () => {
