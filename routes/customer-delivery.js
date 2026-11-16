@@ -274,7 +274,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           [orderId, order.store_id, generationId]
         );
         if (!changed?.affectedRows) throw Object.assign(new Error('收款确认已被其他请求提交'), { status: 409 });
-        notification = { orderId, orderNo: locked.order_no, total: locked.total, table: null, storeId: order.store_id };
+        notification = { orderId, orderNo: locked.order_no, total: locked.total, table: null, storeId: order.store_id, pay_method: 'khqr', pay_qr_generation_id: generationId };
         await runAsync(
           'INSERT INTO audit_logs (actor_type, actor_id, actor_username, action, details, ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
           ['customer', 0, 'delivery_customer', 'delivery_khqr_notify', JSON.stringify({ order_id: orderId, qr_generation_id: generationId }), getClientIp(req), new Date().toISOString()]
