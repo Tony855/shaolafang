@@ -162,7 +162,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       throw Object.assign(new Error('顾客订单凭证无效'), { status: 401 });
     }
     const order = await getAsync(
-      "SELECT * FROM orders WHERE id=? AND fulfillment_type='delivery'",
+      "SELECT o.* FROM orders o JOIN stores s ON s.id=o.store_id AND s.merchant_id=o.merchant_id AND s.active=1 JOIN merchants m ON m.id=o.merchant_id AND m.status=1 WHERE o.id=? AND o.fulfillment_type='delivery'",
       [orderId]
     );
     if (!order || !order.customer_token || hashSessionToken(token) !== order.customer_token) {
