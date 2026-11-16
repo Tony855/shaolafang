@@ -635,6 +635,7 @@
                                 <span class="total-label">${t('total', null, '合计')}</span>
                                 <span class="total-amount">${orderTotalDisplay}</span>
                             </div>
+                            ${order.delivery_status ? `<div style="margin-top:10px;text-align:right;"><button type="button" data-track-order="${Number(order.id)}" style="background:#2478df;color:#fff;border:0;border-radius:18px;padding:9px 16px;font-weight:600;">📍 查看配送位置</button></div>` : ''}
                     `;
 
                     if (order.status === 'pending') {
@@ -663,6 +664,12 @@
                 detailEl.innerHTML = html;
                 detailEl.querySelectorAll('button[data-urge-order]').forEach(btn => {
                     btn.addEventListener('click', () => urgeOrder(Number(btn.dataset.urgeOrder)));
+                });
+                detailEl.querySelectorAll('button[data-track-order]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const orderId = Number(btn.dataset.trackOrder);
+                        if (Number.isSafeInteger(orderId) && orderId > 0) window.location.href = '/delivery/track/' + orderId;
+                    });
                 });
 
                 document.getElementById('customerOrderModal').classList.add('show');
