@@ -7,10 +7,13 @@ const { ensureOrderFulfillmentSchema } = require('../server/db/migrations/order-
 test('adds fulfillment_type with a safe dine_in default for legacy orders', async () => {
   const calls = [];
   await ensureOrderFulfillmentSchema({
-    allAsync: async (sql, params) => { calls.push({ type: 'query', sql, params }); return []; },
+    allAsync: async (sql, params) => {
+      calls.push({ type: 'query', sql, params });
+      return params[1] === 'table_name' ? [{ IS_NULLABLE: 'NO' }] : [];
+    },
     runAsync: async sql => { calls.push({ type: 'exec', sql }); return {}; }
   });
-  assert.equal(calls.length, 4);
+  assert.equal(calls.length, 5);
   assert.match(calls[0].sql, /information_schema\.COLUMNS/i);
   assert.deepEqual(calls[0].params, ['orders', 'fulfillment_type']);
   assert.match(calls[1].sql, /ADD COLUMN fulfillment_type VARCHAR\(20\) NOT NULL DEFAULT 'dine_in'/);
@@ -21,7 +24,9 @@ test('adds fulfillment_type with a safe dine_in default for legacy orders', asyn
 test('does not alter orders when fulfillment_type already exists', async () => {
   const executed = [];
   await ensureOrderFulfillmentSchema({
-    allAsync: async () => [{ COLUMN_NAME: 'fulfillment_type' }],
+    allAsync: async (_sql, params) => params[1] === 'table_name'
+      ? [{ IS_NULLABLE: 'YES' }]
+      : [{ COLUMN_NAME: 'fulfillment_type' }],
     runAsync: async sql => executed.push(sql)
   });
   assert.equal(executed.length, 2);
