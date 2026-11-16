@@ -393,6 +393,20 @@ app.post('/api/orders', async (req, res) => {
     let sessionTokenHash = null;
     let customerToken = '';
     let customerTokenHash = '';
+    let deliveryInfo = null;
+    if (isAdmin && fulfillmentType === 'delivery') {
+      const input = req.body.delivery && typeof req.body.delivery === 'object' && !Array.isArray(req.body.delivery) ? req.body.delivery : {};
+      const clean = value => typeof value === 'string' ? value.trim().replace(/[\\u0000-\\u001f\\u007f]/g, '') : '';
+      const recipientName = clean(input.recipient_name).slice(0, 120);
+      const recipientPhone = clean(input.recipient_phone).slice(0, 40);
+      const deliveryAddress = clean(input.delivery_address).slice(0, 500);
+      if (!recipientName || !deliveryAddress || !/^[+0-9()\\-\\s]{6,40}$/.test(recipientPhone)) {
+        return res.status(400).json({ error: '创建外卖订单必须填写收件人、有效联系电话和配送地址' });
+      }
+      deliveryInfo = { recipientName, recipientPhone, deliveryAddress };
+      customerToken = crypto.randomBytes(32).toString('hex');
+      customerTokenHash = hashSessionToken(customerToken);
+    }
     let sessionStoreId = null;
     let table = null;
     const requestedTable = typeof req.body.table === 'string' ? req.body.table.trim() : '';
@@ -566,6 +580,12 @@ app.post('/api/orders', async (req, res) => {
           'INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id, fulfillment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT merchant_id FROM stores WHERE id=?), ?)',
           [orderNo, table, itemsJson, calculatedTotal, 'pending', createdAt, sessionTokenHash, customerTokenHash, finalStoreId, note, finalStoreId, fulfillmentType]
         );
+        if (deliveryInfo) {
+          await runAsync(
+            "INSERT INTO delivery_jobs (merchant_id, store_id, order_id, rider_id, recipient_name, recipient_phone, delivery_address, status) VALUES ((SELECT merchant_id FROM stores WHERE id=?), ?, ?, NULL, ?, ?, ?, 'pending_assignment')",
+            [finalStoreId, finalStoreId, result.lastID, deliveryInfo.recipientName, deliveryInfo.recipientPhone, deliveryInfo.deliveryAddress]
+          );
+        }
         for (const item of items) {
           if (item.id) {
             await runAsync(
@@ -643,6 +663,9 @@ app.post('/api/orders', async (req, res) => {
     io.to('kitchen-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('waiter-' + finalStoreId).emit('order:new', staffOrderData);
     io.to('cashier-' + finalStoreId).emit('order:new', staffOrderData);
+    if (deliveryInfo) {
+      io.to('delivery-store-' + finalStoreId).emit('delivery:status', { orderId: Number(newRow.id), status: 'pending_assignment' });
+    }
     if (newRow.table_name) {
       io.to('public-table-' + finalStoreId + '-' + newRow.table_name).emit(
         'order:new', publicOrderChangedPayload(orderData.id)
@@ -659,6 +682,10 @@ app.post('/api/orders', async (req, res) => {
     if (sessionToken) {
       const updatedSession = await getAsync('SELECT expires_at FROM scan_sessions WHERE token_hash=?', [sessionTokenHash]);
       if (updatedSession) responseData.newExpiresAt = updatedSession.expires_at;
+    }
+    if (deliveryInfo && customerToken) {
+      responseData.customerToken = customerToken;
+      responseData.trackingUrl = '/delivery/track/' + Number(newRow.id) + '#token=' + customerToken;
     }
     res.status(201).json(responseData);
   } catch (e) {
