@@ -9,7 +9,7 @@ label{display:block;font-size:13px;color:#b8c4d5;margin:10px 0 5px}input,select,
 .job{padding:12px 0;border-bottom:1px solid #334258}.job:last-child{border:0}.pill{background:#2a405e;border-radius:20px;padding:4px 8px;font-size:12px}
 .error{color:#ffb3a7;margin-top:8px}.ok{color:#8de0a7}.back{color:#c6d7f2;text-decoration:none}
 </style></head><body><main>
-<div class="top"><div><a class="back" href="/admin">← 返回管理后台</a><h1>🛵 配送管理</h1><div class="muted">当前门店骑手、配送任务及实时位置</div></div><button class="secondary" id="refresh">刷新数据</button></div>
+<div class="top"><div><a class="back" href="/admin">← 返回管理后台</a><h1>🛵 配送管理</h1><div class="muted">当前门店骑手、配送任务及实时位置</div></div><div class="row"><button class="secondary" id="copyCustomerDeliveryLink">复制顾客外卖链接</button><button class="secondary" id="refresh">刷新数据</button></div></div>
 <div class="grid">
 <section class="card"><h3>添加骑手</h3><form id="riderForm">
 <label>骑手姓名</label><input name="displayName" required maxlength="120">
@@ -54,6 +54,11 @@ label{display:block;font-size:13px;color:#b8c4d5;margin:10px 0 5px}input,select,
  if(job){$('assignForm').elements.recipientName.value=job.recipient_name||'';$('assignForm').elements.recipientPhone.value=job.recipient_phone||'';$('assignForm').elements.address.value=job.delivery_address||'';}
 });
  $('assignForm').addEventListener('submit',async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));try{await api('/api/admin/delivery/orders/'+encodeURIComponent(f.orderId)+'/assign',{method:'POST',body:JSON.stringify(f)});text($('assignMessage'),'配送任务已分配');await load();}catch(err){text($('assignMessage'),err.message);}});
+ $('copyCustomerDeliveryLink').addEventListener('click',async()=>{
+  if(!storeId){alert('当前门店编号无效');return;}
+  const url=location.origin+'/delivery/order?store_id='+encodeURIComponent(storeId);
+  try{await navigator.clipboard.writeText(url);alert('顾客外卖链接已复制：'+url);}catch(_){prompt('请复制顾客外卖链接',url);}
+ });
  $('refresh').addEventListener('click',()=>load().catch(e=>alert(e.message)));
  if(window.io&&token){const socket=io({auth:{token},query:{storeId}});socket.on('delivery:location',()=>load().catch(()=>{}));socket.on('delivery:status',()=>load().catch(()=>{}));}
  load().catch(e=>{text($('jobs'),e.message);});
