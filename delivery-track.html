@@ -17,9 +17,12 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
 <script src="/socket.io/socket.io.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (() => {
- const orderId=location.pathname.split('/').pop(), customerToken=sessionStorage.getItem('customer_token')||'';
+ const orderId=location.pathname.split('/').pop();
+ const fragment=new URLSearchParams(location.hash.replace(/^#/,'')), fragmentToken=fragment.get('token')||'';
+ if(fragmentToken){sessionStorage.setItem('customer_token:'+orderId,fragmentToken);history.replaceState(null,'',location.pathname+location.search);}
+ const customerToken=sessionStorage.getItem('customer_token:'+orderId)||sessionStorage.getItem('customer_token')||'';
  const $=id=>document.getElementById(id);let map=null,marker=null,socket=null;
- const labels={assigned:'门店已分配骑手',accepted:'骑手已接单',picked_up:'骑手已取货',delivering:'骑手配送中',delivered:'订单已送达',cancelled:'配送已取消'};
+ const labels={pending_assignment:'等待门店分配骑手',assigned:'门店已分配骑手',accepted:'骑手已接单',picked_up:'骑手已取货',delivering:'骑手配送中',delivered:'订单已送达',cancelled:'配送已取消'};
  function updateLocation(data){if(!Number.isFinite(Number(data.latitude))||!Number.isFinite(Number(data.longitude)))return;
   const point=[Number(data.latitude),Number(data.longitude)];if(!map){map=L.map('map').setView(point,16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);}
   if(!marker)marker=L.marker(point).addTo(map).bindPopup('骑手当前位置');else marker.setLatLng(point);map.panTo(point);
