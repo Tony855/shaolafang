@@ -192,9 +192,33 @@ function removeOrder(id) {
 let editingOrderId = null;
 let editingOrderStatus = 'pending';
 
+function syncOrderTableRequirement() {
+  const fulfillmentSelect = document.getElementById('orderFulfillmentType');
+  const tableSelect = $('#orderTable');
+  if (!fulfillmentSelect || !tableSelect) return;
+  if (![...tableSelect.options].some(option => option.value === '')) {
+    tableSelect.insertBefore(new Option('无需座号（外卖/自取）', ''), tableSelect.firstChild);
+  }
+  const tableRequired = fulfillmentSelect.value === 'dine_in';
+  tableSelect.required = tableRequired;
+  tableSelect.disabled = Boolean(editingOrderId) || !tableRequired;
+  if (tableRequired && !tableSelect.value) {
+    const firstTable = [...tableSelect.options].find(option => option.value);
+    if (firstTable) tableSelect.value = firstTable.value;
+  } else if (!tableRequired) {
+    tableSelect.value = '';
+  }
+}
+
 function ensureFulfillmentSelect() {
   let select = document.getElementById('orderFulfillmentType');
-  if (select) return select;
+  if (select) {
+    if (select.dataset.tableRequirementBound !== '1') {
+      select.addEventListener('change', syncOrderTableRequirement);
+      select.dataset.tableRequirementBound = '1';
+    }
+    return select;
+  }
   const items = document.getElementById('orderItems');
   if (!items || !items.parentNode) return null;
   const wrap = document.createElement('label');
@@ -209,6 +233,8 @@ function ensureFulfillmentSelect() {
   });
   wrap.appendChild(select);
   items.parentNode.insertBefore(wrap, items);
+  select.addEventListener('change', syncOrderTableRequirement);
+  select.dataset.tableRequirementBound = '1';
   return select;
 }
 
@@ -221,6 +247,7 @@ function openOrderForm() {
   $('#orderTable').disabled = false;
   const tables = ctx.tablesCache();
   if (tables.length) $('#orderTable').value = tables[0].name;
+  syncOrderTableRequirement();
   $('#orderItems').innerHTML = '';
   $('#orderNoteField').value = '';
   addOrderItem();
@@ -289,6 +316,7 @@ async function editOrder(id) {
     $('#orderNoteField').value = o.note || '';
     const fulfillmentSelect = ensureFulfillmentSelect();
     if (fulfillmentSelect) { fulfillmentSelect.value = o.fulfillment_type || 'dine_in'; fulfillmentSelect.disabled = true; }
+    syncOrderTableRequirement();
     updateOrderTotal();
     $('#orderModal').classList.add('open');
   } catch (e) { SLF.ui.toast('❌ ' + e.message); }
@@ -308,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!items.length) { SLF.ui.toast('❌ ' + tAdmin('noItems')); return; }
       try {
         await api(editingOrderId ? '/orders/' + editingOrderId : '/orders', { method: editingOrderId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: {
-          table: $('#orderTable').value,
+          table: $('#orderTable').value || '',
           note: $('#orderNoteField').value.trim(),
           fulfillment_type: (ensureFulfillmentSelect()?.value || 'dine_in'),
           items
