@@ -1499,6 +1499,7 @@ io.on('connection', (socket) => {
   } else if (role === 'cashier') {
     socket.join('cashier-' + storeId);
   } else if (role === 'admin') {
+    socket.join('delivery-store-' + storeId);
     socket.join('waiter-' + storeId);
     socket.join('kitchen-' + storeId);
     socket.join('cashier-' + storeId);
