@@ -112,6 +112,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
         return getAsync('SELECT id, order_id, rider_id, status, delivery_address FROM delivery_jobs WHERE order_id=? AND store_id=?', [orderId, req.storeId]);
       });
       io.to('delivery-order-' + orderId).emit('delivery:status', { orderId, status: 'assigned' });
+      io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId, status: 'assigned' });
       res.json({ success: true, job });
     } catch (error) { res.status(error.status || 500).json({ error: error.status ? error.message : '分配配送任务失败' }); }
   });
@@ -172,6 +173,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
         [nextStatus, jobId, req.deliveryRider.id, job.status]
       );
       io.to('delivery-order-' + job.order_id).emit('delivery:status', { orderId: job.order_id, status: nextStatus });
+      io.to('delivery-store-' + req.deliveryRider.store_id).emit('delivery:status', { orderId: job.order_id, status: nextStatus });
       res.json({ success: true, status: nextStatus });
     } catch (_) { res.status(500).json({ error: '更新配送状态失败' }); }
   });
@@ -201,6 +203,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       );
       const location = { orderId: job.order_id, latitude, longitude, accuracy, updatedAt: new Date().toISOString() };
       io.to('delivery-order-' + job.order_id).emit('delivery:location', location);
+      io.to('delivery-store-' + req.deliveryRider.store_id).emit('delivery:location', location);
       res.json({ success: true, updatedAt: location.updatedAt });
     } catch (_) { res.status(500).json({ error: '保存定位失败' }); }
   });
