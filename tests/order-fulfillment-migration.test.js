@@ -10,7 +10,7 @@ test('adds fulfillment_type with a safe dine_in default for legacy orders', asyn
     allAsync: async (sql, params) => { calls.push({ type: 'query', sql, params }); return []; },
     runAsync: async sql => { calls.push({ type: 'exec', sql }); return {}; }
   });
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.match(calls[0].sql, /information_schema\.COLUMNS/i);
   assert.deepEqual(calls[0].params, ['orders', 'fulfillment_type']);
   assert.match(calls[1].sql, /ADD COLUMN fulfillment_type VARCHAR\(20\) NOT NULL DEFAULT 'dine_in'/);
@@ -22,5 +22,5 @@ test('does not alter orders when fulfillment_type already exists', async () => {
     allAsync: async () => [{ COLUMN_NAME: 'fulfillment_type' }],
     runAsync: async sql => executed.push(sql)
   });
-  assert.deepEqual(executed, []);
+  assert.equal(executed.length, 1);\n  assert.match(executed[0], /UPDATE orders o INNER JOIN delivery_jobs j/i);
 });
