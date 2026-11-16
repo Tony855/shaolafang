@@ -11,7 +11,7 @@ const cleanText = (value, max) => typeof value === 'string' ? value.trim().slice
 
 module.exports = function registerDeliveryRoutes(app, deps) {
   const { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission,
-    hashPassword, verifyPassword, io } = deps;
+    hashPassword, verifyPassword, io, isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = deps;
 
   async function getRider(req, res, next) {
     try {
@@ -96,6 +96,10 @@ module.exports = function registerDeliveryRoutes(app, deps) {
         if (!order || order.status === 'canceled') {
           const error = new Error('订单不存在或已取消'); error.status = 404; throw error;
         }
+        const existingJob = await getAsync('SELECT status FROM delivery_jobs WHERE order_id=? AND store_id=? FOR UPDATE', [orderId, req.storeId]);
+        if (existingJob && ['delivered', 'cancelled'].includes(existingJob.status)) {
+          const error = new Error('已完成或已取消的配送任务不能重新分配'); error.status = 409; throw error;
+        }
         const rider = await getAsync(
           'SELECT id FROM delivery_riders WHERE id=? AND merchant_id=? AND store_id=? AND active=1 FOR UPDATE',
           [riderId, req.merchantId, req.storeId]
@@ -123,13 +127,29 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       const password = typeof req.body?.password === 'string' ? req.body.password : '';
       const storeId = positiveId(req.body?.storeId);
       if (!username || !password || !storeId) return res.status(400).json({ error: '请输入门店编号、骑手账号和密码' });
+      const attempt = await isLoginLocked(username, 'delivery_rider');
+      if (attempt.locked) {
+        res.setHeader('Retry-After', String(Math.max(60, Number(attempt.remaining || 1) * 60)));
+        return res.status(429).json({ error: '登录尝试过于频繁，请稍后重试' });
+      }
+      let reservationOpen = true;
       const rider = await getAsync(
         'SELECT id, merchant_id, store_id, username, password_hash, display_name, phone FROM delivery_riders WHERE store_id=? AND username=? AND active=1',
         [storeId, username]
       );
-      if (!rider || !verifyPassword(password, rider.password_hash)) return res.status(401).json({ error: '账号或密码错误' });
+      if (!rider || !verifyPassword(password, rider.password_hash)) {
+        await recordLoginAttempt(username, 'delivery_rider', attempt.reservationId);
+        reservationOpen = false;
+        return res.status(401).json({ error: '账号或密码错误' });
+      }
       const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1', [rider.store_id, rider.merchant_id]);
-      if (!store) return res.status(403).json({ error: '门店已停用' });
+      if (!store) {
+        await cancelLoginAttempt(username, 'delivery_rider', attempt.reservationId);
+        reservationOpen = false;
+        return res.status(403).json({ error: '门店已停用' });
+      }
+      await resetLoginAttempts(username, 'delivery_rider', attempt.reservationId);
+      reservationOpen = false;
       const token = crypto.randomBytes(32).toString('base64url');
       await runAsync(
         'INSERT INTO delivery_rider_sessions (rider_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 7 DAY))',
@@ -172,6 +192,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
          WHERE id=? AND rider_id=? AND status=?`,
         [nextStatus, jobId, req.deliveryRider.id, job.status]
       );
+      if (!changed?.affectedRows) return res.status(409).json({ error: '配送状态已被其他操作更新，请刷新' });
       io.to('delivery-order-' + job.order_id).emit('delivery:status', { orderId: job.order_id, status: nextStatus });
       io.to('delivery-store-' + req.deliveryRider.store_id).emit('delivery:status', { orderId: job.order_id, status: nextStatus });
       res.json({ success: true, status: nextStatus });
