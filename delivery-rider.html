@@ -52,7 +52,7 @@ label{display:block;font-size:13px;color:#b6c1d2;margin:10px 0 6px}.row{display:
   }
  }
  async function loadJobs(){const data=await api('/api/delivery/jobs');const activeIds=new Set(data.jobs.filter(j=>['accepted','picked_up','delivering'].includes(j.status)).map(j=>j.id));for(const id of [...watchIds.keys()])if(!activeIds.has(id))stopTracking(id);$('welcome').textContent='你好，'+data.rider.displayName+' · 定位仅在配送任务进行时上传';render(data.jobs);}
- function connectSocket(){if(!window.io||!token)return;if(socket)socket.disconnect();socket=io({auth:{token}});socket.on('delivery:rider-refresh',()=>loadJobs().catch(()=>{}));}
+ function connectSocket(){if(!window.io||!token)return;if(socket)socket.disconnect();socket=io({auth:{token}});socket.on('connect',()=>loadJobs().catch(()=>{}));socket.on('delivery:rider-refresh',()=>loadJobs().catch(()=>{}));}
  async function login(){ $('loginError').textContent='';try{const data=await api('/api/delivery/login',{method:'POST',body:JSON.stringify({storeId:$('storeId').value,username:$('username').value,password:$('password').value})});token=data.token;sessionStorage.setItem(tokenKey,token);$('loginPanel').classList.add('hidden');$('jobsPanel').classList.remove('hidden');await loadJobs();connectSocket();}catch(e){$('loginError').textContent=e.message;}}
  $('loginBtn').addEventListener('click',login);$('refreshBtn').addEventListener('click',()=>loadJobs().catch(e=>alert(e.message)));
  $('logoutBtn').addEventListener('click',async()=>{try{await api('/api/delivery/logout',{method:'POST'});}catch(_){}if(socket)socket.disconnect();socket=null;for(const id of watchIds.keys())stopTracking(id);sessionStorage.removeItem(tokenKey);token='';$('jobsPanel').classList.add('hidden');$('loginPanel').classList.remove('hidden');});

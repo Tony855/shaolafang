@@ -32,7 +32,7 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
  async function refresh(){const response=await fetch('/api/public/delivery/'+encodeURIComponent(orderId),{headers:{'X-Customer-Token':customerToken,'Cache-Control':'no-store'}});const data=await response.json();if(!response.ok)throw new Error(data.error||'无法读取配送信息');
   const j=data.job,o=data.order||{};updateStatus(j.status);$('orderSummary').textContent='订单：'+(o.order_no||o.id||orderId)+' · '+(o.status==='refunded'?'已退款':o.status==='canceled'?'订单已取消':o.status==='done'?'已收款':Number(o.awaiting_confirm)?'门店核实收款中':o.pay_method==='khqr'?'等待 KHQR 付款':'送达付款 · 待结算')+' · '+Number(o.total||0).toFixed(2)+' USD';$('rider').textContent='骑手：'+(j.rider_name||'待分配');$('phone').textContent='联系电话：'+(j.rider_phone||j.recipient_phone||'—');$('address').textContent='配送地址：'+(j.delivery_address||'—');
   if(j.latitude!==null&&j.longitude!==null)updateLocation({latitude:Number(j.latitude),longitude:Number(j.longitude),updatedAt:j.location_updated_at});
-  if(!socket&&window.io){socket=io({auth:{deliveryOrderId:Number(orderId),deliveryCustomerToken:customerToken}});socket.on('delivery:location',updateLocation);socket.on('delivery:status',e=>updateStatus(e.status));socket.on('connect_error',()=>{});}
+  if(!socket&&window.io){socket=io({auth:{deliveryOrderId:Number(orderId),deliveryCustomerToken:customerToken}});socket.on('connect',()=>refresh().catch(()=>{}));socket.on('delivery:location',updateLocation);socket.on('delivery:status',e=>updateStatus(e.status));socket.on('connect_error',()=>{});}
  }
  if(!customerToken){$('status').textContent='顾客会话已失效，请返回下单页面重新进入。';}
  else refresh().catch(e=>$('status').textContent=e.message);
