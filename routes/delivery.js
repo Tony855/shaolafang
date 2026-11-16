@@ -74,7 +74,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
           l.updated_at AS location_updated_at
          FROM delivery_jobs j JOIN orders o ON o.id=j.order_id AND o.store_id=j.store_id
          LEFT JOIN delivery_riders r ON r.id=j.rider_id AND r.store_id=j.store_id
-         LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.store_id=j.store_id
+         LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.store_id=j.store_id AND l.updated_at>=j.assigned_at
          WHERE j.merchant_id=? AND j.store_id=? ORDER BY j.updated_at DESC LIMIT 200`,
         [req.merchantId, req.storeId]
       );
@@ -185,8 +185,8 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       const timestampColumn = { accepted: 'accepted_at', picked_up: 'picked_up_at', delivered: 'delivered_at' }[nextStatus];
       const changed = await runAsync(
         `UPDATE delivery_jobs SET status=?, ${timestampColumn ? timestampColumn + '=UTC_TIMESTAMP(3),' : ''} updated_at=UTC_TIMESTAMP(3)
-         WHERE id=? AND rider_id=? AND status=?`,
-        [nextStatus, jobId, req.deliveryRider.id, job.status]
+         WHERE id=? AND rider_id=? AND store_id=? AND status=?`,
+        [nextStatus, jobId, req.deliveryRider.id, req.deliveryRider.store_id, job.status]
       );
       if (!changed?.affectedRows) return res.status(409).json({ error: '配送状态已被其他操作更新，请刷新' });
       io.to('delivery-order-' + job.order_id).emit('delivery:status', { orderId: job.order_id, status: nextStatus });
