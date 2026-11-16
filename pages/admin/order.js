@@ -55,7 +55,7 @@ async function loadOrders() {
   const sessionLabels = buildSessionLabels(filtered);
   $('#orders').innerHTML = filtered.map(o => `
       <div class="order-item-admin">
-        <div class="top"><span class="table-info"><strong>${esc(o.order_no||'#'+o.id)}</strong> · ${tAdmin('table')||L('table')} ${esc(o.table)}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':o.status==='refunded'?'status-refunded':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
+        <div class="top"><span class="table-info"><strong>${esc(o.order_no||'#'+o.id)}</strong> · ${o.fulfillment_type==='delivery'?'外卖配送':o.fulfillment_type==='takeaway'?'顾客自取':(tAdmin('table')||L('table'))+' '+esc(o.table||'—')}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':o.status==='refunded'?'status-refunded':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
         ${o.note ? `<div class="order-note" style="margin:8px 0;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.2);font-size:13px;color:#f0c040;line-height:1.5;"><strong style="color:#ffd93d;">${esc(L('orderNoteDisplay')||tAdmin('note'))}：</strong>${esc(o.note)}</div>` : ''}
         <div class="items">${(o.items || []).map((item,index) => `
           <div class="dish-line" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -70,7 +70,7 @@ async function loadOrders() {
           <div class="actions">
             ${o.status==='done' || o.status==='canceled' ? '' : (hasPermission('can_edit_order') ? `<button class="edit" onclick="editOrder(${o.id})">${L('edit')}</button>` : '')}
             <button onclick="printOrder(${o.id})" style="background:#3498db;">🖨️ ${tAdmin('print')}</button>
-            ${o.status==='pending' ? `<button class="settle-order-btn" onclick="confirmSettleOrder(${o.id})">💰 ${tAdmin('settleOrder')}</button><button class="admin-transfer-order-btn" data-transfer-order-id="${Number(o.id)}" data-transfer-from-table="${esc(o.table_name || '')}" style="background:#9b59b6;">↔ ${tAdmin('transferOrder')}</button>${hasPermission('can_delete_order') ? `<button class="cancel-order-btn" onclick="confirmCancelOrder(${o.id})">🗑️ ${tAdmin('cancelOrder')}</button>` : ''}` : ''}
+            ${o.status==='pending' ? `<button class="settle-order-btn" onclick="confirmSettleOrder(${o.id})">💰 ${tAdmin('settleOrder')}</button>${o.table ? `<button class="admin-transfer-order-btn" data-transfer-order-id="${Number(o.id)}" data-transfer-from-table="${esc(o.table_name || '')}" style="background:#9b59b6;">↔ ${tAdmin('transferOrder')}</button>` : ''}${hasPermission('can_delete_order') ? `<button class="cancel-order-btn" onclick="confirmCancelOrder(${o.id})">🗑️ ${tAdmin('cancelOrder')}</button>` : ''}` : ''}
             ${hasPermission('can_delete_order') ? `<button class="danger" onclick="removeOrder(${o.id})">${L('delete')}</button>` : ''}
           </div>
         </div>
