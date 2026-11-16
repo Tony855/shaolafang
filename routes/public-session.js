@@ -137,6 +137,7 @@ module.exports = function(app, deps) {
     const formatted = formatOrder(row);
     if (!formatted || typeof formatted !== 'object') return formatted;
     const safe = { ...formatted };
+    if (typeof row.delivery_status === 'string' && row.delivery_status) safe.delivery_status = row.delivery_status;
     delete safe.sessionToken;
     delete safe.customerToken;
     return safe;
