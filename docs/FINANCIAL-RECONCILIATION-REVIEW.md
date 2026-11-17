@@ -8,6 +8,7 @@ All endpoints require an authenticated merchant administrator with the dedicated
 - `POST /api/admin/financial-reconciliation/items/:itemId/review`: performs `confirm`, `reject`, `release`, or `reassign`, or `classify_exception`. Supply `batchId`, `action`, `reason`, and a unique `Idempotency-Key` header. A provider-neutral import endpoint is also available at `POST /api/admin/financial-reconciliation/batches/import`; it accepts normalized rows and a statement SHA-256 digest, not raw proprietary bank files. Confirm/reassign also require `journalTransactionId`. Exception classification requires `exceptionCategory` (refund, fee, settlement_difference, chargeback, other).
 - `GET /api/admin/financial-reconciliation/daily-summary?from=YYYY-MM-DD&to=YYYY-MM-DD`: returns per-day, per-currency batch totals and match-state counts for a maximum 91-day window.
 - `GET /api/admin/financial-reconciliation/review-history?batchId=&itemId=&limit=50&afterId=0`: returns append-only manual review events, newest first, with tenant-scoped filters and descending event-ID cursor pagination (maximum 200 per page).
+- `GET /api/admin/financial-reconciliation/review-history/verify?batchId=ID`: performs a read-only verification of the complete stored batch chain. It checks request digests, event digests, snapshot structure, event metadata, and previous-hash continuity. The endpoint refuses to claim a complete result above 10,000 events (HTTP 413).
 - `GET /api/admin/financial-reconciliation/monthly-close-preview?month=YYYY-MM`: returns per-currency monthly statement totals, batch states, match counts, and unresolved-row counts. The preview is read-only; `closeReady` means all imported statement rows for that currency/month are matched, not that an accounting close has been posted.
 
 ## Database deployment standard
@@ -22,6 +23,13 @@ Production deployments use MariaDB 10.5+ as the database server. The Node.js `my
 - A unique index on `financial_reconciliation_items.matched_journal_transaction_id` prevents assigning one journal transaction to multiple statement rows. The migration checks existing duplicates before creating the index and fails closed if conflicts require operator review.
 - Review writes require an idempotency key. Exact replay returns the original event only for the same authenticated admin ID; another admin reusing the key receives an idempotency conflict. The stored request digest format is unchanged so pre-existing review events remain replay-compatible. Key reuse with changed request data is rejected.
 - Each review event records actor, reason, before/after state, exception category where applicable, request digest, previous event hash, and event hash. Events are append-only at the application service boundary and hash-linked per batch. Database operators should grant the application account INSERT/SELECT but not UPDATE/DELETE on this audit table where the deployment permission model allows it.
+
+## Review audit integrity verification
+
+- Verification is scoped to a batch visible to the authenticated merchant and active store; a foreign batch returns 404 and no foreign audit rows are queried.
+- The verifier performs SELECT-only reads and does not update, repair, delete, or append audit events. A detected mismatch is reported with the first invalid event ID and a stable reason code.
+- The chain is internally hash-linked, not externally anchored. This detects altered payloads, broken links, and interior gaps in the stored chain, but cannot prove that the final suffix was not deleted or that a privileged database operator did not rewrite the entire chain and recompute every hash. Restrict database UPDATE/DELETE grants and retain independently controlled checkpoints if tamper evidence against privileged operators is required.
+- No schema migration is required. The verification scan is bounded to 10,000 events per batch; larger histories require an offline audit process rather than a partial-success response.
 
 ## Status behavior
 

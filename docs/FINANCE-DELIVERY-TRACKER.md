@@ -1,10 +1,10 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-16 (main baseline `c99d79eca1ec5572c8e300b8fea75c3ab320a097`; PR #290 adds review-audit column-contract validation and is under review)
+Last reviewed: 2026-11-17 (main baseline `4c57036509220b2fe1be4959e2cbe29f5625cc28`; PR #290 merged as `797f8b5ced93840252c7df62a5465bd7a05dff93`; unrelated PR #291 merged as `f2705cad90ff17785e25f1d24dffa05e35a15c8d`)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
-**Database test-scope note:** MariaDB 10.5 and 10.11 have both passed the complete repository test suite plus isolated finance integration and backup/restore suites (PR #227/#228). MySQL 8.4 remains an additional independent integration target.
+**Database test-scope note:** MariaDB 10.5 is historical coverage and is no longer in the active matrix. Current finance CI covers MariaDB 10.11/11.4/11.8/12.3 plus MySQL 8.4; installer compatibility covers Debian 12/13 and Ubuntu 22.04/24.04/26.04.
 
 ## Delivered to main
 
@@ -163,8 +163,14 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 
 ## 2026-11-16 immutable review-event column contract audit
 
-- PR [#290](https://github.com/Tony855/shaolafang/pull/290) is open from `fix/finance-review-audit-column-contract-20261116`, based on main `c99d79eca1ec5572c8e300b8fea75c3ab320a097`.
-- Follow-up review found that the core reconciliation guard checked audit column presence and nullability but not minimum data capacity or supported action values. A legacy table with a short hash/reason/idempotency column, missing `classify_exception` enum value, small VARCHAR snapshot fields, or a non-auto-increment event ID could pass startup despite being unable to preserve the service's audit writes.
-- The guard now checks the event ID primary/auto-increment contract, integer tenant/actor/reference IDs, reviewer/reason/idempotency/hash capacities, the complete action and exception-category sets, and JSON-compatible snapshot storage. It accepts MySQL JSON and MariaDB LONGTEXT JSON alias storage. The idempotency key remains CHAR/VARCHAR so the required full-column unique index is possible without a prefix.
-- Type drift fails closed before any new uniqueness index is added; existing review events are neither rewritten nor synthesized. Unit and real-database tests cover undersized legacy columns, action and exception-category enum drift, non-integer scope/reference fields, invalid event IDs, MariaDB JSON alias compatibility, unindexable TEXT idempotency keys, and preservation of existing rows/indexes.
-- Code head `2220e54c0072603b521197a3c17542fb6fcaa50d` passed CI run [#43798577649](https://github.com/Tony855/shaolafang/actions/runs/43798577649) and installer matrix [#43798577480](https://github.com/Tony855/shaolafang/actions/runs/43798577480): repository suite 804 tests (778 passed, 0 failed, 26 skipped); MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 each passed 23/23 finance integration tests; each database matrix also passed session-token migration, backup/restore, and Telegram outbox integration; installer matrix passed 5/5 targets. This tracker-only follow-up changes the PR head, so the exact final head must be revalidated before merge. No production migration, deployment, or financial operation is performed in this batch.
+- PR [#290](https://github.com/Tony855/shaolafang/pull/290) merged as `797f8b5ced93840252c7df62a5465bd7a05dff93`.
+- The migration guard validates the event ID primary/auto-increment contract, integer tenant/actor/reference IDs, reviewer/reason/idempotency/hash capacities, supported action and exception-category values, and JSON-compatible snapshot storage. It accepts MySQL JSON and MariaDB LONGTEXT JSON alias storage.
+- Type drift fails closed before new uniqueness indexes are added. Existing review events are neither rewritten nor synthesized. The final PR head passed repository CI (804 tests: 778 passed, 0 failed, 26 skipped), MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 finance integration (23/23 each), and installer compatibility (5/5 targets).
+- PR #291 is unrelated terminology and delivery-notification work; it merged as `f2705cad90ff17785e25f1d24dffa05e35a15c8d`. Current main is `4c57036509220b2fe1be4959e2cbe29f5625cc28`.
+
+## 2026-11-17 read-only review audit-chain verification
+
+- Added a provider-neutral, tenant/store-scoped API to verify each batch's stored review-event request digest, event digest, before/after snapshot structure, event metadata, and previous-hash chain.
+- Verification is read-only, uses no schema migration, and refuses partial-success claims above 10,000 events per batch. Foreign batches return not found without reading their audit events.
+- This is tamper evidence for the stored chain, not a cryptographic external anchor: it cannot detect deletion of the final suffix or a privileged operator rewriting the complete chain and recomputing every digest. Restrict database UPDATE/DELETE grants and preserve independently controlled checkpoints for stronger guarantees.
+- PR [#296](https://github.com/Tony855/shaolafang/pull/296) adds the read-only verifier from `feat/finance-review-audit-integrity-verifier-20261117`. Code head `b6f7a4f3cfb060509ca769c3f7dfde9b06b2e600` passed PR CI run [#44006487250](https://github.com/Tony855/shaolafang/actions/runs/44006487250) (6/6 jobs; full suite 841 tests: 815 passed, 0 failed, 26 skipped; MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 finance integration each passed 23/23) and installer run [#44006487222](https://github.com/Tony855/shaolafang/actions/runs/44006487222) (5/5 targets). This tracker-only follow-up changes the PR head, so all required checks must be rerun on the exact final head before merge. No production migration, deployment, or financial operation is performed.

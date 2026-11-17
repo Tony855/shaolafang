@@ -178,6 +178,27 @@ module.exports = function(app, deps) {
     }
   });
 
+  app.get('/api/admin/financial-reconciliation/review-history/verify', ...financeAuth, async (req, res) => {
+    const context = tenantContext(req, res);
+    if (!context) return;
+    const batchId = positiveRouteId(req.query.batchId);
+    if (!batchId) return res.status(400).json({ error: '对账批次编号无效' });
+    try {
+      const result = await service.verifyReviewHistory({ ...context, batchId });
+      if (!result) return res.status(404).json({ error: '对账批次不存在' });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json(result);
+    } catch (error) {
+      if (error.code === 'REVIEW_AUDIT_VERIFY_LIMIT') {
+        return res.status(413).json({
+          error: '审核事件超过单次完整性验证上限，请联系管理员进行离线审计',
+          limit: error.limit
+        });
+      }
+      res.status(500).json({ error: '审核审计链完整性验证失败' });
+    }
+  });
+
   app.get('/api/admin/financial-reconciliation/journal-export', ...financeAuth, async (req, res) => {
     const context = tenantContext(req, res);
     if (!context) return;

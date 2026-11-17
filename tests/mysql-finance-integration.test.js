@@ -988,7 +988,7 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
     [batchId]
   );
   const [events] = await db.connection.query(
-    'SELECT merchant_id,store_id,batch_id,item_id,journal_transaction_id,exception_category,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
+    'SELECT id,merchant_id,store_id,batch_id,item_id,journal_transaction_id,exception_category,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
     [batchId]
   );
   assert.equal(items[0].match_status, 'matched');
@@ -1036,6 +1036,31 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
     assert.equal(event.event_hash, expectedHash,
       'audit digest must cover identity, action, reason, idempotency, before/after snapshots and previous hash');
   }
+  const verifiedAudit = await service.verifyReviewHistory({ merchantId: 44, storeId: 12, batchId });
+  assert.equal(verifiedAudit.verified, true, 'the complete persisted review chain must verify on MySQL/MariaDB');
+  assert.equal(verifiedAudit.complete, true);
+  assert.equal(verifiedAudit.eventCount, 7);
+  assert.equal(verifiedAudit.firstEventId, Number(events[0].id));
+  assert.equal(verifiedAudit.lastEventId, Number(events[events.length - 1].id));
+  assert.equal(verifiedAudit.headHash, events[events.length - 1].event_hash);
+
+  const originalBefore = JSON.stringify(snapshotInServiceOrder(events[2].before_json));
+  const tamperedBefore = JSON.stringify({ ...snapshotInServiceOrder(events[2].before_json), matchStatus: 'tampered' });
+  await db.runAsync(
+    'UPDATE financial_reconciliation_review_events SET before_json=? WHERE id=? AND merchant_id=? AND store_id=? AND batch_id=?',
+    [tamperedBefore, events[2].id, 44, 12, batchId]
+  );
+  const tamperedAudit = await service.verifyReviewHistory({ merchantId: 44, storeId: 12, batchId });
+  assert.equal(tamperedAudit.verified, false);
+  assert.equal(tamperedAudit.reason, 'event_hash_mismatch');
+  assert.equal(tamperedAudit.firstInvalidEventId, Number(events[2].id));
+  await db.runAsync(
+    'UPDATE financial_reconciliation_review_events SET before_json=? WHERE id=? AND merchant_id=? AND store_id=? AND batch_id=?',
+    [originalBefore, events[2].id, 44, 12, batchId]
+  );
+  assert.equal((await service.verifyReviewHistory({ merchantId: 44, storeId: 12, batchId })).verified, true,
+    'restoring the isolated test row restores the original chain; production audit events are never modified by the verifier');
+
   const after = value => typeof value === 'string' ? JSON.parse(value) : value;
   assert.equal(after(events[2].before_json).matchStatus, 'matched');
   assert.equal(after(events[2].after_json).matchStatus, 'pending');
@@ -2617,6 +2642,10 @@ test('MySQL integration: manual refund, fee and settlement-difference classifica
       crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex'),
       'classification audit hash must cover actor, reason, category snapshots and prior hash');
   }
+  const classifiedAudit = await service.verifyReviewHistory({ merchantId: 44, storeId: 12, batchId });
+  assert.equal(classifiedAudit.verified, true, 'refund, fee, and settlement-difference events must also pass chain verification');
+  assert.equal(classifiedAudit.eventCount, 3);
+
 });
 
 

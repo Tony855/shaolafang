@@ -73,6 +73,8 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     if (typeof fn !== 'function') throw new TypeError(name + ' dependency is required');
   }
 
+  const MAX_REVIEW_AUDIT_VERIFY_EVENTS = 10000;
+
   async function listBatchReview({ merchantId, storeId, batchId, limit = 500, afterRowNo = 0 }) {
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
@@ -372,6 +374,93 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
       }
       throw error;
     }
+  }
+
+  async function verifyReviewHistory({ merchantId, storeId, batchId }) {
+    const merchant = positiveId(merchantId, 'merchantId');
+    const store = positiveId(storeId, 'storeId');
+    const batch = positiveId(batchId, 'batchId');
+    const owner = await getAsync(
+      'SELECT id FROM financial_reconciliation_batches WHERE id=? AND merchant_id=? AND store_id=?',
+      [batch, merchant, store]
+    );
+    if (!owner) return null;
+    const rows = await allAsync(
+      `SELECT id, merchant_id, store_id, batch_id, item_id, journal_transaction_id,
+              exception_category, actor_admin_id, actor_username, action, reason,
+              idempotency_key, request_sha256, before_json, after_json,
+              previous_hash, event_hash
+       FROM financial_reconciliation_review_events
+       WHERE merchant_id=? AND store_id=? AND batch_id=?
+       ORDER BY id ASC LIMIT ?`,
+      [merchant, store, batch, MAX_REVIEW_AUDIT_VERIFY_EVENTS + 1]
+    );
+    if (rows.length > MAX_REVIEW_AUDIT_VERIFY_EVENTS) {
+      const error = new RangeError('review audit chain exceeds the verification limit');
+      error.code = 'REVIEW_AUDIT_VERIFY_LIMIT';
+      error.limit = MAX_REVIEW_AUDIT_VERIFY_EVENTS;
+      throw error;
+    }
+    const invalid = (row, reason) => ({
+      verified: false, complete: true, batchId: batch, eventCount: rows.length,
+      firstEventId: rows.length ? Number(rows[0].id) : null,
+      lastEventId: rows.length ? Number(rows[rows.length - 1].id) : null,
+      firstInvalidEventId: Number(row.id), reason
+    });
+    const parseSnapshot = value => {
+      const snapshot = typeof value === 'string' ? JSON.parse(value) : value;
+      if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new TypeError('invalid snapshot');
+      const required = ['matchStatus','matchedJournalTransactionId','matchReason','exceptionCategory','exceptionNote'];
+      if (!required.every(key => Object.prototype.hasOwnProperty.call(snapshot, key))) throw new TypeError('incomplete snapshot');
+      if (typeof snapshot.matchStatus !== 'string') throw new TypeError('invalid match status');
+      const journalId = snapshot.matchedJournalTransactionId;
+      if (journalId !== null && (!Number.isSafeInteger(journalId) || journalId <= 0)) throw new TypeError('invalid journal reference');
+      for (const key of ['matchReason','exceptionCategory','exceptionNote']) {
+        if (snapshot[key] !== null && typeof snapshot[key] !== 'string') throw new TypeError('invalid snapshot text');
+      }
+      return { matchStatus:snapshot.matchStatus, matchedJournalTransactionId:journalId,
+        matchReason:snapshot.matchReason, exceptionCategory:snapshot.exceptionCategory, exceptionNote:snapshot.exceptionNote };
+    };
+    let previousHash = '';
+    const supportedActions = new Set(['confirm','reject','release','reassign','classify_exception']);
+    for (const row of rows) {
+      const eventId = Number(row.id);
+      const identity = [row.merchant_id,row.store_id,row.batch_id,row.item_id,row.actor_admin_id].map(Number);
+      if (!Number.isSafeInteger(eventId) || eventId <= 0 ||
+          identity.some(value => !Number.isSafeInteger(value) || value <= 0) ||
+          identity[0] !== merchant || identity[1] !== store || identity[2] !== batch) return invalid(row,'invalid_event_identity');
+      const rowPreviousHash = row.previous_hash || '';
+      if (rowPreviousHash !== previousHash) return invalid(row,'previous_hash_mismatch');
+      const action = String(row.action || '');
+      if (!supportedActions.has(action)) return invalid(row,'unsupported_action');
+      if (typeof row.actor_username !== 'string' || !row.actor_username ||
+          typeof row.reason !== 'string' || typeof row.idempotency_key !== 'string') return invalid(row,'invalid_event_metadata');
+      const needsJournal = action === 'confirm' || action === 'reassign';
+      const journalTransactionId = needsJournal ? Number(row.journal_transaction_id) : null;
+      if ((needsJournal && (!Number.isSafeInteger(journalTransactionId) || journalTransactionId <= 0)) ||
+          (!needsJournal && row.journal_transaction_id !== null)) return invalid(row,'invalid_journal_reference');
+      const exceptionCategory = action === 'classify_exception' ? row.exception_category : null;
+      if ((action === 'classify_exception' && typeof exceptionCategory !== 'string') ||
+          (action !== 'classify_exception' && row.exception_category !== null)) return invalid(row,'invalid_exception_category');
+      let before, after;
+      try { before=parseSnapshot(row.before_json); after=parseSnapshot(row.after_json); }
+      catch (_) { return invalid(row,'invalid_snapshot'); }
+      const expectedRequestHash = stableHash({
+        merchantId:identity[0],storeId:identity[1],batchId:identity[2],itemId:identity[3],
+        action,exceptionCategory,journalTransactionId,reason:row.reason
+      });
+      if (row.request_sha256 !== expectedRequestHash) return invalid(row,'request_hash_mismatch');
+      const expectedEventHash = stableHash({
+        merchantId:identity[0],storeId:identity[1],batchId:identity[2],itemId:identity[3],
+        action,actorId:identity[4],actorUsername:row.actor_username,reason:row.reason,
+        idempotencyKey:row.idempotency_key,requestHash:row.request_sha256,before,after,previousHash:rowPreviousHash
+      });
+      if (row.event_hash !== expectedEventHash) return invalid(row,'event_hash_mismatch');
+      previousHash = row.event_hash;
+    }
+    return { verified:true,complete:true,batchId:batch,eventCount:rows.length,
+      firstEventId:rows.length?Number(rows[0].id):null,lastEventId:rows.length?Number(rows[rows.length-1].id):null,
+      headHash:previousHash };
   }
 
   async function getDailySummary({ merchantId, storeId, from, to }) {
@@ -1245,7 +1334,7 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
     });
   }
 
-  return Object.freeze({ listBatchReview, reviewItem, getDailySummary, getPeriodSummary, getExceptionOperationsSummary, getExceptionPerformanceSummary, generateSlaAlerts, listSlaAlerts, listSlaAlertHistory, acknowledgeSlaAlert, dismissSlaAlert, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
+  return Object.freeze({ listBatchReview, reviewItem, verifyReviewHistory, getDailySummary, getPeriodSummary, getExceptionOperationsSummary, getExceptionPerformanceSummary, generateSlaAlerts, listSlaAlerts, listSlaAlertHistory, acknowledgeSlaAlert, dismissSlaAlert, listExceptions, transitionExceptionCase, listExceptionHistory, listReviewHistory, getMonthlyClosePreview });
 }
 
 module.exports = { createFinancialReconciliationReviewService, normalizeReviewInput, stableHash };
