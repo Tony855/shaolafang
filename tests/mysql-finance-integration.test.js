@@ -988,7 +988,7 @@ test('MySQL integration: manual reconciliation review is transactional, tenant-s
     [batchId]
   );
   const [events] = await db.connection.query(
-    'SELECT merchant_id,store_id,batch_id,item_id,journal_transaction_id,exception_category,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
+    'SELECT id,merchant_id,store_id,batch_id,item_id,journal_transaction_id,exception_category,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
     [batchId]
   );
   assert.equal(items[0].match_status, 'matched');
@@ -2579,7 +2579,7 @@ test('MySQL integration: manual refund, fee and settlement-difference classifica
   })), 'classification must not change the original bank statement amount or create a journal assignment');
 
   const [events] = await db.connection.query(
-    'SELECT id,merchant_id,store_id,batch_id,item_id,journal_transaction_id,exception_category,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
+    'SELECT merchant_id,store_id,batch_id,item_id,journal_transaction_id,exception_category,actor_admin_id,actor_username,action,reason,idempotency_key,request_sha256,previous_hash,event_hash,before_json,after_json FROM financial_reconciliation_review_events WHERE batch_id=? ORDER BY id',
     [batchId]
   );
   assert.equal(events.length, 3, 'each category writes one durable event and exact replay writes none');
@@ -2642,6 +2642,10 @@ test('MySQL integration: manual refund, fee and settlement-difference classifica
       crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex'),
       'classification audit hash must cover actor, reason, category snapshots and prior hash');
   }
+  const classifiedAudit = await service.verifyReviewHistory({ merchantId: 44, storeId: 12, batchId });
+  assert.equal(classifiedAudit.verified, true, 'refund, fee, and settlement-difference events must also pass chain verification');
+  assert.equal(classifiedAudit.eventCount, 3);
+
 });
 
 
