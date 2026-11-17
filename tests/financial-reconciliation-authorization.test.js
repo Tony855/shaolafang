@@ -58,6 +58,7 @@ test('finance read and export handlers reject missing merchant, store, or actor 
   const protectedRoutes = [
     'GET /api/admin/financial-reconciliation/batches',
     'GET /api/admin/financial-reconciliation/daily-summary',
+    'GET /api/admin/financial-reconciliation/review-history/verify',
     'GET /api/admin/financial-reconciliation/period-summary',
     'GET /api/admin/financial-reconciliation/period-report-export',
     'GET /api/admin/financial-reconciliation/exceptions',
@@ -185,6 +186,8 @@ test('authenticated tenant scope overrides spoofed merchant and store IDs across
     { route: 'GET /api/admin/financial-reconciliation/batches/:batchId/items',
       dataQuery: 'FROM financial_reconciliation_items' },
     { route: 'GET /api/admin/financial-reconciliation/review-history' },
+    { route: 'GET /api/admin/financial-reconciliation/review-history/verify',
+      dataQuery: 'FROM financial_reconciliation_review_events' },
     { route: 'GET /api/admin/financial-reconciliation/journal-export' },
     { route: 'GET /api/admin/financial-reconciliation/month-close/period' },
     { route: 'GET /api/admin/financial-reconciliation/month-close/history' },
