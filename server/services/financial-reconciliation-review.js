@@ -466,8 +466,11 @@ function createFinancialReconciliationReviewService({ runAsync, getAsync, allAsy
   async function getDailySummary({ merchantId, storeId, from, to }) {
     const merchant = positiveId(merchantId, 'merchantId');
     const store = positiveId(storeId, 'storeId');
-    const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-      new Date(value + 'T00:00:00.000Z').toISOString().slice(0, 10) === value;
+    const validDate = value => {
+      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const parsed = new Date(value + 'T00:00:00.000Z');
+      return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+    };
     if (!validDate(from) || !validDate(to) || from > to ||
         (Date.parse(to) - Date.parse(from)) / 86400000 > 90) {
       const error = new TypeError('date range must be valid and no longer than 91 days');
