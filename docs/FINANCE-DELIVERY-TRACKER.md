@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-18 (main baseline `296b8ba06c0f22008f19cd6f9a7b9cf3eafa45a5`; PR #290 merged as `797f8b5ced93840252c7df62a5465bd7a05dff93`; PR #296 merged as `0cdb3881d507e0acf8063f1039e52569f5c7de7b`; PR #298 merged as `296b8ba06c0f22008f19cd6f9a7b9cf3eafa45a5`; unrelated PR #291 merged as `f2705cad90ff17785e25f1d24dffa05e35a15c8d`)
+Last reviewed: 2026-11-18 (main baseline `eb82fc6cf4fb0bc11aad937d0136f9b778266f4f`; PR #290 merged as `797f8b5ced93840252c7df62a5465bd7a05dff93`; PR #296 merged as `0cdb3881d507e0acf8063f1039e52569f5c7de7b`; PR #298 merged as `296b8ba06c0f22008f19cd6f9a7b9cf3eafa45a5`; PR #300 merged as `eb82fc6cf4fb0bc11aad937d0136f9b778266f4f`; tracker sync PR #299 merged as `61cdaf2259ab804ad22d8fd8359c72a3d1e5ad72`; unrelated PR #291 merged as `f2705cad90ff17785e25f1d24dffa05e35a15c8d`)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -119,6 +119,15 @@ This tracker records merged delivery separately from work that is still under re
 - No schema or migration, reconciliation state, ledger, order, refund, or provider behavior changed.
 - Final main CI [#44221497468](https://github.com/Tony855/shaolafang/actions/runs/44221497468) passed 6/6 jobs, including MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3; installer compatibility [#44221497379](https://github.com/Tony855/shaolafang/actions/runs/44221497379) passed 5/5 targets. The primary repository suite reported 841 tests: 815 passed, 0 failed, 26 skipped. Each database matrix also passed the 23/23 finance integration tests and the session-token migration, backup/restore, and Telegram outbox integration suites. MariaDB jobs additionally reran the full suite (841 tests: 814 passed, 0 failed, 27 skipped).
 - No production migration, deployment, or live financial operation was performed.
+
+
+## 2026-11-18 daily reconciliation report UI breakdown
+
+- PR [#300](https://github.com/Tony855/shaolafang/pull/300) merged as `eb82fc6cf4fb0bc11aad937d0136f9b778266f4f`.
+- The daily report table now displays debit/credit totals using the original currency's minor-unit representation, plus refund, fee, settlement-difference, chargeback, and other exception counts. The CSV already exposed these fields; this batch brings the same breakdown into the interactive table.
+- Added labels for English, Chinese, Vietnamese, Thai, and Khmer; synchronized `languages.js`, `languages.min.js`, the admin bundle, and versioned HTML cache keys. Unsafe minor-unit values continue to render as unavailable rather than being rounded.
+- Final PR-head CI [#44223527282](https://github.com/Tony855/shaolafang/actions/runs/44223527282) passed 6/6 jobs and installer compatibility [#44223527310](https://github.com/Tony855/shaolafang/actions/runs/44223527310) passed 5/5 targets. Full suite: 842 tests, 816 passed, 0 failed, 26 skipped. MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 each passed 23/23 finance integration tests plus session-token migration, backup/restore, and Telegram outbox tests; each MariaDB matrix also passed the 842-test repository suite (815 passed, 0 failed, 27 skipped).
+- No schema/migration, reconciliation state, Ledger, order, refund, payment, or provider behavior changed. No production deployment or live financial operation was performed.
 
 
 ## Progress update protocol
