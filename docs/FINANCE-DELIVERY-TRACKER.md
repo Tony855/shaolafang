@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-17 (main baseline `4c57036509220b2fe1be4959e2cbe29f5625cc28`; PR #290 merged as `797f8b5ced93840252c7df62a5465bd7a05dff93`; unrelated PR #291 merged as `f2705cad90ff17785e25f1d24dffa05e35a15c8d`)
+Last reviewed: 2026-11-18 (main baseline `296b8ba06c0f22008f19cd6f9a7b9cf3eafa45a5`; PR #290 merged as `797f8b5ced93840252c7df62a5465bd7a05dff93`; PR #296 merged as `0cdb3881d507e0acf8063f1039e52569f5c7de7b`; PR #298 merged as `296b8ba06c0f22008f19cd6f9a7b9cf3eafa45a5`; unrelated PR #291 merged as `f2705cad90ff17785e25f1d24dffa05e35a15c8d`)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -49,7 +49,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- PR #290 is open from `fix/finance-review-audit-column-contract-20261116`; it validates immutable review-event column types/capacity on legacy databases. PR #238 has merged the supported MariaDB LTS matrix (10.11, 11.4, 11.8, 12.3) and the MariaDB locking-read fix; current finance CI coverage is MySQL 8.4 plus all four MariaDB LTS versions.
+- No finance implementation PR is currently open. PR [#297](https://github.com/Tony855/shaolafang/pull/297) is a separate full-system audit workflow/documentation change; it does not change the Stage 10 finance implementation and is tracked independently. Current finance CI coverage is MySQL 8.4 plus MariaDB 10.11/11.4/11.8/12.3.
 
 ## Remaining engineering acceptance work
 
@@ -112,6 +112,15 @@ This tracker records merged delivery separately from work that is still under re
 - PR #219 merged: close the PayWay callback status review item after the latest-head test and installer matrices passed.
 - Production deployment and live financial operations: not performed.
 
+## 2026-11-18 daily-summary date validation
+
+- PR [#298](https://github.com/Tony855/shaolafang/pull/298) merged as `296b8ba06c0f22008f19cd6f9a7b9cf3eafa45a5`.
+- The daily reconciliation summary now rejects syntactically shaped but impossible calendar dates without leaking a `RangeError`; invalid `from` or `to` values retain the `REVIEW_DATE_RANGE_INVALID` contract and return HTTP 400. Regression tests cover invalid month/day values in both bounds.
+- No schema or migration, reconciliation state, ledger, order, refund, or provider behavior changed.
+- Final main CI [#44221497468](https://github.com/Tony855/shaolafang/actions/runs/44221497468) passed 6/6 jobs, including MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3; installer compatibility [#44221497379](https://github.com/Tony855/shaolafang/actions/runs/44221497379) passed 5/5 targets. The primary repository suite reported 841 tests: 815 passed, 0 failed, 26 skipped. Each database matrix also passed the 23/23 finance integration tests and the session-token migration, backup/restore, and Telegram outbox integration suites. MariaDB jobs additionally reran the full suite (841 tests: 814 passed, 0 failed, 27 skipped).
+- No production migration, deployment, or live financial operation was performed.
+
+
 ## Progress update protocol
 
 For each batch, update this tracker with the merged PR and commit, the open PR and current head, CI/installer status, newly covered acceptance criteria, and remaining blockers. Keep “under review” separate from “delivered to main”.
@@ -166,11 +175,11 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 - PR [#290](https://github.com/Tony855/shaolafang/pull/290) merged as `797f8b5ced93840252c7df62a5465bd7a05dff93`.
 - The migration guard validates the event ID primary/auto-increment contract, integer tenant/actor/reference IDs, reviewer/reason/idempotency/hash capacities, supported action and exception-category values, and JSON-compatible snapshot storage. It accepts MySQL JSON and MariaDB LONGTEXT JSON alias storage.
 - Type drift fails closed before new uniqueness indexes are added. Existing review events are neither rewritten nor synthesized. The final PR head passed repository CI (804 tests: 778 passed, 0 failed, 26 skipped), MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 finance integration (23/23 each), and installer compatibility (5/5 targets).
-- PR #291 is unrelated terminology and delivery-notification work; it merged as `f2705cad90ff17785e25f1d24dffa05e35a15c8d`. Current main is `4c57036509220b2fe1be4959e2cbe29f5625cc28`.
+- PR #291 is unrelated terminology and delivery-notification work; it merged as `f2705cad90ff17785e25f1d24dffa05e35a15c8d`. The main baseline at that historical checkpoint was `4c57036509220b2fe1be4959e2cbe29f5625cc28`.
 
 ## 2026-11-17 read-only review audit-chain verification
 
 - Added a provider-neutral, tenant/store-scoped API to verify each batch's stored review-event request digest, event digest, before/after snapshot structure, event metadata, and previous-hash chain.
 - Verification is read-only, uses no schema migration, and refuses partial-success claims above 10,000 events per batch. Foreign batches return not found without reading their audit events.
 - This is tamper evidence for the stored chain, not a cryptographic external anchor: it cannot detect deletion of the final suffix or a privileged operator rewriting the complete chain and recomputing every digest. Restrict database UPDATE/DELETE grants and preserve independently controlled checkpoints for stronger guarantees.
-- PR [#296](https://github.com/Tony855/shaolafang/pull/296) adds the read-only verifier from `feat/finance-review-audit-integrity-verifier-20261117`. Code head `b6f7a4f3cfb060509ca769c3f7dfde9b06b2e600` passed PR CI run [#44006487250](https://github.com/Tony855/shaolafang/actions/runs/44006487250) (6/6 jobs; full suite 841 tests: 815 passed, 0 failed, 26 skipped; MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 finance integration each passed 23/23) and installer run [#44006487222](https://github.com/Tony855/shaolafang/actions/runs/44006487222) (5/5 targets). This tracker-only follow-up changes the PR head, so all required checks must be rerun on the exact final head before merge. No production migration, deployment, or financial operation is performed.
+- PR [#296](https://github.com/Tony855/shaolafang/pull/296) adds the read-only verifier from `feat/finance-review-audit-integrity-verifier-20261117`. Code head `b6f7a4f3cfb060509ca769c3f7dfde9b06b2e600` passed PR CI run [#44006487250](https://github.com/Tony855/shaolafang/actions/runs/44006487250) (6/6 jobs; full suite 841 tests: 815 passed, 0 failed, 26 skipped; MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 finance integration each passed 23/23) and installer run [#44006487222](https://github.com/Tony855/shaolafang/actions/runs/44006487222) (5/5 targets). PR #296 merged as `0cdb3881d507e0acf8063f1039e52569f5c7de7b`. Final PR-head CI [#44006770532](https://github.com/Tony855/shaolafang/actions/runs/44006770532) passed 6/6 jobs and installer compatibility [#44006770459](https://github.com/Tony855/shaolafang/actions/runs/44006770459) passed 5/5 targets; post-merge main CI [#44007099791](https://github.com/Tony855/shaolafang/actions/runs/44007099791) and installer [#44007099531](https://github.com/Tony855/shaolafang/actions/runs/44007099531) also passed. No production migration, deployment, or financial operation was performed.
