@@ -2430,9 +2430,17 @@ window.doAdvancedExport = doAdvancedExport;
       const data = await api('/admin/financial-reconciliation/daily-summary?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
       const rows = Array.isArray(data.rows) ? data.rows : [];
       const target = $('#financeDailyReport');
+      const reportColumns = [
+        'report_date', 'currency_code', 'batch_count', 'statement_row_count',
+        'total_debit_minor', 'total_credit_minor',
+        'matched_count', 'pending_count', 'unmatched_count', 'ambiguous_count', 'exception_count',
+        'refund_exception_count', 'fee_exception_count', 'settlement_difference_exception_count',
+        'chargeback_exception_count', 'other_exception_count'
+      ];
+      const moneyColumns = new Set(['total_debit_minor', 'total_credit_minor']);
       target.innerHTML = rows.length ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
-        ['report_date','currency_code','batch_count','statement_row_count','matched_count','pending_count','unmatched_count','ambiguous_count','exception_count'].map(key => '<th style="text-align:left;padding:9px;border-bottom:1px solid #555;">' + esc(t('financeCol_' + key, key)) + '</th>').join('') +
-        '</tr></thead><tbody>' + rows.map(row => '<tr>' + ['report_date','currency_code','batch_count','statement_row_count','matched_count','pending_count','unmatched_count','ambiguous_count','exception_count'].map(key => '<td style="padding:9px;border-bottom:1px solid rgba(255,255,255,.08);">' + esc(row[key] ?? '') + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' : '<div class="empty-hint">' + t('financeNoReportRows', 'No report rows') + '</div>';
+        reportColumns.map(key => '<th style="text-align:left;padding:9px;border-bottom:1px solid #555;">' + esc(t('financeCol_' + key, key)) + '</th>').join('') +
+        '</tr></thead><tbody>' + rows.map(row => '<tr>' + reportColumns.map(key => '<td style="padding:9px;border-bottom:1px solid rgba(255,255,255,.08);">' + (moneyColumns.has(key) ? moneyMinor(row[key], row.currency_code) : esc(row[key] ?? '')) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' : '<div class="empty-hint">' + t('financeNoReportRows', 'No report rows') + '</div>';
       if (exportCsv) exportDailyCsv(rows);
     } catch (error) { toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed'))); }
   }

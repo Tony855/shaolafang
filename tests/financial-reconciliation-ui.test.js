@@ -33,6 +33,19 @@ test('financial review visual polish does not replace existing finance permissio
   assert.match(financeModule, /data-finance-action="reject"/);
 });
 
+test('daily reconciliation report displays currency totals and categorized exception counts', () => {
+  for (const column of [
+    'total_debit_minor', 'total_credit_minor',
+    'refund_exception_count', 'fee_exception_count',
+    'settlement_difference_exception_count', 'chargeback_exception_count',
+    'other_exception_count'
+  ]) {
+    assert.ok(financeModule.includes(column), 'daily report must expose ' + column);
+  }
+  assert.match(financeModule, /moneyMinor\(row\[key\], row\.currency_code\)/);
+  assert.match(financeModule, /financeCol_/);
+});
+
 test('super-admin authentication pages load assets from root paths', () => {
   for (const html of [loginHtml, firstLoginHtml]) {
     assert.match(html, /href="\/assets\/super-login\.css"/);
