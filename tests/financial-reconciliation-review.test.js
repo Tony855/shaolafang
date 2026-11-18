@@ -331,6 +331,10 @@ test('rejects invalid or excessive daily summary ranges', async () => {
   await assert.rejects(db.service.getDailySummary({
     merchantId: 4, storeId: 9, from: '2026-01-01', to: '2026-04-10'
   }), e => e.code === 'REVIEW_DATE_RANGE_INVALID');
+  for (const [from, to] of [['2026-99-99', '2026-11-02'], ['2026-11-01', '2026-99-99']]) {
+    await assert.rejects(db.service.getDailySummary({ merchantId: 4, storeId: 9, from, to }),
+      e => e.code === 'REVIEW_DATE_RANGE_INVALID');
+  }
 });
 
 test('review history preserves prior exception category and note in before-state snapshot', async () => {
