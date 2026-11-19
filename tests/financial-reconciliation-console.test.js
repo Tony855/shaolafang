@@ -40,6 +40,7 @@ test('manual matching is available without a suggestion and reassign is limited 
   assert.match(moduleSource, /if \(action === 'confirm'\) \{\s*const suggestedId = Number\(button\.dataset\.journal\);[\s\S]*\? suggestedId[\s\S]*window\.prompt\(t\('financeJournalIdPrompt'/);
   assert.match(moduleSource, /row\.matchStatus === 'matched' \? '<button type="button" data-finance-action="reassign"/);
   assert.doesNotMatch(moduleSource, /row\.matchStatus !== 'matched' \? '<button type="button" data-finance-action="reassign"/);
+  assert.match(moduleSource, /row\.matchStatus !== 'matched' \? '<button type="button" data-finance-action="classify_exception"/);
 });;
 
 test('financial review module is included in the reproducible admin bundle', () => {

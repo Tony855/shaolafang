@@ -2306,7 +2306,7 @@ window.doAdvancedExport = doAdvancedExport;
         row.matchStatus === 'matched' ? '<button type="button" data-finance-action="release" data-item="' + row.id + '">' + t('financeRelease', 'Release') + '</button>' : '',
         row.matchStatus !== 'matched' ? '<button type="button" data-finance-action="reject" data-item="' + row.id + '">' + t('financeReject', 'Reject') + '</button>' : '',
         row.matchStatus === 'matched' ? '<button type="button" data-finance-action="reassign" data-item="' + row.id + '">' + t('financeReassign', 'Reassign') + '</button>' : '',
-        '<button type="button" data-finance-action="classify_exception" data-item="' + row.id + '">' + t('financeClassify', 'Classify') + '</button>'
+        row.matchStatus !== 'matched' ? '<button type="button" data-finance-action="classify_exception" data-item="' + row.id + '">' + t('financeClassify', 'Classify') + '</button>' : ''
       ].filter(Boolean).join(' ');
       return '<article class="finance-review-row" style="background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin:10px 0;">' +
         '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><strong>#' + Number(row.rowNo) + ' · ' + esc(row.externalReference || row.transactionReference || '—') + '</strong><span>' + statusLabel(row.matchStatus) + '</span></div>' +
