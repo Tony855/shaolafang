@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 const { assertAdminStoreAssignment } = require('../server/services/admin-store-access');
 /* ============================================================
@@ -99,8 +100,10 @@ app.post('/api/admin/waiters', requireAdminKey, requirePermission('can_manage_wa
       [waiterId, merchantId]
     ));
   } catch (e) {
-    if (e.code === 'ER_DUP_ENTRY' || e.statusCode === 409) return res.status(409).json({ error: e.statusCode ? e.message : '服务员账号已存在' });
-    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '创建服务员失败，所有更改已回滚' });
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '服务员账号已存在' });
+    if (e.statusCode === 409) return res.status(409).json({ error: normalizeRouteError(e, '服务员账号已存在').message });
+    const safeError = normalizeRouteError(e, '创建服务员失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -176,7 +179,8 @@ app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage
     res.json(updatedWaiter);
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY' || e.statusCode === 409) return res.status(409).json({ error: e.statusCode ? e.message : '服务员账号已存在' });
-    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '更新服务员失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '更新服务员失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -203,7 +207,8 @@ app.delete('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_man
     });
     res.json({ success: true });
   } catch (e) {
-    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '删除服务员失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '删除服务员失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
