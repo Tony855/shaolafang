@@ -311,9 +311,7 @@
                   <h4 style="margin-top:16px;">近 30 天积压趋势</h4><div id="financeExceptionOpsTrend"></div>
                   <h4 style="margin-top:16px;">SLA 超时待办（最多显示 50 条）</h4><div id="financeExceptionOpsOverdue"></div>
                 </div>
-                <div class="settings-card" style="margin-bottom:16px;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-                    <div class="settings-card" style="margin-bottom:16px;" id="financeExceptionPerformance">
+                <div class="settings-card" style="margin-bottom:16px;" id="financeExceptionPerformance">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                     <h3 class="settings-card-title">异常绩效分析</h3>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;"><button id="financeExceptionPerformanceReload" type="button">刷新绩效</button><button id="financeExceptionPerformanceExport" type="button">导出绩效 CSV</button></div>
@@ -337,7 +335,9 @@
                   </div>
                   <div id="financePerformanceExportAudit"><div class="empty-hint">—</div></div>
                 </div>
-                <h3 class="settings-card-title">财务异常处理队列</h3>
+                <div class="settings-card" style="margin-bottom:16px;" id="financeExceptionQueuePanel">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <h3 class="settings-card-title">财务异常处理队列</h3>
                     <button id="financeExceptionReload" type="button">刷新异常</button>
                   </div>
                   <p class="ff-desc">分配负责人、记录处理备注、推进处理状态。所有操作均写入独立的不可变审计链。</p>
