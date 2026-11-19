@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 /* ============================================================
    routes/super.js — 超级管理员路由
    ============================================================ */
@@ -382,7 +383,8 @@ app.post('/api/super/merchants/:id/reset-password', requireSuperAdmin, async (re
     });
     res.json({ success: true, newPassword: newPwd });
   } catch (e) {
-    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '重置商户密码失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '重置商户密码失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -1027,7 +1029,8 @@ app.put('/api/super/merchants/:id/payment-methods', requireSuperAdmin, async (re
     });
     res.json({ success: true, methods: clean });
   } catch (e) {
-    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '更新支付方式失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '更新支付方式失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
