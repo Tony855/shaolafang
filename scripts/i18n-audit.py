@@ -88,9 +88,15 @@ STR_RE = re.compile(r"(['\"`])((?:(?!\1).)*[\u4e00-\u9fff](?:(?!\1).)*)\1")
 
 def report_js(outdir):
     hits = []
+    generated_hits = []
+    generated_files = {'languages.js', 'assets/admin-bundle.js'}
     skip_line = re.compile(r'(console\.(log|warn|error|debug)|^\s*//|^\s*\*)')
     for p in walk({'.js'}):
         rel = p.relative_to(ROOT)
+        # These files are generated from locales/*.json or pages/admin/*.js.
+        # Their source files are scanned separately; counting generated copies
+        # as application literals inflates the inventory and obscures real work.
+        target = generated_hits if rel.as_posix() in generated_files else hits
         for i, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
             if skip_line.search(line): continue
             for m in STR_RE.finditer(line):
@@ -100,9 +106,11 @@ def report_js(outdir):
                 # 排除 URL、CSS 值、正则、注释尾部
                 if re.search(r'https?://', line[max(0, m.start()-8):m.end()+8]): continue
                 if re.search(r'^\s*(\*|//)', line): continue
-                hits.append(f'{rel}:{i}\t{content[:80]}')
+                target.append(f'{rel}:{i}\t{content[:80]}')
     (outdir / '03-js-hardcoded.txt').write_text('\n'.join(hits), encoding='utf-8')
-    return f'JS 硬编码中文：{len(hits)} 处'
+    (outdir / '03-js-generated.txt').write_text('\n'.join(generated_hits), encoding='utf-8')
+    return (f'JS 硬编码中文（源码，不含生成产物）：{len(hits)} 处；'
+            f'生成产物单独记录：{len(generated_hits)} 处')
 
 # ---------- 报告 4：后端 routes 硬编码（JSON error 里中文） ----------
 def report_routes(outdir):
