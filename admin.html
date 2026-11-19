@@ -123,7 +123,7 @@
                 <div class="order-tabs-bar">
                     <div class="order-tabs" id="orderTabs">
                         <button class="order-tab active" data-tab="pending" onclick="switchOrderTab('pending')" id="orderTabPending">
-                            <span id="orderTabPendingText" data-i18n="pendingOrders"><span data-i18n="orderPending">未结算</span></span> <span class="order-tab-count" id="orderTabPendingCount">0</span>
+                            <span id="orderTabPendingText" data-i18n="pendingOrders">未结算订单</span> <span class="order-tab-count" id="orderTabPendingCount">0</span>
                         </button>
                         <button class="order-tab" data-tab="settled" onclick="switchOrderTab('settled')" id="orderTabSettled">
                             <span id="orderTabSettledText" data-i18n="settledOrders">已结</span> <span class="order-tab-count" id="orderTabSettledCount">0</span>
@@ -216,7 +216,7 @@
                             <div class="store-edit-field full"><label class="store-switch-label"><span id="printerEditDefaultLabel" data-i18n="setAsDefault">设为默认打印机</span><label class="store-switch"><input type="checkbox" id="editPrinterDefault"><span class="store-switch-slider"></span></label></label></div>
                         </div>
                         <div class="order-modal-actions">
-                            <button onclick="closePrinterEdit()" id="printerEditCancelBtn" data-i18n="cancel"><span data-i18n="cancel">取消</span></button>
+                            <button onclick="closePrinterEdit()" id="printerEditCancelBtn"><span data-i18n="cancel">取消</span></button>
                             <button class="primary" onclick="savePrinterEdit()" id="printerEditSaveBtn" data-i18n="save">保存</button>
                         </div>
                     </div>
