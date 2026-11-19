@@ -14,7 +14,21 @@ const frontendFiles = [
   'pages/super.js',
   'pages/cashier.js',
   'pages/waiter.js',
-  'pages/kitchen.js'
+  'pages/kitchen.js',
+  'pages/customer.js',
+  'pages/khqr-shared.js',
+  'pages/login.js',
+  'pages/menu-display.js',
+  'pages/super-first-login.js',
+  'pages/super-login.js',
+  'pages/waiter-payment.js',
+  'assets/modules/customer-group.js',
+  'assets/modules/idle.js',
+  'assets/modules/money.js',
+  'assets/modules/order-status.js',
+  'assets/modules/pwa.js',
+  'assets/modules/role.js',
+  'assets/modules/ui.js'
 ];
 const localeCodes = ['zh', 'en', 'vi', 'th', 'km'];
 const dynamicPrefixes = new Set(['financeCol_', 'financeMonth_']);
