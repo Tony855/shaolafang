@@ -1390,5 +1390,7 @@
   "financeExportRowCount": "ចំនួនជួរដែលបាននាំចេញ",
   "financeExportFormat": "ទម្រង់",
   "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
-  "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ"
+  "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
+  "countryCol": "ប្រទេស",
+  "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
 }
