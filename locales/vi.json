@@ -1390,5 +1390,7 @@
   "financeExportRowCount": "Số dòng đã xuất",
   "financeExportFormat": "Định dạng",
   "financeNoExportRecords": "Chưa có bản ghi xuất",
-  "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất"
+  "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất",
+  "countryCol": "Quốc gia",
+  "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ"
 }

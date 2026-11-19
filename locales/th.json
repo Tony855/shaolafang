@@ -1390,5 +1390,7 @@
   "financeExportRowCount": "จำนวนแถวที่ส่งออก",
   "financeExportFormat": "รูปแบบ",
   "financeNoExportRecords": "ไม่มีบันทึกการส่งออก",
-  "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ"
+  "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ",
+  "countryCol": "ประเทศ",
+  "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว"
 }

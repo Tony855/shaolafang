@@ -1390,5 +1390,7 @@
   "financeExportRowCount": "Exported rows",
   "financeExportFormat": "Format",
   "financeNoExportRecords": "No export records",
-  "financeExportAuditLoadFailed": "Failed to load export audit records"
+  "financeExportAuditLoadFailed": "Failed to load export audit records",
+  "countryCol": "Country",
+  "refundAlreadyComplete": "Order has already been fully refunded"
 }
