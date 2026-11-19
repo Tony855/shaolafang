@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/tables.js — 桌台管理
@@ -67,7 +68,8 @@ app.post('/api/tables', requireAdminKey, requirePermission('can_manage_table'), 
     res.status(201).json(newTable);
   } catch (e) {
     if (e && e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该座号名称已存在' });
-    res.status(e.status || 500).json({ error: e.status ? e.message : '创建桌台失败' });
+    const safeError = normalizeRouteError(e, '创建桌台失败');
+      res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -179,7 +181,8 @@ app.post('/api/tables/move', requireAdminOrWaiter, requireTableAccess, async (re
     io.to('cashier-' + storeId).emit('table:moved', { from: fromTable, to: targetTable, count: moved });
     res.json({ success: true, from: fromTable, to: targetTable, count: moved });
   } catch (e) {
-    res.status(e.status || 500).json({ error: e.status ? e.message : '整桌转移失败' });
+    const safeError = normalizeRouteError(e, '整桌转移失败');
+      res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -241,7 +244,8 @@ app.put('/api/tables/:id', requireAdminKey, requirePermission('can_manage_table'
     res.json(updated);
   } catch (e) {
     if (e && e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该座号名称已存在，请换一个' });
-    res.status(e.status || 500).json({ error: e.status ? e.message : '更新桌台失败' });
+    const safeError = normalizeRouteError(e, '更新桌台失败');
+      res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -283,7 +287,8 @@ app.delete('/api/tables/:id', requireAdminKey, requirePermission('can_manage_tab
     });
     res.json({ success: true });
   } catch (e) {
-    res.status(e.status || 500).json({ error: e.status ? e.message : '删除桌台失败' });
+    const safeError = normalizeRouteError(e, '删除桌台失败');
+      res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
