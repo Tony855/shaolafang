@@ -36,10 +36,11 @@ test('financial review console uses only the tenant-scoped APIs and supported re
 
 test('manual matching is available without a suggestion and reassign is limited to matched rows', () => {
   assert.match(moduleSource, /const canConfirm = row\.matchStatus !== 'matched'/);
-  assert.match(moduleSource, /Number\.isSafeInteger\(suggestedId\).*financeJournalIdPrompt/s);
+  assert.match(moduleSource, /const confirmButton = canConfirm[\s\S]*data-finance-action="confirm"/);
+  assert.match(moduleSource, /if \(action === 'confirm'\) \{\s*const suggestedId = Number\(button\.dataset\.journal\);[\s\S]*\? suggestedId[\s\S]*window\.prompt\(t\('financeJournalIdPrompt'/);
   assert.match(moduleSource, /row\.matchStatus === 'matched' \? '<button type="button" data-finance-action="reassign"/);
   assert.doesNotMatch(moduleSource, /row\.matchStatus !== 'matched' \? '<button type="button" data-finance-action="reassign"/);
-});
+});;
 
 test('financial review module is included in the reproducible admin bundle', () => {
   assert.match(builder, /pages\/admin\/financial-reconciliation\.js/);
