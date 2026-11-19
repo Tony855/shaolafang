@@ -1,4 +1,6 @@
 /* routes/display.js — 展示页配置（按店铺隔离） */
+const { normalizeRouteError } = require('../server/utils/http-error');
+
 module.exports = function(app, deps) {
   const { allAsync, runAsync, requireAdminKey, requirePermission } = deps;
   const withTransaction = deps.withTransaction || require('../server/db/helpers').withTransaction;
@@ -130,7 +132,8 @@ module.exports = function(app, deps) {
       await writeSettings(storeId, req.body);
       res.json(await readSettings(storeId));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : '保存展示页配置失败，所有更改已回滚' });
+      const safeError = normalizeRouteError(error, '保存展示页配置失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -167,7 +170,8 @@ module.exports = function(app, deps) {
       });
       res.json({ success: true, appliedTo, source: storeId, stores: storeIds });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : '批量应用展示页配置失败，所有更改已回滚' });
+      const safeError = normalizeRouteError(error, '批量应用展示页配置失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
