@@ -1,4 +1,5 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { normalizeRouteError } = require('../server/utils/http-error');
 const { validateChatId, validateBotToken } = require('../server/services/telegram-bot');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
@@ -362,7 +363,8 @@ module.exports = function(app, deps) {
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ success: true, enabled: !!enabled, chatId, notifyOrderCreated: !!notifyOrderCreated, notifySettled: !!notifySettled, notifyRefunded: !!notifyRefunded });
     } catch (error) {
-      if (!error.status) {
+      const safeError = normalizeRouteError(error, 'Telegram 门店通知设置保存失败，所有更改已回滚');
+      if (!safeError.isClientError) {
         // Never log request bodies, Chat IDs, Bot tokens, SQL text, or raw error messages.
         console.error('[telegram-store-notification-settings] save failed', {
           stage: failureStage,
@@ -371,7 +373,7 @@ module.exports = function(app, deps) {
           sqlState: /^[0-9A-Z]{5}$/.test(String(error.sqlState || '')) ? error.sqlState : null
         });
       }
-      res.status(error.status || 500).json({ error: error.status ? error.message : 'Telegram 门店通知设置保存失败，所有更改已回滚' });
+      res.status(safeError.status).json({ error: safeError.message });
     }
   });
 };
