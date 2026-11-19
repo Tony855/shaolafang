@@ -1390,5 +1390,7 @@
   "financeExportRowCount": "导出行数",
   "financeExportFormat": "格式",
   "financeNoExportRecords": "暂无导出记录",
-  "financeExportAuditLoadFailed": "导出审计记录加载失败"
+  "financeExportAuditLoadFailed": "导出审计记录加载失败",
+  "countryCol": "国家",
+  "refundAlreadyComplete": "订单已全额退款"
 }
