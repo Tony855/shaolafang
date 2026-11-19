@@ -1397,7 +1397,9 @@ const LANGUAGES = {
     "financeExportRowCount": "导出行数",
     "financeExportFormat": "格式",
     "financeNoExportRecords": "暂无导出记录",
-    "financeExportAuditLoadFailed": "导出审计记录加载失败"
+    "financeExportAuditLoadFailed": "导出审计记录加载失败",
+    "countryCol": "国家",
+    "refundAlreadyComplete": "订单已全额退款"
   },
   "en": {
     "code": "Code",
@@ -2791,7 +2793,9 @@ const LANGUAGES = {
     "financeExportRowCount": "Exported rows",
     "financeExportFormat": "Format",
     "financeNoExportRecords": "No export records",
-    "financeExportAuditLoadFailed": "Failed to load export audit records"
+    "financeExportAuditLoadFailed": "Failed to load export audit records",
+    "countryCol": "Country",
+    "refundAlreadyComplete": "Order has already been fully refunded"
   },
   "vi": {
     "code": "Mã",
@@ -4185,7 +4189,9 @@ const LANGUAGES = {
     "financeExportRowCount": "Số dòng đã xuất",
     "financeExportFormat": "Định dạng",
     "financeNoExportRecords": "Chưa có bản ghi xuất",
-    "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất"
+    "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất",
+    "countryCol": "Quốc gia",
+    "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ"
   },
   "th": {
     "code": "รหัส",
@@ -5579,7 +5585,9 @@ const LANGUAGES = {
     "financeExportRowCount": "จำนวนแถวที่ส่งออก",
     "financeExportFormat": "รูปแบบ",
     "financeNoExportRecords": "ไม่มีบันทึกการส่งออก",
-    "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ"
+    "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ",
+    "countryCol": "ประเทศ",
+    "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว"
   },
   "km": {
     "code": "កូដ",
@@ -6973,7 +6981,9 @@ const LANGUAGES = {
     "financeExportRowCount": "ចំនួនជួរដែលបាននាំចេញ",
     "financeExportFormat": "ទម្រង់",
     "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
-    "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ"
+    "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
+    "countryCol": "ប្រទេស",
+    "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
   }
 };
 
