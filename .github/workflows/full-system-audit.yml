@@ -1,0 +1,164 @@
+name: Full System Audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-system-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-and-functional:
+    name: Static, i18n, dependency and full test audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      REDIS_URL: redis://127.0.0.1:6379/0
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - name: Checkout audited revision
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Prepare audit report directory
+        run: mkdir -p full-system-audit-reports
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+            count=$((count + 1))
+          done < <(find . -path './node_modules' -prune -o -path './.git' -prune -o -type f -name '*.js' -print0)
+          echo "JavaScript files checked: $count" | tee full-system-audit-reports/syntax.txt
+
+      - name: Check shell and Python syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do bash -n "$file"; done < <(find . -path './.git' -prune -o -type f -name '*.sh' -print0)
+          python -m py_compile scripts/audit-code.py scripts/code-audit.py scripts/i18n-audit.py
+
+      - name: Run existing repository code audit
+        run: python3 scripts/audit-code.py --verbose 2>&1 | tee full-system-audit-reports/code-audit.txt
+
+      - name: Run duplicate route and function inventory
+        run: python3 scripts/code-audit.py 2>&1 | tee full-system-audit-reports/duplicate-route-function-audit.txt
+
+      - name: Run full-site localization audit
+        run: python3 scripts/i18n-audit.py 2>&1 | tee full-system-audit-reports/i18n-audit.txt
+
+      - name: Strict language validation
+        run: npm run check:lang:strict
+
+      - name: Run complete repository test suite
+        run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Upload static and localization audit reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-system-audit-static-reports
+          path: |
+            full-system-audit-reports/
+            i18n-audit-*/
+          if-no-files-found: warn
+          retention-days: 30
+
+  database-integration:
+    name: Full test suite and database integration (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: MySQL 8.4
+            image: mysql:8.4
+            root_password: finance_test_password
+          - database: MariaDB 10.11
+            image: mariadb:10.11
+            root_password: finance_test_password
+          - database: MariaDB 11.4
+            image: mariadb:11.4
+            root_password: finance_test_password
+          - database: MariaDB 11.8
+            image: mariadb:11.8
+            root_password: finance_test_password
+          - database: MariaDB 12.3
+            image: mariadb:12.3
+            root_password: finance_test_password
+    services:
+      database:
+        image: ${{ matrix.image }}
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ matrix.root_password }}
+          MARIADB_ROOT_PASSWORD: ${{ matrix.root_password }}
+          MYSQL_DATABASE: shaolafang_test
+          MARIADB_DATABASE: shaolafang_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="sh -c 'mysqladmin ping -h 127.0.0.1 -uroot -p${{ matrix.root_password }} || mariadb-admin ping -h 127.0.0.1 -uroot -p${{ matrix.root_password }}'"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - name: Checkout audited revision
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run complete repository tests serially
+        run: npm test -- --test-concurrency=1
+
+      - name: Run database-backed integration suites
+        env:
+          MYSQL_INTEGRATION_URL: mysql://root:finance_test_password@127.0.0.1:3306/shaolafang_test
+        run: |
+          node --test tests/mysql-finance-integration.test.js
+          node --test tests/mysql-session-token-migration.test.js
+          node --test tests/mysql-finance-backup-restore.test.js
+          node --test tests/mysql-telegram-outbox-integration.test.js
