@@ -178,7 +178,8 @@ app.put('/api/admin/waiters/:id', requireAdminKey, requirePermission('can_manage
     });
     res.json(updatedWaiter);
   } catch (e) {
-    if (e.code === 'ER_DUP_ENTRY' || e.statusCode === 409) return res.status(409).json({ error: e.statusCode ? e.message : '服务员账号已存在' });
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '服务员账号已存在' });
+    if (e.statusCode === 409) return res.status(409).json({ error: normalizeRouteError(e, '服务员账号已存在').message });
     const safeError = normalizeRouteError(e, '更新服务员失败，所有更改已回滚');
     res.status(safeError.status).json({ error: safeError.message });
   }
