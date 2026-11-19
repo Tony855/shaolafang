@@ -41,7 +41,7 @@ test('manual matching is available without a suggestion and reassign is limited 
   assert.match(moduleSource, /row\.matchStatus === 'matched' \? '<button type="button" data-finance-action="reassign"/);
   assert.doesNotMatch(moduleSource, /row\.matchStatus !== 'matched' \? '<button type="button" data-finance-action="reassign"/);
   assert.match(moduleSource, /row\.matchStatus !== 'matched' \? '<button type="button" data-finance-action="classify_exception"/);
-});;
+});
 
 test('financial review module is included in the reproducible admin bundle', () => {
   assert.match(builder, /pages\/admin\/financial-reconciliation\.js/);
