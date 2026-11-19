@@ -68,7 +68,8 @@ module.exports = function(app, deps) {
       res.status(201).json(createdCurrency);
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该商户已存在此货币代码' });
-      res.status(e.status || 500).json({ error: e.status ? e.message : '创建货币失败，所有更改已回滚' });
+      const safeError = normalizeRouteError(e, '创建货币失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -111,7 +112,8 @@ module.exports = function(app, deps) {
       res.json(updatedCurrency);
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该商户已存在此货币代码' });
-      res.status(e.status || 500).json({ error: e.status ? e.message : '更新货币失败，所有更改已回滚' });
+      const safeError = normalizeRouteError(e, '更新货币失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -145,7 +147,8 @@ module.exports = function(app, deps) {
         await writeCurrencyAudit(req, 'delete_currency', id, { code: current.code, name: current.name });
       });
       res.json({ success: true });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除货币失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '删除货币失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   // ----- 显示设置 -----
@@ -212,7 +215,8 @@ module.exports = function(app, deps) {
           { primaryCurrencyCode: pCode, secondaryCurrencyCode: sCode, applyAll: !!applyAll }, 'store');
       });
       res.json({ success: true, primaryCurrencyCode: pCode, secondaryCurrencyCode: sCode });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新货币显示设置失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '更新货币显示设置失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   // ----- 新订单提示音设置 -----
@@ -252,7 +256,8 @@ module.exports = function(app, deps) {
         await writeCurrencyAudit(req, 'update_notification_setting', storeId, { new_order_sound_enabled: enabled === '1' }, 'store');
       });
       res.json({ success: true, enabled: enabled === '1' });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新提示音设置失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '更新提示音设置失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   
