@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-18 (main baseline `eb82fc6cf4fb0bc11aad937d0136f9b778266f4f`; PR #290 merged as `797f8b5ced93840252c7df62a5465bd7a05dff93`; PR #296 merged as `0cdb3881d507e0acf8063f1039e52569f5c7de7b`; PR #298 merged as `296b8ba06c0f22008f19cd6f9a7b9cf3eafa45a5`; PR #300 merged as `eb82fc6cf4fb0bc11aad937d0136f9b778266f4f`; tracker sync PR #299 merged as `61cdaf2259ab804ad22d8fd8359c72a3d1e5ad72`; unrelated PR #291 merged as `f2705cad90ff17785e25f1d24dffa05e35a15c8d`)
+Last reviewed: 2026-11-19 (main baseline `105f92cbb5dd9045cb3425ead90d2ce8a0f7e7ec` before this tracker sync; PR #302 merged as `de2a6151bfcc1c46400ce08a986e50cb7ceaf341`; PR #303 merged as `105f92cbb5dd9045cb3425ead90d2ce8a0f7e7ec`; daily full-system audit PR #297 merged as `58ff13181eaedbc10c50ce66d3184ee03475e321`; earlier historical merge references retained below)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -12,6 +12,7 @@ This tracker records merged delivery separately from work that is still under re
 |---|---|---|
 | Ledger foundation | Provider-neutral financial ledger foundations and transactional order/refund financial records | Merged baseline |
 | Reconciliation import and matching | Statement import, matching suggestions, batch/item review, and currency-aware reconciliation | Merged baseline |
+| Manual-match console fallback and state-gated actions | Finance reviewers can enter a Ledger transaction ID when no unique suggestion exists; Reassign and exception classification are shown only for valid current row states | PR #302 / #303 merged; existing tenant-scoped API remains authoritative |
 | Voucher and journal exports | Audited voucher/journal CSV export with date and row limits, original currency minor units, and formula neutralization | PR #149 / #160 merged |
 | Month close | Monthly close preview/workbench and maker-checker approval flow | PR #150 / #151 merged |
 | Exception operations | Exception queue, workflow assignment/notes/resolution, append-only hash-linked history | PR #152 / #153 and follow-up batches merged |
@@ -49,7 +50,7 @@ This tracker records merged delivery separately from work that is still under re
 
 ## Under review
 
-- No finance implementation PR is currently open. PR [#297](https://github.com/Tony855/shaolafang/pull/297) is a separate full-system audit workflow/documentation change; it does not change the Stage 10 finance implementation and is tracked independently. Current finance CI coverage is MySQL 8.4 plus MariaDB 10.11/11.4/11.8/12.3.
+- No finance implementation PR is currently open. Manual-match console fallback and state-gated review actions were delivered in PRs [#302](https://github.com/Tony855/shaolafang/pull/302) and [#303](https://github.com/Tony855/shaolafang/pull/303), both merged. The independent daily full-system audit workflow/documentation change in [PR #297](https://github.com/Tony855/shaolafang/pull/297) is also merged. Current finance CI coverage is MySQL 8.4 plus MariaDB 10.11/11.4/11.8/12.3.
 
 ## Remaining engineering acceptance work
 
@@ -192,3 +193,21 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 - Verification is read-only, uses no schema migration, and refuses partial-success claims above 10,000 events per batch. Foreign batches return not found without reading their audit events.
 - This is tamper evidence for the stored chain, not a cryptographic external anchor: it cannot detect deletion of the final suffix or a privileged operator rewriting the complete chain and recomputing every digest. Restrict database UPDATE/DELETE grants and preserve independently controlled checkpoints for stronger guarantees.
 - PR [#296](https://github.com/Tony855/shaolafang/pull/296) adds the read-only verifier from `feat/finance-review-audit-integrity-verifier-20261117`. Code head `b6f7a4f3cfb060509ca769c3f7dfde9b06b2e600` passed PR CI run [#44006487250](https://github.com/Tony855/shaolafang/actions/runs/44006487250) (6/6 jobs; full suite 841 tests: 815 passed, 0 failed, 26 skipped; MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 finance integration each passed 23/23) and installer run [#44006487222](https://github.com/Tony855/shaolafang/actions/runs/44006487222) (5/5 targets). PR #296 merged as `0cdb3881d507e0acf8063f1039e52569f5c7de7b`. Final PR-head CI [#44006770532](https://github.com/Tony855/shaolafang/actions/runs/44006770532) passed 6/6 jobs and installer compatibility [#44006770459](https://github.com/Tony855/shaolafang/actions/runs/44006770459) passed 5/5 targets; post-merge main CI [#44007099791](https://github.com/Tony855/shaolafang/actions/runs/44007099791) and installer [#44007099531](https://github.com/Tony855/shaolafang/actions/runs/44007099531) also passed. No production migration, deployment, or financial operation was performed.
+
+
+## 2026-11-19 manual reconciliation console completion
+
+- PR [#302](https://github.com/Tony855/shaolafang/pull/302) merged as `de2a6151bfcc1c46400ce08a986e50cb7ceaf341`; final PR head `ab0cff0a895c8a32013da35b1803c67d61a80894`.
+- Finance reviewers can now confirm an unmatched/ambiguous row by entering a Ledger transaction ID when the suggestion engine has no unique candidate; exact suggested candidates remain prefilled. The existing backend still verifies authenticated merchant/store ownership, exact currency and balanced amount, duplicate assignment, row locks, idempotency and audit writes.
+- PR [#303](https://github.com/Tony855/shaolafang/pull/303) merged as `105f92cbb5dd9045cb3425ead90d2ce8a0f7e7ec`; final PR head `8e5450c91945d24fcc1a0210278ebfb53c65943e`. Reassign and exception classification controls are now hidden unless the row is already in a matched state or is non-matched, respectively; this aligns the console with the existing backend state machine.
+- PR #302 final-head CI [#44447448822](https://github.com/Tony855/shaolafang/actions/runs/44447448822) passed 6/6 jobs; installer compatibility [#44447448989](https://github.com/Tony855/shaolafang/actions/runs/44447448989) passed 5/5 targets. Post-merge main CI [#44447772084](https://github.com/Tony855/shaolafang/actions/runs/44447772084) and installer [#44447771946](https://github.com/Tony855/shaolafang/actions/runs/44447771946) passed.
+- PR #303 final-head CI [#44448322706](https://github.com/Tony855/shaolafang/actions/runs/44448322706), full-system audit [#44448322690](https://github.com/Tony855/shaolafang/actions/runs/44448322690), and installer compatibility [#44448322675](https://github.com/Tony855/shaolafang/actions/runs/44448322675) all passed. The repository suite reported 843 tests: 817 passed, 0 failed, 26 skipped. MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 each passed 23/23 finance integration tests; session-token migration, financial backup/restore, and Telegram outbox integration checks also passed.
+- Neither PR changed database schema or migration behavior. No production migration, deployment, real payment/refund, order mutation, or journal posting was performed.
+
+## 2026-11-19 daily full-system audit automation
+
+- PR [#297](https://github.com/Tony855/shaolafang/pull/297) merged as `58ff13181eaedbc10c50ce66d3184ee03475e321`; final PR head `575a4edbed88a2f2684bcfb9a0292949c3f0140b`.
+- The workflow is scheduled daily at 02:00 UTC (09:00 Cambodia time), and also supports manual dispatch and pull-request validation. It covers repository static/code audits, duplicate route/function inventory, localization and strict language checks, production dependency audit, the full test suite, and MySQL 8.4 / MariaDB 10.11/11.4/11.8/12.3 integration.
+- Final-head CI [#44447812852](https://github.com/Tony855/shaolafang/actions/runs/44447812852) passed 6/6 jobs; full-system audit [#44447812846](https://github.com/Tony855/shaolafang/actions/runs/44447812846) passed 6/6 jobs; installer compatibility [#44447812832](https://github.com/Tony855/shaolafang/actions/runs/44447812832) passed 5/5 targets. Static audit artifact was uploaded by the full-system run.
+- The full suite reported 843 tests: 817 passed, 0 failed, 26 skipped. Each supported database passed 23/23 finance integration tests. Post-merge main CI [#44448152062](https://github.com/Tony855/shaolafang/actions/runs/44448152062) and installer compatibility [#44448152080](https://github.com/Tony855/shaolafang/actions/runs/44448152080) passed.
+- The daily schedule begins with the next scheduled UTC 02:00 run after merge; the PR-head full-system audit already passed. Automated checks do not replace manual business acceptance or merchant-specific provider sandbox testing.
