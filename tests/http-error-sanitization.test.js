@@ -28,6 +28,17 @@ test('masks internal messages for 5xx errors even when status is explicitly set'
   );
 });
 
+test('allows only explicitly designated safe public messages for selected 5xx domain errors', () => {
+  const domainError = Object.assign(new Error('internal parser detail'), {
+    status: 500,
+    publicMessage: 'Stored cashier data is corrupt; writes were stopped'
+  });
+  assert.deepEqual(
+    normalizeRouteError(domainError, 'Operation failed safely'),
+    { status: 500, message: 'Stored cashier data is corrupt; writes were stopped', isClientError: false }
+  );
+});
+
 test('normalizes missing, malformed and non-error status codes to a masked 500', () => {
   for (const error of [
     new Error('raw internal detail'),
