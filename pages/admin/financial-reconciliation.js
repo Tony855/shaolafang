@@ -898,18 +898,26 @@
       const body = state.performanceExportAuditRows.map(row => '<tr><td>' + Number(row.id) + '</td><td>' + esc(row.createdAt || '—') +
         '</td><td>' + esc(row.actorUsername || '—') + '</td><td>' + Number(row.slaHours || 0) +
         '</td><td>' + Number(row.rowCount || 0) + '</td><td>' + esc(row.format || 'csv') + '</td></tr>').join('');
+      const headers = [
+        t('financeExportRecordId', 'Record ID'),
+        t('financeExportTime', 'Export time'),
+        t('financeExportActor', 'Actor'),
+        t('financeExportSlaHours', 'SLA (hours)'),
+        t('financeExportRowCount', 'Exported rows'),
+        t('financeExportFormat', 'Format')
+      ];
       const table = state.performanceExportAuditRows.length
         ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
-          ['记录号','导出时间','操作人','SLA（小时）','导出行数','格式'].map(label => '<th style="text-align:left;padding:8px;">' + label + '</th>').join('') +
+          headers.map(label => '<th style="text-align:left;padding:8px;">' + esc(label) + '</th>').join('') +
           '</tr></thead><tbody>' + body + '</tbody></table></div>'
-        : '<div class="empty-hint">暂无导出记录</div>';
+        : '<div class="empty-hint">' + t('financeNoExportRecords', 'No export records') + '</div>';
       state.performanceExportAuditCursor = result.nextCursor || null;
       target.innerHTML = table + (state.performanceExportAuditCursor
-        ? '<div style="margin-top:10px;"><button type="button" id="financePerformanceAuditMore">加载更多</button></div>'
+        ? '<div style="margin-top:10px;"><button type="button" id="financePerformanceAuditMore">' + t('financeLoadMore', 'Load more') + '</button></div>'
         : '');
     } catch (error) {
-      target.innerHTML = '<div class="empty-hint">导出审计记录加载失败</div>';
-      toast('❌ ' + (error.message || '导出审计记录加载失败'));
+      target.innerHTML = '<div class="empty-hint">' + t('financeExportAuditLoadFailed', 'Failed to load export audit records') + '</div>';
+      toast('❌ ' + (error.message || t('financeExportAuditLoadFailed', 'Failed to load export audit records')));
     }
   }
 
