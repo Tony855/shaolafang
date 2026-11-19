@@ -90,7 +90,7 @@ def report_js(outdir):
     hits = []
     generated_hits = []
     generated_files = {'languages.js', 'assets/admin-bundle.js'}
-    skip_line = re.compile(r'(console\\.(log|warn|error|debug)|^\\s*//|^\\s*\\*)')
+    skip_line = re.compile(r'(console\.(log|warn|error|debug)|^\s*//|^\s*\*)')
     for p in walk({'.js'}):
         rel = p.relative_to(ROOT)
         # These files are generated from locales/*.json or pages/admin/*.js.
@@ -105,10 +105,10 @@ def report_js(outdir):
                 if T_WRAP.search(pre): continue
                 # 排除 URL、CSS 值、正则、注释尾部
                 if re.search(r'https?://', line[max(0, m.start()-8):m.end()+8]): continue
-                if re.search(r'^\\s*(\\*|//)', line): continue
-                target.append(f'{rel}:{i}\\t{content[:80]}')
-    (outdir / '03-js-hardcoded.txt').write_text('\\n'.join(hits), encoding='utf-8')
-    (outdir / '03-js-generated.txt').write_text('\\n'.join(generated_hits), encoding='utf-8')
+                if re.search(r'^\s*(\*|//)', line): continue
+                target.append(f'{rel}:{i}\t{content[:80]}')
+    (outdir / '03-js-hardcoded.txt').write_text('\n'.join(hits), encoding='utf-8')
+    (outdir / '03-js-generated.txt').write_text('\n'.join(generated_hits), encoding='utf-8')
     return (f'JS 硬编码中文（源码，不含生成产物）：{len(hits)} 处；'
             f'生成产物单独记录：{len(generated_hits)} 处')
 
