@@ -8,12 +8,12 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
 
 function findDivEnd(source, openIndex) {
-  const tags = /<\\/?div\\b[^>]*>/gi;
+  const tags = /<\/?div\b[^>]*>/gi;
   tags.lastIndex = openIndex;
   let depth = 0;
   let match;
   while ((match = tags.exec(source))) {
-    if (/^<\\//.test(match[0])) depth -= 1;
+    if (/^<\//.test(match[0])) depth -= 1;
     else depth += 1;
     if (depth === 0) return match.index;
   }
@@ -21,11 +21,11 @@ function findDivEnd(source, openIndex) {
 }
 
 function panelBounds(id) {
-  const idIndex = html.indexOf(`id="${id}"`);
-  assert.notEqual(idIndex, -1, `missing panel ${id}`);
+  const idIndex = html.indexOf(\`id="\${id}"\`);
+  assert.notEqual(idIndex, -1, \`missing panel \${id}\`);
   const openIndex = html.lastIndexOf('<div', idIndex);
   const closeIndex = findDivEnd(html, openIndex);
-  assert.notEqual(closeIndex, -1, `unclosed panel ${id}`);
+  assert.notEqual(closeIndex, -1, \`unclosed panel \${id}\`);
   return { openIndex, closeIndex };
 }
 
