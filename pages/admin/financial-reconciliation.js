@@ -256,76 +256,186 @@
   }
 
 
+  function exceptionCategoryLabel(category) {
+    const labels = {
+      refund: t('financeCol_refund_exception_count', 'Refund'),
+      fee: t('financeCol_fee_exception_count', 'Fee'),
+      settlement_difference: t('financeCol_settlement_difference_exception_count', 'Settlement difference'),
+      chargeback: t('financeCol_chargeback_exception_count', 'Chargeback'),
+      other: t('financeCol_other_exception_count', 'Other')
+    };
+    return labels[category] || esc(category || t('financeUnclassified', 'Unclassified'));
+  }
+  function slaAlertStatusLabel(status) {
+    const labels = {
+      pending: t('financePending', 'Pending'),
+      acknowledged: t('financeSlaAcknowledged', 'Acknowledged'),
+      dismissed: t('financeSlaDismissed', 'Dismissed')
+    };
+    return labels[status] || esc(status || '—');
+  }
   function renderSlaAlerts(items) {
-    const target=$('#financeSlaAlertList');if(!target)return;
-    if(!items.length){target.innerHTML='<div class="empty-hint">暂无待确认 SLA 提醒</div>';return;}
-    target.innerHTML=items.map(item=>{
-      const actions=item.status==='pending'
-        ? '<button type="button" data-sla-alert-ack="'+Number(item.alertId)+'">确认已知悉</button> <button type="button" data-sla-alert-dismiss="'+Number(item.alertId)+'">关闭提醒</button>'
-        : '<span style="font-size:12px;color:#aaa;">'+esc(item.status)+'</span>';
-      return '<article style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><strong>异常 #'+Number(item.itemId)+' · '+esc(item.category||'未分类')+'</strong><span>'+esc(item.status)+' · '+formatAge(item.ageSeconds)+' / SLA '+Number(item.slaHours)+'h</span></div><div style="font-size:12px;color:#aaa;margin:5px 0;">'+esc(item.externalReference||'无外部流水号')+' · '+esc(item.assignedAdminUsername||'未分配')+' · '+moneyMinor(item.amountMinor,item.currencyCode)+'</div>'+actions+' <button type="button" data-sla-alert-history="'+Number(item.alertId)+'">查看审计历史</button><div id="financeSlaAlertHistory-'+Number(item.alertId)+'" hidden style="margin-top:8px;"></div></article>';
+    const target = $('#financeSlaAlertList');
+    if (!target) return;
+    if (!items.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeSlaNoPendingAlerts', 'No pending SLA alerts') + '</div>';
+      return;
+    }
+    target.innerHTML = items.map(item => {
+      const actions = item.status === 'pending'
+        ? '<button type="button" data-sla-alert-ack="' + Number(item.alertId) + '">' + t('financeSlaAcknowledge', 'Acknowledge') + '</button> ' +
+          '<button type="button" data-sla-alert-dismiss="' + Number(item.alertId) + '">' + t('financeSlaDismiss', 'Dismiss alert') + '</button>'
+        : '<span style="font-size:12px;color:#aaa;">' + slaAlertStatusLabel(item.status) + '</span>';
+      return '<article style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+        '<strong>' + t('financeException', 'Exception') + ' #' + Number(item.itemId) + ' · ' + exceptionCategoryLabel(item.category) + '</strong>' +
+        '<span>' + slaAlertStatusLabel(item.status) + ' · ' + formatAge(item.ageSeconds) + ' / SLA ' + Number(item.slaHours) + 'h</span></div>' +
+        '<div style="font-size:12px;color:#aaa;margin:5px 0;">' +
+        esc(item.externalReference || t('financeNoExternalReference', 'No external reference')) + ' · ' +
+        esc(item.assignedAdminUsername || t('financeUnassigned', 'Unassigned')) + ' · ' +
+        moneyMinor(item.amountMinor, item.currencyCode) + '</div>' + actions + ' ' +
+        '<button type="button" data-sla-alert-history="' + Number(item.alertId) + '">' +
+        t('financeExceptionAuditHistory', 'Audit history') + '</button>' +
+        '<div id="financeSlaAlertHistory-' + Number(item.alertId) + '" hidden style="margin-top:8px;"></div></article>';
     }).join('');
   }
   async function loadSlaAlerts() {
-    if(!requirePermission())return;
-    const target=$('#financeSlaAlertList');if(target)target.innerHTML='<div class="empty-hint">加载中…</div>';
-    try{const status=$('#financeSlaAlertStatus')?.value||'pending';const data=await api('/admin/financial-reconciliation/exceptions/alerts?status='+encodeURIComponent(status)+'&limit=50');renderSlaAlerts(Array.isArray(data.items)?data.items:[]);}
-    catch(error){if(target)target.innerHTML='<div class="empty-hint">提醒加载失败</div>';toast('❌ '+(error.message||'提醒加载失败'));}
+    if (!requirePermission()) return;
+    const target = $('#financeSlaAlertList');
+    if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    try {
+      const status = $('#financeSlaAlertStatus')?.value || 'pending';
+      const data = await api('/admin/financial-reconciliation/exceptions/alerts?status=' + encodeURIComponent(status) + '&limit=50');
+      renderSlaAlerts(Array.isArray(data.items) ? data.items : []);
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financeSlaAlertsLoadFailed', 'Failed to load SLA alerts') + '</div>';
+      toast('❌ ' + (error.message || t('financeSlaAlertsLoadFailed', 'Failed to load SLA alerts')));
+    }
   }
   async function generateSlaAlerts() {
-    if(!requirePermission())return;
-    const raw=Number($('#financeExceptionSlaHours')?.value||24),slaHours=Number.isSafeInteger(raw)&&raw>=1&&raw<=720?raw:24;
-    try{const result=await api('/admin/financial-reconciliation/exceptions/alerts/generate',{method:'POST',body:{slaHours}});
-      toast('✅ 已扫描 '+Number(result.scanned)+' 条超时异常，新建提醒 '+Number(result.created)+' 条');await loadSlaAlerts();}
-    catch(error){toast('❌ '+(error.message||'生成提醒失败'));}
+    if (!requirePermission()) return;
+    const raw = Number($('#financeExceptionSlaHours')?.value || 24);
+    const slaHours = Number.isSafeInteger(raw) && raw >= 1 && raw <= 720 ? raw : 24;
+    try {
+      const result = await api('/admin/financial-reconciliation/exceptions/alerts/generate', { method: 'POST', body: { slaHours } });
+      toast('✅ ' + t('financeSlaScanned', 'Scanned') + ' ' + Number(result.scanned) + ' ' +
+        t('financeSlaOverdueExceptions', 'overdue exceptions') + ', ' + t('financeSlaCreated', 'created') + ' ' +
+        Number(result.created) + ' ' + t('financeSlaAlerts', 'alerts'));
+      await loadSlaAlerts();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeSlaGenerateFailed', 'Failed to generate SLA alerts')));
+    }
   }
   async function acknowledgeSlaAlert(button) {
-    if(!requirePermission())return;
-    const reason=window.prompt('请输入确认说明（5–500 字）：');if(reason===null)return;
-    if(reason.trim().length<5||reason.trim().length>500){toast('❌ 确认说明长度必须为 5–500 字');return;}
-    button.disabled=true;
-    try{await api('/admin/financial-reconciliation/exceptions/alerts/'+Number(button.dataset.slaAlertAck)+'/acknowledge',{method:'POST',body:{reason:reason.trim(),idempotencyKey:'sla-alert-ack-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)}});
-      toast('✅ 已记录提醒确认');await loadSlaAlerts();await loadExceptionOperations();}
-    catch(error){toast('❌ '+(error.message||'确认提醒失败'));}
-    finally{button.disabled=false;}
+    if (!requirePermission()) return;
+    const reason = window.prompt(t('financeSlaConfirmReasonPrompt', 'Enter acknowledgement note (5–500 characters):'));
+    if (reason === null) return;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeSlaReasonLengthInvalid', 'Note must contain 5–500 characters'));
+      return;
+    }
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/exceptions/alerts/' + Number(button.dataset.slaAlertAck) + '/acknowledge', {
+        method: 'POST',
+        body: { reason: reason.trim(), idempotencyKey: 'sla-alert-ack-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) }
+      });
+      toast('✅ ' + t('financeSlaConfirmSaved', 'SLA alert acknowledgement recorded'));
+      await loadSlaAlerts();
+      await loadExceptionOperations();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeSlaConfirmFailed', 'Failed to acknowledge SLA alert')));
+    } finally {
+      button.disabled = false;
+    }
   }
   async function dismissSlaAlert(button) {
-    if(!requirePermission())return;
-    const reason=window.prompt('请输入关闭提醒原因（5–500 字，不会关闭底层异常）：');if(reason===null)return;
-    if(reason.trim().length<5||reason.trim().length>500){toast('❌ 关闭原因长度必须为 5–500 字');return;}
-    button.disabled=true;
-    try{
-      await api('/admin/financial-reconciliation/exceptions/alerts/'+Number(button.dataset.slaAlertDismiss)+'/dismiss',{method:'POST',body:{reason:reason.trim(),idempotencyKey:'sla-alert-dismiss-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)}});
-      toast('✅ 已关闭提醒（底层异常未变更）');await loadSlaAlerts();
-    }catch(error){toast('❌ '+(error.message||'关闭提醒失败'));}
-    finally{button.disabled=false;}
+    if (!requirePermission()) return;
+    const reason = window.prompt(t('financeSlaDismissReasonPrompt', 'Enter dismissal reason (5–500 characters; the underlying exception will remain open):'));
+    if (reason === null) return;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeSlaReasonLengthInvalid', 'Note must contain 5–500 characters'));
+      return;
+    }
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/exceptions/alerts/' + Number(button.dataset.slaAlertDismiss) + '/dismiss', {
+        method: 'POST',
+        body: { reason: reason.trim(), idempotencyKey: 'sla-alert-dismiss-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) }
+      });
+      toast('✅ ' + t('financeSlaDismissSaved', 'SLA alert dismissed (underlying exception unchanged)'));
+      await loadSlaAlerts();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeSlaDismissFailed', 'Failed to dismiss SLA alert')));
+    } finally {
+      button.disabled = false;
+    }
   }
   function setReportRange(kind) {
-    const now=new Date(),to=dateValue(now),from=new Date(now);
-    if(kind==='week')from.setDate(from.getDate()-6);
-    else if(kind==='month')from.setDate(from.getDate()-29);
-    else if(kind==='calendar-month')from.setDate(1);
-    const fromInput=$('#financeReportFrom'),toInput=$('#financeReportTo');
-    if(fromInput)fromInput.value=dateValue(from);if(toInput)toInput.value=to;loadDailySummary(false);
+    const now = new Date(), to = dateValue(now), from = new Date(now);
+    if (kind === 'week') from.setDate(from.getDate() - 6);
+    else if (kind === 'month') from.setDate(from.getDate() - 29);
+    else if (kind === 'calendar-month') from.setDate(1);
+    const fromInput = $('#financeReportFrom'), toInput = $('#financeReportTo');
+    if (fromInput) fromInput.value = dateValue(from);
+    if (toInput) toInput.value = to;
+    loadDailySummary(false);
+  }
+  async function loadSlaAlertHistory(alertId) {
+    const target = $('#financeSlaAlertHistory-' + Number(alertId));
+    if (!target) return;
+    if (!target.hidden) { target.hidden = true; return; }
+    target.hidden = false;
+    target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    try {
+      const data = await api('/admin/financial-reconciliation/exceptions/alerts/' + Number(alertId) + '/history?limit=50');
+      const rows = Array.isArray(data.items) ? data.items : [];
+      target.innerHTML = rows.length
+        ? rows.map(row => '<div style="padding:8px 0;border-top:1px solid rgba(255,255,255,.08);"><strong>' +
+          esc(row.action) + '</strong> · ' + esc(row.actorUsername) + ' · ' + esc(row.createdAt || '') +
+          '<div style="font-size:12px;color:#aaa;">' + esc(row.reason) + '</div>' +
+          '<div style="font-size:11px;color:#888;word-break:break-all;">Hash: ' + esc(row.eventHash) + '</div></div>').join('')
+        : '<div class="empty-hint">' + t('financeSlaNoAuditEvents', 'No audit events') + '</div>';
+    } catch (error) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeSlaAuditLoadFailed', 'Failed to load audit history') + '</div>';
+      toast('❌ ' + (error.message || t('financeSlaAuditLoadFailed', 'Failed to load audit history')));
+    }
+  }
+  async function loadPeriodSummary(period, exportCsv = false) {
+    if (!requirePermission()) return;
+    const from = $('#financeReportFrom')?.value, to = $('#financeReportTo')?.value, target = $('#financePeriodReport');
+    if (!from || !to) { toast(t('financeSelectDateRange', 'Select a start and end date first')); return; }
+    if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    try {
+      const data = await api('/admin/financial-reconciliation/period-summary?period=' + encodeURIComponent(period) + '&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      const columns = ['periodStart', 'periodEnd', 'currencyCode', 'batchCount', 'statementRowCount', 'totalDebitMinor', 'totalCreditMinor', 'matchedCount', 'pendingCount', 'unmatchedCount', 'ambiguousCount', 'exceptionCount'];
+      if (target) target.innerHTML = rows.length
+        ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+          columns.map(key => '<th style="text-align:left;padding:8px;border-bottom:1px solid #555;">' + esc(key) + '</th>').join('') +
+          '</tr></thead><tbody>' + rows.map(row => '<tr>' + columns.map(key =>
+            '<td style="padding:8px;border-bottom:1px solid rgba(255,255,255,.08);">' + esc(row[key] ?? '') + '</td>').join('') +
+          '</tr>').join('') + '</tbody></table></div>'
+        : '<div class="empty-hint">' + t('financePeriodNoData', 'No reconciliation data for the selected period') + '</div>';
+      if (exportCsv) {
+        const csv = await api('/admin/financial-reconciliation/period-report-export?period=' + encodeURIComponent(period) + '&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+        if (typeof csv !== 'string' || !csv.startsWith('\uFEFF')) throw new Error(t('financeExportInvalidResponse', 'Invalid export response from server'));
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'financial-reconciliation-' + period + '-report.csv';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financePeriodLoadFailed', 'Failed to load period report') + '</div>';
+      toast('❌ ' + (error.message || t('financePeriodLoadFailed', 'Failed to load period report')));
+    }
   }
 
-  async function loadSlaAlertHistory(alertId) {
-    const target=$('#financeSlaAlertHistory-'+Number(alertId));if(!target)return;
-    if(!target.hidden){target.hidden=true;return;}
-    target.hidden=false;target.innerHTML='<div class="empty-hint">加载审计历史…</div>';
-    try{const data=await api('/admin/financial-reconciliation/exceptions/alerts/'+Number(alertId)+'/history?limit=50');const rows=Array.isArray(data.items)?data.items:[];
-      target.innerHTML=rows.length?rows.map(row=>'<div style="padding:8px 0;border-top:1px solid rgba(255,255,255,.08);"><strong>'+esc(row.action)+'</strong> · '+esc(row.actorUsername)+' · '+esc(row.createdAt||'')+'<div style="font-size:12px;color:#aaa;">'+esc(row.reason)+'</div><div style="font-size:11px;color:#888;word-break:break-all;">Hash: '+esc(row.eventHash)+'</div></div>').join(''):'<div class="empty-hint">暂无审计事件</div>';
-    }catch(error){target.innerHTML='<div class="empty-hint">审计历史加载失败</div>';toast('❌ '+(error.message||'审计历史加载失败'));}
-  }
-  async function loadPeriodSummary(period,exportCsv=false) {
-    if(!requirePermission())return;const from=$('#financeReportFrom')?.value,to=$('#financeReportTo')?.value,target=$('#financePeriodReport');
-    if(!from||!to){toast('请先选择开始和结束日期');return;}if(target)target.innerHTML='<div class="empty-hint">加载周期报表…</div>';
-    try{const data=await api('/admin/financial-reconciliation/period-summary?period='+encodeURIComponent(period)+'&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));
-      const rows=Array.isArray(data.rows)?data.rows:[],columns=['periodStart','periodEnd','currencyCode','batchCount','statementRowCount','totalDebitMinor','totalCreditMinor','matchedCount','pendingCount','unmatchedCount','ambiguousCount','exceptionCount'];
-      if(target)target.innerHTML=rows.length?'<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>'+columns.map(k=>'<th style="text-align:left;padding:8px;border-bottom:1px solid #555;">'+esc(k)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+columns.map(k=>'<td style="padding:8px;border-bottom:1px solid rgba(255,255,255,.08);">'+esc(row[k]??'')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>':'<div class="empty-hint">所选周期暂无对账数据</div>';
-      if(exportCsv){const csv=await api('/admin/financial-reconciliation/period-report-export?period='+encodeURIComponent(period)+'&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to));if(typeof csv!=='string'||!csv.startsWith('\uFEFF'))throw new Error('服务端导出响应格式无效');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='financial-reconciliation-'+period+'-report.csv';document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);}
-    }catch(error){if(target)target.innerHTML='<div class="empty-hint">周期报表加载失败</div>';toast('❌ '+(error.message||'周期报表加载失败'));}
-  }
   function exceptionStatusLabel(status) {
     const labels = {
       open: t('financeExceptionOpen', 'Open'),
