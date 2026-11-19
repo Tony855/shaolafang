@@ -2294,12 +2294,18 @@ window.doAdvancedExport = doAdvancedExport;
       const suggestionText = suggestion.status === 'suggested'
         ? t('financeSuggestedJournal', 'Suggested Ledger transaction') + ' #' + Number(suggestion.journalTransactionId)
         : (suggestion.reason || suggestion.status || '—');
-      const canConfirm = suggestion.status === 'suggested' && row.matchStatus !== 'matched';
+      const canConfirm = row.matchStatus !== 'matched';
+      const suggestedJournalId = suggestion.status === 'suggested' ? Number(suggestion.journalTransactionId) : 0;
+      const confirmButton = canConfirm
+        ? '<button type="button" data-finance-action="confirm" data-item="' + row.id + '"' +
+          (Number.isSafeInteger(suggestedJournalId) && suggestedJournalId > 0 ? ' data-journal="' + suggestedJournalId + '"' : '') +
+          '>' + t('financeConfirm', 'Confirm') + '</button>'
+        : '';
       const actionButtons = [
-        canConfirm ? '<button type="button" data-finance-action="confirm" data-item="' + row.id + '" data-journal="' + Number(suggestion.journalTransactionId) + '">' + t('financeConfirm', 'Confirm') + '</button>' : '',
+        confirmButton,
         row.matchStatus === 'matched' ? '<button type="button" data-finance-action="release" data-item="' + row.id + '">' + t('financeRelease', 'Release') + '</button>' : '',
         row.matchStatus !== 'matched' ? '<button type="button" data-finance-action="reject" data-item="' + row.id + '">' + t('financeReject', 'Reject') + '</button>' : '',
-        '<button type="button" data-finance-action="reassign" data-item="' + row.id + '">' + t('financeReassign', 'Reassign') + '</button>',
+        row.matchStatus === 'matched' ? '<button type="button" data-finance-action="reassign" data-item="' + row.id + '">' + t('financeReassign', 'Reassign') + '</button>' : '',
         '<button type="button" data-finance-action="classify_exception" data-item="' + row.id + '">' + t('financeClassify', 'Classify') + '</button>'
       ].filter(Boolean).join(' ');
       return '<article class="finance-review-row" style="background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin:10px 0;">' +
@@ -2361,7 +2367,14 @@ window.doAdvancedExport = doAdvancedExport;
     if (!reason) return;
     const body = { batchId: state.batchId, action, reason,
       idempotencyKey: 'finance-ui-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12) };
-    if (action === 'confirm') body.journalTransactionId = Number(button.dataset.journal);
+    if (action === 'confirm') {
+      const suggestedId = Number(button.dataset.journal);
+      const id = Number.isSafeInteger(suggestedId) && suggestedId > 0
+        ? suggestedId
+        : Number(window.prompt(t('financeJournalIdPrompt', 'Enter Ledger transaction ID:')));
+      if (!Number.isSafeInteger(id) || id <= 0) return;
+      body.journalTransactionId = id;
+    }
     if (action === 'reassign') {
       const id = Number(window.prompt(t('financeJournalIdPrompt', 'Enter Ledger transaction ID:')));
       if (!Number.isSafeInteger(id) || id <= 0) return;
