@@ -1331,3 +1331,3286 @@ window.deleteCashier = deleteCashier;
 
 })();
 
+
+/* ========== pages/admin/printer.js ========== */
+/*
+ * pages/admin/printer.js — 打印机管理模块
+ */
+(function(){
+'use strict';
+
+const ctx = window.SLF.admin;
+if (!ctx) return;
+
+const { $, api, tAdmin, esc, hasPermission, showConfirm, L } = ctx;
+
+async function loadPrinters() {
+  try {
+    const data = await api('/admin/printers');
+    window._adminPrinters = data;
+    const container = $('#printersList');
+    if (!data || data.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noPrinterHint')}</div>`;
+      return;
+    }
+    const typeMap = { network: tAdmin('networkPrinter'), usb: 'USB', bluetooth: tAdmin('bluetoothPrinter') };
+    container.innerHTML = data.map(p => `
+        <div class="admin-card">
+            <div class="info">
+                <div class="title">🖨️ ${esc(p.name)} ${p.is_default ? `<span style="background:#ffd93d;color:#333;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">${tAdmin('defaultPrinter')}</span>` : ''} ${p.store_name ? `<span style="background:rgba(52,152,219,.15);color:#5dade2;padding:2px 10px;border-radius:10px;font-size:12px;margin-left:8px;font-weight:600;">🏪 ${esc(p.store_name)}</span>` : ''}</div>
+                <div class="sub">${typeMap[p.type] || esc(p.type)} · ${esc(p.brand)} · ${esc(p.paper_width)}mm${p.ip_address ? ' · ' + esc(p.ip_address) + ':' + esc(p.port) : ''}</div>
+            </div>
+            <div class="printer-controls">
+                <label class="printer-switch-label">
+                    <span class="printer-switch-text ${p.active ? 'on' : 'off'}">${p.active ? tAdmin('enabled') : tAdmin('disabled')}</span>
+                    <label class="store-switch">
+                        <input type="checkbox" ${p.active ? 'checked' : ''} onchange="togglePrinter(${p.id}, this.checked ? 1 : 0)">
+                        <span class="store-switch-slider"></span>
+                    </label>
+                </label>
+                <div class="actions">
+                    ${hasPermission('can_manage_printer') ? '<button class="copy" onclick="testPrinter(' + p.id + ')">' + tAdmin('testPrint') + '</button>' : ''}
+                    <button class="edit-btn" onclick="openPrinterEdit(${p.id})">${L('edit')}</button>
+                    ${!p.is_default ? `<button onclick="setDefaultPrinter(${p.id})">${tAdmin('setDefaultPrinter')}</button>` : ''}
+                    ${hasPermission('can_manage_printer') ? '<button class="danger" onclick="deletePrinter(' + p.id + ')">' + L('delete') + '</button>' : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+  } catch (err) { SLF.ui.toast(`${tAdmin('loadPrinterFailed')}: ` + err.message); }
+}
+
+async function addPrinter() {
+  const name = $('#printerName').value.trim();
+  if (!name) { SLF.ui.toast(tAdmin('printerNameRequired')); return; }
+  try {
+    await api('/admin/printers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+      name, type: $('#printerType').value, ip_address: $('#printerIp').value.trim(),
+      port: parseInt($('#printerPort').value) || 9100, paper_width: parseInt($('#printerWidth').value) || 58,
+      brand: $('#printerBrand').value, is_default: $('#printerDefault').checked
+    }});
+    SLF.ui.toast(tAdmin('printerAdded'));
+    $('#printerName').value = '';
+    $('#printerIp').value = '';
+    $('#printerDefault').checked = false;
+    loadPrinters();
+  } catch (err) { SLF.ui.toast(tAdmin('addFailed') + ': ' + err.message); }
+}
+
+async function testPrinter(id) {
+  try {
+    await api('/admin/printers/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { printer_id: id } });
+    SLF.ui.toast(tAdmin('testPrintSent'));
+  } catch (err) { SLF.ui.toast(tAdmin('printFailed') + ': ' + err.message); }
+}
+
+function openPrinterEdit(id) {
+  const printers = window._adminPrinters || [];
+  const p = printers.find(x => String(x.id) === String(id));
+  if (!p) return;
+  $('#editPrinterId').value = p.id;
+  $('#editPrinterName').value = p.name || '';
+  $('#editPrinterType').value = p.type || 'network';
+  $('#editPrinterIp').value = p.ip_address || '';
+  $('#editPrinterPort').value = p.port || 9100;
+  $('#editPrinterWidth').value = p.paper_width || 58;
+  $('#editPrinterBrand').value = p.brand || 'generic';
+  $('#editPrinterDefault').checked = !!p.is_default;
+  $('#printerEditModal').classList.add('open');
+}
+
+function closePrinterEdit() { $('#printerEditModal').classList.remove('open'); }
+
+async function savePrinterEdit() {
+  const id = parseInt($('#editPrinterId').value);
+  const name = $('#editPrinterName').value.trim();
+  if (!name) { SLF.ui.toast(tAdmin('printerNameRequired')); return; }
+  try {
+    await api('/admin/printers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: {
+      name, type: $('#editPrinterType').value, ip_address: $('#editPrinterIp').value.trim(),
+      port: parseInt($('#editPrinterPort').value) || 9100, paper_width: parseInt($('#editPrinterWidth').value) || 58,
+      brand: $('#editPrinterBrand').value, is_default: $('#editPrinterDefault').checked
+    }});
+    SLF.ui.toast(tAdmin('saveSuccess') || '保存成功');
+    closePrinterEdit();
+    loadPrinters();
+  } catch (err) { SLF.ui.toast(tAdmin('saveFailed') + ': ' + err.message); }
+}
+
+async function togglePrinter(id, active) {
+  try {
+    await api('/admin/printers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { active } });
+    loadPrinters();
+  } catch (err) { SLF.ui.toast(tAdmin('operationFailed') + ': ' + err.message); }
+}
+
+async function setDefaultPrinter(id) {
+  try {
+    await api('/admin/printers/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { is_default: true } });
+    SLF.ui.toast(tAdmin('setAsDefaultPrinter'));
+    loadPrinters();
+  } catch (err) { SLF.ui.toast(tAdmin('operationFailed') + ': ' + err.message); }
+}
+
+function deletePrinter(id) {
+  showConfirm(tAdmin('confirmDeletePrinter'), async function() {
+    try {
+      await api('/admin/printers/' + id, { method: 'DELETE' });
+      SLF.ui.toast(tAdmin('printerDeleted'));
+      loadPrinters();
+    } catch (err) { SLF.ui.toast(`${tAdmin('deleteFailed')}: ` + err.message); }
+  });
+}
+
+async function printOrder(orderId) {
+  try {
+    const data = await api('/orders/' + orderId + '/print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {} });
+    if (data.printed) SLF.ui.toast(tAdmin('orderPrinted'));
+    else if (data.printData) {
+      // 从缓存找订单，用于展示订单号
+      const list = ctx.ordersCache ? ctx.ordersCache() : [];
+      const ord = list.find(o => String(o.id) === String(orderId)) || {};
+      ord._store = data.store || null;
+      SLF.ui.toast(tAdmin('openingBrowserPrint'));
+      printViaBrowser(data.printData, ord);
+    }
+  } catch (err) { SLF.ui.toast(tAdmin('printFailed') + ': ' + err.message); }
+}
+
+function printViaBrowser(base64Data, orderOrId) {
+  const order = (typeof orderOrId === 'object' && orderOrId) ? orderOrId : {};
+  const orderNo = order.order_no || (order.id ? ('#' + order.id) : '#?');
+  const tableNo = order.table_name || order.table || '-';
+  const items = Array.isArray(order.items) ? order.items : [];
+  const note = order.note || '';
+  const total = Number(order.total) || 0;
+
+  // 时间格式化
+  let timeStr = '';
+  try {
+    const d = order.createdAt ? new Date(order.createdAt) : new Date();
+    const pad = n => String(n).padStart(2, '0');
+    timeStr = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  } catch (e) {}
+
+  // 货币格式化（主币）
+  const fmt = v => {
+    try { return SLF.money.primary(v); } catch (e) { return '$' + Number(v || 0).toFixed(2); }
+  };
+  const baseOf = (item) => {
+    try { return SLF.money.toBase(item.price, item.currency_code); } catch (e) { return Number(item.price) || 0; }
+  };
+
+  // 菜品行
+  let itemsHtml = '';
+  items.forEach(item => {
+    const qty = Number(item.quantity) || 0;
+    const ret = Number(item.returnedQty) || 0;
+    const realQty = qty - ret;
+    const unitBase = baseOf(item);
+    const lineBase = unitBase * realQty;
+    const name = (item.name || '').slice(0, 20);
+    const retTag = ret > 0 ? ' <span style="color:#e74c3c;">(退' + ret + ')</span>' : '';
+    itemsHtml +=
+      '<div class="row">' +
+        '<span class="item-name">' + esc(name) + ' ×' + qty + retTag + '</span>' +
+        '<span class="item-amt">' + fmt(lineBase) + '</span>' +
+      '</div>';
+  });
+
+  // 备注
+  const noteHtml = note ? '<div class="separator"></div><div class="note">' + esc(tAdmin('orderNoteDisplay')) + ': ' + esc(note) + '</div>' : '';
+
+  // 支付方式（可选）
+  const payLabel = {
+    cash: 'Cash', wechat: 'WeChat', alipay: 'Alipay',
+    card: 'Card', aba: 'ABA',
+  }[order.pay_method] || '';
+  const payHtml = payLabel ? '<div class="row"><span>' + tAdmin('cashier') + '</span><span>' + payLabel + '</span></div>' : '';
+
+  // 店铺名（优先），无则用品牌名
+  const storeName = (order._store && order._store.name) ? order._store.name : (tAdmin('brandName') || 'FoodFlow');
+  const storeAddr = (order._store && order._store.address) ? order._store.address : '';
+  const storePhone = (order._store && order._store.phone) ? order._store.phone : '';
+
+  const html =
+    '<html><head><meta charset="UTF-8"><title>' + esc(orderNo) + '</title>' +
+    '<style>' +
+    '*{box-sizing:border-box}' +
+    'body{font-family:"Courier New",monospace;font-size:13px;padding:10px;width:300px;margin:0 auto;color:#000;}' +
+    '.center{text-align:center;}' +
+    '.big{font-size:18px;font-weight:bold;}' +
+    '.sub{font-size:12px;color:#555;}' +
+    '.separator{border-top:1px dashed #000;margin:8px 0;}' +
+    '.row{display:flex;justify-content:space-between;padding:2px 0;align-items:baseline;}' +
+    '.item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;}' +
+    '.item-amt{white-space:nowrap;font-weight:bold;}' +
+    '.total{font-size:16px;font-weight:bold;padding-top:6px;}' +
+    '.note{font-size:12px;padding:4px 0;line-height:1.4;}' +
+    '.footer{text-align:center;font-size:12px;color:#555;padding-top:8px;}' +
+    '</style></head><body onload="window.print();setTimeout(function(){window.close()},800);">' +
+      '<div class="center big">' + esc(storeName) + '</div>' +
+      (storeAddr ? '<div class="center sub">' + esc(storeAddr) + '</div>' : '') +
+      (storePhone ? '<div class="center sub">' + esc(storePhone) + '</div>' : '') +
+      '<div class="center sub">' + esc(tAdmin('table') || 'Table') + ': ' + esc(tableNo) + '</div>' +
+      '<div class="center sub">' + esc(tAdmin('order') || 'Order') + ': ' + esc(orderNo) + '</div>' +
+      (timeStr ? '<div class="center sub">' + timeStr + '</div>' : '') +
+      '<div class="separator"></div>' +
+      itemsHtml +
+      noteHtml +
+      '<div class="separator"></div>' +
+      '<div class="row total"><span>' + (tAdmin('total') || 'Total') + '</span><span>' + fmt(total) + '</span></div>' +
+      (payHtml ? '<div class="separator"></div>' + payHtml : '') +
+      '<div class="footer">' + esc(tAdmin('printerConnectHint') || '') + '</div>' +
+    '</body></html>';
+
+  const printWindow = window.open('', '_blank', 'width=320,height=600');
+  if (!printWindow) { SLF.ui.toast(tAdmin('allowPopupToPrint')); return; }
+  printWindow.document.write(html);
+  printWindow.document.close();
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+  // ===== 后厨单开关 =====
+  const toggle = document.getElementById('autoPrintToggle');
+  if (toggle) {
+    try {
+      const data = await SLF.api.get('/admin/settings/auto-print?type=kitchen');
+      toggle.checked = !!(data && data.enabled);
+    } catch (e) {
+      console.warn('读取后厨自动打印开关失败', e);
+      toggle.checked = false;
+    }
+  }
+
+  // ===== 收银小票开关 =====
+  const toggleReceipt = document.getElementById('autoPrintReceiptToggle');
+  if (toggleReceipt) {
+    try {
+      const data = await SLF.api.get('/admin/settings/auto-print?type=receipt');
+      toggleReceipt.checked = !!(data && data.enabled);
+    } catch (e) {
+      console.warn('读取收银自动打印开关失败', e);
+      toggleReceipt.checked = false;
+    }
+  }
+});
+
+// 挂到 window
+window.printOrder = printOrder;
+window.printViaBrowser = printViaBrowser;
+window.loadPrinters = loadPrinters;
+window.addPrinter = addPrinter;
+window.testPrinter = testPrinter;
+window.openPrinterEdit = openPrinterEdit;
+window.closePrinterEdit = closePrinterEdit;
+window.savePrinterEdit = savePrinterEdit;
+window.togglePrinter = togglePrinter;
+window.setDefaultPrinter = setDefaultPrinter;
+window.deletePrinter = deletePrinter;
+
+})();
+
+
+/* ========== pages/admin/khqr.js ========== */
+/*
+ * pages/admin/khqr.js — KHQR 收款码配置（多码列表版，按店铺隔离）
+ */
+(function(){
+'use strict';
+
+const ctx = window.SLF.admin;
+if (!ctx) return;
+const { api } = ctx;
+
+const esc = SLF.utils.esc;
+const tAdmin = (window.SLF && window.SLF.t) ? window.SLF.t : function(k){ return k; };
+
+function getCurrentStoreName() {
+  const sel = document.getElementById('adminStoreSelect');
+  if (sel && sel.selectedIndex >= 0) return sel.options[sel.selectedIndex].text;
+  return tAdmin('currentStoreFallback');
+}
+
+function updateCurrentStoreName() {
+  const el = document.getElementById('khqrCurrentStoreName');
+  if (el) el.textContent = getCurrentStoreName();
+}
+
+/* ---------- 渲染 provider 列表 ---------- */
+function renderProviderList(providers) {
+  const el = document.getElementById('khqrProviderList');
+  if (!el) return;
+
+  if (!providers || providers.length === 0) {
+    el.innerHTML =
+      '<div style="padding:14px 16px;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);border-radius:10px;color:#ffd93d;font-size:13px;">' +
+        tAdmin('noKhqrConfigured') +
+      '</div>';
+    return;
+  }
+
+  el.innerHTML = providers.map(p => {
+    const badgeDisabled = !p.enabled
+      ? '<span style="display:inline-block;background:#777;color:#fff;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-left:6px;">' + tAdmin('disabledBadge') + '</span>'
+      : '';
+    const bg = p.enabled ? 'rgba(46,204,113,.06)' : 'rgba(255,255,255,.03)';
+    const border = p.enabled ? 'rgba(46,204,113,.2)' : 'rgba(255,255,255,.08)';
+
+    return `<div style="padding:8px 12px;background:${bg};border:1px solid ${border};border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+      <div class="khqr-icon-wrap" data-bank="${esc(p.bank || '')}" style="width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:18px;overflow:hidden;">📱</div>
+      <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+        <span style="color:#fff;font-weight:600;font-size:13px;">${esc(p.label)}</span>
+        ${badgeDisabled}
+        <span style="color:#888;font-size:11px;">${esc(p.bank || '')} · ${esc(p.currency || '')} · ${esc(p.merchantName || '')}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button data-action="toggle" data-id="${esc(p.id)}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(255,193,7,.15);color:#ffd93d;font-size:11px;font-weight:600;cursor:pointer;">${p.enabled ? tAdmin('disabled') : tAdmin('enabled')}</button>
+        <button data-action="delete" data-id="${esc(p.id)}" style="padding:4px 10px;border:0;border-radius:6px;background:rgba(231,76,60,.15);color:#e74c3c;font-size:11px;font-weight:600;cursor:pointer;">${tAdmin('delete')}</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 绑定按钮
+  el.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      if (action === 'toggle') toggleProvider(id);
+      else if (action === 'delete') deleteProvider(id);
+    });
+  });
+
+  // 加载银行图标
+  const _BANK_ICON_MAP = { 'ABA': 'aba', 'ACLEDA': 'acleda', 'Bakong': 'KHQR', 'Wing': 'Wing' };
+  const _ICON_EXTS = ['png', 'jpg', 'jpeg', 'webp'];
+  el.querySelectorAll('.khqr-icon-wrap').forEach(wrap => {
+    const bank = wrap.dataset.bank || '';
+    const key = _BANK_ICON_MAP[bank] || bank.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let _i = 0;
+    function tryNext() {
+      if (_i >= _ICON_EXTS.length) {
+        const fallbackUrl = '/assets/vendor/payment-icons/KHQR.png';
+        const fallback = new Image();
+        fallback.onload = function() { wrap.innerHTML = '<img src="' + fallbackUrl + '" style="max-width:100%;max-height:100%;object-fit:contain;" alt="">'; };
+        fallback.src = fallbackUrl;
+        return;
+      }
+      const url = '/assets/vendor/payment-icons/' + key + '.' + _ICON_EXTS[_i++];
+      const img = new Image();
+      img.onload = function() { wrap.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:100%;object-fit:contain;" alt="">'; };
+      img.onerror = tryNext;
+      img.src = url;
+    }
+    tryNext();
+  });
+}
+
+/* ---------- 加载 provider 列表 ---------- */
+async function loadKhqrInfo() {
+  const card = document.getElementById('khqrSettingsCard');
+  if (!card) return;
+  updateCurrentStoreName();
+
+  const sel = document.getElementById('adminStoreSelect');
+  if (!sel || !sel.value) {
+    renderProviderList([]);
+    return;
+  }
+
+  try {
+    const res = await api('/admin/khqr/providers');
+    renderProviderList(res.providers || []);
+  } catch (e) {
+    console.warn('[khqr] 加载失败:', e.message);
+    const el = document.getElementById('khqrProviderList');
+    if (el) el.innerHTML =
+      '<div style="padding:12px 16px;background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:10px;color:#e74c3c;font-size:14px;">⚠️ ' + esc(e.message) + '</div>';
+  }
+}
+
+/* ---------- 上传新码 ---------- */
+async function uploadKhqrImage(file) {
+  const fd = new FormData();
+  fd.append('image', file);
+  const label = (document.getElementById('khqrUploadLabel') || {}).value || '';
+  fd.append('label', label.trim());
+
+  const token = SLF.store.rawGetSession('adminToken') || '';
+  const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '';
+  if (!storeId) throw new Error(tAdmin('selectStoreFirst'));
+
+  const res = await fetch('/api/admin/khqr/upload', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'X-Store-Id': String(storeId) },
+    body: fd,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+
+/* ---------- 删除 / 设默认 / 切换 ---------- */
+async function deleteProvider(id) {
+  if (!confirm(tAdmin('confirmDeleteKhqr'))) return;
+  try {
+    await api('/admin/khqr/providers/' + id, { method: 'DELETE' });
+    SLF.ui && SLF.ui.toast ? SLF.ui.toast('✅ ' + tAdmin('deleted')) : 0;
+    await loadKhqrInfo();
+  } catch (e) {
+    SLF.ui && SLF.ui.toast ? SLF.ui.toast('❌ ' + e.message) : alert(e.message);
+  }
+}
+
+async function setDefaultProvider(id) {
+  try {
+    await api('/admin/khqr/providers/' + id + '/default', { method: 'POST' });
+    SLF.ui && SLF.ui.toast ? SLF.ui.toast(tAdmin('setAsDefaultDone')) : 0;
+    await loadKhqrInfo();
+  } catch (e) {
+    SLF.ui && SLF.ui.toast ? SLF.ui.toast('❌ ' + e.message) : alert(e.message);
+  }
+}
+
+async function toggleProvider(id) {
+  try {
+    await api('/admin/khqr/providers/' + id + '/toggle', { method: 'POST' });
+    await loadKhqrInfo();
+  } catch (e) {
+    SLF.ui && SLF.ui.toast ? SLF.ui.toast('❌ ' + e.message) : alert(e.message);
+  }
+}
+
+/* ---------- 绑定事件 ---------- */
+function bindEvents() {
+  const btn = document.getElementById('khqrUploadBtn');
+  const input = document.getElementById('khqrImageFile');
+  const nameEl = document.getElementById('khqrUploadName');
+  if (!btn || !input || btn.dataset.bound === '1') return;
+  btn.dataset.bound = '1';
+
+  btn.addEventListener('click', () => input.click());
+
+  input.addEventListener('change', async function() {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (nameEl) nameEl.textContent = file.name;
+    btn.disabled = true;
+    btn.textContent = tAdmin('parsing');
+    try {
+      const data = await uploadKhqrImage(file);
+      SLF.ui && SLF.ui.toast ? SLF.ui.toast(tAdmin('addedColon') + (data.provider && data.provider.label || '')) : 0;
+      // 清空输入
+      const labelEl = document.getElementById('khqrUploadLabel');
+      if (labelEl) labelEl.value = '';
+      await loadKhqrInfo();
+    } catch (e) {
+      SLF.ui && SLF.ui.toast ? SLF.ui.toast('❌ ' + e.message) : alert(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = tAdmin('chooseImageUpload');
+      input.value = '';
+      if (nameEl) nameEl.textContent = tAdmin('noFileSelected');
+    }
+  });
+}
+
+function init() {
+  if (!document.getElementById('khqrSettingsCard')) return;
+  bindEvents();
+  loadKhqrInfo();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+document.addEventListener('change', function(e) {
+  if (e.target && e.target.id === 'adminStoreSelect') {
+    setTimeout(() => { updateCurrentStoreName(); loadKhqrInfo(); }, 200);
+  }
+});
+
+document.addEventListener('click', function(e) {
+  const nav = e.target && e.target.closest && e.target.closest('.nav-item');
+  if (nav && nav.dataset && nav.dataset.module === 'password') {
+    setTimeout(() => { updateCurrentStoreName(); loadKhqrInfo(); }, 100);
+  }
+}, true);
+
+window.loadKhqrInfo = loadKhqrInfo;
+
+})();
+
+// 语言切换时重新渲染 KHQR 收款码列表
+if (window.SLF && window.SLF.i18n && typeof window.SLF.i18n.onChange === 'function') {
+  window.SLF.i18n.onChange(function () {
+    if (window.loadKhqrInfo) setTimeout(function () { window.loadKhqrInfo(); }, 50);
+  });
+}
+
+
+/* ========== pages/admin/report.js ========== */
+/*
+ * pages/admin/report.js — 报表 + 呼叫服务员模块
+ */
+(function(){
+'use strict';
+
+const ctx = window.SLF.admin;
+if (!ctx) return;
+
+const { $, api, tAdmin, esc } = ctx;
+
+// 格式化时间桶：把完整 ISO 时间戳压缩成人类可读的短字符串
+function fmtTimeBucket(tb) {
+  if (!tb) return '';
+  const s = String(tb);
+  // 完整 ISO（含 T）：只保留日期部分 YYYY-MM-DD
+  if (s.includes('T')) return s.slice(0, 10);
+  // YYYY-MM-DDTHH:mm 格式被截断成 HH:mm
+  // 已经是 YYYY-MM / YYYY-MM-DD / HH:mm 等短格式，直接返回
+  return s;
+}
+
+async function loadWaiterCalls() {
+  try {
+    const data = await api('/waiter-calls');
+    const container = $('#waiterCallsList');
+    if (!data || data.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:40px;color:#c8c8d0;">${tAdmin('noCalls')}</div>`;
+      return;
+    }
+    container.innerHTML = data.map(c => {
+      const isUrge = c.type === 'urge';
+      const icon = isUrge ? '⚡' : '🔔';
+      const label = isUrge ? (tAdmin('urgeOrder') || '催单') : (tAdmin('callWaiter') || '呼叫');
+      const bg = isUrge ? 'rgba(231,76,60,.12)' : 'rgba(255,176,32,.1)';
+      const border = isUrge ? 'rgba(231,76,60,.35)' : 'rgba(255,176,32,.3)';
+      const btnBg = isUrge ? '#e74c3c' : '#ff7a45';
+      return `
+        <div style="background:${bg};border:1px solid ${border};border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-weight:700;font-size:16px;color:#fff;">${icon} ${tAdmin('table')} ${esc(c.table_name)} ${label}</div>
+                <div style="color:#b8b8c8;font-size:13px;margin-top:4px;">${esc(c.created_at)}${c.message ? ' · ' + esc(c.message) : ''}</div>
+            </div>
+            <button data-call-id="${esc(c.id)}" onclick="handleWaiterCall(this.dataset.callId)" style="background:${btnBg};color:#fff;border:0;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600;">${tAdmin('handled')}</button>
+        </div>
+    `;
+    }).join('');
+  } catch (err) {
+    SLF.ui.toast(`${tAdmin('loadCallsFailed')}: ` + err.message);
+  }
+}
+
+async function handleWaiterCall(id) {
+  try {
+    await api('/waiter-calls/' + id + '/handle', { method: 'PUT' });
+    SLF.ui.toast(tAdmin('handled'));
+    loadWaiterCalls();
+  } catch (err) {
+    SLF.ui.toast(tAdmin('handleFailed') + ': ' + err.message);
+  }
+}
+
+async function loadDailyReport(rangeStart, rangeEnd) {
+  // 若传入了范围参数，直接用；否则读取日期输入框（单日查询）
+  let startDate, endDate;
+  if (rangeStart && rangeEnd) {
+    startDate = rangeStart;
+    endDate = rangeEnd;
+  } else {
+    const _now = new Date();
+    const _todayStr = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+    const dateInput = ($('#reportDate') && $('#reportDate').value) || _todayStr;
+    startDate = endDate = dateInput;
+  }
+  try {
+    const scope = ($('#reportScopeSelect') && $('#reportScopeSelect').value) || 'current';
+    const data = await api(`/admin/reports/daily?startDate=${startDate}&endDate=${endDate}&scope=${scope}`);
+    const s = data.summary;
+    const container = $('#reportContent');
+    let html = '';
+
+    // scope=all：先渲染分店对比表
+    if (data.scope === 'all' && Array.isArray(data.storeBreakdown) && data.storeBreakdown.length > 0) {
+      const _h = (s) => '<' + 'th style="padding:10px 14px;text-align:right;color:#ffd93d;font-size:13px;font-weight:700;">' + s + '</th>';
+      html += '<h3 style="margin:0 0 10px;color:#fff;font-size:15px;font-weight:700;">🏬 ' + (tAdmin('reportByStore') || '各店铺对比') + '</h3>';
+      html += '<div style="overflow-x:auto;margin-bottom:24px;"><table style="width:100%;border-collapse:collapse;background:rgba(255,255,255,.04);border-radius:12px;overflow:hidden;">';
+      html += '<thead><tr style="background:rgba(255,255,255,.06);">' +
+              '<th style="padding:10px 14px;text-align:left;color:#ffd93d;font-size:13px;font-weight:700;">' + (tAdmin('storeLabel') || '店铺') + '</th>' +
+              _h(tAdmin('totalOrders') || '订单总数') +
+              _h(tAdmin('completed') || '已完成') +
+              _h(tAdmin('canceled') || '已取消') +
+              _h(tAdmin('totalRevenue') || '总营业额') +
+              '</tr></thead><tbody>';
+      data.storeBreakdown.forEach((st, i) => {
+        const bg = i % 2 === 0 ? 'rgba(255,255,255,.02)' : 'transparent';
+        html += '<tr style="background:' + bg + ';border-top:1px solid rgba(255,255,255,.06);">' +
+                '<td style="padding:10px 14px;color:#fff;font-size:14px;font-weight:600;">' + esc(st.store_name || ('#' + st.store_id)) + '</td>' +
+                '<td style="padding:10px 14px;color:#fff;font-size:14px;text-align:right;">' + (st.orders || 0) + '</td>' +
+                '<td style="padding:10px 14px;color:#2ecc71;font-size:14px;text-align:right;">' + (st.completed_orders || 0) + '</td>' +
+                '<td style="padding:10px 14px;color:#e74c3c;font-size:14px;text-align:right;">' + (st.canceled_orders || 0) + '</td>' +
+                '<td style="padding:10px 14px;color:#ffd93d;font-size:14px;font-weight:700;text-align:right;">$' + Number(st.revenue || 0).toFixed(2) + '</td>' +
+                '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    html += `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
+            <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#e85d3a;">${s.totalOrders}</div>
+                <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('totalOrders')}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#2ecc71;">${s.completedOrders}</div>
+                <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('completed')}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#e74c3c;">${s.canceledOrders}</div>
+                <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('canceled')}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#f1c40f;">$${Number(s.totalRevenue).toFixed(2)}</div>
+                <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('totalRevenue')}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.05);border-radius:12px;padding:16px;text-align:center;">
+                <div style="font-size:28px;font-weight:700;color:#3498db;">$${Number(s.avgOrderValue).toFixed(2)}</div>
+                <div style="color:#c8c8d0;font-size:13px;margin-top:4px;">${tAdmin('avgOrderValue')}</div>
+            </div>
+        </div>
+    `;
+    if (data.hourlyStats && data.hourlyStats.length > 0) {
+      // 根据粒度显示不同的标题
+      const granLabel = data.granularity === 'year' ? '📅' : data.granularity === 'month' ? '📆' : '⏰';
+      html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">${granLabel} ${tAdmin('hourlyDistribution')} <span style="font-size:12px;color:#888;font-weight:400;">(${data.date})</span></h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;">`;
+      const maxOrders = Math.max(...data.hourlyStats.map(h => h.orders), 1);
+      for (const h of data.hourlyStats) {
+        const pct = (h.orders / maxOrders * 100).toFixed(0);
+        html += `<div style="display:flex;align-items:center;gap:10px;margin:6px 0;"><span style="width:88px;color:#c8c8d0;font-size:13px;text-align:right;">${fmtTimeBucket(h.time_bucket)}</span><div style="flex:1;background:rgba(255,255,255,.1);border-radius:6px;height:20px;overflow:hidden;"><div style="width:${pct}%;background:linear-gradient(90deg,#e85d3a,#f39c12);height:100%;border-radius:6px;"></div></div><span style="width:70px;text-align:right;font-size:13px;color:#fff;font-weight:600;">${h.orders}${tAdmin('orderUnit')} $${Number(h.revenue).toFixed(0)}</span></div>`;
+      }
+      html += `</div>`;
+    }
+    if (data.tableRevenue && data.tableRevenue.length > 0) {
+      html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🏪 ${tAdmin('revenueByTable')}</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px;">`;
+      for (const t of data.tableRevenue) {
+        html += `<div style="background:linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;text-align:center;"><div style="font-weight:700;color:#fff;font-size:15px;">${esc(t.table_name)}</div><div style="color:#2ecc71;font-size:20px;font-weight:700;margin-top:6px;">$${Number(t.revenue).toFixed(2)}</div><div style="color:#c8c8d0;font-size:12px;margin-top:2px;">${t.orders} ${tAdmin('orderUnit')}</div></div>`;
+      }
+      html += `</div>`;
+    }
+    if (data.dishRanking && data.dishRanking.length > 0) {
+      html += `<h3 style="margin:20px 0 10px;color:#fff;font-size:15px;font-weight:700;">🔥 ${tAdmin('topDishes')}</h3><div style="background:rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:20px;">`;
+      data.dishRanking.forEach((d, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+        html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);align-items:center;"><span style="color:#fff;font-weight:600;font-size:14px;">${medal} ${esc(d.emoji || '')} ${esc(d.name)}</span><span style="font-weight:700;color:#ffd93d;font-size:14px;">${d.quantity || 0} ${tAdmin('portion')}</span></div>`;
+      });
+      html += `</div>`;
+    }
+    container.innerHTML = html;
+  } catch (err) { SLF.ui.toast(`${tAdmin('loadReportFailed')}: ` + err.message); }
+}
+
+function exportData(type) {
+  const adminTokenLocal = SLF.store.rawGetSession('adminToken') || '';
+  const url = '/api/admin/export/' + type;
+  fetch(url, { headers: { 'Authorization': 'Bearer ' + adminTokenLocal } })
+    .then(res => {
+      if (!res.ok) throw new Error(tAdmin('exportFailed'));
+      return res.blob();
+    })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = type + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      SLF.ui.toast(tAdmin('exportSuccess'));
+    })
+    .catch(err => SLF.ui.toast(tAdmin('exportFailed') + ': ' + err.message));
+}
+
+// 挂到 window
+window.loadWaiterCalls = loadWaiterCalls;
+window.handleWaiterCall = handleWaiterCall;
+window.loadDailyReport = loadDailyReport;
+window.exportData = exportData;
+
+
+// ===== 2026-09-29 快捷日期范围 =====
+(function initQuickRange() {
+  // 本地时间格式化（避免 toISOString 的 UTC 偏移问题）
+  const fmtLocal = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const applyRange = (type) => {
+    const today = new Date();
+    const y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+    let start, end;
+    if (type === 'today') {
+      start = end = fmtLocal(new Date(y, m, d));
+    } else if (type === 'week') {
+      const mon = new Date(y, m, d - ((today.getDay() + 6) % 7));
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      start = fmtLocal(mon); end = fmtLocal(sun);
+    } else if (type === 'month') {
+      start = fmtLocal(new Date(y, m, 1));
+      end = fmtLocal(new Date(y, m + 1, 0));
+    } else if (type === 'year') {
+      start = fmtLocal(new Date(y, 0, 1));
+      end = fmtLocal(new Date(y, 11, 31));
+    }
+    // 更新日期输入框为起始日
+    const dateEl = document.getElementById('reportDate');
+    if (dateEl) dateEl.value = start;
+    if (typeof loadDailyReport === 'function') loadDailyReport(start, end);
+  };
+
+  const initUI = () => {
+    // 默认值（用本地日期）
+    const dateEl = document.getElementById('reportDate');
+    if (dateEl && !dateEl.value) dateEl.value = fmtLocal(new Date());
+
+    // 快捷按钮
+    document.querySelectorAll('[data-range]').forEach(btn => {
+      btn.onclick = () => applyRange(btn.dataset.range);
+    });
+
+    // 语言切换后刷新标签
+    if (SLF.i18n && typeof SLF.i18n.onChange === 'function') {
+      SLF.i18n.onChange(() => applyReportLabels());
+    }
+    applyReportLabels();
+  };
+
+  // 立即执行（无论 DOM 是否已就绪，因为本模块可能在 DOMContentLoaded 之后才加载）
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initUI);
+  } else {
+    initUI();
+  }
+
+  function applyReportLabels() {
+    if (typeof tAdmin !== 'function') return;
+    const setText = (id, key) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = tAdmin(key);
+    };
+    setText('quickTodayBtn', 'quickToday');
+    setText('quickWeekBtn', 'quickWeek');
+    setText('quickMonthBtn', 'quickMonth');
+    setText('quickYearBtn', 'quickYear');
+    setText('reportDateLabel', 'date');
+  }
+
+// ═══════════════════════════════════════════════════════════
+// 高级导出弹窗（2026-10-01）
+// ═══════════════════════════════════════════════════════════
+function openAdvancedExport() {
+    const today = new Date().toISOString().slice(0, 10);
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    document.getElementById('advExportStart').value = weekAgo;
+    document.getElementById('advExportEnd').value = today;
+    document.getElementById('advancedExportModal').style.display = 'flex';
+}
+
+function closeAdvancedExport() {
+    document.getElementById('advancedExportModal').style.display = 'none';
+}
+
+async function doAdvancedExport() {
+    const start = document.getElementById('advExportStart').value;
+    const end = document.getElementById('advExportEnd').value;
+    const dim = document.getElementById('advExportDim').value;
+    const statuses = Array.from(document.querySelectorAll('.adv-status:checked'))
+        .map(cb => cb.value).join(',');
+
+    if (!start || !end) { SLF.ui.toast('❌ ' + (tAdmin('selectDateRange') || '请选择日期范围')); return; }
+    if (!statuses) { SLF.ui.toast('❌ ' + (tAdmin('selectAtLeastOne') || '请至少选择一个状态')); return; }
+
+    const params = new URLSearchParams({ startDate: start, endDate: end, dimension: dim, statuses });
+    const token = SLF.store.rawGetSession('adminToken') || '';
+    const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '1';
+
+    try {
+        const res = await fetch('/api/admin/export-advanced?' + params.toString(), {
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'X-Store-Id': String(storeId)
+            }
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'HTTP ' + res.status);
+        }
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${dim}_${start}_${end}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        SLF.ui.toast('✅ ' + (tAdmin('exported') || '已导出'));
+        closeAdvancedExport();
+    } catch (e) {
+        SLF.ui.toast('❌ ' + (tAdmin('exportFailed') || '导出失败') + ': ' + e.message);
+    }
+}
+
+window.openAdvancedExport = openAdvancedExport;
+window.closeAdvancedExport = closeAdvancedExport;
+window.doAdvancedExport = doAdvancedExport;
+
+})();
+})();
+
+// ═══════════════════════════════════════════════════════════
+// advExportBtn 事件委托（2026-10-01）
+// 挂在 document 捕获阶段，不管按钮怎么被 i18n 重建都能命中
+// ═══════════════════════════════════════════════════════════
+(function delegateAdvExport() {
+    document.addEventListener('click', function (e) {
+        // 捕获阶段先判断
+        const btn = e.target && e.target.closest && e.target.closest('#advExportBtn');
+        if (!btn) return;
+
+        // 拦掉其它所有监听（包括 i18n 后重绑的导出 handler）
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        // 打开弹窗
+        try {
+            if (typeof window.openAdvancedExport === 'function') {
+                window.openAdvancedExport();
+            } else if (typeof openAdvancedExport === 'function') {
+                openAdvancedExport();
+            } else {
+                console.error('[delegateAdvExport] openAdvancedExport 未定义');
+            }
+        } catch (err) {
+            console.error('[delegateAdvExport] 打开弹窗失败:', err);
+        }
+        return false;
+    }, true);   // ← true = 捕获阶段，先于一切其他监听
+})();
+
+
+/* ========== pages/admin/financial-reconciliation.js ========== */
+/*
+ * pages/admin/financial-reconciliation.js — 财务对账人工审核工作台
+ */
+(function () {
+  'use strict';
+
+  const ctx = window.SLF && window.SLF.admin;
+  if (!ctx) return;
+  const { $, api, esc } = ctx;
+  const root = () => document.getElementById('financialReconciliationPanel');
+  const state = { batches: [], batchId: null, nextBatchCursor: null, nextRowCursor: null, rows: [], loading: false, monthRows: [], monthCurrency: '', closeHistoryCursor: null, closeHistory: [], exceptionRows: [], nextExceptionCursor: null, exceptionLoading: false, exceptionHistory: {}, performanceExportAuditCursor: null, performanceExportAuditRows: [] };
+
+  function t(key, fallback) {
+    const value = ctx.tAdmin ? ctx.tAdmin(key) : key;
+    return value && value !== key ? value : (fallback || key);
+  }
+  function toast(message) {
+    if (window.SLF && SLF.ui && SLF.ui.toast) SLF.ui.toast(message);
+  }
+  function dateValue(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  }
+  function moneyMinor(value, currency) {
+    const amount = Number(value);
+    return Number.isSafeInteger(amount) ? esc(String(amount)) + ' ' + esc(currency || '') + ' ' + t('financeMinorUnits', 'minor units') : '—';
+  }
+  function statusLabel(status) {
+    const labels = {
+      pending: t('financePending', 'Pending'), matched: t('financeMatched', 'Matched'),
+      unmatched: t('financeUnmatched', 'Unmatched'), ambiguous: t('financeAmbiguous', 'Ambiguous'),
+      exception: t('financeException', 'Exception'), imported: t('financeImported', 'Imported'),
+      validated: t('financeValidated', 'Validated'), closed: t('financeClosed', 'Closed')
+    };
+    return labels[status] || esc(status || '—');
+  }
+  function requirePermission() {
+    if (!ctx.hasPermission || !ctx.hasPermission('can_manage_financial_reconciliation')) {
+      toast('❌ ' + t('noPermission', 'No permission'));
+      return false;
+    }
+    return true;
+  }
+  function renderBatchRows(rows) {
+    const target = $('#financeBatchList');
+    if (!target) return;
+    if (!rows.length && !state.batches.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeNoBatches', 'No reconciliation batches yet') + '</div>';
+      return;
+    }
+    target.innerHTML = rows.map(batch => {
+      const counts = [
+        t('financeMatched', 'Matched') + ': ' + Number(batch.matched_count || 0),
+        t('financePending', 'Pending') + ': ' + Number(batch.pending_count || 0),
+        t('financeException', 'Exceptions') + ': ' + Number(batch.exception_count || 0)
+      ].join(' · ');
+      return '<button type="button" class="finance-batch-card" data-finance-batch="' + Number(batch.id) + '" style="display:block;width:100%;text-align:left;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin:8px 0;color:inherit;cursor:pointer;">' +
+        '<span style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><strong>#' + Number(batch.id) + ' · ' + esc(batch.provider_code) + ' / ' + esc(batch.external_batch_id) + '</strong><span>' + statusLabel(batch.status) + '</span></span>' +
+        '<span style="display:block;color:#aaa;font-size:12px;margin-top:6px;">' + esc(batch.imported_at || '') + ' · ' + Number(batch.row_count || 0) + ' ' + t('financeRows', 'rows') + ' · ' + esc(batch.currency_code) + '</span>' +
+        '<span style="display:block;color:#bbb;font-size:12px;margin-top:5px;">' + counts + '</span></button>';
+    }).join('');
+  }
+  async function loadBatches(append) {
+    if (!requirePermission() || state.loading) return;
+    state.loading = true;
+    const target = $('#financeBatchList');
+    if (!append && target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    try {
+      const query = new URLSearchParams({ limit: '30' });
+      if (append && state.nextBatchCursor) query.set('afterId', String(state.nextBatchCursor));
+      const data = await api('/admin/financial-reconciliation/batches?' + query.toString());
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      state.batches = append ? state.batches.concat(rows) : rows;
+      state.nextBatchCursor = data.nextCursor || null;
+      renderBatchRows(state.batches);
+      const more = $('#financeBatchMore');
+      if (more) more.hidden = !state.nextBatchCursor;
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load reconciliation batches') + '</div>';
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    } finally { state.loading = false; }
+  }
+  function renderItems() {
+    const target = $('#financeReviewRows');
+    if (!target) return;
+    if (!state.rows.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeNoRows', 'No statement rows in this batch') + '</div>';
+      return;
+    }
+    target.innerHTML = state.rows.map(row => {
+      const suggestion = row.suggestion || {};
+      const suggestionText = suggestion.status === 'suggested'
+        ? t('financeSuggestedJournal', 'Suggested Ledger transaction') + ' #' + Number(suggestion.journalTransactionId)
+        : (suggestion.reason || suggestion.status || '—');
+      const canConfirm = row.matchStatus !== 'matched';
+      const suggestedJournalId = suggestion.status === 'suggested' ? Number(suggestion.journalTransactionId) : 0;
+      const confirmButton = canConfirm
+        ? '<button type="button" data-finance-action="confirm" data-item="' + row.id + '"' +
+          (Number.isSafeInteger(suggestedJournalId) && suggestedJournalId > 0 ? ' data-journal="' + suggestedJournalId + '"' : '') +
+          '>' + t('financeConfirm', 'Confirm') + '</button>'
+        : '';
+      const actionButtons = [
+        confirmButton,
+        row.matchStatus === 'matched' ? '<button type="button" data-finance-action="release" data-item="' + row.id + '">' + t('financeRelease', 'Release') + '</button>' : '',
+        row.matchStatus !== 'matched' ? '<button type="button" data-finance-action="reject" data-item="' + row.id + '">' + t('financeReject', 'Reject') + '</button>' : '',
+        row.matchStatus === 'matched' ? '<button type="button" data-finance-action="reassign" data-item="' + row.id + '">' + t('financeReassign', 'Reassign') + '</button>' : '',
+        row.matchStatus !== 'matched' ? '<button type="button" data-finance-action="classify_exception" data-item="' + row.id + '">' + t('financeClassify', 'Classify') + '</button>' : ''
+      ].filter(Boolean).join(' ');
+      return '<article class="finance-review-row" style="background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin:10px 0;">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><strong>#' + Number(row.rowNo) + ' · ' + esc(row.externalReference || row.transactionReference || '—') + '</strong><span>' + statusLabel(row.matchStatus) + '</span></div>' +
+        '<div style="color:#ccc;font-size:13px;margin:7px 0;">' + moneyMinor(row.amountMinor, row.currencyCode) + ' · ' + esc(row.direction) + ' · ' + esc(row.occurredAt || '') + '</div>' +
+        '<div style="color:#aaa;font-size:12px;overflow-wrap:anywhere;">' + esc(row.description || '') + '</div>' +
+        '<div style="color:#8ec5ff;font-size:12px;margin-top:7px;">' + esc(suggestionText) + '</div>' +
+        (row.exceptionCategory ? '<div style="color:#ffbd70;font-size:12px;margin-top:5px;">' + esc(row.exceptionCategory) + ' · ' + esc(row.exceptionNote || '') + '</div>' : '') +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">' + actionButtons + '</div></article>';
+    }).join('');
+  }
+  async function loadBatchItems(batchId, append) {
+    if (!requirePermission()) return;
+    state.batchId = Number(batchId);
+    const target = $('#financeReviewRows');
+    if (!append) {
+      state.rows = [];
+      state.nextRowCursor = null;
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    }
+    try {
+      const query = new URLSearchParams({ limit: '100' });
+      if (append && state.nextRowCursor) query.set('afterRowNo', String(state.nextRowCursor));
+      const data = await api('/admin/financial-reconciliation/batches/:batchId/items'.replace(':batchId', String(state.batchId)) + '?' + query.toString());
+      const rows = Array.isArray(data.items) ? data.items : [];
+      state.rows = append ? state.rows.concat(rows) : rows;
+      state.nextRowCursor = data.nextCursor || null;
+      const title = $('#financeSelectedBatch');
+      if (title) title.textContent = '#' + data.batch.id + ' · ' + data.batch.currencyCode + ' · ' + data.batch.rowCount + ' ' + t('financeRows', 'rows');
+      renderItems();
+      const more = $('#financeRowsMore');
+      if (more) more.hidden = !state.nextRowCursor;
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load statement rows') + '</div>';
+      toast('❌ ' + (error.message || 'Load failed'));
+    }
+  }
+  function requestReason(action) {
+    const prompts = {
+      confirm: t('financeReasonConfirm', 'Reason for confirming this match (5–500 characters):'),
+      reject: t('financeReasonReject', 'Reason for rejecting this row (5–500 characters):'),
+      release: t('financeReasonRelease', 'Reason for releasing this allocation (5–500 characters):'),
+      reassign: t('financeReasonReassign', 'Reason for reassigning this row (5–500 characters):'),
+      classify_exception: t('financeReasonClassify', 'Reason for classifying this exception (5–500 characters):')
+    };
+    const reason = window.prompt(prompts[action] || t('financeReason', 'Reason (5–500 characters):'));
+    if (reason === null) return null;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeReasonInvalid', 'Reason must contain 5–500 characters'));
+      return null;
+    }
+    return reason.trim();
+  }
+  async function submitReview(button) {
+    if (!requirePermission()) return;
+    const itemId = Number(button.dataset.item);
+    const action = button.dataset.financeAction;
+    const reason = requestReason(action);
+    if (!reason) return;
+    const body = { batchId: state.batchId, action, reason,
+      idempotencyKey: 'finance-ui-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12) };
+    if (action === 'confirm') {
+      const suggestedId = Number(button.dataset.journal);
+      const id = Number.isSafeInteger(suggestedId) && suggestedId > 0
+        ? suggestedId
+        : Number(window.prompt(t('financeJournalIdPrompt', 'Enter Ledger transaction ID:')));
+      if (!Number.isSafeInteger(id) || id <= 0) return;
+      body.journalTransactionId = id;
+    }
+    if (action === 'reassign') {
+      const id = Number(window.prompt(t('financeJournalIdPrompt', 'Enter Ledger transaction ID:')));
+      if (!Number.isSafeInteger(id) || id <= 0) return;
+      body.journalTransactionId = id;
+    }
+    if (action === 'classify_exception') {
+      const category = String(window.prompt(t('financeCategoryPrompt', 'Category: refund, fee, settlement_difference, chargeback, other'), 'other') || '').trim();
+      if (!['refund', 'fee', 'settlement_difference', 'chargeback', 'other'].includes(category)) {
+        toast('❌ ' + t('financeCategoryInvalid', 'Unsupported exception category'));
+        return;
+      }
+      body.exceptionCategory = category;
+    }
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/items/:itemId/review'.replace(':itemId', String(itemId)), { method: 'POST', body });
+      toast('✅ ' + t('financeReviewSaved', 'Review saved'));
+      await loadBatchItems(state.batchId, false);
+      await loadBatches(false);
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeReviewFailed', 'Review failed')));
+    } finally { button.disabled = false; }
+  }
+  async function importBatch() {
+    if (!requirePermission()) return;
+    const input = $('#financeImportJson');
+    let parsed;
+    try { parsed = JSON.parse(input.value || ''); }
+    catch (_) { toast('❌ ' + t('financeInvalidJson', 'Invalid JSON')); return; }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      toast('❌ ' + t('financeInvalidJson', 'Invalid JSON object')); return;
+    }
+    const body = {
+      providerCode: parsed.providerCode, externalBatchId: parsed.externalBatchId,
+      statementSha256: parsed.statementSha256, currencyCode: parsed.currencyCode, rows: parsed.rows
+    };
+    const button = $('#financeImportButton');
+    button.disabled = true;
+    try {
+      const result = await api('/admin/financial-reconciliation/batches/import', { method: 'POST', body });
+      toast('✅ ' + t('financeImportDone', 'Batch imported') + ' #' + result.batchId);
+      input.value = '';
+      await loadBatches(false);
+      await loadBatchItems(result.batchId, false);
+    } catch (error) { toast('❌ ' + (error.message || t('financeImportFailed', 'Import failed'))); }
+    finally { button.disabled = false; }
+  }
+  function exportDailyCsv(rows) {
+    if (!rows.length) { toast(t('financeNoReportRows', 'No report rows')); return; }
+    const columns = ['report_date', 'currency_code', 'batch_count', 'statement_row_count', 'total_debit_minor', 'total_credit_minor', 'matched_count', 'pending_count', 'unmatched_count', 'ambiguous_count', 'exception_count', 'refund_exception_count', 'fee_exception_count', 'settlement_difference_exception_count', 'chargeback_exception_count', 'other_exception_count'];
+    const csv = [columns.join(','), ...rows.map(row => columns.map(key => {
+      const value = String(row[key] ?? '');
+      return '"' + value.replace(/"/g, '""') + '"';
+    }).join(','))].join('\r\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = 'financial-reconciliation-daily.csv';
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+  }
+  async function loadDailySummary(exportCsv) {
+    if (!requirePermission()) return;
+    const from = $('#financeReportFrom').value;
+    const to = $('#financeReportTo').value;
+    try {
+      const data = await api('/admin/financial-reconciliation/daily-summary?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      const target = $('#financeDailyReport');
+      const reportColumns = [
+        'report_date', 'currency_code', 'batch_count', 'statement_row_count',
+        'total_debit_minor', 'total_credit_minor',
+        'matched_count', 'pending_count', 'unmatched_count', 'ambiguous_count', 'exception_count',
+        'refund_exception_count', 'fee_exception_count', 'settlement_difference_exception_count',
+        'chargeback_exception_count', 'other_exception_count'
+      ];
+      const moneyColumns = new Set(['total_debit_minor', 'total_credit_minor']);
+      target.innerHTML = rows.length ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+        reportColumns.map(key => '<th style="text-align:left;padding:9px;border-bottom:1px solid #555;">' + esc(t('financeCol_' + key, key)) + '</th>').join('') +
+        '</tr></thead><tbody>' + rows.map(row => '<tr>' + reportColumns.map(key => '<td style="padding:9px;border-bottom:1px solid rgba(255,255,255,.08);">' + (moneyColumns.has(key) ? moneyMinor(row[key], row.currency_code) : esc(row[key] ?? '')) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' : '<div class="empty-hint">' + t('financeNoReportRows', 'No report rows') + '</div>';
+      if (exportCsv) exportDailyCsv(rows);
+    } catch (error) { toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed'))); }
+  }
+
+
+  function exceptionCategoryLabel(category) {
+    const labels = {
+      refund: t('financeCol_refund_exception_count', 'Refund'),
+      fee: t('financeCol_fee_exception_count', 'Fee'),
+      settlement_difference: t('financeCol_settlement_difference_exception_count', 'Settlement difference'),
+      chargeback: t('financeCol_chargeback_exception_count', 'Chargeback'),
+      other: t('financeCol_other_exception_count', 'Other')
+    };
+    return labels[category] || esc(category || t('financeUnclassified', 'Unclassified'));
+  }
+  function slaAlertStatusLabel(status) {
+    const labels = {
+      pending: t('financePending', 'Pending'),
+      acknowledged: t('financeSlaAcknowledged', 'Acknowledged'),
+      dismissed: t('financeSlaDismissed', 'Dismissed')
+    };
+    return labels[status] || esc(status || '—');
+  }
+  function renderSlaAlerts(items) {
+    const target = $('#financeSlaAlertList');
+    if (!target) return;
+    if (!items.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeSlaNoPendingAlerts', 'No pending SLA alerts') + '</div>';
+      return;
+    }
+    target.innerHTML = items.map(item => {
+      const actions = item.status === 'pending'
+        ? '<button type="button" data-sla-alert-ack="' + Number(item.alertId) + '">' + t('financeSlaAcknowledge', 'Acknowledge') + '</button> ' +
+          '<button type="button" data-sla-alert-dismiss="' + Number(item.alertId) + '">' + t('financeSlaDismiss', 'Dismiss alert') + '</button>'
+        : '<span style="font-size:12px;color:#aaa;">' + slaAlertStatusLabel(item.status) + '</span>';
+      return '<article style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+        '<strong>' + t('financeException', 'Exception') + ' #' + Number(item.itemId) + ' · ' + exceptionCategoryLabel(item.category) + '</strong>' +
+        '<span>' + slaAlertStatusLabel(item.status) + ' · ' + formatAge(item.ageSeconds) + ' / SLA ' + Number(item.slaHours) + 'h</span></div>' +
+        '<div style="font-size:12px;color:#aaa;margin:5px 0;">' +
+        esc(item.externalReference || t('financeNoExternalReference', 'No external reference')) + ' · ' +
+        esc(item.assignedAdminUsername || t('financeUnassigned', 'Unassigned')) + ' · ' +
+        moneyMinor(item.amountMinor, item.currencyCode) + '</div>' + actions + ' ' +
+        '<button type="button" data-sla-alert-history="' + Number(item.alertId) + '">' +
+        t('financeExceptionAuditHistory', 'Audit history') + '</button>' +
+        '<div id="financeSlaAlertHistory-' + Number(item.alertId) + '" hidden style="margin-top:8px;"></div></article>';
+    }).join('');
+  }
+  async function loadSlaAlerts() {
+    if (!requirePermission()) return;
+    const target = $('#financeSlaAlertList');
+    if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    try {
+      const status = $('#financeSlaAlertStatus')?.value || 'pending';
+      const data = await api('/admin/financial-reconciliation/exceptions/alerts?status=' + encodeURIComponent(status) + '&limit=50');
+      renderSlaAlerts(Array.isArray(data.items) ? data.items : []);
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financeSlaAlertsLoadFailed', 'Failed to load SLA alerts') + '</div>';
+      toast('❌ ' + (error.message || t('financeSlaAlertsLoadFailed', 'Failed to load SLA alerts')));
+    }
+  }
+  async function generateSlaAlerts() {
+    if (!requirePermission()) return;
+    const raw = Number($('#financeExceptionSlaHours')?.value || 24);
+    const slaHours = Number.isSafeInteger(raw) && raw >= 1 && raw <= 720 ? raw : 24;
+    try {
+      const result = await api('/admin/financial-reconciliation/exceptions/alerts/generate', { method: 'POST', body: { slaHours } });
+      toast('✅ ' + t('financeSlaScanned', 'Scanned') + ' ' + Number(result.scanned) + ' ' +
+        t('financeSlaOverdueExceptions', 'overdue exceptions') + ', ' + t('financeSlaCreated', 'created') + ' ' +
+        Number(result.created) + ' ' + t('financeSlaAlerts', 'alerts'));
+      await loadSlaAlerts();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeSlaGenerateFailed', 'Failed to generate SLA alerts')));
+    }
+  }
+  async function acknowledgeSlaAlert(button) {
+    if (!requirePermission()) return;
+    const reason = window.prompt(t('financeSlaConfirmReasonPrompt', 'Enter acknowledgement note (5–500 characters):'));
+    if (reason === null) return;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeSlaReasonLengthInvalid', 'Note must contain 5–500 characters'));
+      return;
+    }
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/exceptions/alerts/' + Number(button.dataset.slaAlertAck) + '/acknowledge', {
+        method: 'POST',
+        body: { reason: reason.trim(), idempotencyKey: 'sla-alert-ack-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) }
+      });
+      toast('✅ ' + t('financeSlaConfirmSaved', 'SLA alert acknowledgement recorded'));
+      await loadSlaAlerts();
+      await loadExceptionOperations();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeSlaConfirmFailed', 'Failed to acknowledge SLA alert')));
+    } finally {
+      button.disabled = false;
+    }
+  }
+  async function dismissSlaAlert(button) {
+    if (!requirePermission()) return;
+    const reason = window.prompt(t('financeSlaDismissReasonPrompt', 'Enter dismissal reason (5–500 characters; the underlying exception will remain open):'));
+    if (reason === null) return;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeSlaReasonLengthInvalid', 'Note must contain 5–500 characters'));
+      return;
+    }
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/exceptions/alerts/' + Number(button.dataset.slaAlertDismiss) + '/dismiss', {
+        method: 'POST',
+        body: { reason: reason.trim(), idempotencyKey: 'sla-alert-dismiss-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) }
+      });
+      toast('✅ ' + t('financeSlaDismissSaved', 'SLA alert dismissed (underlying exception unchanged)'));
+      await loadSlaAlerts();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeSlaDismissFailed', 'Failed to dismiss SLA alert')));
+    } finally {
+      button.disabled = false;
+    }
+  }
+  function setReportRange(kind) {
+    const now = new Date(), to = dateValue(now), from = new Date(now);
+    if (kind === 'week') from.setDate(from.getDate() - 6);
+    else if (kind === 'month') from.setDate(from.getDate() - 29);
+    else if (kind === 'calendar-month') from.setDate(1);
+    const fromInput = $('#financeReportFrom'), toInput = $('#financeReportTo');
+    if (fromInput) fromInput.value = dateValue(from);
+    if (toInput) toInput.value = to;
+    loadDailySummary(false);
+  }
+  async function loadSlaAlertHistory(alertId) {
+    const target = $('#financeSlaAlertHistory-' + Number(alertId));
+    if (!target) return;
+    if (!target.hidden) { target.hidden = true; return; }
+    target.hidden = false;
+    target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    try {
+      const data = await api('/admin/financial-reconciliation/exceptions/alerts/' + Number(alertId) + '/history?limit=50');
+      const rows = Array.isArray(data.items) ? data.items : [];
+      target.innerHTML = rows.length
+        ? rows.map(row => '<div style="padding:8px 0;border-top:1px solid rgba(255,255,255,.08);"><strong>' +
+          esc(row.action) + '</strong> · ' + esc(row.actorUsername) + ' · ' + esc(row.createdAt || '') +
+          '<div style="font-size:12px;color:#aaa;">' + esc(row.reason) + '</div>' +
+          '<div style="font-size:11px;color:#888;word-break:break-all;">Hash: ' + esc(row.eventHash) + '</div></div>').join('')
+        : '<div class="empty-hint">' + t('financeSlaNoAuditEvents', 'No audit events') + '</div>';
+    } catch (error) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeSlaAuditLoadFailed', 'Failed to load audit history') + '</div>';
+      toast('❌ ' + (error.message || t('financeSlaAuditLoadFailed', 'Failed to load audit history')));
+    }
+  }
+  async function loadPeriodSummary(period, exportCsv = false) {
+    if (!requirePermission()) return;
+    const from = $('#financeReportFrom')?.value, to = $('#financeReportTo')?.value, target = $('#financePeriodReport');
+    if (!from || !to) { toast(t('financeSelectDateRange', 'Select a start and end date first')); return; }
+    if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    try {
+      const data = await api('/admin/financial-reconciliation/period-summary?period=' + encodeURIComponent(period) + '&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      const columns = ['periodStart', 'periodEnd', 'currencyCode', 'batchCount', 'statementRowCount', 'totalDebitMinor', 'totalCreditMinor', 'matchedCount', 'pendingCount', 'unmatchedCount', 'ambiguousCount', 'exceptionCount'];
+      if (target) target.innerHTML = rows.length
+        ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+          columns.map(key => '<th style="text-align:left;padding:8px;border-bottom:1px solid #555;">' + esc(key) + '</th>').join('') +
+          '</tr></thead><tbody>' + rows.map(row => '<tr>' + columns.map(key =>
+            '<td style="padding:8px;border-bottom:1px solid rgba(255,255,255,.08);">' + esc(row[key] ?? '') + '</td>').join('') +
+          '</tr>').join('') + '</tbody></table></div>'
+        : '<div class="empty-hint">' + t('financePeriodNoData', 'No reconciliation data for the selected period') + '</div>';
+      if (exportCsv) {
+        const csv = await api('/admin/financial-reconciliation/period-report-export?period=' + encodeURIComponent(period) + '&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+        if (typeof csv !== 'string' || !csv.startsWith('\uFEFF')) throw new Error(t('financeExportInvalidResponse', 'Invalid export response from server'));
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'financial-reconciliation-' + period + '-report.csv';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financePeriodLoadFailed', 'Failed to load period report') + '</div>';
+      toast('❌ ' + (error.message || t('financePeriodLoadFailed', 'Failed to load period report')));
+    }
+  }
+
+  function exceptionStatusLabel(status) {
+    const labels = {
+      open: t('financeExceptionOpen', 'Open'),
+      in_progress: t('financeExceptionInProgress', 'In progress'),
+      resolved: t('financeExceptionResolved', 'Resolved'),
+      closed: t('financeExceptionClosed', 'Closed')
+    };
+    return labels[status] || esc(status || '—');
+  }
+  function renderExceptionQueue() {
+    const target = $('#financeExceptionQueue');
+    if (!target) return;
+    if (!state.exceptionRows.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeExceptionNoRows', 'No exceptions match these filters') + '</div>';
+      return;
+    }
+    target.innerHTML = state.exceptionRows.map(row => {
+      const status = row.caseStatus || 'open';
+      const actions = [
+        status !== 'closed' ? '<button type="button" data-exception-action="assign" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionAssign', 'Assign') + '</button>' : '',
+        row.assignedAdminId && status !== 'closed' ? '<button type="button" data-exception-action="unassign" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionUnassign', 'Unassign') + '</button>' : '',
+        status === 'open' ? '<button type="button" data-exception-action="start" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionStart', 'Start') + '</button>' : '',
+        status !== 'closed' ? '<button type="button" data-exception-action="add_note" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionAddNote', 'Add note') + '</button>' : '',
+        ['open','in_progress'].includes(status) ? '<button type="button" data-exception-action="resolve" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionResolve', 'Resolve') + '</button>' : '',
+        status === 'resolved' ? '<button type="button" data-exception-action="close" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionClose', 'Close case') + '</button>' : '',
+        ['resolved','closed'].includes(status) ? '<button type="button" data-exception-action="reopen" data-item="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionReopen', 'Reopen') + '</button>' : ''
+      ].filter(Boolean).join(' ');
+      return '<article style="background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;margin:10px 0;">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><strong>#' + Number(row.itemId) + ' · ' + esc(row.externalReference || row.transactionReference || '—') + '</strong><span>' + exceptionStatusLabel(status) + '</span></div>' +
+        '<div style="font-size:13px;color:#ccc;margin:7px 0;">' + moneyMinor(row.amountMinor, row.currencyCode) + ' · ' + esc(row.direction) + ' · ' + esc(row.category || '') + ' · ' + esc(row.importedAt || '') + '</div>' +
+        '<div style="font-size:12px;color:#aaa;">' + esc(row.description || '') + '</div>' +
+        '<div style="font-size:12px;margin-top:7px;">' + t('financeExceptionAssignedTo', 'Assigned to') + ': ' + esc(row.assignedAdminUsername || '—') + '</div>' +
+        (row.resolutionNote ? '<div style="font-size:12px;color:#aaa;margin-top:5px;">' + t('financeExceptionResolution', 'Resolution') + ': ' + esc(row.resolutionNote) + '</div>' : '') +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">' + actions +
+        '<button type="button" data-exception-history="' + Number(row.itemId) + '" data-batch="' + Number(row.batchId) + '">' + t('financeExceptionAuditHistory', 'Audit history') + '</button></div>' +
+        '<div id="financeExceptionHistory-' + Number(row.itemId) + '" hidden style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);"></div></article>';
+    }).join('');
+    const more = $('#financeExceptionMore');
+    if (more) more.hidden = !state.nextExceptionCursor;
+  }
+  async function loadExceptionQueue(append) {
+    if (!requirePermission() || state.exceptionLoading) return;
+    state.exceptionLoading = true;
+    const target = $('#financeExceptionQueue');
+    if (!append) {
+      state.exceptionRows = [];
+      state.nextExceptionCursor = null;
+      state.exceptionHistory = {};
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    }
+    try {
+      const query = new URLSearchParams({ limit: '50' });
+      const category = $('#financeExceptionCategory')?.value || 'all';
+      const status = $('#financeExceptionStatus')?.value || 'all';
+      if (category !== 'all') query.set('category', category);
+      if (status !== 'all') query.set('status', status);
+      if (append && state.nextExceptionCursor) query.set('afterId', String(state.nextExceptionCursor));
+      const data = await api('/admin/financial-reconciliation/exceptions?' + query.toString());
+      const rows = Array.isArray(data.items) ? data.items : [];
+      state.exceptionRows = append ? state.exceptionRows.concat(rows) : rows;
+      state.nextExceptionCursor = data.nextCursor || null;
+      renderExceptionQueue();
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load exceptions') + '</div>';
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    } finally { state.exceptionLoading = false; }
+  }
+
+  async function loadExceptionHistory(button, append) {
+    const itemId = Number(button.dataset.item);
+    const batchId = Number(button.dataset.batch);
+    if (!Number.isSafeInteger(itemId) || itemId <= 0 || !Number.isSafeInteger(batchId) || batchId <= 0) return;
+    const target = $('#financeExceptionHistory-' + itemId);
+    if (!target) return;
+    const stateKey = String(itemId);
+    const history = state.exceptionHistory[stateKey] || { items: [], nextCursor: null, loaded: false };
+    target.hidden = false;
+    try {
+      const query = new URLSearchParams({ batchId: String(batchId), limit: '50' });
+      if (append && history.nextCursor) query.set('afterId', String(history.nextCursor));
+      const data = await api('/admin/financial-reconciliation/exceptions/' + itemId + '/history?' + query.toString());
+      history.items = append ? history.items.concat(data.items || []) : (data.items || []);
+      history.nextCursor = data.nextCursor || null;
+      history.loaded = true;
+      state.exceptionHistory[stateKey] = history;
+      target.innerHTML = history.items.map(event =>
+        '<article style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);">' +
+        '<strong>#' + Number(event.eventId) + ' · ' + esc(event.action) + '</strong> · ' +
+        esc(event.before?.status || '—') + ' → ' + esc(event.after?.status || '—') +
+        '<div style="font-size:12px;color:#aaa;margin-top:4px;">' + esc(event.actorUsername) + ' · ' + esc(event.createdAt) + '</div>' +
+        '<div style="font-size:12px;margin-top:4px;">' + esc(event.reason) + '</div>' +
+        '<div style="font-size:11px;color:#888;overflow-wrap:anywhere;">SHA-256: ' + esc(event.eventHash) + '</div></article>'
+      ).join('') + (history.nextCursor
+        ? '<button type="button" data-exception-history-more="' + itemId + '" data-batch="' + batchId + '">Load more audit events</button>' : '');
+    } catch (error) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load audit history') + '</div>';
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    }
+  }
+  async function submitExceptionAction(button) {
+    if (!requirePermission()) return;
+    const action = button.dataset.exceptionAction;
+    const itemId = Number(button.dataset.item);
+    const batchId = Number(button.dataset.batch);
+    let assignedAdminId;
+    if (action === 'assign') {
+      assignedAdminId = Number(window.prompt(t('financeExceptionAssigneePrompt', 'Enter active merchant administrator ID:')));
+      if (!Number.isSafeInteger(assignedAdminId) || assignedAdminId <= 0) return;
+    }
+    const reason = window.prompt(t('financeExceptionReasonPrompt', 'Enter handling note / reason (5–500 characters):'));
+    if (reason === null) return;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeReasonInvalid', 'Reason must contain 5–500 characters'));
+      return;
+    }
+    const body = {
+      batchId, action, reason: reason.trim(),
+      idempotencyKey: 'finance-exception-ui-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+    };
+    if (assignedAdminId) body.assignedAdminId = assignedAdminId;
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/exceptions/' + itemId + '/workflow', { method: 'POST', body });
+      toast('✅ ' + t('financeExceptionActionSaved', 'Exception handling action recorded'));
+      await loadExceptionQueue(false);
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeExceptionActionFailed', 'Exception handling action failed')));
+    } finally { button.disabled = false; }
+  }
+  function formatAge(seconds) {
+    const value = Math.max(0, Number(seconds) || 0);
+    const days = Math.floor(value / 86400), hours = Math.floor((value % 86400) / 3600);
+    return days
+      ? days + ' ' + t('financeAgeDays', 'days') + ' ' + hours + ' ' + t('financeAgeHours', 'hours')
+      : hours + ' ' + t('financeAgeHours', 'hours');
+  }
+  function renderExceptionOperations(data) {
+    const summary = $('#financeExceptionOpsSummary'), workload = $('#financeExceptionOpsWorkload');
+    const trend = $('#financeExceptionOpsTrend'), overdue = $('#financeExceptionOpsOverdue');
+    if (!summary || !workload || !trend || !overdue) return;
+    const totals = data.summary || {}, ageing = totals.ageing || {};
+    summary.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">' +
+      [[t('financeExceptionOpen', 'Open'), totals.openCount],
+       [t('financeExceptionInProgress', 'In progress'), totals.inProgressCount],
+       [t('financeActiveExceptions', 'Active exceptions'), totals.activeCount],
+       [t('financeOverdue', 'Overdue') + ' > ' + Number(data.slaHours) + ' ' + t('financeAgeHours', 'hours'), totals.overdueCount],
+       [t('financeWithin24Hours', 'Within 24 hours'), ageing.under24Hours],
+       [t('financeAge1To3Days', '1–3 days'), ageing.from1To3Days],
+       [t('financeAge3To7Days', '3–7 days'), ageing.from3To7Days],
+       [t('financeOver7Days', 'Over 7 days'), ageing.over7Days]]
+        .map(pair => '<div style="padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;"><div style="font-size:12px;color:#aaa;">' +
+          esc(pair[0]) + '</div><strong style="font-size:22px;">' + Number(pair[1] || 0) + '</strong></div>').join('') + '</div>';
+    const people = Array.isArray(data.workload) ? data.workload : [];
+    workload.innerHTML = people.length
+      ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+        '<th style="text-align:left;padding:8px;">' + t('financeExceptionAssignedTo', 'Assignee') + '</th>' +
+        '<th style="text-align:right;padding:8px;">' + t('financeActive', 'Active') + '</th>' +
+        '<th style="text-align:right;padding:8px;">' + t('financeOverdue', 'Overdue') + '</th>' +
+        '<th style="text-align:right;padding:8px;">' + t('financeOldestAge', 'Oldest age') + '</th></tr></thead><tbody>' +
+        people.map(row => '<tr><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);">' +
+          esc(row.username || t('financeUnassigned', 'Unassigned')) + '</td><td style="text-align:right;padding:8px;">' +
+          Number(row.activeCount) + '</td><td style="text-align:right;padding:8px;">' + Number(row.overdueCount) +
+          '</td><td style="text-align:right;padding:8px;">' + formatAge(row.oldestAgeSeconds) +
+          '</td></tr>').join('') + '</tbody></table></div>'
+      : '<div class="empty-hint">' + t('financeNoActiveExceptions', 'No active exceptions') + '</div>';
+    const days = Array.isArray(data.trend) ? data.trend : [];
+    trend.innerHTML = days.length
+      ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+        '<th style="text-align:left;padding:8px;">' + t('financeCol_report_date', 'Date') + '</th>' +
+        '<th style="text-align:right;padding:8px;">' + t('financeNewExceptions', 'New exceptions') + '</th>' +
+        '<th style="text-align:right;padding:8px;">' + t('financeResolvedEvents', 'Resolution events') + '</th></tr></thead><tbody>' +
+        days.map(row => '<tr><td style="padding:8px;border-top:1px solid rgba(255,255,255,.08);">' + esc(row.date) +
+          '</td><td style="text-align:right;padding:8px;">' + Number(row.openedCount) +
+          '</td><td style="text-align:right;padding:8px;">' + Number(row.resolvedEventCount) +
+          '</td></tr>').join('') + '</tbody></table></div>'
+      : '<div class="empty-hint">' + t('financeNoRecentExceptionEvents', 'No exception events in the last 30 days') + '</div>';
+    const overdueRows = Array.isArray(data.overdueItems) ? data.overdueItems : [];
+    overdue.innerHTML = overdueRows.length
+      ? overdueRows.map(row => '<article style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);"><strong>#' +
+        Number(row.itemId) + ' · ' + exceptionCategoryLabel(row.category) +
+        '</strong><div style="font-size:12px;color:#aaa;margin-top:4px;">' +
+        esc(row.externalReference || t('financeNoExternalReference', 'No external reference')) + ' · ' +
+        esc(row.assignedAdminUsername || t('financeUnassigned', 'Unassigned')) + ' · ' +
+        t('financeAgeLabel', 'Age') + ' ' + formatAge(row.ageSeconds) + ' · ' +
+        moneyMinor(row.amountMinor, row.currencyCode) + '</div></article>').join('')
+      : '<div class="empty-hint">' + t('financeNoOverdueExceptions', 'No active exceptions are beyond SLA') + '</div>';
+  }
+  async function loadExceptionOperations() {
+    if (!requirePermission()) return;
+    const target = $('#financeExceptionOpsSummary');
+    if (target) target.innerHTML = '<div class="empty-hint">'+t('loading','Loading…')+'</div>';
+    const raw = Number($('#financeExceptionSlaHours')?.value || 24);
+    const slaHours = Number.isSafeInteger(raw) && raw >= 1 && raw <= 720 ? raw : 24;
+    try {
+      const data = await api('/admin/financial-reconciliation/exceptions/operations-summary?slaHours='+encodeURIComponent(String(slaHours)));
+      renderExceptionOperations(data);
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">'+t('financeLoadFailed','Unable to load exception operations')+'</div>';
+      toast('❌ '+(error.message||t('financeLoadFailed','Load failed')));
+    }
+  }
+  function monthStatusLabel(status) {
+    const labels = {
+      open: t('financeMonthOpen', 'Open'),
+      close_pending: t('financeMonthClosePending', 'Close approval pending'),
+      locked: t('financeMonthLocked', 'Locked'),
+      reopen_pending: t('financeMonthReopenPending', 'Reopen approval pending')
+    };
+    return labels[status] || esc(status || '—');
+  }
+  function renderMonthPreview() {
+    const target = $('#financeMonthPreview');
+    const select = $('#financeCloseCurrency');
+    if (!target || !select) return;
+    const rows = state.monthRows;
+    const previous = state.monthCurrency;
+    select.innerHTML = rows.map(row => '<option value="' + esc(row.currencyCode) + '">' + esc(row.currencyCode) + '</option>').join('');
+    if (rows.some(row => row.currencyCode === previous)) select.value = previous;
+    state.monthCurrency = select.value || '';
+    if (!rows.length) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeMonthNoBatches', 'No imported batches for this month and store') + '</div>';
+      $('#financeCloseStatus').innerHTML = '<div class="empty-hint">' + t('financeMonthNoPeriod', 'No monthly close period is available') + '</div>';
+      $('#financeCloseActions').innerHTML = '';
+      $('#financeCloseHistory').innerHTML = '';
+      return;
+    }
+    target.innerHTML = '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+      ['currencyCode','batchCount','statementRowCount','totalDebitMinor','totalCreditMinor','matchedCount','unresolvedCount'].map(key =>
+        '<th style="text-align:left;padding:9px;border-bottom:1px solid #555;">' + esc(t('financeMonth_' + key, key)) + '</th>').join('') +
+      '</tr></thead><tbody>' + rows.map(row => '<tr>' +
+        [row.currencyCode,row.batchCount,row.statementRowCount,row.totalDebitMinor,row.totalCreditMinor,row.matchedCount,row.unresolvedCount].map(value =>
+          '<td style="padding:9px;border-bottom:1px solid rgba(255,255,255,.08);">' + esc(value ?? '') + '</td>').join('') +
+        '</tr>').join('') + '</tbody></table></div>';
+  }
+  function renderMonthPeriod(period) {
+    const status = $('#financeCloseStatus');
+    const actions = $('#financeCloseActions');
+    if (!status || !actions) return;
+    const periodExists = Boolean(period);
+    period = period || { status: 'open' };
+    const details = [
+      !periodExists ? t('financeMonthNotInitialized', 'No close request has been submitted yet') : '',
+      t('financeMonthStatus', 'Status') + ': ' + monthStatusLabel(period.status),
+      period.pendingActorUsername ? t('financeMonthRequestedBy', 'Requested by') + ': ' + esc(period.pendingActorUsername) : '',
+      period.pendingReason ? t('financeMonthReason', 'Reason') + ': ' + esc(period.pendingReason) : '',
+      period.lockedByAdminId ? t('financeMonthLockedBy', 'Locked by administrator') + ': #' + Number(period.lockedByAdminId) : '',
+      period.lockedAt ? t('financeMonthLockedAt', 'Locked at') + ': ' + esc(period.lockedAt) : ''
+    ].filter(Boolean);
+    status.innerHTML = '<div style="display:grid;gap:6px;">' + details.map(line => '<div>' + line + '</div>').join('') + '</div>';
+    const row = state.monthRows.find(item => item.currencyCode === state.monthCurrency);
+    const ready = Boolean(row && row.closeReady && Number(row.statementRowCount) > 0);
+    let choices = [];
+    if (period.status === 'open') choices = [{ action: 'request_close', label: t('financeMonthRequestClose', 'Request close'), disabled: !ready }];
+    if (period.status === 'close_pending') choices = [
+      { action: 'approve_close', label: t('financeMonthApproveClose', 'Approve close') },
+      { action: 'reject_close', label: t('financeMonthRejectClose', 'Reject close') }
+    ];
+    if (period.status === 'locked') choices = [{ action: 'request_reopen', label: t('financeMonthRequestReopen', 'Request reopen') }];
+    if (period.status === 'reopen_pending') choices = [
+      { action: 'approve_reopen', label: t('financeMonthApproveReopen', 'Approve reopen') },
+      { action: 'reject_reopen', label: t('financeMonthRejectReopen', 'Reject reopen') }
+    ];
+    actions.innerHTML = choices.map(choice => '<button type="button" data-month-close-action="' + choice.action + '"' +
+      (choice.disabled ? ' disabled title="' + esc(t('financeMonthNotReady', 'All statement rows must be matched before close')) + '"' : '') +
+      ' style="margin:6px 6px 0 0;">' + esc(choice.label) + '</button>').join('');
+  }
+  async function loadMonthHistory() {
+    if (!requirePermission() || !state.monthCurrency) return;
+    const target = $('#financeCloseHistory');
+    if (!target) return;
+    try {
+      const month = $('#financeCloseMonth').value;
+      const query = new URLSearchParams({ month, currencyCode: state.monthCurrency, limit: '50' });
+      if (state.closeHistoryCursor) query.set('afterId', String(state.closeHistoryCursor));
+      const data = await api('/admin/financial-reconciliation/month-close/history?' + query.toString());
+      const items = Array.isArray(data.items) ? data.items : [];
+      state.closeHistory = state.closeHistoryCursor ? state.closeHistory.concat(items) : items;
+      state.closeHistoryCursor = data.nextCursor || null;
+      target.innerHTML = state.closeHistory.length ? state.closeHistory.map(item =>
+        '<article style="border-bottom:1px solid rgba(255,255,255,.08);padding:9px 0;">' +
+        '<strong>#' + Number(item.eventId) + ' · ' + esc(item.action) + '</strong> · ' +
+        esc(item.beforeStatus) + ' → ' + esc(item.afterStatus) +
+        '<div style="font-size:12px;color:#aaa;margin-top:4px;">' + esc(item.actorUsername) + ' · ' + esc(item.createdAt) + '</div>' +
+        '<div style="font-size:12px;margin-top:4px;">' + esc(item.reason) + '</div>' +
+        '<div style="font-size:11px;color:#888;overflow-wrap:anywhere;">SHA-256: ' + esc(item.eventHash) + '</div></article>'
+      ).join('') : '<div class="empty-hint">' + t('financeMonthNoHistory', 'No approval history') + '</div>';
+      const more = $('#financeCloseHistoryMore');
+      if (more) more.hidden = !state.closeHistoryCursor;
+    } catch (error) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeLoadFailed', 'Unable to load monthly close history') + '</div>';
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    }
+  }
+  async function loadMonthPeriod() {
+    if (!requirePermission() || !state.monthCurrency) return;
+    const month = $('#financeCloseMonth').value;
+    try {
+      const query = new URLSearchParams({ month, currencyCode: state.monthCurrency });
+      const data = await api('/admin/financial-reconciliation/month-close/period?' + query.toString());
+      renderMonthPeriod(data.period || null);
+      state.closeHistoryCursor = null;
+      state.closeHistory = [];
+      await loadMonthHistory();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    }
+  }
+  async function loadMonthlyClose() {
+    if (!requirePermission()) return;
+    const monthInput = $('#financeCloseMonth');
+    if (!monthInput) return;
+    const now = new Date();
+    if (!monthInput.value) monthInput.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    try {
+      const data = await api('/admin/financial-reconciliation/monthly-close-preview?month=' + encodeURIComponent(monthInput.value));
+      state.monthRows = Array.isArray(data.rows) ? data.rows : [];
+      renderMonthPreview();
+      await loadMonthPeriod();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeLoadFailed', 'Load failed')));
+    }
+  }
+  async function submitMonthClose(button) {
+    if (!requirePermission() || !state.monthCurrency) return;
+    const action = button.dataset.monthCloseAction;
+    const reason = window.prompt(t('financeMonthReasonPrompt', 'Enter an audit reason (5–500 characters):'));
+    if (reason === null) return;
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      toast('❌ ' + t('financeReasonInvalid', 'Reason must contain 5–500 characters'));
+      return;
+    }
+    const body = {
+      month: $('#financeCloseMonth').value,
+      currencyCode: state.monthCurrency,
+      action,
+      reason: reason.trim(),
+      idempotencyKey: 'month-close-ui-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
+    };
+    button.disabled = true;
+    try {
+      await api('/admin/financial-reconciliation/month-close/transition', { method: 'POST', body });
+      toast('✅ ' + t('financeMonthActionSaved', 'Monthly close action recorded'));
+      await loadMonthlyClose();
+    } catch (error) {
+      toast('❌ ' + (error.message || t('financeMonthActionFailed', 'Monthly close action failed')));
+    } finally { button.disabled = false; }
+  }
+
+  function performancePercent(value) { return value === null || value === undefined ? '—' : Number(value).toFixed(2) + '%'; }
+  function renderPerformanceTable(targetId, rows, columns, emptyText) {
+    const target = $('#' + targetId);
+    if (!target) return;
+    if (!rows.length) { target.innerHTML = '<div class="empty-hint">' + esc(emptyText) + '</div>'; return; }
+    target.innerHTML = '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+      columns.map(col => '<th style="text-align:left;padding:8px;border-bottom:1px solid #555;white-space:nowrap;">' + esc(col.label) + '</th>').join('') +
+      '</tr></thead><tbody>' + rows.map(row => '<tr>' + columns.map(col =>
+        '<td style="padding:8px;border-bottom:1px solid rgba(255,255,255,.08);">' +
+        esc(col.format ? col.format(row[col.key]) : (row[col.key] ?? '—')) + '</td>').join('') +
+      '</tr>').join('') + '</tbody></table></div>';
+  }
+  function renderExceptionPerformance(data) {
+    const summary = $('#financeExceptionPerformanceSummary');
+    const currencies = Array.isArray(data.byCurrency) ? data.byCurrency : [];
+    const assignees = Array.isArray(data.byAssignee) ? data.byAssignee : [];
+    const categories = Array.isArray(data.byCategory) ? data.byCategory : [];
+    if (summary) {
+      summary.innerHTML = '<div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+        '<span>' + t('financeCurrentSla', 'Current SLA') + ': <strong>' + Number(data.slaHours) + ' ' + t('financeAgeHours', 'hours') + '</strong></span>' +
+        '<span>' + t('financeCountedCurrencies', 'Currencies counted') + ': <strong>' + currencies.length + '</strong></span>' +
+        '<span>' + t('financeActiveExceptions', 'Active exceptions') + ': <strong>' + currencies.reduce((n, r) => n + Number(r.activeCount || 0), 0) + '</strong></span>' +
+        '<span>' + t('financeOverdue', 'Overdue') + ': <strong>' + currencies.reduce((n, r) => n + Number(r.overdueActiveCount || 0), 0) + '</strong></span></div>' +
+        '<p class="ff-desc" style="margin-top:8px;">' +
+        esc(data.metricDefinitions?.onTimeResolutionRate || t('financeOnTimeResolutionMetric', 'Calculated from immutable resolve events')) +
+        ' ' + t('financeAverageTimeStartsAtImport', 'Average time starts at batch import and is not net employee handling time.') + '</p>';
+    }
+    renderPerformanceTable('financeExceptionPerformanceCurrency', currencies, [
+      { key: 'currencyCode', label: t('financeCol_currency_code', 'Currency') },
+      { key: 'activeCount', label: t('financeActiveExceptions', 'Active exceptions') },
+      { key: 'overdueActiveCount', label: t('financeOverdue', 'Overdue') },
+      { key: 'overdueRatePercent', label: t('financeOverdueRate', 'Overdue rate'), format: performancePercent },
+      { key: 'resolvedEventCount', label: t('financeResolvedEvents', 'Resolution events') },
+      { key: 'onTimeResolvedEventCount', label: t('financeSlaResolvedEvents', 'Resolved within SLA') },
+      { key: 'onTimeResolutionRatePercent', label: t('financeOnTimeResolutionRate', 'On-time resolution rate'), format: performancePercent },
+      { key: 'avgImportToResolveSeconds', label: t('financeAvgImportToResolveSeconds', 'Average import-to-resolution (seconds)'), format: v => v === null || v === undefined ? '—' : Math.round(Number(v)).toString() }
+    ], t('financeNoCurrencyPerformance', 'No currency performance data'));
+    renderPerformanceTable('financeExceptionPerformanceAssignee', assignees, [
+      { key: 'username', label: t('financeExceptionAssignedTo', 'Assignee'), format: v => v || t('financeUnassigned', 'Unassigned') },
+      { key: 'currencyCode', label: t('financeCol_currency_code', 'Currency') },
+      { key: 'activeCount', label: t('financeActiveExceptions', 'Active exceptions') },
+      { key: 'overdueActiveCount', label: t('financeOverdue', 'Overdue') },
+      { key: 'overdueRatePercent', label: t('financeOverdueRate', 'Overdue rate'), format: performancePercent }
+    ], t('financeNoAssigneePerformance', 'No assignee performance data'));
+    renderPerformanceTable('financeExceptionPerformanceCategory', categories, [
+      { key: 'category', label: t('financeExceptionCategory', 'Exception category') },
+      { key: 'currencyCode', label: t('financeCol_currency_code', 'Currency') },
+      { key: 'activeCount', label: t('financeActiveExceptions', 'Active exceptions') },
+      { key: 'overdueActiveCount', label: t('financeOverdue', 'Overdue') },
+      { key: 'overdueRatePercent', label: t('financeOverdueRate', 'Overdue rate'), format: performancePercent }
+    ], t('financeNoCategoryPerformance', 'No exception category data'));
+  }
+  function csvCell(value) {
+    let text = String(value ?? '');
+    if (/^[\\s\\u0000-\\u001f]*[=+@\\-]/.test(text)) text = "'" + text;
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+  async function exportExceptionPerformance(slaHours) {
+    const csv = await api('/admin/financial-reconciliation/exceptions/performance-export?slaHours=' + encodeURIComponent(String(slaHours)));
+    if (typeof csv !== 'string' || !csv.startsWith('\uFEFF')) {
+      throw new Error(t('financeExportInvalidResponse', 'Invalid export response from server'));
+    }
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'financial-exception-performance.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function loadExceptionPerformance(exportCsv = false) {
+    if (!requirePermission()) return;
+    const target = $('#financeExceptionPerformanceSummary');
+    if (target) target.innerHTML = '<div class="empty-hint">' + t('loading', 'Loading…') + '</div>';
+    const raw = Number($('#financeExceptionSlaHours')?.value || 24);
+    const slaHours = Number.isSafeInteger(raw) && raw >= 1 && raw <= 720 ? raw : 24;
+    try {
+      const data = await api('/admin/financial-reconciliation/exceptions/performance-summary?slaHours=' + encodeURIComponent(String(slaHours)));
+      renderExceptionPerformance(data);
+      if (exportCsv) await exportExceptionPerformance(slaHours);
+    } catch (error) {
+      if (target) target.innerHTML = '<div class="empty-hint">' + t('financePerformanceLoadFailed', 'Failed to load exception performance') + '</div>';
+      toast('❌ ' + (error.message || t('financePerformanceLoadFailed', 'Failed to load exception performance')));
+    }
+  }
+
+  async function loadPerformanceExportAudit(append = false) {
+    if (!requirePermission()) return;
+    const target = $('#financePerformanceExportAudit');
+    if (!target) return;
+    if (!append) {
+      state.performanceExportAuditCursor = null;
+      state.performanceExportAuditRows = [];
+    }
+    const query = new URLSearchParams({ limit: '25' });
+    const actorId = $('#financePerformanceAuditActor')?.value.trim();
+    const from = $('#financePerformanceAuditFrom')?.value;
+    const to = $('#financePerformanceAuditTo')?.value;
+    if (actorId) query.set('actorId', actorId);
+    if (from) query.set('from', from);
+    if (to) query.set('to', to);
+    if (append && state.performanceExportAuditCursor) query.set('afterId', String(state.performanceExportAuditCursor));
+    try {
+      const result = await api('/admin/financial-reconciliation/exceptions/performance-export-audit?' + query.toString());
+      const rows = Array.isArray(result.items) ? result.items : [];
+      state.performanceExportAuditRows = append
+        ? state.performanceExportAuditRows.concat(rows)
+        : rows;
+      const body = state.performanceExportAuditRows.map(row => '<tr><td>' + Number(row.id) + '</td><td>' + esc(row.createdAt || '—') +
+        '</td><td>' + esc(row.actorUsername || '—') + '</td><td>' + Number(row.slaHours || 0) +
+        '</td><td>' + Number(row.rowCount || 0) + '</td><td>' + esc(row.format || 'csv') + '</td></tr>').join('');
+      const headers = [
+        t('financeExportRecordId', 'Record ID'),
+        t('financeExportTime', 'Export time'),
+        t('financeExportActor', 'Actor'),
+        t('financeExportSlaHours', 'SLA (hours)'),
+        t('financeExportRowCount', 'Exported rows'),
+        t('financeExportFormat', 'Format')
+      ];
+      const table = state.performanceExportAuditRows.length
+        ? '<div style="overflow:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+          headers.map(label => '<th style="text-align:left;padding:8px;">' + esc(label) + '</th>').join('') +
+          '</tr></thead><tbody>' + body + '</tbody></table></div>'
+        : '<div class="empty-hint">' + t('financeNoExportRecords', 'No export records') + '</div>';
+      state.performanceExportAuditCursor = result.nextCursor || null;
+      target.innerHTML = table + (state.performanceExportAuditCursor
+        ? '<div style="margin-top:10px;"><button type="button" id="financePerformanceAuditMore">' + t('financeLoadMore', 'Load more') + '</button></div>'
+        : '');
+    } catch (error) {
+      target.innerHTML = '<div class="empty-hint">' + t('financeExportAuditLoadFailed', 'Failed to load export audit records') + '</div>';
+      toast('❌ ' + (error.message || t('financeExportAuditLoadFailed', 'Failed to load export audit records')));
+    }
+  }
+
+  function bind() {
+    const panel = root();
+    if (!panel || panel.dataset.bound) return;
+    panel.dataset.bound = '1';
+    panel.addEventListener('click', event => {
+      const batchButton = event.target.closest('[data-finance-batch]');
+      if (batchButton) { loadBatchItems(batchButton.dataset.financeBatch, false); return; }
+      const actionButton = event.target.closest('[data-finance-action]');
+      if (actionButton) { submitReview(actionButton); return; }
+      const historyMore = event.target.closest('[data-exception-history-more]');
+      if (historyMore) { loadExceptionHistory(historyMore, true); return; }
+      const historyButton = event.target.closest('[data-exception-history]');
+      if (historyButton) {
+        const historyTarget = $('#financeExceptionHistory-' + Number(historyButton.dataset.exceptionHistory));
+        if (historyTarget) {
+          if (historyTarget.hidden) {
+            const key = String(historyButton.dataset.exceptionHistory);
+            if (!state.exceptionHistory[key]?.loaded) loadExceptionHistory({ dataset: { item: key, batch: historyButton.dataset.batch } }, false);
+            else historyTarget.hidden = false;
+          } else historyTarget.hidden = true;
+        }
+        return;
+      }
+      const exceptionButton = event.target.closest('[data-exception-action]');
+      if (exceptionButton) { submitExceptionAction(exceptionButton); return; }
+      const alertHistory=event.target.closest('[data-sla-alert-history]');if(alertHistory){loadSlaAlertHistory(Number(alertHistory.dataset.slaAlertHistory));return;}
+      const periodButton=event.target.closest('[data-finance-period]');if(periodButton){loadPeriodSummary(periodButton.dataset.financePeriod,true);return;}
+      const alertAck=event.target.closest('[data-sla-alert-ack]');
+      if(alertAck){acknowledgeSlaAlert(alertAck);return;}
+      const alertDismiss=event.target.closest('[data-sla-alert-dismiss]');
+      if(alertDismiss){dismissSlaAlert(alertDismiss);return;}
+      const auditMore = event.target.closest('#financePerformanceAuditMore');
+      if (auditMore) { loadPerformanceExportAudit(true); return; }
+      const monthButton = event.target.closest('[data-month-close-action]');
+      if (monthButton) submitMonthClose(monthButton);
+    });
+    $('#financeReloadBatches').addEventListener('click', () => loadBatches(false));
+    $('#financeBatchMore').addEventListener('click', () => loadBatches(true));
+    $('#financeRowsMore').addEventListener('click', () => loadBatchItems(state.batchId, true));
+    $('#financeImportButton').addEventListener('click', importBatch);
+    $('#financeReportRun').addEventListener('click', loadDailySummary);
+    $('#financeExportDaily').addEventListener('click', () => loadDailySummary(true));
+    $('#financeExceptionReload').addEventListener('click', () => loadExceptionQueue(false));
+    $('#financeExceptionOpsReload').addEventListener('click', loadExceptionOperations);
+    $('#financeExceptionPerformanceReload').addEventListener('click', () => loadExceptionPerformance());
+    $('#financeExceptionPerformanceExport').addEventListener('click', () => loadExceptionPerformance(true));
+    $('#financePerformanceAuditReload')?.addEventListener('click', () => loadPerformanceExportAudit(false));
+    $('#financeSlaAlertGenerate').addEventListener('click',generateSlaAlerts);
+    $('#financeSlaAlertReload').addEventListener('click',loadSlaAlerts);
+    $('#financeSlaAlertStatus')?.addEventListener('change',loadSlaAlerts);
+    $('#financeReportLast7').addEventListener('click',()=>setReportRange('week'));
+    $('#financeReportLast30').addEventListener('click',()=>setReportRange('month'));
+    $('#financeReportThisMonth').addEventListener('click',()=>setReportRange('calendar-month'));
+    $('#financeExceptionSlaHours').addEventListener('change', loadExceptionOperations);
+    $('#financeExceptionMore').addEventListener('click', () => loadExceptionQueue(true));
+    $('#financeExceptionCategory').addEventListener('change', () => loadExceptionQueue(false));
+    $('#financeExceptionStatus').addEventListener('change', () => loadExceptionQueue(false));
+    $('#financeCloseReload').addEventListener('click', loadMonthlyClose);
+    $('#financeCloseMonth').addEventListener('change', loadMonthlyClose);
+    $('#financeCloseCurrency').addEventListener('change', () => { state.monthCurrency = $('#financeCloseCurrency').value; loadMonthPeriod(); });
+    $('#financeCloseHistoryMore').addEventListener('click', loadMonthHistory);
+  }
+  async function loadFinancialReconciliation() {
+    if (!requirePermission()) return;
+    bind();
+    const today = dateValue(new Date());
+    const from = $('#financeReportFrom');
+    const to = $('#financeReportTo');
+    if (from && !from.value) from.value = today;
+    if (to && !to.value) to.value = today;
+    await Promise.all([loadBatches(false), loadExceptionQueue(false), loadExceptionOperations(), loadExceptionPerformance(), loadPerformanceExportAudit(false), loadSlaAlerts(), loadDailySummary(), loadMonthlyClose()]);
+  }
+  window.loadFinancialReconciliation = loadFinancialReconciliation;
+})();
+
+
+/* ========== pages/admin/menu.js ========== */
+/*
+ * pages/admin/menu.js — 菜品+分类管理模块
+ */
+(function(){
+'use strict';
+
+const ctx = window.SLF.admin;
+if (!ctx) return;
+
+const { $, api, tAdmin, esc, hasPermission, L, dualCurrencyEnabled, secondaryCurrencyCode } = ctx;
+
+const categoryText = c => {
+  const cat = (SLF.i18n.dicts[SLF.i18n.lang] && SLF.i18n.dicts[SLF.i18n.lang].categories) || {};
+  return cat[c] || c;
+};
+
+async function loadMenus() {
+  const list = await api('/admin/menu');
+  ctx.setMenus(list);
+  const categoryFilter = $('#menuCategoryFilter') ? $('#menuCategoryFilter').value : 'all';
+  let filtered = categoryFilter === 'all' ? list : list.filter(m => m.category === categoryFilter);
+  const sortBy = $('#menuSortBy') ? $('#menuSortBy').value : 'default';
+  if (sortBy === 'name_asc') filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+  else if (sortBy === 'name_desc') filtered = [...filtered].sort((a, b) => b.name.localeCompare(a.name, 'zh'));
+  else if (sortBy === 'price_asc') filtered = [...filtered].sort((a, b) => Number(a.price) - Number(b.price));
+  else if (sortBy === 'price_desc') filtered = [...filtered].sort((a, b) => Number(b.price) - Number(a.price));
+  $('#menus').innerHTML = filtered.length ?
+    `<div class="menu-list">${filtered.map(m => {
+      let priceDisplay = SLF.money.primary(SLF.money.toBase(m.price, (m.currency_code||'USD')));
+      // 副币统一由店铺级设置决定，不再读菜品级字段
+      const _base = SLF.money.toBase(m.price, m.currency_code || 'USD');
+      const _sec = SLF.money.secondaryCurrency;
+      if (_sec && _sec.code) {
+        const sec = SLF.money.secondary(_base, _sec.code);
+        if (sec) priceDisplay += ` (${sec})`;
+      }
+      return `<div class="menu-item-admin ${m.active ? '' : 'inactive'}">
+        <div class="menu-thumb">${m.image ? `<img src="/uploads/${esc(m.image)}">` : esc(m.emoji || '🍽️')}</div>
+        <div class="menu-info">
+          <div class="name-row"><span class="name">${esc(m.name)}</span><span class="price">${priceDisplay}</span></div>
+          <div class="meta">${esc(categoryText(m.category))}${m.desc ? ` · ${esc(m.desc)}` : ''}</div>
+        </div>
+        <div class="menu-actions">
+          ${hasPermission('can_manage_menu') ? '<button onclick="toggleMenuStatus(' + m.id + ',' + (m.active?0:1) + ')">' + (m.active ? tAdmin('unlistDish') : tAdmin('listDish')) + '</button>' : ''}
+          ${hasPermission('can_manage_menu') ? '<button class="edit-btn" onclick="editMenu(' + m.id + ')">✏️ ' + L('edit') + '</button>' : ''}
+          ${hasPermission('can_manage_menu') ? '<button class="danger" onclick="removeMenu(' + m.id + ')">' + L('delete') + '</button>' : ''}
+        </div>
+      </div>`;
+    }).join('')}</div>` :
+    `<div class="empty-hint">${tAdmin('noDishes')}</div>`;
+}
+
+async function loadMenuCategories() {
+  const list = await api('/menu-categories');
+  ctx.setCategories(list);
+  populateMenuCategorySelect();
+  renderCategoryList();
+}
+
+function populateMenuCategorySelect() {
+  const cats = ctx.categoriesCache();
+  const select = $('#menuCategory');
+  select.innerHTML = cats.map(c => `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
+  const filterSelect = $('#menuCategoryFilter');
+  if (filterSelect) {
+    const currentValue = filterSelect.value;
+    filterSelect.innerHTML = '<option value="all">' + tAdmin('menuAllCategoriesOption') + '</option>' +
+      cats.map(c => `<option value="${esc(c.name)}">${esc(categoryText(c.name))}</option>`).join('');
+    filterSelect.value = currentValue || 'all';
+  }
+}
+
+function renderCategoryList() {
+  const cats = ctx.categoriesCache();
+  const box = $('#categoryList');
+  box.innerHTML = cats.length ?
+    cats.map(c => `<div class="category-row" draggable="true" data-id="${c.id}">
+      <span class="name">${esc(categoryText(c.name))}</span>
+      <div class="actions"><button class="edit-category-btn" data-category-id="${Number(c.id)}" data-category-name="${esc(c.name)}">${L('edit')}</button><button class="danger" onclick="deleteCategory(${c.id})">${L('delete')}</button></div>
+    </div>`).join('') :
+    `<div class="empty-hint">${tAdmin('noData')}</div>`;
+  box.querySelectorAll('.edit-category-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const categoryId = Number(this.dataset.categoryId);
+      if (!Number.isSafeInteger(categoryId) || categoryId <= 0) return;
+      editCategory(categoryId, this.dataset.categoryName || '');
+    });
+  });
+}
+
+let editingMenuId = null;
+let editingCategoryId = null;
+
+function openCategoryModal() { $('#categoryModal').classList.add('open'); loadMenuCategories(); }
+function closeCategoryModal() { $('#categoryModal').classList.remove('open'); }
+
+async function addCategory() {
+  const name = $('#newCategoryName').value.trim();
+  if (!name) { SLF.ui.toast('❌ ' + tAdmin('tableNameRequired')); return; }
+  try {
+    await api('/menu-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name } });
+    $('#newCategoryName').value = '';
+    await loadMenuCategories();
+    SLF.ui.toast('✅ ' + tAdmin('added'));
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+
+function editCategory(id, oldName) {
+  editingCategoryId = id;
+  $('#editCategoryName').value = oldName;
+  $('#categoryEditModalTitle').textContent = tAdmin('editCategory');
+  $('#categoryEditModal').classList.add('open');
+  setTimeout(() => $('#editCategoryName').focus(), 100);
+}
+function closeCategoryEditModal() { $('#categoryEditModal').classList.remove('open'); editingCategoryId = null; }
+
+async function saveCategoryEdit() {
+  const name = $('#editCategoryName').value.trim();
+  if (!name) { SLF.ui.toast(`⚠️ ${tAdmin('nameRequired')}`); return; }
+  try {
+    await api('/menu-categories/' + editingCategoryId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name } });
+    closeCategoryEditModal();
+    await loadMenuCategories();
+    await loadMenus();
+    SLF.ui.toast('✅ ' + tAdmin('updated'));
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+
+function deleteCategory(id) {
+  ctx.showConfirm(tAdmin('confirmDelete'), async function() {
+    try {
+      await api('/menu-categories/' + id, { method: 'DELETE' });
+      await loadMenuCategories();
+      await loadMenus();
+      SLF.ui.toast('✅ ' + tAdmin('deleted'));
+    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+  });
+}
+
+function openDishModal() {
+  editingMenuId = null;
+  $('#menuForm').reset();
+  $('#menuEmoji').value = '🍖';
+  $('#dishModalTitle').textContent = tAdmin('addDish');
+  $('#menuSaveButton').textContent = tAdmin('addDish');
+  $('#menuCancelButton').hidden = true;
+  populateMenuCategorySelect();
+  const currencies = ctx.currenciesCache();
+  if (currencies.length) {
+    const defaultCode = currencies.find(c => c.is_default)?.code || currencies[0].code;
+    $('#menuCurrency').value = defaultCode;
+  }
+  $('#dishModal').classList.add('open');
+}
+
+function closeDishModal() { $('#dishModal').classList.remove('open'); cancelMenuEdit(); }
+
+function editMenu(id) {
+  const menus = ctx.menusCache();
+  const current = menus.find(x => String(x.id) === String(id));
+  if (!current) return;
+  editingMenuId = id;
+  populateMenuCategorySelect();
+  $('#menuName').value = current.name;
+  $('#menuNameEn').value = current.name_en || '';
+  $('#menuPrice').value = current.price;
+  $('#menuCategory').value = current.category;
+  $('#menuCurrency').value = current.currency_code || 'USD';
+  $('#menuUnit').value = current.unit || tAdmin('portion');
+  $('#menuEmoji').value = current.emoji || '';
+  $('#menuDesc').value = current.desc || '';
+  $('#menuDescEn').value = current.desc_en || '';
+  $('#menuImageFile').value = '';
+  const _vf = $('#menuVideoFile'); if (_vf) _vf.value = '';
+  $('#dishModalTitle').textContent = tAdmin('menuManage') + ' #' + id;
+  $('#menuSaveButton').textContent = L('save');
+  $('#menuCancelButton').hidden = false;
+  $('#dishModal').classList.add('open');
+}
+
+function cancelMenuEdit() {
+  editingMenuId = null;
+  $('#menuForm').reset();
+  $('#menuEmoji').value = '🍖';
+  $('#dishModalTitle').textContent = tAdmin('addDish');
+  $('#menuSaveButton').textContent = tAdmin('addDish');
+  $('#menuCancelButton').hidden = true;
+  const currencies = ctx.currenciesCache();
+  if (currencies.length) {
+    const defaultCode = currencies.find(c => c.is_default)?.code || currencies[0].code;
+    $('#menuCurrency').value = defaultCode;
+  }
+}
+
+function removeMenu(id) {
+  ctx.showConfirm(tAdmin('confirmDelete'), async function() {
+    try {
+      await api('/menu/' + id, { method: 'DELETE' });
+      await loadMenus();
+      SLF.ui.toast('✅ ' + tAdmin('deleted'));
+    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+  });
+}
+
+async function toggleMenuStatus(id, active) {
+  try {
+    await api('/menu/' + id + '/status', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { active } });
+    await loadMenus();
+    SLF.ui.toast('✅ ' + (active ? tAdmin('listed') : tAdmin('unlisted')));
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const menuForm = document.getElementById('menuForm');
+  if (menuForm) {
+    menuForm.onsubmit = async function(e) {
+      e.preventDefault();
+      try {
+        const isEditing = Boolean(editingMenuId);
+        const form = new FormData();
+        [
+          ['name', 'menuName'], ['name_en', 'menuNameEn'], ['price', 'menuPrice'],
+          ['category', 'menuCategory'], ['currency_code', 'menuCurrency'],
+          ['emoji', 'menuEmoji'], ['desc', 'menuDesc'], ['desc_en', 'menuDescEn'],
+          ['unit', 'menuUnit']
+        ].forEach(([k, id]) => {
+          const el = $('#' + id);
+          form.append(k, el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value);
+        });
+        const file = $('#menuImageFile').files[0];
+        const videoFile = $('#menuVideoFile') && $('#menuVideoFile').files[0];
+        if (videoFile) form.append('video', videoFile);
+        if (file) {
+          try {
+            const dataUrl = await new Promise((res, rej) => {
+              const fr = new FileReader();
+              fr.onload = () => res(fr.result);
+              fr.onerror = rej;
+              fr.readAsDataURL(file);
+            });
+            const img = await new Promise((res, rej) => {
+              const im = new Image();
+              im.onload = () => res(im);
+              im.onerror = rej;
+              im.src = dataUrl;
+            });
+            const canvas = document.createElement('canvas');
+            const maxW = 800, maxH = 800;
+            let w = img.width, h = img.height;
+            if (w > maxW) { h = h * maxW / w; w = maxW; }
+            if (h > maxH) { w = w * maxH / h; h = maxH; }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+            form.set('image', blob, 'menu_' + Date.now() + '.jpg');
+          } catch (imgErr) { console.warn('图片压缩失败:', imgErr); }
+        }
+        if (isEditing) {
+          await SLF.api.put('/menu/' + editingMenuId, form);
+        } else {
+          await SLF.api.post('/menu', form);
+        }
+        closeDishModal();
+        await loadMenus();
+        SLF.ui.toast('✅ ' + tAdmin('saved'));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+});
+
+// 挂到 window
+window.loadMenus = loadMenus;
+window.loadMenuCategories = loadMenuCategories;
+window.categoryText = categoryText;
+window.populateMenuCategorySelect = populateMenuCategorySelect;
+window.renderCategoryList = renderCategoryList;
+window.openCategoryModal = openCategoryModal;
+window.closeCategoryModal = closeCategoryModal;
+window.addCategory = addCategory;
+window.editCategory = editCategory;
+window.closeCategoryEditModal = closeCategoryEditModal;
+window.saveCategoryEdit = saveCategoryEdit;
+window.deleteCategory = deleteCategory;
+window.openDishModal = openDishModal;
+window.closeDishModal = closeDishModal;
+window.editMenu = editMenu;
+window.cancelMenuEdit = cancelMenuEdit;
+window.removeMenu = removeMenu;
+window.toggleMenuStatus = toggleMenuStatus;
+
+})();
+
+// ===== 批量导入 =====
+let importItems = [];
+
+function openImportModal() {
+  document.getElementById('importModal').classList.add('open');
+  document.getElementById('importFile').value = '';
+  document.getElementById('importPreview').innerHTML = '';
+  document.getElementById('importResult').innerHTML = '';
+  document.getElementById('confirmImportBtn').disabled = true;
+  
+  var lang = (window.SLF.i18n && SLF.i18n.lang) || 'zh';
+  var texts = {
+    zh: { title: '📥 批量导入菜品', desc: '选择 CSV 文件导入菜品，格式：name,category,price,emoji,desc,name_en,desc_en,image（image 填图片URL）', downloadTpl: '📥 下载模板', cancel: '取消', startImport: '开始导入', importing: '导入中...' },
+    en: { title: '📥 Batch Import Menu', desc: 'Select CSV file to import. Format: name,category,price,emoji,desc,name_en,desc_en', downloadTpl: '📥 Download Template', cancel: 'Cancel', startImport: 'Start Import', importing: 'Importing...' },
+    km: { title: '📥 នាំចូលម៉ឺនុយជាដុំ', desc: 'ជ្រើសឯកសារ CSV ដើម្បីនាំចូល', downloadTpl: '📥 ទាញយកគំរូ', cancel: 'បោះបង់', startImport: 'ចាប់ផ្តើមនាំចូល', importing: 'កំពុងនាំចូល...' },
+    th: { title: '📥 นำเข้าเมนูจำนวนมาก', desc: 'เลือกไฟล์ CSV เพื่อนำเข้า', downloadTpl: '📥 ดาวน์โหลดเทมเพลต', cancel: 'ยกเลิก', startImport: 'เริ่มนำเข้า', importing: 'กำลังนำเข้า...' },
+    vi: { title: '📥 Nhập khẩu hàng loạt món ăn', desc: 'Chọn tệp CSV để nhập khẩu', downloadTpl: '📥 Tải xuống mẫu', cancel: 'Hủy', startImport: 'Bắt đầu nhập', importing: 'Đang nhập...' }
+  };
+  var t = texts[lang] || texts.zh;
+  
+  document.querySelector('#importModal h2').textContent = t.title;
+  document.querySelector('#importModal p').textContent = t.desc;
+  document.querySelector('#importModal p a').textContent = t.downloadTpl;
+
+  document.getElementById('confirmImportBtn').textContent = t.startImport;
+}
+
+function closeImportModal() {
+  document.getElementById('importModal').classList.remove('open');
+  importItems = [];
+}
+
+function parseCSV(text) {
+  var lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(function(l) { return l.trim(); });
+  if (lines.length < 2) return [];
+  var headers = lines[0].split(',').map(function(h) { return h.trim(); });
+  var result = [];
+  for (var i = 1; i < lines.length; i++) {
+    var values = lines[i].split(',').map(function(v) { return v.trim(); });
+    var item = {};
+    headers.forEach(function(h, idx) { item[h] = values[idx] || ''; });
+    result.push(item);
+  }
+  return result;
+}
+
+document.getElementById('importFile').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  if (/\.zip$/i.test(file.name)) {
+    var preview = document.getElementById('importPreview');
+    preview.innerHTML = '<div style="color:#4a9eff;">ZIP: ' + esc(file.name) + ' (' + (file.size/1024).toFixed(1) + ' KB)<br>' + tAdmin('zipImportHint') + '</div>';
+    document.getElementById('confirmImportBtn').disabled = false;
+    window._importZipFile = file;
+    importItems = [];
+    return;
+  }
+  window._importZipFile = null;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      importItems = parseCSV(ev.target.result);
+      var preview = document.getElementById('importPreview');
+      if (importItems.length === 0) {
+        preview.innerHTML = '<div style="color: #ff6b6b;">' + tAdmin('noValidData') + '</div>';
+        document.getElementById('confirmImportBtn').disabled = true;
+        return;
+      }
+      preview.innerHTML = '<div style="color: #4caf50;">' + tAdmin('parsedPrefix') + importItems.length + tAdmin('parsedSuffix') + '</div>' +
+        importItems.slice(0, 10).map(function(item, i) { 
+          return '<div style="padding: 3px 0; border-bottom: 1px solid #eee;">' + (i+1) + '. '+ esc(item.name) + ' - $' + esc(item.price) + ' (' + esc(item.category) + ')</div>';
+        }).join('') + (importItems.length > 10 ? '<div style="color: #888; padding: 5px 0;">' + tAdmin('moreItemsPrefix') + importItems.length + tAdmin('moreItemsSuffix') + '</div>' : '');
+      document.getElementById('confirmImportBtn').disabled = false;
+    } catch (err) {
+      document.getElementById('importPreview').innerHTML = '<div style="color: #ff6b6b;">' + tAdmin('parseFailedColon') + esc(err.message) + '</div>';
+      document.getElementById('confirmImportBtn').disabled = true;
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+async function confirmImport() {
+  if (window._importZipFile) {
+    const f = window._importZipFile;
+    const btn = document.getElementById('confirmImportBtn');
+    btn.disabled = true;
+    btn.textContent = tAdmin('extracting');
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const data = await SLF.api.upload('/admin/menu/import-zip', fd);
+      let html = '<div style="background:#e8f5e9;color:#2e7d32;padding:10px;border-radius:6px;">' + tAdmin('importOkPrefix') + data.success + tAdmin('importOkSuffix');
+      if (data.imagesImported) html += tAdmin('importedImagesPre') + data.imagesImported + tAdmin('importedImagesSuf');
+      if (data.createdCategories && data.createdCategories.length) html += tAdmin('newCatsPre') + data.createdCategories.length + tAdmin('newCatsSuf');
+      html += '</div>';
+      if (data.failed > 0 && data.errors) html += '<div style="margin-top:5px;font-size:12px;color:#c62828;">' + data.errors.slice(0, 5).map(esc).join('<br>') + '</div>';
+      document.getElementById('importResult').innerHTML = html;
+      window._importZipFile = null;
+      setTimeout(function(){ location.reload(); }, 1500);
+    } catch (e) {
+      document.getElementById('importResult').innerHTML = '<div style="background:#ffebee;color:#c62828;padding:10px;border-radius:6px;">' + tAdmin('failedColon') + esc(e.message) + '</div>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = tAdmin('startImport');
+    }
+    return;
+  }
+  if (importItems.length === 0) return;
+  // 打开确认弹窗
+  document.getElementById('confirmImportText').textContent = tAdmin('confirmImportPrefix') + importItems.length + tAdmin('itemsOverwriteHint');
+  document.getElementById('confirmImportModal').classList.add('open');
+  // 绑定确认按钮
+  document.getElementById('confirmImportYesBtn').onclick = function() {
+    closeConfirmImport();
+    doImport();
+  };
+}
+
+function closeConfirmImport() {
+  document.getElementById('confirmImportModal').classList.remove('open');
+}
+
+async function doImport() {
+  var btn = document.getElementById('confirmImportBtn');
+  btn.disabled = true;
+  btn.textContent = tAdmin('importing');
+  try {
+    var result = await window.SLF.api.post('/menu/batch', { items: importItems });
+    var createdInfo = '';
+    if (result.createdCategories && result.createdCategories.length > 0) {
+      createdInfo = tAdmin('newCatsListPre') + result.createdCategories.length + tAdmin('newCatsListSuf') + result.createdCategories.map(esc).join('、');
+    }
+    var html = '<div style="background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px;">' +
+      tAdmin('okImportedPre') + result.success + tAdmin('okImportedMid') + createdInfo;
+    if (result.failed > 0) html += tAdmin('importFailedSuf') + result.failed + tAdmin('importFailedSuf2');
+    html += '</div>';
+    if (result.errors && result.errors.length) {
+      html += '<div style="margin-top: 5px; font-size: 12px; color: #c62828;">' + result.errors.slice(0, 5).map(esc).join('<br>') + '</div>';
+    }
+    document.getElementById('importResult').innerHTML = html;
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    document.getElementById('importResult').innerHTML = '<div style="background: #ffebee; color: #c62828; padding: 10px; border-radius: 6px;">' + tAdmin('importFailedColon') + esc(e.message) + '</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = tAdmin('startImport');
+  }
+}
+
+
+async function exportMenuZip() {
+  try {
+    const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '1';
+    const token = SLF.store.rawGetSession('adminToken') || '';
+    SLF.ui.toast('📦 ' + (tAdmin('exporting') || '正在打包...'));
+    const res = await fetch('/api/admin/menu/export-zip?store_id=' + storeId, { headers: { 'Authorization': 'Bearer ' + token, 'X-Store-Id': String(storeId) } });
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'menu-store' + storeId + '-' + new Date().toISOString().slice(0,10) + '.zip';
+    a.click(); URL.revokeObjectURL(a.href);
+    SLF.ui.toast('✅ ' + (tAdmin('exported') || '已导出'));
+  } catch (e) { SLF.ui.toast('❌ ' + (tAdmin('exportFailed') || '导出失败') + ': ' + e.message); }
+}
+window.exportMenuZip = exportMenuZip;
+
+window.openImportModal = openImportModal;
+window.closeImportModal = closeImportModal;
+window.confirmImport = confirmImport;
+window.closeConfirmImport = closeConfirmImport;
+
+/* ========== pages/admin/table.js ========== */
+/*
+ * pages/admin/table.js — 桌台管理模块
+ */
+(function(){
+'use strict';
+
+const ctx = window.SLF.admin;
+if (!ctx) return;
+
+const { $, api, tAdmin, esc, hasPermission, L, ordersCache, buildSessionLabels } = ctx;
+
+async function loadTables() {
+  const list = await api('/tables');
+  list.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true, sensitivity: 'base' }));
+  ctx.setTables(list);
+  // 同时获取未结算订单，计算座号状态
+  const orders = await api('/orders?status=pending');
+  const statusText = { available: L('available'), occupied: L('occupied'), reserved: L('reserved') };
+  $('#tables').innerHTML = list.map(t => {
+    const hasPending = orders.some(o => o.table === t.name && o.status === 'pending');
+    const dynamic = hasPending ? 'occupied' : (t.status === 'reserved' ? 'reserved' : 'available');
+    return `<div class="row">
+      <div><b>${esc(t.name)}</b><small><span class="table-status ${dynamic}">${statusText[dynamic] || dynamic}</span></small></div>
+      <div class="actions">
+        ${hasPermission('can_manage_table') ? '<button onclick="editTable(' + t.id + ')">' + L('edit') + '</button>' : ''}
+        <button onclick="showQr(${t.id})">${tAdmin('qr')}</button>
+        ${hasPermission('can_manage_table') ? '<button class="danger" onclick="removeTable(' + t.id + ')">' + L('delete') + '</button>' : ''}
+      </div>
+    </div>`;
+  }).join('') || `<div class="empty-hint">${tAdmin('noData')}</div>`;
+  $('#orderTable').innerHTML = list.map(t => `<option>${esc(t.name)}</option>`).join('');
+}
+
+function removeTable(id) {
+  ctx.showConfirm(tAdmin('confirmDelete'), async function() {
+    try {
+      await api('/tables/' + id, { method: 'DELETE' });
+      loadTables();
+      SLF.ui.toast('✅ ' + tAdmin('deleted'));
+    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+  });
+}
+
+function editTable(id) { openTableForm(id); }
+
+function openTableForm(id) {
+  const tables = ctx.tablesCache();
+  const t = tables.find(x => String(x.id) === String(id));
+  editingTableId = t ? t.id : null;
+  $('#editTableName').value = t ? t.name : '';
+  $('#editTableStatus').value = t ? t.status : 'available';
+  $('#tableModal').classList.add('open');
+}
+
+function closeTableForm() { $('#tableModal').classList.remove('open'); }
+
+async function showQr(id) {
+  const tables = ctx.tablesCache();
+  const t = tables.find(x => String(x.id) === String(id));
+  if (!t) return;
+
+  // Open synchronously to avoid popup blockers, then fetch the sensitive QR
+  // print page with the authenticated admin session (never put bearer tokens in URLs).
+  const popup = window.open('about:blank', '_blank');
+  if (!popup) {
+    SLF.ui.toast('浏览器阻止了弹窗，请允许本站弹窗后重试');
+    return;
+  }
+  try {
+    const token = SLF.store.rawGetSession('adminToken') || '';
+    const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '1';
+    if (!token) throw new Error('管理员登录已失效，请重新登录');
+    const response = await fetch('/qr-print?tableId=' + encodeURIComponent(id), {
+      headers: { 'Authorization': 'Bearer ' + token, 'X-Store-Id': String(storeId) },
+      cache: 'no-store'
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || '二维码页面加载失败');
+    }
+    const html = await response.text();
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+  } catch (error) {
+    popup.close();
+    SLF.ui.toast(error.message || '二维码页面加载失败');
+  }
+}
+
+let editingTableId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  const tableSaveBtn = document.getElementById('tableSaveBtn');
+  if (tableSaveBtn) {
+    tableSaveBtn.onclick = async function() {
+      const name = $('#editTableName').value.trim();
+      const status = $('#editTableStatus').value;
+      if (!name) { SLF.ui.toast('❌ ' + tAdmin('tableNameRequired')); return; }
+      try {
+        await api('/tables/' + editingTableId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { name, status } });
+        closeTableForm();
+        await loadTables();
+        SLF.ui.toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('updated'));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+  const tableForm = document.getElementById('tableForm');
+  if (tableForm) {
+    tableForm.onsubmit = async function(e) {
+      e.preventDefault();
+      try {
+        await api('/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: { name: $('#tableName').value.trim() } });
+        e.target.reset();
+        await loadTables();
+        SLF.ui.toast('✅ ' + tAdmin('tableNameLabel') + ' ' + tAdmin('added'));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+});
+
+// 挂到 window
+window.loadTables = loadTables;
+window.removeTable = removeTable;
+window.editTable = editTable;
+window.openTableForm = openTableForm;
+window.closeTableForm = closeTableForm;
+window.showQr = showQr;
+
+})();
+
+
+/* ========== pages/admin/order.js ========== */
+/*
+ * pages/admin/order.js — 订单核心模块
+ */
+(function(){
+'use strict';
+
+const ctx = window.SLF.admin;
+if (!ctx) return;
+
+const { $, api, tAdmin, esc, hasPermission, L, buildSessionLabels } = ctx;
+
+window.orderTableFilter = window.orderTableFilter || '';
+window.orderStatusTab = window.orderStatusTab || 'pending';
+
+function switchOrderTab(tab) {
+  window.orderStatusTab = tab;
+  document.querySelectorAll('#orderTabs .order-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === tab);
+  });
+  loadOrders();
+}
+window.switchOrderTab = switchOrderTab;
+
+function setOrderFilter(q) {
+  window.orderTableFilter = q;
+  loadOrders();
+}
+
+async function loadOrders() {
+  const orders = await api('/orders');
+  ctx.setOrders(orders);
+  // ===== Tab 筛选 =====
+  const tab = window.orderStatusTab || 'pending';
+  let filtered = orders;
+  if (tab === 'pending')       filtered = filtered.filter(o => o.status === 'pending');
+  else if (tab === 'settled')  filtered = filtered.filter(o => o.status === 'done' || o.status === 'canceled');
+  else if (tab === 'refunded') filtered = filtered.filter(o => o.status === 'refunded');
+
+  // ===== 计数 =====
+  const _c = {
+    pending:  orders.filter(o => o.status === 'pending').length,
+    settled:  orders.filter(o => o.status === 'done' || o.status === 'canceled').length,
+    refunded: orders.filter(o => o.status === 'refunded').length,
+  };
+  const _setCnt = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+  _setCnt('orderTabPendingCount', _c.pending);
+  _setCnt('orderTabSettledCount', _c.settled);
+  _setCnt('orderTabRefundedCount', _c.refunded);
+
+  if (window.orderTableFilter) {
+    const q = window.orderTableFilter.toLowerCase();
+    filtered = orders.filter(o => (o.table_name||o.table||'').toLowerCase().includes(q) || String(o.id).includes(q) || String(o.order_no||'').includes(q));
+  }
+  const statusText = { pending: L('orderPending'), done: L('orderDone'), canceled: L('canceled'), refunded: L('refunded') || '已退款' };
+  const sessionLabels = buildSessionLabels(filtered);
+  $('#orders').innerHTML = filtered.map(o => `
+      <div class="order-item-admin">
+        <div class="top"><span class="table-info"><strong>${esc(o.order_no||'#'+o.id)}</strong> · ${o.fulfillment_type==='delivery'?'外卖配送':o.fulfillment_type==='takeaway'?'顾客自取':(tAdmin('table')||L('table'))+' '+esc(o.table||'—')}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':o.status==='refunded'?'status-refunded':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
+        ${o.note ? `<div class="order-note" style="margin:8px 0;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.2);font-size:13px;color:#f0c040;line-height:1.5;"><strong style="color:#ffd93d;">${esc(L('orderNoteDisplay')||tAdmin('note'))}：</strong>${esc(o.note)}</div>` : ''}
+        <div class="items">${(o.items || []).map((item,index) => `
+          <div class="dish-line" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <span class="dish-name">${esc(item.name)} ×${item.quantity} <span style="color:#e67e22;font-size:12px;">@${SLF.money.primary(SLF.money.toBase(item.price, (item.currency_code||'USD')))}</span>${item.returnedQty > 0 ? ` <small style="color:#e74c3c;">${tAdmin('returned') || '已退回'} ${item.returnedQty}</small>` : ''}</span>
+            <span style="font-weight:600;white-space:nowrap;">${SLF.money.primary(SLF.money.toBase(item.price, (item.currency_code||'USD')) * (item.quantity - (item.returnedQty || 0)))}${window.dualAmountSuffix ? window.dualAmountSuffix(SLF.money.toBase(item.price, (item.currency_code||'USD')) * (item.quantity - (item.returnedQty || 0))) : ''}</span>
+            ${item.itemStatus==='done' ? `<span class="item-status done">${L('itemDone')}</span>` : (o.status==='pending' ? `<button class="item-toggle" onclick="toggleItemStatus(${o.id},${index})">${L('pending')}</button>` : '')}
+          </div>
+        `).join('')}</div>
+        <div class="bottom">
+          <span class="time">${SLF.utils.formatDateTime(o.createdAt)}</span>
+          <span class="total">${SLF.money.primary(o.total)}${window.dualAmountSuffix ? window.dualAmountSuffix(o.total) : ''}</span>
+          <div class="actions">
+            ${o.status==='done' || o.status==='canceled' ? '' : (hasPermission('can_edit_order') ? `<button class="edit" onclick="editOrder(${o.id})">${L('edit')}</button>` : '')}
+            <button onclick="printOrder(${o.id})" style="background:#3498db;">🖨️ ${tAdmin('print')}</button>
+            ${o.status==='pending' ? `<button class="settle-order-btn" onclick="confirmSettleOrder(${o.id})">💰 ${tAdmin('settleOrder')}</button>${o.table ? `<button class="admin-transfer-order-btn" data-transfer-order-id="${Number(o.id)}" data-transfer-from-table="${esc(o.table_name || '')}" style="background:#9b59b6;">↔ ${tAdmin('transferOrder')}</button>` : ''}${hasPermission('can_delete_order') ? `<button class="cancel-order-btn" onclick="confirmCancelOrder(${o.id})">🗑️ ${tAdmin('cancelOrder')}</button>` : ''}` : ''}
+            ${hasPermission('can_delete_order') ? `<button class="danger" onclick="removeOrder(${o.id})">${L('delete')}</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('') || `<div class="empty-hint">${tAdmin('noOrders')}</div>`;
+  document.querySelectorAll('#orders .admin-transfer-order-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const orderId = Number(this.dataset.transferOrderId);
+      if (!Number.isSafeInteger(orderId) || orderId <= 0) return;
+      showTransferModal(orderId, this.dataset.transferFromTable || '');
+    });
+  });
+  if (typeof window.updateOrderSummary === 'function') window.updateOrderSummary();
+}
+window.loadOrders = loadOrders;
+
+let transferOrderId = null;
+let transferFromTable = '';
+let settleOrderId = null;
+
+async function toggleItemStatus(id, index) {
+  try {
+    const orders = ctx.ordersCache();
+    const order = orders.find(o => String(o.id) === String(id));
+    if (!order || !order.items[index]) return;
+    if (order.items[index].itemStatus === 'done') { SLF.ui.toast(`❌ ${tAdmin('cannotRevertDone')}`); return; }
+    await api('/orders/' + id + '/items/' + index, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { itemStatus: 'done' } });
+    await loadOrders();
+    SLF.ui.toast(`✅ ${tAdmin('dishStatusUpdated')}`);
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+
+async function showTransferModal(orderId, fromTable) {
+  transferFromTable = fromTable;
+  transferOrderId = orderId;
+  document.getElementById('transferTitle').textContent = '↔ ' + tAdmin('transferOrder');
+  document.getElementById('transferToLabel').textContent = tAdmin('transferTo');
+  document.getElementById('transferCancelBtn').textContent = tAdmin('cancel');
+  document.getElementById('transferConfirmBtn').textContent = tAdmin('confirm');
+  document.getElementById('transferFromLabel').textContent = tAdmin('transferFrom') + ': ' + fromTable;
+  const select = document.getElementById('transferTargetSelect');
+  try {
+    const res = await SLF.api.get('/tables');
+    const others = (res.tables || res || []).filter(x => x.name !== fromTable);
+    select.innerHTML = others.map(x => '<option value="' + esc(x.name) + '">' + esc(x.name) + '</option>').join('');
+    document.getElementById('transferModal').classList.add('open');
+  } catch (e) { SLF.ui.toast("❌ " + e.message); }
+}
+function closeTransferModal() {
+  document.getElementById('transferModal').classList.remove('open');
+  transferOrderId = null;
+}
+async function confirmTransfer() {
+  if (!transferOrderId) return;
+  const target = document.getElementById('transferTargetSelect').value;
+  ctx.showConfirm(tAdmin('transferConfirmMsg') + ' ' + transferFromTable + ' → ' + target, async function() {
+    try {
+      const res = await SLF.api.post('/orders/' + transferOrderId + '/transfer', { target_table: target });
+      if (res && res.targetHasOrders) SLF.ui.toast('⚠️ ' + tAdmin('targetHasOrders'));
+      SLF.ui.toast('✅ ' + tAdmin('transferSuccess'));
+      closeTransferModal();
+      loadOrders();
+    } catch (e) { SLF.ui.toast("❌ " + e.message); }
+  });
+}
+
+async function confirmSettleOrder(id) {
+  settleOrderId = id;
+  try {
+    const res = await SLF.api.get('/orders/' + id);
+    const o = res.order || res;
+    const items = (o.items || []).map(i => {
+      const qty = Number(i.quantity||0) - Number(i.returnedQty||0);
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);">'
+        + '<span>' + esc(i.name) + ' ×' + i.quantity + ' <span style="color:#e67e22;font-size:12px;">@' + SLF.money.primary(SLF.money.toBase(i.price, (i.currency_code||'USD'))) + '</span></span>'
+        + '<span style="font-weight:600;">' + SLF.money.primary(SLF.money.toBase(i.price, (i.currency_code||'USD')) * qty) + '</span></div>';
+    }).join('');
+    document.getElementById('settleDetailBody').innerHTML =
+      '<div style="margin-bottom:12px;color:#888;font-size:13px;">' + (o.order_no||('#'+id)) + ' · ' + esc(o.table_name||'-') + '</div>'
+      + items
+      + '<div style="margin-top:12px;text-align:right;font-size:16px;font-weight:700;">' + tAdmin('total') + ': ' + SLF.money.primary(o.total) + '</div>';
+    document.getElementById('settleDetailModal').classList.add('open');
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+function closeSettleDetail() {
+  document.getElementById('settleDetailModal').classList.remove('open');
+  settleOrderId = null;
+}
+async function doSettleOrder() {
+  if (!settleOrderId) return;
+  const id = settleOrderId;
+  closeSettleDetail();
+  try { await statusOrder(id, 'done'); SLF.ui.toast('✅ ' + tAdmin('settleOrder')); } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+function confirmCancelOrder(id) {
+  ctx.showConfirm(tAdmin('cancelOrderConfirm'), () => statusOrder(id, 'canceled'), tAdmin('cancelOrder'));
+}
+async function statusOrder(id, status) {
+  try {
+    await api('/orders/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { status } });
+    await loadOrders();
+    SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + tAdmin('updated'));
+  } catch (e) {
+    const msg = e.message.includes('未完成菜品') ? (L('incompleteItemsError') || e.message) : e.message;
+    SLF.ui.toast('❌ ' + msg);
+    throw e;
+  }
+}
+function removeOrder(id) {
+  ctx.showPasswordModal(tAdmin('passwordModalMessage') || '请输入管理员密码以确认操作', async function(password) {
+    try {
+      await api('/orders/' + id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: { password } });
+      await loadOrders();
+      SLF.ui.toast('✅ ' + tAdmin('deleted'));
+    } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+  });
+}
+
+let editingOrderId = null;
+let editingOrderStatus = 'pending';
+
+function syncOrderTableRequirement() {
+  const fulfillmentSelect = document.getElementById('orderFulfillmentType');
+  const tableSelect = $('#orderTable');
+  if (!fulfillmentSelect || !tableSelect) return;
+  if (![...tableSelect.options].some(option => option.value === '')) {
+    tableSelect.insertBefore(new Option('无需座号（外卖/自取）', ''), tableSelect.firstChild);
+  }
+  const tableRequired = fulfillmentSelect.value === 'dine_in';
+  tableSelect.required = tableRequired;
+  tableSelect.disabled = Boolean(editingOrderId) || !tableRequired;
+  if (!tableRequired && !editingOrderId) tableSelect.value = '';
+  const deliveryFields = document.getElementById('orderDeliveryFields');
+  const deliveryInputs = ['orderDeliveryRecipientName', 'orderDeliveryRecipientPhone', 'orderDeliveryAddress']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  const deliveryRequired = fulfillmentSelect.value === 'delivery' && !editingOrderId;
+  if (deliveryFields) deliveryFields.hidden = !deliveryRequired;
+  deliveryInputs.forEach(input => { input.required = deliveryRequired; input.disabled = Boolean(editingOrderId); });
+  if (tableRequired && !tableSelect.value) {
+    const firstTable = [...tableSelect.options].find(option => option.value);
+    if (firstTable) tableSelect.value = firstTable.value;
+  } else if (!tableRequired) {
+    tableSelect.value = '';
+  }
+}
+
+function ensureFulfillmentSelect() {
+  let select = document.getElementById('orderFulfillmentType');
+  if (select) {
+    if (select.dataset.tableRequirementBound !== '1') {
+      select.addEventListener('change', syncOrderTableRequirement);
+      select.dataset.tableRequirementBound = '1';
+    }
+    return select;
+  }
+  const items = document.getElementById('orderItems');
+  if (!items || !items.parentNode) return null;
+  const wrap = document.createElement('label');
+  wrap.id = 'orderFulfillmentWrap';
+  wrap.style.cssText = 'display:block;margin:10px 0;font-size:13px;';
+  wrap.textContent = '订单类型 ';
+  select = document.createElement('select');
+  select.id = 'orderFulfillmentType';
+  select.style.cssText = 'display:block;width:100%;margin-top:6px;padding:10px;border-radius:8px;';
+  [['dine_in','堂食'],['takeaway','顾客自取'],['delivery','外卖配送']].forEach(([value,label]) => {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; select.appendChild(option);
+  });
+  wrap.appendChild(select);
+  items.parentNode.insertBefore(wrap, items);
+  select.addEventListener('change', syncOrderTableRequirement);
+  select.dataset.tableRequirementBound = '1';
+  return select;
+}
+
+function openOrderForm() {
+  editingOrderId = null;
+  const fulfillmentSelect = ensureFulfillmentSelect();
+  if (fulfillmentSelect) { fulfillmentSelect.value = 'dine_in'; fulfillmentSelect.disabled = false; }
+  editingOrderStatus = 'pending';
+  $('#orderModalTitle').textContent = tAdmin('addOrder');
+  $('#orderTable').disabled = false;
+  const tables = ctx.tablesCache();
+  if (tables.length) $('#orderTable').value = tables[0].name;
+  syncOrderTableRequirement();
+  $('#orderItems').innerHTML = '';
+  $('#orderNoteField').value = '';
+  ['orderDeliveryRecipientName', 'orderDeliveryRecipientPhone', 'orderDeliveryAddress'].forEach(id => {
+    const input = document.getElementById(id); if (input) input.value = '';
+  });
+  const trackingResult = document.getElementById('orderTrackingResult');
+  if (trackingResult) trackingResult.hidden = true;
+  const saveButton = document.getElementById('orderSaveBtn');
+  if (saveButton) saveButton.disabled = false;
+  addOrderItem();
+  updateOrderTotal();
+  $('#orderModal').classList.add('open');
+}
+function closeOrderForm() { $('#orderModal').classList.remove('open'); }
+function removeOrderItem(btn) { btn.closest('.order-item-line').remove(); updateOrderTotal(); }
+function updateOrderTotal() {
+  let total = 0;
+  document.querySelectorAll('#orderItems .order-item-line').forEach(row => {
+    const id = +row.querySelector('select').value;
+    const qty = +row.querySelector('input').value || 0;
+    const menus = ctx.menusCache();
+    const menu = menus.find(m => String(m.id) === String(id));
+    if (menu && qty > 0) total += SLF.money.toBase(menu.price, (menu.currency_code||'USD')) * qty;
+  });
+  $('#orderFormTotal').textContent = SLF.money.primary(total);
+}
+function addOrderItem(selectedId, quantity) {
+  const menus = ctx.menusCache();
+  const line = document.createElement('div');
+  line.className = 'order-item-line';
+  line.innerHTML = `
+    <select>${menus.map(m => `<option value="${m.id}">${esc(m.emoji||'🍽️')} ${esc(m.name)} · ${SLF.money.primary(SLF.money.toBase(m.price, (m.currency_code||'USD')))}</option>`).join('')}</select>
+    <input type="number" min="1" step="1" value="${quantity||1}">
+    <button onclick="removeOrderItem(this)">✕</button>
+  `;
+  if (selectedId) line.querySelector('select').value = selectedId;
+  line.querySelectorAll('select,input').forEach(el => {
+    el.addEventListener('input', updateOrderTotal);
+    el.addEventListener('change', updateOrderTotal);
+  });
+  $('#orderItems').appendChild(line);
+  updateOrderTotal();
+}
+function addLockedOrderItem(item) {
+  const line = document.createElement('div');
+  line.className = 'order-item-line locked';
+  line.dataset.status = 'done';
+  line.innerHTML = `
+    <select disabled><option value="${item.id}" selected>${esc(item.name)}</option></select>
+    <input type="number" value="${item.quantity}" disabled>
+    <span class="item-status done">${L('itemDone')}</span>
+  `;
+  $('#orderItems').appendChild(line);
+  updateOrderTotal();
+}
+
+async function editOrder(id) {
+  try {
+    let orders = ctx.ordersCache();
+    let o = orders.find(x => String(x.id) === String(id));
+    if (!o) o = await api('/orders/' + id);
+    if (!o) return;
+    editingOrderId = id;
+    editingOrderStatus = o.status || 'pending';
+    $('#orderModalTitle').textContent = tAdmin('orderManage') + ' ' + (o.order_no || ('#'+id));
+    $('#orderTable').value = o.table;
+    $('#orderTable').disabled = true;
+    $('#orderItems').innerHTML = '';
+    (o.items || []).forEach(item => {
+      if (item.itemStatus === 'done') addLockedOrderItem(item);
+      else addOrderItem(item.id, item.quantity);
+    });
+    $('#orderNoteField').value = o.note || '';
+    const fulfillmentSelect = ensureFulfillmentSelect();
+    if (fulfillmentSelect) { fulfillmentSelect.value = o.fulfillment_type || 'dine_in'; fulfillmentSelect.disabled = true; }
+    syncOrderTableRequirement();
+    updateOrderTotal();
+    $('#orderModal').classList.add('open');
+  } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const orderSaveBtn = document.getElementById('orderSaveBtn');
+  if (orderSaveBtn) {
+    orderSaveBtn.onclick = async function() {
+      const rows = [...document.querySelectorAll('#orderItems .order-item-line')];
+      const items = [];
+      rows.forEach(row => {
+        const id = +row.querySelector('select').value;
+        const qty = +row.querySelector('input').value || 0;
+        if (id && qty > 0) items.push({ id: id, quantity: qty });
+      });
+      if (!items.length) { SLF.ui.toast('❌ ' + tAdmin('noItems')); return; }
+      try {
+        const fulfillmentType = ensureFulfillmentSelect()?.value || 'dine_in';
+        const delivery = fulfillmentType === 'delivery' ? {
+          recipient_name: document.getElementById('orderDeliveryRecipientName')?.value.trim() || '',
+          recipient_phone: document.getElementById('orderDeliveryRecipientPhone')?.value.trim() || '',
+          delivery_address: document.getElementById('orderDeliveryAddress')?.value.trim() || ''
+        } : undefined;
+        if (fulfillmentType === 'delivery' && (!delivery.recipient_name || !delivery.recipient_phone || !delivery.delivery_address)) {
+          SLF.ui.toast('❌ 请填写收件人、联系电话和配送地址'); return;
+        }
+        const result = await api(editingOrderId ? '/orders/' + editingOrderId : '/orders', { method: editingOrderId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+          table: $('#orderTable').value || '',
+          note: $('#orderNoteField').value.trim(),
+          fulfillment_type: fulfillmentType,
+          ...(delivery ? { delivery } : {}),
+          items
+        }});
+        await loadOrders();
+        if (!editingOrderId && result.trackingUrl) {
+          const trackingResult = document.getElementById('orderTrackingResult');
+          const trackingLink = document.getElementById('orderTrackingLink');
+          if (trackingLink) { trackingLink.href = result.trackingUrl; trackingLink.textContent = new URL(result.trackingUrl, location.origin).href; }
+          if (trackingResult) trackingResult.hidden = false;
+          const saveButton = document.getElementById('orderSaveBtn');
+          if (saveButton) saveButton.disabled = true;
+          SLF.ui.toast('✅ 外卖订单已创建，配送任务等待分配骑手');
+        } else {
+          closeOrderForm();
+          SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + (editingOrderId ? tAdmin('updated') : tAdmin('added')));
+        }
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+  const addOrderItemBtn = document.getElementById('addOrderItemBtn');
+  if (addOrderItemBtn) addOrderItemBtn.onclick = function() { addOrderItem(); };
+});
+
+
+const copyTrackingButton = document.getElementById('copyOrderTrackingLink');
+if (copyTrackingButton) copyTrackingButton.addEventListener('click', async () => {
+  const link = document.getElementById('orderTrackingLink');
+  if (!link || !link.href) return;
+  try { await navigator.clipboard.writeText(link.href); SLF.ui.toast('✅ 追踪链接已复制'); }
+  catch (_) { SLF.ui.toast('请长按链接复制：' + link.href); }
+});
+
+// 挂到 window
+window.loadOrders = loadOrders;
+window.setOrderFilter = setOrderFilter;
+window.toggleItemStatus = toggleItemStatus;
+window.showTransferModal = showTransferModal;
+window.closeTransferModal = closeTransferModal;
+window.confirmTransfer = confirmTransfer;
+window.confirmSettleOrder = confirmSettleOrder;
+window.closeSettleDetail = closeSettleDetail;
+window.doSettleOrder = doSettleOrder;
+window.confirmCancelOrder = confirmCancelOrder;
+window.statusOrder = statusOrder;
+window.removeOrder = removeOrder;
+window.openOrderForm = openOrderForm;
+window.closeOrderForm = closeOrderForm;
+window.removeOrderItem = removeOrderItem;
+window.updateOrderTotal = updateOrderTotal;
+window.addOrderItem = addOrderItem;
+window.addLockedOrderItem = addLockedOrderItem;
+window.editOrder = editOrder;
+
+})();
+
+
+/* ========== pages/admin/shared.js ========== */
+/*
+ * pages/admin/shared.js — 共享工具函数
+ */
+(function(){
+'use strict';
+
+const ctx = window.SLF.admin;
+if (!ctx) return;
+
+const { $, api, tAdmin, esc, L } = ctx;
+
+function dualAmountSuffix(base) {
+  if (!ctx.dualCurrencyEnabled() || !ctx.secondaryCurrencyCode()) return '';
+  const sec = SLF.money.secondary(base, ctx.secondaryCurrencyCode());
+  return sec ? ` (${sec})` : '';
+}
+
+function translateLoginMessage(msg) {
+  if (!msg) return '';
+  if (msg.includes('商户管理员登录成功')) { const username = msg.split(':')[1] || ''; return tAdmin('merchantAdminLogin') + ': ' + username.trim(); }
+  if (msg.includes('超级管理员登录成功')) { const username = msg.split(':')[1] || ''; return tAdmin('superAdminLogin') + ': ' + username.trim(); }
+  if (msg.includes('服务员登录成功')) return tAdmin('loginSuccess') || '登录成功';
+  if (msg.includes('收银员登录成功')) return tAdmin('loginSuccess') || '登录成功';
+  if (msg.includes('用户名不存在')) return tAdmin('usernameNotExist');
+  if (msg.includes('密码错误')) return tAdmin('passwordError');
+  if (msg.includes('账号不存在')) return tAdmin('usernameNotExist');
+  if (msg.includes('请输入用户名和密码')) return tAdmin('pleaseEnterCredentials');
+  if (msg.includes('IP不在白名单内')) return tAdmin('noPermission') || '无权限';
+  return msg;
+}
+
+async function loadLoginLogs() {
+  try {
+    const logs = await api('/admin/login-logs');
+    $('#loginLogs').innerHTML = logs.length ?
+      logs.map(log => `<div class="row"><div><b>${SLF.utils.formatDateTime(log.createdAt)}</b><small>${esc(log.ip||'-')} · ${esc(translateLoginMessage(log.message))}</small></div><span class="badge ${log.success?'done':'canceled'}">${log.success ? tAdmin('loginSuccess') : tAdmin('loginFailed')}</span></div>`).join('') :
+      `<div class="empty-hint">${tAdmin('noData')}</div>`;
+  } catch (e) {
+    $('#loginLogs').innerHTML = `<div class="empty-hint">${tAdmin('noData')}</div>`;
+  }
+}
+
+function updateOrderSummary() {
+  const orders = ctx.ordersCache();
+  // 统计未结算订单
+  const pending = orders.filter(o => o.status === 'pending');
+  const pendingTotal = pending.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const pendingCountEl = document.getElementById('pendingOrderCount');
+  const pendingAmountEl = document.getElementById('pendingOrderAmount');
+  if (pendingCountEl) pendingCountEl.textContent = pending.length;
+  if (pendingAmountEl) pendingAmountEl.textContent = SLF.money.primary(pendingTotal);
+  // 已结算订单包含部分退款（done）和全额退款（refunded）；金额按退款后净额统计。
+  const done = orders.filter(o => o.status === 'done' || o.status === 'refunded');
+  const hasInvalidFinancialData = done.some(o => {
+    const total = o.total === null || o.total === undefined || o.total === '' ? NaN : Number(o.total);
+    const refunded = o.refund_amount === null || o.refund_amount === undefined || o.refund_amount === '' ? 0 : Number(o.refund_amount);
+    return o.financialDataCorrupted === true || !Number.isFinite(total) || total < 0 ||
+      !Number.isFinite(refunded) || refunded < 0 || refunded > total;
+  });
+  const doneTotal = hasInvalidFinancialData ? null : done.reduce((sum, o) => {
+    const total = Number(o.total);
+    const refunded = Number(o.refund_amount || 0);
+    return sum + (total - refunded);
+  }, 0);
+  const doneCountEl = document.getElementById('doneOrderCount');
+  const doneAmountEl = document.getElementById('doneOrderAmount');
+  if (doneCountEl) doneCountEl.textContent = done.length;
+  if (doneAmountEl) {
+    doneAmountEl.textContent = hasInvalidFinancialData ? '数据异常' : SLF.money.primary(doneTotal);
+    doneAmountEl.title = hasInvalidFinancialData
+      ? '存在异常订单金额或退款记录，经营汇总暂不可用，请核对订单数据'
+      : '';
+  }
+}
+
+function closeSidebar() {
+  const sidebar = document.getElementById("adminSidebar");
+  if (sidebar) sidebar.classList.remove("open");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (overlay) overlay.classList.remove("show");
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('adminSidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (!sidebar) return;
+  sidebar.classList.toggle('open');
+  if (overlay) overlay.classList.toggle('show');
+}
+
+function getCurrentModule() {
+  const activeNav = document.querySelector(".nav-item.active");
+  return activeNav ? activeNav.dataset.module : null;
+}
+
+function switchAdminModule(module, opts) {
+  opts = opts || {};
+  const permMap = {
+    menu: 'can_manage_menu', tables: 'can_manage_table', orders: 'can_manage_order',
+    stores: 'can_manage_store', waiters: 'can_manage_waiter', currencies: 'can_manage_currency',
+    printers: 'can_manage_printer', admins: 'can_manage_admin', cashiers: 'can_manage_cashier',
+    logs: 'can_view_logs', 'financial-reconciliation': 'can_manage_financial_reconciliation'
+  };
+  const needPerm = permMap[module];
+  if (needPerm && ctx.hasPermission && !ctx.hasPermission(needPerm)) {
+    const msg = ctx.tAdmin ? ctx.tAdmin('noPermission') : 'No permission';
+    if (SLF.ui && SLF.ui.toast) SLF.ui.toast('❌ ' + msg);
+    return;
+  }
+  document.querySelectorAll('.module-panel').forEach(m => m.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const panel = document.getElementById('module-' + module);
+  if (panel) panel.classList.add('active');
+  const navItem = document.querySelector(`.nav-item[data-module="${module}"]`);
+  if (navItem) navItem.classList.add('active');
+
+  // opts.skipLoad: 只切 UI，不重新加载数据（refresh() 里已预加载过所有模块）
+  if (opts.skipLoad) return;
+
+  if (module === 'menu') { if (window.loadMenus) window.loadMenus(); if (window.loadMenuCategories) window.loadMenuCategories(); }
+  if (module === 'tables') { if (window.loadTables) window.loadTables(); }
+  if (module === 'orders') { if (window.loadOrders) window.loadOrders(); }
+  if (module === 'currencies') { if (window.loadCurrencies) window.loadCurrencies(); if (window.loadDisplaySettings) window.loadDisplaySettings(); }
+  if (module === 'stores') { if (window.loadStores) window.loadStores(); }
+  if (module === 'waiters') { if (window.loadWaiters) window.loadWaiters(); }
+  if (module === 'admins') { if (window.loadAdmins) window.loadAdmins(); }
+  if (module === 'cashiers') { if (window.loadCashiers) window.loadCashiers(); }
+  if (module === 'printers') { if (window.loadPrinters) window.loadPrinters(); }
+  if (module === 'reports') { if (window.loadReportSummary) window.loadReportSummary(); if (window.loadDailyReport) window.loadDailyReport(); }
+  if (module === 'calls') { if (window.loadWaiterCalls) window.loadWaiterCalls(); }
+  if (module === 'logs') { if (window.loadLoginLogs) window.loadLoginLogs(); if (window.loadAuditLogs) window.loadAuditLogs(); }
+  if (module === 'financial-reconciliation' && window.loadFinancialReconciliation) window.loadFinancialReconciliation();
+}
+
+// 汉堡按钮拖动
+(function() {
+  const btn = document.getElementById('hamburgerBtn');
+  if (!btn) return;
+  let isDragging = false;
+  let startX, startY, startLeft, startTop;
+  let hasMoved = false;
+  function getPos(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+  function onStart(e) {
+    isDragging = true;
+    hasMoved = false;
+    const pos = getPos(e);
+    startX = pos.x; startY = pos.y;
+    const rect = btn.getBoundingClientRect();
+    startLeft = rect.left; startTop = rect.top;
+    btn.classList.add('dragging');
+    btn.style.transition = 'none';
+  }
+  function onMove(e) {
+    if (!isDragging) return;
+    const pos = getPos(e);
+    const dx = pos.x - startX, dy = pos.y - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) { hasMoved = true; e.preventDefault(); }
+    let newLeft = Math.max(0, Math.min(window.innerWidth - btn.offsetWidth, startLeft + dx));
+    let newTop = Math.max(0, Math.min(window.innerHeight - btn.offsetHeight, startTop + dy));
+    btn.style.left = newLeft + 'px';
+    btn.style.top = newTop + 'px';
+    e.preventDefault();
+  }
+  function onEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    btn.classList.remove('dragging');
+    btn.style.transition = '';
+    if (hasMoved) {
+      const rect = btn.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      if (centerX < window.innerWidth / 2) btn.style.left = '8px';
+      else btn.style.left = (window.innerWidth - btn.offsetWidth - 8) + 'px';
+      if (rect.top < 60) btn.style.top = '8px';
+      else if (rect.bottom > window.innerHeight - 60) btn.style.top = (window.innerHeight - btn.offsetHeight - 8) + 'px';
+    }
+  }
+  btn.addEventListener('mousedown', onStart);
+  btn.addEventListener('touchstart', onStart, { passive: false });
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchend', onEnd);
+})();
+
+function logoutAdmin() {
+  SLF.store.rawRemoveSession('adminToken');
+  SLF.store.rawRemoveSession('adminId');
+  SLF.store.rawRemoveSession('adminPermissions');
+  SLF.store.rawRemoveSession('adminIsPrimary');
+  // 清理商户相关的 storeId，避免下次登录其它商户时残留
+  SLF.store.rawRemoveSession('adminStoreId');
+  SLF.store.rawRemoveSession('adminMerchantId');
+  SLF.store.rawRemoveSession('adminMerchantName');
+  SLF.store.rawRemove('storeId');
+  location.href = '/login';
+}
+
+function showAdminInfo() {
+  document.getElementById('adminInfoModal').classList.add('open');
+}
+function hideAdminInfo() {
+  document.getElementById('adminInfoModal').classList.remove('open');
+}
+
+async function updateReservation(id, status) {
+  try {
+    await api('/admin/reservations/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { status } });
+    SLF.ui.toast(tAdmin('reservationUpdated'));
+    if (typeof loadReservations === 'function') loadReservations();
+  } catch (err) {
+    SLF.ui.toast(tAdmin('updateFailed') + ': ' + err.message);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const passwordForm = document.getElementById('passwordForm');
+  if (passwordForm) {
+    passwordForm.onsubmit = async function(e) {
+      e.preventDefault();
+      try {
+        await api('/admin/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: {
+          oldPassword: $('#oldPassword').value,
+          newPassword: $('#newPassword').value
+        }});
+        e.target.reset();
+        SLF.ui.toast('✅ ' + tAdmin('passwordTitle') + ' ' + tAdmin('updated'));
+      } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+  const resetDataBtn = document.getElementById('resetDataBtn');
+  if (resetDataBtn) {
+    resetDataBtn.onclick = function() {
+      ctx.showPasswordModal(tAdmin('resetDataPasswordMsg'), function(password) {
+        ctx.showConfirm(tAdmin('resetDataConfirmMsg'), async function() {
+          try {
+            await SLF.api.post('/admin/reset-data', { password });
+            SLF.ui.toast('✅ ' + tAdmin('resetSuccess'));
+            if (window.loadOrders) await window.loadOrders();
+            if (window.loadTables) await window.loadTables();
+            if (window.loadLoginLogs) await window.loadLoginLogs();
+          } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+        }, tAdmin('resetDataConfirmTitle'));
+      }, tAdmin('resetDataPasswordTitle'));
+    };
+  }
+  const adminLang = document.getElementById('adminLang');
+  if (adminLang) {
+    adminLang.onchange = async function() {
+      const lang = this.value;
+      SLF.store.rawSet('adminLang', lang);
+      // 先加载语言字典
+      try { if (window.loadAdminLanguage) await window.loadAdminLanguage(lang); } catch(e) { console.error('loadAdminLanguage:', e); }
+      try { if (window.applyAdminLanguage) window.applyAdminLanguage(); } catch(e) { console.error('applyAdminLanguage:', e); }
+      try { if (window.loadAdminInfo) window.loadAdminInfo(); } catch(e) { console.error('loadAdminInfo:', e); }
+      const navItem = document.querySelector('.nav-item.active');
+      if (navItem && window.switchAdminModule) window.switchAdminModule(navItem.dataset.module);
+    };
+  }
+  const adminStoreSelect = document.getElementById('adminStoreSelect');
+  if (adminStoreSelect) {
+    adminStoreSelect.onchange = function() {
+      SLF.store.rawSetSession('adminStoreId', this.value);
+      SLF.store.rawSet('storeId', String(this.value));
+      if (window._adminSocket && typeof window._adminSocket.disconnect === 'function') {
+        try { window._adminSocket.disconnect(); window._adminSocket.connect(); } catch(_) {}
+      }
+      if (window.updateSidebarStore) window.updateSidebarStore();
+      // 重载当前激活模块（switchAdminModule 内部会调用对应 loadXxx）
+      try {
+        const activeNav = document.querySelector('.nav-item.active');
+        const mod = activeNav && activeNav.dataset.module;
+        if (mod && typeof window.switchAdminModule === 'function') {
+          window.switchAdminModule(mod);
+        } else if (typeof window.refresh === 'function') {
+          window.refresh();
+        }
+      } catch(_) {}
+    };
+  }
+  const pwdInput = document.getElementById('passwordModalInput');
+  if (pwdInput) {
+    pwdInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && window.executePasswordModal) window.executePasswordModal();
+    });
+  }
+  const confirmModal = document.getElementById('confirmModal');
+  if (confirmModal) {
+    confirmModal.addEventListener('click', function(e) {
+      if (e.target === this && window.hideConfirm) window.hideConfirm();
+    });
+  }
+  const adminInfoModal = document.getElementById('adminInfoModal');
+  if (adminInfoModal) {
+    adminInfoModal.addEventListener('click', function(e) {
+      if (e.target === this && window.hideAdminInfo) window.hideAdminInfo();
+    });
+  }
+});
+
+// 挂到 window
+window.dualAmountSuffix = dualAmountSuffix;
+window.translateLoginMessage = translateLoginMessage;
+window.loadLoginLogs = loadLoginLogs;
+window.updateOrderSummary = updateOrderSummary;
+window.switchAdminModule = switchAdminModule;
+window.getCurrentModule = getCurrentModule;
+window.toggleSidebar = toggleSidebar;
+window.closeSidebar = closeSidebar;
+window.logoutAdmin = logoutAdmin;
+window.showAdminInfo = showAdminInfo;
+window.hideAdminInfo = hideAdminInfo;
+window.updateReservation = updateReservation;
+
+})();
+
+
+/* ========== pages/admin/modals.js ========== */
+/*
+ * pages/admin/modals.js — 后台通用弹窗（确认框、密码框）
+ * 依赖：core.js（SLF.t / SLF.ui）
+ * 加载顺序：必须在 admin.js 之前
+ */
+(function(){
+'use strict';
+
+const tAdmin = SLF.t;
+
+// ===== 确认弹窗 =====
+let confirmCallback = null;
+let confirmCancelCallback = null;
+
+function showConfirm(message, callback, title, cancelCallback) {
+    document.getElementById('confirmTitle').textContent = title || tAdmin('confirmTitle') || '确认操作';
+    document.getElementById('confirmMessage').textContent = message;
+    confirmCallback = callback;
+    confirmCancelCallback = cancelCallback || null;
+    document.getElementById('confirmModal').classList.add('open');
+}
+
+function hideConfirm() {
+    document.getElementById('confirmModal').classList.remove('open');
+    if (confirmCancelCallback) {
+        const cb = confirmCancelCallback;
+        confirmCallback = null;
+        confirmCancelCallback = null;
+        cb();
+    } else {
+        confirmCallback = null;
+    }
+}
+
+function executeConfirm() {
+    if (confirmCallback) confirmCallback();
+    hideConfirm();
+}
+
+// ===== 密码输入弹窗 =====
+let passwordCallback = null;
+
+function showPasswordModal(message, callback, title) {
+    document.getElementById('passwordModalTitle').textContent = title || tAdmin('passwordModalTitle') || '请输入密码';
+    document.getElementById('passwordModalMessage').textContent = message || tAdmin('passwordModalMessage') || '请输入管理员密码以确认操作';
+    document.getElementById('passwordModalInput').placeholder = tAdmin('passwordModalPlaceholder') || '请输入密码';
+    document.getElementById('passwordModalInput').value = '';
+    passwordCallback = callback;
+    document.getElementById('passwordModal').classList.add('open');
+    setTimeout(() => document.getElementById('passwordModalInput').focus(), 100);
+}
+
+function hidePasswordModal() {
+    document.getElementById('passwordModal').classList.remove('open');
+    passwordCallback = null;
+}
+
+function executePasswordModal() {
+    const password = document.getElementById('passwordModalInput').value;
+    if (!password) { SLF.ui.toast('❌ ' + (tAdmin('passwordModalPlaceholder') || '请输入密码')); return; }
+    if (passwordCallback) passwordCallback(password);
+    hidePasswordModal();
+}
+
+// 挂到 window（供 HTML 内联 onclick 和其他模块使用）
+window.showConfirm = showConfirm;
+window.hideConfirm = hideConfirm;
+window.executeConfirm = executeConfirm;
+window.showPasswordModal = showPasswordModal;
+window.hidePasswordModal = hidePasswordModal;
+window.executePasswordModal = executePasswordModal;
+
+})();
+
