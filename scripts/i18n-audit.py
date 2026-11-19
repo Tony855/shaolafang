@@ -64,9 +64,17 @@ def report_locales(outdir):
 # 找 >中文< 纯文本节点，且该 <...> 标签上没有 data-i18n*
 def report_html(outdir):
     hits = []
+    integrity = []
+    control_re = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
+    nested_option_span_re = re.compile(r'<option\b[^>]*>\s*<span\b', re.I | re.S)
     for p in walk({'.html'}):
         rel = p.relative_to(ROOT)
-        for i, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+        content = p.read_text(encoding='utf-8')
+        for i, line in enumerate(content.splitlines(), 1):
+            controls = control_re.findall(line)
+            if controls:
+                codes = ','.join(f'U+{ord(ch):04X}' for ch in sorted(set(controls)))
+                integrity.append(f'{rel}:{i}\t控制字符 {len(controls)} 个 ({codes})')
             s = line.strip()
             if not s or s.startswith('<!--') or s.startswith('//'): continue
             # >中文<  或  >中文（…）<  这种纯文本
@@ -78,9 +86,19 @@ def report_html(outdir):
                 tag_seg = line[tag_start:m.start()] if tag_start >= 0 else ''
                 if 'data-i18n' in tag_seg: continue
                 hits.append(f'{rel}:{i}\t{txt[:80]}')
-    (outdir / '02-html-hardcoded.txt').write_text('\n'.join(hits), encoding='utf-8')
-    return f'HTML 硬编码中文：{len(hits)} 处'
 
+        option_open = len(re.findall(r'<option\b', content, re.I))
+        option_close = len(re.findall(r'</option\s*>', content, re.I))
+        if option_open != option_close:
+            integrity.append(f'{rel}\toption 标签数量不匹配：开始 {option_open}，结束 {option_close}')
+        nested = len(nested_option_span_re.findall(content))
+        if nested:
+            integrity.append(f'{rel}\toption 内非法嵌套 span：{nested} 处')
+
+    (outdir / '02-html-hardcoded.txt').write_text('\n'.join(hits), encoding='utf-8')
+    (outdir / '02-html-integrity.txt').write_text('\n'.join(integrity), encoding='utf-8')
+    return f'HTML 硬编码中文：{len(hits)} 处；HTML 结构/控制字符问题：{len(integrity)} 项'
+ 
 # ---------- 报告 3：JS 硬编码 ----------
 # 找 '中文' / "中文" / `中文` 且同行前面 60 字符内没 t(/tAdmin(/L(/SLF.t(
 T_WRAP = re.compile(r'(?:^|[^\w.])t\s*\(|tAdmin\s*\(|\bL\s*\(|SLF\.t\s*\(|i18n\.t\s*\(')
