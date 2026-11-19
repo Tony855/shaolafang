@@ -638,7 +638,8 @@ module.exports = function(app, deps) {
       });
       res.json({ success: true, cashier: updatedCashier });
     } catch (e) {
-      if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: e.status ? e.message : '收银员账号已存在' });
+      if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '收银员账号已存在' });
+      if (e.status === 409) return res.status(409).json({ error: normalizeRouteError(e, '收银员账号已存在').message });
       const safeError = normalizeRouteError(e, '更新收银员失败，所有更改已回滚');
     res.status(safeError.status).json({ error: safeError.message });
     }
