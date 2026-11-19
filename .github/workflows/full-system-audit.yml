@@ -7,6 +7,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -52,6 +55,18 @@ jobs:
 
       - name: Prepare audit report directory
         run: mkdir -p full-system-audit-reports
+
+      - name: Record exact audited revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "commit_sha=${GITHUB_SHA}"
+            echo "ref=${GITHUB_REF}"
+            echo "event=${GITHUB_EVENT_NAME}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
+          } | tee full-system-audit-reports/audit-metadata.txt
 
       - name: Check JavaScript syntax
         shell: bash
