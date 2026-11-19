@@ -108,4 +108,4 @@
 
 当前仓库 .github/workflows/ci.yml 已执行 JavaScript/Shell/Python 语法检查、scripts/audit-code.py、严格多语言检查、完整 npm test、生产依赖审计，以及 MySQL 8.4 和 MariaDB 四版本的财务集成/备份恢复测试。
 
-本次新增的 .github/workflows/full-system-audit.yml 每日 02:00 UTC（柬埔寨时间 09:00）执行全系统自动审计，也支持手动触发和 Pull Request 触发，并归档重复路由/函数和多语言扫描报告。现有安装兼容性工作流仍作为独立必需门禁。审计清单的人工业务验收仍需逐模块完成，不能由工作流代替。
+仓库 .github/workflows/full-system-audit.yml 每日 02:00 UTC（柬埔寨时间 09:00）执行全系统自动审计，同时支持手动触发、针对 main 的 Pull Request 审计，以及每次提交进入 main 后的 push 审计。审计报告会在 audit-metadata.txt 中记录被审计的 commit SHA、ref、触发事件、run ID 和 run attempt；验收时必须核对该 SHA 与目标 main/PR head 完全一致，不得引用旧提交的报告。工作流归档静态检查、重复路由/函数和多语言扫描报告，并执行 MySQL/MariaDB 数据库矩阵；现有安装兼容性工作流仍作为独立门禁。审计清单的人工业务验收仍需逐模块完成，不能由工作流代替。
