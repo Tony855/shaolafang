@@ -407,8 +407,8 @@ module.exports = function(app, deps) {
     if (!row || !row.value) return [];
     let parsed;
     try { parsed = JSON.parse(row.value); }
-    catch (_) { throw Object.assign(new Error('门店收银员数据损坏，已停止写入以防止覆盖原始数据'), { status: 500 }); }
-    if (!Array.isArray(parsed)) throw Object.assign(new Error('门店收银员数据格式无效，已停止写入'), { status: 500 });
+    catch (_) { throw Object.assign(new Error('门店收银员数据损坏，已停止写入以防止覆盖原始数据'), { status: 500, publicMessage: '门店收银员数据损坏，已停止写入以防止覆盖原始数据' }); }
+    if (!Array.isArray(parsed)) throw Object.assign(new Error('门店收银员数据格式无效，已停止写入'), { status: 500, publicMessage: '门店收银员数据格式无效，已停止写入' });
     return parsed;
   }
 
