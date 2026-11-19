@@ -6,6 +6,7 @@ FoodFlow i18n 全站审计
 """
 import json, re, sys, time
 from pathlib import Path
+from html.parser import HTMLParser
 
 ROOT = Path('.').resolve()
 LANGS = ['zh', 'en', 'vi', 'th', 'km']
@@ -67,9 +68,32 @@ def report_html(outdir):
     integrity = []
     control_re = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
     nested_option_span_re = re.compile(r'<option\b[^>]*>\s*<span\b', re.I | re.S)
+    class I18nNestingParser(HTMLParser):
+        VOID_TAGS = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'}
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.stack = []
+            self.findings = []
+        def handle_starttag(self, tag, attrs):
+            values = dict(attrs)
+            key = values.get('data-i18n') or values.get('data-i18n-nav')
+            ancestors = [item[1] for item in self.stack if item[1]]
+            if key and ancestors:
+                self.findings.append((self.getpos()[0], ancestors[-1], key))
+            if tag not in self.VOID_TAGS:
+                self.stack.append((tag, key))
+        def handle_endtag(self, tag):
+            for index in range(len(self.stack) - 1, -1, -1):
+                if self.stack[index][0] == tag:
+                    del self.stack[index:]
+                    break
     for p in walk({'.html'}):
         rel = p.relative_to(ROOT)
         content = p.read_text(encoding='utf-8')
+        parser = I18nNestingParser()
+        parser.feed(content)
+        for line_no, parent_key, child_key in parser.findings:
+            integrity.append(f'{rel}:{line_no}\t嵌套 data-i18n：{parent_key} -> {child_key}')
         for i, line in enumerate(content.splitlines(), 1):
             controls = control_re.findall(line)
             if controls:
