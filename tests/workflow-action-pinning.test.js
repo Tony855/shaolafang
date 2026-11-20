@@ -7,6 +7,12 @@ const { test } = require('node:test');
 
 const workflowDir = path.join(__dirname, '..', '.github', 'workflows');
 
+test('Dependabot tracks npm packages and pinned GitHub Actions', () => {
+  const dependabot = fs.readFileSync(path.join(__dirname, '..', '.github', 'dependabot.yml'), 'utf8');
+  assert.match(dependabot, /package-ecosystem:\s*npm/);
+  assert.match(dependabot, /package-ecosystem:\s*github-actions/);
+});
+
 test('third-party GitHub Actions are pinned to immutable full commit SHAs', () => {
   const files = fs.readdirSync(workflowDir).filter(file => /\.ya?ml$/i.test(file));
   assert.ok(files.length > 0, 'workflow directory must contain workflow files');
