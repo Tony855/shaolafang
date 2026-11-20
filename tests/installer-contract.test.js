@@ -31,10 +31,12 @@ test('GitHub askpass supplies token without putting it in Git arguments and remo
     const fakeGit = path.join(tempDir, 'git');
     const argsFile = path.join(tempDir, 'args.txt');
     const askpassFile = path.join(tempDir, 'askpass-path.txt');
+    const askpassContentFile = path.join(tempDir, 'askpass-content.txt');
     const fakeGitSource = [
       '#!/bin/sh',
       'printf "%s\\n" "$@" > "$CAPTURE_ARGS"',
       'printf "%s\\n" "$GIT_ASKPASS" > "$CAPTURE_ASKPASS"',
+      'cat "$GIT_ASKPASS" > "$CAPTURE_ASKPASS_CONTENT"',
       'username="$("$GIT_ASKPASS" "Username for https://github.com:")"',
       'password="$("$GIT_ASKPASS" "Password for https://github.com:")"',
       '[ "$username" = "x-access-token" ] || exit 3',
@@ -51,7 +53,8 @@ test('GitHub askpass supplies token without putting it in Git arguments and remo
         GITHUB_TOKEN: token,
         PATH: tempDir + path.delimiter + process.env.PATH,
         CAPTURE_ARGS: argsFile,
-        CAPTURE_ASKPASS: askpassFile
+        CAPTURE_ASKPASS: askpassFile,
+        CAPTURE_ASKPASS_CONTENT: askpassContentFile
       }
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -60,6 +63,9 @@ test('GitHub askpass supplies token without putting it in Git arguments and remo
     assert.equal(args.includes(token), false);
     const askpassPath = fs.readFileSync(askpassFile, 'utf8').trim();
     assert.ok(askpassPath);
+    const askpassContent = fs.readFileSync(askpassContentFile, 'utf8');
+    assert.equal(askpassContent.includes(token), false, 'helper file must not contain the token');
+    assert.ok(askpassContent.includes('${GITHUB_TOKEN:-}'), 'helper must read the token from its environment');
     assert.equal(fs.existsSync(askpassPath), false, 'temporary askpass helper must be removed after Git exits');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
