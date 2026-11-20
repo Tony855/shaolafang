@@ -39,10 +39,10 @@ test('GitHub askpass supplies token without putting it in Git arguments and remo
       'password="$("$GIT_ASKPASS" "Password for https://github.com:")"',
       '[ "$username" = "x-access-token" ] || exit 3',
       '[ "$password" = "$GITHUB_TOKEN" ] || exit 4'
-    ].join('\\n');
+    ].join('\n');
     fs.writeFileSync(fakeGit, fakeGitSource, { mode: 0o700 });
-    const script = "log_error() { :; }\\n" + helper[0] +
-      "\\nff_git_with_token git clone --branch main https://github.com/Tony855/shaolafang.git";
+    const script = "log_error() { :; }\n" + helper[0] +
+      "\nff_git_with_token git clone --branch main https://github.com/Tony855/shaolafang.git";
     const token = 'test-token-sentinel-never-log';
     const result = spawnSync('bash', ['-c', script], {
       encoding: 'utf8',
