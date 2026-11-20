@@ -1202,7 +1202,8 @@ async function handleTelegramBotTest(req, res, scope) {
     res.setHeader('Cache-Control', 'no-store, private');
     res.json({ success: true, message_id: result.messageId });
   } catch (error) {
-    res.status(400).json({ error: error.message || 'Telegram 测试消息发送失败' });
+    const safeError = normalizeRouteError(error, 'Telegram 测试消息发送失败，请检查 Bot 配置与网络连接');
+    res.status(safeError.status === 500 ? 502 : safeError.status).json({ error: safeError.message });
   }
 }
 
