@@ -429,7 +429,7 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
         success++;
       } catch (e) {
         failed++;
-        errors.push(`第 ${i+1} 行：${e.message}`);
+        errors.push(`第 ${i+1} 行：导入失败，请检查菜品数据或联系管理员`);
       }
     }
     
