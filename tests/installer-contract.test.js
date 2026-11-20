@@ -8,6 +8,18 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
+
+test('GitHub token authentication never places secrets in clone or pull URLs', () => {
+  const installer = read('install.sh');
+  assert.ok(installer.includes('ff_git_with_token() {'));
+  assert.ok(installer.includes('GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 "$@"'));
+  assert.ok(installer.includes('printf \'%s\\n\' "${GITHUB_TOKEN:-}"'));
+  assert.ok(installer.includes('ff_git_with_token git pull https://github.com/Tony855/shaolafang.git main'));
+  assert.ok(installer.includes('ff_git_with_token git clone --branch "$GIT_VERSION" https://github.com/Tony855/shaolafang.git'));
+  assert.doesNotMatch(installer, /https:\\/\\/\\$\\{GITHUB_TOKEN\\}@github\\.com/);
+  assert.doesNotMatch(installer, /git (?:pull|clone)[^\\n]*GITHUB_TOKEN/);
+});
+
 test('shared system bootstrap pins Node.js 26 LTS and verifies runtime', () => {
   const helper = read('scripts/lib/system-deps.sh');
   assert.match(helper, /FF_NODE_MAJOR="\$\{FF_NODE_MAJOR:-26\}"/);
