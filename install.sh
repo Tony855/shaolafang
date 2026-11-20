@@ -141,8 +141,8 @@ ff_git_with_token() {
     if ! cat > "$askpass" <<'EOF'
 #!/bin/sh
 case "$1" in
-    *sername*) printf '%s\\n' 'x-access-token' ;;
-    *assword*) printf '%s\\n' "${GITHUB_TOKEN:-}" ;;
+    *sername*) printf '%s\n' 'x-access-token' ;;
+    *assword*) printf '%s\n' "${GITHUB_TOKEN:-}" ;;
     *) exit 1 ;;
 esac
 EOF
