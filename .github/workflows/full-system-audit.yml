@@ -104,6 +104,9 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      - name: Audit all dependencies including development and build tools
+        run: npm audit --audit-level=high
+
       - name: Upload static and localization audit reports
         if: always()
         uses: actions/upload-artifact@v6
