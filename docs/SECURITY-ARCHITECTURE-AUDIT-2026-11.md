@@ -16,8 +16,8 @@
 | 集群 TRUST_PROXY / Redis / Socket.IO | 代码、部署模板和 readiness 检查已实现；CI/安装矩阵通过 | 多节点故障注入、真实 LB IP、Redis 故障恢复未验证 |
 | 数据库 readiness | `/health` 为 canonical，兼容旧别名；集群检查 MySQL/Redis/Socket.IO Adapter | 生产探针未验证 |
 | 认证/订单/打印日志脱敏 | PR #268/#269/#270 已合并，main 有对应回归测试 | 生产日志抽查与事件响应演练未验证 |
-| 路由 5xx 原始错误泄露 | [PR #319](https://github.com/Tony855/shaolafang/pull/319) 已覆盖共享错误归一化、菜单逐行导入和 Telegram 测试错误脱敏；最终 head `ecaf8346acae053f1979afbd65dbbd01e15ef1b3` 的 17/17 检查通过 | PR 仍 open、未合并；无 review approval，等待仓库所有者审查 |
-| 安装器 GitHub Token URL 泄露 | [PR #320](https://github.com/Tony855/shaolafang/pull/320) 改用临时 0700 GIT_ASKPASS，token 不再放入 clone/pull URL；最终 head `2098c3e1e3ceb8f573bbb70b13f287b561ba916e` 的 17/17 检查通过 | PR 仍 open、未合并；无 review approval，等待仓库所有者审查 |
+| 路由 5xx 原始错误泄露 | [PR #319](https://github.com/Tony855/shaolafang/pull/319) 已覆盖共享错误归一化、菜单逐行导入和 Telegram 测试错误脱敏；最终 head `ecaf8346acae053f1979afbd65dbbd01e15ef1b3` 的 17/17 检查通过 | PR 仍 open、未合并；main 仍保留旧 handler，必须由所有者审查并合并后才算修复上线 |
+| 安装器 GitHub Token URL 泄露 | [PR #320](https://github.com/Tony855/shaolafang/pull/320) 改用临时 0700 GIT_ASKPASS，token 不再放入 clone/pull URL；最终 head `2098c3e1e3ceb8f573bbb70b13f287b561ba916e` 的 17/17 检查通过 | PR 仍 open、未合并；main 仍含旧 URL 认证路径，必须由所有者审查并合并后才算修复上线 |
 | Telegram Bot Token 静态存储 | settings 表和备份仍保留 Bot Token 明文；API/UI 脱敏不等于静态加密 | 应用级加密、密钥轮换、旧值迁移需要独立密钥管理方案；Issue #265 保持 open |
 | Telegram 通知 outbox | [PR #266](https://github.com/Tony855/shaolafang/pull/266) 已合并，merge commit `35ba63e29f7d731586c60259e50e0031754bc9e7`；worker 默认关闭 | Issue #265 的真实双 Bot、多门店、撤销、重启/租约和备份恢复验收未完成 |
 | main 分支保护 | main 实际返回 `protected=false`，仓库 Rulesets 为 `[]` | Issue #224 保持 open；当前 GitHub 集成没有保护规则写入能力，需仓库管理员设置 |
