@@ -2,6 +2,8 @@
 (() => {
 const form=document.getElementById('firstLoginForm'), oldPassword=document.getElementById('oldPassword'), newPassword=document.getElementById('newPassword'), confirmPassword=document.getElementById('confirmPassword'), button=document.getElementById('firstLoginBtn'), error=document.getElementById('firstLoginError');
 const t=(key,fallback)=>SLF.t(key,null,fallback);
+const logoutButton=document.getElementById('firstLoginLogout');
+if(logoutButton) logoutButton.textContent=t('superFirstLoginLogout','退出登录');
 if (!SLF.store.rawGet('superToken')) { window.location.replace('/super/login'); return; }
 function strong(v) { return typeof v==='string' && v.length>=12 && v.length<=128 && [/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/].filter(r=>r.test(v)).length>=3; }
 form.addEventListener('submit',async event=>{
@@ -19,7 +21,7 @@ if(e&&e.status===503){SLF.store.rawRemove('superToken');SLF.store.rawRemove('sup
 error.textContent=e&&e.message?e.message:t('superFirstLoginError','密码更新失败，请重试');newPassword.value='';confirmPassword.value='';newPassword.focus();
 } finally {button.disabled=false;button.textContent=t('superFirstLoginSave','保存新密码');}
 });
-document.getElementById('firstLoginLogout').addEventListener('click',async event=>{
+logoutButton.addEventListener('click',async event=>{
 event.preventDefault();try{await SLF.api.post('/super/logout',{});}catch(_){}SLF.store.rawRemove('superToken');SLF.store.rawRemove('superAdmin');window.location.replace('/super/login');
 });
 })();
