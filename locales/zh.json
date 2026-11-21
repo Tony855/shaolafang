@@ -1392,5 +1392,6 @@
   "financeNoExportRecords": "暂无导出记录",
   "financeExportAuditLoadFailed": "导出审计记录加载失败",
   "countryCol": "国家",
-  "refundAlreadyComplete": "订单已全额退款"
+  "refundAlreadyComplete": "订单已全额退款",
+  "loginTooManyAttempts": "登录失败次数过多，请{minutes}分钟后再试"
 }
