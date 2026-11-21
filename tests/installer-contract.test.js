@@ -4,9 +4,73 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const os = require('node:os');
 
 const root = path.resolve(__dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
+
+
+test('GitHub token authentication never places secrets in clone or pull URLs', () => {
+  const installer = read('install.sh');
+  assert.ok(installer.includes('ff_git_with_token() {'));
+  assert.ok(installer.includes('GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 "$@"'));
+  assert.ok(installer.includes('*assword*) printf'));
+  assert.ok(installer.includes('${GITHUB_TOKEN:-}'));
+  assert.ok(installer.includes('ff_git_with_token git pull https://github.com/Tony855/shaolafang.git main'));
+  assert.ok(installer.includes('ff_git_with_token git clone --branch "$GIT_VERSION" https://github.com/Tony855/shaolafang.git'));
+  assert.equal(installer.includes('https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git'), false);
+});
+test('GitHub askpass supplies token without putting it in Git arguments and removes helper', () => {
+  const installer = read('install.sh');
+  const helper = installer.match(/ff_git_with_token\(\) \{[\s\S]*?\n\}\n/);
+  assert.ok(helper, 'installer must define the token-safe Git helper');
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foodflow-askpass-test-'));
+  try {
+    const fakeGit = path.join(tempDir, 'git');
+    const argsFile = path.join(tempDir, 'args.txt');
+    const askpassFile = path.join(tempDir, 'askpass-path.txt');
+    const askpassContentFile = path.join(tempDir, 'askpass-content.txt');
+    const fakeGitSource = [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$CAPTURE_ARGS"',
+      'printf "%s\\n" "$GIT_ASKPASS" > "$CAPTURE_ASKPASS"',
+      'cat "$GIT_ASKPASS" > "$CAPTURE_ASKPASS_CONTENT"',
+      'username="$("$GIT_ASKPASS" "Username for https://github.com:")"',
+      'password="$("$GIT_ASKPASS" "Password for https://github.com:")"',
+      '[ "$username" = "x-access-token" ] || exit 3',
+      '[ "$password" = "$GITHUB_TOKEN" ] || exit 4'
+    ].join('\n');
+    fs.writeFileSync(fakeGit, fakeGitSource, { mode: 0o700 });
+    const script = "log_error() { :; }\n" + helper[0] +
+      "\nff_git_with_token git clone --branch main https://github.com/Tony855/shaolafang.git";
+    const token = 'test-token-sentinel-never-log';
+    const result = spawnSync('bash', ['-c', script], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GITHUB_TOKEN: token,
+        PATH: tempDir + path.delimiter + process.env.PATH,
+        CAPTURE_ARGS: argsFile,
+        CAPTURE_ASKPASS: askpassFile,
+        CAPTURE_ASKPASS_CONTENT: askpassContentFile
+      }
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const args = fs.readFileSync(argsFile, 'utf8');
+    assert.ok(args.includes('https://github.com/Tony855/shaolafang.git'));
+    assert.equal(args.includes(token), false);
+    const askpassPath = fs.readFileSync(askpassFile, 'utf8').trim();
+    assert.ok(askpassPath);
+    const askpassContent = fs.readFileSync(askpassContentFile, 'utf8');
+    assert.equal(askpassContent.includes(token), false, 'helper file must not contain the token');
+    assert.ok(askpassContent.includes('${GITHUB_TOKEN:-}'), 'helper must read the token from its environment');
+    assert.equal(fs.existsSync(askpassPath), false, 'temporary askpass helper must be removed after Git exits');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
 
 test('shared system bootstrap pins Node.js 26 LTS and verifies runtime', () => {
   const helper = read('scripts/lib/system-deps.sh');

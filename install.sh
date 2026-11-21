@@ -119,6 +119,48 @@ prepare_deploy_key() {
     export GIT_SSH_COMMAND="ssh -i $FOODFLOW_DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 }
 
+# Never place a GitHub token in a remote URL: command-line arguments and
+# failed clone metadata can expose credentials. Use a short-lived askpass
+# helper that reads the already-exported token only when Git prompts.
+ff_git_with_token() {
+    if [ -z "${GITHUB_TOKEN:-}" ]; then
+        "$@"
+        return $?
+    fi
+
+    local askpass rc
+    if ! askpass="$(mktemp "${TMPDIR:-/tmp}/foodflow-git-askpass.XXXXXX")"; then
+        log_error "无法创建临时 Git 凭据助手"
+        return 1
+    fi
+    if ! chmod 700 "$askpass"; then
+        rm -f "$askpass"
+        log_error "无法保护临时 Git 凭据助手"
+        return 1
+    fi
+    if ! cat > "$askpass" <<'EOF'
+#!/bin/sh
+case "$1" in
+    *sername*) printf '%s\n' 'x-access-token' ;;
+    *assword*) printf '%s\n' "${GITHUB_TOKEN:-}" ;;
+    *) exit 1 ;;
+esac
+EOF
+    then
+        rm -f "$askpass"
+        log_error "无法写入临时 Git 凭据助手"
+        return 1
+    fi
+
+    if GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 "$@"; then
+        rc=0
+    else
+        rc=$?
+    fi
+    rm -f "$askpass"
+    return "$rc"
+}
+
 # ===== 已安装时的更新模式 =====
 update_existing_install() {
     log_step "检测到已安装，先获取目标版本的事务式升级器"
@@ -518,7 +560,7 @@ install_single() {
         cd "$DEPLOY_TARGET"
         # 如果有 GITHUB_TOKEN，用带 token 的地址 pull
         if [ -n "$GITHUB_TOKEN" ]; then
-            git pull "https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git" main || log_warn "git pull 失败，继续使用现有代码"
+            ff_git_with_token git pull https://github.com/Tony855/shaolafang.git main || log_warn "git pull 失败，继续使用现有代码"
         else
             git pull origin main || log_warn "git pull 失败，继续使用现有代码"
         fi
@@ -552,7 +594,7 @@ install_single() {
             git clone --branch "$GIT_VERSION" "$FOODFLOW_REPO" "$DEPLOY_TARGET"
         elif [ -n "$GITHUB_TOKEN" ]; then
             log_info "使用 HTTPS + GITHUB_TOKEN 方式克隆..."
-            git clone --branch "$GIT_VERSION" "https://${GITHUB_TOKEN}@github.com/Tony855/shaolafang.git" "$DEPLOY_TARGET"
+            ff_git_with_token git clone --branch "$GIT_VERSION" https://github.com/Tony855/shaolafang.git "$DEPLOY_TARGET"
             # 克隆完立刻剥离 token，防止写入 .git/config
             cd "$DEPLOY_TARGET"
             git remote set-url origin https://github.com/Tony855/shaolafang.git
