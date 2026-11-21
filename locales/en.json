@@ -1392,5 +1392,13 @@
   "financeNoExportRecords": "No export records",
   "financeExportAuditLoadFailed": "Failed to load export audit records",
   "countryCol": "Country",
-  "refundAlreadyComplete": "Order has already been fully refunded"
+  "refundAlreadyComplete": "Order has already been fully refunded",
+  "customerTelegramUnbindTitle": "Unlink Telegram customer notifications",
+  "customerTelegramBindTitle": "Link Telegram customer notifications",
+  "customerTelegramUnavailable": "Telegram notifications are temporarily unavailable",
+  "customerTelegramScanFirst": "Please scan the table QR code first",
+  "customerTelegramUnbound": "Telegram customer notifications have been unlinked",
+  "customerTelegramDeepLinkError": "Unable to create the Telegram linking URL",
+  "customerTelegramStartHint": "Tap Start in Telegram to finish linking, then return to this page",
+  "customerTelegramOperationFailed": "Telegram linking failed. Please try again later."
 }
