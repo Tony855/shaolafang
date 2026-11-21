@@ -1392,5 +1392,13 @@
   "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
   "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
   "countryCol": "ប្រទេស",
-  "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
+  "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ",
+  "customerTelegramUnbindTitle": "ផ្តាច់ការភ្ជាប់ការជូនដំណឹងអតិថិជន Telegram",
+  "customerTelegramBindTitle": "ភ្ជាប់ការជូនដំណឹងអតិថិជន Telegram",
+  "customerTelegramUnavailable": "ការជូនដំណឹង Telegram មិនអាចប្រើបានបណ្តោះអាសន្ន",
+  "customerTelegramScanFirst": "សូមស្កេន QR លើតុជាមុនសិន",
+  "customerTelegramUnbound": "បានផ្តាច់ការភ្ជាប់ការជូនដំណឹងអតិថិជន Telegram ហើយ",
+  "customerTelegramDeepLinkError": "មិនអាចបង្កើតតំណភ្ជាប់ Telegram បានទេ",
+  "customerTelegramStartHint": "ចុច Start ក្នុង Telegram ដើម្បីបញ្ចប់ការភ្ជាប់ រួចត្រឡប់មកទំព័រនេះ",
+  "customerTelegramOperationFailed": "ការភ្ជាប់ Telegram បរាជ័យ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។"
 }
