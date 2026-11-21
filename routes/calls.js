@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 /* ============================================================
    routes/calls.js — 呼叫 + 预约
    ============================================================ */
@@ -118,7 +119,8 @@ app.post('/api/public/call-waiter', async (req, res) => {
     if (result.limited) return res.status(429).json({ error: '呼叫过于频繁', cooldownMinutes: result.cooldownMinutes });
     res.json({ success: true, callId: result.callId, message: '已通知服务员' });
   } catch (e) {
-    res.status(e.status || 500).json({ error: e.status ? e.message : '呼叫服务员失败' });
+    const safeError = normalizeRouteError(e, '呼叫服务员失败');
+      res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
