@@ -1396,5 +1396,14 @@
   "telegramStoreNotifyGlobalEnabled": "Admin Bot ត្រូវបានបើកដំណើរការ។ ការជូនដំណឹងរបស់ហាងនឹងផ្ញើទៅ Chat ដែលបានកំណត់ខាងលើ។",
   "telegramStoreNotifyGlobalDisabled": "Super Admin មិនទាន់បានបើក Admin Bot ទេ។ សូមទាក់ទង Super Admin ដើម្បីកំណត់ Bot សកល មុនពេលបើកការជូនដំណឹងរបស់ហាង។",
   "telegramStoreNotifySaved": "បានរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាង",
-  "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ"
+  "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ",
+  "orderFulfillmentTypeLabel": "ប្រភេទការបញ្ជាទិញ",
+  "orderNoTableForDelivery": "មិនចាំបាច់កំណត់តុ (ដឹកជញ្ជូន/យកដោយខ្លួនឯង)",
+  "orderFulfillmentDineIn": "ញ៉ាំនៅហាង",
+  "orderFulfillmentTakeaway": "យកដោយខ្លួនឯង",
+  "orderFulfillmentDelivery": "ដឹកជញ្ជូន",
+  "orderDeliveryFieldsRequired": "សូមបំពេញឈ្មោះអ្នកទទួល លេខទូរស័ព្ទ និងអាសយដ្ឋានដឹកជញ្ជូន",
+  "orderDeliveryCreatedWaitingRider": "បានបង្កើតការបញ្ជាទិញដឹកជញ្ជូន។ កំពុងរង់ចាំការចាត់តាំងអ្នកដឹកជញ្ជូន។",
+  "orderTrackingCopied": "បានចម្លងតំណតាមដាន",
+  "orderTrackingCopyManual": "សូមចុចឱ្យជាប់ដើម្បីចម្លង៖ "
 }
