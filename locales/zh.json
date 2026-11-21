@@ -1392,5 +1392,13 @@
   "financeNoExportRecords": "暂无导出记录",
   "financeExportAuditLoadFailed": "导出审计记录加载失败",
   "countryCol": "国家",
-  "refundAlreadyComplete": "订单已全额退款"
+  "refundAlreadyComplete": "订单已全额退款",
+  "customerTelegramUnbindTitle": "取消 Telegram 顾客通知绑定",
+  "customerTelegramBindTitle": "绑定 Telegram 顾客通知",
+  "customerTelegramUnavailable": "Telegram 通知暂不可用",
+  "customerTelegramScanFirst": "请先扫描桌面二维码",
+  "customerTelegramUnbound": "Telegram 顾客通知已解除绑定",
+  "customerTelegramDeepLinkError": "无法生成 Telegram 绑定链接",
+  "customerTelegramStartHint": "请在 Telegram 中点击 Start 完成绑定，然后返回本页面",
+  "customerTelegramOperationFailed": "Telegram 绑定操作失败，请稍后重试"
 }
