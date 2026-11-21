@@ -1392,5 +1392,14 @@
   "financeNoExportRecords": "暂无导出记录",
   "financeExportAuditLoadFailed": "导出审计记录加载失败",
   "countryCol": "国家",
-  "refundAlreadyComplete": "订单已全额退款"
+  "refundAlreadyComplete": "订单已全额退款",
+  "superFirstLoginMismatch": "两次输入的新密码不一致",
+  "superFirstLoginWeak": "新密码强度不足，或与初始密码相同",
+  "superFirstLoginSaving": "正在安全保存…",
+  "superFirstLoginUpdateFailed": "密码更新失败",
+  "superFirstLoginSuccess": "密码已更新。为确保旧会话全部失效，请使用新密码重新登录。",
+  "superFirstLoginCleanupFailed": "凭据清理未完成，请使用新密码重新登录并重试。",
+  "superFirstLoginSave": "保存新密码",
+  "superFirstLoginError": "密码更新失败，请重试",
+  "superFirstLoginLogout": "退出登录"
 }
