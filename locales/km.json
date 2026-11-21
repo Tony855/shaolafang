@@ -1392,5 +1392,6 @@
   "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
   "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
   "countryCol": "ប្រទេស",
-  "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
+  "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ",
+  "loginTooManyAttempts": "អ្នកបានព្យាយាមចូលច្រើនដងពេក។ សូមព្យាយាមម្តងទៀតក្នុងរយៈពេល {minutes} នាទី។"
 }
