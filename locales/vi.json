@@ -1392,5 +1392,6 @@
   "financeNoExportRecords": "Chưa có bản ghi xuất",
   "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất",
   "countryCol": "Quốc gia",
-  "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ"
+  "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ",
+  "loginTooManyAttempts": "Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau {minutes} phút."
 }

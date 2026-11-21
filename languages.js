@@ -1399,7 +1399,8 @@ const LANGUAGES = {
     "financeNoExportRecords": "暂无导出记录",
     "financeExportAuditLoadFailed": "导出审计记录加载失败",
     "countryCol": "国家",
-    "refundAlreadyComplete": "订单已全额退款"
+    "refundAlreadyComplete": "订单已全额退款",
+    "loginTooManyAttempts": "登录失败次数过多，请{minutes}分钟后再试"
   },
   "en": {
     "code": "Code",
@@ -2795,7 +2796,8 @@ const LANGUAGES = {
     "financeNoExportRecords": "No export records",
     "financeExportAuditLoadFailed": "Failed to load export audit records",
     "countryCol": "Country",
-    "refundAlreadyComplete": "Order has already been fully refunded"
+    "refundAlreadyComplete": "Order has already been fully refunded",
+    "loginTooManyAttempts": "Too many failed login attempts. Please try again in {minutes} minutes."
   },
   "vi": {
     "code": "Mã",
@@ -4191,7 +4193,8 @@ const LANGUAGES = {
     "financeNoExportRecords": "Chưa có bản ghi xuất",
     "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất",
     "countryCol": "Quốc gia",
-    "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ"
+    "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ",
+    "loginTooManyAttempts": "Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau {minutes} phút."
   },
   "th": {
     "code": "รหัส",
@@ -5587,7 +5590,8 @@ const LANGUAGES = {
     "financeNoExportRecords": "ไม่มีบันทึกการส่งออก",
     "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ",
     "countryCol": "ประเทศ",
-    "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว"
+    "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว",
+    "loginTooManyAttempts": "คุณพยายามเข้าสู่ระบบไม่สำเร็จหลายครั้งเกินไป โปรดลองอีกครั้งใน {minutes} นาที"
   },
   "km": {
     "code": "កូដ",
@@ -6983,7 +6987,8 @@ const LANGUAGES = {
     "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
     "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
     "countryCol": "ប្រទេស",
-    "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
+    "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ",
+    "loginTooManyAttempts": "អ្នកបានព្យាយាមចូលច្រើនដងពេក។ សូមព្យាយាមម្តងទៀតក្នុងរយៈពេល {minutes} នាទី។"
   }
 };
 
@@ -7001,6 +7006,7 @@ function detectBrowserLanguage() {
     return 'zh';
 }
 
+// 兼容旧代码：确保全局可访问
 if (typeof window !== 'undefined') {
   window.LANGUAGES = LANGUAGES;
   window.detectBrowserLanguage = detectBrowserLanguage;
