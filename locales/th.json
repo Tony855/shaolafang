@@ -1392,5 +1392,6 @@
   "financeNoExportRecords": "ไม่มีบันทึกการส่งออก",
   "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ",
   "countryCol": "ประเทศ",
-  "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว"
+  "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว",
+  "loginTooManyAttempts": "คุณพยายามเข้าสู่ระบบไม่สำเร็จหลายครั้งเกินไป โปรดลองอีกครั้งใน {minutes} นาที"
 }
