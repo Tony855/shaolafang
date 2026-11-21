@@ -1392,5 +1392,13 @@
   "financeNoExportRecords": "Chưa có bản ghi xuất",
   "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất",
   "countryCol": "Quốc gia",
-  "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ"
+  "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ",
+  "customerTelegramUnbindTitle": "Hủy liên kết thông báo khách hàng Telegram",
+  "customerTelegramBindTitle": "Liên kết thông báo khách hàng Telegram",
+  "customerTelegramUnavailable": "Thông báo Telegram tạm thời không khả dụng",
+  "customerTelegramScanFirst": "Vui lòng quét mã QR trên bàn trước",
+  "customerTelegramUnbound": "Đã hủy liên kết thông báo khách hàng Telegram",
+  "customerTelegramDeepLinkError": "Không thể tạo liên kết Telegram",
+  "customerTelegramStartHint": "Nhấn Start trong Telegram để hoàn tất liên kết, sau đó quay lại trang này",
+  "customerTelegramOperationFailed": "Không thể liên kết Telegram. Vui lòng thử lại sau."
 }
