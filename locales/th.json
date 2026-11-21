@@ -1392,5 +1392,9 @@
   "financeNoExportRecords": "ไม่มีบันทึกการส่งออก",
   "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ",
   "countryCol": "ประเทศ",
-  "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว"
+  "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว",
+  "telegramStoreNotifyGlobalEnabled": "เปิดใช้งาน Admin Bot แล้ว การแจ้งเตือนของร้านค้าจะส่งไปยัง Chat ที่กำหนดไว้ด้านบน",
+  "telegramStoreNotifyGlobalDisabled": "Super Admin ยังไม่ได้เปิดใช้งาน Admin Bot โปรดติดต่อ Super Admin เพื่อตั้งค่า Bot ส่วนกลางก่อนเปิดการแจ้งเตือนของร้านค้า",
+  "telegramStoreNotifySaved": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าแล้ว",
+  "telegramStoreNotifySaveFailed": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าไม่สำเร็จ"
 }
