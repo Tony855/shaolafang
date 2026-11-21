@@ -1392,5 +1392,14 @@
   "financeNoExportRecords": "No export records",
   "financeExportAuditLoadFailed": "Failed to load export audit records",
   "countryCol": "Country",
-  "refundAlreadyComplete": "Order has already been fully refunded"
+  "refundAlreadyComplete": "Order has already been fully refunded",
+  "superFirstLoginMismatch": "The new passwords do not match.",
+  "superFirstLoginWeak": "The new password is too weak or matches the initial password.",
+  "superFirstLoginSaving": "Saving securely…",
+  "superFirstLoginUpdateFailed": "Password update failed",
+  "superFirstLoginSuccess": "Password updated. Please sign in again with your new password to invalidate previous sessions.",
+  "superFirstLoginCleanupFailed": "Credential cleanup is incomplete. Please sign in again with your new password and retry.",
+  "superFirstLoginSave": "Save new password",
+  "superFirstLoginError": "Password update failed. Please try again.",
+  "superFirstLoginLogout": "Log out"
 }

@@ -1392,5 +1392,14 @@
   "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
   "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
   "countryCol": "ប្រទេស",
-  "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
+  "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ",
+  "superFirstLoginMismatch": "ពាក្យសម្ងាត់ថ្មីទាំងពីរមិនត្រូវគ្នាទេ។",
+  "superFirstLoginWeak": "ពាក្យសម្ងាត់ថ្មីខ្សោយពេក ឬដូចពាក្យសម្ងាត់ដើម។",
+  "superFirstLoginSaving": "កំពុងរក្សាទុកដោយសុវត្ថិភាព…",
+  "superFirstLoginUpdateFailed": "បរាជ័យក្នុងការធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់",
+  "superFirstLoginSuccess": "បានធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់ហើយ។ សូមចូលម្តងទៀតដោយប្រើពាក្យសម្ងាត់ថ្មី ដើម្បីបិទសម័យចាស់ទាំងអស់។",
+  "superFirstLoginCleanupFailed": "ការសម្អាតព័ត៌មានសម្គាល់មិនទាន់បញ្ចប់ទេ។ សូមចូលម្តងទៀតដោយប្រើពាក្យសម្ងាត់ថ្មី ហើយព្យាយាមម្តងទៀត។",
+  "superFirstLoginSave": "រក្សាទុកពាក្យសម្ងាត់ថ្មី",
+  "superFirstLoginError": "បរាជ័យក្នុងការធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់។ សូមព្យាយាមម្តងទៀត។",
+  "superFirstLoginLogout": "ចាកចេញ"
 }

@@ -1399,7 +1399,16 @@ const LANGUAGES = {
     "financeNoExportRecords": "暂无导出记录",
     "financeExportAuditLoadFailed": "导出审计记录加载失败",
     "countryCol": "国家",
-    "refundAlreadyComplete": "订单已全额退款"
+    "refundAlreadyComplete": "订单已全额退款",
+    "superFirstLoginMismatch": "两次输入的新密码不一致",
+    "superFirstLoginWeak": "新密码强度不足，或与初始密码相同",
+    "superFirstLoginSaving": "正在安全保存…",
+    "superFirstLoginUpdateFailed": "密码更新失败",
+    "superFirstLoginSuccess": "密码已更新。为确保旧会话全部失效，请使用新密码重新登录。",
+    "superFirstLoginCleanupFailed": "凭据清理未完成，请使用新密码重新登录并重试。",
+    "superFirstLoginSave": "保存新密码",
+    "superFirstLoginError": "密码更新失败，请重试",
+    "superFirstLoginLogout": "退出登录"
   },
   "en": {
     "code": "Code",
@@ -2795,7 +2804,16 @@ const LANGUAGES = {
     "financeNoExportRecords": "No export records",
     "financeExportAuditLoadFailed": "Failed to load export audit records",
     "countryCol": "Country",
-    "refundAlreadyComplete": "Order has already been fully refunded"
+    "refundAlreadyComplete": "Order has already been fully refunded",
+    "superFirstLoginMismatch": "The new passwords do not match.",
+    "superFirstLoginWeak": "The new password is too weak or matches the initial password.",
+    "superFirstLoginSaving": "Saving securely…",
+    "superFirstLoginUpdateFailed": "Password update failed",
+    "superFirstLoginSuccess": "Password updated. Please sign in again with your new password to invalidate previous sessions.",
+    "superFirstLoginCleanupFailed": "Credential cleanup is incomplete. Please sign in again with your new password and retry.",
+    "superFirstLoginSave": "Save new password",
+    "superFirstLoginError": "Password update failed. Please try again.",
+    "superFirstLoginLogout": "Log out"
   },
   "vi": {
     "code": "Mã",
@@ -4191,7 +4209,16 @@ const LANGUAGES = {
     "financeNoExportRecords": "Chưa có bản ghi xuất",
     "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất",
     "countryCol": "Quốc gia",
-    "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ"
+    "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ",
+    "superFirstLoginMismatch": "Mật khẩu mới không khớp.",
+    "superFirstLoginWeak": "Mật khẩu mới quá yếu hoặc trùng với mật khẩu ban đầu.",
+    "superFirstLoginSaving": "Đang lưu an toàn…",
+    "superFirstLoginUpdateFailed": "Không thể cập nhật mật khẩu",
+    "superFirstLoginSuccess": "Mật khẩu đã được cập nhật. Vui lòng đăng nhập lại bằng mật khẩu mới để vô hiệu hóa các phiên cũ.",
+    "superFirstLoginCleanupFailed": "Chưa hoàn tất việc xóa thông tin xác thực. Vui lòng đăng nhập lại bằng mật khẩu mới và thử lại.",
+    "superFirstLoginSave": "Lưu mật khẩu mới",
+    "superFirstLoginError": "Không thể cập nhật mật khẩu. Vui lòng thử lại.",
+    "superFirstLoginLogout": "Đăng xuất"
   },
   "th": {
     "code": "รหัส",
@@ -5587,7 +5614,16 @@ const LANGUAGES = {
     "financeNoExportRecords": "ไม่มีบันทึกการส่งออก",
     "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ",
     "countryCol": "ประเทศ",
-    "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว"
+    "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว",
+    "superFirstLoginMismatch": "รหัสผ่านใหม่ทั้งสองรายการไม่ตรงกัน",
+    "superFirstLoginWeak": "รหัสผ่านใหม่ไม่รัดกุมเพียงพอหรือเหมือนรหัสผ่านเริ่มต้น",
+    "superFirstLoginSaving": "กำลังบันทึกอย่างปลอดภัย…",
+    "superFirstLoginUpdateFailed": "อัปเดตรหัสผ่านไม่สำเร็จ",
+    "superFirstLoginSuccess": "อัปเดตรหัสผ่านแล้ว โปรดเข้าสู่ระบบอีกครั้งด้วยรหัสผ่านใหม่เพื่อยกเลิกเซสชันเดิม",
+    "superFirstLoginCleanupFailed": "การล้างข้อมูลรับรองยังไม่เสร็จสมบูรณ์ โปรดเข้าสู่ระบบอีกครั้งด้วยรหัสผ่านใหม่แล้วลองอีกครั้ง",
+    "superFirstLoginSave": "บันทึกรหัสผ่านใหม่",
+    "superFirstLoginError": "อัปเดตรหัสผ่านไม่สำเร็จ โปรดลองอีกครั้ง",
+    "superFirstLoginLogout": "ออกจากระบบ"
   },
   "km": {
     "code": "កូដ",
@@ -6983,14 +7019,19 @@ const LANGUAGES = {
     "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
     "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
     "countryCol": "ប្រទេស",
-    "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
+    "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ",
+    "superFirstLoginMismatch": "ពាក្យសម្ងាត់ថ្មីទាំងពីរមិនត្រូវគ្នាទេ។",
+    "superFirstLoginWeak": "ពាក្យសម្ងាត់ថ្មីខ្សោយពេក ឬដូចពាក្យសម្ងាត់ដើម។",
+    "superFirstLoginSaving": "កំពុងរក្សាទុកដោយសុវត្ថិភាព…",
+    "superFirstLoginUpdateFailed": "បរាជ័យក្នុងការធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់",
+    "superFirstLoginSuccess": "បានធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់ហើយ។ សូមចូលម្តងទៀតដោយប្រើពាក្យសម្ងាត់ថ្មី ដើម្បីបិទសម័យចាស់ទាំងអស់។",
+    "superFirstLoginCleanupFailed": "ការសម្អាតព័ត៌មានសម្គាល់មិនទាន់បញ្ចប់ទេ។ សូមចូលម្តងទៀតដោយប្រើពាក្យសម្ងាត់ថ្មី ហើយព្យាយាមម្តងទៀត។",
+    "superFirstLoginSave": "រក្សាទុកពាក្យសម្ងាត់ថ្មី",
+    "superFirstLoginError": "បរាជ័យក្នុងការធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់។ សូមព្យាយាមម្តងទៀត។",
+    "superFirstLoginLogout": "ចាកចេញ"
   }
 };
 
-/**
- * 检测浏览器语言并映射到系统支持的语言代码
- * @returns {string} zh/en/vi/th/km
- */
 function detectBrowserLanguage() {
     const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
     if (sys.startsWith('zh')) return 'zh';

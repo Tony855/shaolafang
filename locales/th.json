@@ -1392,5 +1392,14 @@
   "financeNoExportRecords": "ไม่มีบันทึกการส่งออก",
   "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ",
   "countryCol": "ประเทศ",
-  "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว"
+  "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว",
+  "superFirstLoginMismatch": "รหัสผ่านใหม่ทั้งสองรายการไม่ตรงกัน",
+  "superFirstLoginWeak": "รหัสผ่านใหม่ไม่รัดกุมเพียงพอหรือเหมือนรหัสผ่านเริ่มต้น",
+  "superFirstLoginSaving": "กำลังบันทึกอย่างปลอดภัย…",
+  "superFirstLoginUpdateFailed": "อัปเดตรหัสผ่านไม่สำเร็จ",
+  "superFirstLoginSuccess": "อัปเดตรหัสผ่านแล้ว โปรดเข้าสู่ระบบอีกครั้งด้วยรหัสผ่านใหม่เพื่อยกเลิกเซสชันเดิม",
+  "superFirstLoginCleanupFailed": "การล้างข้อมูลรับรองยังไม่เสร็จสมบูรณ์ โปรดเข้าสู่ระบบอีกครั้งด้วยรหัสผ่านใหม่แล้วลองอีกครั้ง",
+  "superFirstLoginSave": "บันทึกรหัสผ่านใหม่",
+  "superFirstLoginError": "อัปเดตรหัสผ่านไม่สำเร็จ โปรดลองอีกครั้ง",
+  "superFirstLoginLogout": "ออกจากระบบ"
 }
