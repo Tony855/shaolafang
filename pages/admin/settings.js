@@ -109,8 +109,8 @@ async function loadTelegramStoreNotificationSettings() {
     $('#telegramStoreNotifyRefunded').checked = d.notifyRefunded !== false;
     const status = $('#telegramStoreNotifyGlobalStatus');
     if (status) status.textContent = d.globalBotEnabled
-      ? '管理员 Bot 已启用；门店通知将发送到上方配置的 Chat。'
-      : '超级管理员尚未启用管理员 Bot。请联系超级管理员完成全局 Bot 配置后再启用门店通知。';
+      ? tAdmin('telegramStoreNotifyGlobalEnabled')
+      : tAdmin('telegramStoreNotifyGlobalDisabled');
   } catch (e) { console.warn('加载 Telegram 门店通知设置失败', e); }
 }
 
@@ -158,9 +158,9 @@ document.addEventListener('DOMContentLoaded', function() {
           notifySettled: $('#telegramStoreNotifySettled').checked,
           notifyRefunded: $('#telegramStoreNotifyRefunded').checked
         });
-        SLF.ui.toast('Telegram 门店通知设置已保存');
+        SLF.ui.toast(tAdmin('telegramStoreNotifySaved'));
         await loadTelegramStoreNotificationSettings();
-      } catch (e) { SLF.ui.toast('❌ ' + (e.message || 'Telegram 门店通知设置保存失败')); }
+      } catch (e) { SLF.ui.toast('❌ ' + (e.message || tAdmin('telegramStoreNotifySaveFailed'))); }
     };
   }
   loadTelegramStoreNotificationSettings();
