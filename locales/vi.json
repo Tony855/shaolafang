@@ -1396,5 +1396,14 @@
   "telegramStoreNotifyGlobalEnabled": "Bot quản trị đã được bật. Thông báo cửa hàng sẽ được gửi đến Chat đã cấu hình ở trên.",
   "telegramStoreNotifyGlobalDisabled": "Quản trị viên cấp cao chưa bật Bot quản trị. Vui lòng liên hệ quản trị viên cấp cao để cấu hình Bot toàn cục trước khi bật thông báo cửa hàng.",
   "telegramStoreNotifySaved": "Đã lưu cài đặt thông báo Telegram của cửa hàng",
-  "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng"
+  "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng",
+  "orderFulfillmentTypeLabel": "Loại đơn hàng",
+  "orderNoTableForDelivery": "Không cần bàn (giao hàng/tự nhận)",
+  "orderFulfillmentDineIn": "Ăn tại chỗ",
+  "orderFulfillmentTakeaway": "Tự nhận",
+  "orderFulfillmentDelivery": "Giao hàng",
+  "orderDeliveryFieldsRequired": "Vui lòng nhập người nhận, số điện thoại và địa chỉ giao hàng",
+  "orderDeliveryCreatedWaitingRider": "Đã tạo đơn giao hàng. Đơn đang chờ phân công tài xế.",
+  "orderTrackingCopied": "Đã sao chép liên kết theo dõi",
+  "orderTrackingCopyManual": "Nhấn giữ để sao chép: "
 }
