@@ -1392,5 +1392,9 @@
   "financeNoExportRecords": "No export records",
   "financeExportAuditLoadFailed": "Failed to load export audit records",
   "countryCol": "Country",
-  "refundAlreadyComplete": "Order has already been fully refunded"
+  "refundAlreadyComplete": "Order has already been fully refunded",
+  "telegramStoreNotifyGlobalEnabled": "Admin Bot is enabled. Store notifications will be sent to the Chat configured above.",
+  "telegramStoreNotifyGlobalDisabled": "The super admin has not enabled the Admin Bot. Contact the super admin to configure the global Bot before enabling store notifications.",
+  "telegramStoreNotifySaved": "Store Telegram notification settings saved",
+  "telegramStoreNotifySaveFailed": "Failed to save store Telegram notification settings"
 }

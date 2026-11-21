@@ -1392,5 +1392,9 @@
   "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
   "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
   "countryCol": "ប្រទេស",
-  "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
+  "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ",
+  "telegramStoreNotifyGlobalEnabled": "Admin Bot ត្រូវបានបើកដំណើរការ។ ការជូនដំណឹងរបស់ហាងនឹងផ្ញើទៅ Chat ដែលបានកំណត់ខាងលើ។",
+  "telegramStoreNotifyGlobalDisabled": "Super Admin មិនទាន់បានបើក Admin Bot ទេ។ សូមទាក់ទង Super Admin ដើម្បីកំណត់ Bot សកល មុនពេលបើកការជូនដំណឹងរបស់ហាង។",
+  "telegramStoreNotifySaved": "បានរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាង",
+  "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ"
 }

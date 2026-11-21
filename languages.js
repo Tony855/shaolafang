@@ -1399,7 +1399,11 @@ const LANGUAGES = {
     "financeNoExportRecords": "暂无导出记录",
     "financeExportAuditLoadFailed": "导出审计记录加载失败",
     "countryCol": "国家",
-    "refundAlreadyComplete": "订单已全额退款"
+    "refundAlreadyComplete": "订单已全额退款",
+    "telegramStoreNotifyGlobalEnabled": "管理员 Bot 已启用；门店通知将发送到上方配置的 Chat。",
+    "telegramStoreNotifyGlobalDisabled": "超级管理员尚未启用管理员 Bot。请联系超级管理员完成全局 Bot 配置后再启用门店通知。",
+    "telegramStoreNotifySaved": "Telegram 门店通知设置已保存",
+    "telegramStoreNotifySaveFailed": "Telegram 门店通知设置保存失败"
   },
   "en": {
     "code": "Code",
@@ -2795,7 +2799,11 @@ const LANGUAGES = {
     "financeNoExportRecords": "No export records",
     "financeExportAuditLoadFailed": "Failed to load export audit records",
     "countryCol": "Country",
-    "refundAlreadyComplete": "Order has already been fully refunded"
+    "refundAlreadyComplete": "Order has already been fully refunded",
+    "telegramStoreNotifyGlobalEnabled": "Admin Bot is enabled. Store notifications will be sent to the Chat configured above.",
+    "telegramStoreNotifyGlobalDisabled": "The super admin has not enabled the Admin Bot. Contact the super admin to configure the global Bot before enabling store notifications.",
+    "telegramStoreNotifySaved": "Store Telegram notification settings saved",
+    "telegramStoreNotifySaveFailed": "Failed to save store Telegram notification settings"
   },
   "vi": {
     "code": "Mã",
@@ -4191,7 +4199,11 @@ const LANGUAGES = {
     "financeNoExportRecords": "Chưa có bản ghi xuất",
     "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất",
     "countryCol": "Quốc gia",
-    "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ"
+    "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ",
+    "telegramStoreNotifyGlobalEnabled": "Bot quản trị đã được bật. Thông báo cửa hàng sẽ được gửi đến Chat đã cấu hình ở trên.",
+    "telegramStoreNotifyGlobalDisabled": "Quản trị viên cấp cao chưa bật Bot quản trị. Vui lòng liên hệ quản trị viên cấp cao để cấu hình Bot toàn cục trước khi bật thông báo cửa hàng.",
+    "telegramStoreNotifySaved": "Đã lưu cài đặt thông báo Telegram của cửa hàng",
+    "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng"
   },
   "th": {
     "code": "รหัส",
@@ -5587,7 +5599,11 @@ const LANGUAGES = {
     "financeNoExportRecords": "ไม่มีบันทึกการส่งออก",
     "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ",
     "countryCol": "ประเทศ",
-    "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว"
+    "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว",
+    "telegramStoreNotifyGlobalEnabled": "เปิดใช้งาน Admin Bot แล้ว การแจ้งเตือนของร้านค้าจะส่งไปยัง Chat ที่กำหนดไว้ด้านบน",
+    "telegramStoreNotifyGlobalDisabled": "Super Admin ยังไม่ได้เปิดใช้งาน Admin Bot โปรดติดต่อ Super Admin เพื่อตั้งค่า Bot ส่วนกลางก่อนเปิดการแจ้งเตือนของร้านค้า",
+    "telegramStoreNotifySaved": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าแล้ว",
+    "telegramStoreNotifySaveFailed": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าไม่สำเร็จ"
   },
   "km": {
     "code": "កូដ",
@@ -6983,7 +6999,11 @@ const LANGUAGES = {
     "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
     "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
     "countryCol": "ប្រទេស",
-    "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
+    "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ",
+    "telegramStoreNotifyGlobalEnabled": "Admin Bot ត្រូវបានបើកដំណើរការ។ ការជូនដំណឹងរបស់ហាងនឹងផ្ញើទៅ Chat ដែលបានកំណត់ខាងលើ។",
+    "telegramStoreNotifyGlobalDisabled": "Super Admin មិនទាន់បានបើក Admin Bot ទេ។ សូមទាក់ទង Super Admin ដើម្បីកំណត់ Bot សកល មុនពេលបើកការជូនដំណឹងរបស់ហាង។",
+    "telegramStoreNotifySaved": "បានរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាង",
+    "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ"
   }
 };
 
@@ -7001,6 +7021,7 @@ function detectBrowserLanguage() {
     return 'zh';
 }
 
+// 兼容旧代码：确保全局可访问
 if (typeof window !== 'undefined') {
   window.LANGUAGES = LANGUAGES;
   window.detectBrowserLanguage = detectBrowserLanguage;

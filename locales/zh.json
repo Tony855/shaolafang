@@ -1392,5 +1392,9 @@
   "financeNoExportRecords": "暂无导出记录",
   "financeExportAuditLoadFailed": "导出审计记录加载失败",
   "countryCol": "国家",
-  "refundAlreadyComplete": "订单已全额退款"
+  "refundAlreadyComplete": "订单已全额退款",
+  "telegramStoreNotifyGlobalEnabled": "管理员 Bot 已启用；门店通知将发送到上方配置的 Chat。",
+  "telegramStoreNotifyGlobalDisabled": "超级管理员尚未启用管理员 Bot。请联系超级管理员完成全局 Bot 配置后再启用门店通知。",
+  "telegramStoreNotifySaved": "Telegram 门店通知设置已保存",
+  "telegramStoreNotifySaveFailed": "Telegram 门店通知设置保存失败"
 }

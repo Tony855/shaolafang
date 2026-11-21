@@ -1392,5 +1392,9 @@
   "financeNoExportRecords": "Chưa có bản ghi xuất",
   "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất",
   "countryCol": "Quốc gia",
-  "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ"
+  "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ",
+  "telegramStoreNotifyGlobalEnabled": "Bot quản trị đã được bật. Thông báo cửa hàng sẽ được gửi đến Chat đã cấu hình ở trên.",
+  "telegramStoreNotifyGlobalDisabled": "Quản trị viên cấp cao chưa bật Bot quản trị. Vui lòng liên hệ quản trị viên cấp cao để cấu hình Bot toàn cục trước khi bật thông báo cửa hàng.",
+  "telegramStoreNotifySaved": "Đã lưu cài đặt thông báo Telegram của cửa hàng",
+  "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng"
 }
