@@ -1399,7 +1399,15 @@ const LANGUAGES = {
     "financeNoExportRecords": "暂无导出记录",
     "financeExportAuditLoadFailed": "导出审计记录加载失败",
     "countryCol": "国家",
-    "refundAlreadyComplete": "订单已全额退款"
+    "refundAlreadyComplete": "订单已全额退款",
+    "customerTelegramUnbindTitle": "取消 Telegram 顾客通知绑定",
+    "customerTelegramBindTitle": "绑定 Telegram 顾客通知",
+    "customerTelegramUnavailable": "Telegram 通知暂不可用",
+    "customerTelegramScanFirst": "请先扫描桌面二维码",
+    "customerTelegramUnbound": "Telegram 顾客通知已解除绑定",
+    "customerTelegramDeepLinkError": "无法生成 Telegram 绑定链接",
+    "customerTelegramStartHint": "请在 Telegram 中点击 Start 完成绑定，然后返回本页面",
+    "customerTelegramOperationFailed": "Telegram 绑定操作失败，请稍后重试"
   },
   "en": {
     "code": "Code",
@@ -2795,7 +2803,15 @@ const LANGUAGES = {
     "financeNoExportRecords": "No export records",
     "financeExportAuditLoadFailed": "Failed to load export audit records",
     "countryCol": "Country",
-    "refundAlreadyComplete": "Order has already been fully refunded"
+    "refundAlreadyComplete": "Order has already been fully refunded",
+    "customerTelegramUnbindTitle": "Unlink Telegram customer notifications",
+    "customerTelegramBindTitle": "Link Telegram customer notifications",
+    "customerTelegramUnavailable": "Telegram notifications are temporarily unavailable",
+    "customerTelegramScanFirst": "Please scan the table QR code first",
+    "customerTelegramUnbound": "Telegram customer notifications have been unlinked",
+    "customerTelegramDeepLinkError": "Unable to create the Telegram linking URL",
+    "customerTelegramStartHint": "Tap Start in Telegram to finish linking, then return to this page",
+    "customerTelegramOperationFailed": "Telegram linking failed. Please try again later."
   },
   "vi": {
     "code": "Mã",
@@ -4191,7 +4207,15 @@ const LANGUAGES = {
     "financeNoExportRecords": "Chưa có bản ghi xuất",
     "financeExportAuditLoadFailed": "Không thể tải bản ghi kiểm toán xuất",
     "countryCol": "Quốc gia",
-    "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ"
+    "refundAlreadyComplete": "Đơn hàng đã được hoàn tiền toàn bộ",
+    "customerTelegramUnbindTitle": "Hủy liên kết thông báo khách hàng Telegram",
+    "customerTelegramBindTitle": "Liên kết thông báo khách hàng Telegram",
+    "customerTelegramUnavailable": "Thông báo Telegram tạm thời không khả dụng",
+    "customerTelegramScanFirst": "Vui lòng quét mã QR trên bàn trước",
+    "customerTelegramUnbound": "Đã hủy liên kết thông báo khách hàng Telegram",
+    "customerTelegramDeepLinkError": "Không thể tạo liên kết Telegram",
+    "customerTelegramStartHint": "Nhấn Start trong Telegram để hoàn tất liên kết, sau đó quay lại trang này",
+    "customerTelegramOperationFailed": "Không thể liên kết Telegram. Vui lòng thử lại sau."
   },
   "th": {
     "code": "รหัส",
@@ -5587,7 +5611,15 @@ const LANGUAGES = {
     "financeNoExportRecords": "ไม่มีบันทึกการส่งออก",
     "financeExportAuditLoadFailed": "โหลดบันทึกการตรวจสอบการส่งออกไม่สำเร็จ",
     "countryCol": "ประเทศ",
-    "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว"
+    "refundAlreadyComplete": "คำสั่งซื้อได้รับเงินคืนเต็มจำนวนแล้ว",
+    "customerTelegramUnbindTitle": "ยกเลิกการเชื่อมโยงการแจ้งเตือนลูกค้าผ่าน Telegram",
+    "customerTelegramBindTitle": "เชื่อมโยงการแจ้งเตือนลูกค้าผ่าน Telegram",
+    "customerTelegramUnavailable": "การแจ้งเตือน Telegram ไม่พร้อมใช้งานชั่วคราว",
+    "customerTelegramScanFirst": "โปรดสแกนคิวอาร์โค้ดบนโต๊ะก่อน",
+    "customerTelegramUnbound": "ยกเลิกการเชื่อมโยงการแจ้งเตือนลูกค้าผ่าน Telegram แล้ว",
+    "customerTelegramDeepLinkError": "ไม่สามารถสร้างลิงก์ Telegram ได้",
+    "customerTelegramStartHint": "แตะ Start ใน Telegram เพื่อเชื่อมโยงให้เสร็จ แล้วกลับมาที่หน้านี้",
+    "customerTelegramOperationFailed": "เชื่อมโยง Telegram ไม่สำเร็จ โปรดลองอีกครั้งภายหลัง"
   },
   "km": {
     "code": "កូដ",
@@ -6983,14 +7015,18 @@ const LANGUAGES = {
     "financeNoExportRecords": "មិនមានកំណត់ត្រានាំចេញ",
     "financeExportAuditLoadFailed": "មិនអាចផ្ទុកកំណត់ត្រាសវនកម្មនាំចេញបានទេ",
     "countryCol": "ប្រទេស",
-    "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ"
+    "refundAlreadyComplete": "ការបញ្ជាទិញត្រូវបានសងប្រាក់ពេញចំនួនរួចហើយ",
+    "customerTelegramUnbindTitle": "ផ្តាច់ការភ្ជាប់ការជូនដំណឹងអតិថិជន Telegram",
+    "customerTelegramBindTitle": "ភ្ជាប់ការជូនដំណឹងអតិថិជន Telegram",
+    "customerTelegramUnavailable": "ការជូនដំណឹង Telegram មិនអាចប្រើបានបណ្តោះអាសន្ន",
+    "customerTelegramScanFirst": "សូមស្កេន QR លើតុជាមុនសិន",
+    "customerTelegramUnbound": "បានផ្តាច់ការភ្ជាប់ការជូនដំណឹងអតិថិជន Telegram ហើយ",
+    "customerTelegramDeepLinkError": "មិនអាចបង្កើតតំណភ្ជាប់ Telegram បានទេ",
+    "customerTelegramStartHint": "ចុច Start ក្នុង Telegram ដើម្បីបញ្ចប់ការភ្ជាប់ រួចត្រឡប់មកទំព័រនេះ",
+    "customerTelegramOperationFailed": "ការភ្ជាប់ Telegram បរាជ័យ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។"
   }
 };
 
-/**
- * 检测浏览器语言并映射到系统支持的语言代码
- * @returns {string} zh/en/vi/th/km
- */
 function detectBrowserLanguage() {
     const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
     if (sys.startsWith('zh')) return 'zh';
@@ -7000,8 +7036,4 @@ function detectBrowserLanguage() {
     if (sys.startsWith('en')) return 'en';
     return 'zh';
 }
-
-if (typeof window !== 'undefined') {
-  window.LANGUAGES = LANGUAGES;
-  window.detectBrowserLanguage = detectBrowserLanguage;
-}
+if (typeof window !== 'undefined') { window.LANGUAGES = LANGUAGES; window.detectBrowserLanguage = detectBrowserLanguage; }

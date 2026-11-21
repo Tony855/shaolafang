@@ -196,16 +196,16 @@
                     'X-Customer-Token': state.customerToken
                 } });
                 customerTelegramBound = data.bound === true;
-                customerTelegramBtn.title = customerTelegramBound ? '取消 Telegram 顾客通知绑定' : '绑定 Telegram 顾客通知';
+                customerTelegramBtn.title = customerTelegramBound ? t('customerTelegramUnbindTitle', null, '取消 Telegram 顾客通知绑定') : t('customerTelegramBindTitle', null, t('customerTelegramBindTitle', null, '绑定 Telegram 顾客通知'));
                 customerTelegramBtn.setAttribute('aria-label', customerTelegramBtn.title);
             } catch (_) {
-                customerTelegramBtn.title = 'Telegram 通知暂不可用';
+                customerTelegramBtn.title = t('customerTelegramUnavailable', null, 'Telegram 通知暂不可用');
             }
         }
 
         if (customerTelegramBtn) {
             customerTelegramBtn.addEventListener('click', async () => {
-                if (!isScanSessionValid() || !state.customerToken) return SLF.ui.toast('请先扫描桌面二维码', 2500);
+                if (!isScanSessionValid() || !state.customerToken) return SLF.ui.toast(t('customerTelegramScanFirst', null, '请先扫描桌面二维码'), 2500);
                 const telegramWindow = customerTelegramBound ? null : window.open('about:blank', '_blank');
                 try {
                     await refreshCustomerTelegramBinding();
@@ -215,21 +215,21 @@
                         await SLF.api.del('/public/customer-telegram/binding', { headers });
                         customerTelegramBound = false;
                         customerTelegramBtn.title = '绑定 Telegram 顾客通知';
-                        SLF.ui.toast('Telegram 顾客通知已解除绑定', 3000);
+                        SLF.ui.toast(t('customerTelegramUnbound', null, 'Telegram 顾客通知已解除绑定'), 3000);
                     } else {
                         const result = await SLF.api.post('/public/customer-telegram/binding/start', {}, { headers });
-                        if (!result.deepLink) throw new Error('无法生成 Telegram 绑定链接');
+                        if (!result.deepLink) throw new Error(t('customerTelegramDeepLinkError', null, '无法生成 Telegram 绑定链接'));
                         if (telegramWindow) {
                             telegramWindow.opener = null;
                             telegramWindow.location.replace(result.deepLink);
                         } else {
                             window.location.href = result.deepLink;
                         }
-                        SLF.ui.toast('请在 Telegram 中点击 Start 完成绑定，然后返回本页面', 5000);
+                        SLF.ui.toast(t('customerTelegramStartHint', null, '请在 Telegram 中点击 Start 完成绑定，然后返回本页面'), 5000);
                     }
                 } catch (error) {
                     if (telegramWindow && !telegramWindow.closed) telegramWindow.close();
-                    SLF.ui.toast(error?.message || 'Telegram 绑定操作失败，请稍后重试', 3500);
+                    SLF.ui.toast(error?.message || t('customerTelegramOperationFailed', null, 'Telegram 绑定操作失败，请稍后重试'), 3500);
                 }
             });
             window.addEventListener('focus', () => refreshCustomerTelegramBinding());
