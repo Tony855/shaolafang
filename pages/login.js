@@ -152,8 +152,11 @@ const $ = s => document.querySelector(s);
       if (text.includes('请输入') || text.includes('Please enter')) {
         return t('pleaseEnterCredentials', null, '请输入用户名和密码');
       }
-      if (text.includes('登录失败次数过多') || text.includes('Too many')) {
-        return text; // 保留原文，包含剩余分钟数
+      const lockoutMatch = text.match(/登录失败次数过多，请\s*(\d+)\s*分钟后再试/);
+      if (lockoutMatch || text.includes('Too many')) {
+        const minutes = lockoutMatch ? lockoutMatch[1] : (text.match(/\d+/) || [])[0];
+        return t('loginTooManyAttempts', null, '登录失败次数过多，请{minutes}分钟后再试')
+          .replace('{minutes}', minutes || '');
       }
       return text;
     }
