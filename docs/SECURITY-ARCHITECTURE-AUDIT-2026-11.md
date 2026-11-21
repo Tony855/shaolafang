@@ -1,32 +1,41 @@
-# FoodFlow 安全与架构审查记录
+**审查日期：** 2026-11-20
+**审查对象：** `Tony855/shaolafang`，`main` 当前 SHA `5607366fc86f87ca652c8498aa65efd5d7c5b52d`。
+**审查方式：** GitHub 源码、部署模板、迁移机制、测试/CI、Actions artifacts、PR/issue/branch 状态交叉核验。
+**注意：** 本记录不是渗透测试或生产环境验收报告；未执行真实数据库迁移、线上部署、真实支付、Telegram 投递或打印机现场测试。
 
-**审查日期：** 2026-11-11  
-**审查对象：** `Tony855/shaolafang`，默认分支 `main`  
-**审查方式：** GitHub 源码、部署模板、CI 工作流及现有测试清单静态审查。  
-**注意：** 本记录不是渗透测试或生产环境验收报告；未执行真实数据库迁移、线上部署或端到端攻击验证。
+## 当前状态（2026-11-20）
 
-## 当前状态（2026-11-15）
+本节是当前状态的唯一权威快照；后文第 2–8 节保留历史审计轨迹，若其中“待处理”“Draft”或旧 SHA 与本节冲突，以本节为准。
 
-以下状态优先于后文第 3、5、6 节中的历史“待处理”描述；旧章节保留作为审计轨迹。
-
-| 历史发现 | 当前状态 | 核验边界 |
+| 领域/发现 | 当前状态 | 核验边界 |
 |---|---|---|
-| 静态资源缓存策略冲突 | 已在 main 的三份 Nginx 模板修复 | 仍需生产浏览器缓存验收 |
-| Nginx access log 记录 query string / Referer | 单机模板、安装器及 Enterprise/Enterprise Ultimate 集群模板均已在 main 使用 `foodflow_safe` 格式；PR #268 已合并且 CI/安装矩阵通过 | 历史日志仍需按保留策略清理；生产 Nginx reload 后需现场核验 |
-| Node 默认监听所有网卡 | main 已默认 loopback；集群通过显式 HOST 暴露私网监听 | 生产防火墙/安全组仍需现场检查 |
-| 集群 TRUST_PROXY 与 Redis 共享状态 | PR #267 已合并；集群部署强制共享 Redis、可信代理 CIDR 和启动 readiness | 生产负载均衡器来源 IP、Redis 故障恢复仍需故障注入 |
-| readiness 路由不一致 | main 已统一 `/health`，保留兼容别名并检查 MySQL；集群还检查 Redis/Socket.IO Adapter | 生产探针仍需实测 |
-| Nginx 上传上限低于应用限制 | main 所有部署模板已统一 105M | 仍需在目标反向代理链路测试大文件上传 |
-| 认证/上传错误日志暴露 | PR #268 已合并到 main；认证、KHQR、ZIP 导入/导出日志脱敏、QR 4xx 分类、集群 Nginx 安全日志及回归测试均已纳入 | 仍需生产日志抽查与安全事件响应演练 |
-| 订单/打印错误日志暴露 | PR #269 与 #270 已合并；订单明细、订单路由异常及打印机内部标识不再写入普通日志 | 仍需审查其余后台/基础设施日志是否含可识别内部连接信息 |
-| Telegram Bot Token 静态存储 | 当前 settings 表和备份保留 Bot Token 明文；API/UI 只做显示脱敏 | 已在 Telegram 运维文档明确披露；应用级加密、密钥轮换和旧值迁移仍是 P2 加固项 |
-| Telegram 通知队列停用语义 | PR #266 已实现全局 Bot、门店及单事件停用时的事务性 dead-letter 清理，并补齐并发锁顺序 | 最新同步 head 的 CI/安装矩阵已通过；真实 Telegram 双 Bot、多门店与备份恢复验收未完成 |
-| 大型单体路由/页面 | 仍是架构改进项，不是已确认可利用漏洞 | 应以小步拆分和集成测试推进 |
+| 静态资源缓存策略 | main 已修复三份标准/企业/旗舰 Nginx 模板的缓存头冲突 | 生产浏览器缓存仍需现场验收 |
+| Nginx access log 泄露 query/Referer | 根目录配置、安装器生成配置、标准/企业/旗舰模板均使用 `foodflow_safe`；日志不包含 query 或 Referer，回归测试覆盖 | 历史日志清理、生产 reload 后抽查未验证 |
+| Nginx 上传上限 | 所有仓库模板/安装器生成配置为 105M；部署配置测试检查该值 | 外层 CDN/WAF/云负载均衡器限制未验证 |
+| Node 监听面 | main 默认 loopback；集群显式配置私网监听 | 生产防火墙、安全组和真实拓扑未验证 |
+| 集群 TRUST_PROXY / Redis / Socket.IO | 代码、部署模板和 readiness 检查已实现；CI/安装矩阵通过 | 多节点故障注入、真实 LB IP、Redis 故障恢复未验证 |
+| 数据库 readiness | `/health` 为 canonical，兼容旧别名；集群检查 MySQL/Redis/Socket.IO Adapter | 生产探针未验证 |
+| 认证/订单/打印日志脱敏 | PR #268/#269/#270 已合并，main 有对应回归测试 | 生产日志抽查与事件响应演练未验证 |
+| 路由 5xx 原始错误泄露 | [PR #319](https://github.com/Tony855/shaolafang/pull/319) 已覆盖共享错误归一化、菜单逐行导入和 Telegram 测试错误脱敏；最终 head `ecaf8346acae053f1979afbd65dbbd01e15ef1b3` 的 17/17 检查通过 | PR 仍 open、未合并；main 仍保留旧 handler，必须由所有者审查并合并后才算修复上线 |
+| 安装器 GitHub Token URL 泄露 | [PR #320](https://github.com/Tony855/shaolafang/pull/320) 改用临时 0700 GIT_ASKPASS，token 不再放入 clone/pull URL；最终 head `2098c3e1e3ceb8f573bbb70b13f287b561ba916e` 的 17/17 检查通过 | PR 仍 open、未合并；main 仍含旧 URL 认证路径，必须由所有者审查并合并后才算修复上线 |
+| Telegram Bot Token 静态存储 | settings 表和备份仍保留 Bot Token 明文；API/UI 脱敏不等于静态加密 | 应用级加密、密钥轮换、旧值迁移需要独立密钥管理方案；Issue #265 保持 open |
+| Telegram 通知 outbox | [PR #266](https://github.com/Tony855/shaolafang/pull/266) 已合并，merge commit `35ba63e29f7d731586c60259e50e0031754bc9e7`；worker 默认关闭 | Issue #265 的真实双 Bot、多门店、撤销、重启/租约和备份恢复验收未完成 |
+| main 分支保护 | main 实际返回 `protected=false`，仓库 Rulesets 为 `[]` | Issue #224 保持 open；当前 GitHub 集成没有保护规则写入能力，需仓库管理员设置 |
+| 多语言 | 五种 locale 均为 1,348 keys，0 missing/extra；HTML integrity 0 | Issue #306 的 339 HTML、1,712 authored JS、681 route-message 项是原始扫描候选，不是确认缺陷 |
+| 重复函数/单体模块 | 静态审计发现若干同名函数和较大路由/页面模块 | 命中需逐项语义比对；不以函数同名直接判定重复实现或自动重构 |
 
-**当前 GitHub 状态（2026-11-15）：** PR #267、#268、#269、#270 均已合并；PR #266 仍为 Draft。PR #268 合并提交为 `c8cc929`，PR #269 合并提交为 `3066383`，PR #270 合并提交为 `db703d3`。PR #266 最新 head `a6f82ceea063de42cfbdcd73896204b34a5bec4d` 包含 #269/#270 的 QR、订单和打印日志修复及对应回归测试；compare 325 ahead / 5 behind（66 changed files），mergeable 无冲突。该 head 的 validate、MySQL 8.4、MariaDB 10.11/11.4/11.8/12.3 与五个安装目标全部通过。PR #266 仍为 Draft，等待真实 Telegram staging、多门店隔离和备份恢复验收。
+### 精确 SHA 与 CI 证据
 
-**分支保护：** 当前 GitHub API 未返回 main 的保护规则，仓库 Rulesets 列表为空。此项需要仓库管理员在 GitHub 设置中启用，不能由应用代码或本次 CI 自动替代。
+- 当前 main：`5607366fc86f87ca652c8498aa65efd5d7c5b52d`。CI [#44549537338](https://github.com/Tony855/shaolafang/actions/runs/44549537338)、Full System Audit [#44549537289](https://github.com/Tony855/shaolafang/actions/runs/44549537289)、Installer Compatibility [#44549537268](https://github.com/Tony855/shaolafang/actions/runs/44549537268) 均成功。main 完整测试 846 项：820 通过、0 失败、26 跳过；生产依赖审计 0 vulnerabilities。
+- PR #319：CI [#44653919303](https://github.com/Tony855/shaolafang/actions/runs/44653919303)、Full System Audit [#44653919330](https://github.com/Tony855/shaolafang/actions/runs/44653919330)、Installer Compatibility [#44653919319](https://github.com/Tony855/shaolafang/actions/runs/44653919319) 均成功；完整测试 853 项：827 通过、0 失败、26 跳过；0 vulnerabilities。PR 未合并、无 review approval。
+- PR #320：CI [#44654501007](https://github.com/Tony855/shaolafang/actions/runs/44654501007)、Full System Audit [#44654501006](https://github.com/Tony855/shaolafang/actions/runs/44654501006)、Installer Compatibility [#44654501030](https://github.com/Tony855/shaolafang/actions/runs/44654501030) 均成功；完整测试 848 项：822 通过、0 失败、26 跳过；0 vulnerabilities；五个安装目标全部成功。PR 未合并、无 review approval。
+- 两个安全 PR 的 head 均基于当前 main，均没有 review thread；本轮不自动合并。main 当前无分支保护，因此合并前必须由仓库所有者完成代码审查并配置保护规则。
 
+### 当前待处理 issue
+
+- [Issue #224](https://github.com/Tony855/shaolafang/issues/224)：main 分支保护尚未启用。
+- [Issue #265](https://github.com/Tony855/shaolafang/issues/265)：Telegram 真实 staging 验收及 Bot Token 静态加密/轮换。
+- [Issue #306](https://github.com/Tony855/shaolafang/issues/306)：全仓库 i18n 候选项分类与逐模块修复。
 
 ## 1. 项目结构
 
