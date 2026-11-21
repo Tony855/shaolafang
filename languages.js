@@ -1403,7 +1403,16 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "管理员 Bot 已启用；门店通知将发送到上方配置的 Chat。",
     "telegramStoreNotifyGlobalDisabled": "超级管理员尚未启用管理员 Bot。请联系超级管理员完成全局 Bot 配置后再启用门店通知。",
     "telegramStoreNotifySaved": "Telegram 门店通知设置已保存",
-    "telegramStoreNotifySaveFailed": "Telegram 门店通知设置保存失败"
+    "telegramStoreNotifySaveFailed": "Telegram 门店通知设置保存失败",
+    "orderFulfillmentTypeLabel": "订单类型",
+    "orderNoTableForDelivery": "无需桌号（外卖/自取）",
+    "orderFulfillmentDineIn": "堂食",
+    "orderFulfillmentTakeaway": "顾客自取",
+    "orderFulfillmentDelivery": "外卖配送",
+    "orderDeliveryFieldsRequired": "请填写收件人、联系电话和配送地址",
+    "orderDeliveryCreatedWaitingRider": "外卖订单已创建，配送任务等待分配骑手",
+    "orderTrackingCopied": "追踪链接已复制",
+    "orderTrackingCopyManual": "请长按链接复制："
   },
   "en": {
     "code": "Code",
@@ -2803,7 +2812,16 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "Admin Bot is enabled. Store notifications will be sent to the Chat configured above.",
     "telegramStoreNotifyGlobalDisabled": "The super admin has not enabled the Admin Bot. Contact the super admin to configure the global Bot before enabling store notifications.",
     "telegramStoreNotifySaved": "Store Telegram notification settings saved",
-    "telegramStoreNotifySaveFailed": "Failed to save store Telegram notification settings"
+    "telegramStoreNotifySaveFailed": "Failed to save store Telegram notification settings",
+    "orderFulfillmentTypeLabel": "Order type",
+    "orderNoTableForDelivery": "No table required (delivery/takeaway)",
+    "orderFulfillmentDineIn": "Dine-in",
+    "orderFulfillmentTakeaway": "Pickup",
+    "orderFulfillmentDelivery": "Delivery",
+    "orderDeliveryFieldsRequired": "Please enter recipient, phone number, and delivery address",
+    "orderDeliveryCreatedWaitingRider": "Delivery order created. Delivery task is awaiting rider assignment.",
+    "orderTrackingCopied": "Tracking link copied",
+    "orderTrackingCopyManual": "Press and hold to copy: "
   },
   "vi": {
     "code": "Mã",
@@ -4203,7 +4221,16 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "Bot quản trị đã được bật. Thông báo cửa hàng sẽ được gửi đến Chat đã cấu hình ở trên.",
     "telegramStoreNotifyGlobalDisabled": "Quản trị viên cấp cao chưa bật Bot quản trị. Vui lòng liên hệ quản trị viên cấp cao để cấu hình Bot toàn cục trước khi bật thông báo cửa hàng.",
     "telegramStoreNotifySaved": "Đã lưu cài đặt thông báo Telegram của cửa hàng",
-    "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng"
+    "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng",
+    "orderFulfillmentTypeLabel": "Loại đơn hàng",
+    "orderNoTableForDelivery": "Không cần bàn (giao hàng/tự nhận)",
+    "orderFulfillmentDineIn": "Ăn tại chỗ",
+    "orderFulfillmentTakeaway": "Tự nhận",
+    "orderFulfillmentDelivery": "Giao hàng",
+    "orderDeliveryFieldsRequired": "Vui lòng nhập người nhận, số điện thoại và địa chỉ giao hàng",
+    "orderDeliveryCreatedWaitingRider": "Đã tạo đơn giao hàng. Đơn đang chờ phân công tài xế.",
+    "orderTrackingCopied": "Đã sao chép liên kết theo dõi",
+    "orderTrackingCopyManual": "Nhấn giữ để sao chép: "
   },
   "th": {
     "code": "รหัส",
@@ -5603,7 +5630,16 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "เปิดใช้งาน Admin Bot แล้ว การแจ้งเตือนของร้านค้าจะส่งไปยัง Chat ที่กำหนดไว้ด้านบน",
     "telegramStoreNotifyGlobalDisabled": "Super Admin ยังไม่ได้เปิดใช้งาน Admin Bot โปรดติดต่อ Super Admin เพื่อตั้งค่า Bot ส่วนกลางก่อนเปิดการแจ้งเตือนของร้านค้า",
     "telegramStoreNotifySaved": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าแล้ว",
-    "telegramStoreNotifySaveFailed": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าไม่สำเร็จ"
+    "telegramStoreNotifySaveFailed": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าไม่สำเร็จ",
+    "orderFulfillmentTypeLabel": "ประเภทคำสั่งซื้อ",
+    "orderNoTableForDelivery": "ไม่จำเป็นต้องระบุโต๊ะ (จัดส่ง/รับเอง)",
+    "orderFulfillmentDineIn": "รับประทานที่ร้าน",
+    "orderFulfillmentTakeaway": "รับเอง",
+    "orderFulfillmentDelivery": "จัดส่ง",
+    "orderDeliveryFieldsRequired": "กรุณากรอกชื่อผู้รับ เบอร์โทร และที่อยู่จัดส่ง",
+    "orderDeliveryCreatedWaitingRider": "สร้างคำสั่งซื้อจัดส่งแล้ว กำลังรอจัดสรรผู้ส่ง",
+    "orderTrackingCopied": "คัดลอกลิงก์ติดตามแล้ว",
+    "orderTrackingCopyManual": "กดค้างเพื่อคัดลอก: "
   },
   "km": {
     "code": "កូដ",
@@ -7003,26 +7039,17 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "Admin Bot ត្រូវបានបើកដំណើរការ។ ការជូនដំណឹងរបស់ហាងនឹងផ្ញើទៅ Chat ដែលបានកំណត់ខាងលើ។",
     "telegramStoreNotifyGlobalDisabled": "Super Admin មិនទាន់បានបើក Admin Bot ទេ។ សូមទាក់ទង Super Admin ដើម្បីកំណត់ Bot សកល មុនពេលបើកការជូនដំណឹងរបស់ហាង។",
     "telegramStoreNotifySaved": "បានរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាង",
-    "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ"
+    "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ",
+    "orderFulfillmentTypeLabel": "ប្រភេទការបញ្ជាទិញ",
+    "orderNoTableForDelivery": "មិនចាំបាច់កំណត់តុ (ដឹកជញ្ជូន/យកដោយខ្លួនឯង)",
+    "orderFulfillmentDineIn": "ញ៉ាំនៅហាង",
+    "orderFulfillmentTakeaway": "យកដោយខ្លួនឯង",
+    "orderFulfillmentDelivery": "ដឹកជញ្ជូន",
+    "orderDeliveryFieldsRequired": "សូមបំពេញឈ្មោះអ្នកទទួល លេខទូរស័ព្ទ និងអាសយដ្ឋានដឹកជញ្ជូន",
+    "orderDeliveryCreatedWaitingRider": "បានបង្កើតការបញ្ជាទិញដឹកជញ្ជូន។ កំពុងរង់ចាំការចាត់តាំងអ្នកដឹកជញ្ជូន។",
+    "orderTrackingCopied": "បានចម្លងតំណតាមដាន",
+    "orderTrackingCopyManual": "សូមចុចឱ្យជាប់ដើម្បីចម្លង៖ "
   }
 };
-
-/**
- * 检测浏览器语言并映射到系统支持的语言代码
- * @returns {string} zh/en/vi/th/km
- */
-function detectBrowserLanguage() {
-    const sys = (navigator.language || navigator.userLanguage || '').toLowerCase();
-    if (sys.startsWith('zh')) return 'zh';
-    if (sys.startsWith('vi')) return 'vi';
-    if (sys.startsWith('th')) return 'th';
-    if (sys.startsWith('km')) return 'km';
-    if (sys.startsWith('en')) return 'en';
-    return 'zh';
-}
-
-// 兼容旧代码：确保全局可访问
-if (typeof window !== 'undefined') {
-  window.LANGUAGES = LANGUAGES;
-  window.detectBrowserLanguage = detectBrowserLanguage;
-}
+function detectBrowserLanguage() { const sys=(navigator.language||navigator.userLanguage||'').toLowerCase(); if(sys.startsWith('zh'))return 'zh'; if(sys.startsWith('vi'))return 'vi'; if(sys.startsWith('th'))return 'th'; if(sys.startsWith('km'))return 'km'; if(sys.startsWith('en'))return 'en'; return 'zh'; }
+if(typeof window!=='undefined'){window.LANGUAGES=LANGUAGES;window.detectBrowserLanguage=detectBrowserLanguage;}
