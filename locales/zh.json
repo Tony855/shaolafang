@@ -1396,5 +1396,14 @@
   "telegramStoreNotifyGlobalEnabled": "管理员 Bot 已启用；门店通知将发送到上方配置的 Chat。",
   "telegramStoreNotifyGlobalDisabled": "超级管理员尚未启用管理员 Bot。请联系超级管理员完成全局 Bot 配置后再启用门店通知。",
   "telegramStoreNotifySaved": "Telegram 门店通知设置已保存",
-  "telegramStoreNotifySaveFailed": "Telegram 门店通知设置保存失败"
+  "telegramStoreNotifySaveFailed": "Telegram 门店通知设置保存失败",
+  "orderFulfillmentTypeLabel": "订单类型",
+  "orderNoTableForDelivery": "无需桌号（外卖/自取）",
+  "orderFulfillmentDineIn": "堂食",
+  "orderFulfillmentTakeaway": "顾客自取",
+  "orderFulfillmentDelivery": "外卖配送",
+  "orderDeliveryFieldsRequired": "请填写收件人、联系电话和配送地址",
+  "orderDeliveryCreatedWaitingRider": "外卖订单已创建，配送任务等待分配骑手",
+  "orderTrackingCopied": "追踪链接已复制",
+  "orderTrackingCopyManual": "请长按链接复制："
 }
