@@ -62,7 +62,9 @@
 - API/权限层：逐条注册路由盘点，验证未授权、跨租户、跨门店、伪造身份及资源 ID 越权。
 - 数据库层：MySQL 8.4 与 MariaDB 10.11/11.4/11.8/12.3；真实事务、行锁、唯一约束、回滚、迁移重跑、历史数据保留。
 - 端到端层：按业务旅程串联前端/API/数据库/异步事件；至少覆盖成功、失败、重试、并发和恢复。
-- 交付层：依赖安全审计、安装兼容性、构建产物、备份恢复、文档与部署配置核对。
+- 交付层：生产依赖与完整依赖树（包含 dev/build 工具）的安全审计、安装兼容性、构建产物、备份恢复、文档与部署配置核对。
+- GitHub Actions 供应链：第三方 action 必须固定到完整 40 位 commit SHA；通过回归测试防止重新引入可变 tag 引用。
+- 依赖更新：Dependabot 每周检查 npm 与 GitHub Actions 依赖，并为 action SHA 更新创建可审查 PR。
 
 自动化报告是线索而不是最终结论。正则扫描无法证明权限或业务正确；必须由路由级测试、真实数据库测试和人工业务审查补足。报告中的误报必须有可复核的豁免理由、范围和复查日期。
 
@@ -106,6 +108,6 @@
 
 ## 8. 当前已存在的自动化基线
 
-当前仓库 .github/workflows/ci.yml 已执行 JavaScript/Shell/Python 语法检查、scripts/audit-code.py、严格多语言检查、完整 npm test、生产依赖审计，以及 MySQL 8.4 和 MariaDB 四版本的财务集成/备份恢复测试。
+当前仓库 .github/workflows/full-system-audit.yml 在生产依赖审计之外，还会对完整依赖树（含 dev/build 工具）执行 npm audit；CI 同时执行 JavaScript/Shell/Python 语法检查、scripts/audit-code.py、严格多语言检查、完整 npm test，以及 MySQL 8.4 和 MariaDB 四版本的财务集成/备份恢复测试。
 
 仓库 .github/workflows/full-system-audit.yml 每日 02:00 UTC（柬埔寨时间 09:00）执行全系统自动审计，同时支持手动触发、针对 main 的 Pull Request 审计，以及每次提交进入 main 后的 push 审计。审计报告会在 audit-metadata.txt 中记录被审计的 commit SHA、ref、触发事件、run ID 和 run attempt；验收时必须核对该 SHA 与目标 main/PR head 完全一致，不得引用旧提交的报告。工作流归档静态检查、重复路由/函数和多语言扫描报告，并执行 MySQL/MariaDB 数据库矩阵；现有安装兼容性工作流仍作为独立门禁。审计清单的人工业务验收仍需逐模块完成，不能由工作流代替。
