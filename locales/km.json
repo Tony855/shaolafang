@@ -1396,5 +1396,10 @@
   "telegramStoreNotifyGlobalEnabled": "Admin Bot ត្រូវបានបើកដំណើរការ។ ការជូនដំណឹងរបស់ហាងនឹងផ្ញើទៅ Chat ដែលបានកំណត់ខាងលើ។",
   "telegramStoreNotifyGlobalDisabled": "Super Admin មិនទាន់បានបើក Admin Bot ទេ។ សូមទាក់ទង Super Admin ដើម្បីកំណត់ Bot សកល មុនពេលបើកការជូនដំណឹងរបស់ហាង។",
   "telegramStoreNotifySaved": "បានរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាង",
-  "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ"
+  "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ",
+  "tableQrPopupBlocked": "កម្មវិធីរុករកបានរារាំងបង្អួចលេចឡើង។ សូមអនុញ្ញាតបង្អួចលេចឡើងសម្រាប់គេហទំព័រនេះ ហើយសាកល្បងម្តងទៀត",
+  "tableAdminSessionExpired": "សម័យចូលរបស់អ្នកគ្រប់គ្រងបានផុតកំណត់។ សូមចូលម្តងទៀត",
+  "tableQrPageLoadFailed": "មិនអាចផ្ទុកទំព័រ QR code បានទេ",
+  "adminNoActiveStores": "គណនីនេះមិនមានហាងដែលបានបើកដំណើរការសម្រាប់ការផ្ដល់សិទ្ធិទេ",
+  "adminStoreAccessRequired": "សូមជ្រើសរើសហាងដែលអាចចូលប្រើបានយ៉ាងហោចណាស់មួយ"
 }
