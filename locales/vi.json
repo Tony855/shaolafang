@@ -1396,5 +1396,10 @@
   "telegramStoreNotifyGlobalEnabled": "Bot quản trị đã được bật. Thông báo cửa hàng sẽ được gửi đến Chat đã cấu hình ở trên.",
   "telegramStoreNotifyGlobalDisabled": "Quản trị viên cấp cao chưa bật Bot quản trị. Vui lòng liên hệ quản trị viên cấp cao để cấu hình Bot toàn cục trước khi bật thông báo cửa hàng.",
   "telegramStoreNotifySaved": "Đã lưu cài đặt thông báo Telegram của cửa hàng",
-  "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng"
+  "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng",
+  "tableQrPopupBlocked": "Trình duyệt đã chặn cửa sổ bật lên. Vui lòng cho phép bật lên trên trang này rồi thử lại.",
+  "tableAdminSessionExpired": "Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.",
+  "tableQrPageLoadFailed": "Không thể tải trang mã QR.",
+  "adminNoActiveStores": "Tài khoản này không có cửa hàng đang hoạt động để phân quyền.",
+  "adminStoreAccessRequired": "Vui lòng chọn ít nhất một cửa hàng có thể truy cập."
 }
