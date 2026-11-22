@@ -1403,7 +1403,12 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "管理员 Bot 已启用；门店通知将发送到上方配置的 Chat。",
     "telegramStoreNotifyGlobalDisabled": "超级管理员尚未启用管理员 Bot。请联系超级管理员完成全局 Bot 配置后再启用门店通知。",
     "telegramStoreNotifySaved": "Telegram 门店通知设置已保存",
-    "telegramStoreNotifySaveFailed": "Telegram 门店通知设置保存失败"
+    "telegramStoreNotifySaveFailed": "Telegram 门店通知设置保存失败",
+    "tableQrPopupBlocked": "浏览器阻止了弹窗，请允许本站弹窗后重试",
+    "tableAdminSessionExpired": "管理员登录已失效，请重新登录",
+    "tableQrPageLoadFailed": "二维码页面加载失败",
+    "adminNoActiveStores": "当前账号没有可分配的启用门店",
+    "adminStoreAccessRequired": "请至少选择一个可访问门店"
   },
   "en": {
     "code": "Code",
@@ -2803,7 +2808,12 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "Admin Bot is enabled. Store notifications will be sent to the Chat configured above.",
     "telegramStoreNotifyGlobalDisabled": "The super admin has not enabled the Admin Bot. Contact the super admin to configure the global Bot before enabling store notifications.",
     "telegramStoreNotifySaved": "Store Telegram notification settings saved",
-    "telegramStoreNotifySaveFailed": "Failed to save store Telegram notification settings"
+    "telegramStoreNotifySaveFailed": "Failed to save store Telegram notification settings",
+    "tableQrPopupBlocked": "The browser blocked the pop-up. Please allow pop-ups for this site and try again.",
+    "tableAdminSessionExpired": "Your admin session has expired. Please sign in again.",
+    "tableQrPageLoadFailed": "Failed to load the QR-code page.",
+    "adminNoActiveStores": "This account has no active stores available for assignment.",
+    "adminStoreAccessRequired": "Select at least one accessible store."
   },
   "vi": {
     "code": "Mã",
@@ -4203,7 +4213,12 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "Bot quản trị đã được bật. Thông báo cửa hàng sẽ được gửi đến Chat đã cấu hình ở trên.",
     "telegramStoreNotifyGlobalDisabled": "Quản trị viên cấp cao chưa bật Bot quản trị. Vui lòng liên hệ quản trị viên cấp cao để cấu hình Bot toàn cục trước khi bật thông báo cửa hàng.",
     "telegramStoreNotifySaved": "Đã lưu cài đặt thông báo Telegram của cửa hàng",
-    "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng"
+    "telegramStoreNotifySaveFailed": "Không thể lưu cài đặt thông báo Telegram của cửa hàng",
+    "tableQrPopupBlocked": "Trình duyệt đã chặn cửa sổ bật lên. Vui lòng cho phép bật lên trên trang này rồi thử lại.",
+    "tableAdminSessionExpired": "Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.",
+    "tableQrPageLoadFailed": "Không thể tải trang mã QR.",
+    "adminNoActiveStores": "Tài khoản này không có cửa hàng đang hoạt động để phân quyền.",
+    "adminStoreAccessRequired": "Vui lòng chọn ít nhất một cửa hàng có thể truy cập."
   },
   "th": {
     "code": "รหัส",
@@ -5603,7 +5618,12 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "เปิดใช้งาน Admin Bot แล้ว การแจ้งเตือนของร้านค้าจะส่งไปยัง Chat ที่กำหนดไว้ด้านบน",
     "telegramStoreNotifyGlobalDisabled": "Super Admin ยังไม่ได้เปิดใช้งาน Admin Bot โปรดติดต่อ Super Admin เพื่อตั้งค่า Bot ส่วนกลางก่อนเปิดการแจ้งเตือนของร้านค้า",
     "telegramStoreNotifySaved": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าแล้ว",
-    "telegramStoreNotifySaveFailed": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าไม่สำเร็จ"
+    "telegramStoreNotifySaveFailed": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าไม่สำเร็จ",
+    "tableQrPopupBlocked": "เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป โปรดอนุญาตป๊อปอัปสำหรับเว็บไซต์นี้แล้วลองอีกครั้ง",
+    "tableAdminSessionExpired": "เซสชันผู้ดูแลระบบหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง",
+    "tableQrPageLoadFailed": "โหลดหน้า QR code ไม่สำเร็จ",
+    "adminNoActiveStores": "บัญชีนี้ไม่มีร้านค้าที่เปิดใช้งานสำหรับการกำหนดสิทธิ์",
+    "adminStoreAccessRequired": "โปรดเลือกอย่างน้อยหนึ่งร้านค้าที่สามารถเข้าถึงได้"
   },
   "km": {
     "code": "កូដ",
@@ -7003,7 +7023,12 @@ const LANGUAGES = {
     "telegramStoreNotifyGlobalEnabled": "Admin Bot ត្រូវបានបើកដំណើរការ។ ការជូនដំណឹងរបស់ហាងនឹងផ្ញើទៅ Chat ដែលបានកំណត់ខាងលើ។",
     "telegramStoreNotifyGlobalDisabled": "Super Admin មិនទាន់បានបើក Admin Bot ទេ។ សូមទាក់ទង Super Admin ដើម្បីកំណត់ Bot សកល មុនពេលបើកការជូនដំណឹងរបស់ហាង។",
     "telegramStoreNotifySaved": "បានរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាង",
-    "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ"
+    "telegramStoreNotifySaveFailed": "មិនអាចរក្សាទុកការកំណត់ការជូនដំណឹង Telegram របស់ហាងបានទេ",
+    "tableQrPopupBlocked": "កម្មវិធីរុករកបានរារាំងបង្អួចលេចឡើង។ សូមអនុញ្ញាតបង្អួចលេចឡើងសម្រាប់គេហទំព័រនេះ ហើយសាកល្បងម្តងទៀត",
+    "tableAdminSessionExpired": "សម័យចូលរបស់អ្នកគ្រប់គ្រងបានផុតកំណត់។ សូមចូលម្តងទៀត",
+    "tableQrPageLoadFailed": "មិនអាចផ្ទុកទំព័រ QR code បានទេ",
+    "adminNoActiveStores": "គណនីនេះមិនមានហាងដែលបានបើកដំណើរការសម្រាប់ការផ្ដល់សិទ្ធិទេ",
+    "adminStoreAccessRequired": "សូមជ្រើសរើសហាងដែលអាចចូលប្រើបានយ៉ាងហោចណាស់មួយ"
   }
 };
 
