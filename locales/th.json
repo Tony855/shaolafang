@@ -1396,5 +1396,10 @@
   "telegramStoreNotifyGlobalEnabled": "เปิดใช้งาน Admin Bot แล้ว การแจ้งเตือนของร้านค้าจะส่งไปยัง Chat ที่กำหนดไว้ด้านบน",
   "telegramStoreNotifyGlobalDisabled": "Super Admin ยังไม่ได้เปิดใช้งาน Admin Bot โปรดติดต่อ Super Admin เพื่อตั้งค่า Bot ส่วนกลางก่อนเปิดการแจ้งเตือนของร้านค้า",
   "telegramStoreNotifySaved": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าแล้ว",
-  "telegramStoreNotifySaveFailed": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าไม่สำเร็จ"
+  "telegramStoreNotifySaveFailed": "บันทึกการตั้งค่าการแจ้งเตือน Telegram ของร้านค้าไม่สำเร็จ",
+  "tableQrPopupBlocked": "เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป โปรดอนุญาตป๊อปอัปสำหรับเว็บไซต์นี้แล้วลองอีกครั้ง",
+  "tableAdminSessionExpired": "เซสชันผู้ดูแลระบบหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง",
+  "tableQrPageLoadFailed": "โหลดหน้า QR code ไม่สำเร็จ",
+  "adminNoActiveStores": "บัญชีนี้ไม่มีร้านค้าที่เปิดใช้งานสำหรับการกำหนดสิทธิ์",
+  "adminStoreAccessRequired": "โปรดเลือกอย่างน้อยหนึ่งร้านค้าที่สามารถเข้าถึงได้"
 }
