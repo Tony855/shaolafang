@@ -52,6 +52,9 @@ function response() {
 function request(latitude = 11.5564, longitude = 104.9282, accuracy = 12) {
   return {
     params: { id: '41' },
+    // The harness calls the terminal route handler directly, so provide the
+    // authenticated context normally attached by the getRider middleware.
+    deliveryRider: { id: 12, merchant_id: 3, store_id: 7 },
     body: { latitude, longitude, accuracy },
     get(name) { return name.toLowerCase() === 'authorization' ? 'Bearer test-rider-session-token' : ''; }
   };
