@@ -28,7 +28,7 @@ const ADMIN_PERMISSIONS = [
 
 function renderPerms(containerId, permissions, disabled) {
   const container = document.getElementById(containerId);
-  if (!container) { console.warn('[admin-mgr] 容器未找到:', containerId); return; }
+  if (!container) { console.warn('[admin-mgr] Container not found:', containerId); return; }
   const groups = {};
   ADMIN_PERMISSIONS.forEach(p => {
     if (!groups[p.group]) groups[p.group] = [];
@@ -72,7 +72,7 @@ function renderStoreAccess(containerId, selectedIds, disabled) {
   if (!container) return;
   const stores = (window._adminStores || []).filter(store => Number(store.active) === 1);
   if (!stores.length) {
-    container.innerHTML = '<div class="empty-hint">当前账号没有可分配的启用门店</div>';
+    container.innerHTML = '<div class="empty-hint">' + tAdmin('adminNoActiveStores') + '</div>';
     return;
   }
   const selected = new Set((disabled ? stores.map(store => Number(store.id)) : (Array.isArray(selectedIds) ? selectedIds : [])).map(Number));
@@ -174,7 +174,7 @@ function saveAdminEdit() {
   if (!notice || notice.style.display !== 'block') {
     body.permissions = collectPerms('editAdminPermissions');
     body.store_ids = collectStoreAccess('editAdminStoreAccess');
-    if (!body.store_ids.length) { SLF.ui.toast('❌ 请至少选择一个可访问门店'); return; }
+    if (!body.store_ids.length) { SLF.ui.toast('❌ ' + tAdmin('adminStoreAccessRequired')); return; }
   }
   api('/admin/admins/' + id, { method: 'PUT', body }).then(() => {
     SLF.ui.toast('✅ ' + tAdmin('adminUpdated'));
