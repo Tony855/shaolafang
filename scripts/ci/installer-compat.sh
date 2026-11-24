@@ -25,12 +25,12 @@ force_test_dir="$(mktemp -d)"
   git init -q
   git config user.email ci@example.invalid
   git config user.name "FoodFlow CI"
-  printf 'base\\n' > app.js
+  printf 'base\n' > app.js
   git add app.js
   git commit -qm "initial"
-  printf 'local production edit\\n' > app.js
+  printf 'local production edit\n' > app.js
   mkdir -p uploads backups logs
-  printf 'user upload\\n' > uploads/keep.txt
+  printf 'user upload\n' > uploads/keep.txt
   : > .env
   ff_prepare_force_deploy_repository "https://github.com/Tony855/shaolafang.git"
   [ "$(git remote get-url origin)" = "https://github.com/Tony855/shaolafang.git" ]
@@ -77,7 +77,7 @@ mkdir -p /var/www/foodflow/{uploads,backups,logs} /etc/foodflow
 : >/var/www/foodflow/.env
 for dependency in mysql.service redis.service; do
   if [ ! -e "/etc/systemd/system/$dependency" ] && [ ! -e "/lib/systemd/system/$dependency" ] && [ ! -e "/usr/lib/systemd/system/$dependency" ]; then
-    printf "[Unit]\\nDescription=CI dependency stub\\n[Service]\\nType=oneshot\\nExecStart=/bin/true\\n" >"/etc/systemd/system/$dependency"
+    printf "[Unit]\nDescription=CI dependency stub\n[Service]\nType=oneshot\nExecStart=/bin/true\n" >"/etc/systemd/system/$dependency"
   fi
 done
 systemd-analyze verify deploy/standard/foodflow.service
