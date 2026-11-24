@@ -1088,88 +1088,49 @@ body {
 }
 
 /* ============================================================
-   详情页底部操作栏：永远贴底（2026-09-30）
+   详情页底部布局：使用纵向 Flex，避免固定高度造成重叠
+   金额区和操作区保留在详情卡片流内，只有菜品明细滚动
    ============================================================ */
-.pos-detail {
+.pos-detail > .pos-detail-body {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
-.pos-detail-btns {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  background: #fff;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
-  flex-shrink: 0;
-}
-
-/* 移动端：fixed 兜底 + 安全区适配 */
-@media (max-width: 768px) {
-  .pos-detail-btns {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-    z-index: 100;
-  }
-  /* 让菜品列表底部留出按钮区高度，防止内容被遮 */
-  .pos-detail .pos-detail-footer {
-    padding-bottom: 100px;
-  }
-}
-
-/* ============================================================
-   终极方案：详情页底部 absolute 贴底（2026-09-30）
-   由于 .pos-detail 有 overflow:hidden，sticky 无效，必须用 absolute
-   ============================================================ */
-.pos-detail {
-  position: relative !important;
-}
-
-/* footer（合计 / 应收）——绝对定位到底部按钮上方 */
 .pos-detail > .pos-detail-footer {
-  position: absolute !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 78px !important;
-  margin: 0 !important;
-  z-index: 20 !important;
-  background: #fafbff !important;
-  border-top: 1px solid #e5e7eb !important;
+  position: static !important;
+  flex: 0 0 auto;
+  margin: 0;
 }
 
-/* 按钮区 —— 绝对定位到底部 */
 .pos-detail > .pos-detail-btns,
 #detailButtons {
-  position: absolute !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  margin: 0 !important;
-  z-index: 21 !important;
-  background: #fff !important;
-  border-top: 1px solid #e5e7eb !important;
-  box-shadow: 0 -2px 10px rgba(0,0,0,.06) !important;
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  flex: 0 0 auto;
+  margin: 0;
+  z-index: auto;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -2px 10px rgba(0,0,0,.06);
 }
 
-/* body 底部留白，防止最后一道菜被 footer 遮住 */
-.pos-detail > .pos-detail-body {
-  padding-bottom: 220px !important;
-}
-
-/* 移动端微调 */
+/* 移动端：安全区计入按钮区自身高度，不再使用固定定位或估算留白 */
 @media (max-width: 768px) {
+  .pos-detail > .pos-detail-body {
+    padding: 12px 14px;
+    padding-bottom: 12px;
+  }
   .pos-detail > .pos-detail-footer {
-    bottom: 72px !important;
-    padding: 10px 14px !important;
+    padding: 10px 14px;
   }
   .pos-detail > .pos-detail-btns,
   #detailButtons {
-    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
-  }
-  .pos-detail > .pos-detail-body {
-    padding-bottom: 200px !important;
+    padding: 10px 14px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
 
