@@ -76,10 +76,12 @@ test('payment secondary styles stay scoped while shared primary buttons remain a
 
 test('admin 420px layout overrides are applied after legacy 480px rules', () => {
   const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
-  const final420 = adminCss.lastIndexOf('@media (max-width: 420px)');
-  const final480 = adminCss.lastIndexOf('@media (max-width: 480px)');
-  assert.ok(final420 > final480, 'the final narrow-phone overrides must follow all 480px rules');
-  const narrowCss = adminCss.slice(final420);
+  const narrowMarker = adminCss.lastIndexOf('Keep narrow-phone overrides after all legacy 480px rules.');
+  const sidebarMarker = adminCss.lastIndexOf('Keep the mobile admin sidebar directly below the header');
+  const preceding480 = adminCss.lastIndexOf('@media (max-width: 480px)', narrowMarker);
+  assert.ok(narrowMarker > preceding480, 'the narrow-phone layout block must follow the preceding legacy 480px rules');
+  assert.ok(sidebarMarker > narrowMarker, 'sidebar synchronization overrides must follow the narrow-phone layout block');
+  const narrowCss = adminCss.slice(narrowMarker, sidebarMarker);
   assert.match(narrowCss, /\.ff-admin \.top\s*\{[^}]*height:\s*48px/s);
   assert.match(narrowCss, /\.ff-admin \.top-right select\s*\{[^}]*font-size:\s*10px/s);
   assert.match(narrowCss, /\.ff-admin \.nav-item\s*\{[^}]*font-size:\s*12px/s);
@@ -249,5 +251,28 @@ test('admin, login and QR print pages opt into device safe-area viewport insets'
   for (const [file, pattern] of cases) {
     const html = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
     assert.match(html, pattern, file + ' must enable viewport-fit=cover');
+  }
+});
+
+test('admin mobile sidebar stays aligned below the header at every narrow breakpoint', () => {
+  const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const marker = 'Keep the mobile admin sidebar directly below the header';
+  const finalOverrides = adminCss.slice(adminCss.lastIndexOf(marker));
+  const breakpoints = [
+    ['920px', '58px'],
+    ['760px', '56px'],
+    ['480px', '52px'],
+    ['420px', '48px'],
+  ];
+
+  let previous = -1;
+  for (const [breakpoint, offset] of breakpoints) {
+    const media = finalOverrides.indexOf(`@media (max-width: ${breakpoint})`);
+    assert.ok(media > previous, `${breakpoint} sidebar override must follow the wider breakpoint`);
+    const nextMedia = finalOverrides.indexOf('@media (max-width:', media + 1);
+    const block = finalOverrides.slice(media, nextMedia === -1 ? undefined : nextMedia);
+    assert.match(block, new RegExp(`\\.ff-admin \\.top\\s*\\{[^}]*height:\\s*${offset};[^}]*min-height:\\s*${offset};`, 's'));
+    assert.match(block, new RegExp(`\\.ff-admin \\.admin-sidebar\\s*\\{[^}]*top:\\s*${offset};[^}]*height:\\s*calc\\(100vh - ${offset}\\);[^}]*height:\\s*calc\\(100dvh - ${offset}\\);`, 's'));
+    previous = media;
   }
 });

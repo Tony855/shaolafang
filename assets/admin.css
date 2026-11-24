@@ -3436,3 +3436,39 @@ button.edit-btn:disabled {
     padding-top: 48px;
   }
 }
+
+/* Keep the mobile admin sidebar directly below the header at each header-height breakpoint.
+   This final override neutralizes the legacy extracted 1024px block above, which otherwise
+   resets the sidebar offset after the narrower 920px/480px rules. */
+@media (max-width: 920px) {
+  .ff-admin .top { height: 58px; min-height: 58px; }
+  .ff-admin .admin-sidebar {
+    top: 58px;
+    height: calc(100vh - 58px);
+    height: calc(100dvh - 58px);
+  }
+}
+@media (max-width: 760px) {
+  .ff-admin .top { height: 56px; min-height: 56px; }
+  .ff-admin .admin-sidebar {
+    top: 56px;
+    height: calc(100vh - 56px);
+    height: calc(100dvh - 56px);
+  }
+}
+@media (max-width: 480px) {
+  .ff-admin .top { height: 52px; min-height: 52px; }
+  .ff-admin .admin-sidebar {
+    top: 52px;
+    height: calc(100vh - 52px);
+    height: calc(100dvh - 52px);
+  }
+}
+@media (max-width: 420px) {
+  .ff-admin .top { height: 48px; min-height: 48px; }
+  .ff-admin .admin-sidebar {
+    top: 48px;
+    height: calc(100vh - 48px);
+    height: calc(100dvh - 48px);
+  }
+}
