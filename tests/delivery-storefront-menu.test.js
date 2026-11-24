@@ -4,6 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
+const crypto = require('node:crypto');
 
 const page = fs.readFileSync(path.join(__dirname, '..', 'delivery-order.html'), 'utf8');
 
@@ -101,10 +103,51 @@ test('delivery checkout labels are associated with their fields and quantity con
 
 test('delivery checkout persists one idempotency key across reloads and sends it with each submit', () => {
   assert.match(page, /foodflow_delivery_checkout_key_v1:/);
-  assert.match(page, /localStorage\.getItem\(checkoutKeyName\)/);
-  assert.match(page, /localStorage\.setItem\(checkoutKeyName,key\)/);
+  assert.match(page, /sessionStorage\.getItem\(checkoutKeyName\)/);
+  assert.match(page, /sessionStorage\.setItem\(checkoutKeyName,key\)/);
   assert.match(page, /'Idempotency-Key':checkoutKey/);
   assert.match(page, /function rotateCheckoutKey\(\)/);
   assert.match(page, /rotateCheckoutKey\(\);/);
   assert.match(page, /\|\|!checkoutKey/);
+});
+
+test('checkout keys survive reload in one tab but remain isolated across tabs', () => {
+  const start = page.indexOf(' function createCheckoutKey(){');
+  const end = page.indexOf(' let telegramBound=', start);
+  assert.ok(start >= 0 && end > start, 'checkout key functions must remain a contiguous testable block');
+  const source = page.slice(start, end) + '\\n({ get key(){ return checkoutKey; }, name: checkoutKeyName, rotateCheckoutKey })';
+  const makeStorage = () => {
+    const values = new Map();
+    return {
+      getItem(key) { return values.has(key) ? values.get(key) : null; },
+      setItem(key, value) { values.set(key, String(value)); }
+    };
+  };
+  const makeTab = storage => vm.runInNewContext(source, {
+    storeId: '9',
+    sessionStorage: storage,
+    window: { crypto: { getRandomValues(bytes) { return crypto.randomFillSync(bytes); } } },
+    Uint8Array, Array, Math, String
+  });
+  const firstTabStorage = makeStorage();
+  const firstTab = makeTab(firstTabStorage);
+  assert.match(firstTab.key, /^[a-f0-9]{64}$/);
+  const sameTabAfterReload = makeTab(firstTabStorage);
+  assert.equal(sameTabAfterReload.key, firstTab.key, 'same-tab reload must reuse the pending checkout key');
+
+  const secondTab = makeTab(makeStorage());
+  assert.match(secondTab.key, /^[a-f0-9]{64}$/);
+  assert.notEqual(secondTab.key, firstTab.key, 'independent tabs must not share checkout keys');
+
+  const oldKey = firstTab.key;
+  firstTab.rotateCheckoutKey();
+  assert.notEqual(firstTab.key, oldKey);
+  assert.equal(makeTab(firstTabStorage).key, firstTab.key, 'rotated key must persist for retries in the same tab');
+});
+
+test('customer identity remains browser-wide while checkout idempotency is tab-scoped', () => {
+  assert.match(page, /localStorage\\.getItem\\(key\\)/);
+  assert.match(page, /localStorage\\.setItem\\(key,token\\)/);
+  assert.match(page, /sessionStorage\\.getItem\\(checkoutKeyName\\)/);
+  assert.match(page, /sessionStorage\\.setItem\\(checkoutKeyName,key\\)/);
 });
