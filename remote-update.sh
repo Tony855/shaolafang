@@ -83,7 +83,7 @@ trap rollback_update EXIT
 
 if [ "$SKIP_GIT_UPDATE" != "1" ]; then
   [ -d .git ] || { echo "[ERROR] 当前目录不是 Git 仓库: $SCRIPT_DIR" >&2; exit 1; }
-  ff_prepare_force_deploy_repository "https://github.com/Tony855/shaolafang.git"
+  ff_prepare_force_deploy_repository "${FOODFLOW_REPO:-https://github.com/Tony855/shaolafang.git}"
   OLD_SHA="$(git rev-parse HEAD)"
   STAGE="$(mktemp -d "$SCRIPT_DIR/.foodflow-update.XXXXXX")"
   OLD_NODE_MODULES="$STAGE/node_modules.previous"
