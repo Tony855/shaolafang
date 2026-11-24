@@ -8,7 +8,7 @@
   --disp-gold: #ffd93d;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; }
+html { height: 100%; margin: 0; padding: 0; }
 body {
   background: radial-gradient(circle at 10% 0%, rgba(232,93,58,.10), transparent 40%),
               radial-gradient(circle at 90% 10%, rgba(120,110,255,.10), transparent 40%),
@@ -17,7 +17,11 @@ body {
   font: 15px -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
+  min-height: 100dvh;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   overflow: hidden;
 }
 .disp-header {
