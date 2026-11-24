@@ -970,42 +970,6 @@ body {
   box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
 }
 
-/* ============================================================
-   退款弹窗样式（2026-09-30 追加）
-   ============================================================ */
-.refund-card {
-  position: relative;
-  background: #fff;
-  border-radius: 20px;
-  width: 100%;
-  max-width: 460px;
-  padding: 24px;
-  box-shadow: var(--pos-shadow-lg);
-  animation: paymentIn 0.25s ease;
-}
-.refund-title {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--pos-text);
-  margin-bottom: 16px;
-  text-align: center;
-}
-.refund-amount {
-  text-align: center;
-  padding: 12px 0 16px;
-  border-bottom: 1px solid var(--pos-border);
-  margin-bottom: 18px;
-}
-.refund-amount-label {
-  font-size: 13px;
-  color: var(--pos-text-dim);
-  margin-bottom: 4px;
-}
-.refund-amount-value {
-  font-size: 30px;
-  font-weight: 800;
-  color: var(--pos-danger);
-}
 .refund-input-row,
 .refund-reason-row {
   display: flex;
@@ -1051,20 +1015,6 @@ body {
   border-color: var(--pos-primary);
   box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
 }
-.refund-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 18px;
-}
-.refund-actions .btn {
-  flex: 1;
-  height: 48px;
-  border-radius: var(--pos-radius-sm);
-  font-size: 15px;
-  font-weight: 700;
-  border: 0;
-  cursor: pointer;
-}
 .btn-danger {
   background: linear-gradient(135deg, #ff6b6b, #dc2626);
   color: #fff;
@@ -1081,11 +1031,6 @@ body {
 }
 .pos-detail-btns .btn-refund:hover { background: #ffedd5; }
 
-@media (max-width: 768px) {
-  .refund-card { padding: 18px; max-width: calc(100vw - 24px); }
-  .refund-amount-value { font-size: 26px; }
-  .refund-actions .btn { height: 46px; }
-}
 
 /* ============================================================
    详情页底部布局：使用纵向 Flex，避免固定高度造成重叠
@@ -1577,4 +1522,42 @@ body {
   font-weight: 700 !important;
   text-align: right !important;
   font-family: inherit !important;
+}
+
+
+/* ============================================================
+   收银台弹窗：限制在动态视口内，支持内容滚动和设备安全区
+   ============================================================ */
+.modal-overlay {
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+}
+
+.modal-overlay > .payment-card,
+#confirmModal > .modal {
+  box-sizing: border-box;
+  max-height: calc(100vh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  margin: auto;
+}
+
+@media (max-width: 768px) {
+  .modal-overlay {
+    align-items: flex-start;
+  }
+  .modal-overlay > .payment-card,
+  #confirmModal > .modal {
+    flex: 0 0 auto;
+    width: 100%;
+  }
 }
