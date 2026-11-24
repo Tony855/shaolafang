@@ -6,7 +6,7 @@
 /* ===== 弹窗整体布局（移动端优先）===== */
 #khqrModal {
   box-sizing: border-box;
-  padding: 10px !important;
+  padding: max(10px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)) !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;
   align-items: center !important;
@@ -17,7 +17,8 @@
   box-sizing: border-box !important;
   width: 100% !important;
   max-width: 460px !important;
-  max-height: calc(100dvh - 24px) !important;
+  max-height: calc(100vh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;
   margin: auto !important;
@@ -56,6 +57,7 @@
   width: min(65vw, 300px) !important;
   height: auto !important;
   max-width: 100% !important;
+  max-height: 34vh !important;
   max-height: 34dvh !important;
   object-fit: contain !important;
   margin: 0 auto !important;
@@ -98,8 +100,8 @@
 }
 #khqrModal .payment-actions {
   position: sticky;
-  bottom: -14px;
-  padding: 8px 0 2px;
+  bottom: 0;
+  padding: 8px 0 max(2px, env(safe-area-inset-bottom, 0px));
   background: #fff;
   margin-top: 8px !important;
 }
