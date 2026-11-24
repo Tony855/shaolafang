@@ -1,6 +1,6 @@
 # Finance delivery tracker
 
-Last reviewed: 2026-11-19 (main baseline `105f92cbb5dd9045cb3425ead90d2ce8a0f7e7ec` before this tracker sync; PR #302 merged as `de2a6151bfcc1c46400ce08a986e50cb7ceaf341`; PR #303 merged as `105f92cbb5dd9045cb3425ead90d2ce8a0f7e7ec`; daily full-system audit PR #297 merged as `58ff13181eaedbc10c50ce66d3184ee03475e321`; earlier historical merge references retained below)
+Last reviewed: 2026-11-24 (current main `c5fbde95582027b998762fc99cdb4dff1534be52`; PR #333 installer repository/source-path and documentation alignment merged; PR #300/#301 daily report UI and delivery tracker sync merged; PR #302/#303 manual-match console changes merged; PR #297 daily full-system audit workflow merged; earlier historical merge references retained below)
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
@@ -211,3 +211,22 @@ For each batch, update this tracker with the merged PR and commit, the open PR a
 - Final-head CI [#44447812852](https://github.com/Tony855/shaolafang/actions/runs/44447812852) passed 6/6 jobs; full-system audit [#44447812846](https://github.com/Tony855/shaolafang/actions/runs/44447812846) passed 6/6 jobs; installer compatibility [#44447812832](https://github.com/Tony855/shaolafang/actions/runs/44447812832) passed 5/5 targets. Static audit artifact was uploaded by the full-system run.
 - The full suite reported 843 tests: 817 passed, 0 failed, 26 skipped. Each supported database passed 23/23 finance integration tests. Post-merge main CI [#44448152062](https://github.com/Tony855/shaolafang/actions/runs/44448152062) and installer compatibility [#44448152080](https://github.com/Tony855/shaolafang/actions/runs/44448152080) passed.
 - The daily schedule begins with the next scheduled UTC 02:00 run after merge; the PR-head full-system audit already passed. Automated checks do not replace manual business acceptance or merchant-specific provider sandbox testing.
+
+
+## 2026-11-20 repository-wide audit synchronization
+
+- Current main SHA: `5607366fc86f87ca652c8498aa65efd5d7c5b52d`. The finance reconciliation/manual-review capabilities listed above remain delivered to main; this audit did not find a new finance-domain state-machine, schema or tenant-isolation change that could be safely added without duplicating existing work.
+- Main CI [#44549537338](https://github.com/Tony855/shaolafang/actions/runs/44549537338), Full System Audit [#44549537289](https://github.com/Tony855/shaolafang/actions/runs/44549537289), and Installer Compatibility [#44549537268](https://github.com/Tony855/shaolafang/actions/runs/44549537268) all passed for the exact main SHA. Main repository suite: 846 tests, 820 passed, 0 failed, 26 skipped; production dependency audit: 0 vulnerabilities. MySQL 8.4 and MariaDB 10.11/11.4/11.8/12.3 matrix jobs all passed.
+- No finance implementation PR is open. Security PR [#319](https://github.com/Tony855/shaolafang/pull/319) (route 5xx error disclosure) and [#320](https://github.com/Tony855/shaolafang/pull/320) (installer GitHub-token handling) are separate security changes, not finance feature delivery. Both final heads have 17/17 CI/audit/installer checks successful but remain open for owner review; neither is merged.
+- Provider-specific activation remains gated: read-only PayWay/Bakong verification adapters exist, but no live provider callback/settlement automation is enabled. Merchant sandbox credentials, exact outlet/receiver mapping, provider environment details, approved amount/currency/rounding and accounting rules, and staging acceptance remain required. Do not infer these rules from code tests.
+- The immutable review-event hash chain is tamper-evident within the database, not an external immutable anchor; a privileged database operator can rewrite a complete chain. Production DB grants and independently controlled checkpoints remain an operational hardening requirement.
+- No production database migration/deployment, real payment/refund, journal posting, Telegram delivery, or hardware/field test was performed in this audit.
+
+
+## 2026-11-24 main and installer audit synchronization
+
+- Current main SHA: `c5fbde95582027b998762fc99cdb4dff1534be52`; PR [#333](https://github.com/Tony855/shaolafang/pull/333) merged as this commit, aligning installer repository source paths, branch/tag selection, and deployment documentation.
+- Exact-main CI [#45317558941](https://github.com/Tony855/shaolafang/actions/runs/45317558941), Full System Audit [#45317558845](https://github.com/Tony855/shaolafang/actions/runs/45317558845), and Installer Compatibility [#45317558788](https://github.com/Tony855/shaolafang/actions/runs/45317558788) completed successfully. Installer compatibility passed all five targets: Debian 12, Debian 13, Ubuntu 22.04, Ubuntu 24.04, and Ubuntu 26.04.
+- Security follow-up: PR [#319](https://github.com/Tony855/shaolafang/pull/319) remains open on an older base and requires synchronization/revalidation against current main before its old checks can be used as acceptance evidence. PR [#320](https://github.com/Tony855/shaolafang/pull/320) is an older token-handling attempt; current-main follow-up is PR [#334](https://github.com/Tony855/shaolafang/pull/334), based on the exact current main SHA and replacing token-bearing Git URLs with a short-lived `GIT_ASKPASS` helper.
+- At the time of this update, PR #334 installer compatibility passed 5/5 targets. Its CI and Full System Audit workflows were still running; therefore the token-handling change is not yet accepted or merged.
+- No production database migration/deployment, live payment/refund, journal posting, Telegram delivery, or hardware/field test was performed.
