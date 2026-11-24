@@ -17,6 +17,10 @@ test('customer menu includes configured categories even when no active dish uses
   assert.match(customer, /\[\.\.\.\(state\.categoryOrder \|\| \[\]\), \.\.\.state\.menu\.map\(i => i\.category\)/);
 });
 
+test('public customer categories use stable ordering for equal sort positions', () => {
+  assert.match(publicRoutes, /SELECT id, name, sort FROM menu_categories WHERE store_id=\? ORDER BY sort, id/);
+});
+
 test('customer QR session resolves store before loading store-scoped currency, categories, and menu', () => {
   const initStart = customer.indexOf('async function init()');
   const init = customer.slice(initStart);
