@@ -38,3 +38,12 @@ test('admin sidebar has no stale mobile widths', () => {
   assert.match(admin, /width:\s*180px\s*!important/);
   assert.match(admin, /width:\s*170px\s*!important/);
 });
+
+test('cashier and waiter payment overlays preserve KHQR stacking order', () => {
+  for (const pageCss of ['cashier.css', 'waiter.css']) {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'assets', pageCss), 'utf8');
+    assert.match(css, /\.modal-overlay\s*\{[^}]*position:\s*fixed;[^}]*z-index:\s*300;/s);
+    assert.match(css, /#khqrModal\.modal-overlay\s*\{\s*z-index:\s*999\s*!important;\s*\}/);
+    assert.match(css, /#paymentModal\.modal-overlay\s*\{\s*z-index:\s*300;\s*\}/);
+  }
+});
