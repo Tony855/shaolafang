@@ -930,10 +930,6 @@ body {
 .btn-refund:hover {
   box-shadow: 0 6px 20px rgba(231,76,60,0.4);
 }
-.pos-detail-btns .btn-refund {
-  max-width: 60px;
-}
-
 /* 退款表单 */
 .refund-form {
   padding: 0 4px;
@@ -1039,10 +1035,6 @@ body {
   outline: none;
   font-family: "SF Mono", monospace;
   text-align: right;
-}
-.refund-input:focus {
-  border-color: var(--pos-primary);
-  box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
 }
 .refund-textarea {
   flex: 1;
@@ -1262,15 +1254,6 @@ body {
 /* ============================================================
    待结订单细分：可结算 vs 等菜中（2026-10-01）
    ============================================================ */
-.pos-order-card.status-pending.ready-to-settle {
-  border-left: 4px solid #2ecc71 !important;
-  background: linear-gradient(135deg, #f6fdf9 0%, #e6f8ee 100%) !important;
-}
-.pos-order-card.status-pending.ready-to-settle:hover {
-  border-color: #2ecc71 !important;
-  box-shadow: 0 4px 14px rgba(46, 204, 113, 0.22);
-}
-
 .pos-order-card.status-pending.waiting-items {
   border-left: 4px solid #f39c12 !important;
   background: linear-gradient(135deg, #fffbf0 0%, #fff2d9 100%) !important;
@@ -1287,8 +1270,8 @@ body {
   font-weight: 700;
   white-space: nowrap;
   line-height: 16px;
-  background: #d4edda;
-  color: #155724;
+  background: #e0f2fe;
+  color: #0369a1;
 }
 .pos-card-wait-tip {
   display: inline-flex;
@@ -1305,14 +1288,6 @@ body {
 }
 
 /* 可结算卡片加轻微脉冲提示（可选，更醒目） */
-.pos-order-card.ready-to-settle {
-  animation: pos-ready-pulse 2.4s ease-in-out infinite;
-}
-@keyframes pos-ready-pulse {
-  0%, 100% { box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-  50%      { box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.12); }
-}
-
 @media (max-width: 768px) {
   .pos-card-ready-tip,
   .pos-card-wait-tip { font-size: 10px; padding: 2px 6px; }
@@ -1331,12 +1306,6 @@ body {
 }
 .pos-order-card.status-pending.ready-to-settle.selected {
   background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%) !important;
-}
-
-/* 徽章：可结算 → 天蓝 */
-.pos-card-ready-tip {
-  background: #e0f2fe !important;
-  color: #0369a1 !important;
 }
 
 /* 脉冲动画也换天蓝 */
