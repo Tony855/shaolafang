@@ -2,6 +2,7 @@
 
 const crypto = require('node:crypto');
 const { hashSessionToken } = require('../server/services/session-token');
+const { normalizeRouteError } = require('../server/utils/http-error');
 
 const positiveId = value => {
   const n = Number(value);
@@ -132,7 +133,10 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       io.to('delivery-store-' + req.storeId).emit('delivery:status', { orderId, status: 'assigned' });
       io.to('delivery-riders-store-' + req.storeId).emit('delivery:rider-refresh', { orderId });
       res.json({ success: true, job });
-    } catch (error) { res.status(error.status || 500).json({ error: error.status ? error.message : '分配配送任务失败' }); }
+    } catch (error) {
+      const safeError = normalizeRouteError(error, '分配配送任务失败');
+      res.status(safeError.status).json({ error: safeError.message });
+    }
   });
 
   app.post('/api/delivery/login', async (req, res) => {
