@@ -395,6 +395,24 @@
             }
         }
 
+        // Keep customer-visible data isolated when a QR/session resolves to another store.
+        function setActiveStoreId(value) {
+            const nextStoreId = Number(value) || 1;
+            const previousStoreId = Number(state.storeId) || 1;
+            if (nextStoreId === previousStoreId) {
+                state.storeId = nextStoreId;
+                return false;
+            }
+            state.storeId = nextStoreId;
+            state.menu = [];
+            state.categoryOrder = [];
+            state.currentCategory = ALL_CATEGORY;
+            state.cart = {};
+            state.currentStore = null;
+            _storeInfoFetchedForStoreId = null;
+            return true;
+        }
+
         // 不再请求 /tables（该接口需要信息也没必要暴露给顾客）
         async function fetchTables() {
             if (!isBackendOnline) return false;
@@ -421,7 +439,7 @@
                 if (sessionParam) {
                     const info = await SLF.api.get('/public/table-session/info', { headers: { 'X-Scan-Session': sessionParam } });
                     state.table = info.table;
-                    state.storeId = info.storeId || 1;
+                    setActiveStoreId(info.storeId);
                     state.scanToken = '';
                     state.scanSessionToken = sessionParam;
                     state.scanExpiresAt = info.expiresAt;
@@ -445,7 +463,7 @@
                 } else if (token) {
                     const session = await SLF.api.get(`/public/table-token/${encodeURIComponent(token)}`);
                     state.table = session.table;
-                    state.storeId = session.storeId || 1;
+                    setActiveStoreId(session.storeId);
                     state.scanToken = token;
                     state.scanSessionToken = session.sessionToken;
                     state.scanExpiresAt = session.expiresAt;
@@ -474,7 +492,7 @@
                     state.scanSessionToken = '';
                     state.scanExpiresAt = '';
                     clearStoredScanSession();
-                    state.storeId = 1;
+                    setActiveStoreId(1);
                 }
 
                 tableDisplay.textContent = state.table || t('notScanned', null, '未扫码');
