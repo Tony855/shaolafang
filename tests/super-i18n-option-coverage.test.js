@@ -14,10 +14,9 @@ const localeDictionaries = Object.fromEntries(localeCodes.map(locale => [
 ]));
 
 function getSelectOptions(id) {
-  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = html.match(new RegExp('<select\\b[^>]*\\bid="' + escapedId + '"[^>]*>([\\s\\S]*?)<\\/select>', 'i'));
+  const match = html.match(new RegExp('<select[^>]*id="' + id + '"[^>]*>([\\s\\S]*?)</select>', 'i'));
   assert.ok(match, id + ' select should exist');
-  return [...match[1].matchAll(/<option\\b([^>]*)>([\\s\\S]*?)<\\/option>/gi)];
+  return [...match[1].matchAll(/<option([^>]*)>([\\s\\S]*?)</option>/gi)];
 }
 
 test('super admin log-cleanup options are translated in every supported locale', () => {
@@ -26,7 +25,7 @@ test('super admin log-cleanup options are translated in every supported locale',
     assert.equal(options.length, 2, id + ' should contain yes/no options');
 
     for (const option of options) {
-      const key = option[1].match(/\\bdata-i18n="([^"]+)"/);
+      const key = option[1].match(/data-i18n="([^"]+)"/);
       assert.ok(key, id + ' option must declare data-i18n: ' + option[2].trim());
       for (const locale of localeCodes) {
         assert.ok(
