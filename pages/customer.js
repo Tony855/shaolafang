@@ -398,7 +398,6 @@
         // 不再请求 /tables（该接口需要信息也没必要暴露给顾客）
         async function fetchTables() {
             if (!isBackendOnline) return false;
-            let menuAlreadyFetched = false;
             try {
                 const query = new URLSearchParams(window.location.search);
                 let token = query.get('token');
@@ -442,9 +441,7 @@
                         state.customerToken = generateCustomerToken();
                         setStoredCustomerToken(state.customerToken);
                     }
-                    await fetchStoreInfo();
-                    await fetchMenu();
-                    menuAlreadyFetched = true;
+
                 } else if (token) {
                     const session = await SLF.api.get(`/public/table-token/${encodeURIComponent(token)}`);
                     state.table = session.table;
@@ -470,9 +467,7 @@
                         url.searchParams.delete('session');
                         history.replaceState(null, '', url.pathname + url.search + url.hash);
                     } catch (_) {}
-                    await fetchStoreInfo();
-                    await fetchMenu();
-                    menuAlreadyFetched = true;
+
                 } else {
                     state.table = '';
                     state.scanToken = '';
@@ -488,7 +483,7 @@
                 document.getElementById('callWaiterBtn').hidden = !isScanSessionValid();
                 await refreshCustomerTelegramBinding();
                 updateUI();
-                return menuAlreadyFetched;
+                return false;
             } catch (e) {
                 console.warn('fetchTables 错误:', e);
                 state.table = '';
@@ -832,9 +827,11 @@
             menuGrid.innerHTML = filtered.map(item => {
                 const qty = state.cart[item.id] || 0;
                 const imageValue = String(item.image || '').trim();
+                const normalizedImagePath = imageValue.replace(/\\/g, '/').replace(/^\.\/+/, '');
                 const imageSrc = /^https?:\/\//i.test(imageValue)
                     ? imageValue
-                    : (imageValue.startsWith('/') ? imageValue : '/uploads/' + imageValue);
+                    : (normalizedImagePath.startsWith('/') ? normalizedImagePath
+                        : (normalizedImagePath.startsWith('uploads/') ? '/' + normalizedImagePath : '/uploads/' + normalizedImagePath));
                 const imgHtml = imageValue
                     ? `<img src="${esc(imageSrc)}" alt="${esc(item.name)}" loading="lazy" decoding="async">`
                     : (esc(item.emoji) || '🍽️');
@@ -1423,18 +1420,18 @@
 
             updateLangMenuActive();
 
-            await fetchStoreConfig();
             await checkBackend();
-            await fetchCategoryOrder();
-            await fetchStoreInfo();
 
             document.getElementById('customerOrderBtn').hidden = true;
             document.getElementById('callWaiterBtn').hidden = true;
 
-            const menuAlreadyFetchedInTables = await fetchTables();
-            if (!menuAlreadyFetchedInTables) {
-                await fetchMenu();
-            }
+            // Resolve the QR/session store first. Currency and category endpoints are
+            // store-scoped, so loading them before fetchTables() would silently use store 1.
+            await fetchTables();
+            await fetchStoreConfig();
+            await fetchCategoryOrder();
+            await fetchStoreInfo();
+            await fetchMenu();
 
             await applyLanguage();
 

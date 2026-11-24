@@ -17,6 +17,31 @@ test('customer menu includes configured categories even when no active dish uses
   assert.match(customer, /\[\.\.\.\(state\.categoryOrder \|\| \[\]\), \.\.\.state\.menu\.map\(i => i\.category\)/);
 });
 
+test('public customer categories use stable ordering for equal sort positions', () => {
+  assert.match(publicRoutes, /SELECT id, name, sort FROM menu_categories WHERE store_id=\? ORDER BY sort, id/);
+});
+
+test('customer QR session resolves store before loading store-scoped currency, categories, and menu', () => {
+  const initStart = customer.indexOf('async function init()');
+  const init = customer.slice(initStart);
+  const sessionResolveIndex = init.indexOf('await fetchTables();');
+  const currencyIndex = init.indexOf('await fetchStoreConfig();');
+  const categoryIndex = init.indexOf('await fetchCategoryOrder();');
+  const storeInfoIndex = init.indexOf('await fetchStoreInfo();');
+  const menuIndex = init.indexOf('await fetchMenu();');
+  assert.ok(sessionResolveIndex >= 0 && sessionResolveIndex < currencyIndex);
+  assert.ok(currencyIndex < categoryIndex && categoryIndex < storeInfoIndex && storeInfoIndex < menuIndex);
+  const fetchTablesStart = customer.indexOf('async function fetchTables()');
+  const fetchTablesEnd = customer.indexOf('// ============================================================', fetchTablesStart + 50);
+  const fetchTablesBody = customer.slice(fetchTablesStart, fetchTablesEnd);
+  assert.doesNotMatch(fetchTablesBody, /await fetch(?:StoreConfig|CategoryOrder|StoreInfo|Menu)\(\)/);
+});
+
+test('customer menu normalizes both uploads/foo and legacy relative image paths', () => {
+  assert.ok(customer.includes('const normalizedImagePath = imageValue.replace('));
+  assert.match(customer, /normalizedImagePath\.startsWith\('uploads\/'\)/);
+});
+
 test('customer menu renders configured secondary currency and retries missing currency config safely', () => {
   const fallbackIndex = customer.indexOf('state.dualCurrency.currency =');
   const configureIndex = customer.indexOf('SLF.money.configure({');
