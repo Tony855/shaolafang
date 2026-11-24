@@ -78,10 +78,10 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 <aside>
 <section class="panel"><h2>配送信息</h2>
 <form id="orderForm">
-<label>收件人姓名</label><input name="recipient_name" maxlength="120" required autocomplete="name">
-<div class="row"><div><label>联系电话</label><input name="recipient_phone" maxlength="40" required autocomplete="tel" inputmode="tel"></div><div><label>支付方式</label><select name="payment_method"><option value="cash">现金（送达付款）</option><option value="khqr">KHQR（提交后生成收款码）</option></select></div></div>
-<label>详细配送地址</label><textarea name="delivery_address" maxlength="500" required placeholder="请填写街道、楼层、门牌号及附近地标"></textarea>
-<label>订单备注（选填）</label><textarea name="note" maxlength="200" placeholder="口味要求或配送备注"></textarea>
+<label for="recipientName">收件人姓名</label><input id="recipientName" name="recipient_name" maxlength="120" required autocomplete="name">
+<div class="row"><div><label for="recipientPhone">联系电话</label><input id="recipientPhone" name="recipient_phone" maxlength="40" required autocomplete="tel" inputmode="tel"></div><div><label for="paymentMethod">支付方式</label><select id="paymentMethod" name="payment_method"><option value="cash">现金（送达付款）</option><option value="khqr">KHQR（提交后生成收款码）</option></select></div></div>
+<label for="deliveryAddress">详细配送地址</label><textarea id="deliveryAddress" name="delivery_address" maxlength="500" required placeholder="请填写街道、楼层、门牌号及附近地标"></textarea>
+<label for="orderNote">订单备注（选填）</label><textarea id="orderNote" name="note" maxlength="200" placeholder="口味要求或配送备注"></textarea>
 <div id="cart"></div><div class="total"><span>订单合计</span><span id="total">0.00 USD</span></div>
 <button class="submit" id="submit" type="submit" disabled>提交外卖订单</button><div id="message" class="error" role="alert"></div>
 <p class="muted">菜品价格和订单金额以服务器核算为准。提交后可使用专属凭证查看配送进度。</p>
@@ -244,9 +244,9 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    if(prices.secondary){const secondary=document.createElement('span');secondary.className='secondary-price';secondary.textContent=prices.secondary;price.append(secondary);}
    content.append(price);
    const controls=document.createElement('div');controls.className='controls';
-   const minus=document.createElement('button');minus.type='button';minus.textContent='−';minus.disabled=Number(cart.get(String(item.id))||0)===0;minus.setAttribute('aria-label','减少数量');minus.addEventListener('click',()=>change(item.id,-1));
+   const minus=document.createElement('button');minus.type='button';minus.textContent='−';minus.disabled=Number(cart.get(String(item.id))||0)===0;minus.setAttribute('aria-label','减少 '+escText(item.name)+' 数量');minus.addEventListener('click',()=>change(item.id,-1));
    const qty=document.createElement('span');qty.className='qty';qty.dataset.qty=String(item.id);qty.textContent=String(cart.get(String(item.id))||0);
-   const plus=document.createElement('button');plus.type='button';plus.textContent='+';plus.disabled=Number(cart.get(String(item.id))||0)>=maxQty;plus.setAttribute('aria-label','增加数量');plus.addEventListener('click',()=>change(item.id,1));
+   const plus=document.createElement('button');plus.type='button';plus.textContent='+';plus.disabled=Number(cart.get(String(item.id))||0)>=maxQty;plus.setAttribute('aria-label','增加 '+escText(item.name)+' 数量');plus.addEventListener('click',()=>change(item.id,1));
    controls.append(minus,qty,plus);content.append(controls);card.append(content);host.append(card);
   }
  }
