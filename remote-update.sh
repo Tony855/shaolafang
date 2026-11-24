@@ -34,6 +34,7 @@ DEPENDENCIES_SWAPPED=0
 UPDATE_OK=0
 STAGE=""
 OLD_NODE_MODULES=""
+PRE_DEPLOY_PATCH=""
 
 rollback_update() {
   local rc=$?
@@ -51,6 +52,10 @@ rollback_update() {
   fi
   if [ "$SOURCE_CHANGED" = "1" ] && [ -n "$OLD_SHA" ]; then
     git reset --hard "$OLD_SHA" || echo "[CRITICAL] 源码回滚失败，请手动恢复到 $OLD_SHA" >&2
+    if [ -s "$PRE_DEPLOY_PATCH" ]; then
+      git apply --binary "$PRE_DEPLOY_PATCH" ||
+        echo "[CRITICAL] 部署前生产代码差异恢复失败；差异备份位于 $PRE_DEPLOY_PATCH" >&2
+    fi
   fi
   if { [ "$SOURCE_CHANGED" = "1" ] || [ "$DEPENDENCIES_SWAPPED" = "1" ]; } && systemctl cat foodflow.service >/dev/null 2>&1; then
     if systemctl restart foodflow.service; then
@@ -72,16 +77,17 @@ if [ "$SKIP_GIT_UPDATE" != "1" ]; then
   OLD_SHA="$(git rev-parse HEAD)"
   STAGE="$(mktemp -d "$SCRIPT_DIR/.foodflow-update.XXXXXX")"
   OLD_NODE_MODULES="$STAGE/node_modules.previous"
+  PRE_DEPLOY_PATCH="$STAGE/pre-deploy.patch"
+  # Snapshot all tracked production edits before the forced reset. This lets
+  # rollback restore the actual deployed files, not merely the metadata HEAD.
+  git diff --binary HEAD > "$PRE_DEPLOY_PATCH"
   echo "[INFO] 获取目标版本 $GIT_VERSION..."
   git fetch --no-tags origin "$GIT_VERSION"
   TARGET_SHA="$(git rev-parse FETCH_HEAD)"
   [ -n "$TARGET_SHA" ] || { echo "[ERROR] 无法解析目标提交。" >&2; exit 1; }
-  if [ "$TARGET_SHA" = "$OLD_SHA" ]; then
-    echo "[INFO] 当前源码已是目标版本 $TARGET_SHA"
-  else
-    SOURCE_CHANGED=1
-    git reset --hard "$TARGET_SHA"
-  fi
+  SOURCE_CHANGED=1
+  echo "[INFO] 强制覆盖已跟踪程序文件到 $TARGET_SHA ..."
+  git reset --hard "$TARGET_SHA"
 else
   STAGE="$(mktemp -d "$SCRIPT_DIR/.foodflow-update.XXXXXX")"
   OLD_NODE_MODULES="$STAGE/node_modules.previous"
