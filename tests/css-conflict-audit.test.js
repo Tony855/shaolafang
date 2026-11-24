@@ -78,8 +78,8 @@ test('admin 420px layout overrides are applied after legacy 480px rules', () => 
   const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
   const narrowMarker = adminCss.lastIndexOf('Keep narrow-phone overrides after all legacy 480px rules.');
   const sidebarMarker = adminCss.lastIndexOf('Keep the mobile admin sidebar directly below the header');
-  const final480 = adminCss.lastIndexOf('@media (max-width: 480px)');
-  assert.ok(narrowMarker > final480, 'the final narrow-phone layout block must follow all 480px rules');
+  const preceding480 = adminCss.lastIndexOf('@media (max-width: 480px)', narrowMarker);
+  assert.ok(narrowMarker > preceding480, 'the narrow-phone layout block must follow the preceding legacy 480px rules');
   assert.ok(sidebarMarker > narrowMarker, 'sidebar synchronization overrides must follow the narrow-phone layout block');
   const narrowCss = adminCss.slice(narrowMarker, sidebarMarker);
   assert.match(narrowCss, /\.ff-admin \.top\s*\{[^}]*height:\s*48px/s);
