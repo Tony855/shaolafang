@@ -86,7 +86,7 @@ test('delivery storefront quantity controls enforce configured bounds', () => {
 test('delivery checkout requires a persistent customer identity token before enabling submission', () => {
   assert.match(page, /getCustomerIdentityToken\(\)/);
   assert.match(page, /customer_token:customerToken/);
-  assert.match(page, /\$\('submit'\)\.disabled=count===0\|\|!validTotal\|\|!customerToken/);
+  assert.match(page, /\$\('submit'\)\.disabled=count===0\|\|!validTotal\|\|!customerToken\|\|!checkoutKey/);
 });
 
 
@@ -97,4 +97,14 @@ test('delivery checkout labels are associated with their fields and quantity con
   }
   assert.match(page, /minus\.setAttribute\('aria-label','减少 '\+escText\(item\.name\)\+' 数量'\)/);
   assert.match(page, /plus\.setAttribute\('aria-label','增加 '\+escText\(item\.name\)\+' 数量'\)/);
+});
+
+test('delivery checkout persists one idempotency key across reloads and sends it with each submit', () => {
+  assert.match(page, /foodflow_delivery_checkout_key_v1:/);
+  assert.match(page, /localStorage\.getItem\(checkoutKeyName\)/);
+  assert.match(page, /localStorage\.setItem\(checkoutKeyName,key\)/);
+  assert.match(page, /'Idempotency-Key':checkoutKey/);
+  assert.match(page, /function rotateCheckoutKey\(\)/);
+  assert.match(page, /rotateCheckoutKey\(\);/);
+  assert.match(page, /\|\|!checkoutKey/);
 });
