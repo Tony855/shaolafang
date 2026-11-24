@@ -68,3 +68,16 @@ test('delivery storefront title header remains fully visible on narrow screens',
   assert.match(page, /@media\(max-width:720px\)\{header\{padding:calc\(16px \+ env\(safe-area-inset-top,0px\)\)/);
   assert.doesNotMatch(page, /header\s*\{[^}]*height\s*:/);
 });
+
+test('delivery storefront cart lines show quantity-extended subtotals in both currencies', () => {
+  assert.match(page, /const lineBase=base\*qty/);
+  assert.match(page, /formatCurrency\(lineBase,primaryCurrency\)/);
+  assert.match(page, /formatCurrency\(lineBase,secondaryCurrency\)/);
+  assert.doesNotMatch(page, /right\.textContent=prices\.primary/);
+});
+
+test('delivery storefront quantity controls enforce configured bounds', () => {
+  assert.match(page, /Math\.max\(1,Math\.min\(1000,Math\.floor\(configuredMax\)\)\)/);
+  assert.match(page, /plus\.disabled=Number\(cart\.get\(String\(item\.id\)\)\|\|0\)>=maxQty/);
+  assert.match(page, /minus\.disabled=Number\(cart\.get\(String\(item\.id\)\)\|\|0\)===0/);
+});
