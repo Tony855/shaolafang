@@ -429,9 +429,10 @@ test('merchant admin responsive CSS does not repeat identical declarations at th
   assert.ok(narrowStart >= 0 && sidebarAlignmentStart > narrowStart);
   const narrowOverrides = adminCss.slice(narrowStart, sidebarAlignmentStart);
   const narrowTopRule = narrowOverrides.match(/\.ff-admin \.top\s*\{([^}]*)\}/)?.[1] || '';
-  assert.doesNotMatch(narrowTopRule, /height\s*:|min-height\s*:/,
-    'the final 420px header alignment rule should own height and min-height');
+  assert.match(narrowTopRule, /height:\s*48px;[\s\S]*min-height:\s*48px;/,
+    'the narrow-phone layout block should own the 420px header height');
   const finalAlignment = adminCss.slice(sidebarAlignmentStart);
-  assert.match(finalAlignment,
-    /@media \(max-width: 420px\)[\s\S]*?\.ff-admin \.top\s*\{[^}]*height:\s*48px;[^}]*min-height:\s*48px;/);
+  const final420 = finalAlignment.slice(finalAlignment.indexOf('@media (max-width: 420px)'));
+  assert.doesNotMatch(final420, /\.ff-admin \.top\s*\{/,
+    'the final sidebar alignment block should not repeat the 420px header height');
 });
