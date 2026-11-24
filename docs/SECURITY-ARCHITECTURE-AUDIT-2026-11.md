@@ -28,7 +28,7 @@
 
 - 当前 main：`c5fbde95582027b998762fc99cdb4dff1534be52`（PR #333 合并提交）。CI [#45317558941](https://github.com/Tony855/shaolafang/actions/runs/45317558941)、Full System Audit [#45317558845](https://github.com/Tony855/shaolafang/actions/runs/45317558845)、Installer Compatibility [#45317558788](https://github.com/Tony855/shaolafang/actions/runs/45317558788) 均成功；安装兼容性 Debian 12/13、Ubuntu 22.04/24.04/26.04 为 5/5。
 - PR #319：历史 head `ecaf8346acae053f1979afbd65dbbd01e15ef1b3` 的 CI/审计/安装矩阵曾全部成功；但该 PR 当前仍 open 且基于旧 main，需同步到 `c5fbde9` 后重新验证，旧检查不作为当前基线验收。
-- PR #334：head `251f646ea6ff528a8d5ef0396b61ac1eb90858d5`，基于当前 main；Installer Compatibility [#45318691102](https://github.com/Tony855/shaolafang/actions/runs/45318691102) 已通过 5/5。CI [#45318691161](https://github.com/Tony855/shaolafang/actions/runs/45318691161) 与 Full System Audit [#45318691027](https://github.com/Tony855/shaolafang/actions/runs/45318691027) 检查时仍在运行，尚不能宣称通过。
+- PR #334：head `251f646ea6ff528a8d5ef0396b61ac1eb90858d5`，基于当前 main；Installer Compatibility [#45318691102](https://github.com/Tony855/shaolafang/actions/runs/45318691102) 已通过 5/5。CI [#45318691161](https://github.com/Tony855/shaolafang/actions/runs/45318691161) 与 Full System Audit [#45318691027](https://github.com/Tony855/shaolafang/actions/runs/45318691027) 均已通过；五平台安装兼容性 [#45318691102](https://github.com/Tony855/shaolafang/actions/runs/45318691102) 也已全部通过。PR 仍未合并，等待所有者审查。
 - PR #319/#320 均未合并；#319 需要更新，#320 的当前-main 后续由 #334 承接。main 当前无分支保护，因此合并前必须由仓库所有者完成代码审查并配置保护规则。
 
 ### 当前待处理 issue
