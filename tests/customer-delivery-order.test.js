@@ -10,6 +10,7 @@ function setup({ customerBinding = false } = {}) {
   const events = [];
   const transactions = [];
   let orderRow = null;
+  let idempotencyRecord = null;
   const app = {
     get(path, ...handlersForRoute) { handlers.set('GET ' + path, handlersForRoute[handlersForRoute.length - 1]); },
     post(path, ...handlersForRoute) { handlers.set('POST ' + path, handlersForRoute[handlersForRoute.length - 1]); },
@@ -20,6 +21,7 @@ function setup({ customerBinding = false } = {}) {
       calls.push({ type: 'get', sql, params });
       if (sql.includes('FROM stores s JOIN merchants')) return { id: 7, name: 'Test Store', merchant_id: 3 };
       if (sql.includes('FROM stores WHERE id=? AND merchant_id=?')) return { id: 7 };
+      if (sql.includes('FROM delivery_order_requests')) return idempotencyRecord;
       if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=?')) return orderRow;
       return null;
     },
@@ -36,6 +38,14 @@ function setup({ customerBinding = false } = {}) {
     },
     runAsync: async (sql, params = []) => {
       calls.push({ type: 'run', sql, params });
+      if (sql.includes('INSERT IGNORE INTO delivery_order_requests')) {
+        if (!idempotencyRecord) idempotencyRecord = { store_id: params[0], idempotency_key_hash: params[1], customer_token_hash: params[2], request_hash: params[3], order_id: null };
+        return { affectedRows: idempotencyRecord.order_id ? 0 : 1 };
+      }
+      if (sql.includes('UPDATE delivery_order_requests SET order_id')) {
+        if (idempotencyRecord) idempotencyRecord.order_id = params[0];
+        return { affectedRows: 1 };
+      }
       if (sql.includes('INSERT INTO orders')) {
         orderRow = { id: 33, store_id: 7, merchant_id: 3, table_name: null, fulfillment_type: 'delivery', status: 'pending', total: 12.5, order_no: '11GL00001', customer_token: params[4], items: '[]' };
         return { insertId: 33, lastID: 33, affectedRows: 1 };
@@ -60,6 +70,10 @@ function setup({ customerBinding = false } = {}) {
   return { handler: handlers.get('POST /api/public/delivery/orders'), khqrHandler: handlers.get('POST /api/public/delivery/orders/:orderId/khqr'), notifyHandler: handlers.get('POST /api/public/delivery/orders/:orderId/payment-notify'), calls, events, transactions, get orderRow() { return orderRow; } };
 }
 
+function orderRequest(body, key = 'a'.repeat(64)) {
+  return { body, headers: { 'idempotency-key': key }, get(name) { return name.toLowerCase() === 'idempotency-key' ? key : ''; } };
+}
+
 function response() {
   return { statusCode: 200, body: null, status(code) { this.statusCode = code; return this; }, json(value) { this.body = value; return this; } };
 }
@@ -67,11 +81,11 @@ function response() {
 test('customer delivery order creates a tableless order and unassigned delivery job atomically', async () => {
   const ctx = setup();
   const res = response();
-  await ctx.handler({ body: {
-    store_id: 7, recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
+  await ctx.handler(orderRequest({
+    store_id: 7, customer_token: 'a'.repeat(64), recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
     delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
     items: [{ id: 5, quantity: 1 }], note: 'No chili'
-  } }, res);
+  }), res);
   assert.equal(res.statusCode, 201);
   assert.equal(res.body.orderId, 33);
   assert.equal(res.body.customerToken.length, 64);
@@ -92,7 +106,7 @@ test('customer delivery order creates a tableless order and unassigned delivery 
 test('customer delivery order rejects missing recipient and address before database writes', async () => {
   const ctx = setup();
   const res = response();
-  await ctx.handler({ body: { store_id: 7, items: [{ id: 5, quantity: 1 }] } }, res);
+  await ctx.handler(orderRequest({ store_id: 7, items: [{ id: 5, quantity: 1 }] }), res);
   assert.equal(res.statusCode, 400);
   assert.match(res.body.error, /收件人/);
   assert.equal(ctx.calls.some(x => x.type === 'run'), false);
@@ -102,10 +116,10 @@ test('customer delivery order rejects missing recipient and address before datab
 test('customer delivery order rejects unsupported payment methods', async () => {
   const ctx = setup();
   const res = response();
-  await ctx.handler({ body: {
+  await ctx.handler(orderRequest({
     store_id: 7, recipient_name: 'Alex', recipient_phone: '12345678',
     delivery_address: 'Street 123', payment_method: 'bitcoin', items: [{ id: 5, quantity: 1 }]
-  } }, res);
+  }), res);
   assert.equal(res.statusCode, 400);
   assert.match(res.body.error, /支付方式/);
   assert.equal(ctx.calls.some(x => x.type === 'run'), false);
@@ -128,12 +142,12 @@ test('customer delivery order reuses the durable browser customer token without 
   const ctx = setup();
   const token = 'b'.repeat(64);
   const res = response();
-  await ctx.handler({ body: {
+  await ctx.handler(orderRequest({
     store_id: 7, customer_token: token,
     recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
     delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
     items: [{ id: 5, quantity: 1 }]
-  } }, res);
+  }), res);
   assert.equal(res.statusCode, 201);
   assert.equal(res.body.customerToken, token);
   const orderInsert = ctx.calls.find(x => x.type === 'run' && x.sql.includes('INSERT INTO orders'));
@@ -145,12 +159,12 @@ test('customer delivery order enqueues an order-created notice for its bound Tel
   const ctx = setup({ customerBinding: true });
   const token = 'c'.repeat(64);
   const res = response();
-  await ctx.handler({ body: {
+  await ctx.handler(orderRequest({
     store_id: 7, customer_token: token,
     recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
     delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
     items: [{ id: 5, quantity: 1 }]
-  } }, res);
+  }), res);
   assert.equal(res.statusCode, 201);
   const queued = ctx.calls.find(call => call.type === 'enqueue');
   assert.ok(queued);
@@ -159,4 +173,38 @@ test('customer delivery order enqueues an order-created notice for its bound Tel
   assert.equal(queued.input.eventKey, 'order:33:created:customer');
   assert.equal(queued.input.event.type, 'order.created');
   assert.equal(queued.input.event.fulfillmentType, 'delivery');
+});
+
+test('customer delivery order retry with the same key returns the original order without duplicate side effects', async () => {
+  const ctx = setup();
+  const token = 'd'.repeat(64);
+  const body = { store_id: 7, customer_token: token, recipient_name: 'Alex', recipient_phone: '+855 12 345 678', delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash', items: [{ id: 5, quantity: 2 }] };
+  const first = response();
+  await ctx.handler(orderRequest(body, 'e'.repeat(64)), first);
+  const salesUpdatesAfterFirst = ctx.calls.filter(x => x.type === 'run' && x.sql.includes('UPDATE menus SET sales_count = sales_count + ?')).length;
+  const eventCountAfterFirst = ctx.events.length;
+  const second = response();
+  await ctx.handler(orderRequest(body, 'e'.repeat(64)), second);
+  assert.equal(first.statusCode, 201);
+  assert.equal(second.statusCode, 200);
+  assert.equal(second.body.orderId, first.body.orderId);
+  assert.equal(second.body.orderNo, first.body.orderNo);
+  assert.equal(second.body.customerToken, token);
+  assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('INSERT INTO orders')).length, 1);
+  assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('INSERT INTO delivery_jobs')).length, 1);
+  assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('UPDATE menus SET sales_count = sales_count + ?')).length, salesUpdatesAfterFirst);
+  assert.equal(ctx.events.length, eventCountAfterFirst);
+});
+
+test('customer delivery order rejects reuse of an idempotency key for changed checkout content', async () => {
+  const ctx = setup();
+  const token = 'f'.repeat(64);
+  const first = response();
+  await ctx.handler(orderRequest({ store_id: 7, customer_token: token, recipient_name: 'Alex', recipient_phone: '+855 12 345 678', delivery_address: 'Street 123', payment_method: 'cash', items: [{ id: 5, quantity: 1 }] }, '9'.repeat(64)), first);
+  const second = response();
+  await ctx.handler(orderRequest({ store_id: 7, customer_token: token, recipient_name: 'Alex', recipient_phone: '+855 12 345 678', delivery_address: 'Street 123', payment_method: 'cash', items: [{ id: 5, quantity: 3 }] }, '9'.repeat(64)), second);
+  assert.equal(first.statusCode, 201);
+  assert.equal(second.statusCode, 409);
+  assert.match(second.body.error, /已用于其他订单内容/);
+  assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('INSERT INTO orders')).length, 1);
 });
