@@ -1055,6 +1055,10 @@
 .ff-customer .order-modal .form-actions button {
   min-height: 44px;
 }
+/* iOS Safari avoids focus zoom on form controls at 16px or larger. */
+.ff-customer #orderNoteInput {
+  font-size: 16px;
+}
 @media (max-width: 420px) {
   .ff-customer .order-modal {
     width: 94vw;
