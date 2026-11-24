@@ -144,3 +144,22 @@ test('kitchen confirmation and urge dialogs remain reachable on short safe-area 
   assert.match(modalCard, /box-sizing:\s*border-box/);
   assert.match(kitchen, /@media \(max-width: 640px\)\s*\{\s*\.modal\s*\{\s*align-items:\s*flex-start;/);
 });
+
+
+test('admin mobile sidebar uses dynamic viewport height at every responsive breakpoint', () => {
+  const admin = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const matches = [...admin.matchAll(/height:\s*calc\(100vh - (56|58)px\);\s*height:\s*calc\(100dvh - \\1px\);/g)];
+  assert.ok(matches.length >= 3, 'all 1024px and 920px sidebar height declarations should include a dvh override');
+});
+
+test('login error dialog stays scrollable within dynamic safe viewport', () => {
+  const login = fs.readFileSync(path.join(__dirname, '..', 'assets', 'login.css'), 'utf8');
+  const overlay = login.match(/\.error-modal\s*\{([^}]*)\}/)?.[1] || '';
+  const card = login.match(/\.error-modal-card\s*\{([^}]*)\}/)?.[1] || '';
+  assert.match(overlay, /overflow-y:\s*auto/);
+  assert.match(overlay, /safe-area-inset-top/);
+  assert.match(overlay, /safe-area-inset-bottom/);
+  assert.match(card, /100dvh/);
+  assert.match(card, /overflow-y:\s*auto/);
+  assert.match(login, /@media \(max-width: 768px\)\s*\{\s*\.error-modal\s*\{\s*align-items:\s*flex-start;/);
+});
