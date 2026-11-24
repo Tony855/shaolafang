@@ -109,7 +109,7 @@ module.exports = function(app, deps) {
       if (storeId === null) return res.status(400).json({ error: '店铺编号无效' });
       const store = await getAsync('SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
-      const rows = await allAsync('SELECT id, name, sort FROM menu_categories WHERE store_id=? ORDER BY sort', [storeId]);
+      const rows = await allAsync('SELECT id, name, sort FROM menu_categories WHERE store_id=? ORDER BY sort, id', [storeId]);
       res.json(rows);
     } catch (e) { res.status(500).json({ error: '公开接口请求失败，请稍后重试' }); }
   });
