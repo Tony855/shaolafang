@@ -271,7 +271,16 @@ test('admin mobile sidebar stays aligned below the header at every narrow breakp
     assert.ok(media > previous, `${breakpoint} sidebar override must follow the wider breakpoint`);
     const nextMedia = finalOverrides.indexOf('@media (max-width:', media + 1);
     const block = finalOverrides.slice(media, nextMedia === -1 ? undefined : nextMedia);
-    assert.match(block, new RegExp(`\\.ff-admin \\.top\\s*\\{[^}]*height:\\s*${offset};[^}]*min-height:\\s*${offset};`, 's'));
+    if (breakpoint === '420px') {
+      assert.doesNotMatch(block, /\\.ff-admin \\.top\\s*\\{/,
+        'the 420px header height should be inherited from the preceding narrow-phone block');
+      const narrowMarker = adminCss.lastIndexOf('Keep narrow-phone overrides after all legacy 480px rules.');
+      const sidebarMarker = adminCss.lastIndexOf(marker);
+      const narrowBlock = adminCss.slice(narrowMarker, sidebarMarker);
+      assert.match(narrowBlock, new RegExp(`\\.ff-admin \\.top\\s*\\{[^}]*height:\\s*${offset};[^}]*min-height:\\s*${offset};`, 's'));
+    } else {
+      assert.match(block, new RegExp(`\\.ff-admin \\.top\\s*\\{[^}]*height:\\s*${offset};[^}]*min-height:\\s*${offset};`, 's'));
+    }
     assert.match(block, new RegExp(`\\.ff-admin \\.admin-sidebar\\s*\\{[^}]*top:\\s*${offset};[^}]*height:\\s*calc\\(100vh - ${offset}\\);[^}]*height:\\s*calc\\(100dvh - ${offset}\\);`, 's'));
     previous = media;
   }
