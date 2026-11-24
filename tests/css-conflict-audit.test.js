@@ -144,3 +144,19 @@ test('kitchen confirmation and urge dialogs remain reachable on short safe-area 
   assert.match(modalCard, /box-sizing:\s*border-box/);
   assert.match(kitchen, /@media \(max-width: 640px\)\s*\{\s*\.modal\s*\{\s*align-items:\s*flex-start;/);
 });
+
+
+test('QR print card fits the dynamic safe viewport and keeps its body scrollable', () => {
+  const qr = fs.readFileSync(path.join(__dirname, '..', 'assets', 'qr-print.css'), 'utf8');
+  const body = qr.match(/\bbody\s*\{([^}]*)\}/)?.[1] || '';
+  const card = qr.match(/\.qr-card\s*\{([^}]*)\}/)?.[1] || '';
+  const cardBody = qr.match(/\.card-body\s*\{([^}]*)\}/)?.[1] || '';
+  assert.match(body, /safe-area-inset-top/);
+  assert.match(body, /safe-area-inset-bottom/);
+  assert.match(card, /100dvh/);
+  assert.match(cardBody, /min-height:\s*0/);
+  assert.match(cardBody, /overflow-y:\s*auto/);
+  const printRules = qr.slice(qr.indexOf('@media print'));
+  assert.match(printRules, /max-height:\s*none\s*!important/);
+  assert.match(printRules, /overflow:\s*visible\s*!important/);
+});
