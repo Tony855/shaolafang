@@ -179,13 +179,13 @@ test('QR print card fits the dynamic safe viewport and keeps its body scrollable
 
 test('shared KHQR dialog respects safe areas and keeps sticky actions inside the card', () => {
   const khqr = fs.readFileSync(path.join(__dirname, '..', 'assets', 'khqr-shared.css'), 'utf8');
-  const overlay = khqr.match(/#khqrModal\\s*\\{([^}]*)\\}/)?.[1] || '';
-  const card = khqr.match(/#khqrModal \\.payment-card,[\\s\\S]*?\\{([^}]*)\\}/)?.[1] || '';
-  const actions = khqr.match(/#khqrModal #khqrStatusBar[\\s\\S]*?#khqrModal \\.payment-actions\\s*\\{([^}]*)\\}/)?.[1] || '';
+  const overlay = khqr.match(/#khqrModal\s*\{([^}]*)\}/)?.[1] || '';
+  const card = khqr.match(/#khqrModal \.payment-card,[\s\S]*?\{([^}]*)\}/)?.[1] || '';
+  const actions = khqr.match(/#khqrModal #khqrStatusBar[\s\S]*?#khqrModal \.payment-actions\s*\{([^}]*)\}/)?.[1] || '';
   assert.match(overlay, /safe-area-inset-top/);
   assert.match(overlay, /safe-area-inset-bottom/);
   assert.match(card, /100vh/);
   assert.match(card, /100dvh/);
-  assert.match(actions, /bottom:\\s*0;/);
-  assert.doesNotMatch(actions, /bottom:\\s*-/);
+  assert.match(actions, /bottom:\s*0;/);
+  assert.doesNotMatch(actions, /bottom:\s*-/);
 });
