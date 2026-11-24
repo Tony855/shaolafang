@@ -423,6 +423,8 @@
         left: 0;
         right: 0;
         max-height: 65vh;
+        max-height: 65dvh;
+        box-sizing: border-box;
         background: #fff;
         border-radius: 22px 22px 0 0;
         box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.15);
@@ -456,7 +458,10 @@
     }
     .cart-drawer .drawer-body {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
         padding: 10px 18px 18px;
     }
     .cart-drawer .cart-item {
@@ -1078,5 +1083,31 @@
   }
   .ff-customer .order-modal.show {
     transform: translateX(-50%) scale(1);
+  }
+}
+
+
+/* Customer call confirmation must remain scrollable above the iOS safe area. */
+.ff-customer .confirm-overlay {
+  box-sizing: border-box;
+  padding: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ff-customer .confirm-card {
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - max(40px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 640px) {
+  .ff-customer .confirm-overlay {
+    align-items: flex-start;
+  }
+  .ff-customer .confirm-card {
+    margin: 0 auto;
   }
 }
