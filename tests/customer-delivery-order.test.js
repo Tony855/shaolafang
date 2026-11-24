@@ -11,7 +11,9 @@ function setup({ customerBinding = false } = {}) {
   const transactions = [];
   let orderRow = null;
   const app = {
-    post(path, ...handlersForRoute) { handlers.set('POST ' + path, handlersForRoute[handlersForRoute.length - 1]); }
+    get(path, ...handlersForRoute) { handlers.set('GET ' + path, handlersForRoute[handlersForRoute.length - 1]); },
+    post(path, ...handlersForRoute) { handlers.set('POST ' + path, handlersForRoute[handlersForRoute.length - 1]); },
+    delete(path, ...handlersForRoute) { handlers.set('DELETE ' + path, handlersForRoute[handlersForRoute.length - 1]); }
   };
   const deps = {
     getAsync: async (sql, params = []) => {
