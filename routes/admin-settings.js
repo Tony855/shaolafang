@@ -1,4 +1,5 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { normalizeRouteError } = require('../server/utils/http-error');
 const { validateChatId, validateBotToken } = require('../server/services/telegram-bot');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
@@ -67,7 +68,8 @@ module.exports = function(app, deps) {
       res.status(201).json(createdCurrency);
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该商户已存在此货币代码' });
-      res.status(e.status || 500).json({ error: e.status ? e.message : '创建货币失败，所有更改已回滚' });
+      const safeError = normalizeRouteError(e, '创建货币失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -110,7 +112,8 @@ module.exports = function(app, deps) {
       res.json(updatedCurrency);
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该商户已存在此货币代码' });
-      res.status(e.status || 500).json({ error: e.status ? e.message : '更新货币失败，所有更改已回滚' });
+      const safeError = normalizeRouteError(e, '更新货币失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -144,7 +147,8 @@ module.exports = function(app, deps) {
         await writeCurrencyAudit(req, 'delete_currency', id, { code: current.code, name: current.name });
       });
       res.json({ success: true });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除货币失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '删除货币失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   // ----- 显示设置 -----
@@ -211,7 +215,8 @@ module.exports = function(app, deps) {
           { primaryCurrencyCode: pCode, secondaryCurrencyCode: sCode, applyAll: !!applyAll }, 'store');
       });
       res.json({ success: true, primaryCurrencyCode: pCode, secondaryCurrencyCode: sCode });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新货币显示设置失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '更新货币显示设置失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   // ----- 新订单提示音设置 -----
@@ -251,7 +256,8 @@ module.exports = function(app, deps) {
         await writeCurrencyAudit(req, 'update_notification_setting', storeId, { new_order_sound_enabled: enabled === '1' }, 'store');
       });
       res.json({ success: true, enabled: enabled === '1' });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新提示音设置失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '更新提示音设置失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   
@@ -362,7 +368,8 @@ module.exports = function(app, deps) {
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ success: true, enabled: !!enabled, chatId, notifyOrderCreated: !!notifyOrderCreated, notifySettled: !!notifySettled, notifyRefunded: !!notifyRefunded });
     } catch (error) {
-      if (!error.status) {
+      const safeError = normalizeRouteError(error, 'Telegram 门店通知设置保存失败，所有更改已回滚');
+      if (!safeError.isClientError) {
         // Never log request bodies, Chat IDs, Bot tokens, SQL text, or raw error messages.
         console.error('[telegram-store-notification-settings] save failed', {
           stage: failureStage,
@@ -371,7 +378,7 @@ module.exports = function(app, deps) {
           sqlState: /^[0-9A-Z]{5}$/.test(String(error.sqlState || '')) ? error.sqlState : null
         });
       }
-      res.status(error.status || 500).json({ error: error.status ? error.message : 'Telegram 门店通知设置保存失败，所有更改已回滚' });
+      res.status(safeError.status).json({ error: safeError.message });
     }
   });
 };
