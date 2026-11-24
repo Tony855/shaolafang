@@ -827,9 +827,11 @@
             menuGrid.innerHTML = filtered.map(item => {
                 const qty = state.cart[item.id] || 0;
                 const imageValue = String(item.image || '').trim();
+                const normalizedImagePath = imageValue.replace(/\\/g, '/').replace(/^\.\/+/, '');
                 const imageSrc = /^https?:\/\//i.test(imageValue)
                     ? imageValue
-                    : (imageValue.startsWith('/') ? imageValue : '/uploads/' + imageValue);
+                    : (normalizedImagePath.startsWith('/') ? normalizedImagePath
+                        : (normalizedImagePath.startsWith('uploads/') ? '/' + normalizedImagePath : '/uploads/' + normalizedImagePath));
                 const imgHtml = imageValue
                     ? `<img src="${esc(imageSrc)}" alt="${esc(item.name)}" loading="lazy" decoding="async">`
                     : (esc(item.emoji) || '🍽️');
