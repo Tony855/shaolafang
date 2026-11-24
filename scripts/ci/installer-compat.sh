@@ -16,6 +16,7 @@ chmod 0755 /usr/sbin/policy-rc.d
 
 source scripts/lib/system-deps.sh
 ff_require_supported_os
+
 if ! grep -Eq '^[[:space:]]*ff_require_supported_os[[:space:]]*\|\|[[:space:]]*exit 1' install.sh; then
   echo "[ERROR] install.sh must delegate OS support checks to system-deps.sh" >&2
   exit 1
@@ -23,7 +24,40 @@ fi
 
 echo "[STEP] install distro service packages"
 apt-get update -qq
-ff_apt_install ca-certificates curl gnupg dirmngr apt-transport-https nginx redis-server systemd systemd-sysv
+ff_apt_install ca-certificates curl gnupg dirmngr apt-transport-https nginx redis-server systemd systemd-sysv git
+
+echo "[STEP] validate force-deploy shell syntax and data guards"
+bash -n install.sh remote-update.sh scripts/lib/deploy-safety.sh
+source scripts/lib/deploy-safety.sh
+force_test_dir="$(mktemp -d)"
+(
+  cd "$force_test_dir"
+  git init -q
+  git config user.email ci@example.invalid
+  git config user.name "FoodFlow CI"
+  printf 'base\n' > app.js
+  printf 'template only\n' > .env.example
+  git add app.js .env.example
+  git commit -qm "initial"
+  printf 'local production edit\n' > app.js
+  mkdir -p uploads backups logs
+  printf 'user upload\n' > uploads/keep.txt
+  : > .env
+  ff_prepare_force_deploy_repository "git@github.com:Tony855/shaolafang.git"
+  [ "$(git remote get-url origin)" = "git@github.com:Tony855/shaolafang.git" ]
+  grep -q "local production edit" app.js
+  grep -q "user upload" uploads/keep.txt
+  printf 'secret fixture\n' > .env.production
+  git add .env.production
+  git commit -qm "invalidly track production env"
+  if ff_prepare_force_deploy_repository "git@github.com:unexpected/should-not-change.git" 2>/dev/null; then
+    echo "[ERROR] force deployment accepted a Git-tracked .env" >&2
+    exit 1
+  fi
+  [ "$(git remote get-url origin)" = "git@github.com:Tony855/shaolafang.git" ]
+)
+rm -rf "$force_test_dir"
+
 echo "[STEP] install maintained MariaDB LTS"
 ff_install_mariadb_server
 echo "[STEP] install Node.js 26 LTS"
@@ -48,7 +82,7 @@ mkdir -p /var/www/foodflow/{uploads,backups,logs} /etc/foodflow
 : >/var/www/foodflow/.env
 for dependency in mysql.service redis.service; do
   if [ ! -e "/etc/systemd/system/$dependency" ] && [ ! -e "/lib/systemd/system/$dependency" ] && [ ! -e "/usr/lib/systemd/system/$dependency" ]; then
-    printf "[Unit]\\nDescription=CI dependency stub\\n[Service]\\nType=oneshot\\nExecStart=/bin/true\\n" >"/etc/systemd/system/$dependency"
+    printf "[Unit]\nDescription=CI dependency stub\n[Service]\nType=oneshot\nExecStart=/bin/true\n" >"/etc/systemd/system/$dependency"
   fi
 done
 systemd-analyze verify deploy/standard/foodflow.service
