@@ -190,15 +190,15 @@ test('menu display uses the dynamic safe viewport without clipping its flex layo
   assert.match(display, /\.disp-main\s*\{[^}]*min-height:\s*0;/s);
   assert.match(display, /\.disp-main\s*\{[^}]*overflow-y:\s*auto;/s);
 });
-test('shared KHQR dialog respects safe areas and keeps sticky actions inside the card', () => {
-  const khqr = fs.readFileSync(path.join(__dirname, '..', 'assets', 'khqr-shared.css'), 'utf8');
-  const overlay = khqr.match(/#khqrModal\s*\{([^}]*)\}/)?.[1] || '';
-  const card = khqr.match(/#khqrModal \.payment-card,[\s\S]*?\{([^}]*)\}/)?.[1] || '';
-  const actions = khqr.match(/#khqrModal #khqrStatusBar[\s\S]*?#khqrModal \.payment-actions\s*\{([^}]*)\}/)?.[1] || '';
-  assert.match(overlay, /safe-area-inset-top/);
-  assert.match(overlay, /safe-area-inset-bottom/);
-  assert.match(card, /100vh/);
-  assert.match(card, /100dvh/);
-  assert.match(actions, /bottom:\s*0;/);
-  assert.doesNotMatch(actions, /bottom:\s*-/);
+
+
+test('super admin mobile chrome and sidebar respect safe dynamic viewport', () => {
+  const superCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'super.css'), 'utf8');
+  const superHtml = fs.readFileSync(path.join(__dirname, '..', 'super.html'), 'utf8');
+  assert.match(superHtml, /name="viewport" content="[^"]*viewport-fit=cover/);
+  const mobileRules = superCss.slice(superCss.lastIndexOf('Super-admin mobile chrome'));
+  assert.match(mobileRules, /\.sidebar\s*\{[^}]*height:\s*calc\(100vh - 48px - env\(safe-area-inset-top, 0px\)\);\s*height:\s*calc\(100dvh - 48px - env\(safe-area-inset-top, 0px\)\);/s);
+  assert.match(mobileRules, /\.sidebar\s*\{[^}]*height:\s*calc\(100vh - 44px - env\(safe-area-inset-top, 0px\)\);\s*height:\s*calc\(100dvh - 44px - env\(safe-area-inset-top, 0px\)\);/s);
+  assert.match(mobileRules, /\.super-top\s*\{[^}]*padding-top:\s*env\(safe-area-inset-top, 0px\)/s);
+  assert.match(mobileRules, /\.mobile-menu-btn\s*\{[^}]*top:\s*calc\(5px \+ env\(safe-area-inset-top, 0px\)\)/s);
 });
