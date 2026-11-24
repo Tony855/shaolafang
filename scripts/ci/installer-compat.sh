@@ -16,6 +16,35 @@ chmod 0755 /usr/sbin/policy-rc.d
 
 source scripts/lib/system-deps.sh
 ff_require_supported_os
+echo "[STEP] validate force-deploy shell syntax and data guards"
+bash -n install.sh remote-update.sh scripts/lib/deploy-safety.sh
+source scripts/lib/deploy-safety.sh
+force_test_dir="$(mktemp -d)"
+(
+  cd "$force_test_dir"
+  git init -q
+  git config user.email ci@example.invalid
+  git config user.name "FoodFlow CI"
+  printf 'base\\n' > app.js
+  git add app.js
+  git commit -qm "initial"
+  printf 'local production edit\\n' > app.js
+  mkdir -p uploads backups logs
+  printf 'user upload\\n' > uploads/keep.txt
+  : > .env
+  ff_prepare_force_deploy_repository "https://github.com/Tony855/shaolafang.git"
+  [ "$(git remote get-url origin)" = "https://github.com/Tony855/shaolafang.git" ]
+  grep -q "local production edit" app.js
+  grep -q "user upload" uploads/keep.txt
+  git add .env
+  git commit -qm "invalidly track production env"
+  if ff_prepare_force_deploy_repository "https://github.com/Tony855/shaolafang.git" 2>/dev/null; then
+    echo "[ERROR] force deployment accepted a Git-tracked .env" >&2
+    exit 1
+  fi
+)
+rm -rf "$force_test_dir"
+
 if ! grep -Eq '^[[:space:]]*ff_require_supported_os[[:space:]]*\|\|[[:space:]]*exit 1' install.sh; then
   echo "[ERROR] install.sh must delegate OS support checks to system-deps.sh" >&2
   exit 1
@@ -23,7 +52,7 @@ fi
 
 echo "[STEP] install distro service packages"
 apt-get update -qq
-ff_apt_install ca-certificates curl gnupg dirmngr apt-transport-https nginx redis-server systemd systemd-sysv
+ff_apt_install ca-certificates curl gnupg dirmngr apt-transport-https nginx redis-server systemd systemd-sysv git
 echo "[STEP] install maintained MariaDB LTS"
 ff_install_mariadb_server
 echo "[STEP] install Node.js 26 LTS"
