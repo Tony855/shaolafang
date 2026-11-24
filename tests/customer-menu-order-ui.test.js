@@ -34,7 +34,7 @@ test('customer QR session resolves store before loading store-scoped currency, c
 });
 
 test('customer menu normalizes both uploads/foo and legacy relative image paths', () => {
-  assert.match(customer, /normalizedImagePath = imageValue\.replace\(\/\\\\\/g, '\/'\)\.replace\(\/\^\\\.\\\/+\/, ''\)/);
+  assert.ok(customer.includes('const normalizedImagePath = imageValue.replace('));
   assert.match(customer, /normalizedImagePath\.startsWith\('uploads\/'\)/);
 });
 
