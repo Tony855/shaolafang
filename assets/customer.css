@@ -1120,3 +1120,22 @@
     margin: 0 auto;
   }
 }
+
+
+/* 2026-11-24: fix customer ordering header/card width on narrow Safari viewports. */
+.ff-customer .header {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+.ff-customer .main-content,
+.ff-customer .menu-grid { min-width: 0; }
+.ff-customer .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ff-customer .menu-item { min-width: 0; }
+.ff-customer .menu-item .info .bottom { min-width: 0; }
+@media (max-width: 360px) {
+  .ff-customer .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .ff-customer .menu-item .img-wrap { height: 132px; }
+  .ff-customer .menu-item .info { padding: 8px; }
+  .ff-customer .menu-item .info .price { font-size: 15px; }
+}

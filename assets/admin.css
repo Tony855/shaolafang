@@ -3466,3 +3466,19 @@ button.edit-btn:disabled {
         z-index: 1000;
     }
 }
+
+
+/* 2026-11-24: mobile order-list cards and actions stay within the viewport. */
+@media (max-width: 760px) {
+  .ff-admin #orders { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .ff-admin #orders .order-item-admin { min-width: 0; max-width: 100%; }
+  .ff-admin #orders .order-item-admin .bottom,
+  .ff-admin #orders .order-item-admin .items { min-width: 0; max-width: 100%; }
+  .ff-admin #orders .order-item-admin .bottom .actions { min-width: 0; max-width: 100%; }
+  .ff-admin #orders .order-item-admin .bottom .actions button {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
