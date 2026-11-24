@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FoodFlow remote update: serialized, clean-worktree-only, transactional rollback.
+# FoodFlow remote update: serialized, force-code deployment with production-data protection and rollback.
 # Usage: GIT_VERSION=main bash remote-update.sh
 set -Eeuo pipefail
 
@@ -68,7 +68,7 @@ trap rollback_update EXIT
 
 if [ "$SKIP_GIT_UPDATE" != "1" ]; then
   [ -d .git ] || { echo "[ERROR] 当前目录不是 Git 仓库: $SCRIPT_DIR" >&2; exit 1; }
-  ff_require_clean_git_worktree
+  ff_prepare_force_deploy_repository "https://github.com/Tony855/shaolafang.git"
   OLD_SHA="$(git rev-parse HEAD)"
   STAGE="$(mktemp -d "$SCRIPT_DIR/.foodflow-update.XXXXXX")"
   OLD_NODE_MODULES="$STAGE/node_modules.previous"
@@ -131,4 +131,4 @@ ff_wait_for_health "$PORT" "${FF_HEALTH_ATTEMPTS:-30}"
 UPDATE_OK=1
 rm -rf "$STAGE"
 trap - EXIT
-echo "[OK] 更新完成：源码与生产依赖已切换，服务和数据库健康检查通过。"
+echo "[OK] 强制代码覆盖完成：生产配置与数据目录已保护，服务和数据库健康检查通过。"
