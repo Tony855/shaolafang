@@ -347,7 +347,7 @@ test('top-level deployment guides and standard installer use the current reposit
   ]) {
     const source = read(file);
     assert.ok(source.includes('Tony855/shaolafang'), file + ' must use the canonical source repository');
-    assert.doesNotMatch(source, /foodflow-enterprise(?:-ultimate)?\\.git/, file + ' must not reference retired repositories');
+    assert.doesNotMatch(source, /foodflow-enterprise(?:-ultimate)?\.git/, file + ' must not reference retired repositories');
   }
   const bootstrap = read('install.sh');
   assert.ok(bootstrap.includes('archive/$BOOTSTRAP_VERSION.tar.gz'));
