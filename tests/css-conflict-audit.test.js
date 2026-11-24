@@ -186,5 +186,7 @@ test('menu display uses the dynamic safe viewport without clipping its flex layo
   assert.match(body, /min-height:\s*100vh;\s*min-height:\s*100dvh;/);
   assert.match(body, /safe-area-inset-top/);
   assert.match(body, /safe-area-inset-bottom/);
-  assert.match(display, /\.disp-main\s*\{[^}]*flex:\s*1;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s);
+  assert.match(display, /\.disp-main\s*\{[^}]*flex:\s*1;/s);
+  assert.match(display, /\.disp-main\s*\{[^}]*min-height:\s*0;/s);
+  assert.match(display, /\.disp-main\s*\{[^}]*overflow-y:\s*auto;/s);
 });
