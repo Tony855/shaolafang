@@ -232,7 +232,7 @@ test('super admin standard and error dialogs stay scrollable inside the dynamic 
 test('delivery admin page respects all device safe-area insets', () => {
   const deliveryAdmin = fs.readFileSync(path.join(__dirname, '..', 'admin-delivery.html'), 'utf8');
   const viewport = deliveryAdmin.match(/<meta name="viewport" content="([^"]+)"/)?.[1] || '';
-  const main = deliveryAdmin.match(/main\\s*\\{([^}]*)\\}/)?.[1] || '';
+  const main = deliveryAdmin.split('<style>')[1]?.split('</style>')[0] || '';
   assert.match(viewport, /viewport-fit=cover/);
   for (const edge of ['top', 'right', 'bottom', 'left']) {
     assert.match(main, new RegExp('safe-area-inset-' + edge));
