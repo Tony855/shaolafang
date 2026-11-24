@@ -11,6 +11,7 @@ const orderSource = read('pages/admin/order.js');
 const adminBundle = read('assets/admin-bundle.js');
 const adminCss = read('assets/admin.css');
 const customerCss = read('assets/customer.css');
+const publicRoutes = read('routes/public.js');
 
 test('customer menu includes configured categories even when no active dish uses them', () => {
   assert.match(customer, /\[\.\.\.\(state\.categoryOrder \|\| \[\]\), \.\.\.state\.menu\.map\(i => i\.category\)/);
@@ -23,6 +24,14 @@ test('customer menu renders configured secondary currency and retries missing cu
   assert.match(customer, /secondaryCurrency: state\.dualCurrency\.enabled \? state\.dualCurrency\.currency : null/);
   assert.match(customer, /const prices = SLF\.money\.menuPrice\(item\)/);
   assert.match(customer, /prices\.secondary/);
+});
+
+
+test('public store config honors the dual-currency toggle and resolves USD/KHR fallback', () => {
+  assert.match(publicRoutes, /store_\\$\\{storeId\\}_dual_currency_enabled/);
+  assert.match(publicRoutes, /const dualCurrencyEnabled = dualEnabledRow/);
+  assert.match(publicRoutes, /const fallbackSecondaryCode = primaryCode === 'USD' \? 'KHR' : 'USD'/);
+  assert.match(publicRoutes, /const secondaryCurrency = secondaryCode \? \(currencies\.find\(c => c\.code === secondaryCode\) \|\| null\) : null/);
 });
 
 test('customer menu supports absolute and uploaded image paths with a visible load-failure fallback', () => {
