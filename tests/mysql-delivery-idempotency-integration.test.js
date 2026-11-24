@@ -143,7 +143,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   assert.equal(Number(concurrentCounts.jobs_count), 1);
   assert.equal(Number(concurrentCounts.sales_count), 1);
   assert.equal(Number(concurrentCounts.notices_count), 1);
-  assert.equal(emitted.filter(item => item.event === 'order:new').length, 2,
+  assert.equal(emitted.filter(item => item.event === 'order:new').length, 3,
     'only the creating request emits kitchen/waiter/cashier events');
 
   const replay = makeResponse();
