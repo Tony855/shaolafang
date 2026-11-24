@@ -3402,6 +3402,8 @@ button.edit-btn:disabled {
 /* Keep narrow-phone overrides after all legacy 480px rules. */
 @media (max-width: 420px) {
   .ff-admin .top {
+    height: 48px;
+    min-height: 48px;
     padding: 0 8px 0 44px;
     gap: 5px;
   }
@@ -3449,7 +3451,6 @@ button.edit-btn:disabled {
   }
 }
 @media (max-width: 420px) {
-  .ff-admin .top { height: 48px; min-height: 48px; }
   .ff-admin .admin-sidebar {
     top: 48px;
     height: calc(100vh - 48px);
