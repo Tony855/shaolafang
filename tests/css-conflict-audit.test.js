@@ -325,3 +325,17 @@ test('cashier payment method logo uses one complete image rule', () => {
   assert.match(imageRules[0], /vertical-align:\s*middle/);
   assert.match(imageRules[0], /flex-shrink:\s*0/);
 });
+
+
+test('cashier mobile order list and footer styles avoid redundant same-breakpoint rules', () => {
+  const cashierCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
+  const bottomBarRules = cashierCss.match(/\.pos-left \.pos-left-bottom\s*\{/g) || [];
+  assert.equal(bottomBarRules.length, 1, 'mobile bottom statistics bar must have one consolidated rule');
+  const orderListRules = cashierCss.match(/\.pos-order-list\s*\{/g) || [];
+  assert.equal(orderListRules.length, 2, 'order list must have one base rule and one mobile override');
+  const orderCardRules = cashierCss.match(/\.pos-order-card\s*\{/g) || [];
+  assert.equal(orderCardRules.length, 3, 'order card must not retain a superseded mobile padding rule');
+  assert.match(cashierCss, /\.pos-order-list\s*\{[^}]*padding:\s*10px 12px 12px;[^}]*-webkit-overflow-scrolling:\s*touch;[^}]*overscroll-behavior:\s*contain;/);
+  assert.match(cashierCss, /\.pos-order-card\s*\{[^}]*padding:\s*11px 12px;[^}]*margin-bottom:\s*8px;/);
+  assert.match(cashierCss, /\.pos-left \.pos-left-bottom\s*\{[^}]*margin-top:\s*auto;[^}]*flex-shrink:\s*0;[^}]*padding:\s*8px 0;/);
+});

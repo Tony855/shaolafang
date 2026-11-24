@@ -685,6 +685,8 @@ body {
   .pos-left .pos-left-bottom {
     margin-top: auto;
     flex-shrink: 0;
+    /* 移动端底部统计栏高度稍微紧凑 */
+    padding: 8px 0;
   }
 
   /* ===== 详情视图（默认隐藏，点击后滑入）===== */
@@ -812,13 +814,6 @@ body {
   }
 
   /* ===== 列表视图内容 ===== */
-  .pos-order-list {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-  }
-  .pos-order-card {
-    padding: 12px 14px;
-  }
   .pos-order-card-table {
     font-size: 17px;
   }
@@ -892,6 +887,8 @@ body {
 @media (max-width: 768px) {
   .pos-order-list {
     padding: 10px 12px 12px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
   .pos-order-card {
     padding: 11px 12px;
@@ -906,10 +903,6 @@ body {
   }
   .pos-order-card-meta {
     font-size: 12px;
-  }
-  .pos-left .pos-left-bottom {
-    /* 移动端底部统计栏高度稍微紧凑 */
-    padding: 8px 0;
   }
   .pos-left .pos-stat {
     padding: 8px;
