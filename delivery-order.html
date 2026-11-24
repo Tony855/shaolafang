@@ -173,10 +173,12 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    const item=menu.find(x=>String(x.id)===id);if(!item||qty<1)continue;
    const base=toBaseAmount(item);if(!Number.isFinite(base))validTotal=false;else totalBase+=base*qty;
    count+=qty;
-   const prices=priceMarkup(item);
+   const lineBase=base*qty;
+   const linePrimary=formatCurrency(lineBase,primaryCurrency);
+   const lineSecondary=dualEnabled&&secondaryCurrency?formatCurrency(lineBase,secondaryCurrency):'';
    const line=document.createElement('div');line.className='cart-line';
    const left=document.createElement('span');left.textContent=escText(item.name)+' × '+qty;
-   const right=document.createElement('strong');right.textContent=prices.primary+(prices.secondary?' / '+prices.secondary:'');
+   const right=document.createElement('strong');right.textContent=linePrimary+(lineSecondary?' / '+lineSecondary:'');
    line.append(left,right);host.append(line);
   }
   const primaryTotal=formatCurrency(totalBase,primaryCurrency);
@@ -189,6 +191,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   const key=String(id),next=Math.max(0,Math.min(maxQty,Number(cart.get(key)||0)+delta));
   if(next)cart.set(key,next);else cart.delete(key);
   const el=document.querySelector('[data-qty="'+CSS.escape(key)+'"]');if(el)el.textContent=String(next);
+  const card=el?.closest('.item');if(card){const buttons=card.querySelectorAll('.controls button');if(buttons[0])buttons[0].disabled=next===0;if(buttons[1])buttons[1].disabled=next>=maxQty;}
   renderCart();
  }
  function imageUrl(item){
@@ -241,9 +244,9 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    if(prices.secondary){const secondary=document.createElement('span');secondary.className='secondary-price';secondary.textContent=prices.secondary;price.append(secondary);}
    content.append(price);
    const controls=document.createElement('div');controls.className='controls';
-   const minus=document.createElement('button');minus.type='button';minus.textContent='−';minus.setAttribute('aria-label','减少数量');minus.addEventListener('click',()=>change(item.id,-1));
+   const minus=document.createElement('button');minus.type='button';minus.textContent='−';minus.disabled=Number(cart.get(String(item.id))||0)===0;minus.setAttribute('aria-label','减少数量');minus.addEventListener('click',()=>change(item.id,-1));
    const qty=document.createElement('span');qty.className='qty';qty.dataset.qty=String(item.id);qty.textContent=String(cart.get(String(item.id))||0);
-   const plus=document.createElement('button');plus.type='button';plus.textContent='+';plus.setAttribute('aria-label','增加数量');plus.addEventListener('click',()=>change(item.id,1));
+   const plus=document.createElement('button');plus.type='button';plus.textContent='+';plus.disabled=Number(cart.get(String(item.id))||0)>=maxQty;plus.setAttribute('aria-label','增加数量');plus.addEventListener('click',()=>change(item.id,1));
    controls.append(minus,qty,plus);content.append(controls);card.append(content);host.append(card);
   }
  }
@@ -278,7 +281,8 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    secondaryCurrency=(config.currencies||[]).find(c=>String(c.code).toUpperCase()===fallbackCode)||null;
   }
   if(dualEnabled&&!secondaryCurrency)dualEnabled=false;
-  maxQty=Number(config.max_item_quantity)||Number(config.constraints?.order?.maxPerItem)||100;
+  const configuredMax=Number(config.max_item_quantity??config.constraints?.order?.maxPerItem??100);
+  maxQty=Number.isFinite(configuredMax)?Math.max(1,Math.min(1000,Math.floor(configuredMax))):100;
   renderCategories();renderMenu();renderCart();
  }
  $('menuSearch').addEventListener('input',event=>{searchTerm=String(event.target.value||'').trim().toLocaleLowerCase();renderMenu();});
