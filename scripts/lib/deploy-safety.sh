@@ -44,7 +44,7 @@ ff_prepare_force_deploy_repository() {
   else
     git remote add origin "$repository_url"
   fi
-  protected="$(git ls-files -- .env uploads backups logs)"
+  protected="$(git ls-files -- '.env*' uploads backups logs)"
   if [ -n "$protected" ]; then
     printf '[ERROR] 以下生产数据路径被 Git 跟踪；为防止配置或用户数据被覆盖，拒绝继续：\n%s\n' "$protected" >&2
     return 1
