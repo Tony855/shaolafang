@@ -1140,12 +1140,12 @@
             const items = getCartItems();
             if (items.length === 0) { _submittingOrder = false; return; }
             if (!state.table) { SLF.ui.toast(t('scanFirst', null, '请先扫码'), 2600); _submittingOrder = false; return; }
-            if (!isScanSessionValid()) { SLF.ui.toast(t('sessionExpired', null, '会话已过期'), 2600); return; }
-            if (!isBackendOnline) { SLF.ui.toast(`❌ ${t('backendOffline', null, '后端离线')}`, 3000); return; }
+            if (!isScanSessionValid()) { SLF.ui.toast(t('sessionExpired', null, '会话已过期'), 2600); _submittingOrder = false; return; }
+            if (!isBackendOnline) { SLF.ui.toast(`❌ ${t('backendOffline', null, '后端离线')}`, 3000); _submittingOrder = false; return; }
 
             // 提交前再校验（防止绕过 openOrderConfirm）
             const check = validateCart();
-            if (!check.ok) { SLF.ui.toast('⚠️ ' + check.msg, 2400); return; }
+            if (!check.ok) { SLF.ui.toast('⚠️ ' + check.msg, 2400); _submittingOrder = false; return; }
 
             const noteInput = document.getElementById('orderNoteInput');
             const maxNoteLen = (state.constraints && state.constraints.order && state.constraints.order.maxNoteLength) || 200;
