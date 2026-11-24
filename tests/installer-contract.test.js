@@ -72,6 +72,42 @@ test('GitHub askpass supplies token without putting it in Git arguments and remo
   }
 });
 
+test('GitHub askpass helper is removed and Git exit code is preserved on failure', () => {
+  const installer = read('install.sh');
+  const helper = installer.match(/ff_git_with_token\(\) \{[\s\S]*?\n\}\n/);
+  assert.ok(helper, 'installer must define the token-safe Git helper');
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foodflow-askpass-failure-'));
+  try {
+    const fakeGit = path.join(tempDir, 'git');
+    const askpassFile = path.join(tempDir, 'askpass-path.txt');
+    fs.writeFileSync(fakeGit, [
+      '#!/bin/sh',
+      'printf "%s\\n" "$GIT_ASKPASS" > "$CAPTURE_ASKPASS"',
+      'exit 23'
+    ].join('\n'), { mode: 0o700 });
+
+    const script = "log_error() { :; }\n" + helper[0] +
+      "\nff_git_with_token git pull https://github.com/Tony855/shaolafang.git main";
+    const result = spawnSync('bash', ['-c', script], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GITHUB_TOKEN: 'failure-path-test-token',
+        PATH: tempDir + path.delimiter + process.env.PATH,
+        CAPTURE_ASKPASS: askpassFile
+      }
+    });
+
+    assert.equal(result.status, 23, result.stderr || result.stdout);
+    const askpassPath = fs.readFileSync(askpassFile, 'utf8').trim();
+    assert.ok(askpassPath);
+    assert.equal(fs.existsSync(askpassPath), false, 'temporary helper must be removed after Git fails');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('shared system bootstrap pins Node.js 26 LTS and verifies runtime', () => {
   const helper = read('scripts/lib/system-deps.sh');
   assert.match(helper, /FF_NODE_MAJOR="\$\{FF_NODE_MAJOR:-26\}"/);
