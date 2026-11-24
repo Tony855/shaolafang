@@ -63,20 +63,20 @@ async function showQr(id) {
   // print page with the authenticated admin session (never put bearer tokens in URLs).
   const popup = window.open('about:blank', '_blank');
   if (!popup) {
-    SLF.ui.toast('浏览器阻止了弹窗，请允许本站弹窗后重试');
+    SLF.ui.toast(tAdmin('tableQrPopupBlocked'));
     return;
   }
   try {
     const token = SLF.store.rawGetSession('adminToken') || '';
     const storeId = SLF.store.rawGetSession('adminStoreId') || SLF.store.rawGet('storeId') || '1';
-    if (!token) throw new Error('管理员登录已失效，请重新登录');
+    if (!token) throw new Error(tAdmin('tableAdminSessionExpired'));
     const response = await fetch('/qr-print?tableId=' + encodeURIComponent(id), {
       headers: { 'Authorization': 'Bearer ' + token, 'X-Store-Id': String(storeId) },
       cache: 'no-store'
     });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || '二维码页面加载失败');
+      throw new Error(data.error || tAdmin('tableQrPageLoadFailed'));
     }
     const html = await response.text();
     popup.document.open();
@@ -84,7 +84,7 @@ async function showQr(id) {
     popup.document.close();
   } catch (error) {
     popup.close();
-    SLF.ui.toast(error.message || '二维码页面加载失败');
+    SLF.ui.toast(error.message || tAdmin('tableQrPageLoadFailed'));
   }
 }
 
