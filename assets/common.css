@@ -637,12 +637,12 @@ textarea {
 }
 .payment-actions .btn-secondary { background: #f3f4f6; color: #1f2937; }
 .payment-actions .btn-secondary:hover { background: #e5e7eb; }
-.payment-actions .btn-primary {
+.btn-primary {
   background: linear-gradient(135deg, #ff8a4c, #e84a2a);
   color: #fff;
   box-shadow: 0 4px 14px rgba(232,74,42,0.3);
 }
-.payment-actions .btn-primary:hover { box-shadow: 0 6px 20px rgba(232,74,42,0.4); }
+.btn-primary:hover { box-shadow: 0 6px 20px rgba(232,74,42,0.4); }
 
 .payment-card .modal-close {
   position: absolute;
