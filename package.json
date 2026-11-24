@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
-    "terser": "^5.51.2"
+    "terser": "^5.51.4"
   },
   "overrides": {
     "zod": "^4.6.7"
