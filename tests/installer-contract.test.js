@@ -331,6 +331,10 @@ test('top-level deployment guides and standard installer use the current reposit
   assert.ok(standardGuide.includes('执行定时任务 | false'));
   assert.ok(deployGuide.includes('Tony855/shaolafang.git'));
   assert.ok(standardScript.includes('GIT_REPO="https://github.com/Tony855/shaolafang.git"'));
+  assert.ok(standardScript.includes('git clone --branch "$GIT_VERSION" "$GIT_REPO" "$DEPLOY_TARGET"'));
+  assert.ok(standardScript.includes('git pull --ff-only origin "$GIT_VERSION"'));
+  assert.doesNotMatch(standardScript, /foodflow-enterprise(?:-ultimate)?\\.git/);
+  assert.doesNotMatch(standardScript, /REPO_NAME=.*basename|case "\\$REPO_NAME"/);
 });
 
 
