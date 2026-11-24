@@ -61,3 +61,13 @@ test('super admin modal overlays stay above mobile navigation controls', () => {
   assert.ok(readZIndex(modalBlock) > topBarZIndex);
   assert.equal(readZIndex(modalBlock), 400);
 });
+
+test('shared payment button styles stay scoped to payment actions', () => {
+  const sharedCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'common.css'), 'utf8');
+  assert.match(sharedCss, /\.payment-actions \.btn-secondary\s*\{/);
+  assert.match(sharedCss, /\.payment-actions \.btn-secondary:hover\s*\{/);
+  assert.match(sharedCss, /\.payment-actions \.btn-primary\s*\{/);
+  assert.match(sharedCss, /\.payment-actions \.btn-primary:hover\s*\{/);
+  assert.doesNotMatch(sharedCss, /(?<![\w.-])\.btn-secondary\s*\{/);
+  assert.doesNotMatch(sharedCss, /(?<![\w.-])\.btn-primary\s*\{/);
+});
