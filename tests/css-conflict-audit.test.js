@@ -30,3 +30,11 @@ test('customer and waiter pages load shared styles before page-specific override
   assert.ok(waiterHtml.indexOf('assets/common.css') < waiterHtml.indexOf('assets/khqr-shared.css'));
   assert.ok(waiterHtml.indexOf('assets/khqr-shared.css') < waiterHtml.indexOf('assets/waiter.css'));
 });
+
+
+test('admin sidebar responsive width has no obsolete intermediate override', () => {
+  const admin = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  assert.doesNotMatch(admin, /transform:\s*translateX\(-100%\)[\\s\\S]{0,180}width:\s*160px/);
+  assert.match(admin, /@media\\s*\\(max-width:\\s*1024px\\)[\\s\\S]{0,1200}\.admin-sidebar\\s*\\{[\\s\\S]{0,100}width:\\s*180px\\s*!important/s);
+  assert.match(admin, /@media\\s*\\(max-width:\\s*480px\\)[\\s\\S]{0,200}\.admin-sidebar\\s*\\{[\\s\\S]{0,100}width:\\s*170px\\s*!important/s);
+});
