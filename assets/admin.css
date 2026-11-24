@@ -3470,24 +3470,15 @@ button.edit-btn:disabled {
 
 /* 2026-11-24: mobile order-list cards and actions stay within the viewport. */
 @media (max-width: 760px) {
-  .ff-admin #orders,
-  .ff-admin #orders .order-item-admin { min-width: 0; max-width: 100%; box-sizing: border-box; }
-  .ff-admin #orders .order-item-admin { overflow: hidden; }
-  .ff-admin #orders .order-item-admin .actions,
-  .ff-admin #orders .order-item-admin .card-actions,
-  .ff-admin #orders .order-item-admin .action-buttons {
-    display: flex; flex-wrap: wrap; gap: 8px; min-width: 0;
+  .ff-admin #orders { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .ff-admin #orders .order-item-admin,
+  .ff-admin #orders .order-item-admin .bottom,
+  .ff-admin #orders .order-item-admin .items { min-width: 0; max-width: 100%; }
+  .ff-admin #orders .order-item-admin .bottom .actions { min-width: 0; max-width: 100%; }
+  .ff-admin #orders .order-item-admin .bottom .actions button {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
-  .ff-admin #orders .order-item-admin .actions button,
-  .ff-admin #orders .order-item-admin .card-actions button,
-  .ff-admin #orders .order-item-admin .action-buttons button { min-width: 0; max-width: 100%; }
-  .ff-admin #orders .order-item-admin .info,
-  .ff-admin #orders .order-item-admin .items,
-  .ff-admin #orders .order-item-admin .order-items { min-width: 0; overflow-wrap: anywhere; }
-}
-@media (max-width: 420px) {
-  .ff-admin #orders .order-item-admin { padding: 12px !important; }
-  .ff-admin #orders .order-item-admin .actions button,
-  .ff-admin #orders .order-item-admin .card-actions button,
-  .ff-admin #orders .order-item-admin .action-buttons button { flex: 1 1 110px; }
 }
