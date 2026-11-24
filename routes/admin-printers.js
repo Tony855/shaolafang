@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/admin-printers.js — 打印机 CRUD
@@ -89,7 +90,8 @@ module.exports = function(app, deps) {
       });
       res.status(201).json(createdPrinter);
     } catch (e) {
-      res.status(e.status || 500).json({ error: e.status ? e.message : '创建打印机失败，所有更改已回滚' });
+      const safeError = normalizeRouteError(e, '创建打印机失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -140,7 +142,8 @@ module.exports = function(app, deps) {
         updatedPrinter = await getAsync('SELECT * FROM printers WHERE id=? AND store_id=?', [id, storeId]);
       });
       res.json(updatedPrinter);
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新打印机失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '更新打印机失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   app.delete('/api/admin/printers/:id', requireAdminKey, requirePermission('can_manage_printer'), async (req, res) => {
@@ -171,7 +174,8 @@ module.exports = function(app, deps) {
         await writePrinterAudit(req, 'delete_printer', id, { name: current.name, was_default: Number(current.is_default) === 1 });
       });
       res.json({ success: true });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除打印机失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '删除打印机失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   app.get('/api/orders/:id(\\d+)/print', requireAdminOrWaiter, async (req, res) => {
