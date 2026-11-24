@@ -91,6 +91,11 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       if (webhookSecret.length < 32 || webhookSecret.length > 256) {
         return res.status(503).json({ error: 'Telegram 绑定服务尚未完成安全配置' });
       }
+      const ip = getClientIp(req) || 'unknown';
+      const cooldownKey = 'delivery:telegram-bind:' + storeId + ':' + crypto.createHash('sha256').update(ip + ':' + hashSessionToken(customerToken)).digest('hex');
+      const allowed = await checkAndSetCooldown(cooldownKey, 30000);
+      if (allowed === null) return res.status(503).json({ error: '绑定服务暂时不可用，请稍后重试' });
+      if (!allowed) return res.status(429).json({ error: '绑定请求过于频繁，请稍后再试' });
       const username = await getTelegramBotUsername({ token: String(config.telegram_client_bot_token) });
       const challenge = crypto.randomBytes(32).toString('base64url');
       const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
