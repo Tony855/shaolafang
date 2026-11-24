@@ -943,6 +943,7 @@ body {
 }
 .refund-select {
   width: 100%;
+  height: 44px;
   padding: 10px 12px;
   border: 1.5px solid #e5e7eb;
   border-radius: 8px;
@@ -953,9 +954,6 @@ body {
   transition: all 0.2s;
   background: #fff;
   color: #333;
-}
-.refund-select {
-  height: 44px;
   cursor: pointer;
 }
 .refund-textarea {
@@ -1001,10 +999,6 @@ body {
 }
 
 
-.refund-textarea:focus {
-  border-color: var(--pos-primary);
-  box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
-}
 .btn-danger {
   background: linear-gradient(135deg, #ff6b6b, #dc2626);
   color: #fff;
@@ -1312,11 +1306,6 @@ body {
 }
 
 /* 支付方式标签（2026-10-07） */
-
-.pos-tag.pay-method img {
-  display: inline-block;
-  vertical-align: middle;
-}
 
 /* 支付方式标签：显示银行 logo（2026-10-07） */
 .pos-tag.pay-method {
