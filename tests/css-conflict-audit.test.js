@@ -460,7 +460,7 @@ test('admin order action buttons wrap instead of overflowing on mobile', () => {
   const admin = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
   const marker = '2026-11-24: mobile order-list cards and actions';
   const rules = admin.slice(admin.lastIndexOf(marker));
-  assert.match(rules, /#orders \.admin-card\s*\{[^}]*overflow:\s*hidden;/s);
-  assert.match(rules, /#orders \.admin-card \.actions,[\s\S]*?\.action-buttons\s*\{[^}]*flex-wrap:\s*wrap;/s);
+  assert.match(rules, /#orders \.order-item-admin\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(rules, /#orders \.order-item-admin \.actions,[\s\S]*?\.action-buttons\s*\{[^}]*flex-wrap:\s*wrap;/s);
   assert.match(rules, /@media\s*\(max-width:\s*420px\)/);
 });
