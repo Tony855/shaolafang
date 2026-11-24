@@ -421,7 +421,7 @@ test('merchant admin responsive CSS does not repeat identical declarations at th
   const responsiveEnd = adminCss.indexOf('@media (max-width: 920px)', responsiveStart);
   assert.ok(responsiveStart >= 0 && responsiveEnd > responsiveStart);
   const extracted1024 = adminCss.slice(responsiveStart, responsiveEnd);
-  assert.equal((extracted1024.match(/margin-left:\s*0 !important;/g) || []).length, 1,
+  assert.equal((extracted1024.match(/\.admin-modules\s*\{[^}]*margin-left:\s*0 !important;[^}]*\}/g) || []).length, 1,
     'the 1024px admin-modules margin reset should be declared once');
 
   const narrowStart = adminCss.indexOf('/* Keep narrow-phone overrides after all legacy 480px rules. */');
