@@ -1,5 +1,5 @@
 **审查日期：** 2026-11-24
-**审查对象：** `Tony855/shaolafang`，`main` 当前 SHA `5607366fc86f87ca652c8498aa65efd5d7c5b52d`。
+**审查对象：** `Tony855/shaolafang`，`main` 当前 SHA `c5fbde95582027b998762fc99cdb4dff1534be52`。
 **审查方式：** GitHub 源码、部署模板、迁移机制、测试/CI、Actions artifacts、PR/issue/branch 状态交叉核验。
 **注意：** 本记录不是渗透测试或生产环境验收报告；未执行真实数据库迁移、线上部署、真实支付、Telegram 投递或打印机现场测试。
 
