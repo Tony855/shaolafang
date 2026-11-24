@@ -290,3 +290,18 @@ test('cashier refund amount input uses one consolidated overflow-safe rule', () 
   assert.match(rule, /font-weight:\s*700/);
   assert.match(rule, /padding:\s*10px 12px/);
 });
+
+
+test('cashier refund note textarea uses one consolidated cascade rule', () => {
+  const cashierCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
+  const rules = cashierCss.match(/\.refund-textarea\s*\{[^}]*\}/g) || [];
+  assert.equal(rules.length, 1, 'refund note textarea must have one consolidated base rule');
+  const rule = rules[0];
+  assert.match(rule, /width:\s*100%/);
+  assert.match(rule, /flex:\s*1/);
+  assert.match(rule, /min-height:\s*80px/);
+  assert.match(rule, /resize:\s*vertical/);
+  assert.match(rule, /box-sizing:\s*border-box/);
+  assert.match(rule, /border:\s*1\.5px solid var\(--pos-border\)/);
+  assert.match(rule, /color:\s*var\(--pos-text\)/);
+});
