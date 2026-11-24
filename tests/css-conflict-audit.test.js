@@ -116,3 +116,27 @@ test('cashier refund modal does not retain unused legacy card and action selecto
   assert.match(cashier, /\.refund-input-row/);
   assert.match(cashier, /\.refund-textarea/);
 });
+
+
+test('customer call confirmation stays within dynamic safe viewport on short screens', () => {
+  const customer = fs.readFileSync(path.join(__dirname, '..', 'assets', 'customer.css'), 'utf8');
+  const overlay = customer.match(/\.ff-customer \.confirm-overlay\s*\{([^}]*)\}/)?.[1] || '';
+  const card = customer.match(/\.ff-customer \.confirm-card\s*\{([^}]*)\}/)?.[1] || '';
+  assert.match(overlay, /overflow-y:\s*auto/);
+  assert.match(overlay, /safe-area-inset-top/);
+  assert.match(overlay, /safe-area-inset-bottom/);
+  assert.match(card, /100dvh/);
+  assert.match(card, /overflow-y:\s*auto/);
+  assert.match(customer, /@media \(max-width: 640px\)\s*\{\s*\.ff-customer \.confirm-overlay\s*\{\s*align-items:\s*flex-start;/);
+});
+
+test('customer cart drawer uses dynamic height and a shrinkable scrolling body', () => {
+  const customer = fs.readFileSync(path.join(__dirname, '..', 'assets', 'customer.css'), 'utf8');
+  const drawer = customer.match(/\.cart-drawer\s*\{([^}]*)\}/)?.[1] || '';
+  const body = customer.match(/\.cart-drawer \.drawer-body\s*\{([^}]*)\}/)?.[1] || '';
+  assert.match(drawer, /max-height:\s*65dvh/);
+  assert.match(drawer, /box-sizing:\s*border-box/);
+  assert.match(body, /min-height:\s*0/);
+  assert.match(body, /overflow-y:\s*auto/);
+  assert.match(body, /overscroll-behavior:\s*contain/);
+});
