@@ -1414,5 +1414,19 @@
   "customerTelegramUnbound": "បានផ្តាច់ការភ្ជាប់ការជូនដំណឹងអតិថិជន Telegram ហើយ",
   "customerTelegramDeepLinkError": "មិនអាចបង្កើតតំណភ្ជាប់ Telegram បានទេ",
   "customerTelegramStartHint": "ចុច Start ក្នុង Telegram ដើម្បីបញ្ចប់ការភ្ជាប់ រួចត្រឡប់មកទំព័រនេះ",
-  "customerTelegramOperationFailed": "ការភ្ជាប់ Telegram បរាជ័យ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។"
+  "customerTelegramOperationFailed": "ការភ្ជាប់ Telegram បរាជ័យ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។",
+  "tableQrPopupBlocked": "កម្មវិធីរុករកបានរារាំងបង្អួចលេចឡើង។ សូមអនុញ្ញាតបង្អួចលេចឡើងសម្រាប់គេហទំព័រនេះ ហើយសាកល្បងម្តងទៀត",
+  "tableAdminSessionExpired": "សម័យចូលរបស់អ្នកគ្រប់គ្រងបានផុតកំណត់។ សូមចូលម្តងទៀត",
+  "tableQrPageLoadFailed": "មិនអាចផ្ទុកទំព័រ QR code បានទេ",
+  "adminNoActiveStores": "គណនីនេះមិនមានហាងដែលបានបើកដំណើរការសម្រាប់ការផ្ដល់សិទ្ធិទេ",
+  "adminStoreAccessRequired": "សូមជ្រើសរើសហាងដែលអាចចូលប្រើបានយ៉ាងហោចណាស់មួយ",
+  "orderFulfillmentTypeLabel": "ប្រភេទការបញ្ជាទិញ",
+  "orderNoTableForDelivery": "មិនចាំបាច់កំណត់តុ (ដឹកជញ្ជូន/យកដោយខ្លួនឯង)",
+  "orderFulfillmentDineIn": "ញ៉ាំនៅហាង",
+  "orderFulfillmentTakeaway": "យកដោយខ្លួនឯង",
+  "orderFulfillmentDelivery": "ដឹកជញ្ជូន",
+  "orderDeliveryFieldsRequired": "សូមបំពេញឈ្មោះអ្នកទទួល លេខទូរស័ព្ទ និងអាសយដ្ឋានដឹកជញ្ជូន",
+  "orderDeliveryCreatedWaitingRider": "បានបង្កើតការបញ្ជាទិញដឹកជញ្ជូន។ កំពុងរង់ចាំការចាត់តាំងអ្នកដឹកជញ្ជូន។",
+  "orderTrackingCopied": "បានចម្លងតំណតាមដាន",
+  "orderTrackingCopyManual": "សូមចុចឱ្យជាប់ដើម្បីចម្លង៖ "
 }

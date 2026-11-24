@@ -1421,7 +1421,21 @@ const LANGUAGES = {
     "customerTelegramUnbound": "Telegram 顾客通知已解除绑定",
     "customerTelegramDeepLinkError": "无法生成 Telegram 绑定链接",
     "customerTelegramStartHint": "请在 Telegram 中点击 Start 完成绑定，然后返回本页面",
-    "customerTelegramOperationFailed": "Telegram 绑定操作失败，请稍后重试"
+    "customerTelegramOperationFailed": "Telegram 绑定操作失败，请稍后重试",
+    "tableQrPopupBlocked": "浏览器阻止了弹窗，请允许本站弹窗后重试",
+    "tableAdminSessionExpired": "管理员登录已失效，请重新登录",
+    "tableQrPageLoadFailed": "二维码页面加载失败",
+    "adminNoActiveStores": "当前账号没有可分配的启用门店",
+    "adminStoreAccessRequired": "请至少选择一个可访问门店",
+    "orderFulfillmentTypeLabel": "订单类型",
+    "orderNoTableForDelivery": "无需桌号（外卖/自取）",
+    "orderFulfillmentDineIn": "堂食",
+    "orderFulfillmentTakeaway": "顾客自取",
+    "orderFulfillmentDelivery": "外卖配送",
+    "orderDeliveryFieldsRequired": "请填写收件人、联系电话和配送地址",
+    "orderDeliveryCreatedWaitingRider": "外卖订单已创建，配送任务等待分配骑手",
+    "orderTrackingCopied": "追踪链接已复制",
+    "orderTrackingCopyManual": "请长按链接复制："
   },
   "en": {
     "code": "Code",
@@ -2839,7 +2853,21 @@ const LANGUAGES = {
     "customerTelegramUnbound": "Telegram customer notifications have been unlinked",
     "customerTelegramDeepLinkError": "Unable to create the Telegram linking URL",
     "customerTelegramStartHint": "Tap Start in Telegram to finish linking, then return to this page",
-    "customerTelegramOperationFailed": "Telegram linking failed. Please try again later."
+    "customerTelegramOperationFailed": "Telegram linking failed. Please try again later.",
+    "tableQrPopupBlocked": "The browser blocked the pop-up. Please allow pop-ups for this site and try again.",
+    "tableAdminSessionExpired": "Your admin session has expired. Please sign in again.",
+    "tableQrPageLoadFailed": "Failed to load the QR-code page.",
+    "adminNoActiveStores": "This account has no active stores available for assignment.",
+    "adminStoreAccessRequired": "Select at least one accessible store.",
+    "orderFulfillmentTypeLabel": "Order type",
+    "orderNoTableForDelivery": "No table required (delivery/takeaway)",
+    "orderFulfillmentDineIn": "Dine-in",
+    "orderFulfillmentTakeaway": "Pickup",
+    "orderFulfillmentDelivery": "Delivery",
+    "orderDeliveryFieldsRequired": "Please enter recipient, phone number, and delivery address",
+    "orderDeliveryCreatedWaitingRider": "Delivery order created. Delivery task is awaiting rider assignment.",
+    "orderTrackingCopied": "Tracking link copied",
+    "orderTrackingCopyManual": "Press and hold to copy: "
   },
   "vi": {
     "code": "Mã",
@@ -4257,7 +4285,21 @@ const LANGUAGES = {
     "customerTelegramUnbound": "Đã hủy liên kết thông báo khách hàng Telegram",
     "customerTelegramDeepLinkError": "Không thể tạo liên kết Telegram",
     "customerTelegramStartHint": "Nhấn Start trong Telegram để hoàn tất liên kết, sau đó quay lại trang này",
-    "customerTelegramOperationFailed": "Không thể liên kết Telegram. Vui lòng thử lại sau."
+    "customerTelegramOperationFailed": "Không thể liên kết Telegram. Vui lòng thử lại sau.",
+    "tableQrPopupBlocked": "Trình duyệt đã chặn cửa sổ bật lên. Vui lòng cho phép bật lên trên trang này rồi thử lại.",
+    "tableAdminSessionExpired": "Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.",
+    "tableQrPageLoadFailed": "Không thể tải trang mã QR.",
+    "adminNoActiveStores": "Tài khoản này không có cửa hàng đang hoạt động để phân quyền.",
+    "adminStoreAccessRequired": "Vui lòng chọn ít nhất một cửa hàng có thể truy cập.",
+    "orderFulfillmentTypeLabel": "Loại đơn hàng",
+    "orderNoTableForDelivery": "Không cần bàn (giao hàng/tự nhận)",
+    "orderFulfillmentDineIn": "Ăn tại chỗ",
+    "orderFulfillmentTakeaway": "Tự nhận",
+    "orderFulfillmentDelivery": "Giao hàng",
+    "orderDeliveryFieldsRequired": "Vui lòng nhập người nhận, số điện thoại và địa chỉ giao hàng",
+    "orderDeliveryCreatedWaitingRider": "Đã tạo đơn giao hàng. Đơn đang chờ phân công tài xế.",
+    "orderTrackingCopied": "Đã sao chép liên kết theo dõi",
+    "orderTrackingCopyManual": "Nhấn giữ để sao chép: "
   },
   "th": {
     "code": "รหัส",
@@ -5675,7 +5717,21 @@ const LANGUAGES = {
     "customerTelegramUnbound": "ยกเลิกการเชื่อมโยงการแจ้งเตือนลูกค้าผ่าน Telegram แล้ว",
     "customerTelegramDeepLinkError": "ไม่สามารถสร้างลิงก์ Telegram ได้",
     "customerTelegramStartHint": "แตะ Start ใน Telegram เพื่อเชื่อมโยงให้เสร็จ แล้วกลับมาที่หน้านี้",
-    "customerTelegramOperationFailed": "เชื่อมโยง Telegram ไม่สำเร็จ โปรดลองอีกครั้งภายหลัง"
+    "customerTelegramOperationFailed": "เชื่อมโยง Telegram ไม่สำเร็จ โปรดลองอีกครั้งภายหลัง",
+    "tableQrPopupBlocked": "เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป โปรดอนุญาตป๊อปอัปสำหรับเว็บไซต์นี้แล้วลองอีกครั้ง",
+    "tableAdminSessionExpired": "เซสชันผู้ดูแลระบบหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง",
+    "tableQrPageLoadFailed": "โหลดหน้า QR code ไม่สำเร็จ",
+    "adminNoActiveStores": "บัญชีนี้ไม่มีร้านค้าที่เปิดใช้งานสำหรับการกำหนดสิทธิ์",
+    "adminStoreAccessRequired": "โปรดเลือกอย่างน้อยหนึ่งร้านค้าที่สามารถเข้าถึงได้",
+    "orderFulfillmentTypeLabel": "ประเภทคำสั่งซื้อ",
+    "orderNoTableForDelivery": "ไม่จำเป็นต้องระบุโต๊ะ (จัดส่ง/รับเอง)",
+    "orderFulfillmentDineIn": "รับประทานที่ร้าน",
+    "orderFulfillmentTakeaway": "รับเอง",
+    "orderFulfillmentDelivery": "จัดส่ง",
+    "orderDeliveryFieldsRequired": "กรุณากรอกชื่อผู้รับ เบอร์โทร และที่อยู่จัดส่ง",
+    "orderDeliveryCreatedWaitingRider": "สร้างคำสั่งซื้อจัดส่งแล้ว กำลังรอจัดสรรผู้ส่ง",
+    "orderTrackingCopied": "คัดลอกลิงก์ติดตามแล้ว",
+    "orderTrackingCopyManual": "กดค้างเพื่อคัดลอก: "
   },
   "km": {
     "code": "កូដ",
@@ -7093,11 +7149,25 @@ const LANGUAGES = {
     "customerTelegramUnbound": "បានផ្តាច់ការភ្ជាប់ការជូនដំណឹងអតិថិជន Telegram ហើយ",
     "customerTelegramDeepLinkError": "មិនអាចបង្កើតតំណភ្ជាប់ Telegram បានទេ",
     "customerTelegramStartHint": "ចុច Start ក្នុង Telegram ដើម្បីបញ្ចប់ការភ្ជាប់ រួចត្រឡប់មកទំព័រនេះ",
-    "customerTelegramOperationFailed": "ការភ្ជាប់ Telegram បរាជ័យ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។"
+    "customerTelegramOperationFailed": "ការភ្ជាប់ Telegram បរាជ័យ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។",
+    "tableQrPopupBlocked": "កម្មវិធីរុករកបានរារាំងបង្អួចលេចឡើង។ សូមអនុញ្ញាតបង្អួចលេចឡើងសម្រាប់គេហទំព័រនេះ ហើយសាកល្បងម្តងទៀត",
+    "tableAdminSessionExpired": "សម័យចូលរបស់អ្នកគ្រប់គ្រងបានផុតកំណត់។ សូមចូលម្តងទៀត",
+    "tableQrPageLoadFailed": "មិនអាចផ្ទុកទំព័រ QR code បានទេ",
+    "adminNoActiveStores": "គណនីនេះមិនមានហាងដែលបានបើកដំណើរការសម្រាប់ការផ្ដល់សិទ្ធិទេ",
+    "adminStoreAccessRequired": "សូមជ្រើសរើសហាងដែលអាចចូលប្រើបានយ៉ាងហោចណាស់មួយ",
+    "orderFulfillmentTypeLabel": "ប្រភេទការបញ្ជាទិញ",
+    "orderNoTableForDelivery": "មិនចាំបាច់កំណត់តុ (ដឹកជញ្ជូន/យកដោយខ្លួនឯង)",
+    "orderFulfillmentDineIn": "ញ៉ាំនៅហាង",
+    "orderFulfillmentTakeaway": "យកដោយខ្លួនឯង",
+    "orderFulfillmentDelivery": "ដឹកជញ្ជូន",
+    "orderDeliveryFieldsRequired": "សូមបំពេញឈ្មោះអ្នកទទួល លេខទូរស័ព្ទ និងអាសយដ្ឋានដឹកជញ្ជូន",
+    "orderDeliveryCreatedWaitingRider": "បានបង្កើតការបញ្ជាទិញដឹកជញ្ជូន។ កំពុងរង់ចាំការចាត់តាំងអ្នកដឹកជញ្ជូន។",
+    "orderTrackingCopied": "បានចម្លងតំណតាមដាន",
+    "orderTrackingCopyManual": "សូមចុចឱ្យជាប់ដើម្បីចម្លង៖ "
   }
 };
 
-/**
+/** 
  * 检测浏览器语言并映射到系统支持的语言代码
  * @returns {string} zh/en/vi/th/km
  */
