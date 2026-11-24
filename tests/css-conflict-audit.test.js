@@ -334,7 +334,10 @@ test('cashier mobile order list and footer styles avoid redundant same-breakpoin
   const orderListRules = cashierCss.match(/\.pos-order-list\s*\{/g) || [];
   assert.equal(orderListRules.length, 2, 'order list must have one base rule and one mobile override');
   const orderCardRules = cashierCss.match(/\.pos-order-card\s*\{/g) || [];
-  assert.equal(orderCardRules.length, 3, 'order card must not retain a superseded mobile padding rule');
+  assert.equal(orderCardRules.length, 2, 'order card must keep one base rule and one mobile override');
+  const orderCardTagRules = cashierCss.match(/\.pos-order-card-tags\s*\{/g) || [];
+  assert.equal(orderCardTagRules.length, 1, 'order card tag container must use one complete base rule');
+  assert.match(cashierCss, /\.pos-order-card-tags\s*\{[^}]*margin-top:\s*8px;[^}]*width:\s*100%;/);
   assert.match(cashierCss, /\.pos-order-list\s*\{[^}]*padding:\s*10px 12px 12px;[^}]*-webkit-overflow-scrolling:\s*touch;[^}]*overscroll-behavior:\s*contain;/);
   assert.match(cashierCss, /\.pos-order-card\s*\{[^}]*padding:\s*11px 12px;[^}]*margin-bottom:\s*8px;/);
   assert.match(cashierCss, /\.pos-left \.pos-left-bottom\s*\{[^}]*margin-top:\s*auto;[^}]*flex-shrink:\s*0;[^}]*padding:\s*8px 0;/);
