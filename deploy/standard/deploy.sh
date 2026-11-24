@@ -70,7 +70,8 @@ if [ -d "$DEPLOY_TARGET/.git" ]; then
     log_info "检测到 Git 部署目录，检查工作区后执行安全快进更新..."
     cd "$DEPLOY_TARGET"
     ff_require_clean_git_worktree
-    git pull --ff-only origin "$GIT_VERSION"
+    git fetch --no-tags origin "$GIT_VERSION"
+    git checkout --detach FETCH_HEAD
     log_success "代码快进更新完成"
 elif [ -n "$(ls -A "$DEPLOY_TARGET" 2>/dev/null)" ]; then
     log_error "目标目录非空但不是 Git 仓库；为保护生产配置和数据，拒绝备份搬移或覆盖。"
