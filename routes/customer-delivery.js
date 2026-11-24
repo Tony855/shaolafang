@@ -198,13 +198,10 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       if (items.some(item => !Number.isSafeInteger(Number(item.quantity)) || Number(item.quantity) < 1 || Number(item.quantity) > maxQty)) {
         return res.status(400).json({ error: `单个菜品数量必须为 1 至 ${maxQty} 份` });
       }
-
-      const ip = getClientIp(req) || 'unknown';
-      const cooldownKey = 'delivery:' + storeId + ':' + crypto.createHash('sha256').update(ip + ':' + recipientPhone).digest('hex');
-      const cooldownMs = await getOrderCooldownMs();
-      const allowed = await checkAndSetCooldown(cooldownKey, cooldownMs);
-      if (allowed === null) return res.status(503).json({ error: '订单服务暂时不可用，请稍后重试' });
-      if (!allowed) return res.status(429).json({ error: '提交过于频繁，请稍后再试' });
+      const idempotencyKey = typeof req.get === 'function' ? String(req.get('Idempotency-Key') || '').trim() : String(req.headers?.['idempotency-key'] || '').trim();
+      const suppliedCustomerToken = getDeliveryCustomerToken(req);
+      if (!/^[a-f0-9]{64}$/.test(idempotencyKey)) return res.status(400).json({ error: '下单请求凭证无效，请刷新页面后重试' });
+      if (!suppliedCustomerToken) return res.status(401).json({ error: '顾客身份凭证缺失，请刷新页面后重试' });
 
       const prefixRow = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${store.merchant_id}_order_prefix_normal`])
         || await getAsync("SELECT value FROM settings WHERE `key`='order_prefix_normal'");
@@ -218,9 +215,14 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       else if (reset === 'yearly') sequencePrefix = orderPrefix + dateKey.slice(0, 2);
       else if (reset === 'never') sequencePrefix = orderPrefix + 'GL';
 
-      const suppliedCustomerToken = getDeliveryCustomerToken(req);
-      const customerToken = suppliedCustomerToken || crypto.randomBytes(32).toString('hex');
+      const customerToken = suppliedCustomerToken;
       const customerTokenHash = hashSessionToken(customerToken);
+      const idempotencyKeyHash = crypto.createHash('sha256').update(idempotencyKey).digest('hex');
+      const requestHash = crypto.createHash('sha256').update(JSON.stringify({
+        storeId, merchantId: Number(store.merchant_id), customerTokenHash,
+        recipientName, recipientPhone, deliveryAddress, note, paymentMethod, items
+      })).digest('hex');
+      let idempotentReplay = false;
       const createdAt = new Date().toISOString();
       let orderId = null;
       let orderNo = '';
@@ -231,6 +233,31 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           [storeId, store.merchant_id]
         );
         if (!activeStore) throw Object.assign(new Error('门店状态已变化，请刷新后重试'), { status: 409 });
+        await runAsync(
+          'INSERT IGNORE INTO delivery_order_requests (store_id, idempotency_key_hash, customer_token_hash, request_hash, order_id) VALUES (?, ?, ?, ?, NULL)',
+          [storeId, idempotencyKeyHash, customerTokenHash, requestHash]
+        );
+        const requestRecord = await getAsync(
+          'SELECT store_id, customer_token_hash, request_hash, order_id FROM delivery_order_requests WHERE store_id=? AND idempotency_key_hash=? FOR UPDATE',
+          [storeId, idempotencyKeyHash]
+        );
+        if (!requestRecord || requestRecord.customer_token_hash !== customerTokenHash || requestRecord.request_hash !== requestHash) {
+          throw Object.assign(new Error('此下单请求凭证已用于其他订单内容，请重新整理购物车后再提交'), { status: 409 });
+        }
+        if (requestRecord.order_id) {
+          orderId = Number(requestRecord.order_id);
+          orderRow = await getAsync('SELECT * FROM orders WHERE id=? AND store_id=?', [orderId, storeId]);
+          if (!orderRow) throw Object.assign(new Error('原订单暂时无法读取，请稍后重试'), { status: 503 });
+          orderNo = String(orderRow.order_no || '');
+          idempotentReplay = true;
+          return;
+        }
+        const ip = getClientIp(req) || 'unknown';
+        const cooldownKey = 'delivery:' + storeId + ':' + crypto.createHash('sha256').update(ip + ':' + recipientPhone).digest('hex');
+        const cooldownMs = await getOrderCooldownMs();
+        const allowed = await checkAndSetCooldown(cooldownKey, cooldownMs);
+        if (allowed === null) throw Object.assign(new Error('订单服务暂时不可用，请稍后重试'), { status: 503 });
+        if (!allowed) throw Object.assign(new Error('提交过于频繁，请稍后再试'), { status: 429 });
         orderNo = await allocateOrderNo(sequencePrefix);
         const inserted = await runAsync(
           "INSERT INTO orders (order_no, table_name, items, total, status, createdAt, session_token, customer_token, store_id, note, merchant_id, fulfillment_type, pay_method) VALUES (?, NULL, ?, ?, 'pending', ?, NULL, ?, ?, ?, ?, 'delivery', ?)",
@@ -268,22 +295,28 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, tableName: '', fulfillmentType: 'delivery', recipientName, amount: total, currency: 'USD' },
           enqueue: deps.enqueueTelegramNotification
         });
+        await runAsync(
+          'UPDATE delivery_order_requests SET order_id=? WHERE store_id=? AND idempotency_key_hash=? AND request_hash=?',
+          [orderId, storeId, idempotencyKeyHash, requestHash]
+        );
       });
 
-      const staffOrder = formatOrder(orderRow);
-      delete staffOrder.sessionToken;
-      delete staffOrder.customerToken;
-      io.to('kitchen-' + storeId).emit('order:new', staffOrder);
-      io.to('waiter-' + storeId).emit('order:new', staffOrder);
-      io.to('cashier-' + storeId).emit('order:new', staffOrder);
-      io.to('delivery-store-' + storeId).emit('delivery:status', { orderId: Number(orderId), status: 'pending_assignment' });
-      res.status(201).json({
+      if (!idempotentReplay) {
+        const staffOrder = formatOrder(orderRow);
+        delete staffOrder.sessionToken;
+        delete staffOrder.customerToken;
+        io.to('kitchen-' + storeId).emit('order:new', staffOrder);
+        io.to('waiter-' + storeId).emit('order:new', staffOrder);
+        io.to('cashier-' + storeId).emit('order:new', staffOrder);
+        io.to('delivery-store-' + storeId).emit('delivery:status', { orderId: Number(orderId), status: 'pending_assignment' });
+      }
+      res.status(idempotentReplay ? 200 : 201).json({
         success: true,
         orderId: Number(orderId),
-        orderNo,
-        total,
+        orderNo: String(orderRow.order_no || orderNo),
+        total: Number(orderRow.total),
         currency: 'USD',
-        paymentMethod,
+        paymentMethod: String(orderRow.pay_method || paymentMethod),
         customerToken,
         trackingUrl: `/delivery/track/${Number(orderId)}#token=${customerToken}`
       });

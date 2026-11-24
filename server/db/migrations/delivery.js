@@ -53,6 +53,21 @@ async function ensureDeliverySchema({ runAsync, allAsync }) {
       KEY idx_delivery_job_store (merchant_id, store_id, status, updated_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+  await runAsync(`
+    CREATE TABLE IF NOT EXISTS delivery_order_requests (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      store_id INT NOT NULL,
+      idempotency_key_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      customer_token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      request_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+      order_id INT DEFAULT NULL,
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_delivery_order_request (store_id, idempotency_key_hash),
+      UNIQUE KEY uq_delivery_order_request_order (order_id),
+      KEY idx_delivery_order_request_customer (store_id, customer_token_hash, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
   const statusColumn = await allAsync(
     'SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?',
     ['delivery_jobs', 'status']
