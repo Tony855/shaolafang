@@ -271,7 +271,8 @@ body {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
-  margin-top: 6px;
+  margin-top: 8px;
+  width: 100%;
 }
 .pos-tag {
   display: inline-block;
@@ -859,17 +860,6 @@ body {
 /* ============================================================
    订单卡片内容边界优化（2026-09-30）
    ============================================================ */
-.pos-order-card {
-  /* 防止内部标签溢出 */
-  overflow: hidden;
-}
-.pos-order-card-tags {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-  width: 100%;
-}
 .pos-order-card-tags .pos-tag {
   display: inline-flex;
   align-items: center;
