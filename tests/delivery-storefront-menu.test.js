@@ -58,3 +58,13 @@ test('delivery storefront remains a tableless delivery checkout and retains KHQR
   assert.ok(page.includes('data.trackingUrl'));
   assert.doesNotMatch(page, /scanSessionToken|X-Scan-Session|请先扫码/);
 });
+
+test('delivery storefront title header remains fully visible on narrow screens', () => {
+  assert.match(page, /<header><h1>🛵 FoodFlow 外卖点餐<\/h1><p id="storeName">/);
+  assert.match(page, /header\{width:100%;min-width:0;/);
+  assert.match(page, /header h1\{[^}]*flex-wrap:wrap/);
+  assert.match(page, /header h1\{[^}]*overflow-wrap:anywhere/);
+  assert.match(page, /header p\{[^}]*overflow-wrap:anywhere/);
+  assert.match(page, /@media\(max-width:720px\)\{header\{padding:calc\(16px \+ env\(safe-area-inset-top,0px\)\)/);
+  assert.doesNotMatch(page, /header\s*\{[^}]*height\s*:/);
+});
