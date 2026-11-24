@@ -271,7 +271,16 @@ test('admin mobile sidebar stays aligned below the header at every narrow breakp
     assert.ok(media > previous, `${breakpoint} sidebar override must follow the wider breakpoint`);
     const nextMedia = finalOverrides.indexOf('@media (max-width:', media + 1);
     const block = finalOverrides.slice(media, nextMedia === -1 ? undefined : nextMedia);
-    assert.match(block, new RegExp(`\\.ff-admin \\.top\\s*\\{[^}]*height:\\s*${offset};[^}]*min-height:\\s*${offset};`, 's'));
+    if (breakpoint === '420px') {
+      assert.doesNotMatch(block, /\\.ff-admin \\.top\\s*\\{/,
+        'the 420px header height should be inherited from the preceding narrow-phone block');
+      const narrowMarker = adminCss.lastIndexOf('Keep narrow-phone overrides after all legacy 480px rules.');
+      const sidebarMarker = adminCss.lastIndexOf(marker);
+      const narrowBlock = adminCss.slice(narrowMarker, sidebarMarker);
+      assert.match(narrowBlock, new RegExp(`\\.ff-admin \\.top\\s*\\{[^}]*height:\\s*${offset};[^}]*min-height:\\s*${offset};`, 's'));
+    } else {
+      assert.match(block, new RegExp(`\\.ff-admin \\.top\\s*\\{[^}]*height:\\s*${offset};[^}]*min-height:\\s*${offset};`, 's'));
+    }
     assert.match(block, new RegExp(`\\.ff-admin \\.admin-sidebar\\s*\\{[^}]*top:\\s*${offset};[^}]*height:\\s*calc\\(100vh - ${offset}\\);[^}]*height:\\s*calc\\(100dvh - ${offset}\\);`, 's'));
     previous = media;
   }
@@ -411,4 +420,28 @@ test('merchant admin hamburger remains visible after legacy extracted CSS on mob
   assert.match(finalRules, /body\.ff-admin\s+#hamburgerBtn\.hamburger-btn\s*\{[^}]*z-index:\s*1000;/);
   const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
   assert.match(adminHtml, /<button[^>]*class="hamburger-btn"[^>]*id="hamburgerBtn"[^>]*onclick="toggleSidebar\(\)"/);
+});
+
+
+test('merchant admin responsive CSS does not repeat identical declarations at the same breakpoint', () => {
+  const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const responsiveMarker = '/* ===== 响应式断点（按宽度从大到小排序，小屏覆盖大屏） ===== */';
+  const responsiveStart = adminCss.indexOf(responsiveMarker);
+  const responsiveEnd = adminCss.indexOf('@media (max-width: 920px)', responsiveStart);
+  assert.ok(responsiveStart >= 0 && responsiveEnd > responsiveStart);
+  const extracted1024 = adminCss.slice(responsiveStart, responsiveEnd);
+  assert.equal((extracted1024.match(/\.admin-modules\s*\{[^}]*margin-left:\s*0 !important;[^}]*\}/g) || []).length, 1,
+    'the 1024px admin-modules margin reset should be declared once');
+
+  const narrowStart = adminCss.indexOf('/* Keep narrow-phone overrides after all legacy 480px rules. */');
+  const sidebarAlignmentStart = adminCss.indexOf('/* Keep the mobile admin sidebar directly below the header', narrowStart);
+  assert.ok(narrowStart >= 0 && sidebarAlignmentStart > narrowStart);
+  const narrowOverrides = adminCss.slice(narrowStart, sidebarAlignmentStart);
+  const narrowTopRule = narrowOverrides.match(/\.ff-admin \.top\s*\{([^}]*)\}/)?.[1] || '';
+  assert.match(narrowTopRule, /height:\s*48px;[\s\S]*min-height:\s*48px;/,
+    'the narrow-phone layout block should own the 420px header height');
+  const finalAlignment = adminCss.slice(sidebarAlignmentStart);
+  const final420 = finalAlignment.slice(finalAlignment.indexOf('@media (max-width: 420px)'));
+  assert.doesNotMatch(final420, /\.ff-admin \.top\s*\{/,
+    'the final sidebar alignment block should not repeat the 420px header height');
 });
