@@ -635,16 +635,14 @@ textarea {
   border: 0;
   cursor: pointer;
 }
-.btn { display: inline-flex; align-items: center; justify-content: center; }
-.btn-secondary { background: #f3f4f6; color: #1f2937; }
-.btn-secondary:hover { background: #e5e7eb; }
+.payment-actions .btn-secondary { background: #f3f4f6; color: #1f2937; }
+.payment-actions .btn-secondary:hover { background: #e5e7eb; }
 .btn-primary {
   background: linear-gradient(135deg, #ff8a4c, #e84a2a);
   color: #fff;
   box-shadow: 0 4px 14px rgba(232,74,42,0.3);
 }
 .btn-primary:hover { box-shadow: 0 6px 20px rgba(232,74,42,0.4); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .payment-card .modal-close {
   position: absolute;
