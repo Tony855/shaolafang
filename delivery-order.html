@@ -111,9 +111,9 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
  async function refreshTelegramBinding(){
   const button=$('telegramBindingButton'),status=$('telegramBindingStatus');
   if(!button||!status)return;
-  button.disabled=!customerToken||!/^\\d+$/.test(storeId)||telegramBusy;
+  button.disabled=!customerToken||!/^\d+$/.test(storeId)||telegramBusy;
   if(!customerToken){status.textContent='浏览器无法保存顾客身份，请允许本地存储后重试';return;}
-  if(!/^\\d+$/.test(storeId)){status.textContent='门店链接无效';return;}
+  if(!/^\d+$/.test(storeId)){status.textContent='门店链接无效';return;}
   try{
    const response=await fetch('/api/public/delivery/customer-telegram/binding?store_id='+encodeURIComponent(storeId),{headers:{'X-Customer-Token':customerToken},cache:'no-store'});
    const data=await response.json().catch(()=>({}));
