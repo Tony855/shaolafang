@@ -1414,5 +1414,19 @@
   "customerTelegramUnbound": "ยกเลิกการเชื่อมโยงการแจ้งเตือนลูกค้าผ่าน Telegram แล้ว",
   "customerTelegramDeepLinkError": "ไม่สามารถสร้างลิงก์ Telegram ได้",
   "customerTelegramStartHint": "แตะ Start ใน Telegram เพื่อเชื่อมโยงให้เสร็จ แล้วกลับมาที่หน้านี้",
-  "customerTelegramOperationFailed": "เชื่อมโยง Telegram ไม่สำเร็จ โปรดลองอีกครั้งภายหลัง"
+  "customerTelegramOperationFailed": "เชื่อมโยง Telegram ไม่สำเร็จ โปรดลองอีกครั้งภายหลัง",
+  "tableQrPopupBlocked": "เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป โปรดอนุญาตป๊อปอัปสำหรับเว็บไซต์นี้แล้วลองอีกครั้ง",
+  "tableAdminSessionExpired": "เซสชันผู้ดูแลระบบหมดอายุ โปรดเข้าสู่ระบบอีกครั้ง",
+  "tableQrPageLoadFailed": "โหลดหน้า QR code ไม่สำเร็จ",
+  "adminNoActiveStores": "บัญชีนี้ไม่มีร้านค้าที่เปิดใช้งานสำหรับการกำหนดสิทธิ์",
+  "adminStoreAccessRequired": "โปรดเลือกอย่างน้อยหนึ่งร้านค้าที่สามารถเข้าถึงได้",
+  "orderFulfillmentTypeLabel": "ประเภทคำสั่งซื้อ",
+  "orderNoTableForDelivery": "ไม่จำเป็นต้องระบุโต๊ะ (จัดส่ง/รับเอง)",
+  "orderFulfillmentDineIn": "รับประทานที่ร้าน",
+  "orderFulfillmentTakeaway": "รับเอง",
+  "orderFulfillmentDelivery": "จัดส่ง",
+  "orderDeliveryFieldsRequired": "กรุณากรอกชื่อผู้รับ เบอร์โทร และที่อยู่จัดส่ง",
+  "orderDeliveryCreatedWaitingRider": "สร้างคำสั่งซื้อจัดส่งแล้ว กำลังรอจัดสรรผู้ส่ง",
+  "orderTrackingCopied": "คัดลอกลิงก์ติดตามแล้ว",
+  "orderTrackingCopyManual": "กดค้างเพื่อคัดลอก: "
 }
