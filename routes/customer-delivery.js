@@ -158,10 +158,6 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       const deliveryAddress = cleanText(body.delivery_address, 500);
       const note = cleanText(body.note, 200);
       const paymentMethod = String(body.payment_method || 'cash').trim().toLowerCase();
-      const idempotencyKey = typeof req.get === 'function' ? String(req.get('Idempotency-Key') || '').trim() : String(req.headers?.['idempotency-key'] || '').trim();
-      const suppliedCustomerToken = getDeliveryCustomerToken(req);
-      if (!/^[a-f0-9]{64}$/.test(idempotencyKey)) return res.status(400).json({ error: '下单请求凭证无效，请刷新页面后重试' });
-      if (!suppliedCustomerToken) return res.status(401).json({ error: '顾客身份凭证缺失，请刷新页面后重试' });
       if (!storeId) return res.status(400).json({ error: '门店编号无效' });
       if (!recipientName || !recipientPhone || !deliveryAddress) {
         return res.status(400).json({ error: '请填写收件人、联系电话和完整配送地址' });
@@ -202,6 +198,10 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       if (items.some(item => !Number.isSafeInteger(Number(item.quantity)) || Number(item.quantity) < 1 || Number(item.quantity) > maxQty)) {
         return res.status(400).json({ error: `单个菜品数量必须为 1 至 ${maxQty} 份` });
       }
+      const idempotencyKey = typeof req.get === 'function' ? String(req.get('Idempotency-Key') || '').trim() : String(req.headers?.['idempotency-key'] || '').trim();
+      const suppliedCustomerToken = getDeliveryCustomerToken(req);
+      if (!/^[a-f0-9]{64}$/.test(idempotencyKey)) return res.status(400).json({ error: '下单请求凭证无效，请刷新页面后重试' });
+      if (!suppliedCustomerToken) return res.status(401).json({ error: '顾客身份凭证缺失，请刷新页面后重试' });
 
       const prefixRow = await getAsync("SELECT value FROM settings WHERE `key`=?", [`merchant_${store.merchant_id}_order_prefix_normal`])
         || await getAsync("SELECT value FROM settings WHERE `key`='order_prefix_normal'");
