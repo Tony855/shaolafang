@@ -11,6 +11,7 @@ function setup({ customerBinding = false } = {}) {
   const transactions = [];
   let orderRow = null;
   let idempotencyRecord = null;
+  let transactionTail = Promise.resolve();
   const app = {
     get(path, ...handlersForRoute) { handlers.set('GET ' + path, handlersForRoute[handlersForRoute.length - 1]); },
     post(path, ...handlersForRoute) { handlers.set('POST ' + path, handlersForRoute[handlersForRoute.length - 1]); },
@@ -53,9 +54,14 @@ function setup({ customerBinding = false } = {}) {
       return { affectedRows: 1 };
     },
     withTransaction: async work => {
+      let release;
+      const previous = transactionTail;
+      transactionTail = new Promise(resolve => { release = resolve; });
+      await previous;
       transactions.push('begin');
       try { const result = await work(); transactions.push('commit'); return result; }
       catch (error) { transactions.push('rollback'); throw error; }
+      finally { release(); }
     },
     normalizeOrderItems: async items => items.map(item => ({ id: item.id, name: 'Noodle', price: 12.5, base_price: 12.5, quantity: item.quantity })),
     allocateOrderNo: async prefix => prefix + '00001',
@@ -207,4 +213,21 @@ test('customer delivery order rejects reuse of an idempotency key for changed ch
   assert.equal(second.statusCode, 409);
   assert.match(second.body.error, /已用于其他订单内容/);
   assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('INSERT INTO orders')).length, 1);
+});
+
+test('concurrent customer delivery submissions with one key create only one order and delivery job', async () => {
+  const ctx = setup();
+  const token = '8'.repeat(64);
+  const body = { store_id: 7, customer_token: token, recipient_name: 'Alex', recipient_phone: '+855 12 345 678', delivery_address: 'Street 123', payment_method: 'cash', items: [{ id: 5, quantity: 1 }] };
+  const first = response(), second = response();
+  await Promise.all([
+    ctx.handler(orderRequest(body, '7'.repeat(64)), first),
+    ctx.handler(orderRequest(body, '7'.repeat(64)), second)
+  ]);
+  assert.deepEqual([first.statusCode, second.statusCode].sort(), [200, 201]);
+  assert.equal(first.body.orderId, second.body.orderId);
+  assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('INSERT INTO orders')).length, 1);
+  assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('INSERT INTO delivery_jobs')).length, 1);
+  assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('UPDATE menus SET sales_count = sales_count + ?')).length, 1);
+  assert.equal(ctx.events.filter(x => x.event === 'order:new').length, 3);
 });
