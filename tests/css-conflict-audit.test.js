@@ -96,3 +96,32 @@ test('cashier detail footer and actions stay in flex flow with iPhone safe-area 
   assert.match(detailLayout, /padding-bottom:\s*max\(12px,\s*env\(safe-area-inset-bottom\)\)/);
   assert.doesNotMatch(detailLayout, /position:\s*(?:absolute|fixed)\s*!important|bottom:\s*(?:72|78)px|padding-bottom:\s*200px/);
 });
+
+
+test('waiter dialogs and payment cards fit dynamic mobile viewports and safe areas', () => {
+  const waiter = fs.readFileSync(path.join(__dirname, '..', 'assets', 'waiter.css'), 'utf8');
+  const modal = waiter.match(/\.modal\s*\{([^}]*)\}/)?.[1] || '';
+  const modalCard = waiter.match(/\.modal-card\s*\{([^}]*)\}/)?.[1] || '';
+  const paymentOverlay = waiter.match(/\.modal-overlay\s*\{([^}]*)\}/)?.[1] || '';
+  const paymentCard = waiter.match(/\.modal-overlay > \.payment-card\s*\{([^}]*)\}/)?.[1] || '';
+  assert.match(modal, /overflow-y:\s*auto/);
+  assert.match(modal, /safe-area-inset-top/);
+  assert.match(modalCard, /100dvh/);
+  assert.match(modalCard, /box-sizing:\s*border-box/);
+  assert.match(paymentOverlay, /overflow-y:\s*auto/);
+  assert.match(paymentOverlay, /safe-area-inset-bottom/);
+  assert.match(paymentCard, /100dvh/);
+  assert.match(paymentCard, /overflow-y:\s*auto/);
+  assert.match(waiter, /@media \(max-width: 640px\)\s*\{\s*\.modal\s*\{\s*align-items:\s*flex-start;/);
+});
+
+test('kitchen confirmation and urge dialogs remain reachable on short safe-area viewports', () => {
+  const kitchen = fs.readFileSync(path.join(__dirname, '..', 'assets', 'kitchen.css'), 'utf8');
+  const modal = kitchen.match(/\.modal\s*\{([^}]*)\}/)?.[1] || '';
+  const modalCard = kitchen.match(/\.modal-card\s*\{([^}]*)\}/)?.[1] || '';
+  assert.match(modal, /overflow-y:\s*auto/);
+  assert.match(modal, /safe-area-inset-top/);
+  assert.match(modalCard, /100dvh/);
+  assert.match(modalCard, /box-sizing:\s*border-box/);
+  assert.match(kitchen, /@media \(max-width: 640px\)\s*\{\s*\.modal\s*\{\s*align-items:\s*flex-start;/);
+});
