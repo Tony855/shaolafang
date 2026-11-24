@@ -238,3 +238,16 @@ test('delivery admin page respects all device safe-area insets', () => {
     assert.match(main, new RegExp('safe-area-inset-' + edge));
   }
 });
+
+
+test('admin, login and QR print pages opt into device safe-area viewport insets', () => {
+  const cases = [
+    ['admin.html', /name="viewport" content="[^"]*viewport-fit=cover/],
+    ['login.html', /name="viewport" content="[^"]*viewport-fit=cover/],
+    ['views/qr-print.html', /name="viewport" content="[^"]*viewport-fit=cover/]
+  ];
+  for (const [file, pattern] of cases) {
+    const html = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+    assert.match(html, pattern, file + ' must enable viewport-fit=cover');
+  }
+});
