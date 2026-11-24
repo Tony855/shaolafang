@@ -16,7 +16,7 @@ const localeDictionaries = Object.fromEntries(localeCodes.map(locale => [
 function getSelectOptions(id) {
   const match = html.match(new RegExp('<select[^>]*id="' + id + '"[^>]*>([\\s\\S]*?)</select>', 'i'));
   assert.ok(match, id + ' select should exist');
-  return [...match[1].matchAll(/<option([^>]*)>([\\s\\S]*?)</option>/gi)];
+  return [...match[1].matchAll(/<option([^>]*)>([\\s\\S]*?)<\\/option>/gi)];
 }
 
 test('super admin log-cleanup options are translated in every supported locale', () => {
