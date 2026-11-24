@@ -305,3 +305,23 @@ test('cashier refund note textarea uses one consolidated cascade rule', () => {
   assert.match(rule, /border:\s*1\.5px solid var\(--pos-border\)/);
   assert.match(rule, /color:\s*var\(--pos-text\)/);
 });
+
+
+test('cashier refund select and textarea focus styles avoid duplicate base rules', () => {
+  const cashierCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
+  const selectRules = cashierCss.match(/\\.refund-select\\s*\\{[^}]*\\}/g) || [];
+  assert.equal(selectRules.length, 1, 'refund select must use one consolidated base rule');
+  assert.match(selectRules[0], /height:\\s*44px/);
+  assert.match(selectRules[0], /cursor:\\s*pointer/);
+  const textareaFocusRules = cashierCss.match(/\\.refund-textarea:focus\\s*\\{/g) || [];
+  assert.equal(textareaFocusRules.length, 1, 'refund textarea focus styling must be declared once');
+});
+
+test('cashier payment method logo uses one complete image rule', () => {
+  const cashierCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
+  const imageRules = cashierCss.match(/\\.pos-tag\\.pay-method img\\s*\\{[^}]*\\}/g) || [];
+  assert.equal(imageRules.length, 1, 'payment method logo image must not have duplicate rules');
+  assert.match(imageRules[0], /display:\\s*inline-block/);
+  assert.match(imageRules[0], /vertical-align:\\s*middle/);
+  assert.match(imageRules[0], /flex-shrink:\\s*0/);
+});
