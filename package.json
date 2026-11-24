@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js",
+    "dev": "node --watch server.js",
     "build:lang": "node scripts/build-languages.js",
     "check:lang": "node scripts/check-lang.js",
     "check:lang:strict": "node scripts/check-lang.js --strict",
@@ -30,7 +30,6 @@
     "socket.io": "^4.7.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1",
     "terser": "^5.51.4"
   },
   "overrides": {

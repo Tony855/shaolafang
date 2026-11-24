@@ -34,3 +34,14 @@ test('third-party GitHub Actions are pinned to immutable full commit SHAs', () =
     }
   }
 });
+
+test('development watch mode uses Node built-in and removes vulnerable nodemon dependency', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const packageLock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
+  assert.equal(packageJson.scripts.dev, 'node --watch server.js');
+  assert.equal(packageJson.devDependencies?.nodemon, undefined);
+  assert.equal(packageLock.packages[''].devDependencies?.nodemon, undefined);
+  assert.equal(packageLock.packages['node_modules/nodemon'], undefined);
+  assert.equal(packageLock.packages['node_modules/minimatch'], undefined);
+  assert.deepEqual(packageLock.packages[''].devDependencies, packageJson.devDependencies);
+});
