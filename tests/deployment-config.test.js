@@ -38,7 +38,9 @@ test('multi-node deployment templates require shared Redis and an explicit trust
     assert.match(content, /REDIS_URL/);
     assert.match(content, /TRUST_PROXY/);
     assert.match(content, /REQUIRE_SHARED_REDIS=true/);
-    assert.match(content, /git pull --ff-only origin main/);
+    assert.match(content, /git fetch --no-tags origin "\$\{GIT_VERSION:-main\}"/);
+    assert.match(content, /git checkout --detach FETCH_HEAD/);
+    assert.doesNotMatch(content, /git pull --ff-only origin main/);
     assert.doesNotMatch(content, /git reset --hard origin\/main/);
   }
 });
