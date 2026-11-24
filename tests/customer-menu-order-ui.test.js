@@ -28,14 +28,14 @@ test('customer menu renders configured secondary currency and retries missing cu
 
 
 test('public store config honors the dual-currency toggle and resolves USD/KHR fallback', () => {
-  assert.match(publicRoutes, /store_\\$\\{storeId\\}_dual_currency_enabled/);
+  assert.ok(publicRoutes.includes('store_${storeId}_dual_currency_enabled'));
   assert.match(publicRoutes, /const dualCurrencyEnabled = dualEnabledRow/);
   assert.match(publicRoutes, /const fallbackSecondaryCode = primaryCode === 'USD' \? 'KHR' : 'USD'/);
   assert.match(publicRoutes, /const secondaryCurrency = secondaryCode \? \(currencies\.find\(c => c\.code === secondaryCode\) \|\| null\) : null/);
 });
 
 test('customer menu supports absolute and uploaded image paths with a visible load-failure fallback', () => {
-  assert.match(customer, /const imageSrc = \/\^https?:/);
+  assert.ok(customer.includes('const imageSrc = /^https?:\\/\\//i.test(imageValue)'));
   assert.match(customer, /menuGrid\.querySelectorAll\('\.img-wrap img'\)/);
   assert.match(customer, /fallback\.textContent = '🍽️'/);
   assert.match(customerCss, /\.menu-image-fallback/);
