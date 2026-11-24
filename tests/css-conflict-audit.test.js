@@ -251,3 +251,25 @@ test('admin, login and QR print pages opt into device safe-area viewport insets'
     assert.match(html, pattern, file + ' must enable viewport-fit=cover');
   }
 });
+
+test('admin mobile sidebar stays aligned below the header at every narrow breakpoint', () => {
+  const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const marker = 'Keep the mobile admin sidebar directly below the header';
+  const finalOverrides = adminCss.slice(adminCss.lastIndexOf(marker));
+  const breakpoints = [
+    ['920px', '58px'],
+    ['760px', '56px'],
+    ['480px', '52px'],
+    ['420px', '48px'],
+  ];
+
+  let previous = -1;
+  for (const [breakpoint, offset] of breakpoints) {
+    const media = finalOverrides.indexOf(`@media (max-width: ${breakpoint})`);
+    assert.ok(media > previous, `${breakpoint} sidebar override must follow the wider breakpoint`);
+    const nextMedia = finalOverrides.indexOf('@media (max-width:', media + 1);
+    const block = finalOverrides.slice(media, nextMedia === -1 ? undefined : nextMedia);
+    assert.match(block, new RegExp(`\\.ff-admin \\.admin-sidebar\\s*\\{[^}]*top:\\s*${offset};[^}]*height:\\s*calc\\(100vh - ${offset}\\);[^}]*height:\\s*calc\\(100dvh - ${offset}\\);`, 's'));
+    previous = media;
+  }
+});
