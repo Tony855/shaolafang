@@ -595,7 +595,7 @@
     .order-card .order-item .item-price {
         font-weight: 600;
         font-size: 15px;
-        color: #2d2d2d;
+        color: var(--primary-dark, #c94a2a);
         white-space: nowrap;
         margin: 0 6px;
         flex-shrink: 0;
@@ -951,13 +951,6 @@
         padding-left: max(12px, env(safe-area-inset-left));
         padding-right: max(12px, env(safe-area-inset-right));
     }
-/* 订单/结算商品行主货币颜色 */
-.order-card .order-item .item-price {
-  color: var(--primary-dark, #c94a2a);
-  font-weight: 600;
-}
-
-
 /* FoodFlow customer visual refresh — intentionally scoped to the customer page. */
 .ff-customer {
   --customer-ink: #252b36;
