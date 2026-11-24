@@ -1100,13 +1100,37 @@
         .order-item-admin .bottom .actions button.danger:hover {
             background: rgba(231,76,60,.25);
         }
-        .order-item-admin .top .table-info {
+        .order-item-admin .top .order-heading {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 7px;
+            min-width: 0;
+        }
+        .order-item-admin .top .order-number-label {
+            color: #9b9bb2;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .04em;
+        }
+        .order-item-admin .top .order-number {
+            display: inline-flex;
+            align-items: center;
+            max-width: 100%;
+            padding: 6px 10px;
+            border: 1px solid rgba(232, 93, 58, .32);
+            border-radius: 9px;
+            background: rgba(232, 93, 58, .13);
+            color: #ff9a76;
+            font: 700 14px/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            letter-spacing: .035em;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .order-item-admin .top .order-context {
             color: #c8c8d0;
             font-size: 14px;
-        }
-        .order-item-admin .top .table-info strong {
-            color: #fff;
-            font-size: 16px;
+            line-height: 1.5;
         }
 
         .table-status {
