@@ -231,7 +231,7 @@ function ensureFulfillmentSelect() {
   const wrap = document.createElement('label');
   wrap.id = 'orderFulfillmentWrap';
   wrap.style.cssText = 'display:block;margin:10px 0;font-size:13px;';
-  wrap.textContent = '订单类型 ';
+  wrap.textContent = tAdmin('orderFulfillmentTypeLabel') + ' ';
   select = document.createElement('select');
   select.id = 'orderFulfillmentType';
   select.style.cssText = 'display:block;width:100%;margin-top:6px;padding:10px;border-radius:8px;';
