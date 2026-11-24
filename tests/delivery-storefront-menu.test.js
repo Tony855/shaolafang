@@ -81,3 +81,10 @@ test('delivery storefront quantity controls enforce configured bounds', () => {
   assert.match(page, /plus\.disabled=Number\(cart\.get\(String\(item\.id\)\)\|\|0\)>=maxQty/);
   assert.match(page, /minus\.disabled=Number\(cart\.get\(String\(item\.id\)\)\|\|0\)===0/);
 });
+
+
+test('delivery checkout requires a persistent customer identity token before enabling submission', () => {
+  assert.match(page, /getCustomerIdentityToken\(\)/);
+  assert.match(page, /customer_token:customerToken/);
+  assert.match(page, /\$\('submit'\)\.disabled=count===0\|\|!validTotal\|\|!customerToken/);
+});

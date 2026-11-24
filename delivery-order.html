@@ -184,7 +184,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   const primaryTotal=formatCurrency(totalBase,primaryCurrency);
   const secondaryTotal=dualEnabled&&secondaryCurrency?formatCurrency(totalBase,secondaryCurrency):'';
   $('total').textContent=validTotal?(primaryTotal+(secondaryTotal?' / '+secondaryTotal:'')):'汇率暂不可用';
-  $('submit').disabled=count===0||!validTotal;
+  $('submit').disabled=count===0||!validTotal||!customerToken;
   $('currencyHint').textContent=dualEnabled&&secondaryCurrency?primaryCurrency.code+' + '+secondaryCurrency.code:primaryCurrency.code;
  }
  function change(id,delta){
