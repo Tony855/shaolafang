@@ -3409,3 +3409,27 @@ button.edit-btn:disabled {
   .ff-admin .panel.module-panel { border-radius: 14px; }
   .ff-admin .order-tabs-bar { align-items: stretch; }
 }
+
+/* Keep narrow-phone overrides after all legacy 480px rules. */
+@media (max-width: 420px) {
+  .ff-admin .top {
+    height: 48px;
+    min-height: 48px;
+    padding: 0 8px 0 44px;
+    gap: 5px;
+  }
+  .ff-admin .top-right select {
+    font-size: 10px;
+    padding: 0 5px;
+    min-width: 40px;
+    max-width: 65px;
+    height: 28px;
+  }
+  .ff-admin .nav-item {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  .ff-admin {
+    padding-top: 48px;
+  }
+}

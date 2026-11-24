@@ -73,3 +73,14 @@ test('payment secondary styles stay scoped while shared primary buttons remain a
   const cashierHtml = fs.readFileSync(path.join(__dirname, '..', 'cashier.html'), 'utf8');
   assert.match(cashierHtml, /class="btn btn-primary"[^>]*id="loginBtn"/);
 });
+
+test('admin 420px layout overrides are applied after legacy 480px rules', () => {
+  const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const final420 = adminCss.lastIndexOf('@media (max-width: 420px)');
+  const final480 = adminCss.lastIndexOf('@media (max-width: 480px)');
+  assert.ok(final420 > final480, 'the final narrow-phone overrides must follow all 480px rules');
+  const narrowCss = adminCss.slice(final420);
+  assert.match(narrowCss, /\.ff-admin \.top\s*\{[^}]*height:\s*48px/s);
+  assert.match(narrowCss, /\.ff-admin \.top-right select\s*\{[^}]*font-size:\s*10px/s);
+  assert.match(narrowCss, /\.ff-admin \.nav-item\s*\{[^}]*font-size:\s*12px/s);
+});
