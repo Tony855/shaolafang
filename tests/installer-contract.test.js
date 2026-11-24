@@ -355,6 +355,17 @@ test('top-level deployment guides and standard installer use the current reposit
 });
 
 
+test('local and enterprise installers consistently honor the selected branch or tag', () => {
+  const local = read('install-local.sh');
+  assert.ok(local.includes('git clone --branch "${GIT_VERSION:-main}" "$REPO_URL" .'));
+  for (const file of ['deploy/enterprise/cluster/deploy.sh', 'deploy/enterprise-ultimate/cluster/deploy.sh']) {
+    const source = read(file);
+    assert.ok(source.includes('git fetch --no-tags origin "${GIT_VERSION:-main}"'), file);
+    assert.ok(source.includes('git checkout --detach FETCH_HEAD'), file);
+    assert.doesNotMatch(source, /git pull --ff-only origin main/);
+  }
+});
+
 test('first-install and cluster startup use readiness gates instead of fixed startup sleeps', () => {
   for (const file of ['install.sh', 'install-local.sh']) {
     const source = read(file);
