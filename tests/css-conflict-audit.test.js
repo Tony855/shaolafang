@@ -53,10 +53,11 @@ test('super admin modal overlays stay above mobile navigation controls', () => {
   const superCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'super.css'), 'utf8');
   const modalBlock = superCss.match(/\.modal\s*\{([^}]*)\}/)?.[1] || '';
   const menuButtonBlock = superCss.match(/\.mobile-menu-btn\s*\{([^}]*)\}/)?.[1] || '';
-  const topBarBlock = superCss.match(/\.super-top\s*\{([^}]*)\}/)?.[1] || '';
+  const topBarBlocks = [...superCss.matchAll(/\.super-top\s*\{([^}]*)\}/g)].map((match) => match[1]);
   const readZIndex = (block) => Number(block.match(/z-index:\s*(\d+)/)?.[1] || 0);
+  const topBarZIndex = Math.max(0, ...topBarBlocks.map(readZIndex));
 
   assert.ok(readZIndex(modalBlock) > readZIndex(menuButtonBlock));
-  assert.ok(readZIndex(modalBlock) > readZIndex(topBarBlock));
+  assert.ok(readZIndex(modalBlock) > topBarZIndex);
   assert.equal(readZIndex(modalBlock), 400);
 });
