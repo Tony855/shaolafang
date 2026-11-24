@@ -115,7 +115,7 @@ test('checkout keys survive reload in one tab but remain isolated across tabs', 
   const start = page.indexOf(' function createCheckoutKey(){');
   const end = page.indexOf(' let telegramBound=', start);
   assert.ok(start >= 0 && end > start, 'checkout key functions must remain a contiguous testable block');
-  const source = page.slice(start, end) + '\\n({ get key(){ return checkoutKey; }, name: checkoutKeyName, rotateCheckoutKey })';
+  const source = page.slice(start, end) + '\n({ get key(){ return checkoutKey; }, name: checkoutKeyName, rotateCheckoutKey })';
   const makeStorage = () => {
     const values = new Map();
     return {
@@ -146,8 +146,8 @@ test('checkout keys survive reload in one tab but remain isolated across tabs', 
 });
 
 test('customer identity remains browser-wide while checkout idempotency is tab-scoped', () => {
-  assert.match(page, /localStorage\\.getItem\\(key\\)/);
-  assert.match(page, /localStorage\\.setItem\\(key,token\\)/);
-  assert.match(page, /sessionStorage\\.getItem\\(checkoutKeyName\\)/);
-  assert.match(page, /sessionStorage\\.setItem\\(checkoutKeyName,key\\)/);
+  assert.match(page, /localStorage\.getItem\(key\)/);
+  assert.match(page, /localStorage\.setItem\(key,token\)/);
+  assert.match(page, /sessionStorage\.getItem\(checkoutKeyName\)/);
+  assert.match(page, /sessionStorage\.setItem\(checkoutKeyName,key\)/);
 });
