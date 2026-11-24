@@ -148,7 +148,7 @@ test('kitchen confirmation and urge dialogs remain reachable on short safe-area 
 
 test('QR print card fits the dynamic safe viewport and keeps its body scrollable', () => {
   const qr = fs.readFileSync(path.join(__dirname, '..', 'assets', 'qr-print.css'), 'utf8');
-  const body = qr.match(/\bbody\s*\{([^}]*)\}/)?.[1] || '';
+  const body = qr.match(/(?:^|\n)\s*body\s*\{([^}]*)\}/)?.[1] || '';
   const card = qr.match(/\.qr-card\s*\{([^}]*)\}/)?.[1] || '';
   const cardBody = qr.match(/\.card-body\s*\{([^}]*)\}/)?.[1] || '';
   assert.match(body, /safe-area-inset-top/);
