@@ -43,8 +43,8 @@ force_test_dir="$(mktemp -d)"
   mkdir -p uploads backups logs
   printf 'user upload\n' > uploads/keep.txt
   : > .env
-  ff_prepare_force_deploy_repository "https://github.com/Tony855/shaolafang.git"
-  [ "$(git remote get-url origin)" = "https://github.com/Tony855/shaolafang.git" ]
+  ff_prepare_force_deploy_repository "git@github.com:Tony855/shaolafang.git"
+  [ "$(git remote get-url origin)" = "git@github.com:Tony855/shaolafang.git" ]
   grep -q "local production edit" app.js
   grep -q "user upload" uploads/keep.txt
   printf 'secret fixture\n' > .env.production
