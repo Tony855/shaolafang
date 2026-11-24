@@ -260,7 +260,8 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           merchantId: store.merchant_id,
           storeId,
           eventKey: `order:${orderId}:created:customer`,
-          event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, tableName: '', fulfillmentType: 'delivery', recipientName, amount: total, currency: 'USD' }
+          event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, tableName: '', fulfillmentType: 'delivery', recipientName, amount: total, currency: 'USD' },
+          enqueue: deps.enqueueTelegramNotification
         });
       });
 
