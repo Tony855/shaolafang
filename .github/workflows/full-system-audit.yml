@@ -180,3 +180,4 @@ jobs:
           node --test tests/mysql-session-token-migration.test.js
           node --test tests/mysql-finance-backup-restore.test.js
           node --test tests/mysql-telegram-outbox-integration.test.js
+          node --test tests/mysql-delivery-idempotency-integration.test.js
