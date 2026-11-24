@@ -18,7 +18,8 @@ test('customer modal remains scrollable and constrained on mobile viewports', ()
   assert.match(css, /\.ff-customer #orderNoteInput\s*\{[^}]*font-size:\s*16px;/s);
 });
 
-test('customer order item price rule is not duplicated', () => {
+test('customer order item price color is defined once with a responsive size override', () => {
   const selector = css.match(/\.order-card \.order-item \.item-price\s*\{/g) || [];
-  assert.equal(selector.length, 1);
+  assert.equal(selector.length, 2); // base rule plus the intentional mobile font-size override
+  assert.match(css, /\.order-card \.order-item \.item-price\s*\{[^}]*color:\s*var\(--primary-dark,\s*#c94a2a\);/s);
 });
