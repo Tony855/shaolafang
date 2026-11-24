@@ -342,3 +342,28 @@ test('cashier mobile order list and footer styles avoid redundant same-breakpoin
   assert.match(cashierCss, /\.pos-order-card\s*\{[^}]*padding:\s*11px 12px;[^}]*margin-bottom:\s*8px;/);
   assert.match(cashierCss, /\.pos-left \.pos-left-bottom\s*\{[^}]*margin-top:\s*auto;[^}]*flex-shrink:\s*0;[^}]*padding:\s*8px 0;/);
 });
+
+test('admin extracted responsive styles do not repeat the legacy 1024px and 480px overrides', () => {
+  const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const extracted = adminCss.slice(adminCss.indexOf('Extracted from admin.html on 2026-09-28'));
+  const repeated1024Rules = [
+    /\.top #adminHeaderTitle\s*\{/,
+    /\.sidebar-brand\s*\{[^}]*padding:\s*4px 4px 6px !important/s,
+    /\.sidebar-store-icon\s*\{[^}]*font-size:\s*18px !important/s,
+    /\.nav-item:hover\s*\{[^}]*background:\s*rgba\(255,255,255,.1\)/s
+  ];
+  for (const pattern of repeated1024Rules) {
+    assert.doesNotMatch(extracted, pattern, 'extracted 1024px block must not duplicate the legacy responsive block');
+  }
+  const narrowRules = [
+    /\.top\s*\{\s*padding:\s*0 8px 0 48px;\s*gap:\s*6px;\s*height:\s*52px;\s*min-height:\s*52px;/,
+    /\.admin-sidebar\s*\{\s*padding:\s*14px 8px 8px !important;/,
+    /\.nav-item\s*\{\s*padding:\s*10px;\s*font-size:\s*13px;\s*gap:\s*8px;/,
+    /\.admin-shell\s*\{\s*padding:\s*8px 8px 16px;/
+  ];
+  for (const pattern of narrowRules) {
+    assert.doesNotMatch(extracted, pattern, 'extracted 480px block must not duplicate the legacy narrow-screen rules');
+  }
+  assert.match(extracted, /\.tab-group\s*\{/, 'unique extracted tab-group styles must remain');
+  assert.match(extracted, /\.menu-thumb img\s*\{/, 'unique extracted menu thumbnail styles must remain');
+});
