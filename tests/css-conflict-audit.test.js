@@ -51,13 +51,12 @@ test('cashier and waiter payment overlays preserve KHQR stacking order', () => {
 
 test('super admin modal overlays stay above mobile navigation controls', () => {
   const superCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'super.css'), 'utf8');
-  const readZIndex = (selector) => {
-    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const block = superCss.match(new RegExp(escaped + String.raw\`\\s*\\{([^}]*)\\}\`))?.[1] || '';
-    return Number(block.match(/z-index:\\s*(\\d+)/)?.[1] || 0);
-  };
+  const modalBlock = superCss.match(/\.modal\s*\{([^}]*)\}/)?.[1] || '';
+  const menuButtonBlock = superCss.match(/\.mobile-menu-btn\s*\{([^}]*)\}/)?.[1] || '';
+  const topBarBlock = superCss.match(/\.super-top\s*\{([^}]*)\}/)?.[1] || '';
+  const readZIndex = (block) => Number(block.match(/z-index:\s*(\d+)/)?.[1] || 0);
 
-  assert.ok(readZIndex('.modal') > readZIndex('.mobile-menu-btn'));
-  assert.ok(readZIndex('.modal') > readZIndex('.super-top'));
-  assert.equal(readZIndex('.modal'), 400);
+  assert.ok(readZIndex(modalBlock) > readZIndex(menuButtonBlock));
+  assert.ok(readZIndex(modalBlock) > readZIndex(topBarBlock));
+  assert.equal(readZIndex(modalBlock), 400);
 });
