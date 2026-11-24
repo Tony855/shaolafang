@@ -117,9 +117,9 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
  const checkoutKeyName='foodflow_delivery_checkout_key_v1:'+storeId;
  function getCheckoutKey(){
   try{
-   const saved=localStorage.getItem(checkoutKeyName)||'';
+   const saved=sessionStorage.getItem(checkoutKeyName)||'';
    if(/^[a-f0-9]{64}$/.test(saved))return saved;
-   const key=createCheckoutKey();if(key)localStorage.setItem(checkoutKeyName,key);return key;
+   const key=createCheckoutKey();if(key)sessionStorage.setItem(checkoutKeyName,key);return key;
   }catch(_){return '';}
  }
  let checkoutKey=getCheckoutKey();
