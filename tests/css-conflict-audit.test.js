@@ -397,3 +397,18 @@ test('super admin responsive modal inherits its base overlay background and card
   assert.match(baseModal, /\.modal\s*\{[^}]*background:\s*rgba\(0,0,0,.6\)/s);
   assert.match(baseModal, /\.modal-card\s*\{[^}]*border:\s*1px solid rgba\(255,255,255,.1\)/s);
 });
+
+
+test('merchant admin hamburger remains visible after legacy extracted CSS on mobile', () => {
+  const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const finalRuleMarker = 'Keep the merchant-admin mobile navigation control visible after all legacy CSS.';
+  const finalRuleIndex = adminCss.lastIndexOf(finalRuleMarker);
+  const legacyHiddenRuleIndex = adminCss.lastIndexOf('.hamburger-btn { display: none');
+
+  assert.ok(finalRuleIndex > legacyHiddenRuleIndex, 'the final mobile visibility override must follow the legacy hidden rule');
+  const finalRules = adminCss.slice(finalRuleIndex);
+  assert.match(finalRules, /@media\s*\(max-width:\s*1024px\)[\s\S]*body\.ff-admin\s+#hamburgerBtn\.hamburger-btn\s*\{[^}]*display:\s*flex;/);
+  assert.match(finalRules, /body\.ff-admin\s+#hamburgerBtn\.hamburger-btn\s*\{[^}]*z-index:\s*1000;/);
+  const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  assert.match(adminHtml, /<button[^>]*class="hamburger-btn"[^>]*id="hamburgerBtn"[^>]*onclick="toggleSidebar\(\)"/);
+});
