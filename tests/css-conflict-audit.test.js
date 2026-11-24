@@ -159,3 +159,19 @@ test('login error dialog stays scrollable within dynamic safe viewport', () => {
   assert.match(card, /overflow-y:\s*auto/);
   assert.match(login, /@media \(max-width: 768px\)\s*\{\s*\.error-modal\s*\{\s*align-items:\s*flex-start;/);
 });
+
+
+test('QR print card fits the dynamic safe viewport and keeps its body scrollable', () => {
+  const qr = fs.readFileSync(path.join(__dirname, '..', 'assets', 'qr-print.css'), 'utf8');
+  const body = qr.match(/(?:^|\n)\s*body\s*\{([^}]*)\}/)?.[1] || '';
+  const card = qr.match(/\.qr-card\s*\{([^}]*)\}/)?.[1] || '';
+  const cardBody = qr.match(/\.card-body\s*\{([^}]*)\}/)?.[1] || '';
+  assert.match(body, /safe-area-inset-top/);
+  assert.match(body, /safe-area-inset-bottom/);
+  assert.match(card, /100dvh/);
+  assert.match(cardBody, /min-height:\s*0/);
+  assert.match(cardBody, /overflow-y:\s*auto/);
+  const printRules = qr.slice(qr.indexOf('@media print'));
+  assert.match(printRules, /max-height:\s*none\s*!important/);
+  assert.match(printRules, /overflow:\s*visible\s*!important/);
+});
