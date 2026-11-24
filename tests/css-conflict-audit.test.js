@@ -445,3 +445,22 @@ test('merchant admin responsive CSS does not repeat identical declarations at th
   assert.doesNotMatch(final420, /\.ff-admin \.top\s*\{/,
     'the final sidebar alignment block should not repeat the 420px header height');
 });
+
+
+test('customer menu cards and header remain viewport-contained on mobile', () => {
+  const customer = fs.readFileSync(path.join(__dirname, '..', 'assets', 'customer.css'), 'utf8');
+  const marker = '2026-11-24: fix customer ordering header/card width';
+  const rules = customer.slice(customer.lastIndexOf(marker));
+  assert.match(rules, /\.ff-customer \.header\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;/s);
+  assert.match(rules, /\.ff-customer \.menu-grid\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/s);
+  assert.match(rules, /\.ff-customer \.menu-item\s*\{[^}]*min-width:\s*0;/s);
+});
+
+test('admin order action buttons wrap instead of overflowing on mobile', () => {
+  const admin = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const marker = '2026-11-24: mobile order-list cards and actions';
+  const rules = admin.slice(admin.lastIndexOf(marker));
+  assert.match(rules, /#orders \.admin-card\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(rules, /#orders \.admin-card \.actions\s*\{[^}]*flex-wrap:\s*wrap;/s);
+  assert.match(rules, /@media\s*\(max-width:\s*420px\)/);
+});
