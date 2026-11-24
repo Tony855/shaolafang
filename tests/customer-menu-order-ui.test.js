@@ -26,7 +26,7 @@ test('customer menu renders configured secondary currency and retries missing cu
 });
 
 test('customer menu supports absolute and uploaded image paths with a visible load-failure fallback', () => {
-  assert.match(customer, /const imageSrc = \/\^https\?:/);
+  assert.match(customer, /const imageSrc = \/\^https?:/);
   assert.match(customer, /menuGrid\.querySelectorAll\('\.img-wrap img'\)/);
   assert.match(customer, /fallback\.textContent = '🍽️'/);
   assert.match(customerCss, /\.menu-image-fallback/);
