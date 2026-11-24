@@ -68,6 +68,6 @@ test('shared payment button styles stay scoped to payment actions', () => {
   assert.match(sharedCss, /\.payment-actions \.btn-secondary:hover\s*\{/);
   assert.match(sharedCss, /\.payment-actions \.btn-primary\s*\{/);
   assert.match(sharedCss, /\.payment-actions \.btn-primary:hover\s*\{/);
-  assert.doesNotMatch(sharedCss, /^\\.btn-secondary\\s*\\{/m);
-  assert.doesNotMatch(sharedCss, /^\\.btn-primary\\s*\\{/m);
+  assert.doesNotMatch(sharedCss, /^\.btn-secondary\s*\{/m);
+  assert.doesNotMatch(sharedCss, /^\.btn-primary\s*\{/m);
 });
