@@ -55,7 +55,7 @@ async function loadOrders() {
   const sessionLabels = buildSessionLabels(filtered);
   $('#orders').innerHTML = filtered.map(o => `
       <div class="order-item-admin">
-        <div class="top"><div class="order-heading"><span class="order-number-label">订单号</span><span class="order-number">${esc(o.order_no||'#'+o.id)}</span><span class="order-context">${o.fulfillment_type==='delivery'?'外卖配送':o.fulfillment_type==='takeaway'?'顾客自取':(tAdmin('table')||L('table'))+' '+esc(o.table||'—')}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span></div><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':o.status==='refunded'?'status-refunded':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
+        <div class="top"><div class="order-heading"><span class="order-number-label">订单号</span><span class="order-number">${esc(o.order_no||'#'+o.id)}</span><span class="order-context">${o.fulfillment_type==='delivery'?tAdmin('orderFulfillmentDelivery'):o.fulfillment_type==='takeaway'?tAdmin('orderFulfillmentTakeaway'):(tAdmin('table')||L('table'))+' '+esc(o.table||'—')}${sessionLabels.get(o.id) ? ` · <span class="session-badge">${esc(sessionLabels.get(o.id))}</span>` : ''}</span></div><span class="status ${o.status==='done'?'status-done':o.status==='canceled'?'status-canceled':o.status==='refunded'?'status-refunded':'status-pending'}">${statusText[o.status]||esc(o.status)}</span></div>
         ${o.note ? `<div class="order-note" style="margin:8px 0;padding:8px 12px;border-radius:10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.2);font-size:13px;color:#f0c040;line-height:1.5;"><strong style="color:#ffd93d;">${esc(L('orderNoteDisplay')||tAdmin('note'))}：</strong>${esc(o.note)}</div>` : ''}
         <div class="items">${(o.items || []).map((item,index) => `
           <div class="dish-line" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -197,7 +197,7 @@ function syncOrderTableRequirement() {
   const tableSelect = $('#orderTable');
   if (!fulfillmentSelect || !tableSelect) return;
   if (![...tableSelect.options].some(option => option.value === '')) {
-    tableSelect.insertBefore(new Option('无需座号（外卖/自取）', ''), tableSelect.firstChild);
+    tableSelect.insertBefore(new Option(tAdmin('orderNoTableForDelivery'), ''), tableSelect.firstChild);
   }
   const tableRequired = fulfillmentSelect.value === 'dine_in';
   tableSelect.required = tableRequired;
@@ -235,7 +235,7 @@ function ensureFulfillmentSelect() {
   select = document.createElement('select');
   select.id = 'orderFulfillmentType';
   select.style.cssText = 'display:block;width:100%;margin-top:6px;padding:10px;border-radius:8px;';
-  [['dine_in','堂食'],['takeaway','顾客自取'],['delivery','外卖配送']].forEach(([value,label]) => {
+  [['dine_in',tAdmin('orderFulfillmentDineIn')],['takeaway',tAdmin('orderFulfillmentTakeaway')],['delivery',tAdmin('orderFulfillmentDelivery')]].forEach(([value,label]) => {
     const option = document.createElement('option'); option.value = value; option.textContent = label; select.appendChild(option);
   });
   wrap.appendChild(select);
@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', function() {
           delivery_address: document.getElementById('orderDeliveryAddress')?.value.trim() || ''
         } : undefined;
         if (fulfillmentType === 'delivery' && (!delivery.recipient_name || !delivery.recipient_phone || !delivery.delivery_address)) {
-          SLF.ui.toast('❌ 请填写收件人、联系电话和配送地址'); return;
+          SLF.ui.toast('❌ ' + tAdmin('orderDeliveryFieldsRequired')); return;
         }
         const result = await api(editingOrderId ? '/orders/' + editingOrderId : '/orders', { method: editingOrderId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: {
           table: $('#orderTable').value || '',
@@ -373,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (trackingResult) trackingResult.hidden = false;
           const saveButton = document.getElementById('orderSaveBtn');
           if (saveButton) saveButton.disabled = true;
-          SLF.ui.toast('✅ 外卖订单已创建，配送任务等待分配骑手');
+          SLF.ui.toast('✅ ' + tAdmin('orderDeliveryCreatedWaitingRider'));
         } else {
           closeOrderForm();
           SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + (editingOrderId ? tAdmin('updated') : tAdmin('added')));
@@ -390,8 +390,8 @@ const copyTrackingButton = document.getElementById('copyOrderTrackingLink');
 if (copyTrackingButton) copyTrackingButton.addEventListener('click', async () => {
   const link = document.getElementById('orderTrackingLink');
   if (!link || !link.href) return;
-  try { await navigator.clipboard.writeText(link.href); SLF.ui.toast('✅ 追踪链接已复制'); }
-  catch (_) { SLF.ui.toast('请长按链接复制：' + link.href); }
+  try { await navigator.clipboard.writeText(link.href); SLF.ui.toast('✅ ' + tAdmin('orderTrackingCopied')); }
+  catch (_) { SLF.ui.toast(tAdmin('orderTrackingCopyManual') + link.href); }
 });
 
 // 挂到 window
