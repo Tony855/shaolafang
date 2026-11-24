@@ -21,6 +21,17 @@ test('public customer categories use stable ordering for equal sort positions', 
   assert.match(publicRoutes, /SELECT id, name, sort FROM menu_categories WHERE store_id=\? ORDER BY sort, id/);
 });
 
+test('switching QR store context clears previous store menu, categories, cart, and cached store info', () => {
+  assert.match(customer, /function setActiveStoreId\(value\)/);
+  assert.match(customer, /state\.menu = \[\]/);
+  assert.match(customer, /state\.categoryOrder = \[\]/);
+  assert.match(customer, /state\.cart = \{\}/);
+  assert.match(customer, /state\.currentStore = null/);
+  assert.match(customer, /_storeInfoFetchedForStoreId = null/);
+  assert.match(customer, /setActiveStoreId\(info\.storeId\)/);
+  assert.match(customer, /setActiveStoreId\(session\.storeId\)/);
+});
+
 test('customer QR session resolves store before loading store-scoped currency, categories, and menu', () => {
   const initStart = customer.indexOf('async function init()');
   const init = customer.slice(initStart);
