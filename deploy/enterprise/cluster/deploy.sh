@@ -75,7 +75,7 @@ if [ -d /var/www/foodflow/.git ]; then
         log_error "部署目录存在未提交修改；为避免覆盖人工变更，已停止更新"
         exit 1
     fi
-    git fetch origin && git pull --ff-only origin main || {
+    git fetch --no-tags origin "${GIT_VERSION:-main}" && git checkout --detach FETCH_HEAD || {
         log_error "代码更新失败；请检查远程分支和本地状态"
         exit 1
     }
@@ -86,7 +86,7 @@ else
         log_warn "目录已存在且非空，备份到 $BACKUP_DIR"
         mv /var/www/foodflow "$BACKUP_DIR"
     fi
-    git clone https://github.com/Tony855/foodflow-enterprise.git /var/www/foodflow
+    git clone --branch "${GIT_VERSION:-main}" https://github.com/Tony855/shaolafang.git /var/www/foodflow
 fi
 log_success "代码部署完成"
 

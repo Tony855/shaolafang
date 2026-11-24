@@ -4,6 +4,8 @@
 
 ## 推荐部署
 
+标准版、企业版及旗舰版共享唯一代码仓库 `Tony855/shaolafang`，避免安装文档或脚本指向不同项目。
+
 ~~~bash
 git clone https://github.com/Tony855/shaolafang.git
 cd shaolafang

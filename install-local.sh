@@ -64,7 +64,7 @@ if [ ! -f "$APP_DIR/server.js" ]; then
     
         REPO_URL="https://github.com/Tony855/shaolafang.git"
         log_info "使用公开仓库 HTTPS 方式拉取"
-        git clone "$REPO_URL" .
+        git clone --branch "${GIT_VERSION:-main}" "$REPO_URL" .
     fi
     log_success "代码已就位: $APP_DIR"
 else

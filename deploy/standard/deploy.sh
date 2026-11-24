@@ -62,24 +62,16 @@ log_info "部署代码到 $DEPLOY_TARGET..."
 # 创建目标目录
 mkdir -p "$DEPLOY_TARGET"
 
-REPO_NAME="$(basename "$PROJECT_DIR")"
-case "$REPO_NAME" in
-    *enterprise-ultimate*|*ultimate*)
-        GIT_REPO="https://github.com/Tony855/foodflow-enterprise-ultimate.git"
-        ;;
-    *enterprise*)
-        GIT_REPO="https://github.com/Tony855/foodflow-enterprise.git"
-        ;;
-    *)
-        GIT_REPO="https://github.com/Tony855/shaolafang.git"
-        ;;
-esac
+# 所有部署形态统一从唯一官方仓库获取源码，不再根据目录名称猜测仓库。
+GIT_REPO="https://github.com/Tony855/shaolafang.git"
+GIT_VERSION="${GIT_VERSION:-main}"
 
 if [ -d "$DEPLOY_TARGET/.git" ]; then
     log_info "检测到 Git 部署目录，检查工作区后执行安全快进更新..."
     cd "$DEPLOY_TARGET"
     ff_require_clean_git_worktree
-    git pull --ff-only origin main
+    git fetch --no-tags origin "$GIT_VERSION"
+    git checkout --detach FETCH_HEAD
     log_success "代码快进更新完成"
 elif [ -n "$(ls -A "$DEPLOY_TARGET" 2>/dev/null)" ]; then
     log_error "目标目录非空但不是 Git 仓库；为保护生产配置和数据，拒绝备份搬移或覆盖。"
@@ -87,7 +79,7 @@ elif [ -n "$(ls -A "$DEPLOY_TARGET" 2>/dev/null)" ]; then
     exit 1
 else
     log_info "首次部署，克隆代码仓库: $GIT_REPO"
-    git clone "$GIT_REPO" "$DEPLOY_TARGET"
+    git clone --branch "$GIT_VERSION" "$GIT_REPO" "$DEPLOY_TARGET"
     log_success "代码克隆完成"
 fi
 

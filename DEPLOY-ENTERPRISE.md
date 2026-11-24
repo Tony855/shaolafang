@@ -11,6 +11,8 @@
 
 ## 获取当前仓库
 
+所有企业版与旗舰版代码统一来自 `Tony855/shaolafang`；集群部署脚本不再克隆历史独立仓库。默认使用 `main`，需要指定 tag 时在克隆/部署前设置 `GIT_VERSION`，并核实目标 ref。
+
 ~~~bash
 git clone https://github.com/Tony855/shaolafang.git
 cd shaolafang

@@ -93,6 +93,17 @@ test('remote updates use the same runtime baseline and locked dependency install
 
 
 
+test('installer removes bootstrap and remote-update temporary directories on every exit path', () => {
+  const installer = read('install.sh');
+  assert.match(installer, /cleanup_installer_temps\(\)/);
+  assert.match(installer, /trap cleanup_installer_temps EXIT/);
+  assert.match(installer, /BOOTSTRAP_DIR=""/);
+  assert.match(installer, /UPDATE_TMP_DIR="\$\(mktemp -d \/tmp\/foodflow-remote-update\.XXXXXX\)"/);
+  assert.match(installer, /updater_tmp="\$UPDATE_TMP_DIR\/remote-update\.sh"/);
+  assert.match(installer, /safety_tmp="\$UPDATE_TMP_DIR\/deploy-safety\.sh"/);
+  assert.doesNotMatch(installer, /mktemp \/tmp\/foodflow-remote-update\.XXXXXX/);
+});
+
 test('deployment safety serializes installers and protects dirty worktrees', () => {
   const safety = read('scripts/lib/deploy-safety.sh');
   const update = read('remote-update.sh');
@@ -111,7 +122,8 @@ test('deployment safety serializes installers and protects dirty worktrees', () 
   assert.match(update, /trap rollback_update EXIT/);
   assert.ok(update.indexOf('ff_require_clean_git_worktree') < update.indexOf('mktemp -d'));
   assert.match(standard, /ff_acquire_deploy_lock/);
-  assert.match(standard, /git pull --ff-only origin main/);
+  assert.match(standard, /git fetch --no-tags origin "\$GIT_VERSION"/);
+  assert.match(standard, /git checkout --detach FETCH_HEAD/);
   assert.doesNotMatch(standard, /git pull origin main \|\| log_warn/);
   assert.match(standard, /FF_DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1/);
   assert.ok(read('install.sh').includes('git -C "$target" show FETCH_HEAD:remote-update.sh'));
@@ -136,10 +148,11 @@ test('all deployment entrypoints share a lock and never kill arbitrary port owne
   assert.ok(read('install.sh').includes('ff_require_port_available "$BACKEND_PORT"'));
   assert.ok(read('install-local.sh').includes('ff_require_port_available "$BACKEND_PORT"'));
   assert.ok(read('deploy/standard/deploy.sh').includes('ff_require_clean_git_worktree'));
-  assert.ok(read('deploy/standard/deploy.sh').includes('git clone "$GIT_REPO" "$DEPLOY_TARGET"'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('git clone --branch "$GIT_VERSION" "$GIT_REPO" "$DEPLOY_TARGET"'));
   assert.ok(read('deploy/standard/deploy.sh').includes('目标目录非空但不是 Git 仓库'));
   assert.ok(!read('deploy/standard/deploy.sh').includes('rsync -a --delete'));
-  assert.ok(read('deploy/standard/deploy.sh').includes('git pull --ff-only origin main'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('git fetch --no-tags origin "$GIT_VERSION"'));
+  assert.ok(read('deploy/standard/deploy.sh').includes("git checkout --detach FETCH_HEAD"));
   const nginx = read('setup-nginx.sh');
   assert.ok(nginx.includes('check_port_available 80'));
   assert.ok(!nginx.includes('fuser -k'));
@@ -331,8 +344,38 @@ test('top-level deployment guides and standard installer use the current reposit
   assert.ok(standardGuide.includes('执行定时任务 | false'));
   assert.ok(deployGuide.includes('Tony855/shaolafang.git'));
   assert.ok(standardScript.includes('GIT_REPO="https://github.com/Tony855/shaolafang.git"'));
+  assert.ok(standardScript.includes('git clone --branch "$GIT_VERSION" "$GIT_REPO" "$DEPLOY_TARGET"'));
+  assert.ok(standardScript.includes('git fetch --no-tags origin "$GIT_VERSION"'));
+  assert.ok(standardScript.includes("git checkout --detach FETCH_HEAD"));
+  assert.doesNotMatch(standardScript, /foodflow-enterprise(?:-ultimate)?\.git/);
+  assert.doesNotMatch(standardScript, /REPO_NAME=.*basename|case "\\$REPO_NAME"/);
+
+  for (const file of [
+    'install.sh',
+    'install-local.sh',
+    'deploy/enterprise/cluster/deploy.sh',
+    'deploy/enterprise-ultimate/cluster/deploy.sh'
+  ]) {
+    const source = read(file);
+    assert.ok(source.includes('Tony855/shaolafang'), file + ' must use the canonical source repository');
+    assert.doesNotMatch(source, /foodflow-enterprise(?:-ultimate)?\.git/, file + ' must not reference retired repositories');
+  }
+  const bootstrap = read('install.sh');
+  assert.ok(bootstrap.includes('archive/$BOOTSTRAP_VERSION.tar.gz'));
+  assert.ok(bootstrap.includes('GIT_VERSION="$BOOTSTRAP_VERSION"'));
 });
 
+
+test('local and enterprise installers consistently honor the selected branch or tag', () => {
+  const local = read('install-local.sh');
+  assert.ok(local.includes('git clone --branch "${GIT_VERSION:-main}" "$REPO_URL" .'));
+  for (const file of ['deploy/enterprise/cluster/deploy.sh', 'deploy/enterprise-ultimate/cluster/deploy.sh']) {
+    const source = read(file);
+    assert.ok(source.includes('git fetch --no-tags origin "${GIT_VERSION:-main}"'), file);
+    assert.ok(source.includes('git checkout --detach FETCH_HEAD'), file);
+    assert.doesNotMatch(source, /git pull --ff-only origin main/);
+  }
+});
 
 test('first-install and cluster startup use readiness gates instead of fixed startup sleeps', () => {
   for (const file of ['install.sh', 'install-local.sh']) {
