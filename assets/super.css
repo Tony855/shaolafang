@@ -324,3 +324,41 @@ select:focus { outline: none; border-color: #e85d3a !important; }
     padding-top: calc(52px + env(safe-area-inset-top, 0px));
   }
 }
+
+
+/* Super-admin dialogs: keep both standard and error modals inside the safe dynamic viewport. */
+.modal {
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.modal-card {
+  box-sizing: border-box;
+  min-height: 0;
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.error-modal {
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  align-items: flex-start;
+}
+.error-modal-card {
+  box-sizing: border-box;
+  min-height: 0;
+  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: auto;
+}
+@supports (height: 100dvh) {
+  .modal-card,
+  .error-modal-card {
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px);
+  }
+  @media (max-width: 1024px) {
+    .modal-card { max-height: calc(85dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px); }
+  }
+}
