@@ -1,0 +1,212 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const mysql = require('mysql2/promise');
+
+const databaseUrl = process.env.MYSQL_INTEGRATION_URL;
+if (databaseUrl) {
+  const url = new URL(databaseUrl);
+  process.env.DB_HOST = url.hostname;
+  process.env.DB_PORT = url.port || '3306';
+  process.env.DB_USER = decodeURIComponent(url.username);
+  process.env.DB_PASSWORD = decodeURIComponent(url.password);
+  process.env.DB_DATABASE = decodeURIComponent(url.pathname.slice(1));
+}
+
+const poolModule = require('../server/db/pool');
+const { runAsync, getAsync, allAsync, withTransaction } = require('../server/db/helpers');
+const { ensureDeliverySchema } = require('../server/db/migrations/delivery');
+const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations/telegram-customer-binding');
+const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
+const { hashSessionToken } = require('../server/services/session-token');
+const { enqueueTelegramNotification } = require('../server/services/telegram-notification-outbox');
+const registerCustomerDeliveryRoutes = require('../routes/customer-delivery');
+
+function makeResponse() {
+  return {
+    statusCode: 200,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(value) { this.body = value; return this; }
+  };
+}
+
+function makeRequest(body, key) {
+  return {
+    body,
+    headers: { 'idempotency-key': key },
+    get(name) { return name.toLowerCase() === 'idempotency-key' ? key : ''; }
+  };
+}
+
+test('MySQL integration: delivery checkout idempotency is atomic under real concurrent requests', {
+  skip: !databaseUrl ? 'MYSQL_INTEGRATION_URL is not configured' : false,
+  timeout: 60000
+}, async t => {
+  const databaseName = decodeURIComponent(new URL(databaseUrl).pathname.slice(1));
+  assert.match(databaseName, /(?:^|[_-])test(?:$|[_-])/i,
+    'delivery idempotency integration must use an isolated test database');
+
+  const testPool = mysql.createPool(databaseUrl);
+  const previousPool = poolModule.pool;
+  poolModule.setPool(testPool);
+  const tables = [
+    'telegram_notification_outbox', 'telegram_webhook_updates',
+    'telegram_customer_bindings', 'telegram_customer_binding_challenges',
+    'delivery_rider_locations', 'delivery_order_requests', 'delivery_jobs',
+    'delivery_rider_sessions', 'delivery_riders', 'orders', 'menus',
+    'settings', 'stores', 'merchants'
+  ];
+  const cleanup = async () => {
+    await runAsync('DROP TRIGGER IF EXISTS trg_delivery_it_fail_job');
+    for (const table of tables) await runAsync('DROP TABLE IF EXISTS `' + table + '`');
+  };
+  t.after(async () => {
+    try { await cleanup(); }
+    finally { poolModule.setPool(previousPool); await testPool.end(); }
+  });
+
+  await cleanup();
+  await runAsync('CREATE TABLE merchants (id INT NOT NULL PRIMARY KEY, status TINYINT NOT NULL DEFAULT 1) ENGINE=InnoDB');
+  await runAsync('CREATE TABLE stores (id INT NOT NULL PRIMARY KEY, merchant_id INT NOT NULL, name VARCHAR(120) NOT NULL, active TINYINT NOT NULL DEFAULT 1, KEY idx_store_merchant (merchant_id)) ENGINE=InnoDB');
+  await runAsync('CREATE TABLE settings (`key` VARCHAR(191) NOT NULL PRIMARY KEY, value TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+  await runAsync('CREATE TABLE menus (id INT NOT NULL PRIMARY KEY, store_id INT NOT NULL, sales_count INT NOT NULL DEFAULT 0) ENGINE=InnoDB');
+  await runAsync('CREATE TABLE orders (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, order_no VARCHAR(80) NOT NULL UNIQUE, table_name VARCHAR(120) DEFAULT NULL, items LONGTEXT NOT NULL, total DECIMAL(12,2) NOT NULL, status VARCHAR(32) NOT NULL, createdAt DATETIME(3) NOT NULL, session_token CHAR(64) DEFAULT NULL, customer_token CHAR(64) DEFAULT NULL, store_id INT NOT NULL, note VARCHAR(200) NOT NULL DEFAULT '', merchant_id INT NOT NULL, fulfillment_type VARCHAR(32) NOT NULL, pay_method VARCHAR(16) NOT NULL, KEY idx_orders_store (store_id,id)) ENGINE=InnoDB');
+
+  await runAsync('INSERT INTO merchants (id,status) VALUES (7,1)');
+  await runAsync("INSERT INTO stores (id,merchant_id,name,active) VALUES (9,7,'Integration Store',1)");
+  await runAsync('INSERT INTO menus (id,store_id,sales_count) VALUES (5,9,0)');
+  await runAsync("INSERT INTO settings (`key`,value) VALUES ('max_order_items','50'),('max_item_quantity','100'),('order_prefix_normal','11'),('order_no_reset_period','never'),('telegram_admin_bot_enabled','0'),('telegram_client_bot_enabled','1')");
+
+  await ensureDeliverySchema({ runAsync, allAsync });
+  await ensureTelegramCustomerBindingSchema({ runAsync });
+  await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
+
+  const customerToken = 'a'.repeat(64);
+  const customerTokenHash = hashSessionToken(customerToken);
+  await runAsync(
+    'INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))',
+    [customerTokenHash, 7, 9, '70009', '70009']
+  );
+
+  let orderSequence = 0;
+  const emitted = [];
+  const registered = new Map();
+  const app = {
+    get(path, ...handlers) { registered.set('GET ' + path, handlers[handlers.length - 1]); },
+    post(path, ...handlers) { registered.set('POST ' + path, handlers[handlers.length - 1]); },
+    delete(path, ...handlers) { registered.set('DELETE ' + path, handlers[handlers.length - 1]); }
+  };
+  registerCustomerDeliveryRoutes(app, {
+    getAsync, allAsync, runAsync, withTransaction,
+    normalizeOrderItems: async input => input.map(item => ({
+      id: Number(item.id), name: 'Noodle', price: 12.5, base_price: 12.5,
+      quantity: Number(item.quantity)
+    })),
+    allocateOrderNo: async prefix => prefix + String(++orderSequence).padStart(5, '0'),
+    getOrderCooldownMs: async () => 0,
+    checkAndSetCooldown: async () => true,
+    getClientIp: () => '127.0.0.1',
+    formatOrder: row => ({ ...row }),
+    io: { to(room) { return { emit(event, payload) { emitted.push({ room, event, payload }); } }; } },
+    enqueueTelegramNotification
+  });
+
+  const handler = registered.get('POST /api/public/delivery/orders');
+  assert.equal(typeof handler, 'function');
+  const body = {
+    store_id: 9, customer_token: customerToken,
+    recipient_name: 'Integration Customer', recipient_phone: '+855 12 345 678',
+    delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
+    items: [{ id: 5, quantity: 1 }]
+  };
+  const key = 'b'.repeat(64);
+
+  const first = makeResponse();
+  const second = makeResponse();
+  await Promise.all([
+    handler(makeRequest(body, key), first),
+    handler(makeRequest(body, key), second)
+  ]);
+  assert.deepEqual([first.statusCode, second.statusCode].sort((a,b) => a-b), [200,201]);
+  assert.equal(first.body.orderId, second.body.orderId);
+  assert.equal(first.body.orderNo, second.body.orderNo);
+  assert.equal(first.body.customerToken, customerToken);
+  assert.equal(second.body.customerToken, customerToken);
+  assert.ok(first.body.trackingUrl.includes('#token=' + customerToken));
+
+  const countSql = 'SELECT (SELECT COUNT(*) FROM orders WHERE store_id=9 AND fulfillment_type=\'delivery\') AS orders_count, (SELECT COUNT(*) FROM delivery_jobs WHERE store_id=9) AS jobs_count, (SELECT sales_count FROM menus WHERE id=5) AS sales_count, (SELECT COUNT(*) FROM telegram_notification_outbox WHERE store_id=9 AND event_type=\'order.created\') AS notices_count';
+  const concurrentCounts = await getAsync(countSql);
+  assert.equal(Number(concurrentCounts.orders_count), 1);
+  assert.equal(Number(concurrentCounts.jobs_count), 1);
+  assert.equal(Number(concurrentCounts.sales_count), 1);
+  assert.equal(Number(concurrentCounts.notices_count), 1);
+  assert.equal(emitted.filter(item => item.event === 'order:new').length, 2,
+    'only the creating request emits kitchen/waiter/cashier events');
+
+  const replay = makeResponse();
+  await handler(makeRequest(body, key), replay);
+  assert.equal(replay.statusCode, 200);
+  assert.equal(replay.body.orderId, first.body.orderId);
+  assert.equal(replay.body.orderNo, first.body.orderNo);
+  assert.equal(replay.body.customerToken, customerToken);
+  assert.equal(replay.body.trackingUrl, first.body.trackingUrl);
+
+  const conflictCart = makeResponse();
+  await handler(makeRequest({ ...body, items: [{ id: 5, quantity: 2 }] }, key), conflictCart);
+  assert.equal(conflictCart.statusCode, 409);
+  const conflictCustomer = makeResponse();
+  await handler(makeRequest({ ...body, customer_token: 'c'.repeat(64) }, key), conflictCustomer);
+  assert.equal(conflictCustomer.statusCode, 409);
+
+  const secondKeyResponse = makeResponse();
+  await handler(makeRequest(body, 'd'.repeat(64)), secondKeyResponse);
+  assert.equal(secondKeyResponse.statusCode, 201);
+  assert.notEqual(secondKeyResponse.body.orderId, first.body.orderId);
+
+  const secondCounts = await getAsync(countSql);
+  assert.equal(Number(secondCounts.orders_count), 2);
+  assert.equal(Number(secondCounts.jobs_count), 2);
+  assert.equal(Number(secondCounts.sales_count), 2);
+  assert.equal(Number(secondCounts.notices_count), 2);
+
+  const persisted = await allAsync(
+    'SELECT idempotency_key_hash,customer_token_hash,request_hash,order_id FROM delivery_order_requests WHERE store_id=? ORDER BY id',
+    [9]
+  );
+  assert.equal(persisted.length, 2);
+  const persistedJson = JSON.stringify(persisted);
+  assert.equal(persistedJson.includes(key), false);
+  assert.equal(persistedJson.includes(customerToken), false);
+  assert.equal(persisted.every(row => /^[a-f0-9]{64}$/.test(row.idempotency_key_hash)), true);
+  assert.equal(persisted.every(row => /^[a-f0-9]{64}$/.test(row.customer_token_hash)), true);
+
+  await runAsync("CREATE TRIGGER trg_delivery_it_fail_job BEFORE INSERT ON delivery_jobs FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='delivery integration rollback injection'");
+  const rollbackKey = 'e'.repeat(64);
+  const rollbackResponse = makeResponse();
+  const originalConsoleError = console.error;
+  const capturedErrors = [];
+  console.error = (...args) => capturedErrors.push(args.map(String).join(' '));
+  try {
+    await handler(makeRequest(body, rollbackKey), rollbackResponse);
+  } finally {
+    console.error = originalConsoleError;
+    await runAsync('DROP TRIGGER IF EXISTS trg_delivery_it_fail_job');
+  }
+  assert.equal(rollbackResponse.statusCode, 500);
+  assert.equal(capturedErrors.join(' ').includes(rollbackKey), false);
+  assert.equal(capturedErrors.join(' ').includes(customerToken), false);
+  const rollbackHash = crypto.createHash('sha256').update(rollbackKey).digest('hex');
+  assert.equal(Number((await getAsync('SELECT COUNT(*) AS total FROM delivery_order_requests WHERE store_id=? AND idempotency_key_hash=?', [9, rollbackHash])).total), 0);
+  assert.equal(Number((await getAsync('SELECT COUNT(*) AS total FROM orders WHERE store_id=9')).total), 2);
+  assert.equal(Number((await getAsync('SELECT COUNT(*) AS total FROM delivery_jobs WHERE store_id=9')).total), 2);
+
+  const retryAfterRollback = makeResponse();
+  await handler(makeRequest(body, rollbackKey), retryAfterRollback);
+  assert.equal(retryAfterRollback.statusCode, 201);
+  assert.equal(Number((await getAsync('SELECT COUNT(*) AS total FROM orders WHERE store_id=9')).total), 3);
+  assert.equal(Number((await getAsync('SELECT COUNT(*) AS total FROM delivery_jobs WHERE store_id=9')).total), 3);
+  assert.equal(Number((await getAsync('SELECT sales_count FROM menus WHERE id=5')).sales_count), 3);
+});
