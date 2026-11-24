@@ -202,3 +202,28 @@ test('super admin mobile chrome and sidebar respect safe dynamic viewport', () =
   assert.match(mobileRules, /\.super-top\s*\{[^}]*padding-top:\s*env\(safe-area-inset-top, 0px\)/s);
   assert.match(mobileRules, /\.mobile-menu-btn\s*\{[^}]*top:\s*calc\(5px \+ env\(safe-area-inset-top, 0px\)\)/s);
 });
+
+
+test('super admin standard and error dialogs stay scrollable inside the dynamic safe viewport', () => {
+  const superCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'super.css'), 'utf8');
+  const dialogRules = superCss.slice(superCss.lastIndexOf('Super-admin dialogs:'));
+  const standardOverlay = dialogRules.match(/\.modal\s*\{([^}]*)\}/)?.[1] || '';
+  const standardCard = dialogRules.match(/\.modal-card\s*\{([^}]*)\}/)?.[1] || '';
+  const errorOverlay = dialogRules.match(/\.error-modal\s*\{([^}]*)\}/)?.[1] || '';
+  const errorCard = dialogRules.match(/\.error-modal-card\s*\{([^}]*)\}/)?.[1] || '';
+  for (const overlay of [standardOverlay, errorOverlay]) {
+    assert.match(overlay, /overflow-y:\s*auto/);
+    assert.match(overlay, /safe-area-inset-top/);
+    assert.match(overlay, /safe-area-inset-bottom/);
+    assert.match(overlay, /box-sizing:\s*border-box/);
+  }
+  for (const card of [standardCard, errorCard]) {
+    assert.match(card, /max-height:\s*calc\(100vh/);
+    assert.match(card, /overflow-y:\s*auto/);
+    assert.match(card, /min-height:\s*0/);
+    assert.match(card, /box-sizing:\s*border-box/);
+  }
+  assert.match(dialogRules, /@supports \(height:\s*100dvh\)/);
+  assert.match(dialogRules, /max-height:\s*calc\(100dvh/);
+  assert.match(dialogRules, /max-height:\s*calc\(85dvh/);
+});
