@@ -381,3 +381,19 @@ test('super admin responsive CSS avoids repeated declarations already inherited 
   assert.match(safeAreaNarrow, /\.sidebar\s*\{[^}]*top:\s*calc\(44px \+ env\(safe-area-inset-top, 0px\)\)/s);
   assert.match(safeAreaNarrow, /\.main\s*\{[^}]*padding-top:\s*calc\(52px \+ env\(safe-area-inset-top, 0px\)\)/s);
 });
+
+
+test('super admin responsive modal inherits its base overlay background and card border', () => {
+  const superCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'super.css'), 'utf8');
+  const responsiveStart = superCss.indexOf('@media (max-width: 1024px) {');
+  const responsiveEnd = superCss.indexOf('\n}\n', responsiveStart);
+  assert.ok(responsiveStart >= 0 && responsiveEnd > responsiveStart);
+  const responsive = superCss.slice(responsiveStart, responsiveEnd);
+  const modalRule = responsive.match(/\.modal\s*\{([^}]*)\}/)?.[1] || '';
+  const cardRule = responsive.match(/\.modal-card\s*\{([^}]*)\}/)?.[1] || '';
+  assert.doesNotMatch(modalRule, /background\s*:/, 'modal overlay must inherit the single base background');
+  assert.doesNotMatch(cardRule, /border\s*:/, 'modal card must inherit the single base border');
+  const baseModal = superCss.slice(0, responsiveStart);
+  assert.match(baseModal, /\.modal\s*\{[^}]*background:\s*rgba\(0,0,0,.6\)/s);
+  assert.match(baseModal, /\.modal-card\s*\{[^}]*border:\s*1px solid rgba\(255,255,255,.1\)/s);
+});
