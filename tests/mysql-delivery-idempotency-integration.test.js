@@ -108,7 +108,11 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
       failDeliveryJobInsert = false;
       throw new Error('delivery integration rollback injection');
     }
-    return runAsync(sql, params);
+    try { return await runAsync(sql, params); }
+    catch (error) {
+      integrationDbErrors.push({ operation: 'runAsync', code: error.code || '', message: error.message || '' });
+      throw error;
+    }
   };
   const emitted = [];
   const registered = new Map();
