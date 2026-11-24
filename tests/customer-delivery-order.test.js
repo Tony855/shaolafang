@@ -110,3 +110,20 @@ test('customer KHQR generation and payment notification require the order bearer
   assert.equal(ctx.calls.length, 0);
   assert.deepEqual(ctx.transactions, []);
 });
+
+test('customer delivery order reuses the durable browser customer token without storing it in plaintext', async () => {
+  const ctx = setup();
+  const token = 'b'.repeat(64);
+  const res = response();
+  await ctx.handler({ body: {
+    store_id: 7, customer_token: token,
+    recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
+    delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
+    items: [{ id: 5, quantity: 1 }]
+  } }, res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.customerToken, token);
+  const orderInsert = ctx.calls.find(x => x.type === 'run' && x.sql.includes('INSERT INTO orders'));
+  assert.equal(orderInsert.params[4], require('../server/services/session-token').hashSessionToken(token));
+  assert.notEqual(orderInsert.params[4], token);
+});
