@@ -342,3 +342,16 @@ test('cashier mobile order list and footer styles avoid redundant same-breakpoin
   assert.match(cashierCss, /\.pos-order-card\s*\{[^}]*padding:\s*11px 12px;[^}]*margin-bottom:\s*8px;/);
   assert.match(cashierCss, /\.pos-left \.pos-left-bottom\s*\{[^}]*margin-top:\s*auto;[^}]*flex-shrink:\s*0;[^}]*padding:\s*8px 0;/);
 });
+
+test('super admin responsive CSS avoids repeated declarations already inherited from wider breakpoints', () => {
+  const superCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'super.css'), 'utf8');
+  const statusBadgeRules = superCss.match(/\.data-table \.status-badge\s*\{[^}]*\}/g) || [];
+  assert.equal(statusBadgeRules.length, 1, 'status badge sizing should be inherited from the 1024px rule');
+  const repeatedFormSpacing = superCss.match(/\.form-group\s*\{\s*margin-bottom:\s*14px;\s*\}/g) || [];
+  assert.equal(repeatedFormSpacing.length, 1, '14px form spacing should be declared once at the wider mobile breakpoint');
+  const safeAreaMenuOffsets = superCss.match(/\.mobile-menu-btn\s*\{\s*top:\s*calc\(5px \+ env\(safe-area-inset-top, 0px\)\);\s*\}/g) || [];
+  assert.equal(safeAreaMenuOffsets.length, 1, 'the narrower safe-area breakpoint should inherit the same menu-button offset');
+  const safeAreaNarrow = superCss.slice(superCss.indexOf('@media (max-width: 768px) {', superCss.indexOf('Super-admin mobile chrome')));
+  assert.match(safeAreaNarrow, /\.sidebar\s*\{[^}]*top:\s*calc\(44px \+ env\(safe-area-inset-top, 0px\)\)/s);
+  assert.match(safeAreaNarrow, /\.main\s*\{[^}]*padding-top:\s*calc\(52px \+ env\(safe-area-inset-top, 0px\)\)/s);
+});
