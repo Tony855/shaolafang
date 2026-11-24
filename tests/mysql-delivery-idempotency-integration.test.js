@@ -13,6 +13,8 @@ if (databaseUrl) {
   process.env.DB_USER = decodeURIComponent(url.username);
   process.env.DB_PASSWORD = decodeURIComponent(url.password);
   process.env.DB_DATABASE = decodeURIComponent(url.pathname.slice(1));
+} else if (!process.env.DB_DATABASE) {
+  process.env.DB_DATABASE = 'delivery_idempotency_test';
 }
 
 const poolModule = require('../server/db/pool');
