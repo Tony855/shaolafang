@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTelegramNotificationWorker } = require('../server/services/telegram-notification-worker-runtime');
+const { createTelegramNotificationWorker, isTelegramNotificationWorkerEnabled } = require('../server/services/telegram-notification-worker-runtime');
 
 const workerId = '123e4567-e89b-42d3-a456-426614174000';
 
@@ -82,4 +82,14 @@ test('Telegram worker can stop during its idle poll delay without hanging', asyn
 test('Telegram worker rejects unsafe polling intervals and worker IDs', () => {
   assert.throws(() => createTelegramNotificationWorker({ workerId: 'not-a-uuid' }), /Worker ID/);
   assert.throws(() => createTelegramNotificationWorker({ workerId, intervalMs: 10 }), /polling interval/);
+});
+
+test('Telegram delivery worker is disabled unless explicitly opted in', () => {
+  assert.equal(isTelegramNotificationWorkerEnabled(undefined), false);
+  assert.equal(isTelegramNotificationWorkerEnabled(''), false);
+  assert.equal(isTelegramNotificationWorkerEnabled('false'), false);
+  assert.equal(isTelegramNotificationWorkerEnabled('TRUE'), true);
+  assert.equal(isTelegramNotificationWorkerEnabled(' true '), true);
+  assert.equal(isTelegramNotificationWorkerEnabled('yes'), false);
+  assert.equal(isTelegramNotificationWorkerEnabled('1'), false);
 });

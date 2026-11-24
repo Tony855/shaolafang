@@ -1,6 +1,7 @@
 'use strict';
 
 const WEBHOOK_PATH = '/api/telegram/client/webhook';
+const { isTelegramNotificationWorkerEnabled } = require('../server/services/telegram-notification-worker-runtime');
 
 function toCount(value) {
   const count = Number(value);
@@ -86,7 +87,7 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
 
   return {
     worker: {
-      enabled: String(env.TELEGRAM_NOTIFICATION_WORKER_ENABLED || '').toLowerCase() !== 'false'
+      enabled: isTelegramNotificationWorkerEnabled(env.TELEGRAM_NOTIFICATION_WORKER_ENABLED)
     },
     webhookSecret: {
       configured: secret.length >= 32 && secret.length <= 256,
