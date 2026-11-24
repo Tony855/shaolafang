@@ -125,7 +125,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
  let checkoutKey=getCheckoutKey();
  function rotateCheckoutKey(){
   checkoutKey=createCheckoutKey();
-  try{if(checkoutKey)localStorage.setItem(checkoutKeyName,checkoutKey);}catch(_){checkoutKey='';}
+  try{if(checkoutKey)sessionStorage.setItem(checkoutKeyName,checkoutKey);}catch(_){checkoutKey='';}
  }
  let telegramBound=false,telegramBusy=false;
  async function refreshTelegramBinding(){
