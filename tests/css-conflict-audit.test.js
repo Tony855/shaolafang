@@ -68,7 +68,8 @@ test('payment secondary styles stay scoped while shared primary buttons remain a
   assert.match(sharedCss, /\.payment-actions \.btn-secondary:hover\s*\{/);
   assert.match(sharedCss, /^\.btn-primary\s*\{/m);
   assert.match(sharedCss, /^\.btn-primary:hover\s*\{/m);
-  assert.doesNotMatch(sharedCss, /^\.btn-secondary\s*\{/m);
+  assert.match(sharedCss, /\.btn-secondary\s*\{\s*background:\s*var\(--gray-100\)/);
+  assert.doesNotMatch(sharedCss, /^\.btn-secondary\s*\{\s*background:\s*#f3f4f6/m);
   const cashierHtml = fs.readFileSync(path.join(__dirname, '..', 'cashier.html'), 'utf8');
   assert.match(cashierHtml, /class="btn btn-primary"[^>]*id="loginBtn"/);
 });
