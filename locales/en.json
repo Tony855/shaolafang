@@ -1414,5 +1414,19 @@
   "customerTelegramUnbound": "Telegram customer notifications have been unlinked",
   "customerTelegramDeepLinkError": "Unable to create the Telegram linking URL",
   "customerTelegramStartHint": "Tap Start in Telegram to finish linking, then return to this page",
-  "customerTelegramOperationFailed": "Telegram linking failed. Please try again later."
+  "customerTelegramOperationFailed": "Telegram linking failed. Please try again later.",
+  "tableQrPopupBlocked": "The browser blocked the pop-up. Please allow pop-ups for this site and try again.",
+  "tableAdminSessionExpired": "Your admin session has expired. Please sign in again.",
+  "tableQrPageLoadFailed": "Failed to load the QR-code page.",
+  "adminNoActiveStores": "This account has no active stores available for assignment.",
+  "adminStoreAccessRequired": "Select at least one accessible store.",
+  "orderFulfillmentTypeLabel": "Order type",
+  "orderNoTableForDelivery": "No table required (delivery/takeaway)",
+  "orderFulfillmentDineIn": "Dine-in",
+  "orderFulfillmentTakeaway": "Pickup",
+  "orderFulfillmentDelivery": "Delivery",
+  "orderDeliveryFieldsRequired": "Please enter recipient, phone number, and delivery address",
+  "orderDeliveryCreatedWaitingRider": "Delivery order created. Delivery task is awaiting rider assignment.",
+  "orderTrackingCopied": "Tracking link copied",
+  "orderTrackingCopyManual": "Press and hold to copy: "
 }
