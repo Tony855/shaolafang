@@ -148,7 +148,7 @@ test('kitchen confirmation and urge dialogs remain reachable on short safe-area 
 
 test('admin mobile sidebar uses dynamic viewport height at every responsive breakpoint', () => {
   const admin = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
-  const matches = [...admin.matchAll(/height:\s*calc\(100vh - (56|58)px\);\s*height:\s*calc\(100dvh - \\1px\);/g)];
+  const matches = [...admin.matchAll(/height:\s*calc\(100vh - (56|58)px\);\s*height:\s*calc\(100dvh - \1px\);/g)];
   assert.ok(matches.length >= 3, 'all 1024px and 920px sidebar height declarations should include a dvh override');
 });
 
