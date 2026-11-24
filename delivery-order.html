@@ -23,12 +23,54 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 .submit:disabled{opacity:.5;cursor:not-allowed}.muted{font-size:12px;color:#8792a2}.error{color:#b42318;font-size:13px;margin-top:9px}.hidden{display:none}
 @media(max-width:720px){.layout{grid-template-columns:1fr}.menu{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:390px){.menu{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
+
+/* Delivery storefront: category navigation, complete image cards and dual-currency totals. */
+.store-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.store-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.store-tools select,.store-tools input{width:auto;min-width:130px;padding:8px 10px;font-size:13px}
+.category-nav{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;margin-bottom:12px;scrollbar-width:thin}
+.category-tab{flex:0 0 auto;border:1px solid #e5e9f0;border-radius:999px;background:#f7f8fb;color:#475467;padding:8px 14px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
+.category-tab.active{background:#e85d3a;border-color:#e85d3a;color:#fff}
+.category-tab:focus-visible,.controls button:focus-visible,.submit:focus-visible{outline:3px solid #f6b19c;outline-offset:2px}
+.menu-meta{display:flex;justify-content:space-between;gap:8px;color:#8792a2;font-size:12px;margin:0 0 10px}
+.menu{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));align-items:stretch}
+.item{padding:0;overflow:hidden;min-height:0}
+.item-photo{width:100%;height:150px;display:block;object-fit:cover;background:#fff0e8}
+.item-photo-fallback{width:100%;height:150px;display:grid;place-items:center;background:linear-gradient(135deg,#fff0e8,#f1f3f8);font-size:42px}
+.item-content{padding:12px;display:flex;flex:1;flex-direction:column}
+.item strong{line-height:1.4}
+.item .price{line-height:1.5;margin-top:8px}
+.secondary-price{display:block;color:#7b8492;font-size:12px;font-weight:600}
+.item .controls{margin-top:12px}
+.item .controls button{cursor:pointer}
+.empty-category{grid-column:1/-1;border:1px dashed #d8dee8;border-radius:12px;padding:20px;text-align:center;color:#8792a2;background:#fafbfc}
+.cart-line{align-items:flex-start}
+.cart-line strong{text-align:right;white-space:nowrap}
+.total{align-items:flex-start;gap:12px}
+#total{text-align:right}
+@media(max-width:720px){
+ main{margin:12px auto;padding:0 10px}
+ .panel{padding:14px;border-radius:14px}
+ .menu{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .item-photo,.item-photo-fallback{height:116px}
+ .item-content{padding:9px}
+ .item strong{font-size:13px}
+ .desc{font-size:11px;min-height:34px}
+ .item .price{font-size:13px}
+ .controls{gap:8px}
+}
+@media(max-width:390px){.menu{grid-template-columns:1fr}.item{display:grid;grid-template-columns:112px minmax(0,1fr)}.item-photo,.item-photo-fallback{height:100%;min-height:138px}.item-content{min-width:0}.store-tools select,.store-tools input{min-width:0;flex:1}}
+
 </style></head>
 <body>
 <header><h1>🛵 FoodFlow 外卖点餐</h1><p id="storeName">正在加载门店…</p></header>
 <main>
 <div class="layout">
-<section class="panel"><h2>选择菜品</h2><div id="menu" class="menu"><p class="muted">正在加载菜单…</p></div></section>
+<section class="panel">
+<div class="store-heading"><h2>选择菜品</h2><div class="store-tools"><input id="menuSearch" type="search" placeholder="搜索菜品…" aria-label="搜索菜品"><span id="currencyHint" class="muted"></span></div></div>
+<nav id="categoryNav" class="category-nav" aria-label="菜单分类"><span class="muted">正在加载分类…</span></nav>
+<div class="menu-meta"><span id="menuCount">正在加载菜单…</span><span id="categoryHint"></span></div>
+<div id="menu" class="menu" aria-live="polite"><p class="muted">正在加载菜单…</p></div></section>
 <aside>
 <section class="panel"><h2>配送信息</h2>
 <form id="orderForm">
@@ -51,49 +93,141 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 (() => {
  'use strict';
  const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'';
- const $=id=>document.getElementById(id),cart=new Map();let menu=[],rates=new Map([['USD',1]]),maxQty=100,createdOrderId=null,createdTrackingUrl='';
+ const $=id=>document.getElementById(id),cart=new Map();
+ let menu=[],categories=[],rates=new Map(),maxQty=100,createdOrderId=null,createdTrackingUrl='';
+ let primaryCurrency={code:'USD',symbol:'$',rate:1},secondaryCurrency=null,dualEnabled=false,currentCategory='__ALL__',searchTerm='';
  const escText=value=>String(value??'');
- function money(value,currency){const n=Number(value);return (Number.isFinite(n)?n.toFixed(2):'0.00')+' '+(currency||'USD');}
- function renderCart(){
-  const host=$('cart');host.replaceChildren();let total=0,count=0,validTotal=true;
-  for(const [id,qty] of cart){const item=menu.find(x=>String(x.id)===id);if(!item||qty<1)continue;count+=qty;const rate=Number(rates.get(String(item.currency_code||'USD').toUpperCase()));if(!Number.isFinite(rate)||rate<=0)validTotal=false;else total+=(Number(item.price||0)/rate)*qty;
-   const line=document.createElement('div');line.className='cart-line';const left=document.createElement('span');left.textContent=item.name+' × '+qty;const right=document.createElement('strong');right.textContent=money(Number(item.price||0)*qty,item.currency_code);line.append(left,right);host.append(line);
-  }
-  $('total').textContent=validTotal?total.toFixed(2)+' USD':'汇率暂不可用';$('submit').disabled=count===0||!validTotal;
+ function currencyRate(code){const rate=Number(rates.get(String(code||'USD').toUpperCase()));return Number.isFinite(rate)&&rate>0?rate:NaN;}
+ function toBaseAmount(item){const price=Number(item?.price),rate=currencyRate(item?.currency_code||primaryCurrency.code);return Number.isFinite(price)&&price>=0&&Number.isFinite(rate)?price/rate:NaN;}
+ function formatCurrency(baseAmount,currency){
+  if(!currency||!Number.isFinite(baseAmount))return '—';
+  const code=String(currency.code||'USD').toUpperCase(),rate=currencyRate(code);
+  if(!Number.isFinite(rate))return '—';
+  const amount=baseAmount*rate,decimals=code==='KHR'?0:2;
+  const formatted=amount.toLocaleString(undefined,{minimumFractionDigits:decimals,maximumFractionDigits:decimals});
+  return (currency.symbol||code)+' '+formatted+' '+code;
  }
- function change(id,delta){const next=Math.max(0,Math.min(maxQty,Number(cart.get(String(id))||0)+delta));if(next)cart.set(String(id),next);else cart.delete(String(id));const el=document.querySelector('[data-qty="'+id+'"]');if(el)el.textContent=String(next);renderCart();}
+ function priceMarkup(item){
+  const base=toBaseAmount(item);
+  const primary=formatCurrency(base,primaryCurrency);
+  const secondary=dualEnabled&&secondaryCurrency?formatCurrency(base,secondaryCurrency):'';
+  return {primary,secondary};
+ }
+ function renderCart(){
+  const host=$('cart');host.replaceChildren();let totalBase=0,count=0,validTotal=true;
+  for(const [id,qty] of cart){
+   const item=menu.find(x=>String(x.id)===id);if(!item||qty<1)continue;
+   const base=toBaseAmount(item);if(!Number.isFinite(base))validTotal=false;else totalBase+=base*qty;
+   count+=qty;
+   const prices=priceMarkup(item);
+   const line=document.createElement('div');line.className='cart-line';
+   const left=document.createElement('span');left.textContent=escText(item.name)+' × '+qty;
+   const right=document.createElement('strong');right.textContent=prices.primary+(prices.secondary?' / '+prices.secondary:'');
+   line.append(left,right);host.append(line);
+  }
+  const primaryTotal=formatCurrency(totalBase,primaryCurrency);
+  const secondaryTotal=dualEnabled&&secondaryCurrency?formatCurrency(totalBase,secondaryCurrency):'';
+  $('total').textContent=validTotal?(primaryTotal+(secondaryTotal?' / '+secondaryTotal:'')):'汇率暂不可用';
+  $('submit').disabled=count===0||!validTotal;
+  $('currencyHint').textContent=dualEnabled&&secondaryCurrency?primaryCurrency.code+' + '+secondaryCurrency.code:primaryCurrency.code;
+ }
+ function change(id,delta){
+  const key=String(id),next=Math.max(0,Math.min(maxQty,Number(cart.get(key)||0)+delta));
+  if(next)cart.set(key,next);else cart.delete(key);
+  const el=document.querySelector('[data-qty="'+CSS.escape(key)+'"]');if(el)el.textContent=String(next);
+  renderCart();
+ }
+ function imageUrl(item){
+  const value=String(item.image||item.image_url||'').trim();if(!value)return '';
+  if(/^https?:\/\//i.test(value))return value;
+  const normalized=value.replace(/\\/g,'/').replace(/^\.\/+/,'');
+  if(normalized.startsWith('/'))return normalized;
+  if(normalized.startsWith('uploads/'))return '/'+normalized;
+  return '/uploads/'+normalized;
+ }
+ function makeImage(item){
+  const src=imageUrl(item);
+  if(!src){const fallback=document.createElement('div');fallback.className='item-photo-fallback';fallback.textContent=escText(item.emoji)||'🍽️';fallback.setAttribute('aria-label','暂无菜品图片');return fallback;}
+  const img=document.createElement('img');img.className='item-photo';img.loading='lazy';img.decoding='async';img.alt=escText(item.name||'菜品图片');img.src=src;
+  img.addEventListener('error',()=>{const fallback=document.createElement('div');fallback.className='item-photo-fallback';fallback.textContent=escText(item.emoji)||'🍽️';fallback.setAttribute('aria-label','菜品图片加载失败');img.replaceWith(fallback);},{once:true});
+  return img;
+ }
+ function renderCategories(){
+  const nav=$('categoryNav');nav.replaceChildren();
+  const all=[{id:'__ALL__',name:'全部菜品'},...categories.map(c=>({id:String(c.name),name:String(c.name)}))];
+  if(currentCategory!=='__ALL__'&&!all.some(c=>c.id===currentCategory))currentCategory='__ALL__';
+  for(const category of all){
+   const button=document.createElement('button');button.type='button';button.className='category-tab'+(currentCategory===category.id?' active':'');
+   button.textContent=category.name;button.setAttribute('aria-pressed',String(currentCategory===category.id));
+   button.addEventListener('click',()=>{currentCategory=category.id;renderCategories();renderMenu();});
+   nav.append(button);
+  }
+ }
  function renderMenu(){
   const host=$('menu');host.replaceChildren();
-  if(!menu.length){const p=document.createElement('p');p.className='muted';p.textContent='当前门店暂无可点菜品';host.append(p);return;}
-  menu.forEach(item=>{
+  const filtered=menu.filter(item=>{
+   const categoryMatch=currentCategory==='__ALL__'||String(item.category||'其他')===currentCategory;
+   const haystack=[item.name,item.name_en,item.name_km,item.desc,item.desc_en,item.desc_km,item.category].join(' ').toLocaleLowerCase();
+   return categoryMatch&&(!searchTerm||haystack.includes(searchTerm));
+  });
+  $('menuCount').textContent='显示 '+filtered.length+' / '+menu.length+' 道菜品';
+  $('categoryHint').textContent=currentCategory==='__ALL__'?'全部分类':currentCategory;
+  if(!filtered.length){
+   const empty=document.createElement('div');empty.className='empty-category';
+   empty.textContent=menu.length?'该分类暂无匹配菜品':'当前门店暂无可点菜品';host.append(empty);return;
+  }
+  for(const item of filtered){
    const card=document.createElement('article');card.className='item';
-   const name=document.createElement('strong');name.textContent=escText(item.name);card.append(name);
-   const desc=document.createElement('div');desc.className='desc';desc.textContent=escText(item.description||item.desc||'');card.append(desc);
-   const price=document.createElement('div');price.className='price';price.textContent=money(item.price,item.currency_code);card.append(price);
+   card.append(makeImage(item));
+   const content=document.createElement('div');content.className='item-content';
+   const name=document.createElement('strong');name.textContent=escText(item.name);content.append(name);
+   const desc=document.createElement('div');desc.className='desc';desc.textContent=escText(item.description||item.desc||'');content.append(desc);
+   const price=document.createElement('div');price.className='price';
+   const prices=priceMarkup(item);price.textContent=prices.primary;
+   if(prices.secondary){const secondary=document.createElement('span');secondary.className='secondary-price';secondary.textContent=prices.secondary;price.append(secondary);}
+   content.append(price);
    const controls=document.createElement('div');controls.className='controls';
    const minus=document.createElement('button');minus.type='button';minus.textContent='−';minus.setAttribute('aria-label','减少数量');minus.addEventListener('click',()=>change(item.id,-1));
    const qty=document.createElement('span');qty.className='qty';qty.dataset.qty=String(item.id);qty.textContent=String(cart.get(String(item.id))||0);
    const plus=document.createElement('button');plus.type='button';plus.textContent='+';plus.setAttribute('aria-label','增加数量');plus.addEventListener('click',()=>change(item.id,1));
-   controls.append(minus,qty,plus);card.append(controls);host.append(card);
-  });
+   controls.append(minus,qty,plus);content.append(controls);card.append(content);host.append(card);
+  }
  }
  async function load(){
   if(!/^\d+$/.test(storeId)||Number(storeId)<=0){$('message').textContent='请使用包含有效 store_id 的外卖链接打开本页面';$('menu').replaceChildren();return;}
-  const [storeResponse,menuResponse,configResponse]=await Promise.all([
-   fetch('/api/public/store-info?store_id='+encodeURIComponent(storeId),{cache:'no-store'}),
-   fetch('/api/menu?store_id='+encodeURIComponent(storeId),{cache:'no-store'}),
-   fetch('/api/public/config?store_id='+encodeURIComponent(storeId),{cache:'no-store'})
-  ]);
-  const store=await storeResponse.json(),items=await menuResponse.json(),config=await configResponse.json();
-  if(!storeResponse.ok)throw new Error(store.error||'门店加载失败');
-  if(!menuResponse.ok)throw new Error(items.error||'菜单加载失败');
-  if(!configResponse.ok)throw new Error(config.error||'门店币种配置加载失败');
-  $('storeName').textContent=store.name||('门店 '+storeId);menu=Array.isArray(items)?items:[];
+  const endpoints=[
+   '/api/public/store-info?store_id='+encodeURIComponent(storeId),
+   '/api/menu?store_id='+encodeURIComponent(storeId),
+   '/api/public/config?store_id='+encodeURIComponent(storeId),
+   '/api/public/categories?store_id='+encodeURIComponent(storeId)
+  ];
+  const responses=await Promise.all(endpoints.map(url=>fetch(url,{cache:'no-store'})));
+  const payloads=await Promise.all(responses.map(response=>response.json().catch(()=>({}))));
+  if(!responses[0].ok)throw new Error(payloads[0].error||'门店加载失败');
+  if(!responses[1].ok)throw new Error(payloads[1].error||'菜单加载失败');
+  if(!responses[2].ok)throw new Error(payloads[2].error||'门店币种配置加载失败');
+  const store=payloads[0],config=payloads[2];
+  $('storeName').textContent=store.name||('门店 '+storeId);
+  menu=Array.isArray(payloads[1])?payloads[1]:[];
+  categories=Array.isArray(payloads[3])?payloads[3]:[];
+  const known=new Set(categories.map(c=>String(c.name)));
+  for(const item of menu){const name=String(item.category||'其他');if(!known.has(name)){categories.push({id:'legacy-'+categories.length,name,sort:Number.MAX_SAFE_INTEGER});known.add(name);}}
+  categories.sort((a,b)=>(Number(a.sort)||0)-(Number(b.sort)||0)||Number(a.id||0)-Number(b.id||0));
   rates=new Map((config.currencies||[]).map(currency=>[String(currency.code).toUpperCase(),Number(currency.rate)]));
-  if(!rates.has('USD'))rates.set('USD',1);
-  maxQty=Number(config.max_item_quantity)||100;
-  renderMenu();renderCart();
+  const primary=config.primaryCurrency||config.defaultCurrency||{code:'USD',symbol:'$',rate:1};
+  primaryCurrency={code:String(primary.code||'USD').toUpperCase(),symbol:primary.symbol||primary.code||'USD',rate:currencyRate(primary.code)||1};
+  const dual=config.dualCurrency||{};
+  dualEnabled=dual.enabled===true;
+  secondaryCurrency=dualEnabled?(dual.currency||null):null;
+  if(dualEnabled&&!secondaryCurrency){
+   const fallbackCode=primaryCurrency.code==='USD'?'KHR':'USD';
+   secondaryCurrency=(config.currencies||[]).find(c=>String(c.code).toUpperCase()===fallbackCode)||null;
+  }
+  if(dualEnabled&&!secondaryCurrency)dualEnabled=false;
+  maxQty=Number(config.max_item_quantity)||Number(config.constraints?.order?.maxPerItem)||100;
+  renderCategories();renderMenu();renderCart();
  }
+ $('menuSearch').addEventListener('input',event=>{searchTerm=String(event.target.value||'').trim().toLocaleLowerCase();renderMenu();});
  $('orderForm').addEventListener('submit',async event=>{
   event.preventDefault();$('message').textContent='';$('submit').disabled=true;
   const form=new FormData(event.currentTarget),items=[...cart].map(([id,quantity])=>({id:Number(id),quantity}));
@@ -114,8 +248,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
     if(!qrResponse.ok)throw new Error(qr.error||'收款码生成失败');
     $('paymentPanel').classList.remove('hidden');$('paymentQr').src=qr.qr_data_url;
     $('paymentSummary').textContent='订单 '+data.orderNo+' · 应付 '+Number(qr.amount).toFixed(qr.currency==='KHR'?0:2)+' '+qr.currency+' · '+(qr.merchant_name||'FoodFlow');
-    $('message').textContent='订单已创建，请完成付款后通知门店。';
-    $('submit').disabled=true;
+    $('message').textContent='订单已创建，请完成付款后通知门店。';$('submit').disabled=true;
     $('notifyPayment').onclick=async()=>{
      $('notifyPayment').disabled=true;
      try{
@@ -123,15 +256,12 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
        method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':data.customerToken},
        body:JSON.stringify({qr_generation_id:qr.qr_generation_id})
       });
-      const result=await notify.json().catch(()=>({}));
-      if(!notify.ok)throw new Error(result.error||'通知失败');
+      const result=await notify.json().catch(()=>({}));if(!notify.ok)throw new Error(result.error||'通知失败');
       $('paymentMessage').textContent='已通知门店，请等待收银员核实到账。';
      }catch(error){$('paymentMessage').textContent=error.message;$('notifyPayment').disabled=false;}
     };
     $('trackOrder').onclick=()=>location.href=data.trackingUrl;
-   }else{
-    location.href=data.trackingUrl;
-   }
+   }else location.href=data.trackingUrl;
   }catch(error){
    $('message').textContent=createdOrderId?'订单 '+createdOrderId+' 已创建，但支付初始化未完成：'+error.message+'。请先查看订单追踪或联系门店，勿重复提交。':error.message;
    if(createdOrderId){$('submit').disabled=true;$('paymentPanel').classList.remove('hidden');$('paymentMessage').textContent='可先查看订单配送状态。';$('trackOrder').onclick=()=>location.href=createdTrackingUrl;}
