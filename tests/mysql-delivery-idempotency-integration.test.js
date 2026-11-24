@@ -60,7 +60,6 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
     'settings', 'stores', 'merchants'
   ];
   const cleanup = async () => {
-    await runAsync('DROP TRIGGER IF EXISTS trg_delivery_it_fail_job');
     for (const table of tables) await runAsync('DROP TABLE IF EXISTS `' + table + '`');
   };
   t.after(async () => {
@@ -92,6 +91,14 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   );
 
   let orderSequence = 0;
+  let failDeliveryJobInsert = false;
+  const routeRunAsync = async (sql, params = []) => {
+    if (failDeliveryJobInsert && sql.includes('INSERT INTO delivery_jobs')) {
+      failDeliveryJobInsert = false;
+      throw new Error('delivery integration rollback injection');
+    }
+    return runAsync(sql, params);
+  };
   const emitted = [];
   const registered = new Map();
   const app = {
@@ -100,7 +107,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
     delete(path, ...handlers) { registered.set('DELETE ' + path, handlers[handlers.length - 1]); }
   };
   registerCustomerDeliveryRoutes(app, {
-    getAsync, allAsync, runAsync, withTransaction,
+    getAsync, allAsync, runAsync: routeRunAsync, withTransaction,
     normalizeOrderItems: async input => input.map(item => ({
       id: Number(item.id), name: 'Noodle', price: 12.5, base_price: 12.5,
       quantity: Number(item.quantity)
@@ -183,7 +190,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   assert.equal(persisted.every(row => /^[a-f0-9]{64}$/.test(row.idempotency_key_hash)), true);
   assert.equal(persisted.every(row => /^[a-f0-9]{64}$/.test(row.customer_token_hash)), true);
 
-  await runAsync("CREATE TRIGGER trg_delivery_it_fail_job BEFORE INSERT ON delivery_jobs FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='delivery integration rollback injection'");
+  failDeliveryJobInsert = true;
   const rollbackKey = 'e'.repeat(64);
   const rollbackResponse = makeResponse();
   const originalConsoleError = console.error;
@@ -193,7 +200,6 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
     await handler(makeRequest(body, rollbackKey), rollbackResponse);
   } finally {
     console.error = originalConsoleError;
-    await runAsync('DROP TRIGGER IF EXISTS trg_delivery_it_fail_job');
   }
   assert.equal(rollbackResponse.statusCode, 500);
   assert.equal(capturedErrors.join(' ').includes(rollbackKey), false);
