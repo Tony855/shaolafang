@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/stores.js — 门店管理
@@ -86,7 +87,8 @@ app.post('/api/admin/stores', requireAdminKey, requirePermission('can_manage_sto
     res.status(201).json(await getAsync('SELECT * FROM stores WHERE id=? AND merchant_id=?', [storeId, merchantId]));
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '店铺编码已存在' });
-    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '创建店铺失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '创建店铺失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -170,7 +172,8 @@ app.put('/api/admin/stores/:id', requireAdminKey, requirePermission('can_manage_
     res.json(updatedStore);
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '店铺编码已存在' });
-    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '更新门店失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '更新门店失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -229,7 +232,8 @@ app.delete('/api/admin/stores/:id', requireAdminKey, requirePermission('can_mana
     });
     res.json({ success: true });
   } catch (e) {
-    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '删除门店失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '删除门店失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -317,7 +321,8 @@ app.post('/api/admin/stores/:id/copy-menu', requireAdminKey, requirePermission('
       try { fs.unlinkSync(file); } catch (_) {}
     }
     if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '目标门店存在同名菜品，请刷新后重试' });
-    res.status(e.statusCode || 500).json({ error: e.statusCode ? e.message : '复制菜单失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '复制菜单失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 

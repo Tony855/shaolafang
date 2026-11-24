@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 const { parsePositiveRouteId } = require('../server/services/route-id');
 /* ============================================================
    routes/menu.js — 菜品 + 分类
@@ -175,8 +176,10 @@ app.post('/api/menu', requireAdminKey, requirePermission('can_manage_menu'), upl
     res.status(201).json(newItem);
   } catch (e) {
     for (const asset of uploadedAssets) removeMenuAsset(asset);
-    if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: e.status ? e.message : '该门店已存在同名菜品' });
-    res.status(e.status || 500).json({ error: e.status ? e.message : '创建菜品失败，所有更改已回滚' });
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该门店已存在同名菜品' });
+    if (e.status === 409) return res.status(409).json({ error: normalizeRouteError(e, '该门店已存在同名菜品').message });
+    const safeError = normalizeRouteError(e, '创建菜品失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -426,7 +429,7 @@ app.post('/api/menu/batch', requireAdminKey, requirePermission('can_manage_menu'
         success++;
       } catch (e) {
         failed++;
-        errors.push(`第 ${i+1} 行：${e.message}`);
+        errors.push(`第 ${i+1} 行：导入失败，请检查菜品数据或联系管理员`);
       }
     }
     
@@ -498,7 +501,8 @@ app.put('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'), 
   } catch (e) {
     for (const asset of uploadedAssets) removeMenuAsset(asset);
     if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '同一门店已存在同名菜品' });
-    res.status(e.status || 500).json({ error: e.status ? e.message : '更新菜品失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '更新菜品失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -521,7 +525,8 @@ app.delete('/api/menu/:id', requireAdminKey, requirePermission('can_manage_menu'
     removeMenuAsset(deletedItem.video);
     res.json({ success: true });
   } catch (e) {
-    res.status(e.status || 500).json({ error: e.status ? e.message : '删除菜品失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '删除菜品失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -540,7 +545,8 @@ app.put('/api/menu/:id/status', requireAdminKey, requirePermission('can_manage_m
       updated = await getAsync('SELECT * FROM menus WHERE id=? AND store_id=?', [id, storeId]);
     });
     res.json(updated);
-  } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新菜品状态失败，所有更改已回滚' }); }
+  } catch (e) { const safeError = normalizeRouteError(e, '更新菜品状态失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message }); }
 });
 
 // ----- 菜品分类 -----
@@ -572,7 +578,8 @@ app.post('/api/menu-categories', requireAdminKey, requirePermission('can_manage_
     res.status(201).json(created);
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: '分类已存在' });
-    res.status(e.status || 500).json({ error: e.status ? e.message : '创建分类失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '创建分类失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -597,7 +604,8 @@ app.put('/api/menu-categories/:id', requireAdminKey, requirePermission('can_mana
     res.json(updated);
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: '分类已存在' });
-    res.status(e.status || 500).json({ error: e.status ? e.message : '更新分类失败，所有更改已回滚' });
+    const safeError = normalizeRouteError(e, '更新分类失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
@@ -625,7 +633,8 @@ app.delete('/api/menu-categories/:id', requireAdminKey, requirePermission('can_m
       await writeMenuCategoryAudit(req, 'delete_menu_category', id, { name: current.name, fallback });
     });
     res.json({ success: true });
-  } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除分类失败，所有更改已回滚' }); }
+  } catch (e) { const safeError = normalizeRouteError(e, '删除分类失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message }); }
 });
 
 app.post('/api/menu-categories/sort', requireAdminKey, requirePermission('can_manage_menu'), async (req, res) => {
@@ -650,7 +659,8 @@ app.post('/api/menu-categories/sort', requireAdminKey, requirePermission('can_ma
       await writeMenuCategoryAudit(req, 'sort_menu_categories', null, { ids: ids.map(Number) });
     });
     res.json({ success: true });
-  } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '分类排序失败，所有更改已回滚' }); }
+  } catch (e) { const safeError = normalizeRouteError(e, '分类排序失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message }); }
 });
 
 // ----- 座号 -----

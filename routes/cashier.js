@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 /* ============================================================
    routes/cashier.js — 服务员登录 + 收银员路由
    ============================================================ */
@@ -190,7 +191,8 @@ app.post('/api/cashier/login', async (req, res) => {
       token, storeId: candidate.storeId, storeName: authenticatedStoreName, cashier: authenticatedCashier
     });
   } catch (e) {
-    res.status(e.status || 500).json({ error: e.status ? e.message : '收银员登录失败' });
+    const safeError = normalizeRouteError(e, '收银员登录失败');
+    res.status(safeError.status).json({ error: safeError.message });
   }
 });
 
