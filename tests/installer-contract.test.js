@@ -111,7 +111,8 @@ test('deployment safety serializes installers and protects dirty worktrees', () 
   assert.match(update, /trap rollback_update EXIT/);
   assert.ok(update.indexOf('ff_require_clean_git_worktree') < update.indexOf('mktemp -d'));
   assert.match(standard, /ff_acquire_deploy_lock/);
-  assert.match(standard, /git pull --ff-only origin main/);
+  assert.match(standard, /git fetch --no-tags origin "\$GIT_VERSION"/);
+  assert.match(standard, /git checkout --detach FETCH_HEAD/);
   assert.doesNotMatch(standard, /git pull origin main \|\| log_warn/);
   assert.match(standard, /FF_DEPLOY_LOCK_HELD=1 SKIP_GIT_UPDATE=1/);
   assert.ok(read('install.sh').includes('git -C "$target" show FETCH_HEAD:remote-update.sh'));
@@ -139,7 +140,8 @@ test('all deployment entrypoints share a lock and never kill arbitrary port owne
   assert.ok(read('deploy/standard/deploy.sh').includes('git clone --branch "$GIT_VERSION" "$GIT_REPO" "$DEPLOY_TARGET"'));
   assert.ok(read('deploy/standard/deploy.sh').includes('目标目录非空但不是 Git 仓库'));
   assert.ok(!read('deploy/standard/deploy.sh').includes('rsync -a --delete'));
-  assert.ok(read('deploy/standard/deploy.sh').includes('git pull --ff-only origin main'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('git fetch --no-tags origin "$GIT_VERSION"'));
+  assert.ok(read('deploy/standard/deploy.sh').includes("git checkout --detach FETCH_HEAD"));
   const nginx = read('setup-nginx.sh');
   assert.ok(nginx.includes('check_port_available 80'));
   assert.ok(!nginx.includes('fuser -k'));
