@@ -336,9 +336,26 @@
                 const config = await SLF.api.get(`/public/config?store_id=${state.storeId || 1}`);
 
                 state.currencies = Array.isArray(config.currencies) ? config.currencies : [];
-                state.defaultCurrency = config.defaultCurrency || state.defaultCurrency;
+                state.defaultCurrency = config.primaryCurrency || config.defaultCurrency || state.defaultCurrency;
                 state.dualCurrency = config.dualCurrency || { enabled: false, currency: null };
-                SLF.money.configure({ currencies: state.currencies, primaryCurrency: config.primaryCurrency || state.defaultCurrency, secondaryCurrency: config.secondaryCurrency || (config.dualCurrency && config.dualCurrency.enabled ? config.dualCurrency.currency : null) });
+
+                // Resolve the configured secondary currency before configuring the formatter.
+                // Cambodia stores commonly use USD + KHR; if the flag is enabled but the
+                // secondary record is omitted, prefer KHR for USD primary and USD otherwise.
+                if (state.dualCurrency.enabled && !state.dualCurrency.currency) {
+                    const primaryCode = state.defaultCurrency && state.defaultCurrency.code;
+                    const preferredCode = primaryCode === 'USD' ? 'KHR' : 'USD';
+                    state.dualCurrency.currency =
+                        state.currencies.find(currency => currency.code === preferredCode) ||
+                        state.currencies.find(currency => currency.code !== primaryCode) ||
+                        null;
+                }
+
+                SLF.money.configure({
+                    currencies: state.currencies,
+                    primaryCurrency: config.primaryCurrency || state.defaultCurrency,
+                    secondaryCurrency: state.dualCurrency.enabled ? state.dualCurrency.currency : null
+                });
 
                 // 统一约束（优先用 constraints，缺失时回退旧字段）
                 state.constraints = config.constraints || {
@@ -360,11 +377,6 @@
                 state.maxOrderItems      = state.constraints.order.maxItemTypes;
                 state.maxItemQuantity    = state.constraints.order.maxPerItem;
                 state.maxOrderNoteLength = state.constraints.order.maxNoteLength;
-
-                if (state.dualCurrency.enabled && !state.dualCurrency.currency) {
-                    const defaultSec = state.currencies.find(c => c.code === 'USD') || state.currencies[0];
-                    if (defaultSec) state.dualCurrency.currency = defaultSec;
-                }
 
                 const noteInput = document.getElementById('orderNoteInput');
                 if (noteInput) noteInput.maxLength = state.constraints.order.maxNoteLength;
@@ -775,7 +787,7 @@
         function renderCategories() {
             state.menu = state.menu || [];
             state.categoryOrder = state.categoryOrder || [];
-            const presentCategories = [...new Set(state.menu.map(i => i.category).filter(Boolean))];
+            const presentCategories = [...new Set([...(state.categoryOrder || []), ...state.menu.map(i => i.category).filter(Boolean)])];
             const orderMap = {};
             state.categoryOrder.forEach((cat, idx) => { orderMap[cat] = idx; });
             const sorted = presentCategories.sort((a, b) => {
@@ -819,8 +831,12 @@
 
             menuGrid.innerHTML = filtered.map(item => {
                 const qty = state.cart[item.id] || 0;
-                const imgHtml = item.image
-                    ? `<img src="/uploads/${esc(item.image)}" alt="${esc(item.name)}" loading="lazy" decoding="async">`
+                const imageValue = String(item.image || '').trim();
+                const imageSrc = /^https?:\/\//i.test(imageValue)
+                    ? imageValue
+                    : (imageValue.startsWith('/') ? imageValue : '/uploads/' + imageValue);
+                const imgHtml = imageValue
+                    ? `<img src="${esc(imageSrc)}" alt="${esc(item.name)}" loading="lazy" decoding="async">`
                     : (esc(item.emoji) || '🍽️');
                 const trans = getMenuTranslation(item);
                 const name = esc(trans ? trans.name : item.name);
@@ -850,6 +866,15 @@
                     </div>
                 `;
             }).join('');
+
+            menuGrid.querySelectorAll('.img-wrap img').forEach(image => {
+                image.addEventListener('error', () => {
+                    const fallback = document.createElement('span');
+                    fallback.className = 'menu-image-fallback';
+                    fallback.textContent = '🍽️';
+                    image.replaceWith(fallback);
+                }, { once: true });
+            });
 
             menuGrid.querySelectorAll('.add-btn').forEach(b => {
                 b.addEventListener('click', e => {

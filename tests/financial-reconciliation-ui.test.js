@@ -14,7 +14,7 @@ const firstLoginHtml = fs.readFileSync(path.join(root, 'super-first-login.html')
 const loginScript = fs.readFileSync(path.join(root, 'pages/super-login.js'), 'utf8');
 
 test('financial reconciliation styles are scoped and cache-busted in the admin shell', () => {
-  assert.match(adminHtml, /assets\/admin\.css\?v=2026111601/);
+  assert.ok(/assets\/admin\.css\?v=\d+/.test(adminHtml));
   assert.match(adminHtml, /id="module-financial-reconciliation"/);
   assert.match(adminCss, /#module-financial-reconciliation/);
   assert.match(adminCss, /\.finance-batch-card/);

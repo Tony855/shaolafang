@@ -34,9 +34,16 @@ module.exports = function(app, deps) {
       // 简化：只读店铺级
       const primaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_primary_currency_code`]);
       const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_secondary_currency_code`]);
+      const dualEnabledRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_dual_currency_enabled`]);
 
       const primaryCode = (primaryRow && primaryRow.value) || 'USD';
-      const secondaryCode = (secondaryRow && secondaryRow.value) || '';
+      const dualCurrencyEnabled = dualEnabledRow
+        ? ['1', 'true'].includes(String(dualEnabledRow.value).toLowerCase())
+        : Boolean(secondaryRow && secondaryRow.value);
+      const fallbackSecondaryCode = primaryCode === 'USD' ? 'KHR' : 'USD';
+      const secondaryCode = dualCurrencyEnabled
+        ? ((secondaryRow && secondaryRow.value) || fallbackSecondaryCode)
+        : '';
 
       const primaryCurrency = currencies.find(c => c.code === primaryCode) || currencies.find(c => c.is_default) || currencies[0] || { code: 'USD', symbol: '$', rate: 1 };
       const secondaryCurrency = secondaryCode ? (currencies.find(c => c.code === secondaryCode) || null) : null;
