@@ -109,6 +109,24 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   }catch(_){return '';}
  }
  const customerToken=getCustomerIdentityToken();
+ function createCheckoutKey(){
+  if(!window.crypto||typeof window.crypto.getRandomValues!=='function')return '';
+  const bytes=new Uint8Array(32);window.crypto.getRandomValues(bytes);
+  return Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('');
+ }
+ const checkoutKeyName='foodflow_delivery_checkout_key_v1:'+storeId;
+ function getCheckoutKey(){
+  try{
+   const saved=localStorage.getItem(checkoutKeyName)||'';
+   if(/^[a-f0-9]{64}$/.test(saved))return saved;
+   const key=createCheckoutKey();if(key)localStorage.setItem(checkoutKeyName,key);return key;
+  }catch(_){return '';}
+ }
+ let checkoutKey=getCheckoutKey();
+ function rotateCheckoutKey(){
+  checkoutKey=createCheckoutKey();
+  try{if(checkoutKey)localStorage.setItem(checkoutKeyName,checkoutKey);}catch(_){checkoutKey='';}
+ }
  let telegramBound=false,telegramBusy=false;
  async function refreshTelegramBinding(){
   const button=$('telegramBindingButton'),status=$('telegramBindingStatus');
@@ -184,7 +202,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   const primaryTotal=formatCurrency(totalBase,primaryCurrency);
   const secondaryTotal=dualEnabled&&secondaryCurrency?formatCurrency(totalBase,secondaryCurrency):'';
   $('total').textContent=validTotal?(primaryTotal+(secondaryTotal?' / '+secondaryTotal:'')):'汇率暂不可用';
-  $('submit').disabled=count===0||!validTotal||!customerToken;
+  $('submit').disabled=count===0||!validTotal||!customerToken||!checkoutKey;
   $('currencyHint').textContent=dualEnabled&&secondaryCurrency?primaryCurrency.code+' + '+secondaryCurrency.code:primaryCurrency.code;
  }
  function change(id,delta){
@@ -290,7 +308,8 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   event.preventDefault();$('message').textContent='';$('submit').disabled=true;
   const form=new FormData(event.currentTarget),items=[...cart].map(([id,quantity])=>({id:Number(id),quantity}));
   try{
-   const response=await fetch('/api/public/delivery/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   if(!checkoutKey)throw new Error('浏览器无法保存安全的下单凭证，请允许本地存储后重试');
+   const response=await fetch('/api/public/delivery/orders',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':checkoutKey},body:JSON.stringify({
     store_id:Number(storeId),customer_token:customerToken,recipient_name:form.get('recipient_name'),recipient_phone:form.get('recipient_phone'),
     delivery_address:form.get('delivery_address'),note:form.get('note'),payment_method:form.get('payment_method'),items
    })});
@@ -298,6 +317,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    if(!response.ok)throw new Error(data.error||'提交失败，请稍后重试');
    createdOrderId=Number(data.orderId);createdTrackingUrl=data.trackingUrl;
    sessionStorage.setItem('customer_token:'+data.orderId,data.customerToken);
+   rotateCheckoutKey();
    if(data.paymentMethod==='khqr'){
     const qrResponse=await fetch('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/khqr',{
      method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':data.customerToken},body:JSON.stringify({})
