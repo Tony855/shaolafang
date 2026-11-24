@@ -7096,7 +7096,6 @@ const LANGUAGES = {
     "customerTelegramOperationFailed": "ការភ្ជាប់ Telegram បរាជ័យ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។"
   }
 };
-;
 
 /**
  * 检测浏览器语言并映射到系统支持的语言代码
