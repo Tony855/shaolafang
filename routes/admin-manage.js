@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 /* ============================================================
    routes/admin-manage.js — 全局配置 + 催单 + 管理员/收银员 CRUD + 重置
    ============================================================ */
@@ -200,7 +201,8 @@ module.exports = function(app, deps) {
       io.to('waiter-' + result.storeId).emit('order:urge', { orderId: id, table: result.tableName });
       res.json({ success: true, message: '已通知后厨，请稍候' });
     } catch (e) {
-      res.status(e.status || 500).json({ error: e.status ? e.message : '催单失败' });
+      const safeError = normalizeRouteError(e, '催单失败');
+    res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -279,7 +281,8 @@ module.exports = function(app, deps) {
       ));
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: '用户名已存在' });
-      res.status(e.status || 500).json({ error: e.status ? e.message : '创建管理员失败，所有更改已回滚' });
+      const safeError = normalizeRouteError(e, '创建管理员失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -360,7 +363,8 @@ module.exports = function(app, deps) {
         );
       });
       res.json(updatedAdmin);
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '更新管理员失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '更新管理员失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   app.delete('/api/admin/admins/:id', requireAdminKey, requirePermission('can_manage_admin'), async (req, res) => {
@@ -390,7 +394,8 @@ module.exports = function(app, deps) {
         );
       });
       res.json({ success: true });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除管理员失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '删除管理员失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   // ----- 收银员管理（按商户聚合，跨店铺）-----
@@ -402,8 +407,8 @@ module.exports = function(app, deps) {
     if (!row || !row.value) return [];
     let parsed;
     try { parsed = JSON.parse(row.value); }
-    catch (_) { throw Object.assign(new Error('门店收银员数据损坏，已停止写入以防止覆盖原始数据'), { status: 500 }); }
-    if (!Array.isArray(parsed)) throw Object.assign(new Error('门店收银员数据格式无效，已停止写入'), { status: 500 });
+    catch (_) { throw Object.assign(new Error('门店收银员数据损坏，已停止写入以防止覆盖原始数据'), { status: 500, publicMessage: '门店收银员数据损坏，已停止写入以防止覆盖原始数据' }); }
+    if (!Array.isArray(parsed)) throw Object.assign(new Error('门店收银员数据格式无效，已停止写入'), { status: 500, publicMessage: '门店收银员数据格式无效，已停止写入' });
     return parsed;
   }
 
@@ -549,8 +554,10 @@ module.exports = function(app, deps) {
           store_id: targetStoreId, store_name: storeName }
       });
     } catch (e) {
-      if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: e.status ? e.message : '收银员账号已存在' });
-      res.status(e.status || 500).json({ error: e.status ? e.message : '创建收银员失败，所有更改已回滚' });
+      if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '收银员账号已存在' });
+      if (e.status === 409) return res.status(409).json({ error: normalizeRouteError(e, '收银员账号已存在').message });
+      const safeError = normalizeRouteError(e, '创建收银员失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -631,8 +638,10 @@ module.exports = function(app, deps) {
       });
       res.json({ success: true, cashier: updatedCashier });
     } catch (e) {
-      if (e.code === 'ER_DUP_ENTRY' || e.status === 409) return res.status(409).json({ error: e.status ? e.message : '收银员账号已存在' });
-      res.status(e.status || 500).json({ error: e.status ? e.message : '更新收银员失败，所有更改已回滚' });
+      if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '收银员账号已存在' });
+      if (e.status === 409) return res.status(409).json({ error: normalizeRouteError(e, '收银员账号已存在').message });
+      const safeError = normalizeRouteError(e, '更新收银员失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
@@ -657,7 +666,8 @@ module.exports = function(app, deps) {
         await writeCashierAudit(req, 'delete_cashier', id, { username: cashier.username, store_id: store.id });
       });
       res.json({ success: true });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '删除收银员失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '删除收银员失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message }); }
   });
 
   app.post('/api/admin/reset-data', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
@@ -724,7 +734,8 @@ module.exports = function(app, deps) {
       });
       res.json({ success: true, deletedOrders: resetResult, message: '订单数据已重置' });
     } catch (e) {
-      res.status(e.status || 500).json({ error: e.status ? e.message : '重置订单数据失败，所有更改已回滚' });
+      const safeError = normalizeRouteError(e, '重置订单数据失败，所有更改已回滚');
+    res.status(safeError.status).json({ error: safeError.message });
     }
   });
 
