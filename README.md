@@ -829,7 +829,7 @@ npm ci
 | 命令 | 用途 |
 |---|---|
 | `npm start` | 启动服务 |
-| `npm run dev` | 使用 nodemon 启动开发服务 |
+| `npm run dev` | 使用 Node.js 原生 watch 模式启动开发服务 |
 | `npm test` | 运行 Node.js 测试套件 |
 | `npm run build:lang` | 构建语言资源 |
 | `npm run check:lang` | 检查语言资源 |
