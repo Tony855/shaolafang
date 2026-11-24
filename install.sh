@@ -12,6 +12,15 @@ export DEBIAN_FRONTEND=noninteractive
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Remove transient bootstrap/update files even when the installer exits early.
+BOOTSTRAP_DIR=""
+UPDATE_TMP_DIR=""
+cleanup_installer_temps() {
+    [ -z "${BOOTSTRAP_DIR:-}" ] || { rm -rf -- "$BOOTSTRAP_DIR"; BOOTSTRAP_DIR=""; }
+    [ -z "${UPDATE_TMP_DIR:-}" ] || { rm -rf -- "$UPDATE_TMP_DIR"; UPDATE_TMP_DIR=""; }
+}
+trap cleanup_installer_temps EXIT
+
 # 支持直接运行从 raw.githubusercontent.com 下载的单文件入口：
 # 如果安装脚本不在完整仓库内，先下载完整源码包，再从完整目录重新启动。
 # 注意：这里下载的是 GitHub 仓库归档，不是 blob 网页，也不是单独的 install.sh。
@@ -74,7 +83,8 @@ if [ ! -f "$SCRIPT_DIR/scripts/lib/system-deps.sh" ] || [ ! -f "$SCRIPT_DIR/scri
     else
         BOOTSTRAP_STATUS=$?
     fi
-    rm -rf "$BOOTSTRAP_DIR"
+    rm -rf -- "$BOOTSTRAP_DIR"
+    BOOTSTRAP_DIR=""
     exit "$BOOTSTRAP_STATUS"
 fi
 
@@ -198,25 +208,26 @@ update_existing_install() {
         return 1
     fi
     git -C "$target" fetch --no-tags origin "$GIT_VERSION" || { log_error "获取 $GIT_VERSION 失败"; return 1; }
-    updater_tmp="$(mktemp /tmp/foodflow-remote-update.XXXXXX)"
-    safety_tmp="$(mktemp /tmp/foodflow-deploy-safety.XXXXXX)"
+    UPDATE_TMP_DIR="$(mktemp -d /tmp/foodflow-remote-update.XXXXXX)"
+    updater_tmp="$UPDATE_TMP_DIR/remote-update.sh"
+    safety_tmp="$UPDATE_TMP_DIR/deploy-safety.sh"
     if ! git -C "$target" show FETCH_HEAD:remote-update.sh > "$updater_tmp"; then
-        rm -f "$updater_tmp" "$safety_tmp"
+        cleanup_installer_temps
         log_error "目标版本缺少 remote-update.sh；拒绝执行旧版更新逻辑。"
         return 1
     fi
     if ! git -C "$target" show FETCH_HEAD:scripts/lib/deploy-safety.sh > "$safety_tmp"; then
-        rm -f "$updater_tmp" "$safety_tmp"
+        cleanup_installer_temps
         log_error "目标版本缺少 deploy-safety.sh；拒绝执行不完整升级。"
         return 1
     fi
     chmod 0700 "$updater_tmp"
     if FF_APP_DIR="$target" FF_DEPLOY_SAFETY_LIB="$safety_tmp" FF_DEPLOY_LOCK_HELD=1 GIT_VERSION="$GIT_VERSION" bash "$updater_tmp"; then
-        rm -f "$updater_tmp" "$safety_tmp"
+        cleanup_installer_temps
         return 0
     else
         local rc=$?
-        rm -f "$updater_tmp" "$safety_tmp"
+        cleanup_installer_temps
         return "$rc"
     fi
 }

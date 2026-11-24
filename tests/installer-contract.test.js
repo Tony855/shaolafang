@@ -93,6 +93,17 @@ test('remote updates use the same runtime baseline and locked dependency install
 
 
 
+test('installer removes bootstrap and remote-update temporary directories on every exit path', () => {
+  const installer = read('install.sh');
+  assert.match(installer, /cleanup_installer_temps\(\)/);
+  assert.match(installer, /trap cleanup_installer_temps EXIT/);
+  assert.match(installer, /BOOTSTRAP_DIR=""/);
+  assert.match(installer, /UPDATE_TMP_DIR="\$\(mktemp -d \/tmp\/foodflow-remote-update\.XXXXXX\)"/);
+  assert.match(installer, /updater_tmp="\$UPDATE_TMP_DIR\/remote-update\.sh"/);
+  assert.match(installer, /safety_tmp="\$UPDATE_TMP_DIR\/deploy-safety\.sh"/);
+  assert.doesNotMatch(installer, /mktemp \/tmp\/foodflow-remote-update\.XXXXXX/);
+});
+
 test('deployment safety serializes installers and protects dirty worktrees', () => {
   const safety = read('scripts/lib/deploy-safety.sh');
   const update = read('remote-update.sh');
