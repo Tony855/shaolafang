@@ -8,12 +8,13 @@ const path = require('node:path');
 const cashier = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
 
 test('cashier ready-to-settle state has one active sky-blue visual definition', () => {
-  assert.doesNotMatch(cashier, /#2ecc71|pos-ready-pulse\s/);
-  assert.match(cashier, /\.pos-order-card\.status-pending\.ready-to-settle\s*\{[^}]*#0ea5e9/s);
+  const readyState = cashier.match(/\.pos-order-card\.status-pending\.ready-to-settle\s*\{[^}]*\}/s)?.[0] || '';
+  assert.match(readyState, /#0ea5e9/);
+  assert.doesNotMatch(readyState, /#2ecc71/);
+  assert.doesNotMatch(cashier, /@keyframes\s+pos-ready-pulse\s*\{/);
   assert.match(cashier, /\.pos-order-card\.ready-to-settle\s*\{[^}]*pos-ready-pulse-sky/s);
   assert.equal((cashier.match(/\.pos-card-ready-tip\s*\{/g) || []).length, 1);
 });
-
 test('cashier refund button and focus styles do not retain obsolete overrides', () => {
   assert.equal((cashier.match(/\.pos-detail-btns \.btn-refund\s*\{/g) || []).length, 1);
   assert.match(cashier, /\.pos-detail-btns \.btn-refund\s*\{[^}]*max-width:\s*110px;/s);
