@@ -90,3 +90,13 @@ test('admin source and generated bundle use the redesigned order-number componen
 test('secondary currency has a dedicated compact customer-menu style', () => {
   assert.match(customerCss, /\.menu-item \.info \.money-secondary/);
 });
+
+
+test('customer order submission releases its in-flight lock on preflight validation exits', () => {
+  const submitStart = customer.indexOf('async function submitOrder()');
+  const submitEnd = customer.indexOf('// ============================================================', submitStart + 40);
+  const submit = customer.slice(submitStart, submitEnd);
+  assert.match(submit, /if \(!isScanSessionValid\(\)\)[^\n]*_submittingOrder = false; return;/);
+  assert.match(submit, /if \(!isBackendOnline\)[^\n]*_submittingOrder = false; return;/);
+  assert.match(submit, /if \(!check\.ok\)[^\n]*_submittingOrder = false; return;/);
+});
