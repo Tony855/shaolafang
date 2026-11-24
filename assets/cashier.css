@@ -987,19 +987,7 @@ body {
   min-width: 60px;
   padding-top: 10px;
 }
-.refund-input {
-  flex: 1;
-  height: 42px;
-  padding: 0 12px;
-  border: 1.5px solid var(--pos-border);
-  border-radius: var(--pos-radius-sm);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--pos-text);
-  outline: none;
-  font-family: "SF Mono", monospace;
-  text-align: right;
-}
+
 .refund-textarea {
   flex: 1;
   padding: 10px 12px;
@@ -1470,19 +1458,21 @@ body {
 }
 .refund-input {
   flex: 1;
-  min-width: 0;              /* ★ flex 子元素不撑破容器的关键 */
+  height: 42px;
+  min-width: 0;              /* Keep the flex child from overflowing its row. */
   width: 100%;
   max-width: 100%;
-  box-sizing: border-box;    /* ★ padding 不算进宽度 */
+  box-sizing: border-box;
   padding: 10px 12px;
   border: 1.5px solid #e5e7eb;
   border-radius: 8px;
   font-size: 14px;
+  font-weight: 700;
   outline: none;
   font-family: inherit;
   transition: all 0.2s;
   color: #333;
-  text-align: right;         /* 金额靠右好看 */
+  text-align: right;
 }
 .refund-input:focus {
   border-color: #ff7a3d;
