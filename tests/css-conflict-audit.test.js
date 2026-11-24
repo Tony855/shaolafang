@@ -456,11 +456,10 @@ test('customer menu cards and header remain viewport-contained on mobile', () =>
   assert.match(rules, /\.ff-customer \.menu-item\s*\{[^}]*min-width:\s*0;/s);
 });
 
-test('admin order action buttons wrap instead of overflowing on mobile', () => {
+test('admin order action buttons shrink and wrap without viewport overflow on mobile', () => {
   const admin = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
   const marker = '2026-11-24: mobile order-list cards and actions';
   const rules = admin.slice(admin.lastIndexOf(marker));
-  assert.match(rules, /#orders \.order-item-admin\s*\{[^}]*overflow:\s*hidden;/s);
-  assert.match(rules, /#orders \.order-item-admin \.actions,[\s\S]*?\.action-buttons\s*\{[^}]*flex-wrap:\s*wrap;/s);
-  assert.match(rules, /@media\s*\(max-width:\s*420px\)/);
+  assert.match(rules, /#orders \\.order-item-admin\\s*\\{[^}]*min-width:\\s*0;[^}]*max-width:\\s*100%;/s);
+  assert.match(rules, /#orders \\.order-item-admin \\.bottom \\.actions button\\s*\\{[^}]*min-width:\\s*0;[^}]*max-width:\\s*100%;[^}]*white-space:\\s*normal;/s);
 });
