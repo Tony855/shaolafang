@@ -15,6 +15,7 @@ test('customer modal has one visual surface, not a nested bordered card', () => 
 test('customer modal remains scrollable and constrained on mobile viewports', () => {
   assert.match(css, /\.ff-customer \.order-modal\s*\{[^}]*max-height:\s*min\(82vh,\s*760px\);[^}]*max-height:\s*min\(82dvh,\s*760px\);[^}]*overflow-y:\s*auto;/s);
   assert.match(css, /\.ff-customer #confirmOrderModal \.form-actions button\s*\{[^}]*flex:\s*1 1 112px;/s);
+  assert.match(css, /\.ff-customer #orderNoteInput\s*\{[^}]*font-size:\s*16px;/s);
 });
 
 test('customer order item price rule is not duplicated', () => {
