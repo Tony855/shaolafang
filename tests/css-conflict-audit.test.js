@@ -62,12 +62,13 @@ test('super admin modal overlays stay above mobile navigation controls', () => {
   assert.equal(readZIndex(modalBlock), 400);
 });
 
-test('shared payment button styles stay scoped to payment actions', () => {
+test('payment secondary styles stay scoped while shared primary buttons remain available', () => {
   const sharedCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'common.css'), 'utf8');
   assert.match(sharedCss, /\.payment-actions \.btn-secondary\s*\{/);
   assert.match(sharedCss, /\.payment-actions \.btn-secondary:hover\s*\{/);
-  assert.match(sharedCss, /\.payment-actions \.btn-primary\s*\{/);
-  assert.match(sharedCss, /\.payment-actions \.btn-primary:hover\s*\{/);
+  assert.match(sharedCss, /^\.btn-primary\s*\{/m);
+  assert.match(sharedCss, /^\.btn-primary:hover\s*\{/m);
   assert.doesNotMatch(sharedCss, /^\.btn-secondary\s*\{/m);
-  assert.doesNotMatch(sharedCss, /^\.btn-primary\s*\{/m);
+  const cashierHtml = fs.readFileSync(path.join(__dirname, '..', 'cashier.html'), 'utf8');
+  assert.match(cashierHtml, /class="btn btn-primary"[^>]*id="loginBtn"/);
 });
