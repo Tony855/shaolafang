@@ -460,6 +460,6 @@ test('admin order action buttons shrink and wrap without viewport overflow on mo
   const admin = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
   const marker = '2026-11-24: mobile order-list cards and actions';
   const rules = admin.slice(admin.lastIndexOf(marker));
-  assert.match(rules, /#orders \\.order-item-admin\\s*\\{[^}]*min-width:\\s*0;[^}]*max-width:\\s*100%;/s);
-  assert.match(rules, /#orders \\.order-item-admin \\.bottom \\.actions button\\s*\\{[^}]*min-width:\\s*0;[^}]*max-width:\\s*100%;[^}]*white-space:\\s*normal;/s);
+  assert.match(rules, /#orders \.order-item-admin\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s);
+  assert.match(rules, /#orders \.order-item-admin \.bottom \.actions button\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;/s);
 });
