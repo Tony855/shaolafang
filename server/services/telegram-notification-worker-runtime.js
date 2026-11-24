@@ -1,6 +1,10 @@
 'use strict';
 
 const { randomUUID } = require('crypto');
+function isTelegramNotificationWorkerEnabled(value) {
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+}
+
 function createTelegramNotificationWorker({
   resolveRecipient,
   processBatch,
@@ -96,4 +100,4 @@ function createTelegramNotificationWorker({
   return { start, stop, get running() { return running; }, workerId };
 }
 
-module.exports = { createTelegramNotificationWorker };
+module.exports = { createTelegramNotificationWorker, isTelegramNotificationWorkerEnabled };
