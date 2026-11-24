@@ -606,7 +606,7 @@ install_single() {
         elif [ -n "$GITHUB_TOKEN" ]; then
             log_info "使用 HTTPS + GITHUB_TOKEN 方式克隆..."
             ff_git_with_token git clone --branch "$GIT_VERSION" https://github.com/Tony855/shaolafang.git "$DEPLOY_TARGET"
-            # 克隆完立刻剥离 token，防止写入 .git/config
+            # 克隆后显式确保 origin 使用不含凭据的规范地址
             cd "$DEPLOY_TARGET"
             git remote set-url origin https://github.com/Tony855/shaolafang.git
             git config --unset credential.helper 2>/dev/null || true
