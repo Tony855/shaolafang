@@ -50,10 +50,11 @@ force_test_dir="$(mktemp -d)"
   printf 'secret fixture\n' > .env.production
   git add .env.production
   git commit -qm "invalidly track production env"
-  if ff_prepare_force_deploy_repository "https://github.com/Tony855/shaolafang.git" 2>/dev/null; then
+  if ff_prepare_force_deploy_repository "git@github.com:unexpected/should-not-change.git" 2>/dev/null; then
     echo "[ERROR] force deployment accepted a Git-tracked .env" >&2
     exit 1
   fi
+  [ "$(git remote get-url origin)" = "git@github.com:Tony855/shaolafang.git" ]
 )
 rm -rf "$force_test_dir"
 
