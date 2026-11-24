@@ -1,4 +1,4 @@
-# FoodFlow 部署配置
+# Shaolafang / FoodFlow 部署配置\n\n**源仓库统一为 `https://github.com/Tony855/shaolafang.git`。** 标准版、企业版、旗舰版部署脚本均应克隆此仓库，不应克隆旧的独立企业版仓库。
 
 本目录包含 FoodFlow 点餐系统的部署配置，按版本分类。
 

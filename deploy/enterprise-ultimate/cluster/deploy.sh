@@ -86,7 +86,7 @@ else
         log_warn "目录已存在且非空，备份到 $BACKUP_DIR"
         mv /var/www/foodflow "$BACKUP_DIR"
     fi
-    git clone https://github.com/Tony855/foodflow-enterprise-ultimate.git /var/www/foodflow
+    git clone --branch "${GIT_VERSION:-main}" https://github.com/Tony855/shaolafang.git /var/www/foodflow
 fi
 log_success "代码部署完成"
 

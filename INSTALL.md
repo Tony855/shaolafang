@@ -375,7 +375,7 @@ hostname -I
 
 ---
 
-## 4. 一键安装脚本（推荐 Linux）
+## 4. 一键安装脚本（推荐 Linux）\n\n**唯一官方源码仓库：** `https://github.com/Tony855/shaolafang`。安装入口、标准版、企业版和旗舰版脚本均从此仓库获取代码，不应使用 `foodflow-enterprise`、`foodflow-enterprise-ultimate` 或其他同名/旧仓库。\n\n首次安装可直接克隆完整仓库并运行 `install.sh`；也可在已验证来源后下载独立入口脚本，入口会自动拉取匹配的完整仓库归档。归档路径支持 branch 或 tag（通过 `GIT_VERSION` 指定），并校验入口和必需公共库文件存在后才重新执行。
 
 项目提供了一键安装脚本，自动完成 Node.js、MySQL、依赖安装和服务配置。
 
@@ -790,7 +790,7 @@ mysql -u root -p ordering_system < backup.sql
 
 ## 技术支持
 
-- GitHub 仓库: https://github.com/Tony855/foodflow
+- GitHub 仓库: https://github.com/Tony855/shaolafang
 - 提交 Issue: https://github.com/Tony855/foodflow/issues
 
 ---

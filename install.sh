@@ -39,7 +39,7 @@ if [ ! -f "$SCRIPT_DIR/scripts/lib/system-deps.sh" ] || [ ! -f "$SCRIPT_DIR/scri
     BOOTSTRAP_REPO="$BOOTSTRAP_DIR/repo"
     mkdir -p "$BOOTSTRAP_REPO"
 
-    BOOTSTRAP_URL="https://github.com/Tony855/shaolafang/archive/refs/heads/$BOOTSTRAP_VERSION.tar.gz"
+    BOOTSTRAP_URL="https://github.com/Tony855/shaolafang/archive/$BOOTSTRAP_VERSION.tar.gz"
     if command -v curl >/dev/null 2>&1; then
         if ! curl --fail --location --silent --show-error --retry 3 --connect-timeout 15 \
             "$BOOTSTRAP_URL" --output "$BOOTSTRAP_ARCHIVE"; then
