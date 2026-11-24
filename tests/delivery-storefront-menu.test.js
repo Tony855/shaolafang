@@ -88,3 +88,13 @@ test('delivery checkout requires a persistent customer identity token before ena
   assert.match(page, /customer_token:customerToken/);
   assert.match(page, /\$\('submit'\)\.disabled=count===0\|\|!validTotal\|\|!customerToken/);
 });
+
+
+test('delivery checkout labels are associated with their fields and quantity controls identify each dish', () => {
+  for (const id of ['recipientName', 'recipientPhone', 'paymentMethod', 'deliveryAddress', 'orderNote']) {
+    assert.match(page, new RegExp('<label for="' + id + '">'));
+    assert.match(page, new RegExp('<(?:input|select|textarea) id="' + id + '"'));
+  }
+  assert.match(page, /minus\.setAttribute\('aria-label','减少 '\+escText\(item\.name\)\+' 数量'\)/);
+  assert.match(page, /plus\.setAttribute\('aria-label','增加 '\+escText\(item\.name\)\+' 数量'\)/);
+});
