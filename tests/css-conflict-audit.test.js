@@ -175,3 +175,16 @@ test('QR print card fits the dynamic safe viewport and keeps its body scrollable
   assert.match(printRules, /max-height:\s*none\s*!important/);
   assert.match(printRules, /overflow:\s*visible\s*!important/);
 });
+
+
+test('menu display uses the dynamic safe viewport without clipping its flex layout', () => {
+  const display = fs.readFileSync(path.join(__dirname, '..', 'assets', 'menu-display.css'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'menu-display.html'), 'utf8');
+  const body = display.match(/(^|\\n)body\\s*\\{([^}]*)\\}/)?.[2] || '';
+  assert.match(html, /name="viewport" content="[^"]*viewport-fit=cover/);
+  assert.match(body, /height:\\s*100vh;\\s*height:\\s*100dvh;/);
+  assert.match(body, /min-height:\\s*100vh;\\s*min-height:\\s*100dvh;/);
+  assert.match(body, /safe-area-inset-top/);
+  assert.match(body, /safe-area-inset-bottom/);
+  assert.match(display, /\\.disp-main\\s*\\{[^}]*flex:\\s*1;[^}]*min-height:\\s*0;[^}]*overflow-y:\\s*auto;/s);
+});
