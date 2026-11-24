@@ -91,6 +91,17 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   );
 
   let orderSequence = 0;
+  const integrationDbErrors = [];
+  const captureDbError = (operation, fn) => async (...args) => {
+    try { return await fn(...args); }
+    catch (error) {
+      integrationDbErrors.push({ operation, code: error.code || '', message: error.message || '' });
+      throw error;
+    }
+  };
+  const routeGetAsync = captureDbError('getAsync', getAsync);
+  const routeAllAsync = captureDbError('allAsync', allAsync);
+  const routeWithTransaction = captureDbError('withTransaction', withTransaction);
   let failDeliveryJobInsert = false;
   const routeRunAsync = async (sql, params = []) => {
     if (failDeliveryJobInsert && sql.includes('INSERT INTO delivery_jobs')) {
@@ -107,7 +118,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
     delete(path, ...handlers) { registered.set('DELETE ' + path, handlers[handlers.length - 1]); }
   };
   registerCustomerDeliveryRoutes(app, {
-    getAsync, allAsync, runAsync: routeRunAsync, withTransaction,
+    getAsync: routeGetAsync, allAsync: routeAllAsync, runAsync: routeRunAsync, withTransaction: routeWithTransaction,
     normalizeOrderItems: async input => input.map(item => ({
       id: Number(item.id), name: 'Noodle', price: 12.5, base_price: 12.5,
       quantity: Number(item.quantity)
@@ -137,7 +148,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
     handler(makeRequest(body, key), first),
     handler(makeRequest(body, key), second)
   ]);
-  assert.deepEqual([first.statusCode, second.statusCode].sort((a,b) => a-b), [200,201]);
+  assert.deepEqual([first.statusCode, second.statusCode].sort((a,b) => a-b), [200,201], JSON.stringify(integrationDbErrors));
   assert.equal(first.body.orderId, second.body.orderId);
   assert.equal(first.body.orderNo, second.body.orderNo);
   assert.equal(first.body.customerToken, customerToken);
