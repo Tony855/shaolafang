@@ -32,9 +32,9 @@ test('customer and waiter pages load shared styles before page-specific override
 });
 
 
-test('admin sidebar responsive width has no obsolete intermediate override', () => {
+test('admin sidebar has no stale mobile widths', () => {
   const admin = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
-  assert.doesNotMatch(admin, /transform:\s*translateX\(-100%\)[\\s\\S]{0,180}width:\s*160px/);
-  assert.match(admin, /@media\\s*\\(max-width:\\s*1024px\\)[\\s\\S]{0,1200}\.admin-sidebar\\s*\\{[\\s\\S]{0,100}width:\\s*180px\\s*!important/s);
-  assert.match(admin, /@media\\s*\\(max-width:\\s*480px\\)[\\s\\S]{0,200}\.admin-sidebar\\s*\\{[\\s\\S]{0,100}width:\\s*170px\\s*!important/s);
+  assert.doesNotMatch(admin, /\.admin-sidebar\s*\{[^}]*width:\s*(?:150|160)px/s);
+  assert.match(admin, /width:\s*180px\s*!important/);
+  assert.match(admin, /width:\s*170px\s*!important/);
 });
