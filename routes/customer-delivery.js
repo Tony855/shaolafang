@@ -5,7 +5,8 @@ const QRCode = require('qrcode');
 const khqr = require('../server/services/khqr');
 const { hashSessionToken } = require('../server/services/session-token');
 const { calculateOrderTotalCents, toMoneyCents } = require('../server/services/order-financial');
-const { enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
+const { enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
+const { getTelegramBotUsername } = require('../server/services/telegram-bot');
 const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 
 function positiveId(value) {
@@ -34,6 +35,119 @@ function convertUsdCentsToKhr(usdCents, rateValue) {
 module.exports = function registerCustomerDeliveryRoutes(app, deps) {
   const { getAsync, allAsync, runAsync, withTransaction, normalizeOrderItems, allocateOrderNo,
     getOrderCooldownMs, checkAndSetCooldown, getClientIp, formatOrder, io } = deps;
+
+
+  // Persistent browser customer identity used by delivery orders and Telegram binding.
+  // The raw token is accepted only as a high-entropy bearer credential and is stored hashed.
+  function getDeliveryCustomerToken(req) {
+    const header = typeof req.get === 'function' ? req.get('X-Customer-Token') : req.headers?.['x-customer-token'];
+    const bodyToken = typeof req.body?.customer_token === 'string' ? req.body.customer_token : '';
+    const token = typeof header === 'string' && header.trim() ? header.trim() : bodyToken.trim();
+    return /^[a-f0-9]{64}$/.test(token) ? token : '';
+  }
+
+  async function getActiveDeliveryStore(storeId) {
+    return getAsync(
+      'SELECT s.id, s.name, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+      [storeId]
+    );
+  }
+
+  app.get('/api/public/delivery/customer-telegram/binding', async (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const storeId = positiveId(String(req.query?.store_id || ''));
+      const customerToken = getDeliveryCustomerToken(req);
+      if (!storeId || !customerToken) return res.status(400).json({ error: '门店或顾客身份凭证无效' });
+      const store = await getActiveDeliveryStore(storeId);
+      if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
+      const binding = await getAsync(
+        'SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL',
+        [hashSessionToken(customerToken), store.merchant_id, storeId]
+      );
+      res.json({ bound: Boolean(binding) });
+    } catch (_) {
+      res.status(500).json({ error: '读取 Telegram 绑定状态失败' });
+    }
+  });
+
+  app.post('/api/public/delivery/customer-telegram/binding/start', async (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const storeId = positiveId(String(req.body?.store_id || ''));
+      const customerToken = getDeliveryCustomerToken(req);
+      if (!storeId || !customerToken) return res.status(400).json({ error: '门店或顾客身份凭证无效' });
+      const store = await getActiveDeliveryStore(storeId);
+      if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
+      const rows = await allAsync(
+        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+        ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+      );
+      const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
+      if (config.telegram_client_bot_enabled !== '1' || !config.telegram_client_bot_token) {
+        return res.status(409).json({ error: '当前门店暂未启用 Telegram 顾客通知' });
+      }
+      const webhookSecret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+      if (webhookSecret.length < 32 || webhookSecret.length > 256) {
+        return res.status(503).json({ error: 'Telegram 绑定服务尚未完成安全配置' });
+      }
+      const ip = getClientIp(req) || 'unknown';
+      const cooldownKey = 'delivery:telegram-bind:' + storeId + ':' + crypto.createHash('sha256').update(ip + ':' + hashSessionToken(customerToken)).digest('hex');
+      const allowed = await checkAndSetCooldown(cooldownKey, 30000);
+      if (allowed === null) return res.status(503).json({ error: '绑定服务暂时不可用，请稍后重试' });
+      if (!allowed) return res.status(429).json({ error: '绑定请求过于频繁，请稍后再试' });
+      const username = await getTelegramBotUsername({ token: String(config.telegram_client_bot_token) });
+      const challenge = crypto.randomBytes(32).toString('base64url');
+      const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
+      await runAsync(
+        'DELETE FROM telegram_customer_binding_challenges WHERE expires_at < UTC_TIMESTAMP(3) OR consumed_at IS NOT NULL'
+      );
+      await runAsync(
+        'DELETE FROM telegram_customer_binding_challenges WHERE customer_token_hash=? AND store_id=? AND consumed_at IS NULL',
+        [hashSessionToken(customerToken), storeId]
+      );
+      await runAsync(
+        'INSERT INTO telegram_customer_binding_challenges (challenge_hash, customer_token_hash, merchant_id, store_id, expires_at, created_at) VALUES (?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 10 MINUTE), UTC_TIMESTAMP(3))',
+        [challengeHash, hashSessionToken(customerToken), store.merchant_id, storeId]
+      );
+      res.json({ deepLink: `https://t.me/${username}?start=${challenge}`, expiresInSeconds: 600 });
+    } catch (_) {
+      res.status(503).json({ error: 'Telegram 绑定暂时不可用，请稍后重试' });
+    }
+  });
+
+  app.delete('/api/public/delivery/customer-telegram/binding', async (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const storeId = positiveId(String(req.query?.store_id || req.body?.store_id || ''));
+      const customerToken = getDeliveryCustomerToken(req);
+      if (!storeId || !customerToken) return res.status(400).json({ error: '门店或顾客身份凭证无效' });
+      const store = await getActiveDeliveryStore(storeId);
+      if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
+      const identity = [hashSessionToken(customerToken), store.merchant_id, storeId];
+      const result = await withTransaction(async () => {
+        const bindings = await allAsync(
+          'SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1 FOR UPDATE',
+          identity
+        );
+        const ids = Array.isArray(bindings) ? bindings.map(row => Number(row.id)).filter(id => Number.isSafeInteger(id) && id > 0) : [];
+        if (ids.length) {
+          const placeholders = ids.map(() => '?').join(',');
+          await runAsync(
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='customer' AND state IN ('pending','processing') AND recipient_key IN (" + placeholders + ')',
+            ids.map(id => `binding:${id}`)
+          );
+        }
+        return runAsync(
+          'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE customer_token_hash=? AND merchant_id=? AND store_id=? AND is_active=1',
+          identity
+        );
+      });
+      res.json({ success: true, revoked: Number(result.affectedRows) > 0 });
+    } catch (_) {
+      res.status(500).json({ error: '撤销 Telegram 绑定失败' });
+    }
+  });
 
   app.post('/api/public/delivery/orders', async (req, res) => {
     try {
@@ -104,7 +218,8 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       else if (reset === 'yearly') sequencePrefix = orderPrefix + dateKey.slice(0, 2);
       else if (reset === 'never') sequencePrefix = orderPrefix + 'GL';
 
-      const customerToken = crypto.randomBytes(32).toString('hex');
+      const suppliedCustomerToken = getDeliveryCustomerToken(req);
+      const customerToken = suppliedCustomerToken || crypto.randomBytes(32).toString('hex');
       const customerTokenHash = hashSessionToken(customerToken);
       const createdAt = new Date().toISOString();
       let orderId = null;
@@ -143,6 +258,15 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           storeId,
           eventKey: `order:${orderId}:created:store`,
           event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, tableName: '', fulfillmentType: 'delivery', recipientName, recipientPhone, deliveryAddress, amount: total, currency: 'USD', note }
+        });
+        await enqueueCustomerTelegramNotification({
+          allAsync,
+          customerTokenHash,
+          merchantId: store.merchant_id,
+          storeId,
+          eventKey: `order:${orderId}:created:customer`,
+          event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, tableName: '', fulfillmentType: 'delivery', recipientName, amount: total, currency: 'USD' },
+          enqueue: deps.enqueueTelegramNotification
         });
       });
 

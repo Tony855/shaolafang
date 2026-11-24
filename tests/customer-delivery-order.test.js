@@ -4,14 +4,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerRoutes = require('../routes/customer-delivery');
 
-function setup() {
+function setup({ customerBinding = false } = {}) {
   const handlers = new Map();
   const calls = [];
   const events = [];
   const transactions = [];
   let orderRow = null;
   const app = {
-    post(path, ...handlersForRoute) { handlers.set('POST ' + path, handlersForRoute[handlersForRoute.length - 1]); }
+    get(path, ...handlersForRoute) { handlers.set('GET ' + path, handlersForRoute[handlersForRoute.length - 1]); },
+    post(path, ...handlersForRoute) { handlers.set('POST ' + path, handlersForRoute[handlersForRoute.length - 1]); },
+    delete(path, ...handlersForRoute) { handlers.set('DELETE ' + path, handlersForRoute[handlersForRoute.length - 1]); }
   };
   const deps = {
     getAsync: async (sql, params = []) => {
@@ -21,7 +23,17 @@ function setup() {
       if (sql.includes('SELECT * FROM orders WHERE id=? AND store_id=?')) return orderRow;
       return null;
     },
-    allAsync: async (sql, params = []) => { calls.push({ type: 'all', sql, params }); return []; },
+    allAsync: async (sql, params = []) => {
+      calls.push({ type: 'all', sql, params });
+      if (sql.includes('FROM settings')) return [
+        { key: 'telegram_admin_bot_enabled', value: '0' },
+        { key: 'telegram_client_bot_enabled', value: '1' }
+      ];
+      if (sql.includes('FROM merchants')) return [{ id: 3 }];
+      if (sql.includes('FROM stores')) return [{ id: 7 }];
+      if (sql.includes('FROM telegram_customer_bindings')) return customerBinding ? [{ id: 42 }] : [];
+      return [];
+    },
     runAsync: async (sql, params = []) => {
       calls.push({ type: 'run', sql, params });
       if (sql.includes('INSERT INTO orders')) {
@@ -41,7 +53,8 @@ function setup() {
     checkAndSetCooldown: async () => true,
     getClientIp: () => '127.0.0.1',
     formatOrder: row => ({ ...row, sessionToken: '', customerToken: 'should-not-leak' }),
-    io: { to(room) { return { emit(event, payload) { events.push({ room, event, payload }); } }; } }
+    io: { to(room) { return { emit(event, payload) { events.push({ room, event, payload }); } }; } },
+    enqueueTelegramNotification: async input => { calls.push({ type: 'enqueue', input }); return true; }
   };
   registerRoutes(app, deps);
   return { handler: handlers.get('POST /api/public/delivery/orders'), khqrHandler: handlers.get('POST /api/public/delivery/orders/:orderId/khqr'), notifyHandler: handlers.get('POST /api/public/delivery/orders/:orderId/payment-notify'), calls, events, transactions, get orderRow() { return orderRow; } };
@@ -109,4 +122,41 @@ test('customer KHQR generation and payment notification require the order bearer
   assert.equal(notifyRes.statusCode, 401);
   assert.equal(ctx.calls.length, 0);
   assert.deepEqual(ctx.transactions, []);
+});
+
+test('customer delivery order reuses the durable browser customer token without storing it in plaintext', async () => {
+  const ctx = setup();
+  const token = 'b'.repeat(64);
+  const res = response();
+  await ctx.handler({ body: {
+    store_id: 7, customer_token: token,
+    recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
+    delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
+    items: [{ id: 5, quantity: 1 }]
+  } }, res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.customerToken, token);
+  const orderInsert = ctx.calls.find(x => x.type === 'run' && x.sql.includes('INSERT INTO orders'));
+  assert.equal(orderInsert.params[4], require('../server/services/session-token').hashSessionToken(token));
+  assert.notEqual(orderInsert.params[4], token);
+});
+
+test('customer delivery order enqueues an order-created notice for its bound Telegram identity', async () => {
+  const ctx = setup({ customerBinding: true });
+  const token = 'c'.repeat(64);
+  const res = response();
+  await ctx.handler({ body: {
+    store_id: 7, customer_token: token,
+    recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
+    delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
+    items: [{ id: 5, quantity: 1 }]
+  } }, res);
+  assert.equal(res.statusCode, 201);
+  const queued = ctx.calls.find(call => call.type === 'enqueue');
+  assert.ok(queued);
+  assert.equal(queued.input.recipientScope, 'customer');
+  assert.equal(queued.input.recipientKey, 'binding:42');
+  assert.equal(queued.input.eventKey, 'order:33:created:customer');
+  assert.equal(queued.input.event.type, 'order.created');
+  assert.equal(queued.input.event.fulfillmentType, 'delivery');
 });

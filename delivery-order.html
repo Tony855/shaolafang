@@ -8,6 +8,7 @@
 *{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#202b3b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:30px}
 header{background:linear-gradient(135deg,#ff8a4c,#e84a2a);color:#fff;padding:22px max(18px,calc((100vw - 980px)/2));}
 header h1{margin:0;font-size:23px}header p{margin:6px 0 0;opacity:.9;font-size:13px}
+.telegram-entry{max-width:980px;margin:12px auto 0;padding:0 14px;display:flex;justify-content:flex-end;gap:8px;align-items:center}.telegram-entry button{border:1px solid #d9e1eb;border-radius:999px;background:#fff;color:#34465e;padding:9px 14px;font:inherit;font-size:13px;cursor:pointer}.telegram-entry button:disabled{opacity:.55;cursor:not-allowed}.telegram-entry span{font-size:12px;color:#64748b}
 main{max-width:980px;margin:18px auto;padding:0 14px}.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:16px}
 .panel{background:#fff;border-radius:16px;padding:18px;box-shadow:0 5px 24px #14243b0c;margin-bottom:15px}
 h2{font-size:17px;margin:0 0 14px}.menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
@@ -64,6 +65,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 </style></head>
 <body>
 <header><h1>🛵 FoodFlow 外卖点餐</h1><p id="storeName">正在加载门店…</p></header>
+<div class="telegram-entry"><span id="telegramBindingStatus" role="status">Telegram 通知未绑定</span><button id="telegramBindingButton" type="button">✈️ 绑定 Telegram 通知</button></div>
 <main>
 <div class="layout">
 <section class="panel">
@@ -94,6 +96,56 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
  'use strict';
  const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'';
  const $=id=>document.getElementById(id),cart=new Map();
+ function getCustomerIdentityToken(){
+  try{
+   const key='foodflow_customer_identity_v1',saved=localStorage.getItem(key)||'';
+   if(/^[a-f0-9]{64}$/.test(saved))return saved;
+   if(!window.crypto||typeof window.crypto.getRandomValues!=='function')return '';
+   const bytes=new Uint8Array(32);window.crypto.getRandomValues(bytes);
+   const token=Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('');
+   localStorage.setItem(key,token);return token;
+  }catch(_){return '';}
+ }
+ const customerToken=getCustomerIdentityToken();
+ let telegramBound=false,telegramBusy=false;
+ async function refreshTelegramBinding(){
+  const button=$('telegramBindingButton'),status=$('telegramBindingStatus');
+  if(!button||!status)return;
+  button.disabled=!customerToken||!/^\d+$/.test(storeId)||telegramBusy;
+  if(!customerToken){status.textContent='浏览器无法保存顾客身份，请允许本地存储后重试';return;}
+  if(!/^\d+$/.test(storeId)){status.textContent='门店链接无效';return;}
+  try{
+   const response=await fetch('/api/public/delivery/customer-telegram/binding?store_id='+encodeURIComponent(storeId),{headers:{'X-Customer-Token':customerToken},cache:'no-store'});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error||'读取绑定状态失败');
+   telegramBound=data.bound===true;
+   status.textContent=telegramBound?'Telegram 通知已绑定':'Telegram 通知尚未绑定';
+   button.textContent=telegramBound?'解除 Telegram 绑定':'✈️ 绑定 Telegram 通知';
+  }catch(error){status.textContent=error.message||'Telegram 状态暂不可用';}
+ }
+ async function toggleTelegramBinding(){
+  if(telegramBusy)return;
+  if(!customerToken){$('telegramBindingStatus').textContent='无法建立安全的顾客身份凭证';return;}
+  const popup=telegramBound?null:window.open('about:blank','_blank');
+  telegramBusy=true;$('telegramBindingButton').disabled=true;
+  try{
+   if(telegramBound){
+    if(!window.confirm('确定解除此门店的 Telegram 通知绑定吗？'))return;
+    const response=await fetch('/api/public/delivery/customer-telegram/binding?store_id='+encodeURIComponent(storeId),{method:'DELETE',headers:{'X-Customer-Token':customerToken},cache:'no-store'});
+    const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'解除绑定失败');
+    telegramBound=false;$('telegramBindingStatus').textContent='Telegram 通知已解除绑定';
+   }else{
+    const response=await fetch('/api/public/delivery/customer-telegram/binding/start',{method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':customerToken},body:JSON.stringify({store_id:Number(storeId)})});
+    const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'无法生成 Telegram 绑定入口');
+    if(!data.deepLink)throw new Error('Telegram 绑定链接无效');
+    if(popup){popup.opener=null;popup.location.replace(data.deepLink);}else window.location.href=data.deepLink;
+    $('telegramBindingStatus').textContent='请在 Telegram 中点击 Start 完成绑定，再返回本页面';
+   }
+  }catch(error){if(popup&&!popup.closed)popup.close();$('telegramBindingStatus').textContent=error.message||'Telegram 操作失败';}
+  finally{telegramBusy=false;$('telegramBindingButton').disabled=!customerToken;await refreshTelegramBinding();}
+ }
+ $('telegramBindingButton').addEventListener('click',toggleTelegramBinding);
+ window.addEventListener('focus',refreshTelegramBinding);
  let menu=[],categories=[],rates=new Map(),maxQty=100,createdOrderId=null,createdTrackingUrl='';
  let primaryCurrency={code:'USD',symbol:'$',rate:1},secondaryCurrency=null,dualEnabled=false,currentCategory='__ALL__',searchTerm='';
  const escText=value=>String(value??'');
@@ -233,7 +285,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   const form=new FormData(event.currentTarget),items=[...cart].map(([id,quantity])=>({id:Number(id),quantity}));
   try{
    const response=await fetch('/api/public/delivery/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    store_id:Number(storeId),recipient_name:form.get('recipient_name'),recipient_phone:form.get('recipient_phone'),
+    store_id:Number(storeId),customer_token:customerToken,recipient_name:form.get('recipient_name'),recipient_phone:form.get('recipient_phone'),
     delivery_address:form.get('delivery_address'),note:form.get('note'),payment_method:form.get('payment_method'),items
    })});
    const data=await response.json().catch(()=>({}));
@@ -268,6 +320,6 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    else $('submit').disabled=false;
   }
  });
- load().catch(error=>{$('message').textContent=error.message;$('menu').textContent='菜单暂时无法加载';});
+ load().then(refreshTelegramBinding).catch(error=>{$('message').textContent=error.message;$('menu').textContent='菜单暂时无法加载';});
 })();
 </script></body></html>
