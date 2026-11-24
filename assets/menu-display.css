@@ -17,12 +17,12 @@ body {
   font: 15px -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   height: 100vh;
   height: 100dvh;
   min-height: 100vh;
   min-height: 100dvh;
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
-  overflow: hidden;
 }
 .disp-header {
   display: flex;
