@@ -51,13 +51,13 @@ test('cashier and waiter payment overlays preserve KHQR stacking order', () => {
 
 test('super admin modal overlays stay above mobile navigation controls', () => {
   const superCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'super.css'), 'utf8');
-  const zIndex = (selector) => {
+  const readZIndex = (selector) => {
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const block = superCss.match(new RegExp(escaped + String.raw\`\\s*\\{([^}]*)\\}\`))?.[1] || '';
     return Number(block.match(/z-index:\\s*(\\d+)/)?.[1] || 0);
   };
 
-  assert.ok(zIndex('.modal') > zIndex('.mobile-menu-btn'));
-  assert.ok(zIndex('.modal') > zIndex('.super-top'));
-  assert.equal(zIndex('.modal'), 400);
+  assert.ok(readZIndex('.modal') > readZIndex('.mobile-menu-btn'));
+  assert.ok(readZIndex('.modal') > readZIndex('.super-top'));
+  assert.equal(readZIndex('.modal'), 400);
 });
