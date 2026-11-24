@@ -276,3 +276,17 @@ test('admin mobile sidebar stays aligned below the header at every narrow breakp
     previous = media;
   }
 });
+
+
+test('cashier refund amount input uses one consolidated overflow-safe rule', () => {
+  const cashierCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
+  const rules = cashierCss.match(/\.refund-input\s*\{[^}]*\}/g) || [];
+  assert.equal(rules.length, 1, 'refund amount input must not be split across competing duplicate rules');
+  const rule = rules[0];
+  assert.match(rule, /height:\s*42px/);
+  assert.match(rule, /min-width:\s*0/);
+  assert.match(rule, /box-sizing:\s*border-box/);
+  assert.match(rule, /font-size:\s*14px/);
+  assert.match(rule, /font-weight:\s*700/);
+  assert.match(rule, /padding:\s*10px 12px/);
+});
