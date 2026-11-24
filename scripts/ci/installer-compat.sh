@@ -36,7 +36,8 @@ force_test_dir="$(mktemp -d)"
   git config user.email ci@example.invalid
   git config user.name "FoodFlow CI"
   printf 'base\n' > app.js
-  git add app.js
+  printf 'template only\n' > .env.example
+  git add app.js .env.example
   git commit -qm "initial"
   printf 'local production edit\n' > app.js
   mkdir -p uploads backups logs
