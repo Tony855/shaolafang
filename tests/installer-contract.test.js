@@ -338,6 +338,20 @@ test('top-level deployment guides and standard installer use the current reposit
   assert.ok(standardScript.includes("git checkout --detach FETCH_HEAD"));
   assert.doesNotMatch(standardScript, /foodflow-enterprise(?:-ultimate)?\.git/);
   assert.doesNotMatch(standardScript, /REPO_NAME=.*basename|case "\\$REPO_NAME"/);
+
+  for (const file of [
+    'install.sh',
+    'install-local.sh',
+    'deploy/enterprise/cluster/deploy.sh',
+    'deploy/enterprise-ultimate/cluster/deploy.sh'
+  ]) {
+    const source = read(file);
+    assert.ok(source.includes('Tony855/shaolafang'), file + ' must use the canonical source repository');
+    assert.doesNotMatch(source, /foodflow-enterprise(?:-ultimate)?\\.git/, file + ' must not reference retired repositories');
+  }
+  const bootstrap = read('install.sh');
+  assert.ok(bootstrap.includes('archive/$BOOTSTRAP_VERSION.tar.gz'));
+  assert.ok(bootstrap.includes('GIT_VERSION="$BOOTSTRAP_VERSION"'));
 });
 
 
