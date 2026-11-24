@@ -30,6 +30,28 @@ ff_require_clean_git_worktree() {
   fi
 }
 
+
+# Force code deployment while refusing to overwrite production data tracked by Git.
+# Uncommitted tracked application files are intentionally overwritten by git reset --hard.
+ff_prepare_force_deploy_repository() {
+  local repository_url="${1:?repository URL is required}" protected
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+    printf '[ERROR] 当前目录不是有效 Git 工作区，无法执行强制代码部署。\\n' >&2
+    return 1
+  }
+  if git remote get-url origin >/dev/null 2>&1; then
+    git remote set-url origin "$repository_url"
+  else
+    git remote add origin "$repository_url"
+  fi
+  protected="$(git ls-files -- .env uploads backups logs)"
+  if [ -n "$protected" ]; then
+    printf '[ERROR] 以下生产数据路径被 Git 跟踪；为防止配置或用户数据被覆盖，拒绝继续：\\n%s\\n' "$protected" >&2
+    return 1
+  fi
+  printf '[WARN] 强制代码部署已启用：本地已跟踪程序文件将由远端版本覆盖；未跟踪文件不会被自动删除。\\n' >&2
+}
+
 ff_wait_for_health() {
   local port="${1:-3000}" attempts="${2:-30}" body
   command -v curl >/dev/null 2>&1 || {
