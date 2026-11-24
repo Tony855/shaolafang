@@ -1,3 +1,4 @@
+const { normalizeRouteError } = require('../server/utils/http-error');
 /* ============================================================
    routes/admin-system.js — 系统日志 + 改密码
    ============================================================ */
@@ -55,6 +56,7 @@ module.exports = function(app, deps) {
         );
       });
       res.json({ success: true, message: '密码已更新' });
-    } catch (e) { res.status(e.status || 500).json({ error: e.status ? e.message : '修改密码失败，所有更改已回滚' }); }
+    } catch (e) { const safeError = normalizeRouteError(e, '修改密码失败，所有更改已回滚');
+      res.status(safeError.status).json({ error: safeError.message }); }
   });
 };
