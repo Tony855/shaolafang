@@ -2,7 +2,9 @@
 
 > 本指南已按 Tony855/shaolafang 当前代码和安装器重写。旧版文档曾指向独立的 foodflow-standard 仓库及旧环境变量；不要再照旧命令部署。
 
-## 推荐部署\n\n标准版、企业版及旗舰版共享唯一代码仓库 `Tony855/shaolafang`，避免安装文档或脚本指向不同项目。
+## 推荐部署
+
+标准版、企业版及旗舰版共享唯一代码仓库 `Tony855/shaolafang`，避免安装文档或脚本指向不同项目。
 
 ~~~bash
 git clone https://github.com/Tony855/shaolafang.git
