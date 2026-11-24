@@ -96,3 +96,23 @@ test('cashier detail footer and actions stay in flex flow with iPhone safe-area 
   assert.match(detailLayout, /padding-bottom:\s*max\(12px,\s*env\(safe-area-inset-bottom\)\)/);
   assert.doesNotMatch(detailLayout, /position:\s*(?:absolute|fixed)\s*!important|bottom:\s*(?:72|78)px|padding-bottom:\s*200px/);
 });
+
+test('cashier payment, KHQR, refund and confirmation dialogs stay within the dynamic safe viewport', () => {
+  const modalLayout = cashier.slice(cashier.lastIndexOf('收银台弹窗：限制在动态视口内'));
+  assert.match(modalLayout, /\.modal-overlay\s*\{[^}]*overflow-y:\s*auto;/s);
+  assert.match(modalLayout, /safe-area-inset-top/);
+  assert.match(modalLayout, /safe-area-inset-bottom/);
+  assert.match(modalLayout, /\.modal-overlay > \.payment-card,[\s\S]*?#confirmModal > \.modal\s*\{[^}]*max-height:\s*calc\(100dvh/s);
+  assert.match(modalLayout, /overflow-y:\s*auto/);
+  assert.match(modalLayout, /overscroll-behavior:\s*contain/);
+  const cashierHtml = fs.readFileSync(path.join(__dirname, '..', 'cashier.html'), 'utf8');
+  for (const id of ['paymentModal', 'khqrModal', 'refundModal', 'confirmModal']) {
+    assert.match(cashierHtml, new RegExp('id="' + id + '"'));
+  }
+});
+
+test('cashier refund modal does not retain unused legacy card and action selectors', () => {
+  assert.doesNotMatch(cashier, /\.refund-card\s*\{|\.refund-title\s*\{|\.refund-amount-value\s*\{|\.refund-actions\s*\{/);
+  assert.match(cashier, /\.refund-input-row/);
+  assert.match(cashier, /\.refund-textarea/);
+});
