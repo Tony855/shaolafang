@@ -334,7 +334,7 @@ test('top-level deployment guides and standard installer use the current reposit
   assert.ok(standardScript.includes('git clone --branch "$GIT_VERSION" "$GIT_REPO" "$DEPLOY_TARGET"'));
   assert.ok(standardScript.includes('git fetch --no-tags origin "$GIT_VERSION"'));
   assert.ok(standardScript.includes("git checkout --detach FETCH_HEAD"));
-  assert.doesNotMatch(standardScript, /foodflow-enterprise(?:-ultimate)?\\.git/);
+  assert.doesNotMatch(standardScript, /foodflow-enterprise(?:-ultimate)?\.git/);
   assert.doesNotMatch(standardScript, /REPO_NAME=.*basename|case "\\$REPO_NAME"/);
 });
 
