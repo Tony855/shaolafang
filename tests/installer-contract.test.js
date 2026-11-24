@@ -136,7 +136,7 @@ test('all deployment entrypoints share a lock and never kill arbitrary port owne
   assert.ok(read('install.sh').includes('ff_require_port_available "$BACKEND_PORT"'));
   assert.ok(read('install-local.sh').includes('ff_require_port_available "$BACKEND_PORT"'));
   assert.ok(read('deploy/standard/deploy.sh').includes('ff_require_clean_git_worktree'));
-  assert.ok(read('deploy/standard/deploy.sh').includes('git clone "$GIT_REPO" "$DEPLOY_TARGET"'));
+  assert.ok(read('deploy/standard/deploy.sh').includes('git clone --branch "$GIT_VERSION" "$GIT_REPO" "$DEPLOY_TARGET"'));
   assert.ok(read('deploy/standard/deploy.sh').includes('目标目录非空但不是 Git 仓库'));
   assert.ok(!read('deploy/standard/deploy.sh').includes('rsync -a --delete'));
   assert.ok(read('deploy/standard/deploy.sh').includes('git pull --ff-only origin main'));
