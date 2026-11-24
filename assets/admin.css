@@ -2508,7 +2508,7 @@ button.edit-btn:disabled {
         .admin-name-btn span { display: none; }
         .admin-name-btn { padding: 6px 8px; font-size: 14px; }
         .hamburger-btn { width: 36px; height: 36px; font-size: 16px; top: 8px; left: 5px; }
-        .admin-sidebar { width: 150px !important; padding: 14px 8px 8px !important; }
+        .admin-sidebar { padding: 14px 8px 8px !important; }
         .nav-item { padding: 10px; font-size: 13px; gap: 8px; }
         .panel.module-panel { padding: 10px; max-width: 100%; }
         .panel.module-panel h2 { font-size: 16px; }
