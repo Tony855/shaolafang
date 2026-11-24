@@ -941,8 +941,7 @@ body {
   color: #666;
   margin-bottom: 6px;
 }
-.refund-select,
-.refund-textarea {
+.refund-select {
   width: 100%;
   padding: 10px 12px;
   border: 1.5px solid #e5e7eb;
@@ -960,10 +959,23 @@ body {
   cursor: pointer;
 }
 .refund-textarea {
+  width: 100%;
+  flex: 1;
   min-height: 80px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--pos-border);
+  border-radius: var(--pos-radius-sm);
+  font-size: 14px;
+  color: var(--pos-text);
+  outline: none;
   resize: vertical;
   line-height: 1.5;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: all 0.2s;
+  background: #fff;
 }
+
 .refund-select:focus,
 .refund-textarea:focus {
   border-color: var(--pos-primary);
@@ -988,17 +1000,7 @@ body {
   padding-top: 10px;
 }
 
-.refund-textarea {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1.5px solid var(--pos-border);
-  border-radius: var(--pos-radius-sm);
-  font-size: 14px;
-  color: var(--pos-text);
-  outline: none;
-  resize: vertical;
-  font-family: inherit;
-}
+
 .refund-textarea:focus {
   border-color: var(--pos-primary);
   box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
