@@ -22,7 +22,7 @@ const { ensureProviderEventQueueIndexes } = require('./server/db/migrations/prov
 const { ensureTelegramNotificationOutboxSchema } = require('./server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('./server/db/migrations/telegram-customer-binding');
 const { ensureTelegramStoreAdminRecipientSchema } = require('./server/db/migrations/telegram-store-admin-recipients');
-const { createTelegramNotificationWorker } = require('./server/services/telegram-notification-worker-runtime');
+const { createTelegramNotificationWorker, isTelegramNotificationWorkerEnabled } = require('./server/services/telegram-notification-worker-runtime');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
@@ -1589,8 +1589,8 @@ initDatabase().then(async () => {
     process.exit(1);
     return;
   }
-  // Notifications run by default; set the variable to 'false' only for an intentional maintenance/rollback pause.
-  if (process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED !== 'false') {
+  // Fail closed: no Telegram delivery until an operator explicitly opts in.
+  if (isTelegramNotificationWorkerEnabled(process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED)) {
     stopTelegramNotificationWorker = telegramNotificationWorker.start();
     console.log('[telegram-worker] background delivery enabled');
   }
