@@ -84,3 +84,15 @@ test('admin 420px layout overrides are applied after legacy 480px rules', () => 
   assert.match(narrowCss, /\.ff-admin \.top-right select\s*\{[^}]*font-size:\s*10px/s);
   assert.match(narrowCss, /\.ff-admin \.nav-item\s*\{[^}]*font-size:\s*12px/s);
 });
+
+test('cashier detail footer and actions stay in flex flow with iPhone safe-area padding', () => {
+  const detailLayout = cashier.slice(
+    cashier.indexOf('详情页底部布局：使用纵向 Flex'),
+    cashier.indexOf('订单卡片 4 状态标记')
+  );
+  assert.match(detailLayout, /\.pos-detail > \.pos-detail-body\s*\{[^}]*flex:\s*1 1 auto;[^}]*overflow-y:\s*auto;/s);
+  assert.match(detailLayout, /\.pos-detail > \.pos-detail-footer\s*\{[^}]*position:\s*static\s*!important;/s);
+  assert.match(detailLayout, /\.pos-detail > \.pos-detail-btns,[\s\S]*?position:\s*static\s*!important;/);
+  assert.match(detailLayout, /padding-bottom:\s*max\(12px,\s*env\(safe-area-inset-bottom\)\)/);
+  assert.doesNotMatch(detailLayout, /position:\s*(?:absolute|fixed)\s*!important|bottom:\s*(?:72|78)px|padding-bottom:\s*200px/);
+});
