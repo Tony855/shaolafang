@@ -362,7 +362,8 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
             if (curObj && Number(curObj.rate)) baseUSD = amt / Number(curObj.rate);
           } catch (e) {}
         }
-        // Show only the selected KHQR payment currency.\n        $('#khqrAmount').style.cssText =
+        // Show only the selected KHQR payment currency.
+        $('#khqrAmount').style.cssText =
           'display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;width:100%;text-align:center;line-height:1.35;';
         $('#khqrAmount').innerHTML =
           '' +
