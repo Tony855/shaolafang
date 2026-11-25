@@ -76,6 +76,23 @@ function createTelegramCustomerWebhookHandler({
           return;
         }
 
+        if (update.action === 'delivery') {
+          const store = await getAsync(
+            'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+            [update.storeId]
+          );
+          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\\/+$/, '');
+          if (store && /^https:\\/\\//i.test(publicUrl)) {
+            const webAppUrl = publicUrl + '/delivery-order.html?store_id=' + encodeURIComponent(String(store.id)) + '&telegram=1';
+            bound = {
+              chatId: update.telegramChatId,
+              text: '欢迎使用 FoodFlow' + (store.name ? ' · ' + String(store.name).slice(0, 80) : '') + '。点击下方按钮进入外卖点餐小程序。',
+              replyMarkup: { inline_keyboard: [[{ text: '🍽️ 打开外卖点餐', web_app: { url: webAppUrl } }]] }
+            };
+          }
+          return;
+        }
+
         const challengeHash = crypto.createHash('sha256').update(update.challenge).digest('hex');
         const challenge = await getAsync(
           'SELECT id, customer_token_hash, merchant_id, store_id, expires_at, consumed_at FROM telegram_customer_binding_challenges WHERE challenge_hash=? AND consumed_at IS NULL AND expires_at > UTC_TIMESTAMP(3) FOR UPDATE',
@@ -137,7 +154,7 @@ function createTelegramCustomerWebhookHandler({
 
     if (bound && validateBotToken(botToken)) {
       try {
-        await sendMessage({ token: botToken, chatId: bound.chatId, text: bound.text });
+        await sendMessage({ token: botToken, chatId: bound.chatId, text: bound.text, replyMarkup: bound.replyMarkup });
       } catch (_) {
         try { logger.warn('[telegram-webhook] confirmation message failed'); } catch (_) {}
       }
