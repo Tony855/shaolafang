@@ -83,21 +83,25 @@ async function getTelegramBotUsername({ token, fetchImpl = globalThis.fetch }) {
   return username;
 }
 
-async function setTelegramMenuButton({ token, text = '🍽️ 外卖点餐', webAppUrl, fetchImpl = globalThis.fetch }) {
+async function setTelegramMenuButton({ token, text = '🍽️ 外卖点餐', webAppUrl, enabled = true, fetchImpl = globalThis.fetch }) {
   if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
   if (typeof fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持 fetch');
   const label = String(text || '').trim();
-  let parsed;
-  try { parsed = new URL(String(webAppUrl || '')); } catch (_) { throw new Error('Telegram Mini App URL 无效'); }
-  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.hash || parsed.href.length > 2048) {
-    throw new Error('Telegram Mini App 必须使用有效的 HTTPS 地址');
+  let menuButton = { type: 'commands' };
+  if (enabled) {
+    let parsed;
+    try { parsed = new URL(String(webAppUrl || '')); } catch (_) { throw new Error('Telegram Mini App URL 无效'); }
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.hash || parsed.href.length > 2048) {
+      throw new Error('Telegram Mini App 必须使用有效的 HTTPS 地址');
+    }
+    menuButton = { type: 'web_app', text: String(text || '').trim(), web_app: { url: parsed.href } };
   }
   let response;
   try {
     response = await fetchImpl(`${TELEGRAM_API}/bot${token}/setChatMenuButton`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ menu_button: { type: 'web_app', text: label, web_app: { url: parsed.href } } }),
+      body: JSON.stringify({ menu_button: menuButton }),
       signal: AbortSignal.timeout(10000)
     });
   } catch (_) {
