@@ -1166,6 +1166,8 @@
   "refundReasonDish": "បញ្ហាមុខម្ហូប",
   "refundReasonService": "បញ្ហាសេវា",
   "refundReasonOther": "ផ្សេងទៀត",
+  "selectPaymentMethod": "សូមជ្រើសរើសវិធីទទួលប្រាក់",
+  "cashReceivedInsufficient": "ចំនួនសាច់ប្រាក់ដែលទទួលបានត្រូវតែយ៉ាងហោចណាស់ស្មើនឹងចំនួនត្រូវបង់",
   "payMethod": "វិធីបង់ប្រាក់",
   "superDashboard": "ផ្ទាំងគ្រប់គ្រង",
   "superMerchants": "ពាណិជ្ជករ",
