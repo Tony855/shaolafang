@@ -157,3 +157,14 @@ test("delivery storefront header is anchored to the full mobile viewport width",
   assert.match(page, /html,body\{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:hidden\}/);
   assert.match(page, /body>header\{display:flex;width:100vw;max-width:100vw;min-width:0;margin-left:calc\(50% - 50vw\);margin-right:calc\(50% - 50vw\);box-sizing:border-box/);
 });
+
+
+test("delivery storefront preserves native vertical page scrolling on iPhone Safari", () => {
+  assert.match(page, /html\\{[^}]*overflow-x:clip/);
+  assert.match(page, /body\\{[^}]*min-height:100%;[^}]*overflow-x:clip;[^}]*touch-action:pan-y;[^}]*-webkit-overflow-scrolling:touch/);
+  assert.doesNotMatch(page, /html,body\\{[^}]*overflow-x:hidden/);
+});
+
+test("delivery category navigation scrolls horizontally without capturing vertical page gestures", () => {
+  assert.match(page, /\\.category-nav\\{[^}]*overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x/);
+});
