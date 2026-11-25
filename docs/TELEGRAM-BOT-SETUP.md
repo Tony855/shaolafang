@@ -64,7 +64,7 @@ Binding details:
 
 The customer Client Bot exposes FoodFlow ordering directly from Telegram's chat menu button. Customers do not need to visit the FoodFlow website first, tap a website launch button, or send a `/start delivery_<store_id>` command.
 
-1. Configure and enable the Client Bot in **Global settings → Telegram Bot**. On save, FoodFlow calls Telegram `setChatMenuButton` and sets the default private-chat menu button to **🍽️ 外卖点餐**, pointing to `https://<FOODFLOW_PUBLIC_URL-host>/telegram-delivery.html`.
+1. Configure and enable the Client Bot in **Global settings → Telegram Bot**. On save, FoodFlow calls Telegram `setChatMenuButton` and sets the default private-chat menu button to **🍽️ 外卖点餐**, pointing to `https://<FOODFLOW_PUBLIC_URL-host>/telegram/delivery`.
 2. Set `FOODFLOW_PUBLIC_URL` to the public HTTPS origin and register the Client Bot webhook as described above.
 3. In @BotFather, configure the Web App domain using `/setdomain` with the same FoodFlow hostname.
 4. A customer opens the Client Bot chat and taps the built-in **🍽️ 外卖点餐** menu button. Telegram opens the FoodFlow Mini App directly.
