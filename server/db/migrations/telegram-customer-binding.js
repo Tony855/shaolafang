@@ -40,9 +40,9 @@ const SCHEMA_STATEMENTS = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
 ];
 
-async function ensureTelegramWebhookUpdateTenantKey({ runAsync, getAsync }) {
-  if (typeof runAsync !== 'function' || typeof getAsync !== 'function') throw new TypeError('runAsync and getAsync are required');
-  const columns = await getAsync(
+async function ensureTelegramWebhookUpdateTenantKey({ runAsync, allAsync }) {
+  if (typeof runAsync !== 'function' || typeof allAsync !== 'function') throw new TypeError('runAsync and allAsync are required');
+  const columns = await allAsync(
     'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?',
     ['telegram_webhook_updates']
   );
@@ -50,7 +50,7 @@ async function ensureTelegramWebhookUpdateTenantKey({ runAsync, getAsync }) {
   if (!names.has('merchant_id')) {
     await runAsync('ALTER TABLE telegram_webhook_updates ADD COLUMN merchant_id BIGINT UNSIGNED NOT NULL DEFAULT 0 FIRST');
   }
-  const indexes = await getAsync(
+  const indexes = await allAsync(
     'SELECT INDEX_NAME, COLUMN_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND INDEX_NAME=? ORDER BY SEQ_IN_INDEX',
     ['telegram_webhook_updates', 'PRIMARY']
   );
@@ -61,10 +61,10 @@ async function ensureTelegramWebhookUpdateTenantKey({ runAsync, getAsync }) {
   }
 }
 
-async function ensureTelegramCustomerBindingSchema({ runAsync, getAsync }) {
+async function ensureTelegramCustomerBindingSchema({ runAsync, allAsync }) {
   if (typeof runAsync !== 'function') throw new TypeError('runAsync is required');
   for (const statement of SCHEMA_STATEMENTS) await runAsync(statement);
-  if (typeof getAsync === 'function') await ensureTelegramWebhookUpdateTenantKey({ runAsync, getAsync });
+  if (typeof allAsync === 'function') await ensureTelegramWebhookUpdateTenantKey({ runAsync, allAsync });
 }
 
 module.exports = { SCHEMA_STATEMENTS, ensureTelegramCustomerBindingSchema, ensureTelegramWebhookUpdateTenantKey };
