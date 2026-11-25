@@ -151,3 +151,9 @@ test('customer identity remains browser-wide while checkout idempotency is tab-s
   assert.match(page, /sessionStorage\.getItem\(checkoutKeyName\)/);
   assert.match(page, /sessionStorage\.setItem\(checkoutKeyName,key\)/);
 });
+
+
+test("delivery storefront header is anchored to the full mobile viewport width", () => {
+  assert.match(page, /html,body\{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:hidden\}/);
+  assert.match(page, /body>header\{display:flex;width:100vw;max-width:100vw;min-width:0;margin-left:calc\(50% - 50vw\);margin-right:calc\(50% - 50vw\);box-sizing:border-box/);
+});
