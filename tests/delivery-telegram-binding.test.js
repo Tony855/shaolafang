@@ -68,8 +68,8 @@ function response() {
   return { statusCode: 200, body: null, headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
 }
 
-function request({ query = {}, body = {}, token = customerToken } = {}) {
-  return { query, body, headers: {}, get(name) { return name.toLowerCase() === 'x-customer-token' ? token : ''; } };
+function request({ query = {}, body = {}, token = customerToken, initData = '' } = {}) {
+  return { query, body, headers: {}, get(name) { if (name.toLowerCase() === 'x-customer-token') return token; if (name.toLowerCase() === 'x-telegram-init-data') return initData; return ''; } };
 }
 
 test('Telegram Mini App store selector returns public active store IDs and names', async () => {
@@ -78,8 +78,8 @@ test('Telegram Mini App store selector returns public active store IDs and names
   const res = response();
   await handler(request({ query: { merchant_id: '3' }, initData: signedInitData() }), res);
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body, { stores: [{ id: 7, name: 'Test Store' }, { id: 9, name: 'Second Store' }] });
-  assert.match(res.headers['Cache-Control'], /max-age=60/);
+  assert.deepEqual(res.body, { merchantId: 3, stores: [{ id: 7, name: 'Test Store' }, { id: 9, name: 'Second Store' }] });
+  assert.match(res.headers['Cache-Control'], /no-store/);
 });
 
 test('delivery customer Telegram binding status is scoped to the store and hashed customer identity', async () => {
