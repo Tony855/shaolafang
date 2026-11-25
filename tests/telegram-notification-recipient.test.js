@@ -110,18 +110,20 @@ test('customer recipient resolver requires an active binding owned by the queued
   const resolve = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => {
     calls.push({ sql, params });
     if (sql.includes('telegram_customer_bindings')) return [{ id: 42, merchant_id: 7, store_id: 9, telegram_chat_id: '7654321' }];
-    return [{ key: 'telegram_client_bot_enabled', value: '1' }, { key: 'telegram_client_bot_token', value: token }];
+    return [{ bot_token: token }];
   } });
   const recipient = await resolve({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 });
   assert.deepEqual(recipient, { scope: 'customer', merchantId: 7, storeId: 9, token, chatId: '7654321' });
   assert.deepEqual(calls[0].params, [42, 7, 9]);
+  assert.match(calls[1].sql, /telegram_tenant_client_bots/);
+  assert.deepEqual(calls[1].params, [7]);
 });
 
 test('customer recipient resolver fails closed when binding or client Bot is unavailable', async () => {
   const noBinding = createTelegramNotificationRecipientResolver({ allAsync: async () => [] });
   const disabledBot = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => sql.includes('telegram_customer_bindings')
     ? (Number(params[1]) === 7 && Number(params[2]) === 9 ? [{ id: 42, merchant_id: 7, store_id: 9, telegram_chat_id: '7654321' }] : [])
-    : [{ key: 'telegram_client_bot_enabled', value: '0' }, { key: 'telegram_client_bot_token', value: token }] });
+    : [] });
   assert.deepEqual(
     await noBinding({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }),
     { scope: 'customer', merchantId: 7, storeId: 9, suppressed: true, suppressionCode: 'binding_revoked' }
