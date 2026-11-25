@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const { validateBotToken, sendTelegramMessage, setTelegramMenuButton } = require('./telegram-bot');
 const { constantTimeSecretMatch, parseTelegramPrivateUpdate } = require('./telegram-webhook');
-const { verifyStoreEntrySignature } = require('./telegram-store-entry');
+const { createStoreEntrySignature, verifyStoreEntrySignature } = require('./telegram-store-entry');
 
 function createTelegramCustomerWebhookHandler({
   getAsync, allAsync, runAsync, withTransaction, secret, getBotToken,
@@ -78,10 +78,37 @@ function createTelegramCustomerWebhookHandler({
         }
 
         if (update.action === 'home') {
-          bound = {
-            chatId: update.telegramChatId,
-            text: '欢迎使用 FoodFlow 外卖点餐。为确保进入正确门店，请点击门店管理员提供的专属 Telegram 点餐链接；普通菜单入口不再提供跨门店选择。'
-          };
+          // Resume the customer's most recently bound active store. This keeps
+          // the shared Bot convenient without exposing a cross-tenant store
+          // directory or trusting an unverified Telegram start parameter.
+          const bindings = await allAsync(
+            'SELECT b.store_id, r.chat_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id JOIN telegram_store_admin_recipients r ON r.merchant_id=b.merchant_id AND r.store_id=b.store_id WHERE b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1',
+            [update.telegramChatId, update.telegramUserId]
+          );
+          const binding = Array.isArray(bindings) ? bindings[0] : null;
+          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\\/+$/, '');
+          let publicOrigin = '';
+          try {
+            const parsed = new URL(publicUrl);
+            if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
+          } catch (_) {}
+          if (binding && publicOrigin) {
+            const signature = createStoreEntrySignature({
+              storeId: binding.store_id, chatId: String(binding.chat_id || ''), secret
+            });
+            const webAppUrl = publicOrigin + '/delivery/order?store_id=' + encodeURIComponent(String(binding.store_id)) + '&entry=' + encodeURIComponent(signature) + '&telegram=1';
+            bound = {
+              chatId: update.telegramChatId,
+              text: '欢迎回来 FoodFlow' + (binding.name ? ' · ' + String(binding.name).slice(0, 80) : '') + '。已自动为你打开最近绑定的门店。',
+              menuButtonUrl: webAppUrl,
+              replyMarkup: { inline_keyboard: [[{ text: '🍽️ 继续本店外卖点餐', web_app: { url: webAppUrl } }]] }
+            };
+          } else {
+            bound = {
+              chatId: update.telegramChatId,
+              text: '欢迎使用 FoodFlow 外卖点餐。请先通过门店管理员提供的专属 Telegram 点餐链接进入一次；之后再次打开机器人，系统会自动进入你最近绑定的门店。'
+            };
+          }
           return;
         }
 
