@@ -35,7 +35,7 @@ test('merchant store recipient resolver isolates the same store lookup across te
   const resolve = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => {
     if (sql.includes('telegram_store_admin_recipients')) {
       lookups.push({ sql, params });
-      return [{ chat_id: params[0] === 7 ? '-1007000000009' : '-1008000000009', event_enabled: 1 }];
+      return [{ chat_id: params[0] === 7 ? '-1007000000009' : '-1008000000009', is_enabled: 1, event_enabled: 1 }];
     }
     return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }];
   } });
@@ -115,7 +115,7 @@ test('customer recipient resolver requires an active binding owned by the queued
   const recipient = await resolve({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 });
   assert.deepEqual(recipient, { scope: 'customer', merchantId: 7, storeId: 9, token, chatId: '7654321' }, JSON.stringify({ recipient, calls }));
   assert.deepEqual(calls[0].params, [42, 7, 9]);
-  assert.match(calls[1].sql, /telegram_client_bot_enabled/);
+  assert.match(calls[1].sql, /FROM settings/);
   assert.deepEqual(calls[1].params, ['telegram_client_bot_enabled', 'telegram_client_bot_token']);
 });
 
