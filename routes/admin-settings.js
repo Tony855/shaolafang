@@ -321,14 +321,8 @@ module.exports = function(app, deps) {
         failureStage = 'store_lock';
         const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
         if (!store) throw Object.assign(new Error('门店不存在或已停用'), { status: 404 });
-        if (enabled) {
-          failureStage = 'global_bot_check';
-          const rows = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?)', ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']);
-          const stored = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
-          if (stored.telegram_admin_bot_enabled !== '1' || !validateBotToken(String(stored.telegram_admin_bot_token || ''))) {
-            throw Object.assign(new Error('超级管理员尚未启用管理员 Telegram Bot'), { status: 409 });
-          }
-        }
+        // Store binding is saved independently of platform Bot availability.
+        // Delivery remains fail-closed in the notification worker until Super Admin enables the Bot.
         failureStage = 'recipient_upsert';
         await runAsync(
           'INSERT INTO telegram_store_admin_recipients (merchant_id, store_id, chat_id, is_enabled, notify_order_created, notify_settled, notify_refunded, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE chat_id=VALUES(chat_id), is_enabled=VALUES(is_enabled), notify_order_created=VALUES(notify_order_created), notify_settled=VALUES(notify_settled), notify_refunded=VALUES(notify_refunded), updated_at=UTC_TIMESTAMP(3)',
