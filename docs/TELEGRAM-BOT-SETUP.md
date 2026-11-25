@@ -75,3 +75,44 @@ The menu button is configured globally for the Client Bot when the super-admin s
 
 The Mini App store selector is not an authentication mechanism. It does not trust Telegram `initData` as an order credential. Order authorization continues to use the existing high-entropy customer bearer token, and the backend revalidates store status, menu items, availability, and totals. No customer identity or order permission is granted by the menu button itself.
 
+## Delivery and limitations
+
+- Current event hooks include order creation, admin/cashier settlement, actual KHQR/manual payment confirmation, and successful refunds. A waiter request to confirm KHQR is not treated as a successful payment.
+- Admin Bot credentials remain global rather than merchant-owned. Store-specific Chat IDs and per-event toggles are implemented; they share the global Admin Bot token while preserving exact merchant/store recipient isolation.
+- The outbox records `sending` before the external API call. Expired `sending` leases and ambiguous Telegram responses move to `uncertain` and are not automatically replayed. Confirmed deliveries retain Telegram's message ID.
+- Failed tasks retry with bounded exponential backoff and eventually enter the dead-letter state. Telegram HTTP 429 responses honor `parameters.retry_after`, capped at one hour. Monitor `telegram_notification_outbox` for `state='dead'`.
+- Webhook update IDs are retained for 30 days; expired and consumed binding challenges are cleaned during new challenge creation. Before restoring a database backup, disable the Telegram worker on every application node and wait for in-flight sends to finish. After restore, customer Telegram bindings/challenges are invalidated because old customer bearer sessions are not restored; customers must scan again and rebind. Pending customer notifications from the restored snapshot are dead-lettered instead of retrying against stale bindings.
+## Staging acceptance checklist
+
+Run this only against a disposable staging database and dedicated test Bot accounts/Chat IDs. Keep the worker disabled on production.
+
+1. Configure independent Client/Admin Bot tokens in the super-admin console. Verify each fixed test message reaches only its configured test chat.
+2. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` and register the Client Bot webhook. Confirm `getWebhookInfo` reports the expected HTTPS webhook URL and no persistent delivery error.
+3. Create two merchants with at least two stores. Configure distinct store-admin Chat IDs and enable different event toggles per store.
+4. Create a customer order in each store. Verify the global admin chat receives the global event and each store chat receives only its own store event.
+5. Bind a customer private chat, create an order, then rescan to rotate the customer token and complete a new deep-link challenge. Verify the same private chat follows the new session identity, while another store's binding remains untouched.
+6. Trigger settlement, KHQR/manual payment confirmation, and a completed refund. Verify only the intended events arrive and no QR payload, customer bearer token, phone number, or private note appears.
+7. Test both in-page revoke and `/stop`. Confirm queued customer jobs move to `dead` with `binding_revoked`; rebind and verify those old jobs are not sent.
+8. Stop the worker before a job is claimed and verify safe lease recovery. Separately interrupt a job after it enters `sending`; verify it moves to `uncertain` after lease expiry and is not automatically resent. Confirm operators can inspect the row before deciding whether to replay it.
+9. With every worker stopped on every app node, restore a staging backup. Verify customer bindings/challenges are cleared, pending customer jobs are dead-lettered, store/admin configuration is restored, and customers can bind again.
+10. Inspect logs and the outbox summary for redaction. Do not paste Bot tokens or webhook secrets into tickets or chat.
+
+A useful queue health query (it does not expose message payloads or credentials):
+
+```sql
+SELECT state, recipient_scope, last_error_code, COUNT(*) AS total
+FROM telegram_notification_outbox
+GROUP BY state, recipient_scope, last_error_code
+ORDER BY state, recipient_scope, last_error_code;
+```
+
+- The full client/merchant notification workflow still requires staging end-to-end tests before production enablement.
+
+
+## Notification delivery safety
+
+Outgoing business notifications use a database outbox with a unique event key. A task moves through `pending`, `processing`, and `sending` before Telegram is called. The `sending` state is persisted before the external request so an expired send lease is never automatically replayed.
+
+If the Telegram response is ambiguous (network timeout, unreadable response, or HTTP 5xx), the task is moved to `uncertain` and requires operator review. This intentionally favors avoiding duplicate customer messages over silently retrying a send that Telegram may already have accepted. Confirmed successful responses are stored as `delivered` together with Telegram's message ID. Explicit Telegram rejections such as invalid chat permissions and flood control continue through the normal safe retry/dead-letter path.
+
+Telegram does not provide a general idempotency key for `sendMessage`; therefore absolute exactly-once delivery cannot be guaranteed. Operators should inspect `uncertain` rows before any manual replay.
