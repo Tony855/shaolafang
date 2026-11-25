@@ -81,8 +81,13 @@ function createTelegramCustomerWebhookHandler({
             'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
             [update.storeId]
           );
-          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\\/+$/, '');
-          if (store && /^https:\\/\\//i.test(publicUrl)) {
+          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
+          let publicOrigin = '';
+          try {
+            const parsed = new URL(publicUrl);
+            if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
+          } catch (_) {}
+          if (store && publicOrigin) {
             const webAppUrl = publicOrigin + '/delivery-order.html?store_id=' + encodeURIComponent(String(store.id)) + '&telegram=1';
             bound = {
               chatId: update.telegramChatId,
