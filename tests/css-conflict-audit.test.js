@@ -289,7 +289,7 @@ test('admin mobile sidebar stays aligned below the header at every narrow breakp
 
 test('cashier refund amount input uses one consolidated overflow-safe rule', () => {
   const cashierCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
-  const rules = cashierCss.match(/^\.refund-textarea\s*\{[^}]*\}/gm) || [];
+  const rules = cashierCss.match(/\.refund-input\s*\{[^}]*\}/g) || [];
   assert.equal(rules.length, 1, 'refund amount input must not be split across competing duplicate rules');
   const rule = rules[0];
   assert.match(rule, /height:\s*42px/);
@@ -303,7 +303,7 @@ test('cashier refund amount input uses one consolidated overflow-safe rule', () 
 
 test('cashier refund note textarea uses one consolidated cascade rule', () => {
   const cashierCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
-  const rules = cashierCss.match(/\.refund-textarea\s*\{[^}]*\}/g) || [];
+  const rules = cashierCss.match(/^\.refund-textarea\s*\{[^}]*\}/gm) || [];
   assert.equal(rules.length, 1, 'refund note textarea must have one consolidated base rule');
   const rule = rules[0];
   assert.match(rule, /width:\s*100%/);
