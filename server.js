@@ -1588,7 +1588,7 @@ async function syncTelegramCustomerMenuButton() {
       console.warn('[telegram-menu] skipped: FOODFLOW_PUBLIC_URL must be a public HTTPS origin');
       return;
     }
-    webAppUrl = origin + '/telegram-delivery.html';
+    webAppUrl = origin + '/telegram/delivery';
   }
   await setTelegramMenuButton({ token, enabled, webAppUrl });
   console.log(enabled ? '[telegram-menu] customer Mini App menu button synchronized' : '[telegram-menu] customer Bot menu button reset');
