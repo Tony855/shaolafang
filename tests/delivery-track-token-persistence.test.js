@@ -9,8 +9,19 @@ const track = fs.readFileSync(path.join(__dirname, '..', 'delivery-track.html'),
 const order = fs.readFileSync(path.join(__dirname, '..', 'delivery-order.html'), 'utf8');
 
 test('delivery tracking restores the per-order customer credential after a Telegram Mini App reopen', () => {
-  assert.ok(track.includes("localStorage.setItem('customer_token:'+orderId,fragmentToken)"));
-  assert.ok(track.includes("localStorage.getItem('customer_token:'+orderId)"));
-  assert.ok(track.includes("localStorage.getItem('foodflow_customer_identity_v1')"));
+  assert.ok(track.includes("saveStoredToken('localStorage','customer_token:'+orderId,customerToken)"));
+  assert.ok(track.includes("readStoredToken('localStorage','customer_token:'+orderId)"));
+  assert.ok(track.includes("readStoredToken('localStorage','foodflow_customer_identity_v1')"));
   assert.ok(order.includes("localStorage.setItem('customer_token:'+data.orderId,data.customerToken)"));
+});
+
+test('delivery tracking keeps a valid URL-fragment credential in memory when browser storage fails', () => {
+  assert.match(track, /let customerToken=isCustomerToken\(fragmentToken\)\?fragmentToken:''/);
+  assert.match(track, /function saveStoredToken\(storageName,key,value\)\{try\{window\[storageName\]\.setItem\(key,value\);return true;\}catch\(_\)\{return false;\}\}/);
+  assert.match(track, /function readStoredToken\(storageName,key\)\{try\{return window\[storageName\]\.getItem\(key\)\|\|'';\}catch\(_\)\{return '';\}\}/);
+});
+
+test('delivery tracking rejects malformed customer credentials before making an API request', () => {
+  assert.match(track, /const isCustomerToken=value=>typeof value==='string'&&\/\^\[a-f0-9\]\{64\}\$\//);
+  assert.match(track, /storedTokens\.find\(isCustomerToken\)\|\|''/);
 });
