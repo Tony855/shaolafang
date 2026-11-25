@@ -499,3 +499,14 @@ test('admin settlement payment selector and cash input have scoped non-overlappi
   assert.match(css, /\.settle-payment-field,[\s\S]*\.settle-cash-field\s*\{[^}]*display:\s*grid;/);
   assert.match(css, /\.settle-payment-select\s*\{[^}]*min-height:\s*44px;[^}]*box-sizing:\s*border-box;/s);
 });
+
+
+test('waiter table grid, bill rows, and header fit compact phone widths', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'waiter.css'), 'utf8');
+  const marker = '2026-11-25 responsive audit: waiter table cards';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /@media \(max-width: 480px\)/);
+  assert.match(rules, /\.table-grid\s*\{[^}]*min\(260px, 100%\)/s);
+  assert.match(rules, /\.bill-items \.line\s*\{[^}]*minmax\(0, 1fr\)/s);
+  assert.match(rules, /header\s*\{[^}]*flex-wrap:\s*wrap;/s);
+});
