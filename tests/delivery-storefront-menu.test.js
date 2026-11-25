@@ -63,7 +63,7 @@ test('delivery storefront remains a tableless delivery checkout and retains KHQR
 
 test('delivery storefront title header remains fully visible on narrow screens', () => {
   assert.match(page, /<header><h1>🛵 FoodFlow 外卖点餐<\/h1><p id="storeName">/);
-  assert.match(page, /body>header\\{display:flex;width:100vw;max-width:100vw;min-width:0;/);
+  assert.match(page, /body>header\{display:flex;width:100vw;max-width:100vw;min-width:0;/);
   assert.match(page, /header h1\{[^}]*flex-wrap:wrap/);
   assert.match(page, /header h1\{[^}]*overflow-wrap:anywhere/);
   assert.match(page, /header p\{[^}]*overflow-wrap:anywhere/);
