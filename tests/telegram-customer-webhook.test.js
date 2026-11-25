@@ -28,7 +28,7 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMess
     },
     allAsync: async (sql, params) => {
       if (sql.includes('telegram_customer_bindings') && sql.includes('telegram_chat_id=? AND telegram_user_id=?')) {
-        return state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active === 1);
+        return state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active === 1 && (params.length < 3 || Number(x.merchant_id) === Number(params[2])));
       }
       if (sql.includes('telegram_customer_bindings')) return state.bindings.filter(x =>
         (x.telegram_chat_id === params[0] && x.store_id === params[1]) ||
@@ -45,7 +45,7 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMess
         return { affectedRows: 1 };
       }
       if (sql.includes('UPDATE telegram_customer_bindings') && sql.includes('WHERE telegram_chat_id=? AND telegram_user_id=?')) {
-        const matches = state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active !== 0);
+        const matches = state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active !== 0 && (params.length < 3 || Number(x.merchant_id) === Number(params[2])));
         for (const row of matches) Object.assign(row, { is_active: 0, revoked_at: new Date() });
         return { affectedRows: matches.length };
       }
