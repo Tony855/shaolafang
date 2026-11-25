@@ -1578,8 +1578,8 @@ async function syncTelegramCustomerMenuButton() {
   if (!token) return;
   const enabled = config.telegram_client_bot_enabled === '1';
   let webAppUrl;
+  let origin = '';
   if (enabled) {
-    let origin = '';
     try {
       const parsed = new URL(String(process.env.FOODFLOW_PUBLIC_URL || '').trim());
       if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) origin = parsed.origin;
