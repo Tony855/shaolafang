@@ -10,8 +10,9 @@ const challenge = 'A'.repeat(43);
 
 function setup({ duplicate = false, challengeRow = true, expired = false, consumed = false } = {}) {
   let handler;
+  const handlers = new Map();
   const calls = [];
-  const app = { post(path, fn) { assert.equal(path, '/api/telegram/client/webhook'); handler = fn; } };
+  const app = { post(path, fn) { handlers.set(path, fn); } };
   const deps = {
     allAsync: async () => [{ key: 'telegram_client_bot_enabled', value: '1' }, { key: 'telegram_client_bot_token', value: token }],
     getAsync: async sql => {
@@ -32,7 +33,8 @@ function setup({ duplicate = false, challengeRow = true, expired = false, consum
   };
   process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = secret;
   registerTelegramWebhook(app, deps);
-  return { handler, calls };
+  handler = handlers.get('/api/telegram/client/webhook');
+  return { handler, tenantHandler: handlers.get('/api/telegram/client/:pathToken/webhook'), calls };
 }
 
 function response() {
@@ -100,4 +102,10 @@ test('Telegram webhook refuses expired or already consumed binding challenges', 
     assert.equal(res.code, 200);
     assert.equal(calls.some(call => call[1]?.includes('INSERT INTO telegram_customer_bindings')), false);
   }
+});
+
+test('only one platform-wide Client Bot webhook endpoint is registered', () => {
+  const { handler, tenantHandler } = setup();
+  assert.equal(typeof handler, 'function');
+  assert.equal(tenantHandler, undefined);
 });
