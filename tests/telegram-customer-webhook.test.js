@@ -303,3 +303,24 @@ test('tenant webhook scopes /stop revocation to its own merchant', async () => {
   assert.equal(state.bindings[0].is_active, 0);
   assert.equal(state.bindings[1].is_active, 1);
 });
+
+test('tenant Bot delivery deep link opens only its tenant Mini App selector', async () => {
+  const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test';
+  const sent = [];
+  try {
+    const { handler } = fixture({ tenantMerchantId: 3, sendMessage: async input => { sent.push(input); return { messageId: 1 }; } });
+    const res = response();
+    await handler({
+      headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+      body: { update_id: 203, message: { text: '/start delivery_8', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].replyMarkup.inline_keyboard[0][0].web_app.url,
+      'https://foodflow.example.test/telegram-delivery.html?merchant_id=3');
+  } finally {
+    if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
+  }
+});
