@@ -106,6 +106,19 @@ async function loadTelegramStoreNotificationSettings() {
     $('#telegramStoreNotifyOrderCreated').checked = d.notifyOrderCreated !== false;
     $('#telegramStoreNotifySettled').checked = d.notifySettled !== false;
     $('#telegramStoreNotifyRefunded').checked = d.notifyRefunded !== false;
+    const entryLink = $('#telegramStoreEntryLink');
+    const entryUnavailable = $('#telegramStoreEntryUnavailable');
+    if (entryLink) {
+      if (d.storeEntryLink) {
+        entryLink.href = d.storeEntryLink;
+        entryLink.hidden = false;
+        if (entryUnavailable) entryUnavailable.hidden = true;
+      } else {
+        entryLink.removeAttribute('href');
+        entryLink.hidden = true;
+        if (entryUnavailable) entryUnavailable.hidden = false;
+      }
+    }
     const status = $('#telegramStoreNotifyGlobalStatus');
     if (status) status.textContent = d.globalBotEnabled
       ? tAdmin('telegramStoreNotifyGlobalEnabled')
