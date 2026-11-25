@@ -615,3 +615,12 @@ test('admin order card uses distinct modern type and table pills on one left-ali
   assert.match(rules, /\.top \.status\s*\{[^}]*margin-left:\s*0\s*!important;/s);
   assert.match(rules, /@media \(max-width: 420px\)/);
 });
+
+
+test("admin mobile order header never reverts to a grid that pushes status onto another row", () => {
+  const adminCss = fs.readFileSync(path.join(__dirname, "..", "assets", "admin.css"), "utf8");
+  assert.doesNotMatch(adminCss, /\.ff-admin #orders \.order-item-admin \.top\s*\{[^}]*display:\s*grid\s*!important/s);
+  const mobileBlock = adminCss.slice(adminCss.lastIndexOf("enforce one-row admin order headers"));
+  assert.match(mobileBlock, /\.ff-admin #orders \.order-item-admin \.top\s*\{[^}]*display:flex\s*!important;[^}]*flex-wrap:nowrap\s*!important/s);
+  assert.match(mobileBlock, /\.ff-admin #orders \.order-item-admin \.top \.status\s*\{[^}]*flex:0 0 auto\s*!important/s);
+});
