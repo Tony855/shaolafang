@@ -47,12 +47,12 @@ function setup({ globalBotEnabled = '1', recipient = null, merchant = true, stor
   return { routes, calls };
 }
 
-test('store Telegram settings GET is restricted to the active request merchant and store', async () => {
+test('store Telegram settings GET reflects the persisted disabled state for the active request store', async () => {
   const { routes, calls } = setup({ recipient: { chat_id: '-100123', is_enabled: 0, notify_order_created: 0, notify_settled: 1, notify_refunded: 1 } });
   const res = response();
   await routes.get('GET /api/admin/telegram/notification-settings').at(-1)({ merchantId: 7, storeId: 9 }, res);
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.enabled, true);
+  assert.equal(res.body.enabled, false);
   assert.equal(res.body.chatId, '-100123');
   assert.equal(res.body.notifyOrderCreated, false);
   assert.deepEqual(calls[0].params, [7, 9]);
