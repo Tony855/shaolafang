@@ -493,3 +493,14 @@ test('waiter table grid, bill rows, and header fit compact phone widths', () => 
   assert.match(rules, /\.bill-items \.line\s*\{[^}]*minmax\(0, 1fr\)/s);
   assert.match(rules, /header\s*\{[^}]*flex-wrap:\s*wrap;/s);
 });
+
+ 
+test('cashier KHQR content and action buttons remain contained on compact phones', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
+  const marker = '2026-11-25 responsive audit: KHQR payment content';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /#khqrModal \.khqr-image-wrap\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(rules, /#khqrModal \.khqr-payee-account\s*\{[^}]*overflow-wrap:\s*anywhere;/s);
+  assert.match(rules, /@media \(max-width: 480px\)/);
+  assert.match(rules, /#khqrModal \.payment-actions \.btn\s*\{[^}]*flex:\s*1 1 130px;/s);
+});
