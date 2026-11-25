@@ -25,11 +25,13 @@ test('Telegram binding accepts only private /start messages with bounded payload
 });
 
 
-test('Telegram delivery deep links accept only bounded positive store IDs', () => {
-  const update = { update_id: 125, message: { text: '/start delivery_42', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } };
-  assert.deepEqual(parseTelegramPrivateUpdate(update), { action: 'delivery', updateId: 125, storeId: 42, telegramUserId: '98765', telegramChatId: '98765' });
-  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, text: '/start delivery_0' } }), null);
-  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, text: '/start delivery_12345678901' } }), null);
+test('Telegram delivery deep links require a bounded store ID and signed Chat ID binding token', () => {
+  const signature = 'A'.repeat(43);
+  const update = { update_id: 125, message: { text: '/start delivery_42_' + signature, chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } };
+  assert.deepEqual(parseTelegramPrivateUpdate(update), { action: 'delivery', updateId: 125, storeId: 42, entrySignature: signature, telegramUserId: '98765', telegramChatId: '98765' });
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, text: '/start delivery_0_' + signature } }), null);
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, text: '/start delivery_12345678901_' + signature } }), null);
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, text: '/start delivery_42' } }), null);
   assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, chat: { id: -100, type: 'group' } } }), null);
 });
 
