@@ -19,8 +19,16 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
 (() => {
  const orderId=location.pathname.split('/').pop();
  const fragment=new URLSearchParams(location.hash.replace(/^#/,'')), fragmentToken=fragment.get('token')||'';
- if(fragmentToken){sessionStorage.setItem('customer_token:'+orderId,fragmentToken);history.replaceState(null,'',location.pathname+location.search);}
- const customerToken=sessionStorage.getItem('customer_token:'+orderId)||sessionStorage.getItem('customer_token')||'';
+ if(fragmentToken){
+  sessionStorage.setItem('customer_token:'+orderId,fragmentToken);
+  localStorage.setItem('customer_token:'+orderId,fragmentToken);
+  history.replaceState(null,'',location.pathname+location.search);
+ }
+ let customerToken='';
+ try {
+  customerToken=sessionStorage.getItem('customer_token:'+orderId)||localStorage.getItem('customer_token:'+orderId)||sessionStorage.getItem('customer_token')||localStorage.getItem('foodflow_customer_identity_v1')||'';
+ } catch (_) {}
+
  const $=id=>document.getElementById(id);let map=null,marker=null,socket=null;
  const labels={pending_assignment:'等待门店分配骑手',assigned:'门店已分配骑手',accepted:'骑手已接单',picked_up:'骑手已取货',delivering:'骑手配送中',delivered:'订单已送达',cancelled:'配送已取消'};
  function updateLocation(data){if(!Number.isFinite(Number(data.latitude))||!Number.isFinite(Number(data.longitude)))return;
