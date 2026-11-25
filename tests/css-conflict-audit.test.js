@@ -583,3 +583,15 @@ test('admin order card header keeps order number, fulfillment context and status
   assert.match(rules, /\.top \.status\s*\{[^}]*font-size:\s*clamp\(10px, 2\.7vw, 11px\)\s*!important;/s);
   assert.match(rules, /@media \(max-width: 420px\)/);
 });
+
+
+test('admin order card header keeps all metadata on one left-aligned line', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const marker = '2026-11-25: keep admin order header content grouped and left-aligned on one line';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /\.top\s*\{[^}]*justify-content:\s*flex-start\s*!important;/s);
+  assert.match(rules, /\.top \.order-heading\s*\{[^}]*flex:\s*0 1 auto\s*!important;/s);
+  assert.match(rules, /\.top \.order-context\s*\{[^}]*max-width:/s);
+  assert.match(rules, /\.top \.status\s*\{[^}]*margin-left:\s*0\s*!important;/s);
+  assert.match(rules, /@media \(max-width: 420px\)/);
+});
