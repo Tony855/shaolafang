@@ -1118,6 +1118,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
     }
 
     let clientMenuToken = '';
+    let previousClientToken = '';
     await withTransaction(async () => {
       const existingRows = await allAsync(
         'SELECT `key`, value FROM settings WHERE `key` IN (' +
@@ -1129,7 +1130,10 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
         const item = next[scope];
         const oldToken = String(existing[`telegram_${scope}_bot_token`] || '');
         const newToken = item.clearToken ? '' : (item.token ? item.token : oldToken);
-        if (scope === 'client') clientMenuToken = newToken || oldToken;
+        if (scope === 'client') {
+          previousClientToken = oldToken;
+          clientMenuToken = newToken || oldToken;
+        }
         const newChatId = scope === 'client' ? (item.chatId === undefined ? String(existing.telegram_client_chat_id || '') : item.chatId) : '';
         if (item.enabled && (!newToken || (scope === 'client' && !newChatId))) {
           const error = new Error(scope === 'client' ? '客户端 Bot 启用前必须配置 Token 和 Chat ID' : '管理员 Bot 启用前必须配置 Token');
@@ -1209,13 +1213,23 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
     } catch (error) {
       webhookError = String(error.message || 'Telegram Webhook 同步失败').slice(0, 180);
     }
+    let previousBotCleanupError = '';
+    if (previousClientToken && previousClientToken !== clientMenuToken) {
+      const cleanupErrors = [];
+      try { await setTelegramWebhook({ token: previousClientToken, enabled: false }); }
+      catch (error) { cleanupErrors.push(String(error.message || '旧 Client Bot Webhook 清理失败').slice(0, 140)); }
+      try { await setTelegramMenuButton({ token: previousClientToken, enabled: false }); }
+      catch (error) { cleanupErrors.push(String(error.message || '旧 Client Bot 菜单清理失败').slice(0, 140)); }
+      previousBotCleanupError = cleanupErrors.join('；');
+    }
     res.setHeader('Cache-Control', 'no-store, private');
     res.json({
       success: true,
       menu_button_configured: menuButtonConfigured,
       menu_button_error: menuButtonError,
       webhook_configured: webhookConfigured,
-      webhook_error: webhookError
+      webhook_error: webhookError,
+      previous_bot_cleanup_error: previousBotCleanupError
     });
   } catch (error) {
     res.status(error.statusCode || 500).json({
