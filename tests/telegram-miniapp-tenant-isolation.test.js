@@ -7,9 +7,9 @@ const registerCustomerDeliveryRoutes = require('../routes/customer-delivery');
 const { verifyTelegramWebAppInitData } = require('../server/services/telegram-webapp-auth');
 
 const token = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
-const now = Math.floor(Date.now() / 1000);
 
 function signedInitData() {
+  const now = Math.floor(Date.now() / 1000);
   const params = new Map([
     ['auth_date', String(now)],
     ['query_id', 'shared-client-test'],
@@ -84,7 +84,7 @@ test('shared Client Bot Mini App requires signed Telegram initData', async () =>
 
 test('shared Client Bot Mini App verifies with the single super-admin configured token', async () => {
   const initData = signedInitData();
-  assert.ok(verifyTelegramWebAppInitData(initData, token), 'test fixture must contain valid shared-Bot initData');
+  assert.ok(verifyTelegramWebAppInitData(initData, token, { nowSeconds: Math.floor(Date.now() / 1000) }), 'test fixture must contain valid shared-Bot initData');
   const { handler, calls } = setup();
   const res = response();
   await handler(request(initData), res);
