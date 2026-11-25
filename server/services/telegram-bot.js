@@ -86,7 +86,6 @@ async function getTelegramBotUsername({ token, fetchImpl = globalThis.fetch }) {
 async function setTelegramMenuButton({ token, text = '🍽️ 外卖点餐', webAppUrl, enabled = true, fetchImpl = globalThis.fetch }) {
   if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
   if (typeof fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持 fetch');
-  const label = String(text || '').trim();
   let menuButton = { type: 'commands' };
   if (enabled) {
     let parsed;
