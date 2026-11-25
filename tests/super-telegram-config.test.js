@@ -224,3 +224,43 @@ test('test endpoint sends only for enabled, saved bot configuration', async () =
     global.fetch = oldFetch;
   }
 });
+
+test('disabled Client Bot keeps its webhook available for customer /stop revocation', async () => {
+  const ctx = setup({
+    telegram_client_bot_enabled: '1',
+    telegram_client_bot_token: token,
+    telegram_client_chat_id: '-100123'
+  });
+  const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
+  const previousSecret = process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET;
+  const previousFetch = global.fetch;
+  const requests = [];
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test';
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = 'a'.repeat(40);
+  global.fetch = async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
+  };
+  try {
+    const res = response();
+    await ctx.routes.get('PUT /api/super/telegram/config')({
+      body: {
+        client: { enabled: false, token: '', chat_id: '-100123' },
+        admin: { enabled: false, token: '' }
+      },
+      superAdmin: { id: 1, username: 'root' }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.webhook_configured, true);
+    assert.ok(requests.some(request => request.url.endsWith('/setWebhook')));
+    assert.equal(requests.some(request => request.url.endsWith('/deleteWebhook')), false);
+    const menu = requests.find(request => request.url.endsWith('/setChatMenuButton'));
+    assert.deepEqual(menu.body, { menu_button: { type: 'commands' } });
+  } finally {
+    global.fetch = previousFetch;
+    if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
+    if (previousSecret === undefined) delete process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET;
+    else process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = previousSecret;
+  }
+});
