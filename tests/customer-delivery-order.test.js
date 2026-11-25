@@ -8,7 +8,7 @@ const TELEGRAM_BOT_TOKEN = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
 const TELEGRAM_NOW = Math.floor(Date.now() / 1000);
 function signedInitData() {
   const values = new Map([['auth_date', String(TELEGRAM_NOW)], ['query_id', 'AAE-order-test'], ['user', JSON.stringify({ id: 987654321, first_name: 'Test' })]]);
-  const data = Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, value]) => key + '=' + value).join('\\n');
+  const data = Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, value]) => key + '=' + value).join('\n');
   const secret = require('node:crypto').createHmac('sha256', 'WebAppData').update(TELEGRAM_BOT_TOKEN).digest();
   values.set('hash', require('node:crypto').createHmac('sha256', secret).update(data).digest('hex'));
   return new URLSearchParams(Array.from(values.entries()).sort(([a], [b]) => a.localeCompare(b))).toString();
