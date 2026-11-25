@@ -224,6 +224,17 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
         [storeId]
       );
       if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
+      if (body.telegram_entry === true) {
+        const signature = typeof body.store_entry === 'string' ? body.store_entry : '';
+        const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+        const recipient = await getAsync(
+          'SELECT chat_id FROM telegram_store_admin_recipients WHERE merchant_id=? AND store_id=? AND is_enabled=1 AND chat_id<>\'\' LIMIT 1',
+          [store.merchant_id, storeId]
+        );
+        if (!recipient || !verifyStoreEntrySignature({ storeId, chatId: String(recipient.chat_id || ''), secret, signature })) {
+          return res.status(403).json({ error: '门店专属入口已失效，请重新从门店 Telegram 链接进入' });
+        }
+      }
 
       let items;
       try {
