@@ -1525,3 +1525,29 @@ body {
     width: 100%;
   }
 }
+
+
+/* 2026-11-25 responsive audit: cashier payment and refund controls fit narrow phones. */
+#paymentModal .payment-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(88px, 100%), 1fr)); min-width: 0; }
+#paymentModal .payment-method { min-width: 0; max-width: 100%; white-space: normal; }
+#paymentModal .payment-quick-cash { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+#paymentModal .payment-actions,
+#refundModal .payment-actions,
+#confirmModal .modal-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+#paymentModal .payment-actions .btn,
+#refundModal .payment-actions .btn,
+#confirmModal .modal-actions .btn { flex: 1 1 120px; min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+#refundModal .payment-card,
+#paymentModal .payment-card { min-width: 0; }
+#refundModal .refund-form,
+#refundModal .refund-input-row { min-width: 0; max-width: 100%; }
+#refundModal .refund-select,
+#refundModal .refund-textarea { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+@media (max-width: 420px) {
+  #paymentModal .payment-card,
+  #refundModal .payment-card { padding: 18px 12px; }
+  #paymentModal .payment-methods { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #paymentModal .payment-amount-value,
+  #refundModal .payment-amount-value { font-size: clamp(22px, 7vw, 30px); overflow-wrap: anywhere; }
+  #confirmModal .modal { padding: 24px 14px 18px; }
+}
