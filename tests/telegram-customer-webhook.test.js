@@ -97,6 +97,32 @@ test('Telegram customer webhook consumes a one-time deep-link challenge and bind
   assert.equal(state.consumed, true);
 });
 
+test('plain /start replies with a platform-wide FoodFlow Mini App entry button', async () => {
+  const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
+  const sent = [];
+  try {
+    const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 3 }; } });
+    const res = response();
+    await handler({
+      headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+      body: { update_id: 109, message: { text: '/start', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(state.updates.has(109), true);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].chatId, '98765');
+    assert.match(sent[0].text, /浏览门店、完整菜单和菜品图片/);
+    assert.deepEqual(sent[0].replyMarkup.inline_keyboard[0][0], {
+      text: '🍽️ 外卖点餐 · 打开 Mini App',
+      web_app: { url: 'https://foodflow.example.test/telegram/delivery' }
+    });
+  } finally {
+    if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
+  }
+});
+
 test('Telegram customer webhook replies to store delivery start with a Mini App web_app button', async () => {
   const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
   process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
