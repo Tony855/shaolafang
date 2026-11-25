@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { validateBotToken, sendTelegramMessage } = require('./telegram-bot');
 const { constantTimeSecretMatch, parseTelegramPrivateUpdate } = require('./telegram-webhook');
+const { verifyStoreEntrySignature } = require('./telegram-store-entry');
 
 function createTelegramCustomerWebhookHandler({
   getAsync, allAsync, runAsync, withTransaction, secret, getBotToken,
@@ -99,22 +100,29 @@ function createTelegramCustomerWebhookHandler({
         }
 
         if (update.action === 'delivery') {
-          const store = await getAsync(
-            'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
+          const recipient = await getAsync(
+            'SELECT r.chat_id, r.is_enabled, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 LIMIT 1',
             [update.storeId]
           );
-          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
+          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\\/+$/, '');
           let publicOrigin = '';
           try {
             const parsed = new URL(publicUrl);
             if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
           } catch (_) {}
-          if (store && publicOrigin) {
-            const webAppUrl = publicOrigin + '/delivery-order.html?store_id=' + encodeURIComponent(String(store.id)) + '&telegram=1';
+          if (recipient && publicOrigin && verifyStoreEntrySignature({
+            storeId: recipient.id, chatId: String(recipient.chat_id || ''), secret, signature: update.entrySignature
+          })) {
+            const webAppUrl = publicOrigin + '/delivery/order?store_id=' + encodeURIComponent(String(recipient.id)) + '&entry=' + encodeURIComponent(update.entrySignature) + '&telegram=1';
             bound = {
               chatId: update.telegramChatId,
-              text: '欢迎使用 FoodFlow' + (store.name ? ' · ' + String(store.name).slice(0, 80) : '') + '。点击下方按钮进入外卖点餐小程序。',
-              replyMarkup: { inline_keyboard: [[{ text: '🍽️ 打开外卖点餐', web_app: { url: webAppUrl } }]] }
+              text: '欢迎使用 FoodFlow' + (recipient.name ? ' · ' + String(recipient.name).slice(0, 80) : '') + '。此入口已绑定当前门店。',
+              replyMarkup: { inline_keyboard: [[{ text: '🍽️ 打开本店外卖点餐', web_app: { url: webAppUrl } }]] }
+            };
+          } else {
+            bound = {
+              chatId: update.telegramChatId,
+              text: '此门店点餐链接已失效或门店群组绑定已变更，请向门店管理员获取最新专属链接。'
             };
           }
           return;
