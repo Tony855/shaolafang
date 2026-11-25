@@ -57,28 +57,29 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
   app.get('/api/public/delivery/telegram-miniapp-stores', async (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, private');
-      const merchantId = positiveId(String(req.query?.merchant_id || ''));
       const initData = typeof req.get === 'function'
         ? String(req.get('X-Telegram-Init-Data') || '')
         : String(req.headers?.['x-telegram-init-data'] || '');
-      if (!merchantId || !initData) return res.status(401).json({ error: 'Telegram 身份验证失败，请从所属门店的 Bot 菜单重新打开' });
+      if (!initData) return res.status(401).json({ error: 'Telegram 身份验证失败，请从统一 Client Bot 菜单重新打开' });
 
-      const bot = await getAsync(
-        'SELECT bot_token FROM telegram_tenant_client_bots WHERE merchant_id=? AND is_enabled=1 LIMIT 1',
-        [merchantId]
+      const rows = await allAsync(
+        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+        ['telegram_client_bot_enabled', 'telegram_client_bot_token']
       );
-      if (!bot?.bot_token || !verifyTelegramWebAppInitData(initData, String(bot.bot_token))) {
-        return res.status(403).json({ error: 'Telegram 身份无效或已过期，请重新打开 Mini App' });
+      const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
+      const botToken = String(config.telegram_client_bot_token || '');
+      if (config.telegram_client_bot_enabled !== '1' || !verifyTelegramWebAppInitData(initData, botToken)) {
+        return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开 Mini App' });
       }
 
       const stores = await allAsync(
-        'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.merchant_id=? AND s.active=1 AND m.status=1 ORDER BY s.name, s.id LIMIT 100',
-        [merchantId]
+        'SELECT s.id, s.name, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.active=1 AND m.status=1 ORDER BY m.id, s.name, s.id LIMIT 500'
       );
-      res.json({ merchantId, stores: (Array.isArray(stores) ? stores : []).map(store => ({
+      res.json({ stores: (Array.isArray(stores) ? stores : []).map(store => ({
         id: Number(store.id),
+        merchantId: Number(store.merchant_id),
         name: cleanText(String(store.name || ''), 100) || 'FoodFlow 门店'
-      })).filter(store => Number.isSafeInteger(store.id) && store.id > 0) });
+      })).filter(store => Number.isSafeInteger(store.id) && store.id > 0 && Number.isSafeInteger(store.merchantId) && store.merchantId > 0) });
     } catch (_) {
       res.status(503).json({ error: '暂时无法读取可点餐门店，请稍后重试' });
     }
