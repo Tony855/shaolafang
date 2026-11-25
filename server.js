@@ -466,7 +466,7 @@ async function ensureOrderTables() {
   `);
 
   await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
-  await ensureTelegramCustomerBindingSchema({ runAsync });
+  await ensureTelegramCustomerBindingSchema({ runAsync, getAsync });
   await ensureTelegramStoreAdminRecipientSchema({ runAsync });
   await ensureTelegramTenantClientBotSchema({ runAsync });
 
