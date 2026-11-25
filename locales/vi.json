@@ -1166,6 +1166,8 @@
   "refundReasonDish": "Vấn đề món",
   "refundReasonService": "Vấn đề dịch vụ",
   "refundReasonOther": "Khác",
+  "selectPaymentMethod": "Vui lòng chọn phương thức thanh toán",
+  "cashReceivedInsufficient": "Tiền mặt nhận được phải ít nhất bằng số tiền cần thu",
   "payMethod": "Phương thức thanh toán",
   "superDashboard": "Bảng điều khiển",
   "superMerchants": "Thương nhân",
