@@ -70,6 +70,16 @@ test('a Chat ID alone automatically enables the current store binding even for l
   assert.equal(res.body.chatId, '-100123');
 });
 
+test('store Telegram settings reject a store outside the authenticated tenant', async () => {
+  const { routes, calls } = setup({ store: false });
+  const res = response();
+  await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
+    merchantId: 7, storeId: 9, body: { chatId: '-100123' }
+  }, res);
+  assert.equal(res.statusCode, 404);
+  assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO telegram_store_admin_recipients')), false);
+});
+
 test('store Telegram settings PUT saves only the current tenant and audits no chat ID or token', async () => {
   const { routes, calls } = setup();
   const res = response();
