@@ -111,10 +111,12 @@ test('saving an enabled Client Bot configures the default Telegram Mini App menu
   const ctx = setup({ telegram_client_bot_token: token });
   const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
   const previousFetch = global.fetch;
-  let request;
+  const requests = [];
+  const previousSecret = process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET;
   process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = 'client-webhook-secret-for-tests-123456';
   global.fetch = async (url, options) => {
-    request = { url, body: JSON.parse(options.body) };
+    requests.push({ url, body: JSON.parse(options.body) });
     return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
   };
   try {
@@ -128,15 +130,23 @@ test('saving an enabled Client Bot configures the default Telegram Mini App menu
     }, res);
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.menu_button_configured, true);
-    assert.equal(request.url, 'https://api.telegram.org/bot' + token + '/setChatMenuButton');
-    assert.deepEqual(request.body.menu_button, {
+    assert.equal(res.body.webhook_configured, true);
+    const menuRequest = requests.find(request => request.url.endsWith('/setChatMenuButton'));
+    const webhookRequest = requests.find(request => request.url.endsWith('/setWebhook'));
+    assert.equal(menuRequest.url, 'https://api.telegram.org/bot' + token + '/setChatMenuButton');
+    assert.deepEqual(menuRequest.body.menu_button, {
       type: 'web_app', text: '🍽️ 外卖点餐',
       web_app: { url: 'https://foodflow.example.test/telegram/delivery' }
     });
+    assert.equal(webhookRequest.url, 'https://api.telegram.org/bot' + token + '/setWebhook');
+    assert.equal(webhookRequest.body.url, 'https://foodflow.example.test/api/telegram/client/webhook');
+    assert.equal(webhookRequest.body.secret_token, 'client-webhook-secret-for-tests-123456');
   } finally {
     global.fetch = previousFetch;
     if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
     else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
+    if (previousSecret === undefined) delete process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET;
+    else process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = previousSecret;
   }
 });
 
