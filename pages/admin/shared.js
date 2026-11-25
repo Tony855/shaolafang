@@ -9,11 +9,7 @@ if (!ctx) return;
 
 const { $, api, tAdmin, esc, L } = ctx;
 
-function dualAmountSuffix(base) {
-  if (!ctx.dualCurrencyEnabled() || !ctx.secondaryCurrencyCode()) return '';
-  const sec = SLF.money.secondary(base, ctx.secondaryCurrencyCode());
-  return sec ? ` (${sec})` : '';
-}
+function dualAmountSuffix() { return ''; }
 
 function translateLoginMessage(msg) {
   if (!msg) return '';
