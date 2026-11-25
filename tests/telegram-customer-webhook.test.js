@@ -14,12 +14,13 @@ function response() {
   };
 }
 
-function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMessage = async () => ({ messageId: 1 }) } = {}) {
+function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMessage = async () => ({ messageId: 1 }), tenantMerchantId = null } = {}) {
   const challenge = 'A'.repeat(43);
   const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
   const state = { updates: new Set(), outboxSuppressions: [], challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
   const handler = createTelegramCustomerWebhookHandler({
     secret: 's'.repeat(40),
+    tenantMerchantId,
     getAsync: async (sql, params) => {
       if (sql.includes('telegram_customer_binding_challenges')) return params[0] === challengeHash && !state.consumed ? state.challenge : null;
       if (sql.includes('FROM stores')) return { id: 8 };
@@ -36,8 +37,8 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMess
     },
     runAsync: async (sql, params) => {
       if (sql.includes('INSERT INTO telegram_webhook_updates')) {
-        if (state.updates.has(params[0])) throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
-        state.updates.add(params[0]); return { affectedRows: 1 };
+        if (state.updates.has(params[1])) throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
+        state.updates.add(params[1]); return { affectedRows: 1 };
       }
       if (sql.includes('UPDATE telegram_notification_outbox')) {
         state.outboxSuppressions.push({ sql, params });
@@ -272,4 +273,33 @@ test('Telegram customer can rebind the same private chat to a newly scanned cust
   assert.equal(currentStoreBinding.is_active, 1);
   assert.equal(otherStoreBinding.id, 10);
   assert.equal(otherStoreBinding.customer_token_hash, 'd'.repeat(64));
+});
+
+test('tenant webhook cannot consume a binding challenge issued by another merchant', async () => {
+  const { handler, challenge, state } = fixture({ tenantMerchantId: 4 });
+  const res = response();
+  await handler({
+    headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+    body: { update_id: 201, message: { text: '/start ' + challenge, chat: { id: 98765, type: 'private' }, from: { id: 98765 } } }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.bindings.length, 0);
+  assert.equal(state.consumed, false);
+  assert.equal(state.updates.has(201), true);
+});
+
+test('tenant webhook scopes /stop revocation to its own merchant', async () => {
+  const { handler, state } = fixture({ tenantMerchantId: 3 });
+  state.bindings.push(
+    { id: 1, merchant_id: 3, store_id: 8, telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 1 },
+    { id: 2, merchant_id: 4, store_id: 12, telegram_user_id: '98765', telegram_chat_id: '98765', is_active: 1 }
+  );
+  const res = response();
+  await handler({
+    headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+    body: { update_id: 202, message: { text: '/stop', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.bindings[0].is_active, 0);
+  assert.equal(state.bindings[1].is_active, 1);
 });
