@@ -3677,46 +3677,6 @@ button.edit-btn:disabled {
 }
 
 
-/* 2026-11-25: keep admin order header content grouped and left-aligned on one line. */
-.ff-admin #orders .order-item-admin .top {
-  justify-content: flex-start !important;
-  flex-wrap: nowrap !important;
-  gap: 7px !important;
-}
-.ff-admin #orders .order-item-admin .top .order-heading {
-  flex: 0 1 auto !important;
-  width: auto !important;
-  max-width: calc(100% - 58px) !important;
-  min-width: 0 !important;
-  overflow: hidden !important;
-}
-.ff-admin #orders .order-item-admin .top .order-number-label {
-  font-size: 9px !important;
-}
-.ff-admin #orders .order-item-admin .top .order-number {
-  font-size: clamp(10px, 2.6vw, 12px) !important;
-  padding: 3px 6px !important;
-}
-.ff-admin #orders .order-item-admin .top .order-context {
-  flex: 0 1 auto !important;
-  max-width: clamp(54px, 24vw, 150px) !important;
-  font-size: clamp(10px, 2.5vw, 12px) !important;
-}
-.ff-admin #orders .order-item-admin .top .status {
-  flex: 0 0 auto !important;
-  max-width: 30% !important;
-  margin-left: 0 !important;
-  font-size: clamp(10px, 2.5vw, 11px) !important;
-}
-@media (max-width: 420px) {
-  .ff-admin #orders .order-item-admin .top { gap: 5px !important; }
-  .ff-admin #orders .order-item-admin .top .order-heading { max-width: calc(100% - 52px) !important; }
-  .ff-admin #orders .order-item-admin .top .order-number-label { font-size: 8px !important; }
-  .ff-admin #orders .order-item-admin .top .order-number { padding: 3px 4px !important; }
-  .ff-admin #orders .order-item-admin .top .order-context { max-width: 70px !important; }
-}
-
-
 /* 2026-11-25: modern metadata pills for admin order card headers (style B). */
 .ff-admin #orders .order-item-admin .top {
   justify-content: flex-start !important;
