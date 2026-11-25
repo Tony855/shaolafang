@@ -17,7 +17,7 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
       const eventToggle = { 'order.created': 'notify_order_created', 'order.settled': 'notify_settled', 'order.refunded': 'notify_refunded' }[eventType];
       if (!eventToggle) return null;
       const recipients = await allAsync(
-        `SELECT r.chat_id, r.${eventToggle} AS event_enabled FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND s.active=1 AND m.status=1 LIMIT 1`,
+        `SELECT r.chat_id, r.is_enabled, r.${eventToggle} AS event_enabled FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND s.active=1 AND m.status=1 LIMIT 1`,
         [tenantMerchantId, tenantStoreId]
       );
       if (!Array.isArray(recipients) || !recipients.length) {
@@ -25,7 +25,7 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
         // after enqueue. Do not retry indefinitely and later deliver stale jobs.
         return { scope: 'merchant_store', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true };
       }
-      if (Number(recipients[0].event_enabled) !== 1) {
+      if (Number(recipients[0].is_enabled) !== 1 || Number(recipients[0].event_enabled) !== 1) {
         return { scope: 'merchant_store', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true };
       }
       const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?)', ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']);
