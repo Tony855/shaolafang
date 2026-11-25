@@ -43,7 +43,7 @@ test('collectBackupData reads every exported table in one transaction', async ()
 
   assert.equal(inTransaction, false);
   assert.equal(reads.length, 35);
-  assert.equal(Object.keys(backup.tables).length, 35;
+  assert.equal(Object.keys(backup.tables).length, 35);
   assert.ok(Object.hasOwn(backup.tables, 'refund_requests'));
   assert.ok(Object.hasOwn(backup.tables, 'provider_webhook_events'));
   assert.ok(Object.hasOwn(backup.tables, 'financial_journal_transactions'));
