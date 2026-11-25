@@ -33,8 +33,8 @@ test('merchant store recipient resolver requires exact active tenant, configured
 test('merchant store recipient resolver isolates the same store lookup across tenant IDs', async () => {
   const lookups = [];
   const resolve = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => {
-    lookups.push({ sql, params });
     if (sql.includes('telegram_store_admin_recipients')) {
+      lookups.push({ sql, params });
       return [{ chat_id: params[0] === 7 ? '-1007000000009' : '-1008000000009', event_enabled: 1 }];
     }
     return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }];
