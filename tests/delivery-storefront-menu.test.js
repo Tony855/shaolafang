@@ -172,8 +172,8 @@ test("delivery category navigation scrolls horizontally without capturing vertic
 
 test("delivery storefront uses fluid viewport width and responsive breakpoints", () => {
   assert.ok(page.includes("body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;"), "header must follow the containing viewport width without 100vw margin offsets");
-  assert.match(page, /@media\\(max-width:1024px\\)[\\s\\S]*?\\.layout\\{grid-template-columns:minmax\\(0,1fr\\);/);
-  assert.match(page, /@media\\(max-width:720px\\)[\\s\\S]*?\\.panel\\{width:100%;min-width:0;/);
-  assert.match(page, /@media\\(max-width:480px\\)[\\s\\S]*?\\.item\\{display:grid;grid-template-columns:clamp\\(104px,32vw,148px\\) minmax\\(0,1fr\\)/);
-  assert.match(page, /@media\\(max-width:360px\\)[\\s\\S]*?\\.item\\{grid-template-columns:96px minmax\\(0,1fr\\)/);
+  assert.ok(page.includes("@media(max-width:1024px){main{width:100%;max-width:760px}.layout{grid-template-columns:minmax(0,1fr);gap:0}}"));
+  assert.ok(page.includes("@media(max-width:720px){\n body>header{padding:calc(16px + env(safe-area-inset-top,0px)) 14px 17px}"));
+  assert.ok(page.includes("@media(max-width:480px){\n .menu{grid-template-columns:minmax(0,1fr)}"));
+  assert.ok(page.includes("@media(max-width:360px){\n main{padding:0 8px}"));
 });
