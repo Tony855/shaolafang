@@ -8,6 +8,7 @@ const { calculateOrderTotalCents, toMoneyCents } = require('../server/services/o
 const { enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 const { getTelegramBotUsername } = require('../server/services/telegram-bot');
 const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
+const { verifyTelegramWebAppInitData } = require('../server/services/telegram-webapp-auth');
 
 function positiveId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -53,16 +54,32 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
     );
   }
 
-  app.get('/api/public/delivery/telegram-miniapp-stores', async (_req, res) => {
+  app.get('/api/public/delivery/telegram-miniapp-stores', async (req, res) => {
     try {
-      res.setHeader('Cache-Control', 'no-store, public, max-age=60');
+      res.setHeader('Cache-Control', 'no-store, private');
+      const initData = typeof req.get === 'function'
+        ? String(req.get('X-Telegram-Init-Data') || '')
+        : String(req.headers?.['x-telegram-init-data'] || '');
+      if (!initData) return res.status(401).json({ error: 'Telegram 身份验证失败，请从统一 Client Bot 菜单重新打开' });
+
+      const rows = await allAsync(
+        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+        ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+      );
+      const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
+      const botToken = String(config.telegram_client_bot_token || '');
+      if (config.telegram_client_bot_enabled !== '1' || !verifyTelegramWebAppInitData(initData, botToken)) {
+        return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开 Mini App' });
+      }
+
       const stores = await allAsync(
-        'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.active=1 AND m.status=1 ORDER BY s.name, s.id LIMIT 100'
+        'SELECT s.id, s.name, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.active=1 AND m.status=1 ORDER BY m.id, s.name, s.id LIMIT 500'
       );
       res.json({ stores: (Array.isArray(stores) ? stores : []).map(store => ({
         id: Number(store.id),
+        merchantId: Number(store.merchant_id),
         name: cleanText(String(store.name || ''), 100) || 'FoodFlow 门店'
-      })).filter(store => Number.isSafeInteger(store.id) && store.id > 0) });
+      })).filter(store => Number.isSafeInteger(store.id) && store.id > 0 && Number.isSafeInteger(store.merchantId) && store.merchantId > 0) });
     } catch (_) {
       res.status(503).json({ error: '暂时无法读取可点餐门店，请稍后重试' });
     }
