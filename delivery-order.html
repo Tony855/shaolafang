@@ -5,8 +5,8 @@
 <meta name="referrer" content="no-referrer"><meta name="theme-color" content="#e85d3a">
 <title>FoodFlow 外卖点餐</title>
 <style>
-*{box-sizing:border-box}html,body{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:hidden}body{background:#f4f6fa;color:#202b3b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:30px}
-body>header{display:flex;width:100vw;max-width:100vw;min-width:0;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);box-sizing:border-box;background:linear-gradient(135deg,#ff8a4c 0%,#f0643c 52%,#e84a2a 100%);color:#fff;padding:22px max(18px,calc((100vw - 980px)/2));flex-direction:column;justify-content:center;gap:6px;overflow:hidden;}
+*{box-sizing:border-box}html{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:clip}body{width:100%;min-width:0;max-width:100%;min-height:100%;margin:0;overflow-x:clip;touch-action:pan-y;-webkit-overflow-scrolling:touch;background:#f4f6fa;color:#202b3b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:30px}
+body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;box-sizing:border-box;background:linear-gradient(135deg,#ff8a4c 0%,#f0643c 52%,#e84a2a 100%);color:#fff;padding:clamp(16px,3vw,26px) max(18px,calc((100% - 980px)/2));flex-direction:column;justify-content:center;gap:6px;overflow:hidden;}
 header h1{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;max-width:100%;font-size:clamp(19px,2.5vw,23px);line-height:1.3;font-weight:800;letter-spacing:.01em;overflow-wrap:anywhere;}
 header p{margin:0;max-width:100%;opacity:.94;font-size:13px;line-height:1.5;overflow-wrap:anywhere;}
 @media(max-width:720px){header{padding:calc(16px + env(safe-area-inset-top,0px)) 14px 17px;gap:5px}header h1{font-size:clamp(18px,5vw,21px);gap:6px}header p{font-size:12px}}
@@ -31,7 +31,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 .store-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .store-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .store-tools select,.store-tools input{width:auto;min-width:130px;padding:8px 10px;font-size:13px}
-.category-nav{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;margin-bottom:12px;scrollbar-width:thin}
+.category-nav{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x;padding:2px 0 12px;margin-bottom:12px;scrollbar-width:thin}
 .category-tab{flex:0 0 auto;border:1px solid #e5e9f0;border-radius:999px;background:#f7f8fb;color:#475467;padding:8px 14px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
 .category-tab.active{background:#e85d3a;border-color:#e85d3a;color:#fff}
 .category-tab:focus-visible,.controls button:focus-visible,.submit:focus-visible{outline:3px solid #f6b19c;outline-offset:2px}
@@ -51,18 +51,49 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 .cart-line strong{text-align:right;white-space:nowrap}
 .total{align-items:flex-start;gap:12px}
 #total{text-align:right}
+@media(max-width:1024px){main{width:100%;max-width:760px}.layout{grid-template-columns:minmax(0,1fr);gap:0}}
 @media(max-width:720px){
- main{margin:12px auto;padding:0 10px}
- .panel{padding:14px;border-radius:14px}
+ body>header{padding:calc(16px + env(safe-area-inset-top,0px)) 14px 17px}
+ .telegram-entry{width:100%;max-width:760px;margin:10px auto 0;padding:0 12px;justify-content:center;flex-wrap:wrap}
+ main{width:100%;margin:12px auto;padding:0 10px}
+ .layout{grid-template-columns:minmax(0,1fr);gap:0}
+ .layout>section,.layout>aside{width:100%;min-width:0}
+ .panel{width:100%;min-width:0;padding:clamp(11px,3vw,16px);border-radius:14px}
+ .store-heading{align-items:stretch;gap:9px}
+ .store-tools{width:100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto}
+ .store-tools select,.store-tools input{width:100%;min-width:0;max-width:100%}
  .menu{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
- .item-photo,.item-photo-fallback{height:116px}
- .item-content{padding:9px}
- .item strong{font-size:13px}
- .desc{font-size:11px;min-height:34px}
- .item .price{font-size:13px}
- .controls{gap:8px}
+ .item{min-width:0}
+ .item-photo,.item-photo-fallback{height:clamp(96px,25vw,140px)}
+ .item-content{min-width:0;padding:9px}
+ .item strong{font-size:clamp(12px,3.3vw,14px);overflow-wrap:anywhere}
+ .desc{font-size:11px;min-height:34px;overflow-wrap:anywhere}
+ .item .price{font-size:clamp(12px,3.2vw,14px);overflow-wrap:anywhere}
+ .controls{gap:8px;flex-wrap:wrap}
+ .row{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@media(max-width:390px){.menu{grid-template-columns:1fr}.item{display:grid;grid-template-columns:112px minmax(0,1fr)}.item-photo,.item-photo-fallback{height:100%;min-height:138px}.item-content{min-width:0}.store-tools select,.store-tools input{min-width:0;flex:1}}
+@media(max-width:480px){
+ .menu{grid-template-columns:minmax(0,1fr)}
+ .item{display:grid;grid-template-columns:clamp(104px,32vw,148px) minmax(0,1fr);align-items:stretch}
+ .item-photo,.item-photo-fallback{width:100%;height:100%;min-height:clamp(132px,38vw,164px)}
+ .item-content{padding:clamp(8px,2.5vw,12px)}
+ .store-heading{flex-direction:column}
+ .store-tools{grid-template-columns:minmax(0,1fr) auto}
+ .menu-meta{font-size:11px}
+ .cart-line{min-width:0;flex-wrap:wrap}
+ .cart-line strong{white-space:normal;overflow-wrap:anywhere}
+ .total{font-size:16px;flex-wrap:wrap}
+ .row{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:360px){
+ main{padding:0 8px}
+ .panel{padding:10px}
+ .item{grid-template-columns:96px minmax(0,1fr)}
+ .item-photo,.item-photo-fallback{min-height:128px}
+ .category-nav{gap:6px}
+ .category-tab{padding:7px 11px;font-size:12px}
+ .telegram-entry button{max-width:100%;padding:8px 11px;font-size:12px}
+}
 
 </style></head>
 <body>

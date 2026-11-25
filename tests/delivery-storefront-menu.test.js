@@ -63,11 +63,11 @@ test('delivery storefront remains a tableless delivery checkout and retains KHQR
 
 test('delivery storefront title header remains fully visible on narrow screens', () => {
   assert.match(page, /<header><h1>🛵 FoodFlow 外卖点餐<\/h1><p id="storeName">/);
-  assert.match(page, /body>header\{display:flex;width:100vw;max-width:100vw;min-width:0;/);
+  assert.ok(page.includes("body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;"));
   assert.match(page, /header h1\{[^}]*flex-wrap:wrap/);
   assert.match(page, /header h1\{[^}]*overflow-wrap:anywhere/);
   assert.match(page, /header p\{[^}]*overflow-wrap:anywhere/);
-  assert.match(page, /@media\(max-width:720px\)\{header\{padding:calc\(16px \+ env\(safe-area-inset-top,0px\)\)/);
+  assert.ok(page.includes("@media(max-width:720px){\n body>header{padding:calc(16px + env(safe-area-inset-top,0px))"));
   assert.doesNotMatch(page, /header\s*\{[^}]*height\s*:/);
 });
 
@@ -154,6 +154,26 @@ test('customer identity remains browser-wide while checkout idempotency is tab-s
 
 
 test("delivery storefront header is anchored to the full mobile viewport width", () => {
-  assert.match(page, /html,body\{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:hidden\}/);
-  assert.match(page, /body>header\{display:flex;width:100vw;max-width:100vw;min-width:0;margin-left:calc\(50% - 50vw\);margin-right:calc\(50% - 50vw\);box-sizing:border-box/);
+  assert.ok(page.includes("html{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:clip}"));
+  assert.ok(page.includes("body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;"));
+});
+
+
+test("delivery storefront preserves native vertical page scrolling on iPhone Safari", () => {
+  assert.ok(page.includes("html{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:clip}"));
+  assert.ok(page.includes("touch-action:pan-y;-webkit-overflow-scrolling:touch"));
+  assert.ok(!page.includes("html,body{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:hidden}"));
+});
+
+test("delivery category navigation scrolls horizontally without capturing vertical page gestures", () => {
+  assert.ok(page.includes("overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x"));
+});
+
+
+test("delivery storefront uses fluid viewport width and responsive breakpoints", () => {
+  assert.ok(page.includes("body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;"), "header must follow the containing viewport width without 100vw margin offsets");
+  assert.ok(page.includes("@media(max-width:1024px){main{width:100%;max-width:760px}.layout{grid-template-columns:minmax(0,1fr);gap:0}}"));
+  assert.ok(page.includes("@media(max-width:720px){\n body>header{padding:calc(16px + env(safe-area-inset-top,0px)) 14px 17px}"));
+  assert.ok(page.includes("@media(max-width:480px){\n .menu{grid-template-columns:minmax(0,1fr)}"));
+  assert.ok(page.includes("@media(max-width:360px){\n main{padding:0 8px}"));
 });
