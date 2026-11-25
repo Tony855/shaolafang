@@ -362,18 +362,12 @@ function openKhqrModal(orderId, providerId, selectedCurrency) {
             if (curObj && Number(curObj.rate)) baseUSD = amt / Number(curObj.rate);
           } catch (e) {}
         }
-        let secHtml = '';
-        try {
-          const altCode = (cur === 'KHR') ? 'USD' : 'KHR';
-          const altStr = SLF.money.secondary(baseUSD, altCode);
-          if (altStr) secHtml = '<span style="color:#999;font-size:13px;margin-left:6px;">(' + altStr + ')</span>';
-        } catch (e) {}
-        $('#khqrAmount').style.cssText =
+        // Show only the selected KHQR payment currency.\n        $('#khqrAmount').style.cssText =
           'display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;width:100%;text-align:center;line-height:1.35;';
         $('#khqrAmount').innerHTML =
           '' +
           '<span style="color:#e85d3a;font-size:clamp(28px,6vw,42px);font-weight:800;">' + esc(sym) + amtStr + '</span>' +
-          (secHtml ? secHtml.replace('margin-left:6px;', 'margin-left:0;') : '');
+          '';
         const sw = document.getElementById('khqrCurrencySwitch');
         if (sw) sw.textContent = cur === 'USD' ? '$ USD  ⇄  ៛ KHR' : '៛ KHR  ⇄  $ USD';
       })();
