@@ -603,7 +603,7 @@ test('menu display header wraps controls on narrow phone screens', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'menu-display.css'), 'utf8');
   const marker = 'Keep the menu display header controls within very narrow phone viewports';
   const rules = css.slice(css.lastIndexOf(marker));
-  assert.match(rules, /@media \\(max-width: 480px\\)/);
-  assert.match(rules, /\.disp-header\\s*\\{[^}]*flex-wrap:\\s*wrap;/s);
-  assert.match(rules, /\.disp-header-right\\s*\\{[^}]*flex-wrap:\\s*wrap;/s);
+  assert.match(rules, /@media \(max-width: 480px\)/);
+  assert.match(rules, /\.disp-header\s*\{[^}]*flex-wrap:\s*wrap;/s);
+  assert.match(rules, /\.disp-header-right\s*\{[^}]*flex-wrap:\s*wrap;/s);
 });
