@@ -116,6 +116,46 @@ async function setTelegramMenuButton({ token, text = '🍽️ 外卖点餐', web
   return true;
 }
 
+async function setTelegramWebhook({ token, webhookUrl, secretToken, enabled = true, fetchImpl = globalThis.fetch }) {
+  if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
+  if (typeof fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持 fetch');
+
+  let endpoint = 'deleteWebhook';
+  let body = {};
+  if (enabled) {
+    let parsed;
+    try { parsed = new URL(String(webhookUrl || '')); } catch (_) { throw new Error('Telegram Webhook URL 无效'); }
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.hash || parsed.href.length > 2048) {
+      throw new Error('Telegram Webhook 必须使用有效的 HTTPS 地址');
+    }
+    if (typeof secretToken !== 'string' || !/^[A-Za-z0-9_-]{32,256}$/.test(secretToken)) {
+      throw new Error('TELEGRAM_CLIENT_WEBHOOK_SECRET 必须为 32 至 256 位安全字符');
+    }
+    endpoint = 'setWebhook';
+    body = { url: parsed.href, secret_token: secretToken, allowed_updates: ['message'], drop_pending_updates: false };
+  }
+
+  let response;
+  try {
+    response = await fetchImpl(`${TELEGRAM_API}/bot${token}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000)
+    });
+  } catch (_) {
+    throw new Error('无法连接 Telegram API，Webhook 配置未确认');
+  }
+  let payload;
+  try { payload = await response.json(); } catch (_) { throw new Error('Telegram API 返回了无法识别的响应'); }
+  if (!response.ok || payload?.ok !== true) {
+    const code = Number(payload?.error_code || response.status);
+    if (code === 401) throw new Error('Telegram Bot Token 无效或已撤销');
+    throw new Error('Telegram Webhook 配置失败（HTTP ' + code + '）');
+  }
+  return true;
+}
+
 async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.fetch }) {
   return sendTelegramMessage({
     token, chatId, fetchImpl,
@@ -123,4 +163,4 @@ async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.f
   });
 }
 
-module.exports = { validateBotToken, validateChatId, sendTelegramMessage, sendTelegramTestMessage, getTelegramBotUsername, setTelegramMenuButton };
+module.exports = { validateBotToken, validateChatId, sendTelegramMessage, sendTelegramTestMessage, getTelegramBotUsername, setTelegramMenuButton, setTelegramWebhook };
