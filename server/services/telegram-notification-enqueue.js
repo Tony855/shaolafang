@@ -52,7 +52,7 @@ async function enqueueStoreAdminTelegramNotification({ allAsync, merchantId, sto
   const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
   if (!Array.isArray(stores) || !stores.length) return false;
   const recipients = await allAsync(
-    `SELECT id FROM telegram_store_admin_recipients WHERE merchant_id=? AND store_id=? AND is_enabled=1 AND ${toggle}=1 LIMIT 1 FOR UPDATE`,
+    `SELECT id FROM telegram_store_admin_recipients WHERE merchant_id=? AND store_id=? AND chat_id<>'' AND ${toggle}=1 LIMIT 1 FOR UPDATE`,
     [merchant, store]
   );
   if (!Array.isArray(recipients) || !recipients.length) return false;

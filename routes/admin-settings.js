@@ -1,6 +1,6 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
 const { normalizeRouteError } = require('../server/utils/http-error');
-const { validateChatId, validateBotToken } = require('../server/services/telegram-bot');
+const { validateChatId } = require('../server/services/telegram-bot');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
    ============================================================ */
@@ -276,7 +276,7 @@ module.exports = function(app, deps) {
       const bot = await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({
-        enabled: Number(row?.is_enabled) === 1,
+        enabled: validateChatId(String(row?.chat_id || '')),
         chatId: String(row?.chat_id || ''),
         notifyOrderCreated: row ? Number(row.notify_order_created) === 1 : true,
         notifySettled: row ? Number(row.notify_settled) === 1 : true,
@@ -303,14 +303,15 @@ module.exports = function(app, deps) {
         if ([false, 0, '0'].includes(value)) return 0;
         throw Object.assign(new Error(label + ' 参数无效'), { status: 400 });
       };
-      const enabled = readFlag(body.enabled, false, '启用开关');
       const notifyOrderCreated = readFlag(body.notifyOrderCreated, true, '新订单通知开关');
       const notifySettled = readFlag(body.notifySettled, true, '收款通知开关');
       const notifyRefunded = readFlag(body.notifyRefunded, true, '退款通知开关');
       const chatId = typeof body.chatId === 'string' ? body.chatId.trim() : '';
-      if (chatId.length > 64 || (chatId && !validateChatId(chatId)) || (enabled && !validateChatId(chatId))) {
+      if (chatId.length > 64 || (chatId && !validateChatId(chatId))) {
         return res.status(400).json({ error: 'Telegram Chat ID 无效' });
       }
+      // A configured Chat ID is the store's default binding. Clearing it unbinds the store.
+      const enabled = chatId ? 1 : 0;
 
       failureStage = 'transaction_start';
       await withTransaction(async () => {
@@ -320,14 +321,8 @@ module.exports = function(app, deps) {
         failureStage = 'store_lock';
         const store = await getAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
         if (!store) throw Object.assign(new Error('门店不存在或已停用'), { status: 404 });
-        if (enabled) {
-          failureStage = 'global_bot_check';
-          const rows = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?)', ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']);
-          const stored = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
-          if (stored.telegram_admin_bot_enabled !== '1' || !validateBotToken(String(stored.telegram_admin_bot_token || ''))) {
-            throw Object.assign(new Error('超级管理员尚未启用管理员 Telegram Bot'), { status: 409 });
-          }
-        }
+        // Store binding is saved independently of platform Bot availability.
+        // Delivery remains fail-closed in the notification worker until Super Admin enables the Bot.
         failureStage = 'recipient_upsert';
         await runAsync(
           'INSERT INTO telegram_store_admin_recipients (merchant_id, store_id, chat_id, is_enabled, notify_order_created, notify_settled, notify_refunded, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE chat_id=VALUES(chat_id), is_enabled=VALUES(is_enabled), notify_order_created=VALUES(notify_order_created), notify_settled=VALUES(notify_settled), notify_refunded=VALUES(notify_refunded), updated_at=UTC_TIMESTAMP(3)',

@@ -102,7 +102,6 @@ async function loadTelegramStoreNotificationSettings() {
   try {
     const d = await SLF.api.get('/admin/telegram/notification-settings');
     if (!d) return;
-    $('#telegramStoreNotifyEnabled').checked = !!d.enabled;
     $('#telegramStoreNotifyChatId').value = d.chatId || '';
     $('#telegramStoreNotifyOrderCreated').checked = d.notifyOrderCreated !== false;
     $('#telegramStoreNotifySettled').checked = d.notifySettled !== false;
@@ -152,7 +151,6 @@ document.addEventListener('DOMContentLoaded', function() {
     saveTelegramStoreNotifyBtn.onclick = async function() {
       try {
         await SLF.api.put('/admin/telegram/notification-settings', {
-          enabled: $('#telegramStoreNotifyEnabled').checked,
           chatId: $('#telegramStoreNotifyChatId').value.trim(),
           notifyOrderCreated: $('#telegramStoreNotifyOrderCreated').checked,
           notifySettled: $('#telegramStoreNotifySettled').checked,
