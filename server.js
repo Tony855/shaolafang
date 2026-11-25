@@ -1579,26 +1579,31 @@ async function syncTelegramCustomerMenuButton() {
   const enabled = config.telegram_client_bot_enabled === '1';
   let webAppUrl;
   let origin = '';
-  if (enabled) {
-    try {
-      const parsed = new URL(String(process.env.FOODFLOW_PUBLIC_URL || '').trim());
-      if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) origin = parsed.origin;
-    } catch (_) {}
-    if (!origin) {
-      console.warn('[telegram-menu] skipped: FOODFLOW_PUBLIC_URL must be a public HTTPS origin');
-      return;
-    }
-    webAppUrl = origin + '/telegram/delivery';
+  try {
+    const parsed = new URL(String(process.env.FOODFLOW_PUBLIC_URL || '').trim());
+    if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) origin = parsed.origin;
+  } catch (_) {}
+  if (enabled && !origin) {
+    console.warn('[telegram-menu] skipped: FOODFLOW_PUBLIC_URL must be a public HTTPS origin');
+    return;
   }
+  if (enabled) webAppUrl = origin + '/telegram/delivery';
   await setTelegramMenuButton({ token, enabled, webAppUrl });
   console.log(enabled ? '[telegram-menu] shared Client Bot Mini App menu button synchronized' : '[telegram-menu] shared Client Bot menu button reset');
+
+  // Keep the shared webhook available even when outbound Client Bot notices
+  // are disabled, so the customer /stop consent-revocation command still works.
+  if (!origin) {
+    console.warn('[telegram-webhook] skipped: FOODFLOW_PUBLIC_URL must be a public HTTPS origin');
+    return;
+  }
   await setTelegramWebhook({
     token,
-    enabled,
-    webhookUrl: enabled ? origin + '/api/telegram/client/webhook' : undefined,
+    enabled: true,
+    webhookUrl: origin + '/api/telegram/client/webhook',
     secretToken: String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '')
   });
-  console.log(enabled ? '[telegram-webhook] shared Client Bot webhook synchronized' : '[telegram-webhook] shared Client Bot webhook removed');
+  console.log('[telegram-webhook] shared Client Bot webhook synchronized');
 }
 
 let stopTelegramNotificationWorker = async () => {};
