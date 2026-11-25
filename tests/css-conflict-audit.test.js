@@ -510,3 +510,9 @@ test('waiter table grid, bill rows, and header fit compact phone widths', () => 
   assert.match(rules, /\.bill-items \.line\s*\{[^}]*minmax\(0, 1fr\)/s);
   assert.match(rules, /header\s*\{[^}]*flex-wrap:\s*wrap;/s);
 });
+
+
+test('administrator cash received field remains hidden until cash is selected', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  assert.match(css, /\.settle-cash-field\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+});
