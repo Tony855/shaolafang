@@ -105,12 +105,17 @@ test('plain /start automatically resumes the most recently bound active store', 
   process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
   const sent = [], menuCalls = [];
   try {
-    const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 3 }; } });
+    const { state } = fixture();
     state.homeBinding = { store_id: 8, chat_id: '-100888', name: 'Test Store' };
     const menuHandler = createTelegramCustomerWebhookHandler({
       secret: 's'.repeat(40),
       getAsync: async () => null,
-      allAsync: async (sql) => sql.includes('JOIN telegram_store_admin_recipients') ? [state.homeBinding] : [],
+      allAsync: async (sql, params) => {
+        assert.match(sql, /b\\.telegram_chat_id=\\? AND b\\.telegram_user_id=\\?/);
+        assert.match(sql, /ORDER BY b\\.updated_at DESC, b\\.id DESC LIMIT 1/);
+        assert.deepEqual(params, ['98765', '98765']);
+        return sql.includes('JOIN telegram_store_admin_recipients') ? [state.homeBinding] : [];
+      },
       runAsync: async (sql, params) => { if (sql.includes('INSERT INTO telegram_webhook_updates')) state.updates.add(params[0]); return { affectedRows: 1 }; },
       withTransaction: async fn => fn(),
       getBotToken: async () => '123456:abcdefghijklmnopqrstuvwxyzABCDE',
