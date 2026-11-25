@@ -1616,7 +1616,7 @@ initDatabase().then(async () => {
     process.exit(1);
     return;
   }
-  // Synchronize the Bot's built-in chat menu for existing and newly configured Client Bots.
+  // Synchronize the platform-wide Client Bot menu button from super-admin settings.
   syncTelegramCustomerMenuButton().catch(() => console.warn('[telegram-menu] startup synchronization failed; resave Telegram Bot settings to retry'));
   // Fail closed: no Telegram delivery until an operator explicitly opts in.
   if (isTelegramNotificationWorkerEnabled(process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED)) {
