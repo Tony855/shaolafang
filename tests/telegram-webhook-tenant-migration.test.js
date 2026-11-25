@@ -8,7 +8,7 @@ test('existing webhook update table migrates to merchant-scoped composite idempo
   const statements = [];
   let hasMerchantId = false;
   let primary = ['update_id'];
-  const getAsync = async (sql, params) => {
+  const allAsync = async (sql, params) => {
     if (sql.includes('information_schema.COLUMNS')) {
       assert.deepEqual(params, ['telegram_webhook_updates']);
       return hasMerchantId ? [{ COLUMN_NAME: 'merchant_id' }, { COLUMN_NAME: 'update_id' }, { COLUMN_NAME: 'received_at' }]
@@ -27,12 +27,12 @@ test('existing webhook update table migrates to merchant-scoped composite idempo
     return { affectedRows: 0 };
   };
 
-  await ensureTelegramCustomerBindingSchema({ runAsync, getAsync });
+  await ensureTelegramCustomerBindingSchema({ runAsync, allAsync });
   assert.equal(statements.some(sql => sql.includes('ADD COLUMN merchant_id BIGINT UNSIGNED NOT NULL DEFAULT 0 FIRST')), true);
   assert.equal(statements.some(sql => sql.includes('DROP PRIMARY KEY, ADD PRIMARY KEY (merchant_id, update_id)')), true);
   assert.match(statements.find(sql => sql.includes('CREATE TABLE IF NOT EXISTS telegram_webhook_updates')), /PRIMARY KEY \(merchant_id, update_id\)/);
 
   const migrationCount = statements.length;
-  await ensureTelegramCustomerBindingSchema({ runAsync, getAsync });
+  await ensureTelegramCustomerBindingSchema({ runAsync, allAsync });
   assert.equal(statements.slice(migrationCount).some(sql => sql.includes('ADD COLUMN merchant_id') || sql.includes('DROP PRIMARY KEY')), false);
 });
