@@ -81,6 +81,7 @@ test('store admin enqueue locks Bot, tenant, and recipient rows before writing',
         assert.deepEqual(params, [9, 7]);
         return [{ id: 9 }];
       }
+      assert.match(sql, /chat_id<>''/);
       assert.match(sql, /notify_order_created=1/);
       assert.match(sql, /FOR UPDATE/);
       assert.deepEqual(params, [7, 9]);
