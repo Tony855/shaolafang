@@ -50,7 +50,7 @@ test('sends a store Mini App inline keyboard as Telegram reply markup', async ()
 test('sets the default customer Bot menu button to the Telegram Mini App', async () => {
   let request;
   await setTelegramMenuButton({
-    token, webAppUrl: 'https://foodflow.example.test/telegram-delivery.html',
+    token, webAppUrl: 'https://foodflow.example.test/telegram/delivery',
     fetchImpl: async (url, options) => {
       request = { url, body: JSON.parse(options.body) };
       return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
