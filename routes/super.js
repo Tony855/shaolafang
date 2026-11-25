@@ -1117,6 +1117,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
       next[scope] = { enabled, chatId, token, clearToken };
     }
 
+    let clientMenuToken = '';
     await withTransaction(async () => {
       const existingRows = await allAsync(
         'SELECT `key`, value FROM settings WHERE `key` IN (' +
@@ -1128,6 +1129,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
         const item = next[scope];
         const oldToken = String(existing[`telegram_${scope}_bot_token`] || '');
         const newToken = item.clearToken ? '' : (item.token ? item.token : oldToken);
+        if (scope === 'client') clientMenuToken = newToken;
         const newChatId = scope === 'client' ? (item.chatId === undefined ? String(existing.telegram_client_chat_id || '') : item.chatId) : '';
         if (item.enabled && (!newToken || (scope === 'client' && !newChatId))) {
           const error = new Error(scope === 'client' ? '客户端 Bot 启用前必须配置 Token 和 Chat ID' : '管理员 Bot 启用前必须配置 Token');
@@ -1166,9 +1168,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
     let menuButtonConfigured = false;
     let menuButtonError = '';
     try {
-      const clientToken = next.client.clearToken ? '' : (next.client.token || String((await allAsync(
-        'SELECT value FROM settings WHERE `key`=?', ['telegram_client_bot_token']
-      ))[0]?.value || ''));
+      const clientToken = clientMenuToken;
       if (clientToken) {
         let webAppUrl;
         if (next.client.enabled) {
