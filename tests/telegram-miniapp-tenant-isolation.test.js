@@ -5,24 +5,23 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const registerCustomerDeliveryRoutes = require('../routes/customer-delivery');
 
-const tokenA = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
-const tokenB = '654321:zyxwvutsrqponmlkjihgfedcbaABCDE';
+const token = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
 const now = Math.floor(Date.now() / 1000);
 
-function signedInitData(token, userId = 10001) {
+function signedInitData() {
   const params = new Map([
     ['auth_date', String(now)],
-    ['query_id', 'tenant-test-query'],
-    ['user', JSON.stringify({ id: userId, first_name: 'Tenant' })]
+    ['query_id', 'shared-client-test'],
+    ['user', JSON.stringify({ id: 10001, first_name: 'Customer' })]
   ]);
   const data = Array.from(params.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-    .map(([key, value]) => key + '=' + value).join('\n');
+    .map(([key, value]) => key + '=' + value).join('\\n');
   const secret = crypto.createHmac('sha256', 'WebAppData').update(token).digest();
   params.set('hash', crypto.createHmac('sha256', secret).update(data).digest('hex'));
   return new URLSearchParams(params).toString();
 }
 
-function setup({ botToken = tokenA, enabled = true } = {}) {
+function setup({ enabled = true } = {}) {
   const handlers = new Map();
   const calls = [];
   const app = {
@@ -31,16 +30,16 @@ function setup({ botToken = tokenA, enabled = true } = {}) {
     delete(path, handler) { handlers.set('DELETE ' + path, handler); }
   };
   const deps = {
-    getAsync: async (sql, params) => {
-      calls.push(['get', sql, params]);
-      if (sql.includes('telegram_tenant_client_bots')) return enabled ? { bot_token: Number(params?.[0]) === 8 ? tokenB : botToken } : null;
-      return null;
-    },
+    getAsync: async () => null,
     allAsync: async (sql, params) => {
-      calls.push(['all', sql, params]);
+      calls.push([sql, params]);
+      if (sql.includes('FROM settings')) return [
+        { key: 'telegram_client_bot_enabled', value: enabled ? '1' : '0' },
+        { key: 'telegram_client_bot_token', value: token }
+      ];
       if (sql.includes('FROM stores')) return [
-        { id: 11, name: 'Tenant store' },
-        { id: 12, name: 'Another tenant store' }
+        { id: 11, merchant_id: 7, name: 'Tenant A store' },
+        { id: 12, merchant_id: 8, name: 'Tenant B store' }
       ];
       return [];
     },
@@ -67,64 +66,50 @@ function response() {
   };
 }
 
-function request(merchantId, initData) {
+function request(initData) {
   return {
-    query: { merchant_id: merchantId },
     headers: { 'x-telegram-init-data': initData },
     get(name) { return this.headers[name.toLowerCase()]; }
   };
 }
 
-test('Mini App store listing requires tenant selector and signed Telegram identity', async () => {
+test('shared Client Bot Mini App requires signed Telegram initData', async () => {
   const { handler, calls } = setup();
   const missing = response();
-  await handler(request('', signedInitData(tokenA)), missing);
+  await handler(request(''), missing);
   assert.equal(missing.statusCode, 401);
   assert.equal(calls.length, 0);
-
-  const unsigned = response();
-  await handler(request('7', ''), unsigned);
-  assert.equal(unsigned.statusCode, 401);
-  assert.equal(calls.length, 0);
 });
 
-test('Mini App store listing returns only stores belonging to verified merchant', async () => {
+test('shared Client Bot Mini App verifies with the single super-admin configured token', async () => {
   const { handler, calls } = setup();
   const res = response();
-  await handler(request('7', signedInitData(tokenA)), res);
+  await handler(request(signedInitData()), res);
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.merchantId, 7);
-  assert.deepEqual(res.body.stores.map(store => store.id), [11, 12]);
-  const query = calls.find(call => call[0] === 'all');
-  assert.match(query[1], /s\.merchant_id=\?/);
-  assert.deepEqual(query[2], [7]);
-  const botLookup = calls.find(call => call[0] === 'get');
-  assert.match(botLookup[1], /merchant_id=\?/);
-  assert.deepEqual(botLookup[2], [7]);
+  assert.deepEqual(res.body.stores.map(store => [store.id, store.merchantId]), [[11, 7], [12, 8]]);
+  assert.match(calls[0][0], /telegram_client_bot_enabled/);
+  assert.deepEqual(calls[0][1], ['telegram_client_bot_enabled', 'telegram_client_bot_token']);
+  assert.match(calls[1][0], /s\.merchant_id/);
+  assert.doesNotMatch(calls[1][0], /WHERE s\.merchant_id=\?/);
 });
 
-test('Mini App rejects initData signed by another tenant bot', async () => {
-  const { handler, calls } = setup();
-  const res = response();
-  await handler(request('7', signedInitData(tokenB)), res);
-  assert.equal(res.statusCode, 403);
-  assert.equal(calls.some(call => call[0] === 'all'), false);
-});
-
-test('Mini App rejects disabled tenant bot before querying stores', async () => {
+test('shared Client Bot Mini App rejects disabled global Bot before listing stores', async () => {
   const { handler, calls } = setup({ enabled: false });
   const res = response();
-  await handler(request('7', signedInitData(tokenA)), res);
+  await handler(request(signedInitData()), res);
   assert.equal(res.statusCode, 403);
-  assert.equal(calls.some(call => call[0] === 'all'), false);
+  assert.equal(calls.length, 1);
 });
 
-test('changing merchant_id to another tenant cannot reuse the first tenant signature', async () => {
+test('shared Client Bot Mini App rejects initData signed by a different Bot token', async () => {
   const { handler, calls } = setup();
+  const other = '654321:zyxwvutsrqponmlkjihgfedcbaABCDE';
+  const params = new URLSearchParams(signedInitData());
+  const data = Array.from(params.entries()).filter(([key]) => key !== 'hash').sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => key + '=' + value).join('\\n');
+  const secret = crypto.createHmac('sha256', 'WebAppData').update(other).digest();
+  params.set('hash', crypto.createHmac('sha256', secret).update(data).digest('hex'));
   const res = response();
-  await handler(request('8', signedInitData(tokenA)), res);
+  await handler(request(params.toString()), res);
   assert.equal(res.statusCode, 403);
-  assert.equal(calls.some(call => call[0] === 'all'), false);
-  const botLookup = calls.find(call => call[0] === 'get');
-  assert.deepEqual(botLookup[2], [8]);
+  assert.equal(calls.length, 1);
 });
