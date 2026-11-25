@@ -1,11 +1,28 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
 const { normalizeRouteError } = require('../server/utils/http-error');
-const { validateChatId } = require('../server/services/telegram-bot');
+const { validateChatId, getTelegramBotUsername } = require('../server/services/telegram-bot');
+const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
    ============================================================ */
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission, getClientIp } = deps;
+
+  async function getStoreEntryLink(storeId, chatId) {
+    const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+    if (!chatId || secret.length < 32 || secret.length > 256) return null;
+    const rows = await allAsync(
+      'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+      ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+    );
+    const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
+    if (config.telegram_client_bot_enabled !== '1') return null;
+    const token = String(config.telegram_client_bot_token || '');
+    if (!token) return null;
+    const username = await getTelegramBotUsername({ token });
+    const signature = createStoreEntrySignature({ storeId, chatId, secret });
+    return 'https://t.me/' + username + '?start=delivery_' + storeId + '_' + signature;
+  }
 
   function normalizeCurrencyFlag(value, fallback) {
     if (value === undefined) return fallback;
@@ -360,8 +377,10 @@ module.exports = function(app, deps) {
           notify_refunded: !!notifyRefunded
         }, 'store');
       });
+      let storeEntryLink = null;
+      try { storeEntryLink = await getStoreEntryLink(storeId, chatId); } catch (_) { /* Binding is saved; link can be refreshed after Bot configuration is available. */ }
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ success: true, enabled: !!enabled, chatId, notifyOrderCreated: !!notifyOrderCreated, notifySettled: !!notifySettled, notifyRefunded: !!notifyRefunded });
+      res.json({ success: true, enabled: !!enabled, chatId, storeEntryLink, notifyOrderCreated: !!notifyOrderCreated, notifySettled: !!notifySettled, notifyRefunded: !!notifyRefunded });
     } catch (error) {
       const safeError = normalizeRouteError(error, 'Telegram 门店通知设置保存失败，所有更改已回滚');
       if (!safeError.isClientError) {
