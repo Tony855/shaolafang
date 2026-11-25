@@ -40,7 +40,7 @@ footer{margin-top:24px;font-size:12px;color:#8a94a6;text-align:center}
  async function load(){
   try{
    if(!initData)throw new Error('请从 FoodFlow 统一 Client Bot 的菜单按钮打开此页面。');
-   if(!/^\d+$/.test(storeId)||!/^[A-Za-z0-9_-]{43}$/.test(entry))throw new Error('请使用门店管理员提供的专属 Telegram 点餐链接进入，不再支持公共门店选择入口。');
+   if(!/^\d+$/.test(storeId)||!/^[A-Za-z0-9_-]{43}$/.test(entry))throw new Error('此入口不包含门店信息。请返回聊天，点击门店管理员提供的专属 Telegram 点餐链接；进入后即可使用本聊天的“本店点餐”菜单。');
    const endpoint='/api/public/delivery/telegram-miniapp-stores?store_id='+encodeURIComponent(storeId)+'&entry='+encodeURIComponent(entry);
    const response=await fetch(endpoint,{cache:'no-store',headers:{accept:'application/json','X-Telegram-Init-Data':initData}});
    const data=await response.json().catch(()=>({}));
