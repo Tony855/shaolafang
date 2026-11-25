@@ -29,6 +29,7 @@ function setup({ enabled = true, secret = 's'.repeat(40), bound = false } = {}) 
         { key: 'telegram_client_bot_enabled', value: enabled ? '1' : '0' },
         { key: 'telegram_client_bot_token', value: botToken }
       ];
+      if (sql.includes('FROM stores s JOIN merchants')) return [{ id: 7, name: 'Test Store' }, { id: 9, name: 'Second Store' }];
       if (sql.includes('FROM telegram_customer_bindings')) return bindingRows;
       return [];
     },
@@ -55,6 +56,16 @@ function response() {
 function request({ query = {}, body = {}, token = customerToken } = {}) {
   return { query, body, headers: {}, get(name) { return name.toLowerCase() === 'x-customer-token' ? token : ''; } };
 }
+
+test('Telegram Mini App store selector returns public active store IDs and names', async () => {
+  const ctx = setup();
+  const handler = ctx.handlers.get('GET /api/public/delivery/telegram-miniapp-stores');
+  const res = response();
+  await handler(request(), res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { stores: [{ id: 7, name: 'Test Store' }, { id: 9, name: 'Second Store' }] });
+  assert.match(res.headers['Cache-Control'], /max-age=60/);
+});
 
 test('delivery customer Telegram binding status is scoped to the store and hashed customer identity', async () => {
   const ctx = setup({ bound: true });
@@ -116,21 +127,4 @@ test('delivery customer Telegram unbind dead-letters queued notices before revok
   assert.ok(deadLetter);
   const revoke = ctx.calls.find(call => call.type === 'run' && call.sql.includes('UPDATE telegram_customer_bindings'));
   assert.ok(revoke);
-});
-
-test('delivery storefront exposes a store-scoped Telegram Bot Mini App deep link', async () => {
-  const ctx = setup();
-  const previousFetch = global.fetch;
-  global.fetch = async url => ({
-    ok: true,
-    json: async () => ({ ok: true, result: { username: 'FoodFlowClientBot' } })
-  });
-  try {
-    const res = response();
-    await ctx.handlers.get('GET /api/public/delivery/telegram-miniapp-link')(request({ query: { store_id: '7' } }), res);
-    assert.equal(res.statusCode, 200);
-    assert.deepEqual(res.body, { deepLink: 'https://t.me/FoodFlowClientBot?start=delivery_7', storeId: 7 });
-  } finally {
-    global.fetch = previousFetch;
-  }
 });

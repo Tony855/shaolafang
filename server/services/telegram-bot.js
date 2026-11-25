@@ -83,6 +83,39 @@ async function getTelegramBotUsername({ token, fetchImpl = globalThis.fetch }) {
   return username;
 }
 
+async function setTelegramMenuButton({ token, text = '🍽️ 外卖点餐', webAppUrl, enabled = true, fetchImpl = globalThis.fetch }) {
+  if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
+  if (typeof fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持 fetch');
+  let menuButton = { type: 'commands' };
+  if (enabled) {
+    let parsed;
+    try { parsed = new URL(String(webAppUrl || '')); } catch (_) { throw new Error('Telegram Mini App URL 无效'); }
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.hash || parsed.href.length > 2048) {
+      throw new Error('Telegram Mini App 必须使用有效的 HTTPS 地址');
+    }
+    menuButton = { type: 'web_app', text: String(text || '').trim(), web_app: { url: parsed.href } };
+  }
+  let response;
+  try {
+    response = await fetchImpl(`${TELEGRAM_API}/bot${token}/setChatMenuButton`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ menu_button: menuButton }),
+      signal: AbortSignal.timeout(10000)
+    });
+  } catch (_) {
+    throw new Error('无法连接 Telegram API，菜单按钮配置未确认');
+  }
+  let payload;
+  try { payload = await response.json(); } catch (_) { throw new Error('Telegram API 返回了无法识别的响应'); }
+  if (!response.ok || payload?.ok !== true) {
+    const code = Number(payload?.error_code || response.status);
+    if (code === 401) throw new Error('Telegram Bot Token 无效或已撤销');
+    throw new Error('Telegram 菜单按钮配置失败（HTTP ' + code + '）');
+  }
+  return true;
+}
+
 async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.fetch }) {
   return sendTelegramMessage({
     token, chatId, fetchImpl,
@@ -90,4 +123,4 @@ async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.f
   });
 }
 
-module.exports = { validateBotToken, validateChatId, sendTelegramMessage, sendTelegramTestMessage, getTelegramBotUsername };
+module.exports = { validateBotToken, validateChatId, sendTelegramMessage, sendTelegramTestMessage, getTelegramBotUsername, setTelegramMenuButton };

@@ -107,6 +107,39 @@ test('rejects invalid tokens and enabled bots without a complete stored configur
   assert.equal(incomplete.statusCode, 400);
 });
 
+test('saving an enabled Client Bot configures the default Telegram Mini App menu button', async () => {
+  const ctx = setup({ telegram_client_bot_token: token });
+  const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
+  const previousFetch = global.fetch;
+  let request;
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
+  global.fetch = async (url, options) => {
+    request = { url, body: JSON.parse(options.body) };
+    return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
+  };
+  try {
+    const res = response();
+    await ctx.routes.get('PUT /api/super/telegram/config')({
+      body: {
+        client: { enabled: true, token: '', chat_id: '-100123' },
+        admin: { enabled: false, token: '' }
+      },
+      superAdmin: { id: 1, username: 'root' }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.menu_button_configured, true);
+    assert.equal(request.url, 'https://api.telegram.org/bot' + token + '/setChatMenuButton');
+    assert.deepEqual(request.body.menu_button, {
+      type: 'web_app', text: '🍽️ 外卖点餐',
+      web_app: { url: 'https://foodflow.example.test/telegram/delivery' }
+    });
+  } finally {
+    global.fetch = previousFetch;
+    if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
+  }
+});
+
 test('disabling Client Bot terminally suppresses only queued customer notifications', async () => {
   const ctx = setup({
     telegram_client_bot_enabled: '1',

@@ -1057,7 +1057,7 @@ app.get('/api/super/merchants/:id/available-methods', requireSuperAdmin, async (
 });
 
 
-const { sendTelegramTestMessage, validateBotToken, validateChatId } = require('../server/services/telegram-bot');
+const { sendTelegramTestMessage, validateBotToken, validateChatId, setTelegramMenuButton } = require('../server/services/telegram-bot');
 const TELEGRAM_SCOPES = ['client', 'admin'];
 const TELEGRAM_SETTING_KEYS = [
   'telegram_client_bot_enabled', 'telegram_client_bot_token', 'telegram_client_chat_id',
@@ -1117,6 +1117,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
       next[scope] = { enabled, chatId, token, clearToken };
     }
 
+    let clientMenuToken = '';
     await withTransaction(async () => {
       const existingRows = await allAsync(
         'SELECT `key`, value FROM settings WHERE `key` IN (' +
@@ -1128,6 +1129,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
         const item = next[scope];
         const oldToken = String(existing[`telegram_${scope}_bot_token`] || '');
         const newToken = item.clearToken ? '' : (item.token ? item.token : oldToken);
+        if (scope === 'client') clientMenuToken = newToken || oldToken;
         const newChatId = scope === 'client' ? (item.chatId === undefined ? String(existing.telegram_client_chat_id || '') : item.chatId) : '';
         if (item.enabled && (!newToken || (scope === 'client' && !newChatId))) {
           const error = new Error(scope === 'client' ? '客户端 Bot 启用前必须配置 Token 和 Chat ID' : '管理员 Bot 启用前必须配置 Token');
@@ -1163,8 +1165,33 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
         'update_telegram_bot_settings', 'settings', null,
         '更新客户端及管理员 Telegram Bot 配置（凭据已隐藏）', getClientIp(req));
     });
+    let menuButtonConfigured = false;
+    let menuButtonError = '';
+    try {
+      const clientToken = clientMenuToken;
+      const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim();
+      let publicOrigin = '';
+      try {
+        const parsed = new URL(publicUrl);
+        if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
+      } catch (_) {}
+      if (clientToken && publicOrigin) {
+        await setTelegramMenuButton({
+          token: clientToken,
+          enabled: next.client.enabled,
+          webAppUrl: next.client.enabled ? publicOrigin + '/telegram/delivery' : undefined
+        });
+        menuButtonConfigured = true;
+      } else if (next.client.enabled) {
+        menuButtonError = clientToken ? 'FOODFLOW_PUBLIC_URL 必须配置为公网 HTTPS 地址' : '未配置 Client Bot Token';
+      } else if (clientToken) {
+        menuButtonError = '未配置公网 HTTPS 地址，无法同步重置 Bot 菜单按钮';
+      }
+    } catch (error) {
+      menuButtonError = String(error.message || 'Telegram 菜单按钮同步失败').slice(0, 180);
+    }
     res.setHeader('Cache-Control', 'no-store, private');
-    res.json({ success: true });
+    res.json({ success: true, menu_button_configured: menuButtonConfigured, menu_button_error: menuButtonError });
   } catch (error) {
     res.status(error.statusCode || 500).json({
       error: error.statusCode === 400 ? error.message : 'Telegram Bot 配置保存失败'

@@ -60,17 +60,20 @@ Binding details:
 - Customer notification recipients are resolved by binding ID plus exact merchant/store IDs. Inactive, revoked, missing, or cross-store bindings fail closed.
 - The existing shared Client Bot Chat ID is never used for per-customer order details.
 
-## Customer delivery Mini App
+## Customer delivery Mini App menu button
 
-The Client Bot can open the existing FoodFlow delivery storefront as a Telegram Mini App for a specific store.
+The customer Client Bot exposes FoodFlow ordering directly from Telegram's chat menu button. Customers do not need to visit the FoodFlow website first, tap a website launch button, or send a `/start delivery_<store_id>` command.
 
-1. Configure and enable the Client Bot as described above, register its webhook, and set `FOODFLOW_PUBLIC_URL` to the public HTTPS origin.
-2. In @BotFather, configure the Web App domain with `/setdomain` and the same FoodFlow hostname used by `FOODFLOW_PUBLIC_URL`.
-3. Open a store's public delivery storefront and tap **在 Telegram 中打开点餐**. FoodFlow creates a store-scoped Bot deep link (`/start delivery_<store_id>`).
-4. The customer starts the Client Bot and receives an **打开外卖点餐** Web App button. Telegram opens the existing `delivery-order.html?store_id=...` page inside its Mini App webview.
-5. Menu, cart, delivery checkout, cash/KHQR payment, and tracking continue to use the existing FoodFlow APIs and order records. Customers may separately bind their Telegram private chat from the storefront to receive private order notifications.
+1. Configure and enable the Client Bot in **Global settings → Telegram Bot**. On save, FoodFlow calls Telegram `setChatMenuButton` and sets the default private-chat menu button to **🍽️ 外卖点餐**, pointing to `https://<FOODFLOW_PUBLIC_URL-host>/telegram/delivery`.
+2. Set `FOODFLOW_PUBLIC_URL` to the public HTTPS origin and register the Client Bot webhook as described above.
+3. In @BotFather, configure the Web App domain using `/setdomain` with the same FoodFlow hostname.
+4. A customer opens the Client Bot chat and taps the built-in **🍽️ 外卖点餐** menu button. Telegram opens the FoodFlow Mini App directly.
+5. If one active store exists, the Mini App opens that store's delivery page automatically. If multiple active stores exist, the customer selects a store first. The selection page only returns public active store IDs and names.
+6. The selected store's existing `delivery-order.html` storefront runs inside Telegram. Menu, cart, checkout, cash/KHQR payment, and delivery tracking continue to use the existing FoodFlow APIs and order records. Customers can still bind their Telegram private chat from the delivery page to receive private order notifications.
 
-The Mini App launch parameter selects only an active store; it is not an authentication credential. Order totals and item availability are revalidated by the server. Customer order authorization continues to use the existing high-entropy customer token. Telegram `initData` is not used as an authorization substitute. The Mini App currently opens one store per deep link; a cross-store directory and Telegram-native account/order history are not part of this integration.
+The menu button is synchronized globally for the Client Bot both during server startup (so existing enabled Bot configurations are picked up after deployment) and when the super-admin saves Telegram settings. If Telegram rejects the menu-button update, the configuration API returns `menu_button_configured: false` and a safe `menu_button_error`; correct the HTTPS URL, Bot token, or BotFather domain and save again. Disabling the Client Bot resets the menu button to Telegram's default commands button.
+
+The Mini App store selector is not an authentication mechanism. It does not trust Telegram `initData` as an order credential. Order authorization continues to use the existing high-entropy customer bearer token, and the backend revalidates store status, menu items, availability, and totals. No customer identity or order permission is granted by the menu button itself.
 
 ## Delivery and limitations
 

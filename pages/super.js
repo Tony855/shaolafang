@@ -630,12 +630,16 @@ async function saveTelegramBotSettings() {
     };
   };
   try {
-    await api('/super/telegram/config', {
+    const result = await api('/super/telegram/config', {
       method: 'PUT',
       body: JSON.stringify({ client: read('client'), admin: read('admin') })
     });
     await loadTelegramBotSettings();
-    SLF.ui.toast(t('telegramSaved') || 'Telegram Bot 配置已保存', 'success');
+    if (result && result.menu_button_configured === false) {
+      SLF.ui.toast(result.menu_button_error || 'Bot 配置已保存，但 Telegram 外卖菜单按钮未同步，请检查 FOODFLOW_PUBLIC_URL 和 Bot Token 后重新保存。', 'error');
+      return;
+    }
+    SLF.ui.toast(t('telegramSaved') || 'Telegram Bot 配置已保存，外卖点餐入口已同步到 Bot 菜单', 'success');
   } catch (error) {
     SLF.ui.toast((t('saveFailed') || '保存失败') + ': ' + error.message, 'error');
   }

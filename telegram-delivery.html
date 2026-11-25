@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#e85d3a">
+<meta name="referrer" content="no-referrer">
+<title>FoodFlow 外卖点餐</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f7fb;color:#172033}
+*{box-sizing:border-box}
+body{margin:0;padding:calc(20px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));max-width:720px;margin-inline:auto}
+header{padding:16px 4px 18px}
+h1{font-size:23px;margin:0 0 7px}
+p{color:#68758a;line-height:1.6;margin:0}
+#storeList{display:grid;gap:12px;margin-top:18px}
+.store{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:17px;border:1px solid #e2e8f0;border-radius:15px;background:#fff;color:#172033;text-align:left;font:inherit;cursor:pointer;box-shadow:0 4px 16px #1720330a}
+.store strong{font-size:16px}
+.store span{font-size:13px;color:#d94d2d;font-weight:700;white-space:nowrap}
+.state{padding:18px;border-radius:14px;background:#fff;color:#68758a}
+footer{margin-top:24px;font-size:12px;color:#8a94a6;text-align:center}
+</style>
+</head>
+<body>
+<header><h1>🍽️ FoodFlow 外卖点餐</h1><p id="intro">选择你要点餐的门店，进入菜单开始下单。</p></header>
+<main><div id="storeList" aria-live="polite"><div class="state">正在加载可点餐门店…</div></div></main>
+<footer>安全下单 · 在线支付 · 配送进度追踪</footer>
+<script>
+(() => {
+ 'use strict';
+ const app=window.Telegram&&window.Telegram.WebApp?window.Telegram.WebApp:null;
+ if(app){app.ready();app.expand();}
+ const list=document.getElementById('storeList');
+ const intro=document.getElementById('intro');
+ function showError(message){list.replaceChildren();const p=document.createElement('div');p.className='state';p.textContent=message;list.appendChild(p);}
+ function openStore(id){location.href='/delivery/order?store_id='+encodeURIComponent(String(id))+'&telegram=1';}
+ async function load(){
+  try{
+   const response=await fetch('/api/public/delivery/telegram-miniapp-stores',{cache:'no-store',headers:{accept:'application/json'}});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||!Array.isArray(data.stores))throw new Error(data.error||'门店列表暂时不可用，请稍后重试');
+   const stores=data.stores.filter(x=>Number.isSafeInteger(Number(x.id))&&Number(x.id)>0&&typeof x.name==='string');
+   if(!stores.length){showError('目前没有可用的外卖门店，请稍后再试。');return;}
+   if(stores.length===1){intro.textContent='正在进入 '+stores[0].name+'…';openStore(stores[0].id);return;}
+   intro.textContent='请选择门店，进入对应菜单开始点餐。';
+   list.replaceChildren();
+   for(const store of stores){
+    const button=document.createElement('button');button.type='button';button.className='store';
+    const name=document.createElement('strong');name.textContent=store.name;
+    const action=document.createElement('span');action.textContent='开始点餐 →';
+    button.append(name,action);button.addEventListener('click',()=>openStore(store.id));list.appendChild(button);
+   }
+  }catch(error){showError(error.message||'加载门店失败，请重新打开菜单按钮。');}
+ }
+ load();
+})();
+</script>
+</body>
+</html>
