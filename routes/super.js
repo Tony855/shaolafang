@@ -1169,14 +1169,17 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
       const clientToken = next.client.clearToken ? '' : (next.client.token || String((await allAsync(
         'SELECT value FROM settings WHERE `key`=?', ['telegram_client_bot_token']
       ))[0]?.value || ''));
-      const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim();
-      const parsed = new URL(publicUrl);
-      if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new Error('FoodFlow_PUBLIC_URL 必须为 HTTPS 公网地址');
       if (clientToken) {
+        let webAppUrl;
+        if (next.client.enabled) {
+          const parsed = new URL(String(process.env.FOODFLOW_PUBLIC_URL || '').trim());
+          if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new Error('FOODFLOW_PUBLIC_URL 必须为 HTTPS 公网地址');
+          webAppUrl = parsed.origin + '/telegram-delivery.html';
+        }
         await setTelegramMenuButton({
           token: clientToken,
           enabled: next.client.enabled,
-          webAppUrl: parsed.origin + '/telegram-delivery.html'
+          webAppUrl
         });
         menuButtonConfigured = true;
       } else if (next.client.enabled) {
