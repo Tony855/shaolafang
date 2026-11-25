@@ -99,7 +99,7 @@ test('Mini App store listing returns only stores belonging to verified merchant'
   assert.match(query[1], /s\.merchant_id=\?/);
   assert.deepEqual(query[2], [7]);
   const botLookup = calls.find(call => call[0] === 'get');
-  assert.match(botLookup[1], /merchant_id=\\?/);
+  assert.match(botLookup[1], /merchant_id=\?/);
   assert.deepEqual(botLookup[2], [7]);
 });
 
