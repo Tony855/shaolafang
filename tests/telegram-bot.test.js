@@ -59,7 +59,7 @@ test('sets the default customer Bot menu button to the Telegram Mini App', async
   assert.equal(request.url, 'https://api.telegram.org/bot' + token + '/setChatMenuButton');
   assert.deepEqual(request.body, { menu_button: {
     type: 'web_app', text: '🍽️ 外卖点餐',
-    web_app: { url: 'https://foodflow.example.test/telegram-delivery.html' }
+    web_app: { url: 'https://foodflow.example.test/telegram/delivery' }
   } });
 });
 
