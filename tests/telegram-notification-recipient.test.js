@@ -30,6 +30,23 @@ test('merchant store recipient resolver requires exact active tenant, configured
   assert.deepEqual(calls[1].params, ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']);
 });
 
+test('merchant store recipient resolver isolates the same store lookup across tenant IDs', async () => {
+  const lookups = [];
+  const resolve = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => {
+    lookups.push({ sql, params });
+    if (sql.includes('telegram_store_admin_recipients')) {
+      return [{ chat_id: params[0] === 7 ? '-1007000000009' : '-1008000000009', event_enabled: 1 }];
+    }
+    return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }];
+  } });
+  const tenantA = await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' });
+  const tenantB = await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 8, storeId: 9, eventType: 'order.created' });
+  assert.equal(tenantA.chatId, '-1007000000009');
+  assert.equal(tenantB.chatId, '-1008000000009');
+  assert.deepEqual(lookups.slice(0, 2).map(x => x.params), [[7, 9], [8, 9]]);
+  assert.match(lookups[0].sql, /r\.merchant_id=\? AND r\.store_id=\?/);
+});
+
 test('merchant store recipient resolver isolates Chat IDs between stores', async () => {
   const lookups = [];
   const chats = new Map([[9, '-1009000000009'], [10, '-1009000000010']]);
