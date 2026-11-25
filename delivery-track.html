@@ -19,15 +19,26 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
 (() => {
  const orderId=location.pathname.split('/').pop();
  const fragment=new URLSearchParams(location.hash.replace(/^#/,'')), fragmentToken=fragment.get('token')||'';
+ const isCustomerToken=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
+ function readStoredToken(storageName,key){try{return window[storageName].getItem(key)||'';}catch(_){return '';}}
+ function saveStoredToken(storageName,key,value){try{window[storageName].setItem(key,value);return true;}catch(_){return false;}}
+ let customerToken=isCustomerToken(fragmentToken)?fragmentToken:'';
  if(fragmentToken){
-  sessionStorage.setItem('customer_token:'+orderId,fragmentToken);
-  localStorage.setItem('customer_token:'+orderId,fragmentToken);
-  history.replaceState(null,'',location.pathname+location.search);
+  if(customerToken){
+   saveStoredToken('sessionStorage','customer_token:'+orderId,customerToken);
+   saveStoredToken('localStorage','customer_token:'+orderId,customerToken);
+  }
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(_){}
  }
- let customerToken='';
- try {
-  customerToken=sessionStorage.getItem('customer_token:'+orderId)||localStorage.getItem('customer_token:'+orderId)||sessionStorage.getItem('customer_token')||localStorage.getItem('foodflow_customer_identity_v1')||'';
- } catch (_) {}
+ if(!customerToken){
+  const storedTokens=[
+   readStoredToken('sessionStorage','customer_token:'+orderId),
+   readStoredToken('localStorage','customer_token:'+orderId),
+   readStoredToken('sessionStorage','customer_token'),
+   readStoredToken('localStorage','foodflow_customer_identity_v1')
+  ];
+  customerToken=storedTokens.find(isCustomerToken)||'';
+ }
 
  const $=id=>document.getElementById(id);let map=null,marker=null,socket=null;
  const labels={pending_assignment:'等待门店分配骑手',assigned:'门店已分配骑手',accepted:'骑手已接单',picked_up:'骑手已取货',delivering:'骑手配送中',delivered:'订单已送达',cancelled:'配送已取消'};
