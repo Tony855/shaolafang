@@ -99,40 +99,37 @@ test('Telegram customer webhook consumes a one-time deep-link challenge and bind
   assert.equal(state.consumed, true);
 });
 
-test('plain /start replies with a platform-wide FoodFlow Mini App entry button', async () => {
-  const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
-  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
+test('plain /start explains that ordering must begin from a store-specific link', async () => {
   const sent = [];
-  try {
-    const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 3 }; } });
-    const res = response();
-    await handler({
-      headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
-      body: { update_id: 109, message: { text: '/start', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
-    }, res);
-    assert.equal(res.statusCode, 200);
-    assert.equal(state.updates.has(109), true);
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0].chatId, '98765');
-    assert.match(sent[0].text, /浏览门店、完整菜单和菜品图片/);
-    assert.deepEqual(sent[0].replyMarkup.inline_keyboard[0][0], {
-      text: '🍽️ 外卖点餐 · 打开 Mini App',
-      web_app: { url: 'https://foodflow.example.test/telegram/delivery' }
-    });
-  } finally {
-    if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
-    else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
-  }
+  const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 3 }; } });
+  const res = response();
+  await handler({
+    headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+    body: { update_id: 109, message: { text: '/start', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.updates.has(109), true);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].chatId, '98765');
+  assert.match(sent[0].text, /门店管理员提供的专属 Telegram 点餐链接/);
+  assert.equal(sent[0].replyMarkup, undefined);
 });
-
-test('Telegram customer webhook replies to store delivery start with a Mini App web_app button', async () => {
+test('store-specific /start sets a private chat menu button and sends the matching Mini App button', async () => {
   const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
   process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
-  const sent = [];
+  const sent = [], menuCalls = [];
   try {
-    const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 2 }; } });
+    const { state } = fixture();
     const signature = createStoreEntrySignature({ storeId: 8, chatId: '-100888', secret: 's'.repeat(40) });
     const res = response();
+    const handler = createTelegramCustomerWebhookHandler({
+      secret: 's'.repeat(40),
+      getAsync: async (sql, params) => sql.includes('telegram_store_admin_recipients') && Number(params[0]) === 8 ? state.recipient : null,
+      allAsync: async () => [], runAsync: async (sql, params) => { if (sql.includes('INSERT INTO telegram_webhook_updates')) state.updates.add(params[0]); return { affectedRows: 1 }; }, withTransaction: async fn => fn(),
+      getBotToken: async () => '123456:abcdefghijklmnopqrstuvwxyzABCDE',
+      sendMessage: async input => { sent.push(input); return { messageId: 2 }; },
+      setMenuButton: async input => { menuCalls.push(input); }, logger: { warn() {}, error() {} }
+    });
     await handler({
       headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
       body: { update_id: 108, message: { text: '/start delivery_8_' + signature, chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
@@ -142,6 +139,7 @@ test('Telegram customer webhook replies to store delivery start with a Mini App 
     assert.equal(sent.length, 1);
     assert.equal(sent[0].chatId, '98765');
     assert.equal(sent[0].replyMarkup.inline_keyboard[0][0].web_app.url, 'https://foodflow.example.test/delivery/order?store_id=8&entry=' + signature + '&telegram=1');
+    assert.deepEqual(menuCalls, [{ token: '123456:abcdefghijklmnopqrstuvwxyzABCDE', chatId: '98765', enabled: true, text: '🍽️ 本店点餐', webAppUrl: 'https://foodflow.example.test/delivery/order?store_id=8&entry=' + signature + '&telegram=1' }]);
   } finally {
     if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
     else process.env.FOODFLOW_PUBLIC_URL = previousUrl;

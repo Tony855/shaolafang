@@ -20,9 +20,8 @@ function parseTelegramPrivateUpdate(update) {
   if (typeof message.text !== 'string' || message.text.length > 256) return null;
   const command = message.text.trim();
   if (command === '/stop') return { action: 'stop', updateId: update.update_id, telegramUserId: userId, telegramChatId: chatId };
-  // A plain /start (or /help) must show a first-time customer a visible
-  // Mini App entry point; without this, users who have not received a
-  // store-specific deep link have no way to discover the ordering app.
+  // A plain /start (or /help) has no store context. Never expose a public
+  // store selector; direct customers to the store's signed deep link instead.
   if (/^\/(?:start|help)(?:@[A-Za-z0-9_]+)?$/.test(command)) {
     return { action: 'home', updateId: update.update_id, telegramUserId: userId, telegramChatId: chatId };
   }

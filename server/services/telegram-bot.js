@@ -83,7 +83,7 @@ async function getTelegramBotUsername({ token, fetchImpl = globalThis.fetch }) {
   return username;
 }
 
-async function setTelegramMenuButton({ token, text = '🍽️ 外卖点餐', webAppUrl, enabled = true, fetchImpl = globalThis.fetch }) {
+async function setTelegramMenuButton({ token, chatId, text = '🍽️ 外卖点餐', webAppUrl, enabled = true, fetchImpl = globalThis.fetch }) {
   if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
   if (typeof fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持 fetch');
   let menuButton = { type: 'commands' };
@@ -100,7 +100,7 @@ async function setTelegramMenuButton({ token, text = '🍽️ 外卖点餐', web
     response = await fetchImpl(`${TELEGRAM_API}/bot${token}/setChatMenuButton`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ menu_button: menuButton }),
+      body: JSON.stringify({ ...(chatId !== undefined && chatId !== null ? { chat_id: String(chatId) } : {}), menu_button: menuButton }),
       signal: AbortSignal.timeout(10000)
     });
   } catch (_) {

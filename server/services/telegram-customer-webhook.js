@@ -1,13 +1,13 @@
 'use strict';
 
 const crypto = require('crypto');
-const { validateBotToken, sendTelegramMessage } = require('./telegram-bot');
+const { validateBotToken, sendTelegramMessage, setTelegramMenuButton } = require('./telegram-bot');
 const { constantTimeSecretMatch, parseTelegramPrivateUpdate } = require('./telegram-webhook');
 const { verifyStoreEntrySignature } = require('./telegram-store-entry');
 
 function createTelegramCustomerWebhookHandler({
   getAsync, allAsync, runAsync, withTransaction, secret, getBotToken,
-  sendMessage = sendTelegramMessage, logger = console
+  sendMessage = sendTelegramMessage, setMenuButton = setTelegramMenuButton, logger = console
 } = {}) {
   for (const [name, fn] of Object.entries({ getAsync, allAsync, runAsync, withTransaction, getBotToken })) {
     if (typeof fn !== 'function') throw new TypeError(name + ' is required');
@@ -78,24 +78,10 @@ function createTelegramCustomerWebhookHandler({
         }
 
         if (update.action === 'home') {
-          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
-          let publicOrigin = '';
-          try {
-            const parsed = new URL(publicUrl);
-            if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
-          } catch (_) {}
-          if (publicOrigin) {
-            bound = {
-              chatId: update.telegramChatId,
-              text: '欢迎使用 FoodFlow 外卖点餐。点击下方按钮浏览门店、完整菜单和菜品图片，并在 Telegram 内完成点餐。',
-              replyMarkup: { inline_keyboard: [[{ text: '🍽️ 外卖点餐 · 打开 Mini App', web_app: { url: publicOrigin + '/telegram/delivery' } }]] }
-            };
-          } else {
-            bound = {
-              chatId: update.telegramChatId,
-              text: '欢迎使用 FoodFlow。外卖点餐入口暂时不可用，请稍后再试。'
-            };
-          }
+          bound = {
+            chatId: update.telegramChatId,
+            text: '欢迎使用 FoodFlow 外卖点餐。为确保进入正确门店，请点击门店管理员提供的专属 Telegram 点餐链接；普通菜单入口不再提供跨门店选择。'
+          };
           return;
         }
 
@@ -117,6 +103,7 @@ function createTelegramCustomerWebhookHandler({
             bound = {
               chatId: update.telegramChatId,
               text: '欢迎使用 FoodFlow' + (recipient.name ? ' · ' + String(recipient.name).slice(0, 80) : '') + '。此入口已绑定当前门店。',
+              menuButtonUrl: webAppUrl,
               replyMarkup: { inline_keyboard: [[{ text: '🍽️ 打开本店外卖点餐', web_app: { url: webAppUrl } }]] }
             };
           } else {
@@ -188,6 +175,16 @@ function createTelegramCustomerWebhookHandler({
     }
 
     if (bound && validateBotToken(botToken)) {
+      if (bound.menuButtonUrl && typeof setMenuButton === 'function') {
+        try {
+          await setMenuButton({
+            token: botToken, chatId: bound.chatId, enabled: true,
+            text: '🍽️ 本店点餐', webAppUrl: bound.menuButtonUrl
+          });
+        } catch (_) {
+          try { logger.warn('[telegram-webhook] store-specific chat menu button update failed'); } catch (_) {}
+        }
+      }
       try {
         await sendMessage({ token: botToken, chatId: bound.chatId, text: bound.text, replyMarkup: bound.replyMarkup });
       } catch (_) {
