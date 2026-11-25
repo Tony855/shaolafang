@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { validateBotToken, validateChatId, sendTelegramTestMessage, sendTelegramMessage, getTelegramBotUsername, setTelegramMenuButton } = require('../server/services/telegram-bot');
+const { validateBotToken, validateChatId, sendTelegramTestMessage, sendTelegramMessage, getTelegramBotUsername, setTelegramMenuButton, setTelegramWebhook } = require('../server/services/telegram-bot');
 
 const token = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 const validPayload = { ok: true, result: { message_id: 17, chat: { id: -100123 } } };
@@ -142,4 +142,50 @@ test('marks network timeouts, unreadable responses and HTTP 5xx as ambiguous del
     () => sendTelegramMessage({ token, chatId: '-100123', text: 'hello', fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ ok: false, error_code: 429, parameters: { retry_after: 5 } }) }) }),
     error => error.deliveryUncertain !== true && error.retryAfterSeconds === 5
   );
+});
+
+test('registers the one shared Client Bot webhook with the configured secret', async () => {
+  let request;
+  const webhookSecret = 'client-webhook-secret-'.padEnd(40, 'x');
+  await setTelegramWebhook({
+    token, webhookUrl: 'https://foodflow.example.test/api/telegram/client/webhook',
+    secretToken: webhookSecret,
+    fetchImpl: async (url, options) => {
+      request = { url, body: JSON.parse(options.body) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
+    }
+  });
+  assert.equal(request.url, 'https://api.telegram.org/bot' + token + '/setWebhook');
+  assert.deepEqual(request.body, {
+    url: 'https://foodflow.example.test/api/telegram/client/webhook',
+    secret_token: webhookSecret,
+    allowed_updates: ['message'],
+    drop_pending_updates: false
+  });
+});
+
+test('removes the shared Client Bot webhook when disabled without dropping pending updates', async () => {
+  let request;
+  await setTelegramWebhook({
+    token, enabled: false,
+    fetchImpl: async (url, options) => {
+      request = { url, body: JSON.parse(options.body) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
+    }
+  });
+  assert.equal(request.url, 'https://api.telegram.org/bot' + token + '/deleteWebhook');
+  assert.deepEqual(request.body, {});
+});
+
+test('rejects insecure or weak webhook settings before contacting Telegram', async () => {
+  let called = false;
+  await assert.rejects(() => setTelegramWebhook({
+    token, webhookUrl: 'http://foodflow.example.test/webhook', secretToken: 'x'.repeat(40),
+    fetchImpl: async () => { called = true; }
+  }), /HTTPS/);
+  await assert.rejects(() => setTelegramWebhook({
+    token, webhookUrl: 'https://foodflow.example.test/webhook', secretToken: 'short',
+    fetchImpl: async () => { called = true; }
+  }), /32 至 256/);
+  assert.equal(called, false);
 });
