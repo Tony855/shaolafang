@@ -20,6 +20,8 @@ function parseTelegramPrivateUpdate(update) {
   if (typeof message.text !== 'string' || message.text.length > 256) return null;
   const command = message.text.trim();
   if (command === '/stop') return { action: 'stop', updateId: update.update_id, telegramUserId: userId, telegramChatId: chatId };
+  const deliveryMatch = command.match(/^\/start\s+delivery_([1-9]\d{0,9})$/);
+  if (deliveryMatch) return { action: 'delivery', updateId: update.update_id, storeId: Number(deliveryMatch[1]), telegramUserId: userId, telegramChatId: chatId };
   const match = command.match(/^\/start\s+([A-Za-z0-9_-]{20,64})$/);
   if (!match) return null;
   return { action: 'start', updateId: update.update_id, challenge: match[1], telegramUserId: userId, telegramChatId: chatId };
