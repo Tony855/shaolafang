@@ -41,7 +41,7 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
     safeQuery(allAsync,
       'SELECT COUNT(*) AS total, COALESCE(SUM(is_active=1 AND revoked_at IS NULL), 0) AS active FROM telegram_customer_bindings'),
     safeQuery(allAsync,
-      'SELECT COUNT(*) AS total, COALESCE(SUM(is_enabled=1), 0) AS enabled, COALESCE(SUM(is_enabled=1 AND notify_order_created=1), 0) AS orderEnabled FROM telegram_store_admin_recipients'),
+      'SELECT COUNT(*) AS total, COALESCE(SUM(chat_id<>\'\'), 0) AS enabled, COALESCE(SUM(chat_id<>\'\' AND notify_order_created=1), 0) AS orderEnabled FROM telegram_store_admin_recipients'),
     safeQuery(allAsync,
       'SELECT state, recipient_scope, last_error_code, COUNT(*) AS total FROM telegram_notification_outbox GROUP BY state, recipient_scope, last_error_code ORDER BY state, recipient_scope, last_error_code')
   ]);
