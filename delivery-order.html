@@ -134,7 +134,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 <script>
 (() => {
  'use strict';
- const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'';
+ const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'',storeEntry=params.get('entry')||'',telegramEntry=params.get('telegram')==='1';
  const telegramApp=window.Telegram&&window.Telegram.WebApp?window.Telegram.WebApp:null;
  if(telegramApp){telegramApp.ready();telegramApp.expand();document.documentElement.classList.add('telegram-miniapp');}
  const $=id=>document.getElementById(id),cart=new Map();
@@ -370,7 +370,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   try{
    if(!checkoutKey)throw new Error('浏览器无法保存安全的下单凭证，请允许本地存储后重试');
    const response=await fetch('/api/public/delivery/orders',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':checkoutKey},body:JSON.stringify({
-    store_id:Number(storeId),customer_token:customerToken,recipient_name:form.get('recipient_name'),recipient_phone:form.get('recipient_phone'),
+    store_id:Number(storeId),customer_token:customerToken,telegram_entry:telegramEntry,store_entry:storeEntry,recipient_name:form.get('recipient_name'),recipient_phone:form.get('recipient_phone'),
     delivery_address:form.get('delivery_address'),note:form.get('note'),payment_method:form.get('payment_method'),items
    })});
    const data=await response.json().catch(()=>({}));
