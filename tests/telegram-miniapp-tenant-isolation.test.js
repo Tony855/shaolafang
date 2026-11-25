@@ -33,7 +33,7 @@ function setup({ botToken = tokenA, enabled = true } = {}) {
   const deps = {
     getAsync: async (sql, params) => {
       calls.push(['get', sql, params]);
-      if (sql.includes('telegram_tenant_client_bots')) return enabled ? { bot_token: botToken } : null;
+      if (sql.includes('telegram_tenant_client_bots')) return enabled ? { bot_token: Number(params?.[0]) === 8 ? tokenB : botToken } : null;
       return null;
     },
     allAsync: async (sql, params) => {
@@ -98,6 +98,9 @@ test('Mini App store listing returns only stores belonging to verified merchant'
   const query = calls.find(call => call[0] === 'all');
   assert.match(query[1], /s\.merchant_id=\?/);
   assert.deepEqual(query[2], [7]);
+  const botLookup = calls.find(call => call[0] === 'get');
+  assert.match(botLookup[1], /merchant_id=\\?/);
+  assert.deepEqual(botLookup[2], [7]);
 });
 
 test('Mini App rejects initData signed by another tenant bot', async () => {
@@ -114,4 +117,14 @@ test('Mini App rejects disabled tenant bot before querying stores', async () => 
   await handler(request('7', signedInitData(tokenA)), res);
   assert.equal(res.statusCode, 403);
   assert.equal(calls.some(call => call[0] === 'all'), false);
+});
+
+test('changing merchant_id to another tenant cannot reuse the first tenant signature', async () => {
+  const { handler, calls } = setup();
+  const res = response();
+  await handler(request('8', signedInitData(tokenA)), res);
+  assert.equal(res.statusCode, 403);
+  assert.equal(calls.some(call => call[0] === 'all'), false);
+  const botLookup = calls.find(call => call[0] === 'get');
+  assert.deepEqual(botLookup[2], [8]);
 });
