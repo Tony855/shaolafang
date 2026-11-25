@@ -53,6 +53,29 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
     );
   }
 
+  app.get('/api/public/delivery/telegram-miniapp-link', async (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, private');
+      const storeId = positiveId(String(req.query?.store_id || ''));
+      if (!storeId) return res.status(400).json({ error: '门店编号无效' });
+      const store = await getActiveDeliveryStore(storeId);
+      if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
+      const rows = await allAsync(
+        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+        ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+      );
+      const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
+      if (config.telegram_client_bot_enabled !== '1' || !config.telegram_client_bot_token) {
+        return res.status(409).json({ error: '当前尚未启用 Telegram 顾客 Bot' });
+      }
+      const username = await getTelegramBotUsername({ token: String(config.telegram_client_bot_token) });
+      const deepLink = 'https://t.me/' + username + '?start=delivery_' + storeId;
+      res.json({ deepLink, storeId });
+    } catch (_) {
+      res.status(503).json({ error: 'Telegram 点餐入口暂时不可用，请稍后重试' });
+    }
+  });
+
   app.get('/api/public/delivery/customer-telegram/binding', async (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, private');
