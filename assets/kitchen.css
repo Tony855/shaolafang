@@ -295,3 +295,15 @@ html, body {
     margin: 0 auto;
   }
 }
+
+
+/* 2026-11-25 responsive audit: kitchen tickets flexibly fit small screens. */
+.ticket-grid { grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); }
+.ticket, .ticket-head, .ticket-items, .item-row { min-width: 0; }
+.ticket-head { flex-wrap: wrap; }
+.ticket-head .order-id { max-width: 100%; overflow-wrap: anywhere; }
+@media (max-width: 520px) {
+  .ticket-grid { grid-template-columns: minmax(0, 1fr); }
+  .ticket-head .order-id { font-size: clamp(18px, 6vw, 26px); white-space: normal; }
+  .item-row { flex-wrap: wrap; }
+}
