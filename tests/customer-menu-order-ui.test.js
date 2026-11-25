@@ -100,3 +100,16 @@ test('customer order submission releases its in-flight lock on preflight validat
   assert.match(submit, /if \(!isBackendOnline\)[^\n]*_submittingOrder = false; return;/);
   assert.match(submit, /if \(!check\.ok\)[^\n]*_submittingOrder = false; return;/);
 });
+
+
+test('administrator order settlement requires an explicit method and sends cash received amount', () => {
+  for (const source of [orderSource, adminBundle]) {
+    assert.match(source, /settle-payment-method/);
+    assert.match(source, /value="cash"/);
+    assert.match(source, /value="aba"/);
+    assert.match(source, /if \(!method\)/);
+    assert.match(source, /pay_method: method/);
+    assert.match(source, /payload\.cash_received = received/);
+    assert.match(source, /statusOrder\(id, 'done', payload\)/);
+  }
+});

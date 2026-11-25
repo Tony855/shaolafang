@@ -484,6 +484,23 @@ test('kitchen tickets and ticket headings adapt to narrow screens', () => {
 });
 
 
+test('admin order-list headers have a single polished responsive treatment after legacy rules', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const marker = '2026-11-25: clearer administrator order-card headers';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /\.ff-admin #orders \.order-item-admin \.top\s*\{[^}]*border-bottom:[^}]*background:/s);
+  assert.match(rules, /\.ff-admin #orders \.order-item-admin \.top \.order-number\s*\{[^}]*background:/s);
+  assert.match(rules, /@media \(max-width: 768px\)[\s\S]*grid-template-columns: minmax\(0,1fr\) auto/);
+  assert.match(rules, /@media \(max-width: 420px\)[\s\S]*grid-template-columns: minmax\(0,1fr\)/);
+});
+
+test('admin settlement payment selector and cash input have scoped non-overlapping styles', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  assert.match(css, /\.settle-payment-field,[\s\S]*\.settle-cash-field\s*\{[^}]*display:\s*grid;/);
+  assert.match(css, /\.settle-payment-select\s*\{[^}]*min-height:\s*44px;[^}]*box-sizing:\s*border-box;/s);
+});
+
+
 test('waiter table grid, bill rows, and header fit compact phone widths', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'waiter.css'), 'utf8');
   const marker = '2026-11-25 responsive audit: waiter table cards';
@@ -493,6 +510,13 @@ test('waiter table grid, bill rows, and header fit compact phone widths', () => 
   assert.match(rules, /\.bill-items \.line\s*\{[^}]*minmax\(0, 1fr\)/s);
   assert.match(rules, /header\s*\{[^}]*flex-wrap:\s*wrap;/s);
 });
+
+
+test('administrator cash received field remains hidden until cash is selected', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  assert.match(css, /\.settle-cash-field\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+});
+
 
 test('cashier payment and refund controls wrap and stay within narrow screens', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');

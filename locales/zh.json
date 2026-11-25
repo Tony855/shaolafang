@@ -1166,6 +1166,8 @@
   "refundReasonDish": "菜品问题",
   "refundReasonService": "服务问题",
   "refundReasonOther": "其他",
+  "selectPaymentMethod": "请选择收款方式",
+  "cashReceivedInsufficient": "现金实收金额不能少于应收金额",
   "payMethod": "支付方式",
   "superDashboard": "仪表盘",
   "superMerchants": "商户管理",

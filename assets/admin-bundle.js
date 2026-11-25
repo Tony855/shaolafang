@@ -3810,6 +3810,7 @@ const { $, api, tAdmin, esc, hasPermission, L, buildSessionLabels } = ctx;
 
 window.orderTableFilter = window.orderTableFilter || '';
 window.orderStatusTab = window.orderStatusTab || 'pending';
+let settleOrderTotal = 0;
 
 function switchOrderTab(tab) {
   window.orderStatusTab = tab;
@@ -3941,6 +3942,7 @@ async function confirmSettleOrder(id) {
   try {
     const res = await SLF.api.get('/orders/' + id);
     const o = res.order || res;
+    settleOrderTotal = Number(o.total) || 0;
     const items = (o.items || []).map(i => {
       const qty = Number(i.quantity||0) - Number(i.returnedQty||0);
       return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);">'
@@ -3950,26 +3952,64 @@ async function confirmSettleOrder(id) {
     document.getElementById('settleDetailBody').innerHTML =
       '<div style="margin-bottom:12px;color:#888;font-size:13px;">' + (o.order_no||('#'+id)) + ' · ' + esc(o.table_name||'-') + '</div>'
       + items
-      + '<div style="margin-top:12px;text-align:right;font-size:16px;font-weight:700;">' + tAdmin('total') + ': ' + SLF.money.primary(o.total) + '</div>';
+      + '<div style="margin-top:12px;text-align:right;font-size:16px;font-weight:700;">' + tAdmin('total') + ': ' + SLF.money.primary(o.total) + '</div>'
+      + '<div class="settle-payment-field"><label>' + esc(tAdmin('payMethod')) + '</label>'
+      + '<select class="settle-payment-select settle-payment-method" onchange="toggleAdminSettleCashField()">'
+      + '<option value="">— ' + esc(tAdmin('payMethod')) + ' —</option>'
+      + '<option value="cash">💵 ' + esc(tAdmin('cashPay')) + '</option>'
+      + '<option value="wechat">💚 ' + esc(tAdmin('wechatPay')) + '</option>'
+      + '<option value="alipay">💙 ' + esc(tAdmin('alipayPay')) + '</option>'
+      + '<option value="card">💳 ' + esc(tAdmin('cardPay')) + '</option>'
+      + '<option value="aba">🏦 ABA</option>'
+      + '</select></div>'
+      + '<div class="settle-cash-field settle-cash-received-wrap" hidden>'
+      + '<label>' + esc(tAdmin('actualReceived')) + '</label>'
+      + '<input type="number" class="settle-payment-select settle-cash-received" min="' + settleOrderTotal.toFixed(2) + '" step="0.01" inputmode="decimal" placeholder="' + settleOrderTotal.toFixed(2) + '">'
+      + '</div>';
+    toggleAdminSettleCashField();
     document.getElementById('settleDetailModal').classList.add('open');
   } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+}
+function toggleAdminSettleCashField() {
+  const method = document.querySelector('.settle-payment-method')?.value || '';
+  const wrap = document.querySelector('.settle-cash-received-wrap');
+  if (wrap) wrap.hidden = method !== 'cash';
 }
 function closeSettleDetail() {
   document.getElementById('settleDetailModal').classList.remove('open');
   settleOrderId = null;
+  settleOrderTotal = 0;
 }
 async function doSettleOrder() {
   if (!settleOrderId) return;
+  const method = document.querySelector('.settle-payment-method')?.value || '';
+  if (!method) {
+    SLF.ui.toast('❌ ' + tAdmin('selectPaymentMethod'));
+    return;
+  }
+  const payload = { pay_method: method };
+  if (method === 'cash') {
+    const receivedValue = document.querySelector('.settle-cash-received')?.value || '';
+    const received = Number(receivedValue);
+    if (!receivedValue || !Number.isFinite(received) || received < settleOrderTotal) {
+      SLF.ui.toast('❌ ' + tAdmin('cashReceivedInsufficient'));
+      return;
+    }
+    payload.cash_received = received;
+  }
   const id = settleOrderId;
-  closeSettleDetail();
-  try { await statusOrder(id, 'done'); SLF.ui.toast('✅ ' + tAdmin('settleOrder')); } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+  try {
+    await statusOrder(id, 'done', payload);
+    closeSettleDetail();
+    SLF.ui.toast('✅ ' + tAdmin('settleOrder'));
+  } catch (e) { /* statusOrder already reports the failure; keep the modal open for correction. */ }
 }
 function confirmCancelOrder(id) {
   ctx.showConfirm(tAdmin('cancelOrderConfirm'), () => statusOrder(id, 'canceled'), tAdmin('cancelOrder'));
 }
-async function statusOrder(id, status) {
+async function statusOrder(id, status, extra = {}) {
   try {
-    await api('/orders/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: { status } });
+    await api('/orders/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: Object.assign({ status }, extra) });
     await loadOrders();
     SLF.ui.toast('✅ ' + tAdmin('orderManage') + ' ' + tAdmin('updated'));
   } catch (e) {
@@ -4203,6 +4243,7 @@ window.confirmTransfer = confirmTransfer;
 window.confirmSettleOrder = confirmSettleOrder;
 window.closeSettleDetail = closeSettleDetail;
 window.doSettleOrder = doSettleOrder;
+window.toggleAdminSettleCashField = toggleAdminSettleCashField;
 window.confirmCancelOrder = confirmCancelOrder;
 window.statusOrder = statusOrder;
 window.removeOrder = removeOrder;

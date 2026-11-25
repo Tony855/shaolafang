@@ -3482,3 +3482,121 @@ button.edit-btn:disabled {
     overflow-wrap: anywhere;
   }
 }
+
+
+/* 2026-11-25: clearer administrator order-card headers and settlement payment controls. */
+.ff-admin #orders .order-item-admin .top {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin: 0 0 12px !important;
+  padding: 0 0 12px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(148,163,184,.2) !important;
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, rgba(30,48,68,.42), rgba(18,30,46,.18)) !important;
+  box-shadow: none !important;
+}
+.ff-admin #orders .order-item-admin .top .order-heading {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 8px 10px !important;
+  min-width: 0 !important;
+}
+.ff-admin #orders .order-item-admin .top .order-number-label {
+  color: #93a7bd !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase;
+}
+.ff-admin #orders .order-item-admin .top .order-number {
+  padding: 7px 11px !important;
+  border: 1px solid rgba(96,165,250,.32) !important;
+  border-radius: 8px !important;
+  background: rgba(37,99,235,.14) !important;
+  color: #bfdbfe !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  letter-spacing: .045em !important;
+}
+.ff-admin #orders .order-item-admin .top .order-context {
+  min-width: 0 !important;
+  color: #c4d0dd !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  overflow-wrap: anywhere;
+}
+.ff-admin #orders .order-item-admin .top .status {
+  flex: 0 0 auto !important;
+  align-self: center !important;
+  padding: 6px 11px !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: .02em !important;
+  white-space: nowrap;
+}
+.settle-payment-field,
+.settle-cash-field {
+  display: grid;
+  gap: 7px;
+  margin-top: 16px;
+}
+.settle-payment-field label,
+.settle-cash-field label {
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+}
+.settle-payment-select {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid rgba(148,163,184,.35);
+  border-radius: 10px;
+  outline: none;
+  background: #172536;
+  color: #f8fafc;
+  font: inherit;
+}
+.settle-payment-select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96,165,250,.16);
+}
+@media (max-width: 768px) {
+  .ff-admin #orders .order-item-admin .top {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) auto !important;
+    align-items: start !important;
+    gap: 9px !important;
+  }
+  .ff-admin #orders .order-item-admin .top .order-heading {
+    grid-column: 1 / -1;
+    align-items: flex-start !important;
+  }
+  .ff-admin #orders .order-item-admin .top .status {
+    grid-column: 1 / -1;
+    justify-self: start;
+    align-self: start !important;
+  }
+}
+@media (max-width: 420px) {
+  .ff-admin #orders .order-item-admin .top {
+    grid-template-columns: minmax(0,1fr) !important;
+    gap: 8px !important;
+  }
+  .ff-admin #orders .order-item-admin .top .order-number {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
+
+
+/* Preserve the native hidden state against the grid display rule above. */
+.settle-cash-field[hidden] { display: none !important; }
