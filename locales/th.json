@@ -1166,6 +1166,8 @@
   "refundReasonDish": "ปัญหาเมนู",
   "refundReasonService": "ปัญหาบริการ",
   "refundReasonOther": "อื่น ๆ",
+  "selectPaymentMethod": "โปรดเลือกวิธีรับชำระเงิน",
+  "cashReceivedInsufficient": "จำนวนเงินสดที่ได้รับต้องไม่น้อยกว่ายอดที่ต้องชำระ",
   "payMethod": "วิธีชำระเงิน",
   "superDashboard": "แดชบอร์ด",
   "superMerchants": "ผู้ค้า",
