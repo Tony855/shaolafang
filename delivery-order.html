@@ -5,7 +5,7 @@
 <meta name="referrer" content="no-referrer"><meta name="theme-color" content="#e85d3a">
 <title>FoodFlow 外卖点餐</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#202b3b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:30px}
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#202b3b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:max(30px,env(safe-area-inset-bottom,0px))}
 header{width:100%;min-width:0;background:linear-gradient(135deg,#ff8a4c 0%,#f0643c 52%,#e84a2a 100%);color:#fff;padding:22px max(18px,calc((100vw - 980px)/2));display:flex;flex-direction:column;justify-content:center;gap:6px;overflow:hidden;}
 header h1{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;max-width:100%;font-size:clamp(19px,2.5vw,23px);line-height:1.3;font-weight:800;letter-spacing:.01em;overflow-wrap:anywhere;}
 header p{margin:0;max-width:100%;opacity:.94;font-size:13px;line-height:1.5;overflow-wrap:anywhere;}
@@ -47,8 +47,9 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 .item .controls{margin-top:12px}
 .item .controls button{cursor:pointer}
 .empty-category{grid-column:1/-1;border:1px dashed #d8dee8;border-radius:12px;padding:20px;text-align:center;color:#8792a2;background:#fafbfc}
-.cart-line{align-items:flex-start}
-.cart-line strong{text-align:right;white-space:nowrap}
+.cart-line{align-items:flex-start;min-width:0}
+.cart-line>span:first-child{min-width:0;overflow-wrap:anywhere}
+.cart-line strong{text-align:right;white-space:normal;overflow-wrap:anywhere;max-width:55%;flex:0 1 auto}
 .total{align-items:flex-start;gap:12px}
 #total{text-align:right}
 @media(max-width:720px){
@@ -62,7 +63,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
  .item .price{font-size:13px}
  .controls{gap:8px}
 }
-@media(max-width:390px){.menu{grid-template-columns:1fr}.item{display:grid;grid-template-columns:112px minmax(0,1fr)}.item-photo,.item-photo-fallback{height:100%;min-height:138px}.item-content{min-width:0}.store-tools select,.store-tools input{min-width:0;flex:1}}
+@media(max-width:390px){.menu{grid-template-columns:1fr}.item{display:grid;grid-template-columns:112px minmax(0,1fr)}.item-photo,.item-photo-fallback{height:100%;min-height:138px}.item-content{min-width:0}.store-tools select,.store-tools input{min-width:0;flex:1}.cart-line{gap:7px;font-size:12px}.cart-line strong{max-width:48%}}
 
 </style></head>
 <body>
