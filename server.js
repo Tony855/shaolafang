@@ -23,7 +23,7 @@ const { ensureTelegramNotificationOutboxSchema } = require('./server/db/migratio
 const { ensureTelegramCustomerBindingSchema } = require('./server/db/migrations/telegram-customer-binding');
 const { ensureTelegramStoreAdminRecipientSchema } = require('./server/db/migrations/telegram-store-admin-recipients');
 const { createTelegramNotificationWorker, isTelegramNotificationWorkerEnabled } = require('./server/services/telegram-notification-worker-runtime');
-const { setTelegramMenuButton } = require('./server/services/telegram-bot');
+const { setTelegramMenuButton, setTelegramWebhook } = require('./server/services/telegram-bot');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
 const scanSessionRateLimiter = createScanSessionRateLimiter({ getAsync, runAsync, withTransaction });
 const { formatGlobalDateTime, formatGlobalTime } = require('./server/config/constants');
@@ -1578,8 +1578,8 @@ async function syncTelegramCustomerMenuButton() {
   if (!token) return;
   const enabled = config.telegram_client_bot_enabled === '1';
   let webAppUrl;
+  let origin = '';
   if (enabled) {
-    let origin = '';
     try {
       const parsed = new URL(String(process.env.FOODFLOW_PUBLIC_URL || '').trim());
       if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) origin = parsed.origin;
@@ -1591,7 +1591,14 @@ async function syncTelegramCustomerMenuButton() {
     webAppUrl = origin + '/telegram/delivery';
   }
   await setTelegramMenuButton({ token, enabled, webAppUrl });
-  console.log(enabled ? '[telegram-menu] customer Mini App menu button synchronized' : '[telegram-menu] customer Bot menu button reset');
+  console.log(enabled ? '[telegram-menu] shared Client Bot Mini App menu button synchronized' : '[telegram-menu] shared Client Bot menu button reset');
+  await setTelegramWebhook({
+    token,
+    enabled,
+    webhookUrl: enabled ? origin + '/api/telegram/client/webhook' : undefined,
+    secretToken: String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '')
+  });
+  console.log(enabled ? '[telegram-webhook] shared Client Bot webhook synchronized' : '[telegram-webhook] shared Client Bot webhook removed');
 }
 
 let stopTelegramNotificationWorker = async () => {};
@@ -1616,7 +1623,7 @@ initDatabase().then(async () => {
     process.exit(1);
     return;
   }
-  // Synchronize the Bot's built-in chat menu for existing and newly configured Client Bots.
+  // Synchronize the platform-wide Client Bot menu button from super-admin settings.
   syncTelegramCustomerMenuButton().catch(() => console.warn('[telegram-menu] startup synchronization failed; resave Telegram Bot settings to retry'));
   // Fail closed: no Telegram delivery until an operator explicitly opts in.
   if (isTelegramNotificationWorkerEnabled(process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED)) {
