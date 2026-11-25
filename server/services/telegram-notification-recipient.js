@@ -55,6 +55,8 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
         suppressed: true, suppressionCode: 'binding_revoked'
       };
     }
+    // All tenants share the platform-wide Client Bot credential; only the
+    // binding lookup above is scoped to the queued merchant and store.
     const settings = await allAsync(
       'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
       ['telegram_client_bot_enabled', 'telegram_client_bot_token']
