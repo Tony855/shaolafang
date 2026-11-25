@@ -327,6 +327,15 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
  }
  async function load(){
   if(!/^\d+$/.test(storeId)||Number(storeId)<=0){$('message').textContent='请使用包含有效 store_id 的外卖链接打开本页面';$('menu').replaceChildren();return;}
+  if(telegramEntry){
+   const initData=telegramApp&&typeof telegramApp.initData==='string'?telegramApp.initData:'';
+   if(!initData||!/^[A-Za-z0-9_-]{43}$/.test(storeEntry)){throw new Error('Telegram 门店专属入口无效，请重新从门店群组链接进入');}
+   const entryResponse=await fetch('/api/public/delivery/telegram-miniapp-stores?store_id='+encodeURIComponent(storeId)+'&entry='+encodeURIComponent(storeEntry),{cache:'no-store',headers:{'X-Telegram-Init-Data':initData}});
+   const entryData=await entryResponse.json().catch(()=>({}));
+   if(!entryResponse.ok||!Array.isArray(entryData.stores)||entryData.stores.length!==1||Number(entryData.stores[0].id)!==Number(storeId)){
+    throw new Error(entryData.error||'门店专属入口已失效，请重新获取门店链接');
+   }
+  }
   const endpoints=[
    '/api/public/store-info?store_id='+encodeURIComponent(storeId),
    '/api/menu?store_id='+encodeURIComponent(storeId),
