@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerRoutes = require('../routes/customer-delivery');
+const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
 
 const TELEGRAM_BOT_TOKEN = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
 const TELEGRAM_NOW = Math.floor(Date.now() / 1000);
@@ -30,6 +31,7 @@ function setup({ customerBinding = false } = {}) {
   const deps = {
     getAsync: async (sql, params = []) => {
       calls.push({ type: 'get', sql, params });
+      if (sql.includes('FROM telegram_store_admin_recipients')) return { chat_id: '-100888' };
       if (sql.includes('FROM stores s JOIN merchants')) return { id: 7, name: 'Test Store', merchant_id: 3 };
       if (sql.includes('FROM stores WHERE id=? AND merchant_id=?')) return { id: 7 };
       if (sql.includes('FROM delivery_order_requests')) return idempotencyRecord;
@@ -133,6 +135,28 @@ test('Telegram-originated customer delivery orders require a currently bound sto
   assert.equal(res.statusCode, 403);
   assert.match(res.body.error, /专属入口已失效/);
   assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO orders')), false);
+});
+
+test('Telegram-originated delivery order accepts valid shared Bot initData and current store signature', async () => {
+  const previousSecret = process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET;
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = 's'.repeat(40);
+  try {
+    const ctx = setup();
+    const res = response();
+    const signature = createStoreEntrySignature({ storeId: 7, chatId: '-100888', secret: 's'.repeat(40) });
+    await ctx.handler(orderRequest({
+      store_id: 7, customer_token: 'a'.repeat(64), telegram_entry: true, store_entry: signature,
+      recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
+      delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
+      items: [{ id: 5, quantity: 1 }]
+    }, 'a'.repeat(64), signedInitData()), res);
+    assert.equal(res.statusCode, 201);
+    assert.equal(res.body.orderId, 33);
+    assert.ok(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO orders')));
+  } finally {
+    if (previousSecret === undefined) delete process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET;
+    else process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = previousSecret;
+  }
 });
 
 test('Telegram-originated delivery orders reject missing initData before order writes', async () => {
