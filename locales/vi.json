@@ -1277,7 +1277,7 @@
   "telegramAdminBot": "Telegram Bot quản trị viên",
   "telegramBotEnabled": "Bật Bot",
   "telegramBotToken": "Bot Token",
-  "telegramChatId": "Chat ID nhận tin",
+  "telegramChatId": "Chat ID tin nhắn thử",
   "telegramClearToken": "Xóa Token đã lưu",
   "telegramTest": "Gửi tin nhắn thử",
   "telegramSave": "Lưu cấu hình Telegram",
