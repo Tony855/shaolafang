@@ -134,7 +134,9 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 <script>
 (() => {
  'use strict';
- const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'';\n const telegramApp=window.Telegram&&window.Telegram.WebApp?window.Telegram.WebApp:null;\n if(telegramApp){telegramApp.ready();telegramApp.expand();document.documentElement.classList.add('telegram-miniapp');}
+ const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'';
+ const telegramApp=window.Telegram&&window.Telegram.WebApp?window.Telegram.WebApp:null;
+ if(telegramApp){telegramApp.ready();telegramApp.expand();document.documentElement.classList.add('telegram-miniapp');}
  const $=id=>document.getElementById(id),cart=new Map();
  function getCustomerIdentityToken(){
   try{
@@ -221,7 +223,8 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   }catch(error){if(popup&&!popup.closed)popup.close();$('telegramBindingStatus').textContent=error.message||'Telegram 操作失败';}
   finally{telegramBusy=false;$('telegramBindingButton').disabled=!customerToken;await refreshTelegramBinding();}
  }
- $('telegramBindingButton').addEventListener('click',toggleTelegramBinding);\n $('telegramMiniAppButton').addEventListener('click',async()=>{
+ $('telegramBindingButton').addEventListener('click',toggleTelegramBinding);
+ $('telegramMiniAppButton').addEventListener('click',async()=>{
   const button=$('telegramMiniAppButton');button.disabled=true;
   try{
    const response=await fetch('/api/public/delivery/telegram-miniapp-link?store_id='+encodeURIComponent(storeId),{cache:'no-store'});
