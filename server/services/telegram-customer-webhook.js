@@ -86,7 +86,7 @@ function createTelegramCustomerWebhookHandler({
             [update.telegramChatId, update.telegramUserId]
           );
           const binding = Array.isArray(bindings) ? bindings[0] : null;
-          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\\/+$/, '');
+          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
           let publicOrigin = '';
           try {
             const parsed = new URL(publicUrl);
