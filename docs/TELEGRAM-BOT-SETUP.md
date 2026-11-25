@@ -60,56 +60,18 @@ Binding details:
 - Customer notification recipients are resolved by binding ID plus exact merchant/store IDs. Inactive, revoked, missing, or cross-store bindings fail closed.
 - The existing shared Client Bot Chat ID is never used for per-customer order details.
 
-## Customer delivery Mini App
+## Customer delivery Mini App menu button
 
-The Client Bot can open the existing FoodFlow delivery storefront as a Telegram Mini App for a specific store.
+The customer Client Bot exposes FoodFlow ordering directly from Telegram's chat menu button. Customers do not need to visit the FoodFlow website first, tap a website launch button, or send a `/start delivery_<store_id>` command.
 
-1. Configure and enable the Client Bot as described above, register its webhook, and set `FOODFLOW_PUBLIC_URL` to the public HTTPS origin.
-2. In @BotFather, configure the Web App domain with `/setdomain` and the same FoodFlow hostname used by `FOODFLOW_PUBLIC_URL`.
-3. Open a store's public delivery storefront and tap **在 Telegram 中打开点餐**. FoodFlow creates a store-scoped Bot deep link (`/start delivery_<store_id>`).
-4. The customer starts the Client Bot and receives an **打开外卖点餐** Web App button. Telegram opens the existing `delivery-order.html?store_id=...` page inside its Mini App webview.
-5. Menu, cart, delivery checkout, cash/KHQR payment, and tracking continue to use the existing FoodFlow APIs and order records. Customers may separately bind their Telegram private chat from the storefront to receive private order notifications.
+1. Configure and enable the Client Bot in **Global settings → Telegram Bot**. On save, FoodFlow calls Telegram `setChatMenuButton` and sets the default private-chat menu button to **🍽️ 外卖点餐**, pointing to `https://<FOODFLOW_PUBLIC_URL-host>/telegram-delivery.html`.
+2. Set `FOODFLOW_PUBLIC_URL` to the public HTTPS origin and register the Client Bot webhook as described above.
+3. In @BotFather, configure the Web App domain using `/setdomain` with the same FoodFlow hostname.
+4. A customer opens the Client Bot chat and taps the built-in **🍽️ 外卖点餐** menu button. Telegram opens the FoodFlow Mini App directly.
+5. If one active store exists, the Mini App opens that store's delivery page automatically. If multiple active stores exist, the customer selects a store first. The selection page only returns public active store IDs and names.
+6. The selected store's existing `delivery-order.html` storefront runs inside Telegram. Menu, cart, checkout, cash/KHQR payment, and delivery tracking continue to use the existing FoodFlow APIs and order records. Customers can still bind their Telegram private chat from the delivery page to receive private order notifications.
 
-The Mini App launch parameter selects only an active store; it is not an authentication credential. Order totals and item availability are revalidated by the server. Customer order authorization continues to use the existing high-entropy customer token. Telegram `initData` is not used as an authorization substitute. The Mini App currently opens one store per deep link; a cross-store directory and Telegram-native account/order history are not part of this integration.
+The menu button is configured globally for the Client Bot when the super-admin saves its Telegram configuration. If Telegram rejects the menu-button update, the configuration API returns `menu_button_configured: false` and a safe `menu_button_error`; correct the HTTPS URL, Bot token, or BotFather domain and save again. Disabling the Client Bot resets the menu button to Telegram's default commands button.
 
-## Delivery and limitations
+The Mini App store selector is not an authentication mechanism. It does not trust Telegram `initData` as an order credential. Order authorization continues to use the existing high-entropy customer bearer token, and the backend revalidates store status, menu items, availability, and totals. No customer identity or order permission is granted by the menu button itself.
 
-- Current event hooks include order creation, admin/cashier settlement, actual KHQR/manual payment confirmation, and successful refunds. A waiter request to confirm KHQR is not treated as a successful payment.
-- Admin Bot credentials remain global rather than merchant-owned. Store-specific Chat IDs and per-event toggles are implemented; they share the global Admin Bot token while preserving exact merchant/store recipient isolation.
-- The outbox records `sending` before the external API call. Expired `sending` leases and ambiguous Telegram responses move to `uncertain` and are not automatically replayed. Confirmed deliveries retain Telegram's message ID.
-- Failed tasks retry with bounded exponential backoff and eventually enter the dead-letter state. Telegram HTTP 429 responses honor `parameters.retry_after`, capped at one hour. Monitor `telegram_notification_outbox` for `state='dead'`.
-- Webhook update IDs are retained for 30 days; expired and consumed binding challenges are cleaned during new challenge creation. Before restoring a database backup, disable the Telegram worker on every application node and wait for in-flight sends to finish. After restore, customer Telegram bindings/challenges are invalidated because old customer bearer sessions are not restored; customers must scan again and rebind. Pending customer notifications from the restored snapshot are dead-lettered instead of retrying against stale bindings.
-## Staging acceptance checklist
-
-Run this only against a disposable staging database and dedicated test Bot accounts/Chat IDs. Keep the worker disabled on production.
-
-1. Configure independent Client/Admin Bot tokens in the super-admin console. Verify each fixed test message reaches only its configured test chat.
-2. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` and register the Client Bot webhook. Confirm `getWebhookInfo` reports the expected HTTPS webhook URL and no persistent delivery error.
-3. Create two merchants with at least two stores. Configure distinct store-admin Chat IDs and enable different event toggles per store.
-4. Create a customer order in each store. Verify the global admin chat receives the global event and each store chat receives only its own store event.
-5. Bind a customer private chat, create an order, then rescan to rotate the customer token and complete a new deep-link challenge. Verify the same private chat follows the new session identity, while another store's binding remains untouched.
-6. Trigger settlement, KHQR/manual payment confirmation, and a completed refund. Verify only the intended events arrive and no QR payload, customer bearer token, phone number, or private note appears.
-7. Test both in-page revoke and `/stop`. Confirm queued customer jobs move to `dead` with `binding_revoked`; rebind and verify those old jobs are not sent.
-8. Stop the worker before a job is claimed and verify safe lease recovery. Separately interrupt a job after it enters `sending`; verify it moves to `uncertain` after lease expiry and is not automatically resent. Confirm operators can inspect the row before deciding whether to replay it.
-9. With every worker stopped on every app node, restore a staging backup. Verify customer bindings/challenges are cleared, pending customer jobs are dead-lettered, store/admin configuration is restored, and customers can bind again.
-10. Inspect logs and the outbox summary for redaction. Do not paste Bot tokens or webhook secrets into tickets or chat.
-
-A useful queue health query (it does not expose message payloads or credentials):
-
-```sql
-SELECT state, recipient_scope, last_error_code, COUNT(*) AS total
-FROM telegram_notification_outbox
-GROUP BY state, recipient_scope, last_error_code
-ORDER BY state, recipient_scope, last_error_code;
-```
-
-- The full client/merchant notification workflow still requires staging end-to-end tests before production enablement.
-
-
-## Notification delivery safety
-
-Outgoing business notifications use a database outbox with a unique event key. A task moves through `pending`, `processing`, and `sending` before Telegram is called. The `sending` state is persisted before the external request so an expired send lease is never automatically replayed.
-
-If the Telegram response is ambiguous (network timeout, unreadable response, or HTTP 5xx), the task is moved to `uncertain` and requires operator review. This intentionally favors avoiding duplicate customer messages over silently retrying a send that Telegram may already have accepted. Confirmed successful responses are stored as `delivered` together with Telegram's message ID. Explicit Telegram rejections such as invalid chat permissions and flood control continue through the normal safe retry/dead-letter path.
-
-Telegram does not provide a general idempotency key for `sendMessage`; therefore absolute exactly-once delivery cannot be guaranteed. Operators should inspect `uncertain` rows before any manual replay.
