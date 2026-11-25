@@ -109,6 +109,21 @@ test('customer delivery order creates a tableless order and unassigned delivery 
   assert.ok(ctx.events.some(x => x.room === 'kitchen-7' && x.event === 'order:new'));
 });
 
+test('Telegram-originated customer delivery orders require a currently bound store entry signature', async () => {
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = 's'.repeat(40);
+  const ctx = setup();
+  const res = response();
+  await ctx.handler(orderRequest({
+    store_id: 7, customer_token: 'a'.repeat(64), telegram_entry: true, store_entry: 'A'.repeat(43),
+    recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
+    delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
+    items: [{ id: 5, quantity: 1 }]
+  }), res);
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.error, /专属入口已失效/);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO orders')), false);
+});
+
 test('customer delivery order rejects missing recipient and address before database writes', async () => {
   const ctx = setup();
   const res = response();
