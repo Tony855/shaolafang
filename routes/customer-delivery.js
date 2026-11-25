@@ -8,6 +8,7 @@ const { calculateOrderTotalCents, toMoneyCents } = require('../server/services/o
 const { enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 const { getTelegramBotUsername } = require('../server/services/telegram-bot');
 const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
+const { verifyTelegramWebAppInitData } = require('../server/services/telegram-webapp-auth');
 
 function positiveId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -53,13 +54,28 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
     );
   }
 
-  app.get('/api/public/delivery/telegram-miniapp-stores', async (_req, res) => {
+  app.get('/api/public/delivery/telegram-miniapp-stores', async (req, res) => {
     try {
-      res.setHeader('Cache-Control', 'no-store, public, max-age=60');
-      const stores = await allAsync(
-        'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.active=1 AND m.status=1 ORDER BY s.name, s.id LIMIT 100'
+      res.setHeader('Cache-Control', 'no-store, private');
+      const merchantId = positiveId(String(req.query?.merchant_id || ''));
+      const initData = typeof req.get === 'function'
+        ? String(req.get('X-Telegram-Init-Data') || '')
+        : String(req.headers?.['x-telegram-init-data'] || '');
+      if (!merchantId || !initData) return res.status(401).json({ error: 'Telegram 身份验证失败，请从所属门店的 Bot 菜单重新打开' });
+
+      const bot = await getAsync(
+        'SELECT bot_token FROM telegram_tenant_client_bots WHERE merchant_id=? AND is_enabled=1 LIMIT 1',
+        [merchantId]
       );
-      res.json({ stores: (Array.isArray(stores) ? stores : []).map(store => ({
+      if (!bot?.bot_token || !verifyTelegramWebAppInitData(initData, String(bot.bot_token))) {
+        return res.status(403).json({ error: 'Telegram 身份无效或已过期，请重新打开 Mini App' });
+      }
+
+      const stores = await allAsync(
+        'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.merchant_id=? AND s.active=1 AND m.status=1 ORDER BY s.name, s.id LIMIT 100',
+        [merchantId]
+      );
+      res.json({ merchantId, stores: (Array.isArray(stores) ? stores : []).map(store => ({
         id: Number(store.id),
         name: cleanText(String(store.name || ''), 100) || 'FoodFlow 门店'
       })).filter(store => Number.isSafeInteger(store.id) && store.id > 0) });
