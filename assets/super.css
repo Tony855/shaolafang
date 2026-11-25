@@ -357,3 +357,10 @@ select:focus { outline: none; border-color: #e85d3a !important; }
     .modal-card { max-height: calc(85dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px); }
   }
 }
+
+
+/* 2026-11-25 responsive audit: prevent merchant action rows from overflowing narrow screens. */
+@media (max-width: 600px) {
+  .merchant-actions { flex-wrap: wrap; justify-content: flex-start; min-width: 0; }
+  .merchant-actions .action-btn { white-space: normal; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+}
