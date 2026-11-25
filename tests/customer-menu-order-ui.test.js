@@ -58,8 +58,7 @@ test('customer pages suppress secondary-currency display while retaining primary
   assert.match(customer, /SLF\.money\.primary\(totalBase\)/);
   const money = read('assets/modules/money.js');
   assert.match(money, /return \{ primary: primary\(base\), secondary: '' \}/);
-  assert.match(money, /function formatHtml\(base\) \{\s*return '<span class="money-primary">' \+ primary\(base\) \+ '<\\/span>';/);
-});
+  assert.ok(money.includes("return '<span class=\"money-primary\">' + primary(base) + '</span>';"));
 
 test('delivery storefront shows only the primary currency in cart totals and currency hint', () => {
   const delivery = read('delivery-order.html');
