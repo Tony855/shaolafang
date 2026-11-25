@@ -4,6 +4,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerRoutes = require('../routes/customer-delivery');
 
+const TELEGRAM_BOT_TOKEN = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
+const TELEGRAM_NOW = Math.floor(Date.now() / 1000);
+function signedInitData() {
+  const values = new Map([['auth_date', String(TELEGRAM_NOW)], ['query_id', 'AAE-order-test'], ['user', JSON.stringify({ id: 987654321, first_name: 'Test' })]]);
+  const data = Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, value]) => key + '=' + value).join('\n');
+  const secret = require('node:crypto').createHmac('sha256', 'WebAppData').update(TELEGRAM_BOT_TOKEN).digest();
+  values.set('hash', require('node:crypto').createHmac('sha256', secret).update(data).digest('hex'));
+  return new URLSearchParams(Array.from(values.entries()).sort(([a], [b]) => a.localeCompare(b))).toString();
+}
+
 function setup({ customerBinding = false } = {}) {
   const handlers = new Map();
   const calls = [];
@@ -30,7 +40,8 @@ function setup({ customerBinding = false } = {}) {
       calls.push({ type: 'all', sql, params });
       if (sql.includes('FROM settings')) return [
         { key: 'telegram_admin_bot_enabled', value: '0' },
-        { key: 'telegram_client_bot_enabled', value: '1' }
+        { key: 'telegram_client_bot_enabled', value: '1' },
+        { key: 'telegram_client_bot_token', value: TELEGRAM_BOT_TOKEN }
       ];
       if (sql.includes('FROM merchants')) return [{ id: 3 }];
       if (sql.includes('FROM stores')) return [{ id: 7 }];
@@ -76,8 +87,8 @@ function setup({ customerBinding = false } = {}) {
   return { handler: handlers.get('POST /api/public/delivery/orders'), khqrHandler: handlers.get('POST /api/public/delivery/orders/:orderId/khqr'), notifyHandler: handlers.get('POST /api/public/delivery/orders/:orderId/payment-notify'), calls, events, transactions, get orderRow() { return orderRow; } };
 }
 
-function orderRequest(body, key = 'a'.repeat(64)) {
-  return { body, headers: { 'idempotency-key': key }, get(name) { return name.toLowerCase() === 'idempotency-key' ? key : ''; } };
+function orderRequest(body, key = 'a'.repeat(64), initData = '') {
+  return { body, headers: { 'idempotency-key': key, 'x-telegram-init-data': initData }, get(name) { const normalized = name.toLowerCase(); return normalized === 'idempotency-key' ? key : normalized === 'x-telegram-init-data' ? initData : ''; } };
 }
 
 function response() {
@@ -118,9 +129,37 @@ test('Telegram-originated customer delivery orders require a currently bound sto
     recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
     delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
     items: [{ id: 5, quantity: 1 }]
-  }), res);
+  }, 'a'.repeat(64), signedInitData()), res);
   assert.equal(res.statusCode, 403);
   assert.match(res.body.error, /专属入口已失效/);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO orders')), false);
+});
+
+test('Telegram-originated delivery orders reject missing initData before order writes', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.handler(orderRequest({
+    store_id: 7, customer_token: 'a'.repeat(64), telegram_entry: true, store_entry: 'A'.repeat(43),
+    recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
+    delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
+    items: [{ id: 5, quantity: 1 }]
+  }), res);
+  assert.equal(res.statusCode, 401);
+  assert.match(res.body.error, /Telegram 身份验证缺失/);
+  assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO orders')), false);
+});
+
+test('Telegram-originated delivery orders reject forged initData before order writes', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.handler(orderRequest({
+    store_id: 7, customer_token: 'a'.repeat(64), telegram_entry: true, store_entry: 'A'.repeat(43),
+    recipient_name: 'Alex', recipient_phone: '+855 12 345 678',
+    delivery_address: 'Street 123, Phnom Penh', payment_method: 'cash',
+    items: [{ id: 5, quantity: 1 }]
+  }, 'a'.repeat(64), 'auth_date=1&user=%7B%22id%22%3A1%7D&hash=' + '0'.repeat(64)), res);
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.error, /统一 Client Bot 身份无效/);
   assert.equal(ctx.calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO orders')), false);
 });
 

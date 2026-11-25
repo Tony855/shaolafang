@@ -225,6 +225,21 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       );
       if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
       if (body.telegram_entry === true) {
+        const initData = typeof req.get === 'function'
+          ? String(req.get('X-Telegram-Init-Data') || '')
+          : String(req.headers?.['x-telegram-init-data'] || '');
+        if (!initData) return res.status(401).json({ error: 'Telegram 身份验证缺失，请从门店专属链接重新打开' });
+        const settings = await allAsync(
+          'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+          ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+        );
+        const config = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
+        const botToken = String(config.telegram_client_bot_token || '');
+        const telegramIdentity = config.telegram_client_bot_enabled === '1'
+          ? verifyTelegramWebAppInitData(initData, botToken)
+          : null;
+        if (!telegramIdentity) return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开门店专属链接' });
+
         const signature = typeof body.store_entry === 'string' ? body.store_entry : '';
         const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
         const recipient = await getAsync(
