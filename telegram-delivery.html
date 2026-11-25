@@ -40,7 +40,7 @@ footer{margin-top:24px;font-size:12px;color:#8a94a6;text-align:center}
  function openStore(id){location.href='/delivery/order?store_id='+encodeURIComponent(String(id))+'&telegram=1';}
  async function load(){
   try{
-   if(!/^[1-9]\\d*$/.test(merchantId)||!initData)throw new Error('请从所属商户的 Telegram Bot 菜单按钮打开此页面。');
+   if(!/^[1-9]\d*$/.test(merchantId)||!initData)throw new Error('请从所属商户的 Telegram Bot 菜单按钮打开此页面。');
    const response=await fetch('/api/public/delivery/telegram-miniapp-stores?merchant_id='+encodeURIComponent(merchantId),{cache:'no-store',headers:{accept:'application/json','X-Telegram-Init-Data':initData}});
    const data=await response.json().catch(()=>({}));
    if(!response.ok||!Array.isArray(data.stores))throw new Error(data.error||'门店列表暂时不可用，请稍后重试');
