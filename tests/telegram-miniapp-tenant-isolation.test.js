@@ -90,7 +90,7 @@ test('shared Client Bot Mini App verifies with the single super-admin configured
   await handler(request(initData), res);
   assert.equal(res.statusCode, 200, JSON.stringify({ body: res.body, calls }));
   assert.deepEqual(res.body.stores.map(store => [store.id, store.merchantId]), [[11, 7], [12, 8]]);
-  assert.match(calls[0][0], /telegram_client_bot_enabled/);
+  assert.match(calls[0][0], /FROM settings/);
   assert.deepEqual(calls[0][1], ['telegram_client_bot_enabled', 'telegram_client_bot_token']);
   assert.match(calls[1][0], /s\.merchant_id/);
   assert.doesNotMatch(calls[1][0], /WHERE s\.merchant_id=\?/);
