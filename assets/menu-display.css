@@ -269,3 +269,10 @@ body.disp-carousel-mode .disp-grid {
 }
 .disp-carousel-card .disp-name.disp-name-sub { font-size: 22px; }
 .disp-carousel-card .disp-desc.disp-desc-sub { font-size: 14px; }
+
+/* Keep menu display header controls within very narrow phone viewports. */
+@media (max-width: 480px) {
+  .disp-header { flex-wrap: wrap; gap: 8px; }
+  .disp-brand { flex: 1 1 120px; max-width: 100%; }
+  .disp-header-right { flex: 1 1 180px; max-width: 100%; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+}
