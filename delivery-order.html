@@ -213,8 +213,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
  function priceMarkup(item){
   const base=toBaseAmount(item);
   const primary=formatCurrency(base,primaryCurrency);
-  const secondary=dualEnabled&&secondaryCurrency?formatCurrency(base,secondaryCurrency):'';
-  return {primary,secondary};
+  return {primary,secondary:''};
  }
  function renderCart(){
   const host=$('cart');host.replaceChildren();let totalBase=0,count=0,validTotal=true;
@@ -224,17 +223,15 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    count+=qty;
    const lineBase=base*qty;
    const linePrimary=formatCurrency(lineBase,primaryCurrency);
-   const lineSecondary=dualEnabled&&secondaryCurrency?formatCurrency(lineBase,secondaryCurrency):'';
    const line=document.createElement('div');line.className='cart-line';
    const left=document.createElement('span');left.textContent=escText(item.name)+' × '+qty;
-   const right=document.createElement('strong');right.textContent=linePrimary+(lineSecondary?' / '+lineSecondary:'');
+   const right=document.createElement('strong');right.textContent=linePrimary;
    line.append(left,right);host.append(line);
   }
   const primaryTotal=formatCurrency(totalBase,primaryCurrency);
-  const secondaryTotal=dualEnabled&&secondaryCurrency?formatCurrency(totalBase,secondaryCurrency):'';
-  $('total').textContent=validTotal?(primaryTotal+(secondaryTotal?' / '+secondaryTotal:'')):'汇率暂不可用';
+  $('total').textContent=validTotal?primaryTotal:'汇率暂不可用';
   $('submit').disabled=count===0||!validTotal||!customerToken||!checkoutKey;
-  $('currencyHint').textContent=dualEnabled&&secondaryCurrency?primaryCurrency.code+' + '+secondaryCurrency.code:primaryCurrency.code;
+  $('currencyHint').textContent=primaryCurrency.code;
  }
  function change(id,delta){
   const key=String(id),next=Math.max(0,Math.min(maxQty,Number(cart.get(key)||0)+delta));
