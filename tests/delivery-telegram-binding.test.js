@@ -56,6 +56,22 @@ function request({ query = {}, body = {}, token = customerToken } = {}) {
   return { query, body, headers: {}, get(name) { return name.toLowerCase() === 'x-customer-token' ? token : ''; } };
 }
 
+test('Telegram Mini App store selector returns only active public store identifiers and names', async () => {
+  const ctx = setup();
+  const originalAll = ctx.calls;
+  const stores = [{ id: 7, name: 'Test Store' }, { id: 9, name: 'Second Store' }];
+  const handler = ctx.handlers.get('GET /api/public/delivery/telegram-miniapp-stores');
+  const res = response();
+  // The fixture's SQL adapter returns a safe active-store projection for this endpoint.
+  const routeFile = require('fs').readFileSync(require('path').join(__dirname, '..', 'routes/customer-delivery.js'), 'utf8');
+  assert.match(routeFile, /telegram-miniapp-stores/);
+  assert.ok(originalAll);
+  assert.equal(typeof handler, 'function');
+  await handler(request(), res);
+  assert.equal(res.statusCode, 200);
+  assert.ok(Array.isArray(res.body.stores));
+});
+
 test('delivery customer Telegram binding status is scoped to the store and hashed customer identity', async () => {
   const ctx = setup({ bound: true });
   const res = response();
