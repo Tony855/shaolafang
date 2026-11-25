@@ -45,7 +45,7 @@ function setup({ enabled = true, secret = 's'.repeat(40), bound = false } = {}) 
         { key: 'telegram_client_bot_enabled', value: enabled ? '1' : '0' },
         { key: 'telegram_client_bot_token', value: botToken }
       ];
-      if (sql.includes('FROM stores s JOIN merchants')) return [{ id: 7, name: 'Test Store' }, { id: 9, name: 'Second Store' }];
+      if (sql.includes('FROM stores s JOIN merchants')) return [{ id: 7, merchant_id: 3, name: 'Test Store' }, { id: 9, merchant_id: 3, name: 'Second Store' }];
       if (sql.includes('FROM telegram_customer_bindings')) return bindingRows;
       return [];
     },
@@ -77,9 +77,9 @@ test('Telegram Mini App store selector returns public active store IDs and names
   const ctx = setup();
   const handler = ctx.handlers.get('GET /api/public/delivery/telegram-miniapp-stores');
   const res = response();
-  await handler(request({ query: { merchant_id: '3' }, initData: signedInitData() }), res);
+  await handler(request({ initData: signedInitData() }), res);
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body, { merchantId: 3, stores: [{ id: 7, name: 'Test Store' }, { id: 9, name: 'Second Store' }] });
+  assert.deepEqual(res.body, { stores: [{ id: 7, merchantId: 3, name: 'Test Store' }, { id: 9, merchantId: 3, name: 'Second Store' }] });
   assert.match(res.headers['Cache-Control'], /no-store/);
 });
 
