@@ -83,7 +83,7 @@ function createTelegramCustomerWebhookHandler({
           );
           const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\\/+$/, '');
           if (store && /^https:\\/\\//i.test(publicUrl)) {
-            const webAppUrl = publicUrl + '/delivery-order.html?store_id=' + encodeURIComponent(String(store.id)) + '&telegram=1';
+            const webAppUrl = publicOrigin + '/delivery-order.html?store_id=' + encodeURIComponent(String(store.id)) + '&telegram=1';
             bound = {
               chatId: update.telegramChatId,
               text: '欢迎使用 FoodFlow' + (store.name ? ' · ' + String(store.name).slice(0, 80) : '') + '。点击下方按钮进入外卖点餐小程序。',
