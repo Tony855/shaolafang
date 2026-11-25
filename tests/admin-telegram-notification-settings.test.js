@@ -48,7 +48,7 @@ function setup({ globalBotEnabled = '1', recipient = null, merchant = true, stor
 }
 
 test('store Telegram settings GET is restricted to the active request merchant and store', async () => {
-  const { routes, calls } = setup({ recipient: { chat_id: '-100123', is_enabled: 1, notify_order_created: 0, notify_settled: 1, notify_refunded: 1 } });
+  const { routes, calls } = setup({ recipient: { chat_id: '-100123', is_enabled: 0, notify_order_created: 0, notify_settled: 1, notify_refunded: 1 } });
   const res = response();
   await routes.get('GET /api/admin/telegram/notification-settings').at(-1)({ merchantId: 7, storeId: 9 }, res);
   assert.equal(res.statusCode, 200);
@@ -59,12 +59,23 @@ test('store Telegram settings GET is restricted to the active request merchant a
   assert.equal(res.headers['Cache-Control'], 'no-store, private');
 });
 
+test('a Chat ID alone automatically enables the current store binding even for legacy disabled rows', async () => {
+  const { routes } = setup();
+  const res = response();
+  await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
+    merchantId: 7, storeId: 9, body: { chatId: '-100123' }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.enabled, true);
+  assert.equal(res.body.chatId, '-100123');
+});
+
 test('store Telegram settings PUT saves only the current tenant and audits no chat ID or token', async () => {
   const { routes, calls } = setup();
   const res = response();
   await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
     merchantId: 7, storeId: 9, adminId: 5, body: {
-      enabled: true, chatId: '-100123', notifyOrderCreated: true, notifySettled: false, notifyRefunded: true
+      chatId: '-100123', notifyOrderCreated: true, notifySettled: false, notifyRefunded: true
     }
   }, res);
   assert.equal(res.statusCode, 200);
@@ -82,7 +93,7 @@ test('store Telegram settings cannot be enabled without the global admin Bot', a
   const { routes } = setup({ globalBotEnabled: '0' });
   const res = response();
   await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
-    merchantId: 7, storeId: 9, body: { enabled: true, chatId: '-100123' }
+    merchantId: 7, storeId: 9, body: { chatId: '-100123' }
   }, res);
   assert.equal(res.statusCode, 409);
 });
@@ -91,7 +102,7 @@ test('store Telegram settings reject malformed Chat IDs before writes', async ()
   const { routes, calls } = setup();
   const res = response();
   await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
-    merchantId: 7, storeId: 9, body: { enabled: true, chatId: 'not a chat id' }
+    merchantId: 7, storeId: 9, body: { chatId: 'not a chat id' }
   }, res);
   assert.equal(res.statusCode, 400);
   assert.equal(calls.some(call => call.type === 'run' && call.sql.includes('telegram_store_admin_recipients')), false);
@@ -118,7 +129,7 @@ test('disabling one store event toggle suppresses only that event for that tenan
   const res = response();
   await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
     merchantId: 7, storeId: 9, body: {
-      enabled: true, chatId: '-100123',
+      chatId: '-100123',
       notifyOrderCreated: true, notifySettled: false, notifyRefunded: true
     }
   }, res);
@@ -140,7 +151,7 @@ test('re-enabling store notifications does not revive dead-lettered backlog', as
 
   const enabled = response();
   await handler({ merchantId: 7, storeId: 9, body: {
-    enabled: true, chatId: '-100123',
+    chatId: '-100123',
     notifyOrderCreated: true, notifySettled: true, notifyRefunded: true
   } }, enabled);
   assert.equal(enabled.statusCode, 200);
