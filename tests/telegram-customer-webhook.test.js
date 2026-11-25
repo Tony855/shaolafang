@@ -112,7 +112,7 @@ test('plain /start automatically resumes the most recently bound active store', 
       getAsync: async () => null,
       allAsync: async (sql, params) => {
         assert.match(sql, /b\.telegram_chat_id=\? AND b\.telegram_user_id=\?/);
-        assert.match(sql, /ORDER BY b\\.updated_at DESC, b\\.id DESC LIMIT 1/);
+        assert.match(sql, /ORDER BY b\.updated_at DESC, b\.id DESC LIMIT 1/);
         assert.deepEqual(params, ['98765', '98765']);
         return sql.includes('JOIN telegram_store_admin_recipients') ? [state.homeBinding] : [];
       },
