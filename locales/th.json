@@ -1277,7 +1277,7 @@
   "telegramAdminBot": "Telegram Bot ฝั่งผู้ดูแล",
   "telegramBotEnabled": "เปิดใช้งาน Bot",
   "telegramBotToken": "Bot Token",
-  "telegramChatId": "Chat ID ผู้รับ",
+  "telegramChatId": "Chat ID สำหรับข้อความทดสอบ",
   "telegramClearToken": "ล้าง Token ที่บันทึกไว้",
   "telegramTest": "ส่งข้อความทดสอบ",
   "telegramSave": "บันทึกการตั้งค่า Telegram",
