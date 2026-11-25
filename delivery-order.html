@@ -385,7 +385,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    const data=await response.json().catch(()=>({}));
    if(!response.ok)throw new Error(data.error||'提交失败，请稍后重试');
    createdOrderId=Number(data.orderId);createdTrackingUrl=data.trackingUrl;
-   sessionStorage.setItem('customer_token:'+data.orderId,data.customerToken);
+   sessionStorage.setItem('customer_token:'+data.orderId,data.customerToken);\n   localStorage.setItem('customer_token:'+data.orderId,data.customerToken);
    rememberTrackingOrder(data.orderId,data.customerToken,data.orderNo);saveDeliveryProfile();
    showTrackingEntry(data.trackingUrl,'订单 '+(data.orderNo||data.orderId)+' 已创建，可在页面顶部“我的配送订单”中再次打开追踪入口。');
    rotateCheckoutKey();
