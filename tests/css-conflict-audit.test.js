@@ -463,3 +463,22 @@ test('admin order action buttons shrink and wrap without viewport overflow on mo
   assert.match(rules, /#orders \.order-item-admin\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s);
   assert.match(rules, /#orders \.order-item-admin \.bottom \.actions button\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;/s);
 });
+
+
+test('super-admin merchant action buttons wrap on narrow viewports', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'super.css'), 'utf8');
+  const marker = '2026-11-25 responsive audit: prevent merchant action rows';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /@media \(max-width: 600px\)/);
+  assert.match(rules, /\.merchant-actions\s*\{[^}]*flex-wrap:\s*wrap;/s);
+  assert.match(rules, /\.merchant-actions \.action-btn\s*\{[^}]*white-space:\s*normal;/s);
+});
+
+test('kitchen tickets and ticket headings adapt to narrow screens', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'kitchen.css'), 'utf8');
+  const marker = '2026-11-25 responsive audit: kitchen tickets';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /minmax\(min\(320px, 100%\), 1fr\)/);
+  assert.match(rules, /\.ticket-head\s*\{[^}]*flex-wrap:\s*wrap;/s);
+  assert.match(rules, /@media \(max-width: 520px\)/);
+});
