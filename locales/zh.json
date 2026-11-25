@@ -1277,7 +1277,7 @@
   "telegramAdminBot": "管理员 Telegram Bot",
   "telegramBotEnabled": "启用 Bot",
   "telegramBotToken": "Bot Token",
-  "telegramChatId": "接收 Chat ID",
+  "telegramChatId": "测试消息 Chat ID",
   "telegramClearToken": "清除已保存 Token",
   "telegramTest": "发送测试消息",
   "telegramSave": "保存 Telegram 配置",
