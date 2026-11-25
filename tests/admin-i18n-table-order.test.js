@@ -66,5 +66,5 @@ test('generated admin and language bundles include the localized source keys', (
     assert.ok(languageMin.includes(key), 'languages.min.js missing ' + key);
   }
   assert.match(adminHtml, /languages\.min\.js\?v=2026112501/);
-  assert.match(adminHtml, /assets\/admin-bundle\.js\?v=2026112501/);
+  assert.match(adminHtml, /assets\/admin-bundle\.js\?v=2026112502/);
 });
