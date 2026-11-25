@@ -19,13 +19,13 @@ test('merchant store recipient resolver requires exact active tenant, configured
   const calls = [];
   const resolve = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => {
     calls.push({ sql, params });
-    if (sql.includes('telegram_store_admin_recipients')) return [{ chat_id: '-1007654321', is_enabled: 0, event_enabled: 1 }];
+    if (sql.includes('telegram_store_admin_recipients')) return [{ chat_id: '-1007654321', is_enabled: 1, event_enabled: 1 }];
     return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }];
   } });
   const recipient = await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' });
   assert.deepEqual(recipient, { scope: 'merchant_store', merchantId: 7, storeId: 9, token, chatId: '-1007654321' });
   assert.match(calls[0].sql, /r\.notify_order_created AS event_enabled/);
-  assert.doesNotMatch(calls[0].sql, /r\.is_enabled/);
+  assert.match(calls[0].sql, /r\.is_enabled/);
   assert.deepEqual(calls[0].params, [7, 9]);
   assert.deepEqual(calls[1].params, ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']);
 });
@@ -53,7 +53,7 @@ test('merchant store recipient resolver isolates Chat IDs between stores', async
   const resolve = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => {
     if (sql.includes('telegram_store_admin_recipients')) {
       lookups.push(params);
-      return [{ chat_id: chats.get(Number(params[1])), is_enabled: 0, event_enabled: 1 }];
+      return [{ chat_id: chats.get(Number(params[1])), is_enabled: 1, event_enabled: 1 }];
     }
     return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }];
   } });
@@ -130,4 +130,14 @@ test('customer recipient resolver fails closed when binding or client Bot is una
   );
   assert.deepEqual(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 }), { scope: 'customer', merchantId: 7, storeId: 9, suppressed: true, suppressionCode: 'event_disabled' });
   assert.deepEqual(await disabledBot({ scope: 'customer', key: 'binding:42', merchantId: 8, storeId: 9 }), { scope: 'customer', merchantId: 8, storeId: 9, suppressed: true, suppressionCode: 'binding_revoked' });
+});
+
+test('merchant store recipient resolver suppresses a disabled group even when its Chat ID remains', async () => {
+  const resolve = createTelegramNotificationRecipientResolver({ allAsync: async sql => sql.includes('telegram_store_admin_recipients')
+    ? [{ chat_id: '-1007654321', is_enabled: 0, event_enabled: 1 }]
+    : [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }] });
+  assert.deepEqual(
+    await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' }),
+    { scope: 'merchant_store', merchantId: 7, storeId: 9, suppressed: true }
+  );
 });
