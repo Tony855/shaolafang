@@ -34,7 +34,7 @@ test('delivery storefront converts item prices and displays only the primary cur
   assert.doesNotMatch(page, /dualEnabled&&secondaryCurrency/);
   assert.doesNotMatch(page, /formatCurrency\(totalBase,secondaryCurrency\)/);
   assert.match(page, /currencyHint/);
-  assert.match(page, /currencyHint\\)\\.textContent=primaryCurrency\\.code/);
+  assert.ok(page.includes("$('currencyHint').textContent=primaryCurrency.code"));
 });
 
 test('delivery storefront provides category filtering and live dish search', () => {
