@@ -583,3 +583,18 @@ test('admin order card header keeps order number, fulfillment context and status
   assert.match(rules, /\.top \.status\s*\{[^}]*font-size:\s*clamp\(10px, 2\.7vw, 11px\)\s*!important;/s);
   assert.match(rules, /@media \(max-width: 420px\)/);
 });
+
+
+test('delivery checkout cart labels wrap safely and respect the bottom safe area', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'delivery-order.html'), 'utf8');
+  assert.match(html, /padding-bottom:\\s*max\\(30px,env\\(safe-area-inset-bottom,0px\\)\\)/);
+  assert.match(html, /\\.cart-line>span:first-child\\s*\\{[^}]*overflow-wrap:\\s*anywhere;?/s);
+  assert.match(html, /\\.cart-line strong\\s*\\{[^}]*white-space:\\s*normal;[^}]*overflow-wrap:\\s*anywhere;/s);
+  assert.match(html, /@media\\(max-width:390px\\)[\\s\\S]*\\.cart-line strong\\{max-width:48%\\}/);
+});
+
+test('kitchen ticket item names wrap without forcing mobile card overflow', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'kitchen.css'), 'utf8');
+  assert.match(css, /\\.item-row \\.name\\s*\\{[^}]*min-width:\\s*0;[^}]*overflow-wrap:\\s*anywhere;/s);
+  assert.match(css, /@media \\(max-width: 520px\\)[\\s\\S]*\\.item-row\\s*\\{\\s*flex-wrap:\\s*wrap;/);
+});
