@@ -35,6 +35,18 @@ test('sends a fixed test message to Telegram without exposing the token in error
   assert.deepEqual(result, { messageId: 17, chatId: '-100123' });
 });
 
+test('sends a store Mini App inline keyboard as Telegram reply markup', async () => {
+  let payload;
+  const replyMarkup = { inline_keyboard: [[{ text: 'Open ordering', web_app: { url: 'https://foodflow.example.test/delivery-order.html?store_id=8&telegram=1' } }]] };
+  await sendTelegramMessage({
+    token, chatId: '98765', text: 'Open FoodFlow', replyMarkup,
+    fetchImpl: async (url, options) => {
+      payload = JSON.parse(options.body);
+      return { ok: true, status: 200, json: async () => ({ ok: true, result: { message_id: 18, chat: { id: 98765 } } }) };
+    }
+  });
+  assert.deepEqual(payload.reply_markup, replyMarkup);
+});
 test('rejects invalid credentials before making a network request', async () => {
   let called = false;
   await assert.rejects(
