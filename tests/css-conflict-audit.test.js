@@ -547,7 +547,7 @@ test('mobile CSS fixes are served with refreshed cache-busting versions', () => 
   const cashierHtml = fs.readFileSync(path.join(__dirname, '..', 'cashier.html'), 'utf8');
   const waiterHtml = fs.readFileSync(path.join(__dirname, '..', 'waiter.html'), 'utf8');
   assert.ok(customerHtml.includes('assets/customer.css?v=2026112501'));
-  assert.ok(adminHtml.includes('assets/admin.css?v=2026112501'));
+  assert.ok(adminHtml.includes('assets/admin.css?v=2026112502'));
   assert.ok(cashierHtml.includes('assets/khqr-shared.css?v=2026112502'));
   assert.ok(waiterHtml.includes('assets/khqr-shared.css?v=2026112502'));
 });
@@ -570,4 +570,16 @@ test('delivery rider and tracking pages respect mobile safe areas and compact he
   }
   assert.match(rider, /@media\(max-width:380px\)/);
   assert.match(tracking, /clamp\(220px,42dvh,360px\)/);
+});
+
+test('admin order card header keeps order number, fulfillment context and status on one line', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const marker = '2026-11-25: keep each admin order-card header on one compact, readable line';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /\.top\s*\{[^}]*flex-wrap:\s*nowrap\s*!important;/s);
+  assert.match(rules, /\.top \.order-heading\s*\{[^}]*flex-wrap:\s*nowrap\s*!important;/s);
+  assert.match(rules, /\.top \.order-number\s*\{[^}]*text-overflow:\s*ellipsis\s*!important;/s);
+  assert.match(rules, /\.top \.order-context\s*\{[^}]*white-space:\s*nowrap\s*!important;/s);
+  assert.match(rules, /\.top \.status\s*\{[^}]*font-size:\s*clamp\(10px, 2\.7vw, 11px\)\s*!important;/s);
+  assert.match(rules, /@media \(max-width: 420px\)/);
 });

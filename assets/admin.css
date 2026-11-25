@@ -3600,3 +3600,78 @@ button.edit-btn:disabled {
 
 /* Preserve the native hidden state against the grid display rule above. */
 .settle-cash-field[hidden] { display: none !important; }
+
+/* 2026-11-25: keep each admin order-card header on one compact, readable line. */
+.ff-admin #orders .order-item-admin .top {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+.ff-admin #orders .order-item-admin .top .order-heading {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.ff-admin #orders .order-item-admin .top .order-number-label {
+  flex: 0 0 auto !important;
+  font-size: 10px !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap !important;
+}
+.ff-admin #orders .order-item-admin .top .order-number {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  max-width: 48% !important;
+  padding: 3px 6px !important;
+  font-size: clamp(10px, 2.8vw, 12px) !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+.ff-admin #orders .order-item-admin .top .order-context {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  font-size: clamp(10px, 2.8vw, 12px) !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.ff-admin #orders .order-item-admin .top .status {
+  flex: 0 0 auto !important;
+  max-width: 30% !important;
+  min-width: 0 !important;
+  padding: 3px 7px !important;
+  font-size: clamp(10px, 2.7vw, 11px) !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+@media (max-width: 420px) {
+  .ff-admin #orders .order-item-admin .top { gap: 4px !important; }
+  .ff-admin #orders .order-item-admin .top .order-heading { gap: 3px !important; }
+  .ff-admin #orders .order-item-admin .top .order-number-label { font-size: 9px !important; }
+  .ff-admin #orders .order-item-admin .top .order-number {
+    max-width: 42% !important;
+    padding: 3px 5px !important;
+    font-size: 10px !important;
+  }
+  .ff-admin #orders .order-item-admin .top .order-context { font-size: 10px !important; }
+  .ff-admin #orders .order-item-admin .top .status {
+    max-width: 27% !important;
+    padding: 3px 5px !important;
+    font-size: 10px !important;
+  }
+}
