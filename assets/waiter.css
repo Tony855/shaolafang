@@ -830,3 +830,20 @@
     margin: 0 auto;
   }
 }
+
+
+/* 2026-11-25 responsive audit: waiter table cards and header fit compact phones. */
+@media (max-width: 480px) {
+  header { flex-wrap: wrap; border-radius: 0 0 16px 16px; padding: 10px 12px; }
+  header .header-title { font-size: clamp(16px, 5vw, 20px); white-space: normal; }
+  header .header-left { justify-content: flex-start; flex: 1 1 100%; }
+  header .header-right { justify-content: flex-end; }
+  main { padding-inline: 10px; }
+  .table-grid { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; }
+  .table-card { padding: 14px; min-width: 0; }
+  .table-card .name { min-width: 0; flex-wrap: wrap; font-size: 20px; }
+  .bill-items .line { grid-template-columns: minmax(0, 1fr) 52px 64px; gap: 4px; }
+  .bill-items .line > *, .order-head > * { min-width: 0; }
+  .order-head { flex-wrap: wrap; gap: 6px; }
+  .table-card-actions { flex-wrap: wrap; }
+}
