@@ -117,9 +117,9 @@ test('plain /start explains that ordering must begin from a store-specific link'
 test('store-specific /start sets a private chat menu button and sends the matching Mini App button', async () => {
   const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
   process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
-  const sent = [];
+  const sent = [], menuCalls = [];
   try {
-    const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 2 }; } });
+    const { state } = fixture();
     const signature = createStoreEntrySignature({ storeId: 8, chatId: '-100888', secret: 's'.repeat(40) });
     const res = response();
     const handler = createTelegramCustomerWebhookHandler({
