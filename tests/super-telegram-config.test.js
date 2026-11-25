@@ -264,3 +264,34 @@ test('disabled Client Bot keeps its webhook available for customer /stop revocat
     else process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = previousSecret;
   }
 });
+
+test('clearing the shared Client Bot token removes its webhook and menu', async () => {
+  const ctx = setup({
+    telegram_client_bot_enabled: '0',
+    telegram_client_bot_token: token,
+    telegram_client_chat_id: '-100123'
+  });
+  const previousFetch = global.fetch;
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
+  };
+  try {
+    const res = response();
+    await ctx.routes.get('PUT /api/super/telegram/config')({
+      body: {
+        client: { enabled: false, token: '', clear_token: true, chat_id: '' },
+        admin: { enabled: false, token: '' }
+      },
+      superAdmin: { id: 1, username: 'root' }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(ctx.settings.get('telegram_client_bot_token'), '');
+    assert.ok(requests.some(request => request.url.endsWith('/deleteWebhook')));
+    assert.ok(requests.some(request => request.url.endsWith('/setChatMenuButton')));
+    assert.equal(res.body.previous_bot_cleanup_error, '');
+  } finally {
+    global.fetch = previousFetch;
+  }
+});
