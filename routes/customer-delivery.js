@@ -53,6 +53,21 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
     );
   }
 
+  app.get('/api/public/delivery/telegram-miniapp-stores', async (_req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, public, max-age=60');
+      const stores = await allAsync(
+        'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.active=1 AND m.status=1 ORDER BY s.name, s.id LIMIT 100'
+      );
+      res.json({ stores: (Array.isArray(stores) ? stores : []).map(store => ({
+        id: Number(store.id),
+        name: cleanText(String(store.name || ''), 100) || 'FoodFlow 门店'
+      })).filter(store => Number.isSafeInteger(store.id) && store.id > 0) });
+    } catch (_) {
+      res.status(503).json({ error: '暂时无法读取可点餐门店，请稍后重试' });
+    }
+  });
+
   app.get('/api/public/delivery/telegram-miniapp-link', async (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, private');
