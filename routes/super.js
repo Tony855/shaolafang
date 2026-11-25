@@ -1129,7 +1129,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
         const item = next[scope];
         const oldToken = String(existing[`telegram_${scope}_bot_token`] || '');
         const newToken = item.clearToken ? '' : (item.token ? item.token : oldToken);
-        if (scope === 'client') clientMenuToken = newToken;
+        if (scope === 'client') clientMenuToken = newToken || oldToken;
         const newChatId = scope === 'client' ? (item.chatId === undefined ? String(existing.telegram_client_chat_id || '') : item.chatId) : '';
         if (item.enabled && (!newToken || (scope === 'client' && !newChatId))) {
           const error = new Error(scope === 'client' ? '客户端 Bot 启用前必须配置 Token 和 Chat ID' : '管理员 Bot 启用前必须配置 Token');
@@ -1169,21 +1169,23 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
     let menuButtonError = '';
     try {
       const clientToken = clientMenuToken;
-      if (clientToken) {
-        let webAppUrl;
-        if (next.client.enabled) {
-          const parsed = new URL(String(process.env.FOODFLOW_PUBLIC_URL || '').trim());
-          if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new Error('FOODFLOW_PUBLIC_URL 必须为 HTTPS 公网地址');
-          webAppUrl = parsed.origin + '/telegram-delivery.html';
-        }
+      const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim();
+      let publicOrigin = '';
+      try {
+        const parsed = new URL(publicUrl);
+        if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
+      } catch (_) {}
+      if (clientToken && publicOrigin) {
         await setTelegramMenuButton({
           token: clientToken,
           enabled: next.client.enabled,
-          webAppUrl
+          webAppUrl: next.client.enabled ? publicOrigin + '/telegram-delivery.html' : undefined
         });
         menuButtonConfigured = true;
       } else if (next.client.enabled) {
-        menuButtonError = '未配置 Client Bot Token';
+        menuButtonError = clientToken ? 'FOODFLOW_PUBLIC_URL 必须配置为公网 HTTPS 地址' : '未配置 Client Bot Token';
+      } else if (clientToken) {
+        menuButtonError = '未配置公网 HTTPS 地址，无法同步重置 Bot 菜单按钮';
       }
     } catch (error) {
       menuButtonError = String(error.message || 'Telegram 菜单按钮同步失败').slice(0, 180);
