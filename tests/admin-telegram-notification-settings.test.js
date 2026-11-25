@@ -197,6 +197,14 @@ test('unexpected store recipient database failures log only safe stage metadata'
 });
 
 
+test('store settings UI uses Chat ID as the only default binding control', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'pages', 'admin', 'settings.js'), 'utf8');
+  assert.match(html, /填写并保存 Chat ID 即自动绑定当前门店/);
+  assert.doesNotMatch(html, /id="telegramStoreNotifyEnabled"/);
+  assert.doesNotMatch(source, /telegramStoreNotifyEnabled/);
+});
+
 test('server injects the client IP helper required by transactional settings audits', () => {
   const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.match(
