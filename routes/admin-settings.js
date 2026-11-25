@@ -1,6 +1,6 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
 const { normalizeRouteError } = require('../server/utils/http-error');
-const { validateChatId, validateBotToken } = require('../server/services/telegram-bot');
+const { validateChatId } = require('../server/services/telegram-bot');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
    ============================================================ */
