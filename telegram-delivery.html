@@ -32,7 +32,6 @@ footer{margin-top:24px;font-size:12px;color:#8a94a6;text-align:center}
  const app=window.Telegram&&window.Telegram.WebApp?window.Telegram.WebApp:null;
  if(app){app.ready();app.expand();}
  const list=document.getElementById('storeList');
- const params=new URLSearchParams(location.search);
  const initData=app&&typeof app.initData==='string'?app.initData:'';
  const intro=document.getElementById('intro');
  function showError(message){list.replaceChildren();const p=document.createElement('div');p.className='state';p.textContent=message;list.appendChild(p);}
