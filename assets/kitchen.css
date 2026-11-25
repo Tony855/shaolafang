@@ -307,3 +307,6 @@ html, body {
   .ticket-head .order-id { font-size: clamp(18px, 6vw, 26px); white-space: normal; }
   .item-row { flex-wrap: wrap; }
 }
+
+/* Keep long kitchen item names from forcing ticket rows wider than the viewport. */
+.item-row .name { min-width: 0; overflow-wrap: anywhere; }
