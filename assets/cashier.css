@@ -1551,19 +1551,3 @@ body {
   #refundModal .payment-amount-value { font-size: clamp(22px, 7vw, 30px); overflow-wrap: anywhere; }
   #confirmModal .modal { padding: 24px 14px 18px; }
 }
-
-
-/* 2026-11-25 responsive audit: KHQR payment content and action buttons on compact phones. */
-#khqrModal .khqr-card { min-width: 0; width: min(100%, 500px); }
-#khqrModal .khqr-image-wrap { max-width: 100%; min-width: 0; overflow: hidden; }
-#khqrModal .khqr-image-inline { display: block; max-width: min(100%, 320px); height: auto; object-fit: contain; margin-inline: auto; }
-#khqrModal .khqr-payee,
-#khqrModal .khqr-payee-line,
-#khqrModal .khqr-payee-account { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
-#khqrModal #khqrStatusBar { min-width: 0; overflow-wrap: anywhere; }
-@media (max-width: 480px) {
-  #khqrModal .khqr-card { padding: 20px 14px; }
-  #khqrModal .payment-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  #khqrModal .payment-actions .btn { flex: 1 1 130px; min-width: 0; white-space: normal; }
-  #khqrModal .khqr-image-inline { max-width: min(100%, 280px); }
-}
