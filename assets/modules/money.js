@@ -93,20 +93,12 @@
   // 菜品价格：返回 { primary, secondary }
   function menuPrice(item) {
     var base = toBase(item.price, item.currency_code);
-    var p = primary(base);
-    var secStr = '';
-    if (secondaryCur) secStr = secondary(base, secondaryCur.code);
-    return { primary: p, secondary: secStr };
+    return { primary: primary(base), secondary: '' };
   }
 
   // 返回 HTML 字符串：主货币红色 + 副货币灰色（括号内）
   function formatHtml(base) {
-    var p = primary(base);
-    var d = secondaryCur;
-    var sec = d ? secondary(base, d.code) : '';
-    return sec
-      ? '<span class="money-primary">' + p + '</span> <span class="money-secondary">(' + sec + ')</span>'
-      : '<span class="money-primary">' + p + '</span>';
+    return '<span class="money-primary">' + primary(base) + '</span>';
   }
 
   SLF.money = {

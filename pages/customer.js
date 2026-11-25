@@ -337,7 +337,7 @@
 
                 state.currencies = Array.isArray(config.currencies) ? config.currencies : [];
                 state.defaultCurrency = config.primaryCurrency || config.defaultCurrency || state.defaultCurrency;
-                state.dualCurrency = config.dualCurrency || { enabled: false, currency: null };
+                state.dualCurrency = { enabled: false, currency: null };
 
                 // Resolve the configured secondary currency before configuring the formatter.
                 // Cambodia stores commonly use USD + KHR; if the flag is enabled but the

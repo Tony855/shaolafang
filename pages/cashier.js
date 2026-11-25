@@ -833,20 +833,13 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
             } catch (e) {}
           }
 
-          // KHQR 弹窗强制显示"另一种币种"（USD 或 KHR），与店铺副币设置无关
-          var secHtml = '';
-          try {
-            var altCode = (cur === 'KHR') ? 'USD' : 'KHR';
-            var altStr = SLF.money.secondary(baseUSD, altCode);
-            if (altStr) secHtml = '<span style="color:#999;font-size:13px;margin-left:6px;">(' + altStr + ')</span>';
-          } catch (e) {}
-
+          // KHQR amount shows only the selected payment currency.
           document.getElementById('khqrAmount').style.cssText =
             'display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;width:100%;text-align:center;line-height:1.35;';
           document.getElementById('khqrAmount').innerHTML =
             '' +
             '<span style="color:#e85d3a;font-size:clamp(28px,6vw,42px);font-weight:800;">' + sym + amtStr + '</span>' +
-            (secHtml ? secHtml.replace('margin-left:6px;', 'margin-left:0;') : '');
+            '';
           const sw = document.getElementById('khqrCurrencySwitch');
           if (sw) sw.textContent = cur === 'USD' ? '$ USD  ⇄  ៛ KHR' : '៛ KHR  ⇄  $ USD';
         })();

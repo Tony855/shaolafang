@@ -53,13 +53,34 @@ test('customer menu normalizes both uploads/foo and legacy relative image paths'
   assert.match(customer, /normalizedImagePath\.startsWith\('uploads\/'\)/);
 });
 
-test('customer menu renders configured secondary currency and retries missing currency config safely', () => {
-  const fallbackIndex = customer.indexOf('state.dualCurrency.currency =');
-  const configureIndex = customer.indexOf('SLF.money.configure({');
-  assert.ok(fallbackIndex >= 0 && configureIndex > fallbackIndex, 'secondary currency fallback must run before money formatter configuration');
-  assert.match(customer, /secondaryCurrency: state\.dualCurrency\.enabled \? state\.dualCurrency\.currency : null/);
-  assert.match(customer, /const prices = SLF\.money\.menuPrice\(item\)/);
-  assert.match(customer, /prices\.secondary/);
+test('customer pages suppress secondary-currency display while retaining primary currency formatting', () => {
+  assert.match(customer, /state\.dualCurrency = \{ enabled: false, currency: null \}/);
+  assert.match(customer, /SLF\.money\.primary\(totalBase\)/);
+  const money = read('assets/modules/money.js');
+  assert.match(money, /return \{ primary: primary\(base\), secondary: '' \}/);
+  assert.ok(money.includes("return '<span class=\"money-primary\">' + primary(base) + '</span>';"));
+});
+
+test('delivery storefront shows only the primary currency in cart totals and currency hint', () => {
+  const delivery = read('delivery-order.html');
+  assert.match(delivery, /right\.textContent=linePrimary;/);
+  assert.match(delivery, /\$\('total'\)\.textContent=validTotal\?primaryTotal/);
+  assert.match(delivery, /\$\('currencyHint'\)\.textContent=primaryCurrency\.code/);
+  assert.doesNotMatch(delivery, /primaryCurrency\.code\s*\+\s*['"]\s*\+\s*['"]/);
+});
+
+test('KHQR payment pages show only the selected payment currency amount', () => {
+  for (const file of ['pages/cashier.js', 'pages/waiter-payment.js']) {
+    const source = read(file);
+    assert.doesNotMatch(source, /secHtml|altStr/);
+    assert.match(source, /khqrAmount/);
+  }
+});
+
+test('administrator page amounts do not append a secondary-currency suffix', () => {
+  for (const file of ['pages/admin/shared.js', 'assets/admin-bundle.js']) {
+    assert.match(read(file), /function dualAmountSuffix\(\) \{ return ''; \}/);
+  }
 });
 
 

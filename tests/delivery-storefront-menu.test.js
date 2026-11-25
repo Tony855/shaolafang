@@ -27,13 +27,14 @@ test('delivery storefront renders menu photos and a visible fallback for missing
   assert.match(page, /aria-label','菜品图片加载失败'/);
 });
 
-test('delivery storefront converts item prices to store primary and secondary currencies', () => {
+test('delivery storefront converts item prices and displays only the primary currency', () => {
   assert.match(page, /base_price|toBaseAmount/);
   assert.match(page, /price\/rate/);
   assert.match(page, /formatCurrency\(base,primaryCurrency\)/);
-  assert.match(page, /dualEnabled&&secondaryCurrency/);
-  assert.match(page, /formatCurrency\(totalBase,secondaryCurrency\)/);
+  assert.doesNotMatch(page, /dualEnabled&&secondaryCurrency/);
+  assert.doesNotMatch(page, /formatCurrency\(totalBase,secondaryCurrency\)/);
   assert.match(page, /currencyHint/);
+  assert.ok(page.includes("$('currencyHint').textContent=primaryCurrency.code"));
 });
 
 test('delivery storefront provides category filtering and live dish search', () => {
@@ -71,11 +72,11 @@ test('delivery storefront title header remains fully visible on narrow screens',
   assert.doesNotMatch(page, /header\s*\{[^}]*height\s*:/);
 });
 
-test('delivery storefront cart lines show quantity-extended subtotals in both currencies', () => {
+test('delivery storefront cart lines show quantity-extended subtotals only in the primary currency', () => {
   assert.match(page, /const lineBase=base\*qty/);
   assert.match(page, /formatCurrency\(lineBase,primaryCurrency\)/);
-  assert.match(page, /formatCurrency\(lineBase,secondaryCurrency\)/);
-  assert.doesNotMatch(page, /right\.textContent=prices\.primary/);
+  assert.doesNotMatch(page, /formatCurrency\(lineBase,secondaryCurrency\)/);
+  assert.ok(page.includes('right.textContent=linePrimary;'));
 });
 
 test('delivery storefront quantity controls enforce configured bounds', () => {
