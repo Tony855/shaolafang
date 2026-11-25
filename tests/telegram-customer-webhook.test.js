@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('crypto');
 const { createTelegramCustomerWebhookHandler } = require('../server/services/telegram-customer-webhook');
+const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
 
 function response() {
   return {
@@ -17,10 +18,11 @@ function response() {
 function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMessage = async () => ({ messageId: 1 }) } = {}) {
   const challenge = 'A'.repeat(43);
   const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
-  const state = { updates: new Set(), outboxSuppressions: [], challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
+  const state = { updates: new Set(), outboxSuppressions: [], recipient: { id: 8, merchant_id: 3, name: 'Test Store', chat_id: '-100888', is_enabled: 1 }, challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
   const handler = createTelegramCustomerWebhookHandler({
     secret: 's'.repeat(40),
     getAsync: async (sql, params) => {
+      if (sql.includes('telegram_store_admin_recipients')) return state.recipient && Number(params[0]) === 8 ? state.recipient : null;
       if (sql.includes('telegram_customer_binding_challenges')) return params[0] === challengeHash && !state.consumed ? state.challenge : null;
       if (sql.includes('FROM stores')) return { id: 8 };
       return null;
@@ -129,16 +131,17 @@ test('Telegram customer webhook replies to store delivery start with a Mini App 
   const sent = [];
   try {
     const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 2 }; } });
+    const signature = createStoreEntrySignature({ storeId: 8, chatId: '-100888', secret: 's'.repeat(40) });
     const res = response();
     await handler({
       headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
-      body: { update_id: 108, message: { text: '/start delivery_8', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+      body: { update_id: 108, message: { text: '/start delivery_8_' + signature, chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
     }, res);
     assert.equal(res.statusCode, 200);
     assert.equal(state.updates.has(108), true);
     assert.equal(sent.length, 1);
     assert.equal(sent[0].chatId, '98765');
-    assert.equal(sent[0].replyMarkup.inline_keyboard[0][0].web_app.url, 'https://foodflow.example.test/delivery-order.html?store_id=8&telegram=1');
+    assert.equal(sent[0].replyMarkup.inline_keyboard[0][0].web_app.url, 'https://foodflow.example.test/delivery/order?store_id=8&entry=' + signature + '&telegram=1');
   } finally {
     if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
     else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
