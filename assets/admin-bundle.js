@@ -3953,8 +3953,8 @@ async function confirmSettleOrder(id) {
       '<div style="margin-bottom:12px;color:#888;font-size:13px;">' + (o.order_no||('#'+id)) + ' · ' + esc(o.table_name||'-') + '</div>'
       + items
       + '<div style="margin-top:12px;text-align:right;font-size:16px;font-weight:700;">' + tAdmin('total') + ': ' + SLF.money.primary(o.total) + '</div>'
-      + '<div class="settle-payment-field"><label for="settlePaymentMethod">' + esc(tAdmin('payMethod')) + '</label>'
-      + '<select id="settlePaymentMethod" class="settle-payment-select" onchange="toggleAdminSettleCashField()">'
+      + '<div class="settle-payment-field"><label>' + esc(tAdmin('payMethod')) + '</label>'
+      + '<select class="settle-payment-select settle-payment-method" onchange="toggleAdminSettleCashField()">'
       + '<option value="">— ' + esc(tAdmin('payMethod')) + ' —</option>'
       + '<option value="cash">💵 ' + esc(tAdmin('cashPay')) + '</option>'
       + '<option value="wechat">💚 ' + esc(tAdmin('wechatPay')) + '</option>'
@@ -3962,17 +3962,17 @@ async function confirmSettleOrder(id) {
       + '<option value="card">💳 ' + esc(tAdmin('cardPay')) + '</option>'
       + '<option value="aba">🏦 ABA</option>'
       + '</select></div>'
-      + '<div class="settle-cash-field" id="settleCashReceivedWrap" hidden>'
-      + '<label for="settleCashReceived">' + esc(tAdmin('actualReceived')) + '</label>'
-      + '<input id="settleCashReceived" type="number" class="settle-payment-select" min="' + settleOrderTotal.toFixed(2) + '" step="0.01" inputmode="decimal" placeholder="' + settleOrderTotal.toFixed(2) + '">'
+      + '<div class="settle-cash-field settle-cash-received-wrap" hidden>'
+      + '<label>' + esc(tAdmin('actualReceived')) + '</label>'
+      + '<input type="number" class="settle-payment-select settle-cash-received" min="' + settleOrderTotal.toFixed(2) + '" step="0.01" inputmode="decimal" placeholder="' + settleOrderTotal.toFixed(2) + '">'
       + '</div>';
     toggleAdminSettleCashField();
     document.getElementById('settleDetailModal').classList.add('open');
   } catch (e) { SLF.ui.toast('❌ ' + e.message); }
 }
 function toggleAdminSettleCashField() {
-  const method = document.getElementById('settlePaymentMethod')?.value || '';
-  const wrap = document.getElementById('settleCashReceivedWrap');
+  const method = document.querySelector('.settle-payment-method')?.value || '';
+  const wrap = document.querySelector('.settle-cash-received-wrap');
   if (wrap) wrap.hidden = method !== 'cash';
 }
 function closeSettleDetail() {
@@ -3982,14 +3982,14 @@ function closeSettleDetail() {
 }
 async function doSettleOrder() {
   if (!settleOrderId) return;
-  const method = document.getElementById('settlePaymentMethod')?.value || '';
+  const method = document.querySelector('.settle-payment-method')?.value || '';
   if (!method) {
     SLF.ui.toast('❌ ' + tAdmin('selectPaymentMethod'));
     return;
   }
   const payload = { pay_method: method };
   if (method === 'cash') {
-    const receivedValue = document.getElementById('settleCashReceived')?.value || '';
+    const receivedValue = document.querySelector('.settle-cash-received')?.value || '';
     const received = Number(receivedValue);
     if (!receivedValue || !Number.isFinite(received) || received < settleOrderTotal) {
       SLF.ui.toast('❌ ' + tAdmin('cashReceivedInsufficient'));
