@@ -10,7 +10,11 @@ body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;box-sizi
 header h1{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;max-width:100%;font-size:clamp(19px,2.5vw,23px);line-height:1.3;font-weight:800;letter-spacing:.01em;overflow-wrap:anywhere;}
 header p{margin:0;max-width:100%;opacity:.94;font-size:13px;line-height:1.5;overflow-wrap:anywhere;}
 @media(max-width:720px){header{padding:calc(16px + env(safe-area-inset-top,0px)) 14px 17px;gap:5px}header h1{font-size:clamp(18px,5vw,21px);gap:6px}header p{font-size:12px}}
-.telegram-entry{max-width:980px;margin:12px auto 0;padding:0 14px;display:flex;justify-content:flex-end;gap:8px;align-items:center}.telegram-entry button{border:1px solid #d9e1eb;border-radius:999px;background:#fff;color:#34465e;padding:9px 14px;font:inherit;font-size:13px;cursor:pointer}.telegram-entry button:disabled{opacity:.55;cursor:not-allowed}.telegram-entry span{font-size:12px;color:#64748b}
+.telegram-entry{max-width:980px;margin:12px auto 0;padding:0 14px;display:flex;justify-content:flex-end;gap:8px;align-items:center}.telegram-entry button{border:1px solid #d9e1eb;border-radius:999px;background:#fff;color:#34465e;padding:9px 14px;font:inherit;font-size:13px;cursor:pointer}.telegram-entry button:disabled{opacity:.55;cursor:not-allowed}
+.customer-tools{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.customer-tools button{border:1px solid #d9e1eb;border-radius:9px;background:#fff;color:#34465e;padding:9px 12px;font:inherit;font-size:13px;cursor:pointer}.customer-tools button.primary{background:#e85d3a;border-color:#e85d3a;color:#fff}
+#recentDeliveryOrders{max-width:980px;margin:12px auto 0;padding:0 14px}.recent-order{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #edf0f4}.recent-order a{color:#d94d2d;font-weight:700;text-decoration:none;white-space:nowrap}
+#trackingEntryPanel{max-width:980px;margin:12px auto;padding:0 14px}#trackingEntryPanel .panel{border:1px solid #f3c5b7;background:#fffaf8}
+@media(max-width:480px){.recent-order{align-items:flex-start;flex-direction:column;gap:5px}.customer-tools button{flex:1 1 auto}}.telegram-entry span{font-size:12px;color:#64748b}
 main{max-width:980px;margin:18px auto;padding:0 14px}.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:16px}
 .panel{background:#fff;border-radius:16px;padding:18px;box-shadow:0 5px 24px #14243b0c;margin-bottom:15px}
 h2{font-size:17px;margin:0 0 14px}.menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
@@ -99,6 +103,8 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 <body>
 <header><h1>🛵 FoodFlow 外卖点餐</h1><p id="storeName">正在加载门店…</p></header>
 <div class="telegram-entry"><span id="telegramBindingStatus" role="status">Telegram 通知未绑定</span><button id="telegramBindingButton" type="button">✈️ 绑定 Telegram 通知</button></div>
+<section id="recentDeliveryOrders" class="panel" hidden aria-live="polite"><h2>我的配送订单</h2><div id="recentDeliveryOrderList"></div><p class="muted">仅显示此浏览器保存的订单入口。请勿在公共设备保存顾客资料。</p></section>
+<section id="trackingEntryPanel" hidden><div class="panel"><h2>订单已创建</h2><p id="trackingEntryMessage" class="muted">你可以随时查看骑手配送进度和最后一次定位。</p><button class="submit" type="button" id="openTrackingEntry">📍 查看配送进度</button></div></section>
 <main>
 <div class="layout">
 <section class="panel">
@@ -110,6 +116,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 <section class="panel"><h2>配送信息</h2>
 <form id="orderForm">
 <label for="recipientName">收件人姓名</label><input id="recipientName" name="recipient_name" maxlength="120" required autocomplete="name">
+<div class="customer-tools"><button class="primary" type="button" id="saveDeliveryProfile">保存配送资料</button><button type="button" id="clearDeliveryProfile">清除已保存资料</button><span id="deliveryProfileStatus" class="muted" role="status">资料仅保存在此浏览器</span></div>
 <div class="row"><div><label for="recipientPhone">联系电话</label><input id="recipientPhone" name="recipient_phone" maxlength="40" required autocomplete="tel" inputmode="tel"></div><div><label for="paymentMethod">支付方式</label><select id="paymentMethod" name="payment_method"><option value="cash">现金（送达付款）</option><option value="khqr">KHQR（提交后生成收款码）</option></select></div></div>
 <label for="deliveryAddress">详细配送地址</label><textarea id="deliveryAddress" name="delivery_address" maxlength="500" required placeholder="请填写街道、楼层、门牌号及附近地标"></textarea>
 <label for="orderNote">订单备注（选填）</label><textarea id="orderNote" name="note" maxlength="200" placeholder="口味要求或配送备注"></textarea>
@@ -140,6 +147,25 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   }catch(_){return '';}
  }
  const customerToken=getCustomerIdentityToken();
+ const profileKey='foodflow_delivery_profile_v1:'+storeId,recentOrdersKey='foodflow_delivery_recent_orders_v1:'+storeId;
+ function readLocalJson(key,fallback){try{return JSON.parse(localStorage.getItem(key)||'null')??fallback;}catch(_){return fallback;}}
+ function saveDeliveryProfile(){const p={recipient_name:$('recipientName').value.trim().slice(0,120),recipient_phone:$('recipientPhone').value.trim().slice(0,40),delivery_address:$('deliveryAddress').value.trim().slice(0,500)};
+  if(!p.recipient_name||!p.recipient_phone||!p.delivery_address){$('deliveryProfileStatus').textContent='请完整填写姓名、电话和配送地址后保存';return false;}
+  try{localStorage.setItem(profileKey,JSON.stringify(p));$('deliveryProfileStatus').textContent='配送资料已保存，可随时修改后再次保存';return true;}catch(_){$('deliveryProfileStatus').textContent='浏览器存储不可用，无法保存资料';return false;}
+ }
+ function loadDeliveryProfile(){const p=readLocalJson(profileKey,{});if(!p||typeof p!=='object')return;
+  if(p.recipient_name)$('recipientName').value=String(p.recipient_name).slice(0,120);if(p.recipient_phone)$('recipientPhone').value=String(p.recipient_phone).slice(0,40);if(p.delivery_address)$('deliveryAddress').value=String(p.delivery_address).slice(0,500);
+  if(p.recipient_name||p.recipient_phone||p.delivery_address)$('deliveryProfileStatus').textContent='已载入保存的配送资料，修改后可重新保存';
+ }
+ function rememberTrackingOrder(orderId,token,orderNo){if(!Number.isSafeInteger(Number(orderId))||Number(orderId)<=0||!/^[a-f0-9]{64}$/.test(String(token||'')))return;
+  const records=readLocalJson(recentOrdersKey,[]).filter(x=>x&&Number(x.orderId)!==Number(orderId));records.unshift({orderId:Number(orderId),token:String(token),orderNo:String(orderNo||orderId).slice(0,80)});
+  try{localStorage.setItem(recentOrdersKey,JSON.stringify(records.slice(0,10)));}catch(_){}renderRecentTrackingOrders();
+ }
+ function renderRecentTrackingOrders(){const host=$('recentDeliveryOrderList'),panel=$('recentDeliveryOrders');if(!host||!panel)return;host.replaceChildren();
+  const records=readLocalJson(recentOrdersKey,[]).filter(x=>x&&Number.isSafeInteger(Number(x.orderId))&&Number(x.orderId)>0&&/^[a-f0-9]{64}$/.test(String(x.token||''))).slice(0,10);
+  if(!records.length){panel.hidden=true;return;}records.forEach(x=>{const row=document.createElement('div');row.className='recent-order';const label=document.createElement('span');label.textContent='订单 '+String(x.orderNo||x.orderId);row.append(label);const link=document.createElement('a');link.href='/delivery/track/'+Number(x.orderId)+'#token='+encodeURIComponent(x.token);link.textContent='查看配送进度';link.rel='noopener';row.append(link);host.append(row);});panel.hidden=false;
+ }
+ function showTrackingEntry(url,message){if(typeof url!=='string'||!url.startsWith('/delivery/track/'))return;$('openTrackingEntry').onclick=()=>{location.href=url;};$('trackingEntryMessage').textContent=message||'订单已创建，可随时查看配送进度。';$('trackingEntryPanel').hidden=false;$('trackingEntryPanel').scrollIntoView({behavior:'smooth',block:'nearest'});}
  function createCheckoutKey(){
   if(!window.crypto||typeof window.crypto.getRandomValues!=='function')return '';
   const bytes=new Uint8Array(32);window.crypto.getRandomValues(bytes);
@@ -332,6 +358,9 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   renderCategories();renderMenu();renderCart();
  }
  $('menuSearch').addEventListener('input',event=>{searchTerm=String(event.target.value||'').trim().toLocaleLowerCase();renderMenu();});
+ $('saveDeliveryProfile').addEventListener('click',saveDeliveryProfile);
+ $('clearDeliveryProfile').addEventListener('click',()=>{try{localStorage.removeItem(profileKey);}catch(_){}$('recipientName').value='';$('recipientPhone').value='';$('deliveryAddress').value='';$('deliveryProfileStatus').textContent='已清除本浏览器保存的配送资料';});
+ loadDeliveryProfile();renderRecentTrackingOrders();
  $('orderForm').addEventListener('submit',async event=>{
   event.preventDefault();$('message').textContent='';$('submit').disabled=true;
   const form=new FormData(event.currentTarget),items=[...cart].map(([id,quantity])=>({id:Number(id),quantity}));
@@ -345,6 +374,8 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    if(!response.ok)throw new Error(data.error||'提交失败，请稍后重试');
    createdOrderId=Number(data.orderId);createdTrackingUrl=data.trackingUrl;
    sessionStorage.setItem('customer_token:'+data.orderId,data.customerToken);
+   rememberTrackingOrder(data.orderId,data.customerToken,data.orderNo);saveDeliveryProfile();
+   showTrackingEntry(data.trackingUrl,'订单 '+(data.orderNo||data.orderId)+' 已创建，可在页面顶部“我的配送订单”中再次打开追踪入口。');
    rotateCheckoutKey();
    if(data.paymentMethod==='khqr'){
     const qrResponse=await fetch('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/khqr',{
@@ -367,7 +398,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
      }catch(error){$('paymentMessage').textContent=error.message;$('notifyPayment').disabled=false;}
     };
     $('trackOrder').onclick=()=>location.href=data.trackingUrl;
-   }else location.href=data.trackingUrl;
+   }else {$('message').textContent='订单已创建，请使用上方“查看配送进度”按钮跟踪骑手位置。';$('submit').disabled=true;}
   }catch(error){
    $('message').textContent=createdOrderId?'订单 '+createdOrderId+' 已创建，但支付初始化未完成：'+error.message+'。请先查看订单追踪或联系门店，勿重复提交。':error.message;
    if(createdOrderId){$('submit').disabled=true;$('paymentPanel').classList.remove('hidden');$('paymentMessage').textContent='可先查看订单配送状态。';$('trackOrder').onclick=()=>location.href=createdTrackingUrl;}
