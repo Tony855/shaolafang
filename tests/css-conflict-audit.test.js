@@ -303,7 +303,7 @@ test('cashier refund amount input uses one consolidated overflow-safe rule', () 
 
 test('cashier refund note textarea uses one consolidated cascade rule', () => {
   const cashierCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
-  const rules = cashierCss.match(/\.refund-textarea\s*\{[^}]*\}/g) || [];
+  const rules = cashierCss.match(/^\.refund-textarea\s*\{[^}]*\}/gm) || [];
   assert.equal(rules.length, 1, 'refund note textarea must have one consolidated base rule');
   const rule = rules[0];
   assert.match(rule, /width:\s*100%/);
@@ -492,4 +492,14 @@ test('waiter table grid, bill rows, and header fit compact phone widths', () => 
   assert.match(rules, /\.table-grid\s*\{[^}]*min\(260px, 100%\)/s);
   assert.match(rules, /\.bill-items \.line\s*\{[^}]*minmax\(0, 1fr\)/s);
   assert.match(rules, /header\s*\{[^}]*flex-wrap:\s*wrap;/s);
+});
+
+test('cashier payment and refund controls wrap and stay within narrow screens', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
+  const marker = '2026-11-25 responsive audit: cashier payment and refund controls';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /#paymentModal \.payment-methods\s*\{[^}]*grid-template-columns:[^}]*min\(88px, 100%\)/s);
+  assert.match(rules, /#refundModal \.refund-select,[\s\S]*?min-width:\s*0;/);
+  assert.match(rules, /#refundModal \.payment-actions \.btn[\s\S]*?flex:\s*1 1 120px;/);
+  assert.match(rules, /@media \(max-width: 420px\)/);
 });
