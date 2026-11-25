@@ -3569,33 +3569,7 @@ button.edit-btn:disabled {
   border-color: #60a5fa;
   box-shadow: 0 0 0 3px rgba(96,165,250,.16);
 }
-@media (max-width: 768px) {
-  .ff-admin #orders .order-item-admin .top {
-    display: grid !important;
-    grid-template-columns: minmax(0,1fr) auto !important;
-    align-items: start !important;
-    gap: 9px !important;
-  }
-  .ff-admin #orders .order-item-admin .top .order-heading {
-    grid-column: 1 / -1;
-    align-items: flex-start !important;
-  }
-  .ff-admin #orders .order-item-admin .top .status {
-    grid-column: 1 / -1;
-    justify-self: start;
-    align-self: start !important;
-  }
-}
-@media (max-width: 420px) {
-  .ff-admin #orders .order-item-admin .top {
-    grid-template-columns: minmax(0,1fr) !important;
-    gap: 8px !important;
-  }
-  .ff-admin #orders .order-item-admin .top .order-number {
-    max-width: 100%;
-    overflow-wrap: anywhere;
-  }
-}
+/* Legacy mobile grid rules removed: order metadata and status must remain in one row. */
 
 
 /* Preserve the native hidden state against the grid display rule above. */
@@ -3779,4 +3753,20 @@ button.edit-btn:disabled {
   .ff-admin #orders .order-item-admin .top .order-table-badge,
   .ff-admin #orders .order-item-admin .top .session-badge { padding: 3px 5px !important; font-size: 9px !important; }
   .ff-admin #orders .order-item-admin .top .status { padding: 3px 5px !important; font-size: 9px !important; }
+}
+
+
+/* 2026-11-25: enforce one-row admin order headers on narrow phones; allow metadata to shrink, never wrap status to a second row. */
+@media (max-width: 768px) {
+  .ff-admin #orders .order-item-admin .top { display:flex !important; flex-wrap:nowrap !important; align-items:center !important; justify-content:flex-start !important; gap:5px !important; min-width:0 !important; }
+  .ff-admin #orders .order-item-admin .top .order-heading { flex:1 1 0 !important; width:auto !important; max-width:none !important; min-width:0 !important; flex-wrap:nowrap !important; align-items:center !important; gap:3px !important; overflow:hidden !important; }
+  .ff-admin #orders .order-item-admin .top .order-number-label { flex:0 0 auto !important; font-size:8px !important; white-space:nowrap !important; }
+  .ff-admin #orders .order-item-admin .top .order-number { flex:0 1 auto !important; max-width:38% !important; min-width:0 !important; }
+  .ff-admin #orders .order-item-admin .top .order-context { flex:0 1 auto !important; max-width:clamp(64px,24vw,110px) !important; min-width:0 !important; }
+  .ff-admin #orders .order-item-admin .top .status { flex:0 0 auto !important; max-width:30% !important; margin:0 !important; align-self:center !important; white-space:nowrap !important; }
+}
+@media (max-width: 420px) {
+  .ff-admin #orders .order-item-admin .top { gap:3px !important; }
+  .ff-admin #orders .order-item-admin .top .order-heading { gap:2px !important; }
+  .ff-admin #orders .order-item-admin .top .order-context { max-width:76px !important; }
 }

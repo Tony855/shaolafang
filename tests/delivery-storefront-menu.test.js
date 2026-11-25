@@ -63,7 +63,7 @@ test('delivery storefront remains a tableless delivery checkout and retains KHQR
 
 test('delivery storefront title header remains fully visible on narrow screens', () => {
   assert.match(page, /<header><h1>🛵 FoodFlow 外卖点餐<\/h1><p id="storeName">/);
-  assert.match(page, /header\{width:100%;min-width:0;/);
+  assert.match(page, /body>header\{display:flex;width:100vw;max-width:100vw;min-width:0;/);
   assert.match(page, /header h1\{[^}]*flex-wrap:wrap/);
   assert.match(page, /header h1\{[^}]*overflow-wrap:anywhere/);
   assert.match(page, /header p\{[^}]*overflow-wrap:anywhere/);
@@ -150,4 +150,10 @@ test('customer identity remains browser-wide while checkout idempotency is tab-s
   assert.match(page, /localStorage\.setItem\(key,token\)/);
   assert.match(page, /sessionStorage\.getItem\(checkoutKeyName\)/);
   assert.match(page, /sessionStorage\.setItem\(checkoutKeyName,key\)/);
+});
+
+
+test("delivery storefront header is anchored to the full mobile viewport width", () => {
+  assert.match(page, /html,body\{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:hidden\}/);
+  assert.match(page, /body>header\{display:flex;width:100vw;max-width:100vw;min-width:0;margin-left:calc\(50% - 50vw\);margin-right:calc\(50% - 50vw\);box-sizing:border-box/);
 });

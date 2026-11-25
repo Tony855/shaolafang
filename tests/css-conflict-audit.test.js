@@ -490,8 +490,11 @@ test('admin order-list headers have a single polished responsive treatment after
   const rules = css.slice(css.lastIndexOf(marker));
   assert.match(rules, /\.ff-admin #orders \.order-item-admin \.top\s*\{[^}]*border-bottom:[^}]*background:/s);
   assert.match(rules, /\.ff-admin #orders \.order-item-admin \.top \.order-number\s*\{[^}]*background:/s);
-  assert.match(rules, /@media \(max-width: 768px\)[\s\S]*grid-template-columns: minmax\(0,1fr\) auto/);
-  assert.match(rules, /@media \(max-width: 420px\)[\s\S]*grid-template-columns: minmax\(0,1fr\)/);
+  const mobileRules = rules.slice(rules.lastIndexOf('@media (max-width: 768px)'));
+  assert.match(mobileRules, /\.ff-admin #orders \.order-item-admin \.top\s*\{[^}]*display:\s*flex\s*!important;[^}]*flex-wrap:\s*nowrap\s*!important;/s);
+  assert.match(mobileRules, /\.ff-admin #orders \.order-item-admin \.top \.status\s*\{[^}]*flex:\s*0 0 auto\s*!important;[^}]*white-space:\s*nowrap\s*!important;/s);
+  assert.match(mobileRules, /@media \(max-width: 420px\)/);
+  assert.doesNotMatch(mobileRules, /grid-template-columns/);
 });
 
 test('admin settlement payment selector and cash input have scoped non-overlapping styles', () => {
@@ -614,4 +617,13 @@ test('admin order card uses distinct modern type and table pills on one left-ali
   assert.match(rules, /\.top \.order-table-badge\s*\{/);
   assert.match(rules, /\.top \.status\s*\{[^}]*margin-left:\s*0\s*!important;/s);
   assert.match(rules, /@media \(max-width: 420px\)/);
+});
+
+
+test("admin mobile order header never reverts to a grid that pushes status onto another row", () => {
+  const adminCss = fs.readFileSync(path.join(__dirname, "..", "assets", "admin.css"), "utf8");
+  assert.doesNotMatch(adminCss, /\.ff-admin #orders \.order-item-admin \.top\s*\{[^}]*display:\s*grid\s*!important/s);
+  const mobileBlock = adminCss.slice(adminCss.lastIndexOf("enforce one-row admin order headers"));
+  assert.match(mobileBlock, /\.ff-admin #orders \.order-item-admin \.top\s*\{[^}]*display:flex\s*!important;[^}]*flex-wrap:nowrap\s*!important/s);
+  assert.match(mobileBlock, /\.ff-admin #orders \.order-item-admin \.top \.status\s*\{[^}]*flex:0 0 auto\s*!important/s);
 });
