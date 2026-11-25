@@ -482,3 +482,13 @@ test('kitchen tickets and ticket headings adapt to narrow screens', () => {
   assert.match(rules, /\.ticket-head\s*\{[^}]*flex-wrap:\s*wrap;/s);
   assert.match(rules, /@media \(max-width: 520px\)/);
 });
+
+
+test('mobile CSS fixes are served with refreshed cache-busting versions', () => {
+  const customerHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  assert.match(customerHtml, /assets\/customer\.css\?v=2026112501/,
+    'customer page must request the updated stylesheet instead of a stale cached copy');
+  assert.match(adminHtml, /assets\/admin\.css\?v=2026112501/,
+    'admin page must request the updated stylesheet instead of a stale cached copy');
+});
