@@ -88,8 +88,8 @@ Run this only against a disposable staging database and dedicated test Bot accou
 
 1. Configure independent Client/Admin Bot tokens in the super-admin console. Verify each fixed test message reaches only its configured test chat.
 2. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` and register the Client Bot webhook. Confirm `getWebhookInfo` reports the expected HTTPS webhook URL and no persistent delivery error.
-3. Create two merchants with at least two stores. Configure distinct store-admin Chat IDs and enable different event toggles per store.
-4. Create a customer order in each store. Verify the global admin chat receives the global event and each store chat receives only its own store event.
+3. Create two merchants with at least two stores. Configure a distinct Chat ID for every store from its tenant Admin session. Saving the Chat ID automatically binds that store; clearing it removes the binding. Set event toggles independently per store.
+4. Create a customer order in each store. Verify the global admin chat receives the global event and each store chat receives only its own store event; identical numeric store IDs under different merchant contexts must never cross-resolve.
 5. Bind a customer private chat, create an order, then rescan to rotate the customer token and complete a new deep-link challenge. Verify the same private chat follows the new session identity, while another store's binding remains untouched.
 6. Trigger settlement, KHQR/manual payment confirmation, and a completed refund. Verify only the intended events arrive and no QR payload, customer bearer token, phone number, or private note appears.
 7. Test both in-page revoke and `/stop`. Confirm queued customer jobs move to `dead` with `binding_revoked`; rebind and verify those old jobs are not sent.
