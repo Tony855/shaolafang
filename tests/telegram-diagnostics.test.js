@@ -9,6 +9,7 @@ const adminToken = '654321:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 const secret = 'a'.repeat(64);
 
 test('Telegram diagnostics report actionable status without exposing credentials', async () => {
+  let recipientQuery = '';
   const allAsync = async sql => {
     if (sql.includes('FROM settings')) return [
       { key: 'telegram_admin_bot_enabled', value: '1' },
@@ -18,7 +19,7 @@ test('Telegram diagnostics report actionable status without exposing credentials
       { key: 'telegram_client_chat_id', value: '123456789' }
     ];
     if (sql.includes('telegram_customer_bindings')) return [{ total: 3, active: 2 }];
-    if (sql.includes('telegram_store_admin_recipients')) return [{ total: 4, enabled: 3, orderEnabled: 2 }];
+    if (sql.includes('telegram_store_admin_recipients')) { recipientQuery = sql; return [{ total: 4, enabled: 3, orderEnabled: 2 }]; }
     if (sql.includes('telegram_notification_outbox')) return [
       { state: 'pending', recipient_scope: 'customer', last_error_code: null, total: 2 },
       { state: 'dead', recipient_scope: 'merchant_store', last_error_code: 'invalid_recipient', total: 1 }
@@ -54,6 +55,8 @@ test('Telegram diagnostics report actionable status without exposing credentials
   assert.equal(Object.hasOwn(report.bots.admin, 'globalChatConfigured'), false);
   assert.equal(report.customerBindings.active, 2);
   assert.equal(report.storeRecipients.enabled, 3);
+  assert.match(recipientQuery, /SUM\(chat_id<>/);
+  assert.doesNotMatch(recipientQuery, /is_enabled/);
   assert.equal(report.outbox.groups[0].total, 2);
   assert.equal(report.clientWebhook.matchesExpectedUrl, true);
   assert.match(requestedUrl, /getWebhookInfo$/);
