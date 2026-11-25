@@ -16,7 +16,7 @@ function signedInitData(token = botToken) {
     ['user', JSON.stringify({ id: 987654321, first_name: 'Test' })]
   ]);
   const data = Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-    .map(([key, value]) => key + '=' + value).join('\\n');
+    .map(([key, value]) => key + '=' + value).join('\n');
   const secret = crypto.createHmac('sha256', 'WebAppData').update(token).digest();
   values.set('hash', crypto.createHmac('sha256', secret).update(data).digest('hex'));
   return new URLSearchParams(Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)).toString();
@@ -34,7 +34,8 @@ function setup({ enabled = true, secret = 's'.repeat(40), bound = false } = {}) 
   const deps = {
     getAsync: async (sql, params = []) => {
       calls.push({ type: 'get', sql, params });
-      if (sql.includes('FROM telegram_tenant_client_bots')) return { bot_token: botToken };\n      if (sql.includes('FROM stores s JOIN merchants')) return { id: 7, name: 'Test Store', merchant_id: 3 };
+      if (sql.includes('FROM telegram_tenant_client_bots')) return { bot_token: botToken };
+      if (sql.includes('FROM stores s JOIN merchants')) return { id: 7, name: 'Test Store', merchant_id: 3 };
       if (sql.includes('FROM telegram_customer_bindings')) return bindingRows[0] || null;
       return null;
     },
