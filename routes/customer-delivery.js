@@ -68,6 +68,10 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       if (config.telegram_client_bot_enabled !== '1' || !config.telegram_client_bot_token) {
         return res.status(409).json({ error: '当前尚未启用 Telegram 顾客 Bot' });
       }
+      const webhookSecret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+      if (webhookSecret.length < 32 || webhookSecret.length > 256) {
+        return res.status(503).json({ error: 'Telegram Bot Webhook 尚未完成安全配置' });
+      }
       const username = await getTelegramBotUsername({ token: String(config.telegram_client_bot_token) });
       const deepLink = 'https://t.me/' + username + '?start=delivery_' + storeId;
       res.json({ deepLink, storeId });
