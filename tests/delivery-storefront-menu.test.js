@@ -67,7 +67,7 @@ test('delivery storefront title header remains fully visible on narrow screens',
   assert.match(page, /header h1\{[^}]*flex-wrap:wrap/);
   assert.match(page, /header h1\{[^}]*overflow-wrap:anywhere/);
   assert.match(page, /header p\{[^}]*overflow-wrap:anywhere/);
-  assert.match(page, /@media\(max-width:720px\)\{header\{padding:calc\(16px \+ env\(safe-area-inset-top,0px\)\)/);
+  assert.ok(page.includes("@media(max-width:720px){\n body>header{padding:calc(16px + env(safe-area-inset-top,0px))"));
   assert.doesNotMatch(page, /header\s*\{[^}]*height\s*:/);
 });
 
