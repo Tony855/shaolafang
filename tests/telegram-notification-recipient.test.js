@@ -113,7 +113,7 @@ test('customer recipient resolver requires an active binding owned by the queued
     return [{ key: 'telegram_client_bot_enabled', value: '1' }, { key: 'telegram_client_bot_token', value: token }];
   } });
   const recipient = await resolve({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 });
-  assert.deepEqual(recipient, { scope: 'customer', merchantId: 7, storeId: 9, token, chatId: '7654321' });
+  assert.deepEqual(recipient, { scope: 'customer', merchantId: 7, storeId: 9, token, chatId: '7654321' }, JSON.stringify({ recipient, calls }));
   assert.deepEqual(calls[0].params, [42, 7, 9]);
   assert.match(calls[1].sql, /telegram_client_bot_enabled/);
   assert.deepEqual(calls[1].params, ['telegram_client_bot_enabled', 'telegram_client_bot_token']);
