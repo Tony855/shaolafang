@@ -276,7 +276,7 @@ module.exports = function(app, deps) {
       const bot = await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({
-        enabled: Number(row?.is_enabled) === 1,
+        enabled: validateChatId(String(row?.chat_id || '')),
         chatId: String(row?.chat_id || ''),
         notifyOrderCreated: row ? Number(row.notify_order_created) === 1 : true,
         notifySettled: row ? Number(row.notify_settled) === 1 : true,
@@ -303,14 +303,15 @@ module.exports = function(app, deps) {
         if ([false, 0, '0'].includes(value)) return 0;
         throw Object.assign(new Error(label + ' 参数无效'), { status: 400 });
       };
-      const enabled = readFlag(body.enabled, false, '启用开关');
       const notifyOrderCreated = readFlag(body.notifyOrderCreated, true, '新订单通知开关');
       const notifySettled = readFlag(body.notifySettled, true, '收款通知开关');
       const notifyRefunded = readFlag(body.notifyRefunded, true, '退款通知开关');
       const chatId = typeof body.chatId === 'string' ? body.chatId.trim() : '';
-      if (chatId.length > 64 || (chatId && !validateChatId(chatId)) || (enabled && !validateChatId(chatId))) {
+      if (chatId.length > 64 || (chatId && !validateChatId(chatId))) {
         return res.status(400).json({ error: 'Telegram Chat ID 无效' });
       }
+      // A configured Chat ID is the store's default binding. Clearing it unbinds the store.
+      const enabled = chatId ? 1 : 0;
 
       failureStage = 'transaction_start';
       await withTransaction(async () => {
