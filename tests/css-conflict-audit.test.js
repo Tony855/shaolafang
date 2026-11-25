@@ -547,7 +547,8 @@ test('mobile CSS fixes are served with refreshed cache-busting versions', () => 
   const cashierHtml = fs.readFileSync(path.join(__dirname, '..', 'cashier.html'), 'utf8');
   const waiterHtml = fs.readFileSync(path.join(__dirname, '..', 'waiter.html'), 'utf8');
   assert.ok(customerHtml.includes('assets/customer.css?v=2026112501'));
-  assert.ok(adminHtml.includes('assets/admin.css?v=2026112502'));
+  assert.ok(adminHtml.includes('assets/admin.css?v=2026112504'));
+  assert.ok(adminHtml.includes('assets/admin-bundle.js?v=2026112502'));
   assert.ok(cashierHtml.includes('assets/khqr-shared.css?v=2026112502'));
   assert.ok(waiterHtml.includes('assets/khqr-shared.css?v=2026112502'));
 });
@@ -592,6 +593,25 @@ test('admin order card header keeps all metadata on one left-aligned line', () =
   assert.match(rules, /\.top\s*\{[^}]*justify-content:\s*flex-start\s*!important;/s);
   assert.match(rules, /\.top \.order-heading\s*\{[^}]*flex:\s*0 1 auto\s*!important;/s);
   assert.match(rules, /\.top \.order-context\s*\{[^}]*max-width:/s);
+  assert.match(rules, /\.top \.status\s*\{[^}]*margin-left:\s*0\s*!important;/s);
+  assert.match(rules, /@media \(max-width: 420px\)/);
+});
+
+
+test('admin order card uses distinct modern type and table pills on one left-aligned line', () => {
+  const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
+  const orderSource = fs.readFileSync(path.join(__dirname, '..', 'pages', 'admin', 'order.js'), 'utf8');
+  const bundle = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin-bundle.js'), 'utf8');
+  const marker = '2026-11-25: modern metadata pills for admin order card headers (style B).';
+  const rules = adminCss.slice(adminCss.lastIndexOf(marker));
+  for (const source of [orderSource, bundle]) {
+    assert.match(source, /order-type-badge/);
+    assert.match(source, /order-table-badge/);
+    assert.match(source, /orderFulfillmentDineIn/);
+  }
+  assert.match(rules, /\.top\s*\{[^}]*justify-content:\s*flex-start\s*!important;/s);
+  assert.match(rules, /\.top \.order-type-badge\s*\{/);
+  assert.match(rules, /\.top \.order-table-badge\s*\{/);
   assert.match(rules, /\.top \.status\s*\{[^}]*margin-left:\s*0\s*!important;/s);
   assert.match(rules, /@media \(max-width: 420px\)/);
 });
