@@ -1179,7 +1179,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
         await setTelegramMenuButton({
           token: clientToken,
           enabled: next.client.enabled,
-          webAppUrl: next.client.enabled ? publicOrigin + '/telegram-delivery.html' : undefined
+          webAppUrl: next.client.enabled ? publicOrigin + '/telegram/delivery' : undefined
         });
         menuButtonConfigured = true;
       } else if (next.client.enabled) {
