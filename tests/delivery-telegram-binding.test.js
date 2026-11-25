@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const registerRoutes = require('../routes/customer-delivery');
+const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
 
 const botToken = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 const customerToken = 'a'.repeat(64);
@@ -35,6 +36,7 @@ function setup({ enabled = true, secret = 's'.repeat(40), bound = false } = {}) 
     getAsync: async (sql, params = []) => {
       calls.push({ type: 'get', sql, params });
       if (sql.includes('FROM telegram_tenant_client_bots')) return { bot_token: botToken };
+      if (sql.includes('FROM telegram_store_admin_recipients')) return params[0] === 7 ? { id: 7, name: 'Test Store', merchant_id: 3, chat_id: '-100777' } : null;
       if (sql.includes('FROM stores s JOIN merchants')) return { id: 7, name: 'Test Store', merchant_id: 3 };
       if (sql.includes('FROM telegram_customer_bindings')) return bindingRows[0] || null;
       return null;
@@ -73,13 +75,17 @@ function request({ query = {}, body = {}, token = customerToken, initData = '' }
   return { query, body, headers: {}, get(name) { if (name.toLowerCase() === 'x-customer-token') return token; if (name.toLowerCase() === 'x-telegram-init-data') return initData; return ''; } };
 }
 
-test('Telegram Mini App store selector returns public active store IDs and names', async () => {
+test('Telegram Mini App resolves only the store whose Chat ID binding signs the entry link', async () => {
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = 's'.repeat(40);
   const ctx = setup();
   const handler = ctx.handlers.get('GET /api/public/delivery/telegram-miniapp-stores');
+  const signature = createStoreEntrySignature({ storeId: 7, chatId: '-100777', secret: process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET });
+  const req = request({ initData: signedInitData() });
+  req.query = { store_id: '7', entry: signature };
   const res = response();
-  await handler(request({ initData: signedInitData() }), res);
+  await handler(req, res);
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body, { stores: [{ id: 7, merchantId: 3, name: 'Test Store' }, { id: 9, merchantId: 3, name: 'Second Store' }] });
+  assert.deepEqual(res.body, { stores: [{ id: 7, merchantId: 3, name: 'Test Store' }] });
   assert.match(res.headers['Cache-Control'], /no-store/);
 });
 

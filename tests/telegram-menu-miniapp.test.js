@@ -9,25 +9,23 @@ const miniApp = fs.readFileSync(path.join(__dirname, '..', 'telegram-delivery.ht
 const pageRoutes = fs.readFileSync(path.join(__dirname, '..', 'routes', 'pages.js'), 'utf8');
 const startup = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 
-test('Telegram delivery Mini App is a Telegram Web App store selector, not a website launch CTA', () => {
-  assert.match(miniApp, /telegram\.org\/js\/telegram-web-app\.js/);
-  assert.match(miniApp, /window\.Telegram&&window\.Telegram\.WebApp/);
-  assert.match(miniApp, /app\.ready\(\);app\.expand\(\)/);
-  assert.match(miniApp, /api\/public\/delivery\/telegram-miniapp-stores/);
-  assert.match(miniApp, /if\(stores\.length===1\)/);
-  assert.match(miniApp, /delivery\/order\?store_id=/);
-  assert.doesNotMatch(miniApp, /t\.me\//);
-  assert.doesNotMatch(miniApp, /start=delivery_/);
+test('Telegram Mini App requires a store-specific signed entry and no longer offers a store selector', () => {
+  assert.ok(miniApp.includes("params.get('entry')"));
+  assert.ok(miniApp.includes("params.get('store_id')"));
+  assert.ok(miniApp.includes('/api/public/delivery/telegram-miniapp-stores?store_id='));
+  assert.ok(miniApp.includes('stores.length!==1'));
+  assert.ok(miniApp.includes("&entry='+encodeURIComponent(entry)+'&telegram=1"));
+  assert.equal(miniApp.includes('请选择门店'), false);
 });
 
-test('the Telegram menu and store selector use registered FoodFlow page routes', () => {
-  assert.match(pageRoutes, /app\.get\('\/telegram\/delivery',[\s\S]*telegram-delivery\.html/);
-  assert.match(miniApp, /location\.href='\/delivery\/order\?store_id='/);
-  assert.match(startup, /webAppUrl = origin \+ '\/telegram\/delivery'/);
+test('the Telegram menu and store-specific link use registered FoodFlow page routes', () => {
+  assert.ok(pageRoutes.includes("app.get('/telegram/delivery'"));
+  assert.ok(miniApp.includes("location.href='/delivery/order?store_id='"));
+  assert.ok(startup.includes("webAppUrl = origin + '/telegram/delivery'"));
 });
 
-test('Telegram Mini App renders store names as text and only opens validated numeric store IDs', () => {
-  assert.match(miniApp, /name\.textContent=store\.name/);
-  assert.match(miniApp, /Number\.isSafeInteger\(Number\(x\.id\)\)/);
-  assert.match(miniApp, /Number\(x\.id\)>0/);
+test('Mini App rejects missing or malformed store entry parameters', () => {
+  assert.ok(miniApp.includes("43}$/.test(entry)"));
+  assert.ok(miniApp.includes("d+$/.test(storeId)"));
+  assert.ok(miniApp.includes('Number(stores[0].id)!==Number(storeId)'));
 });

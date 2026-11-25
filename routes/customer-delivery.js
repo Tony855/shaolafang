@@ -9,6 +9,7 @@ const { enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotificati
 const { getTelegramBotUsername } = require('../server/services/telegram-bot');
 const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 const { verifyTelegramWebAppInitData } = require('../server/services/telegram-webapp-auth');
+const { verifyStoreEntrySignature } = require('../server/services/telegram-store-entry');
 
 function positiveId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -60,7 +61,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       const initData = typeof req.get === 'function'
         ? String(req.get('X-Telegram-Init-Data') || '')
         : String(req.headers?.['x-telegram-init-data'] || '');
-      if (!initData) return res.status(401).json({ error: 'Telegram 身份验证失败，请从统一 Client Bot 菜单重新打开' });
+      if (!initData) return res.status(401).json({ error: 'Telegram 身份验证失败，请从门店专属链接重新打开' });
 
       const rows = await allAsync(
         'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
@@ -69,19 +70,29 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
       const botToken = String(config.telegram_client_bot_token || '');
       if (config.telegram_client_bot_enabled !== '1' || !verifyTelegramWebAppInitData(initData, botToken)) {
-        return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开 Mini App' });
+        return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开门店专属链接' });
       }
 
-      const stores = await allAsync(
-        'SELECT s.id, s.name, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.active=1 AND m.status=1 ORDER BY m.id, s.name, s.id LIMIT 500'
+      const storeId = positiveId(String(req.query?.store_id || ''));
+      const signature = typeof req.query?.entry === 'string' ? req.query.entry : '';
+      const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+      if (!storeId || !/^[A-Za-z0-9_-]{43}$/.test(signature) || secret.length < 32 || secret.length > 256) {
+        return res.status(403).json({ error: '门店专属链接无效或已过期，请向门店管理员获取最新链接' });
+      }
+      const recipient = await getAsync(
+        'SELECT r.chat_id, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 LIMIT 1',
+        [storeId]
       );
-      res.json({ stores: (Array.isArray(stores) ? stores : []).map(store => ({
-        id: Number(store.id),
-        merchantId: Number(store.merchant_id),
-        name: cleanText(String(store.name || ''), 100) || 'FoodFlow 门店'
-      })).filter(store => Number.isSafeInteger(store.id) && store.id > 0 && Number.isSafeInteger(store.merchantId) && store.merchantId > 0) });
+      if (!recipient || !verifyStoreEntrySignature({ storeId, chatId: String(recipient.chat_id || ''), secret, signature })) {
+        return res.status(403).json({ error: '门店群组绑定已变更或已解除，请向门店管理员获取最新专属链接' });
+      }
+      res.json({ stores: [{
+        id: Number(recipient.id),
+        merchantId: Number(recipient.merchant_id),
+        name: cleanText(String(recipient.name || ''), 100) || 'FoodFlow 门店'
+      }] });
     } catch (_) {
-      res.status(503).json({ error: '暂时无法读取可点餐门店，请稍后重试' });
+      res.status(503).json({ error: '暂时无法读取此门店，请稍后重试' });
     }
   });
 
@@ -213,6 +224,17 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
         [storeId]
       );
       if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
+      if (body.telegram_entry === true) {
+        const signature = typeof body.store_entry === 'string' ? body.store_entry : '';
+        const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+        const recipient = await getAsync(
+          'SELECT chat_id FROM telegram_store_admin_recipients WHERE merchant_id=? AND store_id=? AND is_enabled=1 AND chat_id<>\'\' LIMIT 1',
+          [store.merchant_id, storeId]
+        );
+        if (!recipient || !verifyStoreEntrySignature({ storeId, chatId: String(recipient.chat_id || ''), secret, signature })) {
+          return res.status(403).json({ error: '门店专属入口已失效，请重新从门店 Telegram 链接进入' });
+        }
+      }
 
       let items;
       try {
