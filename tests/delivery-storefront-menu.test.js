@@ -76,7 +76,7 @@ test('delivery storefront cart lines show quantity-extended subtotals only in th
   assert.match(page, /const lineBase=base\*qty/);
   assert.match(page, /formatCurrency\(lineBase,primaryCurrency\)/);
   assert.doesNotMatch(page, /formatCurrency\(lineBase,secondaryCurrency\)/);
-  assert.match(page, /right\\.textContent=linePrimary/);
+  assert.ok(page.includes('right.textContent=linePrimary;'));
 });
 
 test('delivery storefront quantity controls enforce configured bounds', () => {
