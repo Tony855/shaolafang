@@ -1181,7 +1181,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
     } catch (_) {}
 
     try {
-      if (clientMenuToken && publicOrigin) {
+      if (clientMenuToken && (!next.client.enabled || publicOrigin)) {
         await setTelegramMenuButton({
           token: clientMenuToken,
           enabled: next.client.enabled,
@@ -1190,8 +1190,6 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
         menuButtonConfigured = true;
       } else if (next.client.enabled) {
         menuButtonError = clientMenuToken ? 'FOODFLOW_PUBLIC_URL 必须配置为公网 HTTPS 地址' : '未配置 Client Bot Token';
-      } else if (clientMenuToken) {
-        menuButtonError = '未配置公网 HTTPS 地址，无法同步重置 Bot 菜单按钮';
       }
     } catch (error) {
       menuButtonError = String(error.message || 'Telegram 菜单按钮同步失败').slice(0, 180);
