@@ -55,14 +55,13 @@ function createTelegramNotificationRecipientResolver({ allAsync }) {
         suppressed: true, suppressionCode: 'binding_revoked'
       };
     }
-    const settings = await allAsync(
-      'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
-      ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+    const tenantBots = await allAsync(
+      'SELECT bot_token FROM telegram_tenant_client_bots WHERE merchant_id=? AND is_enabled=1 LIMIT 1',
+      [tenantMerchantId]
     );
-    const stored = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
-    const token = String(stored.telegram_client_bot_token || '');
+    const token = String(Array.isArray(tenantBots) && tenantBots[0]?.bot_token || '');
     const chatId = String(binding[0].telegram_chat_id || '');
-    if (stored.telegram_client_bot_enabled !== '1') {
+    if (!token) {
       return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true, suppressionCode: 'event_disabled' };
     }
     if (!validateBotToken(token) || !validateChatId(chatId)) return null;
