@@ -505,12 +505,14 @@ test('cashier payment and refund controls wrap and stay within narrow screens', 
 });
 
 
-test('cashier KHQR content and action buttons remain contained on compact phones', () => {
-  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
-  const marker = '2026-11-25 responsive audit: KHQR payment content';
-  const rules = css.slice(css.lastIndexOf(marker));
-  assert.match(rules, /#khqrModal \.khqr-image-wrap\s*\{[^}]*overflow:\s*hidden;/s);
-  assert.match(rules, /#khqrModal \.khqr-payee-account\s*\{[^}]*overflow-wrap:\s*anywhere;/s);
-  assert.match(rules, /@media \(max-width: 480px\)/);
-  assert.match(rules, /#khqrModal \.payment-actions \.btn\s*\{[^}]*flex:\s*1 1 130px;/s);
+test('shared KHQR modal content and action buttons remain contained on compact phones', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'khqr-shared.css'), 'utf8');
+  const cashierHtml = fs.readFileSync(path.join(__dirname, '..', 'cashier.html'), 'utf8');
+  const waiterHtml = fs.readFileSync(path.join(__dirname, '..', 'waiter.html'), 'utf8');
+  assert.ok(cashierHtml.includes('assets/khqr-shared.css'));
+  assert.ok(waiterHtml.includes('assets/khqr-shared.css'));
+  assert.match(css, /#khqrModal \.khqr-image-wrap\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(css, /#khqrModal \.khqr-payee-account\s*\{[^}]*overflow-wrap:\s*anywhere;/s);
+  assert.match(css, /@media \(max-width: 480px\)/);
+  assert.match(css, /#khqrModal \.payment-actions \.btn\s*\{[^}]*flex:\s*1 1 130px;/s);
 });
