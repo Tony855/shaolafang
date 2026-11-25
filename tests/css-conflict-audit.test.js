@@ -571,3 +571,9 @@ test('delivery rider and tracking pages respect mobile safe areas and compact he
   assert.match(rider, /@media\(max-width:380px\)/);
   assert.match(tracking, /clamp\(220px,42dvh,360px\)/);
 });
+
+test('kitchen ticket item names wrap without forcing mobile card overflow', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'kitchen.css'), 'utf8');
+  assert.match(css, /\.item-row \.name\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;/s);
+  assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.item-row\s*\{\s*flex-wrap:\s*wrap;/);
+});
