@@ -9,25 +9,25 @@ const miniApp = fs.readFileSync(path.join(__dirname, '..', 'telegram-delivery.ht
 const pageRoutes = fs.readFileSync(path.join(__dirname, '..', 'routes', 'pages.js'), 'utf8');
 const startup = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 
-test('Telegram delivery Mini App is a Telegram Web App store selector, not a website launch CTA', () => {
-  assert.match(miniApp, /telegram\.org\/js\/telegram-web-app\.js/);
-  assert.match(miniApp, /window\.Telegram&&window\.Telegram\.WebApp/);
-  assert.match(miniApp, /app\.ready\(\);app\.expand\(\)/);
-  assert.match(miniApp, /api\/public\/delivery\/telegram-miniapp-stores/);
-  assert.match(miniApp, /if\(stores\.length===1\)/);
-  assert.match(miniApp, /delivery\/order\?store_id=/);
-  assert.doesNotMatch(miniApp, /t\.me\//);
-  assert.doesNotMatch(miniApp, /start=delivery_/);
+test('Telegram Mini App requires a store-specific signed entry and no longer offers a store selector', () => {
+  assert.match(miniApp, /telegram\\.org\\/js\\/telegram-web-app\\.js/);
+  assert.match(miniApp, /window\\.Telegram&&window\\.Telegram\\.WebApp/);
+  assert.match(miniApp, /app\\.ready\\(\\);app\\.expand\\(\\)/);
+  assert.match(miniApp, /params\\.get\\('entry'\\)/);
+  assert.match(miniApp, /api\\/public\\/delivery\\/telegram-miniapp-stores\\?store_id=/);
+  assert.match(miniApp, /stores\\.length!==1/);
+  assert.match(miniApp, /delivery\\/order\\?store_id=/);
+  assert.doesNotMatch(miniApp, /请选择门店/);
 });
 
-test('the Telegram menu and store selector use registered FoodFlow page routes', () => {
-  assert.match(pageRoutes, /app\.get\('\/telegram\/delivery',[\s\S]*telegram-delivery\.html/);
-  assert.match(miniApp, /location\.href='\/delivery\/order\?store_id='/);
-  assert.match(startup, /webAppUrl = origin \+ '\/telegram\/delivery'/);
+test('the Telegram menu and store-specific link use registered FoodFlow page routes', () => {
+  assert.match(pageRoutes, /app\\.get\\('\\/telegram\\/delivery',[\\s\\S]*telegram-delivery\\.html/);
+  assert.match(miniApp, /location\\.href='\\/delivery\\/order\\?store_id='/);
+  assert.match(startup, /webAppUrl = origin \\+ '\\/telegram\\/delivery'/);
 });
 
-test('Telegram Mini App renders store names as text and only opens validated numeric store IDs', () => {
-  assert.match(miniApp, /name\.textContent=store\.name/);
-  assert.match(miniApp, /Number\.isSafeInteger\(Number\(x\.id\)\)/);
-  assert.match(miniApp, /Number\(x\.id\)>0/);
+test('Mini App only accepts a numeric store ID with a signed entry token', () => {
+  assert.match(miniApp, /!\\/\\^\\\\d\\+\\$\\\\/\\.test\\(storeId\\)/);
+  assert.match(miniApp, /!\\/\\^\\[A-Za-z0-9_-\\]\\{43\\}\\$\\\\/\\.test\\(entry\\)/);
+  assert.match(miniApp, /Number\\(stores\\[0\\]\\.id\\)!==Number\\(storeId\\)/);
 });
