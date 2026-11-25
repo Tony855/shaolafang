@@ -508,8 +508,10 @@ test('cashier payment and refund controls wrap and stay within narrow screens', 
 test('mobile CSS fixes are served with refreshed cache-busting versions', () => {
   const customerHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
-  assert.ok(customerHtml.includes('assets/customer.css?v=2026112501'),
-    'customer page must request the updated stylesheet instead of a stale cached copy');
-  assert.ok(adminHtml.includes('assets/admin.css?v=2026112501'),
-    'admin page must request the updated stylesheet instead of a stale cached copy');
+  const cashierHtml = fs.readFileSync(path.join(__dirname, '..', 'cashier.html'), 'utf8');
+  const waiterHtml = fs.readFileSync(path.join(__dirname, '..', 'waiter.html'), 'utf8');
+  assert.ok(customerHtml.includes('assets/customer.css?v=2026112501'));
+  assert.ok(adminHtml.includes('assets/admin.css?v=2026112501'));
+  assert.ok(cashierHtml.includes('assets/khqr-shared.css?v=2026112502'));
+  assert.ok(waiterHtml.includes('assets/khqr-shared.css?v=2026112502'));
 });
