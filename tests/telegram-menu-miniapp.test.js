@@ -13,7 +13,7 @@ test('Telegram delivery Mini App is a Telegram Web App store selector, not a web
   assert.match(miniApp, /app\.ready\(\);app\.expand\(\)/);
   assert.match(miniApp, /api\/public\/delivery\/telegram-miniapp-stores/);
   assert.match(miniApp, /if\(stores\.length===1\)/);
-  assert.match(miniApp, /delivery-order\.html\?store_id=/);
+  assert.match(miniApp, /delivery\/order\?store_id=/);
   assert.doesNotMatch(miniApp, /t\.me\//);
   assert.doesNotMatch(miniApp, /start=delivery_/);
 });
