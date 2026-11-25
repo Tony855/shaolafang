@@ -76,6 +76,28 @@ function createTelegramCustomerWebhookHandler({
           return;
         }
 
+        if (update.action === 'home') {
+          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
+          let publicOrigin = '';
+          try {
+            const parsed = new URL(publicUrl);
+            if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
+          } catch (_) {}
+          if (publicOrigin) {
+            bound = {
+              chatId: update.telegramChatId,
+              text: '欢迎使用 FoodFlow 外卖点餐。点击下方按钮浏览门店、完整菜单和菜品图片，并在 Telegram 内完成点餐。',
+              replyMarkup: { inline_keyboard: [[{ text: '🍽️ 外卖点餐 · 打开 Mini App', web_app: { url: publicOrigin + '/telegram/delivery' } }]] }
+            };
+          } else {
+            bound = {
+              chatId: update.telegramChatId,
+              text: '欢迎使用 FoodFlow。外卖点餐入口暂时不可用，请稍后再试。'
+            };
+          }
+          return;
+        }
+
         if (update.action === 'delivery') {
           const store = await getAsync(
             'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1',
