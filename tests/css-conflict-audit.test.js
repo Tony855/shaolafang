@@ -516,3 +516,14 @@ test('administrator cash received field remains hidden until cash is selected', 
   const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
   assert.match(css, /\.settle-cash-field\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
 });
+
+
+test('cashier payment and refund controls wrap and stay within narrow screens', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
+  const marker = '2026-11-25 responsive audit: cashier payment and refund controls';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /#paymentModal \.payment-methods\s*\{[^}]*grid-template-columns:[^}]*min\(88px, 100%\)/s);
+  assert.match(rules, /#refundModal \.refund-select,[\s\S]*?min-width:\s*0;/);
+  assert.match(rules, /#refundModal \.payment-actions \.btn[\s\S]*?flex:\s*1 1 120px;/);
+  assert.match(rules, /@media \(max-width: 420px\)/);
+});
