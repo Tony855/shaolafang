@@ -1214,7 +1214,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
       webhookError = String(error.message || 'Telegram Webhook 同步失败').slice(0, 180);
     }
     let previousBotCleanupError = '';
-    if (previousClientToken && previousClientToken !== clientMenuToken) {
+    if (previousClientToken && previousClientToken !== clientMenuToken && menuButtonConfigured && webhookConfigured) {
       const cleanupErrors = [];
       try { await setTelegramWebhook({ token: previousClientToken, enabled: false }); }
       catch (error) { cleanupErrors.push(String(error.message || '旧 Client Bot Webhook 清理失败').slice(0, 140)); }
