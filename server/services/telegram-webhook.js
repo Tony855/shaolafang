@@ -26,8 +26,8 @@ function parseTelegramPrivateUpdate(update) {
   if (/^\/(?:start|help)(?:@[A-Za-z0-9_]+)?$/.test(command)) {
     return { action: 'home', updateId: update.update_id, telegramUserId: userId, telegramChatId: chatId };
   }
-  const deliveryMatch = command.match(/^\/start\s+delivery_([1-9]\d{0,9})$/);
-  if (deliveryMatch) return { action: 'delivery', updateId: update.update_id, storeId: Number(deliveryMatch[1]), telegramUserId: userId, telegramChatId: chatId };
+  const deliveryMatch = command.match(/^\/start\s+delivery_([1-9]\d{0,9})_([A-Za-z0-9_-]{43})$/);
+  if (deliveryMatch) return { action: 'delivery', updateId: update.update_id, storeId: Number(deliveryMatch[1]), entrySignature: deliveryMatch[2], telegramUserId: userId, telegramChatId: chatId };
   const match = command.match(/^\/start\s+((?!delivery_)[A-Za-z0-9_-]{20,64})$/);
   if (!match) return null;
   return { action: 'start', updateId: update.update_id, challenge: match[1], telegramUserId: userId, telegramChatId: chatId };
