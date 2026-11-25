@@ -551,3 +551,23 @@ test('mobile CSS fixes are served with refreshed cache-busting versions', () => 
   assert.ok(cashierHtml.includes('assets/khqr-shared.css?v=2026112502'));
   assert.ok(waiterHtml.includes('assets/khqr-shared.css?v=2026112502'));
 });
+
+test('delivery admin tables and action rows remain usable on narrow phones', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'admin-delivery.html'), 'utf8');
+  assert.match(html, /\.table-scroll\s*\{[^}]*overflow-x:\s*auto;[^}]*-webkit-overflow-scrolling:\s*touch;/s);
+  assert.match(html, /\.table-scroll table\s*\{\s*min-width:\s*480px;\s*\}/);
+  assert.match(html, /\.top>\.row\s*\{[^}]*flex-wrap:\s*wrap;/s);
+  assert.match(html, /className='table-scroll'/);
+  assert.match(html, /viewport-fit=cover/);
+});
+
+test('delivery rider and tracking pages respect mobile safe areas and compact heights', () => {
+  const rider = fs.readFileSync(path.join(__dirname, '..', 'delivery-rider.html'), 'utf8');
+  const tracking = fs.readFileSync(path.join(__dirname, '..', 'delivery-track.html'), 'utf8');
+  for (const edge of ['top', 'right', 'bottom', 'left']) {
+    assert.match(rider, new RegExp('safe-area-inset-' + edge));
+    assert.match(tracking, new RegExp('safe-area-inset-' + edge));
+  }
+  assert.match(rider, /@media\(max-width:380px\)/);
+  assert.match(tracking, /clamp\(220px,42dvh,360px\)/);
+});
