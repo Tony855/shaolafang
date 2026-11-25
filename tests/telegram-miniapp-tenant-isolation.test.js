@@ -16,7 +16,7 @@ function signedInitData() {
     ['user', JSON.stringify({ id: 10001, first_name: 'Customer' })]
   ]);
   const data = Array.from(params.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-    .map(([key, value]) => key + '=' + value).join('\\n');
+    .map(([key, value]) => key + '=' + value).join('\n');
   const secret = crypto.createHmac('sha256', 'WebAppData').update(token).digest();
   params.set('hash', crypto.createHmac('sha256', secret).update(data).digest('hex'));
   return new URLSearchParams(params).toString();
