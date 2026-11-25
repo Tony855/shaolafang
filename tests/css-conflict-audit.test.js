@@ -503,3 +503,16 @@ test('cashier payment and refund controls wrap and stay within narrow screens', 
   assert.match(rules, /#refundModal \.payment-actions \.btn[\s\S]*?flex:\s*1 1 120px;/);
   assert.match(rules, /@media \(max-width: 420px\)/);
 });
+
+
+test('shared KHQR modal content and action buttons remain contained on compact phones', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'khqr-shared.css'), 'utf8');
+  const cashierHtml = fs.readFileSync(path.join(__dirname, '..', 'cashier.html'), 'utf8');
+  const waiterHtml = fs.readFileSync(path.join(__dirname, '..', 'waiter.html'), 'utf8');
+  assert.ok(cashierHtml.includes('assets/khqr-shared.css'));
+  assert.ok(waiterHtml.includes('assets/khqr-shared.css'));
+  assert.match(css, /#khqrModal \.khqr-image-wrap\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(css, /#khqrModal \.khqr-payee-account\s*\{[^}]*overflow-wrap:\s*anywhere;/s);
+  assert.match(css, /@media \(max-width: 480px\)/);
+  assert.match(css, /#khqrModal \.payment-actions \.btn\s*\{[^}]*flex:\s*1 1 130px;/s);
+});
