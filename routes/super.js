@@ -1132,7 +1132,7 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
         const newToken = item.clearToken ? '' : (item.token ? item.token : oldToken);
         if (scope === 'client') {
           previousClientToken = oldToken;
-          clientMenuToken = newToken || oldToken;
+          clientMenuToken = newToken;
         }
         const newChatId = scope === 'client' ? (item.chatId === undefined ? String(existing.telegram_client_chat_id || '') : item.chatId) : '';
         if (item.enabled && (!newToken || (scope === 'client' && !newChatId))) {
@@ -1197,11 +1197,13 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
 
     try {
       if (clientMenuToken) {
-        if (next.client.enabled && !publicOrigin) throw new Error('FOODFLOW_PUBLIC_URL 必须配置为公网 HTTPS 地址');
+        if (!publicOrigin) throw new Error('FOODFLOW_PUBLIC_URL 必须配置为公网 HTTPS 地址');
+        // Keep the webhook active while outbound customer notices are disabled:
+        // /stop must remain available so customers can revoke consent at any time.
         await setTelegramWebhook({
           token: clientMenuToken,
-          enabled: next.client.enabled,
-          webhookUrl: next.client.enabled ? publicOrigin + '/api/telegram/client/webhook' : undefined,
+          enabled: true,
+          webhookUrl: publicOrigin + '/api/telegram/client/webhook',
           secretToken: String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '')
         });
         webhookConfigured = true;
