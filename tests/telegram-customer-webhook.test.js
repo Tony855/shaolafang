@@ -18,7 +18,7 @@ function response() {
 function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMessage = async () => ({ messageId: 1 }) } = {}) {
   const challenge = 'A'.repeat(43);
   const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
-  const state = { updates: new Set(), outboxSuppressions: [], recipient: { id: 8, merchant_id: 3, name: 'Test Store', chat_id: '-100888', is_enabled: 1 }, challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
+  const state = { updates: new Set(), outboxSuppressions: [], homeBinding: null, recipient: { id: 8, merchant_id: 3, name: 'Test Store', chat_id: '-100888', is_enabled: 1 }, challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
   const handler = createTelegramCustomerWebhookHandler({
     secret: 's'.repeat(40),
     getAsync: async (sql, params) => {
@@ -28,6 +28,7 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMess
       return null;
     },
     allAsync: async (sql, params) => {
+      if (sql.includes('JOIN telegram_store_admin_recipients')) return state.homeBinding ? [state.homeBinding] : [];
       if (sql.includes('telegram_customer_bindings') && sql.includes('telegram_chat_id=? AND telegram_user_id=?')) {
         return state.bindings.filter(x => x.telegram_chat_id === params[0] && String(x.telegram_user_id) === params[1] && x.is_active === 1);
       }
@@ -99,20 +100,69 @@ test('Telegram customer webhook consumes a one-time deep-link challenge and bind
   assert.equal(state.consumed, true);
 });
 
-test('plain /start explains that ordering must begin from a store-specific link', async () => {
+test('plain /start automatically resumes the most recently bound active store', async () => {
+  const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
+  const sent = [], menuCalls = [];
+  try {
+    const { state } = fixture();
+    state.homeBinding = { store_id: 8, chat_id: '-100888', name: 'Test Store' };
+    const menuHandler = createTelegramCustomerWebhookHandler({
+      secret: 's'.repeat(40),
+      getAsync: async () => null,
+      allAsync: async (sql, params) => {
+        assert.match(sql, /b\.telegram_chat_id=\? AND b\.telegram_user_id=\?/);
+        assert.match(sql, /ORDER BY b\.updated_at DESC, b\.id DESC LIMIT 1/);
+        assert.deepEqual(params, ['98765', '98765']);
+        return sql.includes('JOIN telegram_store_admin_recipients') ? [state.homeBinding] : [];
+      },
+      runAsync: async (sql, params) => { if (sql.includes('INSERT INTO telegram_webhook_updates')) state.updates.add(params[0]); return { affectedRows: 1 }; },
+      withTransaction: async fn => fn(),
+      getBotToken: async () => '123456:abcdefghijklmnopqrstuvwxyzABCDE',
+      sendMessage: async input => { sent.push(input); return { messageId: 3 }; },
+      setMenuButton: async input => { menuCalls.push(input); },
+      logger: { warn() {}, error() {} }
+    });
+    const res = response();
+    await menuHandler({
+      headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+      body: { update_id: 109, message: { text: '/start', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+    }, res);
+    const signature = createStoreEntrySignature({ storeId: 8, chatId: '-100888', secret: 's'.repeat(40) });
+    const expectedUrl = 'https://foodflow.example.test/delivery/order?store_id=8&entry=' + signature + '&telegram=1';
+    assert.equal(res.statusCode, 200);
+    assert.equal(state.updates.has(109), true);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].text, /自动为你打开最近绑定的门店/);
+    assert.equal(sent[0].replyMarkup.inline_keyboard[0][0].web_app.url, expectedUrl);
+    assert.deepEqual(menuCalls, [{ token: '123456:abcdefghijklmnopqrstuvwxyzABCDE', chatId: '98765', enabled: true, text: '🍽️ 本店点餐', webAppUrl: expectedUrl }]);
+  } finally {
+    if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
+  }
+});
+
+test('plain /start without an active store binding explains the one-time store link requirement', async () => {
+  const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
   const sent = [];
-  const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 3 }; } });
-  const res = response();
-  await handler({
-    headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
-    body: { update_id: 109, message: { text: '/start', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
-  }, res);
-  assert.equal(res.statusCode, 200);
-  assert.equal(state.updates.has(109), true);
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].chatId, '98765');
-  assert.match(sent[0].text, /门店管理员提供的专属 Telegram 点餐链接/);
-  assert.equal(sent[0].replyMarkup, undefined);
+  try {
+    const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 3 }; } });
+    state.homeBinding = null;
+    const res = response();
+    await handler({
+      headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+      body: { update_id: 110, message: { text: '/start', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(state.updates.has(110), true);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].text, /之后再次打开机器人，系统会自动进入你最近绑定的门店/);
+    assert.equal(sent[0].replyMarkup, undefined);
+  } finally {
+    if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
+  }
 });
 test('store-specific /start sets a private chat menu button and sends the matching Mini App button', async () => {
   const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
