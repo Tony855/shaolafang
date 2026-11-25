@@ -598,3 +598,12 @@ test('kitchen ticket item names wrap without forcing mobile card overflow', () =
   assert.match(css, /\.item-row \.name\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;/s);
   assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.item-row\s*\{\s*flex-wrap:\s*wrap;/);
 });
+
+test('menu display header wraps controls on narrow phone screens', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'menu-display.css'), 'utf8');
+  const marker = 'Keep the menu display header controls within very narrow phone viewports';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /@media \\(max-width: 480px\\)/);
+  assert.match(rules, /\.disp-header\\s*\\{[^}]*flex-wrap:\\s*wrap;/s);
+  assert.match(rules, /\.disp-header-right\\s*\\{[^}]*flex-wrap:\\s*wrap;/s);
+});
