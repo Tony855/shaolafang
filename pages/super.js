@@ -635,7 +635,7 @@ async function saveTelegramBotSettings() {
       body: JSON.stringify({ client: read('client'), admin: read('admin') })
     });
     await loadTelegramBotSettings();
-    const syncErrors = [result?.menu_button_error, result?.webhook_error].filter(Boolean);
+    const syncErrors = [result?.menu_button_error, result?.webhook_error, result?.previous_bot_cleanup_error].filter(Boolean);
     if (syncErrors.length) {
       SLF.ui.toast('Bot 配置已保存，但 Telegram 同步未完全成功：' + syncErrors.join('；'), 'error');
       return;
