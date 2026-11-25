@@ -1166,6 +1166,8 @@
   "refundReasonDish": "Dish issue",
   "refundReasonService": "Service issue",
   "refundReasonOther": "Other",
+  "selectPaymentMethod": "Please select a payment method",
+  "cashReceivedInsufficient": "Cash received must be at least the amount due",
   "payMethod": "Payment method",
   "superDashboard": "Dashboard",
   "superMerchants": "Merchants",
