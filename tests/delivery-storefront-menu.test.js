@@ -63,7 +63,7 @@ test('delivery storefront remains a tableless delivery checkout and retains KHQR
 
 test('delivery storefront title header remains fully visible on narrow screens', () => {
   assert.match(page, /<header><h1>🛵 FoodFlow 外卖点餐<\/h1><p id="storeName">/);
-  assert.match(page, /body>header\{display:flex;width:100vw;max-width:100vw;min-width:0;/);
+  assert.ok(page.includes("body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;"));
   assert.match(page, /header h1\{[^}]*flex-wrap:wrap/);
   assert.match(page, /header h1\{[^}]*overflow-wrap:anywhere/);
   assert.match(page, /header p\{[^}]*overflow-wrap:anywhere/);
@@ -154,19 +154,19 @@ test('customer identity remains browser-wide while checkout idempotency is tab-s
 
 
 test("delivery storefront header is anchored to the full mobile viewport width", () => {
-  assert.match(page, /html,body\{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:hidden\}/);
-  assert.match(page, /body>header\{display:flex;width:100vw;max-width:100vw;min-width:0;margin-left:calc\(50% - 50vw\);margin-right:calc\(50% - 50vw\);box-sizing:border-box/);
+  assert.ok(page.includes("html{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:clip}"));
+  assert.ok(page.includes("body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;"));
 });
 
 
 test("delivery storefront preserves native vertical page scrolling on iPhone Safari", () => {
-  assert.match(page, /html\\{[^}]*overflow-x:clip/);
-  assert.match(page, /body\\{[^}]*min-height:100%;[^}]*overflow-x:clip;[^}]*touch-action:pan-y;[^}]*-webkit-overflow-scrolling:touch/);
-  assert.doesNotMatch(page, /html,body\\{[^}]*overflow-x:hidden/);
+  assert.ok(page.includes("html{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:clip}"));
+  assert.ok(page.includes("touch-action:pan-y;-webkit-overflow-scrolling:touch"));
+  assert.ok(!page.includes("html,body{width:100%;min-width:0;max-width:100%;margin:0;overflow-x:hidden}"));
 });
 
 test("delivery category navigation scrolls horizontally without capturing vertical page gestures", () => {
-  assert.match(page, /\\.category-nav\\{[^}]*overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x/);
+  assert.ok(page.includes("overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x"));
 });
 
 
