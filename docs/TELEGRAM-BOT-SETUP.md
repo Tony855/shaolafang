@@ -1,20 +1,19 @@
 # Telegram Bot configuration
 
-FoodFlow supports two independent outgoing Telegram Bot profiles in the super-admin console:
+FoodFlow uses exactly two platform-wide Telegram Bots, both configured only by the super administrator:
 
-- **Client Bot**: a bot identity reserved for client/customer-facing Telegram integration.
-- **Admin Bot**: a separate bot identity and recipient for administrator-side Telegram messages.
+- **Client Bot**: one shared customer-facing Bot for every tenant. It handles customer binding, Mini App entry, ordering and customer notifications.
+- **Admin Bot**: one shared store-notification Bot for every tenant. It sends order, settlement and refund notices to the corresponding tenant/store group.
 
-Each profile has its own enabled flag, BotFather token, and recipient Chat ID. The profiles do not share credentials or recipients.
+Tenants never create Bots or enter Bot Tokens. Each tenant only binds its own store/group Chat IDs and notification preferences in its authenticated Admin settings. The Client Bot's optional Chat ID in the super-admin form is only a fixed test-message destination; it is not used for customer order details.
 
 ## Configure
 
 1. Open the super-admin console and go to **Global settings → Telegram Bot**.
 2. Create the required bot(s) with Telegram's **@BotFather** and copy each bot token.
-3. Start a conversation with the bot, or add it to the target group/channel with permission to send messages.
-4. Obtain the destination Chat ID (numeric user/group ID, or a public channel username such as `@foodflow_updates`).
-5. Enter the token and Chat ID for the appropriate profile, enable it, and save.
-6. Use **Send test message** for each profile to verify Telegram API connectivity and recipient permissions.
+3. Add the Admin Bot to each tenant's target store group and grant permission to send messages. Add the Client Bot only where customers will use it.
+4. Configure the two Bot Tokens in the matching Client Bot and Admin Bot sections of the super-admin page. The Client Bot Chat ID is only for its test message; the Admin Bot does not have a global business Chat ID.
+5. Enable the profiles and save. Use **Send test message** to verify each Bot. In each tenant's Admin settings, bind the Chat ID for each store and choose its order/settlement/refund event toggles.
 
 A blank token field preserves the previously saved token. Use the explicit **Clear saved token** option to remove it. The configuration API never returns the token in plaintext; the UI displays only a masked suffix.
 
@@ -23,7 +22,7 @@ A blank token field preserves the previously saved token. Use the explicit **Cle
 - Only authenticated super-admin endpoints can read or change these settings.
 - Tokens are stored in the application's settings database and are never included in API responses, audit text, or application error messages.
 - Test delivery sends a fixed FoodFlow verification message to the configured Chat ID. It does not accept arbitrary text or a caller-supplied Telegram API URL.
-- Disabling a profile stops delivery for that profile without deleting its saved token or Chat ID. Already queued notices for a globally disabled Bot are terminally suppressed as `event_disabled`; re-enabling the Bot does not release that backlog.
+- Disabling a profile stops outbound delivery without deleting its saved token or Chat ID. Already queued notices for a globally disabled Bot are terminally suppressed as `event_disabled`; re-enabling the Bot does not release that backlog. The shared Client Bot webhook remains registered while outbound notices are disabled so customers can still send `/stop` to revoke consent. Clearing or rotating the Client Bot Token removes the old Bot webhook.
 - Business notifications are delivered from a durable database outbox. Telegram network calls happen after the order/payment/refund transaction commits; retryable failures do not roll back business transactions.
 - The worker is disabled by default. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` only after staging end-to-end acceptance and explicit operator approval. Leave it unset or `false` during installation, testing, maintenance, and rollback. The worker uses one in-flight send at a time and stops before the database pool during graceful shutdown.
 - The Admin Bot token is global and is used only as the shared transport credential. The super-admin does not configure a business Chat ID or receive store business notifications; each store's separately configured Chat ID is the exclusive destination for that store's business messages.
@@ -36,19 +35,13 @@ Keep Bot tokens private. If a token is exposed, revoke it with @BotFather and re
 
 Customer notifications never use the Client Bot's shared configured Chat ID. Each customer must bind their current FoodFlow customer token to a private Telegram chat:
 
-1. Enable the Client Bot and save its BotFather token in **Global settings → Telegram Bot**. The Chat ID field is retained for the fixed test-message feature only.
-2. Generate a strong webhook secret (at least 32 characters), for example:
+1. Generate a strong webhook secret (at least 32 characters), for example:
    ```sh
    openssl rand -hex 32
    ```
-3. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` in the FoodFlow environment to that secret and restart the application.
-4. Register the webhook with Telegram. Set `FOODFLOW_PUBLIC_URL` to the public HTTPS origin and `CLIENT_BOT_TOKEN` to the Client Bot token in a protected shell environment:
-   ```sh
-   curl --fail --silent --show-error -X POST \
-     "https://api.telegram.org/bot${CLIENT_BOT_TOKEN}/setWebhook" \
-     --data-urlencode "url=${FOODFLOW_PUBLIC_URL}/api/telegram/client/webhook" \
-     --data-urlencode "secret_token=${TELEGRAM_CLIENT_WEBHOOK_SECRET}"
-   ```
+2. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` and `FOODFLOW_PUBLIC_URL` (public HTTPS origin) in the FoodFlow environment.
+3. Configure and enable the shared Client Bot Token in **Global settings → Telegram Bot**. Saving the configuration and application startup synchronize the Client Bot menu button and call Telegram `setWebhook` automatically. No tenant-specific Bot Token or webhook URL is required.
+4. If the webhook secret or HTTPS origin is missing/invalid, the super-admin page reports the synchronization error; correct the environment and resave/restart.
 5. The worker remains stopped by default. After staging end-to-end verification and explicit approval, set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` on the intended environment and restart the application. To pause delivery, unset the variable or set it to `false`.
 6. A customer scans a table QR code, taps the Telegram icon in the customer page header, and opens the generated private deep link. They must press **Start** in Telegram. Returning to FoodFlow refreshes the binding state. Customers can revoke immediately from the Telegram chat at any time by sending `/stop`; this revokes all active FoodFlow customer-notification bindings belonging to that exact Telegram private user/chat.
 

@@ -2,10 +2,25 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const registerRoutes = require('../routes/customer-delivery');
 
 const botToken = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 const customerToken = 'a'.repeat(64);
+
+function signedInitData(token = botToken) {
+  const authDate = String(Math.floor(Date.now() / 1000));
+  const values = new Map([
+    ['auth_date', authDate],
+    ['query_id', 'AAE-test-query'],
+    ['user', JSON.stringify({ id: 987654321, first_name: 'Test' })]
+  ]);
+  const data = Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+    .map(([key, value]) => key + '=' + value).join('\n');
+  const secret = crypto.createHmac('sha256', 'WebAppData').update(token).digest();
+  values.set('hash', crypto.createHmac('sha256', secret).update(data).digest('hex'));
+  return new URLSearchParams(Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)).toString();
+}
 
 function setup({ enabled = true, secret = 's'.repeat(40), bound = false } = {}) {
   const handlers = new Map();
@@ -19,6 +34,7 @@ function setup({ enabled = true, secret = 's'.repeat(40), bound = false } = {}) 
   const deps = {
     getAsync: async (sql, params = []) => {
       calls.push({ type: 'get', sql, params });
+      if (sql.includes('FROM telegram_tenant_client_bots')) return { bot_token: botToken };
       if (sql.includes('FROM stores s JOIN merchants')) return { id: 7, name: 'Test Store', merchant_id: 3 };
       if (sql.includes('FROM telegram_customer_bindings')) return bindingRows[0] || null;
       return null;
@@ -29,7 +45,7 @@ function setup({ enabled = true, secret = 's'.repeat(40), bound = false } = {}) 
         { key: 'telegram_client_bot_enabled', value: enabled ? '1' : '0' },
         { key: 'telegram_client_bot_token', value: botToken }
       ];
-      if (sql.includes('FROM stores s JOIN merchants')) return [{ id: 7, name: 'Test Store' }, { id: 9, name: 'Second Store' }];
+      if (sql.includes('FROM stores s JOIN merchants')) return [{ id: 7, merchant_id: 3, name: 'Test Store' }, { id: 9, merchant_id: 3, name: 'Second Store' }];
       if (sql.includes('FROM telegram_customer_bindings')) return bindingRows;
       return [];
     },
@@ -53,18 +69,18 @@ function response() {
   return { statusCode: 200, body: null, headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
 }
 
-function request({ query = {}, body = {}, token = customerToken } = {}) {
-  return { query, body, headers: {}, get(name) { return name.toLowerCase() === 'x-customer-token' ? token : ''; } };
+function request({ query = {}, body = {}, token = customerToken, initData = '' } = {}) {
+  return { query, body, headers: {}, get(name) { if (name.toLowerCase() === 'x-customer-token') return token; if (name.toLowerCase() === 'x-telegram-init-data') return initData; return ''; } };
 }
 
 test('Telegram Mini App store selector returns public active store IDs and names', async () => {
   const ctx = setup();
   const handler = ctx.handlers.get('GET /api/public/delivery/telegram-miniapp-stores');
   const res = response();
-  await handler(request(), res);
+  await handler(request({ initData: signedInitData() }), res);
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body, { stores: [{ id: 7, name: 'Test Store' }, { id: 9, name: 'Second Store' }] });
-  assert.match(res.headers['Cache-Control'], /max-age=60/);
+  assert.deepEqual(res.body, { stores: [{ id: 7, merchantId: 3, name: 'Test Store' }, { id: 9, merchantId: 3, name: 'Second Store' }] });
+  assert.match(res.headers['Cache-Control'], /no-store/);
 });
 
 test('delivery customer Telegram binding status is scoped to the store and hashed customer identity', async () => {

@@ -1277,7 +1277,7 @@
   "telegramAdminBot": "Telegram Bot អ្នកគ្រប់គ្រង",
   "telegramBotEnabled": "បើក Bot",
   "telegramBotToken": "Bot Token",
-  "telegramChatId": "Chat ID ទទួលសារ",
+  "telegramChatId": "Chat ID សម្រាប់សារសាកល្បង",
   "telegramClearToken": "លុប Token ដែលបានរក្សាទុក",
   "telegramTest": "ផ្ញើសារសាកល្បង",
   "telegramSave": "រក្សាទុកការកំណត់ Telegram",

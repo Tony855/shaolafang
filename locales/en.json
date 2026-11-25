@@ -1277,7 +1277,7 @@
   "telegramAdminBot": "Admin Telegram Bot",
   "telegramBotEnabled": "Enable Bot",
   "telegramBotToken": "Bot Token",
-  "telegramChatId": "Recipient Chat ID",
+  "telegramChatId": "Test message Chat ID",
   "telegramClearToken": "Clear saved token",
   "telegramTest": "Send test message",
   "telegramSave": "Save Telegram settings",
