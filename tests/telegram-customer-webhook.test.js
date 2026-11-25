@@ -125,7 +125,7 @@ test('store-specific /start sets a private chat menu button and sends the matchi
     const handler = createTelegramCustomerWebhookHandler({
       secret: 's'.repeat(40),
       getAsync: async (sql, params) => sql.includes('telegram_store_admin_recipients') && Number(params[0]) === 8 ? state.recipient : null,
-      allAsync: async () => [], runAsync: async () => ({ affectedRows: 1 }), withTransaction: async fn => fn(),
+      allAsync: async () => [], runAsync: async (sql, params) => { if (sql.includes('INSERT INTO telegram_webhook_updates')) state.updates.add(params[0]); return { affectedRows: 1 }; }, withTransaction: async fn => fn(),
       getBotToken: async () => '123456:abcdefghijklmnopqrstuvwxyzABCDE',
       sendMessage: async input => { sent.push(input); return { messageId: 2 }; },
       setMenuButton: async input => { menuCalls.push(input); }, logger: { warn() {}, error() {} }
