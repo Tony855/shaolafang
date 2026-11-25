@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { validateBotToken, validateChatId, sendTelegramTestMessage, sendTelegramMessage, getTelegramBotUsername } = require('../server/services/telegram-bot');
+const { validateBotToken, validateChatId, sendTelegramTestMessage, sendTelegramMessage, getTelegramBotUsername, setTelegramMenuButton } = require('../server/services/telegram-bot');
 
 const token = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 const validPayload = { ok: true, result: { message_id: 17, chat: { id: -100123 } } };
@@ -47,6 +47,43 @@ test('sends a store Mini App inline keyboard as Telegram reply markup', async ()
   });
   assert.deepEqual(payload.reply_markup, replyMarkup);
 });
+test('sets the default customer Bot menu button to the Telegram Mini App', async () => {
+  let request;
+  await setTelegramMenuButton({
+    token, webAppUrl: 'https://foodflow.example.test/telegram-delivery.html',
+    fetchImpl: async (url, options) => {
+      request = { url, body: JSON.parse(options.body) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
+    }
+  });
+  assert.equal(request.url, 'https://api.telegram.org/bot' + token + '/setChatMenuButton');
+  assert.deepEqual(request.body, { menu_button: {
+    type: 'web_app', text: '🍽️ 外卖点餐',
+    web_app: { url: 'https://foodflow.example.test/telegram-delivery.html' }
+  } });
+});
+
+test('resets the default Bot menu button when the Client Bot is disabled', async () => {
+  let body;
+  await setTelegramMenuButton({
+    token, enabled: false,
+    fetchImpl: async (_url, options) => {
+      body = JSON.parse(options.body);
+      return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
+    }
+  });
+  assert.deepEqual(body, { menu_button: { type: 'commands' } });
+});
+
+test('rejects non-HTTPS Mini App menu URLs before calling Telegram', async () => {
+  let called = false;
+  await assert.rejects(() => setTelegramMenuButton({
+    token, webAppUrl: 'http://foodflow.example.test/telegram-delivery.html',
+    fetchImpl: async () => { called = true; }
+  }), /HTTPS/);
+  assert.equal(called, false);
+});
+
 test('rejects invalid credentials before making a network request', async () => {
   let called = false;
   await assert.rejects(
