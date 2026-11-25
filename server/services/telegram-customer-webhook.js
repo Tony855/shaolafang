@@ -104,7 +104,7 @@ function createTelegramCustomerWebhookHandler({
             'SELECT r.chat_id, r.is_enabled, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 LIMIT 1',
             [update.storeId]
           );
-          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\\/+$/, '');
+          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
           let publicOrigin = '';
           try {
             const parsed = new URL(publicUrl);
