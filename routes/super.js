@@ -1057,7 +1057,7 @@ app.get('/api/super/merchants/:id/available-methods', requireSuperAdmin, async (
 });
 
 
-const { sendTelegramTestMessage, validateBotToken, validateChatId, setTelegramMenuButton } = require('../server/services/telegram-bot');
+const { sendTelegramTestMessage, validateBotToken, validateChatId, setTelegramMenuButton, setTelegramWebhook } = require('../server/services/telegram-bot');
 const TELEGRAM_SCOPES = ['client', 'admin'];
 const TELEGRAM_SETTING_KEYS = [
   'telegram_client_bot_enabled', 'telegram_client_bot_token', 'telegram_client_chat_id',
@@ -1167,31 +1167,56 @@ app.put('/api/super/telegram/config', requireSuperAdmin, async (req, res) => {
     });
     let menuButtonConfigured = false;
     let menuButtonError = '';
+    let webhookConfigured = false;
+    let webhookError = '';
+    const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim();
+    let publicOrigin = '';
     try {
-      const clientToken = clientMenuToken;
-      const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim();
-      let publicOrigin = '';
-      try {
-        const parsed = new URL(publicUrl);
-        if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
-      } catch (_) {}
-      if (clientToken && publicOrigin) {
+      const parsed = new URL(publicUrl);
+      if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
+    } catch (_) {}
+
+    try {
+      if (clientMenuToken && publicOrigin) {
         await setTelegramMenuButton({
-          token: clientToken,
+          token: clientMenuToken,
           enabled: next.client.enabled,
           webAppUrl: next.client.enabled ? publicOrigin + '/telegram/delivery' : undefined
         });
         menuButtonConfigured = true;
       } else if (next.client.enabled) {
-        menuButtonError = clientToken ? 'FOODFLOW_PUBLIC_URL 必须配置为公网 HTTPS 地址' : '未配置 Client Bot Token';
-      } else if (clientToken) {
+        menuButtonError = clientMenuToken ? 'FOODFLOW_PUBLIC_URL 必须配置为公网 HTTPS 地址' : '未配置 Client Bot Token';
+      } else if (clientMenuToken) {
         menuButtonError = '未配置公网 HTTPS 地址，无法同步重置 Bot 菜单按钮';
       }
     } catch (error) {
       menuButtonError = String(error.message || 'Telegram 菜单按钮同步失败').slice(0, 180);
     }
+
+    try {
+      if (clientMenuToken) {
+        if (next.client.enabled && !publicOrigin) throw new Error('FOODFLOW_PUBLIC_URL 必须配置为公网 HTTPS 地址');
+        await setTelegramWebhook({
+          token: clientMenuToken,
+          enabled: next.client.enabled,
+          webhookUrl: next.client.enabled ? publicOrigin + '/api/telegram/client/webhook' : undefined,
+          secretToken: String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '')
+        });
+        webhookConfigured = true;
+      } else if (next.client.enabled) {
+        webhookError = '未配置 Client Bot Token';
+      }
+    } catch (error) {
+      webhookError = String(error.message || 'Telegram Webhook 同步失败').slice(0, 180);
+    }
     res.setHeader('Cache-Control', 'no-store, private');
-    res.json({ success: true, menu_button_configured: menuButtonConfigured, menu_button_error: menuButtonError });
+    res.json({
+      success: true,
+      menu_button_configured: menuButtonConfigured,
+      menu_button_error: menuButtonError,
+      webhook_configured: webhookConfigured,
+      webhook_error: webhookError
+    });
   } catch (error) {
     res.status(error.statusCode || 500).json({
       error: error.statusCode === 400 ? error.message : 'Telegram Bot 配置保存失败'
