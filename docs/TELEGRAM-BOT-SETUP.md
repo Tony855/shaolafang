@@ -113,7 +113,9 @@ Telegram does not provide a general idempotency key for `sendMessage`; therefore
 
 ## Customer Mini App entry points
 
-- The shared Client Bot exposes the ordering Mini App in two in-chat places: the default private-chat menu button and a welcome inline button sent after a customer presses `/start`.
-- The welcome button opens `/telegram/delivery`, which is the platform-wide store selector. Store-specific delivery links continue to open the selected store's ordering page.
+- The shared Client Bot exposes a platform-wide fallback menu button that only explains how to obtain a store-specific link; it never lists or selects stores.
+- A customer must first open the signed store-specific deep link supplied by the store administrator. After the webhook verifies the current store Chat ID binding, it sets a chat-scoped private menu button for that Telegram customer chat, pointing to the same signed store URL. The accompanying inline button opens the same URL immediately.
+- A plain `/start` or `/help` has no store context and therefore returns instructions to use the store administrator's dedicated link; it does not expose a public Mini App selector or an unbound ordering button.
+- If the store Chat ID changes or is cleared, the signed URL retained in the customer's menu button becomes invalid. The customer must obtain and open the latest dedicated link to refresh the private menu button.
 - The Bot API menu button and webhook require `FOODFLOW_PUBLIC_URL` to be a public HTTPS origin and `TELEGRAM_CLIENT_WEBHOOK_SECRET` to be 32–256 characters from `[A-Za-z0-9_-]`.
 - Telegram's separate profile-page **Open App** button is the Main Mini App feature and must be configured once for the shared Client Bot in `@BotFather → Bot Settings → Configure Mini App`. The Bot API `setChatMenuButton` does not configure this profile button.
