@@ -15,7 +15,7 @@ function signedInitData(overrides = {}) {
     ['user', JSON.stringify({ id: 987654321, first_name: 'Test' })],
     ...Object.entries(overrides)
   ]);
-  const data = Array.from(values.entries()).sort(([a], [b]) => a.localeCompare(b))
+  const data = Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
     .map(([key, value]) => key + '=' + value).join('\n');
   const secret = crypto.createHmac('sha256', 'WebAppData').update(token).digest();
   values.set('hash', crypto.createHmac('sha256', secret).update(data).digest('hex'));
@@ -34,7 +34,7 @@ test('initData signed by a different tenant bot token is rejected', () => {
 
 test('initData rejects tampering, duplicate security fields, and malformed users', () => {
   const valid = signedInitData();
-  assert.equal(verifyTelegramWebAppInitData(valid.replace('first_name%22%3A%22Test', 'first_name%22%3A%22Evil'), token, { nowSeconds: now }), null);
+  assert.equal(verifyTelegramWebAppInitData(valid.replace('AAE-test-query', 'AAE-evil-query'), token, { nowSeconds: now }), null);
   assert.equal(verifyTelegramWebAppInitData(valid + '&hash=' + '0'.repeat(64), token, { nowSeconds: now }), null);
   assert.equal(verifyTelegramWebAppInitData(signedInitData({ user: JSON.stringify({ id: 0 }) }), token, { nowSeconds: now }), null);
 });
