@@ -298,6 +298,7 @@ html, body {
 
 
 /* 2026-11-25 responsive audit: kitchen tickets flexibly fit small screens. */
+.item-row .name { min-width: 0; overflow-wrap: anywhere; }
 .ticket-grid { grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); }
 .ticket, .ticket-head, .ticket-items, .item-row { min-width: 0; }
 .ticket-head { flex-wrap: wrap; }
