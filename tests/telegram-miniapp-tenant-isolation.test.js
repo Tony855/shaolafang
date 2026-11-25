@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const registerCustomerDeliveryRoutes = require('../routes/customer-delivery');
+const { verifyTelegramWebAppInitData } = require('../server/services/telegram-webapp-auth');
 
 const token = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
 const now = Math.floor(Date.now() / 1000);
@@ -82,10 +83,12 @@ test('shared Client Bot Mini App requires signed Telegram initData', async () =>
 });
 
 test('shared Client Bot Mini App verifies with the single super-admin configured token', async () => {
+  const initData = signedInitData();
+  assert.ok(verifyTelegramWebAppInitData(initData, token), 'test fixture must contain valid shared-Bot initData');
   const { handler, calls } = setup();
   const res = response();
-  await handler(request(signedInitData()), res);
-  assert.equal(res.statusCode, 200);
+  await handler(request(initData), res);
+  assert.equal(res.statusCode, 200, JSON.stringify({ body: res.body, calls }));
   assert.deepEqual(res.body.stores.map(store => [store.id, store.merchantId]), [[11, 7], [12, 8]]);
   assert.match(calls[0][0], /telegram_client_bot_enabled/);
   assert.deepEqual(calls[0][1], ['telegram_client_bot_enabled', 'telegram_client_bot_token']);
