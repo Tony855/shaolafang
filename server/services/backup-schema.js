@@ -52,7 +52,6 @@ const LEGACY_OPTIONAL_BACKUP_TABLES = Object.freeze([
   'telegram_customer_bindings',
   'telegram_webhook_updates',
   'telegram_store_admin_recipients',
-  'telegram_tenant_client_bots',
   ...FINANCIAL_BACKUP_TABLES
 ]);
 
