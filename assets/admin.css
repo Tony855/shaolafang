@@ -3596,3 +3596,7 @@ button.edit-btn:disabled {
     overflow-wrap: anywhere;
   }
 }
+
+
+/* Preserve the native hidden state against the grid display rule above. */
+.settle-cash-field[hidden] { display: none !important; }
