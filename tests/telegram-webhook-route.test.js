@@ -104,55 +104,8 @@ test('Telegram webhook refuses expired or already consumed binding challenges', 
   }
 });
 
-test('tenant webhook resolves the Bot by opaque path and checks its per-Bot secret', async () => {
-  const { tenantHandler, calls } = setup();
-  const tenantSecret = 'tenant-secret-'.padEnd(40, 'x');
-  const oldGetAsync = null;
-  assert.equal(typeof tenantHandler, 'function');
-  // Replace the route fixture's tenant lookup with a real tenant row by
-  // wrapping the registered handler's dependencies in a separate registration.
-  const tenantCalls = [];
-  let route;
-  registerTelegramWebhook({ post(path, fn) { if (path.includes(':pathToken')) route = fn; } }, {
-    ...{
-      getAsync: async (sql, params) => {
-        tenantCalls.push([sql, params]);
-        if (sql.includes('telegram_tenant_client_bots')) return {
-          merchant_id: 7, bot_token: token, webhook_secret: tenantSecret
-        };
-        if (sql.includes('telegram_customer_binding_challenges')) return null;
-        return null;
-      },
-      allAsync: async () => [],
-      runAsync: async () => ({ affectedRows: 1 }),
-      withTransaction: async fn => fn()
-    }
-  });
-  const res = response();
-  await route({
-    params: { pathToken: 'a'.repeat(43) },
-    headers: { 'x-telegram-bot-api-secret-token': tenantSecret },
-    get(name) { return this.headers[name.toLowerCase()]; },
-    body: { update_id: 901, message: { text: '/start AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', chat: { id: 1, type: 'private' }, from: { id: 1 } } }
-  }, res);
-  assert.equal(res.code, 200);
-  assert.equal(tenantCalls[0][1][0], 'a'.repeat(43));
-  assert.match(tenantCalls[0][0], /webhook_path_token=\?/);
-});
-
-test('tenant webhook rejects a wrong secret before invoking customer handler', async () => {
-  let route;
-  const lookups = [];
-  registerTelegramWebhook({ post(path, fn) { if (path.includes(':pathToken')) route = fn; } }, {
-    getAsync: async (sql, params) => {
-      lookups.push(params);
-      return { merchant_id: 7, bot_token: token, webhook_secret: 'z'.repeat(40) };
-    },
-    allAsync: async () => [], runAsync: async () => ({ affectedRows: 1 }),
-    withTransaction: async fn => fn()
-  });
-  const res = response();
-  await route({ params: { pathToken: 'b'.repeat(43) }, headers: { 'x-telegram-bot-api-secret-token': 'wrong' }, body: {} }, res);
-  assert.equal(res.code, 403);
-  assert.deepEqual(lookups, [['b'.repeat(43)]]);
+test('only one platform-wide Client Bot webhook endpoint is registered', () => {
+  const { handler, tenantHandler } = setup();
+  assert.equal(typeof handler, 'function');
+  assert.equal(tenantHandler, undefined);
 });
