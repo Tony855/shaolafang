@@ -1174,16 +1174,8 @@ const LANGUAGES = {
     "refundReasonService": "服务问题",
     "refundReasonOther": "其他",
     "selectPaymentMethod": "请选择收款方式",
-  "cashReceivedInsufficient": "现金实收金额不能少于应收金额",
-  "selectPaymentMethod": "Please select a payment method",
-  "cashReceivedInsufficient": "Cash received must be at least the amount due",
-  "selectPaymentMethod": "Vui lòng chọn phương thức thanh toán",
-  "cashReceivedInsufficient": "Tiền mặt nhận được phải ít nhất bằng số tiền cần thu",
-  "selectPaymentMethod": "โปรดเลือกวิธีรับชำระเงิน",
-  "cashReceivedInsufficient": "จำนวนเงินสดที่ได้รับต้องไม่น้อยกว่ายอดที่ต้องชำระ",
-  "selectPaymentMethod": "សូមជ្រើសរើសវិធីទទួលប្រាក់",
-  "cashReceivedInsufficient": "ចំនួនសាច់ប្រាក់ដែលទទួលបានត្រូវតែយ៉ាងហោចណាស់ស្មើនឹងចំនួនត្រូវបង់",
-  "payMethod": "支付方式",
+    "cashReceivedInsufficient": "现金实收金额不能少于应收金额",
+    "payMethod": "支付方式",
     "superDashboard": "仪表盘",
     "superMerchants": "商户管理",
     "superStores": "门店总览",
@@ -2877,7 +2869,9 @@ const LANGUAGES = {
     "orderDeliveryFieldsRequired": "Please enter recipient, phone number, and delivery address",
     "orderDeliveryCreatedWaitingRider": "Delivery order created. Delivery task is awaiting rider assignment.",
     "orderTrackingCopied": "Tracking link copied",
-    "orderTrackingCopyManual": "Press and hold to copy: "
+    "orderTrackingCopyManual": "Press and hold to copy: ",
+    "selectPaymentMethod": "Please select a payment method",
+    "cashReceivedInsufficient": "Cash received must be at least the amount due"
   },
   "vi": {
     "code": "Mã",
@@ -4309,7 +4303,9 @@ const LANGUAGES = {
     "orderDeliveryFieldsRequired": "Vui lòng nhập người nhận, số điện thoại và địa chỉ giao hàng",
     "orderDeliveryCreatedWaitingRider": "Đã tạo đơn giao hàng. Đơn đang chờ phân công tài xế.",
     "orderTrackingCopied": "Đã sao chép liên kết theo dõi",
-    "orderTrackingCopyManual": "Nhấn giữ để sao chép: "
+    "orderTrackingCopyManual": "Nhấn giữ để sao chép: ",
+    "selectPaymentMethod": "Vui lòng chọn phương thức thanh toán",
+    "cashReceivedInsufficient": "Tiền mặt nhận được phải ít nhất bằng số tiền cần thu"
   },
   "th": {
     "code": "รหัส",
@@ -5741,7 +5737,9 @@ const LANGUAGES = {
     "orderDeliveryFieldsRequired": "กรุณากรอกชื่อผู้รับ เบอร์โทร และที่อยู่จัดส่ง",
     "orderDeliveryCreatedWaitingRider": "สร้างคำสั่งซื้อจัดส่งแล้ว กำลังรอจัดสรรผู้ส่ง",
     "orderTrackingCopied": "คัดลอกลิงก์ติดตามแล้ว",
-    "orderTrackingCopyManual": "กดค้างเพื่อคัดลอก: "
+    "orderTrackingCopyManual": "กดค้างเพื่อคัดลอก: ",
+    "selectPaymentMethod": "โปรดเลือกวิธีรับชำระเงิน",
+    "cashReceivedInsufficient": "จำนวนเงินสดที่ได้รับต้องไม่น้อยกว่ายอดที่ต้องชำระ"
   },
   "km": {
     "code": "កូដ",
@@ -7173,7 +7171,9 @@ const LANGUAGES = {
     "orderDeliveryFieldsRequired": "សូមបំពេញឈ្មោះអ្នកទទួល លេខទូរស័ព្ទ និងអាសយដ្ឋានដឹកជញ្ជូន",
     "orderDeliveryCreatedWaitingRider": "បានបង្កើតការបញ្ជាទិញដឹកជញ្ជូន។ កំពុងរង់ចាំការចាត់តាំងអ្នកដឹកជញ្ជូន។",
     "orderTrackingCopied": "បានចម្លងតំណតាមដាន",
-    "orderTrackingCopyManual": "សូមចុចឱ្យជាប់ដើម្បីចម្លង៖ "
+    "orderTrackingCopyManual": "សូមចុចឱ្យជាប់ដើម្បីចម្លង៖ ",
+    "selectPaymentMethod": "សូមជ្រើសរើសវិធីទទួលប្រាក់",
+    "cashReceivedInsufficient": "ចំនួនសាច់ប្រាក់ដែលទទួលបានត្រូវតែយ៉ាងហោចណាស់ស្មើនឹងចំនួនត្រូវបង់"
   }
 };
 
