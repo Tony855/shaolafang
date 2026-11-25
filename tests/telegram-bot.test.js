@@ -63,6 +63,23 @@ test('sets the default customer Bot menu button to the Telegram Mini App', async
   } });
 });
 
+test('sets a store-specific Mini App menu button only for the target private chat', async () => {
+  let request;
+  await setTelegramMenuButton({
+    token, chatId: '98765', text: '🍽️ 本店点餐',
+    webAppUrl: 'https://foodflow.example.test/delivery/order?store_id=8&entry=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&telegram=1',
+    fetchImpl: async (url, options) => {
+      request = { url, body: JSON.parse(options.body) };
+      return { ok: true, status: 200, json: async () => ({ ok: true, result: true }) };
+    }
+  });
+  assert.equal(request.url, 'https://api.telegram.org/bot' + token + '/setChatMenuButton');
+  assert.deepEqual(request.body, {
+    chat_id: '98765',
+    menu_button: { type: 'web_app', text: '🍽️ 本店点餐', web_app: { url: 'https://foodflow.example.test/delivery/order?store_id=8&entry=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&telegram=1' } }
+  });
+});
+
 test('resets the default Bot menu button when the Client Bot is disabled', async () => {
   let body;
   await setTelegramMenuButton({
