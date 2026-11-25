@@ -571,3 +571,11 @@ test('delivery rider and tracking pages respect mobile safe areas and compact he
   assert.match(rider, /@media\(max-width:380px\)/);
   assert.match(tracking, /clamp\(220px,42dvh,360px\)/);
 });
+
+test('delivery checkout cart labels wrap safely and respect the bottom safe area', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'delivery-order.html'), 'utf8');
+  assert.match(html, /padding-bottom:\s*max\(30px,env\(safe-area-inset-bottom,0px\)\)/);
+  assert.match(html, /\.cart-line>span:first-child\s*\{[^}]*overflow-wrap:\s*anywhere;/s);
+  assert.match(html, /\.cart-line strong\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
+  assert.match(html, /@media\(max-width:390px\)[\s\S]*\.cart-line strong\{max-width:48%\}/);
+});
