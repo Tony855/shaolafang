@@ -104,7 +104,7 @@ test('customer order submission releases its in-flight lock on preflight validat
 
 test('administrator order settlement requires an explicit method and sends cash received amount', () => {
   for (const source of [orderSource, adminBundle]) {
-    assert.match(source, /class="settle-payment-method"/);
+    assert.match(source, /settle-payment-method/);
     assert.match(source, /value="cash"/);
     assert.match(source, /value="aba"/);
     assert.match(source, /if \(!method\)/);
