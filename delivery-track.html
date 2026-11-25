@@ -8,7 +8,7 @@
 *{box-sizing:border-box}body{margin:0;background:#f3f5f8;color:#182230;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 main{max-width:760px;margin:auto;padding:18px}.card{background:white;border-radius:16px;padding:18px;margin:12px 0;box-shadow:0 3px 14px #1522380d}
 h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-size:18px;font-weight:700;color:#177245;margin:12px 0}
-#map{height:360px;border-radius:14px;overflow:hidden;background:#e8edf2}.line{margin:7px 0;font-size:14px}
+#map{height:clamp(220px,42dvh,360px);height:clamp(220px,42vh,360px);border-radius:14px;overflow:hidden;background:#e8edf2}@supports(height:100dvh){#map{height:clamp(220px,42dvh,360px)}}@media(max-width:480px){main{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}.card{padding:14px}h1{font-size:20px}}.line{margin:7px 0;font-size:14px}
 </style></head><body><main>
 <h1>📍 配送实时位置</h1><div class="muted">仅显示当前订单配送信息</div>
 <section class="card"><div class="status" id="status">正在读取配送信息…</div><div class="line" id="orderSummary"></div><div class="line" id="rider"></div><div class="line" id="phone"></div><div class="line" id="address"></div><div class="muted" id="updated"></div></section>
