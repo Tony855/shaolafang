@@ -576,9 +576,7 @@
                 <div class="settings-card" id="telegramStoreNotificationCard">
                     <h3 class="settings-card-title">📨 Telegram 门店业务通知</h3>
                     <p class="ff-desc-tight">使用超级管理员配置的管理员 Bot；当前门店单独接收通知，不会把其他门店的订单发到此 Chat。</p>
-                    <div class="settings-row">
-                        <label class="store-switch-label"><span>启用当前门店 Telegram 通知</span><label class="store-switch"><input type="checkbox" id="telegramStoreNotifyEnabled"><span class="store-switch-slider"></span></label></label>
-                    </div>
+                    <p class="ff-desc-tight">填写并保存 Chat ID 即自动绑定当前门店；清空 Chat ID 并保存即可解除绑定。不同门店及租户的通知目标相互隔离。</p>
                     <div class="form-group">
                         <label for="telegramStoreNotifyChatId">Telegram 群组 / 私聊 Chat ID</label>
                         <input id="telegramStoreNotifyChatId" type="text" maxlength="64" autocomplete="off" placeholder="例如 -1001234567890">
