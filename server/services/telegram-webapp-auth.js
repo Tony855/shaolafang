@@ -26,7 +26,8 @@ function verifyTelegramWebAppInitData(initData, botToken, {
   let params;
   try { params = new URLSearchParams(initData); } catch (_) { return null; }
   const entries = Array.from(params.entries());
-  if (params.getAll('hash').length !== 1 || params.getAll('auth_date').length !== 1 ||
+  const keys = entries.map(([key]) => key);
+  if (new Set(keys).size !== keys.length || params.getAll('hash').length !== 1 || params.getAll('auth_date').length !== 1 ||
       params.getAll('user').length !== 1 || entries.length < 3) return null;
   const suppliedHash = params.get('hash');
   const authDateRaw = params.get('auth_date');
