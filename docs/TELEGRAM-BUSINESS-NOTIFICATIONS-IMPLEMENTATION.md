@@ -55,8 +55,8 @@ Backups include the outbox, customer-binding records, webhook update IDs, and st
 
 ## Operational enablement checklist
 
-1. Configure and enable the global Admin Bot in Super Admin settings. Store-level Admin notifications use this Bot token.
-2. In each store's Admin settings, enter the destination Chat ID, choose the event toggles, and enable that store's notifications. Add the Bot to the target Telegram group and grant it permission to send messages.
+1. Configure and enable the global Admin Bot in Super Admin settings. Store-level Admin notifications use this platform Bot token, while each destination Chat ID and event policy is isolated by the authenticated merchant/store pair.
+2. In each tenant's Admin settings, select the target store and save its destination Chat ID. Saving a valid Chat ID automatically binds/enables that store; clearing the Chat ID unbinds it. Event toggles remain store-specific. Add the Bot to the target Telegram group and grant it permission to send messages.
 3. Configure and enable the global Client Bot in Super Admin settings if customer notifications are required.
 4. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` and register the Client Bot webhook to the public endpoint described above.
 5. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` in the application environment, restart the application, and verify worker startup in logs.
