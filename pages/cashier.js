@@ -833,7 +833,8 @@ let enabledPaymentMethods = { cash: true, wechat: false, alipay: false, card: fa
             } catch (e) {}
           }
 
-          // KHQR amount shows only the selected payment currency.\n          document.getElementById('khqrAmount').style.cssText =
+          // KHQR amount shows only the selected payment currency.
+          document.getElementById('khqrAmount').style.cssText =
             'display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;width:100%;text-align:center;line-height:1.35;';
           document.getElementById('khqrAmount').innerHTML =
             '' +
