@@ -14,7 +14,7 @@ function response() {
   };
 }
 
-function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE' } = {}) {
+function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMessage = async () => ({ messageId: 1 }) } = {}) {
   const challenge = 'A'.repeat(43);
   const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
   const state = { updates: new Set(), outboxSuppressions: [], challenge: { id: 1, customer_token_hash: 'f'.repeat(64), merchant_id: 3, store_id: 8, expires_at: new Date(Date.now() + 60000), consumed_at: null }, bindings: [], consumed: false };
@@ -70,7 +70,7 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE' } = {}) {
     },
     withTransaction: async work => work(),
     getBotToken: async () => botToken,
-    sendMessage: async () => ({ messageId: 1 }),
+    sendMessage,
     logger: { warn() {}, error() {} }
   });
   return { handler, challenge, state };
@@ -95,6 +95,28 @@ test('Telegram customer webhook consumes a one-time deep-link challenge and bind
   assert.equal(state.bindings.length, 1);
   assert.equal(state.bindings[0].store_id, 8);
   assert.equal(state.consumed, true);
+});
+
+test('Telegram customer webhook replies to store delivery start with a Mini App web_app button', async () => {
+  const previousUrl = process.env.FOODFLOW_PUBLIC_URL;
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test/';
+  const sent = [];
+  try {
+    const { handler, state } = fixture({ sendMessage: async input => { sent.push(input); return { messageId: 2 }; } });
+    const res = response();
+    await handler({
+      headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
+      body: { update_id: 108, message: { text: '/start delivery_8', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(state.updates.has(108), true);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].chatId, '98765');
+    assert.equal(sent[0].replyMarkup.inline_keyboard[0][0].web_app.url, 'https://foodflow.example.test/delivery-order.html?store_id=8&telegram=1');
+  } finally {
+    if (previousUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = previousUrl;
+  }
 });
 
 test('Telegram customer webhook ignores duplicate update IDs and group chats', async () => {
