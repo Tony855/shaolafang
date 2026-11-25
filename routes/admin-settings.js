@@ -292,7 +292,7 @@ module.exports = function(app, deps) {
       );
       const bot = await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
       let storeEntryLink = null;
-      try { storeEntryLink = await getStoreEntryLink(storeId, String(row?.chat_id || '')); } catch (_) {}
+      try { storeEntryLink = await getStoreEntryLink(storeId, Number(row?.is_enabled) === 1 ? String(row?.chat_id || '') : ''); } catch (_) {}
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({
         enabled: Boolean(row && Number(row.is_enabled) === 1 && validateChatId(String(row.chat_id || ''))),
