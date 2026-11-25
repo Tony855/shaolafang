@@ -276,7 +276,7 @@ module.exports = function(app, deps) {
       const bot = await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({
-        enabled: validateChatId(String(row?.chat_id || '')),
+        enabled: Boolean(row && Number(row.is_enabled) === 1 && validateChatId(String(row.chat_id || ''))),
         chatId: String(row?.chat_id || ''),
         notifyOrderCreated: row ? Number(row.notify_order_created) === 1 : true,
         notifySettled: row ? Number(row.notify_settled) === 1 : true,
