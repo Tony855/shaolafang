@@ -463,3 +463,14 @@ test('admin order action buttons shrink and wrap without viewport overflow on mo
   assert.match(rules, /#orders \.order-item-admin\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/s);
   assert.match(rules, /#orders \.order-item-admin \.bottom \.actions button\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;/s);
 });
+
+
+test('waiter table grid, bill rows, and header fit compact phone widths', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'waiter.css'), 'utf8');
+  const marker = '2026-11-25 responsive audit: waiter table cards';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /@media \(max-width: 480px\)/);
+  assert.match(rules, /\.table-grid\s*\{[^}]*min\(260px, 100%\)/s);
+  assert.match(rules, /\.bill-items \.line\s*\{[^}]*minmax\(0, 1fr\)/s);
+  assert.match(rules, /header\s*\{[^}]*flex-wrap:\s*wrap;/s);
+});
