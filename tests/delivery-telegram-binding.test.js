@@ -117,3 +117,20 @@ test('delivery customer Telegram unbind dead-letters queued notices before revok
   const revoke = ctx.calls.find(call => call.type === 'run' && call.sql.includes('UPDATE telegram_customer_bindings'));
   assert.ok(revoke);
 });
+
+test('delivery storefront exposes a store-scoped Telegram Bot Mini App deep link', async () => {
+  const ctx = setup();
+  const previousFetch = global.fetch;
+  global.fetch = async url => ({
+    ok: true,
+    json: async () => ({ ok: true, result: { username: 'FoodFlowClientBot' } })
+  });
+  try {
+    const res = response();
+    await ctx.handlers.get('GET /api/public/delivery/telegram-miniapp-link')(request({ query: { store_id: '7' } }), res);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, { deepLink: 'https://t.me/FoodFlowClientBot?start=delivery_7', storeId: 7 });
+  } finally {
+    global.fetch = previousFetch;
+  }
+});

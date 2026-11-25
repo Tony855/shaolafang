@@ -25,6 +25,14 @@ test('Telegram binding accepts only private /start messages with bounded payload
 });
 
 
+test('Telegram delivery deep links accept only bounded positive store IDs', () => {
+  const update = { update_id: 125, message: { text: '/start delivery_42', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } };
+  assert.deepEqual(parseTelegramPrivateUpdate(update), { action: 'delivery', updateId: 125, storeId: 42, telegramUserId: '98765', telegramChatId: '98765' });
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, text: '/start delivery_0' } }), null);
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, text: '/start delivery_12345678901' } }), null);
+  assert.equal(parseTelegramPrivateUpdate({ ...update, message: { ...update.message, chat: { id: -100, type: 'group' } } }), null);
+});
+
 test('Telegram binding accepts /stop only from a real private user chat', () => {
   const update = { update_id: 124, message: { text: '/stop', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } };
   assert.deepEqual(parseTelegramPrivateUpdate(update), { action: 'stop', updateId: 124, telegramUserId: '98765', telegramChatId: '98765' });

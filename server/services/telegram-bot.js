@@ -11,7 +11,7 @@ function validateChatId(chatId) {
     ( /^-?\d{1,20}$/.test(chatId) || /^@[A-Za-z0-9_]{5,32}$/.test(chatId) );
 }
 
-async function sendTelegramMessage({ token, chatId, text, fetchImpl = globalThis.fetch }) {
+async function sendTelegramMessage({ token, chatId, text, replyMarkup, fetchImpl = globalThis.fetch }) {
   if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
   if (!validateChatId(chatId)) throw new Error('Telegram Chat ID 格式无效');
   if (typeof text !== 'string' || !text.trim() || text.length > 4096) {
@@ -24,7 +24,7 @@ async function sendTelegramMessage({ token, chatId, text, fetchImpl = globalThis
     response = await fetchImpl(`${TELEGRAM_API}/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
       signal: AbortSignal.timeout(10000)
     });
   } catch (_) {

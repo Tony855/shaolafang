@@ -60,6 +60,18 @@ Binding details:
 - Customer notification recipients are resolved by binding ID plus exact merchant/store IDs. Inactive, revoked, missing, or cross-store bindings fail closed.
 - The existing shared Client Bot Chat ID is never used for per-customer order details.
 
+## Customer delivery Mini App
+
+The Client Bot can open the existing FoodFlow delivery storefront as a Telegram Mini App for a specific store.
+
+1. Configure and enable the Client Bot as described above, register its webhook, and set `FOODFLOW_PUBLIC_URL` to the public HTTPS origin.
+2. In @BotFather, configure the Web App domain with `/setdomain` and the same FoodFlow hostname used by `FOODFLOW_PUBLIC_URL`.
+3. Open a store's public delivery storefront and tap **在 Telegram 中打开点餐**. FoodFlow creates a store-scoped Bot deep link (`/start delivery_<store_id>`).
+4. The customer starts the Client Bot and receives an **打开外卖点餐** Web App button. Telegram opens the existing `delivery-order.html?store_id=...` page inside its Mini App webview.
+5. Menu, cart, delivery checkout, cash/KHQR payment, and tracking continue to use the existing FoodFlow APIs and order records. Customers may separately bind their Telegram private chat from the storefront to receive private order notifications.
+
+The Mini App launch parameter selects only an active store; it is not an authentication credential. Order totals and item availability are revalidated by the server. Customer order authorization continues to use the existing high-entropy customer token. Telegram `initData` is not used as an authorization substitute. The Mini App currently opens one store per deep link; a cross-store directory and Telegram-native account/order history are not part of this integration.
+
 ## Delivery and limitations
 
 - Current event hooks include order creation, admin/cashier settlement, actual KHQR/manual payment confirmation, and successful refunds. A waiter request to confirm KHQR is not treated as a successful payment.

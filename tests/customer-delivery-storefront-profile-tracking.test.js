@@ -36,3 +36,11 @@ test('tracking history only renders numeric order IDs with a 64-character custom
   assert.match(html, /records\.slice\(0,10\)/);
   assert.match(html, /link\.rel='noopener'/);
 });
+
+test('delivery storefront initializes the Telegram Mini App SDK and offers a Bot launch entry', () => {
+  assert.match(html, /telegram\.org\/js\/telegram-web-app\.js/);
+  assert.match(html, /id="telegramMiniAppButton"/);
+  assert.match(html, /window\.Telegram&&window\.Telegram\.WebApp/);
+  assert.match(html, /telegramApp\.ready\(\);telegramApp\.expand\(\)/);
+  assert.match(html, /api\/public\/delivery\/telegram-miniapp-link/);
+});
