@@ -99,13 +99,15 @@ test('store Telegram settings PUT saves only the current tenant and audits no ch
   assert.equal(JSON.stringify(audit.params).includes('ABCDEFGHIJKLMNOPQRSTUVWXYZ'), false);
 });
 
-test('store Telegram settings cannot be enabled without the global admin Bot', async () => {
-  const { routes } = setup({ globalBotEnabled: '0' });
+test('store Chat ID binding can be saved before the platform Bot is activated', async () => {
+  const { routes, calls } = setup({ globalBotEnabled: '0' });
   const res = response();
   await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
     merchantId: 7, storeId: 9, body: { chatId: '-100123' }
   }, res);
-  assert.equal(res.statusCode, 409);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.enabled, true);
+  assert.ok(calls.some(call => call.type === 'run' && call.sql.includes('INSERT INTO telegram_store_admin_recipients')));
 });
 
 test('store Telegram settings reject malformed Chat IDs before writes', async () => {
