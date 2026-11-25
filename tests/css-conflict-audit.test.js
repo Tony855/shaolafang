@@ -551,3 +551,11 @@ test('mobile CSS fixes are served with refreshed cache-busting versions', () => 
   assert.ok(cashierHtml.includes('assets/khqr-shared.css?v=2026112502'));
   assert.ok(waiterHtml.includes('assets/khqr-shared.css?v=2026112502'));
 });
+
+test('delivery checkout cart labels wrap safely and respect the bottom safe area', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'delivery-order.html'), 'utf8');
+  assert.match(html, /padding-bottom:\s*max\(30px,env\(safe-area-inset-bottom,0px\)\)/);
+  assert.match(html, /\.cart-line>span:first-child\s*\{[^}]*overflow-wrap:\s*anywhere;/s);
+  assert.match(html, /\.cart-line strong\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
+  assert.match(html, /@media\(max-width:390px\)[\s\S]*\.cart-line strong\{max-width:48%\}/);
+});
