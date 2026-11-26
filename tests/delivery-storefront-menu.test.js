@@ -193,3 +193,72 @@ test('Telegram Mini App store loading has bounded network waits and a visible re
   assert.match(page, /retry\.hidden=false/);
   assert.match(page, /addEventListener\('click',loadStorefront\)/);
 });
+
+
+test('Telegram Mini App timeout remains active while the response JSON body is being read', () => {
+  assert.ok(page.includes('const readJson=response.json.bind(response)'));
+  assert.ok(page.includes('response.json=async(...args)=>{try{return await readJson(...args);}finally{clearTimer();}}'));
+  assert.ok(page.includes('catch(error){clearTimer();throw error;}'));
+});
+
+test('Telegram Mini App invalid store ids use the visible load failure and retry state', () => {
+  assert.match(page, /if\(!\/\^\\d\+\$\/\.test\(storeId\)\|\|Number\(storeId\)<=0\)\{throw new Error\(/);
+  assert.match(page, /async function loadStorefront\(\)[\s\S]*?catch\(error\)[\s\S]*?retry\.hidden=false/);
+  assert.doesNotMatch(page, /if\(!\/\^\\d\+\$\/\.test\(storeId\)\|\|Number\(storeId\)<=0\)\{[^}]*return;/);
+});
+
+test('Telegram Mini App timeout aborts a stalled response JSON body', async () => {
+  let timeoutCallback, timerCleared = false, capturedSignal;
+  const fakeFetch = async (_url, options) => {
+    capturedSignal = options.signal;
+    return {
+      json: () => new Promise((resolve, reject) => {
+        capturedSignal.addEventListener('abort', () => {
+          const error = new Error('aborted');
+          error.name = 'AbortError';
+          reject(error);
+        }, { once: true });
+      })
+    };
+  };
+  const fn = vm.runInNewContext(page.slice(page.indexOf('async function fetchWithTimeout(url,options={})'), page.indexOf('function getCustomerIdentityToken()')) + '\nfetchWithTimeout;', {
+    fetch: fakeFetch,
+    AbortController,
+    setTimeout(callback, ms) { assert.equal(ms, 12000); timeoutCallback = callback; return 1; },
+    clearTimeout() { timerCleared = true; }
+  });
+  const response = await fn('/slow-body');
+  assert.equal(timerCleared, false, 'timeout must not clear when headers arrive');
+  const bodyPromise = response.json();
+  timeoutCallback();
+  assert.equal(capturedSignal.aborted, true, 'timeout must abort the body stream');
+  await assert.rejects(bodyPromise, { name: 'AbortError' });
+  assert.equal(timerCleared, true, 'timer cleanup must run after body rejection');
+});
+
+test('Telegram Mini App timeout clears after successful response JSON consumption', async () => {
+  let timerCleared = false;
+  const fakeFetch = async () => ({ json: async () => ({ ok: true }) });
+  const fn = vm.runInNewContext(page.slice(page.indexOf('async function fetchWithTimeout(url,options={})'), page.indexOf('function getCustomerIdentityToken()')) + '\nfetchWithTimeout;', {
+    fetch: fakeFetch,
+    AbortController,
+    setTimeout(_callback, ms) { assert.equal(ms, 12000); return 1; },
+    clearTimeout() { timerCleared = true; }
+  });
+  const response = await fn('/success');
+  assert.equal(timerCleared, false);
+  assert.deepEqual(await response.json(), { ok: true });
+  assert.equal(timerCleared, true);
+});
+
+test('Telegram Mini App timeout clears when the network fetch rejects', async () => {
+  let timerCleared = false;
+  const fn = vm.runInNewContext(page.slice(page.indexOf('async function fetchWithTimeout(url,options={})'), page.indexOf('function getCustomerIdentityToken()')) + '\nfetchWithTimeout;', {
+    fetch: async () => { throw new Error('network failure'); },
+    AbortController,
+    setTimeout(_callback, ms) { assert.equal(ms, 12000); return 1; },
+    clearTimeout() { timerCleared = true; }
+  });
+  await assert.rejects(fn('/network-error'), /network failure/);
+  assert.equal(timerCleared, true);
+});
