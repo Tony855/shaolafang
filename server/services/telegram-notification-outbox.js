@@ -33,13 +33,44 @@ async function claimTelegramNotifications({ workerId = randomUUID(), limit = 10,
   });
 }
 
-async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60) {
+async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, recipientContext = null) {
   if (!Number.isInteger(leaseSeconds) || leaseSeconds < 15 || leaseSeconds > 600) throw new TypeError('租约时长无效');
-  const result = await runAsync(
-    "UPDATE telegram_notification_outbox SET state='sending', locked_until=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? SECOND), updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state='processing' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)",
-    [leaseSeconds, positiveId(id, '通知任务编号'), workerId]
-  );
-  return Number(result.affectedRows) === 1;
+  const taskId = positiveId(id, '通知任务编号');
+  return withTransaction(async () => {
+    if (recipientContext?.scope === 'customer') {
+      const key = typeof recipientContext.key === 'string' ? recipientContext.key : '';
+      const bindingMatch = key.match(/^binding:([1-9]\d{0,18})$/);
+      const merchantId = Number(recipientContext.merchantId);
+      const storeId = Number(recipientContext.storeId);
+      const bindingId = bindingMatch ? Number(bindingMatch[1]) : 0;
+      if (!Number.isSafeInteger(bindingId) || bindingId <= 0 ||
+          !Number.isSafeInteger(merchantId) || merchantId <= 0 ||
+          !Number.isSafeInteger(storeId) || storeId <= 0) {
+        return false;
+      }
+
+      // Match /stop, page-revoke and enqueue lock order: binding first, then
+      // outbox. This makes the irreversible sending transition serialize with
+      // consent revocation instead of relying on an earlier recipient lookup.
+      const bindings = await allAsync(
+        'SELECT id FROM telegram_customer_bindings WHERE id=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL FOR UPDATE',
+        [bindingId, merchantId, storeId]
+      );
+      if (!Array.isArray(bindings) || !bindings.length) {
+        await runAsync(
+          "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state='processing' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)",
+          [taskId, workerId]
+        );
+        return false;
+      }
+    }
+
+    const result = await runAsync(
+      "UPDATE telegram_notification_outbox SET state='sending', locked_until=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? SECOND), updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state='processing' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)",
+      [leaseSeconds, taskId, workerId]
+    );
+    return Number(result.affectedRows) === 1;
+  });
 }
 
 async function markTelegramNotificationUncertain(id, workerId, errorCode = 'delivery_uncertain') {
