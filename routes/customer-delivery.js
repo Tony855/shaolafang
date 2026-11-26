@@ -407,7 +407,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           merchantId: store.merchant_id,
           storeId,
           eventKey: `order:${orderId}:created:store`,
-          event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, tableName: '', fulfillmentType: 'delivery', recipientName, recipientPhone, deliveryAddress, amount: total, currency: 'USD', note }
+          event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, items, tableName: '', fulfillmentType: 'delivery', recipientName, recipientPhone, deliveryAddress, amount: total, currency: 'USD', note }
         });
         await enqueueCustomerTelegramNotification({
           allAsync,
@@ -415,7 +415,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           merchantId: store.merchant_id,
           storeId,
           eventKey: `order:${orderId}:created:customer`,
-          event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, tableName: '', fulfillmentType: 'delivery', recipientName, amount: total, currency: 'USD' },
+          event: { type: 'order.created', storeName: store.name || `Store ${storeId}`, orderNo, items, tableName: '', fulfillmentType: 'delivery', recipientName, amount: total, currency: 'USD' },
           enqueue: deps.enqueueTelegramNotification
         });
         await runAsync(
