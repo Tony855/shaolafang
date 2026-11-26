@@ -315,7 +315,7 @@ npm --version
 
 ### 6.2 安装并准备数据库
 
-安装并启动受支持的 MariaDB LTS，然后创建独立数据库用户。自动安装器在 Debian 12/13、Ubuntu 22.04/24.04 上使用 MariaDB 官方 APT 仓库安装 12.3 LTS；Ubuntu 26.04 使用发行版仓库提供的 11.8 LTS（MariaDB 官方 APT 仓库目前尚未列出 Ubuntu 26.04）。手动安装时，请按 MariaDB 官方仓库说明配置对应系统和版本，再执行 `sudo apt-get install mariadb-server` 与 `sudo systemctl enable --now mariadb`。
+安装并启动受支持的 MariaDB LTS，然后创建独立数据库用户。自动安装器在 Debian 12/13、Ubuntu 24.04 上使用 MariaDB 官方 APT 仓库安装 12.3 LTS；Ubuntu 26.04 使用发行版仓库提供的 11.8 LTS（MariaDB 官方 APT 仓库目前尚未列出 Ubuntu 26.04）。手动安装时，请按 MariaDB 官方仓库说明配置对应系统和版本，再执行 `sudo apt-get install mariadb-server` 与 `sudo systemctl enable --now mariadb`。
 
 ```sql
 CREATE DATABASE foodflow_system
