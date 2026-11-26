@@ -12,7 +12,7 @@ const page = fs.readFileSync(path.join(__dirname, '..', 'delivery-order.html'), 
 test('delivery storefront loads the complete store-scoped category and active menu datasets', () => {
   assert.match(page, /\/api\/public\/categories\?store_id=/);
   assert.match(page, /\/api\/menu\?store_id=/);
-  assert.match(page, /categories=Array\.isArray\(payloads\[3\]\)\?payloads\[3\]:\[\]/);
+  assert.match(page, /categories=responses\[3\]\.networkError\?\[\]:\(Array\.isArray\(payloads\[3\]\)\?payloads\[3\]:\[\]\)/);
   assert.match(page, /for\(const item of menu\).*categories\.push/s);
   assert.match(page, /currentCategory==='__ALL__'/);
   assert.match(page, /显示 '\+filtered\.length\+' \/ '\+menu\.length\+' 道菜品/);
@@ -63,7 +63,8 @@ test('delivery storefront remains a tableless delivery checkout and retains KHQR
 });
 
 test('delivery storefront title header remains fully visible on narrow screens', () => {
-  assert.match(page, /<header><h1>🛵 FoodFlow 外卖点餐<\/h1><p id="storeName">/);
+  assert.match(page, /<header><h1>🛵 FoodFlow 外卖点餐<\/h1><p id="storeName" role="status" aria-live="polite">/);
+  assert.match(page, /id="retryStoreLoad"/);
   assert.ok(page.includes("body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;"));
   assert.match(page, /header h1\{[^}]*flex-wrap:wrap/);
   assert.match(page, /header h1\{[^}]*overflow-wrap:anywhere/);
