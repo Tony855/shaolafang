@@ -221,7 +221,7 @@ test('Telegram Mini App timeout aborts a stalled response JSON body', async () =
       })
     };
   };
-  const fn = vm.runInNewContext(page.slice(page.indexOf('async function fetchWithTimeout(url,options={})'), page.indexOf('function getCustomerIdentityToken()')) + '\\nfetchWithTimeout;', {
+  const fn = vm.runInNewContext(page.slice(page.indexOf('async function fetchWithTimeout(url,options={})'), page.indexOf('function getCustomerIdentityToken()')) + '\nfetchWithTimeout;', {
     fetch: fakeFetch,
     AbortController,
     setTimeout(callback, ms) { assert.equal(ms, 12000); timeoutCallback = callback; return 1; },
@@ -239,7 +239,7 @@ test('Telegram Mini App timeout aborts a stalled response JSON body', async () =
 test('Telegram Mini App timeout clears after successful response JSON consumption', async () => {
   let timerCleared = false;
   const fakeFetch = async () => ({ json: async () => ({ ok: true }) });
-  const fn = vm.runInNewContext(page.slice(page.indexOf('async function fetchWithTimeout(url,options={})'), page.indexOf('function getCustomerIdentityToken()')) + '\\nfetchWithTimeout;', {
+  const fn = vm.runInNewContext(page.slice(page.indexOf('async function fetchWithTimeout(url,options={})'), page.indexOf('function getCustomerIdentityToken()')) + '\nfetchWithTimeout;', {
     fetch: fakeFetch,
     AbortController,
     setTimeout(_callback, ms) { assert.equal(ms, 12000); return 1; },
@@ -253,7 +253,7 @@ test('Telegram Mini App timeout clears after successful response JSON consumptio
 
 test('Telegram Mini App timeout clears when the network fetch rejects', async () => {
   let timerCleared = false;
-  const fn = vm.runInNewContext(page.slice(page.indexOf('async function fetchWithTimeout(url,options={})'), page.indexOf('function getCustomerIdentityToken()')) + '\\nfetchWithTimeout;', {
+  const fn = vm.runInNewContext(page.slice(page.indexOf('async function fetchWithTimeout(url,options={})'), page.indexOf('function getCustomerIdentityToken()')) + '\nfetchWithTimeout;', {
     fetch: async () => { throw new Error('network failure'); },
     AbortController,
     setTimeout(_callback, ms) { assert.equal(ms, 12000); return 1; },
