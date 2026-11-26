@@ -66,5 +66,6 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
  }
  if(!customerToken){$('status').textContent='顾客会话已失效，请返回下单页面重新进入。';}
  else refresh().catch(e=>$('status').textContent=e.message);
+ setInterval(()=>{if(customerToken&&(!socket||!socket.connected))refresh().catch(error=>{$('status').textContent=error.message||'配送信息暂时无法更新';});},15000);
 })();
 </script></body></html>
