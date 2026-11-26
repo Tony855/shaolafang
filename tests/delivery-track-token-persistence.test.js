@@ -25,3 +25,11 @@ test('delivery tracking rejects malformed customer credentials before making an 
   assert.match(track, /const isCustomerToken=value=>typeof value==='string'&&\/\^\[a-f0-9\]\{64\}\$\//);
   assert.match(track, /storedTokens\.find\(isCustomerToken\)\|\|''/);
 });
+
+
+test('delivery tracking bounds API response and JSON body reads with a timeout', () => {
+  assert.ok(track.includes('const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000)'));
+  assert.ok(track.includes('response.json=async(...args)=>{try{return await readJson(...args);}finally{clearTimer();}}'));
+  assert.ok(track.includes("fetchWithTimeout('/api/public/delivery/'+encodeURIComponent(orderId)"));
+  assert.ok(track.includes('catch(error){clearTimer();throw error;}'));
+});
