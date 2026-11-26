@@ -15,7 +15,7 @@
   "close": "关闭",
   "back": "返回",
   "search": "搜索",
-  "loading": "读取中…",
+  "loading": "加载中...",
   "success": "成功",
   "all": "全部",
   "hotSelling": "热销",
@@ -194,7 +194,7 @@
   "passwordChanged": "密码已更新",
   "newOrderArrived": "新订单来了",
   "enabled": "启用",
-  "disabled": "停用",
+  "disabled": "禁用",
   "kitchenDisplay": "后厨订单显示",
   "noPendingOrders": "暂无待处理订单",
   "noCustomerOrder": "暂无顾客下单",
@@ -1470,5 +1470,11 @@
   "deliveryTaskAssigned": "配送任务已分配",
   "requestFailed": "请求失败",
   "customerDeliveryLinkCopied": "顾客外卖链接已复制：",
-  "copyDeliveryLinkPrompt": "请复制顾客外卖链接"
+  "copyDeliveryLinkPrompt": "请复制顾客外卖链接",
+  "deliveryContactPhone": "联系电话",
+  "deliveryOrderLabel": "订单",
+  "deliveryLoading": "读取中…",
+  "deliveryEnabled": "启用",
+  "deliveryDisabled": "停用",
+  "deliveryUnknown": "未知"
 }
