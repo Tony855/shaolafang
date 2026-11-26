@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const registerCustomerDeliveryRoutes = require('../routes/customer-delivery');
-const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { createStoreEntrySignature, verifyStoreEntrySignature } = require('../server/services/telegram-store-entry');
 
 const token = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
 const secret = 's'.repeat(40);
@@ -22,7 +22,7 @@ function signedInitData() {
   return new URLSearchParams(Array.from(params.entries()).sort(([a], [b]) => a < b ? -1 : 1)).toString();
 }
 
-function setup({ recipient = { id: 11, merchant_id: 7, name: 'Tenant A store', chat_id: '-100111' }, enabled = true, logger = { error() {}, warn() {} }, failSettings = false } = {}) {
+function setup({ recipient = { id: 11, merchant_id: 7, name: 'Tenant A store', chat_id: '-100111' }, binding = null, enabled = true, logger = { error() {}, warn() {} }, failSettings = false } = {}) {
   const handlers = new Map(), calls = [];
   const app = { get(path, handler) { handlers.set('GET ' + path, handler); }, post() {}, delete() {} };
   registerCustomerDeliveryRoutes(app, {
@@ -40,6 +40,7 @@ function setup({ recipient = { id: 11, merchant_id: 7, name: 'Tenant A store', c
         { key: 'telegram_client_bot_token', value: token }
         ];
       }
+      if (sql.includes('FROM telegram_customer_bindings')) return binding ? [binding] : [];
       return [];
     },
     runAsync: async () => ({ affectedRows: 1 }), withTransaction: async fn => fn(),
@@ -165,4 +166,31 @@ test('Telegram Mini App logs when the signed store binding is missing or no long
   ]);
   assert.equal(JSON.stringify(entries).includes('-100111'), false);
   assert.equal(JSON.stringify(entries).includes(signature), false);
+});
+
+
+test('global Telegram Mini App menu resolves the authenticated user latest active bound store', async () => {
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = secret;
+  const binding = { id: 11, store_id: 11, merchant_id: 7, name: 'Tenant A store', chat_id: '-100111' };
+  const { handler, calls } = setup({ binding });
+  const res = response();
+  await handler({ query: {}, headers: {}, get(name) { return name.toLowerCase() === 'x-telegram-init-data' ? signedInitData() : ''; } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.stores.length, 1);
+  assert.equal(res.body.stores[0].id, 11);
+  assert.equal(res.body.stores[0].merchantId, 7);
+  assert.equal(verifyStoreEntrySignature({ storeId: 11, chatId: '-100111', secret, signature: res.body.stores[0].entry }), true);
+  const lookup = calls.find(call => call.sql.includes('FROM telegram_customer_bindings'));
+  assert.deepEqual(lookup.params, ['10001']);
+  assert.match(lookup.sql, /b\\.merchant_id/);
+  assert.match(lookup.sql, /b\\.revoked_at IS NULL/);
+});
+
+test('global Telegram Mini App menu fails with a clear onboarding message when user has no active store binding', async () => {
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = secret;
+  const { handler } = setup();
+  const res = response();
+  await handler({ query: {}, headers: {}, get(name) { return name.toLowerCase() === 'x-telegram-init-data' ? signedInitData() : ''; } }, res);
+  assert.equal(res.statusCode, 404);
+  assert.match(res.body.error, /先点击门店管理员提供的专属点餐链接/);
 });
