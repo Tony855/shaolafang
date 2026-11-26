@@ -193,3 +193,16 @@ test('Telegram Mini App store loading has bounded network waits and a visible re
   assert.match(page, /retry\.hidden=false/);
   assert.match(page, /addEventListener\('click',loadStorefront\)/);
 });
+
+
+test('Telegram Mini App timeout remains active while the response JSON body is being read', () => {
+  assert.match(page, /const readJson=response\\.json\\.bind\\(response\\)/);
+  assert.match(page, /response\\.json=async\\(\\.\\.\\.args\\)=>\\{try\\{return await readJson\\(\\.\\.\\.args\\);\\}finally\\{clearTimer\\(\\);\\}\\}/);
+  assert.match(page, /catch\\(error\\)\\{clearTimer\\(\\);throw error;\\}/);
+});
+
+test('Telegram Mini App invalid store ids use the visible load failure and retry state', () => {
+  assert.match(page, /if\\(!\\/\\^\\\\d\\+\\$\\/\\.test\\(storeId\\)\\|\\|Number\\(storeId\\)<=0\\)\\{throw new Error\\(/);
+  assert.match(page, /async function loadStorefront\\(\\)[\\s\\S]*?catch\\(error\\)[\\s\\S]*?retry\\.hidden=false/);
+  assert.doesNotMatch(page, /if\\(!\\/\\^\\\\d\\+\\$\\/\\.test\\(storeId\\)\\|\\|Number\\(storeId\\)<=0\\)\\{[^}]*return;/);
+});
