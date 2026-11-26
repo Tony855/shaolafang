@@ -40,12 +40,14 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
   customerToken=storedTokens.find(isCustomerToken)||'';
  }
 
- const $=id=>document.getElementById(id);let map=null,marker=null,socket=null;
+ const $=id=>document.getElementById(id);let map=null,marker=null,socket=null,lastLocationAt=0;
+ const clearLocation=message=>{if(marker&&map){map.removeLayer(marker);marker=null;}lastLocationAt=0;$('updated').textContent=message||'骑手定位超过 2 分钟未更新，暂不显示旧位置';};
  const labels={pending_assignment:'等待门店分配骑手',assigned:'门店已分配骑手',accepted:'骑手已接单',picked_up:'骑手已取货',delivering:'骑手配送中',delivered:'订单已送达',cancelled:'配送已取消'};
- function updateLocation(data){if(!Number.isFinite(Number(data.latitude))||!Number.isFinite(Number(data.longitude)))return;
+ function updateLocation(data){if(!Number.isFinite(Number(data.latitude))||!Number.isFinite(Number(data.longitude))){clearLocation();return;}
+  const timestamp=Date.parse(data.updatedAt||data.location_updated_at||'');if(!Number.isFinite(timestamp)||Date.now()-timestamp>120000||timestamp<lastLocationAt){clearLocation();return;}lastLocationAt=timestamp;
   const point=[Number(data.latitude),Number(data.longitude)];if(!map){map=L.map('map').setView(point,16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);}
   if(!marker)marker=L.marker(point).addTo(map).bindPopup('骑手当前位置');else marker.setLatLng(point);map.panTo(point);
-  $('updated').textContent='最后更新：'+(data.updatedAt||data.location_updated_at||'—');
+  $('updated').textContent='最后更新：'+new Date(timestamp).toLocaleString();
  }
  function updateStatus(status){$('status').textContent=labels[status]||status;if(status==='delivered'||status==='cancelled')$('map').style.display='none';}
  async function fetchWithTimeout(url,options={}){
@@ -61,7 +63,7 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
  }
  async function refresh(){const response=await fetchWithTimeout('/api/public/delivery/'+encodeURIComponent(orderId),{headers:{'X-Customer-Token':customerToken,'Cache-Control':'no-store'}});const data=await response.json();if(!response.ok)throw new Error(data.error||'无法读取配送信息');
   const j=data.job,o=data.order||{};updateStatus(j.status);$('orderSummary').textContent='订单：'+(o.order_no||o.id||orderId)+' · '+(o.status==='refunded'?'已退款':o.status==='canceled'?'订单已取消':o.status==='done'?'已收款':Number(o.awaiting_confirm)?'门店核实收款中':o.pay_method==='khqr'?'等待 KHQR 付款':'送达付款 · 待结算')+' · '+Number(o.total||0).toFixed(2)+' USD';$('rider').textContent='骑手：'+(j.rider_name||'待分配');$('phone').textContent='联系电话：'+(j.rider_phone||j.recipient_phone||'—');$('address').textContent='配送地址：'+(j.delivery_address||'—');
-  if(j.latitude!==null&&j.longitude!==null)updateLocation({latitude:Number(j.latitude),longitude:Number(j.longitude),updatedAt:j.location_updated_at});
+  if(j.latitude!==null&&j.longitude!==null&&j.location_updated_at)updateLocation({latitude:Number(j.latitude),longitude:Number(j.longitude),updatedAt:j.location_updated_at});else clearLocation('骑手尚未提供有效定位，或定位已超过 2 分钟');
   if(!socket&&window.io){socket=io({auth:{deliveryOrderId:Number(orderId),deliveryCustomerToken:customerToken}});socket.on('connect',()=>refresh().catch(()=>{}));socket.on('delivery:location',updateLocation);socket.on('delivery:status',e=>updateStatus(e.status));socket.on('connect_error',()=>{});}
  }
  if(!customerToken){$('status').textContent='顾客会话已失效，请返回下单页面重新进入。';}
