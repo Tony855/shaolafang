@@ -202,7 +202,7 @@ test('Telegram Mini App timeout remains active while the response JSON body is b
 });
 
 test('Telegram Mini App invalid store ids use the visible load failure and retry state', () => {
-  assert.match(page, /if\\(!\\/\\^\\\\d\\+\\$\\/\\.test\\(storeId\\)\\|\\|Number\\(storeId\\)<=0\\)\\{throw new Error\\(/);
+  assert.match(page, /if\(!\/\^\d\+\$\/\.test\(storeId\)\|\|Number\(storeId\)<=0\)\{throw new Error\(/);
   assert.match(page, /async function loadStorefront\\(\\)[\\s\\S]*?catch\\(error\\)[\\s\\S]*?retry\\.hidden=false/);
-  assert.doesNotMatch(page, /if\\(!\\/\\^\\\\d\\+\\$\\/\\.test\\(storeId\\)\\|\\|Number\\(storeId\\)<=0\\)\\{[^}]*return;/);
+  assert.doesNotMatch(page, /if\(!\/\^\d\+\$\/\.test\(storeId\)\|\|Number\(storeId\)<=0\)\{[^}]*return;/);
 });
