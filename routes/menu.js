@@ -1,5 +1,6 @@
 const { normalizeRouteError } = require('../server/utils/http-error');
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 /* ============================================================
    routes/menu.js — 菜品 + 分类
    ============================================================ */
@@ -13,7 +14,7 @@ const { hashPassword, verifyPassword } = require("../server/middleware/password"
 const { compressImage } = require("../server/services/image-compress");
 
 module.exports = function(app, deps) {
-  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction } = deps;
+  const { getAsync, runAsync, allAsync, requireAdminKey, requirePermission, requireAdminOrWaiter, getWaiterFromRequest, formatOrder, normalizeOrderItems, assertTableExists, syncTableStatus, ensureOrderTables, io, getClientIp, logAudit, upload, UPLOAD_DIR, path, allocateOrderNo, getOrderCooldownMs, createTableToken, buildReceipt, buildKitchenTicket, printToNetworkPrinter, dispatchPrint, verifyPassword, authenticateAdmin, checkAndSetCooldown, withTransaction, logger = console } = deps;
 
   function normalizeMenuFlag(value, field) {
     if ([true, 1, '1'].includes(value)) return 1;
@@ -77,6 +78,7 @@ module.exports = function(app, deps) {
   }
 
 app.get('/api/menu', async (req, res) => {
+  let storeId = null;
   try {
     const rawStoreId = req.query.store_id === undefined ? '1' : req.query.store_id;
     const storeId = parsePositiveRouteId(rawStoreId);
@@ -85,8 +87,8 @@ app.get('/api/menu', async (req, res) => {
     if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
     const rows = await allAsync('SELECT * FROM menus WHERE active = 1 AND store_id = ? ORDER BY id', [storeId]);
     res.json(rows);
-  } catch (_) {
-    console.error('[public/menu] request failed');
+  } catch (error) {
+    try { logger.error('[public/storefront] request failed', { endpoint: 'menu', storeId, ...safeErrorMetadata(error) }); } catch (_) {}
     res.status(500).json({ error: '菜单加载失败，请稍后重试' });
   }
 });
