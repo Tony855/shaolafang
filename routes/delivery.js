@@ -76,7 +76,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
           l.updated_at AS location_updated_at
          FROM delivery_jobs j JOIN orders o ON o.id=j.order_id AND o.store_id=j.store_id AND o.merchant_id=j.merchant_id
          LEFT JOIN delivery_riders r ON r.id=j.rider_id AND r.merchant_id=j.merchant_id AND r.store_id=j.store_id
-         LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.merchant_id=j.merchant_id AND l.store_id=j.store_id AND l.updated_at>=j.assigned_at AND j.status IN ('accepted','picked_up','delivering')
+         LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.merchant_id=j.merchant_id AND l.store_id=j.store_id AND l.updated_at>=j.assigned_at AND l.updated_at>=DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 2 MINUTE) AND j.status IN ('accepted','picked_up','delivering')
          WHERE j.merchant_id=? AND j.store_id=? ORDER BY j.updated_at DESC LIMIT 200`,
         [req.merchantId, req.storeId]
       );
@@ -275,7 +275,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
           j.updated_at, r.display_name AS rider_name, r.phone AS rider_phone,
           l.latitude, l.longitude, l.accuracy_m, l.updated_at AS location_updated_at
          FROM delivery_jobs j LEFT JOIN delivery_riders r ON r.id=j.rider_id AND r.merchant_id=j.merchant_id AND r.store_id=j.store_id
-         LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.merchant_id=j.merchant_id AND l.store_id=j.store_id AND l.updated_at>=j.assigned_at AND j.status IN ('accepted','picked_up','delivering')
+         LEFT JOIN delivery_rider_locations l ON l.rider_id=j.rider_id AND l.merchant_id=j.merchant_id AND l.store_id=j.store_id AND l.updated_at>=j.assigned_at AND l.updated_at>=DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 2 MINUTE) AND j.status IN ('accepted','picked_up','delivering')
          WHERE j.order_id=? AND j.merchant_id=(SELECT merchant_id FROM orders WHERE id=?) AND j.store_id=(SELECT store_id FROM orders WHERE id=?)`,
         [orderId, orderId, orderId]
       );
