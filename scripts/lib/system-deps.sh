@@ -41,9 +41,9 @@ ff_install_mariadb_server() {
   local requested_version="${FF_MARIADB_SERVER_VERSION:-12.3}"
   local setup_file candidate actual_version checksum
   case "$requested_version" in
-    10.11|11.4|11.8|12.3) ;;
+    11.8|12.3) ;;
     *)
-      ff_log_error "不支持的 FF_MARIADB_SERVER_VERSION=$requested_version；可选 10.11/11.4/11.8/12.3。"
+      ff_log_error "不支持的 FF_MARIADB_SERVER_VERSION=$requested_version；可选 11.8/12.3。"
       return 1
       ;;
   esac
