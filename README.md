@@ -192,9 +192,9 @@ FoodFlow 是基于 Node.js、Express、MariaDB 和 Socket.IO 的餐饮运营系�
 
 ### 4.1 软件要求
 
-- Linux 推荐 Debian 12/13 或 Ubuntu 22.04/24.04/26.04；Ubuntu 26.04 的 MariaDB 使用系统仓库 11.8 LTS。
+- Linux 推荐 Debian 12/13 或 Ubuntu 24.04/26.04；Ubuntu 26.04 的 MariaDB 使用系统仓库 11.8 LTS。
 - Node.js 26 LTS（npm 10+）。
-- MariaDB 10.11+（新安装推荐 MariaDB 12.3 LTS；Ubuntu 26.04 使用系统仓库的 MariaDB 11.8 LTS）。
+- MariaDB 11.8+（新安装推荐 MariaDB 12.3 LTS；Ubuntu 26.04 使用系统仓库的 MariaDB 11.8 LTS）。
 - Git、npm。
 - Nginx 用于域名反向代理和 HTTPS（生产环境推荐）。
 - Redis 为可选组件；启用多节点部署时，应按对应部署手册配置共享 Redis。
