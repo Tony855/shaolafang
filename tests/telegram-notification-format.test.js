@@ -93,3 +93,32 @@ test('formats delivery fulfillment with recipient and address instead of a table
   assert.ok(message.includes('配送地址</b>：&lt;Street 123&gt;'));
   assert.equal(message.includes('座号'), false);
 });
+
+
+test('includes every valid new-order item with its independent preparation status', () => {
+  const message = formatTelegramBusinessNotification({
+    type: 'order.created', storeName: 'ShaoLaFang总店', orderNo: '11GL00027',
+    amount: 16.5, currency: 'USD',
+    items: [
+      { name: '香辣鸡翅', quantity: 2, itemStatus: 'pending' },
+      { name: '酸辣土豆丝', quantity: 1, itemStatus: 'done' },
+      { name: '<米饭>', quantity: 3, itemStatus: 'pending', returnedQty: 1 }
+    ]
+  });
+  assert.match(message, /香辣鸡翅 ×2 — 制作中/);
+  assert.match(message, /酸辣土豆丝 ×1 — 已完成/);
+  assert.match(message, /&lt;米饭&gt; ×3 — 制作中（已退 1）/);
+});
+
+test('does not render unsafe or malformed item fields and reports omitted entries', () => {
+  const message = formatTelegramBusinessNotification({
+    type: 'order.created', storeName: 'Store', orderNo: '42', amount: 1, currency: 'USD',
+    items: [
+      { name: '<script>alert(1)</script>', quantity: 1, itemStatus: 'pending' },
+      { name: 'invalid quantity', quantity: -1, itemStatus: 'done' }
+    ]
+  });
+  assert.match(message, /&lt;script&gt;/);
+  assert.equal(message.includes('<script>'), false);
+  assert.match(message, /另有 1 项菜品未显示/);
+});
