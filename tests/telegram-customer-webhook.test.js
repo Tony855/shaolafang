@@ -106,15 +106,24 @@ test('plain /start automatically resumes the most recently bound active store', 
   const sent = [], menuCalls = [];
   try {
     const { state } = fixture();
-    state.homeBinding = { store_id: 8, chat_id: '-100888', name: 'Test Store' };
+    // The SQL filters invalid bindings and returns eligible stores newest first.
+    state.homeBinding = [
+      { store_id: 12, chat_id: '-1001212', name: 'Newest Store' },
+      { store_id: 8, chat_id: '-100888', name: 'Older Store' }
+    ];
     const menuHandler = createTelegramCustomerWebhookHandler({
       secret: 's'.repeat(40),
       getAsync: async () => null,
       allAsync: async (sql, params) => {
-        assert.match(sql, /b\.telegram_chat_id=\? AND b\.telegram_user_id=\?/);
-        assert.match(sql, /ORDER BY b\.updated_at DESC, b\.id DESC LIMIT 1/);
+        assert.match(sql, /b\\.telegram_chat_id=\\? AND b\\.telegram_user_id=\\?/);
+        assert.match(sql, /b\\.is_active=1/);
+        assert.match(sql, /r\\.is_enabled=1/);
+        assert.match(sql, /LENGTH\\(r\\.chat_id\\)>0/);
+        assert.match(sql, /s\\.active=1/);
+        assert.match(sql, /m\\.status=1/);
+        assert.match(sql, /ORDER BY b\\.updated_at DESC, b\\.id DESC LIMIT 1/);
         assert.deepEqual(params, ['98765', '98765']);
-        return sql.includes('JOIN telegram_store_admin_recipients') ? [state.homeBinding] : [];
+        return sql.includes('JOIN telegram_store_admin_recipients') ? [state.homeBinding[0]] : [];
       },
       runAsync: async (sql, params) => { if (sql.includes('INSERT INTO telegram_webhook_updates')) state.updates.add(params[0]); return { affectedRows: 1 }; },
       withTransaction: async fn => fn(),
@@ -128,12 +137,13 @@ test('plain /start automatically resumes the most recently bound active store', 
       headers: { 'x-telegram-bot-api-secret-token': 's'.repeat(40) },
       body: { update_id: 109, message: { text: '/start', chat: { id: 98765, type: 'private' }, from: { id: 98765, is_bot: false } } }
     }, res);
-    const signature = createStoreEntrySignature({ storeId: 8, chatId: '-100888', secret: 's'.repeat(40) });
-    const expectedUrl = 'https://foodflow.example.test/delivery/order?store_id=8&entry=' + signature + '&telegram=1';
+    const signature = createStoreEntrySignature({ storeId: 12, chatId: '-1001212', secret: 's'.repeat(40) });
+    const expectedUrl = 'https://foodflow.example.test/delivery/order?store_id=12&entry=' + signature + '&telegram=1';
     assert.equal(res.statusCode, 200);
     assert.equal(state.updates.has(109), true);
     assert.equal(sent.length, 1);
     assert.match(sent[0].text, /自动为你打开最近绑定的门店/);
+    assert.match(sent[0].text, /Newest Store/);
     assert.equal(sent[0].replyMarkup.inline_keyboard[0][0].web_app.url, expectedUrl);
     assert.deepEqual(menuCalls, [{ token: '123456:abcdefghijklmnopqrstuvwxyzABCDE', chatId: '98765', enabled: true, text: '🍽️ 本店点餐', webAppUrl: expectedUrl }]);
   } finally {
