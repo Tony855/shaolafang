@@ -41,7 +41,7 @@ footer{margin-top:24px;font-size:12px;color:#8a94a6;text-align:center}
   try{
    if(!initData)throw new Error('请从 FoodFlow 统一 Client Bot 的菜单按钮打开此页面。');
    const hasStoreId=!!storeId,hasEntry=!!entry;
-   if(hasStoreId!==hasEntry||(hasStoreId&&(!/^\\d+$/.test(storeId)||!/^[A-Za-z0-9_-]{43}$/.test(entry))))throw new Error('门店专属入口参数不完整，请重新从门店群组链接进入。');
+   if(hasStoreId!==hasEntry||(hasStoreId&&(!/^\d+$/.test(storeId)||!/^[A-Za-z0-9_-]{43}$/.test(entry))))throw new Error('门店专属入口参数不完整，请重新从门店群组链接进入。');
    const endpoint='/api/public/delivery/telegram-miniapp-stores'+(hasStoreId?'?store_id='+encodeURIComponent(storeId)+'&entry='+encodeURIComponent(entry):'');
    const response=await fetch(endpoint,{cache:'no-store',headers:{accept:'application/json','X-Telegram-Init-Data':initData}});
    const data=await response.json().catch(()=>({}));
