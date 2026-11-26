@@ -22,7 +22,7 @@ function signedInitData() {
   return new URLSearchParams(Array.from(params.entries()).sort(([a], [b]) => a < b ? -1 : 1)).toString();
 }
 
-function setup({ recipient = { id: 11, merchant_id: 7, name: 'Tenant A store', chat_id: '-100111' }, enabled = true, logger = { error() {} }, failSettings = false } = {}) {
+function setup({ recipient = { id: 11, merchant_id: 7, name: 'Tenant A store', chat_id: '-100111' }, enabled = true, logger = { error() {}, warn() {} }, failSettings = false } = {}) {
   const handlers = new Map(), calls = [];
   const app = { get(path, handler) { handlers.set('GET ' + path, handler); }, post() {}, delete() {} };
   registerCustomerDeliveryRoutes(app, {
@@ -108,4 +108,61 @@ test('Telegram Mini App store lookup logs safe failure metadata without exposing
   assert.equal(entries[0][1].code, 'ER_ACCESS_DENIED');
   assert.equal(JSON.stringify(entries).includes('DO_NOT_LOG_THIS_SECRET'), false);
   assert.equal(JSON.stringify(res.body).includes('DO_NOT_LOG_THIS_SECRET'), false);
+});
+
+
+test('Telegram Mini App logs safe reason codes for rejected authentication and entry stages', async () => {
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = secret;
+  const entries = [];
+  const logger = { error() {}, warn: (...args) => entries.push(args) };
+
+  const missing = setup({ logger });
+  const missingRequest = request(11, 'A'.repeat(43));
+  missingRequest.get = () => '';
+  const missingResponse = response();
+  await missing.handler(missingRequest, missingResponse);
+  assert.equal(missingResponse.statusCode, 401);
+
+  const disabled = setup({ logger, enabled: false });
+  const signature = createStoreEntrySignature({ storeId: 11, chatId: '-100111', secret });
+  const disabledResponse = response();
+  await disabled.handler(request(11, signature), disabledResponse);
+  assert.equal(disabledResponse.statusCode, 403);
+
+  const invalidEntry = setup({ logger });
+  const invalidEntryResponse = response();
+  await invalidEntry.handler(request(11, 'invalid'), invalidEntryResponse);
+  assert.equal(invalidEntryResponse.statusCode, 403);
+
+  assert.deepEqual(entries.map(entry => entry[1]), [
+    { stage: 'request', reason: 'missing_init_data' },
+    { stage: 'bot_configuration', reason: 'bot_disabled' },
+    { stage: 'entry_validation', reason: 'entry_invalid' }
+  ]);
+  assert.equal(JSON.stringify(entries).includes(signature), false);
+  assert.equal(JSON.stringify(entries).includes(token), false);
+});
+
+test('Telegram Mini App logs when the signed store binding is missing or no longer matches', async () => {
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = secret;
+  const entries = [];
+  const logger = { error() {}, warn: (...args) => entries.push(args) };
+  const signature = createStoreEntrySignature({ storeId: 11, chatId: '-100111', secret });
+
+  const missingBinding = setup({ logger, recipient: null });
+  const missingResponse = response();
+  await missingBinding.handler(request(11, signature), missingResponse);
+  assert.equal(missingResponse.statusCode, 403);
+
+  const changedBinding = setup({ logger, recipient: { id: 11, merchant_id: 7, name: 'Tenant A store', chat_id: '-100222' } });
+  const changedResponse = response();
+  await changedBinding.handler(request(11, signature), changedResponse);
+  assert.equal(changedResponse.statusCode, 403);
+
+  assert.deepEqual(entries.map(entry => entry[1]), [
+    { stage: 'store_binding_lookup', reason: 'active_store_binding_missing' },
+    { stage: 'store_binding_lookup', reason: 'entry_signature_mismatch' }
+  ]);
+  assert.equal(JSON.stringify(entries).includes('-100111'), false);
+  assert.equal(JSON.stringify(entries).includes(signature), false);
 });
