@@ -34,6 +34,7 @@ const sensitiveError = new Error('ER_ACCESS_DENIED_ERROR db.internal:3306 user=f
 
 test('public menu endpoint does not expose database or connection details', async () => {
   const { app, routes } = harness();
+  const diagnosticLogs = [];
   attachMenuRoutes(app, {
     getAsync: async () => { throw sensitiveError; },
     runAsync: async () => ({ affectedRows: 1, lastID: 1 }),
@@ -64,7 +65,8 @@ test('public menu endpoint does not expose database or connection details', asyn
     verifyPassword: () => true,
     authenticateAdmin: async () => null,
     checkAndSetCooldown: async () => {},
-    withTransaction: async work => work()
+    withTransaction: async work => work(),
+    logger: { error: (...args) => diagnosticLogs.push(args) }
   });
   const handler = routes.get('GET /api/menu').at(-1);
   const res = response();
