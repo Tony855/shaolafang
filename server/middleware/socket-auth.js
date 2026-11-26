@@ -31,7 +31,7 @@ function createSocketAuthenticator({ getAsync, allAsync = async (sql, params) =>
            JOIN delivery_jobs j ON j.order_id=o.id AND j.store_id=o.store_id AND j.merchant_id=o.merchant_id
            JOIN stores s ON s.id=o.store_id AND s.merchant_id=o.merchant_id AND s.active=1
            JOIN merchants m ON m.id=o.merchant_id AND m.status=1
-           WHERE o.id=? AND o.fulfillment_type='delivery'`,
+           WHERE o.id=? AND o.fulfillment_type='delivery' AND j.status IN ('accepted','picked_up','delivering')`,
           [deliveryOrderId]
         );
         if (!order || !order.customer_token || hashSessionToken(deliveryCustomerToken) !== order.customer_token) {
