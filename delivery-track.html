@@ -20,7 +20,7 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
  const trackingPath=location.pathname.match(/\/delivery\/track\/([1-9]\d*)\/?$/);
  const orderId=trackingPath?trackingPath[1]:'';
  const fragment=new URLSearchParams(location.hash.replace(/^#/,'')), fragmentToken=fragment.get('token')||'';
- const isCustomerToken=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
+ const isCustomerToken=value=>typeof value==='string'&&(/^[a-f0-9]{64}$/.test(value)||/^[A-Za-z0-9_-]{22}$/.test(value));
  function readStoredToken(storageName,key){try{return window[storageName].getItem(key)||'';}catch(_){return '';}}
  function saveStoredToken(storageName,key,value){try{window[storageName].setItem(key,value);return true;}catch(_){return false;}}
  let customerToken=isCustomerToken(fragmentToken)?fragmentToken:'';
