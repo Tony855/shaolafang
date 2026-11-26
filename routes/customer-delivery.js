@@ -55,6 +55,10 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
     );
   }
 
+  function logTelegramStoreResolutionRejected(stage, reason) {
+    try { logger.warn('[telegram-miniapp-store-resolution] rejected', { stage, reason }); } catch (_) {}
+  }
+
   app.get('/api/public/delivery/telegram-miniapp-stores', async (req, res) => {
     let failureStage = 'request';
     try {
@@ -62,7 +66,10 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       const initData = typeof req.get === 'function'
         ? String(req.get('X-Telegram-Init-Data') || '')
         : String(req.headers?.['x-telegram-init-data'] || '');
-      if (!initData) return res.status(401).json({ error: 'Telegram 身份验证失败，请从门店专属链接重新打开' });
+      if (!initData) {
+        logTelegramStoreResolutionRejected('request', 'missing_init_data');
+        return res.status(401).json({ error: 'Telegram 身份验证失败，请从门店专属链接重新打开' });
+      }
 
       failureStage = 'bot_configuration';
       const rows = await allAsync(
@@ -72,6 +79,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
       const botToken = String(config.telegram_client_bot_token || '');
       if (config.telegram_client_bot_enabled !== '1' || !verifyTelegramWebAppInitData(initData, botToken)) {
+        logTelegramStoreResolutionRejected('bot_configuration', config.telegram_client_bot_enabled !== '1' ? 'bot_disabled' : 'init_data_invalid');
         return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开门店专属链接' });
       }
 
@@ -80,6 +88,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       const signature = typeof req.query?.entry === 'string' ? req.query.entry : '';
       const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
       if (!storeId || !/^[A-Za-z0-9_-]{43}$/.test(signature) || secret.length < 32 || secret.length > 256) {
+        logTelegramStoreResolutionRejected('entry_validation', !storeId || !/^[A-Za-z0-9_-]{43}$/.test(signature) ? 'entry_invalid' : 'signing_secret_unconfigured');
         return res.status(403).json({ error: '门店专属链接无效或已过期，请向门店管理员获取最新链接' });
       }
       failureStage = 'store_binding_lookup';
@@ -88,6 +97,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
         [storeId]
       );
       if (!recipient || !verifyStoreEntrySignature({ storeId, chatId: String(recipient.chat_id || ''), secret, signature })) {
+        logTelegramStoreResolutionRejected('store_binding_lookup', recipient ? 'entry_signature_mismatch' : 'active_store_binding_missing');
         return res.status(403).json({ error: '门店群组绑定已变更或已解除，请向门店管理员获取最新专属链接' });
       }
       failureStage = 'response';
