@@ -40,7 +40,7 @@ function formatTelegramBusinessNotification(event) {
         const name = safeField(item.name, 48);
         const quantity = Number(item.quantity);
         if (!name || !Number.isSafeInteger(quantity) || quantity <= 0 || quantity > 1000) continue;
-        const rawStatus = safeField(item.itemStatus || 'pending', 16);
+        const rawStatus = safeField(item.itemStatus, 16);
         const status = rawStatus === 'done' ? '已完成' : (rawStatus === 'pending' ? '制作中' : '状态未知');
         const returnedQty = Number(item.returnedQty) || 0;
         const returned = Number.isSafeInteger(returnedQty) && returnedQty > 0 && returnedQty <= quantity
@@ -54,8 +54,6 @@ function formatTelegramBusinessNotification(event) {
         shown += 1;
       }
       if (items.length > shown) lines.push('…另有 ' + (items.length - shown) + ' 项菜品未显示');
-    } else {
-      lines.push('🍽️ <b>菜品明细</b>：暂无可显示的菜品');
     }
     const note = safeField(event.note, 200);
     if (note) lines.push('📝 <b>顾客备注</b>：\n<blockquote>' + escapeHtml(note) + '</blockquote>');
