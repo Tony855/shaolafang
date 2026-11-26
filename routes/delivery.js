@@ -261,7 +261,7 @@ module.exports = function registerDeliveryRoutes(app, deps) {
       const rawOrderId = String(req.params.orderId || '');
       // This route is registered before the Telegram Mini App resolver. Let
       // non-numeric path segments continue so static delivery endpoints can match.
-      if (!/^\\d+$/.test(rawOrderId)) return next();
+      if (!/^\d+$/.test(rawOrderId)) return next();
       const orderId = positiveId(rawOrderId);
       if (!orderId) return res.status(401).json({ error: '订单或顾客凭证无效' });
       const token = typeof req.get('X-Customer-Token') === 'string' ? req.get('X-Customer-Token').trim() : '';
