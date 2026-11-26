@@ -103,6 +103,34 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(stopNotice.state, 'dead');
   assert.equal(stopNotice.last_error_code, 'binding_revoked');
 
+  // A worker may have resolved an active recipient before /stop commits.
+  // The irreversible sending transition must lock and recheck that binding.
+  const sendBoundaryKey = `telegram-it:send-boundary:${crypto.randomUUID()}`;
+  await enqueueTelegramNotification({
+    eventKey: sendBoundaryKey, recipientScope: 'customer', recipientKey: `binding:${bindingOne.id}`,
+    merchantId: 7, storeId: 9,
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-STOP-RACE', amount: 1, currency: 'USD' }
+  });
+  await runAsync(
+    'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE id=?',
+    [bindingOne.id]
+  );
+  let revokedBindingSendCalls = 0;
+  const revokedBindingResult = await processTelegramNotificationBatch({
+    workerId: crypto.randomUUID(), limit: 1,
+    // Simulate a recipient lookup that completed just before the revocation.
+    resolveRecipient: async () => ({ scope: 'customer', merchantId: 7, storeId: 9, token: '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi', chatId: '54321' }),
+    sendMessage: async () => { revokedBindingSendCalls += 1; return { messageId: 99 }; }
+  });
+  const revokedBindingOutbox = await getAsync(
+    'SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?',
+    [sendBoundaryKey]
+  );
+  assert.equal(revokedBindingSendCalls, 0, 'revoked customer binding must not cross the sending boundary');
+  assert.equal(revokedBindingResult[0].state, 'lease_lost');
+  assert.equal(revokedBindingOutbox.state, 'dead');
+  assert.equal(revokedBindingOutbox.last_error_code, 'binding_revoked');
+
   const customerHashTwo = crypto.createHash('sha256').update('customer-token-two').digest('hex');
   await runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [customerHashTwo, 7, 9, '22222', '54322']);
   const bindingTwo = await getAsync('SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND store_id=?', [customerHashTwo, 9]);
