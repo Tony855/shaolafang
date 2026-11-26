@@ -209,10 +209,20 @@
         const readyTag = allDone ? `<button class="ticket-serve-btn" onclick="serveOrder(${o.id})">✅ ${t('servedDone', null, '出餐完成')}</button>` : '';
 
         const extraClass = _newTicketIds.has(o.id) ? ' new-ticket' : (_updatedTicketIds.has(o.id) ? ' updated-ticket' : '');
+        const fulfillmentType = ['delivery', 'takeaway', 'dine_in'].includes(o.fulfillment_type) ? o.fulfillment_type : 'dine_in';
+        const fulfillmentMeta = fulfillmentType === 'delivery'
+          ? { label: t('orderFulfillmentDelivery', null, '外卖配送'), icon: '🚚' }
+          : fulfillmentType === 'takeaway'
+            ? { label: t('orderFulfillmentTakeaway', null, '顾客自取'), icon: '🛍️' }
+            : { label: t('orderFulfillmentDineIn', null, '堂食'), icon: '🍽️' };
+        const tableHtml = fulfillmentType === 'dine_in'
+          ? `<span class="table-name">🪑 ${utils.esc(o.table || o.table_name || '-')}</span>`
+          : '';
         return `
-          <div class="ticket ${ticketClass}${extraClass}" data-order-id="${o.id}">
+          <div class="ticket ${ticketClass} fulfillment-${fulfillmentType}${extraClass}" data-order-id="${o.id}">
             <div class="ticket-head">
-              <span class="table-name">🪑 ${utils.esc(o.table || '-')}</span>
+              <span class="fulfillment-badge fulfillment-badge-${fulfillmentType}">${fulfillmentMeta.icon} ${utils.esc(fulfillmentMeta.label)}</span>
+              ${tableHtml}
               <span class="order-id ${ticketClass}">${utils.esc(o.order_no || ("#"+o.id))}</span>
             </div>
             <div class="ticket-time ${timeClass}">🕒 ${time.text}</div>
