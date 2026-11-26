@@ -19,7 +19,7 @@ ff_require_supported_os() {
   case "${ID:-}:${VERSION_ID:-}" in
     debian:12|debian:13|ubuntu:24.04|ubuntu:26.04) ;;
     *)
-      ff_log_error "当前系统 ${PRETTY_NAME:-${ID:-unknown}} 未通过安装兼容性验证；支持 Debian 12/13、Ubuntu 22.04/24.04/26.04。"
+      ff_log_error "当前系统 ${PRETTY_NAME:-${ID:-unknown}} 未通过安装兼容性验证；支持 Debian 12/13、Ubuntu 24.04/26.04。"
       return 1
       ;;
   esac
