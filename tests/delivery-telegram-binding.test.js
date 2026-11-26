@@ -85,7 +85,7 @@ test('Telegram Mini App resolves only the store whose Chat ID binding signs the 
   const res = response();
   await handler(req, res);
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body, { stores: [{ id: 7, merchantId: 3, name: 'Test Store' }] });
+  assert.deepEqual(res.body, { stores: [{ id: 7, merchantId: 3, name: 'Test Store', entry: signature }] });
   assert.match(res.headers['Cache-Control'], /no-store/);
 });
 
