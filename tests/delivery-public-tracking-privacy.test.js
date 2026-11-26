@@ -117,3 +117,13 @@ test('public tracking returns not-found when active merchant/store/order lookup 
   assert.equal(ctx.calls.length, 1);
   assert.equal(ctx.calls.some(call => call.sql.includes('FROM delivery_jobs j')), false);
 });
+
+
+test('public tracking SQL excludes coordinates older than two minutes', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.handler(request(), res);
+  const jobLookup = ctx.calls.find(call => call.sql.includes('FROM delivery_jobs j'));
+  assert.ok(jobLookup);
+  assert.ok(jobLookup.sql.includes('l.updated_at>=DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 2 MINUTE)'));
+});
