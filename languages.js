@@ -7371,6 +7371,5 @@ const LANGUAGES = {
     "copyDeliveryLinkPrompt": "ចម្លងតំណដឹកជញ្ជូនរបស់អតិថិជន"
   }
 };
-
 function detectBrowserLanguage(){const sys=(navigator.language||navigator.userLanguage||'').toLowerCase();if(sys.startsWith('zh'))return'zh';if(sys.startsWith('vi'))return'vi';if(sys.startsWith('th'))return'th';if(sys.startsWith('km'))return'km';if(sys.startsWith('en'))return'en';return'zh';}
 if(typeof window!=='undefined'){window.LANGUAGES=LANGUAGES;window.detectBrowserLanguage=detectBrowserLanguage;}
