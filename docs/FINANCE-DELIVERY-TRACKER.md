@@ -4,7 +4,7 @@ Last reviewed: 2026-11-24 (current main `c5fbde95582027b998762fc99cdb4dff1534be5
 
 This tracker records merged delivery separately from work that is still under review. It is a capability inventory, not a percentage-complete estimate.
 
-**Database test-scope note:** MariaDB 10.5 is historical coverage and is no longer in the active matrix. Current finance CI covers MariaDB 10.11/11.4/11.8/12.3 plus MySQL 8.4; installer compatibility covers Debian 12/13 and Ubuntu 22.04/24.04/26.04.
+**Database test-scope note:** MariaDB 10.5 is historical coverage and is no longer in the active matrix. Current finance CI covers MariaDB 10.11/11.4/11.8/12.3 plus MySQL 8.4; installer compatibility covers Debian 12/13 and Ubuntu 24.04/26.04.
 
 ## Delivered to main
 
