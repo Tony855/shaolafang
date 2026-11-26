@@ -153,7 +153,7 @@ FoodFlow 是基于 Node.js、Express、MariaDB 和 Socket.IO 的餐饮运营系�
 |---|---|
 | Web 服务 | Node.js 26 LTS、Express 4 |
 | 实时通信 | Socket.IO 4 |
-| 数据库 | MariaDB 10.11+；新装优先 MariaDB 12.3 LTS |
+| 数据库 | MariaDB 11.8+；新装优先 MariaDB 12.3 LTS |
 | 可选缓存与跨节点适配 | Redis、Socket.IO Redis Adapter |
 | 前端 | 原生 JavaScript、HTML、CSS |
 | 多语言 | 语言资源文件及构建/检查脚本 |
