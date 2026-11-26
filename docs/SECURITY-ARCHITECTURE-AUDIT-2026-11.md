@@ -45,7 +45,7 @@
 
 ## 1. 项目结构
 
-- Node.js 26 / Express 4 后端，MySQL 8.4 与 MariaDB 10.11–12.3 纳入 CI 集成矩阵。
+- Node.js 26 / Express 4 后端，MySQL 8.4 与 MariaDB 11.8/12.3 纳入当前 CI 集成矩阵。
 - 单机 Redis 可选；多节点集群通过 REQUIRE_SHARED_REDIS 强制共享 Redis，用于跨节点限流/冷却状态及 Socket.IO adapter。
 - Socket.IO 实时事件。
 - 原生 JavaScript 多页面前端：顾客、商户管理、服务员、后厨、收银、超级管理员。
