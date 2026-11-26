@@ -30,7 +30,7 @@ label{display:block;font-size:13px;color:#b6c1d2;margin:10px 0 6px}.row{display:
 (() => {
  const $=id=>document.getElementById(id), tokenKey='delivery_rider_token';
  let token=sessionStorage.getItem(tokenKey)||'', watchIds=new Map(), lastSent=new Map(), socket=null;
- const api=async(path,options={})=>{const response=await fetch(path,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{}),...(options.headers||{})}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'请求失败');return data;};
+ const api=async(path,options={})=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const response=await fetch(path,{...options,signal:controller.signal,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{}),...(options.headers||{})}});let data={};try{data=await response.json();}catch(error){if(error.name==='AbortError')throw error;}if(!response.ok)throw new Error(data.error||'请求失败');return data;}finally{clearTimeout(timer);}};
  const statusText={assigned:'待接单',accepted:'已接单',picked_up:'已取货',delivering:'配送中',delivered:'已送达'};
  function stopTracking(id){const watch=watchIds.get(id);if(watch!==undefined)navigator.geolocation.clearWatch(watch);watchIds.delete(id);}
  function startTracking(job){if(!navigator.geolocation||watchIds.has(job.id))return;
