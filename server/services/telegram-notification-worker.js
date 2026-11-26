@@ -41,7 +41,12 @@ async function processTelegramNotificationBatch({ resolveRecipient, workerId, li
 
     // Persist the irreversible-send boundary before calling Telegram. An expired
     // sending lease is quarantined as uncertain, never blindly re-delivered.
-    const sending = await markTelegramNotificationSending(job.id, job.locked_by, leaseSeconds);
+    const sending = await markTelegramNotificationSending(job.id, job.locked_by, leaseSeconds, {
+      scope: job.recipient_scope,
+      key: job.recipient_key,
+      merchantId: job.merchant_id,
+      storeId: job.store_id
+    });
     if (!sending) {
       results.push({ id: Number(job.id), state: 'lease_lost' });
       continue;
