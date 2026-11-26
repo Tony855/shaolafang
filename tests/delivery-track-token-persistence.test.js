@@ -33,3 +33,9 @@ test('delivery tracking bounds API response and JSON body reads with a timeout',
   assert.ok(track.includes("fetchWithTimeout('/api/public/delivery/'+encodeURIComponent(orderId)"));
   assert.ok(track.includes('catch(error){clearTimer();throw error;}'));
 });
+
+
+test('delivery tracking polls the authenticated endpoint when the live socket is disconnected', () => {
+  assert.ok(track.includes("setInterval(()=>{if(customerToken&&(!socket||!socket.connected))refresh().catch"));
+  assert.ok(track.includes('},15000);'));
+});
