@@ -27,8 +27,6 @@ jobs:
             image: debian:12-slim
           - label: Debian 13
             image: debian:13-slim
-          - label: Ubuntu 22.04
-            image: ubuntu:22.04
           - label: Ubuntu 24.04
             image: ubuntu:24.04
           - label: Ubuntu 26.04
