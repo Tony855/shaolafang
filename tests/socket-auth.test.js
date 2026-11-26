@@ -266,7 +266,8 @@ test('customer delivery sockets require the order customer token and are scoped 
     calls.push(sql);
     if (sql.includes('FROM orders o') && sql.includes('JOIN delivery_jobs') &&
         sql.includes('JOIN stores') && sql.includes('JOIN merchants') &&
-        sql.includes("o.fulfillment_type='delivery'")) {
+        sql.includes("o.fulfillment_type='delivery'") &&
+        sql.includes("j.status IN ('accepted','picked_up','delivering')")) {
       return { id: 44, store_id: 7, customer_token: hashSessionToken('customer-secret') };
     }
     return null;
@@ -276,6 +277,7 @@ test('customer delivery sockets require the order customer token and are scoped 
   assert.equal(socket.data.storeId, 7);
   assert.equal(socket.data.deliveryOrderId, 44);
   assert.equal(calls.length, 1);
+  assert.ok(calls[0].includes("j.status IN ('accepted','picked_up','delivering')"));
 });
 
 test('customer delivery sockets reject invalid order tokens', async () => {
@@ -311,4 +313,18 @@ test('customer delivery sockets reject inactive stores and non-delivery orders',
   }, socket);
   assert.match(error.message, /tracking access denied/);
   assert.equal(socket.data.role, undefined);
+});
+
+
+test('customer delivery sockets reject completed and cancelled delivery jobs', async () => {
+  const socket = { handshake: { auth: { deliveryOrderId: 44, deliveryCustomerToken: 'customer-secret' } }, data: {} };
+  const calls = [];
+  const error = await authenticate(async (sql, params) => {
+    calls.push({ sql, params });
+    assert.ok(sql.includes("j.status IN ('accepted','picked_up','delivering')"));
+    return null; // Terminal jobs no longer satisfy the active-delivery join.
+  }, socket);
+  assert.match(error.message, /tracking access denied/);
+  assert.equal(socket.data.role, undefined);
+  assert.equal(calls.length, 1);
 });
