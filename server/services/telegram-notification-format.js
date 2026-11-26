@@ -49,7 +49,7 @@ function formatTelegramBusinessNotification(event) {
       }
       let shown = 0;
       for (const line of itemLines) {
-        if (lines.join('\\n').length + line.length + 80 > 3800) break;
+        if (lines.join('\n').length + line.length + 80 > 3800) break;
         lines.push(line);
         shown += 1;
       }
