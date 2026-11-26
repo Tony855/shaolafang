@@ -255,12 +255,17 @@ module.exports = function registerDeliveryRoutes(app, deps) {
     } catch (_) { res.status(500).json({ error: '退出登录失败' }); }
   });
 
-  app.get('/api/public/delivery/:orderId', async (req, res) => {
+  app.get('/api/public/delivery/:orderId', async (req, res, next) => {
     try {
       res.setHeader('Cache-Control', 'no-store, private');
-      const orderId = positiveId(req.params.orderId);
+      const rawOrderId = String(req.params.orderId || '');
+      // This route is registered before the Telegram Mini App resolver. Let
+      // non-numeric path segments continue so static delivery endpoints can match.
+      if (!/^\d+$/.test(rawOrderId)) return next();
+      const orderId = positiveId(rawOrderId);
+      if (!orderId) return res.status(401).json({ error: '订单或顾客凭证无效' });
       const token = typeof req.get('X-Customer-Token') === 'string' ? req.get('X-Customer-Token').trim() : '';
-      if (!orderId || !token || token.length > 128) return res.status(401).json({ error: '订单或顾客凭证无效' });
+      if (!token || token.length > 128) return res.status(401).json({ error: '订单或顾客凭证无效' });
       const order = await getAsync(
         `SELECT o.id, o.customer_token, o.order_no, o.status, o.total, o.pay_method, o.awaiting_confirm, o.settled_at
          FROM orders o

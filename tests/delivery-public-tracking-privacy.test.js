@@ -73,6 +73,27 @@ test('public tracking rejects invalid order IDs and missing tokens before queryi
   }
 });
 
+
+test('non-numeric public delivery paths fall through to later static routes', async () => {
+  const ctx = setup();
+  const res = response();
+  let continued = false;
+  await ctx.handler(request('telegram-miniapp-stores', ''), res, () => { continued = true; });
+  assert.equal(continued, true);
+  assert.equal(ctx.calls.length, 0);
+});
+
+test('invalid numeric public delivery IDs still reject before querying', async () => {
+  const ctx = setup();
+  const res = response();
+  let continued = false;
+  await ctx.handler(request('0', ''), res, () => { continued = true; });
+  assert.equal(continued, false);
+  assert.equal(res.statusCode, 401);
+  assert.deepEqual(res.body, { error: '订单或顾客凭证无效' });
+  assert.equal(ctx.calls.length, 0);
+});
+
 test('public tracking does not query the delivery job when the order token does not match', async () => {
   const ctx = setup();
   const res = response();
