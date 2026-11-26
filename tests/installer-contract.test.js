@@ -123,12 +123,14 @@ test('installer OS support is explicit and matches the live CI matrix', () => {
   const helper = read('scripts/lib/system-deps.sh');
   const workflow = read('.github/workflows/installer-compat.yml');
   const smoke = read('scripts/ci/installer-compat.sh');
-  for (const os of ['debian:12', 'debian:13', 'ubuntu:22.04', 'ubuntu:24.04']) {
+  for (const os of ['debian:12', 'debian:13', 'ubuntu:24.04', 'ubuntu:26.04']) {
     assert.ok(helper.includes(os), 'helper must explicitly allow ' + os);
   }
-  for (const image of ['debian:12-slim', 'debian:13-slim', 'ubuntu:22.04', 'ubuntu:24.04']) {
+  for (const image of ['debian:12-slim', 'debian:13-slim', 'ubuntu:24.04', 'ubuntu:26.04']) {
     assert.ok(workflow.includes(image), 'CI matrix must execute ' + image);
   }
+  assert.doesNotMatch(helper, /ubuntu:22\.04/);
+  assert.doesNotMatch(workflow, /ubuntu:22\.04/);
   assert.match(smoke, /ff_require_supported_os/);
   assert.match(smoke, /ff_ensure_node/);
   assert.match(smoke, /ff_npm_ci_production/);

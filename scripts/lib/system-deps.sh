@@ -11,15 +11,15 @@ ff_log_error() { printf '[ERROR] %s\n' "$*" >&2; }
 
 ff_require_supported_os() {
   if [ ! -r /etc/os-release ]; then
-    ff_log_error "无法读取 /etc/os-release；仅支持 Debian 12/13 和 Ubuntu 22.04/24.04/26.04。"
+    ff_log_error "无法读取 /etc/os-release；仅支持 Debian 12/13 和 Ubuntu 24.04/26.04。"
     return 1
   fi
   # shellcheck source=/etc/os-release
   . /etc/os-release
   case "${ID:-}:${VERSION_ID:-}" in
-    debian:12|debian:13|ubuntu:22.04|ubuntu:24.04|ubuntu:26.04) ;;
+    debian:12|debian:13|ubuntu:24.04|ubuntu:26.04) ;;
     *)
-      ff_log_error "当前系统 ${PRETTY_NAME:-${ID:-unknown}} 未通过安装兼容性验证；支持 Debian 12/13、Ubuntu 22.04/24.04/26.04。"
+      ff_log_error "当前系统 ${PRETTY_NAME:-${ID:-unknown}} 未通过安装兼容性验证；支持 Debian 12/13、Ubuntu 24.04/26.04。"
       return 1
       ;;
   esac
@@ -41,9 +41,9 @@ ff_install_mariadb_server() {
   local requested_version="${FF_MARIADB_SERVER_VERSION:-12.3}"
   local setup_file candidate actual_version checksum
   case "$requested_version" in
-    10.11|11.4|11.8|12.3) ;;
+    11.8|12.3) ;;
     *)
-      ff_log_error "不支持的 FF_MARIADB_SERVER_VERSION=$requested_version；可选 10.11/11.4/11.8/12.3。"
+      ff_log_error "不支持的 FF_MARIADB_SERVER_VERSION=$requested_version；可选 11.8/12.3。"
       return 1
       ;;
   esac
@@ -52,7 +52,7 @@ ff_install_mariadb_server() {
   # Ubuntu 22.04/24.04. Install the GPG/HTTPS prerequisites before configuring it.
   ff_apt_install ca-certificates curl gnupg dirmngr apt-transport-https || return 1
   case "${ID:-}:${VERSION_ID:-}" in
-    debian:12|debian:13|ubuntu:22.04|ubuntu:24.04)
+    debian:12|debian:13|ubuntu:24.04)
       # mariadb_repo_setup release 2026-09-15; checksum published by MariaDB.
       checksum="b54c87edfe81b9837ef44a4a4f39383dd8df32776e6a18c0743a5d3ece044ac3"
       setup_file="$(mktemp)"

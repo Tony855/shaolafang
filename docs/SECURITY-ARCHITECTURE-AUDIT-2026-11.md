@@ -26,7 +26,7 @@
 
 ### 精确 SHA 与 CI 证据
 
-- 当前 main：`c5fbde95582027b998762fc99cdb4dff1534be52`（PR #333 合并提交）。CI [#45317558941](https://github.com/Tony855/shaolafang/actions/runs/45317558941)、Full System Audit [#45317558845](https://github.com/Tony855/shaolafang/actions/runs/45317558845)、Installer Compatibility [#45317558788](https://github.com/Tony855/shaolafang/actions/runs/45317558788) 均成功；安装兼容性 Debian 12/13、Ubuntu 22.04/24.04/26.04 为 5/5。
+- 当前 main：`c5fbde95582027b998762fc99cdb4dff1534be52`（PR #333 合并提交）。CI [#45317558941](https://github.com/Tony855/shaolafang/actions/runs/45317558941)、Full System Audit [#45317558845](https://github.com/Tony855/shaolafang/actions/runs/45317558845)、Installer Compatibility [#45317558788](https://github.com/Tony855/shaolafang/actions/runs/45317558788) 均成功；安装兼容性 Debian 12/13、Ubuntu 24.04/26.04 为 5/5。
 - PR #319：历史 head `ecaf8346acae053f1979afbd65dbbd01e15ef1b3` 的 CI/审计/安装矩阵曾全部成功；但该 PR 当前仍 open 且基于旧 main，需同步到 `c5fbde9` 后重新验证，旧检查不作为当前基线验收。
 - PR #334 的前一版 head `251f646ea6ff528a8d5ef0396b61ac1eb90858d5` 已通过 CI、Full System Audit 与五平台安装兼容性。最新 head `bdf87470ee120e30e7b1dfac024009692cd78424` 新增 Git 失败路径下 askpass 清理测试；其 CI [#45319389153](https://github.com/Tony855/shaolafang/actions/runs/45319389153)、Full System Audit [#45319389113](https://github.com/Tony855/shaolafang/actions/runs/45319389113)、Installer Compatibility [#45319389219](https://github.com/Tony855/shaolafang/actions/runs/45319389219) 全部通过，分别为 6/6、6/6、5/5。PR 仍 open、未合并，等待所有者授权。
 - PR #319/#320 均未合并；#319 需要更新，#320 的当前-main 后续由 #334 承接。main 当前无分支保护，因此合并前必须由仓库所有者完成代码审查并配置保护规则。
@@ -45,7 +45,7 @@
 
 ## 1. 项目结构
 
-- Node.js 26 / Express 4 后端，MySQL 8.4 与 MariaDB 10.11–12.3 纳入 CI 集成矩阵。
+- Node.js 26 / Express 4 后端，MySQL 8.4 与 MariaDB 11.8/12.3 纳入当前 CI 集成矩阵。
 - 单机 Redis 可选；多节点集群通过 REQUIRE_SHARED_REDIS 强制共享 Redis，用于跨节点限流/冷却状态及 Socket.IO adapter。
 - Socket.IO 实时事件。
 - 原生 JavaScript 多页面前端：顾客、商户管理、服务员、后厨、收银、超级管理员。

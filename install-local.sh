@@ -7,7 +7,7 @@
 #   cd /path/to/foodflow
 #   sudo bash install-local.sh
 #
-# 支持系统：Debian 12/13、Ubuntu 22.04/24.04
+# 支持系统：Debian 12/13、Ubuntu 24.04/26.04
 # ============================================================
 
 set -Ee
