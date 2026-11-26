@@ -15,7 +15,7 @@
   "close": "Close",
   "back": "Back",
   "search": "Search",
-  "loading": "Loading…",
+  "loading": "Loading...",
   "success": "Success",
   "all": "All",
   "hotSelling": "Popular",
@@ -358,7 +358,7 @@
   "merchantCode": "Code",
   "merchantAccount": "Merchant Account",
   "contactPerson": "Contact Person",
-  "contactPhone": "Phone number",
+  "contactPhone": "Contact Phone",
   "storeCount": "Stores",
   "belongMerchant": "Merchant",
   "auditLogs": "Audit Logs",
@@ -1470,5 +1470,11 @@
   "deliveryTaskAssigned": "Delivery task assigned",
   "requestFailed": "Request failed",
   "customerDeliveryLinkCopied": "Customer delivery link copied: ",
-  "copyDeliveryLinkPrompt": "Copy the customer delivery link"
+  "copyDeliveryLinkPrompt": "Copy the customer delivery link",
+  "deliveryContactPhone": "Contact phone",
+  "deliveryOrderLabel": "Order",
+  "deliveryLoading": "Loading…",
+  "deliveryEnabled": "Enabled",
+  "deliveryDisabled": "Disabled",
+  "deliveryUnknown": "Unknown"
 }
