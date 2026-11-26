@@ -209,7 +209,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   if(!customerToken){status.textContent='浏览器无法保存顾客身份，请允许本地存储后重试';return;}
   if(!/^\d+$/.test(storeId)){status.textContent='门店链接无效';return;}
   try{
-   const response=await fetch('/api/public/delivery/customer-telegram/binding?store_id='+encodeURIComponent(storeId),{headers:{'X-Customer-Token':customerToken},cache:'no-store'});
+   const response=await fetchWithTimeout('/api/public/delivery/customer-telegram/binding?store_id='+encodeURIComponent(storeId),{headers:{'X-Customer-Token':customerToken},cache:'no-store'});
    const data=await response.json().catch(()=>({}));
    if(!response.ok)throw new Error(data.error||'读取绑定状态失败');
    telegramBound=data.bound===true;
@@ -225,11 +225,11 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   try{
    if(telegramBound){
     if(!window.confirm('确定解除此门店的 Telegram 通知绑定吗？'))return;
-    const response=await fetch('/api/public/delivery/customer-telegram/binding?store_id='+encodeURIComponent(storeId),{method:'DELETE',headers:{'X-Customer-Token':customerToken},cache:'no-store'});
+    const response=await fetchWithTimeout('/api/public/delivery/customer-telegram/binding?store_id='+encodeURIComponent(storeId),{method:'DELETE',headers:{'X-Customer-Token':customerToken},cache:'no-store'});
     const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'解除绑定失败');
     telegramBound=false;$('telegramBindingStatus').textContent='Telegram 通知已解除绑定';
    }else{
-    const response=await fetch('/api/public/delivery/customer-telegram/binding/start',{method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':customerToken},body:JSON.stringify({store_id:Number(storeId)})});
+    const response=await fetchWithTimeout('/api/public/delivery/customer-telegram/binding/start',{method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':customerToken},body:JSON.stringify({store_id:Number(storeId)})});
     const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'无法生成 Telegram 绑定入口');
     if(!data.deepLink)throw new Error('Telegram 绑定链接无效');
     if(popup){popup.opener=null;popup.location.replace(data.deepLink);}else window.location.href=data.deepLink;
@@ -394,7 +394,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   const form=new FormData(event.currentTarget),items=[...cart].map(([id,quantity])=>({id:Number(id),quantity}));
   try{
    if(!checkoutKey)throw new Error('浏览器无法保存安全的下单凭证，请允许本地存储后重试');
-   const response=await fetch('/api/public/delivery/orders',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':checkoutKey,...(telegramEntry?{'X-Telegram-Init-Data':String(telegramApp?.initData||'')}:{})},body:JSON.stringify({
+   const response=await fetchWithTimeout('/api/public/delivery/orders',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':checkoutKey,...(telegramEntry?{'X-Telegram-Init-Data':String(telegramApp?.initData||'')}:{})},body:JSON.stringify({
     store_id:Number(storeId),customer_token:customerToken,telegram_entry:telegramEntry,store_entry:storeEntry,recipient_name:form.get('recipient_name'),recipient_phone:form.get('recipient_phone'),
     delivery_address:form.get('delivery_address'),note:form.get('note'),payment_method:form.get('payment_method'),items
    })});
@@ -406,7 +406,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
    showTrackingEntry(data.trackingUrl,'订单 '+(data.orderNo||data.orderId)+' 已创建，可在页面顶部“我的配送订单”中再次打开追踪入口。');
    rotateCheckoutKey();
    if(data.paymentMethod==='khqr'){
-    const qrResponse=await fetch('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/khqr',{
+    const qrResponse=await fetchWithTimeout('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/khqr',{
      method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':data.customerToken},body:JSON.stringify({})
     });
     const qr=await qrResponse.json().catch(()=>({}));
@@ -417,7 +417,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
     $('notifyPayment').onclick=async()=>{
      $('notifyPayment').disabled=true;
      try{
-      const notify=await fetch('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/payment-notify',{
+      const notify=await fetchWithTimeout('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/payment-notify',{
        method:'POST',headers:{'Content-Type':'application/json','X-Customer-Token':data.customerToken},
        body:JSON.stringify({qr_generation_id:qr.qr_generation_id})
       });
