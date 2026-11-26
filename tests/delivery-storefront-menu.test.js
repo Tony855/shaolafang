@@ -207,21 +207,8 @@ test('Telegram Mini App invalid store ids use the visible load failure and retry
   assert.doesNotMatch(page, /if\(!\/\^\\d\+\$\/\.test\(storeId\)\|\|Number\(storeId\)<=0\)\{[^}]*return;/);
 });
 
-function extractFetchWithTimeoutForBehavioralTest() {
-  const start = page.indexOf('async function fetchWithTimeout(url,options={})');
-  const end = page.indexOf('function getCustomerIdentityToken()', start);
-  assert.ok(start >= 0 && end > start, 'fetchWithTimeout must remain a contiguous testable function');
-  return vm.runInNewContext(page.slice(start, end) + '\\nfetchWithTimeout;', {
-    fetch: globalThis.fetch,
-    AbortController,
-    setTimeout,
-    clearTimeout
-  });
-}
-
 test('Telegram Mini App timeout aborts a stalled response JSON body', async () => {
   let timeoutCallback, timerCleared = false, capturedSignal;
-  const fetchWithTimeout = extractFetchWithTimeoutForBehavioralTest();
   const fakeFetch = async (_url, options) => {
     capturedSignal = options.signal;
     return {
