@@ -137,5 +137,5 @@ test('storefront config failures log a safe endpoint, stage, and store identifie
   assert.deepEqual(entries[0][1], {
     endpoint: 'config', stage: 'store_lookup', storeId: 5, name: 'Error'
   });
-  assert.doesNotMatch(JSON.stringify(entries), /db\\.internal|never-log-this|password=/i);
+  assert.doesNotMatch(JSON.stringify(entries), /db\.internal|never-log-this|password=/i);
 });
