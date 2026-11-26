@@ -9,12 +9,12 @@ const miniApp = fs.readFileSync(path.join(__dirname, '..', 'telegram-delivery.ht
 const pageRoutes = fs.readFileSync(path.join(__dirname, '..', 'routes', 'pages.js'), 'utf8');
 const startup = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 
-test('Telegram Mini App requires a store-specific signed entry and no longer offers a store selector', () => {
+test('Telegram Mini App supports global binding resolution and preserves signed store-specific entries', () => {
   assert.ok(miniApp.includes("params.get('entry')"));
   assert.ok(miniApp.includes("params.get('store_id')"));
-  assert.ok(miniApp.includes('/api/public/delivery/telegram-miniapp-stores?store_id='));
+  assert.ok(miniApp.includes("'/api/public/delivery/telegram-miniapp-stores'+(hasStoreId?"));
   assert.ok(miniApp.includes('stores.length!==1'));
-  assert.ok(miniApp.includes("&entry='+encodeURIComponent(entry)+'&telegram=1"));
+  assert.ok(miniApp.includes("&entry='+encodeURIComponent(signature)+'&telegram=1"));
   assert.equal(miniApp.includes('请选择门店'), false);
 });
 
@@ -28,4 +28,6 @@ test('Mini App rejects missing or malformed store entry parameters', () => {
   assert.ok(miniApp.includes("43}$/.test(entry)"));
   assert.ok(miniApp.includes("d+$/.test(storeId)"));
   assert.ok(miniApp.includes('Number(stores[0].id)!==Number(storeId)'));
+  assert.ok(miniApp.includes('const hasStoreId=!!storeId,hasEntry=!!entry'));
+  assert.ok(miniApp.includes("const resolvedEntry=typeof stores[0].entry==='string'?stores[0].entry:entry"));
 });
