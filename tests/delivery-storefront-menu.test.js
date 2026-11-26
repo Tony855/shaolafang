@@ -12,7 +12,7 @@ const page = fs.readFileSync(path.join(__dirname, '..', 'delivery-order.html'), 
 test('delivery storefront loads the complete store-scoped category and active menu datasets', () => {
   assert.match(page, /\/api\/public\/categories\?store_id=/);
   assert.match(page, /\/api\/menu\?store_id=/);
-  assert.match(page, /categories=responses\[3\]\.networkError\?\[\]:\(Array\.isArray\(payloads\[3\]\)\?payloads\[3\]:\[\]\)/);
+  assert.match(page, /categories=responses\[3\]\.networkError\|\|!responses\[3\]\.ok\|\|!Array\.isArray\(payloads\[3\]\)\?\[\]:payloads\[3\]/);
   assert.match(page, /for\(const item of menu\).*categories\.push/s);
   assert.match(page, /currentCategory==='__ALL__'/);
   assert.match(page, /显示 '\+filtered\.length\+' \/ '\+menu\.length\+' 道菜品/);
@@ -186,7 +186,7 @@ test('Telegram Mini App store loading has bounded network waits and a visible re
   assert.match(page, /setTimeout\(\(\)=>controller\.abort\(\),12000\)/);
   assert.match(page, /fetchWithTimeout\('\/api\/public\/delivery\/telegram-miniapp-stores/);
   assert.match(page, /endpoints\.map\(url=>fetchWithTimeout\(url/);
-  assert.match(page, /responses\[3\]\.networkError\?\[\]/);
+  assert.match(page, /responses\[3\]\.networkError\|\|!responses\[3\]\.ok/);
   assert.match(page, /id="retryStoreLoad"/);
   assert.match(page, /async function loadStorefront\(\)/);
   assert.match(page, /\$\('storeName'\)\.textContent='门店加载失败'/);
@@ -276,4 +276,12 @@ test('all delivery storefront API requests use the bounded response-body timeout
   ]) {
     assert.ok(page.includes(request), 'request must use fetchWithTimeout: ' + request);
   }
+});
+
+test('delivery storefront validates API response shapes and distinguishes loading endpoint failures', () => {
+  assert.match(page, /门店信息接口返回异常/);
+  assert.match(page, /菜单接口返回格式异常/);
+  assert.match(page, /门店币种配置接口返回格式异常/);
+  assert.match(page, /endpointNames=\['门店信息','菜单','门店币种配置','菜单分类'\]/);
+  assert.match(page, /!responses\[3\]\.ok/);
 });

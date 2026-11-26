@@ -359,14 +359,18 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   ];
   const responses=await Promise.all(endpoints.map(url=>fetchWithTimeout(url,{cache:'no-store'}).catch(error=>({ok:false,networkError:true,json:async()=>({error:error?.name==='AbortError'?'请求超时，请检查网络后重试':'网络连接失败，请检查网络后重试'})}))));
   const payloads=await Promise.all(responses.map(response=>response.json().catch(()=>({}))));
-  if(!responses[0].ok)throw new Error(payloads[0].error||'门店加载失败');
-  if(!responses[1].ok)throw new Error(payloads[1].error||'菜单加载失败');
-  if(!responses[2].ok)throw new Error(payloads[2].error||'门店币种配置加载失败');
+  const endpointNames=['门店信息','菜单','门店币种配置','菜单分类'];
+  for(let i=0;i<3;i++){
+   if(!responses[i].ok)throw new Error(payloads[i].error||endpointNames[i]+'接口请求失败 (HTTP '+(responses[i].status||'网络错误')+')');
+  }
+  if(!payloads[0]||typeof payloads[0]!=='object'||Array.isArray(payloads[0])||!payloads[0].id)throw new Error('门店信息接口返回异常，请检查门店编号和服务器响应');
+  if(!Array.isArray(payloads[1]))throw new Error('菜单接口返回格式异常，请稍后重试');
+  if(!payloads[2]||typeof payloads[2]!=='object'||Array.isArray(payloads[2]))throw new Error('门店币种配置接口返回格式异常');
   const store=payloads[0],config=payloads[2];
   $('storeName').textContent=store.name||('门店 '+storeId);
   $('retryStoreLoad').hidden=true;
-  menu=Array.isArray(payloads[1])?payloads[1]:[];
-  categories=responses[3].networkError?[]:(Array.isArray(payloads[3])?payloads[3]:[]);
+  menu=payloads[1];
+  categories=responses[3].networkError||!responses[3].ok||!Array.isArray(payloads[3])?[]:payloads[3];
   const known=new Set(categories.map(c=>String(c.name)));
   for(const item of menu){const name=String(item.category||'其他');if(!known.has(name)){categories.push({id:'legacy-'+categories.length,name,sort:Number.MAX_SAFE_INTEGER});known.add(name);}}
   categories.sort((a,b)=>(Number(a.sort)||0)-(Number(b.sort)||0)||Number(a.id||0)-Number(b.id||0));
