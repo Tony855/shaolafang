@@ -15,19 +15,19 @@ label{display:block;font-size:13px;color:#b8c4d5;margin:10px 0 5px}input,select,
 <label data-i18n="riderName">骑手姓名</label><input name="displayName" required maxlength="120">
 <label data-i18n="loginAccount">登录账号</label><input name="username" required minlength="3" maxlength="80">
 <label data-i18n="initialPasswordMin8">初始密码（至少8位）</label><input name="password" type="password" required minlength="8">
-<label data-i18n="contactPhone">联系电话</label><input name="phone" maxlength="40">
+<label data-i18n="deliveryContactPhone">联系电话</label><input name="phone" maxlength="40">
 <button data-i18n="createRiderAccount">创建骑手账号</button><div id="riderMessage" class="muted"></div>
 </form></section>
 <section class="card"><h3 data-i18n="assignDeliveryOrder">分配配送订单</h3><form id="assignForm">
-<label data-i18n="order">订单</label><select name="orderId" id="orderSelect" required></select>
+<label data-i18n="deliveryOrderLabel">订单</label><select name="orderId" id="orderSelect" required></select>
 <label data-i18n="deliveryRider">配送骑手</label><select name="riderId" id="riderSelect" required></select>
 <label data-i18n="recipient">收件人</label><input name="recipientName" maxlength="120">
 <label data-i18n="recipientPhone">收件电话</label><input name="recipientPhone" maxlength="40">
 <label data-i18n="deliveryAddress">配送地址</label><input name="address" required maxlength="500">
 <button data-i18n="assignRider">分配骑手</button><div id="assignMessage" class="muted"></div>
 </form></section></div>
-<section class="card"><h3 data-i18n="storeRiders">本门店骑手</h3><div id="riders" class="muted" data-i18n="loading">读取中…</div></section>
-<section class="card"><h3 data-i18n="deliveryTasksAndRiderLocation">配送任务与骑手位置</h3><div id="jobs" class="muted" data-i18n="loading">读取中…</div></section>
+<section class="card"><h3 data-i18n="storeRiders">本门店骑手</h3><div id="riders" class="muted" data-i18n="deliveryLoading">读取中…</div></section>
+<section class="card"><h3 data-i18n="deliveryTasksAndRiderLocation">配送任务与骑手位置</h3><div id="jobs" class="muted" data-i18n="deliveryLoading">读取中…</div></section>
 </main><script src="/languages.min.js?v=20261126-i18n1"></script><script src="/assets/core.js?v=20261126-i18n1"></script><script src="/socket.io/socket.io.js"></script><script>
 (() => {
  const $=id=>document.getElementById(id),token=sessionStorage.getItem('adminToken')||'';
@@ -38,12 +38,12 @@ label{display:block;font-size:13px;color:#b8c4d5;margin:10px 0 5px}input,select,
  let riders=[],jobs=[];
  function text(el,value){el.textContent=value==null?'':String(value);}
  function renderRiders(){const host=$('riders');host.replaceChildren();if(!riders.length){text(host,t('noRidersYet'));return;}
- const table=document.createElement('table'),head=document.createElement('tr');[t('riderName'),t('loginAccount'),t('contactPhone'),t('status')].forEach(x=>{const th=document.createElement('th');th.textContent=x;head.append(th);});table.append(head);
- riders.forEach(r=>{const tr=document.createElement('tr');[r.display_name,r.username,r.phone||'—',Number(r.active)?t('enabled'):t('disabled')].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td);});table.append(tr);});const scroll=document.createElement('div');scroll.className='table-scroll';scroll.append(table);host.append(scroll);}
+ const table=document.createElement('table'),head=document.createElement('tr');[t('riderName'),t('loginAccount'),t('deliveryContactPhone'),t('status')].forEach(x=>{const th=document.createElement('th');th.textContent=x;head.append(th);});table.append(head);
+ riders.forEach(r=>{const tr=document.createElement('tr');[r.display_name,r.username,r.phone||'—',Number(r.active)?t('deliveryEnabled'):t('deliveryDisabled')].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td);});table.append(tr);});const scroll=document.createElement('div');scroll.className='table-scroll';scroll.append(table);host.append(scroll);}
  function renderJobs(){const host=$('jobs');host.replaceChildren();if(!jobs.length){text(host,t('noDeliveryTasks'));return;}
- jobs.forEach(j=>{const div=document.createElement('div');div.className='job';const title=document.createElement('strong');const labels={pending_assignment:t('pendingAssignment'),assigned:t('assigned'),accepted:t('riderAccepted'),picked_up:t('pickedUp'),delivering:t('delivering'),delivered:t('delivered'),cancelled:t('cancelled')};title.textContent=t('order')+' '+(j.order_no||j.order_id)+' · '+(labels[j.status]||j.status);div.append(title);
+ jobs.forEach(j=>{const div=document.createElement('div');div.className='job';const title=document.createElement('strong');const labels={pending_assignment:t('pendingAssignment'),assigned:t('assigned'),accepted:t('riderAccepted'),picked_up:t('pickedUp'),delivering:t('delivering'),delivered:t('delivered'),cancelled:t('cancelled')};title.textContent=t('deliveryOrderLabel')+' '+(j.order_no||j.order_id)+' · '+(labels[j.status]||j.status);div.append(title);
  const detail=document.createElement('p');detail.className='muted';detail.textContent=(j.rider_name||t('notAssignedRider'))+' · '+(j.rider_phone||'')+' · '+j.delivery_address;div.append(detail);
- if(j.latitude!==null&&j.longitude!==null){const link=document.createElement('a');link.target='_blank';link.rel='noopener';link.href='https://www.openstreetmap.org/?mlat='+encodeURIComponent(j.latitude)+'&mlon='+encodeURIComponent(j.longitude)+'#map=16/'+encodeURIComponent(j.latitude)+'/'+encodeURIComponent(j.longitude);link.textContent=t('viewRiderLocation');link.style.color='#8fc1ff';div.append(link);const stamp=document.createElement('div');stamp.className='muted';stamp.textContent=t('locationUpdatedAt')+(j.location_updated_at||t('unknown'));div.append(stamp);}else{const p=document.createElement('div');p.className='muted';p.textContent=t('noLocation');div.append(p);}host.append(div);});}
+ if(j.latitude!==null&&j.longitude!==null){const link=document.createElement('a');link.target='_blank';link.rel='noopener';link.href='https://www.openstreetmap.org/?mlat='+encodeURIComponent(j.latitude)+'&mlon='+encodeURIComponent(j.longitude)+'#map=16/'+encodeURIComponent(j.latitude)+'/'+encodeURIComponent(j.longitude);link.textContent=t('viewRiderLocation');link.style.color='#8fc1ff';div.append(link);const stamp=document.createElement('div');stamp.className='muted';stamp.textContent=t('locationUpdatedAt')+(j.location_updated_at||t('deliveryUnknown'));div.append(stamp);}else{const p=document.createElement('div');p.className='muted';p.textContent=t('noLocation');div.append(p);}host.append(div);});}
  async function load(){if(!token||!storeId){alert(t('adminSessionExpired'));location.href='/admin';return;}
  const [r,j,o]=await Promise.all([api('/api/admin/delivery/riders'),api('/api/admin/delivery/jobs'),api('/api/orders')]);
  riders=r.riders||[];jobs=j.jobs||[];renderRiders();renderJobs();
