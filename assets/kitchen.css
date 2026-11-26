@@ -310,3 +310,42 @@ html, body {
 
 /* Keep long kitchen item names from forcing ticket rows wider than the viewport. */
 .item-row .name { min-width: 0; overflow-wrap: anywhere; }
+
+
+/* Distinguish kitchen fulfillment types at a glance. */
+.ticket-head { align-items: center; flex-wrap: wrap; }
+.fulfillment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 6px 11px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.25;
+  letter-spacing: .2px;
+}
+.fulfillment-badge-dine_in {
+  color: #b9d8ff;
+  background: rgba(52, 125, 220, .2);
+  border-color: rgba(91, 159, 245, .42);
+}
+.fulfillment-badge-delivery {
+  color: #ffd18a;
+  background: rgba(225, 133, 28, .2);
+  border-color: rgba(245, 169, 69, .48);
+}
+.fulfillment-badge-takeaway {
+  color: #b9f1cd;
+  background: rgba(40, 165, 94, .2);
+  border-color: rgba(76, 204, 130, .44);
+}
+.ticket.fulfillment-delivery { border-top: 3px solid #e5a044; }
+.ticket.fulfillment-takeaway { border-top: 3px solid #42b879; }
+.ticket.fulfillment-dine_in { border-top: 3px solid #5799ed; }
+@media (max-width: 520px) {
+  .fulfillment-badge { font-size: 13px; padding: 5px 9px; }
+  .ticket-head .table-name { font-size: clamp(16px, 5vw, 22px); }
+}
