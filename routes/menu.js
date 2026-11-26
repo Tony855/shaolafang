@@ -81,7 +81,7 @@ app.get('/api/menu', async (req, res) => {
   let storeId = null;
   try {
     const rawStoreId = req.query.store_id === undefined ? '1' : req.query.store_id;
-    const storeId = parsePositiveRouteId(rawStoreId);
+    storeId = parsePositiveRouteId(rawStoreId);
     if (storeId === null) return res.status(400).json({ error: '店铺编号无效' });
     const store = await getAsync('SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
     if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
