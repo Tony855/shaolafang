@@ -178,3 +178,17 @@ test("delivery storefront uses fluid viewport width and responsive breakpoints",
   assert.ok(page.includes("@media(max-width:480px){\n .menu{grid-template-columns:minmax(0,1fr)}"));
   assert.ok(page.includes("@media(max-width:360px){\n main{padding:0 8px}"));
 });
+
+
+test('Telegram Mini App store loading has bounded network waits and a visible retry path', () => {
+  assert.match(page, /async function fetchWithTimeout\(url,options=\{\}\)/);
+  assert.match(page, /setTimeout\(\(\)=>controller\.abort\(\),12000\)/);
+  assert.match(page, /fetchWithTimeout\('\/api\/public\/delivery\/telegram-miniapp-stores/);
+  assert.match(page, /endpoints\.map\(url=>fetchWithTimeout\(url/);
+  assert.match(page, /responses\[3\]\.networkError\?\[\]/);
+  assert.match(page, /id="retryStoreLoad"/);
+  assert.match(page, /async function loadStorefront\(\)/);
+  assert.match(page, /\$\('storeName'\)\.textContent='门店加载失败'/);
+  assert.match(page, /retry\.hidden=false/);
+  assert.match(page, /addEventListener\('click',loadStorefront\)/);
+});
