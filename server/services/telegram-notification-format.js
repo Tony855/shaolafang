@@ -31,6 +31,27 @@ function formatTelegramBusinessNotification(event) {
   }
   lines.push('🧾 <b>订单</b>：' + escapeHtml(orderNo));
   if (event.type === 'order.created') {
+    const items = Array.isArray(event.items) ? event.items : [];
+    if (items.length) {
+      lines.push('🍽️ <b>菜品明细</b>：');
+      let shown = 0;
+      for (const item of items.slice(0, 100)) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+        const name = safeField(item.name, 48);
+        const quantity = Number(item.quantity);
+        if (!name || !Number.isSafeInteger(quantity) || quantity <= 0 || quantity > 1000) continue;
+        const rawStatus = safeField(item.itemStatus || 'pending', 16);
+        const status = rawStatus === 'done' ? '已完成' : (rawStatus === 'pending' ? '制作中' : '状态未知');
+        const returnedQty = Number(item.returnedQty) || 0;
+        const returned = Number.isSafeInteger(returnedQty) && returnedQty > 0 && returnedQty <= quantity
+          ? '（已退 ' + returnedQty + '）' : '';
+        lines.push('• ' + escapeHtml(name) + ' ×' + quantity + ' — ' + status + returned);
+        shown += 1;
+      }
+      if (items.length > shown) lines.push('…另有 ' + (items.length - shown) + ' 项菜品未显示');
+    } else {
+      lines.push('🍽️ <b>菜品明细</b>：暂无可显示的菜品');
+    }
     const note = safeField(event.note, 200);
     if (note) lines.push('📝 <b>顾客备注</b>：\n<blockquote>' + escapeHtml(note) + '</blockquote>');
   }
