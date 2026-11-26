@@ -115,7 +115,7 @@ test('plain /start automatically resumes the most recently bound active store', 
       secret: 's'.repeat(40),
       getAsync: async () => null,
       allAsync: async (sql, params) => {
-        assert.match(sql, /b\.telegram_chat_id=\\? AND b\.telegram_user_id=\\?/);
+        assert.match(sql, /b\\.telegram_chat_id=\\? AND b\\.telegram_user_id=\\?/);
         assert.match(sql, /b\.is_active=1/);
         assert.match(sql, /r\.is_enabled=1/);
         assert.match(sql, /r\.chat_id<>''/);
