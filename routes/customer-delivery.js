@@ -78,7 +78,8 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       );
       const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
       const botToken = String(config.telegram_client_bot_token || '');
-      if (config.telegram_client_bot_enabled !== '1' || !verifyTelegramWebAppInitData(initData, botToken)) {
+      const telegramIdentity = verifyTelegramWebAppInitData(initData, botToken);
+      if (config.telegram_client_bot_enabled !== '1' || !telegramIdentity) {
         logTelegramStoreResolutionRejected('bot_configuration', config.telegram_client_bot_enabled !== '1' ? 'bot_disabled' : 'init_data_invalid');
         return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开门店专属链接' });
       }
