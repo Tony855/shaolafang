@@ -21,7 +21,7 @@ function setup({ job = { id: 41, order_id: 9001 } } = {}) {
       if (sql.includes('FROM delivery_jobs')) return job;
       return null;
     },
-    allAsync: async () => [],
+    allAsync: async (sql, params = []) => { calls.push({ type: 'all', sql, params }); return []; },
     runAsync: async (sql, params = []) => {
       calls.push({ type: 'run', sql, params });
       return { affectedRows: 1 };
@@ -37,13 +37,14 @@ function setup({ job = { id: 41, order_id: 9001 } } = {}) {
     resetLoginAttempts: async () => {},
     cancelLoginAttempt: async () => {}
   });
-  return { handler: handlers.get('POST /api/delivery/jobs/:id/location'), calls, events };
+  return { handler: handlers.get('POST /api/delivery/jobs/:id/location'), adminHandler: handlers.get('GET /api/admin/delivery/jobs'), calls, events };
 }
 
 function response() {
   return {
     statusCode: 200,
     body: null,
+    setHeader(name, value) { this.headers[name] = value; },
     status(code) { this.statusCode = code; return this; },
     json(value) { this.body = value; return this; }
   };
@@ -103,4 +104,19 @@ test('location is not persisted or broadcast when the job is inactive or reassig
   assert.equal(res.statusCode, 409);
   assert.equal(ctx.calls.some(call => call.type === 'run'), false);
   assert.deepEqual(ctx.events, []);
+});
+
+
+test('admin delivery list hides the last rider location after delivery is completed or cancelled', async () => {
+  const ctx = setup();
+  const res = response();
+
+  await ctx.adminHandler({ merchantId: 3, storeId: 7 }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers['Cache-Control'], 'no-store');
+  const query = ctx.calls.find(call => call.type === 'all' && call.sql.includes('FROM delivery_jobs j'));
+  assert.ok(query);
+  assert.match(query.sql, /LEFT JOIN delivery_rider_locations l[\\s\\S]*AND j\\.status IN \\(\'accepted\',\'picked_up\',\'delivering\'\\)/);
+  assert.deepEqual(query.params, [3, 7]);
 });
