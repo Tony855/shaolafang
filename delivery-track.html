@@ -17,7 +17,7 @@ h1{font-size:22px;margin:8px 0}.muted{color:#68778b;font-size:13px}.status{font-
 <script src="/socket.io/socket.io.js"></script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (() => {
- const trackingPath=location.pathname.match(/\/delivery\/track\/([1-9]\\d*)\/?$/);
+ const trackingPath=location.pathname.match(/\/delivery\/track\/([1-9]\d*)\/?$/);
  const orderId=trackingPath?trackingPath[1]:'';
  const fragment=new URLSearchParams(location.hash.replace(/^#/,'')), fragmentToken=fragment.get('token')||'';
  const isCustomerToken=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
