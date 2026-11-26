@@ -100,7 +100,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
         const telegramUserId = String(telegramIdentity.user.id);
         const bindings = await allAsync(
           'SELECT b.store_id, b.merchant_id, r.chat_id, s.id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id JOIN telegram_store_admin_recipients r ON r.merchant_id=b.merchant_id AND r.store_id=b.store_id WHERE b.telegram_user_id=? AND b.is_active=1 AND b.revoked_at IS NULL AND r.is_enabled=1 AND LENGTH(r.chat_id)>0 AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1',
-          [telegramUserId, '']
+          [telegramUserId]
         );
         const binding = Array.isArray(bindings) ? bindings[0] : null;
         if (!binding) {
