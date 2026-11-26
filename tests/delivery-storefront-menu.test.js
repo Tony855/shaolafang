@@ -12,7 +12,7 @@ const page = fs.readFileSync(path.join(__dirname, '..', 'delivery-order.html'), 
 test('delivery storefront loads the complete store-scoped category and active menu datasets', () => {
   assert.match(page, /\/api\/public\/categories\?store_id=/);
   assert.match(page, /\/api\/menu\?store_id=/);
-  assert.match(page, /categories=Array\.isArray\(payloads\[3\]\)\?payloads\[3\]:\[\]/);
+  assert.match(page, /categories=responses\[3\]\.networkError\?\[\]:\(Array\.isArray\(payloads\[3\]\)\?payloads\[3\]:\[\]\)/);
   assert.match(page, /for\(const item of menu\).*categories\.push/s);
   assert.match(page, /currentCategory==='__ALL__'/);
   assert.match(page, /显示 '\+filtered\.length\+' \/ '\+menu\.length\+' 道菜品/);
@@ -63,7 +63,8 @@ test('delivery storefront remains a tableless delivery checkout and retains KHQR
 });
 
 test('delivery storefront title header remains fully visible on narrow screens', () => {
-  assert.match(page, /<header><h1>🛵 FoodFlow 外卖点餐<\/h1><p id="storeName">/);
+  assert.match(page, /<header><h1>🛵 FoodFlow 外卖点餐<\/h1><p id="storeName" role="status" aria-live="polite">/);
+  assert.match(page, /id="retryStoreLoad"/);
   assert.ok(page.includes("body>header{display:flex;width:100%;max-width:none;min-width:0;margin:0;"));
   assert.match(page, /header h1\{[^}]*flex-wrap:wrap/);
   assert.match(page, /header h1\{[^}]*overflow-wrap:anywhere/);
@@ -177,4 +178,18 @@ test("delivery storefront uses fluid viewport width and responsive breakpoints",
   assert.ok(page.includes("@media(max-width:720px){\n body>header{padding:calc(16px + env(safe-area-inset-top,0px)) 14px 17px}"));
   assert.ok(page.includes("@media(max-width:480px){\n .menu{grid-template-columns:minmax(0,1fr)}"));
   assert.ok(page.includes("@media(max-width:360px){\n main{padding:0 8px}"));
+});
+
+
+test('Telegram Mini App store loading has bounded network waits and a visible retry path', () => {
+  assert.match(page, /async function fetchWithTimeout\(url,options=\{\}\)/);
+  assert.match(page, /setTimeout\(\(\)=>controller\.abort\(\),12000\)/);
+  assert.match(page, /fetchWithTimeout\('\/api\/public\/delivery\/telegram-miniapp-stores/);
+  assert.match(page, /endpoints\.map\(url=>fetchWithTimeout\(url/);
+  assert.match(page, /responses\[3\]\.networkError\?\[\]/);
+  assert.match(page, /id="retryStoreLoad"/);
+  assert.match(page, /async function loadStorefront\(\)/);
+  assert.match(page, /\$\('storeName'\)\.textContent='门店加载失败'/);
+  assert.match(page, /retry\.hidden=false/);
+  assert.match(page, /addEventListener\('click',loadStorefront\)/);
 });
