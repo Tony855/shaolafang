@@ -693,7 +693,14 @@
                 detailEl.querySelectorAll('button[data-track-order]').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const orderId = Number(btn.dataset.trackOrder);
-                        if (Number.isSafeInteger(orderId) && orderId > 0) window.location.href = '/delivery/track/' + orderId;
+                        if (Number.isSafeInteger(orderId) && orderId > 0) {
+                            const token = state.customerToken || getStoredCustomerToken() || '';
+                            if (!token) {
+                                SLF.ui.toast(t('sessionExpired', null, '顾客会话已失效，请重新扫码后查看配送位置'), 3000);
+                                return;
+                            }
+                            window.location.href = '/delivery/track/' + orderId + '#token=' + encodeURIComponent(token);
+                        }
                     });
                 });
 
