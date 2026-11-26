@@ -35,7 +35,15 @@ test('delivery tracking bounds API response and JSON body reads with a timeout',
 });
 
 
-test('delivery tracking polls the authenticated endpoint when the live socket is disconnected', () => {
-  assert.ok(track.includes("setInterval(()=>{if(customerToken&&(!socket||!socket.connected))refresh().catch"));
-  assert.ok(track.includes('},15000);'));
+test('delivery tracking periodically reconciles status and location even while the live socket is connected', () => {
+  assert.ok(track.includes("setInterval(()=>{if(customerToken)refresh().catch"));
+  assert.ok(track.includes('},30000);'));
+});
+
+test('rider job and location API requests have a bounded timeout that covers response-body reads', () => {
+  const rider = fs.readFileSync(path.join(__dirname, '..', 'delivery-rider.html'), 'utf8');
+  assert.ok(rider.includes('const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000)'));
+  assert.ok(rider.includes('data=await response.json()'));
+  assert.ok(rider.includes("if(error.name==='AbortError')throw error"));
+  assert.ok(rider.includes('finally{clearTimeout(timer);}'));
 });
