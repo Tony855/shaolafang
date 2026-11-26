@@ -627,3 +627,35 @@ test("admin mobile order header never reverts to a grid that pushes status onto 
   assert.match(mobileBlock, /\.ff-admin #orders \.order-item-admin \.top\s*\{[^}]*display:flex\s*!important;[^}]*flex-wrap:nowrap\s*!important/s);
   assert.match(mobileBlock, /\.ff-admin #orders \.order-item-admin \.top \.status\s*\{[^}]*flex:0 0 auto\s*!important/s);
 });
+
+
+test('delivery checkout cart labels wrap safely and respect the bottom safe area', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'delivery-order.html'), 'utf8');
+  assert.match(html, /padding-bottom:max\(30px,env\(safe-area-inset-bottom,0px\)\)/);
+  assert.match(html, /\.cart-line>span:first-child\{[^}]*overflow-wrap:anywhere/s);
+  assert.match(html, /\.cart-line strong\{[^}]*white-space:normal;overflow-wrap:anywhere/s);
+  assert.match(html, /@media\(max-width:390px\)[\s\S]*\.cart-line strong\{max-width:48%\}/);
+});
+
+test('kitchen ticket item names wrap without forcing mobile card overflow', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'kitchen.css'), 'utf8');
+  assert.match(css, /\.item-row \.name\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;/s);
+});
+
+test('cashier KHQR content and action buttons remain contained on compact phones', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'cashier.css'), 'utf8');
+  const marker = '2026-11-25 responsive audit: KHQR payment content';
+  const rules = css.slice(css.lastIndexOf(marker));
+  assert.match(rules, /#khqrModal \.khqr-image-wrap\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(rules, /#khqrModal \.khqr-payee-account\s*\{[^}]*overflow-wrap:\s*anywhere;/s);
+  assert.match(rules, /@media \(max-width: 480px\)/);
+  assert.match(rules, /#khqrModal \.payment-actions \.btn\s*\{[^}]*flex:\s*1 1 130px;/s);
+});
+
+test('menu display header wraps controls on narrow phone screens', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'menu-display.css'), 'utf8');
+  const rules = css.slice(css.lastIndexOf('Keep menu display header controls'));
+  assert.match(rules, /@media \(max-width: 480px\)/);
+  assert.match(rules, /\.disp-header\s*\{[^}]*flex-wrap:\s*wrap;/s);
+  assert.match(rules, /\.disp-header-right\s*\{[^}]*flex-wrap:\s*wrap;/s);
+});
