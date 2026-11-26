@@ -144,8 +144,14 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
  const $=id=>document.getElementById(id),cart=new Map();
  async function fetchWithTimeout(url,options={}){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
-  try{return await fetch(url,{...options,signal:controller.signal});}
-  finally{clearTimeout(timer);}
+  let settled=false;
+  const clearTimer=()=>{if(!settled){settled=true;clearTimeout(timer);}};
+  try{
+   const response=await fetch(url,{...options,signal:controller.signal});
+   const readJson=response.json.bind(response);
+   response.json=async(...args)=>{try{return await readJson(...args);}finally{clearTimer();}};
+   return response;
+  }catch(error){clearTimer();throw error;}
  }
  function getCustomerIdentityToken(){
   try{
@@ -335,7 +341,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   }
  }
  async function load(){
-  if(!/^\d+$/.test(storeId)||Number(storeId)<=0){$('message').textContent='请使用包含有效 store_id 的外卖链接打开本页面';$('menu').replaceChildren();return;}
+  if(!/^\\d+$/.test(storeId)||Number(storeId)<=0){throw new Error('请使用包含有效 store_id 的外卖链接打开本页面');}
   if(telegramEntry){
    const initData=telegramApp&&typeof telegramApp.initData==='string'?telegramApp.initData:'';
    if(!initData||!/^[A-Za-z0-9_-]{43}$/.test(storeEntry)){throw new Error('Telegram 门店专属入口无效，请重新从门店群组链接进入');}
