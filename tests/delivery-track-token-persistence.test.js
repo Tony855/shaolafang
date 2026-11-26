@@ -23,7 +23,9 @@ test('delivery tracking keeps a valid URL-fragment credential in memory when bro
 });
 
 test('delivery tracking rejects malformed customer credentials before making an API request', () => {
-  assert.ok(track.includes("const isCustomerToken=value=>typeof value==='string'&&(/^[a-f0-9]{64}$/.test(value)||/^[A-Za-z0-9_-]{22}$/.test(value));"));
+  assert.ok(track.includes("const isCustomerToken=value=>typeof value==='string'&&(/^[a-f0-9]{64}$/.test(value)||/^[A-Za-z0-9_-]{22}$/.test(value)||/^ct_[a-f0-9]{48}$/.test(value));"));
+assert.match(customer, /return 'ct_' \+ Array\.from\(bytes, value => value\.toString\(16\)\.padStart\(2, '0'\)\)\.join\(''\)/);
+assert.match(track, /\^ct_\[a-f0-9\]\{48\}\$/);
   assert.ok(customer.includes("window.location.href = '/delivery/track/' + orderId + '#token=' + encodeURIComponent(token)"));
   assert.ok(customer.includes("const token = state.customerToken || getStoredCustomerToken() || ''"));
   assert.match(track, /storedTokens\.find\(isCustomerToken\)\|\|''/);
