@@ -262,3 +262,18 @@ test('Telegram Mini App timeout clears when the network fetch rejects', async ()
   await assert.rejects(fn('/network-error'), /network failure/);
   assert.equal(timerCleared, true);
 });
+
+
+test('all delivery storefront API requests use the bounded response-body timeout helper', () => {
+  const rawFetchCalls = page.split('fetch(').length - 1;
+  assert.equal(rawFetchCalls, 1, 'only fetchWithTimeout may call the native fetch API');
+  for (const request of [
+    "fetchWithTimeout('/api/public/delivery/customer-telegram/binding?store_id=",
+    "fetchWithTimeout('/api/public/delivery/customer-telegram/binding/start'",
+    "fetchWithTimeout('/api/public/delivery/orders'",
+    "fetchWithTimeout('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/khqr'",
+    "fetchWithTimeout('/api/public/delivery/orders/'+encodeURIComponent(data.orderId)+'/payment-notify'"
+  ]) {
+    assert.ok(page.includes(request), 'request must use fetchWithTimeout: ' + request);
+  }
+});
