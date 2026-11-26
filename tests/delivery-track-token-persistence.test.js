@@ -47,3 +47,10 @@ test('rider job and location API requests have a bounded timeout that covers res
   assert.ok(rider.includes("if(error.name==='AbortError')throw error"));
   assert.ok(rider.includes('finally{clearTimeout(timer);}'));
 });
+
+
+test('customer tracking removes old and out-of-order rider positions', () => {
+  assert.ok(track.includes('Date.now()-timestamp>120000'));
+  assert.ok(track.includes('timestamp<lastLocationAt'));
+  assert.ok(track.includes('map.removeLayer(marker)'));
+});
