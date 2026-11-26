@@ -22,7 +22,7 @@ function signedInitData() {
   return new URLSearchParams(Array.from(params.entries()).sort(([a], [b]) => a < b ? -1 : 1)).toString();
 }
 
-function setup({ recipient = { id: 11, merchant_id: 7, name: 'Tenant A store', chat_id: '-100111' }, enabled = true } = {}) {
+function setup({ recipient = { id: 11, merchant_id: 7, name: 'Tenant A store', chat_id: '-100111' }, enabled = true, logger = { error() {} }, failSettings = false } = {}) {
   const handlers = new Map(), calls = [];
   const app = { get(path, handler) { handlers.set('GET ' + path, handler); }, post() {}, delete() {} };
   registerCustomerDeliveryRoutes(app, {
@@ -33,17 +33,20 @@ function setup({ recipient = { id: 11, merchant_id: 7, name: 'Tenant A store', c
     },
     allAsync: async (sql, params) => {
       calls.push({ sql, params });
-      if (sql.includes('FROM settings')) return [
+      if (sql.includes('FROM settings')) {
+        if (failSettings) throw Object.assign(new Error('DO_NOT_LOG_THIS_SECRET'), { code: 'ER_ACCESS_DENIED' });
+        return [
         { key: 'telegram_client_bot_enabled', value: enabled ? '1' : '0' },
         { key: 'telegram_client_bot_token', value: token }
-      ];
+        ];
+      }
       return [];
     },
     runAsync: async () => ({ affectedRows: 1 }), withTransaction: async fn => fn(),
     normalizeOrderItems: async () => [], allocateOrderNo: async () => 'TEST',
     getOrderCooldownMs: async () => 0, checkAndSetCooldown: async () => true,
     getClientIp: () => '127.0.0.1', formatOrder: value => value,
-    io: { to: () => ({ emit() {} }) }
+    io: { to: () => ({ emit() {} }) }, logger
   });
   return { handler: handlers.get('GET /api/public/delivery/telegram-miniapp-stores'), calls };
 }
@@ -87,4 +90,22 @@ test('shared Client Bot Mini App rejects missing signed initData before resolvin
   await handler(req, res);
   assert.equal(res.statusCode, 401);
   assert.equal(calls.length, 0);
+});
+
+
+test('Telegram Mini App store lookup logs safe failure metadata without exposing error messages', async () => {
+  process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = secret;
+  const entries = [];
+  const logger = { error: (...args) => entries.push(args) };
+  const { handler } = setup({ logger, failSettings: true });
+  const signature = createStoreEntrySignature({ storeId: 11, chatId: '-100111', secret });
+  const res = response();
+  await handler(request(11, signature), res);
+  assert.equal(res.statusCode, 503);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0][0], '[telegram-miniapp-store-resolution] failed');
+  assert.equal(entries[0][1].stage, 'bot_configuration');
+  assert.equal(entries[0][1].code, 'ER_ACCESS_DENIED');
+  assert.equal(JSON.stringify(entries).includes('DO_NOT_LOG_THIS_SECRET'), false);
+  assert.equal(JSON.stringify(res.body).includes('DO_NOT_LOG_THIS_SECRET'), false);
 });
