@@ -122,3 +122,13 @@ test('admin delivery list hides the last rider location after delivery is comple
   assert.match(query.sql, /AND j\.status IN \('accepted','picked_up','delivering'\)/);
   assert.deepEqual(query.params, [3, 7]);
 });
+
+
+test('admin delivery list excludes coordinates older than two minutes', async () => {
+  const ctx = setup();
+  const res = response();
+  await ctx.adminHandler({ merchantId: 3, storeId: 7 }, res);
+  const query = ctx.calls.find(call => call.type === 'all' && call.sql.includes('FROM delivery_jobs j'));
+  assert.ok(query);
+  assert.ok(query.sql.includes('l.updated_at>=DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 2 MINUTE)'));
+});
