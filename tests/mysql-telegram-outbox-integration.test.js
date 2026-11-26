@@ -5,8 +5,10 @@ const assert = require('node:assert/strict');
 const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const databaseUrl = process.env.MYSQL_INTEGRATION_URL;
+const { assertSafeIntegrationDatabaseName } = require('./helpers/mysql-integration-db-guard');
 if (databaseUrl) {
   const integrationUrl = new URL(databaseUrl);
+  assertSafeIntegrationDatabaseName(decodeURIComponent(integrationUrl.pathname.slice(1)));
   process.env.DB_HOST = integrationUrl.hostname;
   process.env.DB_PORT = integrationUrl.port || '3306';
   process.env.DB_USER = decodeURIComponent(integrationUrl.username);
