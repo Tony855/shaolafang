@@ -43,6 +43,7 @@ function setup({ job = { id: 41, order_id: 9001 } } = {}) {
 function response() {
   return {
     statusCode: 200,
+    headers: {},
     body: null,
     setHeader(name, value) { this.headers[name] = value; },
     status(code) { this.statusCode = code; return this; },
@@ -117,6 +118,7 @@ test('admin delivery list hides the last rider location after delivery is comple
   assert.equal(res.headers['Cache-Control'], 'no-store');
   const query = ctx.calls.find(call => call.type === 'all' && call.sql.includes('FROM delivery_jobs j'));
   assert.ok(query);
-  assert.match(query.sql, /LEFT JOIN delivery_rider_locations l[\\s\\S]*AND j\\.status IN \\(\'accepted\',\'picked_up\',\'delivering\'\\)/);
+  assert.match(query.sql, /LEFT JOIN delivery_rider_locations l/);
+  assert.match(query.sql, /AND j\.status IN \('accepted','picked_up','delivering'\)/);
   assert.deepEqual(query.params, [3, 7]);
 });
