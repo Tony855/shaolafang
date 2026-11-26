@@ -182,8 +182,8 @@ test('global Telegram Mini App menu resolves the authenticated user latest activ
   assert.equal(verifyStoreEntrySignature({ storeId: 11, chatId: '-100111', secret, signature: res.body.stores[0].entry }), true);
   const lookup = calls.find(call => call.sql.includes('FROM telegram_customer_bindings'));
   assert.deepEqual(lookup.params, ['10001']);
-  assert.match(lookup.sql, /b\\.merchant_id/);
-  assert.match(lookup.sql, /b\\.revoked_at IS NULL/);
+  assert.match(lookup.sql, /b\.merchant_id/);
+  assert.match(lookup.sql, /b\.revoked_at IS NULL/);
 });
 
 test('global Telegram Mini App menu fails with a clear onboarding message when user has no active store binding', async () => {
