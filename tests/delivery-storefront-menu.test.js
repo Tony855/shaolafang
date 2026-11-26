@@ -196,9 +196,9 @@ test('Telegram Mini App store loading has bounded network waits and a visible re
 
 
 test('Telegram Mini App timeout remains active while the response JSON body is being read', () => {
-  assert.match(page, /const readJson=response\\.json\\.bind\\(response\\)/);
-  assert.match(page, /response\\.json=async\\(\\.\\.\\.args\\)=>\\{try\\{return await readJson\\(\\.\\.\\.args\\);\\}finally\\{clearTimer\\(\\);\\}\\}/);
-  assert.match(page, /catch\\(error\\)\\{clearTimer\\(\\);throw error;\\}/);
+  assert.ok(page.includes('const readJson=response.json.bind(response)'));
+  assert.ok(page.includes('response.json=async(...args)=>{try{return await readJson(...args);}finally{clearTimer();}}'));
+  assert.ok(page.includes('catch(error){clearTimer();throw error;}'));
 });
 
 test('Telegram Mini App invalid store ids use the visible load failure and retry state', () => {
