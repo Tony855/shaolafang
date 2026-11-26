@@ -2,9 +2,10 @@
    routes/public.js — 公开接口（无需登录）
    ============================================================ */
 const { parsePositiveRouteId } = require('../server/services/route-id');
+const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 
 module.exports = function(app, deps) {
-  const { getAsync, allAsync } = deps;
+  const { getAsync, allAsync, logger = console } = deps;
 
   function boundedSetting(value, fallback, min, max) {
     const text = typeof value === 'number' ? String(value) : value;
@@ -20,17 +21,21 @@ module.exports = function(app, deps) {
   }
 
   app.get('/api/public/config', async (req, res) => {
+    let storeId = null;
+    let failureStage = 'store_lookup';
     try {
       const rawStoreId = req.query.store_id === undefined ? '1' : req.query.store_id;
-      const storeId = parsePositiveRouteId(rawStoreId);
+      storeId = parsePositiveRouteId(rawStoreId);
       if (storeId === null) return res.status(400).json({ error: '店铺编号无效' });
       const store = await getAsync('SELECT s.id, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       const merchantId = store.merchant_id;
+      failureStage = 'currency_lookup';
       const currencies = await allAsync(
         'SELECT code, symbol, name, rate, is_default FROM currencies WHERE merchant_id=? ORDER BY is_default DESC, code',
         [merchantId]
       );
+      failureStage = 'store_settings';
       // 简化：只读店铺级
       const primaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_primary_currency_code`]);
       const secondaryRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_secondary_currency_code`]);
@@ -47,9 +52,11 @@ module.exports = function(app, deps) {
 
       const primaryCurrency = currencies.find(c => c.code === primaryCode) || currencies.find(c => c.is_default) || currencies[0] || { code: 'USD', symbol: '$', rate: 1 };
       const secondaryCurrency = secondaryCode ? (currencies.find(c => c.code === secondaryCode) || null) : null;
+      failureStage = 'merchant_settings';
       const soundRow = await getAsync("SELECT value FROM settings WHERE `key` = ?", [`store_${storeId}_new_order_sound_enabled`])
                     || await getAsync("SELECT value FROM settings WHERE `key` = ?", [`merchant_${merchantId}_new_order_sound_enabled`])
                     || await getAsync("SELECT value FROM settings WHERE `key` = 'new_order_sound_enabled'");
+      failureStage = 'global_constraints';
       const keys = [
         'waiter_refresh_interval', 'kitchen_auto_hide_minutes', 'max_order_items',
         'max_item_quantity', 'max_order_note_length', 'order_interval_seconds',
@@ -88,30 +95,43 @@ module.exports = function(app, deps) {
         max_item_quantity: constraints.order.maxPerItem,
         max_order_note_length: constraints.order.maxNoteLength,
       });
-    } catch (e) { res.status(500).json({ error: '读取公开配置失败' }); }
+    } catch (e) {
+      try { logger.error('[public/storefront] request failed', { endpoint: 'config', stage: failureStage, storeId, ...safeErrorMetadata(e) }); } catch (_) {}
+      res.status(500).json({ error: '读取公开配置失败' });
+    }
   });
 
   app.get('/api/public/store-info', async (req, res) => {
+    let storeId = null;
     try {
       const rawStoreId = req.query.store_id === undefined ? '1' : req.query.store_id;
-      const storeId = parsePositiveRouteId(rawStoreId);
+      storeId = parsePositiveRouteId(rawStoreId);
       if (storeId === null) return res.status(400).json({ error: '店铺编号无效' });
       const store = await getAsync('SELECT s.id, s.name, s.address FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
       res.json(store);
-    } catch (e) { res.status(500).json({ error: '公开接口请求失败，请稍后重试' }); }
+    } catch (e) {
+      try { logger.error('[public/storefront] request failed', { endpoint: 'store_info', storeId, ...safeErrorMetadata(e) }); } catch (_) {}
+      res.status(500).json({ error: '公开接口请求失败，请稍后重试' });
+    }
   });
 
   app.get('/api/public/categories', async (req, res) => {
+    let storeId = null;
+    let failureStage = 'store_lookup';
     try {
       const rawStoreId = req.query.store_id === undefined ? '1' : req.query.store_id;
-      const storeId = parsePositiveRouteId(rawStoreId);
+      storeId = parsePositiveRouteId(rawStoreId);
       if (storeId === null) return res.status(400).json({ error: '店铺编号无效' });
       const store = await getAsync('SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.active=1 AND m.status=1', [storeId]);
       if (!store) return res.status(404).json({ error: '店铺不存在或已停用' });
+      failureStage = 'category_lookup';
       const rows = await allAsync('SELECT id, name, sort FROM menu_categories WHERE store_id=? ORDER BY sort, id', [storeId]);
       res.json(rows);
-    } catch (e) { res.status(500).json({ error: '公开接口请求失败，请稍后重试' }); }
+    } catch (e) {
+      try { logger.error('[public/storefront] request failed', { endpoint: 'categories', stage: failureStage, storeId, ...safeErrorMetadata(e) }); } catch (_) {}
+      res.status(500).json({ error: '公开接口请求失败，请稍后重试' });
+    }
   });
 
   // ★ KHQR 银行列表（给前端拉取图标映射）

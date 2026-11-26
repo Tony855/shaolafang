@@ -9,7 +9,8 @@ function setup(options = {}) {
     getAsync: options.getAsync || (async sql => sql.includes('FROM stores') ? { id: 5, merchant_id: 9 } : null),
     allAsync: options.allAsync || (async sql => sql.includes('FROM currencies') ? [
       { code: 'USD', symbol: '$', name: 'US Dollar', rate: 1, is_default: 1 }
-    ] : [])
+    ] : []),
+    logger: options.logger || console
   });
   return routes;
 }
@@ -63,4 +64,20 @@ test('public config does not disclose database errors', async () => {
   await routes.get('/api/public/config')({ query: { store_id: '5' } }, res);
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.error.includes('SQL password'), false);
+});
+
+
+test('storefront config failures log safe endpoint metadata without raw errors', async () => {
+  const entries = [];
+  const routes = setup({
+    getAsync: async () => { throw new Error('db.internal password=never-log-this'); },
+    logger: { error: (...args) => entries.push(args) }
+  });
+  const res = response();
+  await routes.get('/api/public/config')({ query: { store_id: '5' } }, res);
+  assert.equal(res.statusCode, 500);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0][0], '[public/storefront] request failed');
+  assert.deepEqual(entries[0][1], { endpoint: 'config', stage: 'store_lookup', storeId: 5, name: 'Error' });
+  assert.doesNotMatch(JSON.stringify(entries), /db\\.internal|never-log-this|password=/i);
 });
