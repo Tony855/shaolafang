@@ -69,7 +69,7 @@ test('shared Client Bot Mini App resolves only the store represented by the sign
   const res = response();
   await handler(request(11, signature), res);
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body.stores.map(store => [store.id, store.merchantId]), [[11, 7]]);
+  assert.deepEqual(res.body.stores.map(store => [store.id, store.merchantId, store.entry]), [[11, 7, signature]]);
   assert.ok(calls.some(call => call.sql.includes('telegram_store_admin_recipients') && call.params[0] === 11));
 });
 
