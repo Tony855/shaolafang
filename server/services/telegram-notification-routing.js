@@ -17,7 +17,7 @@ function buildTelegramDestinationRecipientKey(destinationId, storeId) {
 
 function parseTelegramDestinationRecipientKey(value) {
   if (typeof value !== 'string') return null;
-  const match = value.match(/^destination:([1-9]\\d{0,18}):store:([1-9]\\d{0,18})$/);
+  const match = value.match(/^destination:([1-9]\d{0,18}):store:([1-9]\d{0,18})$/);
   if (!match) return null;
   const destinationId = Number(match[1]);
   const storeId = Number(match[2]);
