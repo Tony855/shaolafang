@@ -48,10 +48,10 @@ test('legacy backfill creates one merchant destination and multiple store subscr
     withTransaction: async fn => fn()
   };
   const first = await backfillTelegramStoreSubscriptions(deps);
-  subscriptions.clear();
   const migratedRows = [...subscriptions.values()];
   assert.deepEqual(migratedRows[0].slice(3), [1, 1, 0, 1]);
   assert.deepEqual(migratedRows[1].slice(3), [0, 0, 1, 0]);
+  subscriptions.clear(); // Simulate an operator removing subscriptions after migration.
   const second = await backfillTelegramStoreSubscriptions(deps);
   assert.equal(first.destinationsCreated, 1);
   assert.equal(first.subscriptionsCreated, 2);
