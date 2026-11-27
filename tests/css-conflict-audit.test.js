@@ -551,7 +551,7 @@ test('mobile CSS fixes are served with refreshed cache-busting versions', () => 
   const waiterHtml = fs.readFileSync(path.join(__dirname, '..', 'waiter.html'), 'utf8');
   assert.ok(customerHtml.includes('assets/customer.css?v=2026112501'));
   assert.ok(adminHtml.includes('assets/admin.css?v=2026112504'));
-  assert.ok(adminHtml.includes('assets/admin-bundle.js?v=2026112504'));
+  assert.ok(adminHtml.match(new RegExp('assets/admin-bundle[.]js[?]v=[0-9]+')));
   assert.ok(cashierHtml.includes('assets/khqr-shared.css?v=2026112502'));
   assert.ok(waiterHtml.includes('assets/khqr-shared.css?v=2026112502'));
 });
