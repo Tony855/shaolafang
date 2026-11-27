@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { validateBotToken, validateChatId, sendTelegramTestMessage, sendTelegramMessage, getTelegramBotUsername, setTelegramMenuButton, setTelegramWebhook } = require('../server/services/telegram-bot');
+const { validateBotToken, validateChatId, sendTelegramTestMessage, sendTelegramMessage, getTelegramBotUsername, getTelegramGroupChats, setTelegramMenuButton, setTelegramWebhook } = require('../server/services/telegram-bot');
 
 const token = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 const validPayload = { ok: true, result: { message_id: 17, chat: { id: -100123 } } };
@@ -205,4 +205,40 @@ test('rejects insecure or weak webhook settings before contacting Telegram', asy
     fetchImpl: async () => { called = true; }
   }), /32 至 256/);
   assert.equal(called, false);
+});
+
+
+test('discovers group and supergroup IDs without returning message content', async () => {
+  const requests = [];
+  const updates = {
+    ok: true,
+    result: [
+      { update_id: 101, message: { chat: { id: -12345, type: 'group', title: 'Kitchen Team' }, text: 'private message text' } },
+      { update_id: 102, message: { chat: { id: -1009876543210, type: 'supergroup', title: 'Store Ops', username: 'store_ops' }, text: '/start' } },
+      { update_id: 103, message: { chat: { id: 123456, type: 'private', first_name: 'Customer' }, text: 'hello' } }
+    ]
+  };
+  const chats = await getTelegramGroupChats({
+    token,
+    fetchImpl: async url => {
+      requests.push(String(url));
+      return { ok: true, status: 200, json: async () => requests.length === 1 ? updates : { ok: true, result: [] } };
+    }
+  });
+  assert.equal(chats.length, 2);
+  assert.deepEqual(chats.map(chat => chat.chatId).sort(), ['-1009876543210', '-12345']);
+  assert.equal(chats.find(chat => chat.chatId === '-1009876543210').type, 'supergroup');
+  assert.equal(JSON.stringify(chats).includes('private message text'), false);
+  assert.equal(JSON.stringify(chats).includes('Customer'), false);
+  assert.match(requests[1], /offset=104/);
+});
+
+test('reports Admin Bot webhook conflict during group discovery', async () => {
+  await assert.rejects(
+    () => getTelegramGroupChats({
+      token,
+      fetchImpl: async () => ({ ok: false, status: 409, json: async () => ({ ok: false, error_code: 409, description: 'Conflict: webhook active' }) })
+    }),
+    /已配置 Webhook/
+  );
 });
