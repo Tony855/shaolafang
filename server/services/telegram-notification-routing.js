@@ -27,7 +27,9 @@ function parseTelegramDestinationRecipientKey(value) {
 
 function buildTelegramDestinationEventKey(eventKey, destinationId) {
   if (typeof eventKey !== 'string') throw new TypeError('通知幂等键无效');
-  const key = `${eventKey}:destination:${Number(destinationId)}`;
+  const destination = Number(destinationId);
+  if (!Number.isSafeInteger(destination) || destination <= 0) throw new TypeError('Telegram 群组编号无效');
+  const key = `${eventKey}:destination:${destination}`;
   if (key.length > 160) throw new TypeError('Telegram 群组通知幂等键过长');
   return key;
 }
