@@ -1630,8 +1630,9 @@ initDatabase().then(async () => {
   }
   // Synchronize the platform-wide Client Bot menu button from super-admin settings.
   syncTelegramCustomerMenuButton().catch(() => console.warn('[telegram-menu] startup synchronization failed; resave Telegram Bot settings to retry'));
-  // Fail closed: no Telegram delivery until an operator explicitly opts in.
-  if (isTelegramNotificationWorkerEnabled(process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED)) {
+  // Production defaults to enabled; set TELEGRAM_NOTIFICATION_WORKER_ENABLED=false to pause.
+  // Non-production environments remain opt-in.
+  if (isTelegramNotificationWorkerEnabled(process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED, process.env.NODE_ENV)) {
     stopTelegramNotificationWorker = telegramNotificationWorker.start();
     console.log('[telegram-worker] background delivery enabled');
   }
