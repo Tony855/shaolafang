@@ -65,6 +65,64 @@ async function sendTelegramMessage({ token, chatId, text, replyMarkup, fetchImpl
   };
 }
 
+
+async function getTelegramGroupChats({ token, fetchImpl = globalThis.fetch }) {
+  if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
+  if (typeof fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持 fetch');
+  const allowedUpdates = encodeURIComponent(JSON.stringify(['message', 'edited_message', 'my_chat_member']));
+  const base = `${TELEGRAM_API}/bot${token}/getUpdates`;
+  let response;
+  try {
+    response = await fetchImpl(`${base}?limit=100&timeout=0&allowed_updates=${allowedUpdates}`, {
+      method: 'GET', signal: AbortSignal.timeout(10000)
+    });
+  } catch (_) {
+    throw new Error('无法连接 Telegram API，请检查服务器网络或稍后重试');
+  }
+  let payload;
+  try { payload = await response.json(); } catch (_) { throw new Error('Telegram API 返回了无法识别的响应'); }
+  if (!response.ok || payload?.ok !== true) {
+    const code = Number(payload?.error_code || response.status);
+    if (code === 401) throw new Error('Telegram Admin Bot Token 无效或已撤销');
+    if (code === 409) throw new Error('Admin Bot 已配置 Webhook，无法使用群组自动发现；请先检查 Bot 是否被其他服务接管');
+    throw new Error('Telegram 群组读取失败（HTTP ' + code + '）');
+  }
+
+  const updates = Array.isArray(payload.result) ? payload.result : [];
+  const chats = new Map();
+  let maxUpdateId = -1;
+  for (const update of updates) {
+    if (Number.isSafeInteger(update?.update_id)) maxUpdateId = Math.max(maxUpdateId, update.update_id);
+    const message = update?.message || update?.edited_message || update?.channel_post;
+    const chat = message?.chat || update?.my_chat_member?.chat;
+    if (!chat || !['group', 'supergroup'].includes(String(chat.type || ''))) continue;
+    const chatId = String(chat.id ?? '');
+    if (!/^-\\d{1,20}$/.test(chatId)) continue;
+    chats.set(chatId, {
+      chatId,
+      title: String(chat.title || '未命名群组').slice(0, 255),
+      type: String(chat.type),
+      username: typeof chat.username === 'string' ? chat.username.slice(0, 32) : ''
+    });
+  }
+
+  // Confirm only the updates returned by this read, preventing the Admin Bot
+  // update queue from growing indefinitely. The Admin Bot must not be shared
+  // with another webhook/getUpdates consumer.
+  if (maxUpdateId >= 0) {
+    try {
+      const ack = await fetchImpl(`${base}?offset=${maxUpdateId + 1}&limit=1&timeout=0&allowed_updates=${allowedUpdates}`, {
+        method: 'GET', signal: AbortSignal.timeout(10000)
+      });
+      const ackPayload = await ack.json();
+      if (!ack.ok || ackPayload?.ok !== true) throw new Error('ack_failed');
+    } catch (_) {
+      // Discovery results remain useful; a later read may show the same chats again.
+    }
+  }
+  return Array.from(chats.values()).sort((a, b) => a.title.localeCompare(b.title));
+}
+
 async function getTelegramBotUsername({ token, fetchImpl = globalThis.fetch }) {
   if (!validateBotToken(token)) throw new Error('Telegram Bot Token 格式无效');
   if (typeof fetchImpl !== 'function') throw new Error('当前 Node.js 环境不支持 fetch');
@@ -163,4 +221,4 @@ async function sendTelegramTestMessage({ token, chatId, fetchImpl = globalThis.f
   });
 }
 
-module.exports = { validateBotToken, validateChatId, sendTelegramMessage, sendTelegramTestMessage, getTelegramBotUsername, setTelegramMenuButton, setTelegramWebhook };
+module.exports = { validateBotToken, validateChatId, sendTelegramMessage, sendTelegramTestMessage, getTelegramBotUsername, getTelegramGroupChats, setTelegramMenuButton, setTelegramWebhook };
