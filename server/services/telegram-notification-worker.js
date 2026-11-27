@@ -45,7 +45,9 @@ async function processTelegramNotificationBatch({ resolveRecipient, workerId, li
       scope: job.recipient_scope,
       key: job.recipient_key,
       merchantId: job.merchant_id,
-      storeId: job.store_id
+      storeId: job.store_id,
+      eventType: job.event_type,
+      expectedChatId: recipient.chatId
     });
     if (!sending) {
       results.push({ id: Number(job.id), state: 'lease_lost' });
