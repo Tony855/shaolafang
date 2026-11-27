@@ -55,7 +55,7 @@ test('order fulfillment prompts and tracking feedback use translation keys', () 
 });
 
 test('generated admin and language bundles include the localized source keys', () => {
-  const bundle = fs.readFileSync(path.join(root, 'assets', 'admin-bundle.js'), 'utf8');
+  assert.match(adminHtml, /assets\/admin-bundle\.js\?v=\d+/);
   const languageSource = fs.readFileSync(path.join(root, 'languages.js'), 'utf8');
   const languageMin = fs.readFileSync(path.join(root, 'languages.min.js'), 'utf8');
   const adminHtml = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
