@@ -175,3 +175,57 @@ test('destination enabled flag requires an explicit boolean value', async () => 
   await handler(routes, 'PUT', '/api/admin/telegram/destinations/:id')(req({ params: { id: '4' }, body: {} }), res);
   assert.equal(res.statusCode, 400);
 });
+
+
+test('subscription disable dead-letters queued destination jobs in store-destination-subscription order', async () => {
+  const { routes, destinations, calls } = setup();
+  destinations.set(4, { id: 4, merchant_id: 7 });
+  const res = response();
+  await handler(routes, 'PUT', '/api/admin/telegram/destinations/:id/stores/:storeId')(
+    req({ params: { id: '4', storeId: '11' }, body: { enabled: false } }), res);
+  assert.equal(res.statusCode, 200);
+  const storeLock = calls.findIndex(x => x.type === 'get' && x.sql.includes('FROM stores'));
+  const destinationLock = calls.findIndex(x => x.type === 'get' && x.sql.includes('FROM telegram_chat_destinations'));
+  const suppression = calls.find(x => x.type === 'run' && x.sql.includes('UPDATE telegram_notification_outbox'));
+  assert.ok(storeLock >= 0 && destinationLock > storeLock);
+  assert.ok(suppression);
+  assert.deepEqual(suppression.params, [7, 11, 'destination:4:store:11']);
+  assert.ok(suppression.sql.includes("state IN ('pending','processing')"));
+});
+
+test('event toggle disable suppresses only the matching queued event type', async () => {
+  const { routes, destinations, calls } = setup();
+  destinations.set(4, { id: 4, merchant_id: 7 });
+  const res = response();
+  await handler(routes, 'PUT', '/api/admin/telegram/destinations/:id/stores/:storeId')(
+    req({ params: { id: '4', storeId: '11' }, body: { enabled: true, notifyOrderCreated: false, notifySettled: true, notifyRefunded: true } }), res);
+  assert.equal(res.statusCode, 200);
+  const suppression = calls.find(x => x.type === 'run' && x.sql.includes('UPDATE telegram_notification_outbox'));
+  assert.ok(suppression);
+  assert.deepEqual(suppression.params, [7, 11, 'destination:4:store:11', 'order.created']);
+});
+
+test('removing a store subscription suppresses all queued jobs for that group-store pair', async () => {
+  const { routes, destinations, subscriptions, calls } = setup();
+  destinations.set(4, { id: 4, merchant_id: 7 });
+  subscriptions.set('4:11', { id: 8, merchant_id: 7, destination_id: 4, store_id: 11 });
+  const res = response();
+  await handler(routes, 'DELETE', '/api/admin/telegram/destinations/:id/stores/:storeId')(
+    req({ params: { id: '4', storeId: '11' } }), res);
+  assert.equal(res.statusCode, 200);
+  const suppression = calls.find(x => x.type === 'run' && x.sql.includes('UPDATE telegram_notification_outbox'));
+  assert.ok(suppression);
+  assert.deepEqual(suppression.params, [7, 11, 'destination:4:store:11']);
+});
+
+test('disabling a destination suppresses queued jobs for every subscribed store', async () => {
+  const { routes, destinations, calls } = setup();
+  destinations.set(4, { id: 4, merchant_id: 7 });
+  const res = response();
+  await handler(routes, 'PUT', '/api/admin/telegram/destinations/:id')(
+    req({ params: { id: '4' }, body: { enabled: false } }), res);
+  assert.equal(res.statusCode, 200);
+  const suppression = calls.find(x => x.type === 'run' && x.sql.includes('UPDATE telegram_notification_outbox'));
+  assert.ok(suppression);
+  assert.deepEqual(suppression.params, [7, 'destination:4:store:%']);
+});

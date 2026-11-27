@@ -47,6 +47,24 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
     return store;
   }
 
+  async function suppressSubscriptionOutbox(merchantId, destinationId, storeId, eventType = null) {
+    const recipientKey = `destination:${destinationId}:store:${storeId}`;
+    let sql = "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND store_id=? AND recipient_key=? AND state IN ('pending','processing')";
+    const params = [merchantId, storeId, recipientKey];
+    if (eventType) {
+      sql += ' AND event_type=?';
+      params.push(eventType);
+    }
+    await runAsync(sql, params);
+  }
+
+  async function suppressDestinationOutbox(merchantId, destinationId) {
+    await runAsync(
+      "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND recipient_key LIKE ? AND state IN ('pending','processing')",
+      [merchantId, `destination:${destinationId}:store:%`]
+    );
+  }
+
   async function audit(req, action, targetId, details) {
     const actor = req.adminId
       ? await getAsync('SELECT username FROM merchant_admins WHERE id=? AND merchant_id=?', [req.adminId, req.merchantId])
@@ -151,12 +169,12 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
       const notifyRefunded = normalizeFlag(body.notifyRefunded, 1, '退款通知开关');
       let subscription;
       await withTransaction(async () => {
+        await assertStoreAccess(req, merchantId, storeId, true);
         const destination = await getAsync(
           'SELECT id FROM telegram_chat_destinations WHERE id=? AND merchant_id=? FOR UPDATE',
           [destinationId, merchantId]
         );
         if (!destination) throw Object.assign(new Error('Telegram 群组不存在'), { status: 404 });
-        await assertStoreAccess(req, merchantId, storeId, true);
         await runAsync(`
           INSERT INTO telegram_store_subscriptions
             (merchant_id, destination_id, store_id, is_enabled, notify_order_created, notify_settled, notify_refunded, created_at, updated_at)
@@ -168,6 +186,13 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
           'SELECT id, store_id, is_enabled, notify_order_created, notify_settled, notify_refunded FROM telegram_store_subscriptions WHERE merchant_id=? AND destination_id=? AND store_id=?',
           [merchantId, destinationId, storeId]
         );
+        if (!enabled) {
+          await suppressSubscriptionOutbox(merchantId, destinationId, storeId);
+        } else {
+          if (!notifyOrderCreated) await suppressSubscriptionOutbox(merchantId, destinationId, storeId, 'order.created');
+          if (!notifySettled) await suppressSubscriptionOutbox(merchantId, destinationId, storeId, 'order.settled');
+          if (!notifyRefunded) await suppressSubscriptionOutbox(merchantId, destinationId, storeId, 'order.refunded');
+        }
         await audit(req, 'upsert_telegram_store_subscription', subscription?.id, {
           destination_id: destinationId, store_id: storeId, enabled: !!enabled,
           notify_order_created: !!notifyOrderCreated, notify_settled: !!notifySettled, notify_refunded: !!notifyRefunded
@@ -187,15 +212,16 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
       const storeId = parsePositiveRouteId(req.params.storeId);
       if (!destinationId || !storeId) return res.status(400).json({ error: '群组或门店编号无效' });
       await withTransaction(async () => {
+        await assertStoreAccess(req, merchantId, storeId, true);
         const destination = await getAsync('SELECT id FROM telegram_chat_destinations WHERE id=? AND merchant_id=? FOR UPDATE', [destinationId, merchantId]);
         if (!destination) throw Object.assign(new Error('Telegram 群组不存在'), { status: 404 });
-        await assertStoreAccess(req, merchantId, storeId, true);
         const current = await getAsync(
           'SELECT id FROM telegram_store_subscriptions WHERE merchant_id=? AND destination_id=? AND store_id=? FOR UPDATE',
           [merchantId, destinationId, storeId]
         );
         if (!current) throw Object.assign(new Error('该群组尚未订阅此门店'), { status: 404 });
         await runAsync('DELETE FROM telegram_store_subscriptions WHERE id=? AND merchant_id=?', [current.id, merchantId]);
+        await suppressSubscriptionOutbox(merchantId, destinationId, storeId);
         await audit(req, 'delete_telegram_store_subscription', current.id, { destination_id: destinationId, store_id: storeId });
       });
       res.json({ success: true });
@@ -216,6 +242,7 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
         const destination = await getAsync('SELECT id FROM telegram_chat_destinations WHERE id=? AND merchant_id=? FOR UPDATE', [destinationId, merchantId]);
         if (!destination) throw Object.assign(new Error('Telegram 群组不存在'), { status: 404 });
         await runAsync('UPDATE telegram_chat_destinations SET is_enabled=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND merchant_id=?', [enabled, destinationId, merchantId]);
+        if (!enabled) await suppressDestinationOutbox(merchantId, destinationId);
         await audit(req, 'update_telegram_chat_destination', destinationId, { enabled: !!enabled });
       });
       res.json({ success: true, enabled: !!enabled });
@@ -237,6 +264,7 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
         if (Number(subscriptions?.count || 0) > 0) {
           throw Object.assign(new Error('请先移除此群组的所有门店订阅'), { status: 409 });
         }
+        await suppressDestinationOutbox(merchantId, destinationId);
         await runAsync('DELETE FROM telegram_chat_destinations WHERE id=? AND merchant_id=?', [destinationId, merchantId]);
         await audit(req, 'delete_telegram_chat_destination', destinationId, { deleted: true });
       });
