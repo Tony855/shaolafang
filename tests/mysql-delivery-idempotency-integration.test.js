@@ -24,7 +24,8 @@ const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramChatDestinationSchema } = require('../server/db/migrations/telegram-chat-destinations');
 const { hashSessionToken } = require('../server/services/session-token');
-const { enqueueTelegramNotification, enqueueStoreAdminTelegramNotification, markTelegramNotificationSending } = require('../server/services/telegram-notification-outbox');
+const { enqueueTelegramNotification, markTelegramNotificationSending } = require('../server/services/telegram-notification-outbox');
+const { enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
 const registerCustomerDeliveryRoutes = require('../routes/customer-delivery');
 
 function makeResponse() {
