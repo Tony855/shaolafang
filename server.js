@@ -22,6 +22,7 @@ const { ensureProviderEventQueueIndexes } = require('./server/db/migrations/prov
 const { ensureTelegramNotificationOutboxSchema } = require('./server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('./server/db/migrations/telegram-customer-binding');
 const { ensureTelegramStoreAdminRecipientSchema } = require('./server/db/migrations/telegram-store-admin-recipients');
+const { ensureTelegramChatDestinationSchema } = require('./server/db/migrations/telegram-chat-destinations');
 const { createTelegramNotificationWorker, isTelegramNotificationWorkerEnabled } = require('./server/services/telegram-notification-worker-runtime');
 const { setTelegramMenuButton, setTelegramWebhook } = require('./server/services/telegram-bot');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
@@ -1144,6 +1145,9 @@ async function initDatabase() {
   } catch (e) {
     if (!/duplicate column/i.test(e.message || '')) console.log('  ! merchants.country:', e.message);
   }
+
+  // New group destinations require both merchants and stores to exist.
+  await ensureTelegramChatDestinationSchema({ runAsync });
 
   await runAsync(`
     CREATE TABLE IF NOT EXISTS super_admins (
