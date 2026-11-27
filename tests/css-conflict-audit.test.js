@@ -551,7 +551,7 @@ test('mobile CSS fixes are served with refreshed cache-busting versions', () => 
   const waiterHtml = fs.readFileSync(path.join(__dirname, '..', 'waiter.html'), 'utf8');
   assert.ok(customerHtml.includes('assets/customer.css?v=2026112501'));
   assert.ok(adminHtml.includes('assets/admin.css?v=2026112504'));
-  assert.ok(adminHtml.match(new RegExp('assets/admin-bundle[.]js[?]v=[0-9]+')));
+  assert.match(adminHtml, /assets\\/admin-bundle\\.js\\?v=\\d+/);
   assert.ok(cashierHtml.includes('assets/khqr-shared.css?v=2026112502'));
   assert.ok(waiterHtml.includes('assets/khqr-shared.css?v=2026112502'));
 });
@@ -604,7 +604,7 @@ test('admin order card header keeps all metadata on one left-aligned line', () =
 test('admin order card uses distinct modern type and table pills on one left-aligned line', () => {
   const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
   const orderSource = fs.readFileSync(path.join(__dirname, '..', 'pages', 'admin', 'order.js'), 'utf8');
-  assert.ok(adminHtml.match(new RegExp('assets/admin-bundle[.]js[?]v=[0-9]+')));
+  assert.match(adminHtml, /assets\/admin-bundle\.js\?v=\d+/);
   const marker = '2026-11-25: modern metadata pills for admin order card headers (style B).';
   const rules = adminCss.slice(adminCss.lastIndexOf(marker));
   for (const source of [orderSource, bundle]) {
