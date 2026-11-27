@@ -97,7 +97,7 @@ async function getTelegramGroupChats({ token, fetchImpl = globalThis.fetch }) {
     const chat = message?.chat || update?.my_chat_member?.chat;
     if (!chat || !['group', 'supergroup'].includes(String(chat.type || ''))) continue;
     const chatId = String(chat.id ?? '');
-    if (!/^-\\d{1,20}$/.test(chatId)) continue;
+    if (!/^-\d{1,20}$/.test(chatId)) continue;
     chats.set(chatId, {
       chatId,
       title: String(chat.title || '未命名群组').slice(0, 255),
