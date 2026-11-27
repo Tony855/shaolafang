@@ -22,6 +22,8 @@ const { ensureProviderEventQueueIndexes } = require('./server/db/migrations/prov
 const { ensureTelegramNotificationOutboxSchema } = require('./server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('./server/db/migrations/telegram-customer-binding');
 const { ensureTelegramStoreAdminRecipientSchema } = require('./server/db/migrations/telegram-store-admin-recipients');
+const { ensureTelegramChatDestinationSchema } = require('./server/db/migrations/telegram-chat-destinations');
+const { backfillTelegramStoreSubscriptions } = require('./server/db/migrations/telegram-store-subscription-backfill');
 const { createTelegramNotificationWorker, isTelegramNotificationWorkerEnabled } = require('./server/services/telegram-notification-worker-runtime');
 const { setTelegramMenuButton, setTelegramWebhook } = require('./server/services/telegram-bot');
 const { isLoginLocked, recordLoginAttempt, resetLoginAttempts, cancelLoginAttempt } = createLoginRateLimiter({ getAsync, runAsync, withTransaction });
@@ -1192,6 +1194,13 @@ async function initDatabase() {
       if (!/duplicate column/i.test(e.message || '')) console.log(`  ! ${tbl}: ${e.message}`);
     }
   }
+
+  // Both tenant columns and parent tables now exist; only now add the
+  // merchant-scoped destination/subscription foreign keys.
+  await ensureTelegramChatDestinationSchema({ runAsync });
+  // Idempotently copy legacy one-store recipients into merchant-scoped subscriptions.
+  // Conflicting cross-merchant Chat IDs are quarantined for manual resolution.
+  await backfillTelegramStoreSubscriptions({ allAsync, getAsync, runAsync, withTransaction, logger: console });
 
   // 商户管理员权限字段
   const adminPermFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'];
