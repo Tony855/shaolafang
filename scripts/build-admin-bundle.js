@@ -15,6 +15,7 @@ const OUT_FILE = path.join(ROOT, 'assets/admin-bundle.js');
 const MODULES = [
     'pages/admin/context.js',
     'pages/admin/settings.js',
+    'pages/admin/telegram-destinations.js',
     'pages/admin/logs.js',
     'pages/admin/waiter.js',
     'pages/admin/currency.js',
