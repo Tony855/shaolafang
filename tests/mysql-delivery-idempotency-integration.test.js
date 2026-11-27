@@ -299,7 +299,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
       recipientScope: 'merchant_store',
       recipientKey: 'destination:' + destinationId + ':store:9',
       merchantId: 7, storeId: 9,
-      event: { type: eventType, storeName: 'Integration Store', orderNo: suffix, amount: 1, currency: 'USD' }
+      event: { type: eventType, storeName: 'Integration Store', orderNo: suffix, amount: 1, refundAmount: 1, currency: 'USD' }
     });
     const row = await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key=?', [eventKey + ':destination:' + destinationId]);
     const worker = crypto.randomUUID();
