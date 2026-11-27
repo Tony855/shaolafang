@@ -573,6 +573,30 @@
                     </div>
                 </div>
 
+                <div class="settings-card" id="telegramDestinationsCard">
+                    <h3 class="settings-card-title">📨 Telegram 群组管理（多门店订阅）</h3>
+                    <p class="ff-desc-tight">一个群组可以订阅本商户的多个门店；一个门店也可以订阅多个群组。每个群组与门店组合独立设置新订单、收款和退款通知。</p>
+                    <p class="ff-desc-tight">当前阶段仅维护群组与订阅数据，不切换现有通知发送路线；原有门店通知设置暂时保留以确保兼容。</p>
+                    <div class="settings-form-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;">
+                        <div class="form-group">
+                            <label for="telegramDestinationChatId">群组 Chat ID</label>
+                            <input id="telegramDestinationChatId" type="text" maxlength="64" autocomplete="off" placeholder="-1001234567890">
+                        </div>
+                        <div class="form-group">
+                            <label for="telegramDestinationTitle">群组名称（可选）</label>
+                            <input id="telegramDestinationTitle" type="text" maxlength="255" autocomplete="off" placeholder="例如：门店运营群">
+                        </div>
+                    </div>
+                    <div class="settings-row" style="gap:8px;align-items:center;flex-wrap:wrap;">
+                        <button type="button" id="discoverTelegramDestinationChatsBtn" class="display-settings-btn">获取群组 ID</button>
+                        <select id="telegramDiscoveredDestinations" aria-label="选择已发现的 Telegram 群组" hidden style="min-width:220px;max-width:100%;"></select>
+                        <button type="button" id="createTelegramDestinationBtn" class="display-settings-btn">登记群组</button>
+                        <button type="button" id="refreshTelegramDestinationsBtn" class="display-settings-btn">刷新列表</button>
+                    </div>
+                    <p id="telegramDestinationHint" class="ff-desc-tight">先将平台 Admin Bot 拉入群组，并在群内发送 /start@Bot用户名，再获取 Chat ID。</p>
+                    <div id="telegramDestinationsList" aria-live="polite"></div>
+                </div>
+
                 <div class="settings-card" id="telegramStoreNotificationCard">
                     <h3 class="settings-card-title">📨 Telegram 门店业务通知</h3>
                     <p class="ff-desc-tight">使用超级管理员配置的管理员 Bot；当前门店单独接收通知，不会把其他门店的订单发到此 Chat。</p>
