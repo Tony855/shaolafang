@@ -88,6 +88,13 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
         return markDead('invalid_recipient');
       }
 
+      const botSettings = await allAsync(
+        "SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled' FOR UPDATE"
+      );
+      if (!Array.isArray(botSettings) || !botSettings.length || botSettings[0].value !== '1') {
+        return markDead('event_disabled');
+      }
+
       // Group send boundary lock order matches enqueue and subscription writes:
       // store -> destination -> subscription -> outbox. If an admin disables
       // or removes a subscription first, this worker observes it and cannot
