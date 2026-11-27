@@ -24,7 +24,7 @@ const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramChatDestinationSchema } = require('../server/db/migrations/telegram-chat-destinations');
 const { hashSessionToken } = require('../server/services/session-token');
-const { enqueueTelegramNotification, markTelegramNotificationSending } = require('../server/services/telegram-notification-outbox');
+const { enqueueTelegramNotification, enqueueStoreAdminTelegramNotification, markTelegramNotificationSending } = require('../server/services/telegram-notification-outbox');
 const registerCustomerDeliveryRoutes = require('../routes/customer-delivery');
 
 function makeResponse() {
@@ -88,58 +88,20 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
   await ensureTelegramChatDestinationSchema({ runAsync });
 
-  // Real-DB send-boundary checks for destination-scoped merchant notifications.
+  // Real-DB merchant group destination/subscription fixtures.
   const destinationInsert = await runAsync(
-    "INSERT INTO telegram_chat_destinations (merchant_id,bot_profile,chat_id,chat_type,title,is_enabled,created_at,updated_at) VALUES (7,'admin','-1007654321','supergroup','Integration Group',1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))"
+    "INSERT INTO telegram_chat_destinations (merchant_id,bot_profile,chat_id,chat_type,title,is_enabled,created_at,updated_at) VALUES (7,'admin','-1007654321','supergroup','Integration Group A',1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))"
   );
   const destinationId = Number(destinationInsert.lastID);
-  await runAsync(
-    'INSERT INTO telegram_store_subscriptions (merchant_id,destination_id,store_id,is_enabled,notify_order_created,notify_settled,notify_refunded,created_at,updated_at) VALUES (?,?,9,1,1,1,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))',
-    [7, destinationId]
+  const secondDestinationInsert = await runAsync(
+    "INSERT INTO telegram_chat_destinations (merchant_id,bot_profile,chat_id,chat_type,title,is_enabled,created_at,updated_at) VALUES (7,'admin','-1007654322','supergroup','Integration Group B',1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))"
   );
-
-  async function makeProcessingGroupNotice(eventType, suffix) {
-    const eventKey = 'group-routing-it:' + suffix + ':' + crypto.randomUUID();
-    await enqueueTelegramNotification({
-      eventKey: eventKey + ':destination:' + destinationId,
-      recipientScope: 'merchant_store',
-      recipientKey: 'destination:' + destinationId + ':store:9',
-      merchantId: 7, storeId: 9,
-      event: { type: eventType, storeName: 'Integration Store', orderNo: suffix, amount: 1, currency: 'USD' }
-    });
-    const row = await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key=?', [eventKey + ':destination:' + destinationId]);
-    const worker = crypto.randomUUID();
-    await runAsync(
-      "UPDATE telegram_notification_outbox SET state='processing', locked_by=?, locked_until=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 60 SECOND) WHERE id=?",
-      [worker, row.id]
-    );
-    return { id: Number(row.id), worker, eventKey };
-  }
-
-  const activeGroupNotice = await makeProcessingGroupNotice('order.created', 'active');
-  assert.equal(await markTelegramNotificationSending(activeGroupNotice.id, activeGroupNotice.worker, 60, {
-    scope: 'merchant_store', key: 'destination:' + destinationId + ':store:9',
-    merchantId: 7, storeId: 9, eventType: 'order.created', expectedChatId: '-1007654321'
-  }), true);
-  assert.equal((await getAsync('SELECT state FROM telegram_notification_outbox WHERE id=?', [activeGroupNotice.id])).state, 'sending');
-
-  const disabledEventNotice = await makeProcessingGroupNotice('order.refunded', 'event-disabled');
-  await runAsync('UPDATE telegram_store_subscriptions SET notify_refunded=0 WHERE merchant_id=7 AND destination_id=? AND store_id=9', [destinationId]);
-  assert.equal(await markTelegramNotificationSending(disabledEventNotice.id, disabledEventNotice.worker, 60, {
-    scope: 'merchant_store', key: 'destination:' + destinationId + ':store:9',
-    merchantId: 7, storeId: 9, eventType: 'order.refunded', expectedChatId: '-1007654321'
-  }), false);
-  const disabledEventState = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE id=?', [disabledEventNotice.id]);
-  assert.equal(disabledEventState.state, 'dead');
-  assert.equal(disabledEventState.last_error_code, 'event_disabled');
-
-  const disabledDestinationNotice = await makeProcessingGroupNotice('order.created', 'destination-disabled');
-  await runAsync('UPDATE telegram_chat_destinations SET is_enabled=0 WHERE id=? AND merchant_id=7', [destinationId]);
-  assert.equal(await markTelegramNotificationSending(disabledDestinationNotice.id, disabledDestinationNotice.worker, 60, {
-    scope: 'merchant_store', key: 'destination:' + destinationId + ':store:9',
-    merchantId: 7, storeId: 9, eventType: 'order.created', expectedChatId: '-1007654321'
-  }), false);
-  assert.equal((await getAsync('SELECT state FROM telegram_notification_outbox WHERE id=?', [disabledDestinationNotice.id])).state, 'dead');
+  const secondDestinationId = Number(secondDestinationInsert.lastID);
+  await runAsync("INSERT INTO stores (id,merchant_id,name,active) VALUES (10,7,'Integration Store B',1)");
+  await runAsync(
+    'INSERT INTO telegram_store_subscriptions (merchant_id,destination_id,store_id,is_enabled,notify_order_created,notify_settled,notify_refunded,created_at,updated_at) VALUES (?,?,9,1,1,1,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)), (?,?,9,1,1,1,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)), (?,?,10,1,1,1,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))',
+    [7, destinationId, 7, secondDestinationId, 7, destinationId]
+  );
 
   const customerToken = 'a'.repeat(64);
   const customerTokenHash = hashSessionToken(customerToken);
@@ -288,4 +250,88 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   assert.equal(Number((await getAsync('SELECT COUNT(*) AS total FROM orders WHERE store_id=9')).total), 3);
   assert.equal(Number((await getAsync('SELECT COUNT(*) AS total FROM delivery_jobs WHERE store_id=9')).total), 3);
   assert.equal(Number((await getAsync('SELECT sales_count FROM menus WHERE id=5')).sales_count), 3);
+  // Staging routing emits one idempotent outbox row per destination, not one
+  // row per store. A store may subscribe to multiple groups and one group to
+  // multiple stores.
+  await runAsync("UPDATE settings SET value='1' WHERE `key`='telegram_admin_bot_enabled'");
+  const groupEventKey = 'group-routing-enqueue-it:' + crypto.randomUUID();
+  const groupEvent = { type: 'order.created', storeName: 'Integration Store', orderNo: 'GROUP-ENQUEUE', amount: 1, currency: 'USD' };
+  await withTransaction(async () => {
+    assert.equal(await enqueueStoreAdminTelegramNotification({
+      allAsync, merchantId: 7, storeId: 9, eventKey: groupEventKey, event: groupEvent, routingEnabled: true
+    }), true);
+  });
+  const storeNineGroupRows = await allAsync(
+    'SELECT recipient_key,event_key FROM telegram_notification_outbox WHERE store_id=9 AND event_key LIKE ? ORDER BY recipient_key',
+    [groupEventKey + ':destination:%']
+  );
+  assert.deepEqual(storeNineGroupRows.map(row => row.recipient_key), [
+    'destination:' + destinationId + ':store:9',
+    'destination:' + secondDestinationId + ':store:9'
+  ]);
+  await withTransaction(async () => {
+    assert.equal(await enqueueStoreAdminTelegramNotification({
+      allAsync, merchantId: 7, storeId: 9, eventKey: groupEventKey, event: groupEvent, routingEnabled: true
+    }), true);
+  });
+  assert.equal((await allAsync(
+    'SELECT id FROM telegram_notification_outbox WHERE store_id=9 AND event_key LIKE ?',
+    [groupEventKey + ':destination:%']
+  )).length, 2, 'repeated enqueue must be idempotent per destination');
+  await withTransaction(async () => {
+    assert.equal(await enqueueStoreAdminTelegramNotification({
+      allAsync, merchantId: 7, storeId: 10, eventKey: groupEventKey, event: groupEvent, routingEnabled: true
+    }), true);
+  });
+  const storeTenGroupRows = await allAsync(
+    'SELECT recipient_key FROM telegram_notification_outbox WHERE store_id=10 AND event_key LIKE ?',
+    [groupEventKey + ':destination:%']
+  );
+  assert.deepEqual(storeTenGroupRows.map(row => row.recipient_key), ['destination:' + destinationId + ':store:10']);
+
+  // Real-DB send-boundary checks: active subscriptions cross to sending;
+  // event-off and destination-off are terminally dead-lettered.
+  async function makeProcessingGroupNotice(eventType, suffix) {
+    const eventKey = 'group-routing-boundary-it:' + suffix + ':' + crypto.randomUUID();
+    await enqueueTelegramNotification({
+      eventKey: eventKey + ':destination:' + destinationId,
+      recipientScope: 'merchant_store',
+      recipientKey: 'destination:' + destinationId + ':store:9',
+      merchantId: 7, storeId: 9,
+      event: { type: eventType, storeName: 'Integration Store', orderNo: suffix, amount: 1, currency: 'USD' }
+    });
+    const row = await getAsync('SELECT id FROM telegram_notification_outbox WHERE event_key=?', [eventKey + ':destination:' + destinationId]);
+    const worker = crypto.randomUUID();
+    await runAsync(
+      "UPDATE telegram_notification_outbox SET state='processing', locked_by=?, locked_until=DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 60 SECOND) WHERE id=?",
+      [worker, row.id]
+    );
+    return { id: Number(row.id), worker };
+  }
+
+  const activeGroupNotice = await makeProcessingGroupNotice('order.created', 'active');
+  assert.equal(await markTelegramNotificationSending(activeGroupNotice.id, activeGroupNotice.worker, 60, {
+    scope: 'merchant_store', key: 'destination:' + destinationId + ':store:9',
+    merchantId: 7, storeId: 9, eventType: 'order.created', expectedChatId: '-1007654321'
+  }), true);
+  assert.equal((await getAsync('SELECT state FROM telegram_notification_outbox WHERE id=?', [activeGroupNotice.id])).state, 'sending');
+
+  const disabledEventNotice = await makeProcessingGroupNotice('order.refunded', 'event-disabled');
+  await runAsync('UPDATE telegram_store_subscriptions SET notify_refunded=0 WHERE merchant_id=7 AND destination_id=? AND store_id=9', [destinationId]);
+  assert.equal(await markTelegramNotificationSending(disabledEventNotice.id, disabledEventNotice.worker, 60, {
+    scope: 'merchant_store', key: 'destination:' + destinationId + ':store:9',
+    merchantId: 7, storeId: 9, eventType: 'order.refunded', expectedChatId: '-1007654321'
+  }), false);
+  const disabledEventState = await getAsync('SELECT state,last_error_code FROM telegram_notification_outbox WHERE id=?', [disabledEventNotice.id]);
+  assert.equal(disabledEventState.state, 'dead');
+  assert.equal(disabledEventState.last_error_code, 'event_disabled');
+
+  const disabledDestinationNotice = await makeProcessingGroupNotice('order.created', 'destination-disabled');
+  await runAsync('UPDATE telegram_chat_destinations SET is_enabled=0 WHERE id=? AND merchant_id=7', [destinationId]);
+  assert.equal(await markTelegramNotificationSending(disabledDestinationNotice.id, disabledDestinationNotice.worker, 60, {
+    scope: 'merchant_store', key: 'destination:' + destinationId + ':store:9',
+    merchantId: 7, storeId: 9, eventType: 'order.created', expectedChatId: '-1007654321'
+  }), false);
+  assert.equal((await getAsync('SELECT state FROM telegram_notification_outbox WHERE id=?', [disabledDestinationNotice.id])).state, 'dead');
+
 });
