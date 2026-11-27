@@ -94,6 +94,8 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
       if (!Array.isArray(botSettings) || !botSettings.length || botSettings[0].value !== '1') {
         return markDead('event_disabled');
       }
+      const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+      if (!Array.isArray(merchants) || !merchants.length) return markDead('event_disabled');
 
       // Group send boundary lock order matches enqueue and subscription writes:
       // store -> destination -> subscription -> outbox. If an admin disables
