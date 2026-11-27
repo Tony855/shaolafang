@@ -2,8 +2,9 @@
 
 const ROUTING_FLAG_NAME = 'TELEGRAM_GROUP_SUBSCRIPTIONS_ROUTING_ENABLED';
 
-function isTelegramGroupSubscriptionsRoutingEnabled(value = process.env[ROUTING_FLAG_NAME]) {
-  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+function isTelegramGroupSubscriptionsRoutingEnabled(value) {
+  const configured = arguments.length === 0 ? process.env[ROUTING_FLAG_NAME] : value;
+  return typeof configured === 'string' && configured.trim().toLowerCase() === 'true';
 }
 
 function buildTelegramDestinationRecipientKey(destinationId, storeId) {
