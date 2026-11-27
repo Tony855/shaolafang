@@ -22,6 +22,7 @@ const BACKUP_TABLES = Object.freeze([
   'stores',
   'telegram_chat_destinations',
   'telegram_store_subscriptions',
+  'telegram_chat_destination_migration_conflicts',
   'tables',
   'menu_categories',
   'menus',
@@ -56,6 +57,7 @@ const LEGACY_OPTIONAL_BACKUP_TABLES = Object.freeze([
   'telegram_store_admin_recipients',
   'telegram_chat_destinations',
   'telegram_store_subscriptions',
+  'telegram_chat_destination_migration_conflicts',
   ...FINANCIAL_BACKUP_TABLES
 ]);
 
