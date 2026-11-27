@@ -389,8 +389,8 @@ module.exports = function(app, deps) {
         failureStage = 'outbox_suppression';
         if (!enabled) {
           await runAsync(
-            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND store_id=? AND state IN ('pending','processing')",
-            [merchantId, storeId]
+            "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND store_id=? AND recipient_key=? AND state IN ('pending','processing')",
+            [merchantId, storeId, `store:${storeId}`]
           );
         } else {
           for (const [eventType, eventEnabled] of [
@@ -400,8 +400,8 @@ module.exports = function(app, deps) {
           ]) {
             if (eventEnabled) continue;
             await runAsync(
-              "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND store_id=? AND event_type=? AND state IN ('pending','processing')",
-              [merchantId, storeId, eventType]
+              "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='event_disabled', updated_at=UTC_TIMESTAMP(3) WHERE recipient_scope='merchant_store' AND merchant_id=? AND store_id=? AND recipient_key=? AND event_type=? AND state IN ('pending','processing')",
+              [merchantId, storeId, `store:${storeId}`, eventType]
             );
           }
         }
