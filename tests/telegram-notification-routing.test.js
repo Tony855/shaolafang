@@ -158,3 +158,21 @@ test('worker recipient validation binds destination identity to the queued recip
   assert.equal(validateResolvedRecipient(job, { ...valid, destinationId: 22 }), false);
   assert.equal(validateResolvedRecipient(job, { ...valid, storeId: 10 }), false);
 });
+
+
+test('malformed destination keys are terminally suppressed and never accepted by the worker', async () => {
+  let calls = 0;
+  const resolve = createTelegramNotificationRecipientResolver({
+    routingEnabled: true,
+    allAsync: async () => { calls++; return []; }
+  });
+  const suppressed = await resolve({
+    scope: 'merchant_store', key: 'destination:not-an-id', merchantId: 7, storeId: 9, eventType: 'order.created'
+  });
+  assert.equal(suppressed.suppressed, true);
+  assert.equal(calls, 0);
+  assert.equal(validateResolvedRecipient(
+    { recipient_scope: 'merchant_store', recipient_key: 'destination:not-an-id', merchant_id: 7, store_id: 9 },
+    { scope: 'merchant_store', merchantId: 7, storeId: 9, destinationId: 21, token, chatId: '-1007654321' }
+  ), false);
+});
