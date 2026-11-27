@@ -133,7 +133,7 @@ test('disabling a store terminally suppresses its queued store-admin notificatio
   assert.match(suppression.sql, /recipient_scope='merchant_store'/);
   assert.match(suppression.sql, /merchant_id=\? AND store_id=\?/);
   assert.match(suppression.sql, /state IN \('pending','processing'\)/);
-  assert.match(suppression.sql, /recipient_key=\\?/);
+  assert.ok((suppression || suppressions[0]).sql.includes('recipient_key=?'));
   assert.deepEqual(suppression.params, [7, 9, 'store:9']);
 });
 
@@ -151,7 +151,7 @@ test('disabling one store event toggle suppresses only that event for that tenan
   assert.equal(suppressions.length, 1);
   assert.match(suppressions[0].sql, /recipient_scope='merchant_store'/);
   assert.match(suppressions[0].sql, /event_type=\?/);
-  assert.match(suppressions[0].sql, /recipient_key=\\?/);
+  assert.ok((suppression || suppressions[0]).sql.includes('recipient_key=?'));
   assert.deepEqual(suppressions[0].params, [7, 9, 'store:9', 'order.settled']);
 });
 
@@ -228,5 +228,5 @@ test('legacy store settings suppression cannot kill new destination-scoped jobs'
   const suppression = calls.find(call => call.type === 'run' && call.sql.includes('UPDATE telegram_notification_outbox'));
   assert.ok(suppression);
   assert.deepEqual(suppression.params, [7, 9, 'store:9']);
-  assert.match(suppression.sql, /recipient_key=\\?/);
+  assert.ok((suppression || suppressions[0]).sql.includes('recipient_key=?'));
 });
