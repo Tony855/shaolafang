@@ -69,7 +69,7 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
                sub.notify_order_created, sub.notify_settled, sub.notify_refunded
         FROM telegram_chat_destinations d
         LEFT JOIN telegram_store_subscriptions sub ON sub.destination_id=d.id AND sub.merchant_id=d.merchant_id
-        LEFT JOIN stores s ON s.id=sub.store_id AND s.merchant_id=sub.merchant_id AND s.active=1
+        LEFT JOIN stores s ON s.id=sub.store_id AND s.merchant_id=sub.merchant_id
         LEFT JOIN merchant_admin_store_access a ON a.store_id=s.id AND a.merchant_id=s.merchant_id AND a.admin_id=?
         WHERE d.merchant_id=? AND (?=1 OR s.id IS NULL OR a.admin_id IS NOT NULL)
         ORDER BY d.id DESC, s.name, s.id
