@@ -1,8 +1,10 @@
 'use strict';
 
 const { randomUUID } = require('crypto');
-function isTelegramNotificationWorkerEnabled(value) {
-  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+function isTelegramNotificationWorkerEnabled(value, nodeEnv = process.env.NODE_ENV) {
+  if (typeof value === 'string' && value.trim() !== '') return value.trim().toLowerCase() === 'true';
+  // Production is on by default; non-production environments remain opt-in.
+  return String(nodeEnv || '').trim().toLowerCase() === 'production';
 }
 
 function createTelegramNotificationWorker({
