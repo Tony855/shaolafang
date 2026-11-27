@@ -24,7 +24,7 @@ function setup({ merchantId = 7, stores = [11, 12], primary = true, duplicateCha
     get(path, ...handlers) { routes.set('GET ' + path, handlers); },
     post(path, ...handlers) { routes.set('POST ' + path, handlers); },
     put(path, ...handlers) { routes.set('PUT ' + path, handlers); },
-    patch(path, ...handlers) { routes.set('PATCH ' + path, handlers); },
+    
     delete(path, ...handlers) { routes.set('DELETE ' + path, handlers); }
   };
   const getAsync = async (sql, params = []) => {
@@ -172,6 +172,6 @@ test('destination enabled flag requires an explicit boolean value', async () => 
   const { routes, destinations } = setup();
   destinations.set(4, { id: 4, merchant_id: 7 });
   const res = response();
-  await handler(routes, 'PATCH', '/api/admin/telegram/destinations/:id')(req({ params: { id: '4' }, body: {} }), res);
+  await handler(routes, 'PUT', '/api/admin/telegram/destinations/:id')(req({ params: { id: '4' }, body: {} }), res);
   assert.equal(res.statusCode, 400);
 });
