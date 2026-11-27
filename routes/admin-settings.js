@@ -1,6 +1,6 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
 const { normalizeRouteError } = require('../server/utils/http-error');
-const { validateChatId, getTelegramBotUsername } = require('../server/services/telegram-bot');
+const { validateChatId, getTelegramBotUsername, getTelegramGroupChats } = require('../server/services/telegram-bot');
 const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
@@ -278,6 +278,40 @@ module.exports = function(app, deps) {
   });
 
   
+
+  // Discover group/supergroup Chat IDs using the platform Admin Bot.
+  // This endpoint returns identifiers only; it never returns message text or sender data.
+  app.get('/api/admin/telegram/group-chats', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
+    try {
+      const merchantId = Number(req.merchantId);
+      const storeId = Number(req.storeId);
+      if (!Number.isSafeInteger(merchantId) || merchantId <= 0 || !Number.isSafeInteger(storeId) || storeId <= 0) {
+        return res.status(400).json({ error: '商户或门店编号无效' });
+      }
+      const store = await getAsync(
+        'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1 LIMIT 1',
+        [storeId, merchantId]
+      );
+      if (!store) return res.status(404).json({ error: '当前门店不存在或已停用' });
+      const settings = await allAsync(
+        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+        ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']
+      );
+      const config = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
+      if (config.telegram_admin_bot_enabled !== '1' || !String(config.telegram_admin_bot_token || '')) {
+        return res.status(409).json({ error: '平台 Admin Bot 尚未配置或启用，请联系超级管理员' });
+      }
+      const chats = await getTelegramGroupChats({ token: String(config.telegram_admin_bot_token) });
+      res.setHeader('Cache-Control', 'no-store, private');
+      res.json({ chats, hint: chats.length ? '' : '暂未发现群组。请先把 Admin Bot 拉入群组，并在群内发送 /start@Bot用户名，然后重新获取。' });
+    } catch (error) {
+      const message = String(error?.message || '');
+      const safeMessage = /Admin Bot|Telegram|群组|Webhook/.test(message)
+        ? message : 'Telegram 群组读取失败，请稍后重试';
+      res.status(502).json({ error: safeMessage });
+    }
+  });
+
   // ----- 门店级 Telegram 管理员通知收件人 -----
   app.get('/api/admin/telegram/notification-settings', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
