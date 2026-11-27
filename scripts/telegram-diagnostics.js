@@ -87,7 +87,7 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
 
   return {
     worker: {
-      enabled: isTelegramNotificationWorkerEnabled(env.TELEGRAM_NOTIFICATION_WORKER_ENABLED)
+      enabled: isTelegramNotificationWorkerEnabled(env.TELEGRAM_NOTIFICATION_WORKER_ENABLED, env.NODE_ENV)
     },
     webhookSecret: {
       configured: secret.length >= 32 && secret.length <= 256,
