@@ -131,6 +131,81 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   assert.equal(revokedBindingOutbox.state, 'dead');
   assert.equal(revokedBindingOutbox.last_error_code, 'binding_revoked');
 
+  // Exercise the actual lock race with two independent database connections.
+  // Revocation takes the binding lock first; the worker must wait, then observe
+  // the committed revoke and refuse to enter the irreversible sending state.
+  const raceCustomerHash = crypto.createHash('sha256').update('customer-token-revoke-race').digest('hex');
+  await runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [raceCustomerHash, 7, 9, '33333', '54333']);
+  const raceBinding = await getAsync('SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND store_id=?', [raceCustomerHash, 9]);
+  const lockRaceKey = `telegram-it:send-revoke-lock-race:${crypto.randomUUID()}`;
+  await enqueueTelegramNotification({
+    eventKey: lockRaceKey, recipientScope: 'customer', recipientKey: `binding:${raceBinding.id}`,
+    merchantId: 7, storeId: 9,
+    event: { type: 'order.created', storeName: 'Integration Store', orderNo: 'IT-STOP-LOCK-RACE', amount: 1, currency: 'USD' }
+  });
+  const raceWorkerId = crypto.randomUUID();
+  const raceClaim = await claimTelegramNotifications({ workerId: raceWorkerId, limit: 1, leaseSeconds: 30 });
+  assert.equal(raceClaim.length, 1);
+  assert.equal(raceClaim[0].event_key, lockRaceKey);
+
+  const revokeConnection = await testPool.getConnection();
+  let sendingAttempt;
+  const originalGetConnection = testPool.getConnection.bind(testPool);
+  try {
+    await revokeConnection.beginTransaction();
+    await revokeConnection.execute(
+      'SELECT id FROM telegram_customer_bindings WHERE id=? AND is_active=1 AND revoked_at IS NULL FOR UPDATE',
+      [raceBinding.id]
+    );
+
+    let signalBindingLockWait;
+    const bindingLockWaitStarted = new Promise(resolve => { signalBindingLockWait = resolve; });
+    let signaled = false;
+    testPool.getConnection = async (...args) => {
+      const connection = await originalGetConnection(...args);
+      const originalExecute = connection.execute.bind(connection);
+      connection.execute = (sql, params) => {
+        const result = originalExecute(sql, params);
+        if (!signaled && String(sql).includes('FROM telegram_customer_bindings') && String(sql).includes('FOR UPDATE')) {
+          signaled = true;
+          signalBindingLockWait();
+        }
+        return result;
+      };
+      return connection;
+    };
+
+    sendingAttempt = markTelegramNotificationSending(raceClaim[0].id, raceWorkerId, 30, {
+      scope: 'customer', key: `binding:${raceBinding.id}`, merchantId: 7, storeId: 9
+    });
+    // Wait until the worker has actually issued its locking read, not merely
+    // started a promise. It is now blocked behind the revocation transaction.
+    await bindingLockWaitStarted;
+    const [deadLetter] = await revokeConnection.execute(
+      "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state IN ('pending','processing')",
+      [raceClaim[0].id]
+    );
+    assert.equal(Number(deadLetter.affectedRows), 1);
+    await revokeConnection.execute(
+      'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE id=?',
+      [raceBinding.id]
+    );
+    await revokeConnection.commit();
+
+    const sendingAllowed = await sendingAttempt;
+    const lockRaceOutbox = await getAsync(
+      'SELECT state,last_error_code FROM telegram_notification_outbox WHERE event_key=?',
+      [lockRaceKey]
+    );
+    assert.equal(sendingAllowed, false, 'worker must not cross the sending boundary after revoke wins the binding lock');
+    assert.equal(lockRaceOutbox.state, 'dead');
+    assert.equal(lockRaceOutbox.last_error_code, 'binding_revoked');
+  } finally {
+    testPool.getConnection = originalGetConnection;
+    try { await revokeConnection.rollback(); } catch (_) {}
+    revokeConnection.release();
+  }
+
   const customerHashTwo = crypto.createHash('sha256').update('customer-token-two').digest('hex');
   await runAsync('INSERT INTO telegram_customer_bindings (customer_token_hash,merchant_id,store_id,telegram_user_id,telegram_chat_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))', [customerHashTwo, 7, 9, '22222', '54322']);
   const bindingTwo = await getAsync('SELECT id FROM telegram_customer_bindings WHERE customer_token_hash=? AND store_id=?', [customerHashTwo, 9]);
