@@ -20,7 +20,7 @@ const MIGRATION_CONFLICTS_SCHEMA_SQL = `
 
 function classifyGroupChat(chatId) {
   const value = String(chatId || '').trim();
-  if (!/^-\\d+$/.test(value)) return null;
+  if (!/^-\d+$/.test(value)) return null;
   return value.startsWith('-100') ? 'supergroup' : 'group';
 }
 
