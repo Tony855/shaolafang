@@ -190,7 +190,7 @@ test('subscription disable dead-letters queued destination jobs in store-destina
   assert.ok(storeLock >= 0 && destinationLock > storeLock);
   assert.ok(suppression);
   assert.deepEqual(suppression.params, [7, 11, 'destination:4:store:11']);
-  assert.match(suppression.sql, /state IN \\('pending','processing'\\)/);
+  assert.ok(suppression.sql.includes("state IN ('pending','processing')"));
 });
 
 test('event toggle disable suppresses only the matching queued event type', async () => {
