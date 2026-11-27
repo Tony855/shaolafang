@@ -130,3 +130,8 @@ Telegram does not provide a general idempotency key for `sendMessage`; therefore
 - If the store Chat ID changes or is cleared, the signed URL retained in the customer's menu button becomes invalid. The customer must obtain and open the latest dedicated link to refresh the private menu button.
 - The Bot API menu button and webhook require `FOODFLOW_PUBLIC_URL` to be a public HTTPS origin and `TELEGRAM_CLIENT_WEBHOOK_SECRET` to be 32–256 characters from `[A-Za-z0-9_-]`.
 - Telegram's separate profile-page **Open App** button is the Main Mini App feature and must be configured once for the shared Client Bot in `@BotFather → Bot Settings → Configure Mini App`. The Bot API `setChatMenuButton` does not configure this profile button.
+
+
+## Multi-group notification routing (staging only)
+
+The merchant group subscription manager is separate from the customer private-chat binding. To exercise the new group routing in staging, set `TELEGRAM_GROUP_SUBSCRIPTIONS_ROUTING_ENABLED=true` only after reviewing the destination/store subscriptions. Leave it `false` in production until staging acceptance is complete. This setting does not start the notification worker; `TELEGRAM_NOTIFICATION_WORKER_ENABLED` remains a separate control.
