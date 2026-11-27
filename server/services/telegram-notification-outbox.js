@@ -40,7 +40,7 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
   return withTransaction(async () => {
     if (recipientContext?.scope === 'customer') {
       const key = typeof recipientContext.key === 'string' ? recipientContext.key : '';
-      const bindingMatch = key.match(/^binding:([1-9]\\d{0,18})$/);
+      const bindingMatch = key.match(/^binding:([1-9]\d{0,18})$/);
       const merchantId = Number(recipientContext.merchantId);
       const storeId = Number(recipientContext.storeId);
       const bindingId = bindingMatch ? Number(bindingMatch[1]) : 0;
