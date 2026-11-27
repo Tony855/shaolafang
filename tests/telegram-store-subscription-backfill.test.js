@@ -22,16 +22,21 @@ test('legacy backfill creates one merchant destination and multiple store subscr
   const destinations = new Map();
   const subscriptions = new Map();
   const conflicts = [];
+  const ledger = new Set();
   const calls = [];
   const deps = {
     allAsync: async () => rows,
-    getAsync: async (_sql, [chatId]) => destinations.get(chatId) || null,
+    getAsync: async (sql, [key]) => {
+      if (sql.includes('telegram_chat_destination_migration_ledger')) return ledger.has(key) ? { legacy_recipient_id: key } : null;
+      return destinations.get(key) || null;
+    },
     runAsync: async (sql, params = []) => {
       calls.push(sql);
       if (sql.includes('INSERT INTO telegram_chat_destinations')) {
         if (!destinations.has(params[1])) destinations.set(params[1], { id: destinations.size + 1, merchant_id: params[0] });
         return { affectedRows: 1 };
       }
+      if (sql.includes('INSERT INTO telegram_chat_destination_migration_ledger')) { ledger.add(params[0]); return { affectedRows: 1 }; }
       if (sql.includes('INSERT INTO telegram_store_subscriptions')) {
         const key = params[1] + ':' + params[2];
         if (!subscriptions.has(key)) { subscriptions.set(key, params); return { affectedRows: 1 }; }
@@ -43,12 +48,15 @@ test('legacy backfill creates one merchant destination and multiple store subscr
     withTransaction: async fn => fn()
   };
   const first = await backfillTelegramStoreSubscriptions(deps);
+  subscriptions.clear();
   const second = await backfillTelegramStoreSubscriptions(deps);
   assert.equal(first.destinationsCreated, 1);
   assert.equal(first.subscriptionsCreated, 2);
   assert.equal(second.subscriptionsCreated, 0);
+  assert.equal(second.alreadyMigrated, 2);
   assert.equal(destinations.size, 1);
-  assert.equal(subscriptions.size, 2);
+  assert.equal(subscriptions.size, 0);
+  assert.equal(ledger.size, 2);
   assert.equal(conflicts.length, 0);
 });
 
@@ -57,7 +65,7 @@ test('legacy backfill refuses a Chat ID already owned by another merchant', asyn
   const conflicts = [];
   const deps = {
     allAsync: async () => rows,
-    getAsync: async () => ({ id: 9, merchant_id: 7 }),
+    getAsync: async sql => sql.includes('telegram_chat_destination_migration_ledger') ? null : ({ id: 9, merchant_id: 7 }),
     runAsync: async (sql, params = []) => {
       if (sql.includes('INSERT INTO telegram_chat_destination_migration_conflicts')) conflicts.push(params);
       return { affectedRows: 1 };
