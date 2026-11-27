@@ -1,5 +1,11 @@
 'use strict';
 
+process.env.DB_HOST ||= '127.0.0.1';
+process.env.DB_PORT ||= '3306';
+process.env.DB_USER ||= 'root';
+process.env.DB_PASSWORD ||= '';
+process.env.DB_DATABASE ||= 'telegram_unit_test';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const poolModule = require('../server/db/pool');
