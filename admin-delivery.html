@@ -55,7 +55,7 @@ label{display:block;font-size:13px;color:#b8c4d5;margin:10px 0 5px}input,select,
   if(String(x.pay_method||'').toLowerCase()==='khqr'&&x.status!=='done')return false;
   const job=jobByOrder.get(String(x.id));
   return !job||['pending_assignment','assigned'].includes(job.status);
- }).forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=(x.order_no||x.id)+' · 外卖配送 · '+x.total;os.append(op);});
+ }).forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=(x.order_no||x.id)+' · '+t('orderFulfillmentDelivery')+' · '+x.total;os.append(op);});
  }
  $('riderForm').addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget;const data=new FormData(form);const message=$('riderMessage');try{await api('/api/admin/delivery/riders',{method:'POST',body:JSON.stringify(Object.fromEntries(data))});form.reset();text(message,t('riderAccountCreated'));try{await load();}catch(refreshError){text(message,t('riderAccountCreatedRefreshFailed')+refreshError.message);}}catch(err){text(message,err.message);}});
  $('orderSelect').addEventListener('change',()=>{
