@@ -1146,9 +1146,6 @@ async function initDatabase() {
     if (!/duplicate column/i.test(e.message || '')) console.log('  ! merchants.country:', e.message);
   }
 
-  // New group destinations require both merchants and stores to exist.
-  await ensureTelegramChatDestinationSchema({ runAsync });
-
   await runAsync(`
     CREATE TABLE IF NOT EXISTS super_admins (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -1196,6 +1193,10 @@ async function initDatabase() {
       if (!/duplicate column/i.test(e.message || '')) console.log(`  ! ${tbl}: ${e.message}`);
     }
   }
+
+  // Both tenant columns and parent tables now exist; only now add the
+  // merchant-scoped destination/subscription foreign keys.
+  await ensureTelegramChatDestinationSchema({ runAsync });
 
   // 商户管理员权限字段
   const adminPermFields = ['can_manage_menu', 'can_manage_table', 'can_manage_order', 'can_delete_order', 'can_edit_order', 'can_manage_store', 'can_manage_waiter', 'can_manage_currency', 'can_manage_printer', 'can_manage_admin', 'can_view_logs', 'can_manage_cashier'];
