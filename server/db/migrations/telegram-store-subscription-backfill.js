@@ -1,5 +1,13 @@
 'use strict';
 
+const MIGRATION_LEDGER_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS telegram_chat_destination_migration_ledger (
+    legacy_recipient_id BIGINT UNSIGNED NOT NULL,
+    migrated_at DATETIME(3) NOT NULL,
+    PRIMARY KEY (legacy_recipient_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+`;
+
 const MIGRATION_CONFLICTS_SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS telegram_chat_destination_migration_conflicts (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -34,6 +42,7 @@ async function backfillTelegramStoreSubscriptions({ allAsync, getAsync, runAsync
     throw new TypeError('allAsync, getAsync, runAsync and withTransaction are required');
   }
 
+  await runAsync(MIGRATION_LEDGER_SCHEMA_SQL);
   await ensureTelegramChatDestinationMigrationConflictsSchema({ runAsync });
   const legacyRows = await allAsync(`
     SELECT r.id, r.merchant_id, r.store_id, r.chat_id, r.is_enabled,
@@ -45,9 +54,18 @@ async function backfillTelegramStoreSubscriptions({ allAsync, getAsync, runAsync
     ORDER BY r.id ASC
   `);
 
-  const stats = { scanned: legacyRows.length, destinationsCreated: 0, subscriptionsCreated: 0, conflicts: 0 };
+  const stats = { scanned: legacyRows.length, alreadyMigrated: 0, destinationsCreated: 0, subscriptionsCreated: 0, conflicts: 0 };
   for (const row of legacyRows) {
     await withTransaction(async () => {
+      const migrated = await getAsync(
+        'SELECT legacy_recipient_id FROM telegram_chat_destination_migration_ledger WHERE legacy_recipient_id=? FOR UPDATE',
+        [Number(row.id)]
+      );
+      if (migrated) {
+        stats.alreadyMigrated += 1;
+        return;
+      }
+
       const chatId = String(row.chat_id || '').trim();
       const chatType = classifyGroupChat(chatId);
       let reason = '';
@@ -97,6 +115,10 @@ async function backfillTelegramStoreSubscriptions({ allAsync, getAsync, runAsync
           ]);
           if (Number(result?.affectedRows) === 1) stats.subscriptionsCreated += 1;
           await runAsync(
+            'INSERT INTO telegram_chat_destination_migration_ledger (legacy_recipient_id, migrated_at) VALUES (?, UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE legacy_recipient_id=VALUES(legacy_recipient_id)',
+            [Number(row.id)]
+          );
+          await runAsync(
             'UPDATE telegram_chat_destination_migration_conflicts SET resolved_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE legacy_recipient_id=? AND resolved_at IS NULL',
             [Number(row.id)]
           );
@@ -131,6 +153,7 @@ async function backfillTelegramStoreSubscriptions({ allAsync, getAsync, runAsync
 }
 
 module.exports = {
+  MIGRATION_LEDGER_SCHEMA_SQL,
   MIGRATION_CONFLICTS_SCHEMA_SQL,
   classifyGroupChat,
   ensureTelegramChatDestinationMigrationConflictsSchema,
