@@ -90,13 +90,13 @@ function createTelegramNotificationRecipientResolver({
 
       // After staging cutover is enabled, legacy store:<id> outbox rows must
       // never fall back to the old one-Chat-ID table or create duplicate sends.
-      if (routingEnabled === true && /^store:[1-9]\\d{0,18}$/.test(key)) {
+      if (routingEnabled === true && /^store:[1-9]\d{0,18}$/.test(key)) {
         return { scope: 'merchant_store', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true };
       }
 
       // Compatibility mode: legacy queued jobs still resolve to the old
       // single-store recipient until staging explicitly enables new routing.
-      if (routingEnabled !== true && /^store:[1-9]\\d{0,18}$/.test(key)) {
+      if (routingEnabled !== true && /^store:[1-9]\d{0,18}$/.test(key)) {
         if (Number(key.slice(6)) !== tenantStoreId) return null;
         const recipients = await allAsync(
           `SELECT r.chat_id, r.is_enabled, r.${eventToggle} AS event_enabled
@@ -122,7 +122,7 @@ function createTelegramNotificationRecipientResolver({
       return null;
     }
 
-    if (scope !== 'customer' || typeof key !== 'string' || !/^binding:[1-9]\\d{0,18}$/.test(key)) return null;
+    if (scope !== 'customer' || typeof key !== 'string' || !/^binding:[1-9]\d{0,18}$/.test(key)) return null;
     const bindingId = Number(key.slice('binding:'.length));
     const tenantMerchantId = Number(merchantId);
     const tenantStoreId = Number(storeId);
