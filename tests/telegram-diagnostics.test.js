@@ -80,8 +80,10 @@ test('Telegram diagnostics fail closed when notification tables are not installe
   assert.deepEqual(report.storeRecipients, { available: false });
   assert.deepEqual(report.outbox, { available: false });
   assert.equal(report.clientWebhook.checked, false);
-  assert.equal(report.worker.enabled, false, 'missing env value must keep worker disabled');
-  const explicitlyEnabled = await collectTelegramDiagnostics({ allAsync, env: { TELEGRAM_NOTIFICATION_WORKER_ENABLED: 'true' }, fetchImpl: async () => { throw new Error('should not be called'); } });
+  assert.equal(report.worker.enabled, false, 'non-production without an override must keep worker disabled');
+  const productionDefault = await collectTelegramDiagnostics({ allAsync, env: { NODE_ENV: 'production' }, fetchImpl: async () => { throw new Error('should not be called'); } });
+  assert.equal(productionDefault.worker.enabled, true);
+  const explicitlyEnabled = await collectTelegramDiagnostics({ allAsync, env: { NODE_ENV: 'test', TELEGRAM_NOTIFICATION_WORKER_ENABLED: 'true' }, fetchImpl: async () => { throw new Error('should not be called'); } });
   assert.equal(explicitlyEnabled.worker.enabled, true);
   const paused = await collectTelegramDiagnostics({ allAsync, env: { TELEGRAM_NOTIFICATION_WORKER_ENABLED: 'false' }, fetchImpl: async () => { throw new Error('should not be called'); } });
   assert.equal(paused.worker.enabled, false);
