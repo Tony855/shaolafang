@@ -13,7 +13,7 @@ Tenants never create Bots or enter Bot Tokens. Each tenant only binds its own st
 2. Create the required bot(s) with Telegram's **@BotFather** and copy each bot token.
 3. Add the Admin Bot to each tenant's target store group and grant permission to send messages. Add the Client Bot only where customers will use it.
 4. Configure the two Bot Tokens in the matching Client Bot and Admin Bot sections of the super-admin page. The Client Bot Chat ID is only for its test message; the Admin Bot does not have a global business Chat ID.
-5. Enable the profiles and save. Use **Send test message** to verify each Bot. In each tenant's Admin settings, bind the Chat ID for each store and choose its order/settlement/refund event toggles.
+5. Enable the profiles and save. Use **Send test message** to verify each Bot. In each tenant's Admin settings, use **Telegram 群组管理（多门店订阅）** to register each business group once, then subscribe one or more stores owned by that same merchant. Configure order-created, settled, and refunded notifications independently for every group/store pair. The legacy **Telegram 门店业务通知** panel remains available during the compatibility period and is not the new multi-store subscription manager.
 
 A blank token field preserves the previously saved token. Use the explicit **Clear saved token** option to remove it. The configuration API never returns the token in plaintext; the UI displays only a masked suffix.
 
@@ -21,10 +21,11 @@ A blank token field preserves the previously saved token. Use the explicit **Cle
 
 1. Add the shared platform Admin Bot to the target Telegram group and allow it to send messages.
 2. In the group, send `/start@YourAdminBotUsername` (replace the username with the actual Bot username). If the group has privacy mode enabled, a command addressed to the Bot is the reliable way to make the update visible.
-3. Open FoodFlow Admin → Settings → Telegram store notifications and click **获取群组 ID**.
-4. Select the discovered group. FoodFlow fills its numeric Chat ID into the field; click **保存 Telegram 通知设置** to bind it to the current store.
+3. Open FoodFlow Admin → Settings → **Telegram 群组管理（多门店订阅）** and click **获取群组 ID**.
+4. Select the discovered group. FoodFlow fills the Chat ID and title; click **登记群组** to save it. Selecting a discovered group does not save automatically.
+5. Add any stores you are authorized to manage from the same merchant to that group. A group can subscribe to multiple stores, and a store can subscribe to multiple groups. Set the three event toggles separately for every group/store pair.
 
-The endpoint returns only group/supergroup IDs, titles, types, and optional public usernames. It does not return message text or sender information. It is protected by the existing admin authentication and `can_manage_store` permission, and validates the active merchant/store context.
+The discovery endpoint returns only group/supergroup IDs, titles, types, and optional public usernames. It does not return message text or sender information. It is protected by the existing admin authentication and `can_manage_store` permission. The destination API derives the merchant from the authenticated admin session, validates each store's access, and relies on globally unique Chat IDs so one physical group cannot be claimed by another merchant.
 
 **Important:** Telegram `getUpdates` cannot run while a webhook is configured for the same Bot. The platform Admin Bot is intended for outbound notifications and this on-demand discovery flow; do not attach a webhook or run another polling consumer for it. The discovery call acknowledges the updates it has read to prevent Telegram's pending-update queue from growing. If the Admin Bot is webhook-managed by another integration, use that integration's update receiver to obtain the Chat ID instead. The Client Bot webhook is separate and is not affected.
 
@@ -36,8 +37,10 @@ The endpoint returns only group/supergroup IDs, titles, types, and optional publ
 - Disabling a profile stops outbound delivery without deleting its saved token or Chat ID. Already queued notices for a globally disabled Bot are terminally suppressed as `event_disabled`; re-enabling the Bot does not release that backlog. The shared Client Bot webhook remains registered while outbound notices are disabled so customers can still send `/stop` to revoke consent. Clearing or rotating the Client Bot Token removes the old Bot webhook.
 - Business notifications are delivered from a durable database outbox. Telegram network calls happen after the order/payment/refund transaction commits; retryable failures do not roll back business transactions.
 - The worker is disabled by default. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` only after staging end-to-end acceptance and explicit operator approval. Leave it unset or `false` during installation, testing, maintenance, and rollback. The worker uses one in-flight send at a time and stops before the database pool during graceful shutdown.
-- The Admin Bot token is global and is used only as the shared transport credential. The super-admin does not configure a business Chat ID or receive store business notifications; each store's separately configured Chat ID is the exclusive destination for that store's business messages.
-- Current business-notification delivery is store-scoped only: the Admin Bot transports messages to the matching store Chat ID, with event toggles controlling new-order, settlement, and refund notifications. Legacy queued super-admin business messages are suppressed. The Client Bot's configured Chat ID is used only for its fixed test message; private customer notices are routed only to a customer's own Telegram chat after the binding flow below.
+- The Admin Bot token is global and is used only as the shared transport credential. The super-admin does not configure a business Chat ID or receive store business notifications.
+- Merchant group destinations are owned by exactly one merchant. A destination may subscribe to multiple stores belonging to that merchant; a store may subscribe to multiple destinations. Chat IDs are globally unique across merchants and Bot profiles. Event flags belong to each destination/store subscription, not to the destination globally. Customer private-chat bindings remain separate and must never be routed to business groups.
+- The multi-store subscription API/UI and destination-aware enqueue/recipient resolver are present, but notification routing remains behind `TELEGRAM_GROUP_SUBSCRIPTIONS_ROUTING_ENABLED`, which is off unless explicitly set to `true`. With the flag off, new group-destination jobs are suppressed and legacy `store:<id>` jobs continue through the old single-store recipient path. With the flag on, business events fan out to active subscribed destinations and legacy jobs are suppressed rather than falling back, preventing duplicate sends. Do not enable this flag in production until staging acceptance and an explicit rollout decision.
+- The Client Bot's configured Chat ID is used only for its fixed test message; private customer notices are routed only to a customer's own Telegram chat after the binding flow below.
 
 Keep Bot tokens private. If a token is exposed, revoke it with @BotFather and replace it in the super-admin console.
 
