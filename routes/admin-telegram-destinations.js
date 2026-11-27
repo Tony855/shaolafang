@@ -4,7 +4,7 @@ const { parsePositiveRouteId } = require('../server/services/route-id');
 const { normalizeRouteError } = require('../server/utils/http-error');
 
 function normalizeFlag(value, fallback, label) {
-  if (value === undefined) return fallback;
+  if (value === undefined) return fallback === null ? null : (fallback ? 1 : 0);
   if ([true, 1, '1'].includes(value)) return 1;
   if ([false, 0, '0'].includes(value)) return 0;
   throw Object.assign(new Error(label + ' 参数无效'), { status: 400 });
@@ -74,7 +74,7 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
         WHERE d.merchant_id=? AND (?=1 OR s.id IS NULL OR a.admin_id IS NOT NULL)
         ORDER BY d.id DESC, s.name, s.id
       `, [adminId, merchantId, primary ? 1 : 0]);
-      const destinations = new Map();
+      const availableStores = await allAsync(\`\n        SELECT s.id, s.name FROM stores s\n        LEFT JOIN merchant_admin_store_access a ON a.store_id=s.id AND a.merchant_id=s.merchant_id AND a.admin_id=?\n        WHERE s.merchant_id=? AND s.active=1 AND (?=1 OR a.admin_id IS NOT NULL)\n        ORDER BY s.name, s.id\n      \`, [adminId, merchantId, primary ? 1 : 0]);\n      const destinations = new Map();
       for (const row of rows) {
         let item = destinations.get(Number(row.destination_id));
         if (!item) {
@@ -96,7 +96,7 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
         }
       }
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ destinations: [...destinations.values()] });
+      res.json({ destinations: [...destinations.values()], availableStores: availableStores.map(store => ({ id: Number(store.id), name: store.name || '' })) });
     } catch (error) {
       const safe = normalizeRouteError(error, 'Telegram 群组列表读取失败');
       res.status(safe.status).json({ error: safe.message });
