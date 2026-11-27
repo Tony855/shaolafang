@@ -42,7 +42,7 @@ test('legacy backfill creates one merchant destination and multiple store subscr
     },
     withTransaction: async fn => fn()
   };
-  const first = await backfillTelegramStoreSubscriptions(deps, );
+  const first = await backfillTelegramStoreSubscriptions(deps);
   const second = await backfillTelegramStoreSubscriptions(deps);
   assert.equal(first.destinationsCreated, 0);
   assert.equal(first.subscriptionsCreated, 2);
