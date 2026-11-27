@@ -62,7 +62,6 @@ async function enqueueStoreAdminTelegramNotification({
   const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
   if (!Array.isArray(stores) || !stores.length) return false;
 
-  const enqueueNotification = enqueue || require('./telegram-notification-outbox').enqueueTelegramNotification;
   if (routingEnabled === true) {
     // First read candidate IDs without locking. All writes then lock store,
     // destinations in ascending ID order, subscriptions, and finally outbox.
@@ -98,6 +97,7 @@ async function enqueueStoreAdminTelegramNotification({
       [merchant, store, ...destinationIds]
     );
     if (!Array.isArray(subscriptions) || !subscriptions.length) return false;
+    const enqueueNotification = enqueue || require('./telegram-notification-outbox').enqueueTelegramNotification;
 
     for (const subscription of subscriptions) {
       const destinationId = Number(subscription.destination_id);
@@ -121,6 +121,7 @@ async function enqueueStoreAdminTelegramNotification({
     [merchant, store]
   );
   if (!Array.isArray(recipients) || !recipients.length) return false;
+  const enqueueNotification = enqueue || require('./telegram-notification-outbox').enqueueTelegramNotification;
   await enqueueNotification({
     eventKey, recipientScope: 'merchant_store', recipientKey: `store:${store}`,
     merchantId: merchant, storeId: store, event
