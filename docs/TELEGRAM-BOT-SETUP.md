@@ -17,6 +17,17 @@ Tenants never create Bots or enter Bot Tokens. Each tenant only binds its own st
 
 A blank token field preserves the previously saved token. Use the explicit **Clear saved token** option to remove it. The configuration API never returns the token in plaintext; the UI displays only a masked suffix.
 
+## Discover a group Chat ID from Admin settings
+
+1. Add the shared platform Admin Bot to the target Telegram group and allow it to send messages.
+2. In the group, send `/start@YourAdminBotUsername` (replace the username with the actual Bot username). If the group has privacy mode enabled, a command addressed to the Bot is the reliable way to make the update visible.
+3. Open FoodFlow Admin → Settings → Telegram store notifications and click **获取群组 ID**.
+4. Select the discovered group. FoodFlow fills its numeric Chat ID into the field; click **保存 Telegram 通知设置** to bind it to the current store.
+
+The endpoint returns only group/supergroup IDs, titles, types, and optional public usernames. It does not return message text or sender information. It is protected by the existing admin authentication and `can_manage_store` permission, and validates the active merchant/store context.
+
+**Important:** Telegram `getUpdates` cannot run while a webhook is configured for the same Bot. The platform Admin Bot is intended for outbound notifications and this on-demand discovery flow; do not attach a webhook or run another polling consumer for it. The discovery call acknowledges the updates it has read to prevent Telegram's pending-update queue from growing. If the Admin Bot is webhook-managed by another integration, use that integration's update receiver to obtain the Chat ID instead. The Client Bot webhook is separate and is not affected.
+
 ## Security and behavior
 
 - Only authenticated super-admin endpoints can read or change these settings.
