@@ -11,7 +11,8 @@ function validateResolvedRecipient(job, recipient) {
   if (Number(recipient.merchantId) !== Number(job.merchant_id) || Number(recipient.storeId) !== Number(job.store_id)) return false;
   if (job.recipient_scope === 'merchant_store') {
     const destination = parseTelegramDestinationRecipientKey(job.recipient_key);
-    if (destination) {
+    if (typeof job.recipient_key === 'string' && job.recipient_key.startsWith('destination:')) {
+      if (!destination) return false;
       return Number(recipient.destinationId) === destination.destinationId &&
         destination.storeId === Number(job.store_id);
     }
