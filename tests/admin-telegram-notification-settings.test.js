@@ -214,3 +214,17 @@ test('server injects the client IP helper required by transactional settings aud
     /require\(['"]\.\/routes\/admin-settings\.js['"]\)\(app,\s*\{[^}]*\bgetClientIp\b[^}]*\}\)/
   );
 });
+
+
+test('legacy store settings suppression cannot kill new destination-scoped jobs', async () => {
+  const { routes, calls } = setup();
+  const res = response();
+  await routes.get('PUT /api/admin/telegram/notification-settings').at(-1)({
+    merchantId: 7, storeId: 9, body: { chatId: '', notifyOrderCreated: false }
+  }, res);
+  assert.equal(res.statusCode, 200);
+  const suppression = calls.find(call => call.type === 'run' && call.sql.includes('UPDATE telegram_notification_outbox'));
+  assert.ok(suppression);
+  assert.deepEqual(suppression.params, [7, 9, 'store:9']);
+  assert.match(suppression.sql, /recipient_key=\\?/);
+});
