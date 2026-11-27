@@ -57,12 +57,19 @@ async function backfillTelegramStoreSubscriptions({ allAsync, getAsync, runAsync
       else if (!chatType) reason = 'invalid_group_chat_id';
 
       if (!reason) {
-        await runAsync(`
+        const existingBeforeInsert = await getAsync(
+          'SELECT id, merchant_id FROM telegram_chat_destinations WHERE chat_id=? FOR UPDATE',
+          [chatId]
+        );
+        const destinationInsert = await runAsync(`
           INSERT INTO telegram_chat_destinations
             (merchant_id, bot_profile, chat_id, chat_type, title, username, is_enabled, created_at, updated_at)
           VALUES (?, 'admin', ?, ?, '', '', 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))
           ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)
         `, [Number(row.merchant_id), chatId, chatType]);
+        if (!existingBeforeInsert && Number(destinationInsert?.affectedRows) === 1) {
+          stats.destinationsCreated += 1;
+        }
 
         const destination = await getAsync(
           'SELECT id, merchant_id FROM telegram_chat_destinations WHERE chat_id=? FOR UPDATE',
