@@ -536,7 +536,7 @@ window.loadTelegramStoreNotificationSettings = loadTelegramStoreNotificationSett
       }));
       controls.appendChild(button('删除群组', async () => {
         try {
-          await api.delete('/admin/telegram/destinations/' + destination.id);
+          await api.request('/admin/telegram/destinations/' + destination.id, { method: 'DELETE' });
           window.SLF.ui.toast('群组已删除');
           await refresh();
         } catch (error) {
@@ -607,7 +607,7 @@ window.loadTelegramStoreNotificationSettings = loadTelegramStoreNotificationSett
           const confirmed = await window.SLF.ui.confirm('确定从此群组移除此门店的订阅吗？');
           if (!confirmed) return;
           try {
-            await api.delete('/admin/telegram/destinations/' + destination.id + '/stores/' + subscription.storeId);
+            await api.request('/admin/telegram/destinations/' + destination.id + '/stores/' + subscription.storeId, { method: 'DELETE' });
             await refresh();
           } catch (error) {
             window.SLF.ui.toast('❌ ' + (error.message || '移除订阅失败'));
