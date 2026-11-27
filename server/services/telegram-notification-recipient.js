@@ -46,6 +46,9 @@ function createTelegramNotificationRecipientResolver({
       if (!eventToggle) return null;
 
       const destinationKey = parseTelegramDestinationRecipientKey(key);
+      if (key.startsWith('destination:') && !destinationKey) {
+        return { scope: 'merchant_store', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true };
+      }
       if (destinationKey) {
         // New destination jobs are only active when the staging-gated routing
         // flag is enabled. Turning it off terminally suppresses already queued
