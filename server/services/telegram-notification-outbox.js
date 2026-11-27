@@ -3,6 +3,7 @@
 const { randomUUID } = require('crypto');
 const { runAsync, allAsync, withTransaction } = require('../db/helpers');
 const { normalizeOutboxInput, positiveId, retryDelaySeconds, SAFE_ERROR_CODES } = require('./telegram-notification-outbox-core');
+const { parseTelegramDestinationRecipientKey } = require('./telegram-notification-routing');
 
 async function enqueueTelegramNotification(input) {
   const row = normalizeOutboxInput(input);
@@ -39,7 +40,7 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
   return withTransaction(async () => {
     if (recipientContext?.scope === 'customer') {
       const key = typeof recipientContext.key === 'string' ? recipientContext.key : '';
-      const bindingMatch = key.match(/^binding:([1-9]\d{0,18})$/);
+      const bindingMatch = key.match(/^binding:([1-9]\\d{0,18})$/);
       const merchantId = Number(recipientContext.merchantId);
       const storeId = Number(recipientContext.storeId);
       const bindingId = bindingMatch ? Number(bindingMatch[1]) : 0;
@@ -49,9 +50,7 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
         return false;
       }
 
-      // Match /stop, page-revoke and enqueue lock order: binding first, then
-      // outbox. This makes the irreversible sending transition serialize with
-      // consent revocation instead of relying on an earlier recipient lookup.
+      // Match /stop and page revoke: binding first, then outbox.
       const bindings = await allAsync(
         'SELECT id FROM telegram_customer_bindings WHERE id=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL FOR UPDATE',
         [bindingId, merchantId, storeId]
@@ -63,6 +62,59 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
         );
         return false;
       }
+    } else if (recipientContext?.scope === 'merchant_store' &&
+               typeof recipientContext.key === 'string' &&
+               recipientContext.key.startsWith('destination:')) {
+      const target = parseTelegramDestinationRecipientKey(recipientContext.key);
+      const merchantId = Number(recipientContext.merchantId);
+      const storeId = Number(recipientContext.storeId);
+      const eventToggle = {
+        'order.created': 'notify_order_created',
+        'order.settled': 'notify_settled',
+        'order.refunded': 'notify_refunded'
+      }[recipientContext.eventType];
+
+      const markDead = async code => {
+        await runAsync(
+          "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state='processing' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)",
+          [code, taskId, workerId]
+        );
+        return false;
+      };
+
+      if (!target || !eventToggle || target.storeId !== storeId ||
+          !Number.isSafeInteger(merchantId) || merchantId <= 0 ||
+          !Number.isSafeInteger(storeId) || storeId <= 0) {
+        return markDead('invalid_recipient');
+      }
+
+      // Group send boundary lock order matches enqueue and subscription writes:
+      // store -> destination -> subscription -> outbox. If an admin disables
+      // or removes a subscription first, this worker observes it and cannot
+      // cross the irreversible Telegram send boundary.
+      const stores = await allAsync(
+        'SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE',
+        [storeId, merchantId]
+      );
+      if (!Array.isArray(stores) || !stores.length) return markDead('event_disabled');
+
+      const destinations = await allAsync(
+        'SELECT id, chat_id FROM telegram_chat_destinations WHERE id=? AND merchant_id=? AND is_enabled=1 FOR UPDATE',
+        [target.destinationId, merchantId]
+      );
+      if (!Array.isArray(destinations) || !destinations.length ||
+          String(destinations[0].chat_id || '') !== String(recipientContext.expectedChatId || '')) {
+        return markDead('event_disabled');
+      }
+
+      const subscriptions = await allAsync(
+        `SELECT id FROM telegram_store_subscriptions
+         WHERE merchant_id=? AND destination_id=? AND store_id=?
+           AND is_enabled=1 AND ${eventToggle}=1
+         FOR UPDATE`,
+        [merchantId, target.destinationId, storeId]
+      );
+      if (!Array.isArray(subscriptions) || !subscriptions.length) return markDead('event_disabled');
     }
 
     const result = await runAsync(
@@ -72,7 +124,6 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
     return Number(result.affectedRows) === 1;
   });
 }
-
 async function markTelegramNotificationUncertain(id, workerId, errorCode = 'delivery_uncertain') {
   const result = await runAsync(
     "UPDATE telegram_notification_outbox SET state='uncertain', locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state='sending' AND locked_by=?",
