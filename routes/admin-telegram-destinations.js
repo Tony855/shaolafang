@@ -12,7 +12,7 @@ function normalizeFlag(value, fallback, label) {
 
 function normalizeGroupChat(input) {
   const chatId = typeof input?.chatId === 'string' ? input.chatId.trim() : '';
-  if (!/^-\\d{5,20}$/.test(chatId)) {
+  if (!/^-\d{5,20}$/.test(chatId)) {
     throw Object.assign(new Error('仅支持 Telegram 群组或超级群组 Chat ID'), { status: 400 });
   }
   return {
