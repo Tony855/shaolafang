@@ -133,7 +133,8 @@ test('disabling a store terminally suppresses its queued store-admin notificatio
   assert.match(suppression.sql, /recipient_scope='merchant_store'/);
   assert.match(suppression.sql, /merchant_id=\? AND store_id=\?/);
   assert.match(suppression.sql, /state IN \('pending','processing'\)/);
-  assert.deepEqual(suppression.params, [7, 9]);
+  assert.match(suppression.sql, /recipient_key=\\?/);
+  assert.deepEqual(suppression.params, [7, 9, 'store:9']);
 });
 
 test('disabling one store event toggle suppresses only that event for that tenant', async () => {
@@ -150,7 +151,8 @@ test('disabling one store event toggle suppresses only that event for that tenan
   assert.equal(suppressions.length, 1);
   assert.match(suppressions[0].sql, /recipient_scope='merchant_store'/);
   assert.match(suppressions[0].sql, /event_type=\?/);
-  assert.deepEqual(suppressions[0].params, [7, 9, 'order.settled']);
+  assert.match(suppressions[0].sql, /recipient_key=\\?/);
+  assert.deepEqual(suppressions[0].params, [7, 9, 'store:9', 'order.settled']);
 });
 
 test('re-enabling store notifications does not revive dead-lettered backlog', async () => {
