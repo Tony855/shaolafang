@@ -16,8 +16,8 @@ test('legacy group Chat IDs are classified without treating private chats as gro
 
 test('legacy backfill creates one merchant destination and multiple store subscriptions idempotently', async () => {
   const rows = [
-    { id: 1, merchant_id: 7, store_id: 11, chat_id: '-100111', is_enabled: 1, notify_order_created: 1, notify_settled: 0, notify_refunded: 1, matched_store_id: 11 },
-    { id: 2, merchant_id: 7, store_id: 12, chat_id: '-100111', is_enabled: 0, notify_order_created: 0, notify_settled: 1, notify_refunded: 0, matched_store_id: 12 }
+    { id: 1, merchant_id: 7, store_id: 11, chat_id: '-100111', is_enabled: 1, notify_order_created: 1, notify_settled: 0, notify_refunded: 1, matched_store_id: 11, matched_merchant_id: 7 },
+    { id: 2, merchant_id: 7, store_id: 12, chat_id: '-100111', is_enabled: 0, notify_order_created: 0, notify_settled: 1, notify_refunded: 0, matched_store_id: 12, matched_merchant_id: 7 }
   ];
   const destinations = new Map();
   const subscriptions = new Map();
@@ -64,7 +64,7 @@ test('legacy backfill creates one merchant destination and multiple store subscr
 });
 
 test('legacy backfill refuses a Chat ID already owned by another merchant', async () => {
-  const rows = [{ id: 3, merchant_id: 8, store_id: 20, chat_id: '-100222', is_enabled: 1, notify_order_created: 1, notify_settled: 1, notify_refunded: 1, matched_store_id: 20 }];
+  const rows = [{ id: 3, merchant_id: 8, store_id: 20, chat_id: '-100222', is_enabled: 1, notify_order_created: 1, notify_settled: 1, notify_refunded: 1, matched_store_id: 20, matched_merchant_id: 8 }];
   const conflicts = [];
   const deps = {
     allAsync: async () => rows,
