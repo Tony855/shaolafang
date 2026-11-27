@@ -165,11 +165,12 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
       const connection = await originalGetConnection(...args);
       const originalExecute = connection.execute.bind(connection);
       connection.execute = (sql, params) => {
+        const result = originalExecute(sql, params);
         if (!signaled && String(sql).includes('FROM telegram_customer_bindings') && String(sql).includes('FOR UPDATE')) {
           signaled = true;
           signalBindingLockWait();
         }
-        return originalExecute(sql, params);
+        return result;
       };
       return connection;
     };
