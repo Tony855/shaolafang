@@ -47,9 +47,10 @@ async function backfillTelegramStoreSubscriptions({ allAsync, getAsync, runAsync
   const legacyRows = await allAsync(`
     SELECT r.id, r.merchant_id, r.store_id, r.chat_id, r.is_enabled,
            r.notify_order_created, r.notify_settled, r.notify_refunded,
-           s.id AS matched_store_id
+           s.id AS matched_store_id, m.id AS matched_merchant_id
     FROM telegram_store_admin_recipients r
     LEFT JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id
+    LEFT JOIN merchants m ON m.id=r.merchant_id
     WHERE r.chat_id IS NOT NULL AND TRIM(r.chat_id)<>''
     ORDER BY r.id ASC
   `);
@@ -71,7 +72,7 @@ async function backfillTelegramStoreSubscriptions({ allAsync, getAsync, runAsync
       let reason = '';
       let existingMerchantId = null;
 
-      if (!row.matched_store_id) reason = 'store_not_found_or_wrong_merchant';
+      if (!row.matched_store_id || !row.matched_merchant_id) reason = 'store_or_merchant_not_found_or_wrong_owner';
       else if (!chatType) reason = 'invalid_group_chat_id';
 
       if (!reason) {
