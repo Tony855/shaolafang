@@ -13,5 +13,5 @@ test('rider form keeps a stable form reference across async submission', () => {
   assert.match(handler, /const data\s*=\s*new FormData\(form\)/);
   assert.match(handler, /await api\([\s\S]*?\);\s*form\.reset\(\)/);
   assert.doesNotMatch(handler, /e\.currentTarget\.reset\(\)/);
-  assert.match(handler, /账号已创建，但列表刷新失败/);
+  assert.match(handler, /t\('riderAccountCreatedRefreshFailed'\)/);
 });
