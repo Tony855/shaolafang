@@ -21,7 +21,7 @@ test('Telegram diagnostics report actionable status without exposing credentials
     if (sql.includes('telegram_customer_bindings')) return [{ total: 3, active: 2 }];
     if (sql.includes('telegram_store_admin_recipients')) { recipientQuery = sql; return [{ total: 4, enabled: 3, orderEnabled: 2 }]; }
     if (sql.includes('telegram_chat_destinations')) return [{ total: 3, enabled: 2 }];
-    if (sql.includes('telegram_store_subscriptions')) return [{ total: 6, enabled: 4, orderEnabled: 3 }];
+    if (sql.includes('telegram_store_subscriptions')) return [{ total: 6, enabled: 4, orderEnabled: 3, settledEnabled: 2, refundedEnabled: 1 }];
     if (sql.includes('telegram_notification_outbox')) return [
       { state: 'pending', recipient_scope: 'customer', last_error_code: null, total: 2 },
       { state: 'dead', recipient_scope: 'merchant_store', last_error_code: 'invalid_recipient', total: 1 }
@@ -57,6 +57,8 @@ test('Telegram diagnostics report actionable status without exposing credentials
   assert.equal(report.routing.mode, 'group_subscriptions');
   assert.equal(report.routing.destinations.enabled, 2);
   assert.equal(report.routing.subscriptions.orderEnabled, 3);
+  assert.equal(report.routing.subscriptions.settledEnabled, 2);
+  assert.equal(report.routing.subscriptions.refundedEnabled, 1);
   assert.equal(report.webhookSecret.configured, true);
   assert.equal(report.bots.admin.businessRecipientMode, 'store_chat_id_only');
   assert.equal(Object.hasOwn(report.bots.admin, 'globalChatConfigured'), false);
