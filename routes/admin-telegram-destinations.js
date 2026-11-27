@@ -199,7 +199,7 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
     }
   });
 
-  app.patch('/api/admin/telegram/destinations/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
+  app.put('/api/admin/telegram/destinations/:id', requireAdminKey, requirePermission('can_manage_store'), async (req, res) => {
     try {
       const merchantId = tenant(req);
       const destinationId = parsePositiveRouteId(req.params.id);
