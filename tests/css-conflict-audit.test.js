@@ -604,7 +604,7 @@ test('admin order card header keeps all metadata on one left-aligned line', () =
 test('admin order card uses distinct modern type and table pills on one left-aligned line', () => {
   const adminCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin.css'), 'utf8');
   const orderSource = fs.readFileSync(path.join(__dirname, '..', 'pages', 'admin', 'order.js'), 'utf8');
-  const bundle = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin-bundle.js'), 'utf8');
+  assert.match(adminHtml, /assets\/admin-bundle\.js\?v=\d+/);
   const marker = '2026-11-25: modern metadata pills for admin order card headers (style B).';
   const rules = adminCss.slice(adminCss.lastIndexOf(marker));
   for (const source of [orderSource, bundle]) {
