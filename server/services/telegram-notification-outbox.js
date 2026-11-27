@@ -108,7 +108,7 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
       if (!Array.isArray(stores) || !stores.length) return markDead('event_disabled');
 
       const destinations = await allAsync(
-        'SELECT id, chat_id FROM telegram_chat_destinations WHERE id=? AND merchant_id=? AND bot_profile='admin' AND chat_type IN ('group','supergroup') AND is_enabled=1 FOR UPDATE',
+        `SELECT id, chat_id FROM telegram_chat_destinations WHERE id=? AND merchant_id=? AND bot_profile='admin' AND chat_type IN ('group','supergroup') AND is_enabled=1 FOR UPDATE`,
         [target.destinationId, merchantId]
       );
       if (!Array.isArray(destinations) || !destinations.length ||
