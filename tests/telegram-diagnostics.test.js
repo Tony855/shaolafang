@@ -20,6 +20,8 @@ test('Telegram diagnostics report actionable status without exposing credentials
     ];
     if (sql.includes('telegram_customer_bindings')) return [{ total: 3, active: 2 }];
     if (sql.includes('telegram_store_admin_recipients')) { recipientQuery = sql; return [{ total: 4, enabled: 3, orderEnabled: 2 }]; }
+    if (sql.includes('telegram_chat_destinations')) return [{ total: 3, enabled: 2 }];
+    if (sql.includes('telegram_store_subscriptions')) return [{ total: 6, enabled: 4, orderEnabled: 3 }];
     if (sql.includes('telegram_notification_outbox')) return [
       { state: 'pending', recipient_scope: 'customer', last_error_code: null, total: 2 },
       { state: 'dead', recipient_scope: 'merchant_store', last_error_code: 'invalid_recipient', total: 1 }
@@ -31,6 +33,7 @@ test('Telegram diagnostics report actionable status without exposing credentials
     allAsync,
     env: {
       TELEGRAM_NOTIFICATION_WORKER_ENABLED: 'true',
+      TELEGRAM_GROUP_SUBSCRIPTIONS_ROUTING_ENABLED: 'true',
       TELEGRAM_CLIENT_WEBHOOK_SECRET: secret,
       FOODFLOW_PUBLIC_URL: 'https://foodflow.example.test/'
     },
@@ -50,6 +53,10 @@ test('Telegram diagnostics report actionable status without exposing credentials
   });
 
   assert.equal(report.worker.enabled, true);
+  assert.equal(report.routing.groupSubscriptionsEnabled, true);
+  assert.equal(report.routing.mode, 'group_subscriptions');
+  assert.equal(report.routing.destinations.enabled, 2);
+  assert.equal(report.routing.subscriptions.orderEnabled, 3);
   assert.equal(report.webhookSecret.configured, true);
   assert.equal(report.bots.admin.businessRecipientMode, 'store_chat_id_only');
   assert.equal(Object.hasOwn(report.bots.admin, 'globalChatConfigured'), false);
@@ -79,6 +86,10 @@ test('Telegram diagnostics fail closed when notification tables are not installe
   assert.deepEqual(report.customerBindings, { available: false });
   assert.deepEqual(report.storeRecipients, { available: false });
   assert.deepEqual(report.outbox, { available: false });
+  assert.equal(report.routing.groupSubscriptionsEnabled, false);
+  assert.equal(report.routing.mode, 'legacy_store_recipients');
+  assert.deepEqual(report.routing.destinations, { available: false });
+  assert.deepEqual(report.routing.subscriptions, { available: false });
   assert.equal(report.clientWebhook.checked, false);
   assert.equal(report.worker.enabled, false, 'missing env value must keep worker disabled');
   const explicitlyEnabled = await collectTelegramDiagnostics({ allAsync, env: { TELEGRAM_NOTIFICATION_WORKER_ENABLED: 'true' }, fetchImpl: async () => { throw new Error('should not be called'); } });
