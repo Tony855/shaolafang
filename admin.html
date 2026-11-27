@@ -581,6 +581,11 @@
                         <label for="telegramStoreNotifyChatId">Telegram 群组 / 私聊 Chat ID</label>
                         <input id="telegramStoreNotifyChatId" type="text" maxlength="64" autocomplete="off" placeholder="例如 -1001234567890">
                     </div>
+                    <div class="settings-row" style="gap:8px;align-items:center;flex-wrap:wrap;">
+                        <button type="button" id="discoverTelegramGroupChatsBtn" class="display-settings-btn">获取群组 ID</button>
+                        <select id="telegramDiscoveredGroupChats" aria-label="选择已发现的 Telegram 群组" hidden style="min-width:220px;max-width:100%;"></select>
+                    </div>
+                    <p id="telegramGroupDiscoveryHint" class="ff-desc-tight">先将平台 Admin Bot 拉入群组，并在群内发送 /start@Bot用户名，再点击获取。</p>
                     <div class="settings-form-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
                         <label><input type="checkbox" id="telegramStoreNotifyOrderCreated" checked> 新订单</label>
                         <label><input type="checkbox" id="telegramStoreNotifySettled" checked> 收款确认</label>
