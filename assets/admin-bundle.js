@@ -261,6 +261,53 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (e) { SLF.ui.toast('❌ ' + (e.message || tAdmin('telegramStoreNotifySaveFailed'))); }
     };
   }
+
+  const discoverTelegramGroupChatsBtn = document.getElementById('discoverTelegramGroupChatsBtn');
+  const discoveredTelegramGroupChats = document.getElementById('telegramDiscoveredGroupChats');
+  const telegramGroupDiscoveryHint = document.getElementById('telegramGroupDiscoveryHint');
+  if (discoverTelegramGroupChatsBtn) {
+    discoverTelegramGroupChatsBtn.onclick = async function() {
+      discoverTelegramGroupChatsBtn.disabled = true;
+      const originalText = discoverTelegramGroupChatsBtn.textContent;
+      discoverTelegramGroupChatsBtn.textContent = '正在获取…';
+      try {
+        const result = await SLF.api.get('/admin/telegram/group-chats');
+        const chats = Array.isArray(result?.chats) ? result.chats : [];
+        if (discoveredTelegramGroupChats) {
+          discoveredTelegramGroupChats.replaceChildren();
+          const placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.textContent = chats.length ? '选择要绑定的群组…' : '暂未发现群组';
+          discoveredTelegramGroupChats.appendChild(placeholder);
+          chats.forEach(chat => {
+            const option = document.createElement('option');
+            option.value = String(chat.chatId || '');
+            option.textContent = String(chat.title || '未命名群组') + ' (' + String(chat.type || '') + ') — ' + String(chat.chatId || '');
+            discoveredTelegramGroupChats.appendChild(option);
+          });
+          discoveredTelegramGroupChats.hidden = chats.length === 0;
+        }
+        if (telegramGroupDiscoveryHint) {
+          telegramGroupDiscoveryHint.textContent = chats.length
+            ? '已发现 ' + chats.length + ' 个群组。选择后会自动填入 Chat ID，仍需点击保存通知设置。'
+            : (result?.hint || '暂未发现群组，请确认 Bot 已加入群组并在群内发送 /start@Bot用户名。');
+        }
+        if (!chats.length && window.SLF?.ui?.toast) SLF.ui.toast('暂未发现群组');
+      } catch (error) {
+        if (telegramGroupDiscoveryHint) telegramGroupDiscoveryHint.textContent = error.message || '获取群组失败';
+        if (window.SLF?.ui?.toast) SLF.ui.toast('❌ ' + (error.message || '获取群组失败'));
+      } finally {
+        discoverTelegramGroupChatsBtn.disabled = false;
+        discoverTelegramGroupChatsBtn.textContent = originalText;
+      }
+    };
+  }
+  if (discoveredTelegramGroupChats) {
+    discoveredTelegramGroupChats.onchange = function() {
+      if (this.value) $('#telegramStoreNotifyChatId').value = this.value;
+    };
+  }
+
   loadTelegramStoreNotificationSettings();
 });
 
