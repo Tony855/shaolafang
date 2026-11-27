@@ -48,7 +48,7 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
     safeQuery(allAsync,
       'SELECT COUNT(*) AS total, COALESCE(SUM(is_enabled=1), 0) AS enabled FROM telegram_chat_destinations'),
     safeQuery(allAsync,
-      'SELECT COUNT(*) AS total, COALESCE(SUM(is_enabled=1), 0) AS enabled, COALESCE(SUM(is_enabled=1 AND notify_order_created=1), 0) AS orderEnabled FROM telegram_store_subscriptions')
+      'SELECT COUNT(*) AS total, COALESCE(SUM(is_enabled=1), 0) AS enabled, COALESCE(SUM(is_enabled=1 AND notify_order_created=1), 0) AS orderEnabled, COALESCE(SUM(is_enabled=1 AND notify_settled=1), 0) AS settledEnabled, COALESCE(SUM(is_enabled=1 AND notify_refunded=1), 0) AS refundedEnabled FROM telegram_store_subscriptions')
   ]);
 
   let clientWebhook = {
@@ -101,7 +101,7 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
         ? { available: true, total: toCount(destinations.rows[0]?.total), enabled: toCount(destinations.rows[0]?.enabled) }
         : { available: false },
       subscriptions: subscriptions.available
-        ? { available: true, total: toCount(subscriptions.rows[0]?.total), enabled: toCount(subscriptions.rows[0]?.enabled), orderEnabled: toCount(subscriptions.rows[0]?.orderEnabled) }
+        ? { available: true, total: toCount(subscriptions.rows[0]?.total), enabled: toCount(subscriptions.rows[0]?.enabled), orderEnabled: toCount(subscriptions.rows[0]?.orderEnabled), settledEnabled: toCount(subscriptions.rows[0]?.settledEnabled), refundedEnabled: toCount(subscriptions.rows[0]?.refundedEnabled) }
         : { available: false }
     },
     webhookSecret: {
