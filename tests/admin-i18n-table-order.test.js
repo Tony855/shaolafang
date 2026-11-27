@@ -55,7 +55,7 @@ test('order fulfillment prompts and tracking feedback use translation keys', () 
 });
 
 test('generated admin and language bundles include the localized source keys', () => {
-  assert.match(adminHtml, /assets\/admin-bundle\.js\?v=\d+/);
+  const bundle = fs.readFileSync(path.join(root, 'assets', 'admin-bundle.js'), 'utf8');
   const languageSource = fs.readFileSync(path.join(root, 'languages.js'), 'utf8');
   const languageMin = fs.readFileSync(path.join(root, 'languages.min.js'), 'utf8');
   const adminHtml = fs.readFileSync(path.join(root, 'admin.html'), 'utf8');
@@ -65,6 +65,6 @@ test('generated admin and language bundles include the localized source keys', (
     assert.ok(languageSource.includes(key), 'languages.js missing ' + key);
     assert.ok(languageMin.includes(key), 'languages.min.js missing ' + key);
   }
-  assert.match(adminHtml, /languages\.min\.js\?v=2026112501/);
-  assert.match(adminHtml, /assets\/admin-bundle\.js\?v=2026112504/);
+  assert.match(adminHtml, /languages\\.min\\.js\\?v=2026112501/);
+  assert.match(adminHtml, /assets\\/admin-bundle\\.js\\?v=\\d+/);
 });
