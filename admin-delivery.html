@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>FoodFlow 配送管理</title><style>
+<title data-i18n="deliveryAdminTitle">FoodFlow 配送管理</title><style>
 *{box-sizing:border-box}body{margin:0;background:#101827;color:#f3f6fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 main{max-width:1100px;margin:auto;padding:20px;padding:max(20px,env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) max(20px,env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px))}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font-size:23px}.muted{color:#9aa9bd;font-size:13px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.card{background:#1b273a;border:1px solid #2c3b52;border-radius:15px;padding:16px;margin:14px 0}
@@ -9,40 +9,42 @@ label{display:block;font-size:13px;color:#b8c4d5;margin:10px 0 5px}input,select,
 .job{padding:12px 0;border-bottom:1px solid #334258}.job:last-child{border:0}.pill{background:#2a405e;border-radius:20px;padding:4px 8px;font-size:12px}
 .error{color:#ffb3a7;margin-top:8px}.ok{color:#8de0a7}.back{color:#c6d7f2;text-decoration:none}
 </style></head><body><main>
-<div class="top"><div><a class="back" href="/admin">← 返回管理后台</a><h1>🛵 配送管理</h1><div class="muted">当前门店骑手、配送任务及实时位置</div></div><div class="row"><button class="secondary" id="copyCustomerDeliveryLink">复制顾客外卖链接</button><button class="secondary" id="refresh">刷新数据</button></div></div>
+<div class="top"><div><a class="back" href="/admin" data-i18n="backToAdmin">← 返回管理后台</a><h1 data-i18n="deliveryManagement">🛵 配送管理</h1><div class="muted" data-i18n="deliveryManagementDesc">当前门店骑手、配送任务及实时位置</div></div><div class="row"><button class="secondary" id="copyCustomerDeliveryLink" data-i18n="copyCustomerDeliveryLink">复制顾客外卖链接</button><button class="secondary" id="refresh" data-i18n="refreshData">刷新数据</button></div></div>
 <div class="grid">
-<section class="card"><h3>添加骑手</h3><form id="riderForm">
-<label>骑手姓名</label><input name="displayName" required maxlength="120">
-<label>登录账号</label><input name="username" required minlength="3" maxlength="80">
-<label>初始密码（至少8位）</label><input name="password" type="password" required minlength="8">
-<label>联系电话</label><input name="phone" maxlength="40">
-<button>创建骑手账号</button><div id="riderMessage" class="muted"></div>
+<section class="card"><h3 data-i18n="addRider">添加骑手</h3><form id="riderForm">
+<label data-i18n="riderName">骑手姓名</label><input name="displayName" required maxlength="120">
+<label data-i18n="loginAccount">登录账号</label><input name="username" required minlength="3" maxlength="80">
+<label data-i18n="initialPasswordMin8">初始密码（至少8位）</label><input name="password" type="password" required minlength="8">
+<label data-i18n="deliveryContactPhone">联系电话</label><input name="phone" maxlength="40">
+<button data-i18n="createRiderAccount">创建骑手账号</button><div id="riderMessage" class="muted"></div>
 </form></section>
-<section class="card"><h3>分配配送订单</h3><form id="assignForm">
-<label>订单</label><select name="orderId" id="orderSelect" required></select>
-<label>配送骑手</label><select name="riderId" id="riderSelect" required></select>
-<label>收件人</label><input name="recipientName" maxlength="120">
-<label>收件电话</label><input name="recipientPhone" maxlength="40">
-<label>配送地址</label><input name="address" required maxlength="500">
-<button>分配骑手</button><div id="assignMessage" class="muted"></div>
+<section class="card"><h3 data-i18n="assignDeliveryOrder">分配配送订单</h3><form id="assignForm">
+<label data-i18n="deliveryOrderLabel">订单</label><select name="orderId" id="orderSelect" required></select>
+<label data-i18n="deliveryRider">配送骑手</label><select name="riderId" id="riderSelect" required></select>
+<label data-i18n="recipient">收件人</label><input name="recipientName" maxlength="120">
+<label data-i18n="recipientPhone">收件电话</label><input name="recipientPhone" maxlength="40">
+<label data-i18n="deliveryAddress">配送地址</label><input name="address" required maxlength="500">
+<button data-i18n="assignRider">分配骑手</button><div id="assignMessage" class="muted"></div>
 </form></section></div>
-<section class="card"><h3>本门店骑手</h3><div id="riders" class="muted">读取中…</div></section>
-<section class="card"><h3>配送任务与骑手位置</h3><div id="jobs" class="muted">读取中…</div></section>
-</main><script src="/socket.io/socket.io.js"></script><script>
+<section class="card"><h3 data-i18n="storeRiders">本门店骑手</h3><div id="riders" class="muted" data-i18n="deliveryLoading">读取中…</div></section>
+<section class="card"><h3 data-i18n="deliveryTasksAndRiderLocation">配送任务与骑手位置</h3><div id="jobs" class="muted" data-i18n="deliveryLoading">读取中…</div></section>
+</main><script src="/languages.min.js?v=20261126-i18n1"></script><script src="/assets/core.js?v=20261126-i18n1"></script><script src="/socket.io/socket.io.js"></script><script>
 (() => {
  const $=id=>document.getElementById(id),token=sessionStorage.getItem('adminToken')||'';
+ const t=key=>window.SLF&&typeof SLF.t==='function'?SLF.t(key):key;
+ const applyI18n=()=>document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n);});
  const storeId=sessionStorage.getItem('adminStoreId')||sessionStorage.getItem('storeId')||localStorage.getItem('storeId')||'';
- const api=async(path,options={})=>{const r=await fetch(path,{...options,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Store-Id':String(storeId),...(options.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'请求失败');return d;};
+ const api=async(path,options={})=>{const r=await fetch(path,{...options,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'X-Store-Id':String(storeId),...(options.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||t('requestFailed'));return d;};
  let riders=[],jobs=[];
  function text(el,value){el.textContent=value==null?'':String(value);}
- function renderRiders(){const host=$('riders');host.replaceChildren();if(!riders.length){text(host,'尚未添加骑手');return;}
- const table=document.createElement('table'),head=document.createElement('tr');['姓名','账号','电话','状态'].forEach(x=>{const th=document.createElement('th');th.textContent=x;head.append(th);});table.append(head);
- riders.forEach(r=>{const tr=document.createElement('tr');[r.display_name,r.username,r.phone||'—',Number(r.active)?'启用':'停用'].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td);});table.append(tr);});const scroll=document.createElement('div');scroll.className='table-scroll';scroll.append(table);host.append(scroll);}
- function renderJobs(){const host=$('jobs');host.replaceChildren();if(!jobs.length){text(host,'暂无配送任务');return;}
- jobs.forEach(j=>{const div=document.createElement('div');div.className='job';const title=document.createElement('strong');const labels={pending_assignment:'等待分配骑手',assigned:'已分配',accepted:'骑手已接单',picked_up:'已取货',delivering:'配送中',delivered:'已送达',cancelled:'已取消'};title.textContent='订单 '+(j.order_no||j.order_id)+' · '+(labels[j.status]||j.status);div.append(title);
- const detail=document.createElement('p');detail.className='muted';detail.textContent=(j.rider_name||'未分配骑手')+' · '+(j.rider_phone||'')+' · '+j.delivery_address;div.append(detail);
- if(j.latitude!==null&&j.longitude!==null){const link=document.createElement('a');link.target='_blank';link.rel='noopener';link.href='https://www.openstreetmap.org/?mlat='+encodeURIComponent(j.latitude)+'&mlon='+encodeURIComponent(j.longitude)+'#map=16/'+encodeURIComponent(j.latitude)+'/'+encodeURIComponent(j.longitude);link.textContent='查看骑手位置';link.style.color='#8fc1ff';div.append(link);const stamp=document.createElement('div');stamp.className='muted';stamp.textContent='位置更新时间：'+(j.location_updated_at||'未知');div.append(stamp);}else{const p=document.createElement('div');p.className='muted';p.textContent='暂无定位';div.append(p);}host.append(div);});}
- async function load(){if(!token||!storeId){alert('管理员登录已失效，请先登录');location.href='/admin';return;}
+ function renderRiders(){const host=$('riders');host.replaceChildren();if(!riders.length){text(host,t('noRidersYet'));return;}
+ const table=document.createElement('table'),head=document.createElement('tr');[t('riderName'),t('loginAccount'),t('deliveryContactPhone'),t('status')].forEach(x=>{const th=document.createElement('th');th.textContent=x;head.append(th);});table.append(head);
+ riders.forEach(r=>{const tr=document.createElement('tr');[r.display_name,r.username,r.phone||'—',Number(r.active)?t('deliveryEnabled'):t('deliveryDisabled')].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td);});table.append(tr);});const scroll=document.createElement('div');scroll.className='table-scroll';scroll.append(table);host.append(scroll);}
+ function renderJobs(){const host=$('jobs');host.replaceChildren();if(!jobs.length){text(host,t('noDeliveryTasks'));return;}
+ jobs.forEach(j=>{const div=document.createElement('div');div.className='job';const title=document.createElement('strong');const labels={pending_assignment:t('pendingAssignment'),assigned:t('assigned'),accepted:t('riderAccepted'),picked_up:t('pickedUp'),delivering:t('delivering'),delivered:t('delivered'),cancelled:t('cancelled')};title.textContent=t('deliveryOrderLabel')+' '+(j.order_no||j.order_id)+' · '+(labels[j.status]||j.status);div.append(title);
+ const detail=document.createElement('p');detail.className='muted';detail.textContent=(j.rider_name||t('notAssignedRider'))+' · '+(j.rider_phone||'')+' · '+j.delivery_address;div.append(detail);
+ if(j.latitude!==null&&j.longitude!==null){const link=document.createElement('a');link.target='_blank';link.rel='noopener';link.href='https://www.openstreetmap.org/?mlat='+encodeURIComponent(j.latitude)+'&mlon='+encodeURIComponent(j.longitude)+'#map=16/'+encodeURIComponent(j.latitude)+'/'+encodeURIComponent(j.longitude);link.textContent=t('viewRiderLocation');link.style.color='#8fc1ff';div.append(link);const stamp=document.createElement('div');stamp.className='muted';stamp.textContent=t('locationUpdatedAt')+(j.location_updated_at||t('deliveryUnknown'));div.append(stamp);}else{const p=document.createElement('div');p.className='muted';p.textContent=t('noLocation');div.append(p);}host.append(div);});}
+ async function load(){if(!token||!storeId){alert(t('adminSessionExpired'));location.href='/admin';return;}
  const [r,j,o]=await Promise.all([api('/api/admin/delivery/riders'),api('/api/admin/delivery/jobs'),api('/api/orders')]);
  riders=r.riders||[];jobs=j.jobs||[];renderRiders();renderJobs();
  const rs=$('riderSelect');rs.replaceChildren();riders.filter(x=>Number(x.active)).forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=x.display_name+'（'+x.phone+'）';rs.append(op);});
@@ -53,21 +55,22 @@ label{display:block;font-size:13px;color:#b8c4d5;margin:10px 0 5px}input,select,
   if(String(x.pay_method||'').toLowerCase()==='khqr'&&x.status!=='done')return false;
   const job=jobByOrder.get(String(x.id));
   return !job||['pending_assignment','assigned'].includes(job.status);
- }).forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=(x.order_no||x.id)+' · 外卖配送 · '+x.total;os.append(op);});
+ }).forEach(x=>{const op=document.createElement('option');op.value=x.id;op.textContent=(x.order_no||x.id)+' · '+t('orderFulfillmentDelivery')+' · '+x.total;os.append(op);});
  }
- $('riderForm').addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget;const data=new FormData(form);const message=$('riderMessage');try{await api('/api/admin/delivery/riders',{method:'POST',body:JSON.stringify(Object.fromEntries(data))});form.reset();text(message,'骑手账号已创建');try{await load();}catch(refreshError){text(message,'骑手账号已创建，但列表刷新失败：'+refreshError.message);}}catch(err){text(message,err.message);}});
+ $('riderForm').addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget;const data=new FormData(form);const message=$('riderMessage');try{await api('/api/admin/delivery/riders',{method:'POST',body:JSON.stringify(Object.fromEntries(data))});form.reset();text(message,t('riderAccountCreated'));try{await load();}catch(refreshError){text(message,t('riderAccountCreatedRefreshFailed')+refreshError.message);}}catch(err){text(message,err.message);}});
  $('orderSelect').addEventListener('change',()=>{
  const job=jobs.find(x=>String(x.order_id)===$('orderSelect').value);
  if(job){$('assignForm').elements.recipientName.value=job.recipient_name||'';$('assignForm').elements.recipientPhone.value=job.recipient_phone||'';$('assignForm').elements.address.value=job.delivery_address||'';}
 });
- $('assignForm').addEventListener('submit',async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));try{await api('/api/admin/delivery/orders/'+encodeURIComponent(f.orderId)+'/assign',{method:'POST',body:JSON.stringify(f)});text($('assignMessage'),'配送任务已分配');await load();}catch(err){text($('assignMessage'),err.message);}});
+ $('assignForm').addEventListener('submit',async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.currentTarget));try{await api('/api/admin/delivery/orders/'+encodeURIComponent(f.orderId)+'/assign',{method:'POST',body:JSON.stringify(f)});text($('assignMessage'),t('deliveryTaskAssigned'));await load();}catch(err){text($('assignMessage'),err.message);}});
  $('copyCustomerDeliveryLink').addEventListener('click',async()=>{
-  if(!storeId){alert('当前门店编号无效');return;}
+  if(!storeId){alert(t('storeIdInvalid'));return;}
   const url=location.origin+'/delivery/order?store_id='+encodeURIComponent(storeId);
-  try{await navigator.clipboard.writeText(url);alert('顾客外卖链接已复制：'+url);}catch(_){prompt('请复制顾客外卖链接',url);}
+  try{await navigator.clipboard.writeText(url);alert(t('customerDeliveryLinkCopied')+url);}catch(_){prompt(t('copyDeliveryLinkPrompt'),url);}
  });
  $('refresh').addEventListener('click',()=>load().catch(e=>alert(e.message)));
  if(window.io&&token){const socket=io({auth:{token},query:{storeId}});socket.on('delivery:location',()=>load().catch(()=>{}));socket.on('delivery:status',()=>load().catch(()=>{}));}
- load().catch(e=>{text($('jobs'),e.message);});
+ const savedLang=localStorage.getItem('lang')||localStorage.getItem('adminLang')||'zh';
+ SLF.i18n.init(savedLang).then(()=>{applyI18n();return load();}).catch(e=>{text($('jobs'),e.message);});
 })();
 </script></body></html>
