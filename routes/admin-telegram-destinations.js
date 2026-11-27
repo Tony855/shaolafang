@@ -74,7 +74,13 @@ module.exports = function registerTelegramDestinationRoutes(app, deps) {
         WHERE d.merchant_id=? AND (?=1 OR s.id IS NULL OR a.admin_id IS NOT NULL)
         ORDER BY d.id DESC, s.name, s.id
       `, [adminId, merchantId, primary ? 1 : 0]);
-      const availableStores = await allAsync(\`\n        SELECT s.id, s.name FROM stores s\n        LEFT JOIN merchant_admin_store_access a ON a.store_id=s.id AND a.merchant_id=s.merchant_id AND a.admin_id=?\n        WHERE s.merchant_id=? AND s.active=1 AND (?=1 OR a.admin_id IS NOT NULL)\n        ORDER BY s.name, s.id\n      \`, [adminId, merchantId, primary ? 1 : 0]);\n      const destinations = new Map();
+      const availableStores = await allAsync(`
+        SELECT s.id, s.name FROM stores s
+        LEFT JOIN merchant_admin_store_access a ON a.store_id=s.id AND a.merchant_id=s.merchant_id AND a.admin_id=?
+        WHERE s.merchant_id=? AND s.active=1 AND (?=1 OR a.admin_id IS NOT NULL)
+        ORDER BY s.name, s.id
+      `, [adminId, merchantId, primary ? 1 : 0]);
+      const destinations = new Map();
       for (const row of rows) {
         let item = destinations.get(Number(row.destination_id));
         if (!item) {
