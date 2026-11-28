@@ -15,7 +15,11 @@ function setup({ duplicate = false, challengeRow = true, expired = false, consum
   const calls = [];
   const app = { post(path, fn) { handlers.set(path, fn); } };
   const deps = {
-    allAsync: async () => [{ key: 'telegram_client_bot_enabled', value: '1' }, { key: 'telegram_client_bot_token', value: token }],
+    allAsync: async (sql, params = []) => {
+      calls.push(['all', sql, params]);
+      if (sql.includes('FROM telegram_customer_bindings')) return [{ id: 31 }];
+      return [{ key: 'telegram_client_bot_enabled', value: '1' }, { key: 'telegram_client_bot_token', value: token }];
+    },
     getAsync: async (sql, params = []) => {
       calls.push(['get', sql, params]);
       if (sql.includes('telegram_merchant_bots')) return { id: 22, merchant_id: 7, client_bot_token_encrypted: 'encrypted-token', webhook_secret_encrypted: 'encrypted-secret' };
@@ -146,4 +150,26 @@ test('tenant webhook rejects malformed path tokens before database access', asyn
   await tenantHandler(req, res);
   assert.equal(res.code, 404);
   assert.equal(calls.length, 0);
+});
+
+test('tenant /stop revokes only bindings owned by the resolved merchant', async () => {
+  const { tenantHandler, calls } = setup();
+  const oldFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: 2, chat: { id: 12345 } } }) });
+  try {
+    const req = request();
+    req.params = { pathToken };
+    req.body.message.text = '/stop';
+    const res = response();
+    await tenantHandler(req, res);
+    assert.equal(res.code, 200);
+    const bindingLock = calls.find(call => call[0] === 'all' && call[1].includes('FROM telegram_customer_bindings'));
+    assert.ok(bindingLock[1].includes('WHERE merchant_id=? AND telegram_chat_id=? AND telegram_user_id=?'));
+    assert.deepEqual(bindingLock[2], [7, '12345', '12345']);
+    const revoke = calls.find(call => call[0] === 'run' && call[1].includes('UPDATE telegram_customer_bindings SET is_active=0'));
+    assert.ok(revoke[1].includes('WHERE merchant_id=? AND telegram_chat_id=? AND telegram_user_id=?'));
+    assert.deepEqual(revoke[2], [7, '12345', '12345']);
+  } finally {
+    global.fetch = oldFetch;
+  }
 });
