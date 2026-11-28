@@ -67,7 +67,7 @@ function createTelegramNotificationRecipientResolver({
              ON sub.merchant_id=d.merchant_id AND sub.destination_id=d.id
            JOIN stores s ON s.id=sub.store_id AND s.merchant_id=sub.merchant_id
            JOIN merchants m ON m.id=d.merchant_id
-           WHERE d.id=? AND d.merchant_id=? AND d.bot_profile='admin' AND d.chat_type IN ('group','supergroup')
+           WHERE d.id=? AND d.merchant_id=? AND d.bot_profile='admin' AND d.chat_type IN ('private','group','supergroup')
              AND sub.store_id=? AND s.active=1 AND m.status=1
            LIMIT 1`,
           [destinationKey.destinationId, tenantMerchantId, tenantStoreId]
