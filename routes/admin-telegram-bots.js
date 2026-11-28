@@ -108,6 +108,9 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
           : suppliedAdminToken ? fingerprintBotToken(suppliedAdminToken) : current?.admin_bot_token_fingerprint || null;
         const resolvedAdminUsername = clearAdmin ? null
           : suppliedAdminToken ? adminUsername : current?.admin_bot_username || null;
+        if (clientFingerprint && clientFingerprint === adminFingerprint) {
+          throw Object.assign(new Error('Client Bot 和 Admin Bot 必须使用不同的 Bot Token'), { status: 409 });
+        }
         const clientEnabled = clearClient ? 0 : flag(body.clientBotEnabled, Number(current?.client_bot_enabled || 0), 'Client Bot 状态');
         const adminEnabled = clearAdmin ? 0 : flag(body.adminBotEnabled, Number(current?.admin_bot_enabled || 0), 'Admin Bot 状态');
 
