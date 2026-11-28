@@ -177,7 +177,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       }
       failureStage = 'store_binding_lookup';
       const recipient = await getAsync(
-        'SELECT r.chat_id, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id LEFT JOIN telegram_merchant_bots tb ON tb.merchant_id=r.merchant_id AND tb.client_bot_enabled=1 WHERE tb.id IS NULL AND r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\\'\\' AND s.active=1 AND m.status=1 LIMIT 1',
+        `SELECT r.chat_id, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id LEFT JOIN telegram_merchant_bots tb ON tb.merchant_id=r.merchant_id AND tb.client_bot_enabled=1 WHERE tb.id IS NULL AND r.store_id=? AND r.is_enabled=1 AND r.chat_id<>'' AND s.active=1 AND m.status=1 LIMIT 1`,
         [storeId]
       );
       if (!recipient || !verifyStoreEntrySignature({ storeId, chatId: String(recipient.chat_id || ''), secret, signature })) {
