@@ -22,6 +22,7 @@ const { ensureProviderEventQueueIndexes } = require('./server/db/migrations/prov
 const { ensureTelegramNotificationOutboxSchema } = require('./server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('./server/db/migrations/telegram-customer-binding');
 const { ensureTelegramMerchantBotSchema } = require('./server/db/migrations/telegram-merchant-bots');
+const { ensureTelegramCustomerBotScopeSchema } = require('./server/db/migrations/telegram-customer-bot-scope');
 const { ensureTelegramStoreAdminRecipientSchema } = require('./server/db/migrations/telegram-store-admin-recipients');
 const { ensureTelegramChatDestinationSchema } = require('./server/db/migrations/telegram-chat-destinations');
 const { backfillTelegramStoreSubscriptions } = require('./server/db/migrations/telegram-store-subscription-backfill');
@@ -470,6 +471,7 @@ async function ensureOrderTables() {
   await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
   await ensureTelegramCustomerBindingSchema({ runAsync });
   await ensureTelegramMerchantBotSchema({ runAsync });
+  await ensureTelegramCustomerBotScopeSchema({ runAsync });
   await ensureTelegramStoreAdminRecipientSchema({ runAsync });
 
 
