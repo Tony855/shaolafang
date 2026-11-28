@@ -6,11 +6,11 @@ The shared platform Admin Bot can be registered as a merchant notification desti
 
 1. Open the shared Admin Bot in Telegram and send /start (or /start@BotUsername).
 2. In FoodFlow Admin, open Settings → Telegram destinations.
-3. Use the discovery control. The discovery endpoint returns only the Chat ID, type, and a minimal display label; it does not return message text or sender details.
+3. Use the discovery control. The group discovery endpoint returns only group/supergroup IDs, titles, types, and optional usernames; it does not return message text or sender details. Private Chat IDs must be entered manually.
 4. Select the private destination, register it, and subscribe only the stores the authenticated admin is authorized to manage.
 5. Set independent order-created, settlement, and refund toggles for each store/destination subscription.
 
-Private Chat IDs are positive numeric IDs. Group and supergroup Chat IDs are negative numeric IDs. Discovery requires the Admin Bot to have received the explicit private /start command. A webhook or another getUpdates consumer on the Admin Bot prevents this on-demand discovery flow from working.
+Private Chat IDs are positive numeric IDs. Group and supergroup Chat IDs are negative numeric IDs. Private Chat IDs are registered manually and are not returned by the shared Admin Bot discovery endpoint, because global private-chat discovery could expose other merchants' admin IDs. Group discovery remains available but is not tenant-scoped yet (tracked separately). A webhook or another getUpdates consumer on the Admin Bot prevents group discovery from working.
 
 ## Isolation and delivery
 
@@ -26,4 +26,4 @@ The startup schema helper widens an existing destination Chat-Type ENUM to inclu
 
 ## Staging acceptance
 
-Before enabling routing, use disposable staging data and dedicated test Bots to verify private /start discovery, group discovery, authorized store subscriptions, event toggles, duplicate suppression, cross-merchant rejection, disable/revoke races, outbox retries/dead-letter, worker restart, and backup/restore. Do not use production credentials, real customer data, or real funds.
+Before enabling routing, use disposable staging data and dedicated test Bots to verify manual private Chat-ID registration, group discovery, authorized store subscriptions, event toggles, duplicate suppression, cross-merchant rejection, disable/revoke races, outbox retries/dead-letter, worker restart, and backup/restore. Do not use production credentials, real customer data, or real funds.
