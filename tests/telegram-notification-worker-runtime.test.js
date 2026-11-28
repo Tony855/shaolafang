@@ -84,12 +84,16 @@ test('Telegram worker rejects unsafe polling intervals and worker IDs', () => {
   assert.throws(() => createTelegramNotificationWorker({ workerId, intervalMs: 10 }), /polling interval/);
 });
 
-test('Telegram delivery worker is disabled unless explicitly opted in', () => {
-  assert.equal(isTelegramNotificationWorkerEnabled(undefined), false);
-  assert.equal(isTelegramNotificationWorkerEnabled(''), false);
+test('Telegram delivery worker is enabled by default and can be explicitly paused', () => {
+  assert.equal(isTelegramNotificationWorkerEnabled(undefined), true);
+  assert.equal(isTelegramNotificationWorkerEnabled(''), true);
   assert.equal(isTelegramNotificationWorkerEnabled('false'), false);
+  assert.equal(isTelegramNotificationWorkerEnabled('FALSE'), false);
+  assert.equal(isTelegramNotificationWorkerEnabled('0'), false);
+  assert.equal(isTelegramNotificationWorkerEnabled('off'), false);
   assert.equal(isTelegramNotificationWorkerEnabled('TRUE'), true);
   assert.equal(isTelegramNotificationWorkerEnabled(' true '), true);
-  assert.equal(isTelegramNotificationWorkerEnabled('yes'), false);
-  assert.equal(isTelegramNotificationWorkerEnabled('1'), false);
+  assert.equal(isTelegramNotificationWorkerEnabled('yes'), true);
+  assert.equal(isTelegramNotificationWorkerEnabled('1'), true);
+  assert.equal(isTelegramNotificationWorkerEnabled('unexpected'), false);
 });

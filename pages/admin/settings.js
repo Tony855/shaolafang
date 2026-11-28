@@ -126,6 +126,24 @@ async function loadTelegramStoreNotificationSettings() {
   } catch (e) { console.warn('加载 Telegram 门店通知设置失败', e); }
 }
 
+async function loadTenantTelegramBotSettings() {
+  if (!document.getElementById('telegramTenantBotCard')) return;
+  const status = document.getElementById('tenantTelegramBotStatus');
+  try {
+    const data = await SLF.api.get('/admin/telegram/bot');
+    if (!data) return;
+    $('#tenantTelegramClientBotEnabled').checked = !!data.client?.enabled;
+    $('#tenantTelegramAdminBotEnabled').checked = !!data.admin?.enabled;
+    if (status) {
+      const client = data.client?.tokenConfigured ? (data.client.username ? '@' + data.client.username : '已配置') : '未配置';
+      const admin = data.admin?.tokenConfigured ? (data.admin.username ? '@' + data.admin.username : '已配置') : '未配置';
+      status.textContent = '顾客 Bot：' + client + (data.client?.enabled ? '（已启用）' : '（已停用）') + '；Admin Bot：' + admin + (data.admin?.enabled ? '（已启用）' : '（已停用）');
+    }
+  } catch (error) {
+    if (status) status.textContent = error.message || '只有租户主管理员可以查看和管理本商户 Bot 配置。';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const saveDisplaySettingsBtn = document.getElementById('saveDisplaySettingsBtn');
   if (saveDisplaySettingsBtn) {
@@ -156,6 +174,39 @@ document.addEventListener('DOMContentLoaded', function() {
         SLF.ui.toast('✅ ' + tAdmin('notifySettingsSaved'));
         await loadNotificationSettings();
       } catch (e) { SLF.ui.toast('❌ ' + e.message); }
+    };
+  }
+
+  const saveTenantTelegramBotBtn = document.getElementById('saveTenantTelegramBotBtn');
+  if (saveTenantTelegramBotBtn) {
+    saveTenantTelegramBotBtn.onclick = async function() {
+      const status = document.getElementById('tenantTelegramBotStatus');
+      saveTenantTelegramBotBtn.disabled = true;
+      try {
+        const body = {
+          clientBotEnabled: $('#tenantTelegramClientBotEnabled').checked,
+          adminBotEnabled: $('#tenantTelegramAdminBotEnabled').checked,
+          clearClientBotToken: $('#tenantTelegramClientBotClear').checked,
+          clearAdminBotToken: $('#tenantTelegramAdminBotClear').checked
+        };
+        const clientToken = $('#tenantTelegramClientBotToken').value.trim();
+        const adminToken = $('#tenantTelegramAdminBotToken').value.trim();
+        if (clientToken) body.clientBotToken = clientToken;
+        if (adminToken) body.adminBotToken = adminToken;
+        const result = await SLF.api.put('/admin/telegram/bot', body);
+        $('#tenantTelegramClientBotToken').value = '';
+        $('#tenantTelegramAdminBotToken').value = '';
+        $('#tenantTelegramClientBotClear').checked = false;
+        $('#tenantTelegramAdminBotClear').checked = false;
+        if (status) status.textContent = '保存成功。顾客 Webhook：' + (result.webhookConfigured ? '已同步' : '未启用') + '；Mini App 菜单：' + (result.menuButtonConfigured ? '已同步' : '未启用或待同步');
+        await loadTenantTelegramBotSettings();
+        if (window.SLF?.ui?.toast) SLF.ui.toast('本商户 Telegram Bot 配置已保存');
+      } catch (error) {
+        if (status) status.textContent = error.message || 'Bot 配置保存失败';
+        if (window.SLF?.ui?.toast) SLF.ui.toast('❌ ' + (error.message || 'Bot 配置保存失败'));
+      } finally {
+        saveTenantTelegramBotBtn.disabled = false;
+      }
     };
   }
 
@@ -222,6 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   loadTelegramStoreNotificationSettings();
+  loadTenantTelegramBotSettings();
 });
 
 // 挂到 window
@@ -230,6 +282,7 @@ window.loadOrderPrefixes = loadOrderPrefixes;
 window.saveOrderPrefixes = saveOrderPrefixes;
 window.loadNotificationSettings = loadNotificationSettings;
 window.loadTelegramStoreNotificationSettings = loadTelegramStoreNotificationSettings;
+window.loadTenantTelegramBotSettings = loadTenantTelegramBotSettings;
 
 })();
 

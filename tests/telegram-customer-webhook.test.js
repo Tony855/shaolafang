@@ -57,16 +57,16 @@ function fixture({ botToken = '123456:abcdefghijklmnopqrstuvwxyzABCDE', sendMess
         return { affectedRows: index >= 0 ? 1 : 0 };
       }
       if (sql.includes('UPDATE telegram_customer_bindings')) {
-        const row = state.bindings.find(x => x.id === params[3]);
-        if (row) Object.assign(row, { merchant_id: params[0], telegram_user_id: params[1], telegram_chat_id: params[2], is_active: 1, revoked_at: null });
+        const row = state.bindings.find(x => x.id === params[4]);
+        if (row) Object.assign(row, { merchant_id: params[0], bot_config_id: params[1], telegram_user_id: params[2], telegram_chat_id: params[3], is_active: 1, revoked_at: null });
         return { affectedRows: row ? 1 : 0 };
       }
       if (sql.includes('UPDATE telegram_customer_binding_challenges')) { state.consumed = true; return { affectedRows: 1 }; }
       if (sql.includes('INSERT INTO telegram_customer_bindings')) {
-        if (state.bindings.some(x => (x.telegram_chat_id === params[4] && Number(x.store_id) === Number(params[2])) || (x.customer_token_hash === params[0] && Number(x.store_id) === Number(params[2])))) {
+        if (state.bindings.some(x => (x.telegram_chat_id === params[5] && Number(x.store_id) === Number(params[3])) || (x.customer_token_hash === params[0] && Number(x.store_id) === Number(params[3])))) {
           throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
         }
-        state.bindings.push({ id: 9, customer_token_hash: params[0], merchant_id: params[1], store_id: params[2], telegram_user_id: params[3], telegram_chat_id: params[4], is_active: 1 });
+        state.bindings.push({ id: 9, customer_token_hash: params[0], merchant_id: params[1], bot_config_id: params[2], store_id: params[3], telegram_user_id: params[4], telegram_chat_id: params[5], is_active: 1 });
         return { affectedRows: 1 };
       }
       return { affectedRows: 1 };

@@ -1,16 +1,29 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
 const { normalizeRouteError } = require('../server/utils/http-error');
 const { validateChatId, getTelegramBotUsername, getTelegramGroupChats } = require('../server/services/telegram-bot');
-const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { createStoreEntrySignature, createTenantStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { decryptBotToken } = require('../server/services/telegram-bot-credentials');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
    ============================================================ */
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission, getClientIp } = deps;
 
-  async function getStoreEntryLink(storeId, chatId) {
-    const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
-    if (!chatId || secret.length < 32 || secret.length > 256) return null;
+  async function getStoreEntryLink(storeId, merchantId, chatId) {
+    const tenantBot = await getAsync(
+      'SELECT client_bot_enabled, client_bot_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+      [merchantId]
+    );
+    if (Number(tenantBot?.client_bot_enabled) === 1 && tenantBot.client_bot_token_encrypted && tenantBot.webhook_secret_encrypted) {
+      const token = decryptBotToken(tenantBot.client_bot_token_encrypted);
+      const secret = decryptBotToken(tenantBot.webhook_secret_encrypted);
+      const username = await getTelegramBotUsername({ token });
+      const signature = createTenantStoreEntrySignature({ merchantId, storeId, secret });
+      return 'https://t.me/' + username + '?start=delivery_' + storeId + '_' + signature;
+    }
+    // Backward compatibility for merchants that have not migrated to their own Bot yet.
+    const legacySecret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+    if (!chatId || legacySecret.length < 32 || legacySecret.length > 256) return null;
     const rows = await allAsync(
       'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
       ['telegram_client_bot_enabled', 'telegram_client_bot_token']
@@ -20,7 +33,7 @@ module.exports = function(app, deps) {
     const token = String(config.telegram_client_bot_token || '');
     if (!token) return null;
     const username = await getTelegramBotUsername({ token });
-    const signature = createStoreEntrySignature({ storeId, chatId, secret });
+    const signature = createStoreEntrySignature({ storeId, chatId, secret: legacySecret });
     return 'https://t.me/' + username + '?start=delivery_' + storeId + '_' + signature;
   }
 
@@ -293,15 +306,28 @@ module.exports = function(app, deps) {
         [storeId, merchantId]
       );
       if (!store) return res.status(404).json({ error: '当前门店不存在或已停用' });
-      const settings = await allAsync(
-        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
-        ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']
+      const tenantBot = await getAsync(
+        'SELECT admin_bot_enabled, admin_bot_token_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+        [merchantId]
       );
-      const config = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
-      if (config.telegram_admin_bot_enabled !== '1' || !String(config.telegram_admin_bot_token || '')) {
-        return res.status(409).json({ error: '平台 Admin Bot 尚未配置或启用，请联系超级管理员' });
+      let adminBotToken = '';
+      if (tenantBot && Object.hasOwn(tenantBot, 'admin_bot_enabled')) {
+        if (Number(tenantBot.admin_bot_enabled) !== 1 || !tenantBot.admin_bot_token_encrypted) {
+          return res.status(409).json({ error: '本商户 Admin Bot 尚未配置或启用' });
+        }
+        adminBotToken = decryptBotToken(tenantBot.admin_bot_token_encrypted);
+      } else {
+        const settings = await allAsync(
+          'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+          ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']
+        );
+        const config = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
+        if (config.telegram_admin_bot_enabled !== '1' || !String(config.telegram_admin_bot_token || '')) {
+          return res.status(409).json({ error: '平台共享 Admin Bot 尚未配置或启用，请先配置本商户 Admin Bot' });
+        }
+        adminBotToken = String(config.telegram_admin_bot_token);
       }
-      const chats = await getTelegramGroupChats({ token: String(config.telegram_admin_bot_token) });
+      const chats = await getTelegramGroupChats({ token: adminBotToken });
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ chats, hint: chats.length ? '' : '暂未发现群组。请先把 Admin Bot 拉入群组，并在群内发送 /start@Bot用户名，然后重新获取。' });
     } catch (error) {
@@ -324,9 +350,12 @@ module.exports = function(app, deps) {
         'SELECT r.chat_id, r.is_enabled, r.notify_order_created, r.notify_settled, r.notify_refunded FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND s.active=1 AND m.status=1 LIMIT 1',
         [merchantId, storeId]
       );
-      const bot = await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
+      const tenantBot = await getAsync('SELECT admin_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1', [merchantId]);
+      const bot = tenantBot && Object.hasOwn(tenantBot, 'admin_bot_enabled')
+        ? { value: Number(tenantBot.admin_bot_enabled) === 1 ? '1' : '0' }
+        : await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
       let storeEntryLink = null;
-      try { storeEntryLink = await getStoreEntryLink(storeId, Number(row?.is_enabled) === 1 ? String(row?.chat_id || '') : ''); } catch (_) {}
+      try { storeEntryLink = await getStoreEntryLink(storeId, merchantId, Number(row?.is_enabled) === 1 ? String(row?.chat_id || '') : ''); } catch (_) {}
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({
         enabled: Boolean(row && Number(row.is_enabled) === 1 && validateChatId(String(row.chat_id || ''))),
@@ -415,7 +444,7 @@ module.exports = function(app, deps) {
         }, 'store');
       });
       let storeEntryLink = null;
-      try { storeEntryLink = await getStoreEntryLink(storeId, chatId); } catch (_) { /* Binding is saved; link can be refreshed after Bot configuration is available. */ }
+      try { storeEntryLink = await getStoreEntryLink(storeId, merchantId, chatId); } catch (_) { /* Binding is saved; link can be refreshed after Bot configuration is available. */ }
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ success: true, enabled: !!enabled, chatId, storeEntryLink, notifyOrderCreated: !!notifyOrderCreated, notifySettled: !!notifySettled, notifyRefunded: !!notifyRefunded });
     } catch (error) {

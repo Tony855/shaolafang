@@ -22,6 +22,7 @@ test('customer Telegram enqueue locks settings, tenant, and exact binding before
         assert.deepEqual(params, [7]);
         return [{ id: 7 }];
       }
+      if (sql.includes('FROM telegram_merchant_bots')) return [];
       if (sql.includes('FROM stores')) {
         assert.match(sql, /FOR UPDATE/);
         assert.deepEqual(params, [9, 7]);
@@ -53,6 +54,7 @@ test('customer Telegram enqueue fails closed without enabled Bot or matching bin
     allAsync: async sql => {
       if (sql.includes('settings')) return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_client_bot_enabled', value: '1' }];
       if (sql.includes('FROM merchants')) return [{ id: 7 }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [];
       if (sql.includes('FROM stores')) return [{ id: 9 }];
       return [];
     },
@@ -76,6 +78,7 @@ test('store admin enqueue locks Bot, tenant, and recipient rows before writing',
         assert.deepEqual(params, [7]);
         return [{ id: 7 }];
       }
+      if (sql.includes('FROM telegram_merchant_bots')) return [];
       if (sql.includes('FROM stores')) {
         assert.match(sql, /FOR UPDATE/);
         assert.deepEqual(params, [9, 7]);
@@ -114,4 +117,43 @@ test('store admin enqueue fails closed when recipient or event toggle is disable
   });
   assert.equal(noRecipient, false);
   assert.equal(unknownEvent, false);
+});
+
+test('tenant Client Bot enablement overrides the platform shared Bot setting', async () => {
+  let queued = false;
+  const result = await enqueueCustomerTelegramNotification({
+    allAsync: async (sql, params) => {
+      if (sql.includes('FROM settings')) return [{ key: 'telegram_client_bot_enabled', value: '0' }];
+      if (sql.includes('FROM merchants')) return [{ id: 7 }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [{ id: 4, client_bot_enabled: 1 }];
+      if (sql.includes('FROM stores')) return [{ id: 9 }];
+      if (sql.includes('telegram_customer_bindings')) return [{ id: 42, bot_config_id: 4 }];
+      return [];
+    },
+    enqueue: async () => { queued = true; },
+    customerTokenHash: 'c'.repeat(64), merchantId: 7, storeId: 9,
+    eventKey: 'tenant:order:created',
+    event: { type: 'order.created', storeName: 'Store A', orderNo: '1', amount: 1, currency: 'USD' }
+  });
+  assert.equal(result, true);
+  assert.equal(queued, true);
+});
+
+test('tenant Admin Bot enablement overrides the platform shared Bot setting for group notices', async () => {
+  let queued = false;
+  const result = await enqueueStoreAdminTelegramNotification({
+    allAsync: async (sql, params) => {
+      if (sql.includes('FROM settings')) return [{ key: 'telegram_admin_bot_enabled', value: '0' }];
+      if (sql.includes('FROM merchants')) return [{ id: 7 }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [{ admin_bot_enabled: 1 }];
+      if (sql.includes('FROM stores')) return [{ id: 9 }];
+      if (sql.includes('telegram_store_admin_recipients')) return [{ id: 2 }];
+      return [];
+    },
+    enqueue: async () => { queued = true; },
+    merchantId: 7, storeId: 9, eventKey: 'tenant:order:created:admin',
+    event: { type: 'order.created', storeName: 'Store A', orderNo: '1', amount: 1, currency: 'USD' }
+  });
+  assert.equal(result, true);
+  assert.equal(queued, true);
 });

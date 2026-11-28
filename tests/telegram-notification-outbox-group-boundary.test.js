@@ -13,7 +13,7 @@ const { markTelegramNotificationSending } = require('../server/services/telegram
 
 const workerId = '123e4567-e89b-42d3-a456-426614174000';
 
-function fakePool({ store = true, destination = true, subscription = true, chatId = '-1007654321', botEnabled = '1' } = {}) {
+function fakePool({ store = true, destination = true, subscription = true, chatId = '-1007654321', botEnabled = '1', tenantBotEnabled = null } = {}) {
   const calls = [];
   const connection = {
     async query(sql) {
@@ -24,6 +24,7 @@ function fakePool({ store = true, destination = true, subscription = true, chatI
       calls.push({ kind: 'execute', sql, params });
       if (sql.includes('FROM settings')) return [[{ value: botEnabled }], []];
       if (sql.includes('FROM merchants')) return [[{ id: 7 }], []];
+      if (sql.includes('FROM telegram_merchant_bots')) return [tenantBotEnabled === null ? [] : [{ admin_bot_enabled: tenantBotEnabled }], []];
       if (sql.includes('FROM stores')) return [store ? [{ id: 9 }] : [], []];
       if (sql.includes('FROM telegram_chat_destinations')) return [destination ? [{ id: 21, chat_id: chatId }] : [], []];
       if (sql.includes('FROM telegram_store_subscriptions')) return [subscription ? [{ id: 31 }] : [], []];
@@ -118,5 +119,22 @@ test('disabled Admin Bot is rechecked before a group job can cross the send boun
     assert.equal(sql.some(query => query.includes('FROM stores')), false);
     assert.ok(sql.some(query => query.includes("SET state='dead'")));
     assert.equal(sql.some(query => query.includes("SET state='sending'")), false);
+  });
+});
+
+test('tenant Admin Bot enablement is authoritative even when the platform Bot is disabled', async () => {
+  await withFakePool({ botEnabled: '0', tenantBotEnabled: 1 }, async calls => {
+    const result = await markTelegramNotificationSending(88, workerId, 60, {
+      scope: 'merchant_store',
+      key: 'destination:21:store:9',
+      merchantId: 7,
+      storeId: 9,
+      eventType: 'order.created',
+      expectedChatId: '-1007654321'
+    });
+    assert.equal(result, true);
+    const sql = calls.filter(call => call.kind === 'execute').map(call => call.sql);
+    assert.ok(sql.some(query => query.includes('FROM telegram_merchant_bots')));
+    assert.ok(sql.some(query => query.includes("SET state='sending'")));
   });
 });

@@ -597,9 +597,30 @@
                     <div id="telegramDestinationsList" aria-live="polite"></div>
                 </div>
 
+                <div class="settings-card" id="telegramTenantBotCard">
+                    <h3 class="settings-card-title">🤖 本商户 Telegram Bot 入口</h3>
+                    <p class="ff-desc-tight">每个租户使用自己的顾客 Bot。顾客、门店入口和点餐会话只属于当前商户；不会与其他租户共用客户入口。</p>
+                    <div class="form-group">
+                        <label for="tenantTelegramClientBotToken">顾客 Client Bot Token</label>
+                        <input id="tenantTelegramClientBotToken" type="password" autocomplete="new-password" maxlength="256" placeholder="从 @BotFather 获取；留空表示不更换">
+                    </div>
+                    <label><input type="checkbox" id="tenantTelegramClientBotEnabled"> 启用本商户顾客 Bot（启用时自动注册独立 Webhook）</label>
+                    <label><input type="checkbox" id="tenantTelegramClientBotClear"> 清除本商户顾客 Bot Token</label>
+                    <div class="form-group" style="margin-top:14px;">
+                        <label for="tenantTelegramAdminBotToken">商户 Admin Bot Token（可选）</label>
+                        <input id="tenantTelegramAdminBotToken" type="password" autocomplete="new-password" maxlength="256" placeholder="从 @BotFather 获取；留空表示不更换">
+                    </div>
+                    <label><input type="checkbox" id="tenantTelegramAdminBotEnabled"> 启用本商户 Admin Bot</label>
+                    <label><input type="checkbox" id="tenantTelegramAdminBotClear"> 清除本商户 Admin Bot Token</label>
+                    <p id="tenantTelegramBotStatus" class="ff-desc-tight" aria-live="polite">只有租户主管理员可以管理 Bot 凭据。请先配置服务器加密密钥和 HTTPS 公网地址。</p>
+                    <div class="settings-row">
+                        <button type="button" id="saveTenantTelegramBotBtn" class="display-settings-btn">保存本商户 Bot 配置</button>
+                    </div>
+                </div>
+
                 <div class="settings-card" id="telegramStoreNotificationCard">
                     <h3 class="settings-card-title">📨 Telegram 门店业务通知</h3>
-                    <p class="ff-desc-tight">使用超级管理员配置的管理员 Bot；当前门店单独接收通知，不会把其他门店的订单发到此 Chat。</p>
+                    <p class="ff-desc-tight">使用本商户自己的 Admin Bot；当前门店单独接收通知，不会把其他门店的订单发到此 Chat。</p>
                     <p class="ff-desc-tight">填写并保存 Chat ID 即自动绑定当前门店；清空 Chat ID 并保存即可解除绑定。不同门店及租户的通知目标相互隔离。</p>
                     <div class="form-group">
                         <label for="telegramStoreNotifyChatId">Telegram 群组 / 私聊 Chat ID</label>
@@ -609,14 +630,14 @@
                         <button type="button" id="discoverTelegramGroupChatsBtn" class="display-settings-btn">获取群组 ID</button>
                         <select id="telegramDiscoveredGroupChats" aria-label="选择已发现的 Telegram 群组" hidden style="min-width:220px;max-width:100%;"></select>
                     </div>
-                    <p id="telegramGroupDiscoveryHint" class="ff-desc-tight">先将平台 Admin Bot 拉入群组，并在群内发送 /start@Bot用户名，再点击获取。</p>
+                    <p id="telegramGroupDiscoveryHint" class="ff-desc-tight">先将本商户 Admin Bot 拉入群组，并在群内发送 /start@Bot用户名，再点击获取。</p>
                     <div class="settings-form-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
                         <label><input type="checkbox" id="telegramStoreNotifyOrderCreated" checked> 新订单</label>
                         <label><input type="checkbox" id="telegramStoreNotifySettled" checked> 收款确认</label>
                         <label><input type="checkbox" id="telegramStoreNotifyRefunded" checked> 退款完成</label>
                     </div>
                     <p id="telegramStoreNotifyGlobalStatus" class="ff-desc-tight">管理员 Bot 由超级管理员统一配置。</p>
-                    <p class="ff-desc-tight">本门店顾客专属点餐入口：<a id="telegramStoreEntryLink" href="#" target="_blank" rel="noopener noreferrer" hidden>打开 / 复制门店专属链接</a><span id="telegramStoreEntryUnavailable">保存群组 Chat ID 并启用平台 Client Bot 后生成。</span></p>
+                    <p class="ff-desc-tight">本门店顾客专属点餐入口：<a id="telegramStoreEntryLink" href="#" target="_blank" rel="noopener noreferrer" hidden>打开 / 复制门店专属链接</a><span id="telegramStoreEntryUnavailable">配置并启用本商户 Client Bot 后生成；入口与通知群组相互独立。</span></p>
                     <div class="settings-row">
                         <button id="saveTelegramStoreNotifyBtn" class="display-settings-btn">保存 Telegram 通知设置</button>
                     </div>

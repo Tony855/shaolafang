@@ -806,6 +806,9 @@ app.post('/api/super/backup/import', requireSuperAdmin, express.json({ limit: '5
       );
       await allAsync('SELECT id FROM merchants ORDER BY id FOR UPDATE');
       await allAsync('SELECT id FROM stores ORDER BY id FOR UPDATE');
+      await allAsync('SELECT id FROM telegram_merchant_bots ORDER BY id FOR UPDATE');
+      await allAsync('SELECT token_fingerprint FROM telegram_merchant_bot_token_registry ORDER BY token_fingerprint FOR UPDATE');
+      await allAsync('SELECT bot_config_id, update_id FROM telegram_merchant_webhook_updates ORDER BY bot_config_id, update_id FOR UPDATE');
       await allAsync('SELECT id FROM telegram_customer_binding_challenges ORDER BY id FOR UPDATE');
       await allAsync('SELECT id FROM telegram_customer_bindings ORDER BY id FOR UPDATE');
 

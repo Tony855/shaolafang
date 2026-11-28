@@ -3,9 +3,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerTelegramWebhook = require('../routes/telegram-webhook');
+const { createTenantStoreEntrySignature } = require('../server/services/telegram-store-entry');
 
 const secret = 'telegram-webhook-secret-for-tests';
 const token = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
+const pathToken = 'P'.repeat(43);
 const challenge = 'A'.repeat(43);
 
 function setup({ duplicate = false, challengeRow = true, expired = false, consumed = false } = {}) {
@@ -14,13 +16,18 @@ function setup({ duplicate = false, challengeRow = true, expired = false, consum
   const calls = [];
   const app = { post(path, fn) { handlers.set(path, fn); } };
   const deps = {
-    allAsync: async () => [{ key: 'telegram_client_bot_enabled', value: '1' }, { key: 'telegram_client_bot_token', value: token }],
-    getAsync: async sql => {
-      calls.push(['get', sql]);
+    allAsync: async (sql, params = []) => {
+      calls.push(['all', sql, params]);
+      if (sql.includes('FROM telegram_customer_bindings')) return [{ id: 31 }];
+      return [{ key: 'telegram_client_bot_enabled', value: '1' }, { key: 'telegram_client_bot_token', value: token }];
+    },
+    getAsync: async (sql, params = []) => {
+      calls.push(['get', sql, params]);
       if (sql.includes('telegram_customer_binding_challenges')) return challengeRow && !expired && !consumed ? {
         id: 5, customer_token_hash: 'a'.repeat(64), merchant_id: 7, store_id: 9,
         expires_at: new Date(Date.now() + (expired ? -60000 : 60000)), consumed_at: consumed ? new Date() : null
       } : null;
+      if (sql.includes('FROM telegram_merchant_bots')) return { id: 22, merchant_id: 7, client_bot_token_encrypted: 'encrypted-token', webhook_path_token_encrypted: 'encrypted-path', webhook_secret_encrypted: 'encrypted-secret' };
       if (sql.includes('FROM stores')) return { id: 9 };
       return null;
     },
@@ -29,12 +36,13 @@ function setup({ duplicate = false, challengeRow = true, expired = false, consum
       if (duplicate && sql.includes('INSERT INTO telegram_webhook_updates')) throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
       return { affectedRows: 1 };
     },
-    withTransaction: async fn => fn()
+    withTransaction: async fn => fn(),
+    decryptCredential: value => value === 'encrypted-token' ? token : value === 'encrypted-path' ? pathToken : secret
   };
   process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = secret;
   registerTelegramWebhook(app, deps);
   handler = handlers.get('/api/telegram/client/webhook');
-  return { handler, tenantHandler: handlers.get('/api/telegram/client/:pathToken/webhook'), calls };
+  return { handler, tenantHandler: handlers.get('/api/telegram/tenant/:pathToken/client/webhook'), calls, handlers };
 }
 
 function response() {
@@ -104,8 +112,99 @@ test('Telegram webhook refuses expired or already consumed binding challenges', 
   }
 });
 
-test('only one platform-wide Client Bot webhook endpoint is registered', () => {
+test('legacy shared webhook remains registered alongside the tenant webhook route', () => {
   const { handler, tenantHandler } = setup();
   assert.equal(typeof handler, 'function');
-  assert.equal(tenantHandler, undefined);
+  assert.equal(typeof tenantHandler, 'function');
+});
+
+test('tenant webhook resolves its Bot config by the hashed path token and scopes binding writes', async () => {
+  const { tenantHandler, calls } = setup();
+  const oldFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: 1, chat: { id: 12345 } } }) });
+  try {
+    const req = request();
+    req.params = { pathToken };
+    const res = response();
+    await tenantHandler(req, res);
+    assert.equal(res.code, 200);
+    assert.deepEqual(res.body, { ok: true });
+    const configLookup = calls.find(call => call[1]?.includes('FROM telegram_merchant_bots'));
+    assert.ok(configLookup);
+    assert.deepEqual(configLookup[2], [require('crypto').createHash('sha256').update(pathToken).digest('hex')]);
+    const dedupe = calls.find(call => call[1]?.includes('INSERT INTO telegram_merchant_webhook_updates'));
+    assert.ok(dedupe);
+    assert.deepEqual(dedupe[2], [22, 77]);
+    const bindingInsert = calls.find(call => call[1]?.includes('INSERT INTO telegram_customer_bindings'));
+    assert.ok(bindingInsert);
+    assert.equal(bindingInsert[2][2], 22);
+    const challengeLookup = calls.find(call => call[1]?.includes('FROM telegram_customer_binding_challenges'));
+    assert.ok(challengeLookup[1].includes('merchant_id=?'));
+    assert.deepEqual(challengeLookup[2], [require('crypto').createHash('sha256').update(challenge).digest('hex'), 7, 22]);
+  } finally {
+    global.fetch = oldFetch;
+  }
+});
+
+test('tenant webhook rejects malformed path tokens before database access', async () => {
+  const { tenantHandler, calls } = setup();
+  const req = request();
+  req.params = { pathToken: 'short' };
+  const res = response();
+  await tenantHandler(req, res);
+  assert.equal(res.code, 404);
+  assert.equal(calls.length, 0);
+});
+
+test('tenant /stop revokes only bindings owned by the resolved merchant', async () => {
+  const { tenantHandler, calls } = setup();
+  const oldFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: 2, chat: { id: 12345 } } }) });
+  try {
+    const req = request();
+    req.params = { pathToken };
+    req.body.message.text = '/stop';
+    const res = response();
+    await tenantHandler(req, res);
+    assert.equal(res.code, 200);
+    const bindingLock = calls.find(call => call[0] === 'all' && call[1].includes('FROM telegram_customer_bindings'));
+    assert.ok(bindingLock[1].includes('WHERE merchant_id=? AND bot_config_id=? AND telegram_chat_id=? AND telegram_user_id=?'));
+    assert.deepEqual(bindingLock[2], [7, 22, '12345', '12345']);
+    const revoke = calls.find(call => call[0] === 'run' && call[1].includes('UPDATE telegram_customer_bindings SET is_active=0'));
+    assert.ok(revoke[1].includes('WHERE merchant_id=? AND bot_config_id=? AND telegram_chat_id=? AND telegram_user_id=?'));
+    assert.deepEqual(revoke[2], [7, 22, '12345', '12345']);
+  } finally {
+    global.fetch = oldFetch;
+  }
+});
+
+test('tenant /start delivery link is signed by merchant and store, independent of notification Chat ID', async () => {
+  const { tenantHandler, calls } = setup();
+  const oldFetch = global.fetch;
+  const oldOrigin = process.env.FOODFLOW_PUBLIC_URL;
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test';
+  const signature = createTenantStoreEntrySignature({ merchantId: 7, storeId: 9, secret });
+  const fetchCalls = [];
+  global.fetch = async (url, options) => { fetchCalls.push({ url: String(url), options }); return { ok: true, json: async () => ({ ok: true, result: { message_id: 3, chat: { id: 12345 } } }) }; };
+  try {
+    const req = request();
+    req.body.update_id = 78;
+    req.body.message.text = '/start delivery_9_' + signature;
+    req.params = { pathToken };
+    const res = response();
+    await tenantHandler(req, res);
+    assert.equal(res.code, 200);
+    const send = calls.find(call => call[0] === 'get' && call[1].includes('telegram_merchant_bots'));
+    assert.ok(send);
+    assert.equal(calls.some(call => call[1].includes('telegram_store_admin_recipients')), false);
+    const sendMessage = fetchCalls.find(call => call.url.endsWith('/sendMessage'));
+    assert.ok(sendMessage);
+    const payload = JSON.parse(sendMessage.options.body);
+    const webAppUrl = payload.reply_markup.inline_keyboard[0][0].web_app.url;
+    assert.match(webAppUrl, /^https:\/\/foodflow\.example\.test\/delivery\/order\?store_id=9&entry=[A-Za-z0-9_-]{43}&telegram=1&bot=P{43}$/);
+  } finally {
+    global.fetch = oldFetch;
+    if (oldOrigin === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = oldOrigin;
+  }
 });

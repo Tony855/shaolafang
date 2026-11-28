@@ -138,7 +138,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
 <script>
 (() => {
  'use strict';
- const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'',storeEntry=params.get('entry')||'',telegramEntry=params.get('telegram')==='1';
+ const params=new URLSearchParams(location.search),storeId=params.get('store_id')||'',storeEntry=params.get('entry')||'',botPath=params.get('bot')||'',telegramEntry=params.get('telegram')==='1';
  const telegramApp=window.Telegram&&window.Telegram.WebApp?window.Telegram.WebApp:null;
  if(telegramApp){telegramApp.ready();telegramApp.expand();document.documentElement.classList.add('telegram-miniapp');}
  const $=id=>document.getElementById(id),cart=new Map();
@@ -345,7 +345,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   if(telegramEntry){
    const initData=telegramApp&&typeof telegramApp.initData==='string'?telegramApp.initData:'';
    if(!initData||!/^[A-Za-z0-9_-]{43}$/.test(storeEntry)){throw new Error('Telegram 门店专属入口无效，请重新从门店群组链接进入');}
-   const entryResponse=await fetchWithTimeout('/api/public/delivery/telegram-miniapp-stores?store_id='+encodeURIComponent(storeId)+'&entry='+encodeURIComponent(storeEntry),{cache:'no-store',headers:{'X-Telegram-Init-Data':initData}});
+   const entryResponse=await fetchWithTimeout('/api/public/delivery/telegram-miniapp-stores?store_id='+encodeURIComponent(storeId)+'&entry='+encodeURIComponent(storeEntry)+(botPath?'&bot='+encodeURIComponent(botPath):''),{cache:'no-store',headers:{'X-Telegram-Init-Data':initData}});
    const entryData=await entryResponse.json().catch(()=>({}));
    if(!entryResponse.ok||!Array.isArray(entryData.stores)||entryData.stores.length!==1||Number(entryData.stores[0].id)!==Number(storeId)){
     throw new Error(entryData.error||'门店专属入口已失效，请重新获取门店链接');
@@ -399,7 +399,7 @@ label{display:block;font-size:13px;color:#596579;margin:12px 0 5px}input,textare
   try{
    if(!checkoutKey)throw new Error('浏览器无法保存安全的下单凭证，请允许本地存储后重试');
    const response=await fetchWithTimeout('/api/public/delivery/orders',{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':checkoutKey,...(telegramEntry?{'X-Telegram-Init-Data':String(telegramApp?.initData||'')}:{})},body:JSON.stringify({
-    store_id:Number(storeId),customer_token:customerToken,telegram_entry:telegramEntry,store_entry:storeEntry,recipient_name:form.get('recipient_name'),recipient_phone:form.get('recipient_phone'),
+    store_id:Number(storeId),customer_token:customerToken,telegram_entry:telegramEntry,store_entry:storeEntry,bot_path:botPath,recipient_name:form.get('recipient_name'),recipient_phone:form.get('recipient_phone'),
     delivery_address:form.get('delivery_address'),note:form.get('note'),payment_method:form.get('payment_method'),items
    })});
    const data=await response.json().catch(()=>({}));

@@ -33,25 +33,26 @@ footer{margin-top:24px;font-size:12px;color:#8a94a6;text-align:center}
  if(app){app.ready();app.expand();}
  const list=document.getElementById('storeList');
  const initData=app&&typeof app.initData==='string'?app.initData:'';
- const params=new URLSearchParams(location.search);let storeId=params.get('store_id')||'',entry=params.get('entry')||'';
+ const params=new URLSearchParams(location.search);let storeId=params.get('store_id')||'',entry=params.get('entry')||'',botPath=params.get('bot')||'';
  const intro=document.getElementById('intro');
  function showError(message){list.replaceChildren();const p=document.createElement('div');p.className='state';p.textContent=message;list.appendChild(p);}
- function openStore(id,signature){location.href='/delivery/order?store_id='+encodeURIComponent(String(id))+'&entry='+encodeURIComponent(signature)+'&telegram=1';}
+ function openStore(id,signature){location.href='/delivery/order?store_id='+encodeURIComponent(String(id))+'&entry='+encodeURIComponent(signature)+'&telegram=1'+(botPath?'&bot='+encodeURIComponent(botPath):'');}
  async function load(){
   try{
-   if(!initData)throw new Error('请从 FoodFlow 统一 Client Bot 的菜单按钮打开此页面。');
+   if(!initData)throw new Error('请从所属商户的 Telegram Bot 菜单按钮或专属点餐链接打开此页面。');
    const hasStoreId=!!storeId,hasEntry=!!entry;
-   if(hasStoreId!==hasEntry||(hasStoreId&&(!/^\d+$/.test(storeId)||!/^[A-Za-z0-9_-]{43}$/.test(entry))))throw new Error('门店专属入口参数不完整，请重新从门店群组链接进入。');
-   const endpoint='/api/public/delivery/telegram-miniapp-stores'+(hasStoreId?'?store_id='+encodeURIComponent(storeId)+'&entry='+encodeURIComponent(entry):'');
+   if(botPath&&!/^[A-Za-z0-9_-]{43}$/.test(botPath))throw new Error('当前商户 Telegram 入口无效，请重新打开 Bot。');
+   if(hasStoreId!==hasEntry||(hasStoreId&&(!/^\d+$/.test(storeId)||!/^[A-Za-z0-9_-]{43}$/.test(entry))))throw new Error('门店专属入口参数不完整，请重新从商户 Bot 入口进入。');
+   const query=new URLSearchParams();if(botPath)query.set('bot',botPath);if(hasStoreId){query.set('store_id',storeId);query.set('entry',entry);}
+   const endpoint='/api/public/delivery/telegram-miniapp-stores'+(query.toString()?'?'+query.toString():'');
    const response=await fetch(endpoint,{cache:'no-store',headers:{accept:'application/json','X-Telegram-Init-Data':initData}});
    const data=await response.json().catch(()=>({}));
    if(!response.ok||!Array.isArray(data.stores))throw new Error(data.error||'门店列表暂时不可用，请稍后重试');
    const stores=data.stores.filter(x=>Number.isSafeInteger(Number(x.id))&&Number(x.id)>0&&typeof x.name==='string');
-   if(!stores.length){showError('当前 Telegram 账号尚未绑定可用门店。请先点击门店管理员提供的专属点餐链接。');return;}
-   if(stores.length!==1||(hasStoreId&&Number(stores[0].id)!==Number(storeId)))throw new Error('门店专属入口与当前门店不匹配，请重新获取门店链接。');
-   const resolvedEntry=typeof stores[0].entry==='string'?stores[0].entry:entry;
-   if(!/^[A-Za-z0-9_-]{43}$/.test(resolvedEntry))throw new Error('无法安全确认门店入口，请重新获取门店专属链接。');
-   intro.textContent='正在进入 '+stores[0].name+'…';openStore(stores[0].id,resolvedEntry);return;
+   if(!stores.length){showError('当前商户没有可点餐的门店，请联系商户管理员。');return;}
+   if(hasStoreId){if(stores.length!==1||Number(stores[0].id)!==Number(storeId))throw new Error('门店专属入口与当前商户不匹配，请重新获取门店链接。');const resolvedEntry=typeof stores[0].entry==='string'?stores[0].entry:entry;if(!/^[A-Za-z0-9_-]{43}$/.test(resolvedEntry))throw new Error('无法安全确认门店入口，请重新获取门店专属链接。');intro.textContent='正在进入 '+stores[0].name+'…';openStore(stores[0].id,resolvedEntry);return;}
+   if(stores.length===1){const resolvedEntry=stores[0].entry;if(!/^[A-Za-z0-9_-]{43}$/.test(resolvedEntry))throw new Error('无法安全确认门店入口，请重新获取门店专属链接。');intro.textContent='正在进入 '+stores[0].name+'…';openStore(stores[0].id,resolvedEntry);return;}
+   intro.textContent='请选择此商户旗下的门店。';list.replaceChildren();for(const store of stores){if(!Number.isSafeInteger(Number(store.id))||!/^[A-Za-z0-9_-]{43}$/.test(String(store.entry||'')))continue;const button=document.createElement('button');button.type='button';button.className='store';const name=document.createElement('strong');name.textContent=store.name;const action=document.createElement('span');action.textContent='进入点餐';button.append(name,action);button.addEventListener('click',()=>openStore(store.id,store.entry));list.appendChild(button);}if(!list.children.length)showError('当前商户暂无可用门店。');return;
   }catch(error){showError(error.message||'加载门店失败，请重新打开菜单按钮。');}
  }
  load();

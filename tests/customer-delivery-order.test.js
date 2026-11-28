@@ -3,19 +3,20 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerRoutes = require('../routes/customer-delivery');
-const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { createStoreEntrySignature, createTenantStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { encryptBotToken } = require('../server/services/telegram-bot-credentials');
 
 const TELEGRAM_BOT_TOKEN = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
 const TELEGRAM_NOW = Math.floor(Date.now() / 1000);
-function signedInitData() {
+function signedInitData(botToken = TELEGRAM_BOT_TOKEN) {
   const values = new Map([['auth_date', String(TELEGRAM_NOW)], ['query_id', 'AAE-order-test'], ['user', JSON.stringify({ id: 987654321, first_name: 'Test' })]]);
   const data = Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, value]) => key + '=' + value).join('\n');
-  const secret = require('node:crypto').createHmac('sha256', 'WebAppData').update(TELEGRAM_BOT_TOKEN).digest();
+  const secret = require('node:crypto').createHmac('sha256', 'WebAppData').update(botToken).digest();
   values.set('hash', require('node:crypto').createHmac('sha256', secret).update(data).digest('hex'));
   return new URLSearchParams(Array.from(values.entries()).sort(([a], [b]) => a.localeCompare(b))).toString();
 }
 
-function setup({ customerBinding = false } = {}) {
+function setup({ customerBinding = false, tenantBot = null } = {}) {
   const handlers = new Map();
   const calls = [];
   const events = [];
@@ -32,6 +33,7 @@ function setup({ customerBinding = false } = {}) {
     getAsync: async (sql, params = []) => {
       calls.push({ type: 'get', sql, params });
       if (sql.includes('FROM telegram_store_admin_recipients')) return { chat_id: '-100888' };
+      if (sql.includes('FROM telegram_merchant_bots')) return tenantBot;
       if (sql.includes('FROM stores s JOIN merchants')) return { id: 7, name: 'Test Store', merchant_id: 3 };
       if (sql.includes('FROM stores WHERE id=? AND merchant_id=?')) return { id: 7 };
       if (sql.includes('FROM delivery_order_requests')) return idempotencyRecord;
@@ -308,4 +310,33 @@ test('concurrent customer delivery submissions with one key create only one orde
   assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('INSERT INTO delivery_jobs')).length, 1);
   assert.equal(ctx.calls.filter(x => x.type === 'run' && x.sql.includes('UPDATE menus SET sales_count = sales_count + ?')).length, 1);
   assert.equal(ctx.events.filter(x => x.event === 'order:new').length, 3);
+});
+
+test('tenant Telegram checkout verifies the owning Bot identity and tenant/store signature without notification Chat ID', async () => {
+  const oldKey = process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+  process.env.TELEGRAM_BOT_ENCRYPTION_KEY = '55'.repeat(32);
+  try {
+    const tenantToken = '765432:abcdefghijklmnopqrstuvwxyzABCDE';
+    const tenantSecret = 'tenant-webhook-secret-123456789012345';
+    const botPath = 'D'.repeat(43);
+    const ctx = setup({
+      tenantBot: {
+        client_bot_token_encrypted: encryptBotToken(tenantToken),
+        webhook_secret_encrypted: encryptBotToken(tenantSecret)
+      }
+    });
+    const signature = createTenantStoreEntrySignature({ merchantId: 3, storeId: 7, secret: tenantSecret });
+    const res = response();
+    await ctx.handler(orderRequest({
+      store_id: 7, customer_token: 'a'.repeat(64), telegram_entry: true, store_entry: signature, bot_path: botPath,
+      recipient_name: 'Alex', recipient_phone: '+855 12 345 678', delivery_address: 'Street 123, Phnom Penh',
+      payment_method: 'cash', items: [{ id: 5, quantity: 1 }]
+    }, 'b'.repeat(64), signedInitData(tenantToken)), res);
+    assert.equal(res.statusCode, 201);
+    assert.equal(ctx.calls.some(call => call.sql.includes('FROM telegram_merchant_bots') && call.params[1] === 3), true);
+    assert.equal(ctx.calls.some(call => call.sql.includes('telegram_store_admin_recipients')), false);
+  } finally {
+    if (oldKey === undefined) delete process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+    else process.env.TELEGRAM_BOT_ENCRYPTION_KEY = oldKey;
+  }
 });

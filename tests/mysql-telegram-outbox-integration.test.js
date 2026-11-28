@@ -22,6 +22,8 @@ const { runAsync, getAsync, allAsync, withTransaction } = require('../server/db/
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations/telegram-customer-binding');
 const { ensureTelegramStoreAdminRecipientSchema } = require('../server/db/migrations/telegram-store-admin-recipients');
+const { ensureTelegramMerchantBotSchema } = require('../server/db/migrations/telegram-merchant-bots');
+const { ensureTelegramCustomerBotScopeSchema } = require('../server/db/migrations/telegram-customer-bot-scope');
 const { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationSending, markTelegramNotificationUncertain, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry, cleanupTelegramNotificationHistory } = require('../server/services/telegram-notification-outbox');
 const { processTelegramNotificationBatch } = require('../server/services/telegram-notification-worker');
 
@@ -35,18 +37,36 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   t.after(async () => {
     try {
       await runAsync('DROP TABLE IF EXISTS telegram_store_admin_recipients');
-  await runAsync('DROP TABLE IF EXISTS telegram_webhook_updates');
+      await runAsync('DROP TABLE IF EXISTS telegram_merchant_webhook_updates');
+      await runAsync('DROP TABLE IF EXISTS telegram_merchant_bot_token_registry');
+      await runAsync('DROP TABLE IF EXISTS telegram_merchant_bots');
+      await runAsync('DROP TABLE IF EXISTS telegram_webhook_updates');
       await runAsync('DROP TABLE IF EXISTS telegram_customer_bindings');
       await runAsync('DROP TABLE IF EXISTS telegram_customer_binding_challenges');
       await runAsync('DROP TABLE IF EXISTS telegram_notification_outbox');
+      await runAsync('DROP TABLE IF EXISTS settings');
+      await runAsync('DROP TABLE IF EXISTS stores');
+      await runAsync('DROP TABLE IF EXISTS merchants');
     } finally { poolModule.setPool(previousPool); await testPool.end(); }
   });
 
   await runAsync('DROP TABLE IF EXISTS telegram_store_admin_recipients');
+  await runAsync('DROP TABLE IF EXISTS telegram_merchant_webhook_updates');
+  await runAsync('DROP TABLE IF EXISTS telegram_merchant_bot_token_registry');
+  await runAsync('DROP TABLE IF EXISTS telegram_merchant_bots');
   await runAsync('DROP TABLE IF EXISTS telegram_webhook_updates');
   await runAsync('DROP TABLE IF EXISTS telegram_customer_bindings');
   await runAsync('DROP TABLE IF EXISTS telegram_customer_binding_challenges');
   await runAsync('DROP TABLE IF EXISTS telegram_notification_outbox');
+  await runAsync('DROP TABLE IF EXISTS settings');
+  await runAsync('DROP TABLE IF EXISTS stores');
+  await runAsync('DROP TABLE IF EXISTS merchants');
+  await runAsync('CREATE TABLE merchants (id INT NOT NULL PRIMARY KEY, status TINYINT NOT NULL DEFAULT 1) ENGINE=InnoDB');
+  await runAsync('CREATE TABLE stores (id INT NOT NULL PRIMARY KEY, merchant_id INT NOT NULL, active TINYINT NOT NULL DEFAULT 1) ENGINE=InnoDB');
+  await runAsync('CREATE TABLE settings (`key` VARCHAR(191) NOT NULL PRIMARY KEY, value TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+  await runAsync('INSERT INTO merchants (id,status) VALUES (7,1)');
+  await runAsync('INSERT INTO stores (id,merchant_id,active) VALUES (9,7,1)');
+  await runAsync("INSERT INTO settings (`key`,value) VALUES ('telegram_client_bot_enabled','1')");
   await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
   await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
   // Simulate the previous global event_key index and verify an in-place upgrade.
@@ -73,6 +93,8 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   await ensureTelegramCustomerBindingSchema({ runAsync });
   await ensureTelegramStoreAdminRecipientSchema({ runAsync });
   await ensureTelegramStoreAdminRecipientSchema({ runAsync });
+  await ensureTelegramMerchantBotSchema({ runAsync });
+  await ensureTelegramCustomerBotScopeSchema({ runAsync });
 
   await runAsync('INSERT INTO telegram_store_admin_recipients (merchant_id,store_id,chat_id,is_enabled,notify_order_created,notify_settled,notify_refunded,created_at,updated_at) VALUES (7,9,\'-100123\',1,1,0,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))');
   await runAsync('INSERT INTO telegram_store_admin_recipients (merchant_id,store_id,chat_id,is_enabled,created_at,updated_at) VALUES (7,10,\'-100456\',1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))');

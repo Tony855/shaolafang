@@ -21,6 +21,8 @@ const { ensureFinancialReconciliationCoreIndexes } = require('./server/db/migrat
 const { ensureProviderEventQueueIndexes } = require('./server/db/migrations/provider-event-queue-indexes');
 const { ensureTelegramNotificationOutboxSchema } = require('./server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramCustomerBindingSchema } = require('./server/db/migrations/telegram-customer-binding');
+const { ensureTelegramMerchantBotSchema } = require('./server/db/migrations/telegram-merchant-bots');
+const { ensureTelegramCustomerBotScopeSchema } = require('./server/db/migrations/telegram-customer-bot-scope');
 const { ensureTelegramStoreAdminRecipientSchema } = require('./server/db/migrations/telegram-store-admin-recipients');
 const { ensureTelegramChatDestinationSchema } = require('./server/db/migrations/telegram-chat-destinations');
 const { backfillTelegramStoreSubscriptions } = require('./server/db/migrations/telegram-store-subscription-backfill');
@@ -468,6 +470,8 @@ async function ensureOrderTables() {
 
   await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
   await ensureTelegramCustomerBindingSchema({ runAsync });
+  await ensureTelegramMerchantBotSchema({ runAsync });
+  await ensureTelegramCustomerBotScopeSchema({ runAsync });
   await ensureTelegramStoreAdminRecipientSchema({ runAsync });
 
 
@@ -1479,6 +1483,7 @@ require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, withTra
 // ----- 货币+显示+通知设置 -----
 require('./routes/admin-settings.js')(app, { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission, getClientIp });
 require('./routes/admin-telegram-destinations.js')(app, { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission, getClientIp });
+require('./routes/admin-telegram-bots.js')(app, { getAsync, runAsync, withTransaction, requireAdminKey, requirePermission, getClientIp });
 
 
 // ----- 二维码 -----
@@ -1640,7 +1645,7 @@ initDatabase().then(async () => {
   }
   // Synchronize the platform-wide Client Bot menu button from super-admin settings.
   syncTelegramCustomerMenuButton().catch(() => console.warn('[telegram-menu] startup synchronization failed; resave Telegram Bot settings to retry'));
-  // Fail closed: no Telegram delivery until an operator explicitly opts in.
+  // Delivery is enabled by default in production; operators can explicitly pause it with TELEGRAM_NOTIFICATION_WORKER_ENABLED=false.
   if (isTelegramNotificationWorkerEnabled(process.env.TELEGRAM_NOTIFICATION_WORKER_ENABLED)) {
     stopTelegramNotificationWorker = telegramNotificationWorker.start();
     console.log('[telegram-worker] background delivery enabled');
