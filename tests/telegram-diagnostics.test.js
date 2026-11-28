@@ -93,7 +93,7 @@ test('Telegram diagnostics fail closed when notification tables are not installe
   assert.deepEqual(report.routing.destinations, { available: false });
   assert.deepEqual(report.routing.subscriptions, { available: false });
   assert.equal(report.clientWebhook.checked, false);
-  assert.equal(report.worker.enabled, false, 'missing env value must keep worker disabled');
+  assert.equal(report.worker.enabled, true, 'missing env value must keep the production worker enabled');
   const explicitlyEnabled = await collectTelegramDiagnostics({ allAsync, env: { TELEGRAM_NOTIFICATION_WORKER_ENABLED: 'true' }, fetchImpl: async () => { throw new Error('should not be called'); } });
   assert.equal(explicitlyEnabled.worker.enabled, true);
   const paused = await collectTelegramDiagnostics({ allAsync, env: { TELEGRAM_NOTIFICATION_WORKER_ENABLED: 'false' }, fetchImpl: async () => { throw new Error('should not be called'); } });
