@@ -42,13 +42,13 @@ test('collectBackupData reads every exported table in one transaction', async ()
   const backup = await collectBackupData();
 
   assert.equal(inTransaction, false);
-  assert.equal(reads.length, 41);
-  assert.equal(Object.keys(backup.tables).length, 41);
+  assert.equal(reads.length, 42);
+  assert.equal(Object.keys(backup.tables).length, 42);
   assert.ok(Object.hasOwn(backup.tables, 'refund_requests'));
   assert.ok(Object.hasOwn(backup.tables, 'provider_webhook_events'));
   assert.ok(Object.hasOwn(backup.tables, 'financial_journal_transactions'));
   assert.ok(Object.hasOwn(backup.tables, 'financial_journal_entries'));
-  for (const table of ['telegram_chat_destinations', 'telegram_store_subscriptions', 'telegram_chat_destination_migration_conflicts', 'telegram_chat_destination_migration_ledger', 'telegram_notification_outbox', 'telegram_customer_binding_challenges', 'telegram_customer_bindings', 'telegram_merchant_bots', 'telegram_merchant_webhook_updates', 'telegram_webhook_updates', 'telegram_store_admin_recipients']) {
+  for (const table of ['telegram_chat_destinations', 'telegram_store_subscriptions', 'telegram_chat_destination_migration_conflicts', 'telegram_chat_destination_migration_ledger', 'telegram_notification_outbox', 'telegram_customer_binding_challenges', 'telegram_customer_bindings', 'telegram_merchant_bots', 'telegram_merchant_bot_token_registry', 'telegram_merchant_webhook_updates', 'telegram_webhook_updates', 'telegram_store_admin_recipients']) {
     assert.ok(Object.hasOwn(backup.tables, table), 'snapshot must include ' + table);
   }
   for (const table of ['financial_reconciliation_batches','financial_reconciliation_items','financial_reconciliation_review_events','financial_reconciliation_exception_cases','financial_reconciliation_exception_events','financial_reconciliation_exception_alerts','financial_reconciliation_exception_alert_events','financial_month_close_periods','financial_month_close_events']) {
