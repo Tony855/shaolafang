@@ -24,6 +24,7 @@ const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramChatDestinationSchema } = require('../server/db/migrations/telegram-chat-destinations');
 const { ensureTelegramMerchantBotSchema } = require('../server/db/migrations/telegram-merchant-bots');
+const { ensureTelegramCustomerBotScopeSchema } = require('../server/db/migrations/telegram-customer-bot-scope');
 const { hashSessionToken } = require('../server/services/session-token');
 const { enqueueTelegramNotification, markTelegramNotificationSending } = require('../server/services/telegram-notification-outbox');
 const { enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
@@ -91,6 +92,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
   await ensureTelegramChatDestinationSchema({ runAsync });
   await ensureTelegramMerchantBotSchema({ runAsync });
+  await ensureTelegramCustomerBotScopeSchema({ runAsync });
 
   // Real-DB merchant group destination/subscription fixtures.
   const destinationInsert = await runAsync(
