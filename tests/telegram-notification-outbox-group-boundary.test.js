@@ -24,6 +24,7 @@ function fakePool({ store = true, destination = true, subscription = true, chatI
       calls.push({ kind: 'execute', sql, params });
       if (sql.includes('FROM settings')) return [[{ value: botEnabled }], []];
       if (sql.includes('FROM merchants')) return [[{ id: 7 }], []];
+      if (sql.includes('FROM telegram_merchant_bots')) return [[], []];
       if (sql.includes('FROM stores')) return [store ? [{ id: 9 }] : [], []];
       if (sql.includes('FROM telegram_chat_destinations')) return [destination ? [{ id: 21, chat_id: chatId }] : [], []];
       if (sql.includes('FROM telegram_store_subscriptions')) return [subscription ? [{ id: 31 }] : [], []];
