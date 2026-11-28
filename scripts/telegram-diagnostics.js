@@ -126,7 +126,7 @@ async function safeQuery(allAsync, sql) {
   }
 }
 
-async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchImpl = globalThis.fetch, tenantWebhookCheckLimit = DEFAULT_TENANT_WEBHOOK_CHECK_LIMIT } = {}) {
+async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchImpl = globalThis.fetch, tenantWebhookCheckLimit } = {}) {
   if (typeof allAsync !== 'function') throw new TypeError('allAsync is required');
 
   const settingRows = await allAsync(
@@ -146,7 +146,8 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
   const expectedBase = String(env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
   const expectedWebhookUrl = expectedBase ? expectedBase + WEBHOOK_PATH : null;
 
-  const tenantLimit = Math.max(0, Math.min(100, toCount(tenantWebhookCheckLimit)));
+  const configuredTenantLimit = tenantWebhookCheckLimit ?? env.TELEGRAM_DIAGNOSTICS_TENANT_WEBHOOK_CHECK_LIMIT ?? DEFAULT_TENANT_WEBHOOK_CHECK_LIMIT;
+  const tenantLimit = Math.max(0, Math.min(100, toCount(configuredTenantLimit)));
   const [bindings, recipients, outbox, destinations, subscriptions, tenantBotRows] = await Promise.all([
     safeQuery(allAsync,
       'SELECT COUNT(*) AS total, COALESCE(SUM(is_active=1 AND revoked_at IS NULL), 0) AS active FROM telegram_customer_bindings'),
