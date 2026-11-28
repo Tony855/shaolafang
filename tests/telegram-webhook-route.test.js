@@ -135,6 +135,9 @@ test('tenant webhook resolves its Bot config by the hashed path token and scopes
     const dedupe = calls.find(call => call[1]?.includes('INSERT INTO telegram_merchant_webhook_updates'));
     assert.ok(dedupe);
     assert.deepEqual(dedupe[2], [22, 77]);
+    const bindingInsert = calls.find(call => call[1]?.includes('INSERT INTO telegram_customer_bindings'));
+    assert.ok(bindingInsert);
+    assert.equal(bindingInsert[2][2], 22);
     const challengeLookup = calls.find(call => call[1]?.includes('FROM telegram_customer_binding_challenges'));
     assert.ok(challengeLookup[1].includes('merchant_id=?'));
     assert.deepEqual(challengeLookup[2], [require('crypto').createHash('sha256').update(challenge).digest('hex'), 7]);
@@ -165,11 +168,11 @@ test('tenant /stop revokes only bindings owned by the resolved merchant', async 
     await tenantHandler(req, res);
     assert.equal(res.code, 200);
     const bindingLock = calls.find(call => call[0] === 'all' && call[1].includes('FROM telegram_customer_bindings'));
-    assert.ok(bindingLock[1].includes('WHERE merchant_id=? AND telegram_chat_id=? AND telegram_user_id=?'));
-    assert.deepEqual(bindingLock[2], [7, '12345', '12345']);
+    assert.ok(bindingLock[1].includes('WHERE merchant_id=? AND bot_config_id=? AND telegram_chat_id=? AND telegram_user_id=?'));
+    assert.deepEqual(bindingLock[2], [7, 22, '12345', '12345']);
     const revoke = calls.find(call => call[0] === 'run' && call[1].includes('UPDATE telegram_customer_bindings SET is_active=0'));
-    assert.ok(revoke[1].includes('WHERE merchant_id=? AND telegram_chat_id=? AND telegram_user_id=?'));
-    assert.deepEqual(revoke[2], [7, '12345', '12345']);
+    assert.ok(revoke[1].includes('WHERE merchant_id=? AND bot_config_id=? AND telegram_chat_id=? AND telegram_user_id=?'));
+    assert.deepEqual(revoke[2], [7, 22, '12345', '12345']);
   } finally {
     global.fetch = oldFetch;
   }
