@@ -147,10 +147,10 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
         }
         await runAsync('DELETE FROM telegram_merchant_bot_token_registry WHERE bot_config_id=?', [botConfigId]);
         if (clientFingerprint) {
-          await runAsync('INSERT INTO telegram_merchant_bot_token_registry (token_fingerprint, bot_config_id, profile, created_at) VALUES (?, ?, \'client\', UTC_TIMESTAMP(3))', [clientFingerprint, botConfigId]);
+          await runAsync('INSERT INTO telegram_merchant_bot_token_registry (token_fingerprint, bot_config_id, profile, created_at) VALUES (?, ?, ?, UTC_TIMESTAMP(3))', [clientFingerprint, botConfigId, 'client']);
         }
         if (adminFingerprint) {
-          await runAsync('INSERT INTO telegram_merchant_bot_token_registry (token_fingerprint, bot_config_id, profile, created_at) VALUES (?, ?, \'admin\', UTC_TIMESTAMP(3))', [adminFingerprint, botConfigId]);
+          await runAsync('INSERT INTO telegram_merchant_bot_token_registry (token_fingerprint, bot_config_id, profile, created_at) VALUES (?, ?, ?, UTC_TIMESTAMP(3))', [adminFingerprint, botConfigId, 'admin']);
         }
         saved = await getAsync(
           'SELECT client_bot_enabled, client_bot_token_encrypted, client_bot_username, admin_bot_enabled, admin_bot_token_encrypted, admin_bot_username FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
