@@ -208,7 +208,7 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
           return res.status(502).json({ error: 'Telegram Client Bot Webhook 注册失败，已自动停用该 Bot' });
         }
         try {
-          await configureMenuButton({ token: currentClientToken, enabled: true, webAppUrl: origin + '/telegram/delivery', text: '🍽️ 本店点餐' });
+          await configureMenuButton({ token: currentClientToken, enabled: true, webAppUrl: origin + '/telegram/delivery?bot=' + encodeURIComponent(decryptCredential(savedCredentials.webhook_path_token_encrypted)), text: '🍽️ 本店点餐' });
           menuButtonConfigured = true;
         } catch (_) { menuButtonConfigured = false; }
       } else if (currentClientToken) {
