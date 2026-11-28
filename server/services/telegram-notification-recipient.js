@@ -143,7 +143,7 @@ function createTelegramNotificationRecipientResolver({
     if (!Number.isSafeInteger(bindingId) || !Number.isSafeInteger(tenantMerchantId) || tenantMerchantId <= 0 ||
         !Number.isSafeInteger(tenantStoreId) || tenantStoreId <= 0) return null;
     const binding = await allAsync(
-      'SELECT b.id, b.merchant_id, b.store_id, b.telegram_chat_id FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id WHERE b.id=? AND b.merchant_id=? AND b.store_id=? AND b.is_active=1 AND b.revoked_at IS NULL AND s.active=1 AND m.status=1 LIMIT 1',
+      'SELECT b.id, b.merchant_id, b.store_id, b.telegram_chat_id, b.bot_config_id FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id WHERE b.id=? AND b.merchant_id=? AND b.store_id=? AND b.is_active=1 AND b.revoked_at IS NULL AND s.active=1 AND m.status=1 LIMIT 1',
       [bindingId, tenantMerchantId, tenantStoreId]
     );
     if (!Array.isArray(binding) || !binding.length) {
@@ -153,16 +153,22 @@ function createTelegramNotificationRecipientResolver({
       };
     }
     const tenantBots = await allAsync(
-      'SELECT client_bot_enabled, client_bot_token_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+      'SELECT id, client_bot_enabled, client_bot_token_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
       [tenantMerchantId]
     );
     let token = '';
-    if (Array.isArray(tenantBots) && tenantBots.length && Object.hasOwn(tenantBots[0], 'client_bot_enabled')) {
-      if (Number(tenantBots[0].client_bot_enabled) !== 1 || !tenantBots[0].client_bot_token_encrypted) {
+    const bindingBotId = binding[0].bot_config_id == null ? null : Number(binding[0].bot_config_id);
+    const tenantBot = Array.isArray(tenantBots) && tenantBots.length && Object.hasOwn(tenantBots[0], 'client_bot_enabled')
+      ? tenantBots[0] : null;
+    if (tenantBot && Number(tenantBot.client_bot_enabled) === 1 && tenantBot.client_bot_token_encrypted) {
+      if (bindingBotId !== Number(tenantBot.id)) {
+        return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true, suppressionCode: 'binding_required' };
+      }
+      token = decryptBotToken(tenantBot.client_bot_token_encrypted);
+    } else {
+      if (bindingBotId !== null) {
         return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true, suppressionCode: 'event_disabled' };
       }
-      token = decryptBotToken(tenantBots[0].client_bot_token_encrypted);
-    } else {
       const settings = await allAsync(
         'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
         ['telegram_client_bot_enabled', 'telegram_client_bot_token']
