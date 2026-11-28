@@ -128,7 +128,7 @@ test('tenant Bot configuration encrypts credentials and stores only token finger
     assert.equal(state.webhooks[0].enabled, true);
     assert.match(state.webhooks[0].webhookUrl, /^https:\/\/foodflow\.example\.test\/api\/telegram\/tenant\/[A-Za-z0-9_-]{43}\/client\/webhook$/);
     assert.equal(state.menus.length, 1);
-    assert.match(state.menus[0].webAppUrl, /^https:\/\/foodflow\.example\.test\/telegram\/delivery\\?bot=[A-Za-z0-9_-]{43}$/);
+    assert.match(state.menus[0].webAppUrl, /^https:\/\/foodflow\.example\.test\/telegram\/delivery\?bot=[A-Za-z0-9_-]{43}$/);
     assert.equal(res.body.webhookConfigured, true);
     assert.equal(JSON.stringify(calls).includes(clientToken), false);
     assert.equal(JSON.stringify(calls).includes(adminToken), false);
