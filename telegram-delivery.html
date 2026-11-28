@@ -39,7 +39,7 @@ footer{margin-top:24px;font-size:12px;color:#8a94a6;text-align:center}
  function openStore(id,signature){location.href='/delivery/order?store_id='+encodeURIComponent(String(id))+'&entry='+encodeURIComponent(signature)+'&telegram=1'+(botPath?'&bot='+encodeURIComponent(botPath):'');}
  async function load(){
   try{
-   if(!initData)throw new Error('请从 FoodFlow 统一 Client Bot 的菜单按钮打开此页面。');
+   if(!initData)throw new Error('请从所属商户的 Telegram Bot 菜单按钮或专属点餐链接打开此页面。');
    const hasStoreId=!!storeId,hasEntry=!!entry;
    if(botPath&&!/^[A-Za-z0-9_-]{43}$/.test(botPath))throw new Error('当前商户 Telegram 入口无效，请重新打开 Bot。');
    if(hasStoreId!==hasEntry||(hasStoreId&&(!/^\d+$/.test(storeId)||!/^[A-Za-z0-9_-]{43}$/.test(entry))))throw new Error('门店专属入口参数不完整，请重新从商户 Bot 入口进入。');
