@@ -1,6 +1,7 @@
 'use strict';
 
 const { validateBotToken, validateChatId } = require('./telegram-bot');
+const { decryptBotToken } = require('./telegram-bot-credentials');
 const {
   isTelegramGroupSubscriptionsRoutingEnabled,
   parseTelegramDestinationRecipientKey
@@ -13,15 +14,25 @@ function createTelegramNotificationRecipientResolver({
   if (typeof allAsync !== 'function') throw new TypeError('allAsync is required');
 
   async function getAdminBotCredentials(scope, merchantId, storeId) {
+    const tenantBots = await allAsync(
+      'SELECT admin_bot_enabled, admin_bot_token_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+      [merchantId]
+    );
+    if (Array.isArray(tenantBots) && tenantBots.length) {
+      const tenantBot = tenantBots[0];
+      if (Number(tenantBot.admin_bot_enabled) !== 1 || !tenantBot.admin_bot_token_encrypted) {
+        return { scope, merchantId, storeId, suppressed: true };
+      }
+      const token = decryptBotToken(tenantBot.admin_bot_token_encrypted);
+      return validateBotToken(token) ? { token } : null;
+    }
     const settings = await allAsync(
       'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
       ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']
     );
     const stored = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
     const token = String(stored.telegram_admin_bot_token || '');
-    if (stored.telegram_admin_bot_enabled !== '1') {
-      return { scope, merchantId, storeId, suppressed: true };
-    }
+    if (stored.telegram_admin_bot_enabled !== '1') return { scope, merchantId, storeId, suppressed: true };
     if (!validateBotToken(token)) return null;
     return { token };
   }
@@ -141,16 +152,28 @@ function createTelegramNotificationRecipientResolver({
         suppressed: true, suppressionCode: 'binding_revoked'
       };
     }
-    const settings = await allAsync(
-      'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
-      ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+    const tenantBots = await allAsync(
+      'SELECT client_bot_enabled, client_bot_token_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+      [tenantMerchantId]
     );
-    const stored = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
-    const token = String(stored.telegram_client_bot_token || '');
-    const chatId = String(binding[0].telegram_chat_id || '');
-    if (stored.telegram_client_bot_enabled !== '1') {
-      return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true, suppressionCode: 'event_disabled' };
+    let token = '';
+    if (Array.isArray(tenantBots) && tenantBots.length) {
+      if (Number(tenantBots[0].client_bot_enabled) !== 1 || !tenantBots[0].client_bot_token_encrypted) {
+        return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true, suppressionCode: 'event_disabled' };
+      }
+      token = decryptBotToken(tenantBots[0].client_bot_token_encrypted);
+    } else {
+      const settings = await allAsync(
+        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+        ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+      );
+      const stored = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
+      token = String(stored.telegram_client_bot_token || '');
+      if (stored.telegram_client_bot_enabled !== '1') {
+        return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true, suppressionCode: 'event_disabled' };
+      }
     }
+    const chatId = String(binding[0].telegram_chat_id || '');
     if (!validateBotToken(token) || !validateChatId(chatId)) return null;
     return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, token, chatId };
   };
