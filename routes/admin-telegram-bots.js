@@ -126,6 +126,7 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
         const webhookSecretEncrypted = current ? current.webhook_secret_encrypted
           : encryptBotToken(crypto.randomBytes(32).toString('base64url'));
 
+        let botConfigId = current ? Number(current.id) : null;
         if (current) {
           await runAsync(
             'UPDATE telegram_merchant_bots SET client_bot_token_encrypted=?, client_bot_token_fingerprint=?, client_bot_username=?, client_bot_enabled=?, admin_bot_token_encrypted=?, admin_bot_token_fingerprint=?, admin_bot_username=?, admin_bot_enabled=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND merchant_id=?',
@@ -133,12 +134,23 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
               adminTokenEncrypted, adminFingerprint, resolvedAdminUsername, adminEnabled, current.id, merchantId]
           );
         } else {
-          await runAsync(
+          const inserted = await runAsync(
             'INSERT INTO telegram_merchant_bots (merchant_id, client_bot_token_encrypted, client_bot_token_fingerprint, client_bot_username, client_bot_enabled, admin_bot_token_encrypted, admin_bot_token_fingerprint, admin_bot_username, admin_bot_enabled, webhook_path_hash, webhook_path_token_encrypted, webhook_secret_encrypted, key_version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))',
             [merchantId, clientTokenEncrypted, clientFingerprint, resolvedClientUsername, clientEnabled,
               adminTokenEncrypted, adminFingerprint, resolvedAdminUsername, adminEnabled,
               pathHash, pathEncrypted, webhookSecretEncrypted]
           );
+          botConfigId = Number(inserted?.lastID ?? inserted?.insertId);
+        }
+        if (!Number.isSafeInteger(botConfigId) || botConfigId <= 0) {
+          throw new Error('租户 Telegram Bot 配置保存结果无效');
+        }
+        await runAsync('DELETE FROM telegram_merchant_bot_token_registry WHERE bot_config_id=?', [botConfigId]);
+        if (clientFingerprint) {
+          await runAsync('INSERT INTO telegram_merchant_bot_token_registry (token_fingerprint, bot_config_id, profile, created_at) VALUES (?, ?, \'client\', UTC_TIMESTAMP(3))', [clientFingerprint, botConfigId]);
+        }
+        if (adminFingerprint) {
+          await runAsync('INSERT INTO telegram_merchant_bot_token_registry (token_fingerprint, bot_config_id, profile, created_at) VALUES (?, ?, \'admin\', UTC_TIMESTAMP(3))', [adminFingerprint, botConfigId]);
         }
         saved = await getAsync(
           'SELECT client_bot_enabled, client_bot_token_encrypted, client_bot_username, admin_bot_enabled, admin_bot_token_encrypted, admin_bot_username FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
