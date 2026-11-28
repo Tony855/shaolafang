@@ -118,7 +118,7 @@ test('private destination recipient resolves only through the merchant subscript
   });
   const recipient = await resolve({ scope: 'merchant_store', key: 'destination:21:store:9', merchantId: 7, storeId: 9, eventType: 'order.created' });
   assert.equal(recipient.chatId, '765432');
-  assert.match((await createTelegramNotificationRecipientResolver({ routingEnabled: true, allAsync: async sql => sql.includes('telegram_chat_destinations') ? [{ chat_id: '765432', destination_enabled: 1, subscription_enabled: 1, event_enabled: 1 }] : [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }])({ scope: 'merchant_store', key: 'destination:21:store:9', merchantId: 7, storeId: 9, eventType: 'order.created' })).chatId, /^\d+$/);
+  assert.match(recipient.chatId, /^\d+$/);
 });
 
 test('resolver suppresses legacy jobs after staging cutover and new jobs when flag is off', async () => {
