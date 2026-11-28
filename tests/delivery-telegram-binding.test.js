@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const registerRoutes = require('../routes/customer-delivery');
 const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { encryptBotToken } = require('../server/services/telegram-bot-credentials');
 
 const botToken = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 const customerToken = 'a'.repeat(64);
@@ -23,7 +24,7 @@ function signedInitData(token = botToken) {
   return new URLSearchParams(Array.from(values.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)).toString();
 }
 
-function setup({ enabled = true, secret = 's'.repeat(40), bound = false } = {}) {
+function setup({ enabled = true, secret = 's'.repeat(40), bound = false, tenantBot = null } = {}) {
   const handlers = new Map();
   const calls = [];
   let bindingRows = bound ? [{ id: 41 }] : [];
@@ -35,6 +36,7 @@ function setup({ enabled = true, secret = 's'.repeat(40), bound = false } = {}) 
   const deps = {
     getAsync: async (sql, params = []) => {
       calls.push({ type: 'get', sql, params });
+      if (sql.includes('FROM telegram_merchant_bots')) return tenantBot;
       if (sql.includes('FROM telegram_tenant_client_bots')) return { bot_token: botToken };
       if (sql.includes('FROM telegram_store_admin_recipients')) return params[0] === 7 ? { id: 7, name: 'Test Store', merchant_id: 3, chat_id: '-100777' } : null;
       if (sql.includes('FROM stores s JOIN merchants')) return { id: 7, name: 'Test Store', merchant_id: 3 };
@@ -149,4 +151,35 @@ test('delivery customer Telegram unbind dead-letters queued notices before revok
   assert.ok(deadLetter);
   const revoke = ctx.calls.find(call => call.type === 'run' && call.sql.includes('UPDATE telegram_customer_bindings'));
   assert.ok(revoke);
+});
+
+test('customer binding deep link uses the tenant-owned Client Bot without reading the shared Bot settings', async () => {
+  const oldKey = process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+  process.env.TELEGRAM_BOT_ENCRYPTION_KEY = '66'.repeat(32);
+  const tenantToken = '765432:abcdefghijklmnopqrstuvwxyzABCDE';
+  const tenantSecret = 'tenant-webhook-secret-123456789012345';
+  const tenantBot = {
+    client_bot_enabled: 1,
+    client_bot_username: 'TenantFoodBot',
+    client_bot_token_encrypted: encryptBotToken(tenantToken),
+    webhook_secret_encrypted: encryptBotToken(tenantSecret)
+  };
+  const ctx = setup({ tenantBot });
+  const originalFetch = global.fetch;
+  global.fetch = async url => {
+    assert.equal(String(url), 'https://api.telegram.org/bot' + tenantToken + '/getMe');
+    return { ok: true, json: async () => ({ ok: true, result: { username: 'TenantFoodBot' } }) };
+  };
+  try {
+    const res = response();
+    await ctx.handlers.get('POST /api/public/delivery/customer-telegram/binding/start')(request({ body: { store_id: 7 } }), res);
+    assert.equal(res.statusCode, 200);
+    assert.match(res.body.deepLink, /^https:\/\/t\.me\/TenantFoodBot\?start=[A-Za-z0-9_-]{43}$/);
+    assert.equal(ctx.calls.some(call => call.sql.includes('FROM telegram_merchant_bots') && call.params[0] === 3), true);
+    assert.equal(ctx.calls.some(call => call.sql.includes('FROM settings')), false);
+  } finally {
+    global.fetch = originalFetch;
+    if (oldKey === undefined) delete process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+    else process.env.TELEGRAM_BOT_ENCRYPTION_KEY = oldKey;
+  }
 });
