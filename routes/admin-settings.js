@@ -306,15 +306,28 @@ module.exports = function(app, deps) {
         [storeId, merchantId]
       );
       if (!store) return res.status(404).json({ error: '当前门店不存在或已停用' });
-      const settings = await allAsync(
-        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
-        ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']
+      const tenantBot = await getAsync(
+        'SELECT admin_bot_enabled, admin_bot_token_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+        [merchantId]
       );
-      const config = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
-      if (config.telegram_admin_bot_enabled !== '1' || !String(config.telegram_admin_bot_token || '')) {
-        return res.status(409).json({ error: '平台 Admin Bot 尚未配置或启用，请联系超级管理员' });
+      let adminBotToken = '';
+      if (tenantBot && Object.hasOwn(tenantBot, 'admin_bot_enabled')) {
+        if (Number(tenantBot.admin_bot_enabled) !== 1 || !tenantBot.admin_bot_token_encrypted) {
+          return res.status(409).json({ error: '本商户 Admin Bot 尚未配置或启用' });
+        }
+        adminBotToken = decryptBotToken(tenantBot.admin_bot_token_encrypted);
+      } else {
+        const settings = await allAsync(
+          'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+          ['telegram_admin_bot_enabled', 'telegram_admin_bot_token']
+        );
+        const config = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
+        if (config.telegram_admin_bot_enabled !== '1' || !String(config.telegram_admin_bot_token || '')) {
+          return res.status(409).json({ error: '平台共享 Admin Bot 尚未配置或启用，请先配置本商户 Admin Bot' });
+        }
+        adminBotToken = String(config.telegram_admin_bot_token);
       }
-      const chats = await getTelegramGroupChats({ token: String(config.telegram_admin_bot_token) });
+      const chats = await getTelegramGroupChats({ token: adminBotToken });
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ chats, hint: chats.length ? '' : '暂未发现群组。请先把 Admin Bot 拉入群组，并在群内发送 /start@Bot用户名，然后重新获取。' });
     } catch (error) {
@@ -337,7 +350,10 @@ module.exports = function(app, deps) {
         'SELECT r.chat_id, r.is_enabled, r.notify_order_created, r.notify_settled, r.notify_refunded FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND s.active=1 AND m.status=1 LIMIT 1',
         [merchantId, storeId]
       );
-      const bot = await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
+      const tenantBot = await getAsync('SELECT admin_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1', [merchantId]);
+      const bot = tenantBot && Object.hasOwn(tenantBot, 'admin_bot_enabled')
+        ? { value: Number(tenantBot.admin_bot_enabled) === 1 ? '1' : '0' }
+        : await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
       let storeEntryLink = null;
       try { storeEntryLink = await getStoreEntryLink(storeId, merchantId, Number(row?.is_enabled) === 1 ? String(row?.chat_id || '') : ''); } catch (_) {}
       res.setHeader('Cache-Control', 'no-store, private');
