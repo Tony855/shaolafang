@@ -208,7 +208,7 @@ test('rejects insecure or weak webhook settings before contacting Telegram', asy
 });
 
 
-test('discovers group, supergroup and explicit private-start IDs without returning message content', async () => {
+test('discovers group and supergroup IDs but never returns private Chat IDs', async () => {
   const requests = [];
   const updates = {
     ok: true,
@@ -226,11 +226,10 @@ test('discovers group, supergroup and explicit private-start IDs without returni
       return { ok: true, status: 200, json: async () => requests.length === 1 ? updates : { ok: true, result: [] } };
     }
   });
-  assert.equal(chats.length, 3);
-  assert.deepEqual(chats.map(chat => chat.chatId).sort(), ['-1009876543210', '-12345', '765432']);
+  assert.equal(chats.length, 2);
+  assert.deepEqual(chats.map(chat => chat.chatId).sort(), ['-1009876543210', '-12345']);
   assert.equal(chats.find(chat => chat.chatId === '-1009876543210').type, 'supergroup');
-  assert.equal(chats.find(chat => chat.chatId === '765432').type, 'private');
-  assert.equal(chats.find(chat => chat.chatId === '765432').title, '@manager');
+  assert.equal(chats.some(chat => chat.chatId === '765432'), false);
   assert.equal(JSON.stringify(chats).includes('private message text'), false);
   assert.equal(JSON.stringify(chats).includes('Customer'), false);
   assert.match(requests[1], /offset=105/);
