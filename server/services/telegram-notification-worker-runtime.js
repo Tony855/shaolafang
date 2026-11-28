@@ -2,7 +2,8 @@
 
 const { randomUUID } = require('crypto');
 function isTelegramNotificationWorkerEnabled(value) {
-  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+  if (value === undefined || value === null || String(value).trim() === '') return true;
+  return ['true', '1', 'yes', 'on'].includes(String(value).trim().toLowerCase());
 }
 
 function createTelegramNotificationWorker({
