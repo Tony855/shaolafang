@@ -50,18 +50,38 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
         return false;
       }
 
+      const markCustomerDead = async code => {
+        await runAsync(
+          "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state='processing' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)",
+          [code, taskId, workerId]
+        );
+        return false;
+      };
+      const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
+      if (!Array.isArray(merchants) || !merchants.length) return markCustomerDead('event_disabled');
+      const tenantBots = await allAsync(
+        'SELECT client_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE',
+        [merchantId]
+      );
+      if (Array.isArray(tenantBots) && tenantBots.length) {
+        if (Number(tenantBots[0].client_bot_enabled) !== 1) return markCustomerDead('event_disabled');
+      } else {
+        const botSettings = await allAsync(
+          "SELECT value FROM settings WHERE `key`='telegram_client_bot_enabled' FOR UPDATE"
+        );
+        if (!Array.isArray(botSettings) || !botSettings.length || botSettings[0].value !== '1') {
+          return markCustomerDead('event_disabled');
+        }
+      }
+      const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
+      if (!Array.isArray(stores) || !stores.length) return markCustomerDead('event_disabled');
+
       // Match /stop and page revoke: binding first, then outbox.
       const bindings = await allAsync(
         'SELECT id FROM telegram_customer_bindings WHERE id=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL FOR UPDATE',
         [bindingId, merchantId, storeId]
       );
-      if (!Array.isArray(bindings) || !bindings.length) {
-        await runAsync(
-          "UPDATE telegram_notification_outbox SET state='dead', locked_by=NULL, locked_until=NULL, last_error_code='binding_revoked', updated_at=UTC_TIMESTAMP(3) WHERE id=? AND state='processing' AND locked_by=? AND locked_until >= UTC_TIMESTAMP(3)",
-          [taskId, workerId]
-        );
-        return false;
-      }
+      if (!Array.isArray(bindings) || !bindings.length) return markCustomerDead('binding_revoked');
     } else if (recipientContext?.scope === 'merchant_store' &&
                typeof recipientContext.key === 'string' &&
                recipientContext.key.startsWith('destination:')) {
