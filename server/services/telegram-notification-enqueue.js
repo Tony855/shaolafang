@@ -20,7 +20,7 @@ async function enqueueCustomerTelegramNotification({ allAsync, customerTokenHash
   const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchant]);
   if (!Array.isArray(merchants) || !merchants.length) return false;
   const tenantBots = await allAsync('SELECT client_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE', [merchant]);
-  if (Array.isArray(tenantBots) && tenantBots.length) {
+  if (Array.isArray(tenantBots) && tenantBots.length && Object.hasOwn(tenantBots[0], 'client_bot_enabled')) {
     if (Number(tenantBots[0].client_bot_enabled) !== 1) return false;
   } else if (clientBot?.value !== '1') return false;
   const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
@@ -62,7 +62,7 @@ async function enqueueStoreAdminTelegramNotification({
   const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchant]);
   if (!Array.isArray(merchants) || !merchants.length) return false;
   const tenantBots = await allAsync('SELECT admin_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE', [merchant]);
-  if (Array.isArray(tenantBots) && tenantBots.length) {
+  if (Array.isArray(tenantBots) && tenantBots.length && Object.hasOwn(tenantBots[0], 'admin_bot_enabled')) {
     if (Number(tenantBots[0].admin_bot_enabled) !== 1) return false;
   } else if (adminBot?.value !== '1') return false;
   const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
