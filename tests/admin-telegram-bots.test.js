@@ -16,7 +16,7 @@ function response() {
 function setup(options = {}) {
   const routes = new Map();
   const calls = [];
-  const state = { config: options.config || null, registry: [] };
+  const state = { config: options.config || null, registry: [], webhooks: [], menus: [] };
   const app = {
     get(path, ...handlers) { routes.set('GET ' + path, handlers.at(-1)); },
     put(path, ...handlers) { routes.set('PUT ' + path, handlers.at(-1)); }
@@ -62,7 +62,9 @@ function setup(options = {}) {
     getTelegramBotUsername: async ({ token }) => {
       assert.ok(token.startsWith('12345:'));
       return 'TenantFoodBot';
-    }
+    },
+    configureWebhook: async input => { state.webhooks.push(input); return true; },
+    configureMenuButton: async input => { state.menus.push(input); return true; }
   });
   return { routes, calls, state };
 }
@@ -98,7 +100,9 @@ test('tenant Bot configuration is primary-admin scoped and rejects non-primary a
 
 test('tenant Bot configuration encrypts credentials and stores only token fingerprints', async () => {
   const oldKey = process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+  const oldPublicUrl = process.env.FOODFLOW_PUBLIC_URL;
   process.env.TELEGRAM_BOT_ENCRYPTION_KEY = '11'.repeat(32);
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test';
   try {
     const { routes, calls, state } = setup();
     const clientToken = '12345:' + 'a'.repeat(30);
@@ -120,11 +124,18 @@ test('tenant Bot configuration encrypts credentials and stores only token finger
     assert.ok(state.config.webhook_secret_encrypted);
     assert.equal(state.registry.length, 2);
     assert.deepEqual(state.registry.map(row => row.profile).sort(), ['admin', 'client']);
+    assert.equal(state.webhooks.length, 1);
+    assert.equal(state.webhooks[0].enabled, true);
+    assert.match(state.webhooks[0].webhookUrl, /^https:\/\/foodflow\.example\.test\/api\/telegram\/tenant\/[A-Za-z0-9_-]{43}\/client\/webhook$/);
+    assert.equal(state.menus.length, 1);
+    assert.equal(res.body.webhookConfigured, true);
     assert.equal(JSON.stringify(calls).includes(clientToken), false);
     assert.equal(JSON.stringify(calls).includes(adminToken), false);
   } finally {
     if (oldKey === undefined) delete process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
     else process.env.TELEGRAM_BOT_ENCRYPTION_KEY = oldKey;
+    if (oldPublicUrl === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = oldPublicUrl;
   }
 });
 
