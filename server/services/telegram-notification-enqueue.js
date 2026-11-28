@@ -19,10 +19,8 @@ async function enqueueCustomerTelegramNotification({ allAsync, customerTokenHash
   const clientBot = Array.isArray(settings) ? settings.find(row => row.key === 'telegram_client_bot_enabled') : null;
   const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchant]);
   if (!Array.isArray(merchants) || !merchants.length) return false;
-  const tenantBots = await allAsync('SELECT client_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE', [merchant]);
-  if (Array.isArray(tenantBots) && tenantBots.length && Object.hasOwn(tenantBots[0], 'client_bot_enabled')) {
-    if (Number(tenantBots[0].client_bot_enabled) !== 1) return false;
-  } else if (clientBot?.value !== '1') return false;
+  const tenantBots = await allAsync('SELECT id, client_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE', [merchant]);
+  const tenantBot = Array.isArray(tenantBots) && tenantBots.length && Object.hasOwn(tenantBots[0], 'client_bot_enabled') ? tenantBots[0] : null;
   const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
   if (!Array.isArray(stores) || !stores.length) return false;
   const bindings = await allAsync(
