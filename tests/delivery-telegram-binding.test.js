@@ -159,6 +159,7 @@ test('customer binding deep link uses the tenant-owned Client Bot without readin
   const tenantToken = '765432:abcdefghijklmnopqrstuvwxyzABCDE';
   const tenantSecret = 'tenant-webhook-secret-123456789012345';
   const tenantBot = {
+    id: 5,
     client_bot_enabled: 1,
     client_bot_username: 'TenantFoodBot',
     client_bot_token_encrypted: encryptBotToken(tenantToken),
@@ -176,6 +177,8 @@ test('customer binding deep link uses the tenant-owned Client Bot without readin
     assert.equal(res.statusCode, 200);
     assert.match(res.body.deepLink, /^https:\/\/t\.me\/TenantFoodBot\?start=[A-Za-z0-9_-]{43}$/);
     assert.equal(ctx.calls.some(call => call.sql.includes('FROM telegram_merchant_bots') && call.params[0] === 3), true);
+    const challengeInsert = ctx.calls.find(call => call.sql.includes('INSERT INTO telegram_customer_binding_challenges'));
+    assert.equal(challengeInsert.params[3], 5);
     assert.equal(ctx.calls.some(call => call.sql.includes('FROM settings')), false);
   } finally {
     global.fetch = originalFetch;
