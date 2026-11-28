@@ -328,25 +328,46 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           ? String(req.get('X-Telegram-Init-Data') || '')
           : String(req.headers?.['x-telegram-init-data'] || '');
         if (!initData) return res.status(401).json({ error: 'Telegram 身份验证缺失，请从门店专属链接重新打开' });
-        const settings = await allAsync(
-          'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
-          ['telegram_client_bot_enabled', 'telegram_client_bot_token']
-        );
-        const config = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
-        const botToken = String(config.telegram_client_bot_token || '');
-        const telegramIdentity = config.telegram_client_bot_enabled === '1'
-          ? verifyTelegramWebAppInitData(initData, botToken)
-          : null;
-        if (!telegramIdentity) return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开门店专属链接' });
 
         const signature = typeof body.store_entry === 'string' ? body.store_entry : '';
-        const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
-        const recipient = await getAsync(
-          'SELECT chat_id FROM telegram_store_admin_recipients WHERE merchant_id=? AND store_id=? AND is_enabled=1 AND chat_id<>\'\' LIMIT 1',
-          [store.merchant_id, storeId]
-        );
-        if (!recipient || !verifyStoreEntrySignature({ storeId, chatId: String(recipient.chat_id || ''), secret, signature })) {
-          return res.status(403).json({ error: '门店专属入口已失效，请重新从门店 Telegram 链接进入' });
+        const botPath = typeof body.bot_path === 'string' ? body.bot_path : '';
+        if (botPath) {
+          if (!/^[A-Za-z0-9_-]{43}$/.test(botPath)) return res.status(403).json({ error: '商户 Telegram Bot 入口无效' });
+          const pathHash = crypto.createHash('sha256').update(botPath).digest('hex');
+          const tenantBot = await getAsync(
+            'SELECT client_bot_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE webhook_path_hash=? AND merchant_id=? AND client_bot_enabled=1 LIMIT 1',
+            [pathHash, store.merchant_id]
+          );
+          if (!tenantBot?.client_bot_token_encrypted || !tenantBot?.webhook_secret_encrypted) {
+            return res.status(403).json({ error: '此门店不属于当前 Telegram Bot 租户或 Bot 已停用' });
+          }
+          const botToken = decryptBotToken(tenantBot.client_bot_token_encrypted);
+          const secret = decryptBotToken(tenantBot.webhook_secret_encrypted);
+          const telegramIdentity = verifyTelegramWebAppInitData(initData, botToken);
+          if (!telegramIdentity) return res.status(403).json({ error: '当前商户 Telegram Bot 身份无效或已过期' });
+          if (!verifyTenantStoreEntrySignature({ merchantId: store.merchant_id, storeId, secret, signature })) {
+            return res.status(403).json({ error: '门店专属入口已失效，请重新从当前商户 Bot 进入' });
+          }
+        } else {
+          const settings = await allAsync(
+            'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+            ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+          );
+          const config = Object.fromEntries((Array.isArray(settings) ? settings : []).map(row => [row.key, row.value]));
+          const botToken = String(config.telegram_client_bot_token || '');
+          const telegramIdentity = config.telegram_client_bot_enabled === '1'
+            ? verifyTelegramWebAppInitData(initData, botToken)
+            : null;
+          if (!telegramIdentity) return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开门店专属链接' });
+
+          const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+          const recipient = await getAsync(
+            'SELECT chat_id FROM telegram_store_admin_recipients WHERE merchant_id=? AND store_id=? AND is_enabled=1 AND chat_id<>\\'\\' LIMIT 1',
+            [store.merchant_id, storeId]
+          );
+          if (!recipient || !verifyStoreEntrySignature({ storeId, chatId: String(recipient.chat_id || ''), secret, signature })) {
+            return res.status(403).json({ error: '门店专属入口已失效，请重新从门店 Telegram 链接进入' });
+          }
         }
       }
 
