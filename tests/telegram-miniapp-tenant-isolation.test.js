@@ -63,7 +63,7 @@ function response() {
 }
 function request(storeId, entry, bot) {
   return { query: { ...(storeId ? { store_id: String(storeId) } : {}), ...(entry ? { entry } : {}), ...(bot ? { bot } : {}) }, headers: {},
-    get(name) { return name.toLowerCase() === 'x-telegram-init-data' ? signedInitData(tenantToken) : ''; } };
+    get(name) { return name.toLowerCase() === 'x-telegram-init-data' ? signedInitData() : ''; } };
 }
 
 test('shared Client Bot Mini App resolves only the store represented by the signed Chat ID binding', async () => {
