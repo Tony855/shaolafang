@@ -11,6 +11,7 @@ const secret = 'a'.repeat(64);
 test('Telegram diagnostics report actionable status without exposing credentials', async () => {
   let recipientQuery = '';
   const allAsync = async sql => {
+    if (sql.includes('FROM telegram_merchant_bots')) return [];
     if (sql.includes('FROM settings')) return [
       { key: 'telegram_admin_bot_enabled', value: '1' },
       { key: 'telegram_admin_bot_token', value: adminToken },
@@ -78,6 +79,7 @@ test('Telegram diagnostics report actionable status without exposing credentials
 test('Telegram diagnostics fail closed when notification tables are not installed', async () => {
   const allAsync = async sql => {
     if (sql.includes('FROM settings')) return [];
+    if (sql.includes('FROM telegram_merchant_bots')) return [];
     throw new Error('table does not exist');
   };
   const report = await collectTelegramDiagnostics({
@@ -98,4 +100,110 @@ test('Telegram diagnostics fail closed when notification tables are not installe
   assert.equal(explicitlyEnabled.worker.enabled, true);
   const paused = await collectTelegramDiagnostics({ allAsync, env: { TELEGRAM_NOTIFICATION_WORKER_ENABLED: 'false' }, fetchImpl: async () => { throw new Error('should not be called'); } });
   assert.equal(paused.worker.enabled, false);
+});
+
+
+test('tenant Bot diagnostics check encrypted credentials and tenant webhook URLs without exposing secrets', async () => {
+  const { encryptBotToken } = require('../server/services/telegram-bot-credentials');
+  const key = 'ab'.repeat(32);
+  const client = '765432:tenant-client-token-abcdefghijklmnopqrstuvwxyz';
+  const admin = '876543:tenant-admin-token-abcdefghijklmnopqrstuvwxyz';
+  const pathToken = 'P'.repeat(43);
+  const webhookSecret = 'tenant-webhook-secret-123456789012345';
+  const encryptedClient = encryptBotToken(client, { key });
+  const encryptedAdmin = encryptBotToken(admin, { key });
+  const encryptedPath = encryptBotToken(pathToken, { key });
+  const encryptedSecret = encryptBotToken(webhookSecret, { key });
+  const calls = [];
+  const report = await collectTelegramDiagnostics({
+    allAsync: async sql => {
+      calls.push(sql);
+      if (sql.includes('FROM settings')) return [];
+      if (sql.includes('FROM telegram_merchant_bots')) return [{
+        id: 17, merchant_id: 7,
+        client_bot_enabled: 1, client_bot_token_encrypted: encryptedClient,
+        admin_bot_enabled: 1, admin_bot_token_encrypted: encryptedAdmin,
+        webhook_path_token_encrypted: encryptedPath,
+        webhook_secret_encrypted: encryptedSecret
+      }];
+      if (sql.includes('telegram_customer_bindings')) return [{ total: 2, active: 1 }];
+      if (sql.includes('telegram_store_admin_recipients')) return [{ total: 0, enabled: 0, orderEnabled: 0 }];
+      if (sql.includes('telegram_notification_outbox')) return [];
+      if (sql.includes('telegram_chat_destinations')) return [{ total: 0, enabled: 0 }];
+      if (sql.includes('telegram_store_subscriptions')) return [{ total: 0, enabled: 0 }];
+      throw new Error('unexpected query');
+    },
+    env: {
+      TELEGRAM_BOT_ENCRYPTION_KEY: key,
+      TELEGRAM_NOTIFICATION_WORKER_ENABLED: 'false',
+      FOODFLOW_PUBLIC_URL: 'https://foodflow.example.test/'
+    },
+    fetchImpl: async url => {
+      calls.push(url);
+      assert.ok(String(url).includes(client));
+      return {
+        ok: true,
+        json: async () => ({
+          ok: true,
+          result: {
+            url: 'https://foodflow.example.test/api/telegram/tenant/' + pathToken + '/client/webhook',
+            pending_update_count: 3,
+            last_error_date: 0
+          }
+        })
+      };
+    }
+  });
+
+  assert.deepEqual(report.tenantBots, {
+    available: true,
+    total: 1,
+    clientEnabled: 1,
+    clientTokenConfigured: 1,
+    adminEnabled: 1,
+    adminTokenConfigured: 1,
+    encryptionKey: { configured: true, valid: true },
+    webhookChecks: {
+      limit: 25,
+      attempted: 1,
+      checked: 1,
+      remaining: 0,
+      results: [{
+        merchantId: 7, botConfigId: 17, enabled: true, tokenConfigured: true,
+        webhookConfigured: true, matchesExpectedUrl: true,
+        pendingUpdateCount: 3, lastErrorDate: null, lastErrorPresent: false, reason: null
+      }]
+    }
+  });
+  const serialized = JSON.stringify(report);
+  for (const secretValue of [client, admin, pathToken, webhookSecret, encryptedClient, encryptedAdmin, encryptedPath, encryptedSecret]) {
+    assert.equal(serialized.includes(secretValue), false);
+  }
+  assert.equal(report.worker.enabled, false);
+});
+
+test('tenant Bot diagnostics fail closed when the encryption key is missing', async () => {
+  const { encryptBotToken } = require('../server/services/telegram-bot-credentials');
+  const key = 'cd'.repeat(32);
+  const encrypted = encryptBotToken('765432:tenant-client-token-abcdefghijklmnopqrstuvwxyz', { key });
+  let fetchCalls = 0;
+  const report = await collectTelegramDiagnostics({
+    allAsync: async sql => {
+      if (sql.includes('FROM settings')) return [];
+      if (sql.includes('FROM telegram_merchant_bots')) return [{
+        id: 18, merchant_id: 8, client_bot_enabled: 1,
+        client_bot_token_encrypted: encrypted,
+        webhook_path_token_encrypted: encrypted,
+        webhook_secret_encrypted: encrypted
+      }];
+      return [];
+    },
+    env: {},
+    fetchImpl: async () => { fetchCalls += 1; throw new Error('must not call Telegram without the key'); }
+  });
+  assert.equal(report.tenantBots.encryptionKey.configured, false);
+  assert.equal(report.tenantBots.encryptionKey.valid, false);
+  assert.equal(report.tenantBots.webhookChecks.attempted, 0);
+  assert.equal(report.tenantBots.webhookChecks.results[0].reason, 'encryption_key_missing');
+  assert.equal(fetchCalls, 0);
 });

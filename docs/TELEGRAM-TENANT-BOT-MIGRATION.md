@@ -50,3 +50,22 @@ The API registers the tenant Client Bot webhook when it is enabled, and disables
 - The existing shared Bot settings and `telegram_webhook_updates` table are retained for compatibility.
 
 All three new tables are included in backup/restore. The encrypted credentials are only useful when restored together with the matching encryption key.
+
+## Operational diagnostics
+
+Run the diagnostics after configuring the encryption key and tenant Bots:
+
+```sh
+npm run telegram:diagnose
+```
+
+The report includes:
+- whether the encryption key is present and valid (never the key itself);
+- the number of configured, enabled Client/Admin tenant Bot profiles;
+- tenant Client Bot webhook health, pending updates, last-error indicators, and whether each webhook URL matches the expected tenant path;
+- customer binding, store recipient, group subscription, and outbox summaries;
+- the notification worker and group-subscription routing flags.
+
+By default, the command checks up to 25 enabled tenant Client Bots sequentially. Set `TELEGRAM_DIAGNOSTICS_TENANT_WEBHOOK_CHECK_LIMIT` to a value from 0 to 100 to change the batch size. A nonzero `remaining` count means additional enabled tenant Bots were not checked in that run.
+
+The diagnostic report never includes Bot tokens, encrypted credential values, webhook path tokens, webhook secrets, or tenant webhook URLs. If the encryption key is missing or invalid, tenant credential decryption is skipped and no Telegram request is made for those tenant Bots. The command can safely be attached to an operational incident report after checking that no custom logger has added secrets.
