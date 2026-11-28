@@ -60,7 +60,7 @@ Backups include the outbox, customer-binding records, webhook update IDs, and st
 2. In each tenant's Admin settings, select the target store and save its destination Chat ID. Saving a valid Chat ID automatically binds/enables that store; clearing the Chat ID unbinds it. Event toggles remain store-specific. Add the Bot to the target Telegram group and grant it permission to send messages.
 3. Configure and enable the global Client Bot in Super Admin settings if customer notifications are required.
 4. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` and register the Client Bot webhook to the public endpoint described above.
-5. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` in the application environment, restart the application, and verify worker startup in logs.
+5. Confirm the default-enabled worker is running in application logs. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=false` only when intentionally pausing delivery.
 6. Perform staging end-to-end tests for new order, settlement, KHQR confirmation, refund, customer binding/revocation, retry, worker restart, and cross-store isolation before enabling in production.
 
 ## Bot setup and operational troubleshooting
