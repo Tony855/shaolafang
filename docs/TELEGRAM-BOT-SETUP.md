@@ -55,7 +55,7 @@ Customer notifications never use the Client Bot's shared configured Chat ID. Eac
 2. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` and `FOODFLOW_PUBLIC_URL` (public HTTPS origin) in the FoodFlow environment.
 3. Configure and enable the shared Client Bot Token in **Global settings → Telegram Bot**. Saving the configuration and application startup synchronize the Client Bot menu button and call Telegram `setWebhook` automatically. No tenant-specific Bot Token or webhook URL is required.
 4. If the webhook secret or HTTPS origin is missing/invalid, the super-admin page reports the synchronization error; correct the environment and resave/restart.
-5. The worker remains stopped by default. After staging end-to-end verification and explicit approval, set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=true` on the intended environment and restart the application. To pause delivery, unset the variable or set it to `false`.
+5. The production worker starts by default. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=false` and restart the application only when intentionally pausing delivery for maintenance or rollback.
 6. A customer scans a table QR code, taps the Telegram icon in the customer page header, and opens the generated private deep link. They must press **Start** in Telegram. Returning to FoodFlow refreshes the binding state. Customers can revoke immediately from the Telegram chat at any time by sending `/stop`; this revokes all active FoodFlow customer-notification bindings belonging to that exact Telegram private user/chat.
 
 Binding details:
