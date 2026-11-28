@@ -127,6 +127,7 @@ async function loadTelegramStoreNotificationSettings() {
 }
 
 async function loadTenantTelegramBotSettings() {
+  if (!document.getElementById('telegramTenantBotCard')) return;
   const status = document.getElementById('tenantTelegramBotStatus');
   try {
     const data = await SLF.api.get('/admin/telegram/bot');
