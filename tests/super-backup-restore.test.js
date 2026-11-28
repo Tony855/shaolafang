@@ -138,6 +138,9 @@ test('backup restore writes its audit event and invalidates sessions in the same
     'SELECT `key` FROM settings WHERE `key` IN (?, ?) ORDER BY `key` FOR UPDATE',
     'SELECT id FROM merchants ORDER BY id FOR UPDATE',
     'SELECT id FROM stores ORDER BY id FOR UPDATE',
+    'SELECT id FROM telegram_merchant_bots ORDER BY id FOR UPDATE',
+    'SELECT token_fingerprint FROM telegram_merchant_bot_token_registry ORDER BY token_fingerprint FOR UPDATE',
+    'SELECT bot_config_id, update_id FROM telegram_merchant_webhook_updates ORDER BY bot_config_id, update_id FOR UPDATE',
     'SELECT id FROM telegram_customer_binding_challenges ORDER BY id FOR UPDATE',
     'SELECT id FROM telegram_customer_bindings ORDER BY id FOR UPDATE'
   ]);
