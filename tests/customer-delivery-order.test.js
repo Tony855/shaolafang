@@ -32,8 +32,8 @@ function setup({ customerBinding = false, tenantBot = null } = {}) {
   const deps = {
     getAsync: async (sql, params = []) => {
       calls.push({ type: 'get', sql, params });
-      if (sql.includes('FROM telegram_merchant_bots')) return tenantBot;
       if (sql.includes('FROM telegram_store_admin_recipients')) return { chat_id: '-100888' };
+      if (sql.includes('FROM telegram_merchant_bots')) return tenantBot;
       if (sql.includes('FROM stores s JOIN merchants')) return { id: 7, name: 'Test Store', merchant_id: 3 };
       if (sql.includes('FROM stores WHERE id=? AND merchant_id=?')) return { id: 7 };
       if (sql.includes('FROM delivery_order_requests')) return idempotencyRecord;
