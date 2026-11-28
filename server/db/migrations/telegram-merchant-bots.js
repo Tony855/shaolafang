@@ -30,6 +30,16 @@ const SCHEMA_STATEMENTS = [
     CONSTRAINT fk_telegram_merchant_bots_merchant
       FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS telegram_merchant_bot_token_registry (
+    token_fingerprint CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    bot_config_id BIGINT UNSIGNED NOT NULL,
+    profile ENUM('client','admin') NOT NULL,
+    created_at DATETIME(3) NOT NULL,
+    PRIMARY KEY (token_fingerprint),
+    UNIQUE KEY uq_telegram_bot_token_registry_profile (bot_config_id, profile),
+    CONSTRAINT fk_telegram_bot_token_registry_config
+      FOREIGN KEY (bot_config_id) REFERENCES telegram_merchant_bots(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS telegram_merchant_webhook_updates (
     bot_config_id BIGINT UNSIGNED NOT NULL,
     update_id BIGINT UNSIGNED NOT NULL,
