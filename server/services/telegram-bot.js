@@ -104,6 +104,22 @@ async function getTelegramGroupChats({ token, fetchImpl = globalThis.fetch }) {
     const username = typeof chat.username === 'string' ? chat.username.slice(0, 32) : '';
     const title = chat.type === 'private' ? (username ? '@' + username : 'Private chat') : String(chat.title || '未命名群组').slice(0, 255);
     chats.set(chatId, { chatId, title, type: String(chat.type), username });
+  }
+
+  // Confirm only the updates returned by this read, preventing the Admin Bot
+  // update queue from growing indefinitely. The Admin Bot must not be shared
+  // with another webhook/getUpdates consumer.
+  if (maxUpdateId >= 0) {
+    try {
+      const ack = await fetchImpl(`${base}?offset=${maxUpdateId + 1}&limit=1&timeout=0&allowed_updates=${allowedUpdates}`, {
+        method: 'GET', signal: AbortSignal.timeout(10000)
+      });
+      const ackPayload = await ack.json();
+      if (!ack.ok || ackPayload?.ok !== true) throw new Error('ack_failed');
+    } catch (_) {
+      // Discovery results remain useful; a later read may show the same chats again.
+    }
+  }
   return Array.from(chats.values()).sort((a, b) => a.title.localeCompare(b.title));
 }
 
