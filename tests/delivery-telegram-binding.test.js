@@ -127,7 +127,8 @@ test('delivery customer Telegram binding start creates a short-lived one-time de
     assert.ok(insert);
     assert.equal(insert.params[1], require('../server/services/session-token').hashSessionToken(customerToken));
     assert.equal(insert.params[2], 3);
-    assert.equal(insert.params[3], 7);
+    assert.equal(insert.params[3], null);
+    assert.equal(insert.params[4], 7);
   } finally {
     global.fetch = originalFetch;
   }
