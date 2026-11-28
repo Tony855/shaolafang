@@ -221,24 +221,38 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       if (!storeId || !customerToken) return res.status(400).json({ error: '门店或顾客身份凭证无效' });
       const store = await getActiveDeliveryStore(storeId);
       if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
-      const rows = await allAsync(
-        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
-        ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+      let username = '';
+      const tenantBot = await getAsync(
+        'SELECT client_bot_enabled, client_bot_username, client_bot_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+        [store.merchant_id]
       );
-      const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
-      if (config.telegram_client_bot_enabled !== '1' || !config.telegram_client_bot_token) {
-        return res.status(409).json({ error: '当前门店暂未启用 Telegram 顾客通知' });
-      }
-      const webhookSecret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
-      if (webhookSecret.length < 32 || webhookSecret.length > 256) {
-        return res.status(503).json({ error: 'Telegram 绑定服务尚未完成安全配置' });
+      if (Number(tenantBot?.client_bot_enabled) === 1 && tenantBot.client_bot_token_encrypted && tenantBot.webhook_secret_encrypted) {
+        // The tenant Bot's credentials are decrypted only server-side. The signed
+        // challenge remains bound to this store and merchant.
+        decryptBotToken(tenantBot.client_bot_token_encrypted);
+        decryptBotToken(tenantBot.webhook_secret_encrypted);
+        username = String(tenantBot.client_bot_username || '');
+        if (!/^[A-Za-z0-9_]{5,32}$/.test(username)) return res.status(409).json({ error: '当前商户 Telegram Bot 配置无效' });
+      } else {
+        const rows = await allAsync(
+          'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+          ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+        );
+        const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
+        if (config.telegram_client_bot_enabled !== '1' || !config.telegram_client_bot_token) {
+          return res.status(409).json({ error: '当前商户尚未启用 Telegram 顾客入口' });
+        }
+        const webhookSecret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+        if (webhookSecret.length < 32 || webhookSecret.length > 256) {
+          return res.status(503).json({ error: 'Telegram 绑定服务尚未完成安全配置' });
+        }
+        username = await getTelegramBotUsername({ token: String(config.telegram_client_bot_token) });
       }
       const ip = getClientIp(req) || 'unknown';
       const cooldownKey = 'delivery:telegram-bind:' + storeId + ':' + crypto.createHash('sha256').update(ip + ':' + hashSessionToken(customerToken)).digest('hex');
       const allowed = await checkAndSetCooldown(cooldownKey, 30000);
       if (allowed === null) return res.status(503).json({ error: '绑定服务暂时不可用，请稍后重试' });
       if (!allowed) return res.status(429).json({ error: '绑定请求过于频繁，请稍后再试' });
-      const username = await getTelegramBotUsername({ token: String(config.telegram_client_bot_token) });
       const challenge = crypto.randomBytes(32).toString('base64url');
       const challengeHash = crypto.createHash('sha256').update(challenge).digest('hex');
       await runAsync(
