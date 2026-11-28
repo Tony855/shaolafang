@@ -30,13 +30,21 @@ Only a tenant primary administrator can manage credentials:
 - Supplied tokens are checked with Telegram `getMe` before they are stored.
 - A Bot token fingerprint is unique across tenants for the same profile, preventing accidental reuse of one Bot across multiple tenant entries.
 
-The API does not yet register Telegram webhooks or switch customer traffic. That is intentionally deferred to the next stage. Existing shared Bot settings and routes remain active during this foundation phase.
+The API registers the tenant Client Bot webhook when it is enabled, and disables the webhook when the Client Bot is disabled or cleared. The webhook URL contains the high-entropy tenant path token; only its SHA-256 digest is stored. Each tenant update is authenticated with that Bot's own webhook secret and deduplicated by `(bot_config_id, update_id)`. The existing shared Bot route remains available only for merchants that have not enabled a tenant Client Bot.
 
 ## Data model
 
 - `telegram_merchant_bots`: one row per merchant; stores encrypted Client/Admin Bot tokens, fingerprints, Bot usernames, enabled flags, and encrypted per-tenant webhook path/secret material.
 - `telegram_merchant_bot_token_registry`: globally unique Bot token fingerprints across all tenant profiles, preventing the same Bot identity from being assigned to multiple tenants or to both roles.
 - `telegram_merchant_webhook_updates`: update replay protection scoped by `(bot_config_id, update_id)`.
+
+## Tenant customer entry
+
+- A tenant's Bot deep links are signed with a tenant-scoped HMAC over `(merchant_id, store_id)`; the signature no longer depends on the merchant notification group Chat ID.
+- The Mini App menu carries the tenant's opaque Bot path token and lists only that merchant's active stores.
+- Store checkout verifies Telegram `initData` with the tenant Client Bot token, checks that the store belongs to that merchant, and verifies the tenant/store signature again on the server.
+- `/start`, `/stop`, recent-store lookup, customer binding challenges, and webhook update deduplication are scoped to the tenant resolved from the webhook path.
+- Legacy shared-Bot flows remain for unmigrated merchants and are prevented from resolving or revoking bindings belonging to merchants with an enabled tenant Client Bot.
 - The existing shared Bot settings and `telegram_webhook_updates` table are retained for compatibility.
 
 All three new tables are included in backup/restore. The encrypted credentials are only useful when restored together with the matching encryption key.
