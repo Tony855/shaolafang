@@ -60,12 +60,25 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
       const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
       if (!Array.isArray(merchants) || !merchants.length) return markCustomerDead('event_disabled');
       const tenantBots = await allAsync(
-        'SELECT client_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE',
+        'SELECT id, client_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE',
         [merchantId]
       );
-      if (Array.isArray(tenantBots) && tenantBots.length) {
-        if (Number(tenantBots[0].client_bot_enabled) !== 1) return markCustomerDead('event_disabled');
+      const tenantBot = Array.isArray(tenantBots) && tenantBots.length && Object.hasOwn(tenantBots[0], 'client_bot_enabled')
+        ? tenantBots[0] : null;
+      const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
+      if (!Array.isArray(stores) || !stores.length) return markCustomerDead('event_disabled');
+
+      // Match /stop and page revoke: binding first, then outbox.
+      const bindings = await allAsync(
+        'SELECT id, bot_config_id FROM telegram_customer_bindings WHERE id=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL FOR UPDATE',
+        [bindingId, merchantId, storeId]
+      );
+      if (!Array.isArray(bindings) || !bindings.length) return markCustomerDead('binding_revoked');
+      const bindingBotId = bindings[0].bot_config_id == null ? null : Number(bindings[0].bot_config_id);
+      if (tenantBot && Number(tenantBot.client_bot_enabled) === 1) {
+        if (bindingBotId !== Number(tenantBot.id)) return markCustomerDead('binding_required');
       } else {
+        if (bindingBotId !== null) return markCustomerDead('event_disabled');
         const botSettings = await allAsync(
           "SELECT value FROM settings WHERE `key`='telegram_client_bot_enabled' FOR UPDATE"
         );
@@ -73,15 +86,6 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
           return markCustomerDead('event_disabled');
         }
       }
-      const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [storeId, merchantId]);
-      if (!Array.isArray(stores) || !stores.length) return markCustomerDead('event_disabled');
-
-      // Match /stop and page revoke: binding first, then outbox.
-      const bindings = await allAsync(
-        'SELECT id FROM telegram_customer_bindings WHERE id=? AND merchant_id=? AND store_id=? AND is_active=1 AND revoked_at IS NULL FOR UPDATE',
-        [bindingId, merchantId, storeId]
-      );
-      if (!Array.isArray(bindings) || !bindings.length) return markCustomerDead('binding_revoked');
     } else if (recipientContext?.scope === 'merchant_store' &&
                typeof recipientContext.key === 'string' &&
                recipientContext.key.startsWith('destination:')) {
