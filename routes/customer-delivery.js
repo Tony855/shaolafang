@@ -222,8 +222,9 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       const store = await getActiveDeliveryStore(storeId);
       if (!store) return res.status(404).json({ error: '门店不存在或已停用' });
       let username = '';
+      let botConfigId = null;
       const tenantBot = await getAsync(
-        'SELECT client_bot_enabled, client_bot_username, client_bot_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+        'SELECT id, client_bot_enabled, client_bot_username, client_bot_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
         [store.merchant_id]
       );
       if (Number(tenantBot?.client_bot_enabled) === 1 && tenantBot.client_bot_token_encrypted && tenantBot.webhook_secret_encrypted) {
@@ -233,6 +234,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
         const tenantSecret = decryptBotToken(tenantBot.webhook_secret_encrypted);
         if (tenantSecret.length < 32 || tenantSecret.length > 256) return res.status(503).json({ error: '商户 Telegram Bot 安全配置无效' });
         username = await getTelegramBotUsername({ token: tenantToken });
+        botConfigId = Number(tenantBot.id);
       } else {
         const rows = await allAsync(
           'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
@@ -263,8 +265,8 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
         [hashSessionToken(customerToken), storeId]
       );
       await runAsync(
-        'INSERT INTO telegram_customer_binding_challenges (challenge_hash, customer_token_hash, merchant_id, store_id, expires_at, created_at) VALUES (?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 10 MINUTE), UTC_TIMESTAMP(3))',
-        [challengeHash, hashSessionToken(customerToken), store.merchant_id, storeId]
+        'INSERT INTO telegram_customer_binding_challenges (challenge_hash, customer_token_hash, merchant_id, bot_config_id, store_id, expires_at, created_at) VALUES (?, ?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 10 MINUTE), UTC_TIMESTAMP(3))',
+        [challengeHash, hashSessionToken(customerToken), store.merchant_id, botConfigId, storeId]
       );
       res.json({ deepLink: `https://t.me/${username}?start=${challenge}`, expiresInSeconds: 600 });
     } catch (_) {
