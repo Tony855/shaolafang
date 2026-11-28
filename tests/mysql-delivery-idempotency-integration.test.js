@@ -23,6 +23,7 @@ const { ensureDeliverySchema } = require('../server/db/migrations/delivery');
 const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations/telegram-customer-binding');
 const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrations/telegram-notification-outbox');
 const { ensureTelegramChatDestinationSchema } = require('../server/db/migrations/telegram-chat-destinations');
+const { ensureTelegramMerchantBotSchema } = require('../server/db/migrations/telegram-merchant-bots');
 const { hashSessionToken } = require('../server/services/session-token');
 const { enqueueTelegramNotification, markTelegramNotificationSending } = require('../server/services/telegram-notification-outbox');
 const { enqueueStoreAdminTelegramNotification } = require('../server/services/telegram-notification-enqueue');
@@ -57,6 +58,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   const previousPool = poolModule.pool;
   poolModule.setPool(testPool);
   const tables = [
+    'telegram_merchant_webhook_updates', 'telegram_merchant_bot_token_registry', 'telegram_merchant_bots',
     'telegram_store_subscriptions', 'telegram_chat_destinations',
     'telegram_notification_outbox', 'telegram_webhook_updates',
     'telegram_customer_bindings', 'telegram_customer_binding_challenges',
@@ -88,6 +90,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   await ensureTelegramCustomerBindingSchema({ runAsync });
   await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
   await ensureTelegramChatDestinationSchema({ runAsync });
+  await ensureTelegramMerchantBotSchema({ runAsync });
 
   // Real-DB merchant group destination/subscription fixtures.
   const destinationInsert = await runAsync(
