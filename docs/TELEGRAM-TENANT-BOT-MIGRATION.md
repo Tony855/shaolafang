@@ -35,7 +35,8 @@ The API does not yet register Telegram webhooks or switch customer traffic. That
 ## Data model
 
 - `telegram_merchant_bots`: one row per merchant; stores encrypted Client/Admin Bot tokens, fingerprints, Bot usernames, enabled flags, and encrypted per-tenant webhook path/secret material.
+- `telegram_merchant_bot_token_registry`: globally unique Bot token fingerprints across all tenant profiles, preventing the same Bot identity from being assigned to multiple tenants or to both roles.
 - `telegram_merchant_webhook_updates`: update replay protection scoped by `(bot_config_id, update_id)`.
 - The existing shared Bot settings and `telegram_webhook_updates` table are retained for compatibility.
 
-Both new tables are included in backup/restore. The encrypted credentials are only useful when restored together with the matching encryption key.
+All three new tables are included in backup/restore. The encrypted credentials are only useful when restored together with the matching encryption key.
