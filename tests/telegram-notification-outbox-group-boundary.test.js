@@ -111,7 +111,7 @@ test('private destination send boundary accepts positive Chat IDs under the same
     });
     assert.equal(result, true);
     const query = calls.find(call => call.kind === 'execute' && call.sql.includes('FROM telegram_chat_destinations'));
-    assert.match(query.sql, /chat_type IN \\('private','group','supergroup'\\)/);
+    assert.match(query.sql, /chat_type IN \('private','group','supergroup'\)/);
   });
 });
 
