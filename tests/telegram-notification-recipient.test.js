@@ -164,7 +164,7 @@ test('tenant Admin Bot credentials take precedence over the platform shared Bot'
   }
 });
 
-test('tenant Client Bot credentials take precedence for customer notices and a disabled tenant Bot suppresses sends', async () => {
+test('tenant Client Bot credentials take precedence for customer notices', async () => {
   const oldKey = process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
   process.env.TELEGRAM_BOT_ENCRYPTION_KEY = '88'.repeat(32);
   try {
