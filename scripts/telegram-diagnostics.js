@@ -1,12 +1,120 @@
 'use strict';
 
 const WEBHOOK_PATH = '/api/telegram/client/webhook';
+const TENANT_WEBHOOK_PATH = '/api/telegram/tenant/';
+const DEFAULT_TENANT_WEBHOOK_CHECK_LIMIT = 25;
+const { decryptBotToken, loadKey } = require('../server/services/telegram-bot-credentials');
 const { isTelegramNotificationWorkerEnabled } = require('../server/services/telegram-notification-worker-runtime');
 const { isTelegramGroupSubscriptionsRoutingEnabled } = require('../server/services/telegram-notification-routing');
 
 function toCount(value) {
   const count = Number(value);
   return Number.isSafeInteger(count) && count >= 0 ? count : 0;
+}
+
+function encryptionKeyStatus(value) {
+  const configured = Boolean(String(value || '').trim());
+  try {
+    loadKey(value);
+    return { configured, valid: true };
+  } catch (_) {
+    return { configured, valid: false };
+  }
+}
+
+async function inspectTenantBots({ rows, env, fetchImpl, expectedBase, limit }) {
+  const list = Array.isArray(rows) ? rows : [];
+  const keyStatus = encryptionKeyStatus(env.TELEGRAM_BOT_ENCRYPTION_KEY);
+  const clientEnabled = list.filter(row => Number(row.client_bot_enabled) === 1);
+  const adminEnabled = list.filter(row => Number(row.admin_bot_enabled) === 1);
+  const results = [];
+  let attempted = 0;
+
+  for (const row of clientEnabled.slice(0, limit)) {
+    const result = {
+      merchantId: toCount(row.merchant_id),
+      botConfigId: toCount(row.id),
+      enabled: true,
+      tokenConfigured: Boolean(row.client_bot_token_encrypted),
+      webhookConfigured: false,
+      matchesExpectedUrl: null,
+      pendingUpdateCount: null,
+      lastErrorDate: null,
+      lastErrorPresent: false,
+      reason: null
+    };
+
+    if (!row.client_bot_token_encrypted || !row.webhook_path_token_encrypted || !row.webhook_secret_encrypted) {
+      result.reason = 'tenant_credentials_incomplete';
+      results.push(result);
+      continue;
+    }
+    if (!keyStatus.valid) {
+      result.reason = keyStatus.configured ? 'encryption_key_invalid' : 'encryption_key_missing';
+      results.push(result);
+      continue;
+    }
+
+    let token;
+    let pathToken;
+    try {
+      token = decryptBotToken(row.client_bot_token_encrypted, { key: env.TELEGRAM_BOT_ENCRYPTION_KEY });
+      pathToken = decryptBotToken(row.webhook_path_token_encrypted, { key: env.TELEGRAM_BOT_ENCRYPTION_KEY });
+      // Confirm that the webhook secret can also be recovered without returning it.
+      decryptBotToken(row.webhook_secret_encrypted, { key: env.TELEGRAM_BOT_ENCRYPTION_KEY });
+    } catch (_) {
+      result.reason = 'credential_decryption_failed';
+      results.push(result);
+      continue;
+    }
+
+    if (typeof fetchImpl !== 'function') {
+      result.reason = 'fetch_unavailable';
+      results.push(result);
+      continue;
+    }
+
+    attempted += 1;
+    try {
+      const response = await fetchImpl('https://api.telegram.org/bot' + token + '/getWebhookInfo', {
+        method: 'GET',
+        signal: AbortSignal.timeout(10000)
+      });
+      const payload = await response.json();
+      if (!response.ok || payload?.ok !== true || !payload.result) {
+        result.reason = 'telegram_api_error';
+      } else {
+        const actualUrl = String(payload.result.url || '');
+        result.webhookConfigured = Boolean(actualUrl);
+        result.matchesExpectedUrl = expectedBase
+          ? actualUrl === expectedBase + TENANT_WEBHOOK_PATH + pathToken + '/client/webhook'
+          : null;
+        result.pendingUpdateCount = toCount(payload.result.pending_update_count);
+        result.lastErrorDate = Number(payload.result.last_error_date) || null;
+        result.lastErrorPresent = Boolean(payload.result.last_error_message);
+      }
+    } catch (_) {
+      result.reason = 'network_error';
+    }
+    results.push(result);
+  }
+
+  return {
+    available: true,
+    total: list.length,
+    clientEnabled: clientEnabled.length,
+    clientTokenConfigured: list.filter(row => Boolean(row.client_bot_token_encrypted)).length,
+    adminEnabled: adminEnabled.length,
+    adminTokenConfigured: list.filter(row => Boolean(row.admin_bot_token_encrypted)).length,
+    encryptionKey: keyStatus,
+    webhookChecks: {
+      limit,
+      attempted,
+      checked: results.length,
+      remaining: Math.max(0, clientEnabled.length - results.length),
+      results
+    }
+  };
 }
 
 async function safeQuery(allAsync, sql) {
@@ -18,7 +126,7 @@ async function safeQuery(allAsync, sql) {
   }
 }
 
-async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchImpl = globalThis.fetch, tenantWebhookCheckLimit = DEFAULT_TENANT_WEBHOOK_CHECK_LIMIT } = {}) {
   if (typeof allAsync !== 'function') throw new TypeError('allAsync is required');
 
   const settingRows = await allAsync(
@@ -38,7 +146,8 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
   const expectedBase = String(env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
   const expectedWebhookUrl = expectedBase ? expectedBase + WEBHOOK_PATH : null;
 
-  const [bindings, recipients, outbox, destinations, subscriptions] = await Promise.all([
+  const tenantLimit = Math.max(0, Math.min(100, toCount(tenantWebhookCheckLimit)));
+  const [bindings, recipients, outbox, destinations, subscriptions, tenantBotRows] = await Promise.all([
     safeQuery(allAsync,
       'SELECT COUNT(*) AS total, COALESCE(SUM(is_active=1 AND revoked_at IS NULL), 0) AS active FROM telegram_customer_bindings'),
     safeQuery(allAsync,
@@ -48,7 +157,9 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
     safeQuery(allAsync,
       'SELECT COUNT(*) AS total, COALESCE(SUM(is_enabled=1), 0) AS enabled FROM telegram_chat_destinations'),
     safeQuery(allAsync,
-      'SELECT COUNT(*) AS total, COALESCE(SUM(is_enabled=1), 0) AS enabled, COALESCE(SUM(is_enabled=1 AND notify_order_created=1), 0) AS orderEnabled, COALESCE(SUM(is_enabled=1 AND notify_settled=1), 0) AS settledEnabled, COALESCE(SUM(is_enabled=1 AND notify_refunded=1), 0) AS refundedEnabled FROM telegram_store_subscriptions')
+      'SELECT COUNT(*) AS total, COALESCE(SUM(is_enabled=1), 0) AS enabled, COALESCE(SUM(is_enabled=1 AND notify_order_created=1), 0) AS orderEnabled, COALESCE(SUM(is_enabled=1 AND notify_settled=1), 0) AS settledEnabled, COALESCE(SUM(is_enabled=1 AND notify_refunded=1), 0) AS refundedEnabled FROM telegram_store_subscriptions'),
+    safeQuery(allAsync,
+      'SELECT id, merchant_id, client_bot_enabled, client_bot_token_encrypted, admin_bot_enabled, admin_bot_token_encrypted, webhook_path_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots ORDER BY merchant_id, id')
   ]);
 
   let clientWebhook = {
@@ -90,6 +201,10 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
     clientWebhook = { ...clientWebhook, reason: 'fetch_unavailable' };
   }
 
+  const tenantBots = tenantBotRows.available
+    ? await inspectTenantBots({ rows: tenantBotRows.rows, env, fetchImpl, expectedBase, limit: tenantLimit })
+    : { available: false, encryptionKey: encryptionKeyStatus(env.TELEGRAM_BOT_ENCRYPTION_KEY) };
+
   return {
     worker: {
       enabled: isTelegramNotificationWorkerEnabled(env.TELEGRAM_NOTIFICATION_WORKER_ENABLED)
@@ -108,6 +223,7 @@ async function collectTelegramDiagnostics({ allAsync, env = process.env, fetchIm
       configured: secret.length >= 32 && secret.length <= 256,
       lengthValid: secret.length >= 32 && secret.length <= 256
     },
+    tenantBots,
     bots: {
       admin: {
         enabled: settings.telegram_admin_bot_enabled === '1',
@@ -169,4 +285,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { collectTelegramDiagnostics };
+module.exports = { collectTelegramDiagnostics, inspectTenantBots, encryptionKeyStatus, DEFAULT_TENANT_WEBHOOK_CHECK_LIMIT };
