@@ -89,7 +89,7 @@ test('tenant Bot configuration GET never returns credentials', async () => {
 test('tenant Bot configuration is primary-admin scoped and rejects non-primary admins', async () => {
   const { routes, calls } = setup();
   const res = response();
-  await routes.put('PUT /api/admin/telegram/bot')({
+  await routes.get('PUT /api/admin/telegram/bot')({
     merchantId: 7, isPrimaryAdmin: false, body: { clientBotToken: '12345:' + 'a'.repeat(30) }
   }, res);
   assert.equal(res.statusCode, 403);
@@ -104,7 +104,7 @@ test('tenant Bot configuration encrypts credentials and stores only token finger
     const clientToken = '12345:' + 'a'.repeat(30);
     const adminToken = '12345:' + 'b'.repeat(30);
     const res = response();
-    await routes.put('PUT /api/admin/telegram/bot')({
+    await routes.get('PUT /api/admin/telegram/bot')({
       merchantId: 7, adminId: 3, isPrimaryAdmin: true,
       body: { clientBotToken: clientToken, adminBotToken: adminToken, clientBotEnabled: true, adminBotEnabled: true }
     }, res);
@@ -131,7 +131,7 @@ test('tenant Bot configuration encrypts credentials and stores only token finger
 test('tenant Bot cannot be enabled without a token', async () => {
   const { routes } = setup();
   const res = response();
-  await routes.put('PUT /api/admin/telegram/bot')({
+  await routes.get('PUT /api/admin/telegram/bot')({
     merchantId: 7, isPrimaryAdmin: true, body: { clientBotEnabled: true }
   }, res);
   assert.equal(res.statusCode, 409);
@@ -145,7 +145,7 @@ test('tenant Client and Admin profiles cannot reuse the same Bot token', async (
     const { routes } = setup();
     const token = '12345:' + 'c'.repeat(30);
     const res = response();
-    await routes.put('PUT /api/admin/telegram/bot')({
+    await routes.get('PUT /api/admin/telegram/bot')({
       merchantId: 7, adminId: 3, isPrimaryAdmin: true,
       body: { clientBotToken: token, adminBotToken: token }
     }, res);
