@@ -95,31 +95,15 @@ async function getTelegramGroupChats({ token, fetchImpl = globalThis.fetch }) {
     if (Number.isSafeInteger(update?.update_id)) maxUpdateId = Math.max(maxUpdateId, update.update_id);
     const message = update?.message || update?.edited_message || update?.channel_post;
     const chat = message?.chat || update?.my_chat_member?.chat;
-    if (!chat || !['group', 'supergroup'].includes(String(chat.type || ''))) continue;
+    if (!chat || !['private', 'group', 'supergroup'].includes(String(chat.type || ''))) continue;
+    // Private destinations are discovered only when the user explicitly starts
+    // the Admin Bot; message text is never returned or retained.
+    if (chat.type === 'private' && !/^\/start(?:@\w+)?(?:\s|$)/i.test(String(message?.text || ''))) continue;
     const chatId = String(chat.id ?? '');
-    if (!/^-\d{1,20}$/.test(chatId)) continue;
-    chats.set(chatId, {
-      chatId,
-      title: String(chat.title || '未命名群组').slice(0, 255),
-      type: String(chat.type),
-      username: typeof chat.username === 'string' ? chat.username.slice(0, 32) : ''
-    });
-  }
-
-  // Confirm only the updates returned by this read, preventing the Admin Bot
-  // update queue from growing indefinitely. The Admin Bot must not be shared
-  // with another webhook/getUpdates consumer.
-  if (maxUpdateId >= 0) {
-    try {
-      const ack = await fetchImpl(`${base}?offset=${maxUpdateId + 1}&limit=1&timeout=0&allowed_updates=${allowedUpdates}`, {
-        method: 'GET', signal: AbortSignal.timeout(10000)
-      });
-      const ackPayload = await ack.json();
-      if (!ack.ok || ackPayload?.ok !== true) throw new Error('ack_failed');
-    } catch (_) {
-      // Discovery results remain useful; a later read may show the same chats again.
-    }
-  }
+    if (!/^-?\d{5,20}$/.test(chatId) || chatId === '0') continue;
+    const username = typeof chat.username === 'string' ? chat.username.slice(0, 32) : '';
+    const title = chat.type === 'private' ? (username ? '@' + username : 'Private chat') : String(chat.title || '未命名群组').slice(0, 255);
+    chats.set(chatId, { chatId, title, type: String(chat.type), username });
   return Array.from(chats.values()).sort((a, b) => a.title.localeCompare(b.title));
 }
 
