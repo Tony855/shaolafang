@@ -80,7 +80,7 @@ async function enqueueStoreAdminTelegramNotification({
     const destinations = await allAsync(
       `SELECT id FROM telegram_chat_destinations
        WHERE merchant_id=? AND id IN (${placeholders}) AND bot_profile='admin'
-         AND chat_type IN ('group','supergroup') AND is_enabled=1
+         AND chat_type IN ('private','group','supergroup') AND is_enabled=1
        ORDER BY id FOR UPDATE`,
       [merchant, ...candidateIds]
     );

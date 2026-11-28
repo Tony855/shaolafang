@@ -87,7 +87,7 @@ test('MySQL integration: delivery checkout idempotency is atomic under real conc
   await ensureDeliverySchema({ runAsync, allAsync });
   await ensureTelegramCustomerBindingSchema({ runAsync });
   await ensureTelegramNotificationOutboxSchema({ runAsync, getAsync });
-  await ensureTelegramChatDestinationSchema({ runAsync });
+  await ensureTelegramChatDestinationSchema({ runAsync, getAsync });
 
   // Real-DB merchant group destination/subscription fixtures.
   const destinationInsert = await runAsync(

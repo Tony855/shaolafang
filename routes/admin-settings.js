@@ -303,10 +303,10 @@ module.exports = function(app, deps) {
       }
       const chats = await getTelegramGroupChats({ token: String(config.telegram_admin_bot_token) });
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ chats, hint: chats.length ? '' : '暂未发现群组。请先把 Admin Bot 拉入群组，并在群内发送 /start@Bot用户名，然后重新获取。' });
+      res.json({ chats, hint: chats.length ? '' : '暂未发现群组。请先把 Admin Bot 拉入群组并在群内发送 /start@Bot用户名，然后重新获取。私聊 Chat ID 需手动登记。' });
     } catch (error) {
       const message = String(error?.message || '');
-      const safeMessage = /Admin Bot|Telegram|群组|Webhook/.test(message)
+      const safeMessage = /Admin Bot|Telegram|群组|私聊|Webhook/.test(message)
         ? message : 'Telegram 群组读取失败，请稍后重试';
       res.status(502).json({ error: safeMessage });
     }

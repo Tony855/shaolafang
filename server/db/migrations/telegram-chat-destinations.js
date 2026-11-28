@@ -6,7 +6,7 @@ const TELEGRAM_CHAT_DESTINATIONS_SCHEMA_SQL = `
     merchant_id INT NOT NULL,
     bot_profile VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'admin',
     chat_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-    chat_type ENUM('group', 'supergroup') NOT NULL,
+    chat_type ENUM('private', 'group', 'supergroup') NOT NULL,
     title VARCHAR(255) NOT NULL DEFAULT '',
     username VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT '',
     is_enabled TINYINT(1) NOT NULL DEFAULT 1,
@@ -49,8 +49,8 @@ const TELEGRAM_STORE_SUBSCRIPTIONS_SCHEMA_SQL = `
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 `;
 
-async function ensureTelegramChatDestinationSchema({ runAsync }) {
-  if (typeof runAsync !== 'function') throw new TypeError('runAsync is required');
+async function ensureTelegramChatDestinationSchema({ runAsync, getAsync }) {
+  if (typeof runAsync !== 'function' || typeof getAsync !== 'function') throw new TypeError('runAsync and getAsync are required');
 
   // MySQL requires a matching unique index for the composite store FK. The
   // store ID remains globally unique; this index exists to enforce tenant scope.
@@ -62,6 +62,16 @@ async function ensureTelegramChatDestinationSchema({ runAsync }) {
 
   await runAsync(TELEGRAM_CHAT_DESTINATIONS_SCHEMA_SQL);
   await runAsync(TELEGRAM_STORE_SUBSCRIPTIONS_SCHEMA_SQL);
+
+  // CREATE TABLE IF NOT EXISTS does not widen an existing ENUM. Upgrade old
+  // group-only installations idempotently without running a destructive rebuild.
+  const column = await getAsync(
+    "SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='telegram_chat_destinations' AND COLUMN_NAME='chat_type'"
+  );
+  const columnType = String(column?.COLUMN_TYPE || column?.column_type || '');
+  if (!columnType.toLowerCase().includes("'private'")) {
+    await runAsync("ALTER TABLE telegram_chat_destinations MODIFY chat_type ENUM('private','group','supergroup') NOT NULL");
+  }
 }
 
 module.exports = {

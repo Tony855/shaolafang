@@ -7,10 +7,11 @@ const {
   backfillTelegramStoreSubscriptions
 } = require('../server/db/migrations/telegram-store-subscription-backfill');
 
-test('legacy group Chat IDs are classified without treating private chats as groups', () => {
+test('legacy Chat IDs are classified as private, group or supergroup without accepting malformed IDs', () => {
   assert.equal(classifyGroupChat('-1001234567890'), 'supergroup');
   assert.equal(classifyGroupChat('-123456789'), 'group');
-  assert.equal(classifyGroupChat('123456789'), null);
+  assert.equal(classifyGroupChat('123456789'), 'private');
+  assert.equal(classifyGroupChat('1234'), null);
   assert.equal(classifyGroupChat(''), null);
 });
 
@@ -61,6 +62,26 @@ test('legacy backfill creates one merchant destination and multiple store subscr
   assert.equal(subscriptions.size, 0);
   assert.equal(ledger.size, 2);
   assert.equal(conflicts.length, 0);
+});
+
+test('legacy positive Chat IDs backfill as private destinations', async () => {
+  const rows = [{ id: 10, merchant_id: 7, store_id: 13, chat_id: '123456789', is_enabled: 1, notify_order_created: 1, notify_settled: 1, notify_refunded: 1, matched_store_id: 13, matched_merchant_id: 7 }];
+  const destinations = new Map();
+  const calls = [];
+  const deps = {
+    allAsync: async () => rows,
+    getAsync: async sql => sql.includes('telegram_chat_destination_migration_ledger') ? null : destinations.get('123456789') || null,
+    runAsync: async (sql, params = []) => {
+      calls.push({ sql, params });
+      if (sql.includes('INSERT INTO telegram_chat_destinations')) destinations.set(params[1], { id: 1, merchant_id: params[0] });
+      return { affectedRows: 1 };
+    },
+    withTransaction: async fn => fn()
+  };
+  const result = await backfillTelegramStoreSubscriptions(deps);
+  assert.equal(result.subscriptionsCreated, 1);
+  const destinationInsert = calls.find(call => call.sql.includes('INSERT INTO telegram_chat_destinations'));
+  assert.deepEqual(destinationInsert.params.slice(0, 3), [7, '123456789', 'private']);
 });
 
 test('legacy backfill refuses a Chat ID already owned by another merchant', async () => {

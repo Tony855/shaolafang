@@ -518,10 +518,11 @@ window.loadTelegramStoreNotificationSettings = loadTelegramStoreNotificationSett
     destinations.forEach(destination => {
       const card = text('section', '', 'settings-card');
       card.style.marginTop = '12px';
-      const heading = text('h4', destination.title || (destination.chatType === 'supergroup' ? '超级群组' : '群组'));
+      const typeLabel = { private: '私聊', group: '群组', supergroup: '超级群组' }[destination.chatType] || 'Telegram 目标';
+      const heading = text('h4', destination.title || typeLabel);
       heading.style.margin = '0 0 6px';
       card.appendChild(heading);
-      card.appendChild(text('p', destination.chatId + ' · ' + destination.chatType, 'ff-desc-tight'));
+      card.appendChild(text('p', destination.chatId + ' · ' + typeLabel, 'ff-desc-tight'));
 
       const controls = text('div', '', 'settings-row');
       controls.style.gap = '10px';
@@ -635,7 +636,7 @@ window.loadTelegramStoreNotificationSettings = loadTelegramStoreNotificationSett
         });
         if (chatInput) chatInput.value = '';
         if (titleInput) titleInput.value = '';
-        if (hint) hint.textContent = '群组登记成功。现在可以为此群组添加本商户的多个门店。';
+        if (hint) hint.textContent = '目标登记成功。现在可以为此目标添加本商户的多个门店。';
         await refresh();
       } catch (error) {
         if (hint) hint.textContent = error.message || '群组登记失败';
@@ -661,7 +662,7 @@ window.loadTelegramStoreNotificationSettings = loadTelegramStoreNotificationSett
           });
           discoveredSelect.hidden = chats.length === 0;
         }
-        if (hint) hint.textContent = result.hint || (chats.length ? '选择群组后登记；此操作不会自动保存。' : '暂未发现群组。');
+        if (hint) hint.textContent = result.hint || (chats.length ? '选择已发现的群组；私聊目标可手动输入正 Chat ID。' : '暂未发现群组。私聊目标可手动输入正 Chat ID。');
       } catch (error) {
         if (hint) hint.textContent = error.message || '获取群组失败';
       } finally {
@@ -680,7 +681,6 @@ window.loadTelegramStoreNotificationSettings = loadTelegramStoreNotificationSett
     refresh();
   });
 })();
-
 
 /* ========== pages/admin/logs.js ========== */
 /*
