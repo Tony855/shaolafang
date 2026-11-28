@@ -10,7 +10,7 @@ const { encryptBotToken } = require('../server/services/telegram-bot-credentials
 const token = '123456:abcdefghijklmnopqrstuvwxyzABCDE';
 const secret = 's'.repeat(40);
 
-function signedInitData() {
+function signedInitData(botToken = token) {
   const now = Math.floor(Date.now() / 1000);
   const params = new Map([
     ['auth_date', String(now)], ['query_id', 'shared-client-test'],
@@ -18,7 +18,7 @@ function signedInitData() {
   ]);
   const data = Array.from(params.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
     .map(([key, value]) => key + '=' + value).join('\n');
-  const webAppSecret = crypto.createHmac('sha256', 'WebAppData').update(token).digest();
+  const webAppSecret = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
   params.set('hash', crypto.createHmac('sha256', webAppSecret).update(data).digest('hex'));
   return new URLSearchParams(Array.from(params.entries()).sort(([a], [b]) => a < b ? -1 : 1)).toString();
 }
@@ -63,7 +63,7 @@ function response() {
 }
 function request(storeId, entry, bot) {
   return { query: { ...(storeId ? { store_id: String(storeId) } : {}), ...(entry ? { entry } : {}), ...(bot ? { bot } : {}) }, headers: {},
-    get(name) { return name.toLowerCase() === 'x-telegram-init-data' ? signedInitData() : ''; } };
+    get(name) { return name.toLowerCase() === 'x-telegram-init-data' ? signedInitData(tenantToken) : ''; } };
 }
 
 test('shared Client Bot Mini App resolves only the store represented by the signed Chat ID binding', async () => {
@@ -141,7 +141,7 @@ test('Telegram Mini App logs safe reason codes for rejected authentication and e
 
   assert.deepEqual(entries.map(entry => entry[1]), [
     { stage: 'request', reason: 'missing_init_data' },
-    { stage: 'bot_configuration', reason: 'bot_disabled' },
+    { stage: 'bot_configuration', reason: 'legacy_bot_disabled' },
     { stage: 'entry_validation', reason: 'entry_invalid' }
   ]);
   assert.equal(JSON.stringify(entries).includes(signature), false);
