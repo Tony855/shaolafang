@@ -84,8 +84,8 @@ function createTelegramCustomerWebhookHandler({
           bound = {
             chatId: update.telegramChatId,
             text: Number(revoked.affectedRows) > 0
-              ? 'FoodFlow：已取消此 Telegram 账号的所有顾客通知绑定。之后不会再收到订单通知。'
-              : 'FoodFlow：当前 Telegram 账号没有启用中的顾客通知绑定。'
+              ? (scopedMerchantId ? 'FoodFlow：已取消此商户的 Telegram 顾客通知。其他商户的绑定不受影响。' : 'FoodFlow：已取消此 Telegram 账号的所有顾客通知绑定。之后不会再收到订单通知。')
+              : (scopedMerchantId ? 'FoodFlow：当前商户没有启用中的顾客通知绑定。其他商户的绑定不受影响。' : 'FoodFlow：当前 Telegram 账号没有启用中的顾客通知绑定。')
           };
           return;
         }
