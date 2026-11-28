@@ -3,7 +3,7 @@
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS telegram_merchant_bots (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    merchant_id BIGINT UNSIGNED NOT NULL,
+    merchant_id INT NOT NULL,
     client_bot_token_encrypted TEXT DEFAULT NULL,
     client_bot_token_fingerprint CHAR(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
     client_bot_id BIGINT UNSIGNED DEFAULT NULL,
@@ -25,7 +25,9 @@ const SCHEMA_STATEMENTS = [
     UNIQUE KEY uq_telegram_merchant_bots_client_fp (client_bot_token_fingerprint),
     UNIQUE KEY uq_telegram_merchant_bots_admin_fp (admin_bot_token_fingerprint),
     KEY idx_telegram_merchant_bots_client_status (client_bot_enabled, merchant_id),
-    KEY idx_telegram_merchant_bots_admin_status (admin_bot_enabled, merchant_id)
+    KEY idx_telegram_merchant_bots_admin_status (admin_bot_enabled, merchant_id),
+    CONSTRAINT fk_telegram_merchant_bots_merchant
+      FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   `CREATE TABLE IF NOT EXISTS telegram_merchant_webhook_updates (
     bot_config_id BIGINT UNSIGNED NOT NULL,
