@@ -198,7 +198,7 @@ test('tenant /start delivery link is signed by merchant and store, independent o
     assert.ok(sendMessage);
     const payload = JSON.parse(sendMessage.options.body);
     const webAppUrl = payload.reply_markup.inline_keyboard[0][0].web_app.url;
-    assert.match(webAppUrl, /^https:\/\/foodflow\.example\.test\/delivery\/order\\?store_id=9&entry=[A-Za-z0-9_-]{43}&telegram=1&bot=P{43}$/);
+    assert.match(webAppUrl, /^https:\/\/foodflow\.example\.test\/delivery\/order\?store_id=9&entry=[A-Za-z0-9_-]{43}&telegram=1&bot=P{43}$/);
   } finally {
     global.fetch = oldFetch;
     if (oldOrigin === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
