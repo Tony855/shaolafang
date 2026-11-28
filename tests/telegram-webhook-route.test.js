@@ -23,11 +23,11 @@ function setup({ duplicate = false, challengeRow = true, expired = false, consum
     },
     getAsync: async (sql, params = []) => {
       calls.push(['get', sql, params]);
-      if (sql.includes('telegram_merchant_bots')) return { id: 22, merchant_id: 7, client_bot_token_encrypted: 'encrypted-token', webhook_path_token_encrypted: 'encrypted-path', webhook_secret_encrypted: 'encrypted-secret' };
       if (sql.includes('telegram_customer_binding_challenges')) return challengeRow && !expired && !consumed ? {
         id: 5, customer_token_hash: 'a'.repeat(64), merchant_id: 7, store_id: 9,
         expires_at: new Date(Date.now() + (expired ? -60000 : 60000)), consumed_at: consumed ? new Date() : null
       } : null;
+      if (sql.includes('FROM telegram_merchant_bots')) return { id: 22, merchant_id: 7, client_bot_token_encrypted: 'encrypted-token', webhook_path_token_encrypted: 'encrypted-path', webhook_secret_encrypted: 'encrypted-secret' };
       if (sql.includes('FROM stores')) return { id: 9 };
       return null;
     },
@@ -140,7 +140,7 @@ test('tenant webhook resolves its Bot config by the hashed path token and scopes
     assert.equal(bindingInsert[2][2], 22);
     const challengeLookup = calls.find(call => call[1]?.includes('FROM telegram_customer_binding_challenges'));
     assert.ok(challengeLookup[1].includes('merchant_id=?'));
-    assert.deepEqual(challengeLookup[2], [require('crypto').createHash('sha256').update(challenge).digest('hex'), 7]);
+    assert.deepEqual(challengeLookup[2], [require('crypto').createHash('sha256').update(challenge).digest('hex'), 7, 22]);
   } finally {
     global.fetch = oldFetch;
   }
