@@ -174,8 +174,8 @@ test('tenant Client Bot credentials take precedence for customer notices', async
   try {
     const tenantToken = '987654:tenant-client-token-abcdefghijklmnopqrstuvwxyz';
     const resolve = createTelegramNotificationRecipientResolver({ allAsync: async sql => {
-      if (sql.includes('telegram_customer_bindings')) return [{ id: 42, merchant_id: 7, store_id: 9, telegram_chat_id: '7654321' }];
-      if (sql.includes('FROM telegram_merchant_bots')) return [{ client_bot_enabled: 1, client_bot_token_encrypted: encryptBotToken(tenantToken) }];
+      if (sql.includes('telegram_customer_bindings')) return [{ id: 42, merchant_id: 7, store_id: 9, telegram_chat_id: '7654321', bot_config_id: 4 }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [{ id: 4, client_bot_enabled: 1, client_bot_token_encrypted: encryptBotToken(tenantToken) }];
       return [{ key: 'telegram_client_bot_enabled', value: '0' }, { key: 'telegram_client_bot_token', value: token }];
     } });
     const recipient = await resolve({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 });
