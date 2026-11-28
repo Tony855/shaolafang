@@ -7,11 +7,15 @@ const { createStoreEntrySignature, verifyStoreEntrySignature } = require('./tele
 
 function createTelegramCustomerWebhookHandler({
   getAsync, allAsync, runAsync, withTransaction, secret, getBotToken,
+  merchantId = null, botConfigId = null,
   sendMessage = sendTelegramMessage, setMenuButton = setTelegramMenuButton, logger = console
 } = {}) {
   for (const [name, fn] of Object.entries({ getAsync, allAsync, runAsync, withTransaction, getBotToken })) {
     if (typeof fn !== 'function') throw new TypeError(name + ' is required');
   }
+
+  const scopedMerchantId = Number.isSafeInteger(Number(merchantId)) && Number(merchantId) > 0 ? Number(merchantId) : null;
+  const scopedBotConfigId = Number.isSafeInteger(Number(botConfigId)) && Number(botConfigId) > 0 ? Number(botConfigId) : null;
 
   return async function telegramCustomerWebhook(req, res) {
     if (typeof res.setHeader === 'function') res.setHeader('Cache-Control', 'no-store');
@@ -39,8 +43,13 @@ function createTelegramCustomerWebhookHandler({
     try {
       await withTransaction(async () => {
         try {
-          await runAsync('INSERT INTO telegram_webhook_updates (update_id, received_at) VALUES (?, UTC_TIMESTAMP(3))', [update.updateId]);
-          await runAsync('DELETE FROM telegram_webhook_updates WHERE received_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 30 DAY) LIMIT 1000');
+          if (scopedBotConfigId) {
+            await runAsync('INSERT INTO telegram_merchant_webhook_updates (bot_config_id, update_id, received_at) VALUES (?, ?, UTC_TIMESTAMP(3))', [scopedBotConfigId, update.updateId]);
+            await runAsync('DELETE FROM telegram_merchant_webhook_updates WHERE bot_config_id=? AND received_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 30 DAY) LIMIT 1000', [scopedBotConfigId]);
+          } else {
+            await runAsync('INSERT INTO telegram_webhook_updates (update_id, received_at) VALUES (?, UTC_TIMESTAMP(3))', [update.updateId]);
+            await runAsync('DELETE FROM telegram_webhook_updates WHERE received_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 30 DAY) LIMIT 1000');
+          }
         } catch (error) {
           if (error?.code === 'ER_DUP_ENTRY') return;
           throw error;
@@ -51,8 +60,10 @@ function createTelegramCustomerWebhookHandler({
           // uses the same binding -> outbox lock order, so a concurrent order
           // transaction cannot slip a notice in after /stop has committed.
           const activeBindings = await allAsync(
-            'SELECT id FROM telegram_customer_bindings WHERE telegram_chat_id=? AND telegram_user_id=? AND is_active=1 ORDER BY id FOR UPDATE',
-            [update.telegramChatId, update.telegramUserId]
+            scopedMerchantId
+              ? 'SELECT id FROM telegram_customer_bindings WHERE merchant_id=? AND telegram_chat_id=? AND telegram_user_id=? AND is_active=1 ORDER BY id FOR UPDATE'
+              : 'SELECT id FROM telegram_customer_bindings WHERE telegram_chat_id=? AND telegram_user_id=? AND is_active=1 ORDER BY id FOR UPDATE',
+            scopedMerchantId ? [scopedMerchantId, update.telegramChatId, update.telegramUserId] : [update.telegramChatId, update.telegramUserId]
           );
           const bindingIds = Array.isArray(activeBindings)
             ? activeBindings.map(row => Number(row.id)).filter(id => Number.isSafeInteger(id) && id > 0)
@@ -65,8 +76,10 @@ function createTelegramCustomerWebhookHandler({
             );
           }
           const revoked = await runAsync(
-            'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE telegram_chat_id=? AND telegram_user_id=? AND is_active=1',
-            [update.telegramChatId, update.telegramUserId]
+            scopedMerchantId
+              ? 'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE merchant_id=? AND telegram_chat_id=? AND telegram_user_id=? AND is_active=1'
+              : 'UPDATE telegram_customer_bindings SET is_active=0, revoked_at=UTC_TIMESTAMP(3), updated_at=UTC_TIMESTAMP(3) WHERE telegram_chat_id=? AND telegram_user_id=? AND is_active=1',
+            scopedMerchantId ? [scopedMerchantId, update.telegramChatId, update.telegramUserId] : [update.telegramChatId, update.telegramUserId]
           );
           bound = {
             chatId: update.telegramChatId,
@@ -82,8 +95,10 @@ function createTelegramCustomerWebhookHandler({
           // the shared Bot convenient without exposing a cross-tenant store
           // directory or trusting an unverified Telegram start parameter.
           const bindings = await allAsync(
-            'SELECT b.store_id, r.chat_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id JOIN telegram_store_admin_recipients r ON r.merchant_id=b.merchant_id AND r.store_id=b.store_id WHERE b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1',
-            [update.telegramChatId, update.telegramUserId]
+            scopedMerchantId
+              ? 'SELECT b.store_id, r.chat_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id JOIN telegram_store_admin_recipients r ON r.merchant_id=b.merchant_id AND r.store_id=b.store_id WHERE b.merchant_id=? AND b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1'
+              : 'SELECT b.store_id, r.chat_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id JOIN telegram_store_admin_recipients r ON r.merchant_id=b.merchant_id AND r.store_id=b.store_id WHERE b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1',
+            scopedMerchantId ? [scopedMerchantId, update.telegramChatId, update.telegramUserId] : [update.telegramChatId, update.telegramUserId]
           );
           const binding = Array.isArray(bindings) ? bindings[0] : null;
           const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
@@ -114,8 +129,10 @@ function createTelegramCustomerWebhookHandler({
 
         if (update.action === 'delivery') {
           const recipient = await getAsync(
-            'SELECT r.chat_id, r.is_enabled, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 LIMIT 1',
-            [update.storeId]
+            scopedMerchantId
+              ? 'SELECT r.chat_id, r.is_enabled, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 LIMIT 1'
+              : 'SELECT r.chat_id, r.is_enabled, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 LIMIT 1',
+            scopedMerchantId ? [scopedMerchantId, update.storeId] : [update.storeId]
           );
           const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
           let publicOrigin = '';
@@ -144,20 +161,24 @@ function createTelegramCustomerWebhookHandler({
 
         const challengeHash = crypto.createHash('sha256').update(update.challenge).digest('hex');
         const challenge = await getAsync(
-          'SELECT id, customer_token_hash, merchant_id, store_id, expires_at, consumed_at FROM telegram_customer_binding_challenges WHERE challenge_hash=? AND consumed_at IS NULL AND expires_at > UTC_TIMESTAMP(3) FOR UPDATE',
-          [challengeHash]
+          scopedMerchantId
+            ? 'SELECT id, customer_token_hash, merchant_id, store_id, expires_at, consumed_at FROM telegram_customer_binding_challenges WHERE challenge_hash=? AND merchant_id=? AND consumed_at IS NULL AND expires_at > UTC_TIMESTAMP(3) FOR UPDATE'
+            : 'SELECT id, customer_token_hash, merchant_id, store_id, expires_at, consumed_at FROM telegram_customer_binding_challenges WHERE challenge_hash=? AND consumed_at IS NULL AND expires_at > UTC_TIMESTAMP(3) FOR UPDATE',
+          scopedMerchantId ? [challengeHash, scopedMerchantId] : [challengeHash]
         );
         // expires_at is a MySQL DATETIME written with UTC_TIMESTAMP(3). The SQL predicate above is authoritative; do not reinterpret that timezone-naive value as local JavaScript time.
         if (!challenge || challenge.consumed_at) return;
         const activeStore = await getAsync(
-          'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1',
-          [challenge.store_id, challenge.merchant_id]
+          'SELECT s.id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1 AND (? IS NULL OR s.merchant_id=?)',
+          [challenge.store_id, challenge.merchant_id, scopedMerchantId, scopedMerchantId]
         );
         if (!activeStore) return;
 
         const existingRows = await allAsync(
-          'SELECT id, customer_token_hash, store_id, telegram_chat_id, is_active FROM telegram_customer_bindings WHERE (telegram_chat_id=? AND store_id=?) OR (customer_token_hash=? AND store_id=?) FOR UPDATE',
-          [update.telegramChatId, challenge.store_id, challenge.customer_token_hash, challenge.store_id]
+          scopedMerchantId
+            ? 'SELECT id, customer_token_hash, store_id, telegram_chat_id, is_active FROM telegram_customer_bindings WHERE merchant_id=? AND ((telegram_chat_id=? AND store_id=?) OR (customer_token_hash=? AND store_id=?)) FOR UPDATE'
+            : 'SELECT id, customer_token_hash, store_id, telegram_chat_id, is_active FROM telegram_customer_bindings WHERE (telegram_chat_id=? AND store_id=?) OR (customer_token_hash=? AND store_id=?) FOR UPDATE',
+          scopedMerchantId ? [scopedMerchantId, update.telegramChatId, challenge.store_id, challenge.customer_token_hash, challenge.store_id] : [update.telegramChatId, challenge.store_id, challenge.customer_token_hash, challenge.store_id]
         );
         const chatOwner = existingRows.find(row => String(row.telegram_chat_id) === update.telegramChatId);
         const ownerBinding = existingRows.find(row => row.customer_token_hash === challenge.customer_token_hash && Number(row.store_id) === Number(challenge.store_id));
