@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const registerTelegramWebhook = require('../routes/telegram-webhook');
+const { createTenantStoreEntrySignature } = require('../server/services/telegram-store-entry');
 
 const secret = 'telegram-webhook-secret-for-tests';
 const token = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
@@ -171,5 +172,31 @@ test('tenant /stop revokes only bindings owned by the resolved merchant', async 
     assert.deepEqual(revoke[2], [7, '12345', '12345']);
   } finally {
     global.fetch = oldFetch;
+  }
+});
+
+test('tenant /start delivery link is signed by merchant and store, independent of notification Chat ID', async () => {
+  const { tenantHandler, calls } = setup();
+  const oldFetch = global.fetch;
+  const oldOrigin = process.env.FOODFLOW_PUBLIC_URL;
+  process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test';
+  const signature = createTenantStoreEntrySignature({ merchantId: 7, storeId: 9, secret });
+  global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: 3, chat: { id: 12345 } } }) });
+  try {
+    const req = request();
+    req.body.update_id = 78;
+    req.body.message.text = '/start delivery_9_' + signature;
+    req.params = { pathToken };
+    const res = response();
+    await tenantHandler(req, res);
+    assert.equal(res.code, 200);
+    const send = calls.find(call => call[0] === 'get' && call[1].includes('telegram_merchant_bots'));
+    assert.ok(send);
+    assert.equal(calls.some(call => call[1].includes('telegram_store_admin_recipients')), false);
+    assert.ok(global.fetch);
+  } finally {
+    global.fetch = oldFetch;
+    if (oldOrigin === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
+    else process.env.FOODFLOW_PUBLIC_URL = oldOrigin;
   }
 });
