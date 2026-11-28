@@ -380,7 +380,7 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
 
           const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
           const recipient = await getAsync(
-            'SELECT r.chat_id FROM telegram_store_admin_recipients r WHERE r.merchant_id=? AND r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\\'\\' AND NOT EXISTS (SELECT 1 FROM telegram_merchant_bots tb WHERE tb.merchant_id=r.merchant_id AND tb.client_bot_enabled=1) LIMIT 1',
+            `SELECT r.chat_id FROM telegram_store_admin_recipients r WHERE r.merchant_id=? AND r.store_id=? AND r.is_enabled=1 AND r.chat_id<>'' AND NOT EXISTS (SELECT 1 FROM telegram_merchant_bots tb WHERE tb.merchant_id=r.merchant_id AND tb.client_bot_enabled=1) LIMIT 1`,
             [store.merchant_id, storeId]
           );
           if (!recipient || !verifyStoreEntrySignature({ storeId, chatId: String(recipient.chat_id || ''), secret, signature })) {
