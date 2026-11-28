@@ -41,8 +41,10 @@ footer{margin-top:24px;font-size:12px;color:#8a94a6;text-align:center}
   try{
    if(!initData)throw new Error('请从 FoodFlow 统一 Client Bot 的菜单按钮打开此页面。');
    const hasStoreId=!!storeId,hasEntry=!!entry;
-   if(hasStoreId!==hasEntry||(hasStoreId&&(!/^\d+$/.test(storeId)||!/^[A-Za-z0-9_-]{43}$/.test(entry))))throw new Error('门店专属入口参数不完整，请重新从门店群组链接进入。');
-   const endpoint='/api/public/delivery/telegram-miniapp-stores'+(hasStoreId?'?store_id='+encodeURIComponent(storeId)+'&entry='+encodeURIComponent(entry):'');
+   if(botPath&&!/^[A-Za-z0-9_-]{43}$/.test(botPath))throw new Error('当前商户 Telegram 入口无效，请重新打开 Bot。');
+   if(hasStoreId!==hasEntry||(hasStoreId&&(!/^\d+$/.test(storeId)||!/^[A-Za-z0-9_-]{43}$/.test(entry))))throw new Error('门店专属入口参数不完整，请重新从商户 Bot 入口进入。');
+   const query=new URLSearchParams();if(botPath)query.set('bot',botPath);if(hasStoreId){query.set('store_id',storeId);query.set('entry',entry);}
+   const endpoint='/api/public/delivery/telegram-miniapp-stores'+(query.toString()?'?'+query.toString():'');
    const response=await fetch(endpoint,{cache:'no-store',headers:{accept:'application/json','X-Telegram-Init-Data':initData}});
    const data=await response.json().catch(()=>({}));
    if(!response.ok||!Array.isArray(data.stores))throw new Error(data.error||'门店列表暂时不可用，请稍后重试');
