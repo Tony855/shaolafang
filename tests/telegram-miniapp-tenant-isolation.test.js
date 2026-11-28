@@ -219,7 +219,6 @@ test('tenant Client Bot Mini App lists only stores owned by its resolved merchan
       ]
     });
     const res = response();
-    await ctx.handler(request(null, null, botPath), res);
     // The signed Telegram initData must be generated with the Bot that owns this path.
     const req = request(null, null, botPath);
     req.get = name => name.toLowerCase() === 'x-telegram-init-data' ? signedInitData(tenantToken) : '';
