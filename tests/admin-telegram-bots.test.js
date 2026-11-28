@@ -16,7 +16,7 @@ function response() {
 function setup(options = {}) {
   const routes = new Map();
   const calls = [];
-  const state = { config: options.config || null };
+  const state = { config: options.config || null, registry: [] };
   const app = {
     get(path, ...handlers) { routes.set('GET ' + path, handlers.at(-1)); },
     put(path, ...handlers) { routes.set('PUT ' + path, handlers.at(-1)); }
@@ -32,6 +32,8 @@ function setup(options = {}) {
     },
     runAsync: async (sql, params = []) => {
       calls.push({ type: 'run', sql, params });
+      if (sql.startsWith('DELETE FROM telegram_merchant_bot_token_registry')) state.registry = [];
+      if (sql.startsWith('INSERT INTO telegram_merchant_bot_token_registry')) state.registry.push({ fingerprint: params[0], botConfigId: params[1], profile: params[2] });
       if (sql.startsWith('INSERT INTO telegram_merchant_bots')) {
         state.config = {
           id: 4, merchant_id: 7,
@@ -51,7 +53,7 @@ function setup(options = {}) {
           admin_bot_username: params[6], admin_bot_enabled: params[7]
         });
       }
-      return { affectedRows: 1 };
+      return { affectedRows: 1, ...(sql.startsWith('INSERT INTO telegram_merchant_bots') ? { lastID: 4 } : {}) };
     },
     withTransaction: async work => work(),
     requireAdminKey: pass,
@@ -116,6 +118,8 @@ test('tenant Bot configuration encrypts credentials and stores only token finger
     assert.match(state.config.admin_bot_token_fingerprint, /^[a-f0-9]{64}$/);
     assert.ok(state.config.webhook_path_token_encrypted);
     assert.ok(state.config.webhook_secret_encrypted);
+    assert.equal(state.registry.length, 2);
+    assert.deepEqual(state.registry.map(row => row.profile).sort(), ['admin', 'client']);
     assert.equal(JSON.stringify(calls).includes(clientToken), false);
     assert.equal(JSON.stringify(calls).includes(adminToken), false);
   } finally {
