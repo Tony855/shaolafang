@@ -181,7 +181,8 @@ test('tenant /start delivery link is signed by merchant and store, independent o
   const oldOrigin = process.env.FOODFLOW_PUBLIC_URL;
   process.env.FOODFLOW_PUBLIC_URL = 'https://foodflow.example.test';
   const signature = createTenantStoreEntrySignature({ merchantId: 7, storeId: 9, secret });
-  global.fetch = async () => ({ ok: true, json: async () => ({ ok: true, result: { message_id: 3, chat: { id: 12345 } } }) });
+  const fetchCalls = [];
+  global.fetch = async (url, options) => { fetchCalls.push({ url: String(url), options }); return { ok: true, json: async () => ({ ok: true, result: { message_id: 3, chat: { id: 12345 } } }) }; };
   try {
     const req = request();
     req.body.update_id = 78;
@@ -193,7 +194,11 @@ test('tenant /start delivery link is signed by merchant and store, independent o
     const send = calls.find(call => call[0] === 'get' && call[1].includes('telegram_merchant_bots'));
     assert.ok(send);
     assert.equal(calls.some(call => call[1].includes('telegram_store_admin_recipients')), false);
-    assert.ok(global.fetch);
+    const sendMessage = fetchCalls.find(call => call.url.endsWith('/sendMessage'));
+    assert.ok(sendMessage);
+    const payload = JSON.parse(sendMessage.options.body);
+    const webAppUrl = payload.reply_markup.inline_keyboard[0][0].web_app.url;
+    assert.match(webAppUrl, /^https:\/\/foodflow\.example\.test\/delivery\/order\\?store_id=9&entry=[A-Za-z0-9_-]{43}&telegram=1&bot=P{43}$/);
   } finally {
     global.fetch = oldFetch;
     if (oldOrigin === undefined) delete process.env.FOODFLOW_PUBLIC_URL;
