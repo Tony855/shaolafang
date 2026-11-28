@@ -2,8 +2,8 @@
 
 const crypto = require('node:crypto');
 const { normalizeRouteError } = require('../server/utils/http-error');
-const { validateBotToken, getTelegramBotUsername } = require('../server/services/telegram-bot');
-const { encryptBotToken, fingerprintBotToken } = require('../server/services/telegram-bot-credentials');
+const { validateBotToken, getTelegramBotUsername, setTelegramWebhook, setTelegramMenuButton } = require('../server/services/telegram-bot');
+const { encryptBotToken, decryptBotToken, fingerprintBotToken } = require('../server/services/telegram-bot-credentials');
 
 function flag(value, fallback, label) {
   if (value === undefined) return fallback;
@@ -15,7 +15,10 @@ function flag(value, fallback, label) {
 module.exports = function registerTenantTelegramBotRoutes(app, deps) {
   const {
     getAsync, runAsync, withTransaction, requireAdminKey, requirePermission,
-    getClientIp, getTelegramBotUsername: getUsername = getTelegramBotUsername
+    getClientIp, getTelegramBotUsername: getUsername = getTelegramBotUsername,
+    decryptCredential = decryptBotToken,
+    configureWebhook = setTelegramWebhook,
+    configureMenuButton = setTelegramMenuButton
   } = deps;
 
   function getMerchantId(req) {
@@ -39,6 +42,13 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
         username: row?.admin_bot_username || null
       }
     };
+  }
+
+  function publicOrigin() {
+    try {
+      const parsed = new URL(String(process.env.FOODFLOW_PUBLIC_URL || '').trim());
+      return parsed.protocol === 'https:' && !parsed.username && !parsed.password ? parsed.origin : '';
+    } catch (_) { return ''; }
   }
 
   async function audit(req, merchantId, action, details) {
@@ -88,6 +98,10 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
       const clientUsername = suppliedClientToken ? await getUsername({ token: suppliedClientToken }) : null;
       const adminUsername = suppliedAdminToken ? await getUsername({ token: suppliedAdminToken }) : null;
       let saved;
+      let savedCredentials;
+      let savedClientEnabled = 0;
+      let previousClientTokenEncrypted = null;
+      let previousClientFingerprint = null;
       await withTransaction(async () => {
         const merchant = await getAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
         if (!merchant) throw Object.assign(new Error('商户不存在或已停用'), { status: 403 });
@@ -95,6 +109,8 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
           'SELECT * FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE',
           [merchantId]
         );
+        previousClientTokenEncrypted = current?.client_bot_token_encrypted || null;
+        previousClientFingerprint = current?.client_bot_token_fingerprint || null;
 
         const clientTokenEncrypted = clearClient ? null
           : suppliedClientToken ? encryptBotToken(suppliedClientToken) : current?.client_bot_token_encrypted || null;
@@ -120,18 +136,20 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
           throw Object.assign(new Error('至少配置一个租户 Bot Token'), { status: 400 });
         }
 
-        const pathToken = current ? null : crypto.randomBytes(32).toString('base64url');
-        const pathHash = current ? current.webhook_path_hash : crypto.createHash('sha256').update(pathToken).digest('hex');
-        const pathEncrypted = current ? current.webhook_path_token_encrypted : encryptBotToken(pathToken);
-        const webhookSecretEncrypted = current ? current.webhook_secret_encrypted
-          : encryptBotToken(crypto.randomBytes(32).toString('base64url'));
+        const rotateClientWebhook = !current || Boolean(suppliedClientToken || clearClient);
+        const pathToken = rotateClientWebhook ? crypto.randomBytes(32).toString('base64url') : null;
+        const pathHash = rotateClientWebhook ? crypto.createHash('sha256').update(pathToken).digest('hex') : current.webhook_path_hash;
+        const pathEncrypted = rotateClientWebhook ? encryptBotToken(pathToken) : current.webhook_path_token_encrypted;
+        const webhookSecretEncrypted = rotateClientWebhook
+          ? encryptBotToken(crypto.randomBytes(32).toString('base64url')) : current.webhook_secret_encrypted;
 
         let botConfigId = current ? Number(current.id) : null;
         if (current) {
           await runAsync(
-            'UPDATE telegram_merchant_bots SET client_bot_token_encrypted=?, client_bot_token_fingerprint=?, client_bot_username=?, client_bot_enabled=?, admin_bot_token_encrypted=?, admin_bot_token_fingerprint=?, admin_bot_username=?, admin_bot_enabled=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND merchant_id=?',
+            'UPDATE telegram_merchant_bots SET client_bot_token_encrypted=?, client_bot_token_fingerprint=?, client_bot_username=?, client_bot_enabled=?, admin_bot_token_encrypted=?, admin_bot_token_fingerprint=?, admin_bot_username=?, admin_bot_enabled=?, webhook_path_hash=?, webhook_path_token_encrypted=?, webhook_secret_encrypted=?, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND merchant_id=?',
             [clientTokenEncrypted, clientFingerprint, resolvedClientUsername, clientEnabled,
-              adminTokenEncrypted, adminFingerprint, resolvedAdminUsername, adminEnabled, current.id, merchantId]
+              adminTokenEncrypted, adminFingerprint, resolvedAdminUsername, adminEnabled,
+              pathHash, pathEncrypted, webhookSecretEncrypted, current.id, merchantId]
           );
         } else {
           const inserted = await runAsync(
@@ -156,14 +174,61 @@ module.exports = function registerTenantTelegramBotRoutes(app, deps) {
           'SELECT client_bot_enabled, client_bot_token_encrypted, client_bot_username, admin_bot_enabled, admin_bot_token_encrypted, admin_bot_username FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
           [merchantId]
         );
+        savedCredentials = await getAsync(
+          'SELECT id, client_bot_enabled, client_bot_token_encrypted, webhook_path_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+          [merchantId]
+        );
+        savedClientEnabled = clientEnabled;
         await audit(req, merchantId, current ? 'update_telegram_merchant_bot' : 'create_telegram_merchant_bot', {
           client_enabled: Boolean(clientEnabled), client_token_changed: Boolean(suppliedClientToken || clearClient),
           admin_enabled: Boolean(adminEnabled), admin_token_changed: Boolean(suppliedAdminToken || clearAdmin)
         });
       });
 
+      let webhookConfigured = false;
+      let menuButtonConfigured = false;
+      const currentClientToken = savedCredentials?.client_bot_token_encrypted
+        ? decryptCredential(savedCredentials.client_bot_token_encrypted) : '';
+      if (currentClientToken && savedClientEnabled === 1) {
+        const origin = publicOrigin();
+        if (!origin) {
+          await runAsync('UPDATE telegram_merchant_bots SET client_bot_enabled=0, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND merchant_id=?', [savedCredentials.id, merchantId]);
+          return res.status(503).json({ error: 'FoodFlow 公网 HTTPS 地址未配置，Client Bot 未启用' });
+        }
+        try {
+          const pathToken = decryptCredential(savedCredentials.webhook_path_token_encrypted);
+          const webhookSecret = decryptCredential(savedCredentials.webhook_secret_encrypted);
+          await configureWebhook({
+            token: currentClientToken, enabled: true, secretToken: webhookSecret,
+            webhookUrl: origin + '/api/telegram/tenant/' + encodeURIComponent(pathToken) + '/client/webhook'
+          });
+          webhookConfigured = true;
+        } catch (_) {
+          await runAsync('UPDATE telegram_merchant_bots SET client_bot_enabled=0, updated_at=UTC_TIMESTAMP(3) WHERE id=? AND merchant_id=? AND client_bot_token_fingerprint=?', [savedCredentials.id, merchantId, fingerprintBotToken(currentClientToken)]);
+          return res.status(502).json({ error: 'Telegram Client Bot Webhook 注册失败，已自动停用该 Bot' });
+        }
+        try {
+          await configureMenuButton({ token: currentClientToken, enabled: true, webAppUrl: origin + '/telegram/delivery', text: '🍽️ 本店点餐' });
+          menuButtonConfigured = true;
+        } catch (_) { menuButtonConfigured = false; }
+      } else if (currentClientToken) {
+        try { await configureWebhook({ token: currentClientToken, enabled: false }); webhookConfigured = true; } catch (_) {}
+        try { await configureMenuButton({ token: currentClientToken, enabled: false }); menuButtonConfigured = true; } catch (_) {}
+      }
+
+      if (previousClientTokenEncrypted && previousClientFingerprint &&
+          previousClientFingerprint !== (savedCredentials?.client_bot_token_encrypted ? fingerprintBotToken(currentClientToken) : null)) {
+        try {
+          const previousToken = decryptCredential(previousClientTokenEncrypted);
+          if (previousToken !== currentClientToken) {
+            await configureWebhook({ token: previousToken, enabled: false });
+            await configureMenuButton({ token: previousToken, enabled: false });
+          }
+        } catch (_) { /* Old credentials may no longer decrypt after an operator key rotation. */ }
+      }
+
       res.setHeader('Cache-Control', 'no-store, private');
-      res.json({ success: true, config: publicConfig(saved) });
+      res.json({ success: true, config: publicConfig(saved), webhookConfigured, menuButtonConfigured });
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
         return res.status(409).json({ error: '该 Telegram Bot Token 已被其他租户使用' });
