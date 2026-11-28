@@ -4,7 +4,7 @@
 
 The Telegram business-notification implementation was merged into `main` through [PR #266](https://github.com/Tony855/shaolafang/pull/266). Business events are inserted into a durable InnoDB outbox in the same transaction as the order/payment/refund change. A separate opt-in worker performs delivery with leases, bounded retries, dead-letter handling, retention cleanup, and graceful shutdown.
 
-**The worker is disabled by default in the repository.** Production delivery requires an explicit environment flag, configured Bot profiles, recipients, and customer bindings. Enabling the worker alone does not create recipients or bind customers.
+**The worker is enabled by default in production.** Delivery still requires configured Bot profiles, recipients, and customer bindings. Set `TELEGRAM_NOTIFICATION_WORKER_ENABLED=false` only to intentionally pause delivery; enabling the worker alone does not create recipients or bind customers.
 
 Automated CI and database integration coverage passed on the merged implementation. This does not replace live Telegram staging acceptance: dedicated test Bots, Chat IDs, multiple stores, QR rebind/revoke, worker restart, and backup/restore still need to be exercised before treating the feature as production-accepted.
 
