@@ -95,15 +95,15 @@ async function getTelegramGroupChats({ token, fetchImpl = globalThis.fetch }) {
     if (Number.isSafeInteger(update?.update_id)) maxUpdateId = Math.max(maxUpdateId, update.update_id);
     const message = update?.message || update?.edited_message || update?.channel_post;
     const chat = message?.chat || update?.my_chat_member?.chat;
-    if (!chat || !['private', 'group', 'supergroup'].includes(String(chat.type || ''))) continue;
-    // Private destinations are discovered only when the user explicitly starts
-    // the Admin Bot; message text is never returned or retained.
-    if (chat.type === 'private' && !/^\/start(?:@\w+)?(?:\s|$)/i.test(String(message?.text || ''))) continue;
+    if (!chat || !['group', 'supergroup'].includes(String(chat.type || ''))) continue;
     const chatId = String(chat.id ?? '');
-    if (!/^-?\d{5,20}$/.test(chatId) || chatId === '0') continue;
-    const username = typeof chat.username === 'string' ? chat.username.slice(0, 32) : '';
-    const title = chat.type === 'private' ? (username ? '@' + username : 'Private chat') : String(chat.title || '未命名群组').slice(0, 255);
-    chats.set(chatId, { chatId, title, type: String(chat.type), username });
+    if (!/^-\d{1,20}$/.test(chatId)) continue;
+    chats.set(chatId, {
+      chatId,
+      title: String(chat.title || '未命名群组').slice(0, 255),
+      type: String(chat.type),
+      username: typeof chat.username === 'string' ? chat.username.slice(0, 32) : ''
+    });
   }
 
   // Confirm only the updates returned by this read, preventing the Admin Bot
