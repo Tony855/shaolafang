@@ -31,7 +31,7 @@ module.exports = function registerTelegramWebhook(app, deps) {
     try {
       const pathHash = crypto.createHash('sha256').update(pathToken, 'utf8').digest('hex');
       const config = await getAsync(
-        'SELECT id, merchant_id, client_bot_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE webhook_path_hash=? AND client_bot_enabled=1 LIMIT 1',
+        'SELECT id, merchant_id, client_bot_token_encrypted, webhook_path_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE webhook_path_hash=? AND client_bot_enabled=1 LIMIT 1',
         [pathHash]
       );
       if (!config || !config.client_bot_token_encrypted || !config.webhook_secret_encrypted) {
@@ -39,6 +39,7 @@ module.exports = function registerTelegramWebhook(app, deps) {
       }
       const token = decryptCredential(config.client_bot_token_encrypted);
       const secret = decryptCredential(config.webhook_secret_encrypted);
+      const resolvedPathToken = decryptCredential(config.webhook_path_token_encrypted);
       const merchantId = Number(config.merchant_id);
       const botConfigId = Number(config.id);
       if (!Number.isSafeInteger(merchantId) || merchantId <= 0 ||
@@ -49,6 +50,7 @@ module.exports = function registerTelegramWebhook(app, deps) {
         ...deps,
         merchantId,
         botConfigId,
+        webhookPathToken: resolvedPathToken,
         secret,
         getBotToken: async () => token
       });
