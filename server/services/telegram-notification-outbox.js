@@ -88,14 +88,22 @@ async function markTelegramNotificationSending(id, workerId, leaseSeconds = 60, 
         return markDead('invalid_recipient');
       }
 
-      const botSettings = await allAsync(
-        "SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled' FOR UPDATE"
-      );
-      if (!Array.isArray(botSettings) || !botSettings.length || botSettings[0].value !== '1') {
-        return markDead('event_disabled');
-      }
       const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchantId]);
       if (!Array.isArray(merchants) || !merchants.length) return markDead('event_disabled');
+      const tenantBots = await allAsync(
+        'SELECT admin_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE',
+        [merchantId]
+      );
+      if (Array.isArray(tenantBots) && tenantBots.length) {
+        if (Number(tenantBots[0].admin_bot_enabled) !== 1) return markDead('event_disabled');
+      } else {
+        const botSettings = await allAsync(
+          "SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled' FOR UPDATE"
+        );
+        if (!Array.isArray(botSettings) || !botSettings.length || botSettings[0].value !== '1') {
+          return markDead('event_disabled');
+        }
+      }
 
       // Group send boundary lock order matches enqueue and subscription writes:
       // store -> destination -> subscription -> outbox. If an admin disables
