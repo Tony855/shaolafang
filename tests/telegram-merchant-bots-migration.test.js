@@ -11,7 +11,7 @@ test('tenant Telegram Bot migration creates tenant-scoped Bot configuration and 
   const statements = [];
   await ensureTelegramMerchantBotSchema({ runAsync: async sql => { statements.push(sql); } });
   assert.deepEqual(statements, SCHEMA_STATEMENTS);
-  assert.equal(statements.length, 2);
+  assert.equal(statements.length, 3);
   assert.match(statements[0], /CREATE TABLE IF NOT EXISTS telegram_merchant_bots/);
   assert.match(statements[0], /UNIQUE KEY uq_telegram_merchant_bots_merchant \(merchant_id\)/);
   assert.match(statements[0], /client_bot_token_encrypted TEXT/);
