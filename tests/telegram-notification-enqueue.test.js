@@ -22,6 +22,7 @@ test('customer Telegram enqueue locks settings, tenant, and exact binding before
         assert.deepEqual(params, [7]);
         return [{ id: 7 }];
       }
+      if (sql.includes('FROM telegram_merchant_bots')) return [];
       if (sql.includes('FROM stores')) {
         assert.match(sql, /FOR UPDATE/);
         assert.deepEqual(params, [9, 7]);
@@ -53,6 +54,7 @@ test('customer Telegram enqueue fails closed without enabled Bot or matching bin
     allAsync: async sql => {
       if (sql.includes('settings')) return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_client_bot_enabled', value: '1' }];
       if (sql.includes('FROM merchants')) return [{ id: 7 }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [];
       if (sql.includes('FROM stores')) return [{ id: 9 }];
       return [];
     },
@@ -76,6 +78,7 @@ test('store admin enqueue locks Bot, tenant, and recipient rows before writing',
         assert.deepEqual(params, [7]);
         return [{ id: 7 }];
       }
+      if (sql.includes('FROM telegram_merchant_bots')) return [];
       if (sql.includes('FROM stores')) {
         assert.match(sql, /FOR UPDATE/);
         assert.deepEqual(params, [9, 7]);
