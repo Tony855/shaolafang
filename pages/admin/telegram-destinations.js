@@ -205,7 +205,7 @@
           });
           discoveredSelect.hidden = chats.length === 0;
         }
-        if (hint) hint.textContent = result.hint || (chats.length ? '选择群组或私聊后登记；此操作不会自动保存。' : '暂未发现群组或私聊。');
+        if (hint) hint.textContent = result.hint || (chats.length ? '选择已发现的群组；私聊目标可手动输入正 Chat ID。' : '暂未发现群组。私聊目标可手动输入正 Chat ID。');
       } catch (error) {
         if (hint) hint.textContent = error.message || '获取群组失败';
       } finally {
