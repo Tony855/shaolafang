@@ -17,8 +17,10 @@ test('tenant Telegram Bot migration creates tenant-scoped Bot configuration and 
   assert.match(statements[0], /client_bot_token_encrypted TEXT/);
   assert.match(statements[0], /admin_bot_token_encrypted TEXT/);
   assert.match(statements[0], /webhook_path_hash CHAR\(64\)/);
-  assert.match(statements[1], /PRIMARY KEY \(bot_config_id, update_id\)/);
-  assert.match(statements[1], /FOREIGN KEY \(bot_config_id\) REFERENCES telegram_merchant_bots\(id\)/);
+  assert.match(statements[1], /PRIMARY KEY \(token_fingerprint\)/);
+  assert.match(statements[1], /UNIQUE KEY uq_telegram_bot_token_registry_profile/);
+  assert.match(statements[2], /PRIMARY KEY \(bot_config_id, update_id\)/);
+  assert.match(statements[2], /FOREIGN KEY \(bot_config_id\) REFERENCES telegram_merchant_bots\(id\)/);
 });
 
 test('tenant Telegram Bot migration requires the database executor', async () => {
