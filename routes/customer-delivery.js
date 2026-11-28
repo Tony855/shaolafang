@@ -9,7 +9,8 @@ const { enqueueCustomerTelegramNotification, enqueueStoreAdminTelegramNotificati
 const { getTelegramBotUsername } = require('../server/services/telegram-bot');
 const { safeErrorMetadata } = require('../server/middleware/safe-error-metadata');
 const { verifyTelegramWebAppInitData } = require('../server/services/telegram-webapp-auth');
-const { createStoreEntrySignature, verifyStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { createStoreEntrySignature, verifyStoreEntrySignature, createTenantStoreEntrySignature, verifyTenantStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { decryptBotToken } = require('../server/services/telegram-bot-credentials');
 
 function positiveId(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
@@ -72,30 +73,86 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       }
 
       failureStage = 'bot_configuration';
-      const rows = await allAsync(
-        'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
-        ['telegram_client_bot_enabled', 'telegram_client_bot_token']
-      );
-      const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
-      const botToken = String(config.telegram_client_bot_token || '');
+      const botPath = String(req.query?.bot || '');
+      let tenantMerchantId = null;
+      let botToken = '';
+      let secret = '';
+      if (botPath) {
+        if (!/^[A-Za-z0-9_-]{43}$/.test(botPath)) return res.status(404).json({ error: 'Telegram Bot 入口无效' });
+        const pathHash = crypto.createHash('sha256').update(botPath).digest('hex');
+        const tenantBot = await getAsync(
+          'SELECT merchant_id, client_bot_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE webhook_path_hash=? AND client_bot_enabled=1 LIMIT 1',
+          [pathHash]
+        );
+        if (!tenantBot?.client_bot_token_encrypted || !tenantBot?.webhook_secret_encrypted) {
+          return res.status(403).json({ error: '此商户的 Telegram Bot 未启用或入口已失效' });
+        }
+        tenantMerchantId = positiveId(String(tenantBot.merchant_id || ''));
+        if (!tenantMerchantId) return res.status(403).json({ error: 'Telegram Bot 租户配置无效' });
+        botToken = decryptBotToken(tenantBot.client_bot_token_encrypted);
+        secret = decryptBotToken(tenantBot.webhook_secret_encrypted);
+      } else {
+        const rows = await allAsync(
+          'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
+          ['telegram_client_bot_enabled', 'telegram_client_bot_token']
+        );
+        const config = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.key, row.value]));
+        if (config.telegram_client_bot_enabled !== '1') {
+          logTelegramStoreResolutionRejected('bot_configuration', 'legacy_bot_disabled');
+          return res.status(403).json({ error: '统一 Client Bot 未启用，请使用商户自己的 Telegram Bot 入口' });
+        }
+        botToken = String(config.telegram_client_bot_token || '');
+        secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+      }
       const telegramIdentity = verifyTelegramWebAppInitData(initData, botToken);
-      if (config.telegram_client_bot_enabled !== '1' || !telegramIdentity) {
-        logTelegramStoreResolutionRejected('bot_configuration', config.telegram_client_bot_enabled !== '1' ? 'bot_disabled' : 'init_data_invalid');
-        return res.status(403).json({ error: '统一 Client Bot 身份无效、未启用或已过期，请重新打开门店专属链接' });
+      if (!telegramIdentity) {
+        logTelegramStoreResolutionRejected('bot_configuration', 'init_data_invalid');
+        return res.status(403).json({ error: 'Telegram Bot 身份无效或已过期，请重新打开商户入口' });
       }
 
       failureStage = 'entry_validation';
       const storeId = positiveId(String(req.query?.store_id || ''));
       const signature = typeof req.query?.entry === 'string' ? req.query.entry : '';
-      const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
       if (secret.length < 32 || secret.length > 256) {
         logTelegramStoreResolutionRejected('entry_validation', 'signing_secret_unconfigured');
         return res.status(503).json({ error: 'Telegram 门店入口尚未完成安全配置，请联系管理员' });
       }
 
-      // The shared bot's global menu button has no store query parameters.
-      // Resolve it only from the authenticated Telegram user's active customer
-      // binding. Store-specific links still require their HMAC signature.
+      if (tenantMerchantId) {
+        if (!storeId && !signature) {
+          failureStage = 'tenant_store_lookup';
+          const stores = await allAsync(
+            'SELECT s.id, s.name FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.merchant_id=? AND s.active=1 AND m.status=1 ORDER BY s.name, s.id LIMIT 100',
+            [tenantMerchantId]
+          );
+          const list = (Array.isArray(stores) ? stores : []).map(store => ({
+            id: Number(store.id),
+            merchantId: tenantMerchantId,
+            name: cleanText(String(store.name || ''), 100) || '商户门店',
+            entry: createTenantStoreEntrySignature({ merchantId: tenantMerchantId, storeId: store.id, secret })
+          })).filter(store => Number.isSafeInteger(store.id) && store.id > 0);
+          if (!list.length) return res.status(404).json({ error: '此商户目前没有可点餐的门店' });
+          return res.json({ stores: list });
+        }
+        if (!storeId || !/^[A-Za-z0-9_-]{43}$/.test(signature)) {
+          return res.status(403).json({ error: '门店专属链接无效或已过期，请重新获取' });
+        }
+        failureStage = 'tenant_store_validation';
+        const store = await getAsync(
+          'SELECT s.id, s.name, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.id=? AND s.merchant_id=? AND s.active=1 AND m.status=1 LIMIT 1',
+          [storeId, tenantMerchantId]
+        );
+        if (!store || !verifyTenantStoreEntrySignature({ merchantId: tenantMerchantId, storeId, secret, signature })) {
+          return res.status(403).json({ error: '此门店不属于当前商户或入口签名无效' });
+        }
+        return res.json({ stores: [{
+          id: Number(store.id), merchantId: tenantMerchantId,
+          name: cleanText(String(store.name || ''), 100) || '商户门店', entry: signature
+        }] });
+      }
+
+      // Legacy shared-Bot compatibility: store-specific links remain bound to
+      // the store's current notification Chat ID until that merchant migrates.
       if (!storeId && !signature) {
         failureStage = 'customer_binding_lookup';
         const telegramUserId = String(telegramIdentity.user.id);
@@ -104,23 +161,14 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
           [telegramUserId]
         );
         const binding = Array.isArray(bindings) ? bindings[0] : null;
-        if (!binding) {
-          logTelegramStoreResolutionRejected('customer_binding_lookup', 'active_customer_binding_missing');
-          return res.status(404).json({ error: '当前 Telegram 账号尚未绑定可用门店。请先点击门店管理员提供的专属点餐链接，再使用本店菜单。' });
-        }
+        if (!binding) return res.status(404).json({ error: '当前 Telegram 账号尚未绑定可用门店。请先点击门店管理员提供的专属点餐链接。' });
         const resolvedStoreId = positiveId(String(binding.id || binding.store_id || ''));
-        if (!resolvedStoreId || !binding.chat_id) {
-          logTelegramStoreResolutionRejected('customer_binding_lookup', 'active_customer_binding_invalid');
-          return res.status(404).json({ error: '当前 Telegram 账号没有可用的门店入口，请重新获取门店专属链接' });
-        }
+        if (!resolvedStoreId || !binding.chat_id) return res.status(404).json({ error: '当前 Telegram 账号没有可用的门店入口' });
         const resolvedEntry = createStoreEntrySignature({ storeId: resolvedStoreId, chatId: String(binding.chat_id), secret });
-        res.json({ stores: [{
-          id: resolvedStoreId,
-          merchantId: Number(binding.merchant_id),
-          name: cleanText(String(binding.name || ''), 100) || 'FoodFlow 门店',
-          entry: resolvedEntry
+        return res.json({ stores: [{
+          id: resolvedStoreId, merchantId: Number(binding.merchant_id),
+          name: cleanText(String(binding.name || ''), 100) || 'FoodFlow 门店', entry: resolvedEntry
         }] });
-        return;
       }
 
       if (!storeId || !/^[A-Za-z0-9_-]{43}$/.test(signature)) {
@@ -129,19 +177,16 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       }
       failureStage = 'store_binding_lookup';
       const recipient = await getAsync(
-        'SELECT r.chat_id, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 LIMIT 1',
+        'SELECT r.chat_id, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\\'\\' AND s.active=1 AND m.status=1 LIMIT 1',
         [storeId]
       );
       if (!recipient || !verifyStoreEntrySignature({ storeId, chatId: String(recipient.chat_id || ''), secret, signature })) {
         logTelegramStoreResolutionRejected('store_binding_lookup', recipient ? 'entry_signature_mismatch' : 'active_store_binding_missing');
         return res.status(403).json({ error: '门店群组绑定已变更或已解除，请向门店管理员获取最新专属链接' });
       }
-      failureStage = 'response';
       res.json({ stores: [{
-        id: Number(recipient.id),
-        merchantId: Number(recipient.merchant_id),
-        name: cleanText(String(recipient.name || ''), 100) || 'FoodFlow 门店',
-        entry: signature
+        id: Number(recipient.id), merchantId: Number(recipient.merchant_id),
+        name: cleanText(String(recipient.name || ''), 100) || 'FoodFlow 门店', entry: signature
       }] });
     } catch (error) {
       const code = typeof error?.code === 'string' && /^[A-Z0-9_]{1,40}$/.test(error.code) ? error.code : undefined;
