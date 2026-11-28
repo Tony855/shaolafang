@@ -91,7 +91,7 @@ The Mini App store selector is not an authentication mechanism. It does not trus
 - Webhook update IDs are retained for 30 days; expired and consumed binding challenges are cleaned during new challenge creation. Before restoring a database backup, disable the Telegram worker on every application node and wait for in-flight sends to finish. After restore, customer Telegram bindings/challenges are invalidated because old customer bearer sessions are not restored; customers must scan again and rebind. Pending customer notifications from the restored snapshot are dead-lettered instead of retrying against stale bindings.
 ## Staging acceptance checklist
 
-Run this only against a disposable staging database and dedicated test Bot accounts/Chat IDs. Keep the worker disabled on production.
+Run this only against a disposable staging database and dedicated test Bot accounts/Chat IDs. The production worker remains enabled by default; pause it explicitly only for maintenance or rollback.
 
 1. Configure independent Client/Admin Bot tokens in the super-admin console. Verify each fixed test message reaches only its configured test chat.
 2. Set `TELEGRAM_CLIENT_WEBHOOK_SECRET` and register the Client Bot webhook. Confirm `getWebhookInfo` reports the expected HTTPS webhook URL and no persistent delivery error.
