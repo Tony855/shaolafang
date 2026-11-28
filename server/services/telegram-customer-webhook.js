@@ -91,15 +91,15 @@ function createTelegramCustomerWebhookHandler({
         }
 
         if (update.action === 'home') {
-          // Resume the customer's most recently bound active store. This keeps
-          // the shared Bot convenient without exposing a cross-tenant store
-          // directory or trusting an unverified Telegram start parameter.
+          // Resume the customer's most recently bound store within this Bot's tenant.
+          // A tenant Bot never queries or exposes another merchant's customer bindings.
           const bindings = await allAsync(
             scopedMerchantId
               ? 'SELECT b.store_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id WHERE b.merchant_id=? AND b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND b.revoked_at IS NULL AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1'
               : 'SELECT b.store_id, r.chat_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id JOIN telegram_store_admin_recipients r ON r.merchant_id=b.merchant_id AND r.store_id=b.store_id WHERE b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND r.is_enabled=1 AND r.chat_id<>\\'\\' AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1',
             scopedMerchantId ? [scopedMerchantId, update.telegramChatId, update.telegramUserId] : [update.telegramChatId, update.telegramUserId]
-          );          const binding = Array.isArray(bindings) ? bindings[0] : null;
+          );
+          const binding = Array.isArray(bindings) ? bindings[0] : null;
           const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
           let publicOrigin = '';
           try {
@@ -133,7 +133,8 @@ function createTelegramCustomerWebhookHandler({
               ? 'SELECT s.id, s.name, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.merchant_id=? AND s.id=? AND s.active=1 AND m.status=1 LIMIT 1'
               : 'SELECT r.chat_id, r.is_enabled, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\\'\\' AND s.active=1 AND m.status=1 LIMIT 1',
             scopedMerchantId ? [scopedMerchantId, update.storeId] : [update.storeId]
-          );          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
+          );
+          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
           let publicOrigin = '';
           try {
             const parsed = new URL(publicUrl);
