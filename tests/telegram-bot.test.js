@@ -208,14 +208,15 @@ test('rejects insecure or weak webhook settings before contacting Telegram', asy
 });
 
 
-test('discovers group and supergroup IDs without returning message content', async () => {
+test('discovers group, supergroup and explicit private-start IDs without returning message content', async () => {
   const requests = [];
   const updates = {
     ok: true,
     result: [
       { update_id: 101, message: { chat: { id: -12345, type: 'group', title: 'Kitchen Team' }, text: 'private message text' } },
       { update_id: 102, message: { chat: { id: -1009876543210, type: 'supergroup', title: 'Store Ops', username: 'store_ops' }, text: '/start' } },
-      { update_id: 103, message: { chat: { id: 123456, type: 'private', first_name: 'Customer' }, text: 'hello' } }
+      { update_id: 103, message: { chat: { id: 123456, type: 'private', first_name: 'Customer' }, text: 'hello' } },
+      { update_id: 104, message: { chat: { id: 765432, type: 'private', username: 'manager' }, text: '/start@FoodFlowAdminBot' } }
     ]
   };
   const chats = await getTelegramGroupChats({
@@ -225,12 +226,14 @@ test('discovers group and supergroup IDs without returning message content', asy
       return { ok: true, status: 200, json: async () => requests.length === 1 ? updates : { ok: true, result: [] } };
     }
   });
-  assert.equal(chats.length, 2);
-  assert.deepEqual(chats.map(chat => chat.chatId).sort(), ['-1009876543210', '-12345']);
+  assert.equal(chats.length, 3);
+  assert.deepEqual(chats.map(chat => chat.chatId).sort(), ['-1009876543210', '-12345', '765432']);
   assert.equal(chats.find(chat => chat.chatId === '-1009876543210').type, 'supergroup');
+  assert.equal(chats.find(chat => chat.chatId === '765432').type, 'private');
+  assert.equal(chats.find(chat => chat.chatId === '765432').title, '@manager');
   assert.equal(JSON.stringify(chats).includes('private message text'), false);
   assert.equal(JSON.stringify(chats).includes('Customer'), false);
-  assert.match(requests[1], /offset=104/);
+  assert.match(requests[1], /offset=105/);
 });
 
 test('reports Admin Bot webhook conflict during group discovery', async () => {
