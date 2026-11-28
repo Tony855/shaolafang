@@ -1197,7 +1197,7 @@ async function initDatabase() {
 
   // Both tenant columns and parent tables now exist; only now add the
   // merchant-scoped destination/subscription foreign keys.
-  await ensureTelegramChatDestinationSchema({ runAsync });
+  await ensureTelegramChatDestinationSchema({ runAsync, getAsync });
   // Idempotently copy legacy one-store recipients into merchant-scoped subscriptions.
   // Conflicting cross-merchant Chat IDs are quarantined for manual resolution.
   await backfillTelegramStoreSubscriptions({ allAsync, getAsync, runAsync, withTransaction, logger: console });
