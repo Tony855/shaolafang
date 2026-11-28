@@ -133,3 +133,22 @@ test('tenant Bot cannot be enabled without a token', async () => {
   assert.equal(res.statusCode, 409);
   assert.match(res.body.error, /必须配置 Token/);
 });
+
+test('tenant Client and Admin profiles cannot reuse the same Bot token', async () => {
+  const oldKey = process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+  process.env.TELEGRAM_BOT_ENCRYPTION_KEY = '11'.repeat(32);
+  try {
+    const { routes } = setup();
+    const token = '12345:' + 'c'.repeat(30);
+    const res = response();
+    await routes.put('PUT /api/admin/telegram/bot')({
+      merchantId: 7, adminId: 3, isPrimaryAdmin: true,
+      body: { clientBotToken: token, adminBotToken: token }
+    }, res);
+    assert.equal(res.statusCode, 409);
+    assert.match(res.body.error, /必须使用不同/);
+  } finally {
+    if (oldKey === undefined) delete process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+    else process.env.TELEGRAM_BOT_ENCRYPTION_KEY = oldKey;
+  }
+});
