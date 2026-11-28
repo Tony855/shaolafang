@@ -125,9 +125,9 @@ test('tenant Client Bot enablement overrides the platform shared Bot setting', a
     allAsync: async (sql, params) => {
       if (sql.includes('FROM settings')) return [{ key: 'telegram_client_bot_enabled', value: '0' }];
       if (sql.includes('FROM merchants')) return [{ id: 7 }];
-      if (sql.includes('FROM telegram_merchant_bots')) return [{ client_bot_enabled: 1 }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [{ id: 4, client_bot_enabled: 1 }];
       if (sql.includes('FROM stores')) return [{ id: 9 }];
-      if (sql.includes('telegram_customer_bindings')) return [{ id: 42 }];
+      if (sql.includes('telegram_customer_bindings')) return [{ id: 42, bot_config_id: 4 }];
       return [];
     },
     enqueue: async () => { queued = true; },
