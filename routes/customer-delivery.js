@@ -229,10 +229,10 @@ module.exports = function registerCustomerDeliveryRoutes(app, deps) {
       if (Number(tenantBot?.client_bot_enabled) === 1 && tenantBot.client_bot_token_encrypted && tenantBot.webhook_secret_encrypted) {
         // The tenant Bot's credentials are decrypted only server-side. The signed
         // challenge remains bound to this store and merchant.
-        decryptBotToken(tenantBot.client_bot_token_encrypted);
-        decryptBotToken(tenantBot.webhook_secret_encrypted);
-        username = String(tenantBot.client_bot_username || '');
-        if (!/^[A-Za-z0-9_]{5,32}$/.test(username)) return res.status(409).json({ error: '当前商户 Telegram Bot 配置无效' });
+        const tenantToken = decryptBotToken(tenantBot.client_bot_token_encrypted);
+        const tenantSecret = decryptBotToken(tenantBot.webhook_secret_encrypted);
+        if (tenantSecret.length < 32 || tenantSecret.length > 256) return res.status(503).json({ error: '商户 Telegram Bot 安全配置无效' });
+        username = await getTelegramBotUsername({ token: tenantToken });
       } else {
         const rows = await allAsync(
           'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
