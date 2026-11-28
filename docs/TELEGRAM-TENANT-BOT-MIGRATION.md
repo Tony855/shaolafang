@@ -42,6 +42,8 @@ The API registers the tenant Client Bot webhook when it is enabled, and disables
 
 - A tenant's Bot deep links are signed with a tenant-scoped HMAC over `(merchant_id, store_id)`; the signature no longer depends on the merchant notification group Chat ID.
 - The Mini App menu carries the tenant's opaque Bot path token and lists only that merchant's active stores.
+- Customer and merchant-group notifications resolve the tenant's own Client/Admin Bot credentials. A configured tenant Bot profile is authoritative; the platform shared Bot is used only for merchants without a tenant Bot configuration.
+- Group discovery uses the tenant Admin Bot. Its token is not reused by another merchant.
 - Store checkout verifies Telegram `initData` with the tenant Client Bot token, checks that the store belongs to that merchant, and verifies the tenant/store signature again on the server.
 - `/start`, `/stop`, recent-store lookup, customer binding challenges, and webhook update deduplication are scoped to the tenant resolved from the webhook path.
 - Legacy shared-Bot flows remain for unmigrated merchants and are prevented from resolving or revoking bindings belonging to merchants with an enabled tenant Client Bot.
