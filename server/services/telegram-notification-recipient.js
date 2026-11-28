@@ -18,7 +18,7 @@ function createTelegramNotificationRecipientResolver({
       'SELECT admin_bot_enabled, admin_bot_token_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
       [merchantId]
     );
-    if (Array.isArray(tenantBots) && tenantBots.length) {
+    if (Array.isArray(tenantBots) && tenantBots.length && Object.hasOwn(tenantBots[0], 'admin_bot_enabled')) {
       const tenantBot = tenantBots[0];
       if (Number(tenantBot.admin_bot_enabled) !== 1 || !tenantBot.admin_bot_token_encrypted) {
         return { scope, merchantId, storeId, suppressed: true };
@@ -157,7 +157,7 @@ function createTelegramNotificationRecipientResolver({
       [tenantMerchantId]
     );
     let token = '';
-    if (Array.isArray(tenantBots) && tenantBots.length) {
+    if (Array.isArray(tenantBots) && tenantBots.length && Object.hasOwn(tenantBots[0], 'client_bot_enabled')) {
       if (Number(tenantBots[0].client_bot_enabled) !== 1 || !tenantBots[0].client_bot_token_encrypted) {
         return { scope: 'customer', merchantId: tenantMerchantId, storeId: tenantStoreId, suppressed: true, suppressionCode: 'event_disabled' };
       }
