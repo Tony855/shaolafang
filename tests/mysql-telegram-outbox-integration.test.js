@@ -23,6 +23,7 @@ const { ensureTelegramNotificationOutboxSchema } = require('../server/db/migrati
 const { ensureTelegramCustomerBindingSchema } = require('../server/db/migrations/telegram-customer-binding');
 const { ensureTelegramStoreAdminRecipientSchema } = require('../server/db/migrations/telegram-store-admin-recipients');
 const { ensureTelegramMerchantBotSchema } = require('../server/db/migrations/telegram-merchant-bots');
+const { ensureTelegramCustomerBotScopeSchema } = require('../server/db/migrations/telegram-customer-bot-scope');
 const { enqueueTelegramNotification, claimTelegramNotifications, markTelegramNotificationSending, markTelegramNotificationUncertain, markTelegramNotificationDelivered, releaseTelegramNotificationForRetry, cleanupTelegramNotificationHistory } = require('../server/services/telegram-notification-outbox');
 const { processTelegramNotificationBatch } = require('../server/services/telegram-notification-worker');
 
@@ -93,6 +94,7 @@ test('MySQL integration: Telegram outbox migration, rollback, idempotency, lease
   await ensureTelegramStoreAdminRecipientSchema({ runAsync });
   await ensureTelegramStoreAdminRecipientSchema({ runAsync });
   await ensureTelegramMerchantBotSchema({ runAsync });
+  await ensureTelegramCustomerBotScopeSchema({ runAsync });
 
   await runAsync('INSERT INTO telegram_store_admin_recipients (merchant_id,store_id,chat_id,is_enabled,notify_order_created,notify_settled,notify_refunded,created_at,updated_at) VALUES (7,9,\'-100123\',1,1,0,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))');
   await runAsync('INSERT INTO telegram_store_admin_recipients (merchant_id,store_id,chat_id,is_enabled,created_at,updated_at) VALUES (7,10,\'-100456\',1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))');
