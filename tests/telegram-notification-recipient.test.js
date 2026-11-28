@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createTelegramNotificationRecipientResolver } = require('../server/services/telegram-notification-recipient');
+const { encryptBotToken } = require('../server/services/telegram-bot-credentials');
 
 const token = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
 
@@ -140,4 +141,43 @@ test('merchant store recipient resolver suppresses a disabled group even when it
     await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' }),
     { scope: 'merchant_store', merchantId: 7, storeId: 9, suppressed: true }
   );
+});
+
+test('tenant Admin Bot credentials take precedence over the platform shared Bot', async () => {
+  const oldKey = process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+  process.env.TELEGRAM_BOT_ENCRYPTION_KEY = '77'.repeat(32);
+  try {
+    const tenantToken = '987654:tenant-admin-token-abcdefghijklmnopqrstuvwxyz';
+    const calls = [];
+    const resolve = createTelegramNotificationRecipientResolver({ allAsync: async (sql, params) => {
+      calls.push({ sql, params });
+      if (sql.includes('telegram_store_admin_recipients')) return [{ chat_id: '-100777', is_enabled: 1, event_enabled: 1 }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [{ admin_bot_enabled: 1, admin_bot_token_encrypted: encryptBotToken(tenantToken) }];
+      return [{ key: 'telegram_admin_bot_enabled', value: '1' }, { key: 'telegram_admin_bot_token', value: token }];
+    } });
+    const recipient = await resolve({ scope: 'merchant_store', key: 'store:9', merchantId: 7, storeId: 9, eventType: 'order.created' });
+    assert.deepEqual(recipient, { scope: 'merchant_store', merchantId: 7, storeId: 9, token: tenantToken, chatId: '-100777' });
+    assert.equal(calls.some(call => call.sql.includes('FROM settings')), false);
+  } finally {
+    if (oldKey === undefined) delete process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+    else process.env.TELEGRAM_BOT_ENCRYPTION_KEY = oldKey;
+  }
+});
+
+test('tenant Client Bot credentials take precedence for customer notices and a disabled tenant Bot suppresses sends', async () => {
+  const oldKey = process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+  process.env.TELEGRAM_BOT_ENCRYPTION_KEY = '88'.repeat(32);
+  try {
+    const tenantToken = '987654:tenant-client-token-abcdefghijklmnopqrstuvwxyz';
+    const resolve = createTelegramNotificationRecipientResolver({ allAsync: async sql => {
+      if (sql.includes('telegram_customer_bindings')) return [{ id: 42, merchant_id: 7, store_id: 9, telegram_chat_id: '7654321' }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [{ client_bot_enabled: 1, client_bot_token_encrypted: encryptBotToken(tenantToken) }];
+      return [{ key: 'telegram_client_bot_enabled', value: '0' }, { key: 'telegram_client_bot_token', value: token }];
+    } });
+    const recipient = await resolve({ scope: 'customer', key: 'binding:42', merchantId: 7, storeId: 9 });
+    assert.deepEqual(recipient, { scope: 'customer', merchantId: 7, storeId: 9, token: tenantToken, chatId: '7654321' });
+  } finally {
+    if (oldKey === undefined) delete process.env.TELEGRAM_BOT_ENCRYPTION_KEY;
+    else process.env.TELEGRAM_BOT_ENCRYPTION_KEY = oldKey;
+  }
 });
