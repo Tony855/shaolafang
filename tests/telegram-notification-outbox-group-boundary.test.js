@@ -103,6 +103,18 @@ test('group send boundary rejects a changed destination Chat ID after recipient 
 });
 
 
+test('private destination send boundary accepts positive Chat IDs under the same lock sequence', async () => {
+  await withFakePool({ chatId: '765432' }, async calls => {
+    const result = await markTelegramNotificationSending(88, workerId, 60, {
+      scope: 'merchant_store', key: 'destination:21:store:9', merchantId: 7, storeId: 9,
+      eventType: 'order.created', expectedChatId: '765432'
+    });
+    assert.equal(result, true);
+    const query = calls.find(call => call.kind === 'execute' && call.sql.includes('FROM telegram_chat_destinations'));
+    assert.match(query.sql, /chat_type IN \\('private','group','supergroup'\\)/);
+  });
+});
+
 test('disabled Admin Bot is rechecked before a group job can cross the send boundary', async () => {
   await withFakePool({ botEnabled: '0' }, async calls => {
     const result = await markTelegramNotificationSending(88, workerId, 60, {
