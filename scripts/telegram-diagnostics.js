@@ -15,7 +15,7 @@ function toCount(value) {
 function encryptionKeyStatus(value) {
   const configured = Boolean(String(value || '').trim());
   try {
-    loadKey(value);
+    loadKey(value === undefined || value === null ? '' : value);
     return { configured, valid: true };
   } catch (_) {
     return { configured, valid: false };
@@ -58,7 +58,7 @@ async function inspectTenantBots({ rows, env, fetchImpl, expectedBase, limit }) 
     let token;
     let pathToken;
     try {
-      token = decryptBotToken(row.client_bot_token_encrypted, { key: env.TELEGRAM_BOT_ENCRYPTION_KEY });
+      token = decryptBotToken(row.client_bot_token_encrypted, { key: String(env.TELEGRAM_BOT_ENCRYPTION_KEY || '') });
       pathToken = decryptBotToken(row.webhook_path_token_encrypted, { key: env.TELEGRAM_BOT_ENCRYPTION_KEY });
       // Confirm that the webhook secret can also be recovered without returning it.
       decryptBotToken(row.webhook_secret_encrypted, { key: env.TELEGRAM_BOT_ENCRYPTION_KEY });
