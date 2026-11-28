@@ -17,9 +17,12 @@ async function enqueueCustomerTelegramNotification({ allAsync, customerTokenHash
   // -> outbox) shared with the settings/suspension/revocation transactions.
   const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?) ORDER BY `key` FOR UPDATE', ['telegram_admin_bot_enabled', 'telegram_client_bot_enabled']);
   const clientBot = Array.isArray(settings) ? settings.find(row => row.key === 'telegram_client_bot_enabled') : null;
-  if (clientBot?.value !== '1') return false;
   const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchant]);
   if (!Array.isArray(merchants) || !merchants.length) return false;
+  const tenantBots = await allAsync('SELECT client_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE', [merchant]);
+  if (Array.isArray(tenantBots) && tenantBots.length) {
+    if (Number(tenantBots[0].client_bot_enabled) !== 1) return false;
+  } else if (clientBot?.value !== '1') return false;
   const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
   if (!Array.isArray(stores) || !stores.length) return false;
   const bindings = await allAsync(
@@ -56,9 +59,12 @@ async function enqueueStoreAdminTelegramNotification({
   // subscription settings routes and the worker's irreversible-send boundary.
   const settings = await allAsync('SELECT `key`, value FROM settings WHERE `key` IN (?, ?) ORDER BY `key` FOR UPDATE', ['telegram_admin_bot_enabled', 'telegram_client_bot_enabled']);
   const adminBot = Array.isArray(settings) ? settings.find(row => row.key === 'telegram_admin_bot_enabled') : null;
-  if (adminBot?.value !== '1') return false;
   const merchants = await allAsync('SELECT id FROM merchants WHERE id=? AND status=1 FOR UPDATE', [merchant]);
   if (!Array.isArray(merchants) || !merchants.length) return false;
+  const tenantBots = await allAsync('SELECT admin_bot_enabled FROM telegram_merchant_bots WHERE merchant_id=? FOR UPDATE', [merchant]);
+  if (Array.isArray(tenantBots) && tenantBots.length) {
+    if (Number(tenantBots[0].admin_bot_enabled) !== 1) return false;
+  } else if (adminBot?.value !== '1') return false;
   const stores = await allAsync('SELECT id FROM stores WHERE id=? AND merchant_id=? AND active=1 FOR UPDATE', [store, merchant]);
   if (!Array.isArray(stores) || !stores.length) return false;
 
