@@ -1,3 +1,5 @@
+> **Multi-tenant note:** The global Client/Admin Bot configuration below is the legacy compatibility mode for merchants that have not migrated. New tenants should configure their own Client Bot and Admin Bot in **Merchant Admin → Telegram Bot**. Their customer links, webhook secret, Mini App entry, group discovery, and notification sending are scoped to that merchant. See [Tenant Telegram Bot migration](TELEGRAM-TENANT-BOT-MIGRATION.md).
+
 # Telegram Bot configuration
 
 FoodFlow uses exactly two platform-wide Telegram Bots, both configured only by the super administrator:
