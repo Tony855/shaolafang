@@ -3,11 +3,11 @@
 const crypto = require('crypto');
 const { validateBotToken, sendTelegramMessage, setTelegramMenuButton } = require('./telegram-bot');
 const { constantTimeSecretMatch, parseTelegramPrivateUpdate } = require('./telegram-webhook');
-const { createStoreEntrySignature, verifyStoreEntrySignature } = require('./telegram-store-entry');
+const { createStoreEntrySignature, verifyStoreEntrySignature, createTenantStoreEntrySignature, verifyTenantStoreEntrySignature } = require('./telegram-store-entry');
 
 function createTelegramCustomerWebhookHandler({
   getAsync, allAsync, runAsync, withTransaction, secret, getBotToken,
-  merchantId = null, botConfigId = null,
+  merchantId = null, botConfigId = null, webhookPathToken = '',
   sendMessage = sendTelegramMessage, setMenuButton = setTelegramMenuButton, logger = console
 } = {}) {
   for (const [name, fn] of Object.entries({ getAsync, allAsync, runAsync, withTransaction, getBotToken })) {
@@ -96,11 +96,10 @@ function createTelegramCustomerWebhookHandler({
           // directory or trusting an unverified Telegram start parameter.
           const bindings = await allAsync(
             scopedMerchantId
-              ? 'SELECT b.store_id, r.chat_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id JOIN telegram_store_admin_recipients r ON r.merchant_id=b.merchant_id AND r.store_id=b.store_id WHERE b.merchant_id=? AND b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1'
-              : 'SELECT b.store_id, r.chat_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id JOIN telegram_store_admin_recipients r ON r.merchant_id=b.merchant_id AND r.store_id=b.store_id WHERE b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1',
+              ? 'SELECT b.store_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id WHERE b.merchant_id=? AND b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND b.revoked_at IS NULL AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1'
+              : 'SELECT b.store_id, r.chat_id, s.name FROM telegram_customer_bindings b JOIN stores s ON s.id=b.store_id AND s.merchant_id=b.merchant_id JOIN merchants m ON m.id=b.merchant_id JOIN telegram_store_admin_recipients r ON r.merchant_id=b.merchant_id AND r.store_id=b.store_id WHERE b.telegram_chat_id=? AND b.telegram_user_id=? AND b.is_active=1 AND r.is_enabled=1 AND r.chat_id<>\\'\\' AND s.active=1 AND m.status=1 ORDER BY b.updated_at DESC, b.id DESC LIMIT 1',
             scopedMerchantId ? [scopedMerchantId, update.telegramChatId, update.telegramUserId] : [update.telegramChatId, update.telegramUserId]
-          );
-          const binding = Array.isArray(bindings) ? bindings[0] : null;
+          );          const binding = Array.isArray(bindings) ? bindings[0] : null;
           const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
           let publicOrigin = '';
           try {
@@ -108,10 +107,11 @@ function createTelegramCustomerWebhookHandler({
             if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
           } catch (_) {}
           if (binding && publicOrigin) {
-            const signature = createStoreEntrySignature({
-              storeId: binding.store_id, chatId: String(binding.chat_id || ''), secret
-            });
-            const webAppUrl = publicOrigin + '/delivery/order?store_id=' + encodeURIComponent(String(binding.store_id)) + '&entry=' + encodeURIComponent(signature) + '&telegram=1';
+            const signature = scopedMerchantId
+              ? createTenantStoreEntrySignature({ merchantId: scopedMerchantId, storeId: binding.store_id, secret })
+              : createStoreEntrySignature({ storeId: binding.store_id, chatId: String(binding.chat_id || ''), secret });
+            const botQuery = scopedMerchantId && /^[A-Za-z0-9_-]{43}$/.test(webhookPathToken) ? '&bot=' + encodeURIComponent(webhookPathToken) : '';
+            const webAppUrl = publicOrigin + '/delivery/order?store_id=' + encodeURIComponent(String(binding.store_id)) + '&entry=' + encodeURIComponent(signature) + '&telegram=1' + botQuery;
             bound = {
               chatId: update.telegramChatId,
               text: '欢迎回来 FoodFlow' + (binding.name ? ' · ' + String(binding.name).slice(0, 80) : '') + '。已自动为你打开最近绑定的门店。',
@@ -130,20 +130,21 @@ function createTelegramCustomerWebhookHandler({
         if (update.action === 'delivery') {
           const recipient = await getAsync(
             scopedMerchantId
-              ? 'SELECT r.chat_id, r.is_enabled, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.merchant_id=? AND r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 LIMIT 1'
-              : 'SELECT r.chat_id, r.is_enabled, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\'\' AND s.active=1 AND m.status=1 LIMIT 1',
+              ? 'SELECT s.id, s.name, s.merchant_id FROM stores s JOIN merchants m ON m.id=s.merchant_id WHERE s.merchant_id=? AND s.id=? AND s.active=1 AND m.status=1 LIMIT 1'
+              : 'SELECT r.chat_id, r.is_enabled, s.id, s.name, s.merchant_id FROM telegram_store_admin_recipients r JOIN stores s ON s.id=r.store_id AND s.merchant_id=r.merchant_id JOIN merchants m ON m.id=r.merchant_id WHERE r.store_id=? AND r.is_enabled=1 AND r.chat_id<>\\'\\' AND s.active=1 AND m.status=1 LIMIT 1',
             scopedMerchantId ? [scopedMerchantId, update.storeId] : [update.storeId]
-          );
-          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
+          );          const publicUrl = String(process.env.FOODFLOW_PUBLIC_URL || '').trim().replace(/\/+$/, '');
           let publicOrigin = '';
           try {
             const parsed = new URL(publicUrl);
             if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) publicOrigin = parsed.origin;
           } catch (_) {}
-          if (recipient && publicOrigin && verifyStoreEntrySignature({
-            storeId: recipient.id, chatId: String(recipient.chat_id || ''), secret, signature: update.entrySignature
-          })) {
-            const webAppUrl = publicOrigin + '/delivery/order?store_id=' + encodeURIComponent(String(recipient.id)) + '&entry=' + encodeURIComponent(update.entrySignature) + '&telegram=1';
+          const validEntry = scopedMerchantId
+            ? recipient && verifyTenantStoreEntrySignature({ merchantId: scopedMerchantId, storeId: recipient.id, secret, signature: update.entrySignature })
+            : recipient && verifyStoreEntrySignature({ storeId: recipient.id, chatId: String(recipient.chat_id || ''), secret, signature: update.entrySignature });
+          if (recipient && publicOrigin && validEntry) {
+            const botQuery = scopedMerchantId && /^[A-Za-z0-9_-]{43}$/.test(webhookPathToken) ? '&bot=' + encodeURIComponent(webhookPathToken) : '';
+            const webAppUrl = publicOrigin + '/delivery/order?store_id=' + encodeURIComponent(String(recipient.id)) + '&entry=' + encodeURIComponent(update.entrySignature) + '&telegram=1' + botQuery;
             bound = {
               chatId: update.telegramChatId,
               text: '欢迎使用 FoodFlow' + (recipient.name ? ' · ' + String(recipient.name).slice(0, 80) : '') + '。此入口已绑定当前门店。',
