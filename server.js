@@ -1481,6 +1481,7 @@ require('./routes/admin-manage.js')(app, { getAsync, runAsync, allAsync, withTra
 // ----- 货币+显示+通知设置 -----
 require('./routes/admin-settings.js')(app, { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission, getClientIp });
 require('./routes/admin-telegram-destinations.js')(app, { getAsync, allAsync, runAsync, withTransaction, requireAdminKey, requirePermission, getClientIp });
+require('./routes/admin-telegram-bots.js')(app, { getAsync, runAsync, withTransaction, requireAdminKey, requirePermission, getClientIp });
 
 
 // ----- 二维码 -----
