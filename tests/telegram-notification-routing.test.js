@@ -43,6 +43,7 @@ test('staging routing enqueues one idempotent outbox row per active subscribed d
         { key: 'telegram_client_bot_enabled', value: '1' }
       ];
       if (sql.includes('FROM merchants')) return [{ id: 7 }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [];
       if (sql.includes('FROM stores')) return [{ id: 9 }];
       if (sql.includes('SELECT destination_id FROM telegram_store_subscriptions')) return [{ destination_id: 21 }, { destination_id: 22 }, { destination_id: 21 }];
       if (sql.includes('FROM telegram_chat_destinations')) return [{ id: 21 }, { id: 22 }];
@@ -72,6 +73,7 @@ test('staging routing never falls back to legacy recipients when no group subscr
       calls.push(sql);
       if (sql.includes('FROM settings')) return [{ key: 'telegram_admin_bot_enabled', value: '1' }];
       if (sql.includes('FROM merchants')) return [{ id: 7 }];
+      if (sql.includes('FROM telegram_merchant_bots')) return [];
       if (sql.includes('FROM stores')) return [{ id: 9 }];
       if (sql.includes('telegram_store_subscriptions')) return [];
       throw new Error('unexpected query');
