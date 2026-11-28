@@ -101,10 +101,16 @@ test('destination creation accepts only group Chat IDs and derives merchant from
   assert.equal(insert.params.includes(999), false);
 });
 
-test('destination creation rejects private chat IDs and globally duplicated Chat IDs', async () => {
+test('destination creation accepts private IDs and rejects malformed or globally duplicated IDs', async () => {
+  const privateDestination = setup();
+  const privateRes = response();
+  await handler(privateDestination.routes, 'POST', '/api/admin/telegram/destinations')(req({ body: { chatId: '123456789', title: '@manager' } }), privateRes);
+  assert.equal(privateRes.statusCode, 201);
+  assert.equal(privateRes.body.destination.chat_type, 'private');
+
   const invalid = setup();
   const invalidRes = response();
-  await handler(invalid.routes, 'POST', '/api/admin/telegram/destinations')(req({ body: { chatId: '123456789' } }), invalidRes);
+  await handler(invalid.routes, 'POST', '/api/admin/telegram/destinations')(req({ body: { chatId: '1234' } }), invalidRes);
   assert.equal(invalidRes.statusCode, 400);
   const duplicate = setup({ duplicateChat: true });
   const duplicateRes = response();
