@@ -1,16 +1,29 @@
 const { parsePositiveRouteId } = require('../server/services/route-id');
 const { normalizeRouteError } = require('../server/utils/http-error');
 const { validateChatId, getTelegramBotUsername, getTelegramGroupChats } = require('../server/services/telegram-bot');
-const { createStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { createStoreEntrySignature, createTenantStoreEntrySignature } = require('../server/services/telegram-store-entry');
+const { decryptBotToken } = require('../server/services/telegram-bot-credentials');
 /* ============================================================
    routes/admin-settings.js — 货币 + 显示设置 + 通知设置
    ============================================================ */
 module.exports = function(app, deps) {
   const { getAsync, runAsync, allAsync, withTransaction, requireAdminKey, requirePermission, getClientIp } = deps;
 
-  async function getStoreEntryLink(storeId, chatId) {
-    const secret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
-    if (!chatId || secret.length < 32 || secret.length > 256) return null;
+  async function getStoreEntryLink(storeId, merchantId, chatId) {
+    const tenantBot = await getAsync(
+      'SELECT client_bot_enabled, client_bot_token_encrypted, webhook_secret_encrypted FROM telegram_merchant_bots WHERE merchant_id=? LIMIT 1',
+      [merchantId]
+    );
+    if (Number(tenantBot?.client_bot_enabled) === 1 && tenantBot.client_bot_token_encrypted && tenantBot.webhook_secret_encrypted) {
+      const token = decryptBotToken(tenantBot.client_bot_token_encrypted);
+      const secret = decryptBotToken(tenantBot.webhook_secret_encrypted);
+      const username = await getTelegramBotUsername({ token });
+      const signature = createTenantStoreEntrySignature({ merchantId, storeId, secret });
+      return 'https://t.me/' + username + '?start=delivery_' + storeId + '_' + signature;
+    }
+    // Backward compatibility for merchants that have not migrated to their own Bot yet.
+    const legacySecret = String(process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET || '');
+    if (!chatId || legacySecret.length < 32 || legacySecret.length > 256) return null;
     const rows = await allAsync(
       'SELECT `key`, value FROM settings WHERE `key` IN (?, ?)',
       ['telegram_client_bot_enabled', 'telegram_client_bot_token']
@@ -20,7 +33,7 @@ module.exports = function(app, deps) {
     const token = String(config.telegram_client_bot_token || '');
     if (!token) return null;
     const username = await getTelegramBotUsername({ token });
-    const signature = createStoreEntrySignature({ storeId, chatId, secret });
+    const signature = createStoreEntrySignature({ storeId, chatId, secret: legacySecret });
     return 'https://t.me/' + username + '?start=delivery_' + storeId + '_' + signature;
   }
 
@@ -326,7 +339,7 @@ module.exports = function(app, deps) {
       );
       const bot = await getAsync("SELECT value FROM settings WHERE `key`='telegram_admin_bot_enabled'");
       let storeEntryLink = null;
-      try { storeEntryLink = await getStoreEntryLink(storeId, Number(row?.is_enabled) === 1 ? String(row?.chat_id || '') : ''); } catch (_) {}
+      try { storeEntryLink = await getStoreEntryLink(storeId, merchantId, Number(row?.is_enabled) === 1 ? String(row?.chat_id || '') : ''); } catch (_) {}
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({
         enabled: Boolean(row && Number(row.is_enabled) === 1 && validateChatId(String(row.chat_id || ''))),
@@ -415,7 +428,7 @@ module.exports = function(app, deps) {
         }, 'store');
       });
       let storeEntryLink = null;
-      try { storeEntryLink = await getStoreEntryLink(storeId, chatId); } catch (_) { /* Binding is saved; link can be refreshed after Bot configuration is available. */ }
+      try { storeEntryLink = await getStoreEntryLink(storeId, merchantId, chatId); } catch (_) { /* Binding is saved; link can be refreshed after Bot configuration is available. */ }
       res.setHeader('Cache-Control', 'no-store, private');
       res.json({ success: true, enabled: !!enabled, chatId, storeEntryLink, notifyOrderCreated: !!notifyOrderCreated, notifySettled: !!notifySettled, notifyRefunded: !!notifyRefunded });
     } catch (error) {
