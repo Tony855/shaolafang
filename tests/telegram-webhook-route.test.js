@@ -22,7 +22,7 @@ function setup({ duplicate = false, challengeRow = true, expired = false, consum
     },
     getAsync: async (sql, params = []) => {
       calls.push(['get', sql, params]);
-      if (sql.includes('telegram_merchant_bots')) return { id: 22, merchant_id: 7, client_bot_token_encrypted: 'encrypted-token', webhook_secret_encrypted: 'encrypted-secret' };
+      if (sql.includes('telegram_merchant_bots')) return { id: 22, merchant_id: 7, client_bot_token_encrypted: 'encrypted-token', webhook_path_token_encrypted: 'encrypted-path', webhook_secret_encrypted: 'encrypted-secret' };
       if (sql.includes('telegram_customer_binding_challenges')) return challengeRow && !expired && !consumed ? {
         id: 5, customer_token_hash: 'a'.repeat(64), merchant_id: 7, store_id: 9,
         expires_at: new Date(Date.now() + (expired ? -60000 : 60000)), consumed_at: consumed ? new Date() : null
@@ -36,7 +36,7 @@ function setup({ duplicate = false, challengeRow = true, expired = false, consum
       return { affectedRows: 1 };
     },
     withTransaction: async fn => fn(),
-    decryptCredential: value => value === 'encrypted-token' ? token : secret
+    decryptCredential: value => value === 'encrypted-token' ? token : value === 'encrypted-path' ? pathToken : secret
   };
   process.env.TELEGRAM_CLIENT_WEBHOOK_SECRET = secret;
   registerTelegramWebhook(app, deps);
